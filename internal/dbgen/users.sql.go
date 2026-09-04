@@ -109,6 +109,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1
+`
+
+// DeleteUser undoes a registration whose invite turned out to be spent.
+// Only ever a brand-new row: nothing references it yet.
+func (q *Queries) DeleteUser(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
 const getUserAvatarForUpdate = `-- name: GetUserAvatarForUpdate :one
 SELECT avatar_file_id FROM users WHERE id = $1 FOR UPDATE
 `

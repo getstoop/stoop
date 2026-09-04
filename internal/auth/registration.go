@@ -57,35 +57,58 @@ func (s *Service) UseRegistrationPorts(policy RegistrationPolicy, invites Invite
 
 // checkRegistrationAllowed applies the policy to a registration attempt.
 // The first account on a fresh instance is always allowed (bootstrap).
-func (s *Service) checkRegistrationAllowed(ctx context.Context, inviteCode string, existingUsers int64) error {
+// inviteRequired reports that the invite is what admitted this sign-up,
+// so a failed redemption later must undo the account (redeemInvite).
+func (s *Service) checkRegistrationAllowed(ctx context.Context, inviteCode string, existingUsers int64) (inviteRequired bool, err error) {
 	if existingUsers == 0 || s.policy == nil {
-		return nil
+		return false, nil
 	}
 	// Instance admins may create accounts under any policy (the admin page
 	// and dev seeding rely on this).
 	if authctx.IsAdmin(ctx) {
-		return nil
+		return false, nil
 	}
 	policy, err := s.policy.RegistrationPolicy(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	switch policy {
 	case PolicyOpen:
-		return nil
+		return false, nil
 	case PolicyClosed:
-		return connect.NewError(connect.CodePermissionDenied,
+		return false, connect.NewError(connect.CodePermissionDenied,
 			errors.New("this server isn't accepting new accounts"))
 	default: // invite
 		if inviteCode == "" {
-			return connect.NewError(connect.CodePermissionDenied,
+			return false, connect.NewError(connect.CodePermissionDenied,
 				errors.New("an invite code is required to create an account on this server"))
 		}
 		if s.invites == nil {
-			return connect.NewError(connect.CodeFailedPrecondition, errors.New("invites are not configured"))
+			return false, connect.NewError(connect.CodeFailedPrecondition, errors.New("invites are not configured"))
 		}
-		return s.invites.ValidateInvite(ctx, inviteCode)
+		return true, s.invites.ValidateInvite(ctx, inviteCode)
 	}
+}
+
+// redeemInvite joins a just-created account to the invite's space. The
+// invite is validated before the account exists and consumed after, so N
+// concurrent sign-ups on a single-use code all pass validation and only
+// one wins the consume. When the invite was what admitted the sign-up, the
+// losers' accounts are removed again and the invite's refusal is returned;
+// under an open policy a stale code is merely a missed join.
+func (s *Service) redeemInvite(ctx context.Context, user dbgen.User, code string, required bool) (string, error) {
+	spaceID, err := s.invites.RedeemInvite(ctx, code, user.ID)
+	if err == nil {
+		return spaceID, nil
+	}
+	if !required {
+		slog.Warn("invite not redeemed after registration", "user_id", user.ID, "err", err)
+		return "", nil
+	}
+	if derr := s.q.DeleteUser(ctx, user.ID); derr != nil {
+		slog.Error("undo registration after spent invite", "user_id", user.ID, "err", derr)
+	}
+	return "", err
 }
 
 func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
@@ -113,7 +136,8 @@ func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.Regi
 	if err != nil {
 		return nil, fmt.Errorf("count users: %w", err)
 	}
-	if err := s.checkRegistrationAllowed(ctx, inviteCode, existing); err != nil {
+	inviteRequired, err := s.checkRegistrationAllowed(ctx, inviteCode, existing)
+	if err != nil {
 		return nil, err
 	}
 	// Password sign-up follows the password sign-in setting; the first
@@ -140,16 +164,12 @@ func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.Regi
 	}
 
 	resp := &authv1.RegisterResponse{User: toProtoUser(user)}
-	// Redeem after the account exists. If the code was exhausted in the
-	// meantime the account still stands; the user just isn't in the space
-	// and can try another code once logged in.
 	if inviteCode != "" && s.invites != nil {
-		spaceID, err := s.invites.RedeemInvite(ctx, inviteCode, user.ID)
+		spaceID, err := s.redeemInvite(ctx, user, inviteCode, inviteRequired)
 		if err != nil {
-			slog.Warn("invite not redeemed after registration", "user_id", user.ID, "err", err)
-		} else {
-			resp.JoinedSpaceId = spaceID
+			return nil, err
 		}
+		resp.JoinedSpaceId = spaceID
 	}
 	return connect.NewResponse(resp), nil
 }
