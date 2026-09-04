@@ -108,9 +108,18 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
+		if !s.inflight.acquire(identity.UserID) {
+			writeError(w, http.StatusTooManyRequests, tooManyUploadsMessage)
+			return
+		}
+		defer s.inflight.release(identity.UserID)
 
 		info, err := s.storeAttachment(r, identity.UserID, spaceID, part, header.Size, header.Filename)
 		if err != nil {
+			if errors.Is(err, ErrStorageFull) {
+				writeError(w, http.StatusInsufficientStorage, "the server's "+err.Error())
+				return
+			}
 			s.log.Error("store attachment", "err", err)
 			writeError(w, http.StatusInternalServerError, "could not store the file")
 			return
@@ -168,7 +177,7 @@ func (s *Service) storeAttachment(r *http.Request, ownerID, spaceID string, part
 	if spaceID != "" {
 		space = &spaceID
 	}
-	f, err := s.q.CreateFile(ctx, dbgen.CreateFileParams{
+	f, err := s.recordFile(ctx, dbgen.CreateFileParams{
 		ID: id.String(), Kind: string(KindAttachment), OwnerID: ownerID, SpaceID: space,
 		ContentType: contentType, Size: size, Sha256: hasher.Sum(nil), StorageKey: key,
 		Name: sanitizeFilename(filename),
@@ -176,6 +185,9 @@ func (s *Service) storeAttachment(r *http.Request, ownerID, spaceID string, part
 	if err != nil {
 		if derr := s.store.Delete(ctx, key); derr != nil {
 			s.log.Warn("orphan blob after failed insert", "key", key, "err", derr)
+		}
+		if errors.Is(err, ErrStorageFull) {
+			return Info{}, err
 		}
 		return Info{}, fmt.Errorf("record file: %w", err)
 	}

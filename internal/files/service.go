@@ -94,6 +94,7 @@ type SessionVerifier interface {
 
 type Service struct {
 	q        *dbgen.Queries
+	pool     *pgxpool.Pool
 	store    blob.Store
 	bus      events.Bus
 	avatars  Avatars
@@ -101,14 +102,15 @@ type Service struct {
 	sessions SessionVerifier
 	policy   Policy
 	grace    time.Duration
+	inflight *inflight
 	log      *slog.Logger
 }
 
 func New(pool *pgxpool.Pool, store blob.Store, bus events.Bus, avatars Avatars, spaces Spaces, sessions SessionVerifier, log *slog.Logger) *Service {
 	return &Service{
-		q: dbgen.New(pool), store: store, bus: bus,
+		q: dbgen.New(pool), pool: pool, store: store, bus: bus,
 		avatars: avatars, spaces: spaces, sessions: sessions, log: log,
-		grace: DefaultSweepGrace,
+		grace: DefaultSweepGrace, inflight: newInflight(MaxInflightUploads),
 	}
 }
 

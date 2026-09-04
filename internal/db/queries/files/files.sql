@@ -30,3 +30,8 @@ SELECT storage_key FROM files WHERE storage_key = ANY(sqlc.arg(keys)::text[]);
 
 -- name: StorageUsage :one
 SELECT COALESCE(SUM(size), 0)::bigint AS bytes, count(*)::bigint AS files FROM files;
+
+-- LockStorageQuota serialises quota-checked inserts for the transaction
+-- (see files.recordFile). The key is arbitrary and only used here.
+-- name: LockStorageQuota :exec
+SELECT pg_advisory_xact_lock(4207011);

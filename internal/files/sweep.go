@@ -58,25 +58,75 @@ func (s *Service) UseSweepGrace(d time.Duration) {
 var ErrStorageFull = errors.New("upload storage is full")
 
 // checkQuota fails with ErrStorageFull if adding size would pass the cap.
+// It is the cheap early answer before any bytes are accepted; recordFile
+// is the one that holds.
 func (s *Service) checkQuota(ctx context.Context, size int64) error {
-	if s.policy == nil {
-		return nil
-	}
-	quota, err := s.policy.StorageQuotaBytes(ctx)
-	if err != nil {
-		return fmt.Errorf("read quota: %w", err)
-	}
-	if quota <= 0 {
-		return nil
+	quota, err := s.quota(ctx)
+	if err != nil || quota <= 0 {
+		return err
 	}
 	u, err := s.q.StorageUsage(ctx)
 	if err != nil {
 		return fmt.Errorf("storage usage: %w", err)
 	}
-	if u.Bytes+size > quota {
-		return fmt.Errorf("%w (%s of %s used)", ErrStorageFull, FormatBytes(u.Bytes), FormatBytes(quota))
+	return fits(u.Bytes, size, quota)
+}
+
+func (s *Service) quota(ctx context.Context) (int64, error) {
+	if s.policy == nil {
+		return 0, nil
+	}
+	quota, err := s.policy.StorageQuotaBytes(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("read quota: %w", err)
+	}
+	return quota, nil
+}
+
+func fits(used, size, quota int64) error {
+	if used+size > quota {
+		return fmt.Errorf("%w (%s of %s used)", ErrStorageFull, FormatBytes(used), FormatBytes(quota))
 	}
 	return nil
+}
+
+// recordFile inserts the file row, and with a quota set it does so under
+// an advisory lock with the usage summed inside the same transaction, so
+// N uploads that each passed checkQuota while the others were in flight
+// cannot all land. The caller has already written the blob; on
+// ErrStorageFull it removes it again.
+func (s *Service) recordFile(ctx context.Context, p dbgen.CreateFileParams) (dbgen.File, error) {
+	quota, err := s.quota(ctx)
+	if err != nil {
+		return dbgen.File{}, err
+	}
+	if quota <= 0 {
+		return s.q.CreateFile(ctx, p)
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return dbgen.File{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
+	qtx := s.q.WithTx(tx)
+	if err := qtx.LockStorageQuota(ctx); err != nil {
+		return dbgen.File{}, fmt.Errorf("lock quota: %w", err)
+	}
+	u, err := qtx.StorageUsage(ctx)
+	if err != nil {
+		return dbgen.File{}, fmt.Errorf("storage usage: %w", err)
+	}
+	if err := fits(u.Bytes, p.Size, quota); err != nil {
+		return dbgen.File{}, err
+	}
+	f, err := qtx.CreateFile(ctx, p)
+	if err != nil {
+		return dbgen.File{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return dbgen.File{}, fmt.Errorf("commit: %w", err)
+	}
+	return f, nil
 }
 
 // maxUploadBytes is the cap one attachment is measured against
