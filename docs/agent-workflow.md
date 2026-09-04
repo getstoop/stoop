@@ -1,17 +1,17 @@
 # Working on Stoop with a coding agent
 
-How tickets get handed to an agent (Hermes on the local gateway today, but
-nothing here is Hermes-specific except where noted), and the traps this
-environment has that an agent will fall into unless told. Everything below
-was paid for on real sessions; keep it current when a new one bites.
+How work gets handed to a coding agent, whichever harness runs it, and
+the traps this codebase has that an agent will fall into unless told.
+Everything below was paid for on real sessions; keep it current when a
+new one bites. "The maintainer" below is whoever is directing the agent.
 
 ## The brief
 
 One ticket per session, one phase per ticket. A brief that works has these
 sections, in this order:
 
-1. **The ticket** — what to build, in prose the agent can act on. Say which
-   Plane ticket, and that it must not create new work items.
+1. **The ticket** — what to build, in prose the agent can act on. Name the
+   issue or tracker item, and say that the agent must not create new ones.
 2. **Orientation (read before writing code)** — the 4–6 files that matter,
    with one line each on *why* (e.g. "`useFormatting` relies on the
    textarea's own selection").
@@ -29,9 +29,9 @@ sections, in this order:
 6. **Housekeeping** — work on a branch and open a pull request (see "How
    a change lands" below; `main` refuses direct pushes), commit via
    `git commit -F <file>` with the trailer
-   `Co-Authored-By: <the agent's own name>`, README roadmap line, doc
-   updates, and "report faithfully: if a spec fails or you skipped a step,
-   say so rather than declaring done".
+   `Co-Authored-By: <the agent's own name>`, doc updates, and "report
+   faithfully: if a spec fails or you skipped a step, say so rather than
+   declaring done".
 
 ## How to build, run, and verify (paste into every brief)
 
@@ -40,8 +40,18 @@ sections, in this order:
   `STOOP_TEST_DATABASE_URL`, `STOOP_E2E_DATABASE_URL`, `STOOP_E2E_BASE_URL`,
   `STOOP_URL`, `STOOP_LISTEN_ADDR` (`:8091`) and `STOOP_ALLOWED_WS_ORIGINS`
   to the dev-compose defaults. Never type a DB URL or password into a
-  command — use the variables (see the Hermes redaction trap below). If the
-  file is missing, create it from the values in this section.
+  command — use the variables (see the redaction trap below). If the file
+  is missing, this is it for the dev compose stack:
+
+  ```sh
+  STOOP_DATABASE_URL=postgres://stoop:stoop@localhost:5440/stoop?sslmode=disable
+  STOOP_TEST_DATABASE_URL=postgres://stoop:stoop@localhost:5440/stoop?sslmode=disable
+  STOOP_E2E_DATABASE_URL=postgres://stoop:stoop@localhost:5440/stoop?sslmode=disable
+  STOOP_E2E_BASE_URL=http://localhost:8091
+  STOOP_URL=http://localhost:8091
+  STOOP_LISTEN_ADDR=:8091
+  STOOP_ALLOWED_WS_ORIGINS=localhost:*,127.0.0.1:*
+  ```
 - Run everything from the repo root: `make lint`, `make test`, `make build`.
   There is no Makefile inside `web/`.
 - Go tests need Postgres (`STOOP_TEST_DATABASE_URL`, set by `.env`; the dev
@@ -62,12 +72,13 @@ sections, in this order:
   `STOOP_ALLOWED_WS_ORIGINS`): `/abs/path/to/bin/stoop`.
   Before starting, `lsof -nP -iTCP:8091 -sTCP:LISTEN` and stop **only** a
   previous `bin/stoop` there.
-- **Never kill whatever listens on 8080, 5173, 5432 or 443** — other
-  projects' Docker containers; `kill -9` there takes down Docker Desktop.
-  If a port you need is taken, pick another.
+- **Never kill a listener you did not start.** On a developer's machine
+  the neighbouring ports (8080, 5173, 5432, 443) are other projects'
+  containers, and a `kill -9` there can take down Docker Desktop. If a
+  port you need is taken, pick another.
 - **Do not run any browser spec — `make e2e`, `scripts/e2e-scratch.sh` or
-  `node e2e/run.mjs <spec>` — until the user has reviewed the change on the
-  running dev instance and said so.** Iterate with `make lint`, `make test`,
+  `node e2e/run.mjs <spec>` — until the maintainer has reviewed the change
+  on their running dev instance and said so.** Iterate with `make lint`, `make test`,
   `make build`, a restarted `bin/stoop`, and (for UI work) your own
   puppeteer screenshots; then present the change set and wait. Once
   approved, `make e2e` builds, then runs every spec (~7 minutes) on a
@@ -120,7 +131,7 @@ got big enough that a red `main` cost more than the round-trip saves.
 - **Enter sends.** A newline in the composer is Shift+Enter. A puppeteer
   script that does `page.type("…\n…")` posts a message per line (as the
   seeded user) instead of building a multi-line draft.
-- **The e2e suite needs the user's go-ahead.** Don't run it per-iteration;
+- **The e2e suite needs the maintainer's go-ahead.** Don't run it per-iteration;
   rebuild, restart, and let a human look. Run it once, as the gate before
   commit, after the change has been approved. `make e2e` no longer touches
   the dev database, but `node e2e/run.mjs` on its own still wipes whatever
@@ -202,8 +213,8 @@ got big enough that a red `main` cost more than the round-trip saves.
   much slower spec belongs there; the run summary prints every spec's
   seconds to copy from. The branch ruleset requires only the roll-up job
   named "Browser E2E" — add or remove shards without touching it.
-- **`make dev-reset` wipes whatever the user typed on the dev instance.**
-  They often try a change live; say so before running, and expect the
+- **`make dev-reset` wipes whatever the maintainer typed on the dev
+  instance.** They often try a change live; say so before running, and expect the
   seeded cast ("The Stoop" and "Basement Arcade") afterwards — their test
   messages and channels are gone. `make e2e` does not do this any more.
 - **Adding a theme is four touches plus the prose that counts them.**
@@ -254,22 +265,20 @@ got big enough that a red `main` cost more than the round-trip saves.
   overlay is paint-only; see the comment in `web/src/styles/composer.css` and the width
   checks in `web/e2e/composer-styling.mjs`.
 
-### Hermes-specific
+### Harness traps
 
-- **Secrets in the brief get redacted to `***` in the agent's own transcript
-  and replayed literally after a context compaction.** Seen as `make test`
-  failing with `password authentication failed for user "stoop"` after the
-  agent had passed the DB URL inline for an hour — it was now sending the
-  string `***`. It then "fixed" the database (`ALTER ROLE`). Give secrets as
-  environment variables the agent can `source` (a `.env`), not as inline
-  text, and if this symptom appears tell it the literal value and to
-  re-type the command — never to change Postgres.
-- **Long commands die at 180 s unless run correctly.** Hermes' foreground
-  default is 180 s (max 600 s). `make e2e` takes ~7 min. The agent must send
-  `background: true` **and** `notify_on_complete: true` (it repeatedly sent
-  only the second and killed its own suite — `make: *** [e2e] Terminated: 15`
-  plus a puppeteer "detached Frame" error), or `timeout: 600` in the
-  foreground. `nohup`/`setsid` wrappers are rejected by the harness.
-- **Interactive `/model` switching needs the legacy `custom_providers` list**
-  in the Hermes config, not the v12 `providers:` dict — see the home-infra
-  Hermes README for why.
+- **Secrets in the brief may be redacted to `***` in the agent's own
+  transcript and replayed literally after a context compaction.** Seen as
+  `make test` failing with `password authentication failed for user
+  "stoop"` after an agent had passed the DB URL inline for an hour — it
+  was now sending the string `***`. It then "fixed" the database
+  (`ALTER ROLE`). Give secrets as environment variables the agent can
+  `source` (a `.env`), not as inline text, and if this symptom appears
+  tell it the literal value and to re-type the command — never to change
+  Postgres.
+- **Long commands die at the harness's foreground timeout.** `make e2e`
+  takes ~7 min; run it in the background with completion notification, or
+  raise the timeout, rather than letting the harness kill the suite
+  (`make: *** [e2e] Terminated: 15` plus a puppeteer "detached Frame"
+  error is what that looks like). `nohup`/`setsid` wrappers may be
+  rejected by the harness.

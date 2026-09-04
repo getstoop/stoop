@@ -281,8 +281,8 @@ TURN relay. An HTTP-only tunnel therefore gives a silent room unless a
 reachable TURN server is configured. This must be said plainly wherever
 setup guidance appears, including the setup wizard.
 
-Making exposure easier is tracked as STOOP-48, deliberately as two
-complementary stories rather than one:
+Exposure is made easier by two complementary pieces, both shipped and
+described for operators in `docs/self-hosting.md`:
 
 - **TURN support in Stoop** — static credentials, or Cloudflare TURN
   credentials minted per join and returned from `JoinVoiceChannel` — so

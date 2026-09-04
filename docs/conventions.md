@@ -112,6 +112,6 @@ here was written after a file got too big to work in.
 ## Comments: short and concise
 
 - Comments should be concise and limited to the scope of the code they are addressing.
-- Large explinations or how-to's belong in documentaion not in code.
-- If a codes outcome cannot accurately be predicted by reading the code itself, 
-  consider changing the code to be more readable.
+- Large explanations and how-tos belong in documentation, not in code.
+- If a piece of code's outcome cannot be predicted by reading the code
+  itself, consider changing the code to be more readable.
