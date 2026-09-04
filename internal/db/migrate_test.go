@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/db"
-	"github.com/Jhut89/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/db"
+	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
 func TestMigrateToleratesNewerAdditiveSchema(t *testing.T) {

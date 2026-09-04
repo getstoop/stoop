@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Jhut89/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // secureTransport tells handlers whether this request came in over TLS —

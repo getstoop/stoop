@@ -9,11 +9,11 @@ import (
 
 	"connectrpc.com/connect"
 
-	authv1 "github.com/Jhut89/stoop/gen/stoop/auth/v1"
-	instancev1 "github.com/Jhut89/stoop/gen/stoop/instance/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/db/dbtest"
-	"github.com/Jhut89/stoop/internal/instance"
+	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/instance"
 )
 
 // fakeUsers is an in-memory UserAdmin.

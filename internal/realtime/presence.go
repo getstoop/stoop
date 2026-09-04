@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 )
 
 // presence is the gateway's in-memory view of who is connected. It is

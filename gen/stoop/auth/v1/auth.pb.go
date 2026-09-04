@@ -1279,8 +1279,8 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\x0eGetUserProfile\x12$.stoop.auth.v1.GetUserProfileRequest\x1a%.stoop.auth.v1.GetUserProfileResponse\"\x00\x12_\n" +
 	"\x0eChangePassword\x12$.stoop.auth.v1.ChangePasswordRequest\x1a%.stoop.auth.v1.ChangePasswordResponse\"\x00\x12_\n" +
 	"\x0eListIdentities\x12$.stoop.auth.v1.ListIdentitiesRequest\x1a%.stoop.auth.v1.ListIdentitiesResponse\"\x00\x12_\n" +
-	"\x0eUnlinkIdentity\x12$.stoop.auth.v1.UnlinkIdentityRequest\x1a%.stoop.auth.v1.UnlinkIdentityResponse\"\x00B\xa6\x01\n" +
-	"\x11com.stoop.auth.v1B\tAuthProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/auth/v1;authv1\xa2\x02\x03SAX\xaa\x02\rStoop.Auth.V1\xca\x02\rStoop\\Auth\\V1\xe2\x02\x19Stoop\\Auth\\V1\\GPBMetadata\xea\x02\x0fStoop::Auth::V1b\x06proto3"
+	"\x0eUnlinkIdentity\x12$.stoop.auth.v1.UnlinkIdentityRequest\x1a%.stoop.auth.v1.UnlinkIdentityResponse\"\x00B\xa8\x01\n" +
+	"\x11com.stoop.auth.v1B\tAuthProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/auth/v1;authv1\xa2\x02\x03SAX\xaa\x02\rStoop.Auth.V1\xca\x02\rStoop\\Auth\\V1\xe2\x02\x19Stoop\\Auth\\V1\\GPBMetadata\xea\x02\x0fStoop::Auth::V1b\x06proto3"
 
 var (
 	file_stoop_auth_v1_auth_proto_rawDescOnce sync.Once

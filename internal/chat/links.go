@@ -10,10 +10,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
-	"github.com/Jhut89/stoop/internal/dbgen"
-	"github.com/Jhut89/stoop/internal/events"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 // Link previews. URLs in a message are recorded at send time; a worker

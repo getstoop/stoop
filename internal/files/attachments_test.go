@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Jhut89/stoop/internal/files"
+	"github.com/getstoop/stoop/internal/files"
 )
 
 // upload posts a multipart form as the given test user and returns the

@@ -9,10 +9,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/alexedwards/argon2id"
 
-	authv1 "github.com/Jhut89/stoop/gen/stoop/auth/v1"
-	"github.com/Jhut89/stoop/internal/auth"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/db/dbtest"
+	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	"github.com/getstoop/stoop/internal/auth"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
 // Cheap hashing so the race test's concurrency isn't dominated by argon2.

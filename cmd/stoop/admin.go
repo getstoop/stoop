@@ -8,11 +8,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/Jhut89/stoop/internal/auth"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/config"
-	"github.com/Jhut89/stoop/internal/db"
-	"github.com/Jhut89/stoop/internal/instance"
+	"github.com/getstoop/stoop/internal/auth"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/config"
+	"github.com/getstoop/stoop/internal/db"
+	"github.com/getstoop/stoop/internal/instance"
 )
 
 const adminUsage = `usage: stoop admin <command>

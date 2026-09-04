@@ -3,7 +3,7 @@ package events
 import (
 	"testing"
 
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 )
 
 func ping() *realtimev1.ServerEvent {

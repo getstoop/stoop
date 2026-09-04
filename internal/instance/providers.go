@@ -10,7 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	instancev1 "github.com/Jhut89/stoop/gen/stoop/instance/v1"
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 )
 
 // Login providers: external identities people can sign in with (OIDC).

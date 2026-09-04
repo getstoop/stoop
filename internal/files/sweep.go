@@ -8,10 +8,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	filesv1 "github.com/Jhut89/stoop/gen/stoop/files/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/blob"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/blob"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // Storage hygiene: the sweep and the quota. A self-hosted disk fills

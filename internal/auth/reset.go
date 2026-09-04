@@ -8,7 +8,7 @@ import (
 
 	"github.com/alexedwards/argon2id"
 
-	"github.com/Jhut89/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // Lost passwords. There is no email, so no self-service reset: an

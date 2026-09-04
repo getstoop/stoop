@@ -9,11 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/dbgen"
-	"github.com/Jhut89/stoop/internal/events"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 func (s *Service) GetMember(ctx context.Context, req *connect.Request[chatv1.GetMemberRequest]) (*connect.Response[chatv1.GetMemberResponse], error) {

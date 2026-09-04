@@ -7,9 +7,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // Blocks. One person's decision about another: no direct messages in

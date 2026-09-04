@@ -1,7 +1,7 @@
 import { useBuildInfo } from "../../api/queries";
 import { SettingRow } from "../../components/SettingRow";
 
-const RELEASES = "https://github.com/Jhut89/stoop/releases";
+const RELEASES = "https://github.com/getstoop/stoop/releases";
 
 // Which Stoop this is. Read-only rows; the version links to its release
 // notes when it is a release rather than a local build.

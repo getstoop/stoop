@@ -7,7 +7,7 @@
 package realtimev1
 
 import (
-	v1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
+	v1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -2298,8 +2298,8 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x1bPRESENCE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PRESENCE_STATUS_ONLINE\x10\x01\x12\x18\n" +
 	"\x14PRESENCE_STATUS_AWAY\x10\x02\x12\x17\n" +
-	"\x13PRESENCE_STATUS_DND\x10\x03B\xc6\x01\n" +
-	"\x15com.stoop.realtime.v1B\rRealtimeProtoP\x01Z8github.com/Jhut89/stoop/gen/stoop/realtime/v1;realtimev1\xa2\x02\x03SRX\xaa\x02\x11Stoop.Realtime.V1\xca\x02\x11Stoop\\Realtime\\V1\xe2\x02\x1dStoop\\Realtime\\V1\\GPBMetadata\xea\x02\x13Stoop::Realtime::V1b\x06proto3"
+	"\x13PRESENCE_STATUS_DND\x10\x03B\xc8\x01\n" +
+	"\x15com.stoop.realtime.v1B\rRealtimeProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/realtime/v1;realtimev1\xa2\x02\x03SRX\xaa\x02\x11Stoop.Realtime.V1\xca\x02\x11Stoop\\Realtime\\V1\xe2\x02\x1dStoop\\Realtime\\V1\\GPBMetadata\xea\x02\x13Stoop::Realtime::V1b\x06proto3"
 
 var (
 	file_stoop_realtime_v1_realtime_proto_rawDescOnce sync.Once

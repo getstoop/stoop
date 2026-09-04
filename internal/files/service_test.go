@@ -19,12 +19,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	filesv1 "github.com/Jhut89/stoop/gen/stoop/files/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/blob"
-	"github.com/Jhut89/stoop/internal/db/dbtest"
-	"github.com/Jhut89/stoop/internal/events"
-	"github.com/Jhut89/stoop/internal/files"
+	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/blob"
+	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/files"
 )
 
 // Fake ports: the module under test only needs their contracts.

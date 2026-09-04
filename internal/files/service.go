@@ -14,10 +14,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/blob"
-	"github.com/Jhut89/stoop/internal/dbgen"
-	"github.com/Jhut89/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/blob"
+	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 // Kind is a file's purpose; it decides the size cap, the image treatment,

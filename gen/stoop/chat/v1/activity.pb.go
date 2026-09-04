@@ -226,8 +226,8 @@ const file_stoop_chat_v1_activity_proto_rawDesc = "" +
 	"\x19ACTIVITY_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15ACTIVITY_KIND_MENTION\x10\x01\x12\x17\n" +
 	"\x13ACTIVITY_KIND_REPLY\x10\x02\x12\x14\n" +
-	"\x10ACTIVITY_KIND_DM\x10\x03B\xaa\x01\n" +
-	"\x11com.stoop.chat.v1B\rActivityProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
+	"\x10ACTIVITY_KIND_DM\x10\x03B\xac\x01\n" +
+	"\x11com.stoop.chat.v1B\rActivityProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
 	file_stoop_chat_v1_activity_proto_rawDescOnce sync.Once

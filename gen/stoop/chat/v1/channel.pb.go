@@ -234,8 +234,8 @@ const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	"\x18CHANNEL_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CHANNEL_KIND_TEXT\x10\x01\x12\x16\n" +
 	"\x12CHANNEL_KIND_VOICE\x10\x02\x12\x13\n" +
-	"\x0fCHANNEL_KIND_DM\x10\x03B\xa9\x01\n" +
-	"\x11com.stoop.chat.v1B\fChannelProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
+	"\x0fCHANNEL_KIND_DM\x10\x03B\xab\x01\n" +
+	"\x11com.stoop.chat.v1B\fChannelProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
 	file_stoop_chat_v1_channel_proto_rawDescOnce sync.Once

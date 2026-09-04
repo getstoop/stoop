@@ -27,10 +27,10 @@ Stoop behind the reverse proxy, Cloudflare Tunnel, or Tailscale you already
 use, and what voice needs from each. Short version:
 
 ```sh
-curl -fLO https://raw.githubusercontent.com/Jhut89/stoop/main/deploy/docker-compose.yml
-curl -fLO https://raw.githubusercontent.com/Jhut89/stoop/main/deploy/livekit.yaml
-curl -fLO https://raw.githubusercontent.com/Jhut89/stoop/main/deploy/livekit-entrypoint.sh
-curl -fL -o .env https://raw.githubusercontent.com/Jhut89/stoop/main/deploy/.env.example
+curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/docker-compose.yml
+curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/livekit.yaml
+curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/livekit-entrypoint.sh
+curl -fL -o .env https://raw.githubusercontent.com/getstoop/stoop/main/deploy/.env.example
 # edit .env — at minimum POSTGRES_PASSWORD
 docker compose up -d          # open http://localhost:8080
 ```

@@ -14,9 +14,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/dbgen"
-	"github.com/Jhut89/stoop/internal/trustedproxy"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
 // UserSummary is what the instance module needs to know about an account.
