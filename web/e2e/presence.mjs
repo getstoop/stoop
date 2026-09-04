@@ -90,7 +90,7 @@ check(
   (await text(A, ".typing-indicator")) === "",
   "typing hint expires after silence",
 );
-await B.click(".composer textarea", { clickCount: 3 });
+await B.click(".composer textarea", { count: 3 });
 await B.keyboard.press("Backspace");
 
 // Profile card shows presence.

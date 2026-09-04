@@ -251,7 +251,7 @@ await sleep(200);
 await A.$eval('.reach-section input[placeholder="stoop"]', (e) => {
   e.setSelectionRange(0, e.value.length);
 });
-await A.click('.reach-section input[placeholder="stoop"]', { clickCount: 3 });
+await A.click('.reach-section input[placeholder="stoop"]', { count: 3 });
 await A.keyboard.press("Backspace");
 await A.type('.reach-section input[placeholder="stoop"]', "porch");
 await A.type(

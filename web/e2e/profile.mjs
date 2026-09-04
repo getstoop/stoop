@@ -71,7 +71,7 @@ check(
 );
 
 // display name
-await P.click("#display-name", { clickCount: 3 });
+await P.click("#display-name", { count: 3 });
 await P.type("#display-name", "Ada Whitfield");
 await P.click('.card button[type="submit"]');
 await sleep(800);
@@ -122,7 +122,7 @@ await (await pw.$('input[autocomplete="current-password"]')).type(
   "nope nope nope",
 );
 for (const f of await pw.$$('input[autocomplete="new-password"]')) {
-  await f.click({ clickCount: 3 });
+  await f.click({ count: 3 });
   await f.type(newPass);
 }
 await (await pw.$('button[type="submit"]')).click();
@@ -133,14 +133,14 @@ check(
   "wrong current password rejected",
 );
 await (await pw.$('input[autocomplete="current-password"]')).click({
-  clickCount: 3,
+  count: 3,
 });
 await (await pw.$('input[autocomplete="current-password"]')).type(pass);
 await (await pw.$('input[autocomplete="new-password"]')).click({
-  clickCount: 3,
+  count: 3,
 });
 for (const f of await pw.$$('input[autocomplete="new-password"]')) {
-  await f.click({ clickCount: 3 });
+  await f.click({ count: 3 });
   await f.type(newPass);
 }
 await (await pw.$('button[type="submit"]')).click();

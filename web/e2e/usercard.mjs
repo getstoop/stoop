@@ -41,7 +41,7 @@ await sleep(1200);
 // A renames themselves so we can verify the card fetches fresh.
 await A.click(".space-pill.avatar");
 await sleep(500);
-await A.click("#display-name", { clickCount: 3 });
+await A.click("#display-name", { count: 3 });
 await A.type("#display-name", "Ada W.");
 await A.click('.card button[type="submit"]');
 await sleep(600);

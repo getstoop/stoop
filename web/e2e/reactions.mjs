@@ -187,14 +187,14 @@ await A.type(".emoji-picker input", "rocket");
 await sleep(200);
 const found = await pickerEmoji(A, "emoji-results");
 check(found[0] === "🚀", `search "rocket" finds 🚀 (got ${found.join("")})`);
-await A.click(".emoji-picker input", { clickCount: 3 });
+await A.click(".emoji-picker input", { count: 3 });
 await A.type(".emoji-picker input", "flag canada");
 await sleep(200);
 check(
   (await pickerEmoji(A, "emoji-results"))[0] === "🇨🇦",
   'search "flag canada" finds 🇨🇦 from the generated names',
 );
-await A.click(".emoji-picker input", { clickCount: 3 });
+await A.click(".emoji-picker input", { count: 3 });
 await A.type(".emoji-picker input", "rocket");
 await sleep(200);
 await A.keyboard.press("Enter");
