@@ -28,7 +28,7 @@
     "@biomejs/biome": "^2.5.11",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.2.5",
-    "@vitejs/plugin-react": "^4.5.0",
+    "@vitejs/plugin-react": "^5.2.0",
     "pg": "^8.23.0",
     "puppeteer-core": "^23.11.1",
     "typescript": "^7.0.2",
