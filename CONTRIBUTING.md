@@ -49,6 +49,8 @@ not because a tool produced them.
   what changed and why.
 - `main` only merges with every CI job green. CI for a PR from a fork
   runs after a maintainer approves it, so a first PR may wait a little.
+  A PR that only touches documentation skips the build and test jobs,
+  so it comes back in a minute rather than ten.
 - The browser suite runs in CI on a throwaway database. You don't need
   to run it locally, and please don't point it at a database you care
   about: it wipes what it is given.
