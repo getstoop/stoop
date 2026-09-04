@@ -8,9 +8,9 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	authv1 "github.com/Jhut89/stoop/gen/stoop/auth/v1"
-	instancev1 "github.com/Jhut89/stoop/gen/stoop/instance/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
+	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 func (s *Service) ListUsers(ctx context.Context, _ *connect.Request[instancev1.ListUsersRequest]) (*connect.Response[instancev1.ListUsersResponse], error) {

@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/Jhut89/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // Password sign-in policy: whether the username/password form is for

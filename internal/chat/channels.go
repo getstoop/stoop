@@ -10,12 +10,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/Jhut89/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/authctx"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
-	"github.com/Jhut89/stoop/internal/dbgen"
-	"github.com/Jhut89/stoop/internal/events"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1.CreateChannelRequest]) (*connect.Response[chatv1.CreateChannelResponse], error) {

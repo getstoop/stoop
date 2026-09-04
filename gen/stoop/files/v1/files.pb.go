@@ -446,9 +446,9 @@ const file_stoop_files_v1_files_proto_rawDesc = "" +
 	"\x0fUploadSpaceIcon\x12&.stoop.files.v1.UploadSpaceIconRequest\x1a'.stoop.files.v1.UploadSpaceIconResponse\"\x00\x12d\n" +
 	"\x0fGetStorageUsage\x12&.stoop.files.v1.GetStorageUsageRequest\x1a'.stoop.files.v1.GetStorageUsageResponse\"\x00\x12U\n" +
 	"\n" +
-	"SweepFiles\x12!.stoop.files.v1.SweepFilesRequest\x1a\".stoop.files.v1.SweepFilesResponse\"\x00B\xae\x01\n" +
+	"SweepFiles\x12!.stoop.files.v1.SweepFilesRequest\x1a\".stoop.files.v1.SweepFilesResponse\"\x00B\xb0\x01\n" +
 	"\x12com.stoop.files.v1B\n" +
-	"FilesProtoP\x01Z2github.com/Jhut89/stoop/gen/stoop/files/v1;filesv1\xa2\x02\x03SFX\xaa\x02\x0eStoop.Files.V1\xca\x02\x0eStoop\\Files\\V1\xe2\x02\x1aStoop\\Files\\V1\\GPBMetadata\xea\x02\x10Stoop::Files::V1b\x06proto3"
+	"FilesProtoP\x01Z4github.com/getstoop/stoop/gen/stoop/files/v1;filesv1\xa2\x02\x03SFX\xaa\x02\x0eStoop.Files.V1\xca\x02\x0eStoop\\Files\\V1\xe2\x02\x1aStoop\\Files\\V1\\GPBMetadata\xea\x02\x10Stoop::Files::V1b\x06proto3"
 
 var (
 	file_stoop_files_v1_files_proto_rawDescOnce sync.Once

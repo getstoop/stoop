@@ -11,8 +11,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 
-	instancev1 "github.com/Jhut89/stoop/gen/stoop/instance/v1"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // Policy is the registration policy as stored and as exposed through the

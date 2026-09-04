@@ -8,9 +8,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // Role is a member's space-level role. See docs/architecture/permissions.md

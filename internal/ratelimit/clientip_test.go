@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/trustedproxy"
+	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
 // TestClientIP walks the forwarded chain from the right. Proxies append,

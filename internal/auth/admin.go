@@ -11,8 +11,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // AccountSummary is what the instance module's user administration sees.

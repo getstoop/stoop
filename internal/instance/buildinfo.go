@@ -5,7 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	instancev1 "github.com/Jhut89/stoop/gen/stoop/instance/v1"
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 )
 
 // BuildInfo is what the binary knows about itself, wired in internal/app

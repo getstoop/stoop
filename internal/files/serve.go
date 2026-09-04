@@ -11,9 +11,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/blob"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/blob"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // Handler serves GET /files/{id}: authenticate, authorise per kind, then

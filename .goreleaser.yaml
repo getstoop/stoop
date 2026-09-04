@@ -10,9 +10,9 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/Jhut89/stoop/internal/buildinfo.Version={{ .Version }}
-      - -X github.com/Jhut89/stoop/internal/buildinfo.Commit={{ .ShortCommit }}
-      - -X github.com/Jhut89/stoop/internal/buildinfo.Date={{ .Date }}
+      - -X github.com/getstoop/stoop/internal/buildinfo.Version={{ .Version }}
+      - -X github.com/getstoop/stoop/internal/buildinfo.Commit={{ .ShortCommit }}
+      - -X github.com/getstoop/stoop/internal/buildinfo.Date={{ .Date }}
     goos:
       - linux
       - darwin
@@ -27,25 +27,25 @@ archives:
   - formats: [tar.gz]
 
 dockers:
-  - image_templates: ["ghcr.io/jhut89/stoop:{{ .Version }}-amd64"]
+  - image_templates: ["ghcr.io/getstoop/stoop:{{ .Version }}-amd64"]
     use: buildx
     dockerfile: deploy/Dockerfile.goreleaser
     build_flag_templates: ["--platform=linux/amd64"]
-  - image_templates: ["ghcr.io/jhut89/stoop:{{ .Version }}-arm64"]
+  - image_templates: ["ghcr.io/getstoop/stoop:{{ .Version }}-arm64"]
     use: buildx
     dockerfile: deploy/Dockerfile.goreleaser
     goarch: arm64
     build_flag_templates: ["--platform=linux/arm64"]
 
 docker_manifests:
-  - name_template: ghcr.io/jhut89/stoop:{{ .Version }}
+  - name_template: ghcr.io/getstoop/stoop:{{ .Version }}
     image_templates:
-      - ghcr.io/jhut89/stoop:{{ .Version }}-amd64
-      - ghcr.io/jhut89/stoop:{{ .Version }}-arm64
-  - name_template: ghcr.io/jhut89/stoop:latest
+      - ghcr.io/getstoop/stoop:{{ .Version }}-amd64
+      - ghcr.io/getstoop/stoop:{{ .Version }}-arm64
+  - name_template: ghcr.io/getstoop/stoop:latest
     image_templates:
-      - ghcr.io/jhut89/stoop:{{ .Version }}-amd64
-      - ghcr.io/jhut89/stoop:{{ .Version }}-arm64
+      - ghcr.io/getstoop/stoop:{{ .Version }}-amd64
+      - ghcr.io/getstoop/stoop:{{ .Version }}-arm64
 
 changelog:
   use: github

@@ -14,7 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/Jhut89/stoop/internal/db"
+	"github.com/getstoop/stoop/internal/db"
 )
 
 const envVar = "STOOP_TEST_DATABASE_URL"

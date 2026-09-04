@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	voicev1 "github.com/Jhut89/stoop/gen/stoop/voice/v1"
+	voicev1 "github.com/getstoop/stoop/gen/stoop/voice/v1"
 )
 
 // ICE servers are how voice survives front doors that only carry HTTP

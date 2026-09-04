@@ -9,11 +9,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/chat"
-	"github.com/Jhut89/stoop/internal/db/dbtest"
-	"github.com/Jhut89/stoop/internal/events"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/chat"
+	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 // dbFiles reads file rows straight from the table, as the files-backed

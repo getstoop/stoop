@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Jhut89/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // mentionRE matches @handle at a word boundary. Handles are the auth

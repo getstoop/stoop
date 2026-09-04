@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Jhut89/stoop/internal/config"
-	"github.com/Jhut89/stoop/internal/instance"
-	"github.com/Jhut89/stoop/internal/voice"
+	"github.com/getstoop/stoop/internal/config"
+	"github.com/getstoop/stoop/internal/instance"
+	"github.com/getstoop/stoop/internal/voice"
 )
 
 // Whether the voice sidecar is up. Stoop doesn't run LiveKit, so dialling

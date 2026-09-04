@@ -6,11 +6,11 @@ import (
 
 	"connectrpc.com/connect"
 
-	instancev1 "github.com/Jhut89/stoop/gen/stoop/instance/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/db/dbtest"
-	"github.com/Jhut89/stoop/internal/instance"
-	"github.com/Jhut89/stoop/internal/trustedproxy"
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/instance"
+	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
 func TestReachability(t *testing.T) {

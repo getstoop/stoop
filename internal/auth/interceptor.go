@@ -8,8 +8,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/Jhut89/stoop/gen/stoop/auth/v1/authv1connect"
-	"github.com/Jhut89/stoop/internal/authctx"
+	"github.com/getstoop/stoop/gen/stoop/auth/v1/authv1connect"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // NewInterceptor authenticates every non-public Connect call and deposits the

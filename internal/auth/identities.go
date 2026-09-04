@@ -15,9 +15,9 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	authv1 "github.com/Jhut89/stoop/gen/stoop/auth/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // Linked sign-in identities: which login providers (by the id from the

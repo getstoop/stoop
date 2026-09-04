@@ -267,8 +267,8 @@ const file_stoop_chat_v1_invite_proto_rawDesc = "" +
 	"\x11space_description\x18\x03 \x01(\tR\x10spaceDescription\x12+\n" +
 	"\x12space_icon_file_id\x18\x04 \x01(\tR\x0fspaceIconFileId\x12!\n" +
 	"\fmember_count\x18\x05 \x01(\x05R\vmemberCount\x12,\n" +
-	"\x04role\x18\x06 \x01(\x0e2\x18.stoop.chat.v1.SpaceRoleR\x04roleB\xa8\x01\n" +
-	"\x11com.stoop.chat.v1B\vInviteProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
+	"\x04role\x18\x06 \x01(\x0e2\x18.stoop.chat.v1.SpaceRoleR\x04roleB\xaa\x01\n" +
+	"\x11com.stoop.chat.v1B\vInviteProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
 	file_stoop_chat_v1_invite_proto_rawDescOnce sync.Once

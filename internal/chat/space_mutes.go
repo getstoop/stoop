@@ -6,11 +6,11 @@ import (
 
 	"connectrpc.com/connect"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/dbgen"
-	"github.com/Jhut89/stoop/internal/events"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 // SetSpaceMuted sets the caller's own mute for a space they belong to,

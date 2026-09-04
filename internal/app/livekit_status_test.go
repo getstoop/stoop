@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/config"
-	"github.com/Jhut89/stoop/internal/voice"
+	"github.com/getstoop/stoop/internal/config"
+	"github.com/getstoop/stoop/internal/voice"
 )
 
 func configured() voice.Options {

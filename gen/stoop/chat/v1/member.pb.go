@@ -133,8 +133,8 @@ const file_stoop_chat_v1_member_proto_rawDesc = "" +
 	"\x04role\x18\x04 \x01(\x0e2\x18.stoop.chat.v1.SpaceRoleR\x04role\x127\n" +
 	"\tjoined_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bjoinedAt\x12%\n" +
 	"\x0einstance_admin\x18\x06 \x01(\bR\rinstanceAdmin\x12$\n" +
-	"\x0eavatar_file_id\x18\a \x01(\tR\favatarFileIdB\xa8\x01\n" +
-	"\x11com.stoop.chat.v1B\vMemberProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
+	"\x0eavatar_file_id\x18\a \x01(\tR\favatarFileIdB\xaa\x01\n" +
+	"\x11com.stoop.chat.v1B\vMemberProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
 	file_stoop_chat_v1_member_proto_rawDescOnce sync.Once

@@ -20,10 +20,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	authv1 "github.com/Jhut89/stoop/gen/stoop/auth/v1"
-	"github.com/Jhut89/stoop/internal/auth"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/db/dbtest"
+	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	"github.com/getstoop/stoop/internal/auth"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
 // fakeIdP is a minimal OIDC issuer: discovery, JWKS, authorize (redirects

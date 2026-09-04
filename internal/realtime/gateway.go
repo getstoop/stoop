@@ -14,8 +14,8 @@ import (
 	"github.com/coder/websocket"
 	"google.golang.org/protobuf/proto"
 
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
-	"github.com/Jhut89/stoop/internal/events"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 const (

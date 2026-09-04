@@ -535,8 +535,8 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\rimage_file_id\x18\x05 \x01(\tR\vimageFileId\x12\x1f\n" +
 	"\vimage_width\x18\x06 \x01(\x05R\n" +
 	"imageWidth\x12!\n" +
-	"\fimage_height\x18\a \x01(\x05R\vimageHeightB\xa9\x01\n" +
-	"\x11com.stoop.chat.v1B\fMessageProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
+	"\fimage_height\x18\a \x01(\x05R\vimageHeightB\xab\x01\n" +
+	"\x11com.stoop.chat.v1B\fMessageProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
 	file_stoop_chat_v1_message_proto_rawDescOnce sync.Once

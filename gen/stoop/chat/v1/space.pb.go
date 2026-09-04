@@ -256,9 +256,9 @@ const file_stoop_chat_v1_space_proto_rawDesc = "" +
 	"\x16SPACE_ROLE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SPACE_ROLE_MEMBER\x10\x01\x12\x14\n" +
 	"\x10SPACE_ROLE_ADMIN\x10\x02\x12\x14\n" +
-	"\x10SPACE_ROLE_OWNER\x10\x03B\xa7\x01\n" +
+	"\x10SPACE_ROLE_OWNER\x10\x03B\xa9\x01\n" +
 	"\x11com.stoop.chat.v1B\n" +
-	"SpaceProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
+	"SpaceProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
 	file_stoop_chat_v1_space_proto_rawDescOnce sync.Once
