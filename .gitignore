@@ -29,3 +29,6 @@ web/tsconfig.tsbuildinfo
 
 # Uploaded files (STOOP_STORAGE_DIR default)
 /data/
+
+# GoReleaser output (local snapshot builds)
+/dist/

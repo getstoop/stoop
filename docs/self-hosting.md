@@ -9,12 +9,17 @@ voice. LiveKit is optional: without it Stoop is a text-only chat server.
 
 ```sh
 mkdir stoop && cd stoop
-curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/docker-compose.yml
-curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/livekit.yaml
-curl -fL -o .env https://raw.githubusercontent.com/getstoop/stoop/main/deploy/.env.example
+R=https://github.com/getstoop/stoop/releases/latest/download
+curl -fLO $R/docker-compose.yml
+curl -fLO $R/livekit.yaml
+curl -fLO $R/livekit-entrypoint.sh
+curl -fL -o .env $R/.env.example
 # edit .env — at minimum set POSTGRES_PASSWORD
 docker compose up -d
 ```
+
+The four files come from the release itself, so they always match the
+image the compose file pins.
 
 Voice and video work out of the box: the server mints its own LiveKit key
 pair on first boot and hands it to the sidecar, so there is no secret to
@@ -26,17 +31,27 @@ the admin account (the first account operates the server), create your first
 space, and copy an invite link for your people. Later, the Invite button in a
 space's header makes more.
 
-Database migrations run automatically at startup — upgrading is
-`docker compose pull && docker compose up -d`. The compose file pins
-LiveKit to an exact version that this Stoop release was tested against;
-release notes say when that pin moves, and `docker compose pull` picks the
-new one up with the rest.
+### Upgrading
 
-If a release misbehaves, put the previous image tag back and start it
-again. Each release keeps its schema readable by the release before it, so
-a one-step rollback needs no restore. Stoop refuses to start against a
-database that a much newer release has reshaped, and says so plainly,
-rather than misbehaving.
+The compose file pins the Stoop image to the release it shipped with, and
+LiveKit to the version that release was tested against. To upgrade, fetch
+the new release's compose file and restart; database migrations run at
+startup, so there is no separate step:
+
+```sh
+curl -fLO https://github.com/getstoop/stoop/releases/latest/download/docker-compose.yml
+docker compose pull && docker compose up -d
+```
+
+Release notes say when the LiveKit or Postgres pin moves. An image tag of
+the form `0.2` follows patch releases of that minor; `latest` follows
+everything. Both exist for people who prefer them to the pinned tag.
+
+If a release misbehaves, put the previous image tag back in the compose
+file and `docker compose up -d` again. Each release keeps its schema
+readable by the release before it, so a one-step rollback needs no
+restore. Stoop refuses to start against a database that a much newer
+release has reshaped, and says so plainly, rather than misbehaving.
 
 ## Reaching your server
 
@@ -457,7 +472,10 @@ HTTPS setups above; for a quick check, Chrome's
 ## Bare binary (no Docker)
 
 Release binaries are static with the web UI embedded — no runtime
-dependencies beyond Postgres (and a LiveKit server if you want voice):
+dependencies beyond Postgres (and a LiveKit server if you want voice).
+Each [release](https://github.com/getstoop/stoop/releases) carries
+`stoop_<version>_linux_amd64.tar.gz`, `linux_arm64` and `darwin_arm64`
+archives and a `checksums.txt` to verify them against:
 
 ```sh
 STOOP_DATABASE_URL=postgres://stoop:secret@localhost:5432/stoop ./stoop

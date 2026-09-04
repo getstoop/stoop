@@ -253,6 +253,12 @@ query. Expand-only releases never touch the floor, so rolling back across
 several of them still works. The fix for a refused start is the newer
 binary, or the backup taken before it ran.
 
+A **patch release carries no migrations.** It is cut from a branch off the
+previous tag ([releasing.md](../releasing.md)), and goose applies files in
+numeric order: a migration numbered after `main`'s unreleased ones would be
+applied on patched instances and then block the upgrade to the next minor
+as an out-of-order gap. A fix that needs the schema ships as a minor.
+
 ## Queries and sqlc
 
 Hand-written SQL, generated Go. `sqlc.yaml` points at
