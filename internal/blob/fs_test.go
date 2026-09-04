@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/blob"
+	"github.com/getstoop/stoop/internal/blob"
 )
 
 func newStore(t *testing.T) (*blob.FS, string) {

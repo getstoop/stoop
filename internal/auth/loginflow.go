@@ -15,7 +15,7 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/Jhut89/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // The browser side of provider sign-in: /auth/oidc/{provider}/start sends

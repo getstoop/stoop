@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // Losing a place in a space has to reach the SFU as well as the database;

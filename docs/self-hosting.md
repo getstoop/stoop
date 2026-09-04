@@ -9,9 +9,9 @@ voice. LiveKit is optional: without it Stoop is a text-only chat server.
 
 ```sh
 mkdir stoop && cd stoop
-curl -fLO https://raw.githubusercontent.com/Jhut89/stoop/main/deploy/docker-compose.yml
-curl -fLO https://raw.githubusercontent.com/Jhut89/stoop/main/deploy/livekit.yaml
-curl -fL -o .env https://raw.githubusercontent.com/Jhut89/stoop/main/deploy/.env.example
+curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/docker-compose.yml
+curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/livekit.yaml
+curl -fL -o .env https://raw.githubusercontent.com/getstoop/stoop/main/deploy/.env.example
 # edit .env — at minimum set POSTGRES_PASSWORD
 docker compose up -d
 ```

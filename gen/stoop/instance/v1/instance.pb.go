@@ -7,7 +7,7 @@
 package instancev1
 
 import (
-	v1 "github.com/Jhut89/stoop/gen/stoop/auth/v1"
+	v1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1644,8 +1644,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x12UpdateReachability\x12,.stoop.instance.v1.UpdateReachabilityRequest\x1a-.stoop.instance.v1.UpdateReachabilityResponse\"\x00\x12p\n" +
 	"\x11GetLoginProviders\x12+.stoop.instance.v1.GetLoginProvidersRequest\x1a,.stoop.instance.v1.GetLoginProvidersResponse\"\x00\x12y\n" +
 	"\x14UpdateLoginProviders\x12..stoop.instance.v1.UpdateLoginProvidersRequest\x1a/.stoop.instance.v1.UpdateLoginProvidersResponse\"\x00\x12a\n" +
-	"\fGetBuildInfo\x12&.stoop.instance.v1.GetBuildInfoRequest\x1a'.stoop.instance.v1.GetBuildInfoResponse\"\x00B\xc6\x01\n" +
-	"\x15com.stoop.instance.v1B\rInstanceProtoP\x01Z8github.com/Jhut89/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
+	"\fGetBuildInfo\x12&.stoop.instance.v1.GetBuildInfoRequest\x1a'.stoop.instance.v1.GetBuildInfoResponse\"\x00B\xc8\x01\n" +
+	"\x15com.stoop.instance.v1B\rInstanceProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (
 	file_stoop_instance_v1_instance_proto_rawDescOnce sync.Once

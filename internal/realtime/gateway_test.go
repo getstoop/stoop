@@ -12,9 +12,9 @@ import (
 	"github.com/coder/websocket"
 	"google.golang.org/protobuf/proto"
 
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
-	"github.com/Jhut89/stoop/internal/events"
-	"github.com/Jhut89/stoop/internal/realtime"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/realtime"
 )
 
 // Bearer token == user id; memberships are fixed per user.

@@ -3,7 +3,7 @@ package trustedproxy_test
 import (
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/trustedproxy"
+	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
 func TestParseAndTrust(t *testing.T) {

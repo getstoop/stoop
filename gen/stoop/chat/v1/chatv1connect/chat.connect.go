@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	v1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
+	v1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	http "net/http"
 	strings "strings"
 )

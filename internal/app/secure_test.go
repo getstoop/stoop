@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 func TestSecureTransport(t *testing.T) {

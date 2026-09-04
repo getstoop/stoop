@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/Jhut89/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 type Options struct {

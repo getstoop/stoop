@@ -215,9 +215,9 @@ const file_stoop_voice_v1_voice_proto_rawDesc = "" +
 	"credential\x18\x03 \x01(\tR\n" +
 	"credential2w\n" +
 	"\fVoiceService\x12g\n" +
-	"\x10JoinVoiceChannel\x12'.stoop.voice.v1.JoinVoiceChannelRequest\x1a(.stoop.voice.v1.JoinVoiceChannelResponse\"\x00B\xae\x01\n" +
+	"\x10JoinVoiceChannel\x12'.stoop.voice.v1.JoinVoiceChannelRequest\x1a(.stoop.voice.v1.JoinVoiceChannelResponse\"\x00B\xb0\x01\n" +
 	"\x12com.stoop.voice.v1B\n" +
-	"VoiceProtoP\x01Z2github.com/Jhut89/stoop/gen/stoop/voice/v1;voicev1\xa2\x02\x03SVX\xaa\x02\x0eStoop.Voice.V1\xca\x02\x0eStoop\\Voice\\V1\xe2\x02\x1aStoop\\Voice\\V1\\GPBMetadata\xea\x02\x10Stoop::Voice::V1b\x06proto3"
+	"VoiceProtoP\x01Z4github.com/getstoop/stoop/gen/stoop/voice/v1;voicev1\xa2\x02\x03SVX\xaa\x02\x0eStoop.Voice.V1\xca\x02\x0eStoop\\Voice\\V1\xe2\x02\x1aStoop\\Voice\\V1\\GPBMetadata\xea\x02\x10Stoop::Voice::V1b\x06proto3"
 
 var (
 	file_stoop_voice_v1_voice_proto_rawDescOnce sync.Once

@@ -607,8 +607,8 @@ const file_stoop_instance_v1_reachability_proto_rawDesc = "" +
 	"\x10\v\";\n" +
 	"\rLiveKitStatus\x12\x18\n" +
 	"\arunning\x18\x01 \x01(\bR\arunning\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03urlB\xca\x01\n" +
-	"\x15com.stoop.instance.v1B\x11ReachabilityProtoP\x01Z8github.com/Jhut89/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
+	"\x03url\x18\x02 \x01(\tR\x03urlB\xcc\x01\n" +
+	"\x15com.stoop.instance.v1B\x11ReachabilityProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (
 	file_stoop_instance_v1_reachability_proto_rawDescOnce sync.Once

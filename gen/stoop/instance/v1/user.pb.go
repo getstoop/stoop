@@ -7,7 +7,7 @@
 package instancev1
 
 import (
-	v1 "github.com/Jhut89/stoop/gen/stoop/auth/v1"
+	v1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -164,8 +164,8 @@ const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\fhas_password\x18\b \x01(\bR\vhasPassword\x12\x1a\n" +
 	"\bpronouns\x18\t \x01(\tR\bpronouns\x12\x10\n" +
 	"\x03bio\x18\n" +
-	" \x01(\tR\x03bioB\xc2\x01\n" +
-	"\x15com.stoop.instance.v1B\tUserProtoP\x01Z8github.com/Jhut89/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
+	" \x01(\tR\x03bioB\xc4\x01\n" +
+	"\x15com.stoop.instance.v1B\tUserProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (
 	file_stoop_instance_v1_user_proto_rawDescOnce sync.Once

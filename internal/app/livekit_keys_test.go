@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/voice"
+	"github.com/getstoop/stoop/internal/voice"
 )
 
 // A key file that outlives its settings row — a wiped dev database, or

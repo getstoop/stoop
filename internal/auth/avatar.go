@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Jhut89/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // SetAvatar points a user at a new avatar file (or clears it with "") and

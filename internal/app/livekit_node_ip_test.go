@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/config"
-	"github.com/Jhut89/stoop/internal/voice"
+	"github.com/getstoop/stoop/internal/config"
+	"github.com/getstoop/stoop/internal/voice"
 )
 
 // The address goes beside the key file by default, because that is the

@@ -17,80 +17,80 @@ linters:
         auth-module:
           files: ["**/internal/auth/**"]
           deny:
-            - pkg: github.com/Jhut89/stoop/internal/instance
+            - pkg: github.com/getstoop/stoop/internal/instance
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/chat
+            - pkg: github.com/getstoop/stoop/internal/chat
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/realtime
+            - pkg: github.com/getstoop/stoop/internal/realtime
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/voice
+            - pkg: github.com/getstoop/stoop/internal/voice
               desc: modules must not import each other (use ports via internal/app)
         chat-module:
           files: ["**/internal/chat/**"]
           deny:
-            - pkg: github.com/Jhut89/stoop/internal/instance
+            - pkg: github.com/getstoop/stoop/internal/instance
               desc: modules must not import each other (use ports via internal/app)
             # Glob form so internal/authctx (the shared contract) stays allowed.
-            - pkg: github.com/Jhut89/stoop/internal/auth{,/**}
+            - pkg: github.com/getstoop/stoop/internal/auth{,/**}
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/realtime
+            - pkg: github.com/getstoop/stoop/internal/realtime
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/voice
+            - pkg: github.com/getstoop/stoop/internal/voice
               desc: modules must not import each other (use ports via internal/app)
         instance-module:
           files: ["**/internal/instance/**"]
           deny:
-            - pkg: github.com/Jhut89/stoop/internal/auth{,/**}
+            - pkg: github.com/getstoop/stoop/internal/auth{,/**}
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/chat
+            - pkg: github.com/getstoop/stoop/internal/chat
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/realtime
+            - pkg: github.com/getstoop/stoop/internal/realtime
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/voice
+            - pkg: github.com/getstoop/stoop/internal/voice
               desc: modules must not import each other (use ports via internal/app)
         realtime-module:
           files: ["**/internal/realtime/**"]
           deny:
-            - pkg: github.com/Jhut89/stoop/internal/instance
+            - pkg: github.com/getstoop/stoop/internal/instance
               desc: modules must not import each other (use ports via internal/app)
             # Glob form so internal/authctx (the shared contract) stays allowed.
-            - pkg: github.com/Jhut89/stoop/internal/auth{,/**}
+            - pkg: github.com/getstoop/stoop/internal/auth{,/**}
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/chat
+            - pkg: github.com/getstoop/stoop/internal/chat
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/voice
+            - pkg: github.com/getstoop/stoop/internal/voice
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/dbgen
+            - pkg: github.com/getstoop/stoop/internal/dbgen
               desc: the gateway has no database access; use ports
         files-module:
           files: ["**/internal/files/**"]
           deny:
-            - pkg: github.com/Jhut89/stoop/internal/instance
+            - pkg: github.com/getstoop/stoop/internal/instance
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/auth{,/**}
+            - pkg: github.com/getstoop/stoop/internal/auth{,/**}
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/chat
+            - pkg: github.com/getstoop/stoop/internal/chat
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/realtime
+            - pkg: github.com/getstoop/stoop/internal/realtime
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/voice
+            - pkg: github.com/getstoop/stoop/internal/voice
               desc: modules must not import each other (use ports via internal/app)
         blob-package:
           files: ["**/internal/blob/**"]
           deny:
-            - pkg: github.com/Jhut89/stoop/internal/dbgen
+            - pkg: github.com/getstoop/stoop/internal/dbgen
               desc: the blob store is storage only; metadata lives in the files module
         voice-module:
           files: ["**/internal/voice/**"]
           deny:
-            - pkg: github.com/Jhut89/stoop/internal/instance
+            - pkg: github.com/getstoop/stoop/internal/instance
               desc: modules must not import each other (use ports via internal/app)
             # Glob form so internal/authctx (the shared contract) stays allowed.
-            - pkg: github.com/Jhut89/stoop/internal/auth{,/**}
+            - pkg: github.com/getstoop/stoop/internal/auth{,/**}
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/chat
+            - pkg: github.com/getstoop/stoop/internal/chat
               desc: modules must not import each other (use ports via internal/app)
-            - pkg: github.com/Jhut89/stoop/internal/realtime
+            - pkg: github.com/getstoop/stoop/internal/realtime
               desc: modules must not import each other (use ports via internal/app)
 
 formatters:

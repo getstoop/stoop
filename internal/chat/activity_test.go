@@ -5,12 +5,12 @@ import (
 
 	"connectrpc.com/connect"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	realtimev1 "github.com/Jhut89/stoop/gen/stoop/realtime/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
-	"github.com/Jhut89/stoop/internal/chat"
-	"github.com/Jhut89/stoop/internal/db/dbtest"
-	"github.com/Jhut89/stoop/internal/events"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/chat"
+	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 // nextActivityItem skips past anything else on the personal topic (a

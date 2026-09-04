@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Jhut89/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // StoreLinkPreviewImage re-encodes a fetched preview image (fit within

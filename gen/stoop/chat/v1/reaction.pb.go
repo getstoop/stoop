@@ -84,8 +84,8 @@ const file_stoop_chat_v1_reaction_proto_rawDesc = "" +
 	"\x1cstoop/chat/v1/reaction.proto\x12\rstoop.chat.v1\";\n" +
 	"\bReaction\x12\x14\n" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x19\n" +
-	"\buser_ids\x18\x02 \x03(\tR\auserIdsB\xaa\x01\n" +
-	"\x11com.stoop.chat.v1B\rReactionProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
+	"\buser_ids\x18\x02 \x03(\tR\auserIdsB\xac\x01\n" +
+	"\x11com.stoop.chat.v1B\rReactionProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
 	file_stoop_chat_v1_reaction_proto_rawDescOnce sync.Once

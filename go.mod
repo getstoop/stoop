@@ -1,4 +1,4 @@
-module github.com/Jhut89/stoop
+module github.com/getstoop/stoop
 
 go 1.27.0
 

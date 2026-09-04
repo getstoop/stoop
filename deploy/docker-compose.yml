@@ -8,7 +8,7 @@
 
 services:
   stoop:
-    image: ghcr.io/jhut89/stoop:latest
+    image: ghcr.io/getstoop/stoop:latest
     restart: unless-stopped
     depends_on:
       postgres:

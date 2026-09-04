@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Jhut89/stoop/internal/voice"
+	"github.com/getstoop/stoop/internal/voice"
 )
 
 func TestGenerateKeys(t *testing.T) {

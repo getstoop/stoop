@@ -14,8 +14,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	voicev1 "github.com/Jhut89/stoop/gen/stoop/voice/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
+	voicev1 "github.com/getstoop/stoop/gen/stoop/voice/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // SignalingPath is where the app serves LiveKit's signaling WebSocket,

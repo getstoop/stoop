@@ -457,8 +457,8 @@ const file_stoop_instance_v1_providers_proto_rawDesc = "" +
 	"\tproviders\x18\x01 \x01(\v2,.stoop.instance.v1.GetLoginProvidersResponseR\tproviders*V\n" +
 	"\x11LoginProviderKind\x12#\n" +
 	"\x1fLOGIN_PROVIDER_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18LOGIN_PROVIDER_KIND_OIDC\x10\x01B\xc7\x01\n" +
-	"\x15com.stoop.instance.v1B\x0eProvidersProtoP\x01Z8github.com/Jhut89/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
+	"\x18LOGIN_PROVIDER_KIND_OIDC\x10\x01B\xc9\x01\n" +
+	"\x15com.stoop.instance.v1B\x0eProvidersProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (
 	file_stoop_instance_v1_providers_proto_rawDescOnce sync.Once

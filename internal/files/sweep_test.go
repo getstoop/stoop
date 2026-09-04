@@ -11,8 +11,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	filesv1 "github.com/Jhut89/stoop/gen/stoop/files/v1"
-	"github.com/Jhut89/stoop/internal/authctx"
+	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // fileRow inserts a file row and its blob directly, aged by `age`.

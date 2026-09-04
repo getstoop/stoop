@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Jhut89/stoop/internal/config"
-	"github.com/Jhut89/stoop/internal/voice"
+	"github.com/getstoop/stoop/internal/config"
+	"github.com/getstoop/stoop/internal/voice"
 )
 
 // Keeping LiveKit's advertised address in step with a tailnet node.

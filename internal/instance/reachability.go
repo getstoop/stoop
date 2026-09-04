@@ -11,9 +11,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 
-	instancev1 "github.com/Jhut89/stoop/gen/stoop/instance/v1"
-	"github.com/Jhut89/stoop/internal/dbgen"
-	"github.com/Jhut89/stoop/internal/trustedproxy"
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
 // Reachability — how people reach this server — is configured either from

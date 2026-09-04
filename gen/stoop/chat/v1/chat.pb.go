@@ -4195,8 +4195,8 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\x12ListDirectMessages\x12(.stoop.chat.v1.ListDirectMessagesRequest\x1a).stoop.chat.v1.ListDirectMessagesResponse\"\x00\x12b\n" +
 	"\x0fMarkChannelRead\x12%.stoop.chat.v1.MarkChannelReadRequest\x1a&.stoop.chat.v1.MarkChannelReadResponse\"\x00\x12Y\n" +
 	"\fListActivity\x12\".stoop.chat.v1.ListActivityRequest\x1a#.stoop.chat.v1.ListActivityResponse\"\x00\x12e\n" +
-	"\x10MarkActivityRead\x12&.stoop.chat.v1.MarkActivityReadRequest\x1a'.stoop.chat.v1.MarkActivityReadResponse\"\x00B\xa6\x01\n" +
-	"\x11com.stoop.chat.v1B\tChatProtoP\x01Z0github.com/Jhut89/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
+	"\x10MarkActivityRead\x12&.stoop.chat.v1.MarkActivityReadRequest\x1a'.stoop.chat.v1.MarkActivityReadResponse\"\x00B\xa8\x01\n" +
+	"\x11com.stoop.chat.v1B\tChatProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
 	file_stoop_chat_v1_chat_proto_rawDescOnce sync.Once

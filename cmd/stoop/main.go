@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Jhut89/stoop/internal/app"
-	"github.com/Jhut89/stoop/internal/buildinfo"
-	"github.com/Jhut89/stoop/internal/config"
+	"github.com/getstoop/stoop/internal/app"
+	"github.com/getstoop/stoop/internal/buildinfo"
+	"github.com/getstoop/stoop/internal/config"
 )
 
 func main() {

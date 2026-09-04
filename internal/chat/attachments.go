@@ -9,8 +9,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	chatv1 "github.com/Jhut89/stoop/gen/stoop/chat/v1"
-	"github.com/Jhut89/stoop/internal/dbgen"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 const (

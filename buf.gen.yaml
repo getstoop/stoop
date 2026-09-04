@@ -4,7 +4,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/Jhut89/stoop/gen
+      value: github.com/getstoop/stoop/gen
 # The plugin versions are pinned. Unpinned, buf resolves whatever is
 # current, so the day one of them publishes a release, CI regenerates a
 # tree that differs from the committed one — often by nothing but the

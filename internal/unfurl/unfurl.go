@@ -36,7 +36,7 @@ const (
 	maxHTMLBytes  = 1 << 20 // 1 MB of HTML is plenty to find <head>
 	maxImageBytes = 5 << 20
 	maxRedirects  = 5
-	userAgent     = "Mozilla/5.0 (compatible; Stoop link preview; +https://github.com/Jhut89/stoop)"
+	userAgent     = "Mozilla/5.0 (compatible; Stoop link preview; +https://github.com/getstoop/stoop)"
 )
 
 var (
