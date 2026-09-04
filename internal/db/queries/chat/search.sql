@@ -12,8 +12,9 @@ SELECT sqlc.embed(m), p.author_id AS reply_author_id, p.content AS reply_content
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
 WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(space_id)::uuid)
-  AND m.search @@ (CASE WHEN sqlc.arg(prefix)::text = ''
-      THEN websearch_to_tsquery('simple', sqlc.arg(words)::text)
+  AND m.search @@ (CASE
+      WHEN sqlc.arg(prefix)::text = '' THEN websearch_to_tsquery('simple', sqlc.arg(words)::text)
+      WHEN sqlc.arg(words)::text = '' THEN to_tsquery('simple', sqlc.arg(prefix)::text)
       ELSE websearch_to_tsquery('simple', sqlc.arg(words)::text) && to_tsquery('simple', sqlc.arg(prefix)::text)
       END)
   AND (sqlc.narg(channel_id)::uuid IS NULL OR m.channel_id = sqlc.narg(channel_id)::uuid)

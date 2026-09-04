@@ -48,8 +48,9 @@ SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_ever
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
 WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = $1::uuid)
-  AND m.search @@ (CASE WHEN $2::text = ''
-      THEN websearch_to_tsquery('simple', $3::text)
+  AND m.search @@ (CASE
+      WHEN $2::text = '' THEN websearch_to_tsquery('simple', $3::text)
+      WHEN $3::text = '' THEN to_tsquery('simple', $2::text)
       ELSE websearch_to_tsquery('simple', $3::text) && to_tsquery('simple', $2::text)
       END)
   AND ($4::uuid IS NULL OR m.channel_id = $4::uuid)
