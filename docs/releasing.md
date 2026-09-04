@@ -95,3 +95,10 @@ go run github.com/goreleaser/goreleaser/v2@v2.18.0 release --snapshot --clean --
 
 It builds the archives and the images without publishing; `dist/` and
 `docker images | grep getstoop` show the result.
+
+One thing a snapshot does not check: a real release refuses to run from a
+dirty checkout, and the snapshot ignores that. After the workflow's build
+steps the tree must be clean, which is why the web build goes through
+`make build-web` (it restores the tracked `.gitkeep` in the embed
+directory). If a release run fails with "git is in a dirty state", the
+file it names is what a build step changed.
