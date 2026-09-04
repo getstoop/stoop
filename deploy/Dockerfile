@@ -21,8 +21,15 @@ COPY . .
 COPY --from=web /src/web/dist internal/webui/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /stoop ./cmd/stoop
 
-# Stage 3: minimal runtime
+# Stage 3: minimal runtime. The volume mount points exist in the image,
+# owned by the runtime user, so a fresh named volume inherits that
+# ownership (see Dockerfile.goreleaser).
+FROM busybox:1.37 AS dirs
+RUN mkdir -p /out/data /out/livekit-keys && chown -R 65532:65532 /out
+
 FROM gcr.io/distroless/static:nonroot
+COPY --from=dirs --chown=65532:65532 /out/data /data
+COPY --from=dirs --chown=65532:65532 /out/livekit-keys /livekit-keys
 # On PATH, so `docker compose exec stoop stoop admin …` works in an image
 # with no shell to resolve anything else.
 COPY --from=build /stoop /usr/local/bin/stoop

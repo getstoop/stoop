@@ -42,10 +42,36 @@ docker_manifests:
     image_templates:
       - ghcr.io/getstoop/stoop:{{ .Version }}-amd64
       - ghcr.io/getstoop/stoop:{{ .Version }}-arm64
+  - name_template: ghcr.io/getstoop/stoop:{{ .Major }}.{{ .Minor }}
+    image_templates:
+      - ghcr.io/getstoop/stoop:{{ .Version }}-amd64
+      - ghcr.io/getstoop/stoop:{{ .Version }}-arm64
   - name_template: ghcr.io/getstoop/stoop:latest
     image_templates:
       - ghcr.io/getstoop/stoop:{{ .Version }}-amd64
       - ghcr.io/getstoop/stoop:{{ .Version }}-arm64
 
+# The compose bundle ships with each release so the quick start fetches
+# files from the same commit the images were built from:
+# https://github.com/getstoop/stoop/releases/latest/download/<file>
+# The notes header comes from deploy/release-notes.md via --release-header
+# in the Release workflow; each release PR rewrites that file.
+release:
+  extra_files:
+    - glob: deploy/docker-compose.yml
+    - glob: deploy/livekit.yaml
+    - glob: deploy/livekit-entrypoint.sh
+    - glob: deploy/.env.example
+
 changelog:
   use: github
+  groups:
+    - title: Security
+      regexp: "^Security"
+      order: 0
+    - title: Changes
+      order: 1
+  filters:
+    exclude:
+      - "^Release "
+      - "^Bump "

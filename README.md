@@ -6,9 +6,10 @@ Run it on your own machine — a VPS, an old laptop, a Raspberry Pi — and
 invite your friends. Spaces, channels, realtime text chat, and low-latency
 voice rooms backed by [LiveKit](https://livekit.io).
 
-> Early days: Stoop is under active initial development. The core works —
-> accounts, spaces, channels, realtime messaging, voice — but expect sharp
-> edges and breaking changes.
+> Beta. The core works and is in daily use — accounts, spaces, channels,
+> realtime messaging, voice — and the API and schema may still change
+> between minor versions. What will not change: every release upgrades in
+> place from the one before it, and can be rolled back one release.
 
 ## Why Stoop
 
@@ -27,10 +28,11 @@ Stoop behind the reverse proxy, Cloudflare Tunnel, or Tailscale you already
 use, and what voice needs from each. Short version:
 
 ```sh
-curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/docker-compose.yml
-curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/livekit.yaml
-curl -fLO https://raw.githubusercontent.com/getstoop/stoop/main/deploy/livekit-entrypoint.sh
-curl -fL -o .env https://raw.githubusercontent.com/getstoop/stoop/main/deploy/.env.example
+R=https://github.com/getstoop/stoop/releases/latest/download
+curl -fLO $R/docker-compose.yml
+curl -fLO $R/livekit.yaml
+curl -fLO $R/livekit-entrypoint.sh
+curl -fL -o .env $R/.env.example
 # edit .env — at minimum POSTGRES_PASSWORD
 docker compose up -d          # open http://localhost:8080
 ```
