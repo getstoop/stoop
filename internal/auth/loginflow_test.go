@@ -287,7 +287,8 @@ func TestSocialRegisterThenLogin(t *testing.T) {
 }
 
 func TestSocialRegistrationPolicy(t *testing.T) {
-	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
 	policy := &fakePolicy{policy: auth.PolicyInvite}
 	invites := &fakeInvites{code: "GOODCODE12", uses: 1}
 	svc.UseRegistrationPorts(policy, invites)
@@ -315,6 +316,23 @@ func TestSocialRegistrationPolicy(t *testing.T) {
 	if len(invites.redeemed) != 1 {
 		t.Errorf("redeemed = %v", invites.redeemed)
 	}
+
+	// Code spent between validation and redemption: no account is left
+	// behind, and the login page says the invite was the problem.
+	invites.uses, invites.failRedeem = 1, true
+	rig.idp.sub = "sub-late"
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?invite=GOODCODE12"); loc != "/login?error=invite_invalid" {
+		t.Errorf("spent-invite registration landed on %q", loc)
+	}
+	var users int
+	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM users").Scan(&users); err != nil {
+		t.Fatal(err)
+	}
+	if users != 2 {
+		t.Errorf("users after spent invite = %d, want 2", users)
+	}
+	invites.failRedeem = false
+	rig.idp.sub = "sub-2"
 
 	// Closed: sign-in still works for existing identities, nothing new.
 	policy.policy = auth.PolicyClosed

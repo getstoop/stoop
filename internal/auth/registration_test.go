@@ -3,6 +3,8 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -18,13 +20,28 @@ type fakePolicy struct{ policy string }
 func (p *fakePolicy) RegistrationPolicy(context.Context) (string, error) { return p.policy, nil }
 
 // fakeInvites accepts one code; redeems join "space-1" and count down uses.
+// failRedeem makes validation pass and redemption fail, the shape of a code
+// spent between the two. barrier > 0 holds every RedeemInvite until that
+// many callers have arrived, so a race test knows all of them got past
+// validation and created their account first.
 type fakeInvites struct {
-	code     string
-	uses     int
-	redeemed []string
+	mu         sync.Mutex
+	code       string
+	uses       int
+	redeemed   []string
+	failRedeem bool
+	barrier    int
+	arrived    int
+	release    chan struct{}
 }
 
 func (f *fakeInvites) ValidateInvite(_ context.Context, code string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.usable(code)
+}
+
+func (f *fakeInvites) usable(code string) error {
 	if code != f.code {
 		return connect.NewError(connect.CodeNotFound, errors.New("invite not found"))
 	}
@@ -35,8 +52,22 @@ func (f *fakeInvites) ValidateInvite(_ context.Context, code string) error {
 }
 
 func (f *fakeInvites) RedeemInvite(_ context.Context, code, userID string) (string, error) {
-	if err := f.ValidateInvite(context.Background(), code); err != nil {
+	if f.barrier > 0 {
+		f.mu.Lock()
+		f.arrived++
+		if f.arrived == f.barrier {
+			close(f.release)
+		}
+		f.mu.Unlock()
+		<-f.release
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.usable(code); err != nil {
 		return "", err
+	}
+	if f.failRedeem {
+		return "", connect.NewError(connect.CodeResourceExhausted, errors.New("this invite has reached its maximum number of uses"))
 	}
 	f.uses--
 	f.redeemed = append(f.redeemed, userID)
@@ -116,6 +147,60 @@ func TestRegistrationPolicies(t *testing.T) {
 	res, err = register(svc, ctx, "anyone_with_code", "GOODCODE12")
 	if err != nil || res.JoinedSpaceId != "space-1" {
 		t.Errorf("open policy with code: %v %v", res, err)
+	}
+	// Open policy, code spent in between: the account stands, just not
+	// in the space. The invite wasn't what let them in.
+	invites.failRedeem = true
+	res, err = register(svc, ctx, "anyone_stale_code", "GOODCODE12")
+	if err != nil || res.JoinedSpaceId != "" {
+		t.Errorf("open policy with stale code: %v %v", res, err)
+	}
+}
+
+// A single-use invite on an invite-only server admits exactly one account,
+// however many sign-ups race for it. The fake holds every redemption until
+// all racers have validated and created their account, which is the
+// window the bug lived in.
+func TestRegistrationInviteRace(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
+	const racers = 6
+	invites := &fakeInvites{code: "ONCEONLY12", uses: 1, barrier: racers, release: make(chan struct{})}
+	svc.UseRegistrationPorts(&fakePolicy{policy: auth.PolicyInvite}, invites)
+	ctx := context.Background()
+	if _, err := register(svc, ctx, "founder", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	errs := make([]error, racers)
+	var wg sync.WaitGroup
+	for i := range racers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = register(svc, ctx, fmt.Sprintf("racer%d", i), "ONCEONLY12")
+		}()
+	}
+	wg.Wait()
+
+	winners := 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			winners++
+		case codeOf(err) != connect.CodeResourceExhausted:
+			t.Errorf("loser got %v, want resource_exhausted", err)
+		}
+	}
+	if winners != 1 {
+		t.Errorf("winners = %d, want 1", winners)
+	}
+	var users int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM users").Scan(&users); err != nil {
+		t.Fatal(err)
+	}
+	if users != 2 {
+		t.Errorf("users after the race = %d, want founder + one winner", users)
 	}
 }
 
