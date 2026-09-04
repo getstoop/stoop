@@ -13,7 +13,7 @@ R=https://github.com/getstoop/stoop/releases/latest/download
 curl -fLO $R/docker-compose.yml
 curl -fLO $R/livekit.yaml
 curl -fLO $R/livekit-entrypoint.sh
-curl -fL -o .env $R/.env.example
+curl -fL -o .env $R/env.example
 # edit .env — at minimum set POSTGRES_PASSWORD
 docker compose up -d
 ```

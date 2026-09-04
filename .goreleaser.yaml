@@ -61,7 +61,10 @@ release:
     - glob: deploy/docker-compose.yml
     - glob: deploy/livekit.yaml
     - glob: deploy/livekit-entrypoint.sh
+    # GitHub refuses an asset name that starts with a dot (GoReleaser
+    # would upload it as "default.env.example"), so it ships as env.example.
     - glob: deploy/.env.example
+      name_template: env.example
 
 changelog:
   use: github
