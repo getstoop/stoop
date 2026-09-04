@@ -1,6 +1,8 @@
 // Runs every spec against STOOP_E2E_BASE_URL, resetting the database in
 // STOOP_E2E_DATABASE_URL before each so specs can assume a fresh instance.
-// Exit status is non-zero if any spec fails.
+// Exit status is non-zero if any spec fails. `make e2e` (scripts/e2e-scratch.sh)
+// starts a throwaway server and database and runs this against them; the
+// defaults below are the dev instance, which this wipes.
 //
 //   pnpm e2e                    every spec
 //   pnpm e2e replies edits      just those
@@ -187,7 +189,7 @@ function runSpec(name) {
 
 if (!(await serverUp())) {
   console.error(
-    `no server at ${base} (start one: make build && STOOP_LISTEN_ADDR=:8091 STOOP_AUTH_RATE_LIMIT=0 ./bin/stoop)`,
+    `no server at ${base} (make e2e starts its own; or: make build && STOOP_LISTEN_ADDR=:8091 STOOP_AUTH_RATE_LIMIT=0 ./bin/stoop)`,
   );
   process.exit(2);
 }
