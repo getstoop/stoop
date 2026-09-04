@@ -1,6 +1,7 @@
 # Releasing Stoop
 
-A release is a tag on `main`. Pushing it runs the Release workflow, which
+A release is a tag: a minor on `main`, a patch on a `release/X.Y` branch
+off the previous tag. Pushing it runs the Release workflow, which
 turns everything merged since the last tag into binaries, images, and the
 compose bundle an operator installs from. Nothing else publishes anything.
 
@@ -41,9 +42,11 @@ release before it, and it can be rolled back one release
    Release so `releases/latest/download/<file>` serves it.
 5. **Verify against what was published.** Cold install from the quick
    start on a clean machine. Upgrade an instance of the previous release
-   with data. Roll it back one release by editing the tag, then forward
-   again. Anything wrong becomes a patch release; the tag is never moved.
-6. **Close.** Plane items to Done with the version noted. Anything this
+   with data. Roll it back one release by editing the image tag in the
+   compose file, then forward again. Anything wrong becomes a patch
+   release; the git tag is never moved. (For the very first release
+   there is no previous one: the cold install is the whole check.)
+6. **Close.** Tracker items to Done with the version noted. Anything this
    release stopped using may be contracted in the next cycle.
 
 ## A patch release

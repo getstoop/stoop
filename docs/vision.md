@@ -64,5 +64,6 @@ through it), or the built-in Tailscale node — which carries LiveKit's
 media ports as well as the web app, so voice rides the tailnet with
 nothing installed on the server — and says plainly which of them can
 carry voice audio. The roadmap from here — an S3
-storage backend, slash commands, group DMs, Markdown lists and spoilers, and a
-sweep for orphaned files — is tracked in the project's issue tracker.
+storage backend, slash commands, group DMs, Markdown lists and spoilers —
+is tracked in GitHub issues as it becomes concrete; the maintainer's
+longer list is private for now.

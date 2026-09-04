@@ -2,7 +2,8 @@
 # Copy .env.example to .env, edit the secrets, then: docker compose up -d
 #
 # Put a TLS-terminating reverse proxy (Caddy, Traefik, nginx) in front of
-# stoop:8080 and set STOOP_SECURE_COOKIES=true. LiveKit's signaling is
+# stoop:8080 and name it under Server admin → Hosting → Trusted proxies;
+# Secure cookies follow from that. LiveKit's signaling is
 # proxied by Stoop at /livekit; only its media ports (7881/tcp and the UDP
 # range in livekit.yaml) need to be reachable directly.
 
