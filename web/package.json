@@ -30,7 +30,7 @@
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^4.5.0",
     "pg": "^8.23.0",
-    "puppeteer-core": "^23.11.1",
+    "puppeteer-core": "^25.9.0",
     "typescript": "^7.0.2",
     "vite": "^6.3.0"
   },

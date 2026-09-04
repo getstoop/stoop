@@ -91,7 +91,7 @@ export async function acceptDialog(p, answer) {
     // A long-answer prompt (a channel topic) uses a textarea instead. It
     // holds no newlines, so a triple-click still takes all of it.
     const field = `${DIALOG} :where(input, textarea)`;
-    await p.click(field, { clickCount: 3 });
+    await p.click(field, { count: 3 });
     if (answer === "") await p.keyboard.press("Backspace");
     else await p.type(field, answer);
   }
