@@ -1,12 +1,10 @@
 # Settings pages: a wider frame
 
 Status: decided 2026-09-02, option A as mocked up; shipped 2026-09-03 in
-four pull requests (#18 frame, #19 setting rows, #20 list grids, #21
-Hosting rows). The rendered version
-with live mockups is the "Stoop Settings Frame" artifact
-(https://claude.ai/code/artifact/930cd4dc-09df-478d-90ed-0121df80c101);
-this file is the text of it so the reasoning survives. Decisions are at
-the end.
+four pull requests (frame, setting rows, list grids, Hosting rows) before
+the repository moved to its public home. This file is the text of a design page with live mockups that lives in
+the maintainer's private tooling; the reasoning is all here, and the
+decisions are at the end.
 
 ## The problem
 

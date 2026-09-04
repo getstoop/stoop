@@ -53,6 +53,36 @@ readable by the release before it, so a one-step rollback needs no
 restore. Stoop refuses to start against a database that a much newer
 release has reshaped, and says so plainly, rather than misbehaving.
 
+### Supported Postgres and LiveKit versions
+
+Stoop is tested on Postgres 16, which the compose file runs. Other majors
+that Postgres itself still supports should work, but are not tested; if
+you run one and something breaks, that is a bug worth reporting. A patch
+or minor release of Stoop never raises the minimum Postgres major; if a
+future release has to, the notes say so one minor ahead.
+
+Moving to a newer Postgres major is the one upgrade `docker compose pull`
+cannot do, because Postgres does not read a data directory written by an
+older major. Dump with the old container, switch the image tag, restore:
+
+```sh
+docker compose exec postgres pg_dump -U stoop -Fc stoop > stoop.dump
+docker compose down
+docker volume ls | grep postgres-data     # then remove that one volume, and only that one
+docker volume rm <name>_postgres-data
+# edit docker-compose.yml: postgres:16-alpine → postgres:17-alpine
+docker compose up -d postgres
+docker compose exec -T postgres pg_restore -U stoop -d stoop < stoop.dump
+docker compose up -d
+```
+
+Keep `stoop.dump` until the restored instance has been used for a while;
+the `stoop-data` volume with the uploads is untouched by all of this.
+
+LiveKit is pinned in the compose file to the exact version a Stoop
+release was tested against, and Stoop needs nothing newer than that pin.
+The pin moves only in a minor release and the notes say when.
+
 ## Reaching your server
 
 Stoop listens on one plain HTTP port (`8080` in the compose file). How
@@ -532,6 +562,11 @@ Start Stoop first: LiveKit exits if the file isn't there yet.
 | `STOOP_TAILSCALE_AUTHKEY`  | (empty)                     | Pre-authorise the node; otherwise a login URL is logged on first start |
 | `STOOP_TAILSCALE_CONTROL_URL` | (empty)                  | Self-hosted control server (Headscale) |
 | `STOOP_TAILSCALE_FUNNEL`   | `false`                     | Also expose the tailnet address publicly via Funnel (HTTP only — voice needs TURN) |
+| `STOOP_TAILSCALE_VOICE`    | `true`                      | The built-in node also carries LiveKit's media ports, so voice rides the tailnet. `false` serves HTTPS over the tailnet only |
+| `STOOP_LIVEKIT_MEDIA_HOST` | `127.0.0.1` (`livekit` in compose) | Where the built-in node forwards media: LiveKit's host on this machine or network |
+| `STOOP_LIVEKIT_TCP_PORT`   | `7881`                      | LiveKit's TCP media port, as set in `livekit.yaml` |
+| `STOOP_LIVEKIT_UDP_PORTS`  | `50000-50100`               | LiveKit's UDP media range, as set in `livekit.yaml` |
+| `STOOP_LIVEKIT_NODE_IP_FILE` | (empty)                   | File Stoop writes the tailnet address to for the LiveKit sidecar's `NODE_IP` (the compose file sets it on the shared volume) |
 | `STOOP_OIDC_ISSUER`        | (empty)                     | One OIDC login provider from the environment: the issuer URL exactly as its discovery document states it. The admin page's saved list overrides this |
 | `STOOP_OIDC_CLIENT_ID`     | (empty)                     | The provider's client id; set together with the secret and issuer |
 | `STOOP_OIDC_CLIENT_SECRET` | (empty)                     | The provider's client secret |
@@ -556,11 +591,9 @@ in the compose file. Files are served by Stoop itself at `/files/{id}`
 with the same session checks as everything else, so nothing in that
 directory needs to be reachable by the web.
 
-Files attached to a message are deleted with it. Two things are not
-cleaned up yet and simply take disk: uploads that were never sent (the
-user picked a file and closed the tab), and attachments in a channel or
-space that was deleted. A sweep for both is planned; until then they are
-harmless and small.
+Files attached to a message are deleted with it. Uploads that were never
+sent and attachments of deleted channels and spaces are removed by the
+sweep described under [Upload storage](#upload-storage-the-sweep-and-the-quota).
 
 ### Video and audio
 

@@ -21,7 +21,9 @@ they prefer otherwise.
 
 The newest release. Stoop upgrades in place from the release before it
 (`docker compose pull && docker compose up -d`), so staying current is
-the supported path; there are no long-lived branches.
+the supported path. The only branch besides `main` is a short-lived
+`release/X.Y` used to patch the newest minor
+([docs/releasing.md](docs/releasing.md)); older minors are not patched.
 
 ## Scope
 

@@ -337,5 +337,6 @@ overlay's glyph alignment, `Range` requests during video playback, focus
 management in modals. None of that is reachable from a unit test.
 
 **The runner wipes the database** in `STOOP_E2E_DATABASE_URL` before each
-spec, which is why `make e2e` is never run without the user's go-ahead and
-why `make dev-reset` is run after it rather than before.
+spec. `make e2e` points it at a throwaway one; anything else pointed at
+the dev database needs `make dev-reset` afterwards, and, by the
+maintainer's rule, their go-ahead before.

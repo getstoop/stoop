@@ -275,7 +275,7 @@ make build-web  vite build → internal/webui/dist
 make build      CGO_ENABLED=0 go build → bin/stoop      (SPA embedded)
 make lint       golangci-lint (incl. boundaries) + biome + tsc + theme/style checks
 make test       go test ./...
-make e2e        the browser suite (wipes the dev database — never without a go-ahead)
+make e2e        the browser suite on its own throwaway server and database
 ```
 
 `CGO_ENABLED=0` is not incidental. Pure-Go static builds for linux/amd64
@@ -322,5 +322,6 @@ make dev   Postgres in Docker + LiveKit on the host network
 ```
 
 `make dev-reset` wipes the dev database and seeds a fixed cast across two
-spaces. Note the ordering rule: the E2E runner also wipes the database, so
-`dev-reset` runs *after* a suite, not before.
+spaces. `make e2e` no longer touches the dev database (it starts its own
+server against a scratch one), but a spec run pointed at the dev database
+by hand still does; `dev-reset` afterwards puts the cast back.
