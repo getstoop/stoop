@@ -14,25 +14,25 @@
     "e2e": "node e2e/run.mjs"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.6.0",
+    "@bufbuild/protobuf": "^2.14.1",
     "@connectrpc/connect": "^2.0.0",
     "@connectrpc/connect-web": "^2.0.0",
-    "@tanstack/react-query": "^5.80.0",
+    "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-router": "^1.120.0",
-    "livekit-client": "^2.22.0",
+    "livekit-client": "^2.22.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.0.0",
+    "@biomejs/biome": "^2.5.11",
     "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
-    "@vitejs/plugin-react": "^4.5.0",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
     "pg": "^8.23.0",
-    "puppeteer-core": "^23.11.1",
-    "typescript": "^5.8.0",
-    "vite": "^6.3.0"
+    "puppeteer-core": "^25.9.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
   },
   "packageManager": "pnpm@11.23.0+sha512.f00082e5b283a199b74e079da28d155c008fe232f44c8a06ea7ddfa014ecf719fc362f790ecc67b28106ddac2afb24c49a9a079159da560b2ce7d1e98efd11af"
 }
