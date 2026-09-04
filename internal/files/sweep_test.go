@@ -3,8 +3,10 @@ package files_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/blob"
 )
 
 // fileRow inserts a file row and its blob directly, aged by `age`.
@@ -141,5 +144,54 @@ func TestQuota(t *testing.T) {
 	// Images go through the same check.
 	if _, err := f.svc.UploadAvatar(as(f.member), connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 8, 8)})); connect.CodeOf(err) != connect.CodeResourceExhausted {
 		t.Errorf("avatar over quota: want resource_exhausted, got %v", err)
+	}
+}
+
+// Parallel uploads that each fit alone must not all land: whatever the
+// interleaving, the quota holds and the losers' blobs are gone.
+func TestQuotaParallelUploads(t *testing.T) {
+	f := setup(t)
+	f.svc.UsePolicy(fakePolicy{quota: 100})
+	ctx := context.Background()
+	if _, err := f.pool.Exec(ctx, `INSERT INTO channels (id, space_id, name, kind) VALUES ($1, $2, 'general', 1)`, f.spaces.channelID, f.space); err != nil {
+		t.Fatal(err)
+	}
+	const racers = 3 // within one account's in-flight limit
+	statuses := make([]int, racers)
+	var wg sync.WaitGroup
+	for i := range racers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			statuses[i], _ = f.upload(t, "member", f.spaces.channelID, fmt.Sprintf("p%d.txt", i), bytes.Repeat([]byte("x"), 60))
+		}()
+	}
+	wg.Wait()
+	created := 0
+	for _, st := range statuses {
+		switch st {
+		case 201:
+			created++
+		case 507:
+		default:
+			t.Errorf("unexpected status %d", st)
+		}
+	}
+	if created != 1 {
+		t.Errorf("created = %d, want 1 (statuses %v)", created, statuses)
+	}
+	var used int64
+	if err := f.pool.QueryRow(ctx, "SELECT COALESCE(SUM(size), 0) FROM files").Scan(&used); err != nil {
+		t.Fatal(err)
+	}
+	if used > 100 {
+		t.Errorf("usage %d exceeds the quota", used)
+	}
+	blobs := 0
+	if err := f.store.Walk(ctx, func(string, blob.Stat) error { blobs++; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if blobs != 1 {
+		t.Errorf("blobs on disk = %d, want 1 (losers must clean up)", blobs)
 	}
 }
