@@ -65,19 +65,24 @@ sections, in this order:
 - **Never kill whatever listens on 8080, 5173, 5432 or 443** — other
   projects' Docker containers; `kill -9` there takes down Docker Desktop.
   If a port you need is taken, pick another.
-- **Do not run any browser spec — `make e2e` or `node e2e/run.mjs <spec>`
-  — until the user has reviewed the change on the running dev instance and
-  said so.** Iterate with `make lint`, `make test`, `make build`, a
-  restarted `bin/stoop`, and (for UI work) your own puppeteer screenshots;
-  then present the change set and wait. Once approved, `make e2e` runs
-  every spec against the server on :8091 (~7 minutes) and **wipes the dev
-  database before each spec**. Afterwards `make dev-reset` (needs the
-  server running — the wipe is `psql`, the seed goes through the API) to
-  get back to the seeded cast: eight named accounts plus eighteen extras
-  in The Stoop, password `password1`, `casey` the server admin, in "The
-  Stoop" and "Basement Arcade". It prints who they are. `make dev-reset`
-  wipes; `node scripts/dev-reset.mjs --append` only adds missing extras
-  to a running instance that still has the cast.
+- **Do not run any browser spec — `make e2e`, `scripts/e2e-scratch.sh` or
+  `node e2e/run.mjs <spec>` — until the user has reviewed the change on the
+  running dev instance and said so.** Iterate with `make lint`, `make test`,
+  `make build`, a restarted `bin/stoop`, and (for UI work) your own
+  puppeteer screenshots; then present the change set and wait. Once
+  approved, `make e2e` builds, then runs every spec (~7 minutes) on a
+  throwaway instance: `scripts/e2e-scratch.sh` recreates the `stoop_e2e`
+  database on the dev Postgres, starts a second `bin/stoop` on :8092 with
+  its own storage under `tmp/e2e-storage`, points the runner at both and
+  stops the server when done. The dev server on :8091 and its data are
+  untouched. `make e2e specs="replies edits"` runs a subset; the server
+  log is `tmp/e2e-server.log`. Only `make dev-reset` wipes the dev
+  database (it needs the server running — the wipe is `psql`, the seed
+  goes through the API) to get back to the seeded cast: eight named
+  accounts plus eighteen extras in The Stoop, password `password1`,
+  `casey` the server admin, in "The Stoop" and "Basement Arcade". It
+  prints who they are. `node scripts/dev-reset.mjs --append` only adds
+  missing extras to a running instance that still has the cast.
 - Iterate on `make lint` until clean: it runs golangci-lint, Biome and tsc.
 
 ## How a change lands
@@ -115,9 +120,11 @@ got big enough that a red `main` cost more than the round-trip saves.
 - **Enter sends.** A newline in the composer is Shift+Enter. A puppeteer
   script that does `page.type("…\n…")` posts a message per line (as the
   seeded user) instead of building a multi-line draft.
-- **The e2e suite wipes the database, and it needs the user's go-ahead.** Don't
-  run it per-iteration; rebuild, restart, and let a human look. Run it once,
-  as the gate before commit, after the change has been approved.
+- **The e2e suite needs the user's go-ahead.** Don't run it per-iteration;
+  rebuild, restart, and let a human look. Run it once, as the gate before
+  commit, after the change has been approved. `make e2e` no longer touches
+  the dev database, but `node e2e/run.mjs` on its own still wipes whatever
+  `STOOP_E2E_DATABASE_URL` names, and `.env` names the dev one.
 - **A tab opened before a rebuild keeps the old JavaScript until it
   navigates.** `index.html` is served `Cache-Control: no-cache` with an
   ETag (since 2026-08-27), so any reload picks up a new build — but a tab
@@ -157,11 +164,11 @@ got big enough that a red `main` cost more than the round-trip saves.
   element's centre — for the scrim that is under the drawer panel, so tap
   the strip beside it by coordinates. A tap that lands under the scrim
   hangs `Input.dispatchTouchEvent`; make sure the drawer is closed first.
-- **`bin/stoop` for the E2E suite needs `.env.dev` too**, not just
-  `.env`: `STOOP_UNFURL_ALLOW_PRIVATE=true` (the unfurl spec serves its
-  page from 127.0.0.1) and `STOOP_AUTH_RATE_LIMIT=0` (dozens of sign-ins
-  from one IP). Without them `unfurl` fails with no card and late specs
-  can be throttled.
+- **A hand-started `bin/stoop` for the E2E suite needs `.env.dev` too**,
+  not just `.env`: `STOOP_UNFURL_ALLOW_PRIVATE=true` (the unfurl spec
+  serves its page from 127.0.0.1) and `STOOP_AUTH_RATE_LIMIT=0` (dozens of
+  sign-ins from one IP). Without them `unfurl` fails with no card and late
+  specs can be throttled. `scripts/e2e-scratch.sh` sets both itself.
 - **Message actions live in one floating toolbar per row** (`.message-toolbar`,
   top-right, visible on hover/focus; continued rows show the time there
   too). `page.$$(".message-action")` inside a row finds exactly one of
@@ -177,25 +184,28 @@ got big enough that a red `main` cost more than the round-trip saves.
 - **`make dev-reset` needs the server up** on `STOOP_URL` (default :8091):
   the seed goes through the API. It checks first and refuses before
   wiping anything, so start the server, then reset.
-- **Run specs against the scratch instance to keep the dev data.** A
-  second server on :8092 against the `stoop_scratch` database (create it
-  once through the Postgres container) takes the suite without touching
-  what the user has on :8091:
-  `STOOP_E2E_BASE_URL=http://localhost:8092 STOOP_E2E_DATABASE_URL=postgres://stoop:stoop@localhost:5440/stoop_scratch?sslmode=disable pnpm e2e <spec>`.
-  Set `STOOP_STORAGE_DIR` for both that server and the runner (the
+- **Run specs through `scripts/e2e-scratch.sh <spec>` to keep the dev
+  data.** It is what `make e2e` runs, minus the build: a second server on
+  :8092 against a freshly recreated `stoop_e2e` database, with
+  `STOOP_STORAGE_DIR` set for both the server and the runner (the
   `uploads` and `attachments` specs stat blobs on disk themselves) and
-  `STOOP_UNFURL_ALLOW_PRIVATE=1` on the server (`unfurl` serves its
-  fixture site on 127.0.0.1), or those three fail for no real reason.
+  `STOOP_UNFURL_ALLOW_PRIVATE` on the server (`unfurl` serves its fixture
+  site on 127.0.0.1). Pointing `pnpm e2e` at a hand-made scratch database
+  instead needs all of that by hand, and a scratch database that outlives
+  a branch can carry goose rows for migration numbers another branch used
+  for something else — the specs then fail in their preamble while the
+  server log says `relation … does not exist`. Recreate it; the script
+  does so on every run.
 - **CI runs the suite as four parallel shards**, each against its own
   server and database: `pnpm e2e --shard N/4`. The split is by the
   seconds in `WEIGHT` in `web/e2e/run.mjs`, not by count, so a new or
   much slower spec belongs there; the run summary prints every spec's
   seconds to copy from. The branch ruleset requires only the roll-up job
   named "Browser E2E" — add or remove shards without touching it.
-- **The suite and `make dev-reset` wipe whatever the user typed on the dev
-  instance.** They often try a change live while a spec run is pending;
-  say so before running, and expect the seeded cast ("The Stoop" and
-  "Basement Arcade") afterwards — their test messages and channels are gone.
+- **`make dev-reset` wipes whatever the user typed on the dev instance.**
+  They often try a change live; say so before running, and expect the
+  seeded cast ("The Stoop" and "Basement Arcade") afterwards — their test
+  messages and channels are gone. `make e2e` does not do this any more.
 - **Adding a theme is four touches plus the prose that counts them.**
   A block in `web/src/themes.css`, an entry in `THEMES` in
   `src/api/theme.ts` (biome formats it one field per line — edit it, don't
@@ -212,7 +222,8 @@ got big enough that a red `main` cost more than the round-trip saves.
   With the built-in Tailscale listener on, the public URL defaults to the
   tailnet address and invite links use it — `setup.mjs` and `invites.mjs`
   then fail on the link origin. That is the feature working, not a bug;
-  start the E2E server the way CI does (no Tailscale, no trust-proxy).
+  start the E2E server the way CI and `scripts/e2e-scratch.sh` do (no
+  Tailscale, no trust-proxy).
 - **Leave 8091 free when you're done.** `make dev` refuses to start
   (`dev-port-check`) while anything holds the port: a stale `bin/stoop`
   started by hand carries only `.env`, not `.env.dev`'s `STOOP_LIVEKIT_URL`,
