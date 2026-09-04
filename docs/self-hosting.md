@@ -104,10 +104,7 @@ are built from, the **trusted proxies** in front, the built-in
 **Tailscale** listener, and a **voice relay** (Cloudflare's TURN or your
 own) — each optional, each behind a checkbox where it needs one. Nothing
 makes you choose between them: a tailnet node and a relay can both be on
-at once. One **Save changes** covers the form, but the request carries
-only what you actually edited, so saving an address can't disturb a
-relay. At the bottom, a line reports what the saved settings add up to
-for voice. What you save there overrides the environment variables
+at once. What you save there overrides the environment variables
 below, and clearing a value falls back to them. Either way, three
 settings matter for any front door:
 
@@ -123,43 +120,30 @@ settings matter for any front door:
   ranges or single addresses, comma-separated); they apply immediately,
   with no restart. Only requests arriving *from* those addresses have
   their `X-Forwarded-For` and `X-Forwarded-Proto` believed. This matters
-  twice over:
+  because:
   - session cookies are marked `Secure` for requests the proxy says
     arrived over HTTPS, and
   - **rate limits are per client address**, so without it every user
-    arrives from the proxy's address and shares one sign-in budget (20
-    attempts a minute — the whole household locked out together after a
-    few typos).
+    arrives from the proxy's address and shares one sign-in budget.
 
-  A proxy *appends* to `X-Forwarded-For` rather than replacing it, so
+  A proxy should *append* to `X-Forwarded-For` rather than replacing it, so
   the client is the rightmost address in that header that isn't one of
-  your proxies — anything further left was typed by the caller. List
-  every hop, not just the last one: with Cloudflare in front of a local
-  nginx, name both the Cloudflare ranges and nginx's address, or the hop
-  you left out is read as the client.
+  your proxies.
 
-  Never name an address that isn't really your proxy. Whoever is at it
-  can then claim any client address, which hands them an unlimited
-  supply of fresh sign-in budgets. The older `STOOP_TRUST_PROXY=true`
-  believes *every* caller's headers and is kept only for servers set up
-  before addresses could be named; with nothing to tell a proxy from a
-  client it takes the rightmost address as given, which is honest only
-  if your proxy sets or appends that header itself rather than passing
-  the caller's through unchanged. Naming addresses replaces it.
+  **Never** name an address that isn't really your proxy.
 - **HTTPS is required for voice from other devices.** Browsers only allow
   microphone access (and desktop notifications, and the clipboard) on a
-  secure origin. `http://localhost` counts; `http://192.168.x.x` does not.
+  secure origin. `http://localhost` is an exception; `http://192.168.x.x` is not.
 
 WebSocket origins need no configuring in the usual case: Stoop accepts
 connections whose `Origin` matches the request's own `Host`, and every
 proxy listed below forwards `Host` by default. `STOOP_ALLOWED_WS_ORIGINS`
 exists for a proxy that rewrites it.
 
-If your ISP doesn't give you a public IPv4 address (CGNAT: Starlink,
-cellular home internet, many providers abroad), you can't forward ports
-at all. Then the reverse-proxy row below is off the table, and voice
-audio needs either a TURN relay (Cloudflare's is the easy one, see
-below) or Tailscale, which traverses CGNAT on its own.
+If your ISP doesn't give you a public IPv4 address, or you can't forward
+ports for any reason, the reverse-proxy row below is off the table, and
+voice audio needs either a TURN relay, Tailscale (which traverses CGNAT on
+its own), or another VPN (you are on your own here).
 
 | Front door | People need | Chat | Voice audio | Who can read your traffic |
 | --- | --- | --- | --- | --- |
@@ -190,9 +174,7 @@ differently.
   server. With **Cloudflare Tunnel**, TLS terminates at Cloudflare's edge
   and is re-established to `cloudflared`, so Cloudflare's servers see
   every message and the LiveKit tokens in the signaling stream in
-  plaintext. That is what the product is, and for many self-hosters an
-  accepted trade — but it's the difference between the two "friends
-  install nothing" options, so choose knowingly.
+  plaintext.
 
 ### A reverse proxy you already run
 
@@ -237,27 +219,17 @@ WebSockets on by default; set `STOOP_PUBLIC_URL` and name `cloudflared`'s
 address under Trusted proxies as above. **Voice audio does not go through the tunnel**:
 Cloudflare's public hostnames carry HTTP and WebSocket traffic only, and
 WebRTC media is neither. Signaling works, but the join fails after ~15 s
-with "Couldn't establish an audio connection" — unless browsers are
-offered a relay. The natural one is
+with "Couldn't establish an audio connection", unless browsers are
+offered a relay. The closest one to reach for is
 **Cloudflare's own TURN service**, which lives outside the tunnel at
 `turn.cloudflare.com` (including TURN over TLS on 443, so it works from
 strict networks) and needs no port forwarding on your side, so it also
-works behind CGNAT. Standalone TURN has a free tier of 1,000 GB of
-egress per month and costs $0.05/GB after that; voice audio is ~50 kbps
+works behind CGNAT. See Cloudflare's site for current pricing; voice audio is ~50 kbps
 per stream, so a friend group stays well inside the free tier. (The
 "free with the SFU" clause on Cloudflare's pricing page refers to using
 their SFU in place of LiveKit, which isn't this setup.) Create a TURN key
 in the Cloudflare dashboard (Realtime → TURN) and put its id and token in
-`.env` — see [TURN](#turn-when-media-ports-cant-be-reached).
-
-Without a relay, the only alternative is to **forward the media ports
-anyway** (`7881/tcp`, `50000-50100/udp`): direct and best quality, but it
-exposes your home IP, needs the port forwarding the tunnel was meant to
-avoid, and isn't possible behind CGNAT.
-
-Cloudflare's "private network" mode (WARP on every device) does carry
-UDP, but that's the Tailscale model with different branding — it's not
-"click a link".
+`.env`. See [TURN](#turn-when-media-ports-cant-be-reached).
 
 ### Tailscale, built in
 
@@ -293,41 +265,6 @@ ends inside Stoop, so nobody in between reads anything.
    installed on the server and no ports forwarded from a router. Devices
    on the same LAN as the server keep connecting to LiveKit directly.
 
-   There is nothing to configure. A browser reaches LiveKit at whatever
-   addresses LiveKit offers it, and LiveKit builds that list at startup
-   from the interfaces it can see — the built-in node is not one of them,
-   because it lives inside Stoop. So LiveKit has to be handed the
-   address, and Stoop hands it over: it writes the address to the volume
-   the two already share for the API key pair, and `livekit-entrypoint.sh`
-   starts LiveKit with it. When the address appears or changes, that
-   script exits, and the compose restart policy brings LiveKit straight
-   back advertising the new one — the same policy that already covers a
-   first start before the key file exists.
-
-   So enabling Tailscale is the whole job. LiveKit bounces once, a few
-   seconds after you save, and voice works for tailnet devices; the
-   Hosting page's LiveKit section shows it back up. If you run LiveKit
-   some other way than this compose file it won't restart itself, and
-   `docker compose restart livekit` (or your equivalent) is what picks
-   the address up. Setting `NODE_IP` in `.env` pins an address yourself,
-   which wins and switches the watch off; `rtc.node_ip` in `livekit.yaml`
-   does the same if you configure LiveKit that way.
-
-   LiveKit advertises a *single* address, so a server people also reach
-   straight from the internet cannot offer both. Pin the tailnet address
-   for tailnet devices and add a
-   [TURN](#turn-when-media-ports-cant-be-reached) relay for the rest.
-   **If the server already runs the Tailscale client** and LiveKit is on
-   the host network (the bare binary, or the compose file's
-   `network_mode: host` variant), none of this applies: LiveKit offers
-   every interface on the machine, the tailnet one included, and pairs
-   with the phone's Tailscale interface by itself. Carrying media can be
-   switched off with `STOOP_TAILSCALE_VOICE=false`; `STOOP_LIVEKIT_MEDIA_HOST`,
-   `STOOP_LIVEKIT_TCP_PORT` and `STOOP_LIVEKIT_UDP_PORTS` say where
-   LiveKit is and default to the compose sidecar's ports;
-   `STOOP_LIVEKIT_NODE_IP_FILE` moves the file Stoop writes, which
-   otherwise sits beside the key file.
-
    Bandwidth: the node is userspace WireGuard in Go, so tailnet traffic
    is encrypted in this process rather than by the kernel, and media
    crosses it like everything else. Voice for a handful of people is
@@ -335,38 +272,29 @@ ends inside Stoop, so nobody in between reads anything.
    on small hardware. A LAN or a host Tailscale client avoids the hop
    entirely.
 
-"Publish this Stoop node to public internet (Funnel)" in the same
-section — or `STOOP_TAILSCALE_FUNNEL=true` — additionally publishes the
-same address to the internet through
+"Publish this Stoop node to public internet (Funnel)" or `STOOP_TAILSCALE_FUNNEL=true`
+additionally publishes the same address to the internet through
 [Tailscale Funnel](https://tailscale.com/kb/1223/funnel), so people need
-nothing installed. Ticking it is a request, not a switch: Tailscale
+nothing installed. Ticking it is not the only thing you need to do though: Tailscale
 refuses to publish the node until your tailnet policy grants it the
-`funnel` node attribute, and until then the node stays private. The page
-says so where you tick it, and the Tailscale status below it repeats the
-fix (with a link to the policy editor) if the listener is refused. Like Cloudflare Tunnel it carries HTTP only, so voice audio
-needs a reachable [TURN](#turn-when-media-ports-cant-be-reached) server.
-"I run a custom control server" — or `STOOP_TAILSCALE_CONTROL_URL` —
+`funnel` node attribute, and until then the node stays private. Like Cloudflare Tunnel
+it carries HTTP only, so voice audio needs a reachable [TURN](#turn-when-media-ports-cant-be-reached)
+server. 
+
+"I run a custom control server" or `STOOP_TAILSCALE_CONTROL_URL`
 points the node at a self-hosted [Headscale](https://headscale.net)
 instead of Tailscale's control plane. The auth key has to come from
 whichever one you point at; a `tskey-auth-…` from Tailscale won't
 authorise a node dialling Headscale.
 
-What the node opens on the machine: two UDP ports (random numbers) for
-WireGuard — those are how tailnet devices connect directly — and one TCP
-port on a random number for Tailscale's peer API, which the embedded
-network stack forwards tailnet traffic to; connections to it from the
-LAN are ignored. None of them need forwarding on your router.
-
-Already running the Tailscale client on the server? `tailscale serve --bg 8080`
-does the same job from outside (same HTTPS-certificates prerequisite). For
-voice, LiveKit on the host network offers the machine's tailnet address by
-itself; a LiveKit container on the compose bridge network can't see that
-interface, so give it `NODE_IP` from `tailscale ip -4` — that is the case
-Stoop's own node handles for you.
+If you are already running a Tailscale client alongside Stoop, that
+does the same job. For voice, LiveKit on the host network offers the machine's
+tailnet address by itself; a LiveKit container on the compose bridge network can't see that
+interface, so give it `NODE_IP` from `tailscale ip -4`.
 
 ### A LAN without HTTPS
 
-Everything except the microphone works over plain `http://<lan-ip>:8080`.
+Everything except voice works over plain `http://<lan-ip>:8080`.
 For voice on a LAN without a domain, Caddy can terminate TLS with its own
 certificate authority:
 
@@ -390,8 +318,8 @@ short-lived room token, proxies LiveKit's signaling connection at
 `/livekit` on its own origin, and the audio flows directly between each
 browser and LiveKit over WebRTC. Three things have to be true:
 
-1. **Keys — nothing to do.** Stoop mints a LiveKit API key pair on its
-   first boot, keeps it with its other settings, and writes it to the
+1. Stoop mints a LiveKit API key pair on its first boot, keeps it with its
+   other settings, and writes it to the
    `livekit-keys` volume; the compose file starts LiveKit with
    `--key-file`, so the pair lives in one place and there is no secret to
    copy. (It used to be yours to generate and paste into two files, which
@@ -414,18 +342,18 @@ browser and LiveKit over WebRTC. Three things have to be true:
 
 ### TURN, when media ports can't be reached
 
-When browsers can't reach the media ports directly — Cloudflare Tunnel,
-Tailscale Funnel, or a network that blocks UDP — WebRTC falls back to a
+When browsers can't reach the media ports directly, WebRTC falls back to a
 TURN relay *if one is offered*. The relay has to be reachable itself, so
 it can't hide behind the same tunnel. Two ways to offer one:
 
 - **LiveKit's built-in TURN** (`turn:` in `livekit.yaml`: `enabled: true`,
   a `domain` with a certificate, `tls_port: 5349`, `udp_port: 3478`).
   Browsers then only need one TCP port, which is friendlier to forward
-  than a UDP range — but it's still a forwarded port on the machine.
-- **Cloudflare TURN — the one-setting option.** In the Cloudflare
-  dashboard create a TURN key (Realtime → TURN) and paste its id and
-  token under **Server admin → Hosting → Voice relay → "Cloudflare's TURN
+  than a UDP range, but it's still a forwarded port on the machine.
+  So this does not solve for cases where that's not an option.
+- **Cloudflare TURN.** In the Cloudflare dashboard create a TURN key
+  (Realtime → TURN) and paste its id and token under **Server admin
+  → Hosting → Voice relay → "Cloudflare's TURN
   relay"**, in the wizard or afterwards (or put them in
   `.env` as `STOOP_CLOUDFLARE_TURN_KEY_ID` and
   `STOOP_CLOUDFLARE_TURN_API_TOKEN`). Stoop mints short-lived credentials
@@ -434,38 +362,29 @@ it can't hide behind the same tunnel. Two ways to offer one:
   `livekit.yaml`, works behind CGNAT. If Cloudflare's API is ever
   unreachable, joins still go ahead without the relay rather than
   failing.
-- **Your own TURN server with fixed credentials** — coturn on a cheap
-  VPS, or a hosted service that issues long-lived credentials — under
+- **Your own TURN server with fixed credentials.** Under
   "I run my own TURN relay" on the same page, or in `.env`: `STOOP_TURN_URLS` (comma-separated, e.g.
   `turn:turn.example.com:3478?transport=udp,turns:turn.example.com:5349`),
   `STOOP_TURN_USERNAME`, `STOOP_TURN_CREDENTIAL`, and `STOOP_STUN_URLS`
   (coturn answers STUN on the same port: `stun:turn.example.com:3478`).
-  Include STUN: when Stoop supplies ICE servers, browsers use that list
-  instead of LiveKit's, and without STUN they can't find a direct path.
 - **LiveKit's own configuration** (`rtc.turn_servers`, or its built-in
   TURN under `turn:`) still works when Stoop supplies nothing; see the
   [LiveKit self-hosting docs](https://docs.livekit.io/home/self-hosting/deployment/).
 
 Both Stoop options may be set at once — browsers try every server they
-are given. Audio is ~50 kbps per stream, so a relay's bandwidth bill is
-small whichever you pick.
+are given.
 
 ### Video and screen share: what it costs
 
-Cameras and screen shares ride the same LiveKit paths as audio — same
-ports, same TURN relay — so if voice works, video works. What changes is
+Cameras and screen shares ride the same LiveKit paths as audio, same
+ports, same TURN relay, so if voice works, video works. What changes is
 bandwidth. LiveKit is a selective forwarding unit: every viewer gets
 their own copy from the server, so a 1080p screen share watched by five
 people is roughly **10–12 Mbps *up* from your server**, and a camera in
-the spotlight is 3–4 Mbps per viewer. Two things keep that in check:
-cameras publish three layers (1080p, 360p, 180p) and a viewer only
-receives the layer their tile is actually showing, and a layer nobody is
-looking at isn't sent at all — so the tile strip is cheap and only the
-spotlight costs full rate. Behind Cloudflare Tunnel the relay carries
-that traffic too, so it counts against the TURN allowance. A residential
-uplink handles a share for a handful of people; for more, put the server
-somewhere with real upstream. Screen sharing isn't available from phone
-browsers (they lack the capture API); cameras are.
+the spotlight is 3–4 Mbps per viewer. Behind Cloudflare Tunnel the relay carries
+that traffic too, so it counts against the TURN allowance. This means your uplink
+speed matters. A ~40mbps uplink is going to become limiting past a few video viewers.
+Screen sharing isn't available from phone browsers; cameras are.
 
 ### Troubleshooting voice
 
@@ -477,7 +396,7 @@ browsers (they lack the capture API); cameras are.
 | Everyone shows as connected, nobody hears anyone | The same, but the media path broke after the join (a network change); leave and rejoin, then check the row above |
 | A participant lingers after their tab closed | Their WebSocket to Stoop hadn't dropped yet; it clears when it does (seconds) |
 
-### Voice in development
+### Voice in development env
 
 Browsers hide their local IP addresses behind mDNS names, and nothing
 inside a Docker bridge network can resolve those — so a containerised
@@ -574,13 +493,6 @@ Start Stoop first: LiveKit exits if the file isn't there yet.
 | `STOOP_OIDC_ID`            | `sso`                       | The provider's stable id; part of the callback URL, and identities link under it |
 | `STOOP_PASSWORD_SIGN_IN`   | `everyone`                  | Who may use the username/password form: `everyone`, `admins`, or `off` (sign in through login providers instead). The admin page's saved value overrides it; admins are always honoured as a fallback |
 
-## Themes
-
-Nothing to configure: each person picks their own look under
-**Profile → Appearance** (ten palettes, or "follow the system's
-light/dark setting"), and the choice is kept in their browser. Neither
-the server nor a space admin sets anyone's theme.
-
 ## File storage
 
 Uploaded files — avatars, space icons, and message attachments (up to
@@ -598,28 +510,18 @@ sweep described under [Upload storage](#upload-storage-the-sweep-and-the-quota).
 ### Video and audio
 
 Video and audio attachments play in the message, straight from the
-uploaded bytes: the server does no transcoding and makes no thumbnails
-(both would need ffmpeg next to the binary), it serves the file with
-HTTP Range support so the browser can stream and seek. What plays is
-therefore what the viewer's browser can decode. Safe everywhere: MP4
+uploaded bytes: the server does no transcoding and makes no thumbnails,
+it serves the file with HTTP Range support so the browser can stream and
+seek. What plays is therefore what the viewer's browser can decode. Safe everywhere: MP4
 with H.264 video and AAC audio, WebM with VP8/VP9/AV1, MP3, and M4A. An
 iPhone's `.mov` is served as QuickTime and plays where the browser
-supports its codecs — Safari always; Chrome and Firefox only when the
-clip is H.264 rather than HEVC ("High Efficiency" in the iPhone's camera
-settings). A clip the browser can't play shows as a download card.
+supports its codecs. A clip the browser can't play shows as a download card.
 
 The 100 MB cap is deliberate and stops there. Uploads are one HTTP
 request, and Cloudflare Tunnel on the free plan (the [front door](#reaching-your-server)
 most installs use) rejects request bodies above 100 MB; raising the cap
 means chunked uploads, which is planned but not built. Long videos are
 best shared as a link.
-
-You can come *down* from it: the admin page's Storage tab sets **Maximum
-size per file**, the cap on one attachment, and a Pi with a small card
-wants a number well below the ceiling. It is per file, not per message —
-ten of them can still ride on one message. The composer refuses a bigger file before
-uploading it, and the server refuses it regardless. Avatars and space
-icons are resized by the server and are not measured against it.
 
 There is no object-storage option yet. `STOOP_STORAGE` exists so the
 choice has a home, but `fs` is the only value it accepts: setting `s3`
@@ -718,8 +620,7 @@ Two tools, at two levels:
   come back with any invite link. A ban removes them *and* refuses
   every invite link until someone unbans them under *Space settings →
   Banned*. Either one also disconnects them from the space's voice
-  channels; if the LiveKit sidecar is unreachable the removal is logged
-  as a warning and they stay in the call until they hang up.
+  channels.
 - **Block** (anyone): from a person's card, undone from your profile
   page. No direct messages either way, and no mention, reply or DM
   alerts from them. Their messages in shared channels still show.
@@ -731,7 +632,7 @@ is the server admin's job on the admin page.
 
 By default new accounts need a space invite code (the first account, created
 during setup, is exempt and becomes the server admin). The admin can change
-this at runtime under **Server admin** (the ⚙ in the rail): *Invite only*,
+this at runtime under **Server admin**: *Invite only*,
 *Open*, or *Closed* (admin-created accounts only). `STOOP_REGISTRATION=open|invite|closed`
 only seeds the initial value on first boot.
 
@@ -747,8 +648,8 @@ were linked from a profile).
 
 ## Signing in with an identity provider
 
-People can sign in — and, policy permitting, create their account — with
-an identity they already have, instead of a Stoop password. Any OIDC
+People can sign in and create their account with an identity they
+already have, instead of a Stoop password. Any OIDC
 provider works: a self-hosted IdP (Authentik, Authelia, Keycloak,
 Pocket ID), Google, or Microsoft (with a tenant id; the `common`
 pseudo-tenant is not supported). Configure it under **Server admin →
