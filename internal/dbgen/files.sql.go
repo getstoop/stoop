@@ -242,6 +242,17 @@ func (q *Queries) ListStorageKeysAmong(ctx context.Context, keys []string) ([]st
 	return items, nil
 }
 
+const lockStorageQuota = `-- name: LockStorageQuota :exec
+SELECT pg_advisory_xact_lock(4207011)
+`
+
+// LockStorageQuota serialises quota-checked inserts for the transaction
+// (see files.recordFile). The key is arbitrary and only used here.
+func (q *Queries) LockStorageQuota(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockStorageQuota)
+	return err
+}
+
 const storageUsage = `-- name: StorageUsage :one
 SELECT COALESCE(SUM(size), 0)::bigint AS bytes, count(*)::bigint AS files FROM files
 `

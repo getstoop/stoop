@@ -89,13 +89,16 @@ func (s *Service) storeImage(ctx context.Context, kind Kind, ownerID string, spa
 		return dbgen.File{}, fmt.Errorf("store blob: %w", err)
 	}
 	sum := sha256.Sum256(encoded)
-	f, err := s.q.CreateFile(ctx, dbgen.CreateFileParams{
+	f, err := s.recordFile(ctx, dbgen.CreateFileParams{
 		ID: id.String(), Kind: string(kind), OwnerID: ownerID, SpaceID: spaceID,
 		ContentType: "image/png", Size: int64(len(encoded)), Sha256: sum[:], StorageKey: key, Name: "",
 	})
 	if err != nil {
 		if derr := s.store.Delete(ctx, key); derr != nil {
 			s.log.Warn("orphan blob after failed insert", "key", key, "err", derr)
+		}
+		if errors.Is(err, ErrStorageFull) {
+			return dbgen.File{}, connect.NewError(connect.CodeResourceExhausted, err)
 		}
 		return dbgen.File{}, fmt.Errorf("record file: %w", err)
 	}
