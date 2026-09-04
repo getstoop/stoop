@@ -116,7 +116,7 @@ await sleep(600);
 // The server's name is the tab's title everywhere, saved through the same
 // form as the policies, and still there after a reload.
 check((await A.title()).length > 0, `tab has a title (${await A.title()})`);
-await A.click("#instance-name", { clickCount: 3 });
+await A.click("#instance-name", { count: 3 });
 await A.type("#instance-name", `Stoop HQ ${suffix}`);
 await saveServer(A);
 // The title follows the refetched status, a beat after Save resolves.
