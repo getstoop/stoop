@@ -98,7 +98,7 @@ check(
 // B edits: inline editor, Enter saves, (edited) marker, A sees it live.
 await clickAction(B, 0, "Edit");
 await sleep(200);
-await B.click(".message-editor textarea", { clickCount: 3 });
+await B.click(".message-editor textarea", { count: 3 });
 await B.type(".message-editor textarea", "hello world");
 await B.keyboard.press("Enter");
 await sleep(800);

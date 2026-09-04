@@ -85,7 +85,7 @@ await sleep(800);
 check(path(A).endsWith("/settings"), `owner opens settings (${path(A)})`);
 
 // Rename the space: sidebar and B's pill update live.
-await A.click('input[aria-label="Space name"]', { clickCount: 3 });
+await A.click('input[aria-label="Space name"]', { count: 3 });
 await A.type('input[aria-label="Space name"]', "The Porch");
 await A.keyboard.press("Enter");
 await sleep(800);
@@ -115,7 +115,7 @@ check(
 );
 await (await rowBtn(A, "general", "Rename")).click();
 await sleep(200);
-await A.click('input[aria-label="Channel name"]', { clickCount: 3 });
+await A.click('input[aria-label="Channel name"]', { count: 3 });
 await A.type('input[aria-label="Channel name"]', "lounge");
 await A.keyboard.press("Enter");
 await sleep(800);

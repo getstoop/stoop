@@ -145,7 +145,7 @@ for (const b of await rows[2].$$(".message-action")) {
   }
 }
 await sleep(300);
-await A.click(".message-editor textarea", { clickCount: 3 });
+await A.click(".message-editor textarea", { count: 3 });
 await A.keyboard.press("Backspace");
 await A.type(".message-editor textarea", "no link any more");
 await A.keyboard.press("Enter");
