@@ -1,4 +1,4 @@
-.PHONY: dev dev-port-check dev-services dev-services-stop dev-reset generate build build-web lint test e2e migrate-new docker clean
+.PHONY: dev dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web lint test e2e migrate-new docker clean
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -39,6 +39,10 @@ dev-services-stop:
 ## dev-reset: wipe the dev database; seed the fixed cast (password1) in "The Stoop" and "Basement Arcade"
 dev-reset:
 	node scripts/dev-reset.mjs
+
+## dev-flood: fill a space with generated messages, e.g. make dev-flood count=20000 space="The Stoop"
+dev-flood:
+	node scripts/dev-flood.mjs --space "$(or $(space),The Stoop)" --count $(or $(count),5000) --days $(or $(days),60)
 
 # ---- Code generation -------------------------------------------------------
 

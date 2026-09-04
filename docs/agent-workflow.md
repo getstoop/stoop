@@ -94,6 +94,10 @@ sections, in this order:
   `casey` the server admin, in "The Stoop" and "Basement Arcade". It
   prints who they are. `node scripts/dev-reset.mjs --append` only adds
   missing extras to a running instance that still has the cast.
+  `make dev-flood count=20000` fills The Stoop with generated messages
+  straight into Postgres (authors are its members, spread over the last
+  60 days) for trying search and history at size; reload the tab to see
+  them.
 - Iterate on `make lint` until clean: it runs golangci-lint, Biome and tsc.
 
 ## How a change lands

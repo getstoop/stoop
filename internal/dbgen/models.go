@@ -104,6 +104,7 @@ type Message struct {
 	ReplyToMessageID *string
 	MentionsHere     bool
 	EditedAt         *time.Time
+	Search           interface{}
 }
 
 type MessageAttachment struct {

@@ -79,6 +79,8 @@ type Service struct {
 	files    FileDirectory
 	rooms    VoiceRooms
 
+	searchThrottle Throttle
+
 	unfurler      Unfurler
 	previewImages PreviewImages
 	unfurlOpts    UnfurlOptions

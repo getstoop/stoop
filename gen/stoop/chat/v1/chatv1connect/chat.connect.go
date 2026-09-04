@@ -111,6 +111,9 @@ const (
 	// ChatServiceListMessagesProcedure is the fully-qualified name of the ChatService's ListMessages
 	// RPC.
 	ChatServiceListMessagesProcedure = "/stoop.chat.v1.ChatService/ListMessages"
+	// ChatServiceSearchMessagesProcedure is the fully-qualified name of the ChatService's
+	// SearchMessages RPC.
+	ChatServiceSearchMessagesProcedure = "/stoop.chat.v1.ChatService/SearchMessages"
 	// ChatServiceEditMessageProcedure is the fully-qualified name of the ChatService's EditMessage RPC.
 	ChatServiceEditMessageProcedure = "/stoop.chat.v1.ChatService/EditMessage"
 	// ChatServiceDeleteMessageProcedure is the fully-qualified name of the ChatService's DeleteMessage
@@ -218,6 +221,9 @@ type ChatServiceClient interface {
 	SetSpaceMuted(context.Context, *connect.Request[v1.SetSpaceMutedRequest]) (*connect.Response[v1.SetSpaceMutedResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
+	// SearchMessages finds messages by their words within one space the
+	// caller belongs to, newest first. See docs/proposals/message-search.md.
+	SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error)
 	// EditMessage replaces the content of the caller's own message.
 	EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error)
 	// DeleteMessage removes a message: the author's own, or anyone's with
@@ -451,6 +457,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("ListMessages")),
 			connect.WithClientOptions(opts...),
 		),
+		searchMessages: connect.NewClient[v1.SearchMessagesRequest, v1.SearchMessagesResponse](
+			httpClient,
+			baseURL+ChatServiceSearchMessagesProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("SearchMessages")),
+			connect.WithClientOptions(opts...),
+		),
 		editMessage: connect.NewClient[v1.EditMessageRequest, v1.EditMessageResponse](
 			httpClient,
 			baseURL+ChatServiceEditMessageProcedure,
@@ -536,6 +548,7 @@ type chatServiceClient struct {
 	setSpaceMuted      *connect.Client[v1.SetSpaceMutedRequest, v1.SetSpaceMutedResponse]
 	sendMessage        *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
 	listMessages       *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
+	searchMessages     *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
 	editMessage        *connect.Client[v1.EditMessageRequest, v1.EditMessageResponse]
 	deleteMessage      *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
 	toggleReaction     *connect.Client[v1.ToggleReactionRequest, v1.ToggleReactionResponse]
@@ -706,6 +719,11 @@ func (c *chatServiceClient) ListMessages(ctx context.Context, req *connect.Reque
 	return c.listMessages.CallUnary(ctx, req)
 }
 
+// SearchMessages calls stoop.chat.v1.ChatService.SearchMessages.
+func (c *chatServiceClient) SearchMessages(ctx context.Context, req *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error) {
+	return c.searchMessages.CallUnary(ctx, req)
+}
+
 // EditMessage calls stoop.chat.v1.ChatService.EditMessage.
 func (c *chatServiceClient) EditMessage(ctx context.Context, req *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error) {
 	return c.editMessage.CallUnary(ctx, req)
@@ -828,6 +846,9 @@ type ChatServiceHandler interface {
 	SetSpaceMuted(context.Context, *connect.Request[v1.SetSpaceMutedRequest]) (*connect.Response[v1.SetSpaceMutedResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
+	// SearchMessages finds messages by their words within one space the
+	// caller belongs to, newest first. See docs/proposals/message-search.md.
+	SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error)
 	// EditMessage replaces the content of the caller's own message.
 	EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error)
 	// DeleteMessage removes a message: the author's own, or anyone's with
@@ -1057,6 +1078,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("ListMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceSearchMessagesHandler := connect.NewUnaryHandler(
+		ChatServiceSearchMessagesProcedure,
+		svc.SearchMessages,
+		connect.WithSchema(chatServiceMethods.ByName("SearchMessages")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceEditMessageHandler := connect.NewUnaryHandler(
 		ChatServiceEditMessageProcedure,
 		svc.EditMessage,
@@ -1171,6 +1198,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceSendMessageHandler.ServeHTTP(w, r)
 		case ChatServiceListMessagesProcedure:
 			chatServiceListMessagesHandler.ServeHTTP(w, r)
+		case ChatServiceSearchMessagesProcedure:
+			chatServiceSearchMessagesHandler.ServeHTTP(w, r)
 		case ChatServiceEditMessageProcedure:
 			chatServiceEditMessageHandler.ServeHTTP(w, r)
 		case ChatServiceDeleteMessageProcedure:
@@ -1322,6 +1351,10 @@ func (UnimplementedChatServiceHandler) SendMessage(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListMessages is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SearchMessages is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error) {

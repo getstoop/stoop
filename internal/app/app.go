@@ -101,6 +101,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	bi := buildinfo.Get()
 	instanceSvc.UseBuildInfo(instance.BuildInfo{Version: bi.Version, Commit: bi.Commit, BuiltAt: bi.Date, GoVersion: bi.GoVersion})
 	chatSvc.UseInstancePolicy(instanceSvc)
+	chatSvc.UseSearchThrottle(ratelimit.New(cfg.SearchRateLimit, cfg.SearchRateLimit))
 	keys, err := livekitKeys(ctx, cfg, instanceSvc, log)
 	if err != nil {
 		pool.Close()

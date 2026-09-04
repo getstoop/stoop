@@ -318,6 +318,35 @@ doesn't exist, so an id can't be probed for existence.
 The client's side of this — the single flat window, the 300-row cap, the
 liveness rule — is in [realtime.md](realtime.md#history-windows).
 
+## Search
+
+`SearchMessages` finds messages by their words within one space the
+caller belongs to, newest first, 25 per page (max 50) with a `before_id`
+cursor. The design and the cost reasoning are in
+[proposals/message-search.md](../proposals/message-search.md); what the
+code does:
+
+- **Storage.** `messages.search` is a stored generated column,
+  `to_tsvector('simple', content)`, with a GIN index (migration 00029).
+  Postgres maintains it on every insert and update; deletes are hard, so
+  nothing stale stays. `simple` means whole lowercased words, no
+  stemming, in any language.
+- **Parsing** (`search_query.go`). `from:@handle`, `in:#channel`,
+  `before:YYYY-MM-DD` and `after:YYYY-MM-DD` come out as filters
+  (quoted values allowed, `in:"front steps"`); the rest is websearch
+  syntax — words, `"phrases"`, `-excluded`, `OR`. The last bare word of
+  three or more characters becomes a prefix match, so `restart` finds
+  `restarted`. A query with no words left is `InvalidArgument`; a
+  channel or handle that is not in the space is `NotFound`.
+- **The query** (`queries/chat/search.sql`) filters by the space's
+  channels first, then the text match, then the date and cursor bounds,
+  and stops after the page. No ranking: recency is the order. Rows carry
+  the same reply columns as `ListMessagesBefore` and hydrate through the
+  same path.
+- **Guards.** Per-user rate limit (`STOOP_SEARCH_RATE_LIMIT`, 30 a minute,
+  `ResourceExhausted` with `Retry-After`) and a 2 s statement timeout
+  in a read-only transaction (`DeadlineExceeded`). The client words both.
+
 ## Edits, deletions, reactions, replies
 
 Anything that adds to or changes what other people see — send, edit,
