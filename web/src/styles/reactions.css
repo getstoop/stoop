@@ -1,0 +1,37 @@
+/* ---- Reactions ---- */
+
+.reaction-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--raised);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 18px;
+}
+
+.reaction-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.reaction-chip.mine {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.reaction-emoji {
+  font-size: var(--text-body);
+}

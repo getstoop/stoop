@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Self-hosting help
+    url: https://github.com/Jhut89/stoop/blob/main/docs/self-hosting.md
+    about: Setup, exposure options and the troubleshooting table. Please read it before filing a setup issue.
+  - name: Security report
+    url: https://github.com/Jhut89/stoop/security/advisories/new
+    about: Vulnerabilities go through private reporting.

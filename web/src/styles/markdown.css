@@ -1,0 +1,89 @@
+/* ---- Rendered Markdown in messages. ---- */
+
+.md-code {
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.md-pre {
+  display: block;
+  max-width: 100%;
+  margin: 4px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--raised);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.md-quote {
+  display: block;
+  margin: 2px 0;
+  padding: 2px 12px;
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+}
+
+.md-link {
+  color: var(--accent);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+/* Lists sit tight against the surrounding lines — a message is not a
+   document, and a bulleted line shouldn't push its neighbours apart. */
+.md-list {
+  display: block;
+  margin: 2px 0;
+  padding-left: 24px;
+}
+
+.md-list .md-list {
+  margin: 0;
+}
+
+.md-list-item {
+  margin: 0;
+}
+
+/* Hidden until clicked: the text is there, just unreadable. Blur alone
+   leaves ghosts of long words, so the block covers it too and only
+   lifts once revealed. */
+.md-spoiler {
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: transparent;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.md-spoiler:not(.revealed) {
+  user-select: none;
+}
+
+.md-spoiler:not(.revealed) * {
+  visibility: hidden;
+}
+
+.md-spoiler:hover:not(.revealed) {
+  background: var(--border);
+}
+
+.md-spoiler.revealed {
+  background: var(--raised);
+  color: inherit;
+  cursor: default;
+}
+
+.md-spoiler.revealed * {
+  visibility: visible;
+}

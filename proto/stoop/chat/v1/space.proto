@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// SpaceRole is a member's role within one space: owner > admin > member.
+// The permission each role holds is fixed in code; see
+// docs/architecture/permissions.md.
+enum SpaceRole {
+  SPACE_ROLE_UNSPECIFIED = 0;
+  SPACE_ROLE_MEMBER = 1;
+  SPACE_ROLE_ADMIN = 2;
+  SPACE_ROLE_OWNER = 3;
+}
+
+message Space {
+  string id = 1;
+  string name = 2;
+  string owner_id = 3;
+  google.protobuf.Timestamp created_at = 4;
+  // The caller's effective role in this space (instance admins see at
+  // least ADMIN). Clients use it to hide controls the caller can't use.
+  SpaceRole my_role = 5;
+  // Whether plain members may create invites (admins and the owner always
+  // can). Members' invites always grant the member role.
+  bool members_can_invite = 6;
+  // True if any channel here has messages newer than the caller's read
+  // marker.
+  bool has_unread = 7;
+  // The space icon's file id (GET /files/{id}); empty for initials.
+  string icon_file_id = 8;
+  // One plain-text line saying what the space is, for the places with no
+  // room for more: under the name in the sidebar, and on an invite. Also
+  // returned by the public invite lookup, so it is never private.
+  string description = 9;
+  // Markdown shown to a member on their first arrival and from "About
+  // this space" after that. Members only — never on an invite.
+  string welcome = 10;
+  // The channel someone lands in when they arrive without one of their
+  // own choosing — an invite, or /s/{id} with no channel. Empty means
+  // whichever channel sorts first, and it empties itself if the channel
+  // is deleted, so clients must still fall back when it names a channel
+  // they don't have.
+  string default_channel_id = 11;
+  // The caller muted this space: no unread bold or dot, no mention
+  // badges anywhere in it, no desktop alerts (mentions still reach
+  // activity). Their own setting; see SetSpaceMuted. Never set on
+  // broadcast events.
+  bool muted = 12;
+}

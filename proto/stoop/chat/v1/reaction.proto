@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+// Reaction is one emoji on a message and everyone who added it. Clients
+// derive the count and whether the viewer reacted from user_ids.
+message Reaction {
+  // The emoji as its Unicode string (a single grapheme cluster).
+  string emoji = 1;
+  // In the order the reactions were added.
+  repeated string user_ids = 2;
+}

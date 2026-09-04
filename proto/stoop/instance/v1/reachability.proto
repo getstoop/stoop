@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package stoop.instance.v1;
+
+// TurnRelay is a TURN server with fixed credentials, offered to browsers
+// for voice when they can't reach LiveKit's media ports directly.
+message TurnRelay {
+  repeated string urls = 1;
+  string username = 2;
+  // Write-only: never returned. has_credential reports whether one is set.
+  string credential = 3;
+  bool has_credential = 4;
+  repeated string stun_urls = 5;
+}
+
+// CloudflareTurn enables Cloudflare's TURN service; the server mints
+// credentials itself.
+message CloudflareTurn {
+  string key_id = 1;
+  // Write-only: never returned. has_api_token reports whether one is set.
+  string api_token = 2;
+  bool has_api_token = 3;
+}
+
+// TailscaleSettings control the built-in Tailscale listener.
+message TailscaleSettings {
+  bool enabled = 1;
+  // Node name on the tailnet; "stoop" when empty.
+  string hostname = 2;
+  // Also publish the address to the internet via Tailscale Funnel.
+  bool funnel = 3;
+  // Write-only: pre-authorises the node. has_auth_key reports whether one
+  // is saved. Without one the node logs (and this API reports) a login URL.
+  string auth_key = 4;
+  bool has_auth_key = 5;
+  // Self-hosted control server (Headscale); empty means Tailscale's.
+  string control_url = 6;
+}
+
+// TrustedProxies names the machines allowed to speak for their callers:
+// only a request whose TCP peer matches one of these has its
+// X-Forwarded-For and X-Forwarded-Proto believed. Independent of how
+// people reach the server — an internal proxy can sit in front of any of
+// the options.
+message TrustedProxies {
+  // CIDR ranges ("10.0.0.0/8") or single addresses ("192.168.1.5").
+  repeated string cidrs = 1;
+  // True when the server is configured to trust every peer's headers
+  // (the older STOOP_TRUST_PROXY=true, with no addresses named).
+  bool trust_all = 2;
+}
+
+// Reachability is the effective configuration: a saved value where one
+// exists, otherwise the server's environment.
+message Reachability {
+  string public_url = 1;
+  TurnRelay turn = 2;
+  CloudflareTurn cloudflare = 3;
+  TailscaleSettings tailscale = 4;
+  TrustedProxies trusted_proxies = 5;
+}
+
+// TailscaleStatus is the built-in Tailscale listener's live state.
+message TailscaleStatus {
+  bool enabled = 1;
+  // "needs_login", "starting", "running", or "stopped"/"error".
+  string state = 2;
+  // Where to authorise the node, while state is needs_login.
+  string login_url = 3;
+  // The https address once running.
+  string url = 4;
+  bool funnel = 5;
+  string error = 6;
+  // The node's tailnet IPv4 (100.x) once running. LiveKit must advertise
+  // this address (rtc.node_ip) for browsers on the tailnet to reach the
+  // media ports the node carries.
+  string tailnet_ip = 7;
+  // Whether Stoop is carrying LiveKit's media ports over this node, so
+  // voice and video ride the tailnet with nothing installed on the host.
+  bool carries_voice = 8;
+
+  reserved 9, 10; // restart notes; LiveKit restarts itself now
+}
+
+// LiveKitStatus is whether the voice sidecar is up.
+message LiveKitStatus {
+  // Whether it answered when dialled.
+  bool running = 1;
+  // The address this server dials it at.
+  string url = 2;
+}

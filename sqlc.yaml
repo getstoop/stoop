@@ -1,0 +1,41 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "internal/db/migrations"
+    # One directory per module (ownership is auditable from the path), one
+    # file per entity; sqlc emits a matching <entity>.sql.go for each.
+    queries:
+      - "internal/db/queries/auth"
+      - "internal/db/queries/chat"
+      - "internal/db/queries/instance"
+      - "internal/db/queries/files"
+    gen:
+      go:
+        package: "dbgen"
+        out: "internal/dbgen"
+        sql_package: "pgx/v5"
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "string"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              type: "string"
+              pointer: true
+          - db_type: "citext"
+            go_type: "string"
+          - db_type: "pg_catalog.timestamptz"
+            go_type: "time.Time"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "pg_catalog.timestamptz"
+            nullable: true
+            go_type:
+              type: "time.Time"
+              pointer: true
+          - db_type: "timestamptz"
+            nullable: true
+            go_type:
+              type: "time.Time"
+              pointer: true

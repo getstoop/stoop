@@ -1,0 +1,47 @@
+/* Tokens that are not colour: shape, type, motion, focus and stacking.
+   Colour lives in themes.css, one block per theme; this is one block for
+   every theme, because a theme must never move a glyph (the composer
+   overlay depends on metrics staying put). Spacing is deliberately not
+   here — gap and padding are written in px on the scale
+   2 4 6 8 12 16 20 24 32, which scripts/check-styles.mjs enforces. */
+
+:root {
+  /* Shape. sm: inline marks (mentions, code). base: rows, menu items,
+     small buttons. md: buttons, fields, popovers. lg: cards, modals, the
+     composer. pill: chips and badges; circles are 50%. */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* Type. body is the default; ui is labels, hints, tabs, chips and
+     menus; sm is meta (times, sizes); xs is eyebrows and badges, always
+     600 and uppercase with --tracking-caps. Weights are 400, 600, 700. */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-ui: 13px;
+  --text-body: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-display: 28px;
+  --tracking-caps: 0.06em;
+
+  /* Motion. fast: hover washes, colour, opacity. base: anything that
+     moves or resizes. base.css turns both off under reduced motion. */
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Keyboard focus, applied by base.css on :focus-visible. */
+  --focus-ring: 2px solid var(--accent);
+  --focus-offset: 2px;
+
+  /* Stacking, for anything fixed or absolute that escapes its parent.
+     A component's own stacking (a toolbar over its row) uses 1 or 2. */
+  --z-sticky: 10;
+  --z-drawer-backdrop: 19;
+  --z-drawer: 20;
+  --z-popover: 30;
+  --z-modal: 40;
+}

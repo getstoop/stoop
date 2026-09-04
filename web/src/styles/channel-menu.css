@@ -1,0 +1,44 @@
+/* ---- Channel row menu (⋮): the kit's DotsMenu, revealed on hover, or
+   always on touch screens. The popover itself is styled in surfaces.css. ---- */
+
+.channel-row {
+  position: relative;
+}
+
+.channel-row > .channel-link,
+.channel-row > .voice-channel > .channel-link {
+  /* off-scale: room for the ⋮ button */
+  padding-right: 30px;
+}
+
+.channel-link.muted {
+  opacity: 0.6;
+}
+
+.channel-menu-anchor {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  height: 34px;
+}
+
+.channel-menu-anchor .dots-menu-button {
+  opacity: 0;
+}
+
+.channel-row:hover .dots-menu-button,
+.channel-menu-anchor .dots-menu-button:focus-visible,
+.channel-menu-anchor.open .dots-menu-button {
+  opacity: 1;
+}
+
+.channel-row:hover .channel-badge,
+.channel-menu-anchor.open ~ .channel-badge {
+  display: none;
+}
+
+@media (hover: none) {
+  .channel-menu-anchor .dots-menu-button {
+    opacity: 1;
+  }
+}

@@ -1,0 +1,31 @@
+# Binaries
+/bin/
+/stoop
+
+# Web
+web/node_modules/
+web/dist/
+
+# Embedded web build output (populated by `make build`)
+internal/webui/dist/*
+!internal/webui/dist/.gitkeep
+
+# Env / local
+.env
+*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+.claude/
+
+# Test artifacts
+coverage.out
+tmp/
+
+# TypeScript incremental build state
+web/tsconfig.tsbuildinfo
+
+# Uploaded files (STOOP_STORAGE_DIR default)
+/data/

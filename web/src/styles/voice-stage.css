@@ -1,0 +1,290 @@
+/* ---- Voice stage: video and screen share (STOOP-74) ---- */
+
+.voice-stage {
+  position: relative;
+  flex: 0 0 auto;
+  height: 42%;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  border-bottom: 1px solid var(--border);
+}
+
+.voice-stage:fullscreen {
+  height: 100%;
+  border: none;
+}
+
+/* No video yet: the stage carries the join's status instead. */
+.voice-stage.connecting,
+.voice-stage.error {
+  align-items: center;
+  justify-content: center;
+}
+
+.stage-status {
+  margin: 0;
+  max-width: 46ch;
+  padding: 0 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.stage-status.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.stage-status.error strong {
+  color: var(--danger);
+}
+
+.stage-spotlight {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.stage-tiles {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.stage-tiles > div {
+  flex-shrink: 0;
+}
+
+/* Nobody is sharing: the tiles are the stage. */
+.voice-stage.tiles-only .stage-tiles {
+  flex: 1;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+.stage-tile {
+  position: relative;
+  width: 160px;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.stage-tile.speaking {
+  border-color: var(--ok);
+}
+
+.voice-stage.tiles-only .stage-tile {
+  width: var(--tile-width, 220px);
+}
+
+/* The drag handle on the stage/chat divider. */
+.stage-resizer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: row-resize;
+  z-index: 2;
+  touch-action: none;
+}
+
+.stage-resizer:focus-visible {
+  outline: none;
+}
+
+.stage-resizer:focus-visible::after {
+  background: var(--accent);
+}
+
+.stage-resizer::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 44px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  transform: translateX(-50%);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.stage-resizer:hover::after,
+.stage-resizer:active::after {
+  background: var(--accent);
+}
+
+.voice-stage:fullscreen .stage-resizer {
+  display: none;
+}
+
+.stage-tile.large {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  background: var(--canvas);
+  cursor: zoom-out;
+}
+
+/* The radius is repeated here rather than left to the tile's overflow
+   clip: a <video> gets its own compositing layer — always, once it is
+   mirrored — and browsers paint that layer past a rounded clip, so the
+   picture came out with square corners inside a rounded tile. --radius
+   is --radius-md less the tile's 2px border, so the two curves sit on
+   top of each other. */
+.stage-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--canvas);
+  border-radius: var(--radius);
+}
+
+.stage-tile.large video {
+  object-fit: contain;
+}
+
+.stage-tile.mirror video {
+  transform: scaleX(-1);
+}
+
+.stage-tile.avatar {
+  cursor: default;
+}
+
+.tile-name {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  max-width: calc(100% - 16px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  background: var(--scrim);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+/* The name truncates; the marker beside it never does. */
+.tile-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Muted reads on the tile rather than the sidebar (VoiceChannel): it
+   belongs next to the face you are looking at. */
+.tile-muted {
+  flex: 0 0 auto;
+  display: inline-flex;
+  color: var(--danger);
+}
+
+/* The controls over the video (StageBar): a pill on the floor of the
+   stage, centred, fading out while nothing moves. Faded it is
+   click-through — the video underneath keeps taking clicks — but a Tab
+   into it still brings it back. */
+.stage-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  border-radius: var(--radius-pill);
+  background: var(--scrim);
+  color: var(--text);
+  /* The buttons are the bar, so the pill's own curve is what rounds the
+     ones on each end. */
+  overflow: hidden;
+  z-index: 2;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.stage-bar.idle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.stage-bar .voice-actions {
+  gap: 0;
+}
+
+.stage-bar .icon-button {
+  padding: 8px 12px;
+  border-radius: 0;
+  color: var(--text);
+}
+
+.stage-bar .icon-button:hover {
+  background: var(--raised);
+}
+
+/* The hang-up stands apart from the toggles: it is the one that ends
+   the call rather than changing it. */
+.stage-bar .icon-button.danger {
+  margin-left: 6px;
+}
+
+/* Chat hidden: the stage is the pane. */
+.voice-stage.no-chat {
+  flex: 1 1 auto;
+  height: auto;
+  border-bottom: none;
+}
+
+/* Device pickers get a row of their own so the buttons never overflow. */
+.voice-bar-devices {
+  display: flex;
+  gap: 6px;
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+.voice-bar-devices:empty {
+  display: none;
+}
+
+.voice-bar-devices .voice-mic-select {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+}
+
+.voice-actions .icon-button.video.live {
+  color: var(--ok);
+}
+
+.voice-bar-error {
+  flex-basis: 100%;
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
+.voice-flag.live {
+  color: var(--ok);
+}

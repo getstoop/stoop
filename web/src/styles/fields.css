@@ -1,0 +1,87 @@
+/* ---- Form fields: one declaration for text inputs, selects and textareas,
+   and the two label patterns (words above the field; box beside the words).
+   A field is a hole in the panel (--surface), a chip sits on it (--raised). ---- */
+
+/* :where() keeps this at zero specificity, so any feature rule wins. */
+:where(
+  input:not([type="checkbox"], [type="radio"], [type="file"]),
+  select,
+  textarea
+) {
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+:where(input, select, textarea)::placeholder {
+  color: var(--text-muted);
+}
+
+:where(input, select, textarea):hover {
+  border-color: color-mix(in srgb, var(--border) 50%, var(--text-muted));
+}
+
+:where(
+  input:not([type="checkbox"], [type="radio"]),
+  select,
+  textarea
+):focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+:where(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+:where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--accent);
+}
+
+/* Words above the field. Login, the settings cards and the invite form
+   all lay their labels out this way. */
+.field,
+.login-card label,
+.card label,
+.invite-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
+.card :where(input, select, textarea),
+.field :where(input, select, textarea) {
+  width: 100%;
+}
+
+/* A label with something on its right — usually a character countdown. */
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* A checkbox row: box beside the words, not stacked above them. */
+label.toggle-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--text-ui);
+  color: var(--text);
+}
+
+label.toggle-row input[type="checkbox"] {
+  width: auto;
+  margin: 4px 0 0;
+}

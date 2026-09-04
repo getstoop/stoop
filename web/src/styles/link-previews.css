@@ -1,0 +1,83 @@
+/* ---- Link previews ---- */
+
+.link-previews {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.link-preview {
+  display: flex;
+  gap: 12px;
+  max-width: 520px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.link-preview.landscape {
+  flex-direction: column;
+}
+
+.link-preview.image-only {
+  padding: 0;
+  border-left: none;
+  background: none;
+  max-width: 400px;
+}
+
+.link-preview-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.link-preview-site {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.link-preview-title {
+  font-weight: 600;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.link-preview:hover .link-preview-title {
+  text-decoration: underline;
+}
+
+.link-preview-description {
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.link-preview-image {
+  flex: 0 0 auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.link-preview:not(.landscape):not(.image-only) .link-preview-image {
+  width: 80px;
+  height: 80px;
+  align-self: flex-start;
+}
+
+.link-preview.landscape .link-preview-image {
+  max-height: 260px;
+  width: auto;
+  max-width: 100%;
+}

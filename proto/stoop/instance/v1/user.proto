@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package stoop.instance.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/auth/v1/auth.proto";
+
+// InstanceUser is an account as the admin page sees it.
+message InstanceUser {
+  string id = 1;
+  string username = 2;
+  string display_name = 3;
+  stoop.auth.v1.InstanceRole role = 4;
+  google.protobuf.Timestamp created_at = 5;
+  // Set while the account is deactivated.
+  google.protobuf.Timestamp deactivated_at = 6;
+  // True when an admin locked the username against self-service renames.
+  bool username_frozen = 7;
+  // False for a provider-created account that never set a password —
+  // relevant when password sign-in is restricted (admins need one as a
+  // fallback).
+  bool has_password = 8;
+  // Self-described; an admin can read them here to decide whether to
+  // clear them, but never write them (see ClearUserProfile).
+  string pronouns = 9;
+  string bio = 10;
+}

@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/chat/v1/reaction.proto";
+
+// MessageAuthor is a denormalized snapshot of the author, resolved by the
+// chat module through its user-directory port so clients can render
+// messages without extra lookups.
+message MessageAuthor {
+  string id = 1;
+  string username = 2;
+  string display_name = 3;
+  // The author's current avatar (served at /files/{id}), if any.
+  string avatar_file_id = 4;
+}
+
+// ReplyRef is a snapshot of the message being replied to, enough to render
+// a quote; the original may have been deleted since (then only
+// message_id is set).
+message ReplyRef {
+  string message_id = 1;
+  MessageAuthor author = 2;
+  string preview = 3;
+}
+
+// Attachment is a file carried by a message. Bytes are at
+// GET /files/{file_id} (whoever can read the message). Raster images render inline;
+// anything else is a download.
+message Attachment {
+  string file_id = 1;
+  // The uploader's filename, sanitised (basename, no control characters).
+  string name = 2;
+  // Decided by sniffing the bytes at upload, never by the client.
+  string content_type = 3;
+  int64 size = 4;
+}
+
+message Message {
+  string id = 1;
+  string channel_id = 2;
+  MessageAuthor author = 3;
+  string content = 4;
+  google.protobuf.Timestamp created_at = 5;
+  // Members this message @mentions, resolved at send time. Clients use it
+  // to highlight mention tokens and to tint messages that mention them.
+  repeated string mention_user_ids = 6;
+  // The channel's space, so clients can update per-space state from a
+  // realtime event without a lookup.
+  string space_id = 7;
+  // True when the message @mentioned everyone (and the author was allowed
+  // to); mention_user_ids then lists every other member.
+  bool mentions_everyone = 8;
+  // Set when this message is a reply.
+  ReplyRef reply_to = 9;
+  // True when the message @mentioned everyone currently online (@here).
+  bool mentions_here = 10;
+  // Set once the author has edited the message.
+  google.protobuf.Timestamp edited_at = 11;
+  // Emoji reactions grouped by emoji, in a stable order (by emoji, then
+  // first added). Kept current by the ReactionsChanged realtime event.
+  repeated Reaction reactions = 12;
+  // Files attached at send time, in order. A separate field, never part of
+  // content — attachments are not Markdown.
+  repeated Attachment attachments = 13;
+  // Previews for links in content, in order of appearance, once the server
+  // has fetched them (a MessageUpdated event delivers them when the fetch
+  // finishes after the message was sent).
+  repeated LinkPreview link_previews = 14;
+}
+
+// LinkPreview is the unfurled metadata of a URL in a message.
+message LinkPreview {
+  string url = 1;
+  string title = 2;
+  string description = 3;
+  string site_name = 4;
+  // A file served at /files/{id} (re-encoded by the server), if any.
+  string image_file_id = 5;
+  int32 image_width = 6;
+  int32 image_height = 7;
+}

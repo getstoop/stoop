@@ -1,0 +1,114 @@
+/* ---- Reachability (setup step + admin), including the LiveKit reading. ---- */
+
+.reach-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* One form, one Save; the rules only mark off what belongs together.
+   Each group is a setting row (settings.css). */
+.reach-group {
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* What the saved settings add up to for voice — read back from the
+   server, so it says what is, not what was picked. */
+.reach-voice {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  font-size: var(--text-ui);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Nothing to report on until LiveKit is there at all. */
+.reach-voice[data-voice="false"] {
+  border-color: var(--border);
+  background: var(--surface);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* Sub-blocks revealed by a checkbox; .reach-group already stacks the
+   sections themselves. */
+.reach-relay,
+.reach-control-url {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* A note belonging to the checkbox above it, lined up under its label. */
+.reach-check-hint {
+  margin: -2px 0 0;
+  /* off-scale: lines up under the checkbox label */
+  padding-left: 22px;
+}
+
+/* Two ways to answer the same question, so they share a section: a hair
+   of space between them, no rule — the rule would read as a divide. */
+.reach-voice-relay .reach-cloudflare,
+.reach-voice-relay .reach-own-relay {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reach-voice-relay .reach-own-relay {
+  margin-top: 6px;
+}
+
+.reach-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reach-form .reach-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.reach-form .reach-check input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  margin: 3px 0 0;
+}
+
+.reach-ts-status p {
+  margin: 4px 0 0;
+}
+
+/* Reads as a field label, because that's what it is — the field just
+   happens to be reported rather than edited. */
+.reach-ts-label {
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+/* ---- LiveKit ---------------------------------------------------------- */
+
+/* A reading, not a field: one line saying what the sidecar is doing. */
+.reach-status {
+  margin: 8px 0 0;
+  font-size: var(--text-ui);
+}
+
+.reach-ok {
+  color: var(--ok);
+}
+
+.reach-bad {
+  color: var(--danger);
+}

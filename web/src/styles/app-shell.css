@@ -1,0 +1,114 @@
+/* ---- App shell: the space rail and its pills. ---- */
+
+.app-shell {
+  display: flex;
+  height: 100%;
+}
+
+.space-rail {
+  width: 68px;
+  background: var(--canvas);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.space-rail-top,
+.space-rail-list,
+.space-rail-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.space-rail-top {
+  min-height: 0;
+}
+
+.space-pill {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: var(--text-body);
+  border: none;
+  transition:
+    border-radius var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.space-pill.active {
+  border: 2px solid var(--accent);
+}
+
+.space-pill:hover,
+.space-pill.active {
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A muted space, dimmed like a muted channel row (channel-menu.css). */
+.space-pill.muted {
+  opacity: 0.6;
+}
+
+.space-pill.add {
+  background: var(--panel);
+  color: var(--accent);
+  font-size: var(--text-lg);
+}
+
+.space-pill.add:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.status-icon {
+  display: inline-flex;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.status-icon.connected {
+  color: var(--ok);
+  opacity: 1;
+}
+
+.status-icon.connecting,
+.status-icon.reconnecting {
+  color: var(--accent);
+  opacity: 1;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-icon.connecting,
+  .status-icon.reconnecting {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+.status-icon svg {
+  display: block;
+}
+
+.space-pill svg {
+  display: block;
+}

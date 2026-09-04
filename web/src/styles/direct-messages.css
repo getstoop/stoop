@@ -1,0 +1,34 @@
+/* ---- Direct messages (STOOP-65) ---- */
+
+.rail-divider {
+  width: 32px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  margin: 2px 0;
+}
+
+.dm-link {
+  padding: 4px 12px;
+}
+
+.dm-link .avatar {
+  flex-shrink: 0;
+}
+
+.dm-empty {
+  padding: 6px 12px;
+  line-height: 1.4;
+}
+
+.dm-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dm-handle {
+  font-weight: 400;
+  font-size: var(--text-ui);
+}

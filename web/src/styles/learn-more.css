@@ -1,0 +1,35 @@
+/* ---- "Learn more" (folded-away help text) ---- */
+
+.learn-more {
+  margin: -2px 0 0;
+  font-size: var(--text-ui);
+}
+
+.learn-more > summary {
+  cursor: pointer;
+  width: fit-content;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.learn-more > summary:hover {
+  color: var(--text);
+}
+
+.learn-more[open] > summary {
+  margin-bottom: 6px;
+}
+
+.learn-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.learn-more-body p {
+  margin: 0;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}

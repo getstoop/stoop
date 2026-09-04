@@ -1,0 +1,226 @@
+/* Themes: each is a complete set of the colour tokens and nothing else —
+   never type or spacing (the composer overlay depends on glyph metrics
+   staying put). The bare :root carries Brownstone so an unstamped
+   document renders today's look; [data-theme] blocks are plain attribute
+   selectors so a preview card can scope a theme to its own subtree.
+   scripts/check-themes.mjs enforces contrast on every block. */
+
+:root,
+[data-theme="brownstone"] {
+  --canvas: #141517;
+  --surface: #1b1d21;
+  --panel: #24262b;
+  --raised: #2e3138;
+  --hover: rgba(255, 255, 255, 0.035);
+  --border: #33363d;
+  --text: #e6e7ea;
+  --text-muted: #9a9da5;
+  --accent: #e2725b;
+  --accent-soft: rgba(226, 114, 91, 0.2);
+  --on-accent: #ffffff;
+  --ok: #58b374;
+  --warn: #e0a83c;
+  --danger: #e05c5c;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+[data-theme="daylight"] {
+  --canvas: #eae6df;
+  --surface: #f6f4f0;
+  --panel: #ffffff;
+  --raised: #ebe8e2;
+  --hover: rgba(30, 20, 10, 0.045);
+  --border: #d9d5cd;
+  --text: #1f1d1a;
+  --text-muted: #6b675f;
+  --accent: #b5482f;
+  --accent-soft: rgba(181, 72, 47, 0.14);
+  --on-accent: #ffffff;
+  --ok: #3f8f5b;
+  --warn: #b0791a;
+  --danger: #c74a4a;
+  --shadow: 0 10px 30px rgba(40, 30, 20, 0.14);
+  --scrim: rgba(30, 25, 20, 0.45);
+  color-scheme: light;
+}
+
+[data-theme="dusk"] {
+  --canvas: #15142a;
+  --surface: #1c1b36;
+  --panel: #242243;
+  --raised: #302e56;
+  --hover: rgba(255, 255, 255, 0.04);
+  --border: #3a3862;
+  --text: #e9e6f5;
+  --text-muted: #a39fc2;
+  --accent: #f0b35a;
+  --accent-soft: rgba(240, 179, 90, 0.18);
+  --on-accent: #1c1b36;
+  --ok: #6cc48c;
+  --warn: #f0b35a;
+  --danger: #ef7070;
+  --shadow: 0 12px 32px rgba(5, 4, 20, 0.55);
+  --scrim: rgba(10, 8, 30, 0.6);
+  color-scheme: dark;
+}
+
+[data-theme="bodega"] {
+  --canvas: #0f1a17;
+  --surface: #152420;
+  --panel: #1c2e29;
+  --raised: #27403a;
+  --hover: rgba(255, 255, 255, 0.04);
+  --border: #2f4a43;
+  --text: #e4efe9;
+  --text-muted: #93ada4;
+  --accent: #e8c547;
+  --accent-soft: rgba(232, 197, 71, 0.16);
+  --on-accent: #152420;
+  --ok: #7ad39a;
+  --warn: #e8c547;
+  --danger: #ef7a6a;
+  --shadow: 0 12px 32px rgba(0, 10, 6, 0.55);
+  --scrim: rgba(5, 15, 12, 0.6);
+  color-scheme: dark;
+}
+
+/* Newsprint, retuned to the Industry colorway: a near-neutral cool paper
+   rather than the blue-cast grey it used to be, and steel in place of a
+   saturated blue. Industry's own --color-accent (#5980a6) is 3.7:1 on its
+   ground and its spec sends accent body copy down the ramp to 600-700;
+   --accent carries body text, so it takes the 700 at 5.78:1; --text-muted
+   takes neutral-700 for the same reason (neutral-600 is only 3.8:1 here,
+   which would be the weakest muted ink of the ten). --ok, --warn
+   and --danger are unchanged: the colorway has no semantics, and these
+   were already tuned for a light ground. */
+[data-theme="newsprint"] {
+  --canvas: #e9e9ea;
+  --surface: #f2f2f3;
+  --panel: #ffffff;
+  --raised: #e7e7ea;
+  --hover: rgba(29, 31, 32, 0.05);
+  --border: #d4d4d7;
+  --text: #1d1f20;
+  --text-muted: #5d5d60;
+  --accent: #416180;
+  --accent-soft: rgba(65, 97, 128, 0.12);
+  --on-accent: #ffffff;
+  --ok: #2f8f57;
+  --warn: #9a6b0f;
+  --danger: #c23f3f;
+  --shadow: 0 10px 30px rgba(29, 31, 32, 0.14);
+  --scrim: rgba(29, 31, 32, 0.45);
+  color-scheme: light;
+}
+
+[data-theme="blackout"] {
+  --canvas: #000000;
+  --surface: #000000;
+  --panel: #0d0d0d;
+  --raised: #1f1f1f;
+  --hover: #171717;
+  --border: #3a3a3a;
+  --text: #ffffff;
+  --text-muted: #c9c9c9;
+  --accent: #ffd60a;
+  --accent-soft: rgba(255, 214, 10, 0.18);
+  --on-accent: #000000;
+  --ok: #5ff08a;
+  --warn: #ffd60a;
+  --danger: #ff6b6b;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
+  --scrim: rgba(0, 0, 0, 0.75);
+  color-scheme: dark;
+}
+
+[data-theme="fire-escape"] {
+  --canvas: #141517;
+  --surface: #1b1d21;
+  --panel: #24262b;
+  --raised: #2e3138;
+  --hover: rgba(255, 255, 255, 0.035);
+  --border: #33363d;
+  --text: #e6e7ea;
+  --text-muted: #9a9da5;
+  --accent: #8aa6c8;
+  --accent-soft: rgba(138, 166, 200, 0.2);
+  --on-accent: #141517;
+  --ok: #58b374;
+  --warn: #e0a83c;
+  --danger: #e05c5c;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+[data-theme="nightcap"] {
+  --canvas: #1a1412;
+  --surface: #231b18;
+  --panel: #2c2320;
+  --raised: #3a2f2b;
+  --hover: rgba(255, 240, 230, 0.04);
+  --border: #433732;
+  --text: #f1e8e0;
+  --text-muted: #b5a49b;
+  --accent: #d98e9c;
+  --accent-soft: rgba(217, 142, 156, 0.18);
+  --on-accent: #1a1412;
+  --ok: #7cc48f;
+  --warn: #e0b055;
+  --danger: #ea6f55;
+  --shadow: 0 12px 32px rgba(10, 5, 3, 0.55);
+  --scrim: rgba(15, 8, 6, 0.6);
+  color-scheme: dark;
+}
+
+/* Night Bus, built from the "Nocturne" colorway doc. That doc's guidance is
+   that accent-500 (#968ae0) is for "lines, marks, glows" and you step to
+   300 for accent body copy; --accent here carries body-size text, so it
+   takes accent-400 rather than the 500. --ok and --warn are ours: the
+   colorway has no green or amber, only the blurple ramp and the coral it
+   uses for an error field. */
+[data-theme="night-bus"] {
+  --canvas: #161826;
+  --surface: #1c1f2e;
+  --panel: #232532;
+  --raised: #2e3142;
+  --hover: rgba(255, 255, 255, 0.04);
+  --border: #383b4e;
+  --text: #e9e9ed;
+  --text-muted: #9397ab;
+  --accent: #b5abfc;
+  --accent-soft: rgba(181, 171, 252, 0.16);
+  --on-accent: #161826;
+  --ok: #79d3a5;
+  --warn: #e2b263;
+  --danger: #ff8a80;
+  --shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  --scrim: rgba(10, 12, 26, 0.62);
+  color-scheme: dark;
+}
+
+/* The blue of the box on the corner. Fire Escape is neutral charcoal with
+   a dusty blue accent; this one puts the blue in the ground and keeps the
+   accent clean and much lighter, which is what separates an accent from
+   its surface. */
+[data-theme="mailbox"] {
+  --canvas: #0d131c;
+  --surface: #131b26;
+  --panel: #1a2330;
+  --raised: #253141;
+  --hover: rgba(255, 255, 255, 0.04);
+  --border: #2d3b4c;
+  --text: #e2e9f1;
+  --text-muted: #8fa1b5;
+  --accent: #74bdf2;
+  --accent-soft: rgba(116, 189, 242, 0.16);
+  --on-accent: #0d131c;
+  --ok: #67cea0;
+  --warn: #e4b65c;
+  --danger: #f0827a;
+  --shadow: 0 12px 32px rgba(0, 6, 16, 0.6);
+  --scrim: rgba(5, 11, 20, 0.62);
+  color-scheme: dark;
+}

@@ -1,0 +1,31 @@
+# LiveKit sidecar configuration for self-hosted Stoop.
+# Docs: https://docs.livekit.io/home/self-hosting/deployment/
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: true
+# No `keys:` block on purpose. Stoop mints an API key pair on first boot
+# and writes it to the shared livekit-keys volume; the compose file starts
+# this server with --key-file, so the pair lives in exactly one place and
+# nobody copies a secret between two files. (Setting STOOP_LIVEKIT_API_KEY
+# and _SECRET in .env overrides the minted pair; Stoop still writes the
+# file, so this server needs no change either way.)
+# Signaling (port 7880) is reached through Stoop's /livekit proxy and does
+# not need to be published. 7881/tcp and the UDP range above do: forward
+# them to this container from your router or firewall. Stoop's built-in
+# Tailscale node carries the same ports over the tailnet, so a
+# tailnet-only server needs no forwarding at all — Stoop also writes the
+# node's address to the shared volume, and livekit-entrypoint.sh starts
+# this server with it and restarts on a change, so there is nothing to
+# set here.
+# Keep the ports above and STOOP_LIVEKIT_TCP_PORT / STOOP_LIVEKIT_UDP_PORTS
+# in step.
+#
+# Behind an HTTP-only tunnel (Cloudflare Tunnel, Tailscale Funnel) browsers
+# can't reach those ports and voice is silent unless you offer a TURN relay
+# that is reachable outside the tunnel — either LiveKit's built-in one
+# (`turn:` block) or an external server (`rtc.turn_servers`). See
+# docs/self-hosting.md → Voice → TURN and
+# https://docs.livekit.io/home/self-hosting/deployment/

@@ -1,0 +1,17 @@
+root = "."
+tmp_dir = "tmp"
+# Shell environment wins over these files; .env.dev carries the dev-only
+# settings (port, LiveKit URL, relaxed limits). air >= 1.67 has no [env]
+# table — anything put there is silently ignored.
+env_files = [".env", ".env.dev"]
+
+[build]
+entrypoint = ["./tmp/stoop"]
+cmd = "go build -o ./tmp/stoop ./cmd/stoop"
+delay = 200
+exclude_dir = ["web", "gen", "deploy", "docs", "tmp", "bin", "internal/dbgen", "internal/webui/dist"]
+exclude_regex = ["_test\\.go"]
+include_ext = ["go", "sql"]
+
+[log]
+main_only = true

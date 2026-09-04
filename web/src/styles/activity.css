@@ -1,0 +1,136 @@
+/* ---- Activity: the rail badge and the activity page. ---- */
+
+.space-pill {
+  position: relative;
+}
+
+.pill-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  /* The pill it sits on is a rounded square when lit; so is this. */
+  border-radius: var(--radius);
+  background: var(--danger);
+  color: var(--on-accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--canvas);
+}
+
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* The activity page: the channel view's shape, a header bar and a
+   scrolling list, with a row per thing that happened. */
+.activity-page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.activity-page-header .activity-count {
+  font-weight: 400;
+}
+
+.activity-page-header .chip {
+  margin-left: auto;
+}
+
+.activity-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 960px;
+}
+
+.activity-more {
+  margin-top: 12px;
+}
+
+.channel-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.channel-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  color: var(--on-accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.activity-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 2px 12px;
+  align-items: start;
+  padding: 12px 8px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+.activity-row:hover {
+  background: var(--hover);
+}
+
+.activity-row.unread {
+  border-left-color: var(--accent);
+}
+
+.activity-row .avatar {
+  grid-row: span 2;
+}
+
+.activity-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-time {
+  white-space: nowrap;
+}
+
+.activity-preview {
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

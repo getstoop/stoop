@@ -1,0 +1,47 @@
+/* ---- Login ---- */
+
+.login-page {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--canvas);
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(360px, 90vw);
+  padding: 32px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* At the display size the body's leading leaves ~6px of empty line box
+   above the caps, so the card's even padding reads as a looser top edge
+   than bottom. Hug the caps and let the card's gap do the spacing. */
+.login-card h1 {
+  margin: 0;
+  font-size: var(--text-display);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
+.login-subtitle {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.login-subtitle strong {
+  color: var(--text);
+}
+
+.login-card .link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  text-decoration: underline;
+}

@@ -1,0 +1,90 @@
+/* ---- What a space says about itself: the About dialog, the welcome a
+   new member lands on, and the pair of fields that write them. ---- */
+
+/* Rendered welcome text, wherever it appears. Markdown marks are styled
+   by markdown.css; this only owns the block's own rhythm. */
+.welcome-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+/* Between what the space is and what it says to someone arriving. It
+   travels with the welcome text, so it never trails off a card that has
+   only a description. */
+.about-rule {
+  width: 100%;
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.space-about {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.space-about-head,
+.space-welcome-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.space-about-head p,
+.space-welcome-head p,
+.space-about p {
+  margin: 0;
+}
+
+/* The welcome pane: the space's own room, with the rail and the channel
+   list still live beside it. */
+.space-welcome {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.space-welcome-card {
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.space-welcome-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Settings → About: a label with its counter (and the welcome's preview
+   switch) on one line above the field. */
+.about-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.about-label-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.about-preview {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}

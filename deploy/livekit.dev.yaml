@@ -1,0 +1,16 @@
+# LiveKit for local development. Run it ON THE HOST NETWORK: browsers hide
+# their local IPs behind mDNS names, which nothing inside a Docker bridge
+# network can resolve, so a containerised LiveKit never gets a media
+# connection from a local browser. `make dev-services` runs it natively on
+# macOS (brew install livekit) and as a host-network container on Linux.
+# No keys here: the Stoop dev server mints a pair on first boot and writes
+# data/livekit/keys.yaml, which this server is started against with
+# --key-file — the same path a self-hoster's compose stack uses.
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: false
+logging:
+  level: info

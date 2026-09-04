@@ -1,0 +1,308 @@
+/* ---- Profile, space settings and server admin share the settings frame
+   (components/SettingsFrame.tsx, docs/proposals/settings-layout.md): a
+   nav column in the channel sidebar's slot — the page's header, then one
+   link per section — and a content column beside it, where sections are
+   flat groups. The card, its rows and its fields are the kit's
+   (surfaces.css, fields.css); the phone layout is mobile.css. ---- */
+
+.space-pill.avatar {
+  background: var(--raised);
+  border: 2px solid var(--border);
+}
+
+.space-pill.avatar:hover,
+.space-pill.avatar.active {
+  border-color: var(--accent);
+  background: var(--raised);
+  color: var(--text);
+  border-radius: 50%;
+}
+
+.settings-page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  height: 100%;
+}
+
+.settings-nav {
+  width: 244px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  overflow-y: auto;
+}
+
+.settings-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 32px;
+}
+
+.settings-content {
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-head .badge {
+  margin: 0 8px 0 0;
+}
+
+.settings-title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+/* Sections are groups on the page, not boxes: a rule between them, and
+   the first sits straight under the title. A box is kept for what must
+   stand out (the danger zone); the rows inside a list get the panel
+   colour so they still read as rows. */
+.settings-content > .card {
+  padding: 20px 0 0;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+}
+
+.settings-head + .card {
+  padding-top: 0;
+  border-top: none;
+}
+
+/* A section that is the whole of its tab is headed by the title; its
+   own heading would repeat it. The legend beside Members is an aside. */
+.settings-head + .card:not(:has(~ section, ~ form)) > h3 {
+  display: none;
+}
+
+.settings-content > .card.danger-zone {
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.settings-content .user-row {
+  background: var(--panel);
+}
+
+/* A setting as one row (components/SettingRow.tsx): what it is and what
+   it does on the left, the control on the right, both on the first line.
+   The columns are the frame's; outside it (the setup wizard) the row
+   stacks. Notes and errors under the control take its full width. */
+.setting-row {
+  display: grid;
+  gap: 6px 24px;
+  align-items: start;
+  padding: 6px 0;
+}
+
+.settings-content .setting-row {
+  grid-template-columns: minmax(200px, 2fr) 3fr;
+}
+
+.setting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.setting-text > label,
+.setting-text > strong,
+.setting-text > h4 {
+  display: block;
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.setting-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.setting-control > input {
+  flex: 1 1 160px;
+  width: auto;
+  max-width: 420px;
+}
+
+.setting-control > select {
+  flex: 0 0 auto;
+  width: max-content;
+}
+
+.setting-control > textarea {
+  flex: 1 1 100%;
+  max-width: 560px;
+}
+
+/* The one Save under a form of rows, and the word beside it. */
+.setting-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+/* Several controls in one row, top to bottom. */
+.setting-row.stack .setting-control {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+/* Notes and errors are paragraphs; a unit beside a field is a span. */
+.setting-control > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.profile-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-header > div {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+/* The avatar picker takes the line under the name. */
+.profile-header .image-picker {
+  flex: 1 1 100%;
+}
+
+.profile-header h2 {
+  margin: 0;
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+.profile-header p {
+  margin: 2px 0 0;
+}
+
+.avatar.large {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  flex-shrink: 0;
+}
+
+/* The section links. A row on their own (the kit page); a column in
+   the settings nav. */
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-nav .settings-tabs {
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border-bottom: none;
+}
+
+.settings-tab,
+.logout-link {
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: var(--text-ui);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.settings-tab:hover {
+  color: var(--text);
+  background: var(--raised);
+}
+
+.settings-tab[aria-current="page"] {
+  color: var(--text);
+  background: var(--raised);
+  font-weight: 600;
+}
+
+.settings-tab.danger {
+  color: var(--danger);
+}
+
+/* The account nav's last entry: a button dressed as the links above
+   it, set off from them. */
+.logout-link {
+  margin-top: 8px;
+  border: none;
+  background: none;
+  text-align: left;
+  color: var(--danger);
+}
+
+.logout-link:hover {
+  background: var(--raised);
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: var(--text-ui);
+}
+
+.legend dt {
+  font-weight: 600;
+}
+
+.legend dd {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.card-row input {
+  flex: 1;
+}
+
+.card select {
+  min-width: 200px;
+}
+
+/* Selects size to their longest option, so the chevron sits by the text. */
+.card-row select {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 0;
+}

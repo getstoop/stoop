@@ -1,0 +1,110 @@
+# Self-hosting Stoop: one app container + Postgres + LiveKit.
+# Copy .env.example to .env, edit the secrets, then: docker compose up -d
+#
+# Put a TLS-terminating reverse proxy (Caddy, Traefik, nginx) in front of
+# stoop:8080 and set STOOP_SECURE_COOKIES=true. LiveKit's signaling is
+# proxied by Stoop at /livekit; only its media ports (7881/tcp and the UDP
+# range in livekit.yaml) need to be reachable directly.
+
+services:
+  stoop:
+    image: ghcr.io/jhut89/stoop:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      STOOP_DATABASE_URL: postgres://stoop:${POSTGRES_PASSWORD}@postgres:5432/stoop?sslmode=disable
+      STOOP_PUBLIC_URL: ${STOOP_PUBLIC_URL:-}
+      STOOP_TRUST_PROXY: ${STOOP_TRUST_PROXY:-false}
+      STOOP_SECURE_COOKIES: ${STOOP_SECURE_COOKIES:-false}
+      STOOP_ALLOWED_WS_ORIGINS: ${STOOP_ALLOWED_WS_ORIGINS:-localhost:*}
+      STOOP_STORAGE_DIR: /data
+      STOOP_LIVEKIT_URL: ${STOOP_LIVEKIT_URL:-http://livekit:7880}
+      # Optional: set these in .env to use a pair you already have. Left
+      # empty, Stoop mints one on first boot and writes it to the shared
+      # livekit-keys volume for the sidecar.
+      STOOP_LIVEKIT_API_KEY: ${STOOP_LIVEKIT_API_KEY:-}
+      STOOP_LIVEKIT_API_SECRET: ${STOOP_LIVEKIT_API_SECRET:-}
+      STOOP_LIVEKIT_KEY_FILE: /livekit-keys/keys.yaml
+      STOOP_CLOUDFLARE_TURN_KEY_ID: ${STOOP_CLOUDFLARE_TURN_KEY_ID:-}
+      STOOP_CLOUDFLARE_TURN_API_TOKEN: ${STOOP_CLOUDFLARE_TURN_API_TOKEN:-}
+      STOOP_TURN_URLS: ${STOOP_TURN_URLS:-}
+      STOOP_TURN_USERNAME: ${STOOP_TURN_USERNAME:-}
+      STOOP_TURN_CREDENTIAL: ${STOOP_TURN_CREDENTIAL:-}
+      STOOP_STUN_URLS: ${STOOP_STUN_URLS:-}
+      STOOP_TAILSCALE: ${STOOP_TAILSCALE:-false}
+      STOOP_TAILSCALE_HOSTNAME: ${STOOP_TAILSCALE_HOSTNAME:-stoop}
+      STOOP_TAILSCALE_AUTHKEY: ${STOOP_TAILSCALE_AUTHKEY:-}
+      STOOP_TAILSCALE_CONTROL_URL: ${STOOP_TAILSCALE_CONTROL_URL:-}
+      STOOP_TAILSCALE_FUNNEL: ${STOOP_TAILSCALE_FUNNEL:-false}
+      # The built-in Tailscale node carries LiveKit's media ports too, so
+      # voice rides the tailnet. It needs to know where LiveKit is: the
+      # sidecar's name on this network, and the ports set in livekit.yaml.
+      STOOP_TAILSCALE_VOICE: ${STOOP_TAILSCALE_VOICE:-true}
+      STOOP_LIVEKIT_MEDIA_HOST: ${STOOP_LIVEKIT_MEDIA_HOST:-livekit}
+      STOOP_LIVEKIT_TCP_PORT: ${STOOP_LIVEKIT_TCP_PORT:-7881}
+      STOOP_LIVEKIT_UDP_PORTS: ${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}
+    volumes:
+      # Uploaded files and the Tailscale node identity. Back this up with Postgres.
+      - stoop-data:/data
+      # Just the LiveKit key pair: its own volume so the sidecar gets a
+      # view of the credentials it needs and nothing else.
+      - livekit-keys:/livekit-keys
+    ports:
+      - "8080:8080"
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stoop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: stoop
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stoop"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  livekit:
+    image: livekit/livekit-server:v1.13.6
+    restart: unless-stopped
+    # The key pair comes from the file Stoop writes, not from livekit.yaml.
+    # On a first start this server may exit once or twice before Stoop has
+    # written it; the restart policy covers that.
+    # NODE_IP is the address LiveKit offers browsers as a media candidate,
+    # and it is read once at startup. Stoop writes the built-in Tailscale
+    # node's address into the shared volume, and the entrypoint script
+    # starts LiveKit with it and exits if it changes — the restart policy
+    # above then brings this back with the new value, so enabling Tailscale
+    # needs nothing done by hand. Setting NODE_IP in .env pins an address
+    # instead and switches the watch off.
+    entrypoint: ["/bin/sh", "/etc/livekit-entrypoint.sh"]
+    command: --config /etc/livekit.yaml --key-file /keys/keys.yaml
+    environment:
+      NODE_IP: ${NODE_IP:-}
+    depends_on:
+      - stoop
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+      - ./livekit-entrypoint.sh:/etc/livekit-entrypoint.sh:ro
+      # Read-only, and LiveKit runs as root so the 0600 file Stoop writes
+      # is readable. Don't add a `user:` here without giving that user
+      # access to the file.
+      - livekit-keys:/keys:ro
+    # Media ports only. Signaling (7880) is reached through Stoop's /livekit
+    # proxy on the compose network and is deliberately not published.
+    # Publishing these is what lets browsers reach LiveKit directly; the
+    # built-in Tailscale node carries the same ports over the tailnet, so
+    # a tailnet-only server needs nothing forwarded to it from a router.
+    ports:
+      - "7881:7881"
+      - "50000-50100:50000-50100/udp"
+
+volumes:
+  postgres-data:
+  stoop-data:
+  livekit-keys:

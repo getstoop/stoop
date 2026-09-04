@@ -1,0 +1,141 @@
+/* ---- Lists of people, channels and providers on the settings pages:
+   one <ul>, a row per item, the actions on the right. With .table the
+   rows get columns and a header row (components/ListHead.tsx); the
+   modifier says which columns. On a phone the columns fold back into
+   the plain row (mobile.css). ---- */
+
+.user-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.user-row {
+  display: flex;
+  /* Six action chips on an admin row don't fit beside a name on every
+     width; the actions drop to their own line instead of crushing it. */
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.user-row.inactive {
+  opacity: 0.6;
+}
+
+.user-row-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-row-main strong {
+  overflow-wrap: anywhere;
+}
+
+.user-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Long people lists (server Accounts, space Members): a filter up top. */
+.user-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.user-filter input {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-filter span {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The table form: one box, rows divided by rules, cells in columns. */
+.user-list.table {
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.user-list.table .user-row,
+.user-list-head {
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-list.table .user-row {
+  border: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+}
+
+.user-list.table .user-row:first-child {
+  border-top: none;
+}
+
+.user-list-head {
+  padding: 6px 12px;
+  background: var(--raised);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+}
+
+.user-list.table.four .user-row,
+.user-list.table.four .user-list-head {
+  grid-template-columns: minmax(200px, 2fr) 1fr 1fr auto;
+}
+
+.user-list.table.two .user-row,
+.user-list.table.two .user-list-head {
+  grid-template-columns: 1fr auto;
+}
+
+.user-list.table.channels .user-row,
+.user-list.table.channels .user-list-head {
+  grid-template-columns: minmax(160px, 1fr) minmax(200px, 2fr) auto;
+}
+
+.user-cell {
+  min-width: 0;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.user-cell > .badge:first-child {
+  margin-left: 0;
+}
+
+.user-list.table .user-row > :last-child {
+  justify-self: end;
+}
+
+.user-list.table .user-row-actions {
+  flex-wrap: nowrap;
+  margin-left: 0;
+}

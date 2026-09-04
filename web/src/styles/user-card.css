@@ -1,0 +1,89 @@
+/* ---- User card (the popover from an author name or member row). ---- */
+
+.user-card {
+  position: fixed;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  /* The bio makes this the one card that can grow: never taller than the
+     viewport, whatever the anchor's own clamp decides. */
+  /* off-scale: 8px of breathing room top and bottom, matching the clamp
+     in UserCard.tsx. */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+
+.user-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-card .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.user-card-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-card-names strong,
+.user-card-names span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pronouns ride the name, not the "@handle · Online" line below it,
+   which is already two segments and would start ellipsising at three. */
+.user-card-pronouns {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.user-card-bio {
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  /* A pasted URL has no spaces to break at and would widen the card. */
+  overflow-wrap: anywhere;
+}
+
+.user-card-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.user-card-badges .badge {
+  margin: 0;
+}
+
+.user-card p {
+  margin: 0;
+}
+
+.user-card-actions {
+  display: flex;
+  gap: 6px;
+  /* Matches the card's own 8px flex gap, so the hairline sits centred
+     between the joined date and the buttons rather than closer to one. */
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}

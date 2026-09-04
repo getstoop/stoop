@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package stoop.instance.v1;
+
+// Login providers: external identities people can sign in with (OIDC).
+// Configured by an instance admin; saved values override the server's
+// environment (STOOP_OIDC_*), same rule as reachability.
+
+enum LoginProviderKind {
+  LOGIN_PROVIDER_KIND_UNSPECIFIED = 0;
+  // A standard OIDC issuer (Authentik, Keycloak, Google, Microsoft, ...).
+  LOGIN_PROVIDER_KIND_OIDC = 1;
+}
+
+message LoginProvider {
+  // Stable id, part of the callback URL: 2-32 of a-z, 0-9, -, _.
+  // Renaming it orphans identities linked under the old id.
+  string id = 1;
+  LoginProviderKind kind = 2;
+  // The sign-in button's entire text, e.g. "Continue with Google".
+  string display_name = 3;
+  // One of the client's built-in icons: google | microsoft | key | none.
+  string icon = 4;
+  // The issuer URL, exactly as the provider's discovery document states
+  // it (https://accounts.google.com, https://auth.example.com/...).
+  string issuer = 5;
+  string client_id = 6;
+  // Write-only: never returned. Blank keeps the saved secret as long as
+  // client_id is unchanged. has_client_secret reports whether one is set.
+  string client_secret = 7;
+  bool has_client_secret = 8;
+  // Read-only: the redirect URI to paste into the provider's console,
+  // built from the effective public URL; empty when none is configured.
+  string callback_url = 9;
+  // Read-only: this provider comes from the environment, not a save.
+  bool from_env = 10;
+}
+
+// LoginProviderSummary is the public subset the login page needs to
+// render the buttons.
+message LoginProviderSummary {
+  string id = 1;
+  string display_name = 2;
+  string icon = 3;
+}
+
+message GetLoginProvidersRequest {}
+
+message GetLoginProvidersResponse {
+  repeated LoginProvider providers = 1;
+}
+
+// UpdateLoginProviders replaces the whole saved list (the admin form
+// edits the set as one). An empty list falls back to the environment.
+message UpdateLoginProvidersRequest {
+  repeated LoginProvider providers = 1;
+}
+
+message UpdateLoginProvidersResponse {
+  GetLoginProvidersResponse providers = 1;
+}

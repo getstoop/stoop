@@ -1,0 +1,66 @@
+/* ---- Invites (the modal's form and list). ---- */
+
+.invite-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.invite-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 120px;
+}
+
+.invite-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.invite-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.invite-row.inactive {
+  opacity: 0.55;
+}
+
+.invite-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.invite-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-body);
+  letter-spacing: 1px;
+}
+
+.invite-meta {
+  font-size: var(--text-sm);
+}
+
+.invite-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}

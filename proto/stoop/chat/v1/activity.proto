@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/chat/v1/message.proto";
+
+enum ActivityKind {
+  ACTIVITY_KIND_UNSPECIFIED = 0;
+  // Someone @mentioned you in a channel.
+  ACTIVITY_KIND_MENTION = 1;
+  // Someone replied to your message.
+  ACTIVITY_KIND_REPLY = 2;
+  // Someone sent you a direct message (space_id is empty).
+  ACTIVITY_KIND_DM = 3;
+}
+
+// ActivityItem is something that happened to the recipient. It points at
+// where it happened so clients can navigate there.
+message ActivityItem {
+  string id = 1;
+  ActivityKind kind = 2;
+  // Empty for a direct message.
+  string space_id = 3;
+  string channel_id = 4;
+  string message_id = 5;
+  // Who did it, resolved through the user-directory port.
+  MessageAuthor actor = 6;
+  // A short excerpt of the message (empty if it was deleted).
+  string preview = 7;
+  google.protobuf.Timestamp created_at = 8;
+  // Set once read.
+  google.protobuf.Timestamp read_at = 9;
+  // The recipient's effective mute for where this happened: their own
+  // channel_mutes row OR their own space_mutes row. Computed by the
+  // server; the feed itself is never filtered by it.
+  bool muted = 10;
+}

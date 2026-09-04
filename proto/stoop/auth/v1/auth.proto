@@ -1,0 +1,174 @@
+syntax = "proto3";
+
+package stoop.auth.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// AuthService handles account registration and session management.
+//
+// Login issues an opaque session token, returned both in the response body
+// (for bearer-token clients) and as an HttpOnly cookie (for browsers).
+service AuthService {
+  // Register creates an account, subject to the instance's registration
+  // policy (see stoop.instance.v1.RegistrationPolicy). The first account
+  // on a fresh instance is always allowed and becomes the admin.
+  rpc Register(RegisterRequest) returns (RegisterResponse) {}
+  rpc Login(LoginRequest) returns (LoginResponse) {}
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {}
+  rpc GetMe(GetMeRequest) returns (GetMeResponse) {}
+  // UpdateProfile changes the caller's display name, pronouns and bio.
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {}
+  // GetUserProfile is one person's public face, for their profile card.
+  // Any signed-in caller may read any profile — the same line drawn for
+  // avatars in docs/architecture/files.md; there is no shared-space test.
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse) {}
+  // ChangePassword requires the current password and signs the caller out
+  // of every other session. An account that has no password yet (created
+  // via a login provider) sets its first one here; current_password is
+  // ignored in that case.
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {}
+  // ListIdentities lists the caller's linked sign-in providers.
+  rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse) {}
+  // UnlinkIdentity removes one linked provider. Refused when it is the
+  // account's only way to sign in (no password and no other identity).
+  rpc UnlinkIdentity(UnlinkIdentityRequest) returns (UnlinkIdentityResponse) {}
+}
+
+// InstanceRole is a user's server-level type. Admins operate the instance
+// (settings, user administration) and inherit admin in every space; see
+// docs/architecture/permissions.md. The first registered user is admin.
+enum InstanceRole {
+  INSTANCE_ROLE_UNSPECIFIED = 0;
+  INSTANCE_ROLE_MEMBER = 1;
+  INSTANCE_ROLE_ADMIN = 2;
+}
+
+message User {
+  string id = 1;
+  string username = 2;
+  string display_name = 3;
+  google.protobuf.Timestamp created_at = 4;
+  InstanceRole role = 5;
+  // The current avatar's file id (GET /files/{id}); empty when the user
+  // has none and clients show initials instead.
+  string avatar_file_id = 6;
+  // False for an account created via a login provider that hasn't set a
+  // password yet; ChangePassword then works without the current password.
+  bool has_password = 7;
+  // True while the username was derived from a login provider's claims
+  // and hasn't been confirmed or changed yet — the client nudges the
+  // person to pick their own.
+  bool username_pending = 8;
+  // True when an admin locked the username; renaming it is refused
+  // until an admin unlocks it.
+  bool username_frozen = 9;
+  // How the user asks to be referred to; shown beside their name on
+  // their profile card. Empty when unset.
+  string pronouns = 10;
+  // A line or two about themselves, shown on the same card. Plain text.
+  string bio = 11;
+}
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+  // A space invite code. Required when the instance's registration policy
+  // is INVITE (except for the very first account); honoured under OPEN
+  // too, so the new account lands in the space.
+  string invite_code = 3;
+}
+
+message RegisterResponse {
+  User user = 1;
+  // The space joined via invite_code, if any.
+  string joined_space_id = 2;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  User user = 1;
+  // Opaque session token for non-browser clients (Authorization: Bearer).
+  // Browsers should rely on the HttpOnly cookie set by this RPC instead.
+  string token = 2;
+}
+
+message LogoutRequest {}
+
+message LogoutResponse {}
+
+message GetMeRequest {}
+
+message GetMeResponse {
+  User user = 1;
+}
+
+message UpdateProfileRequest {
+  // 1-50 characters after trimming.
+  string display_name = 1;
+  // Renames the handle (same rules as registration: 3-32 of a-z, 0-9,
+  // _). Usernames are freely changeable; the id is the durable identity.
+  optional string username = 2;
+  // Unset leaves it alone; empty clears it. Up to 40 characters,
+  // whitespace collapsed.
+  optional string pronouns = 3;
+  // Same rules, up to 300 characters.
+  optional string bio = 4;
+}
+
+message UpdateProfileResponse {
+  User user = 1;
+}
+
+// PublicProfile is one user as anyone signed in may see them: identity
+// only. Their standing in a space (role, join date) comes from
+// stoop.chat.v1.Member instead.
+message PublicProfile {
+  string id = 1;
+  string username = 2;
+  string display_name = 3;
+  // Served at /files/{id}; empty when they have none.
+  string avatar_file_id = 4;
+  string pronouns = 5;
+  string bio = 6;
+}
+
+message GetUserProfileRequest {
+  string user_id = 1;
+}
+
+message GetUserProfileResponse {
+  PublicProfile profile = 1;
+}
+
+message ChangePasswordRequest {
+  string current_password = 1;
+  // At least 8 characters.
+  string new_password = 2;
+}
+
+message ChangePasswordResponse {}
+
+// Identity is one linked sign-in provider on the caller's account.
+message Identity {
+  // The provider id from the instance's login-provider settings.
+  string provider = 1;
+  // The email the provider reported at link time; informational only.
+  string email = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message ListIdentitiesRequest {}
+
+message ListIdentitiesResponse {
+  repeated Identity identities = 1;
+}
+
+message UnlinkIdentityRequest {
+  string provider = 1;
+}
+
+message UnlinkIdentityResponse {}

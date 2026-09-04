@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package stoop.files.v1;
+
+// FileService is the upload side of file storage. Bytes travel inside the
+// Connect request (base64 in the JSON encoding the web app uses): every
+// phase-1 upload is capped at 2 MB, so a second transport for multipart
+// isn't worth its surface. Downloads are plain HTTP: GET /files/{id},
+// authorised per file kind (avatars: any signed-in user; space icons:
+// members of the space).
+//
+// Avatars and icons are image-only. The server sniffs the bytes (the
+// client's type and filename are ignored), decodes PNG / JPEG / GIF /
+// WebP, re-encodes to a fixed-size square PNG (which also strips EXIF),
+// and deletes the file it replaces.
+service FileService {
+  // UploadAvatar sets the caller's avatar (256 px).
+  rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse) {}
+  // UploadSpaceIcon sets a space's icon (512 px). Requires manage_space.
+  rpc UploadSpaceIcon(UploadSpaceIconRequest) returns (UploadSpaceIconResponse) {}
+  // GetStorageUsage reports how much upload storage is in use and the
+  // instance's quota. Instance admins only.
+  rpc GetStorageUsage(GetStorageUsageRequest) returns (GetStorageUsageResponse) {}
+  // SweepFiles removes files nothing references any more (uploads never
+  // sent, attachments of deleted channels and spaces, replaced avatars
+  // and icons, preview images, blobs with no row) that are older than the
+  // grace period, and reports what went. The server also runs this on a
+  // timer. Instance admins only.
+  rpc SweepFiles(SweepFilesRequest) returns (SweepFilesResponse) {}
+}
+
+message GetStorageUsageRequest {}
+
+message GetStorageUsageResponse {
+  int64 used_bytes = 1;
+  int64 file_count = 2;
+  // 0 means unlimited.
+  int64 quota_bytes = 3;
+}
+
+message SweepFilesRequest {}
+
+message SweepFilesResponse {
+  int64 files_removed = 1;
+  int64 bytes_freed = 2;
+  // Blobs in storage that no file row pointed at.
+  int64 stray_blobs_removed = 3;
+  // Files that could not be removed this pass (logged server-side).
+  int64 errors = 4;
+}
+
+message UploadAvatarRequest {
+  // The image bytes as picked by the user, at most 2 MB.
+  bytes data = 1;
+}
+
+message UploadAvatarResponse {
+  // The new avatar's file id; fetch it at GET /files/{file_id}.
+  string file_id = 1;
+}
+
+message UploadSpaceIconRequest {
+  string space_id = 1;
+  // The image bytes as picked by the user, at most 2 MB.
+  bytes data = 2;
+}
+
+message UploadSpaceIconResponse {
+  // The new icon's file id; fetch it at GET /files/{file_id}.
+  string file_id = 1;
+}

@@ -1,0 +1,39 @@
+# Dev dependencies only — the Go server and Vite run on the host (make dev).
+name: stoop-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stoop
+      POSTGRES_PASSWORD: stoop
+      POSTGRES_DB: stoop
+    ports:
+      # Host port 5440 to stay clear of any local Postgres on 5432.
+      - "5440:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stoop"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # Linux only (profile "linux"): LiveKit on the host network, which is what
+  # local browsers need (see livekit.dev.yaml). On macOS scripts/dev-livekit.sh
+  # runs the native binary instead; host networking isn't available there.
+  livekit:
+    image: livekit/livekit-server:v1.13.6
+    profiles: ["linux"]
+    network_mode: host
+    # The key pair comes from the file the Stoop dev server mints. On a
+    # fresh checkout this exits until that server has run once; the restart
+    # policy covers it, as it does in the self-hosting compose file.
+    command: --config /etc/livekit.yaml --key-file /keys/keys.yaml
+    restart: unless-stopped
+    volumes:
+      - ./livekit.dev.yaml:/etc/livekit.yaml:ro
+      - ../data/livekit:/keys:ro
+
+volumes:
+  postgres-dev-data:

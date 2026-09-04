@@ -1,0 +1,89 @@
+/* ---- Reset, page furniture and the handful of utility classes every page uses. ---- */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Fill the *dynamic* viewport where supported: on phones 100% of the layout
+   viewport can sit under the browser's own bars. */
+#root {
+  height: 100dvh;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: var(--text-body);
+  line-height: 1.45;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+}
+
+/* One focus ring for everything, keyboard only. Fields swap it for an
+   accent border (fields.css); a feature overrides it only for a reason. */
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* Reduced motion: every transition reads its duration from a token, so
+   zeroing the tokens is enough. Animations opt out beside their own
+   keyframes (app-shell.css, messages.css). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+  }
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: var(--text-sm);
+}
+
+/* A line of help under a heading or a field. */
+.hint {
+  margin: 0;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
+.centered {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.empty-state {
+  text-align: center;
+}
+
+.empty-state a {
+  color: var(--accent);
+}

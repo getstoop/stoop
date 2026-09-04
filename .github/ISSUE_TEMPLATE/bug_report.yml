@@ -1,0 +1,45 @@
+name: Bug report
+description: Something Stoop does wrong
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From `stoop --version` or Server admin → Server.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: exposure
+    attributes:
+      label: How the server is reached
+      options:
+        - Reverse proxy with my own domain
+        - Cloudflare Tunnel
+        - Tailscale (built in)
+        - Tailscale Serve or Funnel
+        - Plain LAN, http://
+        - Other (say in the description)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got. Server log lines help; redact anything private.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Firefox 143 on Fedora; Safari on iOS 19

@@ -1,0 +1,130 @@
+/* ---- Voice: channel rows, participants, the voice bar. ---- */
+
+.channel-link.voice {
+  width: 100%;
+  cursor: pointer;
+}
+
+.channel-link.voice .channel-hash {
+  display: inline-flex;
+  font-size: var(--text-body);
+}
+
+.channel-link.voice.connected {
+  color: var(--ok);
+}
+
+.channel-link.voice.connecting {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.channel-link.voice.error {
+  color: var(--danger);
+}
+
+.voice-participants {
+  list-style: none;
+  margin: 0 0 4px;
+  /* off-scale: indented under the channel glyph */
+  padding: 0 0 0 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.voice-participant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
+.voice-participant .avatar {
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+.voice-participant.speaking {
+  color: var(--text);
+}
+
+.voice-participant.speaking .avatar {
+  box-shadow: 0 0 0 2px var(--ok);
+}
+
+.voice-flag {
+  margin-left: auto;
+  display: inline-flex;
+  font-size: var(--text-body);
+  color: var(--danger);
+}
+
+.voice-bar {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+}
+
+.voice-bar + .members-panel {
+  margin-top: 0;
+}
+
+.voice-bar-status {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: var(--text-sm);
+}
+
+.voice-bar-status strong {
+  color: var(--ok);
+}
+
+.voice-bar.error .voice-bar-status strong {
+  color: var(--danger);
+}
+
+.voice-bar-where {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The shared control row (VoiceActions), here and on the stage. */
+.voice-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.voice-bar .voice-actions {
+  margin-left: auto;
+}
+
+.voice-actions .icon-button {
+  display: inline-flex;
+  padding: 6px;
+  border-radius: var(--radius);
+  font-size: var(--text-lg);
+}
+
+.voice-actions .icon-button.on {
+  color: var(--danger);
+}
+
+.voice-mic-select {
+  max-width: 110px;
+  font-size: var(--text-sm);
+  border-radius: var(--radius);
+  padding: 2px 4px;
+}

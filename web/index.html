@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <title>Stoop</title>
+    <script>
+      // Stamp the saved theme before anything paints (see src/api/theme.ts
+      // for the full logic; this must stay in step with it).
+      (function () {
+        var ids = ["brownstone", "daylight", "dusk", "bodega", "newsprint", "blackout", "fire-escape", "nightcap", "night-bus", "mailbox"];
+        var theme = "brownstone";
+        try {
+          var p = JSON.parse(localStorage.getItem("stoop.theme") || "null");
+          if (p) {
+            var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            var pick = p.mode === "system" ? (dark ? p.dark : p.light) : p.theme;
+            if (ids.indexOf(pick) !== -1) theme = pick;
+          }
+        } catch (e) {}
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum ChannelKind {
+  CHANNEL_KIND_UNSPECIFIED = 0;
+  CHANNEL_KIND_TEXT = 1;
+  CHANNEL_KIND_VOICE = 2;
+  // A direct message: no space, participants instead of members. Opened
+  // with OpenDirectMessage; never renamed, reordered or deleted.
+  CHANNEL_KIND_DM = 3;
+}
+
+message Channel {
+  string id = 1;
+  // Empty for a direct message.
+  string space_id = 2;
+  // Empty for a direct message; clients show the other participant.
+  string name = 3;
+  ChannelKind kind = 4;
+  int32 position = 5;
+  google.protobuf.Timestamp created_at = 6;
+  // Newest message in the channel (empty if none). IDs are time-ordered,
+  // so "unread" is simply last_message_id > last_read_message_id.
+  string last_message_id = 7;
+  // The caller's read marker (empty if they've never opened the channel).
+  string last_read_message_id = 8;
+  // Messages newer than the caller's read marker.
+  int32 unread_count = 9;
+  // The caller muted this channel: no unread bold or dot, no mention
+  // badge, no desktop alerts (mentions still reach activity). Their own
+  // setting; see SetChannelMuted. Never set on broadcast events.
+  bool muted = 10;
+  // One plain-text line saying what the channel is for, shown in its
+  // header. Empty for a direct message. Written with manage_channels.
+  string topic = 11;
+}

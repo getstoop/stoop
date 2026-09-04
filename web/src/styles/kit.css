@@ -1,0 +1,70 @@
+/* ---- The kit page (/kit, dev builds only): a layout for showing every
+   shared part. Loaded by routes/Kit/index.tsx, not index.css, so it is
+   never in the shipped bundle. ---- */
+
+.kit-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.kit-page h1 {
+  margin: 0;
+  font-size: var(--text-display);
+}
+
+.kit-page h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.kit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.kit-row.stretch {
+  align-items: flex-start;
+}
+
+.kit-row.stretch > * {
+  flex: 1 1 240px;
+}
+
+.kit-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+}
+
+.kit-swatch {
+  width: 56px;
+  height: 56px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.kit-type {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: baseline;
+}
+
+.kit-type code {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

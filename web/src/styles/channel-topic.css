@@ -1,0 +1,56 @@
+/* ---- What a channel is for, in its header: a hairline, then one
+   truncated line that opens About this channel. ---- */
+
+/* The name must not shrink away to leave a topic with the whole bar. */
+.channel-header .channel-title {
+  white-space: nowrap;
+}
+
+.channel-topic-rule {
+  flex: none;
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 4px;
+  background: var(--border);
+}
+
+/* Regular weight against the header's 600, so the name still reads as
+   the title of the room and this reads as a note about it. */
+.channel-topic {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-weight: 400;
+  text-align: left;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.channel-topic:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+/* The invitation a manager sees when there is nothing to show yet: it
+   takes only the width of its own words. */
+.channel-topic.empty {
+  flex: none;
+}
+
+.channel-about {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-wrap: anywhere;
+}
+
+.channel-about p {
+  margin: 0;
+}

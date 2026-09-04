@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/chat/v1/space.proto";
+
+// Member is a user as seen from inside one space: identity (resolved
+// through the chat module's user-directory port) plus their standing here.
+message Member {
+  string user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  // Role held in this space. Instance admins are reported with their
+  // stored row's role; see instance_admin for their inherited standing.
+  SpaceRole role = 4;
+  google.protobuf.Timestamp joined_at = 5;
+  // True for server operators, who hold admin in every space regardless
+  // of role.
+  bool instance_admin = 6;
+  // The member's avatar file id (GET /files/{id}); empty for initials.
+  string avatar_file_id = 7;
+}

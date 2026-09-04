@@ -1,0 +1,176 @@
+/* ---- Appearance / theme picker ---- */
+
+.theme-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.theme-card:hover {
+  border-color: var(--text-muted);
+}
+
+.theme-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.theme-card.paired:not(.active) {
+  border-style: dashed;
+}
+
+.theme-card-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-weight: 600;
+}
+
+.theme-card-kind {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.theme-card-blurb {
+  padding: 0 12px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* The miniature. Every colour here is the card's own theme's token. */
+.theme-mock {
+  display: grid;
+  grid-template-columns: 16px 40px 1fr;
+  height: 92px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.theme-mock-rail {
+  background: var(--canvas);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  /* off-scale: miniature */
+  padding-top: 5px;
+}
+
+.theme-mock-pill {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--raised);
+}
+
+.theme-mock-pill.on {
+  background: var(--accent);
+}
+
+.theme-mock-side {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* off-scale: miniature */
+  padding: 8px 5px;
+}
+
+.theme-mock-line {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--raised);
+}
+
+.theme-mock-line.active {
+  background: var(--accent-soft);
+}
+
+.theme-mock-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 6px;
+}
+
+.theme-mock-msg {
+  display: flex;
+  /* off-scale: miniature */
+  gap: 5px;
+}
+
+.theme-mock-av {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.theme-mock-text {
+  display: flex;
+  flex-direction: column;
+  /* off-scale: miniature */
+  gap: 3px;
+  flex: 1;
+}
+
+.theme-mock-who {
+  width: 28px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.theme-mock-body {
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+  opacity: 0.7;
+}
+
+.theme-mock-body.short {
+  width: 60%;
+}
+
+.theme-mock-composer {
+  margin-top: auto;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.card .theme-system {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--text-ui);
+  color: var(--text);
+}
+
+.card .theme-system input {
+  width: auto;
+  margin: 0;
+}

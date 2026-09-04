@@ -1,0 +1,233 @@
+/* ---- Mobile (STOOP-60) ----
+   Below the breakpoint the space rail and channel sidebar leave the flow
+   and become one drawer that slides in over the content; .app-shell
+   .drawer-open (stores/layout.ts, MenuButton.tsx) shows it. Everything
+   else is the same DOM at tighter spacing. The controls exist on every
+   screen size and are hidden here so the JSX has no width logic. */
+
+.menu-button,
+.nav-backdrop {
+  display: none;
+}
+
+/* Rows are focusable by tap so the toolbar shows on touch screens
+   (:focus-within, above); no ring for that. */
+.message:focus {
+  outline: none;
+}
+
+/* Phones in either orientation: narrow, or too short for three columns
+   to be worth the width. */
+@media (max-width: 768px), (max-height: 480px) {
+  .app-shell {
+    position: relative;
+  }
+
+  .space-rail,
+  .channel-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: var(--z-drawer);
+    transform: translateX(-100vw);
+    transition: transform var(--dur) var(--ease);
+  }
+
+  .space-rail {
+    left: 0;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .space-rail-top {
+    overflow-y: auto;
+  }
+
+  .channel-sidebar {
+    left: 68px;
+    width: min(280px, calc(100vw - 68px));
+    box-shadow: var(--shadow);
+  }
+
+  .app-shell.drawer-open .space-rail,
+  .app-shell.drawer-open .channel-sidebar {
+    transform: none;
+  }
+
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-drawer-backdrop);
+    padding: 0;
+    border: none;
+    background: var(--scrim);
+  }
+
+  .menu-button {
+    display: inline-flex;
+    padding: 4px;
+    margin: -4px 2px -4px -4px;
+  }
+
+  /* Page headers are taller than one line; the button sits at their top. */
+  .profile-header .menu-button {
+    align-self: flex-start;
+  }
+
+  /* Channel view: narrower gutters, smaller avatar column. */
+  .channel-header {
+    padding: 8px 12px;
+  }
+
+  /* The name alone can fill a phone's header. The topic stays reachable
+     from the channel's ⋮ → About this channel. */
+  .channel-topic,
+  .channel-topic-rule {
+    display: none;
+  }
+
+  .message-list {
+    padding: 12px 8px;
+  }
+
+  .message {
+    /* off-scale: the avatar column, 8 + 36 + 10 */
+    padding-left: 54px;
+  }
+
+  .message-avatar {
+    left: 8px;
+  }
+
+  .avatar.medium {
+    width: 36px;
+    height: 36px;
+    font-size: var(--text-ui);
+  }
+
+  .message-toolbar {
+    right: 6px;
+  }
+
+  .typing-indicator {
+    padding: 0 12px 4px;
+  }
+
+  .composer {
+    padding: 0 8px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .mention-picker {
+    left: 10px;
+    right: 10px;
+  }
+
+  /* 16px is the threshold below which iOS Safari zooms a focused field.
+     The composer overlay inherits the same size, so it stays in step. */
+  .composer-input,
+  .message-editor,
+  .login-card input,
+  .card input,
+  .card select,
+  .modal input,
+  .modal select,
+  .modal textarea {
+    font-size: 16px;
+  }
+
+  /* Pages and overlays use the width they have. */
+  .activity-scroll {
+    padding: 8px;
+  }
+
+  /* The settings nav moves above the content: its header, then the
+     section links as one strip that scrolls sideways. */
+  .settings-page {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    width: auto;
+    overflow: visible;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .settings-nav .profile-header {
+    padding: 8px 12px;
+  }
+
+  .settings-nav .settings-tabs {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 8px;
+  }
+
+  .settings-nav .settings-tab,
+  .logout-link {
+    flex-shrink: 0;
+    margin-top: 0;
+  }
+
+  .settings-main {
+    padding: 12px 8px;
+  }
+
+  .settings-content {
+    gap: 16px;
+  }
+
+  .settings-content .setting-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Lists fold back into the plain row: name, then the cells, actions
+     on the right or on their own line. */
+  .user-list-head {
+    display: none;
+  }
+
+  .user-list.table .user-row {
+    display: flex;
+    gap: 4px 12px;
+  }
+
+  .user-list.table .user-row-actions {
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+
+  .setting-control > input {
+    max-width: none;
+  }
+
+  .setting-control > select {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .card-row {
+    flex-wrap: wrap;
+  }
+
+  .modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+  }
+
+  .user-card,
+  .emoji-picker {
+    max-width: calc(100vw - 16px);
+  }
+
+  .voice-stage {
+    height: 36%;
+    min-height: 180px;
+  }
+
+  .voice-stage.tiles-only .stage-tile {
+    width: 150px;
+  }
+}

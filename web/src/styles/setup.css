@@ -1,0 +1,53 @@
+/* ---- First-run setup ---- */
+
+.setup-card {
+  width: min(440px, 92vw);
+}
+
+.setup-steps {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.setup-steps li {
+  flex: 1;
+  padding-top: 8px;
+  border-top: 2px solid var(--border);
+}
+
+.setup-steps li.done {
+  border-top-color: var(--ok);
+}
+
+.setup-steps li.current {
+  border-top-color: var(--accent);
+  color: var(--text);
+}
+
+.setup-card p {
+  margin: 0;
+}
+
+.link-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.link-box code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-ui);
+}

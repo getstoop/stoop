@@ -1,0 +1,517 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "stoop/chat/v1/channel.proto";
+import "stoop/chat/v1/invite.proto";
+import "stoop/chat/v1/member.proto";
+import "stoop/chat/v1/message.proto";
+import "stoop/chat/v1/activity.proto";
+import "stoop/chat/v1/space.proto";
+
+// ChatService manages spaces, channels, and messages. A space is the
+// community-level container (what Discord calls a "server" — renamed so
+// "server" can unambiguously mean a Stoop instance). All RPCs require an
+// authenticated session.
+service ChatService {
+  rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
+  rpc ListSpaces(ListSpacesRequest) returns (ListSpacesResponse) {}
+  rpc GetSpace(GetSpaceRequest) returns (GetSpaceResponse) {}
+  // JoinSpace redeems an invite code. Already-members are returned the
+  // space without consuming a use.
+  rpc JoinSpace(JoinSpaceRequest) returns (JoinSpaceResponse) {}
+  // CreateInvite mints a shareable code for a space. Requires the
+  // create_invites permission: space admins and the owner always hold it;
+  // members only when the space's members_can_invite setting is on.
+  rpc CreateInvite(CreateInviteRequest) returns (CreateInviteResponse) {}
+  // ListInvites returns every invite for a space, newest first, including
+  // revoked and exhausted ones. Same permission as CreateInvite.
+  rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse) {}
+  // RevokeInvite permanently disables a code. The invite's creator may
+  // always revoke it; anyone else needs manage_invites (admin+). Revoking
+  // twice is a no-op.
+  rpc RevokeInvite(RevokeInviteRequest) returns (RevokeInviteResponse) {}
+  // LookupInvite previews the space behind a code without redeeming it.
+  // Public: this is what an invited stranger sees before they have an
+  // account. It never returns the space's welcome text.
+  rpc LookupInvite(LookupInviteRequest) returns (LookupInviteResponse) {}
+  // GetMember describes one member of a space. Members only.
+  rpc GetMember(GetMemberRequest) returns (GetMemberResponse) {}
+  // ListMembers lists a space's members, owner first. Members only.
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse) {}
+  // SetMemberRole promotes or demotes a member (MEMBER or ADMIN; never
+  // OWNER — see TransferOwnership). Requires manage_members, and the target
+  // must rank below the caller (the owner and instance admins may act on
+  // anyone but the owner).
+  rpc SetMemberRole(SetMemberRoleRequest) returns (SetMemberRoleResponse) {}
+  // KickMember removes another member. Same rules as SetMemberRole; use
+  // LeaveSpace for yourself.
+  rpc KickMember(KickMemberRequest) returns (KickMemberResponse) {}
+  // AddMember puts an existing account into the space directly, without
+  // an invite — the admin page's "Add to space". Requires manage_members;
+  // refused for banned users; a no-op error if they're already in.
+  rpc AddMember(AddMemberRequest) returns (AddMemberResponse) {}
+  // BanMember removes someone from the space (if they're in it) and keeps
+  // them out: invites and JoinSpace refuse them until UnbanMember. Needs
+  // manage_members and the same hierarchy rule as KickMember; the owner
+  // can't be banned.
+  rpc BanMember(BanMemberRequest) returns (BanMemberResponse) {}
+  rpc UnbanMember(UnbanMemberRequest) returns (UnbanMemberResponse) {}
+  rpc ListBans(ListBansRequest) returns (ListBansResponse) {}
+  // BlockUser stops direct messages between the caller and another user
+  // in both directions, hides their existing conversation from the
+  // caller, and drops mention/reply alerts from them. Anyone may block
+  // anyone; UnblockUser reverses it.
+  rpc BlockUser(BlockUserRequest) returns (BlockUserResponse) {}
+  rpc UnblockUser(UnblockUserRequest) returns (UnblockUserResponse) {}
+  rpc ListBlockedUsers(ListBlockedUsersRequest) returns (ListBlockedUsersResponse) {}
+  // LeaveSpace removes the caller. The owner must transfer ownership first.
+  rpc LeaveSpace(LeaveSpaceRequest) returns (LeaveSpaceResponse) {}
+  // TransferOwnership makes another member the owner; the caller (owner)
+  // becomes an admin.
+  rpc TransferOwnership(TransferOwnershipRequest) returns (TransferOwnershipResponse) {}
+  // UpdateSpace changes the name and/or settings. Requires manage_space.
+  rpc UpdateSpace(UpdateSpaceRequest) returns (UpdateSpaceResponse) {}
+  // DeleteSpace removes the space and everything in it. Owner or instance
+  // admin only.
+  rpc DeleteSpace(DeleteSpaceRequest) returns (DeleteSpaceResponse) {}
+  // CreateChannel requires manage_channels (admin+).
+  rpc CreateChannel(CreateChannelRequest) returns (CreateChannelResponse) {}
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse) {}
+  // UpdateChannel changes a channel's name and/or topic. Requires
+  // manage_channels.
+  rpc UpdateChannel(UpdateChannelRequest) returns (UpdateChannelResponse) {}
+  // DeleteChannel removes a channel and its messages. Requires
+  // manage_channels; a space always keeps at least one channel.
+  rpc DeleteChannel(DeleteChannelRequest) returns (DeleteChannelResponse) {}
+  // ReorderChannels sets the sidebar order from the given full list of the
+  // space's channel IDs. Requires manage_channels.
+  rpc ReorderChannels(ReorderChannelsRequest) returns (ReorderChannelsResponse) {}
+  // SetChannelMuted sets the caller's own mute for a channel they can
+  // read (a space's, or a direct message).
+  rpc SetChannelMuted(SetChannelMutedRequest) returns (SetChannelMutedResponse) {}
+  // SetSpaceMuted sets the caller's own mute for a space they belong to.
+  rpc SetSpaceMuted(SetSpaceMutedRequest) returns (SetSpaceMutedResponse) {}
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {}
+  // EditMessage replaces the content of the caller's own message.
+  rpc EditMessage(EditMessageRequest) returns (EditMessageResponse) {}
+  // DeleteMessage removes a message: the author's own, or anyone's with
+  // manage_channels.
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse) {}
+  // ToggleReaction adds the caller's reaction if absent and removes it if
+  // present. Channel members only. Reactions never notify anyone and never
+  // affect unread state.
+  rpc ToggleReaction(ToggleReactionRequest) returns (ToggleReactionResponse) {}
+  // ListActivity returns the caller's activity items, newest first,
+  // with the current unread count.
+  // MarkChannelRead moves the caller's read marker to the channel's newest
+  // message (or to message_id if given). Members only.
+  // Direct messages. A DM is a channel with no space; messages, read
+  // markers and reactions use the channel RPCs above. Instance admins get
+  // no RPC into other people's DMs.
+  //
+  // OpenDirectMessage returns the caller's DM with another user, creating
+  // it if needed. The two must share a space, unless the caller is an
+  // instance admin.
+  rpc OpenDirectMessage(OpenDirectMessageRequest) returns (OpenDirectMessageResponse) {}
+  // The caller's DMs, most recent activity first.
+  rpc ListDirectMessages(ListDirectMessagesRequest) returns (ListDirectMessagesResponse) {}
+  rpc MarkChannelRead(MarkChannelReadRequest) returns (MarkChannelReadResponse) {}
+  rpc ListActivity(ListActivityRequest) returns (ListActivityResponse) {}
+  // MarkActivityRead marks the given activity items (or all of them)
+  // read and returns the new unread count.
+  rpc MarkActivityRead(MarkActivityReadRequest) returns (MarkActivityReadResponse) {}
+}
+
+message CreateSpaceRequest {
+  string name = 1;
+}
+
+message CreateSpaceResponse {
+  Space space = 1;
+  // The auto-created #general channel.
+  Channel default_channel = 2;
+}
+
+message ListSpacesRequest {}
+
+message ListSpacesResponse {
+  repeated Space spaces = 1;
+}
+
+message GetSpaceRequest {
+  string space_id = 1;
+}
+
+message GetSpaceResponse {
+  Space space = 1;
+}
+
+message JoinSpaceRequest {
+  // An invite code as shown in the app (surrounding whitespace is ignored).
+  string code = 1;
+  // Instance admins only: join a space directly, without an invite. When
+  // set, code is ignored.
+  string space_id = 2;
+}
+
+message JoinSpaceResponse {
+  Space space = 1;
+}
+
+message GetMemberRequest {
+  string space_id = 1;
+  string user_id = 2;
+}
+
+message GetMemberResponse {
+  Member member = 1;
+}
+
+message MarkChannelReadRequest {
+  string channel_id = 1;
+  // Optional: mark read up to this message instead of the newest.
+  string message_id = 2;
+}
+
+message MarkChannelReadResponse {
+  // The marker after the call.
+  string last_read_message_id = 1;
+}
+
+message ListActivityRequest {
+  // Return items strictly older than this ID. Empty means newest.
+  string before_id = 1;
+  // Max to return; server clamps to [1, 100]. 0 means default (50).
+  int32 limit = 2;
+}
+
+message ListActivityResponse {
+  repeated ActivityItem items = 1;
+  int32 unread_count = 2;
+}
+
+message MarkActivityReadRequest {
+  repeated string ids = 1;
+  // When true, ids is ignored and everything is marked read.
+  bool all = 2;
+}
+
+message MarkActivityReadResponse {
+  int32 unread_count = 1;
+}
+
+message ListMembersRequest {
+  string space_id = 1;
+}
+
+message ListMembersResponse {
+  // Owner first, then admins, then members; each group by join time.
+  repeated Member members = 1;
+}
+
+message SetMemberRoleRequest {
+  string space_id = 1;
+  string user_id = 2;
+  SpaceRole role = 3;
+}
+
+message SetMemberRoleResponse {
+  Member member = 1;
+}
+
+message KickMemberRequest {
+  string space_id = 1;
+  string user_id = 2;
+}
+
+message KickMemberResponse {}
+
+message AddMemberRequest {
+  string space_id = 1;
+  string user_id = 2;
+}
+
+message AddMemberResponse {
+  Space space = 1;
+}
+
+message BanMemberRequest {
+  string space_id = 1;
+  string user_id = 2;
+  // Shown to admins in the ban list; never to the banned person.
+  string reason = 3;
+}
+
+message BanMemberResponse {}
+
+message UnbanMemberRequest {
+  string space_id = 1;
+  string user_id = 2;
+}
+
+message UnbanMemberResponse {}
+
+message ListBansRequest {
+  string space_id = 1;
+}
+
+// Ban is one entry in a space's ban list.
+message Ban {
+  MessageAuthor user = 1;
+  string reason = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message ListBansResponse {
+  repeated Ban bans = 1;
+}
+
+message BlockUserRequest {
+  string user_id = 1;
+}
+
+message BlockUserResponse {}
+
+message UnblockUserRequest {
+  string user_id = 1;
+}
+
+message UnblockUserResponse {}
+
+message ListBlockedUsersRequest {}
+
+message ListBlockedUsersResponse {
+  repeated MessageAuthor users = 1;
+}
+
+message LeaveSpaceRequest {
+  string space_id = 1;
+}
+
+message LeaveSpaceResponse {}
+
+message TransferOwnershipRequest {
+  string space_id = 1;
+  string user_id = 2;
+}
+
+message TransferOwnershipResponse {
+  Space space = 1;
+}
+
+message UpdateSpaceRequest {
+  string space_id = 1;
+  // Unset fields are left unchanged; an empty string clears one.
+  optional string name = 2;
+  optional bool members_can_invite = 3;
+  optional string description = 4;
+  optional string welcome = 5;
+  // A text channel in this space, or empty to go back to whichever
+  // channel sorts first.
+  optional string default_channel_id = 6;
+}
+
+message UpdateSpaceResponse {
+  Space space = 1;
+}
+
+message DeleteSpaceRequest {
+  string space_id = 1;
+}
+
+message DeleteSpaceResponse {}
+
+message CreateInviteRequest {
+  string space_id = 1;
+  // How long the invite stays valid. Unset means it never expires.
+  google.protobuf.Duration expires_in = 2;
+  // Maximum number of joins. Unset means unlimited.
+  optional int32 max_uses = 3;
+  // Role granted on join: MEMBER (default) or ADMIN. Must not exceed the
+  // caller's own role; OWNER is rejected.
+  SpaceRole role = 4;
+}
+
+message CreateInviteResponse {
+  Invite invite = 1;
+}
+
+message ListInvitesRequest {
+  string space_id = 1;
+}
+
+message ListInvitesResponse {
+  // Ordered newest → oldest.
+  repeated Invite invites = 1;
+}
+
+message RevokeInviteRequest {
+  string invite_id = 1;
+}
+
+message RevokeInviteResponse {
+  Invite invite = 1;
+}
+
+message LookupInviteRequest {
+  // The share link's last segment.
+  string code = 1;
+}
+
+message LookupInviteResponse {
+  InvitePreview preview = 1;
+}
+
+message CreateChannelRequest {
+  string space_id = 1;
+  string name = 2;
+  ChannelKind kind = 3;
+}
+
+message CreateChannelResponse {
+  Channel channel = 1;
+}
+
+message SetChannelMutedRequest {
+  string channel_id = 1;
+  bool muted = 2;
+}
+
+message SetChannelMutedResponse {
+  Channel channel = 1;
+}
+
+message SetSpaceMutedRequest {
+  string space_id = 1;
+  bool muted = 2;
+}
+
+message SetSpaceMutedResponse {
+  Space space = 1;
+}
+
+message ListChannelsRequest {
+  string space_id = 1;
+}
+
+message ListChannelsResponse {
+  repeated Channel channels = 1;
+}
+
+message UpdateChannelRequest {
+  string channel_id = 1;
+  optional string name = 2;
+  // Unset leaves the topic alone; empty clears it.
+  optional string topic = 3;
+}
+
+message UpdateChannelResponse {
+  Channel channel = 1;
+}
+
+message DeleteChannelRequest {
+  string channel_id = 1;
+}
+
+message DeleteChannelResponse {}
+
+message ReorderChannelsRequest {
+  string space_id = 1;
+  // Every channel of the space, in the desired order.
+  repeated string channel_ids = 2;
+}
+
+message ReorderChannelsResponse {
+  repeated Channel channels = 1;
+}
+
+message SendMessageRequest {
+  string channel_id = 1;
+  string content = 2;
+  // Optional: the message this replies to; must be in the same channel.
+  string reply_to_message_id = 3;
+  // Files uploaded via POST /files/upload by the caller for this channel's
+  // space, at most 10, each usable by one message. content may be empty
+  // when attachments are present.
+  repeated string attachment_ids = 4;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message EditMessageRequest {
+  string message_id = 1;
+  string content = 2;
+}
+
+message EditMessageResponse {
+  Message message = 1;
+}
+
+message DeleteMessageRequest {
+  string message_id = 1;
+}
+
+message DeleteMessageResponse {}
+
+message ToggleReactionRequest {
+  string message_id = 1;
+  // A single emoji (one grapheme cluster, at most 16 bytes).
+  string emoji = 2;
+}
+
+message ToggleReactionResponse {
+  // The message with its reactions after the toggle.
+  Message message = 1;
+}
+
+message ListMessagesRequest {
+  string channel_id = 1;
+  // Return messages strictly older than this message ID (UUIDv7, so IDs are
+  // time-ordered). Empty means "newest".
+  string before_id = 2;
+  // Max messages to return; server clamps to [1, 100]. 0 means default (50).
+  int32 limit = 3;
+  // Return messages strictly newer than this message ID (the oldest `limit`
+  // of them). Mutually exclusive with before_id and around_id.
+  string after_id = 4;
+  // Return a window centred on this message, which is included; NotFound if
+  // it is not in the channel. Mutually exclusive with before_id and after_id.
+  string around_id = 5;
+}
+
+message ListMessagesResponse {
+  // Ordered oldest → newest.
+  repeated Message messages = 1;
+  // Whether the channel (may) have messages older than the first returned.
+  bool has_older = 2;
+  // Whether the channel (may) have messages newer than the last returned.
+  // False for the newest page, which is the page realtime events extend.
+  bool has_newer = 3;
+}
+
+// DirectMessage is a DM channel with the people in it.
+message DirectMessage {
+  Channel channel = 1;
+  // Everyone in the conversation, the caller included.
+  repeated MessageAuthor participants = 2;
+}
+
+message OpenDirectMessageRequest {
+  string user_id = 1;
+}
+
+message OpenDirectMessageResponse {
+  DirectMessage direct_message = 1;
+}
+
+message ListDirectMessagesRequest {}
+
+message ListDirectMessagesResponse {
+  repeated DirectMessage direct_messages = 1;
+}

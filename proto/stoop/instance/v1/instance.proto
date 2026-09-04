@@ -1,0 +1,260 @@
+syntax = "proto3";
+
+package stoop.instance.v1;
+
+import "stoop/auth/v1/auth.proto";
+import "stoop/instance/v1/providers.proto";
+import "stoop/instance/v1/reachability.proto";
+import "stoop/instance/v1/user.proto";
+
+// InstanceService exposes server-level state and the settings an instance
+// admin can change at runtime. See docs/architecture/permissions.md.
+service InstanceService {
+  // GetInstanceStatus is public (no session required): the web app calls it
+  // before login to decide what to show.
+  rpc GetInstanceStatus(GetInstanceStatusRequest) returns (GetInstanceStatusResponse) {}
+  // UpdateSettings changes runtime settings. Instance admins only.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse) {}
+  // ListUsers lists every account. Instance admins only.
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {}
+  // SetUserRole promotes or demotes an account's instance role. You can't
+  // change your own role, and the last active admin can't be demoted.
+  rpc SetUserRole(SetUserRoleRequest) returns (SetUserRoleResponse) {}
+  // SetUserActive deactivates (revoking all sessions) or reactivates an
+  // account. You can't deactivate yourself or the last active admin.
+  rpc SetUserActive(SetUserActiveRequest) returns (SetUserActiveResponse) {}
+  // ResetUserPassword sets a generated temporary password on another
+  // account and signs it out everywhere; the password is returned once.
+  // Instance admins only. Admins reset their own on the profile page.
+  rpc ResetUserPassword(ResetUserPasswordRequest) returns (ResetUserPasswordResponse) {}
+  // RenameUser changes another account's username and/or display name —
+  // e.g. cleaning up a handle derived from a login provider's claims.
+  // Instance admins only.
+  rpc RenameUser(RenameUserRequest) returns (RenameUserResponse) {}
+  // SetUsernameFrozen locks (or unlocks) an account's username against
+  // self-service renames — the follow-up to fixing an offensive handle.
+  // Admins' own usernames can't be frozen. Instance admins only.
+  rpc SetUsernameFrozen(SetUsernameFrozenRequest) returns (SetUsernameFrozenResponse) {}
+  // ClearUserProfile removes another account's pronouns and/or bio. It can
+  // only clear, never write: an admin needs to take down a slur, and nobody
+  // needs an admin authoring someone's self-description. Instance admins
+  // only. Unrecorded, like RenameUser beside it — see STOOP-121.
+  rpc ClearUserProfile(ClearUserProfileRequest) returns (ClearUserProfileResponse) {}
+  // GetReachability reports how people reach this server: the public
+  // address, voice relay (TURN) settings, and the built-in Tailscale
+  // listener's state. Instance admins only.
+  rpc GetReachability(GetReachabilityRequest) returns (GetReachabilityResponse) {}
+  // UpdateReachability saves reachability settings. Saved values override
+  // the server's environment; clearing one falls back to it. Instance
+  // admins only.
+  rpc UpdateReachability(UpdateReachabilityRequest) returns (UpdateReachabilityResponse) {}
+  // GetLoginProviders lists the configured login providers with their
+  // secrets elided. Instance admins only.
+  rpc GetLoginProviders(GetLoginProvidersRequest) returns (GetLoginProvidersResponse) {}
+  // UpdateLoginProviders replaces the saved provider list. Saved values
+  // override the server's environment; an empty list falls back to it.
+  // Instance admins only.
+  rpc UpdateLoginProviders(UpdateLoginProvidersRequest) returns (UpdateLoginProvidersResponse) {}
+  // GetBuildInfo reports which Stoop this is. Instance admins only: an
+  // exact version tells a stranger which bugs to try.
+  rpc GetBuildInfo(GetBuildInfoRequest) returns (GetBuildInfoResponse) {}
+}
+
+// RegistrationPolicy controls who may create an account.
+enum RegistrationPolicy {
+  REGISTRATION_POLICY_UNSPECIFIED = 0;
+  // Anyone who can reach the server.
+  REGISTRATION_POLICY_OPEN = 1;
+  // Only with a valid space invite code (the default).
+  REGISTRATION_POLICY_INVITE = 2;
+  // Only an instance admin can create accounts.
+  REGISTRATION_POLICY_CLOSED = 3;
+}
+
+// PasswordSignIn controls who may sign in (and register) with a username
+// and password. Below EVERYONE, sign-in is meant to go through login
+// providers; instance admins keep password sign-in as a break-glass, and
+// the CLI (`stoop admin password-login`) can flip the setting back.
+enum PasswordSignIn {
+  PASSWORD_SIGN_IN_UNSPECIFIED = 0;
+  // Anyone (the default).
+  PASSWORD_SIGN_IN_EVERYONE = 1;
+  // Only instance admins; the login page hides the form unless asked.
+  PASSWORD_SIGN_IN_ADMINS = 2;
+  // Nobody via the login page; admins are still honoured by the server.
+  PASSWORD_SIGN_IN_OFF = 3;
+}
+
+// SpaceCreationPolicy controls who may create spaces.
+enum SpaceCreationPolicy {
+  SPACE_CREATION_POLICY_UNSPECIFIED = 0;
+  // Only instance admins (the default).
+  SPACE_CREATION_POLICY_ADMINS = 1;
+  // Any account.
+  SPACE_CREATION_POLICY_EVERYONE = 2;
+}
+
+message GetInstanceStatusRequest {}
+
+message GetInstanceStatusResponse {
+  // True until the first account exists. That first account becomes the
+  // instance admin, so the client walks the visitor through setup.
+  bool needs_setup = 1;
+  RegistrationPolicy registration_policy = 2;
+  SpaceCreationPolicy space_creation = 3;
+  // The address people should use to reach this server, when the
+  // operator configured one (STOOP_PUBLIC_URL) or the built-in Tailscale
+  // listener provides one. Clients build invite links from it; empty
+  // means "use the address you're on".
+  string public_url = 4;
+  // Cap on total upload storage in bytes; 0 means unlimited.
+  int64 storage_quota_bytes = 5;
+  // The configured login providers, for the login page's buttons.
+  repeated LoginProviderSummary login_providers = 6;
+  // Whether the login page offers the username/password form.
+  PasswordSignIn password_sign_in = 7;
+  // The effective cap on one uploaded file, in bytes. Always set: the
+  // operator's limit when they set one, otherwise the server's own
+  // ceiling. Clients refuse a bigger file before uploading it.
+  int64 max_upload_bytes = 8;
+  // The name of this instance, shown in the browser tab. Always set: a
+  // random name (e.g. "Rusty Awning") until the operator picks one, so a
+  // client talking to more than one instance never sees them all
+  // introduce themselves as "Stoop".
+  string instance_name = 9;
+}
+
+message UpdateSettingsRequest {
+  // Unset fields are left unchanged.
+  optional RegistrationPolicy registration_policy = 1;
+  optional SpaceCreationPolicy space_creation = 2;
+  // Cap on total upload storage in bytes; 0 means unlimited.
+  optional int64 storage_quota_bytes = 3;
+  // Refused below EVERYONE unless at least one login provider exists.
+  optional PasswordSignIn password_sign_in = 4;
+  // Cap on one uploaded file in bytes; 0 removes the operator's limit and
+  // falls back to the server's ceiling. Refused above that ceiling.
+  optional int64 max_upload_bytes = 5;
+  // Trimmed; must not be blank. Once set, it replaces the random default
+  // for good — there's no way to ask for a new random name.
+  optional string instance_name = 6;
+}
+
+message UpdateSettingsResponse {
+  GetInstanceStatusResponse status = 1;
+}
+
+message ListUsersRequest {}
+
+message ListUsersResponse {
+  repeated InstanceUser users = 1;
+}
+
+message SetUserRoleRequest {
+  string user_id = 1;
+  stoop.auth.v1.InstanceRole role = 2;
+}
+
+message SetUserRoleResponse {
+  InstanceUser user = 1;
+}
+
+message SetUserActiveRequest {
+  string user_id = 1;
+  bool active = 2;
+}
+
+message SetUserActiveResponse {
+  InstanceUser user = 1;
+}
+
+message ResetUserPasswordRequest {
+  string user_id = 1;
+}
+
+message ResetUserPasswordResponse {
+  InstanceUser user = 1;
+  // Shown to the admin once; the user should change it after signing in.
+  string temporary_password = 2;
+}
+
+message RenameUserRequest {
+  string user_id = 1;
+  // Unset fields are left unchanged. Username follows the registration
+  // rules (3-32 of a-z, 0-9, _; lowercased).
+  optional string username = 2;
+  optional string display_name = 3;
+}
+
+message RenameUserResponse {
+  InstanceUser user = 1;
+}
+
+message SetUsernameFrozenRequest {
+  string user_id = 1;
+  bool frozen = 2;
+}
+
+message SetUsernameFrozenResponse {
+  InstanceUser user = 1;
+}
+
+message ClearUserProfileRequest {
+  string user_id = 1;
+  // Which fields to empty; false leaves that one alone.
+  bool pronouns = 2;
+  bool bio = 3;
+}
+
+message ClearUserProfileResponse {
+  InstanceUser user = 1;
+}
+
+message GetReachabilityRequest {}
+
+message GetReachabilityResponse {
+  Reachability reachability = 1;
+  TailscaleStatus tailscale = 2;
+  // Whether LiveKit is configured at all (STOOP_LIVEKIT_*).
+  bool voice_configured = 3;
+  // Whether this machine itself runs the Tailscale client (an interface
+  // with a tailnet address exists). The built-in listener carries HTTPS
+  // only; voice over the tailnet needs the client on the host too, or a
+  // TURN relay.
+  bool host_tailscale = 4;
+  // The voice sidecar's own state.
+  LiveKitStatus livekit = 5;
+}
+
+message UpdateReachabilityRequest {
+  // Unset fields are left unchanged. A set-but-empty public_url, a turn
+  // with no urls, or a cloudflare with no key_id clears the saved value
+  // and falls back to the environment.
+  optional string public_url = 1;
+  optional TurnRelay turn = 2;
+  optional CloudflareTurn cloudflare = 3;
+  // Applied immediately: the listener starts, stops, or restarts.
+  optional TailscaleSettings tailscale = 4;
+  // Applied immediately, without a restart. An empty cidrs list clears
+  // the saved value and falls back to the environment. trust_all is
+  // ignored here: naming addresses is the only way to add trust from the
+  // API.
+  optional TrustedProxies trusted_proxies = 5;
+}
+
+message UpdateReachabilityResponse {
+  GetReachabilityResponse reachability = 1;
+}
+
+message GetBuildInfoRequest {}
+
+message GetBuildInfoResponse {
+  // Release tag without the "v" (e.g. "0.1.0"); "dev" for a local build.
+  string version = 1;
+  // Short commit hash; empty when the build recorded none.
+  string commit = 2;
+  // When the release was built, RFC 3339; empty for a local build.
+  string built_at = 3;
+  // The Go toolchain the binary was built with.
+  string go_version = 4;
+}

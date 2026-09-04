@@ -1,0 +1,163 @@
+/* ---- Panels with a border: the card a settings page is built from, the
+   modal, the ⋮ menu and the tooltip. Other popovers (pickers, the user
+   card) follow the menu's recipe — --panel, --border, --shadow,
+   --z-popover — in their own sheets. ---- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.card h3 {
+  margin: 0;
+  font-size: var(--text-body);
+}
+
+.card .hint {
+  margin-top: -4px;
+}
+
+.card.danger-zone {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}
+
+/* A row of controls inside a card. */
+.card-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--scrim);
+}
+
+.modal {
+  width: min(560px, 92vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+/* A question with one answer: confirm, prompt, notice. */
+.modal.small {
+  width: min(420px, 92vw);
+}
+
+.modal-body {
+  margin: 0;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* The ⋮ menu (components/DotsMenu.tsx): a button in a wrapper, and a
+   list of actions fixed to the viewport so a scrolling parent can't clip
+   it. The component computes top/left/width. */
+.dots-menu-anchor {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dots-menu {
+  position: fixed;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.dots-menu button {
+  text-align: left;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font-size: var(--text-ui);
+}
+
+.dots-menu button:hover {
+  background: var(--raised);
+}
+
+.dots-menu button.danger {
+  color: var(--danger);
+}
+
+.dots-menu button[aria-disabled="true"] {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.dots-menu button[aria-disabled="true"]:hover {
+  background: none;
+}
+
+/* The tooltip (components/Tooltip.tsx): a small panel fixed to the
+   viewport beside the control it describes, which the component measures
+   at the moment it opens. It never takes the pointer, so the control
+   under it stays hoverable, and being fixed it adds nothing to the flow
+   of the row it sits in. */
+.tooltip {
+  position: fixed;
+  z-index: var(--z-popover);
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: var(--text-ui);
+  pointer-events: none;
+}
+
+.tooltip .tooltip-detail {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

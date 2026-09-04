@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/chat/v1/space.proto";
+
+// Invite is a redeemable code granting membership in a space. A code is
+// usable while revoked_at is unset, expires_at (if set) is in the future,
+// and use_count is below max_uses (if set).
+message Invite {
+  string id = 1;
+  string space_id = 2;
+  // Short base58 code; also the last segment of the share URL /join/<code>.
+  string code = 3;
+  string created_by = 4;
+  // Unset means the invite never expires.
+  google.protobuf.Timestamp expires_at = 5;
+  // Unset means unlimited uses.
+  optional int32 max_uses = 6;
+  int32 use_count = 7;
+  // Set once the invite has been revoked.
+  google.protobuf.Timestamp revoked_at = 8;
+  google.protobuf.Timestamp created_at = 9;
+  // The role a joiner receives: MEMBER or ADMIN, never OWNER. Capped at
+  // the creator's own role when created and again when redeemed.
+  SpaceRole role = 10;
+}
+
+// InvitePreview is what a code shows before it is redeemed: enough to
+// decide whether to join, and nothing a member would expect to stay
+// inside the space. Returned by the public LookupInvite.
+message InvitePreview {
+  string space_id = 1;
+  string space_name = 2;
+  // The space's one-line description; empty if it has none.
+  string space_description = 3;
+  // The space icon's file id (GET /files/{id}); empty for initials.
+  string space_icon_file_id = 4;
+  int32 member_count = 5;
+  // The role redeeming the code would grant today, capped at its
+  // creator's own role just as an actual join would be.
+  SpaceRole role = 6;
+}

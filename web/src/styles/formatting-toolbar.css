@@ -1,0 +1,47 @@
+/* ---- Formatting toolbar ---- */
+
+.format-toolbar {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.format-button {
+  min-width: 30px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-ui);
+  line-height: 18px;
+}
+
+.format-button:hover,
+.format-button:focus-visible {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.format-bold {
+  font-weight: 700;
+}
+
+.format-italic {
+  font-style: italic;
+}
+
+.format-underline {
+  text-decoration: underline;
+}
+
+.format-strike {
+  text-decoration: line-through;
+}
+
+.format-code,
+.format-codeblock {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+}

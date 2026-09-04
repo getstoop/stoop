@@ -1,0 +1,272 @@
+syntax = "proto3";
+
+package stoop.realtime.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/chat/v1/channel.proto";
+import "stoop/chat/v1/message.proto";
+import "stoop/chat/v1/reaction.proto";
+import "stoop/chat/v1/activity.proto";
+import "stoop/chat/v1/space.proto";
+
+// The realtime gateway wire format. There is no Connect service here: clients
+// open a WebSocket at /ws (authenticated by session cookie) and exchange
+// binary frames containing these envelopes.
+//
+// ServerEvent oneof numbering convention: 3-9 are protocol events, 10+ are
+// domain events.
+
+// ServerEvent is pushed from the server to connected clients.
+message ServerEvent {
+  string event_id = 1;
+  google.protobuf.Timestamp ts = 2;
+
+  oneof payload {
+    // Protocol events (3-9).
+    Ready ready = 3;
+    Ping ping = 4;
+
+    // Domain events (10+).
+    stoop.chat.v1.Message message_created = 10;
+    MessageDeleted message_deleted = 11;
+    stoop.chat.v1.Channel channel_created = 12;
+    SpaceJoined space_joined = 13;
+    MemberRoleChanged member_role_changed = 14;
+    MemberRemoved member_removed = 15;
+    SpaceUpdated space_updated = 16;
+    SpaceDeleted space_deleted = 17;
+    MemberJoined member_joined = 18;
+    ActivityItemCreated activity_item_created = 19;
+    ChannelRead channel_read = 20;
+    PresenceChanged presence_changed = 21;
+    UserTyping user_typing = 22;
+    stoop.chat.v1.Message message_updated = 23;
+    stoop.chat.v1.Channel channel_updated = 24;
+    ChannelDeleted channel_deleted = 25;
+    ChannelsReordered channels_reordered = 26;
+    ReactionsChanged reactions_changed = 27;
+    MemberUpdated member_updated = 28;
+    VoiceStateChanged voice_state_changed = 29;
+    ChannelMuted channel_muted = 30;
+    SpaceMuted space_muted = 31;
+  }
+}
+
+// ClientEvent is sent from the client to the server.
+message ClientEvent {
+  oneof payload {
+    Pong pong = 3;
+    // The client is typing in a channel. Send at most every couple of
+    // seconds while keys are pressed; the gateway rate-limits anyway.
+    Typing typing = 10;
+    // The client joined, left, or changed its mute state in a voice
+    // channel. Send after the LiveKit connection is established and again
+    // on every WebSocket reconnect; the gateway forgets it on disconnect.
+    VoiceState voice_state = 11;
+    // The client's chosen status (or an automatic Away). Send after Ready
+    // and again on reconnect; the gateway forgets it with the last
+    // connection.
+    SetStatus set_status = 12;
+  }
+}
+
+// PresenceStatus is how someone who is online wants to be seen.
+enum PresenceStatus {
+  PRESENCE_STATUS_UNSPECIFIED = 0;
+  PRESENCE_STATUS_ONLINE = 1;
+  PRESENCE_STATUS_AWAY = 2;
+  // Do not disturb: shown as such; the client suppresses its own desktop
+  // alerts while set.
+  PRESENCE_STATUS_DND = 3;
+}
+
+message SetStatus {
+  PresenceStatus status = 1;
+}
+
+// UserPresence is one online user and their status.
+message UserPresence {
+  string user_id = 1;
+  PresenceStatus status = 2;
+}
+
+// VoiceState is the client's self-report. An empty channel_id means "left
+// voice". A user is in at most one voice channel at a time; reporting a
+// different channel moves them.
+message VoiceState {
+  string channel_id = 1;
+  bool muted = 2;
+  bool deafened = 3;
+  // Publishing a camera / a screen share (so the sidebar can show it to
+  // people who haven't joined).
+  bool camera = 4;
+  bool screen_sharing = 5;
+}
+
+// VoiceParticipant is one user in one voice channel.
+message VoiceParticipant {
+  string space_id = 1;
+  string channel_id = 2;
+  string user_id = 3;
+  bool muted = 4;
+  bool deafened = 5;
+  bool camera = 6;
+  bool screen_sharing = 7;
+}
+
+// VoiceStateChanged is broadcast to the space when someone joins, leaves,
+// or changes mute state. joined=true is an upsert (the participant's current
+// state); joined=false removes them from the channel.
+message VoiceStateChanged {
+  VoiceParticipant participant = 1;
+  bool joined = 2;
+}
+
+// Typing in a direct message carries an empty space_id; the gateway relays
+// it to the other participants instead of a space.
+message Typing {
+  string space_id = 1;
+  string channel_id = 2;
+}
+
+// Ready is sent once after the WebSocket is authenticated and subscribed.
+message Ready {
+  string user_id = 1;
+  repeated string space_ids = 2;
+  // Users currently online who share at least one space with the caller
+  // (including the caller). Kept current by PresenceChanged.
+  repeated string online_user_ids = 3;
+  // Everyone currently in a voice channel of the caller's spaces. Kept
+  // current by VoiceStateChanged.
+  repeated VoiceParticipant voice_participants = 4;
+  // The same users as online_user_ids, with their status. Kept current
+  // by PresenceChanged.
+  repeated UserPresence presences = 5;
+}
+
+// PresenceChanged is broadcast to a user's spaces when they come online
+// (first connection), go offline (last connection closed), or change
+// their status.
+message PresenceChanged {
+  string user_id = 1;
+  bool online = 2;
+  // Meaningful while online.
+  PresenceStatus status = 3;
+}
+
+// UserTyping is broadcast to the space (or, with an empty space_id, to a
+// direct message's participants); clients show it for a few seconds and
+// drop it unless refreshed.
+message UserTyping {
+  string space_id = 1;
+  string channel_id = 2;
+  string user_id = 3;
+}
+
+message Ping {}
+
+message Pong {}
+
+message ChannelDeleted {
+  string space_id = 1;
+  string channel_id = 2;
+}
+
+// ChannelsReordered carries the space's channels in their new order.
+message ChannelsReordered {
+  string space_id = 1;
+  repeated stoop.chat.v1.Channel channels = 2;
+}
+
+// ReactionsChanged carries a message's full reaction list after a toggle;
+// clients swap it in without refetching.
+message ReactionsChanged {
+  string space_id = 1;
+  string channel_id = 2;
+  string message_id = 3;
+  repeated stoop.chat.v1.Reaction reactions = 4;
+}
+
+message MessageDeleted {
+  string message_id = 1;
+  string channel_id = 2;
+  string space_id = 3;
+}
+
+// SpaceJoined is delivered on the joining user's personal topic; the gateway
+// also uses it to subscribe the connection to the new space's events live.
+message SpaceJoined {
+  stoop.chat.v1.Space space = 1;
+}
+
+// ChannelMuted is delivered on the user's personal topic when they mute
+// or unmute a channel, so their other devices follow.
+message ChannelMuted {
+  string space_id = 1;
+  string channel_id = 2;
+  bool muted = 3;
+}
+
+// SpaceMuted is delivered on the user's personal topic when they mute or
+// unmute a space, so their other devices follow.
+message SpaceMuted {
+  string space_id = 1;
+  bool muted = 2;
+}
+
+// ChannelRead is delivered on the reader's personal topic when their read
+// marker moves, so their other devices clear the unread state too.
+message ChannelRead {
+  string space_id = 1;
+  string channel_id = 2;
+  string last_read_message_id = 3;
+}
+
+// ActivityItemCreated is delivered on the recipient's personal topic.
+message ActivityItemCreated {
+  stoop.chat.v1.ActivityItem item = 1;
+}
+
+// MemberJoined is broadcast to the space when someone new joins (the joiner
+// themselves receives SpaceJoined on their personal topic instead).
+message MemberJoined {
+  string space_id = 1;
+  string user_id = 2;
+}
+
+// MemberRoleChanged is broadcast to the space when a member's role changes
+// (promotion, demotion, ownership transfer).
+message MemberRoleChanged {
+  string space_id = 1;
+  string user_id = 2;
+  stoop.chat.v1.SpaceRole role = 3;
+}
+
+// MemberUpdated is broadcast to each of a user's spaces when their profile
+// (today: the avatar) changes; clients refetch the member.
+message MemberUpdated {
+  string space_id = 1;
+  string user_id = 2;
+}
+
+// MemberRemoved is broadcast to the space when a member is kicked or
+// leaves. The gateway uses it to drop that user's live subscription to the
+// space.
+message MemberRemoved {
+  string space_id = 1;
+  string user_id = 2;
+  // True when removed by someone else, false when they left.
+  bool kicked = 3;
+}
+
+// SpaceUpdated is broadcast when the space's name or settings change.
+// space.my_role is not meaningful in a broadcast; clients refetch.
+message SpaceUpdated {
+  stoop.chat.v1.Space space = 1;
+}
+
+// SpaceDeleted is broadcast to the space; the gateway drops every
+// connection's subscription to it.
+message SpaceDeleted {
+  string space_id = 1;
+}

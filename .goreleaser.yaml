@@ -1,0 +1,51 @@
+version: 2
+
+project_name: stoop
+
+builds:
+  - main: ./cmd/stoop
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/Jhut89/stoop/internal/buildinfo.Version={{ .Version }}
+      - -X github.com/Jhut89/stoop/internal/buildinfo.Commit={{ .ShortCommit }}
+      - -X github.com/Jhut89/stoop/internal/buildinfo.Date={{ .Date }}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+
+archives:
+  - formats: [tar.gz]
+
+dockers:
+  - image_templates: ["ghcr.io/jhut89/stoop:{{ .Version }}-amd64"]
+    use: buildx
+    dockerfile: deploy/Dockerfile.goreleaser
+    build_flag_templates: ["--platform=linux/amd64"]
+  - image_templates: ["ghcr.io/jhut89/stoop:{{ .Version }}-arm64"]
+    use: buildx
+    dockerfile: deploy/Dockerfile.goreleaser
+    goarch: arm64
+    build_flag_templates: ["--platform=linux/arm64"]
+
+docker_manifests:
+  - name_template: ghcr.io/jhut89/stoop:{{ .Version }}
+    image_templates:
+      - ghcr.io/jhut89/stoop:{{ .Version }}-amd64
+      - ghcr.io/jhut89/stoop:{{ .Version }}-arm64
+  - name_template: ghcr.io/jhut89/stoop:latest
+    image_templates:
+      - ghcr.io/jhut89/stoop:{{ .Version }}-amd64
+      - ghcr.io/jhut89/stoop:{{ .Version }}-arm64
+
+changelog:
+  use: github

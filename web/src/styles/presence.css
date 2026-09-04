@@ -1,0 +1,62 @@
+/* ---- Presence status and space mute (STOOP-71) ---- */
+
+.online-dot.away {
+  background: var(--warn);
+}
+
+.online-dot.dnd {
+  background: var(--danger);
+}
+
+.presence.away {
+  color: var(--warn);
+}
+
+.presence.dnd {
+  color: var(--danger);
+}
+
+.status-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.status-option input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.status-option .online-dot {
+  position: static;
+  width: 10px;
+  height: 10px;
+  border: none;
+}
+
+.status-option.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* The dot on the rail's own avatar pill. */
+.space-pill.avatar .online-dot {
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  border-color: var(--canvas);
+}

@@ -1,0 +1,40 @@
+/* ---- Mention picker ---- */
+
+.composer {
+  position: relative;
+}
+
+.mention-picker {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: calc(100% - 6px);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.mention-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+.mention-option.selected,
+.mention-option:hover {
+  background: var(--raised);
+}

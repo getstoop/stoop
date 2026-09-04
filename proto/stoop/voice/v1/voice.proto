@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package stoop.voice.v1;
+
+// VoiceService hands out LiveKit access tokens for voice channels. Stoop
+// never proxies media; the token is the authorization handoff to the
+// LiveKit sidecar (room = channel ID, identity = user ID). Signaling is
+// proxied through the app origin; media flows directly over WebRTC.
+service VoiceService {
+  rpc JoinVoiceChannel(JoinVoiceChannelRequest) returns (JoinVoiceChannelResponse) {}
+}
+
+message JoinVoiceChannelRequest {
+  string channel_id = 1;
+}
+
+message JoinVoiceChannelResponse {
+  // Where to open the LiveKit signaling connection. An origin-relative
+  // path (today always "/livekit", proxied by the app server) that the
+  // client resolves against the page origin (ws/wss follows http/https).
+  string livekit_url = 1;
+  // Short-lived LiveKit access token scoped to this channel's room.
+  string livekit_token = 2;
+  // ICE servers (STUN/TURN) the browser should use for media. Empty means
+  // "use whatever LiveKit offers"; when set, this replaces LiveKit's list,
+  // so it always includes STUN. Provided by the server so short-lived TURN
+  // credentials (Cloudflare) can be minted per join.
+  repeated IceServer ice_servers = 3;
+}
+
+// IceServer mirrors the browser's RTCIceServer.
+message IceServer {
+  repeated string urls = 1;
+  string username = 2;
+  string credential = 3;
+}

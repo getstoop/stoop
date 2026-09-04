@@ -1,0 +1,252 @@
+/* ---- Message attachments (STOOP-42) ---- */
+
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  white-space: normal;
+}
+
+.attachment-image {
+  position: relative;
+  display: block;
+  margin: 0;
+  max-width: min(420px, 100%);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.attachment-image > a {
+  display: block;
+}
+
+.attachment-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+/* Filename, size and a download button, shown over the bottom of the
+   image on hover or keyboard focus. */
+.attachment-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  background: color-mix(in srgb, var(--canvas) 85%, transparent);
+  color: var(--text);
+  font-size: var(--text-sm);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.attachment-image:hover .attachment-bar,
+.attachment-image:focus-within .attachment-bar {
+  opacity: 1;
+}
+
+/* Video and audio players share the image's frame; their caption sits
+   under the player and is always visible (the controls own the bottom
+   edge, so a hover bar has nowhere to go). */
+.attachment-video,
+.attachment-audio {
+  display: block;
+  margin: 0;
+  max-width: min(480px, 100%);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.attachment-video video {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  /* off-scale: black behind video is right in every theme */
+  background: #000;
+}
+
+.attachment-audio {
+  width: min(480px, 100%);
+}
+
+.attachment-audio audio {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+
+.attachment-bar-static {
+  position: static;
+  opacity: 1;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+.attachment-audio .attachment-bar-static {
+  border-top: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.attachment-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--raised);
+  border: 1px solid var(--border);
+}
+
+.attachment-download:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.attachment-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--text-ui);
+}
+
+.attachment-card:hover {
+  border-color: var(--accent);
+}
+
+.attachment-card svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.attachment-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.attachment-size {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.attachment-bar .attachment-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.composer-tools .format-toolbar {
+  margin-bottom: 0;
+}
+
+.attach-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+}
+
+.attach-button svg {
+  display: block;
+}
+
+.composer.dragging .composer-input {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+}
+
+.attachment-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.attachment-strip .pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-size: var(--text-ui);
+}
+
+.attachment-strip .pending.uploading {
+  opacity: 0.7;
+}
+
+.attachment-strip .pending.failed {
+  border-color: var(--danger);
+}
+
+.pending-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--raised);
+}
+
+.pending-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-meta {
+  flex: none;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.pending.failed .pending-meta {
+  color: var(--danger);
+}
+
+.pending-remove {
+  flex: none;
+}
+
+.attachment-error {
+  flex-basis: 100%;
+  margin: 0;
+}
