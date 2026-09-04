@@ -28,6 +28,11 @@ RETURNING *;
 -- name: SetUsernameFrozen :one
 UPDATE users SET username_frozen = $2 WHERE id = $1 RETURNING *;
 
+-- DeleteUser undoes a registration whose invite turned out to be spent.
+-- Only ever a brand-new row: nothing references it yet.
+-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1;
+
 -- name: CountUsers :one
 SELECT count(*) FROM users;
 

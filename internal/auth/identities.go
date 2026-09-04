@@ -164,7 +164,8 @@ func (s *Service) registerSocial(ctx context.Context, providerID string, claims 
 		slog.Error("count users", "err", err)
 		return flowResult{}, &flowErr{code: "provider_error"}
 	}
-	if err := s.checkRegistrationAllowed(ctx, st.Invite, existing); err != nil {
+	inviteRequired, err := s.checkRegistrationAllowed(ctx, st.Invite, existing)
+	if err != nil {
 		// Closed and missing-invite share an error code, so ask the
 		// policy which story to tell the login page.
 		code := "invite_invalid"
@@ -201,13 +202,12 @@ func (s *Service) registerSocial(ctx context.Context, providerID string, claims 
 	}
 
 	target := "/?welcome=1"
-	// Redeem after the account exists, exactly as Register does: if the
-	// code was exhausted in the meantime the account still stands.
 	if st.Invite != "" && s.invites != nil {
-		spaceID, err := s.invites.RedeemInvite(ctx, st.Invite, user.ID)
+		spaceID, err := s.redeemInvite(ctx, user, st.Invite, inviteRequired)
 		if err != nil {
-			slog.Warn("invite not redeemed after provider registration", "user_id", user.ID, "err", err)
-		} else {
+			return flowResult{}, &flowErr{code: "invite_invalid"}
+		}
+		if spaceID != "" {
 			target = "/s/" + spaceID + "?welcome=1"
 		}
 	}
