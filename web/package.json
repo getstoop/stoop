@@ -31,7 +31,7 @@
     "@vitejs/plugin-react": "^4.5.0",
     "pg": "^8.23.0",
     "puppeteer-core": "^23.11.1",
-    "typescript": "^5.8.0",
+    "typescript": "^7.0.2",
     "vite": "^6.3.0"
   },
   "packageManager": "pnpm@11.23.0+sha512.f00082e5b283a199b74e079da28d155c008fe232f44c8a06ea7ddfa014ecf719fc362f790ecc67b28106ddac2afb24c49a9a079159da560b2ce7d1e98efd11af"
