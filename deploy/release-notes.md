@@ -11,5 +11,5 @@ downloads the compose bundle attached below.
 
 **Pinned alongside this release:** LiveKit v1.13.6, Postgres 16.
 
-**Known issues:** none carried over from the security audit; see the
-issue tracker for what is open.
+**Known issues:** none known at release; what turns up goes in
+[GitHub issues](https://github.com/getstoop/stoop/issues).

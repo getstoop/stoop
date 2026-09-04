@@ -4,10 +4,8 @@ Status: proposed 2026-09-03. Decided the same day to go incrementally:
 `instance_name` shipped first on its own (browser tab title, Server admin
 tab, random two-word default so instances aren't all "Stoop"), with the
 icon, blurb and their placement on the pre-login pages — the options below —
-still open. The rendered version with live mockups is the "Instance Branding
-Placement" artifact
-(https://claude.ai/code/artifact/fa4b2a90-c36b-4013-b543-cb711d055b39); this
-file is the text of it so the reasoning survives.
+still open. This file is the text of a design page with live mockups that lives in
+the maintainer's private tooling; the reasoning is all here.
 
 ## The problem
 
@@ -80,5 +78,6 @@ instance icon is set.
 
 ## Decision
 
-Open — pending sign-off on A, B or C (or a mix, e.g. A on the login shapes
-with blurb suppressed on invite landing per question 1).
+Open — the maintainer has not chosen between A, B and C (or a mix, e.g. A
+on the login shapes with the blurb suppressed on invite landing per
+question 1). Opinions welcome as an issue.

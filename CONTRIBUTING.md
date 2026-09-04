@@ -16,7 +16,8 @@ rules below exist to keep it small.
 
 ## Making a change
 
-Setup, build, and verification steps are in
+Getting a dev environment running is in the README (Developing);
+the traps and verification steps are in
 [docs/agent-workflow.md](docs/agent-workflow.md); the layout and
 file-size rules are in [docs/conventions.md](docs/conventions.md). In
 short:

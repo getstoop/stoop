@@ -56,8 +56,9 @@ make build      # single self-contained binary at bin/stoop (web UI embedded)
 ```
 
 Changes land through pull requests: `main` only accepts merges whose CI
-(lint, tests, the browser suite, and both cross-compiles) is green, and
-refuses direct pushes. `gh pr create` then `gh pr merge --squash --auto` is
+(protobuf codegen drift, Go lint and tests, web lint and build, the
+browser suite, and both cross-compiles) is green, and refuses direct
+pushes. `gh pr create` then `gh pr merge --squash --auto` is
 the whole ceremony; the ruleset is described in
 [docs/agent-workflow.md](docs/agent-workflow.md#how-a-change-lands).
 
