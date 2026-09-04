@@ -16,3 +16,6 @@ with a React web app in `web/`.
   review the change on the dev instance first. Changes land by
   pull request: `main` refuses direct pushes and merges only with green
   CI (`docs/agent-workflow.md` → How a change lands).
+- **Releases and patch releases:** `docs/releasing.md` — a tag on `main`
+  is the release; patches come from a `release/X.Y` branch off the tag and
+  carry no migrations.

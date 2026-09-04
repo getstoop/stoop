@@ -1,6 +1,14 @@
 # Used by GoReleaser: it injects the prebuilt binary for the target platform,
 # so this stage only wraps it in a minimal runtime image.
+# The volume mount points exist in the image, owned by the runtime user,
+# so a fresh named volume inherits that ownership; without them Docker
+# creates root-owned directories the nonroot process cannot write to.
+FROM busybox:1.37 AS dirs
+RUN mkdir -p /out/data /out/livekit-keys && chown -R 65532:65532 /out
+
 FROM gcr.io/distroless/static:nonroot
+COPY --from=dirs --chown=65532:65532 /out/data /data
+COPY --from=dirs --chown=65532:65532 /out/livekit-keys /livekit-keys
 # On PATH, so `docker compose exec stoop stoop admin …` works in an image
 # with no shell to resolve anything else.
 COPY stoop /usr/local/bin/stoop
