@@ -1,5 +1,7 @@
-# Weekly, grouped, so updates arrive as a few PRs rather than a flood.
-# github-actions updates keep the SHA pins in the workflows current.
+# Grouped minor and patch updates, one PR per ecosystem; a major version
+# arrives as its own PR so it can be judged on its own. Monthly for the
+# code, weekly for the actions (each PR runs the full suite, e2e shards
+# included, so cadence is CI time).
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -9,17 +11,20 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: gomod
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
       go:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: npm
     directory: /web
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
       web:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
