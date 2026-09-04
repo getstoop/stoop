@@ -80,19 +80,21 @@ coding agent? The brief template and this environment's traps are in
   across two spaces — "The Stoop" (a neighbourhood) and
   "Basement Arcade" (a gaming guild), each with a description, welcome text and
   channels with topics, and a few people in both. It prints the accounts and
-  their roles when it finishes. Note the E2E runner also wipes the database, so
-  run this after it.
+  their roles when it finishes.
 - `make e2e` — browser end-to-end suite (`web/e2e/*.mjs`, puppeteer driving
-  a local Chrome) against a running server. Start one first:
-  `make build && STOOP_DATABASE_URL=... STOOP_LISTEN_ADDR=:8091 STOOP_AUTH_RATE_LIMIT=0 ./bin/stoop`
-  (`make dev` sets these already; the rate-limit override is needed because
-  the suite signs in far more than 20 times a minute from one address).
-  The runner wipes the database in `STOOP_E2E_DATABASE_URL` (default: the
-  dev Postgres on :5440) before each spec; `pnpm e2e setup members` runs a
-  subset. Set `STOOP_E2E_CHROME` if Chrome isn't in the usual place. The
-  voice spec is opt-in — `STOOP_E2E_VOICE=1 pnpm e2e voice` — because it
-  needs the server pointed at a running LiveKit (`make dev-services` does
-  that in dev); CI skips it.
+  a local Chrome). It builds, then `scripts/e2e-scratch.sh` recreates a
+  `stoop_e2e` database on the dev Postgres, starts a second server on :8092
+  with its own storage directory, runs every spec against it and stops it;
+  the dev server and its data are left alone. `make e2e specs="setup members"`
+  runs a subset. Set `STOOP_E2E_CHROME` if Chrome isn't in the usual place.
+  The runner itself (`cd web && pnpm e2e`) works against any server named
+  by `STOOP_E2E_BASE_URL`, wiping the database in `STOOP_E2E_DATABASE_URL`
+  before each spec; a hand-started server needs
+  `STOOP_UNFURL_ALLOW_PRIVATE=true STOOP_AUTH_RATE_LIMIT=0` (the suite signs
+  in far more than 20 times a minute from one address). The voice spec is
+  opt-in — `STOOP_E2E_VOICE=1 pnpm e2e voice` — because it needs the server
+  pointed at a running LiveKit with the key pair it minted (`make dev`
+  does that; the scratch server has no LiveKit); CI skips it.
 
 CI runs lint, codegen drift checks, the Go tests, and the browser suite.
 

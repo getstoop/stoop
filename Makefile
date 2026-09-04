@@ -72,9 +72,11 @@ lint:
 test:
 	go test ./...
 
-## e2e: browser end-to-end suite against a running server (see web/e2e/run.mjs)
-e2e:
-	cd web && pnpm e2e
+## e2e: browser suite on a throwaway instance (scripts/e2e-scratch.sh): a
+## fresh database, its own server on :8092 and its own storage, so the dev
+## server and its data are untouched. make e2e specs="replies edits" runs a subset.
+e2e: build
+	scripts/e2e-scratch.sh $(specs)
 
 # ---- Database --------------------------------------------------------------
 
