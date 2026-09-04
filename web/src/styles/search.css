@@ -1,0 +1,137 @@
+/* ---- Message search: the header launcher and the results page. ----
+   docs/proposals/message-search.md. The page borrows the activity page's
+   shape (header bar, scrolling list, rows that open a channel). */
+
+/* The launcher at the right end of a channel header: a compact field on
+   a desktop; mobile.css hides it and shows the icon button instead. */
+.search-launch {
+  margin-left: auto;
+  flex: none;
+}
+
+.search-launch .search-field {
+  margin: 0;
+  width: 180px;
+}
+
+.search-launch-button {
+  display: none;
+  margin-left: auto;
+}
+
+/* The field is the members panel's, so the two read as one control. */
+.search-field input {
+  padding-right: 8px;
+}
+
+.search-page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.search-header .search-title {
+  white-space: nowrap;
+}
+
+.search-form {
+  flex: 1;
+  min-width: 0;
+  max-width: 480px;
+}
+
+.search-form .search-field {
+  margin: 0;
+}
+
+.search-count {
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.search-header .chip {
+  margin-left: auto;
+}
+
+.search-scope {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px 0;
+}
+
+.search-scope .chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.search-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.search-error {
+  margin: 0 0 12px;
+}
+
+.search-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 960px;
+}
+
+/* A row: avatar, who and where, when, then the message. Same bones as
+   .activity-row. */
+.search-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 2px 12px;
+  align-items: start;
+  padding: 12px 8px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-row:hover {
+  background: var(--hover);
+}
+
+.search-row .avatar {
+  grid-row: span 2;
+}
+
+.search-row-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.search-row-time {
+  white-space: nowrap;
+}
+
+.search-row-body {
+  grid-column: 2 / -1;
+  min-width: 0;
+}
+
+.search-more {
+  margin-top: 12px;
+}
+
+/* A matched word. The accent wash, never the browser's yellow. */
+.search-hit {
+  background: var(--accent-soft);
+  color: inherit;
+  border-radius: var(--radius-sm);
+  padding: 0 2px;
+}

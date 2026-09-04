@@ -87,6 +87,38 @@
     display: none;
   }
 
+  /* Search: the icon instead of the field; on the results page the
+     field takes the header and the title goes. */
+  .search-launch {
+    display: none;
+  }
+
+  .search-launch-button {
+    display: inline-flex;
+  }
+
+  .search-title,
+  .search-count {
+    display: none;
+  }
+
+  .search-scope {
+    padding: 8px 12px 0;
+  }
+
+  .search-scroll {
+    padding: 12px 8px;
+  }
+
+  /* The time drops under the name instead of squeezing it. */
+  .search-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .search-row-time {
+    grid-column: 2;
+  }
+
   .message-list {
     padding: 12px 8px;
   }
