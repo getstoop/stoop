@@ -96,6 +96,9 @@ service ChatService {
   rpc SetSpaceMuted(SetSpaceMutedRequest) returns (SetSpaceMutedResponse) {}
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {}
+  // SearchMessages finds messages by their words within one space the
+  // caller belongs to, newest first. See docs/proposals/message-search.md.
+  rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse) {}
   // EditMessage replaces the content of the caller's own message.
   rpc EditMessage(EditMessageRequest) returns (EditMessageResponse) {}
   // DeleteMessage removes a message: the author's own, or anyone's with
@@ -493,6 +496,33 @@ message ListMessagesResponse {
   // Whether the channel (may) have messages newer than the last returned.
   // False for the newest page, which is the page realtime events extend.
   bool has_newer = 3;
+}
+
+message SearchMessagesRequest {
+  // What to search. A oneof so a direct-message scope can be added as a
+  // second case later.
+  oneof scope {
+    // Every channel in the space; the caller must be a member.
+    string space_id = 1;
+  }
+  // Words, "quoted phrases", -excluded words and OR, plus the filters
+  // from:@handle, in:#channel, before:YYYY-MM-DD and after:YYYY-MM-DD.
+  // The last bare word matches as a prefix once it is three characters.
+  // At most 200 characters; something searchable must remain after the
+  // filters are taken out.
+  string query = 3;
+  // Return matches strictly older than this message ID. Empty means the
+  // newest matches.
+  string before_id = 4;
+  // Max matches to return; server clamps to [1, 50]. 0 means default (25).
+  int32 limit = 5;
+}
+
+message SearchMessagesResponse {
+  // Ordered newest → oldest.
+  repeated Message messages = 1;
+  // Whether there (may) be older matches than the last returned.
+  bool has_older = 2;
 }
 
 // DirectMessage is a DM channel with the people in it.

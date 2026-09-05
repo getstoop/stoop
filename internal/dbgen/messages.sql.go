@@ -13,7 +13,7 @@ const createMessage = `-- name: CreateMessage :one
 
 INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, search
 `
 
 type CreateMessageParams struct {
@@ -49,6 +49,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
+		&i.Search,
 	)
 	return i, err
 }
@@ -63,7 +64,7 @@ func (q *Queries) DeleteMessage(ctx context.Context, id string) error {
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at FROM messages WHERE id = $1
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, search FROM messages WHERE id = $1
 `
 
 func (q *Queries) GetMessage(ctx context.Context, id string) (Message, error) {
@@ -79,6 +80,7 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (Message, error) {
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
+		&i.Search,
 	)
 	return i, err
 }
@@ -125,7 +127,7 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 }
 
 const listMessagesAfter = `-- name: ListMessagesAfter :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, p.author_id AS reply_author_id, p.content AS reply_content,
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.search, p.author_id AS reply_author_id, p.content AS reply_content,
     COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
@@ -175,6 +177,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 			&i.Message.ReplyToMessageID,
 			&i.Message.MentionsHere,
 			&i.Message.EditedAt,
+			&i.Message.Search,
 			&i.ReplyAuthorID,
 			&i.ReplyContent,
 			&i.ReplyFirstFileID,
@@ -190,7 +193,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 }
 
 const listMessagesBefore = `-- name: ListMessagesBefore :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, p.author_id AS reply_author_id, p.content AS reply_content,
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.search, p.author_id AS reply_author_id, p.content AS reply_content,
     COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
@@ -234,6 +237,7 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 			&i.Message.ReplyToMessageID,
 			&i.Message.MentionsHere,
 			&i.Message.EditedAt,
+			&i.Message.Search,
 			&i.ReplyAuthorID,
 			&i.ReplyContent,
 			&i.ReplyFirstFileID,
@@ -262,7 +266,7 @@ func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) er
 }
 
 const updateMessageContent = `-- name: UpdateMessageContent :one
-UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
+UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, search
 `
 
 type UpdateMessageContentParams struct {
@@ -283,6 +287,7 @@ func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageCon
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
+		&i.Search,
 	)
 	return i, err
 }

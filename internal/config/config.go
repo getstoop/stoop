@@ -45,6 +45,9 @@ type Config struct {
 	// IP per minute. The proxy is unauthenticated (LiveKit checks the
 	// token), so this is what stops it being an open relay. 0 disables.
 	SignalingRateLimit int
+	// SearchRateLimit caps SearchMessages calls per user per minute. 0
+	// disables it.
+	SearchRateLimit int
 	// RegistrationPolicy seeds the instance setting on first boot only:
 	// "open", "invite" (default), or "closed". Change it afterwards from
 	// the admin page; the database wins over this value.
@@ -260,6 +263,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.SignalingRateLimit, err = parseNonNegativeInt("STOOP_SIGNALING_RATE_LIMIT", 30); err != nil {
+		return Config{}, err
+	}
+	if cfg.SearchRateLimit, err = parseNonNegativeInt("STOOP_SEARCH_RATE_LIMIT", 30); err != nil {
 		return Config{}, err
 	}
 	if cfg.PublicURL != "" {
