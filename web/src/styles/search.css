@@ -58,7 +58,7 @@
 .search-scope {
   display: flex;
   gap: 8px;
-  padding: 8px 16px 0;
+  padding: 8px 16px 4px;
 }
 
 .search-scope .chip.active {
@@ -67,10 +67,13 @@
   background: var(--accent-soft);
 }
 
+/* Rows fade in under the chips instead of being cut off by the scroll
+   edge. The mask only touches the top 20px. */
 .search-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 12px 16px 16px;
+  mask-image: linear-gradient(to bottom, transparent, black 20px);
 }
 
 .search-error {
