@@ -2,9 +2,11 @@
 
 Status: decided 2026-09-05. The desktop app is an Electron shell in its own
 repository, `getstoop/desktop`. It loads the web app each server already
-serves rather than bundling a copy. This file records the shape, the
-contract between the two repositories, and what has to change here before
-the shell can be built. The Plane epic is STOOP-180.
+serves rather than bundling a copy. This file is the text of a design page
+with diagrams that lives in the maintainer's private tooling; the reasoning
+is all here. It records the shape, the contract between the two
+repositories, and what has to change here before the shell can be built.
+The Plane epic is STOOP-180.
 
 Give people a real app on the dock: a tray icon, an unread badge, a
 screen-share picker that can choose a window, a global push-to-talk key,
