@@ -53,7 +53,7 @@ func parseSearchQuery(q string) (searchQuery, error) {
 		case "before", "after":
 			day, err := time.Parse("2006-01-02", val)
 			if err != nil {
-				return out, fmt.Errorf("%s: wants a date like 2026-09-04", key)
+				return out, fmt.Errorf("%s: wants a date as YYYY-MM-DD", key)
 			}
 			if key == "before" {
 				out.before = &day
