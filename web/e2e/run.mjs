@@ -67,6 +67,7 @@ const SPECS = [
   "space-about",
   "channel-topic",
   "default-channel",
+  "search",
   // Needs a LiveKit server the app is configured for and fake media
   // devices; opt in with STOOP_E2E_VOICE=1 (CI doesn't).
   ...(process.env.STOOP_E2E_VOICE ? ["voice"] : []),
@@ -81,6 +82,7 @@ const WEIGHT = {
   window: 60,
   mutes: 40,
   bans: 38,
+  search: 32,
   registration: 37,
   dms: 35,
   pronouns: 34,
