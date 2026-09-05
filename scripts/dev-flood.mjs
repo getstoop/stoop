@@ -106,10 +106,10 @@ BEGIN
   IF chans = '{}' OR people = '{}' THEN RAISE EXCEPTION 'space has no text channels or members'; END IF;
 
   INSERT INTO messages (id, channel_id, author_id, content, created_at)
-  SELECT pg_temp.uuid7(t.ts), chans[1 + floor(random() * array_length(chans, 1))],
-         people[1 + floor(random() * array_length(people, 1))],
-         lines[1 + floor(random() * array_length(lines, 1))]
-           || CASE WHEN random() < 0.6 THEN '. ' || lines[1 + floor(random() * array_length(lines, 1))] ELSE '' END,
+  SELECT pg_temp.uuid7(t.ts), chans[1 + floor(random() * array_length(chans, 1))::int],
+         people[1 + floor(random() * array_length(people, 1))::int],
+         lines[1 + floor(random() * array_length(lines, 1))::int]
+           || CASE WHEN random() < 0.6 THEN '. ' || lines[1 + floor(random() * array_length(lines, 1))::int] ELSE '' END,
          t.ts
   FROM generate_series(1, ${COUNT}) g,
        LATERAL (SELECT now() - (random() * interval '${DAYS} days') - (g * interval '0 seconds') AS ts) t;
