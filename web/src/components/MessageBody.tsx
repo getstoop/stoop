@@ -8,19 +8,22 @@ import {
 import { EVERYONE, HERE, splitMentions } from "../api/mentions";
 
 // Renders a message's Markdown as React nodes. Text runs still go through
-// splitMentions so @handles highlight inside formatting.
+// splitMentions so @handles highlight inside formatting; `highlight`
+// (a search's terms) marks matching words in those runs.
 export function MessageBody({
   content,
   usernames,
   mentionsEveryone,
   mentionsHere,
   myUsername,
+  highlight,
 }: {
   content: string;
   usernames: Set<string>;
   mentionsEveryone: boolean;
   mentionsHere: boolean;
   myUsername?: string;
+  highlight?: RegExp | null;
 }) {
   const me = myUsername?.toLowerCase();
   const text = (s: string): ReactNode =>
@@ -45,7 +48,7 @@ export function MessageBody({
           </span>
         ) : (
           // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-          <Fragment key={i}>{part.text}</Fragment>
+          <Fragment key={i}>{marked(part.text, highlight)}</Fragment>
         ),
     );
 
@@ -123,6 +126,27 @@ export function MessageBody({
   };
 
   return <>{parseMarkdown(content).map(block)}</>;
+}
+
+// A text run with search hits wrapped in <mark>.
+function marked(s: string, pattern: RegExp | null | undefined): ReactNode {
+  if (!pattern) return s;
+  const out: ReactNode[] = [];
+  let last = 0;
+  pattern.lastIndex = 0;
+  for (const m of s.matchAll(pattern)) {
+    const at = m.index ?? 0;
+    if (at > last) out.push(s.slice(last, at));
+    out.push(
+      <mark key={at} className="search-hit">
+        {m[0]}
+      </mark>,
+    );
+    last = at + m[0].length;
+  }
+  if (last === 0) return s;
+  if (last < s.length) out.push(s.slice(last));
+  return out;
 }
 
 // Hidden until asked for. A button, not a div with a click handler: it is

@@ -42,3 +42,16 @@ export function fullDateTime(d: Date): string {
     minute: "2-digit",
   });
 }
+
+// A row's timestamp where space is short: the time today, otherwise the
+// day and time, with the year only when it differs.
+export function shortDateTime(d: Date, now: Date = new Date()): string {
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (sameDay(d, now)) return time;
+  const day = d.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
+  return `${day}, ${time}`;
+}

@@ -14,6 +14,7 @@ import { JoinPage } from "./routes/Join";
 import { LoginPage } from "./routes/Login";
 import { ProfilePage } from "./routes/Profile";
 import { Root } from "./routes/Root";
+import { SearchPage } from "./routes/Search";
 import { SetupPage } from "./routes/Setup";
 import { SpaceIndex, SpaceLayout } from "./routes/Space";
 import { SpaceSettingsPage } from "./routes/SpaceSettings";
@@ -193,6 +194,23 @@ const spaceSettingsRoute = createRoute({
   }),
 });
 
+// Message search within the space. ?q= is the query; ?c= the channel it
+// was opened from, which Close returns to.
+const spaceSearchRoute = createRoute({
+  getParentRoute: () => spaceRoute,
+  path: "/search",
+  component: SearchPage,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { q?: string; c?: string } => ({
+    q:
+      typeof search.q === "string" && search.q !== ""
+        ? search.q.slice(0, 200)
+        : undefined,
+    c: typeof search.c === "string" && search.c !== "" ? search.c : undefined,
+  }),
+});
+
 const channelRoute = createRoute({
   getParentRoute: () => spaceRoute,
   path: "/c/$channelId",
@@ -228,7 +246,7 @@ const routeTree = rootRoute.addChildren([
     joinRoute,
     dmRoute.addChildren([dmIndexRoute, dmChannelRoute]),
     spaceSettingsRoute,
-    spaceRoute.addChildren([spaceIndexRoute, channelRoute]),
+    spaceRoute.addChildren([spaceIndexRoute, spaceSearchRoute, channelRoute]),
   ]),
 ]);
 
