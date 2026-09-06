@@ -17,6 +17,7 @@ import { receiveActivityItem } from "./activity";
 import { isLive, useHistoryStore } from "./history";
 import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
+import { socketUrl } from "./origin";
 import { setReactions } from "./reactions";
 import { announceStatus, loadStatusPreference, startIdleWatch } from "./status";
 import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
@@ -49,8 +50,7 @@ export function startRealtime(queryClient: QueryClient): () => void {
 
   const connect = () => {
     if (stopped) return;
-    const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    ws = new WebSocket(`${proto}//${location.host}/ws`);
+    ws = new WebSocket(socketUrl("/ws"));
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {

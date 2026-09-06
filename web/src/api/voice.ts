@@ -11,6 +11,7 @@ import type {
 } from "livekit-client";
 import { trackKey, useVoiceStore } from "../stores/voice";
 import { voiceClient } from "./clients";
+import { socketUrl } from "./origin";
 import { stopLocalLevel, syncLocalLevel } from "./voiceLevel";
 import { sendClientEvent } from "./ws";
 
@@ -89,8 +90,7 @@ function describeJoinError(
 
 function signalingUrl(urlOrPath: string): string {
   if (/^wss?:\/\//.test(urlOrPath)) return urlOrPath;
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${location.host}${urlOrPath}`;
+  return socketUrl(urlOrPath);
 }
 
 function audioContainer(): HTMLElement {

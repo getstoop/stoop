@@ -1,5 +1,7 @@
 // Helpers shared by the invite modal and the join flows.
 
+import { serverOrigin } from "./origin";
+
 // Accepts a bare code, a pasted /join/<code> link, or either with stray
 // whitespace, and returns just the code.
 export function parseInviteCode(input: string): string {
@@ -19,9 +21,9 @@ const MAX_SPACE_HINT = 100;
 export function inviteLink(
   code: string,
   spaceName?: string,
-  origin: string = location.origin,
+  origin: string = serverOrigin(),
 ): string {
-  const url = new URL(`/join/${code}`, origin || location.origin);
+  const url = new URL(`/join/${code}`, origin || serverOrigin());
   if (spaceName)
     url.searchParams.set("space", spaceName.slice(0, MAX_SPACE_HINT));
   return url.toString();

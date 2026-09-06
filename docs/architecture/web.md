@@ -27,19 +27,23 @@ what the app *does*, not how its files are named.
 
 ## The transport
 
-One Connect transport, same-origin, in `api/clients.ts`:
+One Connect transport in `api/clients.ts`:
 
 ```ts
 const transport = createConnectTransport({
-  baseUrl: "/",
+  baseUrl: serverOrigin(),
   fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
 });
 ```
 
 `credentials: "include"` is required because the session is an `HttpOnly`
-cookie. In development Vite proxies `/stoop.*`, `/files`, `/ws` and
-`/livekit` to the Go server on `:8091`; in production the Go binary serves
-both the SPA and the API, so the same relative base URL works unchanged.
+cookie. Every absolute URL the app builds for the server — the
+transport, the `/ws` socket, the LiveKit signaling socket, the upload
+request, invite links — comes from `api/origin.ts`, which today returns the page's own origin: in
+development Vite proxies `/stoop.*`, `/files`, `/ws` and `/livekit` to the
+Go server on `:8091`; in production the Go binary serves both the SPA and
+the API. A client hosted somewhere other than the server would change
+that one file (`docs/proposals/desktop-client.md`).
 
 Connect RPC routes live under `/<proto package>.<Service>/<Method>`, which
 is why one `"/stoop."` prefix covers every service in the dev proxy.
