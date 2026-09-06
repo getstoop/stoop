@@ -37,9 +37,9 @@ const transport = createConnectTransport({
 ```
 
 `credentials: "include"` is required because the session is an `HttpOnly`
-cookie. Every URL the app builds for the server — the transport, the
-`/ws` socket, the LiveKit signaling socket, file links, invite links —
-comes from `api/origin.ts`, which today returns the page's own origin: in
+cookie. Every absolute URL the app builds for the server — the
+transport, the `/ws` socket, the LiveKit signaling socket, the upload
+request, invite links — comes from `api/origin.ts`, which today returns the page's own origin: in
 development Vite proxies `/stoop.*`, `/files`, `/ws` and `/livekit` to the
 Go server on `:8091`; in production the Go binary serves both the SPA and
 the API. A client hosted somewhere other than the server would change

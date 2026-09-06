@@ -15,8 +15,11 @@ export const IMAGE_ACCEPT = "image/png,image/jpeg,image/gif,image/webp";
 
 export { filesClient };
 
+// A path, not an absolute URL: it lands in src and href attributes on
+// the page the server itself served, and the browser suite reads it
+// back that way.
 export function fileUrl(fileId: string): string {
-  return serverUrl(`/files/${encodeURIComponent(fileId)}`);
+  return `/files/${encodeURIComponent(fileId)}`;
 }
 
 // Reads a picked file into bytes for the upload RPC, refusing oversize
