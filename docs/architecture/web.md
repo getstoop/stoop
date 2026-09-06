@@ -327,6 +327,13 @@ window was not focused. The full contract is in
 
 ## Build and embedding
 
+`web/public/` holds the files served as-is from the root: the manifest,
+the favicon and the icon set. The manifest is what lets Chrome and Edge
+install Stoop as an app (`display: standalone`, start URL `/`). There is
+deliberately no service worker: the app is not useful offline, and a
+worker that cached the SPA shell would keep an old build running against
+a new server, the version skew the embedded build exists to prevent.
+
 ```
 pnpm build              → web/dist          (tsc -b, then vite build)
 make build-web          → internal/webui/dist
