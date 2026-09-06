@@ -135,6 +135,13 @@ export function resolveTheme(p: ThemePreference): ThemeId {
 
 function stamp(p: ThemePreference) {
   document.documentElement.dataset.theme = resolveTheme(p);
+  // The browser chrome that follows theme-color (an installed app's
+  // title bar, the desktop shell's window) takes the rail's colour.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  const canvas = getComputedStyle(document.documentElement)
+    .getPropertyValue("--canvas")
+    .trim();
+  if (meta && canvas) meta.setAttribute("content", canvas);
 }
 
 interface ThemeState {
