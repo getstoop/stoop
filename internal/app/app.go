@@ -175,6 +175,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	mux.Handle("GET /version", versionHandler())
 	mux.Handle("/", webui.Handler())
 	// secureTransport is outermost: the headers below it read the TLS
 	// verdict it puts on the context.
