@@ -1,6 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { type ActivityData, alertingCount } from "../api/activity";
+import { setBadge } from "../api/platform";
 import { useInstanceStatus } from "../api/queries";
 import { DialogHost } from "../components/DialogHost";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
@@ -27,6 +29,18 @@ export function Root() {
     apply();
     return queryClient.getQueryCache().subscribe((event) => {
       if (event.query.queryKey[0] === "instance-status") apply();
+    });
+  }, [queryClient]);
+  // The unread badge the desktop shell shows on the dock and tray, read
+  // off the activity cache the same way, and a no-op in a browser.
+  useEffect(() => {
+    const apply = () =>
+      setBadge(
+        alertingCount(queryClient.getQueryData<ActivityData>(["activity"])),
+      );
+    apply();
+    return queryClient.getQueryCache().subscribe((event) => {
+      if (event.query.queryKey[0] === "activity") apply();
     });
   }, [queryClient]);
   return (

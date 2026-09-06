@@ -303,6 +303,24 @@ to look for what changes below 768px.
 - Reduced motion drops `--dur` and `--dur-fast` in `base.css`, which turns
   off the voice-stage tile animation and every transition at once.
 
+## The platform seam
+
+`api/platform.ts` is the only place the app knows about what is hosting
+it. The desktop shell injects a `window.stoop` object from its preload
+script; the app feature-detects that object and never reads the user
+agent, so a browser, an installed PWA and the shell all run the same
+bundle. `BRIDGE` there is the contract level this build speaks and is
+published by `GET /version`; it moves together with
+`internal/webui/bridge.go`.
+
+What goes through it today: the desktop-notification permission (the
+shell grants it itself, and may be reaching a LAN server over plain HTTP,
+so the HTTPS rule does not apply), the unread badge (`routes/Root.tsx`
+reads `alertingCount` off the activity cache and calls `setBadge`, a
+no-op in a browser), and global shortcuts the shell captured while the
+window was not focused. The full contract is in
+[desktop.md](desktop.md).
+
 ## Build and embedding
 
 ```
