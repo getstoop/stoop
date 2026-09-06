@@ -41,7 +41,11 @@ an operator to forget, and no window where a new binary runs against an old
 schema.
 
 `GET /healthz` answers `200 ok` for container health checks and for the E2E
-harness's readiness loop. Logging is `log/slog` to stderr, structured, with
+harness's readiness loop. `GET /version` answers
+`{"name":"stoop","version":"0.4.0","bridge":1}` to anyone, so a client can
+tell what it is talking to before logging in — the desktop shell refuses a
+server older than it supports and reads the `window.stoop` level the
+served web app speaks ([desktop.md](desktop.md)). Logging is `log/slog` to stderr, structured, with
 no log file to rotate — the supervisor that runs the process already has
 one.
 

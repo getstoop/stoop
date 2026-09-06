@@ -605,6 +605,12 @@ exceptions:
 - `connect-src` allows the websockets on this same origin — the realtime
   gateway and the LiveKit signaling proxy.
 
+`GET /version` tells anyone which Stoop version this is, as
+`{"name":"stoop","version":"0.4.0","bridge":1}`. The desktop app needs it
+before login to confirm the address is a Stoop server and to refuse one
+older than it supports. Hiding it would gain nothing: the web app's asset
+names already change with every release.
+
 If you put a reverse proxy in front, leave these alone: adding a second
 `Content-Security-Policy` header does not replace Stoop's, it applies
 *both*, and the intersection blocks part of the app. Do not add

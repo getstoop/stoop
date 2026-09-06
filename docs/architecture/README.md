@@ -25,7 +25,7 @@ extracted, and nothing needs to be.
                     │                   stoop (one process)                 │
                     │                                                       │
   browser ─ HTTPS ─►│  :8080  Connect RPC   auth · chat · instance · files  │
-                    │         plain HTTP    /auth/… /files/… /healthz       │
+                    │         plain HTTP    /auth /files /healthz /version  │
                     │         WebSocket     /ws  ──►  realtime gateway      │
                     │         WebSocket     /livekit ─► signaling proxy ──┐ │
                     │         static        embedded web app (go:embed)   │ │
