@@ -17,8 +17,8 @@ func TestVersionHandler(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	versionHandler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/version", nil))
-	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "application/json" {
-		t.Fatalf("code=%d content-type=%q", rec.Code, rec.Header().Get("Content-Type"))
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "application/json" || rec.Header().Get("Cache-Control") != "no-cache" {
+		t.Fatalf("code=%d content-type=%q cache-control=%q", rec.Code, rec.Header().Get("Content-Type"), rec.Header().Get("Cache-Control"))
 	}
 	var got struct {
 		Name    string `json:"name"`
