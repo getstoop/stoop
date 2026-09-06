@@ -1,6 +1,5 @@
-import { createClient } from "@connectrpc/connect";
-import { createConnectTransport } from "@connectrpc/connect-web";
-import { FileService } from "../gen/stoop/files/v1/files_pb";
+import { filesClient } from "./clients";
+import { serverUrl } from "./origin";
 
 // Uploads: the picked file's bytes ride inside the Connect request; the
 // server sniffs, caps, decodes, and re-encodes them, so nothing here
@@ -14,15 +13,10 @@ export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 export const IMAGE_ACCEPT = "image/png,image/jpeg,image/gif,image/webp";
 
-const transport = createConnectTransport({
-  baseUrl: "/",
-  fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
-});
-
-export const filesClient = createClient(FileService, transport);
+export { filesClient };
 
 export function fileUrl(fileId: string): string {
-  return `/files/${encodeURIComponent(fileId)}`;
+  return serverUrl(`/files/${encodeURIComponent(fileId)}`);
 }
 
 // Reads a picked file into bytes for the upload RPC, refusing oversize
@@ -63,7 +57,7 @@ export async function uploadAttachment(
   const form = new FormData();
   form.append("channel_id", channelId);
   form.append("file", file, file.name);
-  const res = await fetch("/files/upload", {
+  const res = await fetch(serverUrl("/files/upload"), {
     method: "POST",
     body: form,
     credentials: "include",

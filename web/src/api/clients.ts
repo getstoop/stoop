@@ -5,12 +5,12 @@ import { ChatService } from "../gen/stoop/chat/v1/chat_pb";
 import { FileService } from "../gen/stoop/files/v1/files_pb";
 import { InstanceService } from "../gen/stoop/instance/v1/instance_pb";
 import { VoiceService } from "../gen/stoop/voice/v1/voice_pb";
+import { serverOrigin } from "./origin";
 
-// Same-origin: in dev Vite proxies /stoop.* to the Go server; in prod the Go
-// binary serves both the SPA and the API. The session rides an HttpOnly
-// cookie, so requests need credentials included.
+// The session rides an HttpOnly cookie, so requests need credentials
+// included.
 const transport = createConnectTransport({
-  baseUrl: "/",
+  baseUrl: serverOrigin(),
   fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
 });
 
