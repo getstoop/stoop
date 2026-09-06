@@ -12,6 +12,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"io/fs"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -30,6 +31,9 @@ func Handler() http.Handler {
 }
 
 func handler(sub fs.FS) http.Handler {
+	// Not in Go's built-in table, and a browser expects it for the
+	// web app manifest.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
 	files := http.FileServerFS(sub)
 	index, _ := fs.ReadFile(sub, "index.html")
 	var indexETag string

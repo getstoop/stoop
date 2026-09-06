@@ -10,6 +10,7 @@ import (
 func TestCachingHeaders(t *testing.T) {
 	h := handler(fstest.MapFS{
 		"index.html":             {Data: []byte("<html>v1</html>")},
+		"manifest.webmanifest":   {Data: []byte("{}")},
 		"assets/index-abc123.js": {Data: []byte("console.log(1)")},
 		"favicon.svg":            {Data: []byte("<svg/>")},
 	})
@@ -52,6 +53,9 @@ func TestCachingHeaders(t *testing.T) {
 	// Hashed assets are immutable; other root files revalidate.
 	if rec := get("/assets/index-abc123.js", nil); rec.Code != 200 || rec.Header().Get("Cache-Control") != "public, max-age=31536000, immutable" {
 		t.Errorf("asset: code=%d cache-control=%q", rec.Code, rec.Header().Get("Cache-Control"))
+	}
+	if rec := get("/manifest.webmanifest", nil); rec.Code != 200 || rec.Header().Get("Content-Type") != "application/manifest+json" || rec.Header().Get("Cache-Control") != "no-cache" {
+		t.Errorf("manifest: code=%d content-type=%q cache-control=%q", rec.Code, rec.Header().Get("Content-Type"), rec.Header().Get("Cache-Control"))
 	}
 	if rec := get("/favicon.svg", nil); rec.Code != 200 || rec.Header().Get("Cache-Control") != "no-cache" {
 		t.Errorf("root file: code=%d cache-control=%q", rec.Code, rec.Header().Get("Cache-Control"))
