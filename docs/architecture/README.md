@@ -108,6 +108,7 @@ one its reasoning, its enforcement, and what it costs.
 | [voice.md](voice.md) | LiveKit tokens, the signaling proxy, ICE and TURN, the stage, and why media never touches Stoop. |
 | [web.md](web.md) | The React client: routing, the query cache as the single source of truth, stores, themes, and the design system. |
 | [runtime.md](runtime.md) | Process model, configuration precedence, front doors, security headers, background work, and how a build is produced. |
+| [desktop.md](desktop.md) | The contract the desktop shell relies on: `GET /version`, `window.stoop`, deep links, sessions, and what lives in which repository. |
 
 Related documents outside this directory: [../vision.md](../vision.md) for
 why Stoop exists, [../conventions.md](../conventions.md) for how files are
