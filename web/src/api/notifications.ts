@@ -1,5 +1,6 @@
 import type { ActivityItem } from "../gen/stoop/chat/v1/activity_pb";
 import { activityVerb } from "./activity";
+import { isDesktop } from "./platform";
 
 // Desktop banners: the browser's Notification API, and the rules for when
 // a banner is worth firing. The feed itself lives in activity.ts.
@@ -21,9 +22,12 @@ export type DesktopPermission =
   | "insecure";
 
 // Browsers only expose the Notification API on HTTPS or localhost; over
-// plain HTTP (e.g. a LAN IP) the request silently fails, so say so.
+// plain HTTP (e.g. a LAN IP) the request silently fails, so say so. The
+// desktop shell grants the permission itself and reaches a LAN server
+// over plain HTTP, so neither rule applies there.
 export function desktopPermission(): DesktopPermission {
   if (!desktopNotificationsSupported()) return "unsupported";
+  if (isDesktop()) return "granted";
   if (!window.isSecureContext) return "insecure";
   return Notification.permission;
 }

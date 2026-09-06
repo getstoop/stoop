@@ -94,3 +94,11 @@ export function unreadCounts(data: ActivityData | undefined) {
   }
   return { bySpace, byChannel };
 }
+
+// The same items as one number, for the desktop shell's dock and tray
+// badge. Zero when nothing is loaded: signed out, or a fresh tab.
+export function alertingCount(data: ActivityData | undefined): number {
+  let n = 0;
+  for (const count of unreadCounts(data).bySpace.values()) n += count;
+  return n;
+}
