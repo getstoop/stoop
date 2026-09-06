@@ -325,6 +325,14 @@ no-op in a browser), and global shortcuts the shell captured while the
 window was not focused. The full contract is in
 [desktop.md](desktop.md).
 
+Two things follow the theme without the bridge at all. `theme.ts` keeps
+the `theme-color` meta in step with the picked theme's canvas colour, so
+an installed app's title bar and the shell's window match the page. And
+`routes/Root.tsx` draws an empty strip above every route, sized by
+`env(titlebar-area-height)`: inside the shell, which opens windows with
+no native title bar, that is the drag region the OS puts its window
+controls over, in the rail's colour; in a browser it is zero height.
+
 ## Build and embedding
 
 `web/public/` holds the files served as-is from the root: the manifest,

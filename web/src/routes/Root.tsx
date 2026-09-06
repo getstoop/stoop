@@ -45,7 +45,10 @@ export function Root() {
   }, [queryClient]);
   return (
     <>
-      <Outlet />
+      <div className="titlebar" />
+      <div className="page">
+        <Outlet />
+      </div>
       <DialogHost />
     </>
   );

@@ -17,6 +17,21 @@ body,
   height: 100dvh;
 }
 
+/* Inside the desktop shell the window has no native title bar: the page
+   draws that strip, in the rail's colour, and the OS puts its window
+   controls over it. env(titlebar-area-height) is that strip's height and
+   0 in a browser, where none of this exists. */
+.titlebar {
+  height: env(titlebar-area-height, 0px);
+  background: var(--canvas);
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.page {
+  height: calc(100% - env(titlebar-area-height, 0px));
+}
+
 body {
   background: var(--surface);
   color: var(--text);
