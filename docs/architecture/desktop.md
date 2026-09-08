@@ -138,24 +138,32 @@ to `/auth/desktop/complete?code=` on the named server and is **dropped
 when that server is not already in the list**, so a page cannot walk
 someone into adding a server and signing in on it.
 
-An `auth` link is the last leg of provider sign-in. Providers refuse to
-sign anyone in inside an embedded view, so the app opens the provider in
-the system browser and the session comes back through the link:
-`docs/architecture/identity.md` → Sign-in from the desktop app has the
-whole flow. Two things the shell holds up its end of:
+An `auth` link is the last leg of provider sign-in, and of connecting a
+provider to an account already signed in. Providers refuse either inside
+an embedded view, so the app opens the provider in the system browser and
+the outcome comes back through the link: `docs/architecture/identity.md` →
+Sign-in from the desktop app has the whole flow. Two things the shell
+holds up its end of:
 
 - **The link loads in the view already open for that server**, because the
-  page's `sessionStorage` holds the verifier that redeems the code.
+  page's `sessionStorage` holds the verifier that redeems the code — and,
+  for a link, because that view holds the session the identity attaches
+  to.
 - **The server is matched by exact origin string**, so the address the
   person typed and the server's `public_url` have to agree. When they do
   not, the hand-back is dropped and the app looks like it did nothing.
 
-A sign-in that fails comes back the same way, as an `open` link to
-`/login?error=<code>`, so the message lands on the app's login card
-instead of on a login form in the browser.
+The code says which it was: `/auth/desktop/complete` answers a sign-in with
+a token and a link with `{"linked": "<provider>"}`, and the page lands on
+the redirect or on `/profile?linked=<provider>`.
+
+A round trip that fails comes back the same way, as an `open` link — to
+`/login?error=<code>` for a sign-in, `/profile?error=<code>` for a link —
+so the message lands in the app instead of on a form in the browser.
 
 Nothing here needs a bridge member: the outbound leg is `window.open`,
-which `setWindowOpenHandler` already sends to the system browser.
+which `setWindowOpenHandler` already sends to the system browser, and
+linking reuses the `auth` link unchanged.
 
 ## The user agent
 

@@ -231,11 +231,25 @@ func handBack(t *testing.T, location string) url.Values {
 // back.
 func (rig *socialRig) postJSON(t *testing.T, path string, body any) (int, map[string]any) {
 	t.Helper()
+	return rig.postAs(t, "", path, body)
+}
+
+// postAs is postJSON with a session cookie, as the app's own fetch has.
+func (rig *socialRig) postAs(t *testing.T, token, path string, body any) (int, map[string]any) {
+	t.Helper()
 	raw, err := json.Marshal(body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err := http.Post(rig.app.URL+path, "application/json", bytes.NewReader(raw))
+	req, err := http.NewRequest(http.MethodPost, rig.app.URL+path, bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: token})
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("post %s: %v", path, err)
 	}
@@ -250,7 +264,7 @@ func (rig *socialRig) postJSON(t *testing.T, path string, body any) (int, map[st
 // attempt opens a desktop sign-in attempt and returns its id.
 func (rig *socialRig) attempt(t *testing.T, challenge, method string) string {
 	t.Helper()
-	status, body := rig.postJSON(t, "/auth/desktop/start", map[string]string{
+	status, body := rig.postJSON(t, "/auth/desktop/start", map[string]any{
 		"provider": "sso", "attemptChallenge": challenge, "attemptMethod": method,
 	})
 	if status != http.StatusOK {
@@ -261,6 +275,17 @@ func (rig *socialRig) attempt(t *testing.T, challenge, method string) string {
 		t.Fatalf("desktop/start returned no attempt: %v", body)
 	}
 	return id
+}
+
+// linkAttempt opens a link attempt as the holder of token.
+func (rig *socialRig) linkAttempt(t *testing.T, token, challenge string) (int, string) {
+	t.Helper()
+	status, body := rig.postAs(t, token, "/auth/desktop/start", map[string]any{
+		"provider": "sso", "attemptChallenge": challenge,
+		"attemptMethod": "S256", "link": true,
+	})
+	id, _ := body["attempt"].(string)
+	return status, id
 }
 
 func s256(verifier string) string {
@@ -587,8 +612,8 @@ func TestSocialDesktopRefusals(t *testing.T) {
 		t.Errorf("unknown attempt landed on %q", loc)
 	}
 
-	// A link keeps the session it already has, so it can never hand a new
-	// one to the app.
+	// A sign-in attempt hands the app a session, which a link must never
+	// do: the start URL and the attempt have to agree on which this is.
 	_, token := signIn(t, svc, "ada", "correct horse battery")
 	jar, _ := cookiejar.New(nil)
 	appURL, _ := url.Parse(rig.app.URL)
@@ -599,6 +624,19 @@ func TestSocialDesktopRefusals(t *testing.T) {
 	back := handBack(t, rig.run(t, &http.Client{Jar: jar}, "/auth/oidc/sso/start?link=1&attempt="+id))
 	if got := back.Get("error"); got != "login_state" {
 		t.Errorf("link with an attempt bounced with %q", got)
+	}
+
+	// And the other way: a link attempt run as a sign-in.
+	_, linkID := rig.linkAttempt(t, token, s256("desktop-verifier-0123456789abcdefghijklmnop"))
+	back = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+linkID))
+	if got := back.Get("error"); got != "login_state" {
+		t.Errorf("link attempt run as a sign-in bounced with %q", got)
+	}
+
+	// A link attempt needs a session on the start request; the system
+	// browser's is no use, because it is not the app's.
+	if status, _ := rig.linkAttempt(t, "", s256("v")); status != http.StatusUnauthorized {
+		t.Errorf("link start without a session = %d", status)
 	}
 
 	// Codes are minted at the callback only.
@@ -633,5 +671,124 @@ func TestSocialDesktopFailureBounce(t *testing.T) {
 	// A failed attempt is spent, so the same id cannot be run again.
 	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+id); loc != "/login?error=login_state" {
 		t.Errorf("re-using a failed attempt landed on %q", loc)
+	}
+}
+
+func TestSocialDesktopLink(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	svc.UseRegistrationPorts(&fakePolicy{policy: auth.PolicyOpen}, nil)
+	rig := newSocialRig(t, svc)
+
+	const verifier = "desktop-verifier-0123456789abcdefghijklmnop"
+	_, ada := signIn(t, svc, "ada", "correct horse battery")
+	_, bea := signIn(t, svc, "bea", "correct horse battery")
+
+	identities := func(t *testing.T, token string) []string {
+		t.Helper()
+		ident, err := svc.VerifyToken(context.Background(), token)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx := authctx.WithIdentity(context.Background(), ident)
+		res, err := svc.ListIdentities(ctx, connect.NewRequest(&authv1.ListIdentitiesRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := make([]string, len(res.Msg.Identities))
+		for i, id := range res.Msg.Identities {
+			out[i] = id.Provider
+		}
+		return out
+	}
+
+	// The browser leg carries the link intent on the attempt, so it needs
+	// no session of its own — and it attaches nothing on the way.
+	_, id := rig.linkAttempt(t, ada, s256(verifier))
+	c := &http.Client{}
+	back := handBack(t, rig.run(t, c, "/auth/oidc/sso/start?link=1&attempt="+id))
+	if tok := rig.sessionToken(t, c); tok != "" {
+		t.Error("the system browser must not be signed in by a link hand-off")
+	}
+	if back.Get("link") != "1" {
+		t.Errorf("hand-back does not say it was a link: %v", back)
+	}
+	code := back.Get("code")
+	if code == "" {
+		t.Fatalf("hand-back carries no code: %v", back)
+	}
+	if got := identities(t, ada); len(got) != 0 {
+		t.Fatalf("the callback linked %v; linking belongs at complete", got)
+	}
+
+	// The attempt id travelled in an address bar, so completing it takes
+	// the session that opened it — someone else's will not do, and spends
+	// the code all the same.
+	if status, body := rig.postAs(t, bea, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": verifier,
+	}); status != http.StatusUnauthorized {
+		t.Fatalf("complete as another account = %d, %v", status, body)
+	}
+	if status, _ := rig.postAs(t, ada, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": verifier,
+	}); status != http.StatusUnauthorized {
+		t.Error("a code survived a failed redemption")
+	}
+
+	// The verifier is the second binding: a live session alone is not
+	// enough.
+	_, id = rig.linkAttempt(t, ada, s256(verifier))
+	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
+	if status, _ := rig.postAs(t, ada, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": strings.Repeat("x", 43),
+	}); status != http.StatusUnauthorized {
+		t.Error("a wrong verifier redeemed a link code")
+	}
+
+	// Both bindings held: the identity attaches, and no session is minted.
+	_, id = rig.linkAttempt(t, ada, s256(verifier))
+	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
+	status, body := rig.postAs(t, ada, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": verifier,
+	})
+	if status != http.StatusOK || body["linked"] != "sso" {
+		t.Fatalf("complete a link = %d, %v", status, body)
+	}
+	if _, ok := body["token"]; ok {
+		t.Error("a link handed the app a session")
+	}
+	if got := identities(t, ada); len(got) != 1 || got[0] != "sso" {
+		t.Errorf("identities after the link = %v", got)
+	}
+
+	// The same provider twice.
+	rig.idp.sub = "sub-other"
+	_, id = rig.linkAttempt(t, ada, s256(verifier))
+	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
+	if status, body := rig.postAs(t, ada, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": verifier,
+	}); status != http.StatusConflict || body["error"] != "already_linked" {
+		t.Errorf("linking sso twice = %d, %v", status, body)
+	}
+
+	// Someone else's identity cannot be captured this way either.
+	rig.idp.sub = "sub-1"
+	_, id = rig.linkAttempt(t, bea, s256(verifier))
+	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
+	if status, body := rig.postAs(t, bea, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": verifier,
+	}); status != http.StatusConflict || body["error"] != "identity_taken" {
+		t.Errorf("linking a taken identity = %d, %v", status, body)
+	}
+	if got := identities(t, bea); len(got) != 0 {
+		t.Errorf("bea ended up with %v", got)
+	}
+
+	// A link failure in the browser bounces back to the app, and says it
+	// was a link so the message lands on the profile page.
+	rig.idp.forceNonce = "not-the-nonce"
+	_, id = rig.linkAttempt(t, ada, s256(verifier))
+	back = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id))
+	if back.Get("error") != "provider_error" || back.Get("link") != "1" {
+		t.Errorf("a failed link bounced with %v", back)
 	}
 }

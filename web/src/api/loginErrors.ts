@@ -22,6 +22,12 @@ const PROFILE_ERRORS: Record<string, string> = {
   already_linked: "That provider is already linked to your account.",
 };
 
+// A link can fail for its own reasons or for any of the sign-in ones,
+// since it is the same round trip.
 export function linkErrorText(code: string): string {
-  return PROFILE_ERRORS[code] ?? "Linking failed — please try again.";
+  return (
+    PROFILE_ERRORS[code] ??
+    LOGIN_ERRORS[code] ??
+    "Linking failed — please try again."
+  );
 }

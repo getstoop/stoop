@@ -44,7 +44,7 @@ type loginState struct {
 	LinkUserID string `json:"link,omitempty"`
 	SessionID  string `json:"sid,omitempty"`
 	Redirect   string `json:"r,omitempty"`
-	// Attempt is the desktop sign-in attempt this round trip belongs to
+	// Attempt is the desktop attempt this round trip belongs to
 	// (desktopauth.go); with one, the callback hands the app a code
 	// instead of setting a session cookie in the browser.
 	Attempt string `json:"da,omitempty"`
@@ -70,11 +70,24 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	// The desktop attempt is read first so that everything below can fail
 	// back to the app rather than into the system browser.
 	attempt := r.URL.Query().Get("attempt")
-	if attempt != "" && !s.desktop.open(attempt, id) {
-		loginError(w, r, "login_state")
-		return
+	var att desktopAttempt
+	if attempt != "" {
+		a, ok := s.desktop.open(attempt, id)
+		if !ok {
+			loginError(w, r, "login_state")
+			return
+		}
+		att = a
 	}
 	fail := func(code string) { s.loginFail(w, r, attempt, id, code) }
+	link := r.URL.Query().Get("link") == "1"
+	// An attempt is a sign-in or a link, and this URL has to say the same
+	// thing: a sign-in attempt can never mint the app a session for a link,
+	// and a link attempt can never mint it one at all.
+	if attempt != "" && link != att.isLink() {
+		fail("login_state")
+		return
+	}
 
 	if s.providers == nil {
 		fail("provider_unknown")
@@ -104,24 +117,21 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	}
 	// Link intent requires a live session now; the callback checks the
 	// same session again so a cookie planted on someone else can't attach
-	// an attacker's identity to their account.
-	if r.URL.Query().Get("link") == "1" {
-		ident, err := s.VerifyToken(ctx, TokenFromHeader(r.Header))
-		if err != nil {
-			fail("login_state")
-			return
+	// an attacker's identity to their account. A desktop link recorded its
+	// session at /auth/desktop/start — the system browser has none.
+	if link {
+		if att.isLink() {
+			st.LinkUserID, st.SessionID = att.linkUserID, att.sessionID
+		} else {
+			ident, err := s.VerifyToken(ctx, TokenFromHeader(r.Header))
+			if err != nil {
+				fail("login_state")
+				return
+			}
+			st.LinkUserID, st.SessionID = ident.UserID, ident.SessionID
 		}
-		st.LinkUserID, st.SessionID = ident.UserID, ident.SessionID
 	}
-	// A desktop attempt hands the app a fresh session, which a link must
-	// never do, so the two are mutually exclusive.
-	if attempt != "" {
-		if st.LinkUserID != "" {
-			fail("login_state")
-			return
-		}
-		st.Attempt = attempt
-	}
+	st.Attempt = attempt
 
 	p, err := s.providerFor(ctx, cfg)
 	if err != nil {
@@ -186,11 +196,19 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A desktop link attaches nothing here: linkIdentity re-verifies the
+	// session that started it, and this request came from the system
+	// browser, which has none.
+	if st.Attempt != "" && st.LinkUserID != "" {
+		s.desktopLinkHandOff(w, r, st, claims)
+		return
+	}
+
 	res, ferr := s.finishSocial(r, id, claims, st)
 	if ferr != nil {
-		if ferr.toProfile {
-			// A link, so never a desktop attempt: those two are refused
-			// together at the start.
+		// A link's failures belong on the profile page; with an attempt
+		// bound they travel back to the app like every other failure.
+		if ferr.toProfile && st.Attempt == "" {
 			http.Redirect(w, r, "/profile?error="+ferr.code, http.StatusFound)
 		} else {
 			fail(ferr.code)

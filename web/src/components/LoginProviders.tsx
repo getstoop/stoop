@@ -1,5 +1,5 @@
 import { type MouseEvent, useState } from "react";
-import { beginDesktopSignIn } from "../api/desktopAuth";
+import { beginDesktopAuth } from "../api/desktopAuth";
 import { isDesktop } from "../api/platform";
 import { useInstanceStatus } from "../api/queries";
 
@@ -36,7 +36,7 @@ export function LoginProviders({
     e.preventDefault();
     setError(null);
     try {
-      window.open(await beginDesktopSignIn(id, href), "_blank", "noopener");
+      window.open(await beginDesktopAuth(id, href), "_blank", "noopener");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }

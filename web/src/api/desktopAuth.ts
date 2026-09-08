@@ -1,9 +1,11 @@
-// Provider sign-in from the desktop shell. The provider leg runs in the
-// system browser — an embedded view is refused by some providers — and
-// comes back as a stoop://auth deep link the shell loads in this same
-// view, so the verifier below survives the navigation.
+// Provider sign-in and account linking from the desktop shell. The
+// provider leg runs in the system browser — an embedded view is refused
+// by some providers — and comes back as a stoop://auth deep link the
+// shell loads in this same view, so the verifier below survives the
+// navigation.
 // docs/architecture/identity.md → Provider sign-in.
 
+import { linkErrorText } from "./loginErrors";
 import { serverUrl } from "./origin";
 
 // The attempt waits here between opening the browser and the hand-back.
@@ -14,7 +16,15 @@ interface SavedAttempt {
   verifier: string;
   // Where the sign-in was headed, e.g. the invite the person followed.
   redirect?: string;
+  // A link attempt, not a sign-in: it mints no session and ends on the
+  // profile page.
+  link?: boolean;
 }
+
+// What redeeming a code turned out to be.
+export type DesktopAuthResult =
+  | { kind: "signedIn"; redirect?: string }
+  | { kind: "linked"; provider: string };
 
 const COMPLETE_PATH = "/auth/desktop/complete";
 
@@ -56,24 +66,30 @@ async function post(path: string, body: unknown): Promise<Response> {
 }
 
 // Opens an attempt and returns the absolute provider start URL to hand
-// the system browser. Throws when the server won't start one.
-export async function beginDesktopSignIn(
+// the system browser. Throws when the server won't start one. A link
+// attempt is authenticated: this fetch is same-origin, so it carries the
+// session the identity will attach to.
+export async function beginDesktopAuth(
   provider: string,
   startURL: string,
+  opts: { link?: boolean } = {},
 ): Promise<string> {
   const { verifier, challenge, method } = await pkce();
+  const what = opts.link ? "linking" : "sign-in";
   const res = await post("/auth/desktop/start", {
     provider,
     attemptChallenge: challenge,
     attemptMethod: method,
+    link: opts.link === true,
   });
-  if (!res.ok) throw new Error(`sign-in could not be started (${res.status})`);
+  if (!res.ok) throw new Error(`${what} could not be started (${res.status})`);
   const { attempt } = (await res.json()) as { attempt?: string };
-  if (!attempt) throw new Error("sign-in could not be started");
+  if (!attempt) throw new Error(`${what} could not be started`);
   const url = new URL(serverUrl(startURL));
   const saved: SavedAttempt = {
     verifier,
     redirect: url.searchParams.get("redirect") ?? undefined,
+    link: opts.link === true,
   };
   sessionStorage.setItem(ATTEMPT_KEY, JSON.stringify(saved));
   url.searchParams.set("attempt", attempt);
@@ -90,18 +106,21 @@ export function authLinkForCode(code: string): string {
   })}`;
 }
 
-export function errorLinkForCode(error: string): string {
+// A link's failures land on the profile page, where the person started;
+// a sign-in's on the login card.
+export function errorLinkForCode(error: string, link = false): string {
   return `stoop://open?${new URLSearchParams({
     server: location.origin,
-    path: `/login?error=${error}`,
+    path: `${link ? "/profile" : "/login"}?error=${error}`,
   })}`;
 }
 
-// Redeems the code the shell carried back and returns where the sign-in
-// was headed. The session cookie lands in this view.
-export async function completeDesktopSignIn(
+// Redeems the code the shell carried back, in the view that opened the
+// attempt. A sign-in's session cookie lands here; a link attaches the
+// identity to the session this view already has.
+export async function completeDesktopAuth(
   code: string,
-): Promise<string | undefined> {
+): Promise<DesktopAuthResult> {
   const saved = takeAttempt();
   if (!saved) {
     throw new Error(
@@ -112,15 +131,41 @@ export async function completeDesktopSignIn(
     code,
     attemptVerifier: saved.verifier,
   });
+  const body = (await res.json().catch(() => ({}))) as {
+    linked?: string;
+    error?: string;
+  };
   if (!res.ok) {
-    throw new Error("That sign-in link has expired. Try signing in again.");
+    // code_invalid is a code that no longer redeems; anything else is the
+    // server saying why it refused the link.
+    if (saved.link && body.error && body.error !== "code_invalid") {
+      throw new Error(linkErrorText(body.error));
+    }
+    throw new Error(
+      saved.link
+        ? "That linking request has expired. Try connecting again."
+        : "That sign-in link has expired. Try signing in again.",
+    );
   }
-  return saved.redirect;
+  return body.linked
+    ? { kind: "linked", provider: body.linked }
+    : { kind: "signedIn", redirect: saved.redirect };
+}
+
+// Whether the attempt this window is waiting on is a link, for the
+// completion page's wording. Peeks; takeAttempt spends it.
+export function pendingIsLink(): boolean {
+  return readAttempt()?.link === true;
 }
 
 function takeAttempt(): SavedAttempt | null {
-  const raw = sessionStorage.getItem(ATTEMPT_KEY);
+  const saved = readAttempt();
   sessionStorage.removeItem(ATTEMPT_KEY);
+  return saved;
+}
+
+function readAttempt(): SavedAttempt | null {
+  const raw = sessionStorage.getItem(ATTEMPT_KEY);
   if (!raw) return null;
   try {
     const saved = JSON.parse(raw) as SavedAttempt;
