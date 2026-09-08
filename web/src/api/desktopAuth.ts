@@ -14,8 +14,6 @@ const ATTEMPT_KEY = "stoop.desktopAttempt";
 
 interface SavedAttempt {
   verifier: string;
-  // Where the sign-in was headed, e.g. the invite the person followed.
-  redirect?: string;
   // A link attempt, not a sign-in: it mints no session and ends on the
   // profile page.
   link?: boolean;
@@ -24,10 +22,13 @@ interface SavedAttempt {
 // What redeeming a code turned out to be. A sign-in is finished; a link
 // stops here until the person recognises the identity that came back.
 export type DesktopAuthResult =
-  | { kind: "signedIn"; redirect?: string }
+  | { kind: "signedIn"; target?: string }
   | { kind: "confirmLink"; provider: string; email: string };
 
 interface CompleteBody {
+  // Where to land, as the server decided it — the same target the browser
+  // flow obeys, so the two end in the same place.
+  target?: string;
   linked?: string;
   provider?: string;
   email?: string;
@@ -94,11 +95,7 @@ export async function beginDesktopAuth(
   const { attempt } = (await res.json()) as { attempt?: string };
   if (!attempt) throw new Error(`${what} could not be started`);
   const url = new URL(serverUrl(startURL));
-  const saved: SavedAttempt = {
-    verifier,
-    redirect: url.searchParams.get("redirect") ?? undefined,
-    link: opts.link === true,
-  };
+  const saved: SavedAttempt = { verifier, link: opts.link === true };
   sessionStorage.setItem(ATTEMPT_KEY, JSON.stringify(saved));
   url.searchParams.set("attempt", attempt);
   return url.toString();
@@ -140,7 +137,7 @@ export async function completeDesktopAuth(
   // with it here.
   if (!saved.link) sessionStorage.removeItem(ATTEMPT_KEY);
   const body = await complete(saved, code, false);
-  if (!saved.link) return { kind: "signedIn", redirect: saved.redirect };
+  if (!saved.link) return { kind: "signedIn", target: body.target };
   return {
     kind: "confirmLink",
     provider: body.provider ?? "",

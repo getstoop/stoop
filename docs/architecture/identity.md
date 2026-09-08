@@ -254,7 +254,14 @@ POST /auth/desktop/complete                   → the session cookie, and a toke
    window.
 4. The shell loads `/auth/desktop/complete?code=` in the view that started
    the attempt, so the verifier is still in reach. The server checks it
-   against the challenge, mints the session and sets the cookie there.
+   against the challenge, mints the session and sets the cookie there, and
+   answers with **where to land** — the target `finishSocial` chose, which
+   is the one the browser flow obeys: the welcome for a registration, the
+   space for a redeemed invite, the redirect for a returning identity. The
+   app does not decide this for itself, or the two flows would drift: a
+   first sign-in through the setup card would send someone back to `/setup`,
+   which is finished the moment the account it made exists, and on to the
+   login form they had just come through.
 
 **Two PKCE pairs, and they never meet.** `loginState.Verifier` is the
 server↔provider exchange. The attempt's verifier is the shell↔server one:

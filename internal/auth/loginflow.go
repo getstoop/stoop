@@ -302,13 +302,16 @@ func randomToken() string {
 }
 
 // safeRedirectPath mirrors the client's safeRedirect: same-origin
-// absolute paths only, never back onto /login.
+// absolute paths only, and never back onto a page whose job is done —
+// /login, or /setup, which exists only while there are no accounts.
 func safeRedirectPath(p string) string {
 	if len(p) < 2 || p[0] != '/' || p[1] == '/' || p[1] == '\\' {
 		return ""
 	}
-	if p == "/login" || strings.HasPrefix(p, "/login?") || strings.HasPrefix(p, "/login/") {
-		return ""
+	for _, done := range []string{"/login", "/setup"} {
+		if p == done || strings.HasPrefix(p, done+"?") || strings.HasPrefix(p, done+"/") {
+			return ""
+		}
 	}
 	return p
 }

@@ -67,6 +67,9 @@ func (a desktopAttempt) isLink() bool { return a.linkUserID != "" }
 
 type desktopCode struct {
 	attempt desktopAttempt
+	// target is where the app lands afterwards, decided by the same
+	// finishSocial the browser flow obeys.
+	target string
 	// userID is who to sign in; claims are what the provider returned,
 	// held for a link attempt. One or the other, never both.
 	userID  string
@@ -270,7 +273,8 @@ func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st logi
 		loginError(w, r, "login_state")
 		return
 	}
-	code, ok := s.desktop.mint(st.Attempt, st.Provider, desktopCode{userID: res.userID})
+	code, ok := s.desktop.mint(st.Attempt, st.Provider,
+		desktopCode{userID: res.userID, target: res.target})
 	if !ok {
 		loginError(w, r, "login_expired")
 		return
@@ -342,7 +346,9 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, s.sessionCookie(r.Context(), token, sessionTTL))
-	writeDesktopJSON(w, http.StatusOK, map[string]string{"token": token})
+	writeDesktopJSON(w, http.StatusOK, map[string]string{
+		"token": token, "target": c.target,
+	})
 }
 
 // desktopLink attaches the identity the callback saw. Both bindings the
