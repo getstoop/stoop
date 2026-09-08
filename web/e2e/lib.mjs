@@ -30,6 +30,23 @@ export function chromePath() {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Arriving at an invite link in a browser. It lands on the choice —
+// the desktop app, or here — before anything looks the code up or
+// redeems it, so take the way past. A spec that has no invite link to
+// follow passes /login instead, which never shows the choice.
+//
+// The reach for the app is held back under automation, or the prompt
+// Chrome raises for stoop:// would block the page for good — so never
+// click "Open in the Stoop app" from a spec.
+// docs/architecture/desktop.md → Deep links.
+export async function gotoInvite(page, link) {
+  await page.goto(link, { waitUntil: "domcontentloaded" });
+  const stay = await page
+    .waitForSelector(".open-in-app button", { timeout: 10000 })
+    .catch(() => null);
+  if (stay) await stay.click();
+}
+
 // A minimal PNG encoder (RGB, no filter) so specs can make images without
 // fixtures. pixel(x, y) returns [r, g, b].
 const crcTable = new Uint32Array(256).map((_, n) => {

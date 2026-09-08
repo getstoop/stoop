@@ -1,7 +1,13 @@
 // A channel says what it is: the topic in its header, the tooltips that
 // carry it, About this channel, and who may write it (STOOP-114).
 import puppeteer from "puppeteer-core";
-import { acceptDialog, BASE as base, chromePath, sleep } from "./lib.mjs";
+import {
+  acceptDialog,
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -168,7 +174,7 @@ await sleep(1200);
 
 // ---- B joins: sees the topic, may not write it
 const B = await newPage("B");
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(400);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

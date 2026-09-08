@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
-import { acceptDialog, BASE as base, chromePath, png, sleep } from "./lib.mjs";
+import {
+  acceptDialog,
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  png,
+  sleep,
+} from "./lib.mjs";
 
 // Attachments in messages (STOOP-42). The data dir check is a direct
 // measurement the UI can't make: a deleted message's blobs must be gone.
@@ -108,7 +115,7 @@ await A.click("button.primary");
 await sleep(1200);
 const channelId = new URL(A.url()).pathname.split("/")[4];
 const B = await newPage("B");
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

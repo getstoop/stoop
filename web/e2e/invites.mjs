@@ -5,6 +5,7 @@ import {
   chromePath,
   dialog,
   dismissDialog,
+  gotoInvite,
   sleep,
   spaceMenu,
   spaceMenuItems,
@@ -134,8 +135,43 @@ const ctxB = await browser.createBrowserContext();
 const B = await ctxB.newPage();
 wire(B, "B");
 const link = `${base}/join/${code}?space=${encodeURIComponent(`Stoop HQ ${suffix}`)}`;
-await B.goto(link, { waitUntil: "networkidle0" });
-await sleep(500);
+// By hand rather than through gotoInvite: the choice an invite link
+// lands on is what is under test here.
+await B.goto(link, { waitUntil: "domcontentloaded" });
+await B.waitForSelector(".open-in-app", { timeout: 10000 });
+await sleep(300);
+check(
+  new URL(B.url()).pathname === `/join/${code}` &&
+    (await B.$(".invite-hero")) === null &&
+    (await B.$('input[autocomplete="username"]')) === null,
+  `the first page does nothing with the invite: no space, no form (${
+    new URL(B.url()).pathname
+  })`,
+);
+// The link it hands the shell: this server, and this invite with the
+// hint it carried. Resolved the way the shell resolves it — its `path`
+// against the server it names (deeplink.ts → targetUrl).
+const deep = new URL(
+  await B.$eval(".open-in-app a", (e) => e.getAttribute("href")),
+);
+const server = deep.searchParams.get("server");
+const target = new URL(deep.searchParams.get("path") ?? "", `${server}/`);
+check(
+  deep.protocol === "stoop:" &&
+    (deep.hostname || deep.pathname.replace(/^\/+/, "")) === "open" &&
+    server === base &&
+    target.origin === base &&
+    target.pathname === `/join/${code}` &&
+    target.searchParams.get("space") === `Stoop HQ ${suffix}`,
+  `the handoff names this server and this invite (${target.href})`,
+);
+await B.click(".open-in-app button");
+await B.waitForSelector(".invite-hero", { timeout: 10000 });
+check(
+  (await B.$(".open-in-app")) === null &&
+    (await B.$('input[autocomplete="username"]')) !== null,
+  "continuing in this browser goes on to the invite landing",
+);
 const bUrl = new URL(B.url());
 const rd = new URL(bUrl.searchParams.get("redirect") ?? "/", base);
 check(
@@ -174,7 +210,7 @@ check(
 // landing asks the server what the code is for rather than trusting the
 // hint in the link.
 const Bare = await ctxB.newPage();
-await Bare.goto(`${base}/join/${code}`, { waitUntil: "networkidle0" });
+await gotoInvite(Bare, `${base}/join/${code}`);
 await sleep(600);
 check(
   (await Bare.$eval(".invite-hero", (e) => e.innerText)).includes(
@@ -252,7 +288,7 @@ check(
 const ctxC = await browser.createBrowserContext();
 const C = await ctxC.newPage();
 wire(C, "C");
-await C.goto(`${base}/join/${code}`, { waitUntil: "networkidle0" });
+await gotoInvite(C, `${base}/join/${code}`);
 await sleep(300);
 await C.type('input[autocomplete="username"]', `webC${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");

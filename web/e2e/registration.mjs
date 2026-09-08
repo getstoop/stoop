@@ -1,5 +1,11 @@
 import puppeteer from "puppeteer-core";
-import { acceptDialog, BASE as base, chromePath, sleep } from "./lib.mjs";
+import {
+  acceptDialog,
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -77,7 +83,7 @@ check(
 );
 
 // Via the link: code pre-filled and locked; account created and lands in the space.
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 const codeField = await B.$(
   'input[placeholder="From the person who invited you"]',

@@ -45,3 +45,26 @@
   font-size: var(--text-ui);
   text-decoration: underline;
 }
+
+/* ---- Open in the app ---- */
+
+/* The choice an invite link lands on. Nothing else is on that page: it
+   has not asked the server anything about the invite. */
+.open-in-app {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+}
+
+.open-in-app p {
+  margin: 0;
+}
+
+.open-in-app .link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  text-decoration: underline;
+}

@@ -3,7 +3,13 @@
 // activity feed and lights the activity pill's dot. STOOP-135 adds the
 // space half: muting a space silences every channel under it.
 import puppeteer from "puppeteer-core";
-import { acceptDialog, BASE as base, chromePath, sleep } from "./lib.mjs";
+import {
+  acceptDialog,
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -49,7 +55,7 @@ await acceptDialog(A, "random");
 await sleep(1000);
 const bName = `bea${suffix}`;
 const B = await newPage("B");
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', bName);
 await B.type('input[type="password"]', "correct horse battery");

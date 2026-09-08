@@ -1,7 +1,13 @@
 // Pronouns and bio (STOOP-118): written on the profile page, read on the
 // profile card and nowhere else, cleared by an admin.
 import puppeteer from "puppeteer-core";
-import { acceptDialog, BASE as base, chromePath, sleep } from "./lib.mjs";
+import {
+  acceptDialog,
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -77,7 +83,7 @@ await sleep(800);
 // B joins and opens A's card from a message.
 const B = await (await browser.createBrowserContext()).newPage();
 wire(B, "B");
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `robin${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

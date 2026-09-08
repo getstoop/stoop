@@ -3,6 +3,7 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
+  gotoInvite,
   sleep,
   spaceMenu,
   spaceMenuItems,
@@ -56,7 +57,7 @@ await sleep(500);
 
 const joinAs = async (tag, name) => {
   const p = await newPage(tag);
-  await p.goto(link, { waitUntil: "networkidle0" });
+  await gotoInvite(p, link);
   await sleep(300);
   await p.type('input[autocomplete="username"]', name);
   await p.type('input[type="password"]', "correct horse battery");

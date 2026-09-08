@@ -1,7 +1,13 @@
 // A space says what it is: the description under its name and on an
 // invite, and the welcome a new member lands on (STOOP-108).
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep, spaceMenu } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  sleep,
+  spaceMenu,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -176,7 +182,7 @@ await A.keyboard.press("Escape");
 await sleep(300);
 
 const B = await newPage("B");
-await B.goto(`${base}/join/${code}`, { waitUntil: "networkidle0" });
+await gotoInvite(B, `${base}/join/${code}`);
 await sleep(1200);
 check(path(B) === "/login", `the link bounces a stranger to login`);
 const hero = await text(B, ".invite-hero");

@@ -2,6 +2,7 @@ import puppeteer from "puppeteer-core";
 import {
   BASE as base,
   chromePath,
+  gotoInvite,
   sleep,
   spaceMenu,
   spaceMenuItems,
@@ -131,7 +132,7 @@ check(
 );
 
 // B follows the onboarding link, creates an account, lands in the space; A's message arrives live.
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 check(
   (await B.$eval(".invite-hero", (e) => e.innerText)).includes("Stoop HQ"),
