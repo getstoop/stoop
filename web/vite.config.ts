@@ -10,6 +10,10 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Pinned: the server's dev proxy (STOOP_DEV_WEB_URL) and the README
+    // name this port, so a collision must fail here rather than drift.
+    port: 5173,
+    strictPort: true,
     proxy: {
       "/stoop.": {
         target: "http://localhost:8091",

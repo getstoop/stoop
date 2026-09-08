@@ -46,7 +46,8 @@ natively in dev — see docs/self-hosting.md → Voice in development for why).
 
 ```sh
 make dev        # Postgres in Docker + LiveKit on the host, Go server with hot reload, Vite dev server
-                # → web UI at http://localhost:5173 (proxies the API, /ws and /livekit to :8091)
+                # → everything at http://localhost:8091: the server proxies the web app to Vite (:5173),
+                #   so a browser, the desktop shell and a phone on the LAN all see the live source
 
 make generate   # regenerate protobuf + sqlc code (output is committed)
 node scripts/gen-emoji.mjs   # refresh the reaction picker's emoji list from Unicode (output is committed)

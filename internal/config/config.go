@@ -154,6 +154,10 @@ type Config struct {
 	// than call every instance "Stoop". The admin page's saved value
 	// overrides either.
 	InstanceName string
+	// DevWebURL is STOOP_DEV_WEB_URL: a Vite dev server to serve the web
+	// app from instead of the embedded build. `make dev` sets it, and only
+	// it should — the script policy is relaxed for hot reload.
+	DevWebURL string
 }
 
 func Load() (Config, error) {
@@ -165,6 +169,7 @@ func Load() (Config, error) {
 		LiveKitNodeIPFile: os.Getenv("STOOP_LIVEKIT_NODE_IP_FILE"),
 		LiveKitAPIKey:     os.Getenv("STOOP_LIVEKIT_API_KEY"),
 		LiveKitAPISecret:  os.Getenv("STOOP_LIVEKIT_API_SECRET"),
+		DevWebURL:         os.Getenv("STOOP_DEV_WEB_URL"),
 	}
 
 	if cfg.DatabaseURL == "" {

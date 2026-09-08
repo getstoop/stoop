@@ -1,4 +1,4 @@
-.PHONY: dev dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web lint test e2e migrate-new docker clean
+.PHONY: dev dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web lint test e2e migrate-new docker clean
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -8,23 +8,41 @@ AIR := $(shell go env GOPATH)/bin/air
 
 # ---- Development -----------------------------------------------------------
 
-## dev: start Postgres + LiveKit, then run the Go server (hot reload) and Vite together
-dev: dev-port-check dev-services
+## dev: start Postgres + LiveKit, then run the Go server (hot reload) and Vite
+## together. Everything is at http://localhost:8091: the server proxies the web
+## app to Vite (STOOP_DEV_WEB_URL), so a browser, the desktop shell and a phone
+## all see the live source. Vite itself is pinned to :5173.
+dev: dev-git-check dev-port-check dev-services
 	@test -x $(AIR) || { echo "make dev: $(AIR) not found; install with: go install github.com/air-verse/air@latest" >&2; exit 1; }
+	@echo "make dev: http://localhost:8091 (Go with hot reload; web app live from Vite on :5173)"
 	@trap 'kill 0' INT TERM; \
-	$(AIR) & \
+	STOOP_DEV_WEB_URL=http://localhost:5173 $(AIR) & \
 	(cd web && pnpm dev) & \
 	wait
 
-## dev-port-check: refuse to start if something already holds the server port — a
-## stale bin/stoop there would silently take Vite's proxy traffic instead of air's build
-dev-port-check:
-	@if lsof -nP -iTCP:8091 -sTCP:LISTEN >/dev/null 2>&1; then \
-	  echo "make dev: port 8091 is already in use; air would fail to bind and Vite would proxy to the old process:" >&2; \
-	  lsof -nP -iTCP:8091 -sTCP:LISTEN >&2; \
-	  echo "stop it first (kill <PID>), then rerun make dev" >&2; \
-	  exit 1; \
+## dev-git-check: name what is about to run, and warn when origin/main has
+## commits this checkout lacks — work lands by PR, so a checkout left on an
+## old branch runs old code with nothing else saying so
+dev-git-check:
+	@git fetch -q origin 2>/dev/null || true; \
+	echo "make dev: running $$(git rev-parse --abbrev-ref HEAD) @ $$(git rev-parse --short HEAD)"; \
+	behind=$$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0); \
+	if [ "$$behind" != 0 ]; then \
+	  echo "make dev: WARNING: origin/main has $$behind commit(s) this checkout lacks; git switch main && git pull to run what has landed" >&2; \
 	fi
+
+## dev-port-check: refuse to start if something already holds the server port
+## or Vite's — a stale bin/stoop on 8091 would take the traffic instead of
+## air's build, and another Vite on 5173 would be what the proxy serves
+dev-port-check:
+	@for port in 8091 5173; do \
+	  if lsof -nP -iTCP:$$port -sTCP:LISTEN >/dev/null 2>&1; then \
+	    echo "make dev: port $$port is already in use:" >&2; \
+	    lsof -nP -iTCP:$$port -sTCP:LISTEN >&2; \
+	    echo "stop it first (kill <PID>), then rerun make dev" >&2; \
+	    exit 1; \
+	  fi; \
+	done
 
 ## dev-services: start the dev dependencies — Postgres in Docker, LiveKit on the host network
 dev-services:

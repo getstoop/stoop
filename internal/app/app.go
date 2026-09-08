@@ -176,10 +176,20 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle("GET /version", versionHandler())
-	mux.Handle("/", webui.Handler())
+	web, scripts := webui.Handler(), webui.ScriptHashes()
+	if cfg.DevWebURL != "" {
+		if web, err = webui.DevProxy(cfg.DevWebURL); err != nil {
+			return nil, fmt.Errorf("STOOP_DEV_WEB_URL: %w", err)
+		}
+		// Vite adds inline scripts of its own (the React refresh preamble),
+		// and a browser ignores 'unsafe-inline' next to a hash list.
+		scripts = []string{"'unsafe-inline'"}
+		log.Warn("serving the web app from the Vite dev server (STOOP_DEV_WEB_URL); never use this outside development", "url", cfg.DevWebURL)
+	}
+	mux.Handle("/", web)
 	// secureTransport is outermost: the headers below it read the TLS
 	// verdict it puts on the context.
-	handler := secureTransport(securityHeaders(mux, webui.ScriptHashes()), instanceSvc.TrustsPeer)
+	handler := secureTransport(securityHeaders(mux, scripts), instanceSvc.TrustsPeer)
 
 	a := &App{
 		server: &http.Server{

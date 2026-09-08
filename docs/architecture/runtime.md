@@ -322,8 +322,15 @@ full procedure is in
 ```
 make dev   Postgres in Docker + LiveKit on the host network
            + the Go server with hot reload + the Vite dev server
-           → http://localhost:5173, proxying the API, /ws and /livekit to :8091
+           → http://localhost:8091 for everything: the server proxies the
+             web app to Vite on :5173 (STOOP_DEV_WEB_URL), so one origin
+             carries the live source for a browser, the desktop shell and
+             a phone. Vite alone still answers on :5173.
 ```
+
+`make dev` prints the branch and commit it runs and warns when
+`origin/main` has commits the checkout lacks — the usual reason a dev
+instance shows old code.
 
 `make dev-reset` wipes the dev database and seeds a fixed cast across two
 spaces. `make e2e` no longer touches the dev database (it starts its own
