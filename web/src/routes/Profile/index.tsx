@@ -1,6 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Link, useSearch } from "@tanstack/react-router";
 import { useInstanceStatus, useMe } from "../../api/queries";
+import { useThemeStore } from "../../api/theme";
 import { SettingsFrame } from "../../components/SettingsFrame";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { PasswordSignIn } from "../../gen/stoop/instance/v1/instance_pb";
@@ -19,7 +20,8 @@ import { StatusSection } from "./StatusSection";
 // (Profile), how Stoop looks to you (Appearance), what is allowed to
 // interrupt you and how you appear while online (Notifications), and how
 // you get in and who you keep out (Security). Log out is the last entry
-// of the nav.
+// of the nav. Inside the desktop shell the theme is the shell's, chosen
+// in its App settings, so Appearance is not offered there.
 
 type Tab = "profile" | "appearance" | "notifications" | "security";
 
@@ -33,15 +35,18 @@ const TABS: { key: Tab; label: string }[] = [
 export function ProfilePage() {
   const { data: me } = useMe();
   const { data: status } = useInstanceStatus();
+  const shellTheme = useThemeStore((s) => s.shell);
   const search = useSearch({ strict: false }) as {
     tab?: "appearance" | "notifications" | "security";
     linked?: string;
     error?: string;
   };
+  const tabs = TABS.filter((t) => t.key !== "appearance" || !shellTheme);
   // A finished (or failed) provider link lands back here; it belongs to
   // Security, whichever tab the user left from.
-  const active: Tab =
+  const asked: Tab =
     search.tab ?? (search.linked || search.error ? "security" : "profile");
+  const active: Tab = asked === "appearance" && shellTheme ? "profile" : asked;
   if (!me) {
     return <div className="centered muted">Loading…</div>;
   }
@@ -55,7 +60,7 @@ export function ProfilePage() {
       label="Account sections"
       head={<ProfileHeader me={me} />}
       foot={<LogoutButton />}
-      title={TABS.find((t) => t.key === active)?.label ?? "Profile"}
+      title={tabs.find((t) => t.key === active)?.label ?? "Profile"}
       hint={
         active === "profile" && (
           <>
@@ -69,7 +74,7 @@ export function ProfilePage() {
           </>
         )
       }
-      tabs={TABS.map((t) => (
+      tabs={tabs.map((t) => (
         <Link
           key={t.key}
           to="/profile"

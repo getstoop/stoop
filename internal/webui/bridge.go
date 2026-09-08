@@ -5,4 +5,4 @@ package webui
 // when a server is newer than it knows. Bump it together with the
 // declaration in web/src/api/platform.ts whenever the contract changes.
 // docs/architecture/desktop.md.
-const Bridge = 1
+const Bridge = 2
