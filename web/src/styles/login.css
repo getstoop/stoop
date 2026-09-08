@@ -48,9 +48,12 @@
 
 /* ---- Open in the app ---- */
 
-/* The attempt to hand an invite to the desktop app, above the form the
-   landing offers everyone else. */
+/* The handoff: it stands in front of the sign-in options, so an invitee
+   with the desktop app lands in it instead of signing in here. */
 .open-in-app {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin: 0;
   padding: 12px;
   border: 1px solid var(--border);
@@ -59,9 +62,14 @@
   text-align: center;
 }
 
+.open-in-app p {
+  margin: 0;
+}
+
 /* Beside a flow that is already running, and once someone has chosen
    this browser: a line, not a card. */
 .open-in-app.quiet {
+  display: block;
   padding: 0;
   border: none;
   background: none;

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../api/clients";
+import { prefersBrowser } from "../api/desktopLinks";
 import { errorText } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { loginErrorText } from "../api/loginErrors";
@@ -60,6 +61,9 @@ export function LoginPage() {
     errorCode ? loginErrorText(errorCode) : null,
   );
   const [busy, setBusy] = useState(false);
+  // Set by the handoff below, or already true in a browser that has
+  // chosen this one before: the sign-in options come out from behind it.
+  const [inBrowser, setInBrowser] = useState(prefersBrowser);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: status, isLoading: statusLoading } = useInstanceStatus();
@@ -90,6 +94,11 @@ export function LoginPage() {
   // A closed server can only be logged in to; never strand an invitee on
   // a create-account form with no way out.
   const effectiveMode = canRegister ? mode : "login";
+
+  // An invitee with the app should land in it, not sign in here, so the
+  // landing stands in front of the form until the code turns out bad or
+  // the person says they want this browser.
+  const handoff = invited && !inviteError && !inBrowser;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -152,128 +161,143 @@ export function LoginPage() {
           ))}
         {/* Only once the server has confirmed the code: no one is sent
             to the app for an invite that does not exist. */}
-        {invited && preview && redirect && <OpenInApp path={redirect} />}
-        {invited && !inviteError && (
-          <p className="login-subtitle invite-next">
-            {effectiveMode === "register"
-              ? "Create an account to join."
-              : "Log in to join."}
-          </p>
+        {invited && preview && redirect && (
+          <OpenInApp
+            path={redirect}
+            quiet={inBrowser}
+            onContinue={() => setInBrowser(true)}
+          />
         )}
-        <LoginProviders
-          redirect={safeRedirect(redirect)}
-          invite={invited ? inviteCode : undefined}
-          divider={showPasswordForm}
-        />
-        {!showPasswordForm && (
+        {!handoff && (
           <>
-            {error && <p className="error">{error}</p>}
-            {passwordSignIn === PasswordSignIn.ADMINS && (
-              <Link
-                className="link"
-                to="/login"
-                search={{ redirect, password: "1" }}
-              >
-                Server admin? Sign in with a password
-              </Link>
-            )}
-          </>
-        )}
-        {showPasswordForm && invited && (
-          <fieldset className="invite-choice" aria-label="New or returning?">
-            {canRegister && (
-              <button
-                type="button"
-                data-mode="register"
-                className={effectiveMode === "register" ? "active" : ""}
-                aria-pressed={effectiveMode === "register"}
-                onClick={() => setMode("register")}
-              >
-                <strong>I'm new here</strong>
-                <span>Create an account</span>
-              </button>
-            )}
-            <button
-              type="button"
-              data-mode="login"
-              className={effectiveMode === "login" ? "active" : ""}
-              aria-pressed={effectiveMode === "login"}
-              onClick={() => setMode("login")}
-            >
-              <strong>I already have an account</strong>
-              <span>Log in with it</span>
-            </button>
-          </fieldset>
-        )}
-        {showPasswordForm && (
-          <>
-            <label>
-              Username
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                required
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={
-                  effectiveMode === "login"
-                    ? "current-password"
-                    : "new-password"
-                }
-                required
-              />
-            </label>
-            {effectiveMode === "register" && (codeRequired || invited) && (
-              <label>
-                Invite code
-                <input
-                  value={inviteCode}
-                  onChange={(e) => setTypedCode(e.target.value)}
-                  readOnly={linkCode !== ""}
-                  placeholder="From the person who invited you"
-                  required={codeRequired}
-                  autoComplete="off"
-                />
-              </label>
-            )}
-            {error && <p className="error">{error}</p>}
-            <button type="submit" className="primary" disabled={busy}>
-              {effectiveMode === "login"
-                ? invited
-                  ? "Log in & join"
-                  : "Log in"
-                : invited
-                  ? "Create account & join"
-                  : "Create account"}
-            </button>
-            {invited ? (
-              !canRegister && (
-                <p className="muted small">
-                  This server isn't accepting new accounts; log in with the one
-                  you have.
-                </p>
-              )
-            ) : canRegister ? (
-              <button
-                type="button"
-                className="link"
-                onClick={() => setMode(mode === "login" ? "register" : "login")}
-              >
-                {mode === "login"
-                  ? "New here? Create an account"
-                  : "Already have an account? Log in"}
-              </button>
-            ) : (
-              <p className="muted small">
-                This server isn't accepting new accounts.
+            {invited && !inviteError && (
+              <p className="login-subtitle invite-next">
+                {effectiveMode === "register"
+                  ? "Create an account to join."
+                  : "Log in to join."}
               </p>
+            )}
+            <LoginProviders
+              redirect={safeRedirect(redirect)}
+              invite={invited ? inviteCode : undefined}
+              divider={showPasswordForm}
+            />
+            {!showPasswordForm && (
+              <>
+                {error && <p className="error">{error}</p>}
+                {passwordSignIn === PasswordSignIn.ADMINS && (
+                  <Link
+                    className="link"
+                    to="/login"
+                    search={{ redirect, password: "1" }}
+                  >
+                    Server admin? Sign in with a password
+                  </Link>
+                )}
+              </>
+            )}
+            {showPasswordForm && invited && (
+              <fieldset
+                className="invite-choice"
+                aria-label="New or returning?"
+              >
+                {canRegister && (
+                  <button
+                    type="button"
+                    data-mode="register"
+                    className={effectiveMode === "register" ? "active" : ""}
+                    aria-pressed={effectiveMode === "register"}
+                    onClick={() => setMode("register")}
+                  >
+                    <strong>I'm new here</strong>
+                    <span>Create an account</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  data-mode="login"
+                  className={effectiveMode === "login" ? "active" : ""}
+                  aria-pressed={effectiveMode === "login"}
+                  onClick={() => setMode("login")}
+                >
+                  <strong>I already have an account</strong>
+                  <span>Log in with it</span>
+                </button>
+              </fieldset>
+            )}
+            {showPasswordForm && (
+              <>
+                <label>
+                  Username
+                  <input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="username"
+                    required
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={
+                      effectiveMode === "login"
+                        ? "current-password"
+                        : "new-password"
+                    }
+                    required
+                  />
+                </label>
+                {effectiveMode === "register" && (codeRequired || invited) && (
+                  <label>
+                    Invite code
+                    <input
+                      value={inviteCode}
+                      onChange={(e) => setTypedCode(e.target.value)}
+                      readOnly={linkCode !== ""}
+                      placeholder="From the person who invited you"
+                      required={codeRequired}
+                      autoComplete="off"
+                    />
+                  </label>
+                )}
+                {error && <p className="error">{error}</p>}
+                <button type="submit" className="primary" disabled={busy}>
+                  {effectiveMode === "login"
+                    ? invited
+                      ? "Log in & join"
+                      : "Log in"
+                    : invited
+                      ? "Create account & join"
+                      : "Create account"}
+                </button>
+                {invited ? (
+                  !canRegister && (
+                    <p className="muted small">
+                      This server isn't accepting new accounts; log in with the
+                      one you have.
+                    </p>
+                  )
+                ) : canRegister ? (
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() =>
+                      setMode(mode === "login" ? "register" : "login")
+                    }
+                  >
+                    {mode === "login"
+                      ? "New here? Create an account"
+                      : "Already have an account? Log in"}
+                  </button>
+                ) : (
+                  <p className="muted small">
+                    This server isn't accepting new accounts.
+                  </p>
+                )}
+              </>
             )}
           </>
         )}

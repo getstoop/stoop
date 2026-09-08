@@ -181,20 +181,33 @@ fires `stoop://open` for the same path — `?space=` hint and all — as soon
 as the landing renders, and says "Opening Stoop… Not opening? Continue in
 this browser".
 
+**The handoff stands in front of the sign-in options.** The landing a
+signed-out invitee is bounced to (`/login?redirect=/join/CODE`) shows the
+space, the attempt, and a way past it — nothing else. Someone with the
+app never sees a login form they did not mean to fill in; "Continue in
+this browser" brings the form out from behind it.
+
 It fires for everyone, because a browser cannot tell whether the app is
 installed: there is no API, and the user agent is off limits
 (`api/platform.ts`). The cost is borne by the people it cannot help —
 Firefox opens an app chooser and iOS Safari an error, over the invite
 landing — so **"Continue in this browser" is remembered for that origin**
 (`api/desktopLinks.ts`), and a person without the app meets that dialog
-once. Afterwards the offer is one quiet line, "Open in the Stoop app",
-which fires again and forgets the choice: neither answer is a trap.
+once. Afterwards the landing goes straight to the form, with one quiet
+line above it, "Open in the Stoop app", which fires again and forgets the
+choice: neither answer is a trap.
 
-The offer sits on the invite landing (`/login?redirect=/join/CODE`, where
-a signed-out invitee is bounced) and, quietly, on `/join/CODE` beside a
-redemption it never delays. It waits for the server to confirm the code,
-so no one is sent to the app for an invite that does not exist. Inside
-the shell it renders nothing.
+It waits for the server to confirm the code, so no one is handed to the
+app for an invite that does not exist, and a bad code falls through to
+the form with its error. On `/join/CODE` — someone signed in, in a
+browser — it is one quiet line beside a redemption it never delays.
+Inside the shell it renders nothing.
+
+**It costs the browser suite a step.** Nearly every spec joins its second
+user through this landing, so the attempt leaves a `stoop://` navigation
+pending that hangs puppeteer's `goto`, and the form is behind the
+handoff. Specs seed `localStorage["stoop.inviteInBrowser"]` to arrive as
+someone who has chosen the browser.
 
 The server is matched by exact origin, as everywhere else here: someone
 who added the server by its LAN address while `public_url` is the public
