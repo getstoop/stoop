@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { openLinkForPath } from "../api/desktopLinks";
-import { isDesktop } from "../api/platform";
+import { canOpenInApp, openLinkForPath } from "../api/desktopLinks";
 
 // Hands an invite to the desktop app. The attempt fires as soon as this
 // renders, so someone who has the app lands in it; the button is for
@@ -17,7 +16,7 @@ export function OpenInApp({
   quiet?: boolean;
   onContinue?: () => void;
 }) {
-  const link = isDesktop() ? "" : openLinkForPath(path);
+  const link = canOpenInApp(path) ? openLinkForPath(path) : "";
   const [gone, setGone] = useState(false);
   // The anchor below fires its own link; only the arrival needs this.
   const fired = useRef(false);

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../api/clients";
+import { canOpenInApp } from "../api/desktopLinks";
 import { errorText } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { loginErrorText } from "../api/loginErrors";
@@ -95,8 +96,15 @@ export function LoginPage() {
 
   // An invitee with the app should land in it, not sign in here, so the
   // landing stands in front of the form until the code turns out bad or
-  // the person says they want this browser.
-  const handoff = invited && !inviteError && !inBrowser;
+  // the person says they want this browser. Only where there is a
+  // handoff to stand there: inside the shell there is none, and hiding
+  // the form for it would leave nothing at all.
+  const handoff =
+    invited &&
+    !inviteError &&
+    !inBrowser &&
+    Boolean(redirect) &&
+    canOpenInApp(redirect ?? "");
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
