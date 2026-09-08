@@ -5,7 +5,13 @@
 // disconnect, and the gateway dropping a participant whose tab closed. Needs the app configured for a running
 // LiveKit server; run with STOOP_E2E_VOICE=1.
 import puppeteer from "puppeteer-core";
-import { acceptDialog, BASE as base, chromePath, sleep } from "./lib.mjs";
+import {
+  acceptDialog,
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  sleep,
+} from "./lib.mjs";
 
 // The stage bar (StageBar) fades after a few idle seconds and is
 // click-through while it is faded, so wake it with a move over the stage
@@ -163,7 +169,7 @@ check((await A.$$(".voice-participant")).length === 0, "nobody in it yet");
 
 // B joins the space and sees the empty voice channel.
 const B = await newPage("B");
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', bea);
 await B.type('input[type="password"]', "correct horse battery");

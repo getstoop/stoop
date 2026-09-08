@@ -4,7 +4,7 @@
 // WINDOW_CAP rows; arrivals while windowed count on the pill; ?m= deep
 // links open around a message.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
 
 const SEED = 600;
 const CAP = 300;
@@ -177,7 +177,7 @@ check(await waitFor(() => has(`#msg-${ids[4]}`)), "jumped back into history");
 await sleep(300);
 const B = await (await browser.createBrowserContext()).newPage();
 B.on("dialog", (d) => d.accept());
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 await B.click('.invite-choice button[data-mode="register"]').catch(() => {});
 await B.type('input[autocomplete="username"]', `bea${suffix}`);

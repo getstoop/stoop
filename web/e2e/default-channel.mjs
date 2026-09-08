@@ -2,7 +2,13 @@
 // the channel it chooses, the first-channel fallback when it has chosen
 // none, and what happens once the chosen channel is deleted (STOOP-109).
 import puppeteer from "puppeteer-core";
-import { acceptDialog, BASE as base, chromePath, sleep } from "./lib.mjs";
+import {
+  acceptDialog,
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -104,7 +110,7 @@ await settings(A, spaceId);
 check((await chosen(A)) === "# tools", "the choice survives a reload");
 
 const B = await newPage("B");
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(400);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -153,7 +159,7 @@ check(
 // A member who was never told stays honest too: C arrives on the same
 // invite and lands in #general, not in a channel that no longer exists.
 const C = await newPage("C");
-await C.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(C, link);
 await sleep(400);
 await C.type('input[autocomplete="username"]', `casey${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");

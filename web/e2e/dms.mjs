@@ -2,7 +2,7 @@
 // ways in real time, see the DMs pill light up, survive a reload, and
 // stay closed to people who aren't in it.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -47,7 +47,7 @@ await sleep(1200);
 
 const joinAs = async (tag, name) => {
   const p = await newPage(tag);
-  await p.goto(link, { waitUntil: "networkidle0" });
+  await gotoInvite(p, link);
   await sleep(300);
   await p.type('input[autocomplete="username"]', name);
   await p.type('input[type="password"]', "correct horse battery");

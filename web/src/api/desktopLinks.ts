@@ -26,3 +26,12 @@ export function openLinkForPath(path: string): string {
 export function canOpenInApp(path: string): boolean {
   return !isDesktop() && openLinkForPath(path) !== "";
 }
+
+// A browser being driven by automation. It is never handed to the app on
+// its own: the prompt Chrome raises for an external protocol is not
+// scriptable and blocks the page the driver is working on, so every spec
+// that lands on an invite would hang. The handoff still renders, and its
+// button still fires.
+export function underAutomation(): boolean {
+  return typeof navigator !== "undefined" && navigator.webdriver === true;
+}

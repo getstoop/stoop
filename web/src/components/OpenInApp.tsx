@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { canOpenInApp, openLinkForPath } from "../api/desktopLinks";
+import {
+  canOpenInApp,
+  openLinkForPath,
+  underAutomation,
+} from "../api/desktopLinks";
 
 // Hands an invite to the desktop app. The attempt fires as soon as this
 // renders, so someone who has the app lands in it; the button is for
@@ -22,7 +26,7 @@ export function OpenInApp({
   const fired = useRef(false);
 
   useEffect(() => {
-    if (!link || gone || fired.current) return;
+    if (!link || gone || fired.current || underAutomation()) return;
     fired.current = true;
     location.href = link;
   }, [link, gone]);

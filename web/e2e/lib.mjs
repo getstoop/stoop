@@ -30,6 +30,28 @@ export function chromePath() {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Arriving at an invite link in a browser. The landing hands the invite
+// to the desktop app before it shows anything else, so take the way past
+// the handoff. A code the server refuses never hands off, and someone
+// already signed in stays on /join and is redeeming.
+//
+// The reach for the app is held back under automation, or the prompt
+// Chrome raises for stoop:// would block the page for good — so never
+// click "Open in the Stoop app" from a spec.
+// docs/architecture/desktop.md → Deep links.
+const ARRIVED = [
+  ".login-card .open-in-app button",
+  '.login-card input[autocomplete="username"]',
+  ".centered",
+].join(", ");
+
+export async function gotoInvite(page, link) {
+  await page.goto(link, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector(ARRIVED, { timeout: 10000 });
+  const stay = await page.$(".login-card .open-in-app button");
+  if (stay) await stay.click();
+}
+
 // A minimal PNG encoder (RGB, no filter) so specs can make images without
 // fixtures. pixel(x, y) returns [r, g, b].
 const crcTable = new Uint32Array(256).map((_, n) => {

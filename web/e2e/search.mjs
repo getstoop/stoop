@@ -1,7 +1,13 @@
 // Message search (STOOP-87): the header launcher, the results page and
 // its chips, opening a result in place, and the phone's icon.
 import puppeteer from "puppeteer-core";
-import { acceptDialog, BASE as base, chromePath, sleep } from "./lib.mjs";
+import {
+  acceptDialog,
+  BASE as base,
+  chromePath,
+  gotoInvite,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -66,7 +72,7 @@ await acceptDialog(A, "garden");
 await sleep(800);
 
 const B = await newPage("B");
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

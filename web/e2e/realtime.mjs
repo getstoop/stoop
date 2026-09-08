@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
 
 const browser = await puppeteer.launch({
   executablePath: chromePath(),
@@ -43,7 +43,7 @@ await sleep(1200);
 
 console.log("--- B signs up via the link");
 const B = await newPage("B");
-await B.goto(link, { waitUntil: "networkidle0" });
+await gotoInvite(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

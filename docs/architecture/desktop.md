@@ -201,11 +201,15 @@ the form with its error. On `/join/CODE` — someone signed in, in a
 browser — it is one quiet line beside a redemption it never delays.
 Inside the shell it renders nothing.
 
-**It costs the browser suite a step.** Nearly every spec joins its second
-user through this landing, where the attempt now leaves a `stoop://`
-navigation pending that hangs a `networkidle0` `goto`, and the form is
-behind the handoff. They arrive with `domcontentloaded` and click
-"Continue in this browser".
+**A browser under automation is never reached for** (`underAutomation`,
+on `navigator.webdriver`). Chrome answers a `stoop://` navigation with an
+external-protocol prompt, and that prompt is not scriptable: it swallows
+every event aimed at the page for as long as it stands, so a spec that
+landed on an invite could no longer be driven at all. The handoff still
+renders and its button still fires — a spec must never click it. Nearly
+every spec joins its second user through this landing, so they go through
+`gotoInvite` in `e2e/lib.mjs`, which waits for the page and takes the way
+past.
 
 The server is matched by exact origin, as everywhere else here: someone
 who added the server by its LAN address while `public_url` is the public
