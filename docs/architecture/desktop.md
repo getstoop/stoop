@@ -176,44 +176,45 @@ linking reuses the `auth` link unchanged.
 
 An invite stays `https://server/join/CODE`, so it keeps working with no
 app, on a phone, in any browser. The `stoop://` attempt is made by the
-page the link lands on, never by the link: `components/OpenInApp.tsx`
-fires `stoop://open` for the same path — `?space=` hint and all — as soon
-as the landing renders, and says "Opening Stoop… Not opening? Continue in
-this browser".
+page the link lands on, never by the link.
 
-**The handoff stands in front of the sign-in options.** The landing a
-signed-out invitee is bounced to (`/login?redirect=/join/CODE`) shows the
-space, the attempt, and a way past it — nothing else. Someone with the
-app never sees a login form they did not mean to fill in; "Continue in
-this browser" brings the form out from behind it.
+**In a browser, an invite link lands on a choice.** `Root` gates the
+whole route tree on it (`components/InviteHandoff.tsx`): the app, or this
+browser. It fires `stoop://open` for the same path — `?space=` hint and
+all — as soon as it renders, and says "Opening Stoop… Open in the Stoop
+app / Continue in this browser".
+
+**That page does nothing with the invite.** It never looks the code up
+and never redeems it: it sits above `AppShell`, so nothing beneath it has
+mounted. A dead code fails where it always did, on the page that handles
+it, and a person who came for the app is never joined in a browser they
+did not mean to use. "Continue in this browser" drops the gate and the
+app carries on exactly as it would have — a stranger to the invite
+landing, someone signed in to `/join`, which redeems on mount as before.
+The answer lasts as long as the page is loaded; nothing is stored, so a
+fresh load asks again.
 
 It fires for everyone, because a browser cannot tell whether the app is
 installed: there is no API, and the user agent is off limits
 (`api/platform.ts`). The cost is borne by the people it cannot help —
-Firefox opens an app chooser and iOS Safari an error, over the invite
-landing — and it is paid once per invite, not once per person: **nothing
-is remembered**. Every invite leads with the app, and the way past it is
-one click.
+Firefox opens an app chooser and iOS Safari an error — and it is paid
+once per invite.
 
-It waits for the server to confirm the code, so no one is handed to the
-app for an invite that does not exist, and a bad code falls through to
-the form with its error. On `/join/CODE` — someone signed in, in a
-browser — it is one quiet line beside a redemption it never delays.
-Inside the shell it renders nothing.
+Inside the shell there is no gate at all: `canOpenInApp` is false there,
+and the invite goes straight through.
+
+The server is matched by exact origin, as everywhere else here: someone
+who added the server by its LAN address while `public_url` is the public
+hostname is offered a second entry rather than the one they have.
 
 **A browser under automation is never reached for** (`underAutomation`,
 on `navigator.webdriver`). Chrome answers a `stoop://` navigation with an
 external-protocol prompt, and that prompt is not scriptable: it swallows
 every event aimed at the page for as long as it stands, so a spec that
-landed on an invite could no longer be driven at all. The handoff still
+landed on an invite could no longer be driven at all. The choice still
 renders and its button still fires — a spec must never click it. Nearly
-every spec joins its second user through this landing, so they go through
-`gotoInvite` in `e2e/lib.mjs`, which waits for the page and takes the way
-past.
-
-The server is matched by exact origin, as everywhere else here: someone
-who added the server by its LAN address while `public_url` is the public
-hostname is offered a second entry rather than the one they have.
+every spec joins its second user by following an invite link, so they go
+through `gotoInvite` in `e2e/lib.mjs`, which takes the way past.
 
 ## The user agent
 

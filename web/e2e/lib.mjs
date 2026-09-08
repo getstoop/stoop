@@ -30,25 +30,20 @@ export function chromePath() {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Arriving at an invite link in a browser. The landing hands the invite
-// to the desktop app before it shows anything else, so take the way past
-// the handoff. A code the server refuses never hands off, and someone
-// already signed in stays on /join and is redeeming.
+// Arriving at an invite link in a browser. It lands on the choice —
+// the desktop app, or here — before anything looks the code up or
+// redeems it, so take the way past. A spec that has no invite link to
+// follow passes /login instead, which never shows the choice.
 //
 // The reach for the app is held back under automation, or the prompt
 // Chrome raises for stoop:// would block the page for good — so never
 // click "Open in the Stoop app" from a spec.
 // docs/architecture/desktop.md → Deep links.
-const ARRIVED = [
-  ".login-card .open-in-app button",
-  '.login-card input[autocomplete="username"]',
-  ".centered",
-].join(", ");
-
 export async function gotoInvite(page, link) {
   await page.goto(link, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(ARRIVED, { timeout: 10000 });
-  const stay = await page.$(".login-card .open-in-app button");
+  const stay = await page
+    .waitForSelector(".open-in-app button", { timeout: 10000 })
+    .catch(() => null);
   if (stay) await stay.click();
 }
 

@@ -21,8 +21,7 @@ export function openLinkForPath(path: string): string {
 
 // Whether this page can hand a path to the app at all: never from inside
 // the shell, which is already there, and never for a path the shell
-// would drop. Callers that stand something aside for the handoff have to
-// ask, or they stand it aside for a handoff that never renders.
+// would drop.
 export function canOpenInApp(path: string): boolean {
   return !isDesktop() && openLinkForPath(path) !== "";
 }

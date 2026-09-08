@@ -8,8 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { chatClient } from "../api/clients";
-import { inviteLink, parseInviteCode } from "../api/invites";
-import { OpenInApp } from "../components/OpenInApp";
+import { parseInviteCode } from "../api/invites";
 
 // /join/$code — reached from a shared link. AppShell has already ensured
 // we're logged in (bouncing through /login and back if needed), so all
@@ -60,15 +59,5 @@ export function JoinPage() {
       </div>
     );
   }
-  // The same invite as a path, for the offer to hand to the app. The
-  // redemption above runs either way.
-  const link = new URL(inviteLink(parseInviteCode(code), spaceName));
-  return (
-    <div className="centered">
-      <div className="empty-state">
-        <p className="muted">Joining {spaceName ?? "space"}…</p>
-        <OpenInApp path={`${link.pathname}${link.search}`} quiet />
-      </div>
-    </div>
-  );
+  return <div className="centered muted">Joining {spaceName ?? "space"}…</div>;
 }
