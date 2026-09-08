@@ -72,15 +72,20 @@ const desktopAuthRoute = createRoute({
 });
 
 // Where the provider round trip ends, in the system browser: the page
-// that fires the deep link back to the app. ?code= on a sign-in that
-// worked, ?error= on one that did not.
+// that fires the deep link back to the app. ?code= on a round trip that
+// worked, ?error= on one that did not, ?link=1 when it was a link.
 const desktopReturnRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/auth/desktop/return",
   component: DesktopAuthReturnPage,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { code?: string; error?: string; provider?: string } => ({
+  ): {
+    code?: string;
+    error?: string;
+    provider?: string;
+    link?: "1";
+  } => ({
     code:
       typeof search.code === "string" && search.code !== ""
         ? search.code.slice(0, 512)
@@ -94,6 +99,9 @@ const desktopReturnRoute = createRoute({
       typeof search.provider === "string" && search.provider !== ""
         ? search.provider.slice(0, 40)
         : undefined,
+    // A link rather than a sign-in: different wording, and failures go
+    // back to the profile page.
+    link: search.link === "1" ? "1" : undefined,
   }),
 });
 

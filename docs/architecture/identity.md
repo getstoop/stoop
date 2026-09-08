@@ -220,7 +220,7 @@ The callback routes share the Login/Register rate-limit bucket.
 
 Identity providers refuse to sign anyone in inside an embedded view, so in
 the desktop shell the provider leg leaves for the system browser and the
-session comes back through a `stoop://auth` deep link. Password sign-in is
+outcome comes back through a `stoop://auth` deep link. Password sign-in is
 untouched, and so is every browser.
 
 ```
@@ -283,8 +283,81 @@ A page served from a plain-HTTP origin has no `crypto.subtle`, and sends
 the verifier itself as the challenge (`"attemptMethod": "plain"`); the
 server compares whichever way the attempt was started.
 
-**Account linking never takes this path.** A link keeps the session it
-already has, so `link=1` and `attempt=` together are refused.
+#### Linking from the desktop app
+
+An attempt is a **sign-in** or a **link**, never both, and the start URL has
+to agree with it: a sign-in attempt with `link=1`, or a link attempt without
+it, is refused. The two differ in where the account comes from and where the
+work happens.
+
+```
+POST /auth/desktop/start   {"link": true}          → { "attempt": ID }
+GET  /auth/oidc/{p}/start?link=1&attempt=ID        in the system browser
+GET  /auth/callback/{p}                            → the hand-off page
+POST /auth/desktop/complete                        → { "linked": "PROVIDER" }
+```
+
+1. **The start request is the authenticated one.** The app's `fetch` is
+   same-origin from a signed-in view, so it carries the session cookie: the
+   server verifies it and records the user id and session id on the
+   attempt. The system browser never has a session of its own, which is
+   exactly why the intent cannot be read from the browser leg.
+2. **The callback links nothing.** `linkIdentity` re-verifies the session
+   that started the link, and the request reaching the callback came from
+   the system browser. So the callback mints a code carrying the provider's
+   claims, mints no session, and hands back as a sign-in does.
+3. **`/auth/desktop/complete` does the linking**, in the app's view, where
+   that session is on the request. It checks the session against the one
+   the attempt recorded, checks the code against the attempt's verifier,
+   and asks the person before it attaches anything (below). It answers
+   `{"linked": …}` and no token: a link keeps the session it already has.
+
+A link's failures belong on `/profile?error=`, not `/login?error=`, so the
+hand-back carries `link=1` and the return page builds
+`stoop://open?path=/profile?error=<code>`. The return page has its own
+wording for a link, and offers no "carry on in this browser": a link
+belongs to the app's session, which that browser does not have.
+
+#### What a stolen attempt id can do
+
+**The attempt's verifier does not prove whose identity came back.** It
+proves only that this is the window that started the attempt. The attempt
+id, meanwhile, travels to the system browser in a URL, so it lands in that
+browser's address bar and history — an extension or a shared machine can
+read it.
+
+That gap is a real chain, and it is worth naming rather than implying the
+verifier closes it:
+
+1. Read the attempt id out of the system browser.
+2. Run the round trip on it with *your own* provider account. The code the
+   callback mints is bound to the victim's challenge, because it is the
+   victim's attempt.
+3. Get that `stoop://auth?…&code=…` opened on the victim's machine within
+   the code's 60 seconds.
+4. Their app redeems it with their verifier and their session — and
+   attaches your identity to their account.
+
+For a link that is a silent account takeover; for a sign-in the same
+residual only produces a login-CSRF, which is obvious the moment the wrong
+account appears. Two things narrow it, and neither is optional:
+
+**One start per attempt.** `oidcStart` *claims* the attempt rather than
+checking it is live, so a second start on the same id is refused. The id is
+only ever visible *because* the victim's own browser carried it, which is
+after the claim — so reading it afterwards finds it spent, and only a live
+race is left. This covers sign-in and linking alike. The cost is small and
+real: a browser that reloads or re-navigates the start URL has to begin
+again from the app.
+
+**A link is confirmed by a person.** `/auth/desktop/complete` for a link
+code is two calls, both needing the verifier and the session — so neither
+is a bearer-readable endpoint. The first names the provider and the email
+and attaches nothing, leaving the code live inside its TTL; the app asks
+"Connect ada@example.com to your account?"; the second consumes the code
+and links. An injected identity now has to get past someone reading an
+address they do not recognise. Sign-in gets no such prompt: a wrong account
+there is visible immediately, and the friction is not worth it.
 
 ### Turning passwords off
 

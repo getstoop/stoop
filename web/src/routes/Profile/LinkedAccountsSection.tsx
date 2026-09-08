@@ -1,9 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { type MouseEvent, useState } from "react";
 import { authClient } from "../../api/clients";
+import { beginDesktopAuth } from "../../api/desktopAuth";
 import { errorText } from "../../api/errors";
 import { linkErrorText } from "../../api/loginErrors";
+import { isDesktop } from "../../api/platform";
 import { useIdentities, useInstanceStatus } from "../../api/queries";
 import { ListHead } from "../../components/ListHead";
 import {
@@ -37,6 +39,25 @@ export function LinkedAccountsSection() {
   const unlinked = providers.filter(
     (p) => !linked.some((i) => i.provider === p.id),
   );
+
+  // In the desktop shell the provider leg leaves for the system browser
+  // and the identity attaches when the stoop://auth hand-back lands
+  // (api/desktopAuth.ts); providers refuse an embedded view.
+  const connect = async (
+    id: string,
+    href: string,
+    e: MouseEvent<HTMLAnchorElement>,
+  ) => {
+    if (!isDesktop()) return;
+    e.preventDefault();
+    setError(null);
+    try {
+      const url = await beginDesktopAuth(id, href, { link: true });
+      window.open(url, "_blank", "noopener");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
 
   const unlink = async (provider: string) => {
     setError(null);
@@ -86,16 +107,20 @@ export function LinkedAccountsSection() {
       )}
       {unlinked.length > 0 && (
         <div className="provider-add">
-          {unlinked.map((p) => (
-            <a
-              key={p.id}
-              className="chip"
-              data-provider={p.id}
-              href={startURL(p.id, { link: true })}
-            >
-              Connect {providerShortName(p.displayName)}
-            </a>
-          ))}
+          {unlinked.map((p) => {
+            const href = startURL(p.id, { link: true });
+            return (
+              <a
+                key={p.id}
+                className="chip"
+                data-provider={p.id}
+                href={href}
+                onClick={(e) => void connect(p.id, href, e)}
+              >
+                Connect {providerShortName(p.displayName)}
+              </a>
+            );
+          })}
         </div>
       )}
       {error && <p className="error">{error}</p>}
