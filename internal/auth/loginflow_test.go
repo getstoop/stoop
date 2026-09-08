@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -8,11 +9,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"html"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -154,6 +158,10 @@ func (f *fakeProviders) CallbackURL(_ context.Context, id string) (string, error
 	return f.callback + "/auth/callback/" + id, nil
 }
 
+func (f *fakeProviders) PublicURL(_ context.Context) (string, error) {
+	return f.callback, nil
+}
+
 // social spins up the whole rig: a fake IdP, the auth service, and its
 // LoginHandler on a test server.
 type socialRig struct {
@@ -182,6 +190,17 @@ func newSocialRig(t *testing.T, svc *auth.Service) *socialRig {
 // holds any session cookie).
 func (rig *socialRig) run(t *testing.T, client *http.Client, startPath string) string {
 	t.Helper()
+	resp, _ := rig.runRaw(t, client, startPath)
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("flow ended with status %d, want 302", resp.StatusCode)
+	}
+	return resp.Header.Get("Location")
+}
+
+// runRaw is run without the 302 expectation: the desktop hand-off ends in
+// a page, not a redirect. Returns the response and its body.
+func (rig *socialRig) runRaw(t *testing.T, client *http.Client, startPath string) (*http.Response, string) {
+	t.Helper()
 	if client.Jar == nil {
 		jar, _ := cookiejar.New(nil)
 		client.Jar = jar
@@ -201,10 +220,67 @@ func (rig *socialRig) run(t *testing.T, client *http.Client, startPath string) s
 		t.Fatalf("flow: %v", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // test teardown
-	if resp.StatusCode != http.StatusFound {
-		t.Fatalf("flow ended with status %d, want 302", resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
 	}
-	return resp.Header.Get("Location")
+	return resp, string(body)
+}
+
+// postJSON posts to one of the desktop routes and decodes what comes
+// back.
+func (rig *socialRig) postJSON(t *testing.T, path string, body any) (int, map[string]any) {
+	t.Helper()
+	raw, err := json.Marshal(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Post(rig.app.URL+path, "application/json", bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("post %s: %v", path, err)
+	}
+	defer resp.Body.Close() //nolint:errcheck // test teardown
+	out := map[string]any{}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("decode %s: %v", path, err)
+	}
+	return resp.StatusCode, out
+}
+
+// attempt opens a desktop sign-in attempt and returns its id.
+func (rig *socialRig) attempt(t *testing.T, challenge, method string) string {
+	t.Helper()
+	status, body := rig.postJSON(t, "/auth/desktop/start", map[string]string{
+		"provider": "sso", "attemptChallenge": challenge, "attemptMethod": method,
+	})
+	if status != http.StatusOK {
+		t.Fatalf("desktop/start = %d, %v", status, body)
+	}
+	id, _ := body["attempt"].(string)
+	if id == "" {
+		t.Fatalf("desktop/start returned no attempt: %v", body)
+	}
+	return id
+}
+
+// handBackLink pulls the stoop://auth link out of the page the callback
+// served, as the shell's parser would.
+func handBackLink(t *testing.T, page string) url.Values {
+	t.Helper()
+	m := regexp.MustCompile(`href="stoop://auth\?([^"]+)"`).FindStringSubmatch(page)
+	if m == nil {
+		t.Fatalf("no stoop://auth link in the hand-off page: %s", page)
+	}
+	q, err := url.ParseQuery(html.UnescapeString(m[1]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return q
+}
+
+func s256(verifier string) string {
+	sum := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
 func (rig *socialRig) sessionToken(t *testing.T, client *http.Client) string {
@@ -432,5 +508,122 @@ func TestSocialFlowFailures(t *testing.T) {
 	}
 	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start"); loc != "/login?error=deactivated" {
 		t.Errorf("deactivated sign-in landed on %q", loc)
+	}
+}
+
+func TestSocialDesktopSignIn(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	svc.UseRegistrationPorts(&fakePolicy{policy: auth.PolicyOpen}, nil)
+	rig := newSocialRig(t, svc)
+
+	const verifier = "desktop-verifier-0123456789abcdefghijklmnop"
+	id := rig.attempt(t, s256(verifier), "S256")
+
+	// The browser leg ends in the hand-off page, and signs nobody in
+	// there: the session belongs in the app.
+	c := &http.Client{}
+	resp, page := rig.runRaw(t, c, "/auth/oidc/sso/start?attempt="+id)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("hand-off ended with status %d, want 200", resp.StatusCode)
+	}
+	if tok := rig.sessionToken(t, c); tok != "" {
+		t.Error("the system browser must not be signed in by a desktop hand-off")
+	}
+	link := handBackLink(t, page)
+	if link.Get("server") != rig.app.URL {
+		t.Errorf("hand-back names %q, want the public URL %q", link.Get("server"), rig.app.URL)
+	}
+	code := link.Get("code")
+	if code == "" {
+		t.Fatal("hand-back carries no code")
+	}
+	// The page's only script is a file, so 'self' covers it under the CSP.
+	if !strings.Contains(page, `<script src="/auth/desktop/return.js">`) {
+		t.Errorf("hand-off page does not load the return script: %s", page)
+	}
+
+	// The wrong verifier redeems nothing, and spends the code.
+	if status, body := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": strings.Repeat("x", 43),
+	}); status != http.StatusUnauthorized {
+		t.Fatalf("complete with a wrong verifier = %d, %v", status, body)
+	}
+	if status, _ := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": verifier,
+	}); status != http.StatusUnauthorized {
+		t.Error("a code survived a failed redemption")
+	}
+
+	// A second attempt, redeemed properly: a session for the account the
+	// provider identified.
+	id = rig.attempt(t, s256(verifier), "S256")
+	_, page = rig.runRaw(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+id)
+	code = handBackLink(t, page).Get("code")
+	status, body := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": verifier,
+	})
+	token, _ := body["token"].(string)
+	if status != http.StatusOK || token == "" {
+		t.Fatalf("complete = %d, %v", status, body)
+	}
+	if _, err := svc.VerifyToken(context.Background(), token); err != nil {
+		t.Fatalf("token from the hand-back: %v", err)
+	}
+	// Single use.
+	if status, _ := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
+		"code": code, "attemptVerifier": verifier,
+	}); status != http.StatusUnauthorized {
+		t.Error("a redeemed code worked twice")
+	}
+
+	// A page with no crypto.subtle sends the verifier as the challenge.
+	id = rig.attempt(t, verifier, "plain")
+	_, page = rig.runRaw(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+id)
+	if status, body := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
+		"code": handBackLink(t, page).Get("code"), "attemptVerifier": verifier,
+	}); status != http.StatusOK {
+		t.Errorf("plain-challenge complete = %d, %v", status, body)
+	}
+}
+
+func TestSocialDesktopRefusals(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	svc.UseRegistrationPorts(&fakePolicy{policy: auth.PolicyOpen}, nil)
+	rig := newSocialRig(t, svc)
+
+	// An attempt needs a challenge that could be a verifier, and a
+	// provider this server has.
+	if status, _ := rig.postJSON(t, "/auth/desktop/start", map[string]string{
+		"provider": "sso", "attemptChallenge": "short",
+	}); status != http.StatusBadRequest {
+		t.Errorf("start with a short challenge = %d", status)
+	}
+	if status, _ := rig.postJSON(t, "/auth/desktop/start", map[string]string{
+		"provider": "nope", "attemptChallenge": s256("v"),
+	}); status != http.StatusNotFound {
+		t.Errorf("start for an unknown provider = %d", status)
+	}
+
+	// An attempt id the server never issued.
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?attempt=made-up"); loc != "/login?error=login_state" {
+		t.Errorf("unknown attempt landed on %q", loc)
+	}
+
+	// A link keeps the session it already has, so it can never hand a new
+	// one to the app.
+	_, token := signIn(t, svc, "ada", "correct horse battery")
+	jar, _ := cookiejar.New(nil)
+	appURL, _ := url.Parse(rig.app.URL)
+	jar.SetCookies(appURL, []*http.Cookie{{Name: auth.SessionCookieName, Value: token}})
+	id := rig.attempt(t, s256("desktop-verifier-0123456789abcdefghijklmnop"), "S256")
+	if loc := rig.run(t, &http.Client{Jar: jar}, "/auth/oidc/sso/start?link=1&attempt="+id); loc != "/login?error=login_state" {
+		t.Errorf("link with an attempt landed on %q", loc)
+	}
+
+	// Codes are minted at the callback only.
+	if status, _ := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
+		"code": "made-up", "attemptVerifier": strings.Repeat("a", 43),
+	}); status != http.StatusUnauthorized {
+		t.Errorf("complete with an unknown code = %d", status)
 	}
 }

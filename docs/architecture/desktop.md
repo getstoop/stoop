@@ -128,11 +128,30 @@ servers never prompts for a password.
 
 ```
 stoop://open?server=https://chat.example.com&path=/join/CODE
+stoop://auth?server=https://chat.example.com&code=CODE
 ```
 
-The shell picks the server whose origin matches, offers to add it if
-unknown, and navigates its view to `path`. Every path the web app routes
-is a valid target; the shell never interprets it.
+The shell picks the server whose origin matches and navigates its view.
+`open` offers to add a server it does not have, and every path the web app
+routes is a valid target; the shell never interprets it. `auth` resolves
+to `/auth/desktop/complete?code=` on the named server and is **dropped
+when that server is not already in the list**, so a page cannot walk
+someone into adding a server and signing in on it.
+
+An `auth` link is the last leg of provider sign-in. Providers refuse to
+sign anyone in inside an embedded view, so the app opens the provider in
+the system browser and the session comes back through the link:
+`docs/architecture/identity.md` → Sign-in from the desktop app has the
+whole flow. Two things the shell holds up its end of:
+
+- **The link loads in the view already open for that server**, because the
+  page's `sessionStorage` holds the verifier that redeems the code.
+- **The server is matched by exact origin string**, so the address the
+  person typed and the server's `public_url` have to agree. When they do
+  not, the hand-back is dropped and the app looks like it did nothing.
+
+Nothing here needs a bridge member: the outbound leg is `window.open`,
+which `setWindowOpenHandler` already sends to the system browser.
 
 ## The user agent
 

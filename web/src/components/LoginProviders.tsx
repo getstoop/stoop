@@ -1,8 +1,15 @@
+import { type MouseEvent, useState } from "react";
+import { beginDesktopSignIn } from "../api/desktopAuth";
+import { isDesktop } from "../api/platform";
 import { useInstanceStatus } from "../api/queries";
 
 // "Continue with X" buttons on the login and setup cards. Plain anchors:
 // the flow is server-side redirects (COOP forbids popup flows), and the
 // session comes back as a cookie so the SPA has nothing to store.
+//
+// In the desktop shell the same buttons open the system browser instead
+// and wait for the stoop://auth hand-back (api/desktopAuth.ts): providers
+// refuse to sign anyone in inside an embedded view.
 export function LoginProviders({
   redirect,
   invite,
@@ -14,23 +21,47 @@ export function LoginProviders({
   divider?: boolean;
 }) {
   const { data: status } = useInstanceStatus();
+  const [error, setError] = useState<string | null>(null);
   const providers = status?.loginProviders ?? [];
   if (providers.length === 0) return null;
+
+  // window.open, not this view: setWindowOpenHandler in the shell sends
+  // it to the system browser.
+  const openInBrowser = async (
+    id: string,
+    href: string,
+    e: MouseEvent<HTMLAnchorElement>,
+  ) => {
+    if (!isDesktop()) return;
+    e.preventDefault();
+    setError(null);
+    try {
+      window.open(await beginDesktopSignIn(id, href), "_blank", "noopener");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   return (
     <>
       <div className="login-providers">
-        {providers.map((p) => (
-          <a
-            key={p.id}
-            className="provider-button"
-            data-provider={p.id}
-            href={startURL(p.id, { redirect, invite })}
-          >
-            <ProviderIcon icon={p.icon} />
-            {p.displayName}
-          </a>
-        ))}
+        {providers.map((p) => {
+          const href = startURL(p.id, { redirect, invite });
+          return (
+            <a
+              key={p.id}
+              className="provider-button"
+              data-provider={p.id}
+              href={href}
+              onClick={(e) => void openInBrowser(p.id, href, e)}
+            >
+              <ProviderIcon icon={p.icon} />
+              {p.displayName}
+            </a>
+          );
+        })}
       </div>
+      {error && <p className="error">{error}</p>}
       {divider && (
         <div className="login-divider" aria-hidden="true">
           <span>or</span>

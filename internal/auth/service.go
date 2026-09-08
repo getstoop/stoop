@@ -49,6 +49,8 @@ type Service struct {
 	stateKey []byte
 	// oidcCache holds discovery results per issuer+client (oidc.go).
 	oidcCache oidcCache
+	// desktop holds in-flight desktop sign-in attempts (desktopauth.go).
+	desktop *desktopStore
 }
 
 func New(pool *pgxpool.Pool, opts Options) *Service {
@@ -72,7 +74,8 @@ func New(pool *pgxpool.Pool, opts Options) *Service {
 		panic(fmt.Sprintf("auth: read random: %v", err))
 	}
 	return &Service{pool: pool, q: dbgen.New(pool), opts: opts, argon2: params,
-		guard: newLoginGuard(), dummyHash: dummy, stateKey: stateKey}
+		guard: newLoginGuard(), dummyHash: dummy, stateKey: stateKey,
+		desktop: newDesktopStore()}
 }
 
 func notFoundOr(err error, what string) error {

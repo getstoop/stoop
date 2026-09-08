@@ -44,7 +44,11 @@ type loginState struct {
 	LinkUserID string `json:"link,omitempty"`
 	SessionID  string `json:"sid,omitempty"`
 	Redirect   string `json:"r,omitempty"`
-	Exp        int64  `json:"exp"`
+	// Attempt is the desktop sign-in attempt this round trip belongs to
+	// (desktopauth.go); with one, the callback hands the app a code
+	// instead of setting a session cookie in the browser.
+	Attempt string `json:"da,omitempty"`
+	Exp     int64  `json:"exp"`
 }
 
 // LoginHandler serves the provider sign-in routes. Mounted once in
@@ -53,6 +57,11 @@ func (s *Service) LoginHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /auth/oidc/{provider}/start", s.oidcStart)
 	mux.HandleFunc("GET /auth/callback/{provider}", s.oidcCallback)
+	// The desktop app's leg of the same flow (desktopauth.go). The page at
+	// GET /auth/desktop/complete is a client route, served by the web app.
+	mux.HandleFunc("POST /auth/desktop/start", s.desktopStart)
+	mux.HandleFunc("POST /auth/desktop/complete", s.desktopComplete)
+	mux.HandleFunc("GET /auth/desktop/return.js", desktopReturnJS)
 	return mux
 }
 
@@ -95,6 +104,15 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		st.LinkUserID, st.SessionID = ident.UserID, ident.SessionID
+	}
+	// A desktop attempt hands the app a fresh session, which a link must
+	// never do, so the two are mutually exclusive.
+	if attempt := r.URL.Query().Get("attempt"); attempt != "" {
+		if st.LinkUserID != "" || !s.desktop.open(attempt, id) {
+			loginError(w, r, "login_state")
+			return
+		}
+		st.Attempt = attempt
 	}
 
 	p, err := s.providerFor(ctx, cfg)
@@ -166,6 +184,10 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		} else {
 			loginError(w, r, ferr.code)
 		}
+		return
+	}
+	if st.Attempt != "" {
+		s.desktopHandOff(w, r, st, res)
 		return
 	}
 	// A link kept the existing session; a login or registration mints one.

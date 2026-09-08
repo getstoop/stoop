@@ -216,6 +216,55 @@ is a classic open-redirect into an OAuth flow.
 
 The callback routes share the Login/Register rate-limit bucket.
 
+### Sign-in from the desktop app
+
+Identity providers refuse to sign anyone in inside an embedded view, so in
+the desktop shell the provider leg leaves for the system browser and the
+session comes back through a `stoop://auth` deep link. Password sign-in is
+untouched, and so is every browser.
+
+```
+POST /auth/desktop/start                      → { "attempt": ID }
+GET  /auth/oidc/{provider}/start?attempt=ID   in the system browser
+GET  /auth/callback/{provider}                → the hand-off page
+POST /auth/desktop/complete                   → the session cookie, and a token
+```
+
+1. The page keeps a verifier in `sessionStorage` and posts its challenge;
+   the server holds the attempt for five minutes.
+2. `window.open` sends the start URL to the system browser, which the
+   shell does for any new window. The OIDC round trip and its
+   `stoop_login` cookie happen there, unchanged.
+3. With an attempt in the state cookie, the callback mints a single-use
+   60-second code, sets **no session cookie in the browser**, and serves a
+   page that fires `stoop://auth?server=<public URL>&code=<code>`. A page,
+   not a 302: a redirect to a custom scheme is handled inconsistently and
+   leaves an empty tab behind.
+4. The shell loads `/auth/desktop/complete?code=` in the view that started
+   the attempt, so the verifier is still in reach. The server checks it
+   against the challenge, mints the session and sets the cookie there.
+
+**Two PKCE pairs, and they never meet.** `loginState.Verifier` is the
+server↔provider exchange. The attempt's verifier is the shell↔server one:
+it is what keeps someone else's code from signing this app in.
+
+**The link names the server by its public URL**, and the shell matches
+that against the origin the person typed when they added the server,
+exactly. A server added by LAN address or tailnet name while `public_url`
+is the public hostname hands back to a server the shell has never heard
+of, and the app does nothing at all.
+
+**Anything that fails after the hand-off fails in the browser**, since
+that is where the callback ran: the usual `/login?error=` page, with
+`no_public_url` when there is no public URL to name.
+
+A page served from a plain-HTTP origin has no `crypto.subtle`, and sends
+the verifier itself as the challenge (`"attemptMethod": "plain"`); the
+server compares whichever way the attempt was started.
+
+**Account linking never takes this path.** A link keeps the session it
+already has, so `link=1` and `attempt=` together are refused.
+
 ### Turning passwords off
 
 `password_sign_in` is an instance setting with three values: `everyone`,

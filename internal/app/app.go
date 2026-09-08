@@ -186,6 +186,9 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		scripts = []string{"'unsafe-inline'"}
 		log.Warn("serving the web app from the Vite dev server (STOOP_DEV_WEB_URL); never use this outside development", "url", cfg.DevWebURL)
 	}
+	// The desktop hand-back lands on a client route; the /auth/ mux above
+	// serves the rest of that prefix and would answer this one 404.
+	mux.Handle("GET /auth/desktop/complete", web)
 	mux.Handle("/", web)
 	// secureTransport is outermost: the headers below it read the TLS
 	// verdict it puts on the context.
@@ -563,4 +566,8 @@ func (p providerSource) LoginProvider(ctx context.Context, id string) (auth.Prov
 
 func (p providerSource) CallbackURL(ctx context.Context, id string) (string, error) {
 	return p.instance.CallbackURL(ctx, id)
+}
+
+func (p providerSource) PublicURL(ctx context.Context) (string, error) {
+	return p.instance.PublicURL(ctx)
 }

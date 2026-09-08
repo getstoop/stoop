@@ -8,6 +8,7 @@ import { ActivityPage } from "./routes/Activity";
 import { AdminPage } from "./routes/Admin";
 import { AppShell } from "./routes/AppShell";
 import { ChannelView } from "./routes/Channel";
+import { DesktopAuthCompletePage } from "./routes/DesktopAuthComplete";
 import { DMIndex, DMLayout } from "./routes/DirectMessages";
 import { HomePage } from "./routes/Home";
 import { JoinPage } from "./routes/Join";
@@ -51,6 +52,21 @@ const loginRoute = createRoute({
         : undefined,
     // Shows the password form when the server hides it (admins' fallback).
     password: search.password === "1" ? "1" : undefined,
+  }),
+});
+
+// Where the desktop shell's stoop://auth hand-back lands, with the code
+// the server minted (web/src/api/desktopAuth.ts). Outside the shell
+// nothing ever links here.
+const desktopAuthRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auth/desktop/complete",
+  component: DesktopAuthCompletePage,
+  validateSearch: (search: Record<string, unknown>): { code?: string } => ({
+    code:
+      typeof search.code === "string" && search.code !== ""
+        ? search.code.slice(0, 512)
+        : undefined,
   }),
 });
 
@@ -237,6 +253,7 @@ const kitRoutes = import.meta.env.DEV
 const routeTree = rootRoute.addChildren([
   loginRoute,
   setupRoute,
+  desktopAuthRoute,
   ...kitRoutes,
   appRoute.addChildren([
     homeRoute,

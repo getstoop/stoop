@@ -11,6 +11,8 @@ const LOGIN_ERRORS: Record<string, string> = {
   invite_required: "Creating an account here needs an invite link.",
   invite_invalid: "That invite is no longer valid.",
   deactivated: "This account has been deactivated.",
+  no_public_url:
+    "This server has no public address set, so it can't hand the sign-in back to the desktop app. Tell the server admin.",
 };
 
 export function loginErrorText(code: string): string {
