@@ -263,13 +263,13 @@ func (rig *socialRig) attempt(t *testing.T, challenge, method string) string {
 	return id
 }
 
-// handBackLink pulls the stoop://auth link out of the page the callback
-// served, as the shell's parser would.
-func handBackLink(t *testing.T, page string) url.Values {
+// handBackLink pulls the stoop:// link of one action out of the page the
+// callback served, as the shell's parser would.
+func handBackLink(t *testing.T, page, action string) url.Values {
 	t.Helper()
-	m := regexp.MustCompile(`href="stoop://auth\?([^"]+)"`).FindStringSubmatch(page)
+	m := regexp.MustCompile(`href="stoop://` + action + `\?([^"]+)"`).FindStringSubmatch(page)
 	if m == nil {
-		t.Fatalf("no stoop://auth link in the hand-off page: %s", page)
+		t.Fatalf("no stoop://%s link in the hand-off page: %s", action, page)
 	}
 	q, err := url.ParseQuery(html.UnescapeString(m[1]))
 	if err != nil {
@@ -529,7 +529,7 @@ func TestSocialDesktopSignIn(t *testing.T) {
 	if tok := rig.sessionToken(t, c); tok != "" {
 		t.Error("the system browser must not be signed in by a desktop hand-off")
 	}
-	link := handBackLink(t, page)
+	link := handBackLink(t, page, "auth")
 	if link.Get("server") != rig.app.URL {
 		t.Errorf("hand-back names %q, want the public URL %q", link.Get("server"), rig.app.URL)
 	}
@@ -558,7 +558,7 @@ func TestSocialDesktopSignIn(t *testing.T) {
 	// provider identified.
 	id = rig.attempt(t, s256(verifier), "S256")
 	_, page = rig.runRaw(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+id)
-	code = handBackLink(t, page).Get("code")
+	code = handBackLink(t, page, "auth").Get("code")
 	status, body := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
 		"code": code, "attemptVerifier": verifier,
 	})
@@ -580,7 +580,7 @@ func TestSocialDesktopSignIn(t *testing.T) {
 	id = rig.attempt(t, verifier, "plain")
 	_, page = rig.runRaw(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+id)
 	if status, body := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
-		"code": handBackLink(t, page).Get("code"), "attemptVerifier": verifier,
+		"code": handBackLink(t, page, "auth").Get("code"), "attemptVerifier": verifier,
 	}); status != http.StatusOK {
 		t.Errorf("plain-challenge complete = %d, %v", status, body)
 	}
@@ -616,8 +616,11 @@ func TestSocialDesktopRefusals(t *testing.T) {
 	appURL, _ := url.Parse(rig.app.URL)
 	jar.SetCookies(appURL, []*http.Cookie{{Name: auth.SessionCookieName, Value: token}})
 	id := rig.attempt(t, s256("desktop-verifier-0123456789abcdefghijklmnop"), "S256")
-	if loc := rig.run(t, &http.Client{Jar: jar}, "/auth/oidc/sso/start?link=1&attempt="+id); loc != "/login?error=login_state" {
-		t.Errorf("link with an attempt landed on %q", loc)
+	// Refused, and — the attempt being a real one — refused back into the
+	// app rather than in the browser.
+	_, page := rig.runRaw(t, &http.Client{Jar: jar}, "/auth/oidc/sso/start?link=1&attempt="+id)
+	if got := handBackLink(t, page, "open").Get("path"); got != "/login?error=login_state" {
+		t.Errorf("link with an attempt bounced to %q", got)
 	}
 
 	// Codes are minted at the callback only.
@@ -625,5 +628,36 @@ func TestSocialDesktopRefusals(t *testing.T) {
 		"code": "made-up", "attemptVerifier": strings.Repeat("a", 43),
 	}); status != http.StatusUnauthorized {
 		t.Errorf("complete with an unknown code = %d", status)
+	}
+}
+
+func TestSocialDesktopFailureBounce(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	svc.UseRegistrationPorts(&fakePolicy{policy: auth.PolicyInvite},
+		&fakeInvites{code: "GOODCODE12", uses: 1})
+	rig := newSocialRig(t, svc)
+
+	// A fresh instance always admits the first account; spend that.
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start"); loc != "/?welcome=1" {
+		t.Fatalf("bootstrap landed on %q", loc)
+	}
+
+	// From here an invite is required. The person is in their browser, so
+	// the refusal has to travel back to the app rather than leave them on
+	// a login form there.
+	rig.idp.sub = "sub-2"
+	const verifier = "desktop-verifier-0123456789abcdefghijklmnop"
+	id := rig.attempt(t, s256(verifier), "S256")
+	resp, page := rig.runRaw(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+id)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("failed hand-off ended with status %d, want 200", resp.StatusCode)
+	}
+	link := handBackLink(t, page, "open")
+	if link.Get("server") != rig.app.URL || link.Get("path") != "/login?error=invite_required" {
+		t.Errorf("bounce link = %v", link)
+	}
+	// A failed attempt is spent, so the same id cannot be run again.
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+id); loc != "/login?error=login_state" {
+		t.Errorf("re-using a failed attempt landed on %q", loc)
 	}
 }

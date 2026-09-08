@@ -150,6 +150,10 @@ whole flow. Two things the shell holds up its end of:
   person typed and the server's `public_url` have to agree. When they do
   not, the hand-back is dropped and the app looks like it did nothing.
 
+A sign-in that fails comes back the same way, as an `open` link to
+`/login?error=<code>`, so the message lands on the app's login card
+instead of on a login form in the browser.
+
 Nothing here needs a bridge member: the outbound leg is `window.open`,
 which `setWindowOpenHandler` already sends to the system browser.
 

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -109,6 +110,13 @@ func (d *desktopStore) redeem(code, verifier string) (string, bool) {
 	return c.userID, true
 }
 
+// drop discards an attempt that will never be redeemed.
+func (d *desktopStore) drop(id string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.attempts, id)
+}
+
 func (d *desktopStore) sweep() {
 	now := time.Now()
 	for id, a := range d.attempts {
@@ -204,7 +212,7 @@ func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st logi
 		loginError(w, r, "login_state")
 		return
 	}
-	origin, err := s.providers.PublicURL(r.Context())
+	origin, err := s.publicOrigin(r.Context())
 	if err != nil || origin == "" {
 		slog.Warn("desktop sign-in without a public URL", "err", err)
 		loginError(w, r, "no_public_url")
@@ -218,9 +226,36 @@ func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st logi
 	// A page, not a 302: a redirect to a custom scheme is handled
 	// inconsistently and leaves an empty tab behind.
 	link := "stoop://auth?" + url.Values{"server": {origin}, "code": {code}}.Encode()
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(desktopReturnPage(link)))
+	writeDesktopPage(w, link, "You're signed in", "Stoop should be back in front of you.")
+}
+
+// loginFail ends a failed sign-in. One that belongs to a desktop attempt
+// bounces back to the app carrying the error, since the browser is not
+// where the person is; everything else is the usual /login redirect.
+func (s *Service) loginFail(w http.ResponseWriter, r *http.Request, attempt, code string) {
+	if attempt == "" {
+		loginError(w, r, code)
+		return
+	}
+	s.desktop.drop(attempt)
+	origin, err := s.publicOrigin(r.Context())
+	if err != nil || origin == "" {
+		loginError(w, r, code)
+		return
+	}
+	// An open link, which the shell already routes to any path the web app
+	// serves: the app's own login page shows the error.
+	link := "stoop://open?" + url.Values{
+		"server": {origin}, "path": {"/login?error=" + code},
+	}.Encode()
+	writeDesktopPage(w, link, "Sign-in didn't finish", "Stoop has the details.")
+}
+
+func (s *Service) publicOrigin(ctx context.Context) (string, error) {
+	if s.providers == nil {
+		return "", nil
+	}
+	return s.providers.PublicURL(ctx)
 }
 
 // desktopComplete redeems the code the app carried back, in the view that
@@ -258,7 +293,15 @@ const desktopReturnScript = `var a = document.getElementById("return");
 if (a) location.href = a.href;
 `
 
-func desktopReturnPage(link string) string {
+func writeDesktopPage(w http.ResponseWriter, link, heading, body string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(desktopReturnPage(link, heading, body)))
+}
+
+// desktopReturnPage carries the person back to the app, whichever way the
+// sign-in went. The link fires from a script file, never a redirect.
+func desktopReturnPage(link, heading, body string) string {
 	return `<!doctype html>
 <html lang="en">
 <head>
@@ -279,8 +322,8 @@ a { display: inline-block; padding: .6rem 1.2rem; border-radius: .5rem;
 </head>
 <body>
 <main>
-<h1>You're signed in</h1>
-<p>Stoop should be back in front of you.</p>
+<h1>` + html.EscapeString(heading) + `</h1>
+<p>` + html.EscapeString(body) + `</p>
 <a id="return" href="` + html.EscapeString(link) + `">Return to Stoop</a>
 <p class="hint">You can close this tab.</p>
 </main>

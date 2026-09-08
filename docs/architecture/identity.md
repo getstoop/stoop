@@ -254,9 +254,17 @@ exactly. A server added by LAN address or tailnet name while `public_url`
 is the public hostname hands back to a server the shell has never heard
 of, and the app does nothing at all.
 
-**Anything that fails after the hand-off fails in the browser**, since
-that is where the callback ran: the usual `/login?error=` page, with
-`no_public_url` when there is no public URL to name.
+**A failure goes back to the app too.** The browser is not where the
+person is, and leaving them on a login form there invites them to sign in
+in the wrong place. So once an attempt is bound, a refusal — an invite
+required, a closed server, a deactivated account, a provider error —
+serves the same shape of page pointed at
+`stoop://open?server=<public URL>&path=/login?error=<code>`, and the app's
+own login card carries the message. The attempt is spent on the way out.
+
+Two failures cannot travel: one before the state cookie is read (nothing
+knows an attempt exists yet), and one where there is no public URL to name
+(`no_public_url`). Both fall back to `/login?error=` in the browser.
 
 A page served from a plain-HTTP origin has no `crypto.subtle`, and sends
 the verifier itself as the challenge (`"attemptMethod": "plain"`); the

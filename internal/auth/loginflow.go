@@ -68,19 +68,28 @@ func (s *Service) LoginHandler() http.Handler {
 func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := r.PathValue("provider")
+	// The desktop attempt is read first so that everything below can fail
+	// back to the app rather than into the system browser.
+	attempt := r.URL.Query().Get("attempt")
+	if attempt != "" && !s.desktop.open(attempt, id) {
+		loginError(w, r, "login_state")
+		return
+	}
+	fail := func(code string) { s.loginFail(w, r, attempt, code) }
+
 	if s.providers == nil {
-		loginError(w, r, "provider_unknown")
+		fail("provider_unknown")
 		return
 	}
 	cfg, err := s.providers.LoginProvider(ctx, id)
 	if err != nil {
-		loginError(w, r, "provider_unknown")
+		fail("provider_unknown")
 		return
 	}
 	redirectURI, err := s.providers.CallbackURL(ctx, id)
 	if err != nil || redirectURI == "" {
 		slog.Warn("oidc start without a public URL", "provider", id, "err", err)
-		loginError(w, r, "provider_error")
+		fail("provider_error")
 		return
 	}
 
@@ -100,16 +109,16 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("link") == "1" {
 		ident, err := s.VerifyToken(ctx, TokenFromHeader(r.Header))
 		if err != nil {
-			loginError(w, r, "login_state")
+			fail("login_state")
 			return
 		}
 		st.LinkUserID, st.SessionID = ident.UserID, ident.SessionID
 	}
 	// A desktop attempt hands the app a fresh session, which a link must
 	// never do, so the two are mutually exclusive.
-	if attempt := r.URL.Query().Get("attempt"); attempt != "" {
-		if st.LinkUserID != "" || !s.desktop.open(attempt, id) {
-			loginError(w, r, "login_state")
+	if attempt != "" {
+		if st.LinkUserID != "" {
+			fail("login_state")
 			return
 		}
 		st.Attempt = attempt
@@ -118,7 +127,7 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	p, err := s.providerFor(ctx, cfg)
 	if err != nil {
 		slog.Warn("oidc discovery failed", "provider", id, "err", err)
-		loginError(w, r, "provider_error")
+		fail("provider_error")
 		return
 	}
 	http.SetCookie(w, s.loginCookie(r, s.encodeLoginState(st), loginStateTTL))
@@ -136,53 +145,56 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		loginError(w, r, "login_expired")
 		return
 	}
+	fail := func(code string) { s.loginFail(w, r, st.Attempt, code) }
 	if st.Provider != id || r.URL.Query().Get("state") != st.State {
-		loginError(w, r, "login_state")
+		fail("login_state")
 		return
 	}
 	if e := r.URL.Query().Get("error"); e != "" {
 		slog.Warn("provider returned an error", "provider", id, "error", e)
-		loginError(w, r, "provider_error")
+		fail("provider_error")
 		return
 	}
 	code := r.URL.Query().Get("code")
 	if code == "" || s.providers == nil {
-		loginError(w, r, "provider_error")
+		fail("provider_error")
 		return
 	}
 	cfg, err := s.providers.LoginProvider(ctx, id)
 	if err != nil {
-		loginError(w, r, "provider_unknown")
+		fail("provider_unknown")
 		return
 	}
 	redirectURI, err := s.providers.CallbackURL(ctx, id)
 	if err != nil || redirectURI == "" {
-		loginError(w, r, "provider_error")
+		fail("provider_error")
 		return
 	}
 	p, err := s.providerFor(ctx, cfg)
 	if err != nil {
 		slog.Warn("oidc discovery failed", "provider", id, "err", err)
-		loginError(w, r, "provider_error")
+		fail("provider_error")
 		return
 	}
 	claims, err := p.exchange(ctx, code, st.Verifier, st.Nonce, redirectURI)
 	if err != nil {
 		slog.Warn("oidc exchange failed", "provider", id, "err", err)
-		loginError(w, r, "provider_error")
+		fail("provider_error")
 		return
 	}
 	if claims.Subject == "" {
-		loginError(w, r, "provider_error")
+		fail("provider_error")
 		return
 	}
 
 	res, ferr := s.finishSocial(r, id, claims, st)
 	if ferr != nil {
 		if ferr.toProfile {
+			// A link, so never a desktop attempt: those two are refused
+			// together at the start.
 			http.Redirect(w, r, "/profile?error="+ferr.code, http.StatusFound)
 		} else {
-			loginError(w, r, ferr.code)
+			fail(ferr.code)
 		}
 		return
 	}
