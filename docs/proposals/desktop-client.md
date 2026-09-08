@@ -194,3 +194,6 @@ non-goals; the first two wait for demand.
 STOOP-180 is the epic. Children by title prefix: Web 1–7 are STOOP-181,
 182, 183, 184, 187, 188 and 189; Server 1 is STOOP-185; Docs is STOOP-186;
 Desktop 1–12 are STOOP-190 through 201.
+
+Later work with a design of its own:
+[desktop-server-switcher.md](desktop-server-switcher.md) (STOOP-210).
