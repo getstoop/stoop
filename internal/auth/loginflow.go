@@ -74,7 +74,7 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		loginError(w, r, "login_state")
 		return
 	}
-	fail := func(code string) { s.loginFail(w, r, attempt, code) }
+	fail := func(code string) { s.loginFail(w, r, attempt, id, code) }
 
 	if s.providers == nil {
 		fail("provider_unknown")
@@ -144,7 +144,7 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		loginError(w, r, "login_expired")
 		return
 	}
-	fail := func(code string) { s.loginFail(w, r, st.Attempt, code) }
+	fail := func(code string) { s.loginFail(w, r, st.Attempt, id, code) }
 	if st.Provider != id || r.URL.Query().Get("state") != st.State {
 		fail("login_state")
 		return

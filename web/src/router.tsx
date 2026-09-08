@@ -80,7 +80,7 @@ const desktopReturnRoute = createRoute({
   component: DesktopAuthReturnPage,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { code?: string; error?: string } => ({
+  ): { code?: string; error?: string; provider?: string } => ({
     code:
       typeof search.code === "string" && search.code !== ""
         ? search.code.slice(0, 512)
@@ -88,6 +88,11 @@ const desktopReturnRoute = createRoute({
     error:
       typeof search.error === "string" && search.error !== ""
         ? search.error.slice(0, 40)
+        : undefined,
+    // Which provider ran, so the page can offer to sign in here instead.
+    provider:
+      typeof search.provider === "string" && search.provider !== ""
+        ? search.provider.slice(0, 40)
         : undefined,
   }),
 });

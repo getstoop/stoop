@@ -244,6 +244,14 @@ POST /auth/desktop/complete                   → the session cookie, and a toke
    behind. The page builds the link from its own origin, which is the
    public URL by construction — the provider round trip lands there,
    because the redirect URI is built from it.
+
+   That page is also the way out. **Nobody is left on a tab whose only
+   option is to close it:** a failure offers `/login?error=`, where the
+   browser flow would have put them, and a success offers to sign in to
+   this browser as well — a fresh round trip on the provider that just
+   ran, which is why its id rides along on the return URL. The code itself
+   cannot be redeemed here: it is bound to the verifier in the app's
+   window.
 4. The shell loads `/auth/desktop/complete?code=` in the view that started
    the attempt, so the verifier is still in reach. The server checks it
    against the challenge, mints the session and sets the cookie there.

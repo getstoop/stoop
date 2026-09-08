@@ -219,24 +219,26 @@ func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st logi
 		loginError(w, r, "login_expired")
 		return
 	}
-	desktopReturn(w, r, url.Values{"code": {code}})
+	desktopReturn(w, r, url.Values{"code": {code}, "provider": {st.Provider}})
 }
 
 // loginFail ends a failed sign-in. One that belongs to a desktop attempt
 // carries the error back to the app, since the browser is not where the
 // person is; everything else is the usual /login redirect.
-func (s *Service) loginFail(w http.ResponseWriter, r *http.Request, attempt, code string) {
+func (s *Service) loginFail(w http.ResponseWriter, r *http.Request, attempt, provider, code string) {
 	if attempt == "" {
 		loginError(w, r, code)
 		return
 	}
 	s.desktop.drop(attempt)
-	desktopReturn(w, r, url.Values{"error": {code}})
+	desktopReturn(w, r, url.Values{"error": {code}, "provider": {provider}})
 }
 
 // desktopReturn hands the browser to the client route that fires the deep
 // link. A same-origin redirect, never one to stoop:// itself: a redirect
 // to a custom scheme is handled inconsistently and leaves an empty tab.
+// The provider rides along so that page can offer to carry on here
+// instead.
 func desktopReturn(w http.ResponseWriter, r *http.Request, q url.Values) {
 	http.Redirect(w, r, desktopReturnPath+"?"+q.Encode(), http.StatusFound)
 }

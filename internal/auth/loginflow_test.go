@@ -515,6 +515,11 @@ func TestSocialDesktopSignIn(t *testing.T) {
 	if code == "" {
 		t.Fatalf("hand-back carries no code: %v", back)
 	}
+	// The provider rides along so the return page can offer this browser
+	// as an alternative.
+	if back.Get("provider") != "sso" {
+		t.Errorf("hand-back names provider %q", back.Get("provider"))
+	}
 
 	// The wrong verifier redeems nothing, and spends the code.
 	if status, body := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
