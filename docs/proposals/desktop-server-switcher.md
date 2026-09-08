@@ -7,8 +7,8 @@ Open decisions at the end.
 
 The desktop shell switches servers through a native menu popped from the
 title strip. This is the design for replacing it with a panel the shell
-draws itself, now that the shell's own pages follow the server's theme
-(STOOP-208).
+draws itself, now that the shell's own pages follow the theme of the page
+in front (STOOP-208).
 
 ## The problem
 
@@ -18,8 +18,8 @@ button. A native menu is drawn by the OS, so:
 - **It cannot take the theme.** macOS draws it in the system appearance,
   Windows in Win32 grey. Every other surface the shell draws — the strip,
   the screen picker, add-server, settings, the gate page — now paints in
-  the server's own colours. The switcher is the one thing that does not,
-  and it is the piece someone opens most.
+  the colours of the page in front. The switcher is the one thing that
+  does not, and it is the piece someone opens most.
 - **It can only say words.** Unread is the string `"(3)"` appended to the
   name. A server that cannot be reached reads exactly like one that is
   fine: the shell knows it is gated, and the menu has nowhere to put that.
@@ -32,8 +32,8 @@ The tray menu has the same limits and will keep them; see below.
 
 Everything here is already in main, on the slot: `name`, `server.url`,
 `badge`, `gated` and the gate reason, `version`, `newer`, and since
-STOOP-208 the server's own colour tokens. Nothing new is asked of the
-server, and the bridge does not move.
+STOOP-208 the colour tokens read off each page. Nothing new is asked of
+the server, and the bridge does not move.
 
 ```
 ┌────────────────────────────────────┐
@@ -82,9 +82,10 @@ first open unless it is kept warm, and focus leaving the page's
 
 **B. A `WebContentsView` overlay inside the window** — a third shell view
 beside the strip and the page view, spanning the content area, its
-background transparent, hidden until the strip button is clicked. Chosen. It costs no new window and no positioning maths, opens
-instantly once loaded, dismisses by a click anywhere on its own
-transparent backdrop, and behaves identically on all three platforms.
+background transparent, hidden until the strip button is clicked. Chosen.
+It costs no new window and no positioning maths, opens instantly once
+loaded, dismisses by a click anywhere on its own transparent backdrop, and
+behaves identically on all three platforms.
 It paints in the theme through the same `followTheme()` every other shell
 page uses. The panel is clipped to the window, which is not a constraint
 in practice: the strip is at the top-left and the window's minimum is
@@ -126,10 +127,12 @@ five servers.
 ## What main has to hand it
 
 One push, `shell:servers`, of the rows the panel draws: id, name, host,
-badge, state (`ok` | `unreachable` | `too-old` | `not-stoop`), accent,
-on-accent, whether it is the current one, and its accelerator. Sent when
-the list changes, when a badge changes, when a probe answers, and when a
-server's theme changes.
+badge, state (`ok` | `unreachable` | `too-old` | `not-stoop`), the tile
+hue derived from the origin, whether it is the current one, and its
+accelerator. Sent when the list changes, when a badge changes, and when a
+probe answers. The panel's own colours are not in this push — they arrive
+through `followTheme()` like every other shell page, from whichever view
+is in front.
 
 `SettingsView.servers` already carries a thinner version of the same list
 for the settings page. Both should come from one `serverRows()` in
