@@ -1,6 +1,9 @@
 # The server switcher
 
-Status: proposed 2026-09-07 (STOOP-210). Open decisions at the end.
+Status: proposed 2026-09-07 (STOOP-210); placement decided the same day —
+option B, the overlay view. Mockups of the options and the row states live
+as a design page in the maintainer's tooling; the reasoning is all here.
+Open decisions at the end.
 
 The desktop shell switches servers through a native menu popped from the
 title strip. This is the design for replacing it with a panel the shell
@@ -48,10 +51,15 @@ server, and the bridge does not move.
 └────────────────────────────────────┘
 ```
 
-- **The tile** is that server's own accent with its monogram in its
-  `on-accent` — the two colours the shell already reads off each page. So
-  the servers in the list are told apart by the colours their operators
-  chose, before any name is read. When instance branding ships an icon
+- **The tile** carries a monogram on a colour derived from the server's
+  origin: the hue from a hash of it, saturation and lightness fixed by the
+  scheme so it reads in a light theme and a dark one. Stable per server,
+  and the same on every machine, which is the point — a server has no
+  colour of its own to borrow. The theme is a per-viewer choice living in
+  that view's `localStorage` (`stoop.theme`), so an accent says what the
+  person picked while they were in that server, not whose server it is,
+  and most people pick one theme and keep it: tiles taken from the theme
+  would be three identical squares. When instance branding ships an icon
   (STOOP-104) the tile becomes the icon and the monogram is the fallback.
 - **The host** under the name is what actually distinguishes two servers
   with the same name, and it is the thing someone checks before typing a
@@ -74,8 +82,7 @@ first open unless it is kept warm, and focus leaving the page's
 
 **B. A `WebContentsView` overlay inside the window** — a third shell view
 beside the strip and the page view, spanning the content area, its
-background transparent, hidden until the strip button is clicked.
-Recommended. It costs no new window and no positioning maths, opens
+background transparent, hidden until the strip button is clicked. Chosen. It costs no new window and no positioning maths, opens
 instantly once loaded, dismisses by a click anywhere on its own
 transparent backdrop, and behaves identically on all three platforms.
 It paints in the theme through the same `followTheme()` every other shell
@@ -150,10 +157,12 @@ OS's furniture, the window is ours.
 
 ## Open decisions
 
-1. **B or A.** The recommendation is B, the overlay view, unless the
-   transparency spike says otherwise.
-2. **The host line**: always under the name, or only when two servers
+1. **The host line**: always under the name, or only when two servers
    would otherwise read the same?
-3. **Reorder**: step 3 above, or not until someone asks?
-4. **The rail** (option D): never, or a setting once there is a person
+2. **Reorder**: step 3 above, or not until someone asks?
+3. **The rail** (option D): never, or a setting once there is a person
    with five servers to prove it on?
+
+Settled: **option B**, the overlay view, subject to the transparency spike
+in step 1 — if a transparent view will not composite over a live page view,
+the fallback inside B is a solid panel dismissed on `blur` and `Escape`.
