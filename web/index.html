@@ -13,9 +13,23 @@
     <meta name="theme-color" content="#141517" />
     <script>
       // Stamp the saved theme before anything paints (see src/api/theme.ts
-      // for the full logic; this must stay in step with it).
+      // for the full logic; this must stay in step with it). Inside the
+      // desktop shell the theme is the shell's, whole, on
+      // window.stoop.theme: its tokens go on the root as they are, and
+      // none of ours is stamped.
       (function () {
         var ids = ["brownstone", "daylight", "dusk", "bodega", "newsprint", "blackout", "fire-escape", "nightcap", "night-bus", "mailbox"];
+        var shell = window.stoop && window.stoop.theme;
+        if (shell && typeof shell === "object") {
+          var tokens = shell.tokens || {};
+          for (var name in tokens) {
+            if (name.indexOf("--") === 0 && typeof tokens[name] === "string")
+              document.documentElement.style.setProperty(name, tokens[name]);
+          }
+          if (shell.scheme === "light" || shell.scheme === "dark")
+            document.documentElement.style.colorScheme = shell.scheme;
+          return;
+        }
         var theme = "brownstone";
         try {
           var p = JSON.parse(localStorage.getItem("stoop.theme") || "null");

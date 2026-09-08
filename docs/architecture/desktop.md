@@ -34,7 +34,7 @@ with every release anyway (`docs/self-hosting.md` → Security headers).
 The shell's preload script exposes one object through `contextBridge`.
 The web app's side is `web/src/api/platform.ts`, which feature-detects the
 object and never reads the user agent: absent bridge means a browser or an
-installed PWA, and every wrapper there is a no-op. Version 1:
+installed PWA, and every wrapper there is a no-op. Version 2:
 
 | Member | Type | Purpose |
 | --- | --- | --- |
@@ -43,6 +43,8 @@ installed PWA, and every wrapper there is a no-op. Version 1:
 | `platform` | `"darwin" \| "win32" \| "linux"` | Keyboard hints, title-bar padding. |
 | `setBadge(count)` | `(n: number) => void` | The unread total for this server. `routes/Root.tsx` sends `alertingCount` off the activity cache; the shell sums across servers for the dock and tray. |
 | `onShortcut(name, handler)` | `(name: "pushToTalk", h: (down: boolean) => void) => () => void` | Global shortcuts the shell captured while the window was not focused. Returns the unsubscribe. |
+| `theme` | `ShellTheme` | Bridge 2. The theme the shell wears now, whole: `{ scheme, tokens }`, tokens keyed by CSS name. Set before the page's first script runs, so `index.html` paints it with no flash. |
+| `onTheme(handler)` | `(h: (theme: ShellTheme) => void) => () => void` | Bridge 2. The shell changed theme. Returns the unsubscribe. |
 
 Two rules keep the number honest. **Adding a member is a bump**, so a
 shell can tell an app that expects more than it has. **The app checks
@@ -52,30 +54,49 @@ shell", so a newer server never breaks an older shell.
 `BRIDGE` in `platform.ts` and `Bridge` in `internal/webui/bridge.go` are
 the same number and move in the same pull request.
 
-## The theme tokens
+## The theme
 
-The shell paints its own pages — the screen picker, the add-server page,
-settings, the gate page — in the colours of the page in front, so a window
-the shell draws over the app does not look like a different app. Those
-colours are the theme that view is wearing, which is a per-viewer choice
-in its own `localStorage`, not something the server publishes.
-It reads them off the page it is already showing, with
-`getComputedStyle(document.documentElement)` on load and again whenever
-`theme-color` changes:
+**The shell owns the theme.** Someone using the desktop app chooses a
+theme once, under App settings → Appearance, and everything they see
+wears it: the strip, the screen picker, the add-server and settings and
+gate pages, and the web app of every server they have added. Nothing a
+server does changes it, and leaving a server for one of the shell's own
+pages, or for a server that has never been themed, leaves the colours
+where they were. The shell keeps the preference in its own settings file
+and resolves "follow system" itself, from the OS.
 
-`--canvas`, `--surface`, `--panel`, `--raised`, `--border`, `--text`,
-`--text-muted`, `--accent`, `--accent-soft`, `--on-accent`, `--danger`,
-and `color-scheme`.
+That is why the shell carries its own copy of the themes
+(`src/shared/themes.ts` in `getstoop/desktop`: the ids, names and every
+token of `web/src/themes.css`). Its own pages have to paint with no
+server in front, and a page it has not loaded has no colours to read.
 
-`web/src/themes.css` defines all of them for every theme. Renaming or
-dropping one is a change to this contract, so it bumps the bridge.
-Nothing breaks in the meantime: a colour the shell cannot read it
-derives from `theme-color` instead, the same fallback it uses for a page
-that has not loaded yet.
+**The contract is the shape of a theme, not the list of them.** The
+shell hands the page the whole theme as `window.stoop.theme` and again
+through `onTheme` when it changes:
 
-Reading them rather than being handed them is deliberate. It works
-against a server nobody will ever update, which a `window.stoop` member
-would not.
+```ts
+interface ShellTheme {
+  scheme: "dark" | "light";       // color-scheme
+  tokens: Record<string, string>; // "--canvas": "#141517", … by CSS name
+}
+```
+
+No name crosses: a theme is what it is made of. `api/theme.ts` (and the
+inline stamp in `index.html`, before React mounts) puts every token it
+knows on `<html>` as it is, sets `color-scheme`, stamps none of its own
+themes, and hides the Appearance tab, since the picker for a shell user
+is the shell's. A theme the shell has and this build does not renders
+the same as one it has; a theme this build has and the shell does not
+simply cannot be picked from the shell. The two lists need not match.
+The token names are the part that must: a token this build uses and
+the shell did not send takes the default's value, and renaming or
+dropping one in `themes.css` changes what a page expects to be handed,
+so it bumps the bridge. `TOKEN_NAMES` in `api/theme.ts` is the list.
+
+The browser's picker and its `localStorage` preference are untouched:
+the same server opened in a browser keeps the theme chosen there. A
+bridge-1 shell has no `theme` member; against one, the page behaves as
+a browser too.
 
 ## What needs no bridge
 
