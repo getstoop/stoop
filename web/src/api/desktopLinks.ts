@@ -1,12 +1,11 @@
 // The stoop:// links the web app hands the desktop shell, and whether
-// this browser has been told to use them. The provider sign-in leg has
+// this browser has asked to be left alone. The provider sign-in leg has
 // its own module (desktopAuth.ts).
 // docs/architecture/desktop.md → Deep links.
 
-// Set when someone chooses the app for an invite, cleared when they
-// choose the browser. localStorage is per-origin, so a choice made on
-// one server never speaks for another.
-const OPEN_IN_APP_KEY = "stoop.openInApp";
+// Set when someone takes the way back to the browser. localStorage is
+// per-origin, so a choice made on one server never speaks for another.
+const IN_BROWSER_KEY = "stoop.inviteInBrowser";
 
 // stoop://open for a path on this server. The shell matches the origin
 // exactly and offers to add a server it does not have, holding the path
@@ -23,19 +22,19 @@ export function openLinkForPath(path: string): string {
   })}`;
 }
 
-export function prefersApp(): boolean {
+export function prefersBrowser(): boolean {
   try {
-    return localStorage.getItem(OPEN_IN_APP_KEY) === "1";
+    return localStorage.getItem(IN_BROWSER_KEY) === "1";
   } catch {
     return false;
   }
 }
 
-export function rememberOpenInApp(prefer: boolean) {
+export function rememberPrefersBrowser(prefer: boolean) {
   try {
-    if (prefer) localStorage.setItem(OPEN_IN_APP_KEY, "1");
-    else localStorage.removeItem(OPEN_IN_APP_KEY);
+    if (prefer) localStorage.setItem(IN_BROWSER_KEY, "1");
+    else localStorage.removeItem(IN_BROWSER_KEY);
   } catch {
-    // Storage unavailable: the offer asks again next time.
+    // Storage unavailable: the attempt is made again next time.
   }
 }

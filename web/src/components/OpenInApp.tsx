@@ -1,24 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import {
   openLinkForPath,
-  prefersApp,
-  rememberOpenInApp,
+  prefersBrowser,
+  rememberPrefersBrowser,
 } from "../api/desktopLinks";
 import { isDesktop } from "../api/platform";
 
-// Offers to hand an invite to the desktop app. Nothing fires on a first
-// visit: a browser cannot tell whether the app is installed, and firing
-// blind prompts or errors where there is no handler. Once someone has
-// chosen the app for this server the choice fires on load, and the way
-// back to the browser sits under it and clears the choice.
+// Hands an invite to the desktop app. The attempt fires on arrival, so
+// someone who has the app lands in it, and the way back to the browser
+// sits underneath. Taking that way is remembered for this server: a
+// person with no app meets their browser's "open with?" dialog once and
+// then never again, and is left a line to change their mind by.
 // docs/architecture/desktop.md → Deep links.
 export function OpenInApp({ path, quiet }: { path: string; quiet?: boolean }) {
   const link = isDesktop() ? "" : openLinkForPath(path);
-  const [state, setState] = useState<"ask" | "opening" | "gone">(() =>
-    prefersApp() ? "opening" : "ask",
+  const [state, setState] = useState<"opening" | "offer">(() =>
+    prefersBrowser() ? "offer" : "opening",
   );
-  // The anchor fires its own link; only the remembered choice needs the
-  // effect below.
+  // The anchor below fires its own link; only the arrival needs this.
   const fired = useRef(false);
 
   useEffect(() => {
@@ -27,42 +26,38 @@ export function OpenInApp({ path, quiet }: { path: string; quiet?: boolean }) {
     location.href = link;
   }, [link, state]);
 
-  if (!link || state === "gone") return null;
+  if (!link) return null;
 
-  const stay = () => {
-    rememberOpenInApp(false);
-    setState("gone");
-  };
-
-  if (state === "opening") {
+  if (state === "offer") {
     return (
-      <p className={wrapper(quiet)}>
-        <span className="muted">Opening Stoop… Not opening?</span>{" "}
-        <button type="button" className="link" onClick={stay}>
-          Continue in this browser
-        </button>
+      <p className="open-in-app quiet">
+        <a
+          className="link"
+          href={link}
+          onClick={() => {
+            fired.current = true;
+            rememberPrefersBrowser(false);
+            setState("opening");
+          }}
+        >
+          Open in the Stoop app
+        </a>
       </p>
     );
   }
   return (
-    <div className={wrapper(quiet)}>
-      <a
-        className={quiet ? "link" : "provider-button"}
-        href={link}
+    <p className={quiet ? "open-in-app quiet" : "open-in-app"}>
+      <span className="muted">Opening Stoop… Not opening?</span>{" "}
+      <button
+        type="button"
+        className="link"
         onClick={() => {
-          fired.current = true;
-          rememberOpenInApp(true);
-          setState("opening");
+          rememberPrefersBrowser(true);
+          setState("offer");
         }}
       >
-        Open in the Stoop app
-      </a>
-      <button type="button" className="link" onClick={stay}>
         Continue in this browser
       </button>
-    </div>
+    </p>
   );
 }
-
-const wrapper = (quiet?: boolean) =>
-  quiet ? "open-in-app quiet" : "open-in-app";

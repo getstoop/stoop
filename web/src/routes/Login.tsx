@@ -150,7 +150,9 @@ export function LoginPage() {
           ) : (
             preview && <InviteHero preview={preview} />
           ))}
-        {invited && !inviteError && redirect && <OpenInApp path={redirect} />}
+        {/* Only once the server has confirmed the code: no one is sent
+            to the app for an invite that does not exist. */}
+        {invited && preview && redirect && <OpenInApp path={redirect} />}
         {invited && !inviteError && (
           <p className="login-subtitle invite-next">
             {effectiveMode === "register"
