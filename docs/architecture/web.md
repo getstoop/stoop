@@ -327,7 +327,9 @@ window was not focused. The full contract is in
 
 Two things follow the theme without the bridge at all. `theme.ts` keeps
 the `theme-color` meta in step with the picked theme's canvas colour, so
-an installed app's title bar and the shell's window match the page. And
+an installed app's title bar and the shell's window match the page — and
+the shell reads the theme's token values off `:root` for its own pages,
+which [desktop.md](desktop.md) lists. And
 `routes/Root.tsx` draws an empty strip above every route, sized by
 `env(titlebar-area-height)`: inside the shell, which opens windows with
 no native title bar, that is the drag region the OS puts its window

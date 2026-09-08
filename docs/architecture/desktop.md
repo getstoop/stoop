@@ -52,6 +52,29 @@ shell", so a newer server never breaks an older shell.
 `BRIDGE` in `platform.ts` and `Bridge` in `internal/webui/bridge.go` are
 the same number and move in the same pull request.
 
+## The theme tokens
+
+The shell paints its own pages — the screen picker, the add-server page,
+settings, the gate page — in the colours of the server in front, so a
+window the shell draws over the app does not look like a different app.
+It reads them off the page it is already showing, with
+`getComputedStyle(document.documentElement)` on load and again whenever
+`theme-color` changes:
+
+`--canvas`, `--surface`, `--panel`, `--raised`, `--border`, `--text`,
+`--text-muted`, `--accent`, `--accent-soft`, `--on-accent`, `--danger`,
+and `color-scheme`.
+
+`web/src/themes.css` defines all of them for every theme. Renaming or
+dropping one is a change to this contract, so it bumps the bridge.
+Nothing breaks in the meantime: a colour the shell cannot read it
+derives from `theme-color` instead, the same fallback it uses for a page
+that has not loaded yet.
+
+Reading them rather than being handed them is deliberate. It works
+against a server nobody will ever update, which a `window.stoop` member
+would not.
+
 ## What needs no bridge
 
 Chromium already does these, so the shell does not wrap them and the web
