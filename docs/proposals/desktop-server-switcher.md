@@ -1,7 +1,7 @@
 # The server switcher
 
-Status: proposed 2026-09-07 (STOOP-210); placement decided the same day —
-option B, the overlay view. Mockups of the options and the row states live
+Status: proposed and decided 2026-09-07 (STOOP-210): option B, the overlay
+view; the host line always; steps 1 and 2 of the rollout are the first cut. Mockups of the options and the row states live
 as a design page in the maintainer's tooling; the reasoning is all here.
 Open decisions at the end.
 
@@ -61,9 +61,11 @@ the server, and the bridge does not move.
   and most people pick one theme and keep it: tiles taken from the theme
   would be three identical squares. When instance branding ships an icon
   (STOOP-104) the tile becomes the icon and the monogram is the fallback.
-- **The host** under the name is what actually distinguishes two servers
-  with the same name, and it is the thing someone checks before typing a
-  password.
+- **The host** is always under the name, not only when two servers would
+  otherwise read the same. It is what distinguishes them, it is what
+  someone checks before typing a password into a window, and a row that
+  changes height depending on what else is installed is worse than a list
+  that is one line taller per server.
 - **The right edge** carries one thing at a time: an unread pill, or a
   warning glyph for a server the shell cannot reach or that needs
   updating, or the `⌘n` hint for the rest.
@@ -150,22 +152,31 @@ OS's furniture, the window is ours.
 
 ## Rollout
 
+The first cut is steps 1 and 2 — the panel that replaces the native popup,
+driveable by keyboard. It is what the native menu did, in the theme, saying
+more.
+
 1. The overlay view and the panel: rows, current server, unread, gate
    state, footer actions. The strip button opens it; the native popup goes
    away.
 2. Keyboard, focus return, and the dismissal rules above.
+
+Later, on their own:
+
 3. Drag to reorder, persisted as the order of `servers.json` — which the
-   accelerators, the tray and the settings list all already follow.
+   accelerators, the tray and the settings list all already follow. Held
+   back because dragging inside a panel that closes on an outside click is
+   fiddly, and it earns its keep past three or four servers.
 4. Icons in the tiles when instance branding lands them.
 
-## Open decisions
+## Decided (2026-09-07)
 
-1. **The host line**: always under the name, or only when two servers
-   would otherwise read the same?
-2. **Reorder**: step 3 above, or not until someone asks?
-3. **The rail** (option D): never, or a setting once there is a person
-   with five servers to prove it on?
+- **Option B**, the overlay view — subject to the transparency spike in
+  step 1. If a transparent view will not composite over a live page view,
+  the fallback inside B is a solid panel dismissed on `blur` and `Escape`.
+- **The host line always**, for the reason above.
+- **Steps 1 and 2 are the first cut.** Reorder is step 3, on its own, when
+  someone has enough servers to want it.
 
-Settled: **option B**, the overlay view, subject to the transparency spike
-in step 1 — if a transparent view will not composite over a live page view,
-the fallback inside B is a solid panel dismissed on `blur` and `Escape`.
+Still open: whether the rail (option D) ever comes back as a setting. Not
+until there is someone with five servers to prove it on.
