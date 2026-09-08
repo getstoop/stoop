@@ -585,6 +585,12 @@ func TestSocialDesktopSignIn(t *testing.T) {
 	if status != http.StatusOK || token == "" {
 		t.Fatalf("complete = %d, %v", status, body)
 	}
+	// Where the app lands is the server's business, exactly as it is for a
+	// browser. The account was made by the first run's callback, so this
+	// one is a returning identity: home, not the welcome.
+	if got, _ := body["target"].(string); got != "/" {
+		t.Errorf("target after a desktop sign-in = %q", got)
+	}
 	if _, err := svc.VerifyToken(context.Background(), token); err != nil {
 		t.Fatalf("token from the hand-back: %v", err)
 	}
@@ -824,5 +830,50 @@ func TestSocialDesktopLink(t *testing.T) {
 	back = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id))
 	if back.Get("error") != "provider_error" || back.Get("link") != "1" {
 		t.Errorf("a failed link bounced with %v", back)
+	}
+}
+
+// The app and the browser end a sign-in in the same place, because they
+// take the same answer from the server rather than each deciding.
+func TestSocialDesktopTarget(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	svc.UseRegistrationPorts(&fakePolicy{policy: auth.PolicyOpen}, nil)
+	rig := newSocialRig(t, svc)
+
+	const verifier = "desktop-verifier-0123456789abcdefghijklmnop"
+	target := func(t *testing.T, startQuery string) string {
+		t.Helper()
+		id := rig.attempt(t, s256(verifier), "S256")
+		back := handBack(t, rig.run(t, &http.Client{},
+			"/auth/oidc/sso/start?attempt="+id+startQuery))
+		status, body := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
+			"code": back.Get("code"), "attemptVerifier": verifier,
+		})
+		if status != http.StatusOK {
+			t.Fatalf("complete = %d, %v", status, body)
+		}
+		got, _ := body["target"].(string)
+		return got
+	}
+
+	// The first sign-in registers the account, and lands where a browser
+	// registration lands.
+	if got := target(t, ""); got != "/?welcome=1" {
+		t.Errorf("target after a desktop registration = %q, want the welcome", got)
+	}
+
+	for _, tc := range []struct{ name, start, want string }{
+		{"a returning identity", "", "/"},
+		{"one carrying a redirect", "&redirect=%2Factivity", "/activity"},
+		// The setup card's own button carries this, and setup is finished
+		// the moment the account it made exists. Landing there would bounce
+		// a signed-in person onto the login form.
+		{"one started from setup", "&redirect=%2Fsetup", "/"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := target(t, tc.start); got != tc.want {
+				t.Errorf("target = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

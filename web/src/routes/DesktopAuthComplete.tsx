@@ -52,7 +52,7 @@ export function DesktopAuthCompletePage() {
         }
         queryClient.clear();
         await navigate({
-          to: safeRedirect(result.redirect) ?? "/",
+          to: safeRedirect(result.target) ?? "/",
           replace: true,
         });
       } catch (err) {
