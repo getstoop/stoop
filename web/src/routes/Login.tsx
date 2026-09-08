@@ -9,6 +9,7 @@ import { loginErrorText } from "../api/loginErrors";
 import { roleLabel } from "../api/permissions";
 import { useInstanceStatus, useInvitePreview } from "../api/queries";
 import { LoginProviders } from "../components/LoginProviders";
+import { OpenInApp } from "../components/OpenInApp";
 import { SpaceIcon } from "../components/SpaceIcon";
 import type { InvitePreview } from "../gen/stoop/chat/v1/invite_pb";
 import {
@@ -149,6 +150,7 @@ export function LoginPage() {
           ) : (
             preview && <InviteHero preview={preview} />
           ))}
+        {invited && !inviteError && redirect && <OpenInApp path={redirect} />}
         {invited && !inviteError && (
           <p className="login-subtitle invite-next">
             {effectiveMode === "register"

@@ -172,6 +172,31 @@ Nothing here needs a bridge member: the outbound leg is `window.open`,
 which `setWindowOpenHandler` already sends to the system browser, and
 linking reuses the `auth` link unchanged.
 
+### An invite link opens the app
+
+An invite stays `https://server/join/CODE`, so it keeps working with no
+app, on a phone, in any browser. The `stoop://` attempt is made by the
+page the link lands on, never by the link: `components/OpenInApp.tsx`
+offers "Open in the Stoop app" beside "Continue in this browser", and
+choosing the app fires `stoop://open` for the same path — `?space=` hint
+and all — and remembers the choice in `localStorage` for that origin
+(`api/desktopLinks.ts`). A later invite on the same server fires it on
+load, with the way back to the browser under it; taking that way clears
+the choice.
+
+The offer sits on the invite landing (`/login?redirect=/join/CODE`, where
+a signed-out invitee is bounced) and, quietly, on `/join/CODE` beside a
+redemption it never delays. Inside the shell it renders nothing.
+
+**Nothing fires on a first visit.** A browser cannot tell whether the app
+is installed — there is no API, and the user agent is off limits — so the
+page asks. Firing blind would prompt or error in every browser with no
+handler, including every phone.
+
+The server is matched by exact origin, as everywhere else here: someone
+who added the server by its LAN address while `public_url` is the public
+hostname is offered a second entry rather than the one they have.
+
 ## The user agent
 
 The shell sends a standard Chrome user agent with `Stoop-Desktop/<version>`

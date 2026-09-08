@@ -45,3 +45,34 @@
   font-size: var(--text-ui);
   text-decoration: underline;
 }
+
+/* ---- Open in the app ---- */
+
+.open-in-app {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--canvas);
+  text-align: center;
+}
+
+/* Beside a flow that is already running: a line, not a card. */
+.open-in-app.quiet {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.open-in-app .link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  text-decoration: underline;
+}
