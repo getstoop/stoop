@@ -216,6 +216,76 @@ is a classic open-redirect into an OAuth flow.
 
 The callback routes share the Login/Register rate-limit bucket.
 
+### Sign-in from the desktop app
+
+Identity providers refuse to sign anyone in inside an embedded view, so in
+the desktop shell the provider leg leaves for the system browser and the
+session comes back through a `stoop://auth` deep link. Password sign-in is
+untouched, and so is every browser.
+
+```
+POST /auth/desktop/start                      → { "attempt": ID }
+GET  /auth/oidc/{provider}/start?attempt=ID   in the system browser
+GET  /auth/callback/{provider}                → the hand-off page
+POST /auth/desktop/complete                   → the session cookie, and a token
+```
+
+1. The page keeps a verifier in `sessionStorage` and posts its challenge;
+   the server holds the attempt for five minutes.
+2. `window.open` sends the start URL to the system browser, which the
+   shell does for any new window. The OIDC round trip and its
+   `stoop_login` cookie happen there, unchanged.
+3. With an attempt in the state cookie, the callback mints a single-use
+   60-second code, sets **no session cookie in the browser**, and redirects
+   to `/auth/desktop/return?code=`, a client route that fires
+   `stoop://auth?server=<origin>&code=<code>` and offers the same link as a
+   button. The scheme is fired from that page, never redirected to: a 302
+   to a custom scheme is handled inconsistently and leaves an empty tab
+   behind. The page builds the link from its own origin, which is the
+   public URL by construction — the provider round trip lands there,
+   because the redirect URI is built from it.
+
+   That page is also the way out. **Nobody is left on a tab whose only
+   option is to close it:** a failure offers `/login?error=`, where the
+   browser flow would have put them, and a success offers to sign in to
+   this browser as well — a fresh round trip on the provider that just
+   ran, which is why its id rides along on the return URL. The code itself
+   cannot be redeemed here: it is bound to the verifier in the app's
+   window.
+4. The shell loads `/auth/desktop/complete?code=` in the view that started
+   the attempt, so the verifier is still in reach. The server checks it
+   against the challenge, mints the session and sets the cookie there.
+
+**Two PKCE pairs, and they never meet.** `loginState.Verifier` is the
+server↔provider exchange. The attempt's verifier is the shell↔server one:
+it is what keeps someone else's code from signing this app in.
+
+**The link names the server by its public URL**, and the shell matches
+that against the origin the person typed when they added the server,
+exactly. A server added by LAN address or tailnet name while `public_url`
+is the public hostname hands back to a server the shell has never heard
+of, and the app does nothing at all.
+
+**A failure goes back to the app too.** The browser is not where the
+person is, and leaving them on a login form there invites them to sign in
+in the wrong place. So once an attempt is bound, a refusal — an invite
+required, a closed server, a deactivated account, a provider error — goes
+to that same return page as `?error=`, which fires
+`stoop://open?server=<origin>&path=/login?error=<code>`; the app's own
+login card carries the message, and the browser tab says what happened
+with no form to sign into by mistake. The attempt is spent on the way out.
+
+One failure cannot travel: one that happens before the state cookie is
+read, since that cookie is where the attempt is recorded. It falls back to
+`/login?error=` in the browser.
+
+A page served from a plain-HTTP origin has no `crypto.subtle`, and sends
+the verifier itself as the challenge (`"attemptMethod": "plain"`); the
+server compares whichever way the attempt was started.
+
+**Account linking never takes this path.** A link keeps the session it
+already has, so `link=1` and `attempt=` together are refused.
+
 ### Turning passwords off
 
 `password_sign_in` is an instance setting with three values: `everyone`,
