@@ -4,6 +4,15 @@
   box-sizing: border-box;
 }
 
+/* Scrollbars in the theme's colours rather than the platform's, thin and
+   quiet — the bar still says the pane scrolls and how far. Both
+   properties inherit, so the root sets them for every scroller. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 40%, transparent)
+    transparent;
+}
+
 html,
 body,
 #root {
