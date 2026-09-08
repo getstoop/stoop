@@ -55,8 +55,10 @@ the same number and move in the same pull request.
 ## The theme tokens
 
 The shell paints its own pages — the screen picker, the add-server page,
-settings, the gate page — in the colours of the server in front, so a
-window the shell draws over the app does not look like a different app.
+settings, the gate page — in the colours of the page in front, so a window
+the shell draws over the app does not look like a different app. Those
+colours are the theme that view is wearing, which is a per-viewer choice
+in its own `localStorage`, not something the server publishes.
 It reads them off the page it is already showing, with
 `getComputedStyle(document.documentElement)` on load and again whenever
 `theme-color` changes:
