@@ -191,11 +191,9 @@ It fires for everyone, because a browser cannot tell whether the app is
 installed: there is no API, and the user agent is off limits
 (`api/platform.ts`). The cost is borne by the people it cannot help —
 Firefox opens an app chooser and iOS Safari an error, over the invite
-landing — so **"Continue in this browser" is remembered for that origin**
-(`api/desktopLinks.ts`), and a person without the app meets that dialog
-once. Afterwards the landing goes straight to the form, with one quiet
-line above it, "Open in the Stoop app", which fires again and forgets the
-choice: neither answer is a trap.
+landing — and it is paid once per invite, not once per person: **nothing
+is remembered**. Every invite leads with the app, and the way past it is
+one click.
 
 It waits for the server to confirm the code, so no one is handed to the
 app for an invite that does not exist, and a bad code falls through to
@@ -204,10 +202,10 @@ browser — it is one quiet line beside a redemption it never delays.
 Inside the shell it renders nothing.
 
 **It costs the browser suite a step.** Nearly every spec joins its second
-user through this landing, so the attempt leaves a `stoop://` navigation
-pending that hangs puppeteer's `goto`, and the form is behind the
-handoff. Specs seed `localStorage["stoop.inviteInBrowser"]` to arrive as
-someone who has chosen the browser.
+user through this landing, where the attempt now leaves a `stoop://`
+navigation pending that hangs a `networkidle0` `goto`, and the form is
+behind the handoff. They arrive with `domcontentloaded` and click
+"Continue in this browser".
 
 The server is matched by exact origin, as everywhere else here: someone
 who added the server by its LAN address while `public_url` is the public

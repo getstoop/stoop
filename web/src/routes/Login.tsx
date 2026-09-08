@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../api/clients";
-import { prefersBrowser } from "../api/desktopLinks";
 import { errorText } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { loginErrorText } from "../api/loginErrors";
@@ -61,9 +60,8 @@ export function LoginPage() {
     errorCode ? loginErrorText(errorCode) : null,
   );
   const [busy, setBusy] = useState(false);
-  // Set by the handoff below, or already true in a browser that has
-  // chosen this one before: the sign-in options come out from behind it.
-  const [inBrowser, setInBrowser] = useState(prefersBrowser);
+  // Set by the handoff below: the sign-in options come out from behind it.
+  const [inBrowser, setInBrowser] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: status, isLoading: statusLoading } = useInstanceStatus();
@@ -162,11 +160,7 @@ export function LoginPage() {
         {/* Only once the server has confirmed the code: no one is sent
             to the app for an invite that does not exist. */}
         {invited && preview && redirect && (
-          <OpenInApp
-            path={redirect}
-            quiet={inBrowser}
-            onContinue={() => setInBrowser(true)}
-          />
+          <OpenInApp path={redirect} onContinue={() => setInBrowser(true)} />
         )}
         {!handoff && (
           <>
