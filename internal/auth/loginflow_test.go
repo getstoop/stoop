@@ -277,6 +277,22 @@ func (rig *socialRig) attempt(t *testing.T, challenge, method string) string {
 	return id
 }
 
+// preview is the link completion that names the identity and attaches
+// nothing; confirm is the one that attaches it.
+func (rig *socialRig) preview(t *testing.T, token, code, verifier string) (int, map[string]any) {
+	t.Helper()
+	return rig.postAs(t, token, "/auth/desktop/complete", map[string]any{
+		"code": code, "attemptVerifier": verifier,
+	})
+}
+
+func (rig *socialRig) confirm(t *testing.T, token, code, verifier string) (int, map[string]any) {
+	t.Helper()
+	return rig.postAs(t, token, "/auth/desktop/complete", map[string]any{
+		"code": code, "attemptVerifier": verifier, "confirm": true,
+	})
+}
+
 // linkAttempt opens a link attempt as the holder of token.
 func (rig *socialRig) linkAttempt(t *testing.T, token, challenge string) (int, string) {
 	t.Helper()
@@ -639,6 +655,21 @@ func TestSocialDesktopRefusals(t *testing.T) {
 		t.Errorf("link start without a session = %d", status)
 	}
 
+	// An attempt is claimed by its first start: the id is only ever
+	// visible because a browser carried it, so a second run is a replay.
+	once := rig.attempt(t, s256("desktop-verifier-0123456789abcdefghijklmnop"), "S256")
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+once); loc == "/login?error=login_state" {
+		t.Fatalf("the first start on an attempt was refused: %q", loc)
+	}
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?attempt="+once); loc != "/login?error=login_state" {
+		t.Errorf("a second start on one attempt landed on %q", loc)
+	}
+	_, again := rig.linkAttempt(t, token, s256("desktop-verifier-0123456789abcdefghijklmnop"))
+	handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+again))
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+again); loc != "/login?error=login_state" {
+		t.Errorf("a second start on one link attempt landed on %q", loc)
+	}
+
 	// Codes are minted at the callback only.
 	if status, _ := rig.postJSON(t, "/auth/desktop/complete", map[string]string{
 		"code": "made-up", "attemptVerifier": strings.Repeat("a", 43),
@@ -680,6 +711,7 @@ func TestSocialDesktopLink(t *testing.T) {
 	rig := newSocialRig(t, svc)
 
 	const verifier = "desktop-verifier-0123456789abcdefghijklmnop"
+	rig.idp.claims = map[string]any{"email": "sasha@example.com"}
 	_, ada := signIn(t, svc, "ada", "correct horse battery")
 	_, bea := signIn(t, svc, "bea", "correct horse battery")
 
@@ -721,37 +753,27 @@ func TestSocialDesktopLink(t *testing.T) {
 	}
 
 	// The attempt id travelled in an address bar, so completing it takes
-	// the session that opened it — someone else's will not do, and spends
-	// the code all the same.
-	if status, body := rig.postAs(t, bea, "/auth/desktop/complete", map[string]string{
-		"code": code, "attemptVerifier": verifier,
-	}); status != http.StatusUnauthorized {
-		t.Fatalf("complete as another account = %d, %v", status, body)
-	}
-	if status, _ := rig.postAs(t, ada, "/auth/desktop/complete", map[string]string{
-		"code": code, "attemptVerifier": verifier,
-	}); status != http.StatusUnauthorized {
-		t.Error("a code survived a failed redemption")
+	// the session that opened it — someone else's will not do, even to
+	// look.
+	if status, body := rig.preview(t, bea, code, verifier); status != http.StatusUnauthorized {
+		t.Fatalf("preview as another account = %d, %v", status, body)
 	}
 
-	// The verifier is the second binding: a live session alone is not
-	// enough.
-	_, id = rig.linkAttempt(t, ada, s256(verifier))
-	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
-	if status, _ := rig.postAs(t, ada, "/auth/desktop/complete", map[string]string{
-		"code": code, "attemptVerifier": strings.Repeat("x", 43),
-	}); status != http.StatusUnauthorized {
-		t.Error("a wrong verifier redeemed a link code")
+	// The preview names the identity and attaches nothing, leaving the
+	// code for the confirming call.
+	status, body := rig.preview(t, ada, code, verifier)
+	if status != http.StatusOK || body["provider"] != "sso" || body["email"] != "sasha@example.com" {
+		t.Fatalf("preview = %d, %v", status, body)
+	}
+	if got := identities(t, ada); len(got) != 0 {
+		t.Fatalf("the preview linked %v", got)
 	}
 
-	// Both bindings held: the identity attaches, and no session is minted.
-	_, id = rig.linkAttempt(t, ada, s256(verifier))
-	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
-	status, body := rig.postAs(t, ada, "/auth/desktop/complete", map[string]string{
-		"code": code, "attemptVerifier": verifier,
-	})
+	// Confirming spends it: the identity attaches, and no session is
+	// minted.
+	status, body = rig.confirm(t, ada, code, verifier)
 	if status != http.StatusOK || body["linked"] != "sso" {
-		t.Fatalf("complete a link = %d, %v", status, body)
+		t.Fatalf("confirm a link = %d, %v", status, body)
 	}
 	if _, ok := body["token"]; ok {
 		t.Error("a link handed the app a session")
@@ -759,14 +781,27 @@ func TestSocialDesktopLink(t *testing.T) {
 	if got := identities(t, ada); len(got) != 1 || got[0] != "sso" {
 		t.Errorf("identities after the link = %v", got)
 	}
+	if status, _ := rig.preview(t, ada, code, verifier); status != http.StatusUnauthorized {
+		t.Error("a confirmed code worked twice")
+	}
+
+	// The verifier is the other binding: a live session alone is not
+	// enough, and a wrong one spends the code.
+	_, id = rig.linkAttempt(t, ada, s256(verifier))
+	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
+	if status, _ := rig.preview(t, ada, code, strings.Repeat("x", 43)); status != http.StatusUnauthorized {
+		t.Error("a wrong verifier redeemed a link code")
+	}
+	if status, _ := rig.preview(t, ada, code, verifier); status != http.StatusUnauthorized {
+		t.Error("a code survived a failed redemption")
+	}
 
 	// The same provider twice.
 	rig.idp.sub = "sub-other"
 	_, id = rig.linkAttempt(t, ada, s256(verifier))
 	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
-	if status, body := rig.postAs(t, ada, "/auth/desktop/complete", map[string]string{
-		"code": code, "attemptVerifier": verifier,
-	}); status != http.StatusConflict || body["error"] != "already_linked" {
+	if status, body := rig.confirm(t, ada, code, verifier); status != http.StatusConflict ||
+		body["error"] != "already_linked" {
 		t.Errorf("linking sso twice = %d, %v", status, body)
 	}
 
@@ -774,9 +809,8 @@ func TestSocialDesktopLink(t *testing.T) {
 	rig.idp.sub = "sub-1"
 	_, id = rig.linkAttempt(t, bea, s256(verifier))
 	code = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+id)).Get("code")
-	if status, body := rig.postAs(t, bea, "/auth/desktop/complete", map[string]string{
-		"code": code, "attemptVerifier": verifier,
-	}); status != http.StatusConflict || body["error"] != "identity_taken" {
+	if status, body := rig.confirm(t, bea, code, verifier); status != http.StatusConflict ||
+		body["error"] != "identity_taken" {
 		t.Errorf("linking a taken identity = %d, %v", status, body)
 	}
 	if got := identities(t, bea); len(got) != 0 {

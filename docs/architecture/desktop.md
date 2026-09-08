@@ -154,8 +154,15 @@ holds up its end of:
   not, the hand-back is dropped and the app looks like it did nothing.
 
 The code says which it was: `/auth/desktop/complete` answers a sign-in with
-a token and a link with `{"linked": "<provider>"}`, and the page lands on
-the redirect or on `/profile?linked=<provider>`.
+a token and a link with the identity it found, and the page lands on the
+redirect or on `/profile?linked=<provider>`. A link takes one more step —
+the app names the address that came back and waits to be told to attach it,
+because nothing else in the round trip proves *whose* identity it is
+(`identity.md` → What a stolen attempt id can do).
+
+A start URL is good for one start. Reloading it in the browser, or a
+speculative prefetch reaching it first, spends the attempt and sends the
+person back to the app to begin again.
 
 A round trip that fails comes back the same way, as an `open` link — to
 `/login?error=<code>` for a sign-in, `/profile?error=<code>` for a link —

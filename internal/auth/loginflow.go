@@ -68,11 +68,13 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id := r.PathValue("provider")
 	// The desktop attempt is read first so that everything below can fail
-	// back to the app rather than into the system browser.
+	// back to the app rather than into the system browser. Claimed, not
+	// just checked: one start per attempt, so a second run of the same id
+	// is refused rather than minting a second code.
 	attempt := r.URL.Query().Get("attempt")
 	var att desktopAttempt
 	if attempt != "" {
-		a, ok := s.desktop.open(attempt, id)
+		a, ok := s.desktop.claim(attempt, id)
 		if !ok {
 			loginError(w, r, "login_state")
 			return

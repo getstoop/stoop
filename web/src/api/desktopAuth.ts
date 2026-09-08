@@ -21,10 +21,18 @@ interface SavedAttempt {
   link?: boolean;
 }
 
-// What redeeming a code turned out to be.
+// What redeeming a code turned out to be. A sign-in is finished; a link
+// stops here until the person recognises the identity that came back.
 export type DesktopAuthResult =
   | { kind: "signedIn"; redirect?: string }
-  | { kind: "linked"; provider: string };
+  | { kind: "confirmLink"; provider: string; email: string };
+
+interface CompleteBody {
+  linked?: string;
+  provider?: string;
+  email?: string;
+  error?: string;
+}
 
 const COMPLETE_PATH = "/auth/desktop/complete";
 
@@ -116,26 +124,61 @@ export function errorLinkForCode(error: string, link = false): string {
 }
 
 // Redeems the code the shell carried back, in the view that opened the
-// attempt. A sign-in's session cookie lands here; a link attaches the
-// identity to the session this view already has.
+// attempt. A sign-in's session cookie lands here and it is done. A link
+// gets the identity the round trip found and attaches nothing: the code
+// stays live for confirmDesktopLink, inside its minute.
 export async function completeDesktopAuth(
   code: string,
 ): Promise<DesktopAuthResult> {
-  const saved = takeAttempt();
+  const saved = readAttempt();
   if (!saved) {
     throw new Error(
       "This window didn't start that sign-in. Try signing in again.",
     );
   }
+  // A link needs the verifier once more to confirm; a sign-in is done
+  // with it here.
+  if (!saved.link) sessionStorage.removeItem(ATTEMPT_KEY);
+  const body = await complete(saved, code, false);
+  if (!saved.link) return { kind: "signedIn", redirect: saved.redirect };
+  return {
+    kind: "confirmLink",
+    provider: body.provider ?? "",
+    email: body.email ?? "",
+  };
+}
+
+// Attaches the identity the preview named, and spends the attempt.
+export async function confirmDesktopLink(code: string): Promise<string> {
+  const saved = takeAttempt();
+  if (!saved) {
+    throw new Error(
+      "This window didn't start that request. Try connecting again.",
+    );
+  }
+  return (await complete(saved, code, true)).linked ?? "";
+}
+
+// Throws away an attempt the person declined, so the code it belongs to
+// cannot be confirmed from this window at all.
+export function discardAttempt() {
+  sessionStorage.removeItem(ATTEMPT_KEY);
+}
+
+async function complete(
+  saved: SavedAttempt,
+  code: string,
+  confirm: boolean,
+): Promise<CompleteBody> {
   const res = await post(COMPLETE_PATH, {
     code,
     attemptVerifier: saved.verifier,
+    confirm,
   });
-  const body = (await res.json().catch(() => ({}))) as {
-    linked?: string;
-    error?: string;
-  };
+  const body = (await res.json().catch(() => ({}))) as CompleteBody;
   if (!res.ok) {
+    // Whatever the reason, this attempt is finished: start again.
+    sessionStorage.removeItem(ATTEMPT_KEY);
     // code_invalid is a code that no longer redeems; anything else is the
     // server saying why it refused the link.
     if (saved.link && body.error && body.error !== "code_invalid") {
@@ -147,9 +190,7 @@ export async function completeDesktopAuth(
         : "That sign-in link has expired. Try signing in again.",
     );
   }
-  return body.linked
-    ? { kind: "linked", provider: body.linked }
-    : { kind: "signedIn", redirect: saved.redirect };
+  return body;
 }
 
 // Whether the attempt this window is waiting on is a link, for the

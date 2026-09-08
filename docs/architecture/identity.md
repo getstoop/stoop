@@ -308,23 +308,56 @@ POST /auth/desktop/complete                        → { "linked": "PROVIDER" }
    claims, mints no session, and hands back as a sign-in does.
 3. **`/auth/desktop/complete` does the linking**, in the app's view, where
    that session is on the request. It checks the session against the one
-   the attempt recorded, spends the code against the attempt's verifier,
-   and only then attaches the identity. It answers `{"linked": …}` and no
-   token: a link keeps the session it already has.
-
-**Both bindings matter, and neither is optional.** The attempt id travels
-to the system browser in a URL, so it lands in browser history and in reach
-of anything watching that browser. Someone who copies it still cannot
-finish the round trip: completing takes the verifier, which never leaves
-the app's `sessionStorage`, *and* the session that opened the attempt. That
-is what stops an attacker attaching their own provider account to someone
-else's Stoop account.
+   the attempt recorded, checks the code against the attempt's verifier,
+   and asks the person before it attaches anything (below). It answers
+   `{"linked": …}` and no token: a link keeps the session it already has.
 
 A link's failures belong on `/profile?error=`, not `/login?error=`, so the
 hand-back carries `link=1` and the return page builds
 `stoop://open?path=/profile?error=<code>`. The return page has its own
 wording for a link, and offers no "carry on in this browser": a link
 belongs to the app's session, which that browser does not have.
+
+#### What a stolen attempt id can do
+
+**The attempt's verifier does not prove whose identity came back.** It
+proves only that this is the window that started the attempt. The attempt
+id, meanwhile, travels to the system browser in a URL, so it lands in that
+browser's address bar and history — an extension or a shared machine can
+read it.
+
+That gap is a real chain, and it is worth naming rather than implying the
+verifier closes it:
+
+1. Read the attempt id out of the system browser.
+2. Run the round trip on it with *your own* provider account. The code the
+   callback mints is bound to the victim's challenge, because it is the
+   victim's attempt.
+3. Get that `stoop://auth?…&code=…` opened on the victim's machine within
+   the code's 60 seconds.
+4. Their app redeems it with their verifier and their session — and
+   attaches your identity to their account.
+
+For a link that is a silent account takeover; for a sign-in the same
+residual only produces a login-CSRF, which is obvious the moment the wrong
+account appears. Two things narrow it, and neither is optional:
+
+**One start per attempt.** `oidcStart` *claims* the attempt rather than
+checking it is live, so a second start on the same id is refused. The id is
+only ever visible *because* the victim's own browser carried it, which is
+after the claim — so reading it afterwards finds it spent, and only a live
+race is left. This covers sign-in and linking alike. The cost is small and
+real: a browser that reloads or re-navigates the start URL has to begin
+again from the app.
+
+**A link is confirmed by a person.** `/auth/desktop/complete` for a link
+code is two calls, both needing the verifier and the session — so neither
+is a bearer-readable endpoint. The first names the provider and the email
+and attaches nothing, leaving the code live inside its TTL; the app asks
+"Connect ada@example.com to your account?"; the second consumes the code
+and links. An injected identity now has to get past someone reading an
+address they do not recognise. Sign-in gets no such prompt: a wrong account
+there is visible immediately, and the friction is not worth it.
 
 ### Turning passwords off
 

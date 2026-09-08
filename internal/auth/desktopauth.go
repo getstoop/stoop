@@ -26,6 +26,12 @@ import (
 // An attempt is a sign-in or a link. A link records the caller's session
 // at the start, links nothing at the callback, and attaches the identity
 // at /auth/desktop/complete, where that session is on the request.
+//
+// The attempt id travels in an address bar, and the verifier only proves
+// which window started the attempt — not whose identity came back. So an
+// attempt is claimed by its first start, and a link is previewed to the
+// person before it attaches anything.
+// docs/architecture/identity.md → What a stolen attempt id can do.
 
 // desktopReturnPath is a client route (web/src/routes/DesktopAuthReturn.tsx):
 // it builds the link from its own origin and fires it.
@@ -51,7 +57,10 @@ type desktopAttempt struct {
 	// that opened it; both are checked again when the code is redeemed.
 	linkUserID string
 	sessionID  string
-	expires    time.Time
+	// claimed by the start that used it: an id is only ever visible
+	// because a browser carried it, so a second start is a replay.
+	claimed bool
+	expires time.Time
 }
 
 func (a desktopAttempt) isLink() bool { return a.linkUserID != "" }
@@ -90,14 +99,18 @@ func (d *desktopStore) begin(a desktopAttempt) string {
 	return id
 }
 
-// open returns the attempt if it is live and was started for provider.
-func (d *desktopStore) open(id, provider string) (desktopAttempt, bool) {
+// claim marks the attempt started and returns it. One start per attempt:
+// whoever reads the id out of the browser afterwards finds it spent, so
+// only a live race is left to an attacker who has it.
+func (d *desktopStore) claim(id, provider string) (desktopAttempt, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	a, ok := d.attempts[id]
-	if !ok || a.provider != provider || time.Now().After(a.expires) {
+	if !ok || a.claimed || a.provider != provider || time.Now().After(a.expires) {
 		return desktopAttempt{}, false
 	}
+	a.claimed = true
+	d.attempts[id] = a
 	return a, true
 }
 
@@ -118,15 +131,19 @@ func (d *desktopStore) mint(id, provider string, out desktopCode) (string, bool)
 	return code, true
 }
 
-// redeem consumes the code and checks the verifier against the challenge
-// the attempt carried. Single use: the code is spent either way.
-func (d *desktopStore) redeem(code, verifier string) (desktopCode, bool) {
+// redeem checks the verifier against the challenge the attempt carried
+// and consumes the code. Single use, spent on a failed check too — with
+// one exception: a link's preview call leaves it for the confirming one.
+func (d *desktopStore) redeem(code, verifier string, confirm bool) (desktopCode, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	c, ok := d.codes[code]
-	delete(d.codes, code)
 	if !ok || time.Now().After(c.expires) || !c.attempt.matches(verifier) {
+		delete(d.codes, code)
 		return desktopCode{}, false
+	}
+	if confirm || !c.attempt.isLink() {
+		delete(d.codes, code)
 	}
 	return c, true
 }
@@ -194,6 +211,9 @@ type desktopStartRequest struct {
 type desktopCompleteRequest struct {
 	Code     string `json:"code"`
 	Verifier string `json:"attemptVerifier"`
+	// Confirm attaches the identity a link's preview call named. Ignored
+	// by a sign-in, which has nothing to recognise.
+	Confirm bool `json:"confirm"`
 }
 
 // desktopStart opens an attempt. The page keeps the verifier in its
@@ -306,13 +326,13 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 	if !readDesktopJSON(w, r, &req) {
 		return
 	}
-	c, ok := s.desktop.redeem(req.Code, req.Verifier)
+	c, ok := s.desktop.redeem(req.Code, req.Verifier, req.Confirm)
 	if !ok {
 		desktopError(w, http.StatusUnauthorized, "code_invalid")
 		return
 	}
 	if c.attempt.isLink() {
-		s.desktopLink(w, r, c)
+		s.desktopLink(w, r, c, req.Confirm)
 		return
 	}
 	token, err := s.createSession(r.Context(), c.userID)
@@ -326,14 +346,25 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 }
 
 // desktopLink attaches the identity the callback saw. Both bindings the
-// attempt carries are checked here: the shell↔server verifier, spent by
+// attempt carries are checked here: the shell↔server verifier, checked by
 // redeem, and the session that opened the link, which is on this request
 // because the app calls it from the view it started in. No session is
 // minted — a link keeps the one it has.
-func (s *Service) desktopLink(w http.ResponseWriter, r *http.Request, c desktopCode) {
+//
+// Two calls, both bound the same way. The first names the identity and
+// attaches nothing, leaving the code live inside its TTL; the second
+// confirms it. Neither binding tells the app whose identity came back,
+// so a person does.
+func (s *Service) desktopLink(w http.ResponseWriter, r *http.Request, c desktopCode, confirm bool) {
 	ident, err := s.VerifyToken(r.Context(), TokenFromHeader(r.Header))
 	if err != nil || ident.UserID != c.attempt.linkUserID || ident.SessionID != c.attempt.sessionID {
 		desktopError(w, http.StatusUnauthorized, "login_state")
+		return
+	}
+	if !confirm {
+		writeDesktopJSON(w, http.StatusOK, map[string]string{
+			"provider": c.attempt.provider, "email": c.claims.Email,
+		})
 		return
 	}
 	st := loginState{
