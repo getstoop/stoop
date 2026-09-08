@@ -9,6 +9,7 @@ import { AdminPage } from "./routes/Admin";
 import { AppShell } from "./routes/AppShell";
 import { ChannelView } from "./routes/Channel";
 import { DesktopAuthCompletePage } from "./routes/DesktopAuthComplete";
+import { DesktopAuthReturnPage } from "./routes/DesktopAuthReturn";
 import { DMIndex, DMLayout } from "./routes/DirectMessages";
 import { HomePage } from "./routes/Home";
 import { JoinPage } from "./routes/Join";
@@ -66,6 +67,27 @@ const desktopAuthRoute = createRoute({
     code:
       typeof search.code === "string" && search.code !== ""
         ? search.code.slice(0, 512)
+        : undefined,
+  }),
+});
+
+// Where the provider round trip ends, in the system browser: the page
+// that fires the deep link back to the app. ?code= on a sign-in that
+// worked, ?error= on one that did not.
+const desktopReturnRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auth/desktop/return",
+  component: DesktopAuthReturnPage,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { code?: string; error?: string } => ({
+    code:
+      typeof search.code === "string" && search.code !== ""
+        ? search.code.slice(0, 512)
+        : undefined,
+    error:
+      typeof search.error === "string" && search.error !== ""
+        ? search.error.slice(0, 40)
         : undefined,
   }),
 });
@@ -254,6 +276,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   setupRoute,
   desktopAuthRoute,
+  desktopReturnRoute,
   ...kitRoutes,
   appRoute.addChildren([
     homeRoute,

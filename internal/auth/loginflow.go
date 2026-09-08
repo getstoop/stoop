@@ -57,11 +57,10 @@ func (s *Service) LoginHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /auth/oidc/{provider}/start", s.oidcStart)
 	mux.HandleFunc("GET /auth/callback/{provider}", s.oidcCallback)
-	// The desktop app's leg of the same flow (desktopauth.go). The page at
-	// GET /auth/desktop/complete is a client route, served by the web app.
+	// The desktop app's leg of the same flow (desktopauth.go). Both pages
+	// under /auth/desktop/ are client routes, served by the web app.
 	mux.HandleFunc("POST /auth/desktop/start", s.desktopStart)
 	mux.HandleFunc("POST /auth/desktop/complete", s.desktopComplete)
-	mux.HandleFunc("GET /auth/desktop/return.js", desktopReturnJS)
 	return mux
 }
 

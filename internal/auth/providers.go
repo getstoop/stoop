@@ -44,9 +44,6 @@ type ProviderSource interface {
 	// CallbackURL is the exact redirect URI registered with the provider,
 	// built from the effective public URL; empty when none is configured.
 	CallbackURL(ctx context.Context, id string) (string, error)
-	// PublicURL is that same effective public URL, with no trailing
-	// slash; the desktop hand-back names the server with it.
-	PublicURL(ctx context.Context) (string, error)
 }
 
 // UseProviders wires the provider-configuration port. Set once at

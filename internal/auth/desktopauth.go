@@ -1,12 +1,10 @@
 package auth
 
 import (
-	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
-	"html"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -24,6 +22,10 @@ import (
 // login-state cookie, and a code, minted at the callback and redeemed at
 // /auth/desktop/complete. The PKCE pair here binds the app that started
 // the attempt; loginState.Verifier is the unrelated server↔provider one.
+
+// desktopReturnPath is a client route (web/src/routes/DesktopAuthReturn.tsx):
+// it builds the link from its own origin and fires it.
+const desktopReturnPath = "/auth/desktop/return"
 
 const (
 	desktopAttemptTTL = 5 * time.Minute
@@ -204,18 +206,12 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// desktopHandOff ends the browser leg of a desktop sign-in: the app gets
-// a code through the deep link, and the browser gets no session — it is
-// not where the person is signing in.
+// desktopHandOff ends the browser leg of a desktop sign-in: the browser
+// is sent to the page that fires the deep link, and gets no session — it
+// is not where the person is signing in.
 func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st loginState, res flowResult) {
 	if res.userID == "" {
 		loginError(w, r, "login_state")
-		return
-	}
-	origin, err := s.publicOrigin(r.Context())
-	if err != nil || origin == "" {
-		slog.Warn("desktop sign-in without a public URL", "err", err)
-		loginError(w, r, "no_public_url")
 		return
 	}
 	code, ok := s.desktop.mint(st.Attempt, st.Provider, res.userID)
@@ -223,39 +219,26 @@ func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st logi
 		loginError(w, r, "login_expired")
 		return
 	}
-	// A page, not a 302: a redirect to a custom scheme is handled
-	// inconsistently and leaves an empty tab behind.
-	link := "stoop://auth?" + url.Values{"server": {origin}, "code": {code}}.Encode()
-	writeDesktopPage(w, link, "You're signed in", "Stoop should be back in front of you.")
+	desktopReturn(w, r, url.Values{"code": {code}})
 }
 
 // loginFail ends a failed sign-in. One that belongs to a desktop attempt
-// bounces back to the app carrying the error, since the browser is not
-// where the person is; everything else is the usual /login redirect.
+// carries the error back to the app, since the browser is not where the
+// person is; everything else is the usual /login redirect.
 func (s *Service) loginFail(w http.ResponseWriter, r *http.Request, attempt, code string) {
 	if attempt == "" {
 		loginError(w, r, code)
 		return
 	}
 	s.desktop.drop(attempt)
-	origin, err := s.publicOrigin(r.Context())
-	if err != nil || origin == "" {
-		loginError(w, r, code)
-		return
-	}
-	// An open link, which the shell already routes to any path the web app
-	// serves: the app's own login page shows the error.
-	link := "stoop://open?" + url.Values{
-		"server": {origin}, "path": {"/login?error=" + code},
-	}.Encode()
-	writeDesktopPage(w, link, "Sign-in didn't finish", "Stoop has the details.")
+	desktopReturn(w, r, url.Values{"error": {code}})
 }
 
-func (s *Service) publicOrigin(ctx context.Context) (string, error) {
-	if s.providers == nil {
-		return "", nil
-	}
-	return s.providers.PublicURL(ctx)
+// desktopReturn hands the browser to the client route that fires the deep
+// link. A same-origin redirect, never one to stoop:// itself: a redirect
+// to a custom scheme is handled inconsistently and leaves an empty tab.
+func desktopReturn(w http.ResponseWriter, r *http.Request, q url.Values) {
+	http.Redirect(w, r, desktopReturnPath+"?"+q.Encode(), http.StatusFound)
 }
 
 // desktopComplete redeems the code the app carried back, in the view that
@@ -278,59 +261,6 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, s.sessionCookie(r.Context(), token, sessionTTL))
 	writeDesktopJSON(w, http.StatusOK, map[string]string{"token": token})
-}
-
-// desktopReturnJS serves the one script the hand-off page runs. A file,
-// not an inline script: script-src is 'self' plus the hashes of
-// index.html (internal/app/secure.go).
-func desktopReturnJS(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(desktopReturnScript))
-}
-
-const desktopReturnScript = `var a = document.getElementById("return");
-if (a) location.href = a.href;
-`
-
-func writeDesktopPage(w http.ResponseWriter, link, heading, body string) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(desktopReturnPage(link, heading, body)))
-}
-
-// desktopReturnPage carries the person back to the app, whichever way the
-// sign-in went. The link fires from a script file, never a redirect.
-func desktopReturnPage(link, heading, body string) string {
-	return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Signed in — Stoop</title>
-<style>
-:root { color-scheme: light dark; }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 26rem; padding: 2rem; text-align: center; }
-h1 { font-size: 1.4rem; margin: 0 0 .5rem; }
-p { margin: 0 0 1.5rem; }
-a { display: inline-block; padding: .6rem 1.2rem; border-radius: .5rem;
-  background: #3b6ef5; color: #fff; text-decoration: none; font-weight: 600; }
-.hint { margin: 1.5rem 0 0; opacity: .7; font-size: .875rem; }
-</style>
-</head>
-<body>
-<main>
-<h1>` + html.EscapeString(heading) + `</h1>
-<p>` + html.EscapeString(body) + `</p>
-<a id="return" href="` + html.EscapeString(link) + `">Return to Stoop</a>
-<p class="hint">You can close this tab.</p>
-</main>
-<script src="/auth/desktop/return.js"></script>
-</body>
-</html>
-`
 }
 
 func readDesktopJSON(w http.ResponseWriter, r *http.Request, dst any) bool {

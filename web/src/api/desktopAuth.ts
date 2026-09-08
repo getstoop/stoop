@@ -80,6 +80,23 @@ export async function beginDesktopSignIn(
   return url.toString();
 }
 
+// The deep links the return page fires, built from this page's own
+// origin: the provider round trip lands on the server's public address,
+// so that is the origin the shell has to be told about.
+export function authLinkForCode(code: string): string {
+  return `stoop://auth?${new URLSearchParams({
+    server: location.origin,
+    code,
+  })}`;
+}
+
+export function errorLinkForCode(error: string): string {
+  return `stoop://open?${new URLSearchParams({
+    server: location.origin,
+    path: `/login?error=${error}`,
+  })}`;
+}
+
 // Redeems the code the shell carried back and returns where the sign-in
 // was headed. The session cookie lands in this view.
 export async function completeDesktopSignIn(

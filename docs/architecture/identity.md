@@ -236,10 +236,14 @@ POST /auth/desktop/complete                   → the session cookie, and a toke
    shell does for any new window. The OIDC round trip and its
    `stoop_login` cookie happen there, unchanged.
 3. With an attempt in the state cookie, the callback mints a single-use
-   60-second code, sets **no session cookie in the browser**, and serves a
-   page that fires `stoop://auth?server=<public URL>&code=<code>`. A page,
-   not a 302: a redirect to a custom scheme is handled inconsistently and
-   leaves an empty tab behind.
+   60-second code, sets **no session cookie in the browser**, and redirects
+   to `/auth/desktop/return?code=`, a client route that fires
+   `stoop://auth?server=<origin>&code=<code>` and offers the same link as a
+   button. The scheme is fired from that page, never redirected to: a 302
+   to a custom scheme is handled inconsistently and leaves an empty tab
+   behind. The page builds the link from its own origin, which is the
+   public URL by construction — the provider round trip lands there,
+   because the redirect URI is built from it.
 4. The shell loads `/auth/desktop/complete?code=` in the view that started
    the attempt, so the verifier is still in reach. The server checks it
    against the challenge, mints the session and sets the cookie there.
@@ -257,14 +261,15 @@ of, and the app does nothing at all.
 **A failure goes back to the app too.** The browser is not where the
 person is, and leaving them on a login form there invites them to sign in
 in the wrong place. So once an attempt is bound, a refusal — an invite
-required, a closed server, a deactivated account, a provider error —
-serves the same shape of page pointed at
-`stoop://open?server=<public URL>&path=/login?error=<code>`, and the app's
-own login card carries the message. The attempt is spent on the way out.
+required, a closed server, a deactivated account, a provider error — goes
+to that same return page as `?error=`, which fires
+`stoop://open?server=<origin>&path=/login?error=<code>`; the app's own
+login card carries the message, and the browser tab says what happened
+with no form to sign into by mistake. The attempt is spent on the way out.
 
-Two failures cannot travel: one before the state cookie is read (nothing
-knows an attempt exists yet), and one where there is no public URL to name
-(`no_public_url`). Both fall back to `/login?error=` in the browser.
+One failure cannot travel: one that happens before the state cookie is
+read, since that cookie is where the attempt is recorded. It falls back to
+`/login?error=` in the browser.
 
 A page served from a plain-HTTP origin has no `crypto.subtle`, and sends
 the verifier itself as the challenge (`"attemptMethod": "plain"`); the
