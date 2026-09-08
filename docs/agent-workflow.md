@@ -109,7 +109,14 @@ force-pushes, and a pull request can only merge once every CI job is green
 got big enough that a red `main` cost more than the round-trip saves.
 
 - Branch from an up-to-date `main`: `git switch -c <short-name> main`.
-  One ticket per branch.
+  One ticket per branch. Branch **in the checkout the maintainer runs**
+  (`~/Projects/stoop`, `~/Projects/stoop-desktop`), not a worktree: their
+  `make dev` rebuilds live, so they review the change as it is made, and
+  the running instance is never quietly on another branch. A branch that
+  adds a migration is the exception — that one goes in a worktree, so
+  switching the checkout back does not leave the dev database ahead of
+  `main`. After the merge, `git switch main && git pull` in that checkout;
+  `make dev` prints what it runs and warns when `origin/main` is ahead.
 - Commit as before (`git commit -F <file>` with the trailer), push with
   `git push -u origin HEAD`, then `gh pr create --fill` (or with a body that
   says what changed and why; the ticket id goes in the title).
@@ -240,10 +247,19 @@ got big enough that a red `main` cost more than the round-trip saves.
   start the E2E server the way CI and `scripts/e2e-scratch.sh` do (no
   Tailscale, no trust-proxy).
 - **Leave 8091 free when you're done.** `make dev` refuses to start
-  (`dev-port-check`) while anything holds the port: a stale `bin/stoop`
-  started by hand carries only `.env`, not `.env.dev`'s `STOOP_LIVEKIT_URL`,
-  so Vite would proxy the user to a server that says "voice is not configured".
-  Stop your background `bin/stoop` before ending a session.
+  (`dev-port-check`) while anything holds the port or Vite's 5173: a stale
+  `bin/stoop` started by hand serves the web app embedded at its `make
+  build` and carries only `.env`, not `.env.dev`'s `STOOP_LIVEKIT_URL`, so
+  the maintainer's browser and desktop shell (saved against :8091) would
+  show old code on a server that says "voice is not configured". Stop your
+  background `bin/stoop` before ending a session.
+- **`make dev`'s :8091 is live; a hand-started `bin/stoop` is a snapshot.**
+  `make dev` passes `STOOP_DEV_WEB_URL=http://localhost:5173` to air, so
+  that server proxies the web app to Vite; `bin/stoop` serves the copy
+  embedded at its last `make build`. Never put `STOOP_DEV_WEB_URL` in
+  `.env.dev`: every hand-started server and the E2E scratch server would
+  then need Vite running, and the suite would test the source rather than
+  the build that ships.
 - **`air` means `$(go env GOPATH)/bin/air`.** Homebrew's `air` formula is an
   unrelated R language server that shadows it on PATH; `make dev` calls the
   Go one by path. And air ≥ 1.67 reads env only from `env_files`, never

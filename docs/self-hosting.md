@@ -468,6 +468,7 @@ Start Stoop first: LiveKit exits if the file isn't there yet.
 | `STOOP_FILE_SWEEP_GRACE`   | `24h`                       | How old an unreferenced file must be before the sweep takes it |
 | `STOOP_ACTIVITY_RETENTION` | `720h`                      | Read mention/reply/DM activity items older than this are removed on the sweep timer; `0` keeps them forever |
 | `STOOP_UNFURL_ALLOW_PRIVATE` | `false`                   | Let link previews fetch private/loopback addresses. **Dev and tests only** — it is what stops the server being used as a proxy into your LAN |
+| `STOOP_DEV_WEB_URL`        | (empty)                     | Serve the web app from a Vite dev server at this address instead of the embedded build, allowing inline scripts for its hot reload. **Development only** — `make dev` sets it |
 | `STOOP_LIVEKIT_URL`        | (empty)                     | LiveKit sidecar address the app proxies signaling to, e.g. `http://livekit:7880` (voice) |
 | `STOOP_LIVEKIT_API_KEY`    | (empty)                     | LiveKit API key (voice is off until key and secret are set) |
 | `STOOP_LIVEKIT_API_SECRET` | (empty)                     | LiveKit API secret               |
@@ -596,7 +597,8 @@ exceptions:
 
 - `script-src` names the SHA-256 of the one inline script in
   `index.html` — the theme stamp, which has to run before the first
-  paint. Every other inline script is refused.
+  paint. Every other inline script is refused. (`STOOP_DEV_WEB_URL`,
+  development only, allows them instead — Vite injects its own.)
 - `style-src` allows inline styles, which React writes for a few
   positioned popovers and the storage bar.
 - `img-src`/`media-src` allow `blob:` and `data:` for a picked file's
