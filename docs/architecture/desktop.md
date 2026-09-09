@@ -172,36 +172,56 @@ Nothing here needs a bridge member: the outbound leg is `window.open`,
 which `setWindowOpenHandler` already sends to the system browser, and
 linking reuses the `auth` link unchanged.
 
-### An invite link opens the app
+### A shared link opens the app
 
-An invite stays `https://server/join/CODE`, so it keeps working with no
-app, on a phone, in any browser. The `stoop://` attempt is made by the
-page the link lands on, never by the link.
+A shared link stays `https://server/...`, so it keeps working with no app,
+on a phone, in any browser. The `stoop://` attempt is made by the page the
+link lands on, never by the link.
 
-**In a browser, an invite link lands on a choice.** `Root` gates the
-whole route tree on it (`components/InviteHandoff.tsx`): the app, or this
-browser. It fires `stoop://open` for the same path — `?space=` hint and
-all — as soon as it renders, and says "Opening Stoop… Open in the Stoop
-app / Continue in this browser".
+Four paths are shared links (`api/shareLinks.ts`, `sharedLinkKind`):
 
-**That page does nothing with the invite.** It never looks the code up
-and never redeems it: it sits above `AppShell`, so nothing beneath it has
-mounted. A dead code fails where it always did, on the page that handles
-it, and a person who came for the app is never joined in a browser they
-did not mean to use. "Continue in this browser" drops the gate and the
-app carries on exactly as it would have — a stranger to the invite
-landing, someone signed in to `/join`, which redeems on mount as before.
-The answer lasts as long as the page is loaded; nothing is stored, so a
-fresh load asks again.
+```
+/join/CODE                  an invite
+/s/SPACE                    a space
+/s/SPACE/c/CHANNEL          a channel, or /dm/CHANNEL
+/s/SPACE/c/CHANNEL?m=ID     a message, or /dm/CHANNEL?m=ID
+```
+
+Settings, admin and search are not sharing surfaces and match nothing.
+
+**In a browser, a shared link lands on a choice.** `components/LinkGate.tsx`
+wraps the whole route tree in `Root`: the app, or this browser. It fires
+`stoop://open` for the same path — `?space=` hint, `?m=` and all — as soon
+as it renders, and says "Opening Stoop… Open in the Stoop app / Continue
+in this browser" (`components/LinkHandoff.tsx`).
+
+**That page does nothing with the link.** It never looks a code up, never
+redeems one, and never opens a channel: it sits above `AppShell`, so
+nothing beneath it has mounted. The two costs that would otherwise be
+spent before the choice is offered — a use of a limited-use invite, and a
+channel's unread marker, which opening it clears — are both still
+unspent. A dead link fails where it always did, on the page that handles
+it. "Continue in this browser" drops the gate and the app carries on
+exactly as it would have.
+
+**The gate reads the URL the browser landed on, once.** A shared link is
+arrived at, not navigated to; following the router's location instead
+would raise the gate every time someone opened a channel from the
+sidebar. The answer lasts as long as the page is loaded, and nothing is
+stored, so a fresh load asks again.
 
 It fires for everyone, because a browser cannot tell whether the app is
 installed: there is no API, and the user agent is off limits
 (`api/platform.ts`). The cost is borne by the people it cannot help —
 Firefox opens an app chooser and iOS Safari an error — and it is paid
-once per invite.
+once per link.
+
+The card names no space, channel or person, only what kind of thing the
+link leads to. Nothing has been looked up at that point, and a DM link
+names a conversation only its participants may see.
 
 Inside the shell there is no gate at all: `canOpenInApp` is false there,
-and the invite goes straight through.
+and the link goes straight through.
 
 The server is matched by exact origin, as everywhere else here: someone
 who added the server by its LAN address while `public_url` is the public
@@ -211,10 +231,20 @@ hostname is offered a second entry rather than the one they have.
 on `navigator.webdriver`). Chrome answers a `stoop://` navigation with an
 external-protocol prompt, and that prompt is not scriptable: it swallows
 every event aimed at the page for as long as it stands, so a spec that
-landed on an invite could no longer be driven at all. The choice still
-renders and its button still fires — a spec must never click it. Nearly
-every spec joins its second user by following an invite link, so they go
-through `gotoInvite` in `e2e/lib.mjs`, which takes the way past.
+landed on a shared link could no longer be driven at all. The choice
+still renders and its button still fires — a spec must never click it.
+Nearly every spec joins its second user by following an invite link, and
+many navigate straight to a channel, so they go through `gotoInvite` in
+`e2e/lib.mjs`, which takes the way past.
+
+### Where a shared link comes from
+
+`api/shareLinks.ts` builds them, and three places offer to copy one: the
+message hover actions (`routes/Channel/MessageActions.tsx`), the channel
+`⋮`, and the space `⋮`. Each is an ordinary `https://` URL on the
+server's `public_url` when it has one, so an admin on the LAN doesn't
+hand out a link that only works on the LAN — the same rule invite links
+follow.
 
 ## The user agent
 

@@ -15,8 +15,9 @@ import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import { isLive, useHistoryStore } from "../../api/history";
 import { canDeleteAnyMessage } from "../../api/permissions";
-import { useMe, useSpaces } from "../../api/queries";
+import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { toggleReaction } from "../../api/reactions";
+import { messagePath, shareUrl } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
@@ -57,6 +58,10 @@ export function MessageList({
   const queryClient = useQueryClient();
   const { data: spacesForPerms } = useSpaces();
   const spaceForPerms = spacesForPerms?.find((s) => s.id === spaceId);
+  // The permalink each message offers to copy. An ordinary https:// link,
+  // on the server's public address when it has one (api/shareLinks.ts).
+  const { data: instanceStatus } = useInstanceStatus();
+  const linkOrigin = instanceStatus?.publicUrl;
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const remove = async (m: Message) => {
@@ -430,6 +435,10 @@ export function MessageList({
                 )}
                 <MessageActions
                   message={message}
+                  link={shareUrl(
+                    messagePath(spaceId, channelId, message.id),
+                    linkOrigin,
+                  )}
                   mine={me?.id === message.author?.id}
                   canDelete={
                     me?.id === message.author?.id ||
