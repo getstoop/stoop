@@ -7,7 +7,7 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
   sleep,
 } from "./lib.mjs";
 
@@ -55,7 +55,7 @@ await acceptDialog(A, "random");
 await sleep(1000);
 const bName = `bea${suffix}`;
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', bName);
 await B.type('input[type="password"]', "correct horse battery");
@@ -107,8 +107,8 @@ await sleep(300);
 check(
   (
     await A.$$eval(".dots-menu button", (es) => es.map((e) => e.textContent))
-  ).join(",") === "Mute,Edit name,Add a topic,Delete channel",
-  "owner's channel menu: Mute, Edit name, Add a topic, Delete channel",
+  ).join(",") === "Mute,Copy link,Edit name,Add a topic,Delete channel",
+  "owner's channel menu: Mute, Copy link, Edit name, Add a topic, Delete",
 );
 await A.keyboard.press("Escape");
 await sleep(200);
@@ -194,8 +194,8 @@ await sleep(300);
 check(
   (
     await B.$$eval(".dots-menu button", (es) => es.map((e) => e.textContent))
-  ).join(",") === "Mute",
-  "member's channel menu: Mute only",
+  ).join(",") === "Mute,Copy link",
+  "member's channel menu: Mute and Copy link",
 );
 await B.keyboard.press("Escape");
 
@@ -349,8 +349,8 @@ check(await setMuted(A, false), "unmute #general so only the space mutes");
 
 check(
   (await spaceMenu(A)).join(",") ===
-    "About this space,Invite people,Space settings,Mute space",
-  "owner's space menu offers Mute space after Space settings",
+    "About this space,Copy link,Invite people,Space settings,Mute space",
+  "owner's space menu: About, Copy link, Invite, Settings, Mute space",
 );
 await A.keyboard.press("Escape");
 await sleep(200);

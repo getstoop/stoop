@@ -7,7 +7,14 @@
 // add up to. The relay's effect on a voice join is checked through the
 // API (a static relay; no real TURN needed).
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep, spaceMenu } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  reloadShared,
+  sleep,
+  spaceMenu,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -298,7 +305,7 @@ check(
 );
 // Nothing above was saved, so a reload puts the saved key back and
 // leaves the form clean for the checks that follow.
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(600);
 await A.click('.settings-tab[data-tab="hosting"]');
 await sleep(600);
@@ -363,7 +370,7 @@ check(
       "turns:turn.example.test:5349",
   "changing only the proxies left the address, relay and TURN alone",
 );
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(800);
 await A.click('.settings-tab[data-tab="hosting"]');
 await sleep(600);
@@ -372,16 +379,26 @@ check(
     "10.0.0.0/8, 192.168.1.5",
   "the form shows them again after a reload",
 );
-await A.goto(`${base}/s/${spaces.spaces[0].id}`, { waitUntil: "networkidle0" });
+await gotoShared(A, `${base}/s/${spaces.spaces[0].id}`, {
+  waitUntil: "networkidle0",
+});
 await sleep(500);
-await spaceMenu(A, "Invite people");
-await A.waitForSelector('button[title="Copy join link"]', { timeout: 3000 });
 await A.evaluate(() => {
   navigator.clipboard.writeText = (t) => {
     window.__copied = t;
     return Promise.resolve();
   };
 });
+// A shared link follows the same address as an invite link.
+await spaceMenu(A, "Copy link");
+await sleep(300);
+const spaceLink = await A.evaluate(() => window.__copied);
+check(
+  spaceLink === `${base}/s/${spaces.spaces[0].id}`,
+  `a space link falls back to the current origin too: ${spaceLink}`,
+);
+await spaceMenu(A, "Invite people");
+await A.waitForSelector('button[title="Copy join link"]', { timeout: 3000 });
 await A.click('button[title="Copy join link"]');
 await sleep(300);
 const copied = await A.evaluate(() => window.__copied);

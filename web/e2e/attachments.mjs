@@ -8,7 +8,7 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
   png,
   sleep,
 } from "./lib.mjs";
@@ -115,7 +115,7 @@ await A.click("button.primary");
 await sleep(1200);
 const channelId = new URL(A.url()).pathname.split("/")[4];
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

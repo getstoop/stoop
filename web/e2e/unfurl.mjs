@@ -6,7 +6,7 @@
 // inside code are not unfurled, and editing the link away drops the card.
 import { createServer } from "node:http";
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, png, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, png, reloadShared, sleep } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -114,7 +114,7 @@ if (card?.image) {
 }
 
 // Reload: the card comes from the list, not just the live event.
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(800);
 check((await cardOf(0))?.title === "Stoop & friends", "card survives a reload");
 

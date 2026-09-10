@@ -2,7 +2,13 @@
 // ways in real time, see the DMs pill light up, survive a reload, and
 // stay closed to people who aren't in it.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  reloadShared,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -47,7 +53,7 @@ await sleep(1200);
 
 const joinAs = async (tag, name) => {
   const p = await newPage(tag);
-  await gotoInvite(p, link);
+  await gotoShared(p, link);
   await sleep(300);
   await p.type('input[autocomplete="username"]', name);
   await p.type('input[type="password"]', "correct horse battery");
@@ -167,7 +173,7 @@ check(
 );
 
 // Reload keeps it.
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(1200);
 check(
   new URL(A.url()).pathname === dmPath &&
@@ -176,7 +182,7 @@ check(
 );
 
 // C is not in it: the URL bounces to the DM list.
-await C.goto(`${base}${dmPath}`, { waitUntil: "networkidle0" });
+await gotoShared(C, `${base}${dmPath}`, { waitUntil: "networkidle0" });
 await sleep(1500);
 check(
   new URL(C.url()).pathname === "/dm",

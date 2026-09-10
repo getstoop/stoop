@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, gotoShared, sleep } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -54,7 +54,7 @@ await sleep(600);
 // B joins via the link and says hi.
 const B = await (await browser.createBrowserContext()).newPage();
 wire(B, "B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `friend${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

@@ -1,7 +1,13 @@
 // Presence status (STOOP-71): a chosen status shows on everyone else's
 // dots and card, and survives a reload. Mutes live in mutes.mjs.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  reloadShared,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -42,7 +48,7 @@ const link = await A.$eval(".link-box code", (e) => e.textContent);
 await A.click("button.primary");
 await sleep(1200);
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -93,7 +99,7 @@ check(
 await B.keyboard.press("Escape");
 
 // The status survives a reload (per-browser preference, re-announced).
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(1200);
 check(
   (await A.$eval(".status-option.active", (e) => e.textContent)).includes(

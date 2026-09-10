@@ -1,6 +1,6 @@
 // Admin storage tab (STOOP-70): usage, the upload limit, cleanup on demand.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, reloadShared, sleep } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -56,7 +56,7 @@ await sleep(800);
 check((await text()).includes("limit 1.0 GB"), "limit saved and shown");
 check((await text()).includes("1.0 GB left"), "free space shown");
 check((await A.$(".storage-bar")) !== null, "bar shows against a limit");
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(600);
 check((await text()).includes("limit 1.0 GB"), "limit persists");
 

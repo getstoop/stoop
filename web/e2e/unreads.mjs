@@ -3,7 +3,8 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
+  reloadShared,
   sleep,
 } from "./lib.mjs";
 
@@ -68,7 +69,7 @@ await sleep(1000);
 await (await channelLink(A, "random")).click();
 await sleep(600);
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -186,7 +187,7 @@ check(
 );
 
 // Persistence: B reloads; state survives (server-side marker).
-await B.reload({ waitUntil: "networkidle0" });
+await reloadShared(B, { waitUntil: "networkidle0" });
 await sleep(800);
 check(
   !(await isBold(B, "random")) && !(await isBold(B, "general")),

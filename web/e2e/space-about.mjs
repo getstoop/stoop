@@ -4,7 +4,7 @@ import puppeteer from "puppeteer-core";
 import {
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
   sleep,
   spaceMenu,
 } from "./lib.mjs";
@@ -106,7 +106,7 @@ check(
 );
 
 // ---- The sidebar line: one line, cut off, and it opens the dialog
-await A.goto(`${base}/s/${spaceId}`, { waitUntil: "networkidle0" });
+await gotoShared(A, `${base}/s/${spaceId}`, { waitUntil: "networkidle0" });
 await sleep(1500);
 // The welcome pane stands between the space and its first channel the
 // first time; step through it.
@@ -182,7 +182,7 @@ await A.keyboard.press("Escape");
 await sleep(300);
 
 const B = await newPage("B");
-await gotoInvite(B, `${base}/join/${code}`);
+await gotoShared(B, `${base}/join/${code}`);
 await sleep(1200);
 check(path(B) === "/login", `the link bounces a stranger to login`);
 const hero = await text(B, ".invite-hero");
@@ -224,7 +224,7 @@ check(
   `entering the space goes to the first channel (${path(B)})`,
 );
 const bSpaceId = path(B).split("/")[2];
-await B.goto(`${base}/s/${bSpaceId}`, { waitUntil: "networkidle0" });
+await gotoShared(B, `${base}/s/${bSpaceId}`, { waitUntil: "networkidle0" });
 await sleep(1200);
 check(
   (await B.$(".space-welcome")) === null &&

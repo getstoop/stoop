@@ -1,5 +1,11 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  reloadShared,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -84,7 +90,7 @@ const link = await A.$eval(".link-box code", (e) => e.textContent);
 await A.click("button.primary");
 await sleep(1000);
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -229,7 +235,7 @@ check(
 );
 
 // Reactions survive a reload (list round-trip).
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(800);
 chips = await chipsOf(A, 0);
 check(

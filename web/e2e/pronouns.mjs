@@ -5,7 +5,8 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
+  reloadShared,
   sleep,
 } from "./lib.mjs";
 
@@ -67,7 +68,7 @@ check(
   "profile header echoes the pronouns back",
 );
 // It survives a reload: the fields came from the server, not local state.
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(800);
 check(
   (await A.$eval("#pronouns", (e) => e.value)) === "she/her" &&
@@ -83,7 +84,7 @@ await sleep(800);
 // B joins and opens A's card from a message.
 const B = await (await browser.createBrowserContext()).newPage();
 wire(B, "B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `robin${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -164,7 +165,7 @@ const dmUrl = A.url();
 await A.type(".composer textarea", "about that bandsaw");
 await A.keyboard.press("Enter");
 await sleep(1200);
-await B.goto(dmUrl, { waitUntil: "networkidle0" });
+await gotoShared(B, dmUrl, { waitUntil: "networkidle0" });
 await sleep(1500);
 const dmCard = await openCard(B);
 check(

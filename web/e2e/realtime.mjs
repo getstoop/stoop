@@ -1,5 +1,11 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  reloadShared,
+  sleep,
+} from "./lib.mjs";
 
 const browser = await puppeteer.launch({
   executablePath: chromePath(),
@@ -43,7 +49,7 @@ await sleep(1200);
 
 console.log("--- B signs up via the link");
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -71,7 +77,7 @@ check(
   "B sees a message sent a few seconds later",
 );
 console.log("--- B reloads");
-await B.reload({ waitUntil: "networkidle0" });
+await reloadShared(B, { waitUntil: "networkidle0" });
 await sleep(1500);
 await A.type(".composer textarea", "msg3 after reload");
 await A.keyboard.press("Enter");

@@ -9,7 +9,7 @@ import {
   chromePath,
   dialog,
   dismissDialog,
-  gotoInvite,
+  gotoShared,
   sleep,
   spaceMenu,
 } from "./lib.mjs";
@@ -62,7 +62,7 @@ const spaceUrl = A.url();
 
 const joinAs = async (tag, name) => {
   const p = await newPage(tag);
-  await gotoInvite(p, link);
+  await gotoShared(p, link);
   await sleep(300);
   await p.type('input[autocomplete="username"]', name);
   await p.type('input[type="password"]', "correct horse battery");
@@ -137,7 +137,7 @@ check(
 );
 
 // --- Banning (from Space settings → Members) ---
-await A.goto(spaceUrl, { waitUntil: "networkidle0" });
+await gotoShared(A, spaceUrl, { waitUntil: "networkidle0" });
 await sleep(800);
 await openCard(A, cName);
 check(
@@ -174,7 +174,7 @@ check(
   (await A.$eval(".bans-section", (e) => e.textContent)).includes(cName),
   "settings lists the ban",
 );
-await gotoInvite(C, link);
+await gotoShared(C, link);
 await sleep(1500);
 check(
   (
@@ -192,7 +192,7 @@ check(
   ),
   "unbanning empties the list",
 );
-await gotoInvite(C, link);
+await gotoShared(C, link);
 await sleep(2000);
 check(
   path(C).startsWith("/s/"),

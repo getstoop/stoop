@@ -5,7 +5,7 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
   sleep,
 } from "./lib.mjs";
 
@@ -174,7 +174,7 @@ await sleep(1200);
 
 // ---- B joins: sees the topic, may not write it
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(400);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

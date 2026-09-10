@@ -3,7 +3,7 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
   sleep,
   spaceMenu,
   spaceMenuItems,
@@ -69,7 +69,7 @@ await A.click(".channel-add");
 await acceptDialog(A, "random");
 await sleep(800);
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

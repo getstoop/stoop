@@ -3,7 +3,7 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
   sleep,
 } from "./lib.mjs";
 
@@ -68,7 +68,7 @@ const link = await A.$eval(".link-box code", (e) => e.textContent);
 await A.click("button.primary");
 await sleep(1000);
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -83,21 +83,22 @@ await A.type(".composer textarea", "owner here");
 await A.keyboard.press("Enter");
 await sleep(800);
 
-// Actions visible (Add reaction and Reply for everyone): B (member) sees
-// Edit/Delete on her own, not on A's; A (owner) sees Delete on B's.
+// Actions visible (Add reaction, Copy link and Reply for everyone): B
+// (member) sees Edit/Delete on her own, not on A's; A (owner) sees
+// Delete on B's.
 check(
   JSON.stringify(await actionsOf(B, 0)) ===
-    JSON.stringify(["Add reaction", "Reply", "Edit", "Delete"]),
+    JSON.stringify(["Add reaction", "Copy link", "Reply", "Edit", "Delete"]),
   "member: own message has Reply/Edit/Delete",
 );
 check(
   JSON.stringify(await actionsOf(B, 1)) ===
-    JSON.stringify(["Add reaction", "Reply"]),
+    JSON.stringify(["Add reaction", "Copy link", "Reply"]),
   "member: someone else's has only Reply",
 );
 check(
   JSON.stringify(await actionsOf(A, 0)) ===
-    JSON.stringify(["Add reaction", "Reply", "Delete"]),
+    JSON.stringify(["Add reaction", "Copy link", "Reply", "Delete"]),
   "owner: another's message has Reply/Delete (no Edit)",
 );
 

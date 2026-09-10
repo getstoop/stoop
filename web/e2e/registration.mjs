@@ -3,7 +3,8 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
+  reloadShared,
   sleep,
 } from "./lib.mjs";
 
@@ -83,7 +84,7 @@ check(
 );
 
 // Via the link: code pre-filled and locked; account created and lands in the space.
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 const codeField = await B.$(
   'input[placeholder="From the person who invited you"]',
@@ -135,7 +136,7 @@ const titled = await A.waitForFunction(
   () => false,
 );
 check(titled, "saved server name becomes the tab title");
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(500);
 check(
   (await A.title()) === `Stoop HQ ${suffix}`,
@@ -163,7 +164,7 @@ check(
 );
 await A.select('select[name="space-creation"]', "2");
 await saveServer(A);
-await C.reload({ waitUntil: "networkidle0" });
+await reloadShared(C, { waitUntil: "networkidle0" });
 await sleep(500);
 check(
   (await C.$('button[title="Create a space"]')) !== null,
@@ -187,7 +188,7 @@ check(
 );
 
 // Policy survives a page reload of the admin (persisted), then back to invite.
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(500);
 check(
   (await A.$eval('select[name="registration-policy"]', (e) => e.value)) === "3",
@@ -228,7 +229,7 @@ await openMenu(A, calRow);
 await menuItem(A, "Deactivate");
 await acceptDialog(A);
 await sleep(1000);
-await C.reload({ waitUntil: "networkidle0" });
+await reloadShared(C, { waitUntil: "networkidle0" });
 await sleep(500);
 check(path(C) === "/login", `deactivated user bounced to login (${path(C)})`);
 await C.type('input[autocomplete="username"]', `cal${suffix}`);
@@ -241,7 +242,7 @@ check(
   ),
   "deactivated login refused with a clear error",
 );
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(500);
 const rows2 = await A.$$(".user-row");
 for (const r of rows2)
