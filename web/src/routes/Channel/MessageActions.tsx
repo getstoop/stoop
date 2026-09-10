@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
+import { copyShareLink } from "../../api/shareLinks";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 export function MessageActions({
   message,
+  link,
   mine,
   canDelete,
   onReply,
@@ -10,6 +13,8 @@ export function MessageActions({
   onReact,
 }: {
   message: Message;
+  // The message's permalink, ready to copy.
+  link: string;
   mine: boolean;
   canDelete: boolean;
   onReply: () => void;
@@ -17,6 +22,14 @@ export function MessageActions({
   onDelete: () => void;
   onReact: (anchor: DOMRect) => void;
 }) {
+  // The tick that stands in for the icon once the link is copied.
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(id);
+  }, [copied]);
+
   return (
     <span className="message-actions" data-message={message.id}>
       <button
@@ -27,6 +40,17 @@ export function MessageActions({
         aria-label="Add reaction"
       >
         <ReactIcon />
+      </button>
+      <button
+        type="button"
+        className="message-action"
+        onClick={async () => {
+          if (await copyShareLink(link)) setCopied(true);
+        }}
+        title={copied ? "Copied!" : "Copy link"}
+        aria-label={copied ? "Link copied" : "Copy link"}
+      >
+        {copied ? <CheckIcon /> : <LinkIcon />}
       </button>
       <button
         type="button"
@@ -82,6 +106,24 @@ function ReactIcon() {
       <path d="M8 15c.8 1.2 1.8 1.8 3 1.8s2.2-.6 3-1.8" />
       <path d="M8.5 11h.01M13.5 11h.01" />
       <path d="M19 2v6M16 5h6" />
+    </svg>
+  );
+}
+
+// A chain link: "copy a link to this message".
+function LinkIcon() {
+  return (
+    <svg {...iconProps} aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5" />
+      <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg {...iconProps} aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
     </svg>
   );
 }

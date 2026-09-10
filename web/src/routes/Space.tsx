@@ -14,6 +14,12 @@ import { errorText } from "../api/errors";
 import { isMuted } from "../api/mutes";
 import { canCreateInvites, canManageChannels } from "../api/permissions";
 import { useActivity, useChannels, useSpaces } from "../api/queries";
+import {
+  copyShareLink,
+  shareOrigin,
+  shareUrl,
+  spacePath,
+} from "../api/shareLinks";
 import { badgeCount, isAlerting } from "../api/unreads";
 import { welcomeSeen } from "../api/welcome";
 import { ChannelGroupHeading } from "../components/ChannelGroupHeading";
@@ -101,6 +107,11 @@ export function SpaceLayout() {
     spaceActions.push({
       label: "About this space",
       onSelect: () => setAboutOpen(true),
+    });
+    spaceActions.push({
+      label: "Copy link",
+      onSelect: () =>
+        copyShareLink(shareUrl(spacePath(spaceId), shareOrigin(queryClient))),
     });
     if (canCreateInvites(space)) {
       spaceActions.push({

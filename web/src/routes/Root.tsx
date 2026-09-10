@@ -1,26 +1,16 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Outlet, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Outlet } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { type ActivityData, alertingCount } from "../api/activity";
-import { canOpenInApp } from "../api/desktopLinks";
 import { setBadge } from "../api/platform";
 import { useInstanceStatus } from "../api/queries";
 import { DialogHost } from "../components/DialogHost";
-import { InviteHandoff } from "../components/InviteHandoff";
+import { LinkGate } from "../components/LinkGate";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
 
 // The outermost frame: whatever page is routed, plus the one place the
 // app's dialogs render.
 export function Root() {
-  const { pathname, searchStr } = useRouterState({ select: (s) => s.location });
-  // An invite link in a browser asks first: the app, or here. This sits
-  // above the route tree, so nothing has looked the code up or redeemed
-  // it by the time the choice is made. The answer lasts as long as the
-  // page is loaded — this component is never unmounted — and nothing is
-  // stored, so a fresh load asks again.
-  const [inBrowser, setInBrowser] = useState(false);
-  const invite = pathname.startsWith("/join/") ? `${pathname}${searchStr}` : "";
-  const handoff = invite !== "" && !inBrowser && canOpenInApp(invite);
   // Fetches the status; the title itself is read off the cache below.
   useInstanceStatus();
   const queryClient = useQueryClient();
@@ -58,11 +48,9 @@ export function Root() {
     <>
       <div className="titlebar" />
       <div className="page">
-        {handoff ? (
-          <InviteHandoff path={invite} onContinue={() => setInBrowser(true)} />
-        ) : (
+        <LinkGate>
           <Outlet />
-        )}
+        </LinkGate>
       </div>
       <DialogHost />
     </>

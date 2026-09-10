@@ -5,7 +5,7 @@ import {
   chromePath,
   dialog,
   dismissDialog,
-  gotoInvite,
+  gotoShared,
   sleep,
   spaceMenu,
   spaceMenuItems,
@@ -135,7 +135,7 @@ const ctxB = await browser.createBrowserContext();
 const B = await ctxB.newPage();
 wire(B, "B");
 const link = `${base}/join/${code}?space=${encodeURIComponent(`Stoop HQ ${suffix}`)}`;
-// By hand rather than through gotoInvite: the choice an invite link
+// By hand rather than through gotoShared: the choice an invite link
 // lands on is what is under test here.
 await B.goto(link, { waitUntil: "domcontentloaded" });
 await B.waitForSelector(".open-in-app", { timeout: 10000 });
@@ -210,7 +210,7 @@ check(
 // landing asks the server what the code is for rather than trusting the
 // hint in the link.
 const Bare = await ctxB.newPage();
-await gotoInvite(Bare, `${base}/join/${code}`);
+await gotoShared(Bare, `${base}/join/${code}`);
 await sleep(600);
 check(
   (await Bare.$eval(".invite-hero", (e) => e.innerText)).includes(
@@ -288,7 +288,7 @@ check(
 const ctxC = await browser.createBrowserContext();
 const C = await ctxC.newPage();
 wire(C, "C");
-await gotoInvite(C, `${base}/join/${code}`);
+await gotoShared(C, `${base}/join/${code}`);
 await sleep(300);
 await C.type('input[autocomplete="username"]', `webC${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");

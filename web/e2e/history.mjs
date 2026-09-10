@@ -2,7 +2,13 @@
 // before it when scrolled to the top without the view jumping, and shows
 // "Beginning of #channel" once there is nothing older.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  reloadShared,
+  sleep,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -72,7 +78,7 @@ await A.evaluate(async (channelId) => {
     });
   }
 }, channelId);
-await A.reload({ waitUntil: "networkidle0" });
+await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(1200);
 check(
   (await count()) === 50,
@@ -135,7 +141,7 @@ check(
 );
 const B = await (await browser.createBrowserContext()).newPage();
 B.on("dialog", (d) => d.accept());
-await gotoInvite(B, link || `${base}/login`);
+await gotoShared(B, link || `${base}/login`);
 await sleep(300);
 if (link) {
   await B.click('.invite-choice button[data-mode="register"]').catch(() => {});

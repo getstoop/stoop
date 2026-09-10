@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, reloadShared, sleep } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -150,7 +150,7 @@ check(
     "Password changed",
   "password changed",
 );
-await Q.reload({ waitUntil: "networkidle0" });
+await reloadShared(Q, { waitUntil: "networkidle0" });
 await sleep(500);
 check(
   new URL(Q.url()).pathname === "/login",

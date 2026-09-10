@@ -4,6 +4,12 @@ import { editChannelTopic } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { canManageChannels } from "../api/permissions";
+import {
+  channelPath,
+  copyShareLink,
+  shareOrigin,
+  shareUrl,
+} from "../api/shareLinks";
 import { patchChannel, recomputeSpaceUnread } from "../api/unreads";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
@@ -48,6 +54,11 @@ export function ChannelMenu({
       queryClient.invalidateQueries({ queryKey: ["activity"] });
     });
 
+  const copyLink = () =>
+    copyShareLink(
+      shareUrl(channelPath(spaceId, channel.id), shareOrigin(queryClient)),
+    );
+
   const rename = () =>
     run(async () => {
       const name = await prompt({
@@ -78,6 +89,7 @@ export function ChannelMenu({
   const items: MenuItem[] = space?.muted
     ? [{ label: "Muted by space", onSelect: () => {}, disabled: true }]
     : [{ label: channel.muted ? "Unmute" : "Mute", onSelect: toggleMute }];
+  items.push({ label: "Copy link", onSelect: copyLink });
   // The one way to read a topic on a phone, where the header hides it.
   if (channel.topic) {
     items.push({

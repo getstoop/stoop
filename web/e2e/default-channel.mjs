@@ -6,7 +6,7 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
   sleep,
 } from "./lib.mjs";
 
@@ -110,7 +110,7 @@ await settings(A, spaceId);
 check((await chosen(A)) === "# tools", "the choice survives a reload");
 
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(400);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -123,7 +123,7 @@ check(
 );
 
 // Opening the space with no channel in the URL goes the same way.
-await B.goto(`${base}/s/${spaceId}`, { waitUntil: "networkidle0" });
+await gotoShared(B, `${base}/s/${spaceId}`, { waitUntil: "networkidle0" });
 await sleep(1200);
 check(
   (await text(B, ".channel-title")) === "tools",
@@ -159,7 +159,7 @@ check(
 // A member who was never told stays honest too: C arrives on the same
 // invite and lands in #general, not in a channel that no longer exists.
 const C = await newPage("C");
-await gotoInvite(C, link);
+await gotoShared(C, link);
 await sleep(400);
 await C.type('input[autocomplete="username"]', `casey${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");

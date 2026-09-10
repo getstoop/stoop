@@ -4,7 +4,7 @@
 // WINDOW_CAP rows; arrivals while windowed count on the pill; ?m= deep
 // links open around a message.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, gotoShared, sleep } from "./lib.mjs";
 
 const SEED = 600;
 const CAP = 300;
@@ -111,7 +111,7 @@ for (let i = 1; i <= SEED; i++) {
   if (!res.ok) throw new Error(`seeding message ${i}: HTTP ${res.status}`);
   ids.push((await res.json()).message.id);
 }
-await A.goto(channelUrl, { waitUntil: "networkidle0" });
+await gotoShared(A, channelUrl, { waitUntil: "networkidle0" });
 await sleep(1200);
 check((await count()) === 50, `opens on the latest page (${await count()})`);
 
@@ -177,7 +177,7 @@ check(await waitFor(() => has(`#msg-${ids[4]}`)), "jumped back into history");
 await sleep(300);
 const B = await (await browser.createBrowserContext()).newPage();
 B.on("dialog", (d) => d.accept());
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.click('.invite-choice button[data-mode="register"]').catch(() => {});
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
@@ -250,10 +250,62 @@ check(
   "…with the sent message in view",
 );
 
-// Deep link: ?m= opens the channel around the message and then drops the param.
+// Copy link hands over the permalink this spec then follows.
+await A.evaluate(() => {
+  navigator.clipboard.writeText = (t) => {
+    window.__copied = t;
+    return Promise.resolve();
+  };
+});
+const rows = await A.$$(".message");
+const last = rows[rows.length - 1];
+await last.hover();
+const lastId = await A.evaluate(
+  (e) => e.querySelector(".message-actions")?.dataset.message,
+  last,
+);
+await (await last.$('.message-action[title="Copy link"]')).click();
+await sleep(300);
+const copied = await A.evaluate(() => window.__copied);
+check(
+  copied === `${base}/s/${spaceId}/c/${channelId}?m=${lastId}`,
+  `Copy link copies this message's permalink (${copied})`,
+);
+check(
+  await has('.message-action[title="Copied!"]'),
+  "…and the action says it copied",
+);
+
+// Deep link: ?m= opens the channel around the message and then drops the
+// param — but the gate stands in front of it first, before the channel
+// opens and clears its unread marker.
+const channelName = await A.$eval(".channel-title", (e) => e.innerText);
 await A.goto(`${base}/s/${spaceId}/c/${channelId}?m=${ids[299]}`, {
   waitUntil: "networkidle0",
 });
+await A.waitForSelector(".open-in-app", { timeout: 10000 });
+const card = await A.$eval(".login-card", (e) => e.innerText);
+check(
+  !(await has(".message-list")) &&
+    card.includes("shared a message") &&
+    !card.includes(channelName),
+  `a permalink lands on the choice, naming no channel (${JSON.stringify(card)})`,
+);
+// The link it hands the shell, resolved the way the shell resolves it —
+// its `path` against the server it names (deeplink.ts → targetUrl).
+const deep = new URL(
+  await A.$eval(".open-in-app a", (e) => e.getAttribute("href")),
+);
+const server = deep.searchParams.get("server");
+const target = new URL(deep.searchParams.get("path") ?? "", `${server}/`);
+check(
+  deep.protocol === "stoop:" &&
+    server === base &&
+    target.pathname === `/s/${spaceId}/c/${channelId}` &&
+    target.searchParams.get("m") === ids[299],
+  `the handoff names this server and this message (${target.href})`,
+);
+await A.click(".open-in-app button");
 check(
   await waitFor(() => has(`#msg-${ids[299]}`)),
   "?m= opens the channel with the message loaded",
@@ -266,7 +318,8 @@ check(
   "…and the param is dropped from the URL",
 );
 // A bogus id falls back to the newest page rather than an empty timeline.
-await A.goto(
+await gotoShared(
+  A,
   `${base}/s/${spaceId}/c/${channelId}?m=00000000-0000-7000-8000-000000000000`,
   { waitUntil: "networkidle0" },
 );

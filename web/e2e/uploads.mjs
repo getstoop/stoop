@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, png, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, gotoShared, png, sleep } from "./lib.mjs";
 
 // File uploads, phase 1: avatars and space icons. Besides what the UI
 // shows, this spec measures two things the UI can't: the served image's
@@ -106,7 +106,7 @@ await sleep(1200);
 const spaceId = new URL(A.url()).pathname.split("/")[2];
 
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");

@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoInvite, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, gotoShared, sleep } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -57,7 +57,7 @@ B.on("pageerror", (e) => {
   console.log("[B pageerror]", e.message);
   fails++;
 });
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -105,7 +105,7 @@ await A.keyboard.press("Escape");
 // @here from the owner: picker offers it; B (online) is notified. A third
 // member who is offline is not.
 const C = await newPage("C");
-await gotoInvite(C, link);
+await gotoShared(C, link);
 await sleep(300);
 await C.type('input[autocomplete="username"]', `cal${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");

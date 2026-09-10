@@ -30,20 +30,38 @@ export function chromePath() {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Arriving at an invite link in a browser. It lands on the choice —
-// the desktop app, or here — before anything looks the code up or
-// redeems it, so take the way past. A spec that has no invite link to
-// follow passes /login instead, which never shows the choice.
+// Entering a page can land on the shared-link gate: an invite, a space, a
+// channel or a message stops on the choice — the desktop app, or here —
+// before anything looks the code up, redeems it, or opens the channel and
+// marks it read. These take the way past. Nothing is stored, so a reload
+// meets the gate again, and either is safe on a page that has no gate: it
+// costs one selector check.
 //
 // The reach for the app is held back under automation, or the prompt
 // Chrome raises for stoop:// would block the page for good — so never
 // click "Open in the Stoop app" from a spec.
 // docs/architecture/desktop.md → Deep links.
-export async function gotoInvite(page, link) {
-  await page.goto(link, { waitUntil: "domcontentloaded" });
-  const stay = await page
-    .waitForSelector(".open-in-app button", { timeout: 10000 })
+export async function gotoShared(page, link, opts) {
+  await page.goto(link, opts ?? { waitUntil: "domcontentloaded" });
+  await pastGate(page);
+}
+
+export async function reloadShared(page, opts) {
+  await page.reload(opts ?? { waitUntil: "networkidle0" });
+  await pastGate(page);
+}
+
+// The gate is decided on the first render, above everything else: wait for
+// the app to render anything at all, then take the way past if that is
+// what it rendered.
+async function pastGate(page) {
+  await page
+    .waitForSelector(
+      ".open-in-app button, .app-shell, .login-card, .centered",
+      { timeout: 10000 },
+    )
     .catch(() => null);
+  const stay = await page.$(".open-in-app button");
   if (stay) await stay.click();
 }
 

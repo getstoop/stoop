@@ -9,7 +9,8 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
+  reloadShared,
   sleep,
 } from "./lib.mjs";
 
@@ -169,7 +170,7 @@ check((await A.$$(".voice-participant")).length === 0, "nobody in it yet");
 
 // B joins the space and sees the empty voice channel.
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', bea);
 await B.type('input[type="password"]', "correct horse battery");
@@ -228,7 +229,7 @@ check(
 );
 
 // A late arrival gets the snapshot: B reloads and still sees A.
-await B.reload({ waitUntil: "networkidle0" });
+await reloadShared(B, { waitUntil: "networkidle0" });
 await sleep(800);
 list = await waitForParticipants(B, (l) => l.length === 1);
 check(list.length === 1 && list[0].name === ada, "Ready snapshot lists A");

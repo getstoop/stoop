@@ -5,7 +5,7 @@ import {
   acceptDialog,
   BASE as base,
   chromePath,
-  gotoInvite,
+  gotoShared,
   sleep,
 } from "./lib.mjs";
 
@@ -72,7 +72,7 @@ await acceptDialog(A, "garden");
 await sleep(800);
 
 const B = await newPage("B");
-await gotoInvite(B, link);
+await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -89,7 +89,7 @@ const gardenHref = await A.$$eval(".channel-link", (es) =>
     .find((e) => e.querySelector(".channel-name")?.textContent === "garden")
     ?.getAttribute("href"),
 );
-await A.goto(`${base}${gardenHref}`, { waitUntil: "networkidle0" });
+await gotoShared(A, `${base}${gardenHref}`, { waitUntil: "networkidle0" });
 await A.waitForSelector(".composer textarea", { timeout: 8000 });
 const gardenId = url(A).pathname.split("/")[4];
 check(gardenId !== generalId, "A moved to #garden");
@@ -264,7 +264,7 @@ await P.type('input[autocomplete="username"]', `bea${suffix}`);
 await P.type('input[type="password"]', "correct horse battery");
 await P.tap('button[type="submit"]');
 await sleep(1500);
-await P.goto(`${base}/s/${spaceId}/c/${generalId}`, {
+await gotoShared(P, `${base}/s/${spaceId}/c/${generalId}`, {
   waitUntil: "networkidle0",
 });
 await P.waitForSelector(".search-launch-button", { timeout: 8000 });

@@ -3,7 +3,7 @@
 // inline script (the theme stamp) runs, the bundle runs, nothing is
 // blocked. Reads only; it needs no particular instance state.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, reloadShared, sleep } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -90,7 +90,7 @@ await p.evaluate(() =>
     JSON.stringify({ mode: "fixed", theme: "blackout" }),
   ),
 );
-await p.reload({ waitUntil: "networkidle0" });
+await reloadShared(p, { waitUntil: "networkidle0" });
 await sleep(300);
 check(
   (await p.evaluate(() => document.documentElement.dataset.theme)) ===
