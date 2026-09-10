@@ -447,6 +447,11 @@ Start Stoop first: LiveKit exits if the file isn't there yet.
 
 ## Configuration reference
 
+Set any of these in `.env`; the compose file passes that file through to
+the server. Three are pinned by the compose file itself and ignore what
+`.env` says: `STOOP_DATABASE_URL`, `STOOP_STORAGE_DIR` and
+`STOOP_LIVEKIT_KEY_FILE`.
+
 | Variable                   | Default                     | Purpose                          |
 | -------------------------- | --------------------------- | -------------------------------- |
 | `STOOP_DATABASE_URL`       | (required)                  | Postgres connection string       |
@@ -487,7 +492,7 @@ Start Stoop first: LiveKit exits if the file isn't there yet.
 | `STOOP_LIVEKIT_MEDIA_HOST` | `127.0.0.1` (`livekit` in compose) | Where the built-in node forwards media: LiveKit's host on this machine or network |
 | `STOOP_LIVEKIT_TCP_PORT`   | `7881`                      | LiveKit's TCP media port, as set in `livekit.yaml` |
 | `STOOP_LIVEKIT_UDP_PORTS`  | `50000-50100`               | LiveKit's UDP media range, as set in `livekit.yaml` |
-| `STOOP_LIVEKIT_NODE_IP_FILE` | (empty)                   | File Stoop writes the tailnet address to for the LiveKit sidecar's `NODE_IP` (the compose file sets it on the shared volume) |
+| `STOOP_LIVEKIT_NODE_IP_FILE` | (empty)                   | File Stoop writes the tailnet address to for the LiveKit sidecar's `NODE_IP`. Defaults to `node-ip` beside `STOOP_LIVEKIT_KEY_FILE`, which is what lands it on the shared volume under compose |
 | `STOOP_OIDC_ISSUER`        | (empty)                     | One OIDC login provider from the environment: the issuer URL exactly as its discovery document states it. The admin page's saved list overrides this |
 | `STOOP_OIDC_CLIENT_ID`     | (empty)                     | The provider's client id; set together with the secret and issuer |
 | `STOOP_OIDC_CLIENT_SECRET` | (empty)                     | The provider's client secret |

@@ -16,6 +16,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Everything in .env reaches the server, so any variable in
+    # docs/self-hosting.md → Configuration reference can be set there. The
+    # entries below are the ones this file computes, pins, or defaults
+    # differently from a bare binary; they win over .env, because
+    # `environment:` takes precedence over `env_file:`.
+    env_file: .env
     environment:
       STOOP_DATABASE_URL: postgres://stoop:${POSTGRES_PASSWORD}@postgres:5432/stoop?sslmode=disable
       STOOP_PUBLIC_URL: ${STOOP_PUBLIC_URL:-}
