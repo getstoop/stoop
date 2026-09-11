@@ -1,4 +1,13 @@
-import { channelLink, expect, reload, say, seed, signIn, test } from "./lib";
+import {
+  channelLink,
+  expect,
+  focus,
+  reload,
+  say,
+  seed,
+  signIn,
+  test,
+} from "./lib";
 
 // Unread markers, the "New messages" divider and the space dot.
 // Ported from web/e2e/unreads.mjs (STOOP-238): same assertions, seeded
@@ -119,7 +128,7 @@ test("unread markers, dividers and the space dot", async ({ browser }) => {
   ).toHaveClass(/unread/);
   // Reading gates on hasAttention() — visible *and* focused — and B was
   // opened after A, so A is not the front page until it is told to be.
-  await A.bringToFront();
+  await focus(A);
   await channelLink(A, "random").click();
   await expect(
     A.locator(".space-rail-list .pill-dot"),

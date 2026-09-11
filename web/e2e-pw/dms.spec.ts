@@ -1,5 +1,14 @@
 import type { Page } from "@playwright/test";
-import { expect, pastGate, reload, say, seed, signIn, test } from "./lib";
+import {
+  expect,
+  focus,
+  pastGate,
+  reload,
+  say,
+  seed,
+  signIn,
+  test,
+} from "./lib";
 
 // Direct messages (STOOP-65): open one from a member's card, talk both
 // ways in real time, see the DMs pill light up, survive a reload, and
@@ -82,7 +91,7 @@ test("direct messages", async ({ browser }) => {
   // gates on document.hasFocus() so an unfocused tab still raises a desktop
   // alert. With three pages open only one holds focus, so B has to be at the
   // front for this to mean anything.
-  await B.bringToFront();
+  await focus(B);
   await expect(
     dmsPill(B).locator(".pill-badge"),
     "reading the DM clears B's alert",
