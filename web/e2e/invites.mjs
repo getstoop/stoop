@@ -33,7 +33,6 @@ await sleep(1500);
 await A.click("button.reach-continue");
 await sleep(800);
 await A.click("button.primary");
-await sleep(1200);
 check(
   await waitFor(() => /^\/s\/[^/]+\/c\/[^/]+$/.test(new URL(A.url()).pathname)),
   `A completes setup and lands in a space (${new URL(A.url()).pathname})`,
@@ -41,7 +40,6 @@ check(
 
 await A.click('button[title="Create a space"]');
 await acceptDialog(A, `Stoop HQ ${suffix}`);
-await sleep(1500);
 check(
   await waitFor(() => /^\/s\/[^/]+\/c\/[^/]+$/.test(new URL(A.url()).pathname)),
   `A navigated into new space (${new URL(A.url()).pathname})`,
@@ -196,7 +194,6 @@ check(
 // hint in the link.
 const Bare = await ctxB.newPage();
 await gotoShared(Bare, `${base}/join/${code}`);
-await sleep(600);
 check(
   await waitFor(async () =>
     (
@@ -210,7 +207,6 @@ await B.click('.invite-choice button[data-mode="register"]');
 await B.type('input[autocomplete="username"]', `webB${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
-await sleep(2500);
 check(
   await waitFor(
     async () =>
@@ -237,7 +233,6 @@ await sleep(1000); // let B's WS connect
 const msg = `hi from A ${suffix}`;
 await A.type(".composer textarea", msg);
 await A.keyboard.press("Enter");
-await sleep(1500);
 check(
   await waitFor(async () =>
     (await B.$eval(".message-list", (e) => e.innerText)).includes(msg),
@@ -258,7 +253,6 @@ check(
 );
 await spaceMenu(A, "Invite people");
 await A.waitForSelector(".invite-row", { timeout: 3000 });
-await sleep(600); // let the list refetch past the cached copy
 check(
   await waitFor(async () =>
     (await A.$eval(".invite-row .invite-meta", (e) => e.textContent)).includes(
@@ -278,7 +272,6 @@ check(alertText.includes("invite not found"), `bad code alert: "${alertText}"`);
 await spaceMenu(A, "Invite people");
 await A.waitForSelector(".invite-row .chip.danger", { timeout: 3000 });
 await A.click(".invite-row .chip.danger");
-await sleep(800);
 check(
   await waitFor(
     async () =>
@@ -312,7 +305,6 @@ await sleep(500);
 // Log out is the last entry of the account nav; the rail pill still
 // lands on Profile.
 await A.click(".logout-link");
-await sleep(800);
 check(
   await waitFor(
     () => new URL(A.url()).pathname === "/login" && !new URL(A.url()).search,
@@ -322,7 +314,6 @@ check(
 await A.type('input[autocomplete="username"]', `webA${suffix}`);
 await A.type('input[type="password"]', "correct horse battery");
 await A.click('button[type="submit"]');
-await sleep(2000);
 check(
   await waitFor(() => new URL(A.url()).pathname.startsWith("/s/")),
   `existing-account login lands in a space (${new URL(A.url()).pathname})`,

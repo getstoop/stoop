@@ -173,7 +173,6 @@ const topBefore = await scrollTop();
 const rowsBefore = await count();
 await B.type(".composer textarea", "hello from bea");
 await B.keyboard.press("Enter");
-await sleep(1000);
 check(
   await waitFor(async () => (await pill()) === "1 new message ↓"),
   `someone else's message counts on the pill ("${await pill()}")`,
@@ -231,7 +230,6 @@ check(
   }),
   "sending from inside history returns to the newest page",
 );
-await sleep(300);
 check(
   await waitFor(() =>
     A.$eval(
@@ -258,7 +256,6 @@ const lastId = await A.evaluate(
 );
 await (await last.$('.message-action[title="Copy link"]')).click();
 let copied;
-await sleep(300);
 check(
   await waitFor(async () => {
     copied = await A.evaluate(() => window.__copied);
@@ -319,7 +316,6 @@ await gotoShared(
   { waitUntil: "networkidle0" },
 );
 let t;
-await sleep(800);
 check(
   await waitFor(async () => {
     t = await texts();

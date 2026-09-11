@@ -36,7 +36,6 @@ await sleep(800);
 await A.waitForSelector(".link-box code", { timeout: 3000 });
 const link = await A.$eval(".link-box code", (e) => e.textContent);
 await A.click("button.primary");
-await sleep(1000);
 check(
   await waitFor(async () => (await A.$('a[title="Server admin"]')) !== null),
   "admin sees the gear pill",
@@ -47,7 +46,6 @@ const B = await newPage("B");
 await B.goto(`${base}/login`, { waitUntil: "networkidle0" });
 await sleep(200);
 await B.click("button.link");
-await sleep(200);
 check(
   await waitFor(
     async () =>
@@ -63,7 +61,6 @@ await B.type(
   "nope1234ab",
 );
 await B.click('button[type="submit"]');
-await sleep(1200);
 check(
   await waitFor(
     async () =>
@@ -75,7 +72,6 @@ check(
 
 // Via the link: code pre-filled and locked; account created and lands in the space.
 await gotoShared(B, link);
-await sleep(300);
 check(
   await waitFor(async () => {
     const field = await B.$(
@@ -91,7 +87,6 @@ check(
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
-await sleep(2500);
 check(
   await waitFor(
     async () =>
@@ -107,7 +102,6 @@ await A.click('a[title="Server admin"]');
 check(await waitFor(() => path(A) === "/admin"), "gear opens /admin");
 await sleep(600);
 await A.click('.settings-tab[data-tab="accounts"]');
-await sleep(600);
 check(
   await waitFor(async () => {
     const users = await A.$eval(".user-list", (e) => e.innerText).catch(
@@ -140,7 +134,6 @@ const titled = await A.waitForFunction(
 );
 check(titled, "saved server name becomes the tab title");
 await reloadShared(A, { waitUntil: "networkidle0" });
-await sleep(500);
 check(
   await waitFor(async () => (await A.title()) === `Stoop HQ ${suffix}`),
   "server name persists across reload",
@@ -171,7 +164,6 @@ check(
 await A.select('select[name="space-creation"]', "2");
 await saveServer(A);
 await reloadShared(C, { waitUntil: "networkidle0" });
-await sleep(500);
 check(
   await waitFor(
     async () => (await C.$('button[title="Create a space"]')) !== null,
@@ -186,7 +178,6 @@ await A.select('select[name="registration-policy"]', "3");
 await saveServer(A);
 const D = await newPage("D");
 await D.goto(`${base}/login`, { waitUntil: "networkidle0" });
-await sleep(300);
 check(
   await waitFor(
     async () =>
@@ -200,7 +191,6 @@ check(
 
 // Policy survives a page reload of the admin (persisted), then back to invite.
 await reloadShared(A, { waitUntil: "networkidle0" });
-await sleep(500);
 check(
   await waitFor(
     async () =>
@@ -255,7 +245,6 @@ await sleep(500);
 await C.type('input[autocomplete="username"]', `cal${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");
 await C.click('button[type="submit"]');
-await sleep(1200);
 check(
   await waitFor(async () =>
     (await C.$eval("p.error", (e) => e.textContent).catch(() => "")).includes(

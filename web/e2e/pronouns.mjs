@@ -60,7 +60,6 @@ check(
 );
 // It survives a reload: the fields came from the server, not local state.
 await reloadShared(A, { waitUntil: "networkidle0" });
-await sleep(800);
 check(
   await waitFor(
     async () =>

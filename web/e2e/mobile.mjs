@@ -156,7 +156,6 @@ await sleep(400);
 await P.tap(".menu-button");
 await sleep(300);
 await P.tap(".space-pill.activity");
-await sleep(600);
 check(
   await waitFor(async () => {
     l = await layout();

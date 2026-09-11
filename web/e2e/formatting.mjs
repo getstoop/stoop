@@ -143,7 +143,6 @@ check(
 );
 await sleep(100);
 await A.keyboard.press("Enter");
-await sleep(700);
 check(
   await waitFor(async () => (await lastMessage(A, "s em")) === "hi there"),
   "nested strike/italic renders",
@@ -192,7 +191,6 @@ check(
   "code block fences the selection on its own lines",
 );
 await A.keyboard.press("Enter");
-await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -213,7 +211,6 @@ await A.keyboard.press("Enter");
 await A.keyboard.up("Shift");
 await A.type(".composer textarea", "- eggs");
 await A.keyboard.press("Enter");
-await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -289,7 +286,6 @@ check(
   "…though the words are in the DOM for a screen reader once revealed",
 );
 await A.click(spoiler);
-await sleep(200);
 check(
   await waitFor(
     async () =>
@@ -325,7 +321,6 @@ check(
 
 // Editing shows the raw Markdown and keeps it.
 await clickAction(A, 0, "Edit");
-await sleep(200);
 check(
   await waitFor(async () =>
     (
@@ -340,7 +335,6 @@ await A.$eval(".message-editor textarea", (e) => {
 });
 await A.type(".message-editor textarea", " edited");
 await A.keyboard.press("Enter");
-await sleep(700);
 check(
   await waitFor(
     async () =>

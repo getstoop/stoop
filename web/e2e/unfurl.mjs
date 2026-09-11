@@ -122,7 +122,6 @@ await sleep(1500);
 check((await cardOf(1)) === null, "links in code spans are not unfurled");
 await A.type(".composer textarea", `same link ${siteUrl}/page`);
 await A.keyboard.press("Enter");
-await sleep(800);
 check(
   await waitFor(async () => (await cardOf(2))?.title === "Stoop & friends"),
   "cached preview appears on the next message",

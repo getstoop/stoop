@@ -74,7 +74,6 @@ await openCard(A, bName);
 check((await cardText(A, ".block-button")) === "Block", "card offers Block");
 await A.click(".user-card .block-button");
 await acceptDialog(A);
-await sleep(800);
 check(
   await waitFor(async () => (await cardText(A, ".block-button")) === "Unblock"),
   "after confirming, the chip reads Unblock",
@@ -102,14 +101,12 @@ check(
   "profile lists the blocked person",
 );
 await A.click(".blocked-section .chip");
-await sleep(800);
 check(
   await waitFor(async () => (await A.$(".blocked-section")) === null),
   "unblocking empties the section",
 );
 await openCard(B, aName);
 await B.click(".user-card .message-button");
-await sleep(1500);
 check(
   await waitFor(() => path(B).startsWith("/dm/")),
   `after unblock, Message opens a DM (${path(B)})`,
@@ -142,7 +139,6 @@ const rowBtn = async (p, rowText, label) => {
 };
 await (await rowBtn(A, cName, "Ban")).click();
 await acceptDialog(A);
-await sleep(1500);
 check(
   await waitFor(async () => (await rowBtn(A, cName, "Kick")) === null),
   "banned person leaves the member list",
@@ -154,7 +150,6 @@ check(
   "settings lists the ban",
 );
 await gotoShared(C, link);
-await sleep(1500);
 check(
   await waitFor(async () =>
     (
@@ -166,7 +161,6 @@ check(
 
 // Unban from settings; the same link works again.
 await A.click(".bans-section .chip");
-await sleep(800);
 check(
   await waitFor(async () =>
     (await A.$eval(".bans-section", (e) => e.textContent)).includes(
@@ -176,7 +170,6 @@ check(
   "unbanning empties the list",
 );
 await gotoShared(C, link);
-await sleep(2000);
 check(
   await waitFor(() => path(C).startsWith("/s/")),
   `after unban, the link admits them (${path(C)})`,

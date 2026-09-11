@@ -50,7 +50,6 @@ await sleep(400); // A looks away so the alert isn't auto-read
 // B replies via the hover action.
 await B.hover(".message");
 await B.click('.message .message-action[title="Reply"]');
-await sleep(200);
 check(
   await waitFor(async () => {
     const bar = await text(B, ".reply-bar");
@@ -60,7 +59,6 @@ check(
 );
 await B.type(".composer textarea", "yes! 7pm?");
 await B.keyboard.press("Enter");
-await sleep(1200);
 check(
   await waitFor(async () => (await B.$(".reply-bar")) === null),
   "reply bar clears after sending",
@@ -82,7 +80,6 @@ check(
   "A gets an activity item",
 );
 await A.click(".activity");
-await sleep(800);
 check(
   await waitFor(async () =>
     (await text(A, ".activity-row")).includes(
@@ -100,7 +97,6 @@ await sleep(1200);
 
 // Clicking the quote jumps to (and flashes) the original.
 await A.click(".reply-quote");
-await sleep(200);
 check(
   await waitFor(async () =>
     (

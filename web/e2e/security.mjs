@@ -80,7 +80,6 @@ await p.evaluate(() =>
   ),
 );
 await reloadShared(p, { waitUntil: "networkidle0" });
-await sleep(300);
 check(
   await waitFor(
     async () =>

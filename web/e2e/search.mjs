@@ -140,7 +140,6 @@ check(
 await A.goto(`${base}/s/${spaceId}/search?q=livekit&c=${generalId}`, {
   waitUntil: "networkidle0",
 });
-await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -152,7 +151,6 @@ check(
   "opened from a channel, All channels is the active chip",
 );
 await A.click(".search-scope .chip:nth-child(2)");
-await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -168,7 +166,6 @@ check(
   `scoped to #general: two results, none from #garden (${found.length})`,
 );
 await A.click(".search-scope .chip:first-child");
-await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -195,7 +192,6 @@ await A.goto(`${base}/s/${spaceId}/search?q=livekit&c=${generalId}`, {
 });
 await sleep(500);
 await A.click(".search-header .chip");
-await sleep(700);
 check(
   await waitFor(() => url(A).pathname === `/s/${spaceId}/c/${generalId}`),
   "Close goes back to the channel the search was opened from",
@@ -203,7 +199,6 @@ check(
 await A.goto(`${base}/s/${spaceId}/search?c=${generalId}`, {
   waitUntil: "networkidle0",
 });
-await sleep(500);
 check(
   await waitFor(() =>
     A.evaluate(() => document.activeElement?.matches(".search-form input")),
@@ -215,7 +210,6 @@ check(
   "the empty page explains the syntax",
 );
 await A.keyboard.press("Escape");
-await sleep(700);
 check(
   await waitFor(() => url(A).pathname === `/s/${spaceId}/c/${generalId}`),
   "Escape in an empty field closes the page",
@@ -225,7 +219,6 @@ check(
 await A.goto(`${base}/s/${spaceId}/search?q=zzzzqqq&c=${generalId}`, {
   waitUntil: "networkidle0",
 });
-await sleep(700);
 check(
   await waitFor(async () =>
     /No messages match zzzzqqq/.test(await text(A, ".search-scroll")),
@@ -236,7 +229,6 @@ await A.goto(
   `${base}/s/${spaceId}/search?q=before%3Ayesterday+gate&c=${generalId}`,
   { waitUntil: "networkidle0" },
 );
-await sleep(700);
 check(
   await waitFor(async () =>
     /before: wants a date/.test(await text(A, ".search-error")),
@@ -248,7 +240,6 @@ check(
 await B.goto(`${base}/s/${spaceId}/search?q=livekit&c=${generalId}`, {
   waitUntil: "networkidle0",
 });
-await sleep(700);
 check(
   await waitFor(async () => (await rows(B)).length === 3),
   "another member finds everyone's messages in the space",
@@ -282,7 +273,6 @@ check(
   `on a phone the header shows the icon, not the field (${JSON.stringify(phone)})`,
 );
 await P.tap(".search-launch-button");
-await sleep(800);
 check(
   await waitFor(
     async () =>

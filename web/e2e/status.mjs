@@ -57,13 +57,11 @@ check(
 await A.goto(`${base}/profile?tab=notifications`, {
   waitUntil: "networkidle0",
 });
-await sleep(500);
 check(
   await waitFor(async () => (await A.$$(".status-option")).length === 3),
   "profile offers three statuses",
 );
 await A.click(".status-option:nth-child(3)");
-await sleep(800);
 check(
   await waitFor(async () =>
     (
@@ -84,7 +82,6 @@ for (const r of await B.$$(".member-row")) {
     break;
   }
 }
-await sleep(500);
 check(
   await waitFor(
     async () =>
@@ -98,7 +95,6 @@ await B.keyboard.press("Escape");
 
 // The status survives a reload (per-browser preference, re-announced).
 await reloadShared(A, { waitUntil: "networkidle0" });
-await sleep(1200);
 check(
   await waitFor(
     async () =>

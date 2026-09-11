@@ -44,7 +44,6 @@ await A.click('button[type="submit"]');
 await sleep(1500);
 await A.type('input[placeholder="The Porch"]', "Stoop HQ");
 await A.click('button[type="submit"]');
-await sleep(1500);
 
 // Step 3: one dropdown of ways in; nothing is chosen for you.
 check(
@@ -96,7 +95,6 @@ check(
   "a status poll doesn't overwrite an unsaved edit",
 );
 await A.click("button.reach-save");
-await sleep(800);
 check(
   await waitFor(async () => (await text(A, ".reach-saved")) === "Saved."),
   "the public address saves on its own",
@@ -111,7 +109,6 @@ const inputs = await A.$$(".reach-relay input");
 await inputs[0].type("cf-key-1");
 await inputs[1].type("cf-token-1");
 await A.click("button.reach-save");
-await sleep(800);
 check(
   await waitFor(async () => (await text(A, ".reach-saved")) === "Saved."),
   "saved",
@@ -199,7 +196,6 @@ await own[1].type("stun:turn.example.test:3478");
 await own[2].type("relay-user");
 await own[3].type("relay-pass");
 await A.click(".reach-section button.reach-save");
-await sleep(800);
 check(
   await waitFor(
     async () => (await text(A, ".reach-section .reach-saved")) === "Saved.",
@@ -265,7 +261,6 @@ await A.type(
 await A.click(".reach-section .reach-tailscale .reach-check input"); // disable again before saving
 await sleep(200);
 await A.click(".reach-section button.reach-save");
-await sleep(800);
 check(
   await waitFor(
     async () => (await text(A, ".reach-section .reach-saved")) === "Saved.",
@@ -289,7 +284,6 @@ check(
 // Unticking a relay box drops its settings, rather than leaving a hidden
 // one still in force.
 await A.click(".reach-cloudflare .reach-check input");
-await sleep(200);
 check(
   await waitFor(
     async () =>
@@ -342,7 +336,6 @@ check(
 // Only addresses and CIDR ranges are accepted.
 await A.type(".reach-proxies input", "proxy.example.com");
 await A.click(".reach-section button.reach-save");
-await sleep(800);
 check(
   await waitFor(async () =>
     (await text(A, ".reach-section .reach-form > .error")).includes(
@@ -356,7 +349,6 @@ await A.$eval(".reach-proxies input", (e) => {
 });
 await A.type(".reach-proxies input", "10.0.0.0/8, 192.168.1.5");
 await A.click(".reach-section button.reach-save");
-await sleep(900);
 check(
   await waitFor(
     async () => (await text(A, ".reach-section .reach-saved")) === "Saved.",

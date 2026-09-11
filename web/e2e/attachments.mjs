@@ -229,7 +229,6 @@ check(
   "dropping a file onto the composer attaches it",
 );
 await A.click(".pending-remove");
-await sleep(200);
 check(
   await waitFor(async () => (await A.$(".attachment-strip")) === null),
   "removing a pending file clears the strip",
@@ -264,7 +263,6 @@ check(
   `server enforces the cap on its own (${serverCap.status} ${serverCap.body.error})`,
 );
 await attach(A, ...files.many);
-await sleep(1500);
 check(
   await waitFor(async () =>
     (
@@ -326,7 +324,6 @@ check(
 await sleep(800);
 const rowsB = await B.$$(".message");
 await clickAction(B, rowsB.length - 1, "Reply");
-await sleep(300);
 check(
   await waitFor(async () =>
     (await B.$eval(".reply-bar", (e) => e.innerText).catch(() => "")).includes(
@@ -351,7 +348,6 @@ check(
 );
 await clickAction(A, 1, "Delete");
 await acceptDialog(A);
-await sleep(1000);
 check(
   await waitFor(() => !existsSync(join(dataDir, "attachment", notesId))),
   "deleting the message removed its blob from the data dir",
