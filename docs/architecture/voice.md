@@ -332,5 +332,19 @@ and LiveKit is started against that file with `--key-file`. Wiping the
 database leaves the file in place, and the adoption branch above is what
 stops the next boot minting a pair the running LiveKit would reject.
 
-The voice E2E spec is opt-in (`STOOP_E2E_VOICE=1 pnpm e2e voice`) because
-it needs a running LiveKit; CI skips it.
+The voice E2E spec is opt-in locally (`STOOP_E2E_VOICE=1 pnpm e2e voice`)
+because it needs a running LiveKit. The main CI workflow still skips it;
+`.github/workflows/voice-e2e.yml` runs it on pull requests that touch
+voice, once a week, and on demand.
+
+That job takes the key path a self-hoster does not: it mints one pair and
+hands it to both sides through `STOOP_LIVEKIT_API_KEY`/`_SECRET`, which
+win over the pair the server would otherwise mint, so neither process has
+to start first. It runs LiveKit with `--network host` for the reason
+above — a bridged LiveKit never gets media from a local browser.
+
+Running the spec against the LiveKit already up for development works the
+same way: give the scratch server the pair from `data/livekit/keys.yaml`
+rather than letting it mint one the running LiveKit would reject. That is
+why `scripts/e2e-scratch.sh` leaves voice out — it does not pass those
+two variables, so its server mints a pair LiveKit has never heard of.

@@ -1,0 +1,119 @@
+# The voice E2E spec, which the main CI workflow cannot run: it needs a
+# LiveKit server and a browser with fake media devices.
+#
+# Kept out of ci.yml on purpose. It is not a required check — voice code
+# changes rarely and this job costs a container and a browser — so it runs
+# where it earns its keep: on pull requests that touch voice, once a week
+# to catch LiveKit moving underneath us, and on demand before a release.
+name: Voice E2E
+
+on:
+  pull_request:
+    paths:
+      - "internal/voice/**"
+      - "web/src/components/Stage*"
+      - "web/src/components/Voice*"
+      - "web/src/api/voice*"
+      - "web/e2e/voice.mjs"
+      - "deploy/livekit*"
+      - "deploy/docker-compose*"
+      - ".github/workflows/voice-e2e.yml"
+  schedule:
+    # Mondays, 06:00 UTC. The point of the schedule is LiveKit drift: it
+    # arrives with an image or client-library change, not with a commit.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: voice-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  voice:
+    name: Voice E2E
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: stoop
+          POSTGRES_PASSWORD: stoop
+          POSTGRES_DB: stoop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stoop"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Install spec dependencies
+        run: cd web && pnpm install --frozen-lockfile
+      - name: Build binary with embedded web app
+        run: make build
+
+      # One key pair, handed to both sides. The server prefers
+      # STOOP_LIVEKIT_API_KEY/_SECRET over the pair it would otherwise mint
+      # (internal/app/app.go → livekitKeys), so nothing depends on which
+      # process starts first — unlike dev and self-hosting, where the
+      # server mints the pair and LiveKit reads the file it writes.
+      # LiveKit requires a secret of at least 32 characters.
+      - name: Mint a LiveKit key pair
+        run: |
+          echo "LK_KEY=APIci$(openssl rand -hex 6)" >> "$GITHUB_ENV"
+          echo "LK_SECRET=$(openssl rand -base64 36 | tr -d '\n=+/' | cut -c1-43)" >> "$GITHUB_ENV"
+
+      # Host networking, not a service container: browsers hide their local
+      # IPs behind mDNS names, which nothing on a Docker bridge network can
+      # resolve, so a bridged LiveKit never gets a media connection from a
+      # local browser. See docs/architecture/voice.md.
+      - name: Start LiveKit
+        run: |
+          printf '%s: %s\n' "$LK_KEY" "$LK_SECRET" > /tmp/livekit-keys.yaml
+          docker run -d --name livekit --network host \
+            -v /tmp/livekit-keys.yaml:/keys.yaml:ro \
+            -v "$PWD/deploy/livekit.dev.yaml:/etc/livekit.yaml:ro" \
+            livekit/livekit-server:v1.13.6 \
+            --config /etc/livekit.yaml --key-file /keys.yaml
+          for i in $(seq 1 30); do
+            curl -s localhost:7880 >/dev/null && break
+            sleep 1
+          done
+
+      - name: Start server
+        run: |
+          mkdir -p tmp/voice-storage
+          STOOP_DATABASE_URL=postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable \
+          STOOP_LISTEN_ADDR=:8091 STOOP_UNFURL_ALLOW_PRIVATE=1 \
+          STOOP_AUTH_RATE_LIMIT=0 STOOP_STORAGE_DIR="$PWD/tmp/voice-storage" \
+          STOOP_LIVEKIT_URL=http://localhost:7880 \
+          STOOP_LIVEKIT_API_KEY="$LK_KEY" STOOP_LIVEKIT_API_SECRET="$LK_SECRET" \
+          ./bin/stoop > server.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf localhost:8091/healthz && break; sleep 1; done
+
+      - name: Run the voice spec
+        run: cd web && pnpm e2e voice
+        env:
+          STOOP_E2E_VOICE: "1"
+          STOOP_E2E_DATABASE_URL: postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable
+          STOOP_E2E_CHROME: /usr/bin/google-chrome
+          STOOP_STORAGE_DIR: ${{ github.workspace }}/tmp/voice-storage
+
+      - name: Server log
+        if: failure()
+        run: cat server.log
+      - name: LiveKit log
+        if: failure()
+        run: docker logs livekit
