@@ -3,8 +3,9 @@
 import {
   acceptDialog,
   BASE as base,
-  gotoShared,
   harness,
+  seed,
+  signIn,
   sleep,
   waitFor,
 } from "./lib.mjs";
@@ -15,7 +16,7 @@ const newPage = async (tag) => {
   await p.setViewport({ width: 1280, height: 900 });
   return p;
 };
-const suffix = String(Date.now() % 1000000);
+const { tokens } = await seed({ channels: ["general"] });
 const path = (p) => new URL(p.url()).pathname;
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
 const menuLabels = (p) =>
@@ -44,25 +45,9 @@ const TOPIC =
   "Borrow anything on the shelf — sign it out here, say what you took, and have it back within a week so the next person is not left waiting. Ladders live in the yard, not the hallway. The chainsaw needs Marguerite.";
 const SECOND = "Shelf is full. Please take something.";
 
-// ---- A: set the instance up and land in the space's first channel
+// ---- A lands in the space's first channel
 const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1200);
+await signIn(A, tokens.ada);
 await A.waitForSelector(".composer textarea", { timeout: 8000 });
 
 // ---- The empty state is an invitation, and only for someone who can act
@@ -166,13 +151,9 @@ check(
 await A.goBack({ waitUntil: "networkidle0" });
 await sleep(1200);
 
-// ---- B joins: sees the topic, may not write it
+// ---- B: a member sees the topic, may not write it
 const B = await newPage("B");
-await gotoShared(B, link);
-await sleep(400);
-await B.type('input[autocomplete="username"]', `bea${suffix}`);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
+await signIn(B, tokens.bea);
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
 check(
   await waitFor(

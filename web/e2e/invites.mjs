@@ -38,6 +38,7 @@ check(
   `A completes setup and lands in a space (${new URL(A.url()).pathname})`,
 );
 
+await A.waitForSelector('button[title="Create a space"]', { timeout: 8000 });
 await A.click('button[title="Create a space"]');
 await acceptDialog(A, `Stoop HQ ${suffix}`);
 check(

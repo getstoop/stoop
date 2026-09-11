@@ -4,6 +4,8 @@ import {
   BASE as base,
   gotoShared,
   harness,
+  seed,
+  signIn,
   sleep,
   spaceMenu,
   waitFor,
@@ -15,7 +17,11 @@ const newPage = async (tag) => {
   await p.setViewport({ width: 1280, height: 900 });
   return p;
 };
-const suffix = String(Date.now() % 1000000);
+const { suffix, tokens, space } = await seed({
+  users: ["ada"],
+  channels: ["general"],
+});
+const spaceId = space.id;
 const path = (p) => new URL(p.url()).pathname;
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
 
@@ -24,24 +30,10 @@ const DESCRIPTION =
 const WELCOME =
   "**Welcome to the block.** A few things worth knowing:\n- **#general** is for anything at all.\n- Be neighbourly.";
 
-// ---- A: set up the instance, then say what the space is
+// ---- A owns the space; nothing said about it yet
 const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', `Stoop HQ ${suffix}`);
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.click("button.primary");
-await sleep(1200);
-const spaceId = path(A).split("/")[2];
+await signIn(A, tokens.ada);
+await A.waitForSelector(".composer textarea", { timeout: 8000 });
 
 check(
   (await A.$(".space-desc")) === null,
@@ -157,7 +149,7 @@ await A.mouse.move(box.x + box.width / 2, box.y + box.height / 2, {
 await sleep(700);
 const tip = await text(A, ".tooltip");
 check(
-  tip.includes(`Stoop HQ ${suffix}`) && tip.includes(DESCRIPTION),
+  tip.includes(space.name) && tip.includes(DESCRIPTION),
   `the rail tooltip carries name and description ("${tip.replace(/\n/g, " / ")}")`,
 );
 await A.mouse.move(box.x + 400, box.y + 400);
@@ -182,7 +174,7 @@ await sleep(1200);
 check(path(B) === "/login", `the link bounces a stranger to login`);
 const hero = await text(B, ".invite-hero");
 check(
-  hero.includes(`Stoop HQ ${suffix}`) &&
+  hero.includes(space.name) &&
     hero.includes(DESCRIPTION) &&
     hero.includes("1 member") &&
     hero.includes("join as member"),

@@ -9,51 +9,35 @@ import {
   dismissDialog,
   gotoShared,
   harness,
+  seed,
+  signIn,
   sleep,
   spaceMenu,
   waitFor,
 } from "./lib.mjs";
 
 const { check, newPage, done } = await harness({ dialogs: true });
-const suffix = String(Date.now() % 1000000);
+const { invite, suffix, tokens } = await seed({
+  users: ["ada", "bea", "cal"],
+  channels: ["general"],
+  invite: true,
+});
 const path = (p) => new URL(p.url()).pathname;
 
-// A sets up the instance; B and C join via the invite link.
-const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("expected a fresh instance");
+// A, B and C are all members; the ban has to turn the invite link away.
 const aName = `ada${suffix}`;
-await A.type('input[autocomplete="username"]', aName);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1200);
-const spaceUrl = A.url();
-
-const joinAs = async (tag, name) => {
-  const p = await newPage(tag);
-  await gotoShared(p, link);
-  await sleep(300);
-  await p.type('input[autocomplete="username"]', name);
-  await p.type('input[type="password"]', "correct horse battery");
-  await p.click('button[type="submit"]');
-  await sleep(2500);
-  return p;
-};
 const bName = `bea${suffix}`;
-const B = await joinAs("B", bName);
 const cName = `cal${suffix}`;
-const C = await joinAs("C", cName);
-await sleep(800);
+const A = await newPage("A");
+await signIn(A, tokens.ada);
+await A.waitForSelector(".composer textarea", { timeout: 8000 });
+const spaceUrl = A.url();
+const B = await newPage("B");
+await signIn(B, tokens.bea);
+await B.waitForSelector(".composer textarea", { timeout: 8000 });
+const C = await newPage("C");
+await signIn(C, tokens.cal);
+await C.waitForSelector(".composer textarea", { timeout: 8000 });
 
 const openCard = async (page, name) => {
   for (const row of await page.$$(".member-row")) {
@@ -149,7 +133,7 @@ check(
   (await A.$eval(".bans-section", (e) => e.textContent)).includes(cName),
   "settings lists the ban",
 );
-await gotoShared(C, link);
+await gotoShared(C, invite.url);
 check(
   await waitFor(async () =>
     (
@@ -169,7 +153,7 @@ check(
   ),
   "unbanning empties the list",
 );
-await gotoShared(C, link);
+await gotoShared(C, invite.url);
 check(
   await waitFor(() => path(C).startsWith("/s/")),
   `after unban, the link admits them (${path(C)})`,

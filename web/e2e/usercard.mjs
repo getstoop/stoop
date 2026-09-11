@@ -1,29 +1,12 @@
-import { BASE as base, gotoShared, harness, sleep, waitFor } from "./lib.mjs";
+import { harness, seed, signIn, sleep, waitFor } from "./lib.mjs";
 
 const { browser, check, wire, done } = await harness();
-const suffix = String(Date.now() % 1000000);
+const { suffix, tokens } = await seed({ users: ["ada", "friend"] });
 
-// A: set up the instance (admin + owner), mint an invite link.
+// A owns the space and admins the instance.
 const A = await (await browser.createBrowserContext()).newPage();
 wire(A, "A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (new URL(A.url()).pathname !== "/setup")
-  throw new Error("expected a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1200);
+await signIn(A, tokens.ada);
 // A renames themselves so we can verify the card fetches fresh.
 await A.click(".space-pill.avatar");
 await sleep(500);
@@ -37,15 +20,11 @@ await A.type(".composer textarea", "hello from the owner");
 await A.keyboard.press("Enter");
 await sleep(600);
 
-// B joins via the link and says hi.
+// B, a member, says hi.
 const B = await (await browser.createBrowserContext()).newPage();
 wire(B, "B");
-await gotoShared(B, link);
-await sleep(300);
-await B.type('input[autocomplete="username"]', `friend${suffix}`);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
-await sleep(2500);
+await signIn(B, tokens.friend);
+await B.waitForSelector(".composer textarea", { timeout: 8000 });
 await B.type(".composer textarea", "hi from a member");
 await B.keyboard.press("Enter");
 await sleep(800);

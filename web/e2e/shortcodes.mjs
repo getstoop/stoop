@@ -1,9 +1,8 @@
-import { BASE as base, harness, sleep, waitFor } from "./lib.mjs";
+import { harness, seed, signIn, sleep, waitFor } from "./lib.mjs";
 
 const { check, newPage, done } = await harness({ dialogs: true });
+const { tokens } = await seed({ users: ["ada"], channels: ["general"] });
 const A = await newPage("A");
-const suffix = String(Date.now() % 1000000);
-const path = (p) => new URL(p.url()).pathname;
 const draft = () => A.$eval(".composer textarea", (e) => e.value);
 const suggestions = () =>
   A.$$eval(".emoji-suggest .mention-option", (els) =>
@@ -20,23 +19,8 @@ const lastMessage = () =>
     els.length ? els[els.length - 1].innerText.trim() : "",
   );
 
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-await A.click("button.primary");
+await signIn(A, tokens.ada);
 await A.waitForSelector(".composer textarea", { timeout: 8000 });
-await sleep(800);
 
 // Typing :so opens suggestions; the alias comes first; Enter inserts the emoji.
 await A.type(".composer textarea", "oh no :so");

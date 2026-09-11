@@ -2,7 +2,7 @@
 // behind the menu button, messages reveal their toolbar on tap, and the
 // composer doesn't trigger iOS zoom. Ends by checking that a wide window
 // gets the three-column layout back.
-import { BASE as base, harness, sleep, waitFor } from "./lib.mjs";
+import { BASE as base, harness, seed, signIn, sleep, waitFor } from "./lib.mjs";
 
 const { check, newPage, done } = await harness();
 const phone = {
@@ -12,35 +12,14 @@ const phone = {
   isMobile: true,
   hasTouch: true,
 };
-const suffix = String(Date.now() % 1000000);
-const user = `mob${suffix}`,
-  pass = "correct horse battery";
+const { tokens } = await seed({ users: ["mob"], channels: ["general"] });
 
-const P = await newPage("P");
-await P.setViewport(phone);
-await P.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
 // Under mobile emulation page.click() can miss a button it had to scroll
 // into view; tap() is the touch path and is what a phone does anyway.
-if (new URL(P.url()).pathname === "/setup") {
-  await P.type('input[autocomplete="username"]', user);
-  await P.type('input[type="password"]', pass);
-  await P.tap('button[type="submit"]');
-  await sleep(1500);
-  await P.type('input[placeholder="The Porch"]', "Stoop HQ");
-  await P.tap('button[type="submit"]');
-  await sleep(1500);
-  await P.tap("button.reach-continue");
-  await sleep(800);
-  await P.tap("button.primary");
-  await sleep(1500);
-} else {
-  await P.tap("button.link");
-  await P.type('input[autocomplete="username"]', user);
-  await P.type('input[type="password"]', pass);
-  await P.tap('button[type="submit"]');
-  await sleep(2000);
-}
+const P = await newPage("P");
+await P.setViewport(phone);
+await signIn(P, tokens.mob);
+
 check(await waitFor(() => P.url().includes("/c/")), "landed in a channel");
 
 // Layout probes, all evaluated in the page.

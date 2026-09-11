@@ -1,21 +1,14 @@
 // Older history: the timeline opens on the latest page, loads the page
 // before it when scrolled to the top without the view jumping, and shows
 // "Beginning of #channel" once there is nothing older.
-import {
-  BASE as base,
-  gotoShared,
-  harness,
-  reloadShared,
-  sleep,
-  waitFor,
-} from "./lib.mjs";
+import { harness, reloadShared, seed, signIn, sleep, waitFor } from "./lib.mjs";
 
 const { check, newPage, done } = await harness({
   dialogs: true,
   launch: { defaultViewport: { width: 1100, height: 700 } },
 });
+const { tokens, channels } = await seed({ channels: ["general"] });
 const A = await newPage("A");
-const suffix = String(Date.now() % 1000000);
 const count = () => A.$$eval(".message", (els) => els.length);
 const waitForCount = async (n, ms = 8000) => {
   const until = Date.now() + ms;
@@ -38,24 +31,9 @@ const topOf = (id) =>
 const oldestText = () =>
   A.$$eval(".message-content .md-lines", (els) => els[0]?.innerText ?? "");
 
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (new URL(A.url()).pathname !== "/setup")
-  throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1500);
-const channelId = new URL(A.url()).pathname.split("/")[4];
+await signIn(A, tokens.ada);
+await A.waitForSelector(".composer textarea", { timeout: 8000 });
+const channelId = channels.general;
 
 // Seed 120 messages through the API.
 await A.evaluate(async (channelId) => {
@@ -135,45 +113,37 @@ check(
   "away from the bottom, a 'Jump to latest' pill appears",
 );
 const B = await newPage("B");
-await gotoShared(B, link || `${base}/login`);
-await sleep(300);
-if (link) {
-  await B.click('.invite-choice button[data-mode="register"]').catch(() => {});
-  await B.type('input[autocomplete="username"]', `bea${suffix}`);
-  await B.type('input[type="password"]', "correct horse battery");
-  await B.click('button[type="submit"]');
-  await B.waitForSelector(".composer textarea", { timeout: 8000 });
-  const topBefore = await scrollTop();
-  await B.type(".composer textarea", "hello from bea");
-  await B.keyboard.press("Enter");
-  check(
-    await waitFor(
-      async () =>
-        (await A.$eval(".jump-latest", (e) => e.textContent).catch(
-          () => "",
-        )) === "1 new message ↓",
+await signIn(B, tokens.bea);
+await B.waitForSelector(".composer textarea", { timeout: 8000 });
+const topBefore = await scrollTop();
+await B.type(".composer textarea", "hello from bea");
+await B.keyboard.press("Enter");
+check(
+  await waitFor(
+    async () =>
+      (await A.$eval(".jump-latest", (e) => e.textContent).catch(() => "")) ===
+      "1 new message ↓",
+  ),
+  "someone else's message counts on the pill",
+);
+check(
+  Math.abs((await scrollTop()) - topBefore) < 3,
+  "…and doesn't move the view",
+);
+await A.click(".jump-latest");
+check(
+  await waitFor(async () => (await A.$(".jump-latest")) === null),
+  "jumping to latest hides the pill",
+);
+check(
+  await waitFor(() =>
+    A.$eval(
+      ".message-list",
+      (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
     ),
-    "someone else's message counts on the pill",
-  );
-  check(
-    Math.abs((await scrollTop()) - topBefore) < 3,
-    "…and doesn't move the view",
-  );
-  await A.click(".jump-latest");
-  check(
-    await waitFor(async () => (await A.$(".jump-latest")) === null),
-    "jumping to latest hides the pill",
-  );
-  check(
-    await waitFor(() =>
-      A.$eval(
-        ".message-list",
-        (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
-      ),
-    ),
-    "…and lands at the bottom",
-  );
-}
+  ),
+  "…and lands at the bottom",
+);
 
 // A new message still lands at the bottom and scrolls into view.
 await A.type(".composer textarea", "message 121");

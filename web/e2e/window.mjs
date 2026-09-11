@@ -3,7 +3,15 @@
 // forward until the window is live again; the DOM never holds more than
 // WINDOW_CAP rows; arrivals while windowed count on the pill; ?m= deep
 // links open around a message.
-import { BASE as base, gotoShared, harness, sleep, waitFor } from "./lib.mjs";
+import {
+  BASE as base,
+  gotoShared,
+  harness,
+  seed,
+  signIn,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 const SEED = 600;
 const CAP = 300;
@@ -17,7 +25,9 @@ const { browser, check, newPage, done } = await harness({
   },
 });
 const A = await newPage("A");
-const suffix = String(Date.now() % 1000000);
+const { tokens, space, channels } = await seed();
+const spaceId = space.id;
+const channelId = channels.general;
 const count = () => A.$$eval(".message", (els) => els.length);
 const texts = () =>
   A.$$eval(".message-content .md-lines", (els) => els.map((e) => e.innerText));
@@ -45,24 +55,7 @@ const centred = (id) =>
     return r.top >= l.top && r.bottom <= l.bottom;
   }, id);
 
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (new URL(A.url()).pathname !== "/setup")
-  throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1500);
-const [, , spaceId, , channelId] = new URL(A.url()).pathname.split("/");
+await signIn(A, tokens.ada);
 
 // Seed SEED messages; the last one quotes #5 so a reply jump has to leave
 // the loaded window far behind.
@@ -73,7 +66,7 @@ const [, , spaceId, , channelId] = new URL(A.url()).pathname.split("/");
 // on a GitHub runner, a fifth of the whole suite. Numbering must stay in
 // order (the spec reads back "message N"), so the sends are still
 // sequential; parking the page on about:blank spares it the broadcasts.
-const channelUrl = A.url();
+const channelUrl = `${base}/s/${spaceId}/c/${channelId}`;
 const cookie = (await A.cookies())
   .map((c) => `${c.name}=${c.value}`)
   .join("; ");
@@ -162,12 +155,7 @@ check(await waitFor(() => has(`#msg-${ids[4]}`)), "jumped back into history");
 await sleep(300);
 const B = await (await browser.createBrowserContext()).newPage();
 B.on("dialog", (d) => d.accept());
-await gotoShared(B, link);
-await sleep(300);
-await B.click('.invite-choice button[data-mode="register"]').catch(() => {});
-await B.type('input[autocomplete="username"]', `bea${suffix}`);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
+await signIn(B, tokens.bea);
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
 const topBefore = await scrollTop();
 const rowsBefore = await count();

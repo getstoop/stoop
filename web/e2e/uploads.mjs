@@ -4,9 +4,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   BASE as base,
-  gotoShared,
   harness,
   png,
+  seed,
+  signIn,
   sleep,
   waitFor,
 } from "./lib.mjs";
@@ -55,7 +56,7 @@ writeFileSync(
 );
 
 const { check, newPage, done } = await harness({ dialogs: true });
-const suffix = String(Date.now() % 1000000);
+const { tokens, space } = await seed();
 const fetchStatus = (page, path) =>
   page.evaluate(async (p) => {
     // The server marks files immutable, so bypass the browser cache to
@@ -70,35 +71,12 @@ const fetchStatus = (page, path) =>
     };
   }, path);
 
-// A sets up; B joins via the link.
+// A owns the space; B is a member.
 const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (new URL(A.url()).pathname !== "/setup")
-  throw new Error("expected a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1200);
-const spaceId = new URL(A.url()).pathname.split("/")[2];
-
+await signIn(A, tokens.ada);
 const B = await newPage("B");
-await gotoShared(B, link);
-await sleep(300);
-await B.type('input[autocomplete="username"]', `bea${suffix}`);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
-await sleep(2500);
+await signIn(B, tokens.bea);
+await B.waitForSelector(".composer textarea", { timeout: 8000 });
 
 // --- avatar: rejects first, then a real upload
 await A.goto(`${base}/profile`, { waitUntil: "networkidle0" });
@@ -311,7 +289,7 @@ check(
 );
 
 // A member of the shared space sees its icon live once one is set there.
-await A.goto(`${base}/s/${spaceId}/settings`, { waitUntil: "networkidle0" });
+await A.goto(`${base}/s/${space.id}/settings`, { waitUntil: "networkidle0" });
 await sleep(600);
 await pick(A, files.icon);
 await A.waitForSelector(".space-settings-title [data-file-id]", {

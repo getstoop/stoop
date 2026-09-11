@@ -59,6 +59,13 @@ export async function seed({
   space = "Stoop HQ",
   channels = ["general", "random"],
   password = "correct horse battery",
+  // Who joins the space. Default is everyone; naming a subset leaves the
+  // rest registered but outside it, for a spec that asserts on the member
+  // list growing as people arrive.
+  members = null,
+  // Mint a shareable invite too, for a spec whose subject is arriving
+  // through one.
+  invite = false,
 } = {}) {
   const suffix = String(Date.now() % 1000000);
   const named = users.map((u) => `${u}${suffix}`);
@@ -98,12 +105,24 @@ export async function seed({
     );
     made_channels[name] = channel.id;
   }
-  for (const u of users.slice(1)) {
+  const joining = (members ?? users).filter((u) => u !== users[0]);
+  for (const u of joining) {
     await rpc(
       "chat.v1.ChatService/AddMember",
       { spaceId: made.id, userId: ids[u] },
       owner,
     );
+  }
+  let link = null;
+  if (invite) {
+    const { invite: minted } = await rpc(
+      "chat.v1.ChatService/CreateInvite",
+      { spaceId: made.id },
+      owner,
+    );
+    const url = new URL(`/join/${minted.code}`, BASE);
+    url.searchParams.set("space", space);
+    link = { code: minted.code, url: url.toString() };
   }
   return {
     suffix,
@@ -112,7 +131,16 @@ export async function seed({
     space: made,
     channels: made_channels,
     password,
+    invite: link,
   };
+}
+
+// Redeems an invite for an already-registered account. The gateway builds
+// a connection's presence snapshot from the spaces its user is in at
+// connect time, so a spec that needs someone to *see* who is already
+// online has to join before it opens the page, not after.
+export async function joinSpace(token, code) {
+  return rpc("chat.v1.ChatService/JoinSpace", { code }, token);
 }
 
 // Puts a page straight into the app: the session token doubles as the

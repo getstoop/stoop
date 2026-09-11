@@ -2,31 +2,16 @@
 // stamped on <html data-theme> and survives a reload (localStorage), the
 // page's colours actually change, "follow system" picks the dark/light
 // pair by the OS setting, and nothing on the server is involved.
-import { BASE as base, harness, sleep, waitFor } from "./lib.mjs";
+import { BASE as base, harness, seed, signIn, sleep, waitFor } from "./lib.mjs";
 
 const { browser, check, newPage, done } = await harness({ dialogs: true });
 const A = await newPage("A");
-const suffix = String(Date.now() % 1000000);
+const { tokens } = await seed({ users: ["ada"] });
 const themeOf = () => A.evaluate(() => document.documentElement.dataset.theme);
 const bgOf = (sel) => A.$eval(sel, (e) => getComputedStyle(e).backgroundColor);
 const stored = () => A.evaluate(() => localStorage.getItem("stoop.theme"));
 
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (new URL(A.url()).pathname !== "/setup")
-  throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-await A.click("button.primary");
-await sleep(1500);
+await signIn(A, tokens.ada);
 
 check((await themeOf()) === "brownstone", "fresh browser starts on Brownstone");
 const darkBg = await bgOf("body");
