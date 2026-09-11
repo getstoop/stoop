@@ -3,6 +3,7 @@ import {
   acceptDialog,
   channelLink,
   expect,
+  focus,
   menuItems,
   say,
   seed,
@@ -165,7 +166,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   ).toContainText("1 unread");
   // The page lists without reading; clearing it is the header's button —
   // and read state only counts on the page holding the attention.
-  await A.bringToFront();
+  await focus(A);
   await markAllRead(A);
   await expect(
     activityDot(A),
@@ -213,7 +214,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
 
   // Clear everything so the pills below can only be about the muted DM.
   await A.goto("/activity");
-  await A.bringToFront();
+  await focus(A);
   await markAllRead(A);
   await expect(activityDot(A), "the activity pill starts clean").toHaveCount(0);
   await A.goto("/profile");
@@ -294,7 +295,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // A2 was opened in front of A and everything below drives A again, so
   // give it the foreground; A2 is only read from, and a banner fires
   // whether or not its tab is visible.
-  await A.bringToFront();
+  await focus(A);
 
   // Start from a clean slate: #general unmuted, so everything below is
   // the space's doing.

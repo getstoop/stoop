@@ -60,6 +60,21 @@ export async function pastGate(page: Page) {
   if (await stay.count()) await stay.click();
 }
 
+// Read-marking gates on hasAttention() — visible *and* focused — so any
+// assertion about a badge clearing depends on which page is frontmost.
+// bringToFront() only *asks*: each page here is its own browser context,
+// which is its own window, and document.hasFocus() can lag the request or
+// never follow it. Waiting on the thing the app actually reads turns an
+// invisible precondition into one that either holds or names itself.
+export async function focus(page: Page) {
+  await page.bringToFront();
+  await expect
+    .poll(() => page.evaluate(() => document.hasFocus()), {
+      message: "the page has focus, which read-marking gates on",
+    })
+    .toBe(true);
+}
+
 // reload() on a channel URL meets the gate, so always come back through it.
 export async function reload(page: Page) {
   await page.reload();

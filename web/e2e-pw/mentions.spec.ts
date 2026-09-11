@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { channelLink, expect, seed, signIn, test } from "./lib";
+import { channelLink, expect, focus, seed, signIn, test } from "./lib";
 
 type Note = { title: string; body: string };
 declare global {
@@ -68,7 +68,15 @@ test("mentions notify, badge and read", async ({ browser }) => {
     `morning @ada${suffix} `,
   );
   await expect(picker(B), "picker closes after completion").toHaveCount(0);
-  await type(B, "coffee?");
+  // Set rather than typed: the completion above re-renders the composer,
+  // and keystrokes racing that re-render arrive out of order — this line
+  // showed up once as "morning @ada… offee?c", which then failed far away
+  // at the banner. Only the "@ad" above needs the picker's per-keystroke
+  // filtering; the rest of the line does not.
+  await composer(B).fill(`morning @ada${suffix} coffee?`);
+  await expect(composer(B), "the whole line is in the composer").toHaveValue(
+    `morning @ada${suffix} coffee?`,
+  );
   await B.keyboard.press("Enter");
 
   const notes = () => A.evaluate(() => window.__notes);
@@ -79,7 +87,10 @@ test("mentions notify, badge and read", async ({ browser }) => {
   expect(banner.title, "the banner names who mentioned you").toBe(
     `bea${suffix} mentioned you`,
   );
-  expect(banner.body, "the banner carries what they said").toContain("coffee?");
+  expect(
+    banner.body,
+    `the banner carries what they said (${banner.body})`,
+  ).toContain("coffee?");
 
   // Badges on the activity pill, space pill and the #general channel — A
   // is elsewhere, so nothing is auto-read.
@@ -99,7 +110,7 @@ test("mentions notify, badge and read", async ({ browser }) => {
 
   // Viewing #general via the sidebar (not the activity pill) reads the
   // item — which only counts while the page has the user's attention.
-  await A.bringToFront();
+  await focus(A);
   await channelLink(A, "general").click();
   await expect(
     A.locator(".mention.me"),
@@ -116,7 +127,7 @@ test("mentions notify, badge and read", async ({ browser }) => {
 
   // A mention arriving while A is already looking at #general is read
   // immediately — again, only while A has the attention.
-  await A.bringToFront();
+  await focus(A);
   await send(B, `@ada${suffix} still there?`);
   await A.locator(".message-content", { hasText: "still there?" }).waitFor();
   await expect(
