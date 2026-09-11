@@ -30,6 +30,24 @@ export function chromePath() {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Poll fn until it returns truthy or the timeout runs out, returning the
+// last value either way so a failed check reports real state, not a
+// timeout. Assertions poll instead of sleeping a fixed time — see
+// docs/agent-workflow.md → E2E.
+export async function waitFor(fn, { timeout = 10000, interval = 100 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    // A throw means "not yet" — $eval rejects until its element mounts.
+    let value = false;
+    try {
+      value = await fn();
+    } catch {}
+    if (value) return value;
+    if (Date.now() >= deadline) return value;
+    await sleep(interval);
+  }
+}
+
 // Entering a page can land on the shared-link gate: an invite, a space, a
 // channel or a message stops on the choice — the desktop app, or here —
 // before anything looks the code up, redeems it, or opens the channel and

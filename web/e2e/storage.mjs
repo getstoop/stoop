@@ -1,6 +1,12 @@
 // Admin storage tab (STOOP-70): usage, the upload limit, cleanup on demand.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, reloadShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  reloadShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -40,11 +46,17 @@ check(
   "storage isn't on the default tab",
 );
 await A.click('.settings-tab[data-tab="storage"]');
-await sleep(500);
-const text = () => A.$eval(".storage-section", (e) => e.innerText);
+const text = () =>
+  A.$eval(".storage-section", (e) => e.innerText).catch(() => "");
 const cleanupText = () => A.$eval(".cleanup-section", (e) => e.innerText);
-check((await text()).includes("0 B in 0 files"), "usage line reads empty");
-check((await text()).includes("no limit"), "no limit by default");
+check(
+  await waitFor(async () => (await text()).includes("0 B in 0 files")),
+  "usage line reads empty",
+);
+check(
+  await waitFor(async () => (await text()).includes("no limit")),
+  "no limit by default",
+);
 check((await A.$(".storage-bar")) === null, "no bar without a limit");
 
 await A.$eval(".storage-quota input", (e) => {
@@ -52,18 +64,27 @@ await A.$eval(".storage-quota input", (e) => {
 });
 await A.type(".storage-quota input", "1");
 await A.click(".storage-section button.primary");
-await sleep(800);
-check((await text()).includes("limit 1.0 GB"), "limit saved and shown");
-check((await text()).includes("1.0 GB left"), "free space shown");
-check((await A.$(".storage-bar")) !== null, "bar shows against a limit");
+check(
+  await waitFor(async () => (await text()).includes("limit 1.0 GB")),
+  "limit saved and shown",
+);
+check(
+  await waitFor(async () => (await text()).includes("1.0 GB left")),
+  "free space shown",
+);
+check(
+  await waitFor(async () => (await A.$(".storage-bar")) !== null),
+  "bar shows against a limit",
+);
 await reloadShared(A, { waitUntil: "networkidle0" });
-await sleep(600);
-check((await text()).includes("limit 1.0 GB"), "limit persists");
+check(
+  await waitFor(async () => (await text()).includes("limit 1.0 GB")),
+  "limit persists",
+);
 
 await A.click(".cleanup-section .sweep-button");
-await sleep(1200);
 check(
-  (await cleanupText()).includes("Removed 0 files"),
+  await waitFor(async () => (await cleanupText()).includes("Removed 0 files")),
   "cleanup runs and reports",
 );
 
@@ -72,9 +93,14 @@ await A.$eval(".storage-quota input", (e) => {
 });
 await A.type(".storage-quota input", "0");
 await A.click(".storage-section button.primary");
-await sleep(800);
-check((await text()).includes("no limit"), "limit cleared");
-check((await A.$(".storage-bar")) === null, "bar hidden again");
+check(
+  await waitFor(async () => (await text()).includes("no limit")),
+  "limit cleared",
+);
+check(
+  await waitFor(async () => (await A.$(".storage-bar")) === null),
+  "bar hidden again",
+);
 
 await browser.close();
 console.log(fails ? `${fails} failure(s)` : "all passed");

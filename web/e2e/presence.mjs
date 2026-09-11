@@ -1,5 +1,11 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -44,9 +50,10 @@ await sleep(800);
 await A.waitForSelector(".link-box code", { timeout: 3000 });
 const link = await A.$eval(".link-box code", (e) => e.textContent);
 await A.click("button.primary");
-await sleep(1000);
 check(
-  (await text(A, ".members-heading")).toLowerCase().includes("1/1 online"),
+  await waitFor(async () =>
+    (await text(A, ".members-heading")).toLowerCase().includes("1/1 online"),
+  ),
   "A alone: 1/1 online",
 );
 
@@ -63,31 +70,40 @@ await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
-await sleep(1000);
 check(
-  (await text(A, ".members-heading")).toLowerCase().includes("2/2 online") &&
-    (await onlineNames(A)).includes(`bea${suffix}`),
+  await waitFor(
+    async () =>
+      (await text(A, ".members-heading"))
+        .toLowerCase()
+        .includes("2/2 online") &&
+      (await onlineNames(A)).includes(`bea${suffix}`),
+  ),
   "A sees B come online",
 );
 check(
-  (await text(B, ".members-heading")).toLowerCase().includes("2/2 online"),
+  await waitFor(async () =>
+    (await text(B, ".members-heading")).toLowerCase().includes("2/2 online"),
+  ),
   "B's Ready snapshot lists both online",
 );
 
 // Typing indicator: B types → A sees it; it expires after B stops.
 await B.type(".composer textarea", "thinking about it");
-await sleep(600);
 check(
-  (await text(A, ".typing-indicator")) === `bea${suffix} is typing…`,
+  await waitFor(
+    async () =>
+      (await text(A, ".typing-indicator")) === `bea${suffix} is typing…`,
+  ),
   "A sees 'bea is typing…'",
 );
 check(
   (await text(B, ".typing-indicator")) === "",
   "B doesn't see their own typing",
 );
-await sleep(5500);
 check(
-  (await text(A, ".typing-indicator")) === "",
+  await waitFor(async () => (await text(A, ".typing-indicator")) === "", {
+    timeout: 15000,
+  }),
   "typing hint expires after silence",
 );
 await B.click(".composer textarea", { count: 3 });
@@ -95,9 +111,8 @@ await B.keyboard.press("Backspace");
 
 // Profile card shows presence.
 await A.click(".member-row.online");
-await sleep(600);
 check(
-  (await text(A, ".user-card")).includes("online"),
+  await waitFor(async () => (await text(A, ".user-card")).includes("online")),
   "profile card says online",
 );
 await A.keyboard.press("Escape");
@@ -113,25 +128,26 @@ await C.click('button[type="submit"]');
 await C.waitForSelector(".composer textarea", { timeout: 8000 });
 await sleep(800);
 await C.browserContext().close();
-await sleep(1000); // cal goes offline
 check(
-  (await text(A, ".members-heading")).toLowerCase().includes("2/3 online"),
+  await waitFor(async () =>
+    (await text(A, ".members-heading")).toLowerCase().includes("2/3 online"),
+  ),
   "A sees cal offline after closing (2/3 online)",
 );
 await B.click(".space-pill.avatar");
 await sleep(400); // B looks away so the alert isn't auto-read
 await A.type(".composer textarea", "@he");
-await sleep(300);
 check(
-  (await text(A, ".mention-picker")).includes("Everyone online right now"),
+  await waitFor(async () =>
+    (await text(A, ".mention-picker")).includes("Everyone online right now"),
+  ),
   "picker offers @here",
 );
 await A.keyboard.press("Enter");
 await A.type(".composer textarea", "standup in 5");
 await A.keyboard.press("Enter");
-await sleep(1200);
 check(
-  (await B.$(".activity .pill-dot")) !== null,
+  await waitFor(async () => (await B.$(".activity .pill-dot")) !== null),
   "online member is notified by @here",
 );
 // cal logs back in: nothing waiting.
@@ -148,8 +164,10 @@ check(
 
 // B closes: A sees B offline.
 await Bctx.close();
-await sleep(1000);
-check(!(await onlineNames(A)).includes(`bea${suffix}`), "A sees B go offline");
+check(
+  await waitFor(async () => !(await onlineNames(A)).includes(`bea${suffix}`)),
+  "A sees B go offline",
+);
 
 await browser.close();
 console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");

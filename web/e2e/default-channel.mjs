@@ -8,6 +8,7 @@ import {
   chromePath,
   gotoShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -107,7 +108,10 @@ check(
 // ---- Choose #tools, and B lands there rather than in #general
 await chooseDefault(A, "# tools");
 await settings(A, spaceId);
-check((await chosen(A)) === "# tools", "the choice survives a reload");
+check(
+  await waitFor(async () => (await chosen(A)) === "# tools"),
+  "the choice survives a reload",
+);
 
 const B = await newPage("B");
 await gotoShared(B, link);
@@ -116,17 +120,15 @@ await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
-await sleep(800);
 check(
-  (await text(B, ".channel-title")) === "tools",
+  await waitFor(async () => (await text(B, ".channel-title")) === "tools"),
   `an invite lands a new member in the chosen channel (got "${await text(B, ".channel-title")}")`,
 );
 
 // Opening the space with no channel in the URL goes the same way.
 await gotoShared(B, `${base}/s/${spaceId}`, { waitUntil: "networkidle0" });
-await sleep(1200);
 check(
-  (await text(B, ".channel-title")) === "tools",
+  await waitFor(async () => (await text(B, ".channel-title")) === "tools"),
   "so does /s/{id} with nothing after it",
 );
 
@@ -143,9 +145,8 @@ for (const row of rows) {
   }
 }
 await acceptDialog(A);
-await sleep(1000);
 check(
-  (await chosen(A)) === "First channel",
+  await waitFor(async () => (await chosen(A)) === "First channel"),
   `deleting the chosen channel returns the space to the fallback (got "${await chosen(A)}")`,
 );
 const after = await A.$$eval(`${SELECT} option`, (os) =>
@@ -165,9 +166,8 @@ await C.type('input[autocomplete="username"]', `casey${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");
 await C.click('button[type="submit"]');
 await C.waitForSelector(".composer textarea", { timeout: 8000 });
-await sleep(800);
 check(
-  (await text(C, ".channel-title")) === "general",
+  await waitFor(async () => (await text(C, ".channel-title")) === "general"),
   `after the deletion an invite falls back to the first channel (got "${await text(C, ".channel-title")}")`,
 );
 
@@ -175,9 +175,11 @@ check(
 // them back to the space, and the server refuses them either way
 // (internal/chat/spaces_test.go).
 await B.goto(`${base}/s/${spaceId}/settings`, { waitUntil: "networkidle0" });
-await sleep(900);
 check(
-  path(B) !== `/s/${spaceId}/settings` && (await B.$(SELECT)) === null,
+  await waitFor(
+    async () =>
+      path(B) !== `/s/${spaceId}/settings` && (await B.$(SELECT)) === null,
+  ),
   `a member asking for settings is sent back to the space (at ${path(B)})`,
 );
 

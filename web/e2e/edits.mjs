@@ -5,6 +5,7 @@ import {
   chromePath,
   gotoShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -92,13 +93,19 @@ check(
   "member: own message has Reply/Edit/Delete",
 );
 check(
-  JSON.stringify(await actionsOf(B, 1)) ===
-    JSON.stringify(["Add reaction", "Copy link", "Reply"]),
+  await waitFor(
+    async () =>
+      JSON.stringify(await actionsOf(B, 1)) ===
+      JSON.stringify(["Add reaction", "Copy link", "Reply"]),
+  ),
   "member: someone else's has only Reply",
 );
 check(
-  JSON.stringify(await actionsOf(A, 0)) ===
-    JSON.stringify(["Add reaction", "Copy link", "Reply", "Delete"]),
+  await waitFor(
+    async () =>
+      JSON.stringify(await actionsOf(A, 0)) ===
+      JSON.stringify(["Add reaction", "Copy link", "Reply", "Delete"]),
+  ),
   "owner: another's message has Reply/Delete (no Edit)",
 );
 
@@ -108,15 +115,20 @@ await sleep(200);
 await B.click(".message-editor textarea", { count: 3 });
 await B.type(".message-editor textarea", "hello world");
 await B.keyboard.press("Enter");
-await sleep(800);
 check(
-  (await contents(B))[0].startsWith("hello world") &&
-    (await B.$(".edited-marker")) !== null,
+  await waitFor(
+    async () =>
+      (await contents(B))[0].startsWith("hello world") &&
+      (await B.$(".edited-marker")) !== null,
+  ),
   "edit saved with (edited) marker",
 );
 check(
-  (await contents(A))[0].startsWith("hello world") &&
-    (await A.$(".edited-marker")) !== null,
+  await waitFor(
+    async () =>
+      (await contents(A))[0].startsWith("hello world") &&
+      (await A.$(".edited-marker")) !== null,
+  ),
   "A sees the edit live",
 );
 // Esc cancels without saving.
@@ -138,17 +150,22 @@ await A.keyboard.press("Enter");
 await sleep(800);
 await clickAction(B, 0, "Delete");
 await acceptDialog(B);
-await sleep(1000);
-const bc = await contents(B),
-  ac = await contents(A);
 check(
-  !bc.some((c) => c.startsWith("hello world")) &&
-    !ac.some((c) => c.startsWith("hello world")),
+  await waitFor(async () => {
+    const bc = await contents(B),
+      ac = await contents(A);
+    return (
+      !bc.some((c) => c.startsWith("hello world")) &&
+      !ac.some((c) => c.startsWith("hello world"))
+    );
+  }),
   "deleted message disappears for both",
 );
 check(
-  (await A.$eval(".reply-quote", (e) => e.innerText)).includes(
-    "message deleted",
+  await waitFor(async () =>
+    (
+      await A.$eval(".reply-quote", (e) => e.innerText).catch(() => "")
+    ).includes("message deleted"),
   ),
   "reply quote shows '(message deleted)'",
 );
@@ -157,10 +174,12 @@ check(
 const before = (await contents(A)).length;
 await clickAction(A, before - 1, "Delete");
 await acceptDialog(A);
-await sleep(800);
 check(
-  (await contents(A)).length === before - 1 &&
-    (await contents(B)).length === before - 1,
+  await waitFor(
+    async () =>
+      (await contents(A)).length === before - 1 &&
+      (await contents(B)).length === before - 1,
+  ),
   "owner's delete propagates",
 );
 

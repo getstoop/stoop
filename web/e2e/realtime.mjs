@@ -5,6 +5,7 @@ import {
   gotoShared,
   reloadShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 const browser = await puppeteer.launch({
@@ -63,17 +64,19 @@ console.log(
 );
 await A.type(".composer textarea", "msg1 right away");
 await A.keyboard.press("Enter");
-await sleep(1500);
 check(
-  (await B.$eval(".message-list", (e) => e.innerText)).includes("msg1"),
+  await waitFor(async () =>
+    (await B.$eval(".message-list", (e) => e.innerText)).includes("msg1"),
+  ),
   "B sees a message sent right after landing",
 );
 await sleep(4000);
 await A.type(".composer textarea", "msg2 after 4s");
 await A.keyboard.press("Enter");
-await sleep(1500);
 check(
-  (await B.$eval(".message-list", (e) => e.innerText)).includes("msg2"),
+  await waitFor(async () =>
+    (await B.$eval(".message-list", (e) => e.innerText)).includes("msg2"),
+  ),
   "B sees a message sent a few seconds later",
 );
 console.log("--- B reloads");
@@ -81,9 +84,10 @@ await reloadShared(B, { waitUntil: "networkidle0" });
 await sleep(1500);
 await A.type(".composer textarea", "msg3 after reload");
 await A.keyboard.press("Enter");
-await sleep(1500);
 check(
-  (await B.$eval(".message-list", (e) => e.innerText)).includes("msg3"),
+  await waitFor(async () =>
+    (await B.$eval(".message-list", (e) => e.innerText)).includes("msg3"),
+  ),
   "B sees a message after reloading",
 );
 await browser.close();

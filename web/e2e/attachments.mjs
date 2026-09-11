@@ -11,6 +11,7 @@ import {
   gotoShared,
   png,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 // Attachments in messages (STOOP-42). The data dir check is a direct
@@ -206,14 +207,16 @@ check(
 await attach(A, files.svg);
 await A.waitForSelector(".attachment-strip .pending.ready", { timeout: 5000 });
 await A.keyboard.press("Enter");
-await sleep(1200);
+check(
+  await waitFor(
+    async () =>
+      (await A.$$eval(".attachment-card", (els) => els.length)) === 2 &&
+      (await A.$$eval(".attachments img", (els) => els.length)) === 1,
+  ),
+  "an .svg becomes a download card, not an inline image",
+);
 const cards = await A.$$eval(".attachment-card", (els) =>
   els.map((e) => e.getAttribute("href")),
-);
-check(
-  cards.length === 2 &&
-    (await A.$$eval(".attachments img", (els) => els.length)) === 1,
-  "an .svg becomes a download card, not an inline image",
 );
 const svgHead = await head(A, cards[1]);
 check(
@@ -243,19 +246,18 @@ check(
   "dropping a file onto the composer attaches it",
 );
 await A.click(".pending-remove");
-await sleep(200);
 check(
-  (await A.$(".attachment-strip")) === null,
+  await waitFor(async () => (await A.$(".attachment-strip")) === null),
   "removing a pending file clears the strip",
 );
 
 // --- rejections: oversize (client and server), too many
 await attach(A, files.huge);
-await sleep(500);
-const failed = await A.$eval(
-  ".pending.failed .pending-meta",
-  (e) => e.textContent,
-).catch(() => null);
+const failed = await waitFor(() =>
+  A.$eval(".pending.failed .pending-meta", (e) => e.textContent).catch(
+    () => null,
+  ),
+);
 check(
   failed?.includes("100 MB"),
   `oversize file rejected with a visible error (${failed})`,
@@ -277,15 +279,20 @@ check(
   `server enforces the cap on its own (${serverCap.status} ${serverCap.body.error})`,
 );
 await attach(A, ...files.many);
-await sleep(1500);
 check(
-  (
-    await A.$eval(".attachment-error", (e) => e.textContent).catch(() => "")
-  ).includes("10"),
+  await waitFor(async () =>
+    (
+      await A.$eval(".attachment-error", (e) => e.textContent).catch(() => "")
+    ).includes("10"),
+  ),
   "an 11th file is refused with a visible error",
 );
 check(
-  (await A.$$eval(".attachment-strip .pending", (els) => els.length)) === 10,
+  await waitFor(
+    async () =>
+      (await A.$$eval(".attachment-strip .pending", (els) => els.length)) ===
+      10,
+  ),
   "ten files are held",
 );
 // Clear them without sending.
@@ -333,9 +340,12 @@ check(
 await sleep(800);
 const rowsB = await B.$$(".message");
 await clickAction(B, rowsB.length - 1, "Reply");
-await sleep(300);
 check(
-  (await B.$eval(".reply-bar", (e) => e.innerText)).includes("📎 secret.txt"),
+  await waitFor(async () =>
+    (await B.$eval(".reply-bar", (e) => e.innerText).catch(() => "")).includes(
+      "📎 secret.txt",
+    ),
+  ),
   "reply bar previews the attachment name",
 );
 await B.type(".composer textarea", "got it");
@@ -354,17 +364,20 @@ check(
 );
 await clickAction(A, 1, "Delete");
 await acceptDialog(A);
-await sleep(1000);
 check(
-  !existsSync(join(dataDir, "attachment", notesId)),
+  await waitFor(() => !existsSync(join(dataDir, "attachment", notesId))),
   "deleting the message removed its blob from the data dir",
 );
 check(
-  (await head(A, `/files/${notesId}`)).status === 404,
+  await waitFor(
+    async () => (await head(A, `/files/${notesId}`)).status === 404,
+  ),
   "deleted attachment id is 404",
 );
 check(
-  (await B.$$eval(".attachment-card", (els) => els.length)) === 2,
+  await waitFor(
+    async () => (await B.$$eval(".attachment-card", (els) => els.length)) === 2,
+  ),
   "B's view drops the deleted message's card",
 );
 

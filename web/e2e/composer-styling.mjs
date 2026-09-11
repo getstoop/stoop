@@ -1,5 +1,11 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 // STOOP-38: live Markdown styling in the message box. The composer and the
 // inline editor layer a styled overlay under the textarea: markers stay
@@ -321,11 +327,15 @@ for (const piece of edits) {
 // The @mention picker still opens on @ and inserts the handle.
 await A.$eval(".composer textarea", (e) => (e.value = ""));
 await A.type(".composer textarea", `@bea`);
-await sleep(300);
-check((await A.$(".mention-picker")) !== null, "mention picker opens on @");
+check(
+  await waitFor(async () => (await A.$(".mention-picker")) !== null),
+  "mention picker opens on @",
+);
 await A.keyboard.press("Enter");
-await sleep(200);
-check((await draft(A)) === `@bea${suffix} `, "mention inserts the handle");
+check(
+  await waitFor(async () => (await draft(A)) === `@bea${suffix} `),
+  "mention inserts the handle",
+);
 await A.keyboard.press("Backspace"); // drop the trailing space
 
 // The toolbar Bold button still wraps the selection.
@@ -336,12 +346,16 @@ await A.$eval(".composer textarea", (e) => {
   e.select();
 });
 await A.click('.composer .format-button[aria-label="Bold"]');
-await sleep(100);
-check((await draft(A)) === "**hi there**", "toolbar bold wraps the selection");
 check(
-  await A.$eval(
-    ".composer textarea",
-    (e) => e.selectionStart === 2 && document.activeElement === e,
+  await waitFor(async () => (await draft(A)) === "**hi there**"),
+  "toolbar bold wraps the selection",
+);
+check(
+  await waitFor(() =>
+    A.$eval(
+      ".composer textarea",
+      (e) => e.selectionStart === 2 && document.activeElement === e,
+    ),
   ),
   "focus and selection survive the toolbar edit",
 );
@@ -366,12 +380,18 @@ await sleep(700);
   );
   check(!rendered.raw.includes("**"), "rendered message has no raw markers");
   check(!rendered.overlayInMessage, "rendered message has no overlay");
-  check((await draft(A)) === "", "composer cleared after send");
   check(
-    (await B.$eval(
-      ".message-content",
-      (e) => e.querySelector("strong")?.textContent ?? null,
-    )) === "hi there",
+    await waitFor(async () => (await draft(A)) === ""),
+    "composer cleared after send",
+  );
+  check(
+    await waitFor(
+      async () =>
+        (await B.$eval(
+          ".message-content",
+          (e) => e.querySelector("strong")?.textContent ?? null,
+        ).catch(() => null)) === "hi there",
+    ),
     "B sees the styled message live",
   );
 }

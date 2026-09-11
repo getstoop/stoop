@@ -12,6 +12,7 @@ import {
   gotoShared,
   reloadShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 // The stage bar (StageBar) fades after a few idle seconds and is
@@ -379,14 +380,19 @@ check(
   "dragging the divider makes the stage taller",
 );
 await A.click('.voice-bar button[aria-label="Turn camera on"]');
-await sleep(3000);
 check(
-  (await B.$$(".stage-tile.video")).length === 1,
+  await waitFor(async () => (await B.$$(".stage-tile.video")).length === 1, {
+    timeout: 15000,
+  }),
   "B sees A's camera as a video tile",
 );
 check(
-  (await B.$$eval(".voice-flag.live", (es) => es.map((e) => e.title))).includes(
-    "Camera on",
+  await waitFor(
+    async () =>
+      (
+        await B.$$eval(".voice-flag.live", (es) => es.map((e) => e.title))
+      ).includes("Camera on"),
+    { timeout: 15000 },
   ),
   "B's sidebar flags A's camera",
 );
@@ -395,24 +401,22 @@ check(
 // carousel rather than jumping there.
 await resetFlips(B);
 await B.click(".stage-tile.video");
-await sleep(600);
 check(
-  (await B.$(".stage-spotlight")) !== null,
+  await waitFor(async () => (await B.$(".stage-spotlight")) !== null),
   "clicking a tile pins it to the spotlight",
 );
 check(
-  (await flips(B)) > 0,
+  await waitFor(async () => (await flips(B)) > 0),
   `pinning animates the rest into the carousel (${await flips(B)} flips)`,
 );
 await resetFlips(B);
 await B.click(".stage-tile.large");
-await sleep(600);
 check(
-  (await B.$(".stage-spotlight")) === null,
+  await waitFor(async () => (await B.$(".stage-spotlight")) === null),
   "clicking the spotlight unpins it",
 );
 check(
-  (await flips(B)) > 0,
+  await waitFor(async () => (await flips(B)) > 0),
   `unpinning animates them back into the grid (${await flips(B)} flips)`,
 );
 
@@ -421,18 +425,23 @@ check(
 // to animate, or the two ways in would look different.
 await resetFlips(B);
 await A.click('.voice-bar button[aria-label="Share your screen"]');
-await sleep(4000);
 check(
-  (await flips(B)) > 0,
+  await waitFor(async () => (await flips(B)) > 0, { timeout: 15000 }),
   `a share starting animates the arrangement too (${await flips(B)} flips)`,
 );
 check(
-  (await B.$(".stage-spotlight video")) !== null,
+  await waitFor(async () => (await B.$(".stage-spotlight video")) !== null, {
+    timeout: 15000,
+  }),
   "A's share takes B's spotlight",
 );
 check(
-  (await B.$$eval(".voice-flag.live", (es) => es.map((e) => e.title))).includes(
-    "Sharing their screen",
+  await waitFor(
+    async () =>
+      (
+        await B.$$eval(".voice-flag.live", (es) => es.map((e) => e.title))
+      ).includes("Sharing their screen"),
+    { timeout: 15000 },
   ),
   "B's sidebar flags the share",
 );
@@ -458,13 +467,18 @@ check(!ringedShare, "…and the share in the spotlight never takes the ring");
 await A.click('.voice-bar button[aria-label="Stop sharing"]');
 await sleep(1500);
 await A.click('.voice-bar button[aria-label="Turn camera off"]');
-await sleep(1500);
 check(
-  (await B.$(".stage-spotlight")) === null &&
-    (await B.$$(".stage-tile.video")).length === 0,
+  await waitFor(
+    async () =>
+      (await B.$(".stage-spotlight")) === null &&
+      (await B.$$(".stage-tile.video")).length === 0,
+  ),
   "stopping clears B's spotlight and tile",
 );
-check((await B.$$(".voice-flag.live")).length === 0, "…and the flags");
+check(
+  await waitFor(async () => (await B.$$(".voice-flag.live")).length === 0),
+  "…and the flags",
+);
 
 // The stage carries the same control row as the sidebar (VoiceActions),
 // and in full screen it is the only copy on the page. Pressing the mic
@@ -475,24 +489,26 @@ const micNow = await A.$eval(
 );
 const flipped = micNow === "Mute" ? "Unmute" : "Mute";
 await stageClick(A, `button[aria-label="${micNow}"]`);
-await sleep(400);
 check(
-  (await A.$(`.voice-bar button[aria-label="${flipped}"]`)) !== null,
+  await waitFor(
+    async () =>
+      (await A.$(`.voice-bar button[aria-label="${flipped}"]`)) !== null,
+  ),
   "the stage bar's mic and the sidebar's are the same control",
 );
 await stageClick(A, `button[aria-label="${flipped}"]`);
 await sleep(400);
 
 // It gets off the video when nothing is moving, and comes back on a move.
-await sleep(3000);
 check(
-  (await A.$(".stage-bar.idle")) !== null,
+  await waitFor(async () => (await A.$(".stage-bar.idle")) !== null, {
+    timeout: 15000,
+  }),
   "the stage bar fades while nothing moves",
 );
 await A.hover(".voice-stage");
-await sleep(200);
 check(
-  (await A.$(".stage-bar.idle")) === null,
+  await waitFor(async () => (await A.$(".stage-bar.idle")) === null),
   "…and a pointer move over the stage brings it back",
 );
 
@@ -505,9 +521,12 @@ const heightOf = (p, sel) =>
 const paneHeight = await heightOf(A, ".channel-view");
 const draggedHeight = await heightOf(A, ".voice-stage");
 await stageClick(A, 'button[aria-label="Hide chat"]');
-await sleep(300);
 check(
-  (await A.$(".message-list")) === null && (await A.$(".composer")) === null,
+  await waitFor(
+    async () =>
+      (await A.$(".message-list")) === null &&
+      (await A.$(".composer")) === null,
+  ),
   "hiding the chat takes the timeline and composer away",
 );
 const hiddenHeight = await heightOf(A, ".voice-stage");
@@ -520,11 +539,13 @@ check(
   "…and there is nothing left to drag against",
 );
 await stageClick(A, 'button[aria-label="Show chat"]');
-await sleep(300);
 check(
-  (await A.$(".message-list")) !== null &&
-    (await A.$(".composer")) !== null &&
-    Math.abs((await heightOf(A, ".voice-stage")) - draggedHeight) < 4,
+  await waitFor(
+    async () =>
+      (await A.$(".message-list")) !== null &&
+      (await A.$(".composer")) !== null &&
+      Math.abs((await heightOf(A, ".voice-stage")) - draggedHeight) < 4,
+  ),
   "showing it again brings back the chat and the dragged height",
 );
 

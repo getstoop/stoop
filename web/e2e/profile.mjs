@@ -1,5 +1,11 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, reloadShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  reloadShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -49,16 +55,20 @@ await Q.goto(`${base}/login`, { waitUntil: "networkidle0" });
 await Q.type('input[autocomplete="username"]', user);
 await Q.type('input[type="password"]', pass);
 await Q.click('button[type="submit"]');
-await sleep(2000);
-check(new URL(Q.url()).pathname !== "/login", "second session logged in");
+check(
+  await waitFor(() => new URL(Q.url()).pathname !== "/login"),
+  "second session logged in",
+);
 
 check(
   (await P.$eval(".space-pill.avatar", (e) => e.textContent)) === "A",
   "rail shows initials pill",
 );
 await P.click(".space-pill.avatar");
-await sleep(600);
-check(new URL(P.url()).pathname === "/profile", "pill opens /profile");
+check(
+  await waitFor(() => new URL(P.url()).pathname === "/profile"),
+  "pill opens /profile",
+);
 const head = await P.$eval(".profile-header", (e) => e.innerText);
 const about = await P.$eval(".settings-head", (e) => e.innerText);
 check(
@@ -74,19 +84,27 @@ check(
 await P.click("#display-name", { count: 3 });
 await P.type("#display-name", "Ada Whitfield");
 await P.click('.card button[type="submit"]');
-await sleep(800);
 check(
-  (await P.$eval(".profile-header h2", (e) => e.textContent)) ===
-    "Ada Whitfield",
+  await waitFor(
+    async () =>
+      (await P.$eval(".profile-header h2", (e) => e.textContent)) ===
+      "Ada Whitfield",
+  ),
   "display name updates in header",
 );
 check(
-  (await P.$eval(".space-pill.avatar", (e) => e.textContent)) === "AW",
+  await waitFor(
+    async () =>
+      (await P.$eval(".space-pill.avatar", (e) => e.textContent)) === "AW",
+  ),
   "rail pill initials update",
 );
 check(
-  (await P.$eval('.card button[type="submit"]', (e) => e.textContent)) ===
-    "Saved",
+  await waitFor(
+    async () =>
+      (await P.$eval('.card button[type="submit"]', (e) => e.textContent)) ===
+      "Saved",
+  ),
   "save button confirms",
 );
 
@@ -100,18 +118,19 @@ check(
   "the account page has four tabs",
 );
 await P.click('.settings-tab[data-tab="notifications"]');
-await sleep(600);
 check(
-  new URL(P.url()).search === "?tab=notifications" &&
-    (await P.$eval(".mutes-section", (e) => e.innerText)).includes(
-      "You haven't muted anything.",
-    ),
+  await waitFor(
+    async () =>
+      new URL(P.url()).search === "?tab=notifications" &&
+      (
+        await P.$eval(".mutes-section", (e) => e.innerText).catch(() => "")
+      ).includes("You haven't muted anything."),
+  ),
   "the Notifications tab is a URL you can link to, and starts with nothing muted",
 );
 await P.click('.settings-tab[data-tab="security"]');
-await sleep(600);
 check(
-  new URL(P.url()).search === "?tab=security",
+  await waitFor(() => new URL(P.url()).search === "?tab=security"),
   "the Security tab is a URL you can link to",
 );
 
@@ -126,10 +145,12 @@ for (const f of await pw.$$('input[autocomplete="new-password"]')) {
   await f.type(newPass);
 }
 await (await pw.$('button[type="submit"]')).click();
-await sleep(800);
 check(
-  (await pw.$eval(".error", (e) => e.textContent)) ===
-    "current password is incorrect",
+  await waitFor(
+    async () =>
+      (await pw.$eval(".error", (e) => e.textContent).catch(() => "")) ===
+      "current password is incorrect",
+  ),
   "wrong current password rejected",
 );
 await (await pw.$('input[autocomplete="current-password"]')).click({
@@ -144,29 +165,31 @@ for (const f of await pw.$$('input[autocomplete="new-password"]')) {
   await f.type(newPass);
 }
 await (await pw.$('button[type="submit"]')).click();
-await sleep(1000);
 check(
-  (await pw.$eval('button[type="submit"]', (e) => e.textContent)) ===
-    "Password changed",
+  await waitFor(
+    async () =>
+      (await pw.$eval('button[type="submit"]', (e) => e.textContent)) ===
+      "Password changed",
+  ),
   "password changed",
 );
 await reloadShared(Q, { waitUntil: "networkidle0" });
-await sleep(500);
 check(
-  new URL(Q.url()).pathname === "/login",
+  await waitFor(() => new URL(Q.url()).pathname === "/login"),
   `other session revoked (${new URL(Q.url()).pathname})`,
 );
 
 // logout and back in with the new password
 await P.click(".logout-link");
-await sleep(800);
-check(new URL(P.url()).pathname === "/login", "log out from profile");
+check(
+  await waitFor(() => new URL(P.url()).pathname === "/login"),
+  "log out from profile",
+);
 await P.type('input[autocomplete="username"]', user);
 await P.type('input[type="password"]', newPass);
 await P.click('button[type="submit"]');
-await sleep(2000);
 check(
-  new URL(P.url()).pathname !== "/login",
+  await waitFor(() => new URL(P.url()).pathname !== "/login"),
   `new password logs in (${new URL(P.url()).pathname})`,
 );
 

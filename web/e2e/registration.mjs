@@ -6,6 +6,7 @@ import {
   gotoShared,
   reloadShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -53,9 +54,8 @@ await sleep(800);
 await A.waitForSelector(".link-box code", { timeout: 3000 });
 const link = await A.$eval(".link-box code", (e) => e.textContent);
 await A.click("button.primary");
-await sleep(1000);
 check(
-  (await A.$('a[title="Server admin"]')) !== null,
+  await waitFor(async () => (await A.$('a[title="Server admin"]')) !== null),
   "admin sees the gear pill",
 );
 
@@ -64,9 +64,12 @@ const B = await newPage("B");
 await B.goto(`${base}/login`, { waitUntil: "networkidle0" });
 await sleep(200);
 await B.click("button.link");
-await sleep(200);
 check(
-  (await B.$('input[placeholder="From the person who invited you"]')) !== null,
+  await waitFor(
+    async () =>
+      (await B.$('input[placeholder="From the person who invited you"]')) !==
+      null,
+  ),
   "invite policy: create-account form asks for a code",
 );
 await B.type('input[autocomplete="username"]', `walkin${suffix}`);
@@ -76,46 +79,57 @@ await B.type(
   "nope1234ab",
 );
 await B.click('button[type="submit"]');
-await sleep(1200);
 check(
-  (await B.$eval("p.error", (e) => e.textContent).catch(() => "")) ===
-    "invite not found",
+  await waitFor(
+    async () =>
+      (await B.$eval("p.error", (e) => e.textContent).catch(() => "")) ===
+      "invite not found",
+  ),
   "bad code rejected with a clear error",
 );
 
 // Via the link: code pre-filled and locked; account created and lands in the space.
 await gotoShared(B, link);
-await sleep(300);
-const codeField = await B.$(
-  'input[placeholder="From the person who invited you"]',
-);
 check(
-  codeField !== null &&
-    (await B.evaluate((e) => e.readOnly && e.value.length === 10, codeField)),
+  await waitFor(async () => {
+    const field = await B.$(
+      'input[placeholder="From the person who invited you"]',
+    );
+    return (
+      field !== null &&
+      (await B.evaluate((e) => e.readOnly && e.value.length === 10, field))
+    );
+  }),
   "join link pre-fills and locks the code",
 );
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
-await sleep(2500);
 check(
-  path(B).startsWith("/s/") &&
-    (await B.$eval(".space-name", (e) => e.textContent).catch(() => "")) ===
-      "Stoop HQ",
+  await waitFor(
+    async () =>
+      path(B).startsWith("/s/") &&
+      (await B.$eval(".space-name", (e) => e.textContent).catch(() => "")) ===
+        "Stoop HQ",
+  ),
   `invited signup lands in the space (${path(B)})`,
 );
 
 // Admin page: switch to open → anonymous signup works without a code.
 await A.click('a[title="Server admin"]');
-await sleep(600);
-check(path(A) === "/admin", "gear opens /admin");
+check(await waitFor(() => path(A) === "/admin"), "gear opens /admin");
 await A.click('.settings-tab[data-tab="accounts"]');
-await sleep(600);
-const users = await A.$eval(".user-list", (e) => e.innerText);
 check(
-  users.includes(`@ada${suffix}`) &&
-    users.includes(`@bea${suffix}`) &&
-    users.includes(`@walkin${suffix}`) === false,
+  await waitFor(async () => {
+    const users = await A.$eval(".user-list", (e) => e.innerText).catch(
+      () => "",
+    );
+    return (
+      users.includes(`@ada${suffix}`) &&
+      users.includes(`@bea${suffix}`) &&
+      users.includes(`@walkin${suffix}`) === false
+    );
+  }),
   "account list shows real accounts only (rejected signup absent)",
 );
 await A.click('.settings-tab[data-tab="server"]');
@@ -137,9 +151,8 @@ const titled = await A.waitForFunction(
 );
 check(titled, "saved server name becomes the tab title");
 await reloadShared(A, { waitUntil: "networkidle0" });
-await sleep(500);
 check(
-  (await A.title()) === `Stoop HQ ${suffix}`,
+  await waitFor(async () => (await A.title()) === `Stoop HQ ${suffix}`),
   "server name persists across reload",
 );
 await A.select('select[name="registration-policy"]', "1");
@@ -156,8 +169,10 @@ check(
 await C.type('input[autocomplete="username"]', `cal${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");
 await C.click('button[type="submit"]');
-await sleep(2000);
-check(path(C) === "/", `open signup works and lands home (${path(C)})`);
+check(
+  await waitFor(() => path(C) === "/"),
+  `open signup works and lands home (${path(C)})`,
+);
 check(
   (await C.$('button[title="Create a space"]')) === null,
   "member can't create spaces by default (no + pill)",
@@ -165,9 +180,10 @@ check(
 await A.select('select[name="space-creation"]', "2");
 await saveServer(A);
 await reloadShared(C, { waitUntil: "networkidle0" });
-await sleep(500);
 check(
-  (await C.$('button[title="Create a space"]')) !== null,
+  await waitFor(
+    async () => (await C.$('button[title="Create a space"]')) !== null,
+  ),
   "after admin opens space creation, member sees the + pill",
 );
 await A.select('select[name="space-creation"]', "1");
@@ -178,20 +194,27 @@ await A.select('select[name="registration-policy"]', "3");
 await saveServer(A);
 const D = await newPage("D");
 await D.goto(`${base}/login`, { waitUntil: "networkidle0" });
-await sleep(300);
 check(
-  (await D.$("button.link")) === null &&
-    (await D.$eval("#root", (e) => e.innerText)).includes(
-      "isn't accepting new accounts",
-    ),
+  await waitFor(
+    async () =>
+      (await D.$("button.link")) === null &&
+      (await D.$eval("#root", (e) => e.innerText).catch(() => "")).includes(
+        "isn't accepting new accounts",
+      ),
+  ),
   "closed policy: create-account hidden with a note",
 );
 
 // Policy survives a page reload of the admin (persisted), then back to invite.
 await reloadShared(A, { waitUntil: "networkidle0" });
-await sleep(500);
 check(
-  (await A.$eval('select[name="registration-policy"]', (e) => e.value)) === "3",
+  await waitFor(
+    async () =>
+      (await A.$eval(
+        'select[name="registration-policy"]',
+        (e) => e.value,
+      ).catch(() => "")) === "3",
+  ),
   "policy persisted across reload",
 );
 await A.select('select[name="registration-policy"]', "2");
@@ -230,15 +253,18 @@ await menuItem(A, "Deactivate");
 await acceptDialog(A);
 await sleep(1000);
 await reloadShared(C, { waitUntil: "networkidle0" });
-await sleep(500);
-check(path(C) === "/login", `deactivated user bounced to login (${path(C)})`);
+check(
+  await waitFor(() => path(C) === "/login"),
+  `deactivated user bounced to login (${path(C)})`,
+);
 await C.type('input[autocomplete="username"]', `cal${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");
 await C.click('button[type="submit"]');
-await sleep(1200);
 check(
-  (await C.$eval("p.error", (e) => e.textContent).catch(() => "")).includes(
-    "deactivated",
+  await waitFor(async () =>
+    (await C.$eval("p.error", (e) => e.textContent).catch(() => "")).includes(
+      "deactivated",
+    ),
   ),
   "deactivated login refused with a clear error",
 );
@@ -258,8 +284,7 @@ await openMenu(A, calRow);
 await menuItem(A, "Reactivate");
 await sleep(800);
 await C.click('button[type="submit"]');
-await sleep(1500);
-check(path(C) !== "/login", "reactivated user can log in");
+check(await waitFor(() => path(C) !== "/login"), "reactivated user can log in");
 
 // Admin can't demote or deactivate themselves (buttons absent), and the last-admin guard holds.
 const _selfRow = (await A.$$(".user-row")).filter(async () => true);

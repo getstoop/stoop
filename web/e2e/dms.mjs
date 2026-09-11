@@ -8,6 +8,7 @@ import {
   gotoShared,
   reloadShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -79,9 +80,8 @@ const clickMember = async (page, name) => {
   throw new Error(`no member row for ${name}`);
 };
 await clickMember(A, bName);
-await sleep(500);
 check(
-  (await A.$(".user-card .message-button")) !== null,
+  await waitFor(async () => (await A.$(".user-card .message-button")) !== null),
   "member card offers Message",
 );
 await A.click(".user-card .message-button");
@@ -115,13 +115,19 @@ await A.keyboard.press("Enter");
 await sleep(700);
 await A.type(".composer textarea", "you there?");
 await A.keyboard.press("Enter");
-await sleep(1000);
 check(
-  (await B.$eval(".space-pill.dms .pill-badge", (e) => e.textContent)) === "1",
+  await waitFor(
+    async () =>
+      (await B.$eval(".space-pill.dms .pill-badge", (e) => e.textContent).catch(
+        () => "",
+      )) === "1",
+  ),
   "B's DMs pill shows one alert for the conversation",
 );
 check(
-  (await B.$(".space-pill.activity .pill-dot")) !== null,
+  await waitFor(
+    async () => (await B.$(".space-pill.activity .pill-dot")) !== null,
+  ),
   "B's activity pill is dotted after two messages",
 );
 check(
@@ -129,66 +135,64 @@ check(
   "B's space channel list has no DM in it",
 );
 await B.click(".space-pill.dms");
-await sleep(1500);
 check(
-  new URL(B.url()).pathname === dmPath,
+  await waitFor(() => new URL(B.url()).pathname === dmPath),
   "the DMs pill opens the most recent conversation",
 );
 check(
-  (await B.$$eval(".message-content", (es) => es.map((e) => e.textContent)))
-    .join("|")
-    .includes("hello bea"),
+  await waitFor(async () =>
+    (await B.$$eval(".message-content", (es) => es.map((e) => e.textContent)))
+      .join("|")
+      .includes("hello bea"),
+  ),
   "B sees A's message",
 );
 // The read marker is a round trip plus a realtime event; wait for the
 // badge to go rather than guessing how long that takes under load.
 check(
-  await B.waitForSelector(".space-pill.dms .pill-badge", {
-    hidden: true,
-    timeout: 5000,
-  }).then(
-    () => true,
-    () => false,
+  await waitFor(
+    async () => (await B.$(".space-pill.dms .pill-badge")) === null,
   ),
   "reading the DM clears B's alert",
 );
 await B.type(".composer textarea", "hi ada");
 await B.keyboard.press("Enter");
-await sleep(1000);
 check(
-  (await A.$$eval(".message-content", (es) => es.map((e) => e.textContent)))
-    .join("|")
-    .includes("hi ada"),
+  await waitFor(async () =>
+    (await A.$$eval(".message-content", (es) => es.map((e) => e.textContent)))
+      .join("|")
+      .includes("hi ada"),
+  ),
   "A sees B's reply live",
 );
 check(
-  await A.waitForSelector(".space-pill.activity .pill-dot", {
-    hidden: true,
-    timeout: 5000,
-  }).then(
-    () => true,
-    () => false,
+  await waitFor(
+    async () => (await A.$(".space-pill.activity .pill-dot")) === null,
   ),
   "A, reading the DM, gets no lingering alert",
 );
 
 // Reload keeps it.
 await reloadShared(A, { waitUntil: "networkidle0" });
-await sleep(1200);
 check(
-  new URL(A.url()).pathname === dmPath &&
-    (await A.$$eval(".message-content", (es) => es.length)) === 3,
+  await waitFor(
+    async () =>
+      new URL(A.url()).pathname === dmPath &&
+      (await A.$$eval(".message-content", (es) => es.length)) === 3,
+  ),
   "the conversation survives a reload",
 );
 
 // C is not in it: the URL bounces to the DM list.
 await gotoShared(C, `${base}${dmPath}`, { waitUntil: "networkidle0" });
-await sleep(1500);
 check(
-  new URL(C.url()).pathname === "/dm",
+  await waitFor(() => new URL(C.url()).pathname === "/dm"),
   `an outsider is bounced off the DM (${new URL(C.url()).pathname})`,
 );
-check((await C.$(".dm-empty")) !== null, "…and sees the empty DM list");
+check(
+  await waitFor(async () => (await C.$(".dm-empty")) !== null),
+  "…and sees the empty DM list",
+);
 
 // C opens their own DM with A; A's list now has two, newest first.
 await C.goto(`${base}/`, { waitUntil: "networkidle0" });
