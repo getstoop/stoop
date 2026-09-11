@@ -183,7 +183,8 @@ jobs:
         run: |
           chmod +x bin/stoop
           STOOP_DATABASE_URL=postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable \
-          STOOP_LISTEN_ADDR=:8091 STOOP_UNFURL_ALLOW_PRIVATE=1 ./bin/stoop > server.log 2>&1 &
+          STOOP_LISTEN_ADDR=:8091 STOOP_UNFURL_ALLOW_PRIVATE=1 \
+          STOOP_AUTH_RATE_LIMIT=0 ./bin/stoop > server.log 2>&1 &
           for i in $(seq 1 30); do curl -sf localhost:8091/healthz && break; sleep 1; done
       - name: Run browser suite (shard ${{ matrix.shard }} of 4)
         run: cd web && pnpm e2e --shard ${{ matrix.shard }}/4
