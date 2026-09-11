@@ -24,6 +24,10 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
+# Checkout is all this needs; matches ci.yml.
+permissions:
+  contents: read
+
 concurrency:
   group: voice-e2e-${{ github.ref }}
   cancel-in-progress: true
