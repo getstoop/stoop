@@ -39,7 +39,11 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // The first channel row is #general (or the one conversation in the DM
   // list); it is the muted one throughout.
   const row = (p: Page) => p.locator(".channel-row").first();
-  const railPill = (p: Page) => p.locator(".space-rail-list .space-pill");
+  // a.space-pill, not .space-pill: the rail's Create and Join buttons
+  // carry the same class, and while the spaces query is still loading
+  // they are the only matches — .first() then clicks Join and leaves its
+  // modal over everything that follows.
+  const railPill = (p: Page) => p.locator(".space-rail-list a.space-pill");
   const activityDot = (p: Page) => p.locator(".space-pill.activity .pill-dot");
 
   // Mute or unmute the first channel row on the page.
