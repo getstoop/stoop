@@ -32,3 +32,7 @@ web/tsconfig.tsbuildinfo
 
 # GoReleaser output (local snapshot builds)
 /dist/
+
+# Playwright (STOOP-238)
+web/test-results/
+web/playwright-report/

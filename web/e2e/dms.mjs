@@ -111,13 +111,14 @@ check(
   ),
   "B sees A's message",
 );
-// The read marker is a round trip plus a realtime event. Under a full
-// parallel suite that has been seen to take longer than the default
-// poll, so this one gets a wider window rather than a rerun.
+// Reading only counts while the window has attention: useAutoReadActivity
+// gates on document.hasFocus() so an unfocused tab still raises a desktop
+// alert. With three pages open only one holds focus, so B has to be at the
+// front for this to mean anything.
+await B.bringToFront();
 check(
   await waitFor(
     async () => (await B.$(".space-pill.dms .pill-badge")) === null,
-    { timeout: 20000 },
   ),
   "reading the DM clears B's alert",
 );

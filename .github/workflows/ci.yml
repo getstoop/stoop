@@ -190,6 +190,24 @@ jobs:
         env:
           STOOP_E2E_DATABASE_URL: postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable
           STOOP_E2E_CHROME: /usr/bin/google-chrome
+      # The suite is migrating to Playwright (STOOP-238); the ported specs
+      # ride shard 1's server rather than paying for a job of their own.
+      # A spec lives in one suite or the other, never both.
+      - name: Install Playwright browser
+        if: matrix.shard == 1
+        run: cd web && npx playwright install chromium
+      - name: Run Playwright specs
+        if: matrix.shard == 1
+        run: cd web && npx playwright test
+        env:
+          STOOP_E2E_DATABASE_URL: postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable
+      - name: Playwright artifacts
+        if: failure() && matrix.shard == 1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-failure
+          path: web/test-results
+          retention-days: 3
       - name: Server log
         if: failure()
         run: cat server.log

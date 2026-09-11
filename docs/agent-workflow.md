@@ -93,6 +93,46 @@ sections, in this order:
   opposite sides of the wire, so a case added to one belongs in the
   other.
 
+- **The browser suite is moving to Playwright** (STOOP-238). Specs under
+  `web/e2e-pw/` are the new ones (`npx playwright test`); `web/e2e/`
+  is the original puppeteer suite (`pnpm e2e`). Both run in CI —
+  the Playwright specs ride shard 1's server — and **a spec lives in
+  exactly one of them**: porting it means deleting the `.mjs` and taking
+  its entries out of `SPECS` and `WEIGHT` in `run.mjs`.
+
+  Seeding is shared. `web/e2e/seed.mjs` holds `seed()` and `joinSpace()`
+  for both suites, so the two can never drift on what a seeded world
+  looks like; only signing a page in differs, and that lives in each
+  harness.
+
+  Two things learned porting the first spec. `fill()` is not always a
+  substitute for `type()` — it sets a value in one event where typing
+  simulates keystrokes, so anything whose subject is typing (an
+  autocomplete opening per keystroke, the composer's overlay tracking
+  the caret) needs `pressSequentially`. And `reload(page)` from the
+  Playwright lib, never `page.reload()`: a channel URL meets the
+  desktop-app gate on reload and a plain reload walks into it.
+
+- **Reading only counts while a page has attention.** Both
+  `useMarkChannelRead` and `useAutoReadActivity` gate on `hasAttention()`
+  — `document.visibilityState === "visible" && document.hasFocus()` — so
+  that an unfocused tab still raises a desktop alert. That is deliberate
+  product behaviour, and it makes every "…clears the badge", "…is read
+  immediately" assertion depend on *which page is at the front*.
+
+  A spec with two or three pages has only one at the front, so bring the
+  page to the front before asserting that something it viewed became
+  read:
+
+  ```js
+  await B.bringToFront();
+  check(await waitFor(async () => (await B.$(".pill-badge")) === null), …);
+  ```
+
+  This was behind the long-standing `dms` flake ("reading the DM clears
+  B's alert"), which was misdiagnosed for weeks as a timeout too short
+  under load. It is not: 20s did not help, because focus never arrived.
+
 - **Assertions poll; they never sleep a fixed time.** Use `waitFor` from
   `web/e2e/lib.mjs` — it polls until the condition holds or a generous
   timeout expires, and returns the last value so a failure reports real
