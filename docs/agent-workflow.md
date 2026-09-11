@@ -367,7 +367,7 @@ got big enough that a red `main` cost more than the round-trip saves.
   `<code>` (browser default monospace) are wider than the textarea's text —
   measured +7 px and +29 px — so the caret drifts. Emphasis in the composer
   overlay is paint-only; see the comment in `web/src/styles/composer.css` and the width
-  checks in `web/e2e/composer-styling.mjs`.
+  checks in `web/e2e-pw/composer-styling.spec.ts`.
 
 ### Harness traps
 

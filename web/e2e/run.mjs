@@ -30,13 +30,11 @@ const green = (s) => (colour ? `\x1b[32m${s}\x1b[0m` : s);
 const red = (s) => (colour ? `\x1b[31m${s}\x1b[0m` : s);
 
 // Order matters only for readability; each spec starts from a wiped DB.
+// What is left of the puppeteer suite: everything else has moved to
+// Playwright (web/e2e-pw, STOOP-238). attachments resisted porting and
+// voice has never run in CI at all, so both stay here for now.
 const SPECS = [
   "attachments",
-  "presence",
-  "composer-styling",
-  "window",
-  "mobile",
-  "mutes",
   // Needs a LiveKit server the app is configured for and fake media
   // devices; opt in with STOOP_E2E_VOICE=1 (CI doesn't).
   ...(process.env.STOOP_E2E_VOICE ? ["voice"] : []),
@@ -49,11 +47,6 @@ const SPECS = [
 const TYPICAL = 25;
 const WEIGHT = {
   attachments: 15,
-  window: 60,
-  mutes: 40,
-  presence: 29,
-  mobile: 16,
-  "composer-styling": 16,
 };
 
 // Longest-first onto the lightest shard: a classic greedy split that
