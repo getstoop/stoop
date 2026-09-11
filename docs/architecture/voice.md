@@ -199,6 +199,26 @@ and a second permission.
 
 Recording and media E2EE are not attempted.
 
+### A share's own audio
+
+A share can carry what the machine is playing, where the desktop shell
+can get it from the OS (`docs/architecture/desktop.md`). How it is
+captured is one constraint object in `api/voice.ts`:
+
+- **`restrictOwnAudio` keeps our own output out of the capture.** Without
+  it a share started inside a call captures the call and publishes it
+  back into itself, an echo that worsens with every participant.
+  Chromium honours it on macOS and Windows and ignores it on Linux,
+  which is why the shell offers no system audio there.
+- **Echo cancellation, noise suppression and automatic gain are off, and
+  capture is stereo.** All four defaults are tuned for a microphone, and
+  a shared screen is not one. Turning gain control off costs real level,
+  so a share is quieter than a voice and listeners may reach for the
+  volume.
+
+A browser that implements none of this ignores the lot and captures
+anyway, so the same call works everywhere and simply protects less.
+
 ### The client's track registry
 
 The voice store keeps `tracks`, keyed by participant and source (camera or
