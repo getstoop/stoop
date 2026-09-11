@@ -29,25 +29,25 @@ const colour =
 const green = (s) => (colour ? `\x1b[32m${s}\x1b[0m` : s);
 const red = (s) => (colour ? `\x1b[31m${s}\x1b[0m` : s);
 
-// Order matters only for readability; each spec starts from a wiped DB.
-// What is left of the puppeteer suite: everything else has moved to
-// Playwright (web/e2e-pw, STOOP-238). attachments resisted porting and
-// voice has never run in CI at all, so both stay here for now.
+// All that is left of the puppeteer suite: everything else has moved to
+// Playwright (web/e2e-pw, STOOP-238). voice stays because it needs a
+// LiveKit server and fake media devices, so it cannot ride the same
+// server as the rest — .github/workflows/voice-e2e.yml gives it its own
+// job. Porting it is worth doing now that something runs it, but that is
+// a change to make against a green spec, not alongside one.
+// Each spec starts from a wiped DB.
 const SPECS = [
-  "attachments",
-  // Needs a LiveKit server the app is configured for and fake media
-  // devices; opt in with STOOP_E2E_VOICE=1 (CI doesn't).
+  // Opt in with STOOP_E2E_VOICE=1, which the voice workflow sets and the
+  // main CI workflow does not.
   ...(process.env.STOOP_E2E_VOICE ? ["voice"] : []),
 ];
 
 // Seconds each spec took on a GitHub runner, so --shard can hand out
 // slices of even length rather than even count. Only balance depends on
-// these; a spec missing here counts as typical. The summary prints fresh
-// numbers after every run — copy them back when the shape changes.
+// these; a spec missing here counts as typical. Empty because one spec
+// cannot be unbalanced — refill it if this list ever grows again.
 const TYPICAL = 25;
-const WEIGHT = {
-  attachments: 15,
-};
+const WEIGHT = {};
 
 // Longest-first onto the lightest shard: a classic greedy split that
 // keeps the slowest spec from sharing a slice with much else.
