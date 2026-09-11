@@ -109,7 +109,7 @@ test("avatars and space icons", async ({ browser }) => {
       bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
       let s = "";
       for (let i = 0; i < bytes.length; i += 0x8000)
-        s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
       const r = await fetch("/stoop.files.v1.FileService/UploadAvatar", {
         method: "POST",
         headers: { "content-type": "application/json" },

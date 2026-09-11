@@ -89,14 +89,23 @@ const stageGeometry = (p) =>
     const box = strip.getBoundingClientRect();
     const tiles = [...strip.children].map((el) => {
       const r = el.getBoundingClientRect();
-      return { key: el.dataset.tileKey, x: r.x, y: r.y, w: r.width, h: r.height };
+      return {
+        key: el.dataset.tileKey,
+        x: r.x,
+        y: r.y,
+        w: r.width,
+        h: r.height,
+      };
     });
     return { box: { w: box.width, h: box.height }, tiles };
   });
 // Would a uniform tile of this width fit the strip, at the row break
 // flex-wrap would choose? Used to check the packing leaves no room.
 const wouldFit = (w, box, n, gap = 8) => {
-  const perRow = Math.max(1, Math.min(n, Math.floor((box.w - gap) / (w + gap))));
+  const perRow = Math.max(
+    1,
+    Math.min(n, Math.floor((box.w - gap) / (w + gap))),
+  );
   const rows = Math.ceil(n / perRow);
   return (
     perRow * w + gap * (perRow + 1) <= box.w + 0.5 &&
@@ -230,7 +239,8 @@ check(
 await A.click('.voice-bar [aria-label="Unmute"]');
 await B.click('.voice-bar [aria-label="Unmute"]');
 check(
-  (await waitForTileMuted(B, ada, false)) && (await waitForTileMuted(B, bea, false)),
+  (await waitForTileMuted(B, ada, false)) &&
+    (await waitForTileMuted(B, bea, false)),
   "unmuting clears the marker on both tiles",
 );
 
@@ -326,7 +336,10 @@ check(
 
 // The stage animated when B arrived: A's own tile moved over to make
 // room, and B's faded in.
-check((await flips(A)) >= 2, `B's arrival animated A's tiles (${await flips(A)} flips)`);
+check(
+  (await flips(A)) >= 2,
+  `B's arrival animated A's tiles (${await flips(A)} flips)`,
+);
 
 // The divider drags.
 const grip = await A.$eval(".stage-resizer", (e) => {
@@ -513,8 +526,7 @@ const hiddenHeight = await heightOf(A, ".voice-stage");
 // stays when the chat goes, so the stage fills the pane under it.
 const headerHeight = await heightOf(A, ".channel-view > .channel-header");
 check(
-  hiddenHeight > draggedHeight &&
-    paneHeight - headerHeight - hiddenHeight < 4,
+  hiddenHeight > draggedHeight && paneHeight - headerHeight - hiddenHeight < 4,
   `the stage fills the pane under the header with the chat hidden (${Math.round(hiddenHeight)} of ${Math.round(paneHeight - headerHeight)})`,
 );
 check(

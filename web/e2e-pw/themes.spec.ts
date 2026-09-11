@@ -54,8 +54,11 @@ test("picking a theme", async ({ browser }) => {
   // identity of a palette is ground + accent.)
   const palettes = await cards.evaluateAll((els: HTMLElement[]) =>
     els.map((e) => {
+      // Named rather than asserted away: without this a missing swatch is
+      // a TypeError inside the page, which reads as a harness fault.
       const mock = e.querySelector(".theme-mock");
       const av = e.querySelector(".theme-mock-av");
+      if (!mock || !av) return "missing swatch";
       return `${getComputedStyle(mock).backgroundColor}|${getComputedStyle(av).backgroundColor}`;
     }),
   );

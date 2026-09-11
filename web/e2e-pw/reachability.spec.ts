@@ -19,6 +19,14 @@ declare global {
 // Ported from web/e2e/reachability.mjs (STOOP-238). The subject is the
 // setup wizard, so this one drives the UI and seeds nothing: a seeded
 // user would put /setup out of reach.
+// What the voice join hands the client; rpc() is untyped, so the shape is
+// named here rather than inferred.
+interface IceServer {
+  urls?: string[];
+  username?: string;
+  credential?: string;
+}
+
 test("reaching your server, in setup and on the admin page", async ({
   browser,
 }) => {
@@ -192,7 +200,9 @@ test("reaching your server, in setup and on the admin page", async ({
   const spaceId = spaces.spaces[0].id;
   const chans = await rpc("chat.v1.ChatService/ListChannels", { spaceId });
   const voice =
-    chans.channels.find((c) => c.kind === "CHANNEL_KIND_VOICE") ??
+    chans.channels.find(
+      (c: { kind: string }) => c.kind === "CHANNEL_KIND_VOICE",
+    ) ??
     (
       await rpc("chat.v1.ChatService/CreateChannel", {
         spaceId,
@@ -214,7 +224,7 @@ test("reaching your server, in setup and on the admin page", async ({
     const ice = join.iceServers ?? [];
     expect(
       ice.some(
-        (s) =>
+        (s: IceServer) =>
           s.urls?.includes("turns:turn.example.test:5349") &&
           s.username === "relay-user" &&
           s.credential === "relay-pass",
@@ -222,7 +232,9 @@ test("reaching your server, in setup and on the admin page", async ({
       "voice join offers the saved TURN relay, with its credentials",
     ).toBe(true);
     expect(
-      ice.some((s) => s.urls?.includes("stun:turn.example.test:3478")),
+      ice.some((s: IceServer) =>
+        s.urls?.includes("stun:turn.example.test:3478"),
+      ),
       "and the saved STUN server",
     ).toBe(true);
   }

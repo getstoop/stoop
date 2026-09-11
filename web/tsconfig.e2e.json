@@ -1,0 +1,30 @@
+{
+  // The browser specs, which the app's tsconfig does not see: it includes
+  // only `src`, so `npx tsc -p tsconfig.json` compiled zero spec files and
+  // exited 0 (STOOP-239). Playwright runs specs through esbuild, which
+  // strips types without checking them, so nothing else was checking them
+  // either — a type error surfaced as a runtime failure partway through a
+  // spec, looking like a product bug.
+  //
+  // Separate from the app's config rather than folded into it: these want
+  // node types and the DOM lib together, and the app wants neither of the
+  // first.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowJs": true,
+    // seed.mjs is checked through seed.d.mts, not by inference.
+    "checkJs": false,
+    "types": ["node"]
+  },
+  "include": ["e2e-pw", "e2e/seed.d.mts", "playwright.config.ts"]
+}
