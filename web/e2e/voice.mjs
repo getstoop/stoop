@@ -473,6 +473,11 @@ check(
 await stageClick(A, `button[aria-label="${flipped}"]`);
 await sleep(400);
 
+// StageBar holds itself visible while focus is inside it, and the click
+// above focused one of its buttons. Take focus off it, or "nothing is
+// moving" is never true.
+await A.evaluate(() => document.activeElement?.blur());
+
 // It gets off the video when nothing is moving, and comes back on a move.
 check(
   await waitFor(async () => (await A.$(".stage-bar.idle")) !== null, {
@@ -504,9 +509,13 @@ check(
   "hiding the chat takes the timeline and composer away",
 );
 const hiddenHeight = await heightOf(A, ".voice-stage");
+// The channel header is a sibling of the stage inside .channel-view and
+// stays when the chat goes, so the stage fills the pane under it.
+const headerHeight = await heightOf(A, ".channel-view > .channel-header");
 check(
-  hiddenHeight > draggedHeight && paneHeight - hiddenHeight < 4,
-  `the stage fills the pane with the chat hidden (${Math.round(hiddenHeight)} of ${Math.round(paneHeight)})`,
+  hiddenHeight > draggedHeight &&
+    paneHeight - headerHeight - hiddenHeight < 4,
+  `the stage fills the pane under the header with the chat hidden (${Math.round(hiddenHeight)} of ${Math.round(paneHeight - headerHeight)})`,
 );
 check(
   (await A.$(".stage-resizer")) === null,
