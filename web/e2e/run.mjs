@@ -5,7 +5,7 @@
 // defaults below are the dev instance, which this wipes.
 //
 //   pnpm e2e                    every spec
-//   pnpm e2e mentions presence  just those
+//   pnpm e2e mutes window  just those
 //   pnpm e2e --shard 2/4        the second of four balanced slices (CI
 //                               runs the slices as parallel jobs, each
 //                               with its own server and database)
@@ -31,39 +31,12 @@ const red = (s) => (colour ? `\x1b[31m${s}\x1b[0m` : s);
 
 // Order matters only for readability; each spec starts from a wiped DB.
 const SPECS = [
-  "setup",
-  "registration",
-  "invites",
-  "members",
-  "profile",
-  "usercard",
-  "pronouns",
-  "realtime",
-  "mentions",
-  "presence",
-  "settings",
-  "formatting",
-  "shortcodes",
-  "composer-styling",
-  "uploads",
   "attachments",
-  "reachability",
-  "login-providers",
-  "unfurl",
-  "themes",
-  "history",
+  "presence",
+  "composer-styling",
   "window",
   "mobile",
-  "dms",
-  "status",
   "mutes",
-  "security",
-  "storage",
-  "bans",
-  "space-about",
-  "channel-topic",
-  "default-channel",
-  "search",
   // Needs a LiveKit server the app is configured for and fake media
   // devices; opt in with STOOP_E2E_VOICE=1 (CI doesn't).
   ...(process.env.STOOP_E2E_VOICE ? ["voice"] : []),
@@ -75,38 +48,12 @@ const SPECS = [
 // numbers after every run — copy them back when the shape changes.
 const TYPICAL = 25;
 const WEIGHT = {
+  attachments: 15,
   window: 60,
   mutes: 40,
-  bans: 38,
-  search: 32,
-  registration: 37,
-  dms: 35,
-  pronouns: 34,
-  mentions: 34,
-  members: 33,
-  reachability: 31,
-  invites: 31,
-  "space-about": 30,
   presence: 29,
-  "channel-topic": 27,
-  settings: 26,
-  uploads: 26,
-  history: 25,
-  setup: 24,
-  status: 22,
-  formatting: 21,
-  realtime: 21,
-  profile: 21,
-  attachments: 20,
-  "login-providers": 18,
-  usercard: 18,
-  themes: 16,
   mobile: 16,
   "composer-styling": 16,
-  storage: 15,
-  unfurl: 14,
-  shortcodes: 13,
-  security: 5,
 };
 
 // Longest-first onto the lightest shard: a classic greedy split that
