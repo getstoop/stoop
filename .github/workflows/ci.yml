@@ -22,7 +22,7 @@ concurrency:
 jobs:
   # A change that touches only documentation skips the build and test
   # jobs: they are marked skipped, which the branch ruleset counts as
-  # passing, so a README fix does not run four browser shards. Anything
+  # passing, so a README fix does not run the browser suite. Anything
   # outside docs/, *.md, LICENSE and the issue/PR templates is code, and
   # so is a manual run or a push whose base is unknown.
   changes:
@@ -111,10 +111,16 @@ jobs:
           STOOP_TEST_DATABASE_URL: postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable
 
   # The browser suite is the long pole of CI, so it is split: one job
-  # builds the binary, four run balanced slices of the spec list against
-  # their own server and database, and a last job with the old name rolls
-  # their results up. The branch ruleset requires "Browser E2E" and never
-  # needs to know how many shards there are.
+  # builds the binary, one runs the specs against its own server and
+  # database, and a last job with the old name rolls the result up. The
+  # branch ruleset requires "Browser E2E" and never needs to know how the
+  # work below it is divided.
+  #
+  # It ran as four shards until the Playwright migration (STOOP-238) left
+  # attachments as the only puppeteer spec: three of the four then spent
+  # ~35 s apiece on checkout, install and a server start to run nothing,
+  # and Actions bills every started job a whole minute. Shard again when
+  # there is enough work to need it — Playwright has --shard of its own.
   e2e-build:
     name: Build for browser E2E
     needs: changes
@@ -141,14 +147,10 @@ jobs:
           path: bin/stoop
           retention-days: 1
 
-  e2e-shard:
-    name: Browser E2E shard ${{ matrix.shard }}
+  e2e-run:
+    name: Browser E2E run
     needs: e2e-build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:16-alpine
@@ -186,24 +188,22 @@ jobs:
           STOOP_LISTEN_ADDR=:8091 STOOP_UNFURL_ALLOW_PRIVATE=1 \
           STOOP_AUTH_RATE_LIMIT=0 ./bin/stoop > server.log 2>&1 &
           for i in $(seq 1 30); do curl -sf localhost:8091/healthz && break; sleep 1; done
-      - name: Run browser suite (shard ${{ matrix.shard }} of 4)
-        run: cd web && pnpm e2e --shard ${{ matrix.shard }}/4
+      - name: Run browser suite
+        run: cd web && pnpm e2e
         env:
           STOOP_E2E_DATABASE_URL: postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable
           STOOP_E2E_CHROME: /usr/bin/google-chrome
-      # The suite is migrating to Playwright (STOOP-238); the ported specs
-      # ride shard 1's server rather than paying for a job of their own.
-      # A spec lives in one suite or the other, never both.
+      # Both suites share this server. A spec lives in one or the other,
+      # never both; all that is left on puppeteer is attachments (and the
+      # opt-in voice spec, which CI does not run).
       - name: Install Playwright browser
-        if: matrix.shard == 1
         run: cd web && npx playwright install chromium
       - name: Run Playwright specs
-        if: matrix.shard == 1
         run: cd web && npx playwright test
         env:
           STOOP_E2E_DATABASE_URL: postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable
       - name: Playwright artifacts
-        if: failure() && matrix.shard == 1
+        if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-failure
@@ -215,19 +215,19 @@ jobs:
 
   e2e:
     name: Browser E2E
-    needs: [changes, e2e-shard]
+    needs: [changes, e2e-run]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Every shard passed
+      - name: The run passed
         env:
-          SHARDS: ${{ needs.e2e-shard.result }}
+          RESULT: ${{ needs.e2e-run.result }}
           CODE: ${{ needs.changes.outputs.code }}
         run: |
-          if [ "$SHARDS" = success ] || { [ "$SHARDS" = skipped ] && [ "$CODE" != true ]; }; then
+          if [ "$RESULT" = success ] || { [ "$RESULT" = skipped ] && [ "$CODE" != true ]; }; then
             exit 0
           fi
-          echo "shards finished with: $SHARDS"
+          echo "the browser run finished with: $RESULT"
           exit 1
 
   web:

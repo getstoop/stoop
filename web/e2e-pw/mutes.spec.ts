@@ -39,7 +39,11 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // The first channel row is #general (or the one conversation in the DM
   // list); it is the muted one throughout.
   const row = (p: Page) => p.locator(".channel-row").first();
-  const railPill = (p: Page) => p.locator(".space-rail-list .space-pill");
+  // a.space-pill, not .space-pill: the rail's Create and Join buttons
+  // carry the same class, and while the spaces query is still loading
+  // they are the only matches — .first() then clicks Join and leaves its
+  // modal over everything that follows.
+  const railPill = (p: Page) => p.locator(".space-rail-list a.space-pill");
   const activityDot = (p: Page) => p.locator(".space-pill.activity .pill-dot");
 
   // Mute or unmute the first channel row on the page.
@@ -309,9 +313,15 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     "Mute space",
   ]);
   await pickSpaceMenu(A, "Mute space", "mute the space from its menu");
-  expect(await menuItems(A), "and the item flips to Unmute space").toContain(
-    "Unmute space",
-  );
+  // Polled, not read once: menuItems() materialises the labels into an
+  // array, so a plain expect on it cannot retry, and the label only flips
+  // once the mute RPC lands. Reopening the menu per attempt is what the
+  // helper already does.
+  await expect
+    .poll(() => menuItems(A), {
+      message: "and the item flips to Unmute space",
+    })
+    .toContain("Unmute space");
 
   // The space's own surfaces.
   const bell = A.locator(".sidebar-header .space-muted-icon");

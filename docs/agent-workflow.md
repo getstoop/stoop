@@ -95,10 +95,11 @@ sections, in this order:
 
 - **The browser suite is moving to Playwright** (STOOP-238). Specs under
   `web/e2e-pw/` are the new ones (`npx playwright test`); `web/e2e/`
-  is the original puppeteer suite (`pnpm e2e`). Both run in CI —
-  the Playwright specs ride shard 1's server — and **a spec lives in
-  exactly one of them**: porting it means deleting the `.mjs` and taking
-  its entries out of `SPECS` and `WEIGHT` in `run.mjs`.
+  is the original puppeteer suite (`pnpm e2e`). Both run in CI against
+  the same server, and **a spec lives in exactly one of them**: porting
+  it means deleting the `.mjs` and taking its entries out of `SPECS` and
+  `WEIGHT` in `run.mjs`. Only `attachments` is left on puppeteer, plus
+  the opt-in `voice` spec, which CI has never run.
 
   Seeding is shared. `web/e2e/seed.mjs` holds `seed()` and `joinSpace()`
   for both suites, so the two can never drift on what a seeded world
@@ -302,12 +303,14 @@ got big enough that a red `main` cost more than the round-trip saves.
   for something else — the specs then fail in their preamble while the
   server log says `relation … does not exist`. Recreate it; the script
   does so on every run.
-- **CI runs the suite as four parallel shards**, each against its own
-  server and database: `pnpm e2e --shard N/4`. The split is by the
-  seconds in `WEIGHT` in `web/e2e/run.mjs`, not by count, so a new or
-  much slower spec belongs there; the run summary prints every spec's
-  seconds to copy from. The branch ruleset requires only the roll-up job
-  named "Browser E2E" — add or remove shards without touching it.
+- **CI runs both suites in one job**, against a single server and
+  database. It ran as four shards until the Playwright migration left
+  `attachments` as the only puppeteer spec and three of the four started
+  costing a billed minute each to run nothing. `run.mjs` still takes
+  `--shard N/M` and splits by the seconds in `WEIGHT` rather than by
+  count, and Playwright has a `--shard` of its own, so shard again when
+  there is enough work to need it. The branch ruleset requires only the
+  roll-up job named "Browser E2E" — change what runs under it freely.
 - **`make dev-reset` wipes whatever the maintainer typed on the dev
   instance.** They often try a change live; say so before running, and expect the
   seeded cast ("The Stoop" and "Basement Arcade") afterwards — their test
