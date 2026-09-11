@@ -56,7 +56,6 @@ const areas = await A.$$(".about-section textarea");
 check(areas.length === 2, `About offers a description and a welcome field`);
 await areas[0].type(DESCRIPTION);
 await areas[1].type(WELCOME);
-await sleep(200);
 check(
   await waitFor(async () =>
     (await text(A, ".about-section")).includes(`${DESCRIPTION.length} / 200`),
@@ -89,7 +88,6 @@ await A.evaluate(() =>
     .find((b) => b.textContent === "Save changes")
     ?.click(),
 );
-await sleep(1200);
 check(
   await waitFor(async () =>
     (await text(A, ".about-section")).includes("Saved"),
@@ -99,7 +97,6 @@ check(
 
 // ---- The sidebar line: one line, cut off, and it opens the dialog
 await gotoShared(A, `${base}/s/${spaceId}`, { waitUntil: "networkidle0" });
-await sleep(1500);
 // The welcome pane stands between the space and its first channel the
 // first time; step through it.
 check(
@@ -199,7 +196,6 @@ check(
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
-await sleep(2500);
 
 // ---- The welcome: once, then never again
 check(
@@ -216,14 +212,12 @@ await B.evaluate(() =>
     .find((b) => b.textContent.startsWith("Go to"))
     ?.click(),
 );
-await sleep(1200);
 check(
   await waitFor(() => /^\/s\/[^/]+\/c\/[^/]+$/.test(path(B))),
   `entering the space goes to the first channel (${path(B)})`,
 );
 const bSpaceId = path(B).split("/")[2];
 await gotoShared(B, `${base}/s/${bSpaceId}`, { waitUntil: "networkidle0" });
-await sleep(1200);
 check(
   await waitFor(
     async () =>

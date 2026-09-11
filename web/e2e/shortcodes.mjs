@@ -41,7 +41,6 @@ await sleep(800);
 // Typing :so opens suggestions; the alias comes first; Enter inserts the emoji.
 await A.type(".composer textarea", "oh no :so");
 let list;
-await sleep(150);
 check(
   await waitFor(async () => {
     list = await suggestions();
@@ -88,7 +87,6 @@ await A.type(
 );
 await A.keyboard.press("Escape");
 await A.keyboard.press("Enter");
-await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -108,7 +106,6 @@ check(
 );
 await sleep(150);
 await A.keyboard.press("Escape");
-await sleep(50);
 check(
   await waitFor(
     async () =>
@@ -158,7 +155,6 @@ await A.$eval(".message-editor textarea", (e) => {
 });
 await A.type(".message-editor textarea", " :+1:");
 await A.keyboard.press("Enter");
-await sleep(700);
 check(
   await waitFor(async () => (await lastMessage()).startsWith("note: this 👍")),
   "the inline editor converts on save",

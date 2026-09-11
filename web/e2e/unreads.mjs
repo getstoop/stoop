@@ -158,13 +158,11 @@ await A.click('button[title="Create a space"]');
 await acceptDialog(A, "Second");
 await sleep(1500);
 await say(B, "over here");
-await sleep(800);
 check(
   await waitFor(async () => (await A.$(".space-rail-list .pill-dot")) !== null),
   "A: unread dot on the other space's pill",
 );
 await A.click(".space-rail-list a.space-pill");
-await sleep(1500);
 check(
   await waitFor(
     async () =>
@@ -174,7 +172,6 @@ check(
   "A: back in Stoop HQ on #general, #random (where B posted) is bold and the dot stays",
 );
 await (await channelLink(A, "random")).click();
-await sleep(1200);
 check(
   await waitFor(
     async () =>

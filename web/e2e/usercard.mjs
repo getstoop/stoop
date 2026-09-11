@@ -54,7 +54,6 @@ await sleep(800);
 const authors = await B.$$(".message-author");
 await authors[0].click();
 let card = "";
-await sleep(800);
 check(
   await waitFor(async () => {
     card = await B.$eval(".user-card", (e) => e.innerText).catch(() => "");
@@ -78,7 +77,6 @@ await sleep(200);
 const aAuthors = await A.$$(".message-author");
 await aAuthors[aAuthors.length - 1].click();
 let card2 = "";
-await sleep(800);
 check(
   await waitFor(async () => {
     card2 = await A.$eval(".user-card", (e) => e.innerText).catch(() => "");

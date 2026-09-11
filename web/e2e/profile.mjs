@@ -67,7 +67,6 @@ check(
 await P.click("#display-name", { count: 3 });
 await P.type("#display-name", "Ada Whitfield");
 await P.click('.card button[type="submit"]');
-await sleep(800);
 check(
   await waitFor(
     async () =>
@@ -102,7 +101,6 @@ check(
   "the account page has four tabs",
 );
 await P.click('.settings-tab[data-tab="notifications"]');
-await sleep(600);
 check(
   await waitFor(
     async () =>
@@ -114,7 +112,6 @@ check(
   "the Notifications tab is a URL you can link to, and starts with nothing muted",
 );
 await P.click('.settings-tab[data-tab="security"]');
-await sleep(600);
 check(
   await waitFor(() => new URL(P.url()).search === "?tab=security"),
   "the Security tab is a URL you can link to",
@@ -131,7 +128,6 @@ for (const f of await pw.$$('input[autocomplete="new-password"]')) {
   await f.type(newPass);
 }
 await (await pw.$('button[type="submit"]')).click();
-await sleep(800);
 check(
   await waitFor(
     async () =>
@@ -152,7 +148,6 @@ for (const f of await pw.$$('input[autocomplete="new-password"]')) {
   await f.type(newPass);
 }
 await (await pw.$('button[type="submit"]')).click();
-await sleep(1000);
 check(
   await waitFor(
     async () =>
@@ -162,7 +157,6 @@ check(
   "password changed",
 );
 await reloadShared(Q, { waitUntil: "networkidle0" });
-await sleep(500);
 check(
   await waitFor(() => new URL(Q.url()).pathname === "/login"),
   `other session revoked (${new URL(Q.url()).pathname})`,
@@ -178,7 +172,6 @@ await sleep(800);
 await P.type('input[autocomplete="username"]', user);
 await P.type('input[type="password"]', newPass);
 await P.click('button[type="submit"]');
-await sleep(2000);
 check(
   await waitFor(() => new URL(P.url()).pathname !== "/login"),
   `new password logs in (${new URL(P.url()).pathname})`,

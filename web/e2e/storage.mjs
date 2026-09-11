@@ -67,7 +67,6 @@ check(
 await sleep(600);
 
 await A.click(".cleanup-section .sweep-button");
-await sleep(1200);
 check(
   await waitFor(async () => (await cleanupText()).includes("Removed 0 files")),
   "cleanup runs and reports",

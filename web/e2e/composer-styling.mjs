@@ -324,7 +324,6 @@ await A.$eval(".composer textarea", (e) => {
   e.select();
 });
 await A.click('.composer .format-button[aria-label="Bold"]');
-await sleep(100);
 check(
   await waitFor(async () => (await draft(A)) === "**hi there**"),
   "toolbar bold wraps the selection",

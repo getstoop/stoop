@@ -28,7 +28,6 @@ await sleep(800);
 await A.waitForSelector(".link-box code", { timeout: 3000 });
 const link = await A.$eval(".link-box code", (e) => e.textContent);
 await A.click("button.primary");
-await sleep(1000);
 check(
   await waitFor(async () =>
     (await text(A, ".members-heading")).toLowerCase().includes("1/1 online"),
@@ -45,7 +44,6 @@ await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
-await sleep(1000);
 check(
   await waitFor(
     async () =>
@@ -65,7 +63,6 @@ check(
 
 // Typing indicator: B types → A sees it; it expires after B stops.
 await B.type(".composer textarea", "thinking about it");
-await sleep(600);
 check(
   await waitFor(
     async () =>
@@ -77,7 +74,6 @@ check(
   (await text(B, ".typing-indicator")) === "",
   "B doesn't see their own typing",
 );
-await sleep(5500);
 check(
   await waitFor(async () => (await text(A, ".typing-indicator")) === "", {
     timeout: 15000,
@@ -89,7 +85,6 @@ await B.keyboard.press("Backspace");
 
 // Profile card shows presence.
 await A.click(".member-row.online");
-await sleep(600);
 check(
   await waitFor(async () => (await text(A, ".user-card")).includes("online")),
   "profile card says online",
@@ -107,7 +102,6 @@ await C.click('button[type="submit"]');
 await C.waitForSelector(".composer textarea", { timeout: 8000 });
 await sleep(800);
 await C.browserContext().close();
-await sleep(1000); // cal goes offline
 check(
   await waitFor(async () =>
     (await text(A, ".members-heading")).toLowerCase().includes("2/3 online"),
@@ -117,7 +111,6 @@ check(
 await B.click(".space-pill.avatar");
 await sleep(400); // B looks away so the alert isn't auto-read
 await A.type(".composer textarea", "@he");
-await sleep(300);
 check(
   await waitFor(async () =>
     (await text(A, ".mention-picker")).includes("Everyone online right now"),
@@ -127,7 +120,6 @@ check(
 await A.keyboard.press("Enter");
 await A.type(".composer textarea", "standup in 5");
 await A.keyboard.press("Enter");
-await sleep(1200);
 check(
   await waitFor(async () => (await B.$(".activity .pill-dot")) !== null),
   "online member is notified by @here",
