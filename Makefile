@@ -93,6 +93,7 @@ lint:
 
 test:
 	go test ./...
+	cd web && pnpm test
 
 ## e2e: browser suite on a throwaway instance (scripts/e2e-scratch.sh): a
 ## fresh database, its own server on :8092 and its own storage, so the dev
