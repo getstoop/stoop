@@ -72,8 +72,13 @@ jobs:
       # LiveKit requires a secret of at least 32 characters.
       - name: Mint a LiveKit key pair
         run: |
+          secret=$(openssl rand -base64 36 | tr -d '\n=+/' | cut -c1-43)
+          # Masked before it is exported, or every later step prints it in
+          # its own env block. It is ephemeral and CI-only, but a secret
+          # in a public log is still a secret in a public log.
+          echo "::add-mask::$secret"
           echo "LK_KEY=APIci$(openssl rand -hex 6)" >> "$GITHUB_ENV"
-          echo "LK_SECRET=$(openssl rand -base64 36 | tr -d '\n=+/' | cut -c1-43)" >> "$GITHUB_ENV"
+          echo "LK_SECRET=$secret" >> "$GITHUB_ENV"
 
       # Host networking, not a service container: browsers hide their local
       # IPs behind mDNS names, which nothing on a Docker bridge network can
@@ -82,15 +87,26 @@ jobs:
       - name: Start LiveKit
         run: |
           printf '%s: %s\n' "$LK_KEY" "$LK_SECRET" > /tmp/livekit-keys.yaml
+          # LiveKit refuses a key file that anyone else can read: "key file
+          # others permissions must be set to 0". The pair the dev server
+          # writes is already 0600, which is why this only bites in CI.
+          chmod 600 /tmp/livekit-keys.yaml
           docker run -d --name livekit --network host \
             -v /tmp/livekit-keys.yaml:/keys.yaml:ro \
             -v "$PWD/deploy/livekit.dev.yaml:/etc/livekit.yaml:ro" \
             livekit/livekit-server:v1.13.6 \
             --config /etc/livekit.yaml --key-file /keys.yaml
+          # Fail here if it never comes up. Falling through leaves the spec
+          # to discover it forty seconds later as "Couldn't join voice",
+          # which says nothing about why.
           for i in $(seq 1 30); do
-            curl -s localhost:7880 >/dev/null && break
+            curl -sf localhost:7880 >/dev/null 2>&1 && exit 0
+            docker inspect -f '{{.State.Running}}' livekit | grep -q true || break
             sleep 1
           done
+          echo "LiveKit did not come up on :7880" >&2
+          docker logs livekit >&2
+          exit 1
 
       - name: Start server
         run: |
