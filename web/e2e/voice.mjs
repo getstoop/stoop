@@ -4,12 +4,11 @@
 // speaking rings from Chrome's fake microphone,
 // disconnect, and the gateway dropping a participant whose tab closed. Needs the app configured for a running
 // LiveKit server; run with STOOP_E2E_VOICE=1.
-import puppeteer from "puppeteer-core";
 import {
   acceptDialog,
   BASE as base,
-  chromePath,
   gotoShared,
+  harness,
   reloadShared,
   sleep,
   waitFor,
@@ -24,24 +23,24 @@ const stageClick = async (p, sel) => {
   await p.click(`.stage-bar ${sel}`);
 };
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-  args: [
-    "--use-fake-device-for-media-stream",
-    "--use-fake-ui-for-media-stream",
-    // Screen share without a picker: Chrome hands over a fake "screen".
-    "--auto-select-desktop-capture-source=Entire screen",
-    "--autoplay-policy=no-user-gesture-required",
-  ],
+const {
+  check,
+  newPage: rawPage,
+  done,
+} = await harness({
+  dialogs: true,
+  launch: {
+    args: [
+      "--use-fake-device-for-media-stream",
+      "--use-fake-ui-for-media-stream",
+      // Screen share without a picker: Chrome hands over a fake "screen".
+      "--auto-select-desktop-capture-source=Entire screen",
+      "--autoplay-policy=no-user-gesture-required",
+    ],
+  },
 });
 const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
+  const p = await rawPage(tag);
   // The stage animates tile moves with Web Animations (useTileFlip), on a
   // 180ms window a spec would race. Record the calls instead, so "did it
   // animate" is a question with a definite answer.
@@ -52,10 +51,6 @@ const newPage = async (tag) => {
       if (opts?.id === "tile-flip") window.__flips.push(this.dataset?.tileKey);
       return animate.call(this, frames, opts);
     };
-  });
-  p.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
   });
   return p;
 };
@@ -140,7 +135,7 @@ const ada = `ada${suffix}`;
 const bea = `bea${suffix}`;
 
 const A = await newPage("A");
-A.on("dialog", (d) => d.accept("lounge"));
+A.__promptAnswer = "lounge";
 await A.goto(`${base}/`, { waitUntil: "networkidle0" });
 await sleep(300);
 if (path(A) !== "/setup") throw new Error("need a fresh instance");
@@ -587,6 +582,4 @@ await A.browserContext().close();
 list = await waitForParticipants(B, (l) => l.length === 0);
 check(list.length === 0, "B sees A dropped when A's tab closes");
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

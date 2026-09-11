@@ -3,36 +3,20 @@
 // forward until the window is live again; the DOM never holds more than
 // WINDOW_CAP rows; arrivals while windowed count on the pill; ?m= deep
 // links open around a message.
-import puppeteer from "puppeteer-core";
-import {
-  BASE as base,
-  chromePath,
-  gotoShared,
-  sleep,
-  waitFor,
-} from "./lib.mjs";
+import { BASE as base, gotoShared, harness, sleep, waitFor } from "./lib.mjs";
 
 const SEED = 600;
 const CAP = 300;
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-  defaultViewport: { width: 1100, height: 700 },
-  // This spec pages through far more history than the others, and a CI
-  // runner is slower than a dev machine; the default 180 s is thin.
-  protocolTimeout: 300_000,
+const { browser, check, newPage, done } = await harness({
+  dialogs: true,
+  launch: {
+    defaultViewport: { width: 1100, height: 700 },
+    // This spec pages through far more history than the others, and a CI
+    // runner is slower than a dev machine; the default 180 s is thin.
+    protocolTimeout: 300_000,
+  },
 });
-const A = await (await browser.createBrowserContext()).newPage();
-A.on("pageerror", (e) => {
-  console.log("[A pageerror]", e.message);
-  fails++;
-});
-A.on("dialog", (d) => d.accept());
+const A = await newPage("A");
 const suffix = String(Date.now() % 1000000);
 const count = () => A.$$eval(".message", (els) => els.length);
 const texts = () =>
@@ -344,6 +328,4 @@ check(
   "an unknown ?m= falls back to the newest page",
 );
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

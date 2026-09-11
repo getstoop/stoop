@@ -2,27 +2,14 @@
 // grows a "Continue with X" button, errors surface, and the profile shows
 // Linked accounts. No IdP round trip here (that's covered by Go tests
 // with a fake issuer); this drives the config and the surfaces.
-import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep, waitFor } from "./lib.mjs";
+import { BASE as base, harness, sleep, waitFor } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
+const { check, newPage, done } = await harness();
 const suffix = String(Date.now() % 1000000);
 const user = `ada${suffix}`,
   pass = "correct horse battery";
 
-const P = await (await browser.createBrowserContext()).newPage();
-P.on("pageerror", (e) => {
-  console.log("[pageerror]", e.message);
-  fails++;
-});
+const P = await newPage("P");
 await P.goto(`${base}/`, { waitUntil: "networkidle0" });
 await sleep(300);
 if (new URL(P.url()).pathname === "/setup") {
@@ -108,7 +95,7 @@ await P.keyboard.press("Escape");
 await sleep(200);
 
 // ---- Login page: the button appears, errors render ----------------------
-const Q = await (await browser.createBrowserContext()).newPage();
+const Q = await newPage("Q");
 await Q.goto(`${base}/login`, { waitUntil: "networkidle0" });
 await sleep(500);
 check(
@@ -155,5 +142,4 @@ check(
   "profile offers Connect Google",
 );
 
-await browser.close();
-process.exit(fails ? 1 : 0);
+await done();

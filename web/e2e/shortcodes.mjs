@@ -1,21 +1,7 @@
-import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep, waitFor } from "./lib.mjs";
+import { BASE as base, harness, sleep, waitFor } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
-const A = await (await browser.createBrowserContext()).newPage();
-A.on("pageerror", (e) => {
-  console.log("[A pageerror]", e.message);
-  fails++;
-});
-A.on("dialog", (d) => d.accept());
+const { check, newPage, done } = await harness({ dialogs: true });
+const A = await newPage("A");
 const suffix = String(Date.now() % 1000000);
 const path = (p) => new URL(p.url()).pathname;
 const draft = () => A.$eval(".composer textarea", (e) => e.value);
@@ -178,6 +164,4 @@ check(
   "the inline editor converts on save",
 );
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

@@ -5,6 +5,7 @@
 
 import { existsSync } from "node:fs";
 import { deflateSync } from "node:zlib";
+import puppeteer from "puppeteer-core";
 
 export const BASE = process.env.STOOP_E2E_BASE_URL ?? "http://localhost:8091";
 
@@ -29,6 +30,65 @@ export function chromePath() {
 }
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// One harness for every spec: the browser, the assertion counter, the page
+// factory and the exit code. A spec is then only its own scenario.
+// `launch` is merged over the defaults for the few specs needing a
+// viewport, a longer protocol timeout or fake media devices; `dialogs`
+// and `consoleErrors` set what every page of this spec listens for.
+export async function harness({
+  launch = {},
+  dialogs = false,
+  consoleErrors = false,
+  countPageErrors = true,
+} = {}) {
+  const browser = await puppeteer.launch({
+    executablePath: chromePath(),
+    headless: true,
+    ...launch,
+  });
+  let fails = 0;
+  const check = (ok, msg) => {
+    console.log(ok ? "PASS" : "FAIL", msg);
+    if (!ok) fails++;
+  };
+  // Every spec watches pageerror; only the ones that drive a native dialog
+  // or read console errors ask for those, so a missing flag fails loudly
+  // rather than changing behaviour quietly. realtime is the one spec that
+  // logs a pageerror without failing on it — reconnection churn is its
+  // subject, not a defect.
+  //
+  // wire() takes its own options and does not inherit the harness's: a
+  // spec that hands its own page over usually wants different listeners
+  // from the ones its factory pages get, which is why presence keeps a
+  // page on pageerror alone while the rest of its pages take dialogs.
+  const wire = (page, tag, { dialogs = false, consoleErrors = false } = {}) => {
+    page.on("pageerror", (e) => {
+      console.log(`[${tag} pageerror]`, e.message);
+      if (countPageErrors) fails++;
+    });
+    if (dialogs) page.on("dialog", (d) => d.accept(page.__promptAnswer ?? ""));
+    if (consoleErrors) {
+      page.on("console", (m) => {
+        if (m.type() === "error" && !/401|404/.test(m.text()))
+          console.log(`[${tag} console]`, m.text());
+      });
+    }
+    return page;
+  };
+  const newPage = async (tag, opts) =>
+    wire(await (await browser.createBrowserContext()).newPage(), tag, {
+      dialogs,
+      consoleErrors,
+      ...opts,
+    });
+  const done = async () => {
+    await browser.close();
+    console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
+    process.exit(fails ? 1 : 0);
+  };
+  return { browser, check, wire, newPage, done };
+}
 
 // Poll fn until it returns truthy or the timeout runs out, returning the
 // last value either way so a failed check reports real state, not a

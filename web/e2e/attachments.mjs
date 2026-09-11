@@ -3,12 +3,11 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import puppeteer from "puppeteer-core";
 import {
   acceptDialog,
   BASE as base,
-  chromePath,
   gotoShared,
+  harness,
   png,
   sleep,
   waitFor,
@@ -17,11 +16,6 @@ import {
 // Attachments in messages (STOOP-42). The data dir check is a direct
 // measurement the UI can't make: a deleted message's blobs must be gone.
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
 const here = dirname(fileURLToPath(import.meta.url));
 const dataDir = resolve(
   join(here, "..", ".."),
@@ -50,20 +44,8 @@ const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
 writeFileSync(files.huge, randomBytes(MAX_ATTACHMENT_BYTES + 1024));
 for (const [i, p] of files.many.entries()) writeFileSync(p, `file ${i}\n`);
 
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
+const { check, newPage, done } = await harness({ dialogs: true });
 const suffix = String(Date.now() % 1000000);
-const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
-  p.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
-  });
-  p.on("dialog", (d) => d.accept());
-  return p;
-};
 const fileIdOf = (src) => new URL(src, base).pathname.split("/").pop();
 const head = (page, path) =>
   page.evaluate(async (p) => {
@@ -420,7 +402,5 @@ check(
   "…while the member can fetch it",
 );
 
-await browser.close();
 rmSync(dir, { recursive: true, force: true });
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

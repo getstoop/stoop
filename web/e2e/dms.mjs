@@ -1,35 +1,17 @@
 // Direct messages (STOOP-65): open one from a member's card, talk both
 // ways in real time, see the DMs pill light up, survive a reload, and
 // stay closed to people who aren't in it.
-import puppeteer from "puppeteer-core";
 import {
   BASE as base,
-  chromePath,
   gotoShared,
+  harness,
   reloadShared,
   sleep,
   waitFor,
 } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
+const { check, newPage, done } = await harness({ dialogs: true });
 const suffix = String(Date.now() % 1000000);
-const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
-  p.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
-  });
-  p.on("dialog", (d) => d.accept());
-  return p;
-};
 
 // A sets up the instance; B and C join via the invite link.
 const A = await newPage("A");
@@ -222,6 +204,4 @@ check(
   "A is alerted to the new conversation",
 );
 
-await browser.close();
-console.log(fails ? `${fails} failure(s)` : "all passed");
-process.exit(fails ? 1 : 0);
+await done();

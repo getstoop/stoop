@@ -6,32 +6,18 @@
 // clearing falls back. The voice line reports what the saved settings
 // add up to. The relay's effect on a voice join is checked through the
 // API (a static relay; no real TURN needed).
-import puppeteer from "puppeteer-core";
 import {
   BASE as base,
-  chromePath,
   gotoShared,
+  harness,
   reloadShared,
   sleep,
   spaceMenu,
   waitFor,
 } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
-const A = await (await browser.createBrowserContext()).newPage();
-A.on("pageerror", (e) => {
-  console.log("[A pageerror]", e.message);
-  fails++;
-});
-A.on("dialog", (d) => d.accept());
+const { check, newPage, done } = await harness({ dialogs: true });
+const A = await newPage("A");
 const suffix = String(Date.now() % 1000000);
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
 const rpc = (path, body) =>
@@ -427,6 +413,4 @@ check(
   `invite links fall back to the current origin after clearing: ${copied}`,
 );
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

@@ -2,34 +2,17 @@
 // and no mention badge anywhere, while the mention still reaches the
 // activity feed and lights the activity pill's dot. STOOP-135 adds the
 // space half: muting a space silences every channel under it.
-import puppeteer from "puppeteer-core";
 import {
   acceptDialog,
   BASE as base,
-  chromePath,
   gotoShared,
+  harness,
   sleep,
   waitFor,
 } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
+const { check, wire, newPage, done } = await harness();
 const suffix = String(Date.now() % 1000000);
-const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
-  p.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
-  });
-  return p;
-};
 
 // A sets up, adds #random so there is somewhere to park, and invites B.
 const A = await newPage("A");
@@ -278,11 +261,7 @@ await A.goto(`${base}/activity`, { waitUntil: "networkidle0" });
 await sleep(1000);
 await markAllRead(A);
 
-const A2 = await A.browserContext().newPage();
-A2.on("pageerror", (e) => {
-  console.log("[A2 pageerror]", e.message);
-  fails++;
-});
+const A2 = wire(await A.browserContext().newPage(), "A2");
 // Headless Chrome can't show native notifications; record what the app
 // tries to show instead.
 await A.browserContext().overridePermissions(base, ["notifications"]);
@@ -629,6 +608,4 @@ check(
   "with nothing muted the card says so",
 );
 
-await browser.close();
-console.log(fails ? `${fails} failure(s)` : "all passed");
-process.exit(fails ? 1 : 0);
+await done();

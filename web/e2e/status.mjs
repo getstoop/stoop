@@ -1,33 +1,16 @@
 // Presence status (STOOP-71): a chosen status shows on everyone else's
 // dots and card, and survives a reload. Mutes live in mutes.mjs.
-import puppeteer from "puppeteer-core";
 import {
   BASE as base,
-  chromePath,
   gotoShared,
+  harness,
   reloadShared,
   sleep,
   waitFor,
 } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
+const { check, newPage, done } = await harness();
 const suffix = String(Date.now() % 1000000);
-const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
-  p.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
-  });
-  return p;
-};
 
 const A = await newPage("A");
 await A.goto(`${base}/`, { waitUntil: "networkidle0" });
@@ -140,6 +123,4 @@ check(
 );
 await sleep(600);
 
-await browser.close();
-console.log(fails ? `${fails} failure(s)` : "all passed");
-process.exit(fails ? 1 : 0);
+await done();

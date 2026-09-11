@@ -2,24 +2,10 @@
 // stamped on <html data-theme> and survives a reload (localStorage), the
 // page's colours actually change, "follow system" picks the dark/light
 // pair by the OS setting, and nothing on the server is involved.
-import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep, waitFor } from "./lib.mjs";
+import { BASE as base, harness, sleep, waitFor } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
-const A = await (await browser.createBrowserContext()).newPage();
-A.on("pageerror", (e) => {
-  console.log("[A pageerror]", e.message);
-  fails++;
-});
-A.on("dialog", (d) => d.accept());
+const { browser, check, newPage, done } = await harness({ dialogs: true });
+const A = await newPage("A");
 const suffix = String(Date.now() % 1000000);
 const themeOf = () => A.evaluate(() => document.documentElement.dataset.theme);
 const bgOf = (sel) => A.$eval(sel, (e) => getComputedStyle(e).backgroundColor);
@@ -135,6 +121,4 @@ check(
   "a different browser still starts on the default",
 );
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();
