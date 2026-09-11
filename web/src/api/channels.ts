@@ -29,7 +29,14 @@ export function landingChannel(
   const chosen = space?.defaultChannelId
     ? channels.find((c) => c.id === space.defaultChannelId)
     : undefined;
-  return chosen ?? channels[0];
+  // Text first for the same reason defaultChannelChoices excludes voice:
+  // whichever channel sorts first may be a voice one, and arriving in a
+  // voice channel joins the room. A space with nothing but voice channels
+  // still lands there — saying "No channels yet" to someone looking at a
+  // list of channels would be worse.
+  return (
+    chosen ?? channels.find((c) => c.kind === ChannelKind.TEXT) ?? channels[0]
+  );
 }
 
 // The server's own limit, mirrored so the field counts down rather than
