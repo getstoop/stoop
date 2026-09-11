@@ -1,33 +1,24 @@
-import { BASE as base, gotoShared, harness, sleep, waitFor } from "./lib.mjs";
+import { harness, joinSpace, seed, signIn, sleep, waitFor } from "./lib.mjs";
 
 const { browser, check, wire, newPage, done } = await harness({
   dialogs: true,
 });
-const suffix = String(Date.now() % 1000000);
+// bea and cal exist but are outside the space: the member count has to
+// grow as each of them arrives through the invite.
+const { suffix, tokens, invite } = await seed({
+  users: ["ada", "bea", "cal"],
+  members: ["ada"],
+  channels: ["general"],
+  invite: true,
+});
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
-const path = (p) => new URL(p.url()).pathname;
 const onlineNames = (p) =>
   p.$$eval(".member-row.online .member-name", (els) =>
     els.map((e) => e.textContent),
   );
 
 const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
+await signIn(A, tokens.ada);
 check(
   await waitFor(async () =>
     (await text(A, ".members-heading")).toLowerCase().includes("1/1 online"),
@@ -38,11 +29,8 @@ check(
 // B joins: both sides show two online.
 const Bctx = await browser.createBrowserContext();
 const B = wire(await Bctx.newPage(), "B");
-await gotoShared(B, link);
-await sleep(300);
-await B.type('input[autocomplete="username"]', `bea${suffix}`);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
+await joinSpace(tokens.bea, invite.code);
+await signIn(B, tokens.bea);
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
 check(
   await waitFor(
@@ -94,11 +82,8 @@ await A.keyboard.press("Escape");
 // @here from the owner: picker offers it; B (online) is notified. A third
 // member who is offline is not.
 const C = await newPage("C");
-await gotoShared(C, link);
-await sleep(300);
-await C.type('input[autocomplete="username"]', `cal${suffix}`);
-await C.type('input[type="password"]', "correct horse battery");
-await C.click('button[type="submit"]');
+await joinSpace(tokens.cal, invite.code);
+await signIn(C, tokens.cal);
 await C.waitForSelector(".composer textarea", { timeout: 8000 });
 await sleep(800);
 await C.browserContext().close();
@@ -126,11 +111,9 @@ check(
 );
 // cal logs back in: nothing waiting.
 const C2 = await newPage("C2");
-await C2.goto(`${base}/login`, { waitUntil: "networkidle0" });
-await C2.type('input[autocomplete="username"]', `cal${suffix}`);
-await C2.type('input[type="password"]', "correct horse battery");
-await C2.click('button[type="submit"]');
-await sleep(2000);
+await signIn(C2, tokens.cal);
+await C2.waitForSelector(".composer textarea", { timeout: 8000 });
+await sleep(1000);
 check(
   (await C2.$(".activity .pill-dot")) === null,
   "offline member was not notified by @here",

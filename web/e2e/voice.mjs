@@ -6,10 +6,10 @@
 // LiveKit server; run with STOOP_E2E_VOICE=1.
 import {
   acceptDialog,
-  BASE as base,
-  gotoShared,
   harness,
   reloadShared,
+  seed,
+  signIn,
   sleep,
   waitFor,
 } from "./lib.mjs";
@@ -54,7 +54,7 @@ const newPage = async (tag) => {
   });
   return p;
 };
-const suffix = String(Date.now() % 1000000);
+const { suffix, tokens } = await seed();
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
 const path = (p) => new URL(p.url()).pathname;
 // Names listed under the voice channel, with their flags.
@@ -136,23 +136,7 @@ const bea = `bea${suffix}`;
 
 const A = await newPage("A");
 A.__promptAnswer = "lounge";
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', ada);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1000);
+await signIn(A, tokens.ada);
 
 // Create a voice channel from the sidebar (the prompt is answered "lounge").
 await A.click(".channel-add.voice");
@@ -166,13 +150,8 @@ check((await A.$$(".voice-participant")).length === 0, "nobody in it yet");
 
 // B joins the space and sees the empty voice channel.
 const B = await newPage("B");
-await gotoShared(B, link);
-await sleep(300);
-await B.type('input[autocomplete="username"]', bea);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
+await signIn(B, tokens.bea);
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
-await sleep(800);
 
 // A joins by clicking the channel: that opens its view, and the stage
 // says "Connecting…" until the media path is up.

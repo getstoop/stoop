@@ -1,10 +1,11 @@
 // Message search (STOOP-87): the header launcher, the results page and
 // its chips, opening a result in place, and the phone's icon.
 import {
-  acceptDialog,
   BASE as base,
   gotoShared,
   harness,
+  seed,
+  signIn,
   sleep,
   waitFor,
 } from "./lib.mjs";
@@ -15,7 +16,6 @@ const newPage = async (tag, viewport = { width: 1280, height: 900 }) => {
   await p.setViewport(viewport);
   return p;
 };
-const suffix = String(Date.now() % 1000000);
 const url = (p) => new URL(p.url());
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
 const rows = (p) =>
@@ -33,39 +33,18 @@ const searchFromHeader = async (p, q) => {
   await sleep(700);
 };
 
-// ---- A: fresh instance, a second channel, an invite for B
+// ---- A and B, both members, in a space with a second channel (seeded).
+const { tokens, space, channels } = await seed({
+  channels: ["general", "garden"],
+});
+const spaceId = space.id;
+const generalId = channels.general;
+
 const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (url(A).pathname !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1200);
+await signIn(A, tokens.ada);
 await A.waitForSelector(".composer textarea", { timeout: 8000 });
-const spaceId = url(A).pathname.split("/")[2];
-const generalId = url(A).pathname.split("/")[4];
-
-await A.click(".channel-group-heading .channel-add:not(.voice)");
-await acceptDialog(A, "garden");
-await sleep(800);
-
 const B = await newPage("B");
-await gotoShared(B, link);
-await sleep(300);
-await B.type('input[autocomplete="username"]', `bea${suffix}`);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
-await sleep(2500);
+await signIn(B, tokens.bea);
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
 
 // ---- Three messages with a shared word, across two channels and two
@@ -253,12 +232,7 @@ const P = await newPage("P", {
   isMobile: true,
   hasTouch: true,
 });
-await P.goto(`${base}/login`, { waitUntil: "networkidle0" });
-await sleep(300);
-await P.type('input[autocomplete="username"]', `bea${suffix}`);
-await P.type('input[type="password"]', "correct horse battery");
-await P.tap('button[type="submit"]');
-await sleep(1500);
+await signIn(P, tokens.bea);
 await gotoShared(P, `${base}/s/${spaceId}/c/${generalId}`, {
   waitUntil: "networkidle0",
 });

@@ -1,26 +1,10 @@
 // Admin storage tab (STOOP-70): usage, the upload limit, cleanup on demand.
-import { BASE as base, harness, reloadShared, sleep, waitFor } from "./lib.mjs";
+import { harness, reloadShared, seed, signIn, sleep, waitFor } from "./lib.mjs";
 
 const { check, newPage, done } = await harness();
-const suffix = String(Date.now() % 1000000);
+const { tokens } = await seed({ users: ["ada"] });
 const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (new URL(A.url()).pathname !== "/setup")
-  throw new Error("expected a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.click("button.primary");
-await sleep(1200);
-
-await A.goto(`${base}/admin`, { waitUntil: "networkidle0" });
+await signIn(A, tokens.ada, "/admin");
 await sleep(600);
 check(
   (await A.$(".storage-section")) === null,

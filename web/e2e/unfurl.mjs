@@ -6,10 +6,11 @@
 // inside code are not unfurled, and editing the link away drops the card.
 import { createServer } from "node:http";
 import {
-  BASE as base,
   harness,
   png,
   reloadShared,
+  seed,
+  signIn,
   sleep,
   waitFor,
 } from "./lib.mjs";
@@ -36,8 +37,7 @@ await new Promise((r) => site.listen(0, "127.0.0.1", r));
 const siteUrl = `http://127.0.0.1:${site.address().port}`;
 
 const A = await newPage("A");
-const suffix = String(Date.now() % 1000000);
-const path = (p) => new URL(p.url()).pathname;
+const { tokens } = await seed({ users: ["ada"] });
 const cardOf = async (index) => {
   const rows = await A.$$(".message");
   const row = rows[index];
@@ -65,22 +65,8 @@ const waitForCard = async (index, ms = 8000) => {
   return null;
 };
 
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-await A.click("button.primary");
-await sleep(1500);
+await signIn(A, tokens.ada);
+await A.waitForSelector(".composer textarea", { timeout: 8000 });
 
 // A message with a link gets a card, delivered live after the fetch.
 await A.type(".composer textarea", `look at ${siteUrl}/page`);

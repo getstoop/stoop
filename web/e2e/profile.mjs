@@ -1,35 +1,25 @@
-import { BASE as base, harness, reloadShared, sleep, waitFor } from "./lib.mjs";
+import {
+  BASE as base,
+  harness,
+  reloadShared,
+  seed,
+  signIn,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 const { browser, check, newPage, done } = await harness();
-const suffix = String(Date.now() % 1000000);
+const { suffix, tokens, password } = await seed({
+  users: ["ada"],
+  channels: ["general"],
+});
 const user = `ada${suffix}`,
-  pass = "correct horse battery",
+  pass = password,
   newPass = "even more correct 42";
 
 const P = await newPage("P");
-await P.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-const viaSetup = new URL(P.url()).pathname === "/setup";
-if (viaSetup) {
-  await P.type('input[autocomplete="username"]', user);
-  await P.type('input[type="password"]', pass);
-  await P.click('button[type="submit"]');
-  await sleep(1500);
-  await P.type('input[placeholder="The Porch"]', "Stoop HQ");
-  await P.click('button[type="submit"]');
-  await sleep(1500);
-  // Setup step 3 (reaching your server) is skippable.
-  await P.click("button.reach-continue");
-  await sleep(800);
-  await P.click("button.primary");
-  await sleep(1500);
-} else {
-  await P.click("button.link");
-  await P.type('input[autocomplete="username"]', user);
-  await P.type('input[type="password"]', pass);
-  await P.click('button[type="submit"]');
-  await sleep(2000);
-}
+await signIn(P, tokens.ada);
+
 // a second session that should be revoked by the password change
 const Q = await (await browser.createBrowserContext()).newPage();
 await Q.goto(`${base}/login`, { waitUntil: "networkidle0" });
@@ -59,8 +49,8 @@ check(
   "the nav shows @username; the page says member since",
 );
 check(
-  about.toLowerCase().includes("server admin") === viaSetup,
-  `server-admin badge ${viaSetup ? "shown for the setup user" : "hidden for a regular user"}`,
+  about.toLowerCase().includes("server admin"),
+  "server-admin badge shown for the first account",
 );
 
 // display name

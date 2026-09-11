@@ -6,37 +6,26 @@ import {
   gotoShared,
   harness,
   reloadShared,
+  seed,
+  signIn,
   sleep,
   waitFor,
 } from "./lib.mjs";
 
 const { browser, check, wire, done } = await harness();
-const suffix = String(Date.now() % 1000000);
+const { suffix, tokens } = await seed({
+  users: ["casey", "robin"],
+  channels: ["general"],
+});
 const BIO = "Runs the tool library. Ask me about the bandsaw.";
 
 // The About you card, found by what it contains rather than its position.
 const ABOUT = '.card:has(input[placeholder="she/her"])';
 
-// A: sets up the instance (admin + owner) and mints an invite link.
+// A is the instance admin and space owner.
 const A = await (await browser.createBrowserContext()).newPage();
 wire(A, "A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (new URL(A.url()).pathname !== "/setup")
-  throw new Error("expected a fresh instance");
-await A.type('input[autocomplete="username"]', `casey${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1200);
+await signIn(A, tokens.casey);
 
 // A fills in both fields on their profile.
 await A.click(".space-pill.avatar");
@@ -76,15 +65,11 @@ await A.type(".composer textarea", "hello from the owner");
 await A.keyboard.press("Enter");
 await sleep(800);
 
-// B joins and opens A's card from a message.
+// B opens A's card from a message.
 const B = await (await browser.createBrowserContext()).newPage();
 wire(B, "B");
-await gotoShared(B, link);
-await sleep(300);
-await B.type('input[autocomplete="username"]', `robin${suffix}`);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
-await sleep(2500);
+await signIn(B, tokens.robin);
+await B.waitForSelector(".message-author", { timeout: 8000 });
 
 const openCard = async (p) => {
   const authors = await p.$$(".message-author");

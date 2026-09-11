@@ -1,7 +1,7 @@
-import { BASE as base, gotoShared, harness, sleep, waitFor } from "./lib.mjs";
+import { harness, seed, signIn, sleep, waitFor } from "./lib.mjs";
 
 const { check, newPage, done } = await harness({ dialogs: true });
-const suffix = String(Date.now() % 1000000);
+const { suffix, tokens } = await seed({ channels: ["general"] });
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
 const lastQuote = (p) =>
   p
@@ -12,34 +12,13 @@ const lastQuote = (p) =>
       );
     })
     .catch(() => "");
-const path = (p) => new URL(p.url()).pathname;
 
 const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-// Setup step 3 (reaching your server) is skippable.
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1000);
+await signIn(A, tokens.ada);
+await A.waitForSelector(".composer textarea", { timeout: 8000 });
 const B = await newPage("B");
-await gotoShared(B, link);
-await sleep(300);
-await B.type('input[autocomplete="username"]', `bea${suffix}`);
-await B.type('input[type="password"]', "correct horse battery");
-await B.click('button[type="submit"]');
+await signIn(B, tokens.bea);
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
-await sleep(800);
 
 await A.type(".composer textarea", "anyone up for pizza?");
 await A.keyboard.press("Enter");

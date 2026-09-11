@@ -6,6 +6,8 @@ import {
   BASE as base,
   gotoShared,
   harness,
+  seed,
+  signIn,
   sleep,
   waitFor,
 } from "./lib.mjs";
@@ -16,7 +18,11 @@ const newPage = async (tag) => {
   await p.setViewport({ width: 1280, height: 900 });
   return p;
 };
-const suffix = String(Date.now() % 1000000);
+const { invite, space, suffix, tokens } = await seed({
+  users: ["ada"],
+  channels: ["general"],
+  invite: true,
+});
 const path = (p) => new URL(p.url()).pathname;
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
 const SELECT = 'select[name="default-channel"]';
@@ -45,26 +51,11 @@ const settings = async (p, spaceId) => {
   await sleep(400);
 };
 
-// ---- A sets the instance up and lands in #general
+// ---- A lands in #general; B and C are not members until they arrive.
 const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (path(A) !== "/setup") throw new Error("need a fresh instance");
-await A.type('input[autocomplete="username"]', `ada${suffix}`);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1200);
+await signIn(A, tokens.ada);
 await A.waitForSelector(".composer textarea", { timeout: 8000 });
-const spaceId = path(A).split("/")[2];
+const spaceId = space.id;
 
 // ---- A second text channel, and a voice channel that must stay out of
 // the choices: landing someone there would open their microphone.
@@ -101,7 +92,7 @@ check(
 );
 
 const B = await newPage("B");
-await gotoShared(B, link);
+await gotoShared(B, invite.url);
 await sleep(400);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
@@ -147,7 +138,7 @@ check(
 // A member who was never told stays honest too: C arrives on the same
 // invite and lands in #general, not in a channel that no longer exists.
 const C = await newPage("C");
-await gotoShared(C, link);
+await gotoShared(C, invite.url);
 await sleep(400);
 await C.type('input[autocomplete="username"]', `casey${suffix}`);
 await C.type('input[type="password"]', "correct horse battery");

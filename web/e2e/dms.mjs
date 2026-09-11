@@ -6,49 +6,31 @@ import {
   gotoShared,
   harness,
   reloadShared,
+  seed,
+  signIn,
   sleep,
   waitFor,
 } from "./lib.mjs";
 
 const { check, newPage, done } = await harness({ dialogs: true });
-const suffix = String(Date.now() % 1000000);
-
-// A sets up the instance; B and C join via the invite link.
-const A = await newPage("A");
-await A.goto(`${base}/`, { waitUntil: "networkidle0" });
-await sleep(300);
-if (new URL(A.url()).pathname !== "/setup")
-  throw new Error("expected a fresh instance");
+const { suffix, tokens } = await seed({
+  users: ["ada", "bea", "cal"],
+  channels: ["general"],
+});
 const aName = `ada${suffix}`;
-await A.type('input[autocomplete="username"]', aName);
-await A.type('input[type="password"]', "correct horse battery");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.type('input[placeholder="The Porch"]', "Stoop HQ");
-await A.click('button[type="submit"]');
-await sleep(1500);
-await A.click("button.reach-continue");
-await sleep(800);
-await A.waitForSelector(".link-box code", { timeout: 3000 });
-const link = await A.$eval(".link-box code", (e) => e.textContent);
-await A.click("button.primary");
-await sleep(1200);
+const bName = `bea${suffix}`;
+const cName = `cal${suffix}`;
 
-const joinAs = async (tag, name) => {
+// A, B and C are all seeded members of "Stoop HQ".
+const open = async (tag, token) => {
   const p = await newPage(tag);
-  await gotoShared(p, link);
-  await sleep(300);
-  await p.type('input[autocomplete="username"]', name);
-  await p.type('input[type="password"]', "correct horse battery");
-  await p.click('button[type="submit"]');
-  await sleep(2500);
+  await signIn(p, token);
+  await p.waitForSelector(".composer textarea", { timeout: 8000 });
   return p;
 };
-const bName = `bea${suffix}`;
-const B = await joinAs("B", bName);
-const cName = `cal${suffix}`;
-const C = await joinAs("C", cName);
-await sleep(800);
+const A = await open("A", tokens.ada);
+const B = await open("B", tokens.bea);
+const C = await open("C", tokens.cal);
 
 // Open a DM from B's row in the member list.
 const clickMember = async (page, name) => {
@@ -129,11 +111,13 @@ check(
   ),
   "B sees A's message",
 );
-// The read marker is a round trip plus a realtime event; wait for the
-// badge to go rather than guessing how long that takes under load.
+// The read marker is a round trip plus a realtime event. Under a full
+// parallel suite that has been seen to take longer than the default
+// poll, so this one gets a wider window rather than a rerun.
 check(
   await waitFor(
     async () => (await B.$(".space-pill.dms .pill-badge")) === null,
+    { timeout: 20000 },
   ),
   "reading the DM clears B's alert",
 );
