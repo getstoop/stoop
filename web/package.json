@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
+    "test": "vitest run",
     "lint": "biome check src",
     "check:themes": "node ../scripts/check-themes.mjs",
     "check:styles": "node ../scripts/check-styles.mjs",
@@ -32,7 +33,8 @@
     "pg": "^8.23.0",
     "puppeteer-core": "^25.9.0",
     "typescript": "^7.0.2",
-    "vite": "^6.3.0"
+    "vite": "^6.3.0",
+    "vitest": "^5.0.0"
   },
   "packageManager": "pnpm@11.23.0+sha512.f00082e5b283a199b74e079da28d155c008fe232f44c8a06ea7ddfa014ecf719fc362f790ecc67b28106ddac2afb24c49a9a079159da560b2ce7d1e98efd11af"
 }

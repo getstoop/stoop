@@ -76,6 +76,23 @@ sections, in this order:
   the neighbouring ports (8080, 5173, 5432, 443) are other projects'
   containers, and a `kill -9` there can take down Docker Desktop. If a
   port you need is taken, pick another.
+- **Pure logic gets a unit test, not a browser.** `cd web && pnpm test`
+  runs Vitest over `web/src/**/*.test.ts` in a node environment — no
+  browser, no server, no approval needed, milliseconds per case. Run it
+  as often as you like; it is also part of `make test` and the CI Web
+  job.
+
+  Anything that is input-in, output-out belongs there rather than in a
+  browser spec: the Markdown parser, shortcodes, member grouping. A
+  parser case exercised through Chrome, a login and a composer is a slow
+  and flaky way to catch what a named test case catches directly — and
+  it is why the browser suite grew to 10k lines.
+
+  `web/src/api/markdown.ts` mirrors `plainText` in
+  `internal/chat/markdown.go`; they generate the same previews on
+  opposite sides of the wire, so a case added to one belongs in the
+  other.
+
 - **Assertions poll; they never sleep a fixed time.** Use `waitFor` from
   `web/e2e/lib.mjs` — it polls until the condition holds or a generous
   timeout expires, and returns the last value so a failure reports real
