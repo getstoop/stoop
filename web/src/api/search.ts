@@ -39,7 +39,11 @@ export function highlightPattern(terms: string[]): RegExp | null {
 
 // Whether the query already narrows to this channel.
 export function inChannel(query: string, name: string): boolean {
-  return query.split(/\s+/).some((t) => t.toLowerCase() === `in:#${name}`);
+  // Both sides lowercased: channel names are only length-checked by the
+  // server, so a #General exists, and comparing a lowercased token to a
+  // raw name never matched — its chip could not be turned off again.
+  const want = `in:#${name.toLowerCase()}`;
+  return query.split(/\s+/).some((t) => t.toLowerCase() === want);
 }
 
 // The query with the channel filter added or removed.

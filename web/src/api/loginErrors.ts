@@ -13,8 +13,15 @@ const LOGIN_ERRORS: Record<string, string> = {
   deactivated: "This account has been deactivated.",
 };
 
+// The code arrives from ?error= in the URL, so it is whatever someone put
+// there. A plain index would walk Object.prototype and hand back a
+// function for "constructor" or "toString" — a non-string, past a
+// `: string` return type, straight into React or an Error message.
+const own = (map: Record<string, string>, code: string) =>
+  Object.hasOwn(map, code) ? map[code] : undefined;
+
 export function loginErrorText(code: string): string {
-  return LOGIN_ERRORS[code] ?? "Sign-in failed — please try again.";
+  return own(LOGIN_ERRORS, code) ?? "Sign-in failed — please try again.";
 }
 
 const PROFILE_ERRORS: Record<string, string> = {
@@ -26,8 +33,8 @@ const PROFILE_ERRORS: Record<string, string> = {
 // since it is the same round trip.
 export function linkErrorText(code: string): string {
   return (
-    PROFILE_ERRORS[code] ??
-    LOGIN_ERRORS[code] ??
+    own(PROFILE_ERRORS, code) ??
+    own(LOGIN_ERRORS, code) ??
     "Linking failed — please try again."
   );
 }
