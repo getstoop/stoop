@@ -14,6 +14,7 @@ import {
   reloadShared,
   sleep,
   spaceMenu,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -61,7 +62,9 @@ await sleep(1500);
 
 // Step 3: one dropdown of ways in; nothing is chosen for you.
 check(
-  (await text(A, ".setup-steps .current")).includes("Reaching your server"),
+  await waitFor(async () =>
+    (await text(A, ".setup-steps .current")).includes("Reaching your server"),
+  ),
   "step 3 is reaching your server",
 );
 check(
@@ -109,7 +112,7 @@ check(
 await A.click("button.reach-save");
 await sleep(800);
 check(
-  (await text(A, ".reach-saved")) === "Saved.",
+  await waitFor(async () => (await text(A, ".reach-saved")) === "Saved."),
   "the public address saves on its own",
 );
 check(
@@ -123,10 +126,16 @@ await inputs[0].type("cf-key-1");
 await inputs[1].type("cf-token-1");
 await A.click("button.reach-save");
 await sleep(800);
-check((await text(A, ".reach-saved")) === "Saved.", "saved");
 check(
-  (await text(A, ".reach-voice")).includes("works from anywhere") ||
-    (await text(A, ".reach-voice")).includes("isn't configured"),
+  await waitFor(async () => (await text(A, ".reach-saved")) === "Saved."),
+  "saved",
+);
+check(
+  await waitFor(
+    async () =>
+      (await text(A, ".reach-voice")).includes("works from anywhere") ||
+      (await text(A, ".reach-voice")).includes("isn't configured"),
+  ),
   "the voice line notices the relay",
 );
 check(
@@ -206,7 +215,9 @@ await own[3].type("relay-pass");
 await A.click(".reach-section button.reach-save");
 await sleep(800);
 check(
-  (await text(A, ".reach-section .reach-saved")) === "Saved.",
+  await waitFor(
+    async () => (await text(A, ".reach-section .reach-saved")) === "Saved.",
+  ),
   "own relay saved",
 );
 
@@ -270,7 +281,9 @@ await sleep(200);
 await A.click(".reach-section button.reach-save");
 await sleep(800);
 check(
-  (await text(A, ".reach-section .reach-saved")) === "Saved.",
+  await waitFor(
+    async () => (await text(A, ".reach-section .reach-saved")) === "Saved.",
+  ),
   "tailscale settings saved",
 );
 const reach = await rpc("instance.v1.InstanceService/GetReachability", {});
@@ -292,8 +305,11 @@ check(
 await A.click(".reach-cloudflare .reach-check input");
 await sleep(200);
 check(
-  (await A.$(".reach-relay input")) === null &&
-    !(await A.$eval("button.reach-save", (e) => e.disabled)),
+  await waitFor(
+    async () =>
+      (await A.$(".reach-relay input")) === null &&
+      !(await A.$eval("button.reach-save", (e) => e.disabled)),
+  ),
   "unticking Cloudflare hides the fields and counts as a change",
 );
 await A.click(".reach-cloudflare .reach-check input");
@@ -342,8 +358,10 @@ await A.type(".reach-proxies input", "proxy.example.com");
 await A.click(".reach-section button.reach-save");
 await sleep(800);
 check(
-  (await text(A, ".reach-section .reach-form > .error")).includes(
-    "not an IP address",
+  await waitFor(async () =>
+    (await text(A, ".reach-section .reach-form > .error")).includes(
+      "not an IP address",
+    ),
   ),
   "a hostname is refused as a proxy address",
 );
@@ -354,7 +372,9 @@ await A.type(".reach-proxies input", "10.0.0.0/8, 192.168.1.5");
 await A.click(".reach-section button.reach-save");
 await sleep(900);
 check(
-  (await text(A, ".reach-section .reach-saved")) === "Saved.",
+  await waitFor(
+    async () => (await text(A, ".reach-section .reach-saved")) === "Saved.",
+  ),
   "trusted proxies save",
 );
 const proxied = await rpc("instance.v1.InstanceService/GetReachability", {});

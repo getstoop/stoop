@@ -6,6 +6,7 @@ import {
   sleep,
   spaceMenu,
   spaceMenuItems,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -42,8 +43,12 @@ await A.type('input[type="password"]', "correct horse battery");
 await A.click('button[type="submit"]');
 await sleep(1500);
 check(
-  (await A.$eval(".setup-steps .current", (e) => e.textContent)).includes(
-    "Your space",
+  await waitFor(async () =>
+    (
+      await A.$eval(".setup-steps .current", (e) => e.textContent).catch(
+        () => "",
+      )
+    ).includes("Your space"),
   ),
   "advances to step 2",
 );
@@ -51,24 +56,35 @@ await A.type('input[placeholder="The Porch"]', "Stoop HQ");
 await A.click('button[type="submit"]');
 await sleep(1500);
 check(
-  (await A.$eval(".setup-steps .current", (e) => e.textContent)).includes(
-    "Reaching your server",
+  await waitFor(async () =>
+    (
+      await A.$eval(".setup-steps .current", (e) => e.textContent).catch(
+        () => "",
+      )
+    ).includes("Reaching your server"),
   ),
   "advances to step 3 (reaching your server)",
 );
 check(
-  (await A.$(".reach-address")) !== null &&
-    (await A.$(".reach-proxies")) !== null &&
-    (await A.$(".reach-cloudflare")) !== null &&
-    (await A.$(".reach-tailscale")) !== null,
+  await waitFor(
+    async () =>
+      (await A.$(".reach-address")) !== null &&
+      (await A.$(".reach-proxies")) !== null &&
+      (await A.$(".reach-cloudflare")) !== null &&
+      (await A.$(".reach-tailscale")) !== null,
+  ),
   "step 3 offers each hosting setting as its own section",
 );
 // Skippable: the same form lives on the admin page.
 await A.click("button.reach-continue");
 await sleep(800);
 check(
-  (await A.$eval(".setup-steps .current", (e) => e.textContent)).includes(
-    "Invite people",
+  await waitFor(async () =>
+    (
+      await A.$eval(".setup-steps .current", (e) => e.textContent).catch(
+        () => "",
+      )
+    ).includes("Invite people"),
   ),
   "advances to step 4",
 );
@@ -90,17 +106,21 @@ await A.evaluate(() => {
 await A.click(".link-box button");
 await sleep(200);
 check(
-  (await A.evaluate(() => window.__copied)) === link,
+  await waitFor(async () => (await A.evaluate(() => window.__copied)) === link),
   "Copy button copies the link",
 );
 await A.click("button.primary");
 await sleep(1500);
 check(
-  /^\/s\/[^/]+\/c\/[^/]+$/.test(new URL(A.url()).pathname),
+  await waitFor(() => /^\/s\/[^/]+\/c\/[^/]+$/.test(new URL(A.url()).pathname)),
   `Go to your space lands in #general (${new URL(A.url()).pathname})`,
 );
 check(
-  (await A.$eval(".space-name", (e) => e.textContent)) === "Stoop HQ",
+  await waitFor(
+    async () =>
+      (await A.$eval(".space-name", (e) => e.textContent).catch(() => "")) ===
+      "Stoop HQ",
+  ),
   "space rendered",
 );
 
@@ -121,13 +141,13 @@ wire(B, "B");
 await B.goto(`${base}/setup`, { waitUntil: "networkidle0" });
 await sleep(300);
 check(
-  new URL(B.url()).pathname === "/login",
+  await waitFor(() => new URL(B.url()).pathname === "/login"),
   `/setup after setup → /login (${new URL(B.url()).pathname})`,
 );
 await B.goto(`${base}/`, { waitUntil: "networkidle0" });
 await sleep(300);
 check(
-  new URL(B.url()).pathname === "/login",
+  await waitFor(() => new URL(B.url()).pathname === "/login"),
   `second visitor: / → /login (${new URL(B.url()).pathname})`,
 );
 
@@ -135,7 +155,11 @@ check(
 await gotoShared(B, link);
 await sleep(300);
 check(
-  (await B.$eval(".invite-hero", (e) => e.innerText)).includes("Stoop HQ"),
+  await waitFor(async () =>
+    (
+      await B.$eval(".invite-hero", (e) => e.innerText).catch(() => "")
+    ).includes("Stoop HQ"),
+  ),
   "invite link names the space",
 );
 await B.type('input[autocomplete="username"]', `friend${suffix}`);
@@ -143,8 +167,11 @@ await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
 await sleep(2500);
 check(
-  (await B.$eval(".space-name", (e) => e.textContent).catch(() => "")) ===
-    "Stoop HQ",
+  await waitFor(
+    async () =>
+      (await B.$eval(".space-name", (e) => e.textContent).catch(() => "")) ===
+      "Stoop HQ",
+  ),
   `B lands in the space (${new URL(B.url()).pathname})`,
 );
 check(
@@ -158,8 +185,10 @@ await A.type(".composer textarea", `welcome ${suffix}`);
 await A.keyboard.press("Enter");
 await sleep(1200);
 check(
-  (await B.$eval(".message-list", (e) => e.innerText)).includes(
-    `welcome ${suffix}`,
+  await waitFor(async () =>
+    (await B.$eval(".message-list", (e) => e.innerText)).includes(
+      `welcome ${suffix}`,
+    ),
   ),
   "B receives A's message live",
 );

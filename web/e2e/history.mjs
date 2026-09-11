@@ -8,6 +8,7 @@ import {
   gotoShared,
   reloadShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -81,7 +82,7 @@ await A.evaluate(async (channelId) => {
 await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(1200);
 check(
-  (await count()) === 50,
+  await waitFor(async () => (await count()) === 50),
   `opens on the latest page (${await count()} messages)`,
 );
 check(
@@ -92,7 +93,10 @@ check(
   (await oldestText()) === "message 71",
   "the oldest loaded message is #71",
 );
-check((await scrollTop()) > 0, "starts scrolled to the bottom");
+check(
+  await waitFor(async () => (await scrollTop()) > 0),
+  "starts scrolled to the bottom",
+);
 
 // Scroll to the top: the previous page arrives and the message that was
 // at the top stays exactly where it was on screen.
@@ -118,12 +122,15 @@ check(
 // Again: the rest, and the beginning marker.
 await scrollToTop();
 check(await waitForCount(120), `third page loaded (${await count()} messages)`);
+let startText = "(none)";
 await sleep(600);
-const startText = await A.$eval(".history-start", (e) => e.textContent).catch(
-  () => "(none)",
-);
 check(
-  startText.includes("Beginning of #general"),
+  await waitFor(async () => {
+    startText = await A.$eval(".history-start", (e) => e.textContent).catch(
+      () => "(none)",
+    );
+    return startText.includes("Beginning of #general");
+  }),
   `beginning marker names the channel ("${startText}")`,
 );
 await scrollToTop();
@@ -135,8 +142,11 @@ check((await count()) === 120, "nothing more is fetched past the beginning");
 await scrollToTop();
 await sleep(400);
 check(
-  (await A.$eval(".jump-latest", (e) => e.textContent).catch(() => "")) ===
-    "Jump to latest ↓",
+  await waitFor(
+    async () =>
+      (await A.$eval(".jump-latest", (e) => e.textContent).catch(() => "")) ===
+      "Jump to latest ↓",
+  ),
   "away from the bottom, a 'Jump to latest' pill appears",
 );
 const B = await (await browser.createBrowserContext()).newPage();
@@ -154,8 +164,12 @@ if (link) {
   await B.keyboard.press("Enter");
   await sleep(1000);
   check(
-    (await A.$eval(".jump-latest", (e) => e.textContent).catch(() => "")) ===
-      "1 new message ↓",
+    await waitFor(
+      async () =>
+        (await A.$eval(".jump-latest", (e) => e.textContent).catch(
+          () => "",
+        )) === "1 new message ↓",
+    ),
     "someone else's message counts on the pill",
   );
   check(
@@ -165,13 +179,15 @@ if (link) {
   await A.click(".jump-latest");
   await sleep(500);
   check(
-    (await A.$(".jump-latest")) === null,
+    await waitFor(async () => (await A.$(".jump-latest")) === null),
     "jumping to latest hides the pill",
   );
   check(
-    await A.$eval(
-      ".message-list",
-      (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
+    await waitFor(() =>
+      A.$eval(
+        ".message-list",
+        (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
+      ),
     ),
     "…and lands at the bottom",
   );
@@ -181,11 +197,16 @@ if (link) {
 await A.type(".composer textarea", "message 121");
 await A.keyboard.press("Enter");
 await sleep(800);
-check((await count()) >= 121, "live messages still append");
 check(
-  await A.$eval(
-    ".message-list",
-    (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
+  await waitFor(async () => (await count()) >= 121),
+  "live messages still append",
+);
+check(
+  await waitFor(() =>
+    A.$eval(
+      ".message-list",
+      (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
+    ),
   ),
   "a new message scrolls the view to the bottom",
 );

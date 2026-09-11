@@ -8,6 +8,7 @@ import {
   gotoShared,
   reloadShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -64,15 +65,24 @@ check(
   "Save disables again once there is nothing left to save",
 );
 check(
-  (await A.$eval(".profile-header p", (e) => e.innerText)).includes("she/her"),
+  await waitFor(async () =>
+    (
+      await A.$eval(".profile-header p", (e) => e.innerText).catch(() => "")
+    ).includes("she/her"),
+  ),
   "profile header echoes the pronouns back",
 );
 // It survives a reload: the fields came from the server, not local state.
 await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(800);
 check(
-  (await A.$eval("#pronouns", (e) => e.value)) === "she/her" &&
-    (await A.$eval(`${ABOUT} textarea`, (e) => e.value)) === BIO,
+  await waitFor(
+    async () =>
+      (await A.$eval("#pronouns", (e) => e.value).catch(() => "")) ===
+        "she/her" &&
+      (await A.$eval(`${ABOUT} textarea`, (e) => e.value).catch(() => "")) ===
+        BIO,
+  ),
   "both fields reload from the server",
 );
 await A.goBack();
@@ -137,9 +147,15 @@ await sleep(1000);
 const aAuthors = await A.$$(".message-author");
 await aAuthors[aAuthors.length - 1].click();
 await A.waitForSelector(".user-card", { timeout: 3000 });
+check(
+  await waitFor(async () =>
+    (await A.$eval(".user-card", (e) => e.innerText).catch(() => "")).includes(
+      "they/them",
+    ),
+  ),
+  "member's pronouns show on their card",
+);
 await sleep(300);
-const memberCard = await A.$eval(".user-card", (e) => e.innerText);
-check(memberCard.includes("they/them"), "member's pronouns show on their card");
 check(
   (await A.$(".user-card .user-card-bio")) === null,
   "a card with no bio has no bio row, not an empty state",

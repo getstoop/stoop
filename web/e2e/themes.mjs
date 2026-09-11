@@ -3,7 +3,7 @@
 // page's colours actually change, "follow system" picks the dark/light
 // pair by the OS setting, and nothing on the server is involved.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, sleep, waitFor } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -79,9 +79,12 @@ check(
 // Pick Daylight: stamped, stored, and the page turns light.
 await A.click('.theme-card[data-theme="daylight"]');
 await sleep(300);
-check((await themeOf()) === "daylight", "clicking a card stamps data-theme");
 check(
-  JSON.parse(await stored())?.theme === "daylight",
+  await waitFor(async () => (await themeOf()) === "daylight"),
+  "clicking a card stamps data-theme",
+);
+check(
+  await waitFor(async () => JSON.parse(await stored())?.theme === "daylight"),
   "choice is saved in localStorage",
 );
 await A.goto(`${base}/`, { waitUntil: "networkidle0" });
@@ -99,13 +102,17 @@ await A.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
 await A.click(".theme-system input");
 await sleep(300);
 check(
-  (await themeOf()) === "brownstone",
+  await waitFor(async () => (await themeOf()) === "brownstone"),
   "follow system: dark OS picks the dark theme",
 );
 await A.click('.theme-card[data-theme="dusk"]');
 await sleep(300);
 check(
-  (await themeOf()) === "dusk" && JSON.parse(await stored())?.dark === "dusk",
+  await waitFor(
+    async () =>
+      (await themeOf()) === "dusk" &&
+      JSON.parse(await stored())?.dark === "dusk",
+  ),
   "in system mode a card click sets that half of the pair",
 );
 await A.emulateMediaFeatures([
@@ -113,7 +120,7 @@ await A.emulateMediaFeatures([
 ]);
 await sleep(300);
 check(
-  (await themeOf()) === "daylight",
+  await waitFor(async () => (await themeOf()) === "daylight"),
   "switching the OS to light flips to the light theme live",
 );
 await A.emulateMediaFeatures([]);

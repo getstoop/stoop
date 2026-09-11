@@ -7,6 +7,7 @@ import {
   gotoShared,
   reloadShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -64,7 +65,10 @@ const dotFor = (page, name) =>
     return "row?";
   }, name);
 
-check((await dotFor(B, aName)).includes("online"), "A starts online for B");
+check(
+  await waitFor(async () => (await dotFor(B, aName)).includes("online")),
+  "A starts online for B",
+);
 
 // A picks Do not disturb on the profile page.
 await A.goto(`${base}/profile?tab=notifications`, {
@@ -72,18 +76,25 @@ await A.goto(`${base}/profile?tab=notifications`, {
 });
 await sleep(500);
 check(
-  (await A.$$(".status-option")).length === 3,
+  await waitFor(async () => (await A.$$(".status-option")).length === 3),
   "profile offers three statuses",
 );
 await A.click(".status-option:nth-child(3)");
 await sleep(800);
 check(
-  (
-    await A.$eval(".space-pill.avatar .online-dot", (e) => e.className)
-  ).includes("dnd"),
+  await waitFor(async () =>
+    (
+      await A.$eval(".space-pill.avatar .online-dot", (e) => e.className).catch(
+        () => "",
+      )
+    ).includes("dnd"),
+  ),
   "A's own rail dot turns red",
 );
-check((await dotFor(B, aName)).includes("dnd"), "B sees A's dot go red live");
+check(
+  await waitFor(async () => (await dotFor(B, aName)).includes("dnd")),
+  "B sees A's dot go red live",
+);
 for (const r of await B.$$(".member-row")) {
   if ((await r.evaluate((e) => e.textContent)).includes(aName)) {
     await r.click();
@@ -92,8 +103,12 @@ for (const r of await B.$$(".member-row")) {
 }
 await sleep(500);
 check(
-  (await B.$eval(".user-card .presence", (e) => e.textContent)) ===
-    "do not disturb",
+  await waitFor(
+    async () =>
+      (await B.$eval(".user-card .presence", (e) => e.textContent).catch(
+        () => "",
+      )) === "do not disturb",
+  ),
   "B's card for A says do not disturb",
 );
 await B.keyboard.press("Escape");
@@ -102,17 +117,28 @@ await B.keyboard.press("Escape");
 await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(1200);
 check(
-  (await A.$eval(".status-option.active", (e) => e.textContent)).includes(
-    "Do not disturb",
-  ) && (await dotFor(B, aName)).includes("dnd"),
+  await waitFor(
+    async () =>
+      (
+        await A.$eval(".status-option.active", (e) => e.textContent).catch(
+          () => "",
+        )
+      ).includes("Do not disturb") && (await dotFor(B, aName)).includes("dnd"),
+  ),
   "status persists across a reload",
 );
 await A.click(".status-option:nth-child(2)");
+check(
+  await waitFor(async () => (await dotFor(B, aName)).includes("away")),
+  "Away shows amber for B",
+);
 await sleep(600);
-check((await dotFor(B, aName)).includes("away"), "Away shows amber for B");
 await A.click(".status-option:nth-child(1)");
+check(
+  await waitFor(async () => (await dotFor(B, aName)).includes("online")),
+  "back to Online",
+);
 await sleep(600);
-check((await dotFor(B, aName)).includes("online"), "back to Online");
 
 await browser.close();
 console.log(fails ? `${fails} failure(s)` : "all passed");

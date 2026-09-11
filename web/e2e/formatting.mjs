@@ -1,5 +1,11 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -144,20 +150,26 @@ await selectAll(A);
 await A.keyboard.down("Control");
 await A.keyboard.press("i");
 await A.keyboard.up("Control");
+check(
+  await waitFor(async () => (await draft(A)) === "*hi there*"),
+  "Ctrl+I italicises",
+);
 await sleep(100);
-check((await draft(A)) === "*hi there*", "Ctrl+I italicises");
 await selectAll(A);
 await A.keyboard.down("Control");
 await A.keyboard.down("Shift");
 await A.keyboard.press("x");
 await A.keyboard.up("Shift");
 await A.keyboard.up("Control");
+check(
+  await waitFor(async () => (await draft(A)) === "~~*hi there*~~"),
+  "Ctrl+Shift+X strikes",
+);
 await sleep(100);
-check((await draft(A)) === "~~*hi there*~~", "Ctrl+Shift+X strikes");
 await A.keyboard.press("Enter");
 await sleep(700);
 check(
-  (await lastMessage(A, "s em")) === "hi there",
+  await waitFor(async () => (await lastMessage(A, "s em")) === "hi there"),
   "nested strike/italic renders",
 );
 // With no selection the markers open around the caret, so what you type
@@ -206,8 +218,11 @@ check(
 await A.keyboard.press("Enter");
 await sleep(700);
 check(
-  (await lastMessage(A, "blockquote.md-quote")) === "wise words" &&
-    (await lastMessage(A, "pre.md-pre code")) === "x := 1",
+  await waitFor(
+    async () =>
+      (await lastMessage(A, "blockquote.md-quote")) === "wise words" &&
+      (await lastMessage(A, "pre.md-pre code")) === "x := 1",
+  ),
   "quote and code block render",
 );
 
@@ -224,11 +239,14 @@ await A.type(".composer textarea", "- eggs");
 await A.keyboard.press("Enter");
 await sleep(700);
 check(
-  (await A.$$eval(".message-content", (els) =>
-    [...els[els.length - 1].querySelectorAll("ul.md-list li")]
-      .map((e) => e.textContent)
-      .join(","),
-  )) === "milk,eggs",
+  await waitFor(
+    async () =>
+      (await A.$$eval(".message-content", (els) =>
+        [...els[els.length - 1].querySelectorAll("ul.md-list li")]
+          .map((e) => e.textContent)
+          .join(","),
+      )) === "milk,eggs",
+  ),
   "a bulleted list renders as a real ul",
 );
 
@@ -276,9 +294,13 @@ await A.keyboard.press("Enter");
 await sleep(700);
 const spoiler = ".message-content .md-spoiler";
 check(
-  (await A.$eval(spoiler, (e) => e.tagName)) === "BUTTON" &&
-    (await A.$eval(spoiler, (e) => e.getAttribute("aria-expanded"))) ===
-      "false",
+  await waitFor(
+    async () =>
+      (await A.$eval(spoiler, (e) => e.tagName).catch(() => "")) === "BUTTON" &&
+      (await A.$eval(spoiler, (e) => e.getAttribute("aria-expanded")).catch(
+        () => "",
+      )) === "false",
+  ),
   "a spoiler renders as an unrevealed button",
 );
 check(
@@ -293,9 +315,13 @@ check(
 await A.click(spoiler);
 await sleep(200);
 check(
-  (await A.$eval(spoiler, (e) => e.getAttribute("aria-expanded"))) === "true" &&
-    (await A.$eval(spoiler, (e) => getComputedStyle(e).color)) !==
-      "rgba(0, 0, 0, 0)",
+  await waitFor(
+    async () =>
+      (await A.$eval(spoiler, (e) => e.getAttribute("aria-expanded"))) ===
+        "true" &&
+      (await A.$eval(spoiler, (e) => getComputedStyle(e).color)) !==
+        "rgba(0, 0, 0, 0)",
+  ),
   "clicking reveals it",
 );
 
@@ -325,8 +351,10 @@ check(
 await clickAction(A, 0, "Edit");
 await sleep(200);
 check(
-  (await A.$eval(".message-editor textarea", (e) => e.value)).startsWith(
-    "**bold**",
+  await waitFor(async () =>
+    (
+      await A.$eval(".message-editor textarea", (e) => e.value).catch(() => "")
+    ).startsWith("**bold**"),
   ),
   "editor shows the raw markup",
 );
@@ -338,8 +366,15 @@ await A.type(".message-editor textarea", " edited");
 await A.keyboard.press("Enter");
 await sleep(700);
 check(
-  (await A.$eval(".message-content strong", (e) => e.textContent)) === "bold" &&
-    (await A.$eval(".message-content", (e) => e.innerText)).includes("edited"),
+  await waitFor(
+    async () =>
+      (await A.$eval(".message-content strong", (e) => e.textContent).catch(
+        () => "",
+      )) === "bold" &&
+      (await A.$eval(".message-content", (e) => e.innerText)).includes(
+        "edited",
+      ),
+  ),
   "edited message still renders formatting",
 );
 

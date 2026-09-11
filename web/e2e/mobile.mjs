@@ -3,7 +3,7 @@
 // composer doesn't trigger iOS zoom. Ends by checking that a wide window
 // gets the three-column layout back.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, sleep, waitFor } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -54,7 +54,7 @@ if (new URL(P.url()).pathname === "/setup") {
   await P.tap('button[type="submit"]');
   await sleep(2000);
 }
-check(P.url().includes("/c/"), "landed in a channel");
+check(await waitFor(() => P.url().includes("/c/")), "landed in a channel");
 
 // Layout probes, all evaluated in the page.
 const layout = () =>
@@ -81,32 +81,52 @@ check(
 check(!l.overflow, "phone: no horizontal overflow");
 
 await P.tap(".menu-button");
-await sleep(400);
-l = await layout();
-check(l.open && l.backdrop, "menu button opens the drawer with a scrim");
 check(
-  l.railLeft === 0 && l.sidebarLeft === 68,
+  await waitFor(async () => {
+    l = await layout();
+    return l.open && l.backdrop;
+  }),
+  "menu button opens the drawer with a scrim",
+);
+// The scrim is up as soon as the drawer starts moving; the geometry below
+// is only true once it has finished, so poll for the settled position.
+check(
+  await waitFor(async () => {
+    l = await layout();
+    return l.railLeft === 0 && l.sidebarLeft === 68;
+  }),
   "drawer shows rail at 0 and sidebar at 68",
 );
 
 await P.tap(".channel-link");
+check(
+  await waitFor(async () => {
+    l = await layout();
+    return !l.open && l.sidebarRight <= 0;
+  }),
+  "picking a channel closes the drawer",
+);
 await sleep(400);
-l = await layout();
-check(!l.open && l.sidebarRight <= 0, "picking a channel closes the drawer");
 
 await P.tap(".menu-button");
 await sleep(300);
 await P.keyboard.press("Escape");
+check(
+  await waitFor(async () => !(await layout()).open),
+  "Escape closes the drawer",
+);
 await sleep(300);
-check(!(await layout()).open, "Escape closes the drawer");
 
 await P.tap(".menu-button");
 await sleep(300);
 // tap(selector) aims at the element's centre, which is under the drawer
 // panel (it covers the left 348px); the scrim is the strip beside it.
 await P.touchscreen.tap(372, 420);
+check(
+  await waitFor(async () => !(await layout()).open),
+  "tapping the scrim closes the drawer",
+);
 await sleep(300);
-check(!(await layout()).open, "tapping the scrim closes the drawer");
 
 // Messages: the toolbar shows on tap, since touch has no hover.
 await P.click(".composer textarea");
@@ -124,26 +144,37 @@ const before = await P.$eval(
 );
 check(before === "0", "toolbar hidden before the tap");
 await P.tap(".message .message-content");
+let after;
+check(
+  await waitFor(async () => {
+    after = await P.evaluate(() => {
+      const m = document.activeElement?.closest(".message");
+      const t = m?.querySelector(".message-toolbar");
+      return t ? getComputedStyle(t).opacity : "no-focus";
+    });
+    return after === "1";
+  }),
+  `tapping a message shows its toolbar (${after})`,
+);
 await sleep(300);
-const after = await P.evaluate(() => {
-  const m = document.activeElement?.closest(".message");
-  const t = m?.querySelector(".message-toolbar");
-  return t ? getComputedStyle(t).opacity : "no-focus";
-});
-check(after === "1", `tapping a message shows its toolbar (${after})`);
 
 // Other pages carry the menu button too, and following a rail link closes
 // the drawer.
 await P.goto(`${base}/profile`, { waitUntil: "networkidle0" });
+check(
+  await waitFor(async () => (await layout()).menuShown),
+  "profile page has the menu button",
+);
 await sleep(400);
-check((await layout()).menuShown, "profile page has the menu button");
 await P.tap(".menu-button");
 await sleep(300);
 await P.tap(".space-pill.activity");
 await sleep(600);
-l = await layout();
 check(
-  !l.open && new URL(P.url()).pathname === "/activity",
+  await waitFor(async () => {
+    l = await layout();
+    return !l.open && new URL(P.url()).pathname === "/activity";
+  }),
   "rail link navigates and closes the drawer",
 );
 

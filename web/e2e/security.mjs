@@ -3,7 +3,13 @@
 // inline script (the theme stamp) runs, the bundle runs, nothing is
 // blocked. Reads only; it needs no particular instance state.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, reloadShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  reloadShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -79,7 +85,9 @@ check(
   "the hashed inline script stamped the default theme",
 );
 check(
-  await p.evaluate(() => document.getElementById("root").children.length > 0),
+  await waitFor(() =>
+    p.evaluate(() => document.getElementById("root").children.length > 0),
+  ),
   "the bundle ran and rendered",
 );
 
@@ -93,8 +101,11 @@ await p.evaluate(() =>
 await reloadShared(p, { waitUntil: "networkidle0" });
 await sleep(300);
 check(
-  (await p.evaluate(() => document.documentElement.dataset.theme)) ===
-    "blackout",
+  await waitFor(
+    async () =>
+      (await p.evaluate(() => document.documentElement.dataset.theme)) ===
+      "blackout",
+  ),
   "a stored theme survives a reload",
 );
 check(

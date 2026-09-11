@@ -12,6 +12,7 @@ import {
   gotoShared,
   sleep,
   spaceMenu,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -97,7 +98,7 @@ await A.click(".user-card .block-button");
 await acceptDialog(A);
 await sleep(800);
 check(
-  (await cardText(A, ".block-button")) === "Unblock",
+  await waitFor(async () => (await cardText(A, ".block-button")) === "Unblock"),
   "after confirming, the chip reads Unblock",
 );
 await A.keyboard.press("Escape");
@@ -125,14 +126,14 @@ check(
 await A.click(".blocked-section .chip");
 await sleep(800);
 check(
-  (await A.$(".blocked-section")) === null,
+  await waitFor(async () => (await A.$(".blocked-section")) === null),
   "unblocking empties the section",
 );
 await openCard(B, aName);
 await B.click(".user-card .message-button");
 await sleep(1500);
 check(
-  path(B).startsWith("/dm/"),
+  await waitFor(() => path(B).startsWith("/dm/")),
   `after unblock, Message opens a DM (${path(B)})`,
 );
 
@@ -165,7 +166,7 @@ await (await rowBtn(A, cName, "Ban")).click();
 await acceptDialog(A);
 await sleep(1500);
 check(
-  (await rowBtn(A, cName, "Kick")) === null,
+  await waitFor(async () => (await rowBtn(A, cName, "Kick")) === null),
   "banned person leaves the member list",
 );
 await A.click('.settings-tab[data-tab="banned"]');
@@ -177,9 +178,11 @@ check(
 await gotoShared(C, link);
 await sleep(1500);
 check(
-  (
-    await C.$eval(".empty-state .error", (e) => e.textContent).catch(() => "")
-  ).includes("can't rejoin"),
+  await waitFor(async () =>
+    (
+      await C.$eval(".empty-state .error", (e) => e.textContent).catch(() => "")
+    ).includes("can't rejoin"),
+  ),
   "the invite link refuses them",
 );
 
@@ -187,15 +190,17 @@ check(
 await A.click(".bans-section .chip");
 await sleep(800);
 check(
-  (await A.$eval(".bans-section", (e) => e.textContent)).includes(
-    "Nobody is banned",
+  await waitFor(async () =>
+    (await A.$eval(".bans-section", (e) => e.textContent)).includes(
+      "Nobody is banned",
+    ),
   ),
   "unbanning empties the list",
 );
 await gotoShared(C, link);
 await sleep(2000);
 check(
-  path(C).startsWith("/s/"),
+  await waitFor(() => path(C).startsWith("/s/")),
   `after unban, the link admits them (${path(C)})`,
 );
 

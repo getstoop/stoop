@@ -4,7 +4,13 @@
 // WINDOW_CAP rows; arrivals while windowed count on the pill; ?m= deep
 // links open around a message.
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 const SEED = 600;
 const CAP = 300;
@@ -39,14 +45,6 @@ const scrollToBottom = () =>
 const pill = () =>
   A.$eval(".jump-latest", (e) => e.textContent).catch(() => "(none)");
 const has = (sel) => A.$(sel).then((h) => h !== null);
-const waitFor = async (fn, ms = 8000) => {
-  const until = Date.now() + ms;
-  while (Date.now() < until) {
-    if (await fn()) return true;
-    await sleep(100);
-  }
-  return false;
-};
 // The seeded quote sits on the newest message (the foot row is the list's
 // last child, so :last-of-type won't find it).
 const clickLastQuote = () =>
@@ -112,8 +110,11 @@ for (let i = 1; i <= SEED; i++) {
   ids.push((await res.json()).message.id);
 }
 await gotoShared(A, channelUrl, { waitUntil: "networkidle0" });
+check(
+  await waitFor(async () => (await count()) === 50),
+  `opens on the latest page (${await count()})`,
+);
 await sleep(1200);
-check((await count()) === 50, `opens on the latest page (${await count()})`);
 
 // Jump to the quoted message: one window around it, nothing else.
 await clickLastQuote();
@@ -190,7 +191,7 @@ await B.type(".composer textarea", "hello from bea");
 await B.keyboard.press("Enter");
 await sleep(1000);
 check(
-  (await pill()) === "1 new message ↓",
+  await waitFor(async () => (await pill()) === "1 new message ↓"),
   `someone else's message counts on the pill ("${await pill()}")`,
 );
 check((await count()) === rowsBefore, "…is not spliced into the window");
@@ -209,13 +210,18 @@ check(
 await sleep(300);
 check((await count()) <= 51, `…as one page (${await count()} rows)`);
 check(
-  await A.$eval(
-    ".message-list",
-    (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
+  await waitFor(() =>
+    A.$eval(
+      ".message-list",
+      (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
+    ),
   ),
   "…scrolled to the bottom",
 );
-check((await pill()) === "(none)", "…and the pill is gone");
+check(
+  await waitFor(async () => (await pill()) === "(none)"),
+  "…and the pill is gone",
+);
 
 // Sending from inside history lands the message at the bottom, live.
 await A.click(".message:last-of-type .reply-quote").catch(() => {});
@@ -243,9 +249,11 @@ check(
 );
 await sleep(300);
 check(
-  await A.$eval(
-    ".message-list",
-    (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
+  await waitFor(() =>
+    A.$eval(
+      ".message-list",
+      (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40,
+    ),
   ),
   "…with the sent message in view",
 );
@@ -265,14 +273,17 @@ const lastId = await A.evaluate(
   last,
 );
 await (await last.$('.message-action[title="Copy link"]')).click();
+let copied;
 await sleep(300);
-const copied = await A.evaluate(() => window.__copied);
 check(
-  copied === `${base}/s/${spaceId}/c/${channelId}?m=${lastId}`,
+  await waitFor(async () => {
+    copied = await A.evaluate(() => window.__copied);
+    return copied === `${base}/s/${spaceId}/c/${channelId}?m=${lastId}`;
+  }),
   `Copy link copies this message's permalink (${copied})`,
 );
 check(
-  await has('.message-action[title="Copied!"]'),
+  await waitFor(() => has('.message-action[title="Copied!"]')),
   "…and the action says it copied",
 );
 
@@ -310,11 +321,11 @@ check(
   await waitFor(() => has(`#msg-${ids[299]}`)),
   "?m= opens the channel with the message loaded",
 );
+check(await waitFor(() => centred(ids[299])), "…on screen");
 await sleep(400);
-check(await centred(ids[299]), "…on screen");
 check((await count()) <= 50, `…in one window (${await count()} rows)`);
 check(
-  !new URL(A.url()).searchParams.has("m"),
+  await waitFor(() => !new URL(A.url()).searchParams.has("m")),
   "…and the param is dropped from the URL",
 );
 // A bogus id falls back to the newest page rather than an empty timeline.
@@ -323,10 +334,13 @@ await gotoShared(
   `${base}/s/${spaceId}/c/${channelId}?m=00000000-0000-7000-8000-000000000000`,
   { waitUntil: "networkidle0" },
 );
+let t;
 await sleep(800);
-const t = await texts();
 check(
-  t[t.length - 1] === "back to now",
+  await waitFor(async () => {
+    t = await texts();
+    return t[t.length - 1] === "back to now";
+  }),
   "an unknown ?m= falls back to the newest page",
 );
 

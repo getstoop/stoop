@@ -1,5 +1,11 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -67,11 +73,13 @@ await sleep(800);
 // B clicks the owner's name.
 const authors = await B.$$(".message-author");
 await authors[0].click();
+let card = "";
 await sleep(800);
-await B.waitForSelector(".user-card", { timeout: 3000 });
-const card = await B.$eval(".user-card", (e) => e.innerText);
 check(
-  card.includes("Ada W.") && card.includes(`@ada${suffix}`),
+  await waitFor(async () => {
+    card = await B.$eval(".user-card", (e) => e.innerText).catch(() => "");
+    return card.includes("Ada W.") && card.includes(`@ada${suffix}`);
+  }),
   `card shows current display name + handle: ${JSON.stringify(card.split("\n")[0])}`,
 );
 check(
@@ -80,24 +88,34 @@ check(
 );
 check(/Joined this space/.test(card), "card shows joined date");
 await B.keyboard.press("Escape");
+check(
+  await waitFor(async () => (await B.$(".user-card")) === null),
+  "Escape closes the card",
+);
 await sleep(200);
-check((await B.$(".user-card")) === null, "Escape closes the card");
 
 // A clicks the member's name; then clicking elsewhere closes it.
 const aAuthors = await A.$$(".message-author");
 await aAuthors[aAuthors.length - 1].click();
+let card2 = "";
 await sleep(800);
-await A.waitForSelector(".user-card", { timeout: 3000 });
-const card2 = await A.$eval(".user-card", (e) => e.innerText);
 check(
-  card2.includes(`@friend${suffix}`) &&
-    /member/i.test(card2) &&
-    !/server admin/i.test(card2),
+  await waitFor(async () => {
+    card2 = await A.$eval(".user-card", (e) => e.innerText).catch(() => "");
+    return (
+      card2.includes(`@friend${suffix}`) &&
+      /member/i.test(card2) &&
+      !/server admin/i.test(card2)
+    );
+  }),
   "owner sees member card without admin badges",
 );
 await A.mouse.click(5, 5);
+check(
+  await waitFor(async () => (await A.$(".user-card")) === null),
+  "outside click closes the card",
+);
 await sleep(300);
-check((await A.$(".user-card")) === null, "outside click closes the card");
 
 await browser.close();
 console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");

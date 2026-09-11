@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep } from "./lib.mjs";
+import { BASE as base, chromePath, sleep, waitFor } from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -31,7 +31,7 @@ const suggestions = () =>
 // .message-content).
 const lastMessage = () =>
   A.$$eval(".message-content .md-lines", (els) =>
-    els[els.length - 1].innerText.trim(),
+    els.length ? els[els.length - 1].innerText.trim() : "",
   );
 
 await A.goto(`${base}/`, { waitUntil: "networkidle0" });
@@ -54,26 +54,45 @@ await sleep(800);
 
 // Typing :so opens suggestions; the alias comes first; Enter inserts the emoji.
 await A.type(".composer textarea", "oh no :so");
+let list;
 await sleep(150);
-let list = await suggestions();
 check(
-  list.length > 0 && list[0].emoji === "😭" && list[0].code === ":sob:",
+  await waitFor(async () => {
+    list = await suggestions();
+    return (
+      list.length > 0 && list[0].emoji === "😭" && list[0].code === ":sob:"
+    );
+  }),
   `":so" suggests :sob: first (got ${list.map((s) => s.code).join(" ")})`,
 );
 check(list[0]?.selected === true, "first suggestion is selected");
 await A.keyboard.press("ArrowDown");
+check(
+  await waitFor(async () => {
+    list = await suggestions();
+    return list[1]?.selected === true;
+  }),
+  "ArrowDown moves the selection",
+);
 await sleep(50);
-list = await suggestions();
-check(list[1]?.selected === true, "ArrowDown moves the selection");
 await A.keyboard.press("ArrowUp");
 await A.keyboard.press("Enter");
+check(
+  await waitFor(async () => (await draft()) === "oh no 😭 "),
+  "Enter inserts the emoji and a space",
+);
+check(
+  await waitFor(async () => (await suggestions()).length === 0),
+  "list closes after picking",
+);
 await sleep(150);
-check((await draft()) === "oh no 😭 ", "Enter inserts the emoji and a space");
-check((await suggestions()).length === 0, "list closes after picking");
 // Enter now sends, and the message carries the real emoji.
 await A.keyboard.press("Enter");
+check(
+  await waitFor(async () => (await lastMessage()) === "oh no 😭"),
+  "message sent with the emoji",
+);
 await sleep(700);
-check((await lastMessage()) === "oh no 😭", "message sent with the emoji");
 
 // Unpicked shortcodes convert on send; unknown ones and times stay put;
 // code spans are left alone.
@@ -85,26 +104,40 @@ await A.keyboard.press("Escape");
 await A.keyboard.press("Enter");
 await sleep(700);
 check(
-  (await lastMessage()) === "ship it 🚀 😢 :nope: at 10:30:45 and :sob:",
+  await waitFor(
+    async () =>
+      (await lastMessage()) === "ship it 🚀 😢 :nope: at 10:30:45 and :sob:",
+  ),
   `send converts known shortcodes only (got "${await lastMessage()}")`,
 );
 
 // Tab picks too; Esc closes without inserting; a Unicode-derived name works.
 await A.type(".composer textarea", ":loudly_cry");
+check(
+  await waitFor(async () => {
+    list = await suggestions();
+    return list[0]?.emoji === "😭";
+  }),
+  "Unicode-derived names are suggested",
+);
 await sleep(150);
-list = await suggestions();
-check(list[0]?.emoji === "😭", "Unicode-derived names are suggested");
 await A.keyboard.press("Escape");
 await sleep(50);
 check(
-  (await suggestions()).length === 0 && (await draft()) === ":loudly_cry",
+  await waitFor(
+    async () =>
+      (await suggestions()).length === 0 && (await draft()) === ":loudly_cry",
+  ),
   "Esc closes the list and keeps the text",
 );
 await A.type(".composer textarea", "i");
 await sleep(150);
 await A.keyboard.press("Tab");
+check(
+  await waitFor(async () => (await draft()) === "😭 "),
+  "Tab picks the highlighted suggestion",
+);
 await sleep(150);
-check((await draft()) === "😭 ", "Tab picks the highlighted suggestion");
 await A.keyboard.press("Enter");
 await sleep(700);
 
@@ -141,7 +174,7 @@ await A.type(".message-editor textarea", " :+1:");
 await A.keyboard.press("Enter");
 await sleep(700);
 check(
-  (await lastMessage()).startsWith("note: this 👍"),
+  await waitFor(async () => (await lastMessage()).startsWith("note: this 👍")),
   "the inline editor converts on save",
 );
 

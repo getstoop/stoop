@@ -7,6 +7,7 @@ import {
   chromePath,
   gotoShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -89,7 +90,9 @@ await A.click(".channel-topic.empty");
 await acceptDialog(A, TOPIC);
 await sleep(600);
 check(
-  (await text(A, ".channel-header .channel-topic")) === TOPIC,
+  await waitFor(
+    async () => (await text(A, ".channel-header .channel-topic")) === TOPIC,
+  ),
   "the header carries the topic once saved",
 );
 
@@ -128,7 +131,9 @@ const box = await topicEl.boundingBox();
 await A.mouse.move(box.x + 40, box.y + box.height / 2, { steps: 4 });
 await sleep(700);
 check(
-  (await text(A, ".tooltip")).includes("The chainsaw needs Marguerite."),
+  await waitFor(async () =>
+    (await text(A, ".tooltip")).includes("The chainsaw needs Marguerite."),
+  ),
   "hovering the header spells the whole topic out",
 );
 await A.mouse.move(box.x + 500, box.y + 400);
@@ -142,8 +147,11 @@ check(
   `About this channel shows the topic in full ("${about.replace(/\n/g, " / ")}")`,
 );
 await A.keyboard.press("Escape");
+check(
+  await waitFor(async () => (await A.$(".channel-about")) === null),
+  "Escape closes About",
+);
 await sleep(300);
-check((await A.$(".channel-about")) === null, "Escape closes About");
 
 // ---- The sidebar row now says what the room is before you click it
 const row = await A.$(".channel-row .channel-link");
@@ -166,7 +174,9 @@ await A.goto(`${base}/s/${path(A).split("/")[2]}/settings?tab=channels`, {
 });
 await sleep(900);
 check(
-  (await text(A, ".user-row")).includes("Borrow anything on the shelf"),
+  await waitFor(async () =>
+    (await text(A, ".user-row")).includes("Borrow anything on the shelf"),
+  ),
   "the settings row shows the topic under the channel name",
 );
 await A.goBack({ waitUntil: "networkidle0" });
@@ -182,7 +192,9 @@ await B.click('button[type="submit"]');
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
 await sleep(800);
 check(
-  (await text(B, ".channel-header .channel-topic")) === TOPIC,
+  await waitFor(
+    async () => (await text(B, ".channel-header .channel-topic")) === TOPIC,
+  ),
   "a member reads the topic in the header",
 );
 await openMenu(B);
@@ -206,7 +218,9 @@ await menuItem(A, "Edit topic");
 await acceptDialog(A, SECOND);
 await sleep(1200);
 check(
-  (await text(B, ".channel-header .channel-topic")) === SECOND,
+  await waitFor(
+    async () => (await text(B, ".channel-header .channel-topic")) === SECOND,
+  ),
   "the change reaches everyone else without a reload",
 );
 
@@ -217,11 +231,15 @@ await menuItem(A, "Edit topic");
 await acceptDialog(A, "");
 await sleep(1200);
 check(
-  (await text(A, ".channel-topic.empty")) === "Add a topic",
+  await waitFor(
+    async () => (await text(A, ".channel-topic.empty")) === "Add a topic",
+  ),
   "clearing the topic restores the manager's invitation",
 );
 check(
-  (await B.$(".channel-header .channel-topic")) === null,
+  await waitFor(
+    async () => (await B.$(".channel-header .channel-topic")) === null,
+  ),
   "a member is left with the channel name alone",
 );
 
@@ -235,10 +253,12 @@ await sleep(800);
 await A.setViewport({ width: 390, height: 844 });
 await sleep(500);
 check(
-  await A.evaluate(() => {
-    const el = document.querySelector(".channel-header .channel-topic");
-    return !el || getComputedStyle(el).display === "none";
-  }),
+  await waitFor(() =>
+    A.evaluate(() => {
+      const el = document.querySelector(".channel-header .channel-topic");
+      return !el || getComputedStyle(el).display === "none";
+    }),
+  ),
   "the topic strip is out of a phone's header",
 );
 

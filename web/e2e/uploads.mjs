@@ -3,7 +3,14 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, gotoShared, png, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  gotoShared,
+  png,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 // File uploads, phase 1: avatars and space icons. Besides what the UI
 // shows, this spec measures two things the UI can't: the served image's
@@ -125,12 +132,15 @@ const pick = async (page, path) => {
   await input.uploadFile(path);
 };
 await pick(A, files.huge);
+let err = null;
+const uploadError = () =>
+  A.$eval(".upload-error", (e) => e.textContent).catch(() => null);
 await sleep(800);
-let err = await A.$eval(".upload-error", (e) => e.textContent).catch(
-  () => null,
-);
 check(
-  err?.includes("2 MB"),
+  await waitFor(async () => {
+    err = await uploadError();
+    return err?.includes("2 MB");
+  }),
   `oversize file rejected with a visible error (${err})`,
 );
 check(
@@ -139,9 +149,11 @@ check(
 );
 await pick(A, files.notPng);
 await sleep(1200);
-err = await A.$eval(".upload-error", (e) => e.textContent).catch(() => null);
 check(
-  err?.includes("not a supported image"),
+  await waitFor(async () => {
+    err = await uploadError();
+    return err?.includes("not a supported image");
+  }),
   `.txt renamed .png rejected by the server (${err})`,
 );
 // The server cap is enforced independently of the client check.
@@ -201,17 +213,25 @@ check(
 // B sees it live: members panel, and the user card.
 await sleep(1000);
 check(
-  (await B.$(".members-panel .avatar[data-file-id]")) !== null,
+  await waitFor(
+    async () => (await B.$(".members-panel .avatar[data-file-id]")) !== null,
+  ),
   "B's members panel shows A's avatar live",
 );
 await B.click(".member-row");
 await B.waitForSelector(".user-card", { timeout: 3000 });
+let cardId = null;
+check(
+  await waitFor(async () => {
+    cardId = await B.$eval(
+      ".user-card .avatar[data-file-id]",
+      (e) => e.dataset.fileId,
+    ).catch(() => null);
+    return cardId === firstId;
+  }),
+  `user card shows the avatar (${cardId})`,
+);
 await sleep(400);
-const cardId = await B.$eval(
-  ".user-card .avatar[data-file-id]",
-  (e) => e.dataset.fileId,
-).catch(() => null);
-check(cardId === firstId, `user card shows the avatar (${cardId})`);
 await B.keyboard.press("Escape");
 await sleep(200);
 
@@ -231,24 +251,29 @@ const secondId = await A.$eval(
 check(secondId !== firstId, `replacement got a new id (${secondId})`);
 await sleep(300);
 check(
-  existsSync(join(dataDir, "avatar", secondId)),
+  await waitFor(() => existsSync(join(dataDir, "avatar", secondId))),
   "new blob is in the data dir",
 );
 check(
-  !existsSync(join(dataDir, "avatar", firstId)),
+  await waitFor(() => !existsSync(join(dataDir, "avatar", firstId))),
   "previous blob was deleted from the data dir",
 );
 check(
-  (await fetchStatus(A, `/files/${firstId}`)).status === 404,
+  await waitFor(
+    async () => (await fetchStatus(A, `/files/${firstId}`)).status === 404,
+  ),
   "previous id is 404",
 );
+let bPanelId = null;
 await sleep(800);
-const bPanelId = await B.$eval(
-  ".members-panel .avatar[data-file-id]",
-  (e) => e.dataset.fileId,
-);
 check(
-  bPanelId === secondId,
+  await waitFor(async () => {
+    bPanelId = await B.$eval(
+      ".members-panel .avatar[data-file-id]",
+      (e) => e.dataset.fileId,
+    ).catch(() => null);
+    return bPanelId === secondId;
+  }),
   "B's members panel switched to the new avatar live",
 );
 
@@ -319,11 +344,17 @@ await A.waitForSelector(".space-settings-title [data-file-id]", {
 });
 await sleep(1000);
 check(
-  (await B.$(".space-rail-list .space-pill [data-file-id]")) !== null,
+  await waitFor(
+    async () =>
+      (await B.$(".space-rail-list .space-pill [data-file-id]")) !== null,
+  ),
   "B's rail shows the shared space's new icon live",
 );
 check(
-  (await B.$(".sidebar-header .header-icon[data-file-id]")) !== null,
+  await waitFor(
+    async () =>
+      (await B.$(".sidebar-header .header-icon[data-file-id]")) !== null,
+  ),
   "B's space header shows the icon",
 );
 

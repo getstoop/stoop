@@ -7,6 +7,7 @@ import {
   gotoShared,
   sleep,
   spaceMenu,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -70,7 +71,9 @@ await areas[0].type(DESCRIPTION);
 await areas[1].type(WELCOME);
 await sleep(200);
 check(
-  (await text(A, ".about-section")).includes(`${DESCRIPTION.length} / 200`),
+  await waitFor(async () =>
+    (await text(A, ".about-section")).includes(`${DESCRIPTION.length} / 200`),
+  ),
   "the description counts down from 200",
 );
 
@@ -101,7 +104,9 @@ await A.evaluate(() =>
 );
 await sleep(1200);
 check(
-  (await text(A, ".about-section")).includes("Saved"),
+  await waitFor(async () =>
+    (await text(A, ".about-section")).includes("Saved"),
+  ),
   "About saves both fields",
 );
 
@@ -111,7 +116,7 @@ await sleep(1500);
 // The welcome pane stands between the space and its first channel the
 // first time; step through it.
 check(
-  (await A.$(".space-welcome")) !== null,
+  await waitFor(async () => (await A.$(".space-welcome")) !== null),
   "the owner's own first visit lands on the welcome",
 );
 await A.evaluate(() =>
@@ -153,8 +158,11 @@ check(
 );
 check(about.includes("1 member"), `About counts the members ("${about}")`);
 await A.keyboard.press("Escape");
+check(
+  await waitFor(async () => (await A.$(".space-about")) === null),
+  "Escape closes About",
+);
 await sleep(300);
-check((await A.$(".space-about")) === null, "Escape closes About");
 
 // ---- The rail tooltip names the space and what it is
 const pill = await A.$(".space-rail-list a");
@@ -169,8 +177,11 @@ check(
   `the rail tooltip carries name and description ("${tip.replace(/\n/g, " / ")}")`,
 );
 await A.mouse.move(box.x + 400, box.y + 400);
+check(
+  await waitFor(async () => (await A.$(".tooltip")) === null),
+  "the tooltip closes on leave",
+);
 await sleep(300);
-check((await A.$(".tooltip")) === null, "the tooltip closes on leave");
 
 // ---- An invite link, and what a stranger sees before joining
 await spaceMenu(A, "Invite people");
@@ -205,7 +216,7 @@ await sleep(2500);
 
 // ---- The welcome: once, then never again
 check(
-  (await B.$(".space-welcome")) !== null,
+  await waitFor(async () => (await B.$(".space-welcome")) !== null),
   `a new member lands on the welcome (${path(B)})`,
 );
 const welcome = await text(B, ".space-welcome");
@@ -220,15 +231,18 @@ await B.evaluate(() =>
 );
 await sleep(1200);
 check(
-  /^\/s\/[^/]+\/c\/[^/]+$/.test(path(B)),
+  await waitFor(() => /^\/s\/[^/]+\/c\/[^/]+$/.test(path(B))),
   `entering the space goes to the first channel (${path(B)})`,
 );
 const bSpaceId = path(B).split("/")[2];
 await gotoShared(B, `${base}/s/${bSpaceId}`, { waitUntil: "networkidle0" });
 await sleep(1200);
 check(
-  (await B.$(".space-welcome")) === null &&
-    /^\/s\/[^/]+\/c\/[^/]+$/.test(path(B)),
+  await waitFor(
+    async () =>
+      (await B.$(".space-welcome")) === null &&
+      /^\/s\/[^/]+\/c\/[^/]+$/.test(path(B)),
+  ),
   `the welcome is not offered a second time (${path(B)})`,
 );
 // It stays reachable, which is the whole reason it is allowed to go away.

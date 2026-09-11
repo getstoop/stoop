@@ -5,6 +5,7 @@ import {
   chromePath,
   gotoShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -94,12 +95,15 @@ check(
 await B.keyboard.press("Enter");
 await sleep(200);
 check(
-  (await B.$eval(".composer textarea", (e) => e.value)) ===
-    `morning @ada${suffix} `,
+  await waitFor(
+    async () =>
+      (await B.$eval(".composer textarea", (e) => e.value)) ===
+      `morning @ada${suffix} `,
+  ),
   "Enter completes the mention",
 );
 check(
-  (await B.$(".mention-picker")) === null,
+  await waitFor(async () => (await B.$(".mention-picker")) === null),
   "picker closes after completion",
 );
 await B.type(".composer textarea", "coffee?");
@@ -116,19 +120,24 @@ check(
 
 // Badges on the activity pill, space pill, and the #general channel — A is elsewhere, so nothing is auto-read.
 check(
-  (await A.$(".activity .pill-dot")) !== null,
+  await waitFor(async () => (await A.$(".activity .pill-dot")) !== null),
   "A's activity pill is dotted",
 );
 check(
-  (await text(A, ".space-rail-list .pill-badge")) === "1",
+  await waitFor(
+    async () => (await text(A, ".space-rail-list .pill-badge")) === "1",
+  ),
   "A's space pill shows 1 unread",
 );
 const generalLink = (await A.$$(".channel-link")).at(0);
 check(
-  (await A.evaluate(
-    (e) => e.querySelector(".channel-badge")?.textContent,
-    generalLink,
-  )) === "1",
+  await waitFor(
+    async () =>
+      (await A.evaluate(
+        (e) => e.querySelector(".channel-badge")?.textContent,
+        generalLink,
+      )) === "1",
+  ),
   "#general shows a channel badge",
 );
 check(
@@ -140,14 +149,17 @@ check(
 await generalLink.click();
 await sleep(1200);
 check(
-  (await text(A, ".mention.me")) === `@ada${suffix}`,
+  await waitFor(async () => (await text(A, ".mention.me")) === `@ada${suffix}`),
   "mention token highlighted as 'me' for A",
 );
 check(
-  (await A.$(".activity .pill-dot")) === null,
+  await waitFor(async () => (await A.$(".activity .pill-dot")) === null),
   "viewing the channel clears the activity badge",
 );
-check((await A.$(".channel-badge")) === null, "and the channel badge");
+check(
+  await waitFor(async () => (await A.$(".channel-badge")) === null),
+  "and the channel badge",
+);
 
 // A mention that arrives while A is already looking at #general is read immediately.
 await B.type(".composer textarea", `@ada${suffix} still there?`);
@@ -170,17 +182,25 @@ for (const b of await A.$$(".card .chip"))
     await b.click();
 await sleep(200);
 check(
-  (await A.evaluate(() => window.__notes.at(-1)?.title)) ===
-    "Stoop notifications are working",
+  await waitFor(
+    async () =>
+      (await A.evaluate(() => window.__notes.at(-1)?.title)) ===
+      "Stoop notifications are working",
+  ),
   "test button fires a desktop banner",
 );
 
 // The activity pill opens the timeline page; both mentions are listed and read.
 await A.click(".activity");
 await sleep(800);
-check(path(A) === "/activity", "the activity pill opens /activity");
 check(
-  (await A.$$eval(".activity-row", (els) => els.length)) === 2,
+  await waitFor(() => path(A) === "/activity"),
+  "the activity pill opens /activity",
+);
+check(
+  await waitFor(
+    async () => (await A.$$eval(".activity-row", (els) => els.length)) === 2,
+  ),
   "timeline lists both mentions",
 );
 check(
@@ -188,7 +208,9 @@ check(
   "both are read",
 );
 check(
-  (await text(A, ".activity-page-header")).includes("all caught up"),
+  await waitFor(async () =>
+    (await text(A, ".activity-page-header")).includes("all caught up"),
+  ),
   "header says caught up",
 );
 
@@ -198,21 +220,29 @@ await B.keyboard.press("Escape");
 await B.keyboard.press("Enter");
 await sleep(1500);
 check(
-  (await A.$$eval(".activity-row.unread", (els) => els.length)) === 1,
+  await waitFor(
+    async () =>
+      (await A.$$eval(".activity-row.unread", (els) => els.length)) === 1,
+  ),
   "new mention shows unread on the timeline",
 );
 check(
-  (await A.$(".activity .pill-dot")) !== null,
+  await waitFor(async () => (await A.$(".activity .pill-dot")) !== null),
   "the pill is dotted while on the timeline",
 );
 check(
-  (await text(A, ".activity-page-header")).includes("1 unread"),
+  await waitFor(async () =>
+    (await text(A, ".activity-page-header")).includes("1 unread"),
+  ),
   "the page header keeps the count the pill dropped",
 );
 await A.click(".activity-row.unread");
 await sleep(1200);
 check(
-  path(A).includes("/c/") && (await A.$(".activity .pill-dot")) === null,
+  await waitFor(
+    async () =>
+      path(A).includes("/c/") && (await A.$(".activity .pill-dot")) === null,
+  ),
   `clicking the row navigates and reads it (${path(A)})`,
 );
 
@@ -226,7 +256,9 @@ check(
   "self-mention doesn't notify",
 );
 check(
-  (await A.$$eval(".mention", (els) => els.length)) === 4,
+  await waitFor(
+    async () => (await A.$$eval(".mention", (els) => els.length)) === 4,
+  ),
   "only real members render as mention tokens",
 );
 
@@ -238,7 +270,9 @@ await sleep(500);
 await A.type(".composer textarea", "@ever");
 await sleep(300);
 check(
-  (await text(A, ".mention-picker")).includes("Everyone in this space"),
+  await waitFor(async () =>
+    (await text(A, ".mention-picker")).includes("Everyone in this space"),
+  ),
   "owner's picker offers @everyone",
 );
 await A.keyboard.press("Enter");
@@ -246,15 +280,17 @@ await A.type(".composer textarea", "game night");
 await A.keyboard.press("Enter");
 await sleep(1200);
 check(
-  (await B.$(".activity .pill-dot")) !== null,
+  await waitFor(async () => (await B.$(".activity .pill-dot")) !== null),
   "B is notified by @everyone",
 );
 await B.click(".space-rail-list a.space-pill");
 await sleep(1200);
 check(
-  (
-    await B.$$eval(".mention.me", (els) => els.map((e) => e.textContent))
-  ).includes("@everyone"),
+  await waitFor(async () =>
+    (
+      await B.$$eval(".mention.me", (els) => els.map((e) => e.textContent))
+    ).includes("@everyone"),
+  ),
   "B sees the @everyone token highlighted",
 );
 await A.click(".space-pill.avatar"); // A looks away for the negative case
@@ -291,7 +327,7 @@ await B.keyboard.press("Escape");
 await B.keyboard.press("Enter");
 await sleep(1500);
 check(
-  (await A.$(".activity .pill-dot")) !== null,
+  await waitFor(async () => (await A.$(".activity .pill-dot")) !== null),
   "mention while on /profile → the pill is dotted",
 );
 await A.click(".activity");
@@ -299,11 +335,14 @@ await sleep(800);
 await A.click(".activity-page-header .chip");
 await sleep(600);
 check(
-  (await A.$(".activity .pill-dot")) === null,
+  await waitFor(async () => (await A.$(".activity .pill-dot")) === null),
   "Mark all read clears the badge",
 );
 check(
-  (await A.$$eval(".activity-row.unread", (els) => els.length)) === 0,
+  await waitFor(
+    async () =>
+      (await A.$$eval(".activity-row.unread", (els) => els.length)) === 0,
+  ),
   "no rows remain unread",
 );
 

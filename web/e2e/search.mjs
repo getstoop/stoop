@@ -7,6 +7,7 @@ import {
   chromePath,
   gotoShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -154,18 +155,24 @@ await A.goto(`${base}/s/${spaceId}/search?q=livekit&c=${generalId}`, {
 });
 await sleep(700);
 check(
-  (await A.$$(".search-scope .chip")).length === 2 &&
-    (await A.$eval(".search-scope .chip:first-child", (e) =>
-      e.classList.contains("active"),
-    )),
+  await waitFor(
+    async () =>
+      (await A.$$(".search-scope .chip")).length === 2 &&
+      (await A.$eval(".search-scope .chip:first-child", (e) =>
+        e.classList.contains("active"),
+      )),
+  ),
   "opened from a channel, All channels is the active chip",
 );
 await A.click(".search-scope .chip:nth-child(2)");
 await sleep(700);
 check(
-  url(A).searchParams.get("q") === "in:#general livekit" &&
-    (await A.$eval(".search-form input", (e) => e.value)) ===
-      "in:#general livekit",
+  await waitFor(
+    async () =>
+      url(A).searchParams.get("q") === "in:#general livekit" &&
+      (await A.$eval(".search-form input", (e) => e.value)) ===
+        "in:#general livekit",
+  ),
   `This channel writes in:#general into the query (${url(A).searchParams.get("q")})`,
 );
 found = await rows(A);
@@ -176,7 +183,11 @@ check(
 await A.click(".search-scope .chip:first-child");
 await sleep(700);
 check(
-  url(A).searchParams.get("q") === "livekit" && (await rows(A)).length === 3,
+  await waitFor(
+    async () =>
+      url(A).searchParams.get("q") === "livekit" &&
+      (await rows(A)).length === 3,
+  ),
   "All channels takes the filter back out",
 );
 
@@ -199,7 +210,7 @@ await sleep(500);
 await A.click(".search-header .chip");
 await sleep(700);
 check(
-  url(A).pathname === `/s/${spaceId}/c/${generalId}`,
+  await waitFor(() => url(A).pathname === `/s/${spaceId}/c/${generalId}`),
   "Close goes back to the channel the search was opened from",
 );
 await A.goto(`${base}/s/${spaceId}/search?c=${generalId}`, {
@@ -207,7 +218,9 @@ await A.goto(`${base}/s/${spaceId}/search?c=${generalId}`, {
 });
 await sleep(500);
 check(
-  await A.evaluate(() => document.activeElement?.matches(".search-form input")),
+  await waitFor(() =>
+    A.evaluate(() => document.activeElement?.matches(".search-form input")),
+  ),
   "arriving without a query focuses the field",
 );
 check(
@@ -217,7 +230,7 @@ check(
 await A.keyboard.press("Escape");
 await sleep(700);
 check(
-  url(A).pathname === `/s/${spaceId}/c/${generalId}`,
+  await waitFor(() => url(A).pathname === `/s/${spaceId}/c/${generalId}`),
   "Escape in an empty field closes the page",
 );
 
@@ -227,7 +240,9 @@ await A.goto(`${base}/s/${spaceId}/search?q=zzzzqqq&c=${generalId}`, {
 });
 await sleep(700);
 check(
-  /No messages match zzzzqqq/.test(await text(A, ".search-scroll")),
+  await waitFor(async () =>
+    /No messages match zzzzqqq/.test(await text(A, ".search-scroll")),
+  ),
   "no results says so, with the words",
 );
 await A.goto(
@@ -236,7 +251,9 @@ await A.goto(
 );
 await sleep(700);
 check(
-  /before: wants a date/.test(await text(A, ".search-error")),
+  await waitFor(async () =>
+    /before: wants a date/.test(await text(A, ".search-error")),
+  ),
   `a bad date filter shows the server's wording (${await text(A, ".search-error")})`,
 );
 
@@ -246,7 +263,7 @@ await B.goto(`${base}/s/${spaceId}/search?q=livekit&c=${generalId}`, {
 });
 await sleep(700);
 check(
-  (await rows(B)).length === 3,
+  await waitFor(async () => (await rows(B)).length === 3),
   "another member finds everyone's messages in the space",
 );
 
@@ -280,10 +297,13 @@ check(
 await P.tap(".search-launch-button");
 await sleep(800);
 check(
-  url(P).pathname === `/s/${spaceId}/search` &&
-    (await P.evaluate(() =>
-      document.activeElement?.matches(".search-form input"),
-    )),
+  await waitFor(
+    async () =>
+      url(P).pathname === `/s/${spaceId}/search` &&
+      (await P.evaluate(() =>
+        document.activeElement?.matches(".search-form input"),
+      )),
+  ),
   "a tap opens the results page with the field focused",
 );
 

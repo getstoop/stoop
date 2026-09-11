@@ -9,6 +9,7 @@ import {
   sleep,
   spaceMenu,
   spaceMenuItems,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -53,7 +54,7 @@ await sleep(800);
 await A.click("button.primary");
 await sleep(1200);
 check(
-  /^\/s\/[^/]+\/c\/[^/]+$/.test(new URL(A.url()).pathname),
+  await waitFor(() => /^\/s\/[^/]+\/c\/[^/]+$/.test(new URL(A.url()).pathname)),
   `A completes setup and lands in a space (${new URL(A.url()).pathname})`,
 );
 
@@ -61,7 +62,7 @@ await A.click('button[title="Create a space"]');
 await acceptDialog(A, `Stoop HQ ${suffix}`);
 await sleep(1500);
 check(
-  /^\/s\/[^/]+\/c\/[^/]+$/.test(new URL(A.url()).pathname),
+  await waitFor(() => /^\/s\/[^/]+\/c\/[^/]+$/.test(new URL(A.url()).pathname)),
   `A navigated into new space (${new URL(A.url()).pathname})`,
 );
 const spaceId = new URL(A.url()).pathname.split("/")[2];
@@ -127,8 +128,11 @@ check(
   `Copy link yields ${copiedLink}`,
 );
 await A.keyboard.press("Escape");
+check(
+  await waitFor(async () => (await A.$(".modal")) === null),
+  "Escape closes modal",
+);
 await sleep(300);
-check((await A.$(".modal")) === null, "Escape closes modal");
 
 // ---- B: logged out, visit /join/<code> → login with redirect → lands in space
 const ctxB = await browser.createBrowserContext();
@@ -213,8 +217,10 @@ const Bare = await ctxB.newPage();
 await gotoShared(Bare, `${base}/join/${code}`);
 await sleep(600);
 check(
-  (await Bare.$eval(".invite-hero", (e) => e.innerText)).includes(
-    `Stoop HQ ${suffix}`,
+  await waitFor(async () =>
+    (
+      await Bare.$eval(".invite-hero", (e) => e.innerText).catch(() => "")
+    ).includes(`Stoop HQ ${suffix}`),
   ),
   "bare link names the space from the server's invite lookup",
 );
@@ -225,15 +231,23 @@ await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
 await sleep(2500);
 check(
-  (await B.evaluate(() => localStorage.getItem("stoop.hasAccount"))) === "1",
+  await waitFor(
+    async () =>
+      (await B.evaluate(() => localStorage.getItem("stoop.hasAccount"))) ===
+      "1",
+  ),
   "a successful login marks this browser as having an account",
 );
 check(
-  new URL(B.url()).pathname.startsWith(`/s/${spaceId}`),
+  await waitFor(() => new URL(B.url()).pathname.startsWith(`/s/${spaceId}`)),
   `B lands in A's space after login (${new URL(B.url()).pathname})`,
 );
 check(
-  (await B.$eval(".space-name", (e) => e.textContent)).includes("Stoop HQ"),
+  await waitFor(async () =>
+    (
+      await B.$eval(".space-name", (e) => e.textContent).catch(() => "")
+    ).includes("Stoop HQ"),
+  ),
   "B sees the space name",
 );
 
@@ -244,11 +258,15 @@ await A.type(".composer textarea", msg);
 await A.keyboard.press("Enter");
 await sleep(1500);
 check(
-  (await B.$eval(".message-list", (e) => e.innerText)).includes(msg),
+  await waitFor(async () =>
+    (await B.$eval(".message-list", (e) => e.innerText)).includes(msg),
+  ),
   "B sees A's message in realtime",
 );
 check(
-  (await A.$eval(".message-list", (e) => e.innerText)).includes(msg),
+  await waitFor(async () =>
+    (await A.$eval(".message-list", (e) => e.innerText)).includes(msg),
+  ),
   "A sees own message",
 );
 
@@ -261,8 +279,10 @@ await spaceMenu(A, "Invite people");
 await A.waitForSelector(".invite-row", { timeout: 3000 });
 await sleep(600); // let the list refetch past the cached copy
 check(
-  (await A.$eval(".invite-row .invite-meta", (e) => e.textContent)).includes(
-    "1/5 uses",
+  await waitFor(async () =>
+    (await A.$eval(".invite-row .invite-meta", (e) => e.textContent)).includes(
+      "1/5 uses",
+    ),
   ),
   "use count is 1/5 after B joined",
 );
@@ -279,10 +299,13 @@ await A.waitForSelector(".invite-row .chip.danger", { timeout: 3000 });
 await A.click(".invite-row .chip.danger");
 await sleep(800);
 check(
-  (await A.$eval(".invite-row", (e) => e.className)).includes("inactive") &&
-    (
-      await A.$eval(".invite-row .invite-meta", (e) => e.textContent)
-    ).startsWith("Revoked"),
+  await waitFor(
+    async () =>
+      (await A.$eval(".invite-row", (e) => e.className)).includes("inactive") &&
+      (
+        await A.$eval(".invite-row .invite-meta", (e) => e.textContent)
+      ).startsWith("Revoked"),
+  ),
   "revoked invite shown as inactive",
 );
 const ctxC = await browser.createBrowserContext();
@@ -310,7 +333,9 @@ await sleep(500);
 await A.click(".logout-link");
 await sleep(800);
 check(
-  new URL(A.url()).pathname === "/login" && !new URL(A.url()).search,
+  await waitFor(
+    () => new URL(A.url()).pathname === "/login" && !new URL(A.url()).search,
+  ),
   `logout → /login with no redirect (${A.url().replace(base, "")})`,
 );
 await A.type('input[autocomplete="username"]', `webA${suffix}`);
@@ -318,7 +343,7 @@ await A.type('input[type="password"]', "correct horse battery");
 await A.click('button[type="submit"]');
 await sleep(2000);
 check(
-  new URL(A.url()).pathname.startsWith("/s/"),
+  await waitFor(() => new URL(A.url()).pathname.startsWith("/s/")),
   `existing-account login lands in a space (${new URL(A.url()).pathname})`,
 );
 

@@ -76,6 +76,30 @@ sections, in this order:
   the neighbouring ports (8080, 5173, 5432, 443) are other projects'
   containers, and a `kill -9` there can take down Docker Desktop. If a
   port you need is taken, pick another.
+- **Assertions poll; they never sleep a fixed time.** Use `waitFor` from
+  `web/e2e/lib.mjs` — it polls until the condition holds or a generous
+  timeout expires, and returns the last value so a failure reports real
+  state rather than a timeout:
+
+  ```js
+  check(
+    await waitFor(async () => !(await isBold(A, "general"))),
+    "A: opening the channel clears bold",
+  );
+  ```
+
+  A fixed `sleep` before a `check` is a coin flip weighted by machine
+  load, and nothing retries, so a missed deadline fails the whole run.
+  That is why `main` went red about half the time before 2026-09-11: four
+  of eight consecutive runs failed on a *different* shard each time, each
+  after passing on the branch. Sleeps that merely settle between two
+  actions are fine and remain.
+
+  One exception, and it matters: an assertion that something has **not**
+  happened, or has stayed unchanged, must not be wrapped — polling
+  returns the instant it is true, which is immediately, so the assertion
+  stops meaning anything. Those keep their sleep.
+
 - **Do not run any browser spec — `make e2e`, `scripts/e2e-scratch.sh` or
   `node e2e/run.mjs <spec>` — until the maintainer has reviewed the change
   on their running dev instance and said so.** Iterate with `make lint`, `make test`,

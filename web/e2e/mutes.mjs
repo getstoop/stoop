@@ -9,6 +9,7 @@ import {
   chromePath,
   gotoShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -105,15 +106,23 @@ await A.hover(".channel-row");
 await A.click(".channel-row .dots-menu-button");
 await sleep(300);
 check(
-  (
-    await A.$$eval(".dots-menu button", (es) => es.map((e) => e.textContent))
-  ).join(",") === "Mute,Copy link,Edit name,Add a topic,Delete channel",
+  await waitFor(
+    async () =>
+      (
+        await A.$$eval(".dots-menu button", (es) =>
+          es.map((e) => e.textContent),
+        )
+      ).join(",") === "Mute,Copy link,Edit name,Add a topic,Delete channel",
+  ),
   "owner's channel menu: Mute, Copy link, Edit name, Add a topic, Delete",
 );
 await A.keyboard.press("Escape");
 await sleep(200);
 check(await setMuted(A, true), "mute #general from the row menu");
-check(await generalHas(A, ".channel-link.muted"), "the muted row is dimmed");
+check(
+  await waitFor(() => generalHas(A, ".channel-link.muted")),
+  "the muted row is dimmed",
+);
 
 // A parks in #random so nothing in #general is read on arrival.
 for (const l of await A.$$(".channel-link"))
@@ -137,7 +146,9 @@ check(
 // A mention in a muted channel: activity yes, every other badge no.
 await mention(B, aName, "are you around?");
 check(
-  (await A.$(".space-pill.activity .pill-dot")) !== null,
+  await waitFor(
+    async () => (await A.$(".space-pill.activity .pill-dot")) !== null,
+  ),
   "a mention in a muted channel lights the activity pill's dot",
 );
 check(
@@ -151,21 +162,27 @@ check(
 await A.click(".space-pill.activity");
 await sleep(1200);
 check(
-  (await A.$eval(".activity-row", (e) => e.innerText)).includes(
-    "are you around?",
+  await waitFor(async () =>
+    (
+      await A.$eval(".activity-row", (e) => e.innerText).catch(() => "")
+    ).includes("are you around?"),
   ),
   "the mention is on the activity page all the same",
 );
 check(
-  (await A.$eval(".activity-page-header", (e) => e.innerText)).includes(
-    "1 unread",
+  await waitFor(async () =>
+    (
+      await A.$eval(".activity-page-header", (e) => e.innerText).catch(() => "")
+    ).includes("1 unread"),
   ),
   "and counts on the page header, which mutes never touch",
 );
 // The page lists without reading; clearing it is the header's button.
 await markAllRead(A);
 check(
-  (await A.$(".space-pill.activity .pill-dot")) === null,
+  await waitFor(
+    async () => (await A.$(".space-pill.activity .pill-dot")) === null,
+  ),
   "marking all read clears the pill's dot",
 );
 
@@ -179,11 +196,14 @@ await sleep(600);
 check(await setMuted(A, false), "unmute from the row menu");
 await mention(B, aName, "and a mention");
 check(
-  await generalHas(A, ".channel-badge"),
+  await waitFor(() => generalHas(A, ".channel-badge")),
   "after unmuting, the channel row badges the mention",
 );
 check(
-  (await A.$(".space-rail-list .space-pill .pill-badge")) !== null,
+  await waitFor(
+    async () =>
+      (await A.$(".space-rail-list .space-pill .pill-badge")) !== null,
+  ),
   "and so does the space pill",
 );
 
@@ -192,9 +212,14 @@ await B.hover(".channel-row");
 await B.click(".channel-row .dots-menu-button");
 await sleep(300);
 check(
-  (
-    await B.$$eval(".dots-menu button", (es) => es.map((e) => e.textContent))
-  ).join(",") === "Mute,Copy link",
+  await waitFor(
+    async () =>
+      (
+        await B.$$eval(".dots-menu button", (es) =>
+          es.map((e) => e.textContent),
+        )
+      ).join(",") === "Mute,Copy link",
+  ),
   "member's channel menu: Mute and Copy link",
 );
 await B.keyboard.press("Escape");
@@ -218,7 +243,9 @@ await A.goto(`${base}/activity`, { waitUntil: "networkidle0" });
 await sleep(1200);
 await markAllRead(A);
 check(
-  (await A.$(".space-pill.activity .pill-dot")) === null,
+  await waitFor(
+    async () => (await A.$(".space-pill.activity .pill-dot")) === null,
+  ),
   "the activity pill starts clean",
 );
 await A.goto(`${base}/profile`, { waitUntil: "networkidle0" });
@@ -234,7 +261,9 @@ check(
   "a message in a muted DM raises nothing on the DMs pill",
 );
 check(
-  (await A.$(".space-pill.activity .pill-dot")) !== null,
+  await waitFor(
+    async () => (await A.$(".space-pill.activity .pill-dot")) !== null,
+  ),
   "but the activity pill is dotted for it",
 );
 
@@ -295,7 +324,9 @@ check(
   "a mention in a muted channel raises no space badge on a tab that never opened the space",
 );
 check(
-  (await A2.$(".space-pill.activity .pill-dot")) !== null,
+  await waitFor(
+    async () => (await A2.$(".space-pill.activity .pill-dot")) !== null,
+  ),
   "and the activity pill is dotted for it all the same",
 );
 check((await notes()) === 0, "and no desktop banner fires for it");
@@ -304,9 +335,15 @@ check((await notes()) === 0, "and no desktop banner fires for it");
 await clickChannel(B, "random");
 await sleep(800);
 await mention(B, aName, "cold cache, unmuted");
-check((await notes()) === 1, "an unmuted channel does fire the banner");
 check(
-  (await A2.$(".space-rail-list .space-pill .pill-badge")) !== null,
+  await waitFor(async () => (await notes()) === 1),
+  "an unmuted channel does fire the banner",
+);
+check(
+  await waitFor(
+    async () =>
+      (await A2.$(".space-rail-list .space-pill .pill-badge")) !== null,
+  ),
   "and badges the space pill",
 );
 
@@ -364,7 +401,9 @@ await sleep(200);
 
 // The space's own surfaces.
 check(
-  (await A.$(".sidebar-header .space-muted-icon")) !== null,
+  await waitFor(
+    async () => (await A.$(".sidebar-header .space-muted-icon")) !== null,
+  ),
   "a muted bell appears beside the space name",
 );
 check(
@@ -374,7 +413,9 @@ check(
   "and it says Muted",
 );
 check(
-  (await A.$(".space-rail-list .space-pill.muted")) !== null,
+  await waitFor(
+    async () => (await A.$(".space-rail-list .space-pill.muted")) !== null,
+  ),
   "the space pill is dimmed",
 );
 check(
@@ -389,9 +430,14 @@ await A.hover(".channel-row");
 await A.click(".channel-row .dots-menu-button");
 await sleep(300);
 check(
-  (
-    await A.$$eval(".dots-menu button", (es) => es.map((e) => e.textContent))
-  )[0] === "Muted by space",
+  await waitFor(
+    async () =>
+      (
+        await A.$$eval(".dots-menu button", (es) =>
+          es.map((e) => e.textContent),
+        )
+      )[0] === "Muted by space",
+  ),
   "the channel menu's first item reads Muted by space",
 );
 check(
@@ -405,7 +451,9 @@ await sleep(200);
 
 // The other tab in the same context followed the mute over the wire.
 check(
-  (await A2.$(".space-rail-list .space-pill.muted")) !== null,
+  await waitFor(
+    async () => (await A2.$(".space-rail-list .space-pill.muted")) !== null,
+  ),
   "a second tab follows the space mute without a reload",
 );
 
@@ -436,7 +484,9 @@ check(
   "a mention there raises no badge on the space pill",
 );
 check(
-  (await A.$(".space-pill.activity .pill-dot")) !== null,
+  await waitFor(
+    async () => (await A.$(".space-pill.activity .pill-dot")) !== null,
+  ),
   "but it does light the activity pill's dot",
 );
 check((await notes()) === notesBefore, "and fires no desktop banner");
@@ -448,20 +498,29 @@ await A.click(".space-rail-list .space-pill");
 await sleep(1200);
 check(await pickSpaceMenu(A, "Unmute space"), "unmute the space from its menu");
 check(
-  (await A.$(".sidebar-header .space-muted-icon")) === null,
+  await waitFor(
+    async () => (await A.$(".sidebar-header .space-muted-icon")) === null,
+  ),
   "the muted bell goes",
 );
 check(
-  (await A.$(".space-rail-list .space-pill.muted")) === null,
+  await waitFor(
+    async () => (await A.$(".space-rail-list .space-pill.muted")) === null,
+  ),
   "and the pill is no longer dimmed",
 );
 await A.hover(".channel-row");
 await A.click(".channel-row .dots-menu-button");
 await sleep(300);
 check(
-  (
-    await A.$$eval(".dots-menu button", (es) => es.map((e) => e.textContent))
-  )[0] === "Mute",
+  await waitFor(
+    async () =>
+      (
+        await A.$$eval(".dots-menu button", (es) =>
+          es.map((e) => e.textContent),
+        )
+      )[0] === "Mute",
+  ),
   "the channel menu offers Mute again",
 );
 await A.keyboard.press("Escape");
@@ -474,11 +533,14 @@ await clickChannel(B, "general");
 await sleep(800);
 await mention(B, aName, "and the badges are back");
 check(
-  await generalHas(A, ".channel-badge"),
+  await waitFor(() => generalHas(A, ".channel-badge")),
   "after unmuting the space, the channel row badges the mention again",
 );
 check(
-  (await A.$(".space-rail-list .space-pill .pill-badge")) !== null,
+  await waitFor(
+    async () =>
+      (await A.$(".space-rail-list .space-pill .pill-badge")) !== null,
+  ),
   "and so does the space pill",
 );
 
@@ -541,7 +603,9 @@ check(
 // Unmuting the space clears it and reveals the channel mute underneath.
 check(await unmuteRow("Stoop HQ"), "Unmute the space from the list");
 check(
-  (await A.$(".space-rail-list .space-pill.muted")) === null,
+  await waitFor(
+    async () => (await A.$(".space-rail-list .space-pill.muted")) === null,
+  ),
   "the space pill is no longer dimmed",
 );
 const revealed = await muteLabels();
@@ -555,10 +619,13 @@ check(await unmuteRow("Stoop HQ ›"), "Unmute the channel");
 check(await unmuteRow("Book club"), "Unmute the other space's channel");
 check(await unmuteRow(bName), "Unmute the conversation");
 check(
-  (await A.$(".mute-list")) === null &&
-    (await A.$eval(".mutes-section", (e) => e.innerText)).includes(
-      "You haven't muted anything.",
-    ),
+  await waitFor(
+    async () =>
+      (await A.$(".mute-list")) === null &&
+      (
+        await A.$eval(".mutes-section", (e) => e.innerText).catch(() => "")
+      ).includes("You haven't muted anything."),
+  ),
   "with nothing muted the card says so",
 );
 

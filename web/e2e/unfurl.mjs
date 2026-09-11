@@ -6,7 +6,14 @@
 // inside code are not unfurled, and editing the link away drops the card.
 import { createServer } from "node:http";
 import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, png, reloadShared, sleep } from "./lib.mjs";
+import {
+  BASE as base,
+  chromePath,
+  png,
+  reloadShared,
+  sleep,
+  waitFor,
+} from "./lib.mjs";
 
 let fails = 0;
 const check = (ok, msg) => {
@@ -115,8 +122,11 @@ if (card?.image) {
 
 // Reload: the card comes from the list, not just the live event.
 await reloadShared(A, { waitUntil: "networkidle0" });
+check(
+  await waitFor(async () => (await cardOf(0))?.title === "Stoop & friends"),
+  "card survives a reload",
+);
 await sleep(800);
-check((await cardOf(0))?.title === "Stoop & friends", "card survives a reload");
 
 // A link inside code is left alone; a second message with the same link
 // shows the cached card immediately.
@@ -128,7 +138,7 @@ await A.type(".composer textarea", `same link ${siteUrl}/page`);
 await A.keyboard.press("Enter");
 await sleep(800);
 check(
-  (await cardOf(2))?.title === "Stoop & friends",
+  await waitFor(async () => (await cardOf(2))?.title === "Stoop & friends"),
   "cached preview appears on the next message",
 );
 

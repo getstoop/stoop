@@ -5,6 +5,7 @@ import {
   gotoShared,
   reloadShared,
   sleep,
+  waitFor,
 } from "./lib.mjs";
 
 let fails = 0;
@@ -41,6 +42,7 @@ const clickAction = async (p, index, label) => {
 // The chips on message `index`: [{ emoji, count, mine, title }].
 const chipsOf = async (p, index) => {
   const rows = await p.$$(".message");
+  if (!rows[index]) return [];
   return p.evaluate(
     (el) =>
       [...el.querySelectorAll(".reaction-chip")].map((c) => ({
@@ -135,23 +137,35 @@ check(
 );
 await B.click('.emoji-picker .emoji-common .emoji-option[title="thumbs up"]');
 await sleep(800);
-check((await B.$(".emoji-picker")) === null, "picker closes after picking");
-let chips = await chipsOf(B, 0);
 check(
-  chips.length === 1 &&
-    chips[0].emoji === "👍" &&
-    chips[0].count === 1 &&
-    chips[0].mine,
+  await waitFor(async () => (await B.$(".emoji-picker")) === null),
+  "picker closes after picking",
+);
+let chips;
+check(
+  await waitFor(async () => {
+    chips = await chipsOf(B, 0);
+    return (
+      chips.length === 1 &&
+      chips[0].emoji === "👍" &&
+      chips[0].count === 1 &&
+      chips[0].mine
+    );
+  }),
   "B sees her own 👍 chip, count 1, highlighted",
 );
 
 // A sees it live with B's name in the tooltip, not highlighted.
-chips = await chipsOf(A, 0);
 check(
-  chips.length === 1 &&
-    chips[0].emoji === "👍" &&
-    chips[0].count === 1 &&
-    !chips[0].mine,
+  await waitFor(async () => {
+    chips = await chipsOf(A, 0);
+    return (
+      chips.length === 1 &&
+      chips[0].emoji === "👍" &&
+      chips[0].count === 1 &&
+      !chips[0].mine
+    );
+  }),
   "A sees the chip live with count 1, not highlighted",
 );
 check(chips[0]?.title.includes(`bea${suffix}`), "tooltip names B");
@@ -159,9 +173,11 @@ check(chips[0]?.title.includes(`bea${suffix}`), "tooltip names B");
 // A adds the same emoji by clicking the chip: 2, highlighted for A, both named.
 await clickChip(A, 0, "👍");
 await sleep(800);
-chips = await chipsOf(A, 0);
 check(
-  chips[0]?.count === 2 && chips[0]?.mine,
+  await waitFor(async () => {
+    chips = await chipsOf(A, 0);
+    return chips[0]?.count === 2 && chips[0]?.mine;
+  }),
   "A's click makes it 2 and highlighted",
 );
 check(
@@ -169,35 +185,52 @@ check(
     chips[0]?.title.includes(`ada${suffix}`),
   "tooltip names both",
 );
-chips = await chipsOf(B, 0);
 check(
-  chips[0]?.count === 2 && chips[0]?.mine,
+  await waitFor(async () => {
+    chips = await chipsOf(B, 0);
+    return chips[0]?.count === 2 && chips[0]?.mine;
+  }),
   "B sees 2, still highlighted for her",
 );
 
 // A clicks again: back to 1, no longer A's.
 await clickChip(A, 0, "👍");
 await sleep(800);
-chips = await chipsOf(A, 0);
 check(
-  chips[0]?.count === 1 && !chips[0]?.mine,
+  await waitFor(async () => {
+    chips = await chipsOf(A, 0);
+    return chips[0]?.count === 1 && !chips[0]?.mine;
+  }),
   "A's second click removes hers",
 );
-chips = await chipsOf(B, 0);
-check(chips[0]?.count === 1 && chips[0]?.mine, "B sees 1, still hers");
+check(
+  await waitFor(async () => {
+    chips = await chipsOf(B, 0);
+    return chips[0]?.count === 1 && chips[0]?.mine;
+  }),
+  "B sees 1, still hers",
+);
 
 // Picker search finds an emoji by name; Enter picks the first match.
 await clickAction(A, 0, "Add reaction");
 await A.waitForSelector(".emoji-picker input", { timeout: 2000 });
 await A.type(".emoji-picker input", "rocket");
+let found = [];
+check(
+  await waitFor(async () => {
+    found = await pickerEmoji(A, "emoji-results");
+    return found[0] === "🚀";
+  }),
+  `search "rocket" finds 🚀 (got ${found.join("")})`,
+);
 await sleep(200);
-const found = await pickerEmoji(A, "emoji-results");
-check(found[0] === "🚀", `search "rocket" finds 🚀 (got ${found.join("")})`);
 await A.click(".emoji-picker input", { count: 3 });
 await A.type(".emoji-picker input", "flag canada");
 await sleep(200);
 check(
-  (await pickerEmoji(A, "emoji-results"))[0] === "🇨🇦",
+  await waitFor(
+    async () => (await pickerEmoji(A, "emoji-results"))[0] === "🇨🇦",
+  ),
   'search "flag canada" finds 🇨🇦 from the generated names',
 );
 await A.click(".emoji-picker input", { count: 3 });
@@ -205,9 +238,13 @@ await A.type(".emoji-picker input", "rocket");
 await sleep(200);
 await A.keyboard.press("Enter");
 await sleep(800);
-chips = await chipsOf(B, 0);
 check(
-  chips.length === 2 && chips.some((c) => c.emoji === "🚀" && c.count === 1),
+  await waitFor(async () => {
+    chips = await chipsOf(B, 0);
+    return (
+      chips.length === 2 && chips.some((c) => c.emoji === "🚀" && c.count === 1)
+    );
+  }),
   "B sees A's 🚀 arrive as a second chip",
 );
 
@@ -219,8 +256,11 @@ check(
   "A's recent row starts with 🚀",
 );
 await A.keyboard.press("Escape");
+check(
+  await waitFor(async () => (await A.$(".emoji-picker")) === null),
+  "Esc closes the picker",
+);
 await sleep(200);
-check((await A.$(".emoji-picker")) === null, "Esc closes the picker");
 await clickAction(B, 0, "Add reaction");
 await B.waitForSelector(".emoji-picker", { timeout: 2000 });
 const recentB = await pickerEmoji(B, "emoji-recent");
@@ -228,18 +268,22 @@ check(recentB.length === 1 && recentB[0] === "👍", "B's recent row is just �
 // Picking from recents toggles B's 👍 off; the chip goes away for both.
 await B.click(".emoji-picker .emoji-recent .emoji-option");
 await sleep(800);
-chips = await chipsOf(A, 0);
 check(
-  chips.length === 1 && chips[0].emoji === "🚀",
+  await waitFor(async () => {
+    chips = await chipsOf(A, 0);
+    return chips.length === 1 && chips[0].emoji === "🚀";
+  }),
   "removing the last 👍 drops the chip for A",
 );
 
 // Reactions survive a reload (list round-trip).
 await reloadShared(A, { waitUntil: "networkidle0" });
 await sleep(800);
-chips = await chipsOf(A, 0);
 check(
-  chips.length === 1 && chips[0].emoji === "🚀" && chips[0].mine,
+  await waitFor(async () => {
+    chips = await chipsOf(A, 0);
+    return chips.length === 1 && chips[0].emoji === "🚀" && chips[0].mine;
+  }),
   "reload shows the same chips, highlighted for A",
 );
 
