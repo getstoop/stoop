@@ -31,6 +31,98 @@ export function chromePath() {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Build the instance through the API instead of the browser (STOOP-234).
+// Driving the setup wizard and a signup form costs a spec about nine
+// seconds before its first assertion; the same state over RPC costs a
+// round trip each. Only specs whose subject *is* signing up — setup,
+// registration, invites, login-providers — should still use the UI.
+async function rpc(proc, body, token) {
+  const res = await fetch(`${BASE}/stoop.${proc}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  const out = await res.json();
+  if (!res.ok) throw new Error(`${proc}: ${res.status} ${JSON.stringify(out)}`);
+  return out;
+}
+
+// Registers the cast (the first account becomes the server admin), makes
+// one space owned by the first, renames its default channel and adds the
+// rest. Returns the tokens and ids the spec needs, plus the suffix that
+// keeps usernames unique across runs.
+export async function seed({
+  users = ["ada", "bea"],
+  space = "Stoop HQ",
+  channels = ["general", "random"],
+  password = "correct horse battery",
+} = {}) {
+  const suffix = String(Date.now() % 1000000);
+  const named = users.map((u) => `${u}${suffix}`);
+  const tokens = {};
+  const ids = {};
+  for (const [i, username] of named.entries()) {
+    await rpc(
+      "auth.v1.AuthService/Register",
+      { username, password },
+      i === 0 ? undefined : tokens[users[0]],
+    );
+    const login = await rpc("auth.v1.AuthService/Login", {
+      username,
+      password,
+    });
+    tokens[users[i]] = login.token;
+    ids[users[i]] = login.user.id;
+  }
+  const owner = tokens[users[0]];
+  const { space: made, defaultChannel } = await rpc(
+    "chat.v1.ChatService/CreateSpace",
+    { name: space },
+    owner,
+  );
+  const [first, ...rest] = channels;
+  const made_channels = { [first]: defaultChannel.id };
+  await rpc(
+    "chat.v1.ChatService/UpdateChannel",
+    { channelId: defaultChannel.id, name: first },
+    owner,
+  );
+  for (const name of rest) {
+    const { channel } = await rpc(
+      "chat.v1.ChatService/CreateChannel",
+      { spaceId: made.id, name, kind: "CHANNEL_KIND_TEXT" },
+      owner,
+    );
+    made_channels[name] = channel.id;
+  }
+  for (const u of users.slice(1)) {
+    await rpc(
+      "chat.v1.ChatService/AddMember",
+      { spaceId: made.id, userId: ids[u] },
+      owner,
+    );
+  }
+  return {
+    suffix,
+    tokens,
+    ids,
+    space: made,
+    channels: made_channels,
+    password,
+  };
+}
+
+// Puts a page straight into the app: the session token doubles as the
+// cookie value (auth.proto calls it "the opaque session token for
+// non-browser clients"), so there is no login form to drive.
+export async function signIn(page, token, path = "/") {
+  await page.setCookie({ name: "stoop_session", value: token, url: BASE });
+  await page.goto(`${BASE}${path}`, { waitUntil: "networkidle0" });
+}
+
 // One harness for every spec: the browser, the assertion counter, the page
 // factory and the exit code. A spec is then only its own scenario.
 // `launch` is merged over the defaults for the few specs needing a
