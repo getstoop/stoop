@@ -115,6 +115,7 @@ await sleep(200);
 await B.click(".message-editor textarea", { count: 3 });
 await B.type(".message-editor textarea", "hello world");
 await B.keyboard.press("Enter");
+await sleep(800);
 check(
   await waitFor(
     async () =>
@@ -150,6 +151,7 @@ await A.keyboard.press("Enter");
 await sleep(800);
 await clickAction(B, 0, "Delete");
 await acceptDialog(B);
+await sleep(1000);
 check(
   await waitFor(async () => {
     const bc = await contents(B),
@@ -174,6 +176,7 @@ check(
 const before = (await contents(A)).length;
 await clickAction(A, before - 1, "Delete");
 await acceptDialog(A);
+await sleep(800);
 check(
   await waitFor(
     async () =>

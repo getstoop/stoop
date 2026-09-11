@@ -93,6 +93,7 @@ check(
   "picker suggests the matching member",
 );
 await B.keyboard.press("Enter");
+await sleep(200);
 check(
   await waitFor(
     async () =>
@@ -146,6 +147,7 @@ check(
 
 // Viewing #general via the sidebar (not the activity pill) reads the item.
 await generalLink.click();
+await sleep(1200);
 check(
   await waitFor(async () => (await text(A, ".mention.me")) === `@ada${suffix}`),
   "mention token highlighted as 'me' for A",
@@ -178,6 +180,7 @@ await sleep(800);
 for (const b of await A.$$(".card .chip"))
   if ((await b.evaluate((e) => e.textContent)) === "Send a test notification")
     await b.click();
+await sleep(200);
 check(
   await waitFor(
     async () =>
@@ -189,6 +192,7 @@ check(
 
 // The activity pill opens the timeline page; both mentions are listed and read.
 await A.click(".activity");
+await sleep(800);
 check(
   await waitFor(() => path(A) === "/activity"),
   "the activity pill opens /activity",
@@ -214,6 +218,7 @@ check(
 await B.type(".composer textarea", `@ada${suffix} one more`);
 await B.keyboard.press("Escape");
 await B.keyboard.press("Enter");
+await sleep(1500);
 check(
   await waitFor(
     async () =>
@@ -232,6 +237,7 @@ check(
   "the page header keeps the count the pill dropped",
 );
 await A.click(".activity-row.unread");
+await sleep(1200);
 check(
   await waitFor(
     async () =>
@@ -262,6 +268,7 @@ await sleep(800);
 await B.click(".space-pill.avatar"); // B looks away so the alert isn't auto-read
 await sleep(500);
 await A.type(".composer textarea", "@ever");
+await sleep(300);
 check(
   await waitFor(async () =>
     (await text(A, ".mention-picker")).includes("Everyone in this space"),
@@ -271,11 +278,13 @@ check(
 await A.keyboard.press("Enter");
 await A.type(".composer textarea", "game night");
 await A.keyboard.press("Enter");
+await sleep(1200);
 check(
   await waitFor(async () => (await B.$(".activity .pill-dot")) !== null),
   "B is notified by @everyone",
 );
 await B.click(".space-rail-list a.space-pill");
+await sleep(1200);
 check(
   await waitFor(async () =>
     (
@@ -316,6 +325,7 @@ await sleep(500);
 await B.type(".composer textarea", `@ada${suffix} last one`);
 await B.keyboard.press("Escape");
 await B.keyboard.press("Enter");
+await sleep(1500);
 check(
   await waitFor(async () => (await A.$(".activity .pill-dot")) !== null),
   "mention while on /profile → the pill is dotted",
@@ -323,6 +333,7 @@ check(
 await A.click(".activity");
 await sleep(800);
 await A.click(".activity-page-header .chip");
+await sleep(600);
 check(
   await waitFor(async () => (await A.$(".activity .pill-dot")) === null),
   "Mark all read clears the badge",

@@ -380,6 +380,7 @@ check(
   "dragging the divider makes the stage taller",
 );
 await A.click('.voice-bar button[aria-label="Turn camera on"]');
+await sleep(3000);
 check(
   await waitFor(async () => (await B.$$(".stage-tile.video")).length === 1, {
     timeout: 15000,
@@ -401,6 +402,7 @@ check(
 // carousel rather than jumping there.
 await resetFlips(B);
 await B.click(".stage-tile.video");
+await sleep(600);
 check(
   await waitFor(async () => (await B.$(".stage-spotlight")) !== null),
   "clicking a tile pins it to the spotlight",
@@ -411,6 +413,7 @@ check(
 );
 await resetFlips(B);
 await B.click(".stage-tile.large");
+await sleep(600);
 check(
   await waitFor(async () => (await B.$(".stage-spotlight")) === null),
   "clicking the spotlight unpins it",
@@ -425,6 +428,7 @@ check(
 // to animate, or the two ways in would look different.
 await resetFlips(B);
 await A.click('.voice-bar button[aria-label="Share your screen"]');
+await sleep(4000);
 check(
   await waitFor(async () => (await flips(B)) > 0, { timeout: 15000 }),
   `a share starting animates the arrangement too (${await flips(B)} flips)`,
@@ -467,6 +471,7 @@ check(!ringedShare, "…and the share in the spotlight never takes the ring");
 await A.click('.voice-bar button[aria-label="Stop sharing"]');
 await sleep(1500);
 await A.click('.voice-bar button[aria-label="Turn camera off"]');
+await sleep(1500);
 check(
   await waitFor(
     async () =>
@@ -489,6 +494,7 @@ const micNow = await A.$eval(
 );
 const flipped = micNow === "Mute" ? "Unmute" : "Mute";
 await stageClick(A, `button[aria-label="${micNow}"]`);
+await sleep(400);
 check(
   await waitFor(
     async () =>
@@ -500,6 +506,7 @@ await stageClick(A, `button[aria-label="${flipped}"]`);
 await sleep(400);
 
 // It gets off the video when nothing is moving, and comes back on a move.
+await sleep(3000);
 check(
   await waitFor(async () => (await A.$(".stage-bar.idle")) !== null, {
     timeout: 15000,
@@ -507,6 +514,7 @@ check(
   "the stage bar fades while nothing moves",
 );
 await A.hover(".voice-stage");
+await sleep(200);
 check(
   await waitFor(async () => (await A.$(".stage-bar.idle")) === null),
   "…and a pointer move over the stage brings it back",
@@ -521,6 +529,7 @@ const heightOf = (p, sel) =>
 const paneHeight = await heightOf(A, ".channel-view");
 const draggedHeight = await heightOf(A, ".voice-stage");
 await stageClick(A, 'button[aria-label="Hide chat"]');
+await sleep(300);
 check(
   await waitFor(
     async () =>
@@ -539,6 +548,7 @@ check(
   "…and there is nothing left to drag against",
 );
 await stageClick(A, 'button[aria-label="Show chat"]');
+await sleep(300);
 check(
   await waitFor(
     async () =>

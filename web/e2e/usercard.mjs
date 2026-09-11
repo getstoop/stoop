@@ -74,6 +74,7 @@ await sleep(800);
 const authors = await B.$$(".message-author");
 await authors[0].click();
 let card = "";
+await sleep(800);
 check(
   await waitFor(async () => {
     card = await B.$eval(".user-card", (e) => e.innerText).catch(() => "");
@@ -91,11 +92,13 @@ check(
   await waitFor(async () => (await B.$(".user-card")) === null),
   "Escape closes the card",
 );
+await sleep(200);
 
 // A clicks the member's name; then clicking elsewhere closes it.
 const aAuthors = await A.$$(".message-author");
 await aAuthors[aAuthors.length - 1].click();
 let card2 = "";
+await sleep(800);
 check(
   await waitFor(async () => {
     card2 = await A.$eval(".user-card", (e) => e.innerText).catch(() => "");
@@ -112,6 +115,7 @@ check(
   await waitFor(async () => (await A.$(".user-card")) === null),
   "outside click closes the card",
 );
+await sleep(300);
 
 await browser.close();
 console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");

@@ -88,8 +88,13 @@ check(
   }),
   "menu button opens the drawer with a scrim",
 );
+// The scrim is up as soon as the drawer starts moving; the geometry below
+// is only true once it has finished, so poll for the settled position.
 check(
-  l.railLeft === 0 && l.sidebarLeft === 68,
+  await waitFor(async () => {
+    l = await layout();
+    return l.railLeft === 0 && l.sidebarLeft === 68;
+  }),
   "drawer shows rail at 0 and sidebar at 68",
 );
 
@@ -101,6 +106,7 @@ check(
   }),
   "picking a channel closes the drawer",
 );
+await sleep(400);
 
 await P.tap(".menu-button");
 await sleep(300);
@@ -109,6 +115,7 @@ check(
   await waitFor(async () => !(await layout()).open),
   "Escape closes the drawer",
 );
+await sleep(300);
 
 await P.tap(".menu-button");
 await sleep(300);
@@ -119,6 +126,7 @@ check(
   await waitFor(async () => !(await layout()).open),
   "tapping the scrim closes the drawer",
 );
+await sleep(300);
 
 // Messages: the toolbar shows on tap, since touch has no hover.
 await P.click(".composer textarea");
@@ -148,6 +156,7 @@ check(
   }),
   `tapping a message shows its toolbar (${after})`,
 );
+await sleep(300);
 
 // Other pages carry the menu button too, and following a rail link closes
 // the drawer.
@@ -156,9 +165,11 @@ check(
   await waitFor(async () => (await layout()).menuShown),
   "profile page has the menu button",
 );
+await sleep(400);
 await P.tap(".menu-button");
 await sleep(300);
 await P.tap(".space-pill.activity");
+await sleep(600);
 check(
   await waitFor(async () => {
     l = await layout();

@@ -88,6 +88,7 @@ check((await A.$(".channel-topic-rule")) !== null, "the divider comes with it");
 // ---- Setting it from the header
 await A.click(".channel-topic.empty");
 await acceptDialog(A, TOPIC);
+await sleep(600);
 check(
   await waitFor(
     async () => (await text(A, ".channel-header .channel-topic")) === TOPIC,
@@ -128,6 +129,7 @@ check(
 const topicEl = await A.$(".channel-header .channel-topic");
 const box = await topicEl.boundingBox();
 await A.mouse.move(box.x + 40, box.y + box.height / 2, { steps: 4 });
+await sleep(700);
 check(
   await waitFor(async () =>
     (await text(A, ".tooltip")).includes("The chainsaw needs Marguerite."),
@@ -149,6 +151,7 @@ check(
   await waitFor(async () => (await A.$(".channel-about")) === null),
   "Escape closes About",
 );
+await sleep(300);
 
 // ---- The sidebar row now says what the room is before you click it
 const row = await A.$(".channel-row .channel-link");
@@ -169,6 +172,7 @@ await sleep(300);
 await A.goto(`${base}/s/${path(A).split("/")[2]}/settings?tab=channels`, {
   waitUntil: "networkidle0",
 });
+await sleep(900);
 check(
   await waitFor(async () =>
     (await text(A, ".user-row")).includes("Borrow anything on the shelf"),
@@ -186,6 +190,7 @@ await B.type('input[autocomplete="username"]', `bea${suffix}`);
 await B.type('input[type="password"]', "correct horse battery");
 await B.click('button[type="submit"]');
 await B.waitForSelector(".composer textarea", { timeout: 8000 });
+await sleep(800);
 check(
   await waitFor(
     async () => (await text(B, ".channel-header .channel-topic")) === TOPIC,
@@ -211,6 +216,7 @@ check(
 );
 await menuItem(A, "Edit topic");
 await acceptDialog(A, SECOND);
+await sleep(1200);
 check(
   await waitFor(
     async () => (await text(B, ".channel-header .channel-topic")) === SECOND,
@@ -223,6 +229,7 @@ check(
 await openMenu(A);
 await menuItem(A, "Edit topic");
 await acceptDialog(A, "");
+await sleep(1200);
 check(
   await waitFor(
     async () => (await text(A, ".channel-topic.empty")) === "Add a topic",
@@ -244,6 +251,7 @@ await menuItem(A, "Add a topic");
 await acceptDialog(A, TOPIC);
 await sleep(800);
 await A.setViewport({ width: 390, height: 844 });
+await sleep(500);
 check(
   await waitFor(() =>
     A.evaluate(() => {

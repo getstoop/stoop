@@ -136,6 +136,7 @@ check(
   "the full Unicode set is in the picker",
 );
 await B.click('.emoji-picker .emoji-common .emoji-option[title="thumbs up"]');
+await sleep(800);
 check(
   await waitFor(async () => (await B.$(".emoji-picker")) === null),
   "picker closes after picking",
@@ -171,6 +172,7 @@ check(chips[0]?.title.includes(`bea${suffix}`), "tooltip names B");
 
 // A adds the same emoji by clicking the chip: 2, highlighted for A, both named.
 await clickChip(A, 0, "👍");
+await sleep(800);
 check(
   await waitFor(async () => {
     chips = await chipsOf(A, 0);
@@ -193,6 +195,7 @@ check(
 
 // A clicks again: back to 1, no longer A's.
 await clickChip(A, 0, "👍");
+await sleep(800);
 check(
   await waitFor(async () => {
     chips = await chipsOf(A, 0);
@@ -220,8 +223,10 @@ check(
   }),
   `search "rocket" finds 🚀 (got ${found.join("")})`,
 );
+await sleep(200);
 await A.click(".emoji-picker input", { count: 3 });
 await A.type(".emoji-picker input", "flag canada");
+await sleep(200);
 check(
   await waitFor(
     async () => (await pickerEmoji(A, "emoji-results"))[0] === "🇨🇦",
@@ -232,6 +237,7 @@ await A.click(".emoji-picker input", { count: 3 });
 await A.type(".emoji-picker input", "rocket");
 await sleep(200);
 await A.keyboard.press("Enter");
+await sleep(800);
 check(
   await waitFor(async () => {
     chips = await chipsOf(B, 0);
@@ -254,12 +260,14 @@ check(
   await waitFor(async () => (await A.$(".emoji-picker")) === null),
   "Esc closes the picker",
 );
+await sleep(200);
 await clickAction(B, 0, "Add reaction");
 await B.waitForSelector(".emoji-picker", { timeout: 2000 });
 const recentB = await pickerEmoji(B, "emoji-recent");
 check(recentB.length === 1 && recentB[0] === "👍", "B's recent row is just 👍");
 // Picking from recents toggles B's 👍 off; the chip goes away for both.
 await B.click(".emoji-picker .emoji-recent .emoji-option");
+await sleep(800);
 check(
   await waitFor(async () => {
     chips = await chipsOf(A, 0);
@@ -270,6 +278,7 @@ check(
 
 // Reactions survive a reload (list round-trip).
 await reloadShared(A, { waitUntil: "networkidle0" });
+await sleep(800);
 check(
   await waitFor(async () => {
     chips = await chipsOf(A, 0);

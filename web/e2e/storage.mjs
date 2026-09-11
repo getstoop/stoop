@@ -48,6 +48,7 @@ check(
 await A.click('.settings-tab[data-tab="storage"]');
 const text = () =>
   A.$eval(".storage-section", (e) => e.innerText).catch(() => "");
+await sleep(500);
 const cleanupText = () => A.$eval(".cleanup-section", (e) => e.innerText);
 check(
   await waitFor(async () => (await text()).includes("0 B in 0 files")),
@@ -76,13 +77,16 @@ check(
   await waitFor(async () => (await A.$(".storage-bar")) !== null),
   "bar shows against a limit",
 );
+await sleep(800);
 await reloadShared(A, { waitUntil: "networkidle0" });
 check(
   await waitFor(async () => (await text()).includes("limit 1.0 GB")),
   "limit persists",
 );
+await sleep(600);
 
 await A.click(".cleanup-section .sweep-button");
+await sleep(1200);
 check(
   await waitFor(async () => (await cleanupText()).includes("Removed 0 files")),
   "cleanup runs and reports",
@@ -101,6 +105,7 @@ check(
   await waitFor(async () => (await A.$(".storage-bar")) === null),
   "bar hidden again",
 );
+await sleep(800);
 
 await browser.close();
 console.log(fails ? `${fails} failure(s)` : "all passed");

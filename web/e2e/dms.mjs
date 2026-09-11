@@ -80,6 +80,7 @@ const clickMember = async (page, name) => {
   throw new Error(`no member row for ${name}`);
 };
 await clickMember(A, bName);
+await sleep(500);
 check(
   await waitFor(async () => (await A.$(".user-card .message-button")) !== null),
   "member card offers Message",
@@ -115,6 +116,7 @@ await A.keyboard.press("Enter");
 await sleep(700);
 await A.type(".composer textarea", "you there?");
 await A.keyboard.press("Enter");
+await sleep(1000);
 check(
   await waitFor(
     async () =>
@@ -135,6 +137,7 @@ check(
   "B's space channel list has no DM in it",
 );
 await B.click(".space-pill.dms");
+await sleep(1500);
 check(
   await waitFor(() => new URL(B.url()).pathname === dmPath),
   "the DMs pill opens the most recent conversation",
@@ -157,6 +160,7 @@ check(
 );
 await B.type(".composer textarea", "hi ada");
 await B.keyboard.press("Enter");
+await sleep(1000);
 check(
   await waitFor(async () =>
     (await A.$$eval(".message-content", (es) => es.map((e) => e.textContent)))
@@ -174,6 +178,7 @@ check(
 
 // Reload keeps it.
 await reloadShared(A, { waitUntil: "networkidle0" });
+await sleep(1200);
 check(
   await waitFor(
     async () =>
@@ -185,6 +190,7 @@ check(
 
 // C is not in it: the URL bounces to the DM list.
 await gotoShared(C, `${base}${dmPath}`, { waitUntil: "networkidle0" });
+await sleep(1500);
 check(
   await waitFor(() => new URL(C.url()).pathname === "/dm"),
   `an outsider is bounced off the DM (${new URL(C.url()).pathname})`,

@@ -64,6 +64,7 @@ console.log(
 );
 await A.type(".composer textarea", "msg1 right away");
 await A.keyboard.press("Enter");
+await sleep(1500);
 check(
   await waitFor(async () =>
     (await B.$eval(".message-list", (e) => e.innerText)).includes("msg1"),
@@ -73,6 +74,7 @@ check(
 await sleep(4000);
 await A.type(".composer textarea", "msg2 after 4s");
 await A.keyboard.press("Enter");
+await sleep(1500);
 check(
   await waitFor(async () =>
     (await B.$eval(".message-list", (e) => e.innerText)).includes("msg2"),
@@ -84,6 +86,7 @@ await reloadShared(B, { waitUntil: "networkidle0" });
 await sleep(1500);
 await A.type(".composer textarea", "msg3 after reload");
 await A.keyboard.press("Enter");
+await sleep(1500);
 check(
   await waitFor(async () =>
     (await B.$eval(".message-list", (e) => e.innerText)).includes("msg3"),

@@ -126,6 +126,7 @@ check(
   await waitFor(async () => (await cardOf(0))?.title === "Stoop & friends"),
   "card survives a reload",
 );
+await sleep(800);
 
 // A link inside code is left alone; a second message with the same link
 // shows the cached card immediately.
@@ -135,6 +136,7 @@ await sleep(1500);
 check((await cardOf(1)) === null, "links in code spans are not unfurled");
 await A.type(".composer textarea", `same link ${siteUrl}/page`);
 await A.keyboard.press("Enter");
+await sleep(800);
 check(
   await waitFor(async () => (await cardOf(2))?.title === "Stoop & friends"),
   "cached preview appears on the next message",

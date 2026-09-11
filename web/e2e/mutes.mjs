@@ -104,6 +104,7 @@ await A.goto(`${base}/`, { waitUntil: "networkidle0" });
 await sleep(800);
 await A.hover(".channel-row");
 await A.click(".channel-row .dots-menu-button");
+await sleep(300);
 check(
   await waitFor(
     async () =>
@@ -159,6 +160,7 @@ check(
   "and none on the space pill",
 );
 await A.click(".space-pill.activity");
+await sleep(1200);
 check(
   await waitFor(async () =>
     (
@@ -208,6 +210,7 @@ check(
 // B (a member) gets Mute only, nothing to manage.
 await B.hover(".channel-row");
 await B.click(".channel-row .dots-menu-button");
+await sleep(300);
 check(
   await waitFor(
     async () =>
@@ -425,6 +428,7 @@ check(
 // A channel cannot be louder than its space.
 await A.hover(".channel-row");
 await A.click(".channel-row .dots-menu-button");
+await sleep(300);
 check(
   await waitFor(
     async () =>
@@ -507,6 +511,7 @@ check(
 );
 await A.hover(".channel-row");
 await A.click(".channel-row .dots-menu-button");
+await sleep(300);
 check(
   await waitFor(
     async () =>

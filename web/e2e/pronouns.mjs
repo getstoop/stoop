@@ -74,6 +74,7 @@ check(
 );
 // It survives a reload: the fields came from the server, not local state.
 await reloadShared(A, { waitUntil: "networkidle0" });
+await sleep(800);
 check(
   await waitFor(
     async () =>
@@ -154,6 +155,7 @@ check(
   ),
   "member's pronouns show on their card",
 );
+await sleep(300);
 check(
   (await A.$(".user-card .user-card-bio")) === null,
   "a card with no bio has no bio row, not an empty state",

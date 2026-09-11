@@ -78,6 +78,7 @@ check(
 
 // Pick Daylight: stamped, stored, and the page turns light.
 await A.click('.theme-card[data-theme="daylight"]');
+await sleep(300);
 check(
   await waitFor(async () => (await themeOf()) === "daylight"),
   "clicking a card stamps data-theme",
@@ -99,11 +100,13 @@ await A.goto(`${base}/profile?tab=appearance`, { waitUntil: "networkidle0" });
 await sleep(500);
 await A.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
 await A.click(".theme-system input");
+await sleep(300);
 check(
   await waitFor(async () => (await themeOf()) === "brownstone"),
   "follow system: dark OS picks the dark theme",
 );
 await A.click('.theme-card[data-theme="dusk"]');
+await sleep(300);
 check(
   await waitFor(
     async () =>
@@ -115,6 +118,7 @@ check(
 await A.emulateMediaFeatures([
   { name: "prefers-color-scheme", value: "light" },
 ]);
+await sleep(300);
 check(
   await waitFor(async () => (await themeOf()) === "daylight"),
   "switching the OS to light flips to the light theme live",

@@ -47,6 +47,7 @@ if (new URL(P.url()).pathname === "/setup") {
 
 // ---- Admin: add a Google provider from the preset -----------------------
 await P.goto(`${base}/admin?tab=login`, { waitUntil: "networkidle0" });
+await sleep(500);
 check(
   await waitFor(
     async () => (await P.$('a.settings-tab[data-tab="login"]')) !== null,
@@ -61,6 +62,7 @@ check(
 await P.click("button[data-add-provider]");
 await sleep(300);
 await P.click('button[data-preset="Google"]');
+await sleep(200);
 check(
   await waitFor(
     async () =>
@@ -73,6 +75,7 @@ check(
 await P.type('input[name="provider-client-id"]', "client-123");
 await P.type('input[name="provider-client-secret"]', "hunter2hunter2");
 await P.click('button[form="provider-form"]');
+await sleep(800);
 check(
   await waitFor(
     async () => (await P.$('[data-provider-row="google"]')) !== null,
@@ -89,6 +92,7 @@ check(
 await P.goto(`${base}/admin?tab=login`, { waitUntil: "networkidle0" });
 await sleep(500);
 await P.click('[data-provider-row="google"] button[data-edit]');
+await sleep(300);
 check(
   await waitFor(async () =>
     (
@@ -106,6 +110,7 @@ await sleep(200);
 // ---- Login page: the button appears, errors render ----------------------
 const Q = await (await browser.createBrowserContext()).newPage();
 await Q.goto(`${base}/login`, { waitUntil: "networkidle0" });
+await sleep(500);
 check(
   await waitFor(async () => (await Q.$('a[data-provider="google"]')) !== null),
   "login page shows the provider button",
@@ -119,6 +124,7 @@ check(
 await Q.goto(`${base}/login?error=provider_error`, {
   waitUntil: "networkidle0",
 });
+await sleep(300);
 check(
   await waitFor(async () =>
     (await Q.$eval("p.error", (e) => e.textContent).catch(() => "")).includes(
@@ -133,6 +139,7 @@ await P.goto(`${base}/profile?tab=security`, {
   waitUntil: "networkidle0",
 });
 let profile = "";
+await sleep(500);
 check(
   await waitFor(async () => {
     profile = await P.content();

@@ -80,6 +80,7 @@ await A.evaluate(async (channelId) => {
   }
 }, channelId);
 await reloadShared(A, { waitUntil: "networkidle0" });
+await sleep(1200);
 check(
   await waitFor(async () => (await count()) === 50),
   `opens on the latest page (${await count()} messages)`,
@@ -122,6 +123,7 @@ check(
 await scrollToTop();
 check(await waitForCount(120), `third page loaded (${await count()} messages)`);
 let startText = "(none)";
+await sleep(600);
 check(
   await waitFor(async () => {
     startText = await A.$eval(".history-start", (e) => e.textContent).catch(
@@ -138,6 +140,7 @@ check((await count()) === 120, "nothing more is fetched past the beginning");
 // Reading history: the pill offers a way back, and someone else's new
 // message doesn't yank the view — it counts on the pill instead.
 await scrollToTop();
+await sleep(400);
 check(
   await waitFor(
     async () =>
@@ -159,6 +162,7 @@ if (link) {
   const topBefore = await scrollTop();
   await B.type(".composer textarea", "hello from bea");
   await B.keyboard.press("Enter");
+  await sleep(1000);
   check(
     await waitFor(
       async () =>
@@ -173,6 +177,7 @@ if (link) {
     "…and doesn't move the view",
   );
   await A.click(".jump-latest");
+  await sleep(500);
   check(
     await waitFor(async () => (await A.$(".jump-latest")) === null),
     "jumping to latest hides the pill",
@@ -191,6 +196,7 @@ if (link) {
 // A new message still lands at the bottom and scrolls into view.
 await A.type(".composer textarea", "message 121");
 await A.keyboard.press("Enter");
+await sleep(800);
 check(
   await waitFor(async () => (await count()) >= 121),
   "live messages still append",

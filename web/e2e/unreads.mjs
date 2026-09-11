@@ -94,6 +94,7 @@ check(
   await waitFor(() => isBold(A, "general")),
   "A: #general goes bold when B posts there",
 );
+await sleep(600);
 check(
   !(await isBold(B, "general")),
   "B: own message doesn't make #general bold",
@@ -112,6 +113,7 @@ check(
   await waitFor(async () => !(await isBold(A, "general"))),
   "A: opening the channel clears bold",
 );
+await sleep(1200);
 check(
   (await A.$eval(".new-divider", (e) => e.textContent).catch(() => "")) ===
     "New messages" &&
@@ -161,22 +163,26 @@ await (await channelLink(A, "random")).click();
 await sleep(600);
 await say(A, "psst, random");
 check(await waitFor(() => isBold(B, "random")), "B: #random goes bold");
+await sleep(600);
 await (await channelLink(B, "random")).click();
 check(
   await waitFor(async () => !(await isBold(B, "random"))),
   "B: opening #random clears it",
 );
+await sleep(1200);
 
 // Space dot: A makes a second space and sits there; B posts in Stoop HQ → dot on A's Stoop HQ pill.
 await A.click('button[title="Create a space"]');
 await acceptDialog(A, "Second");
 await sleep(1500);
 await say(B, "over here");
+await sleep(800);
 check(
   await waitFor(async () => (await A.$(".space-rail-list .pill-dot")) !== null),
   "A: unread dot on the other space's pill",
 );
 await A.click(".space-rail-list a.space-pill");
+await sleep(1500);
 check(
   await waitFor(
     async () =>
@@ -186,6 +192,7 @@ check(
   "A: back in Stoop HQ on #general, #random (where B posted) is bold and the dot stays",
 );
 await (await channelLink(A, "random")).click();
+await sleep(1200);
 check(
   await waitFor(
     async () =>

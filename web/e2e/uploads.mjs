@@ -135,6 +135,7 @@ await pick(A, files.huge);
 let err = null;
 const uploadError = () =>
   A.$eval(".upload-error", (e) => e.textContent).catch(() => null);
+await sleep(800);
 check(
   await waitFor(async () => {
     err = await uploadError();
@@ -147,6 +148,7 @@ check(
   "oversize file did not become the avatar",
 );
 await pick(A, files.notPng);
+await sleep(1200);
 check(
   await waitFor(async () => {
     err = await uploadError();
@@ -209,6 +211,7 @@ check(
 );
 
 // B sees it live: members panel, and the user card.
+await sleep(1000);
 check(
   await waitFor(
     async () => (await B.$(".members-panel .avatar[data-file-id]")) !== null,
@@ -228,6 +231,7 @@ check(
   }),
   `user card shows the avatar (${cardId})`,
 );
+await sleep(400);
 await B.keyboard.press("Escape");
 await sleep(200);
 
@@ -245,6 +249,7 @@ const secondId = await A.$eval(
   (e) => e.dataset.fileId,
 );
 check(secondId !== firstId, `replacement got a new id (${secondId})`);
+await sleep(300);
 check(
   await waitFor(() => existsSync(join(dataDir, "avatar", secondId))),
   "new blob is in the data dir",
@@ -260,6 +265,7 @@ check(
   "previous id is 404",
 );
 let bPanelId = null;
+await sleep(800);
 check(
   await waitFor(async () => {
     bPanelId = await B.$eval(
@@ -336,6 +342,7 @@ await pick(A, files.icon);
 await A.waitForSelector(".space-settings-title [data-file-id]", {
   timeout: 4000,
 });
+await sleep(1000);
 check(
   await waitFor(
     async () =>

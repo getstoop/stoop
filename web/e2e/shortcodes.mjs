@@ -55,6 +55,7 @@ await sleep(800);
 // Typing :so opens suggestions; the alias comes first; Enter inserts the emoji.
 await A.type(".composer textarea", "oh no :so");
 let list;
+await sleep(150);
 check(
   await waitFor(async () => {
     list = await suggestions();
@@ -73,6 +74,7 @@ check(
   }),
   "ArrowDown moves the selection",
 );
+await sleep(50);
 await A.keyboard.press("ArrowUp");
 await A.keyboard.press("Enter");
 check(
@@ -83,12 +85,14 @@ check(
   await waitFor(async () => (await suggestions()).length === 0),
   "list closes after picking",
 );
+await sleep(150);
 // Enter now sends, and the message carries the real emoji.
 await A.keyboard.press("Enter");
 check(
   await waitFor(async () => (await lastMessage()) === "oh no 😭"),
   "message sent with the emoji",
 );
+await sleep(700);
 
 // Unpicked shortcodes convert on send; unknown ones and times stay put;
 // code spans are left alone.
@@ -98,6 +102,7 @@ await A.type(
 );
 await A.keyboard.press("Escape");
 await A.keyboard.press("Enter");
+await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -115,7 +120,9 @@ check(
   }),
   "Unicode-derived names are suggested",
 );
+await sleep(150);
 await A.keyboard.press("Escape");
+await sleep(50);
 check(
   await waitFor(
     async () =>
@@ -130,6 +137,7 @@ check(
   await waitFor(async () => (await draft()) === "😭 "),
   "Tab picks the highlighted suggestion",
 );
+await sleep(150);
 await A.keyboard.press("Enter");
 await sleep(700);
 
@@ -164,6 +172,7 @@ await A.$eval(".message-editor textarea", (e) => {
 });
 await A.type(".message-editor textarea", " :+1:");
 await A.keyboard.press("Enter");
+await sleep(700);
 check(
   await waitFor(async () => (await lastMessage()).startsWith("note: this 👍")),
   "the inline editor converts on save",

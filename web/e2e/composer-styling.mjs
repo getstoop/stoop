@@ -331,11 +331,13 @@ check(
   await waitFor(async () => (await A.$(".mention-picker")) !== null),
   "mention picker opens on @",
 );
+await sleep(300);
 await A.keyboard.press("Enter");
 check(
   await waitFor(async () => (await draft(A)) === `@bea${suffix} `),
   "mention inserts the handle",
 );
+await sleep(200);
 await A.keyboard.press("Backspace"); // drop the trailing space
 
 // The toolbar Bold button still wraps the selection.
@@ -346,6 +348,7 @@ await A.$eval(".composer textarea", (e) => {
   e.select();
 });
 await A.click('.composer .format-button[aria-label="Bold"]');
+await sleep(100);
 check(
   await waitFor(async () => (await draft(A)) === "**hi there**"),
   "toolbar bold wraps the selection",

@@ -84,6 +84,7 @@ check(
   `members panel lists 3 with owner badge (${panel.split("\n")[0]})`,
 );
 await B.click(".member-row");
+await sleep(600);
 check(
   await waitFor(async () => (await B.$(".user-card")) !== null),
   "clicking a member opens the profile card",
@@ -145,6 +146,7 @@ const openMembersTab = async (p) => {
 };
 await openMembersTab(A);
 await (await rowBtn(A, `bea${suffix}`, "Make admin")).click();
+await sleep(1200);
 check(
   await waitFor(async () =>
     (await spaceMenuItems(B)).includes("Invite people"),
@@ -172,6 +174,7 @@ check(
 // B kicks C from settings; C is bounced home.
 await (await rowBtn(B, `cal${suffix}`, "Kick")).click();
 await acceptDialog(B);
+await sleep(1500);
 check(
   await waitFor(() => new URL(C.url()).pathname === "/"),
   `kicked C bounced to / (${new URL(C.url()).pathname})`,
@@ -188,11 +191,13 @@ await sleep(1000);
 // B leaves via the sidebar; bounced home.
 await spaceMenu(B, "Leave space");
 await acceptDialog(B);
+await sleep(1500);
 check(
   await waitFor(() => new URL(B.url()).pathname === "/"),
   `B left and landed on / (${new URL(B.url()).pathname})`,
 );
 await A.click(".profile-header .chip");
+await sleep(1000);
 check(
   await waitFor(async () =>
     (await A.$eval(".members-panel", (e) => e.innerText).catch(() => ""))

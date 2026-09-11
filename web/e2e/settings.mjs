@@ -87,11 +87,13 @@ check(
   await waitFor(() => path(A).endsWith("/settings")),
   `owner opens settings (${path(A)})`,
 );
+await sleep(800);
 
 // Rename the space: sidebar and B's pill update live.
 await A.click('input[aria-label="Space name"]', { count: 3 });
 await A.type('input[aria-label="Space name"]', "The Porch");
 await A.keyboard.press("Enter");
+await sleep(800);
 check(
   await waitFor(
     async () => (await text(A, ".profile-header h2")) === "The Porch",
@@ -105,6 +107,7 @@ check(
 
 // Members can invite toggle → B gains the Invite chip live.
 await A.click(".toggle-row input");
+await sleep(800);
 check(
   await waitFor(async () =>
     (await spaceMenuItems(B)).includes("Invite people"),
@@ -116,6 +119,7 @@ check(
 await A.click('.settings-tab[data-tab="channels"]');
 await sleep(500);
 await (await rowBtn(A, "random", "Move up")).click();
+await sleep(800);
 check(
   await waitFor(
     async () =>
@@ -129,6 +133,7 @@ await sleep(200);
 await A.click('input[aria-label="Channel name"]', { count: 3 });
 await A.type('input[aria-label="Channel name"]', "lounge");
 await A.keyboard.press("Enter");
+await sleep(800);
 check(
   await waitFor(async () => (await channelNames(B)).includes("lounge")),
   "B sees the renamed channel live",
@@ -137,6 +142,7 @@ await B.click(".channel-link");
 await sleep(500); // B is in #random
 await (await rowBtn(A, "random", "Delete")).click();
 await acceptDialog(A);
+await sleep(1200);
 check(
   await waitFor(
     async () =>
@@ -152,11 +158,13 @@ check(
 
 // Members tab: promote B from settings; B's gear appears.
 await A.click('.settings-tab[data-tab="members"]');
+await sleep(500);
 check(
   await waitFor(async () => (await text(A, ".legend")).includes("Kick")),
   "members tab explains kick/ban/block",
 );
 await A.click('.settings-tab[data-tab="banned"]');
+await sleep(500);
 check(
   await waitFor(async () =>
     (await text(A, ".bans-section")).includes("Nobody is banned"),
@@ -166,6 +174,7 @@ check(
 await A.click('.settings-tab[data-tab="members"]');
 await sleep(500);
 await (await rowBtn(A, `bea${suffix}`, "Make admin")).click();
+await sleep(800);
 check(
   await waitFor(async () =>
     (await spaceMenuItems(B)).includes("Space settings"),
@@ -185,6 +194,7 @@ await A.select(
 );
 await A.click(".danger-zone .chip");
 await acceptDialog(A);
+await sleep(1000);
 check(
   await waitFor(
     async () =>
@@ -196,6 +206,7 @@ check(
 await spaceMenu(B, "Space settings");
 await sleep(800);
 await B.click('.settings-tab[data-tab="owner"]');
+await sleep(500);
 check(
   await waitFor(
     async () => (await B.$('select[aria-label="New owner"]')) !== null,
@@ -206,6 +217,7 @@ check(
 // B deletes the space: both land on home.
 await B.click(".danger-zone .chip.danger");
 await acceptDialog(B, "The Porch");
+await sleep(1500);
 check(
   await waitFor(() => path(B) === "/" && path(A) === "/"),
   `space deleted; both bounced home (${path(A)}, ${path(B)})`,

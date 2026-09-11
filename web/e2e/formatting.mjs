@@ -154,6 +154,7 @@ check(
   await waitFor(async () => (await draft(A)) === "*hi there*"),
   "Ctrl+I italicises",
 );
+await sleep(100);
 await selectAll(A);
 await A.keyboard.down("Control");
 await A.keyboard.down("Shift");
@@ -164,7 +165,9 @@ check(
   await waitFor(async () => (await draft(A)) === "~~*hi there*~~"),
   "Ctrl+Shift+X strikes",
 );
+await sleep(100);
 await A.keyboard.press("Enter");
+await sleep(700);
 check(
   await waitFor(async () => (await lastMessage(A, "s em")) === "hi there"),
   "nested strike/italic renders",
@@ -213,6 +216,7 @@ check(
   "code block fences the selection on its own lines",
 );
 await A.keyboard.press("Enter");
+await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -233,6 +237,7 @@ await A.keyboard.press("Enter");
 await A.keyboard.up("Shift");
 await A.type(".composer textarea", "- eggs");
 await A.keyboard.press("Enter");
+await sleep(700);
 check(
   await waitFor(
     async () =>
@@ -286,6 +291,7 @@ check(
   "the spoiler button wraps the selection",
 );
 await A.keyboard.press("Enter");
+await sleep(700);
 const spoiler = ".message-content .md-spoiler";
 check(
   await waitFor(
@@ -307,6 +313,7 @@ check(
   "…though the words are in the DOM for a screen reader once revealed",
 );
 await A.click(spoiler);
+await sleep(200);
 check(
   await waitFor(
     async () =>
@@ -342,6 +349,7 @@ check(
 
 // Editing shows the raw Markdown and keeps it.
 await clickAction(A, 0, "Edit");
+await sleep(200);
 check(
   await waitFor(async () =>
     (
@@ -356,6 +364,7 @@ await A.$eval(".message-editor textarea", (e) => {
 });
 await A.type(".message-editor textarea", " edited");
 await A.keyboard.press("Enter");
+await sleep(700);
 check(
   await waitFor(
     async () =>

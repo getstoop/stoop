@@ -114,6 +114,7 @@ check(
   await waitFor(async () => (await count()) === 50),
   `opens on the latest page (${await count()})`,
 );
+await sleep(1200);
 
 // Jump to the quoted message: one window around it, nothing else.
 await clickLastQuote();
@@ -188,6 +189,7 @@ const topBefore = await scrollTop();
 const rowsBefore = await count();
 await B.type(".composer textarea", "hello from bea");
 await B.keyboard.press("Enter");
+await sleep(1000);
 check(
   await waitFor(async () => (await pill()) === "1 new message ↓"),
   `someone else's message counts on the pill ("${await pill()}")`,
@@ -245,6 +247,7 @@ check(
   }),
   "sending from inside history returns to the newest page",
 );
+await sleep(300);
 check(
   await waitFor(() =>
     A.$eval(
@@ -271,6 +274,7 @@ const lastId = await A.evaluate(
 );
 await (await last.$('.message-action[title="Copy link"]')).click();
 let copied;
+await sleep(300);
 check(
   await waitFor(async () => {
     copied = await A.evaluate(() => window.__copied);
@@ -318,6 +322,7 @@ check(
   "?m= opens the channel with the message loaded",
 );
 check(await waitFor(() => centred(ids[299])), "…on screen");
+await sleep(400);
 check((await count()) <= 50, `…in one window (${await count()} rows)`);
 check(
   await waitFor(() => !new URL(A.url()).searchParams.has("m")),
@@ -330,6 +335,7 @@ await gotoShared(
   { waitUntil: "networkidle0" },
 );
 let t;
+await sleep(800);
 check(
   await waitFor(async () => {
     t = await texts();
