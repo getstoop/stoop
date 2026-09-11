@@ -267,11 +267,14 @@ got big enough that a red `main` cost more than the round-trip saves.
   element's centre — for the scrim that is under the drawer panel, so tap
   the strip beside it by coordinates. A tap that lands under the scrim
   hangs `Input.dispatchTouchEvent`; make sure the drawer is closed first.
-- **A hand-started `bin/stoop` for the E2E suite needs `.env.dev` too**,
-  not just `.env`: `STOOP_UNFURL_ALLOW_PRIVATE=true` (the unfurl spec
-  serves its page from 127.0.0.1) and `STOOP_AUTH_RATE_LIMIT=0` (dozens of
-  sign-ins from one IP). Without them `unfurl` fails with no card and late
-  specs can be throttled. `scripts/e2e-scratch.sh` sets both itself.
+- **Any server the suite runs against needs `STOOP_UNFURL_ALLOW_PRIVATE=true`
+  and `STOOP_AUTH_RATE_LIMIT=0`** — a hand-started `bin/stoop`, and CI's
+  too. The unfurl spec serves its page from 127.0.0.1, and the auth limit
+  (20 calls per IP per minute) is cleared in about twenty specs now that
+  each one seeds its cast over RPC. A throttled run does not look like
+  throttling: specs that seed fail in under a second on a 429, and specs
+  that drive the signup form hang until they time out.
+  `scripts/e2e-scratch.sh` and `.github/workflows/ci.yml` both set them.
 - **Message actions live in one floating toolbar per row** (`.message-toolbar`,
   top-right, visible on hover/focus; continued rows show the time there
   too). `page.$$(".message-action")` inside a row finds exactly one of
