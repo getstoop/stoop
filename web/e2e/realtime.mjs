@@ -1,32 +1,17 @@
-import puppeteer from "puppeteer-core";
 import {
   BASE as base,
-  chromePath,
   gotoShared,
+  harness,
   reloadShared,
   sleep,
   waitFor,
 } from "./lib.mjs";
 
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
+const { check, newPage, done } = await harness({
+  consoleErrors: true,
+  countPageErrors: false,
 });
 const suffix = String(Date.now() % 1000000);
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
-  p.on("pageerror", (e) => console.log(`[${tag} pageerror]`, e.message));
-  p.on("console", (m) => {
-    if (m.type() === "error" && !/401|404/.test(m.text()))
-      console.log(`[${tag} console]`, m.text());
-  });
-  return p;
-};
 
 const A = await newPage("A");
 await A.goto(`${base}/`, { waitUntil: "networkidle0" });
@@ -93,6 +78,4 @@ check(
   ),
   "B sees a message after reloading",
 );
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

@@ -2,18 +2,9 @@
 // behind the menu button, messages reveal their toolbar on tap, and the
 // composer doesn't trigger iOS zoom. Ends by checking that a wide window
 // gets the three-column layout back.
-import puppeteer from "puppeteer-core";
-import { BASE as base, chromePath, sleep, waitFor } from "./lib.mjs";
+import { BASE as base, harness, sleep, waitFor } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
+const { check, newPage, done } = await harness();
 const phone = {
   width: 390,
   height: 844,
@@ -25,11 +16,7 @@ const suffix = String(Date.now() % 1000000);
 const user = `mob${suffix}`,
   pass = "correct horse battery";
 
-const P = await (await browser.createBrowserContext()).newPage();
-P.on("pageerror", (e) => {
-  console.log("[pageerror]", e.message);
-  fails++;
-});
+const P = await newPage("P");
 await P.setViewport(phone);
 await P.goto(`${base}/`, { waitUntil: "networkidle0" });
 await sleep(300);
@@ -189,6 +176,4 @@ check(
   "desktop: rail and sidebar in the flow",
 );
 
-await browser.close();
-console.log(fails ? `${fails} failure(s)` : "all passed");
-process.exit(fails ? 1 : 0);
+await done();

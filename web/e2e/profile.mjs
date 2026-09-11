@@ -1,31 +1,12 @@
-import puppeteer from "puppeteer-core";
-import {
-  BASE as base,
-  chromePath,
-  reloadShared,
-  sleep,
-  waitFor,
-} from "./lib.mjs";
+import { BASE as base, harness, reloadShared, sleep, waitFor } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
+const { browser, check, newPage, done } = await harness();
 const suffix = String(Date.now() % 1000000);
 const user = `ada${suffix}`,
   pass = "correct horse battery",
   newPass = "even more correct 42";
 
-const P = await (await browser.createBrowserContext()).newPage();
-P.on("pageerror", (e) => {
-  console.log("[pageerror]", e.message);
-  fails++;
-});
+const P = await newPage("P");
 await P.goto(`${base}/`, { waitUntil: "networkidle0" });
 await sleep(300);
 const viaSetup = new URL(P.url()).pathname === "/setup";
@@ -203,6 +184,4 @@ check(
   `new password logs in (${new URL(P.url()).pathname})`,
 );
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

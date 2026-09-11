@@ -1,42 +1,23 @@
-import puppeteer from "puppeteer-core";
 import {
   acceptDialog,
   BASE as base,
-  chromePath,
   dialog,
   dismissDialog,
   gotoShared,
+  harness,
   sleep,
   spaceMenu,
   spaceMenuItems,
   waitFor,
 } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
-const wire = (page, tag) => {
-  page.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
-  });
-  page.on("console", (m) => {
-    if (m.type() === "error" && !m.text().includes("401"))
-      console.log(`[${tag} console]`, m.text());
-  });
-};
+const { browser, check, wire, done } = await harness({ consoleErrors: true });
 const suffix = String(Date.now() % 1000000);
 
 // ---- A: fresh instance → setup (admin + first space), then a second space via the rail
 const ctxA = await browser.createBrowserContext();
 const A = await ctxA.newPage();
-wire(A, "A");
+wire(A, "A", { consoleErrors: true });
 await A.goto(`${base}/`, { waitUntil: "networkidle0" });
 await sleep(300);
 if (new URL(A.url()).pathname !== "/setup")
@@ -137,7 +118,7 @@ await sleep(300);
 // ---- B: logged out, visit /join/<code> → login with redirect → lands in space
 const ctxB = await browser.createBrowserContext();
 const B = await ctxB.newPage();
-wire(B, "B");
+wire(B, "B", { consoleErrors: true });
 const link = `${base}/join/${code}?space=${encodeURIComponent(`Stoop HQ ${suffix}`)}`;
 // By hand rather than through gotoShared: the choice an invite link
 // lands on is what is under test here.
@@ -310,7 +291,7 @@ check(
 );
 const ctxC = await browser.createBrowserContext();
 const C = await ctxC.newPage();
-wire(C, "C");
+wire(C, "C", { consoleErrors: true });
 await gotoShared(C, `${base}/join/${code}`);
 await sleep(300);
 await C.type('input[autocomplete="username"]', `webC${suffix}`);
@@ -347,6 +328,4 @@ check(
   `existing-account login lands in a space (${new URL(A.url()).pathname})`,
 );
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

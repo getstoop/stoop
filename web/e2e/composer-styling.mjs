@@ -1,34 +1,10 @@
-import puppeteer from "puppeteer-core";
-import {
-  BASE as base,
-  chromePath,
-  gotoShared,
-  sleep,
-  waitFor,
-} from "./lib.mjs";
+import { BASE as base, gotoShared, harness, sleep, waitFor } from "./lib.mjs";
 
 // STOOP-38: live Markdown styling in the message box. The composer and the
 // inline editor layer a styled overlay under the textarea: markers stay
 // visible (dimmed .md-marker spans), content between them is styled, and
 // the overlay's text content equals the draft exactly.
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
-const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
-  p.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
-  });
-  p.on("dialog", (d) => d.accept());
-  return p;
-};
+const { check, newPage, done } = await harness({ dialogs: true });
 const suffix = String(Date.now() % 1000000);
 const path = (p) => new URL(p.url()).pathname;
 const draft = (p) => p.$eval(".composer textarea", (e) => e.value);
@@ -434,6 +410,4 @@ await sleep(300);
   await sleep(200);
 }
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

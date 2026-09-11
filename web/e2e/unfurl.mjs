@@ -5,21 +5,16 @@
 // (STOOP_UNFURL_ALLOW_PRIVATE=1, as CI and the dev setup do). Also: links
 // inside code are not unfurled, and editing the link away drops the card.
 import { createServer } from "node:http";
-import puppeteer from "puppeteer-core";
 import {
   BASE as base,
-  chromePath,
+  harness,
   png,
   reloadShared,
   sleep,
   waitFor,
 } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
+const { check, newPage, done } = await harness({ dialogs: true });
 
 // The linked site.
 const image = png(64, 32, (x) => (x < 32 ? [220, 80, 60] : [60, 120, 220]));
@@ -40,16 +35,7 @@ const site = createServer((req, res) => {
 await new Promise((r) => site.listen(0, "127.0.0.1", r));
 const siteUrl = `http://127.0.0.1:${site.address().port}`;
 
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
-const A = await (await browser.createBrowserContext()).newPage();
-A.on("pageerror", (e) => {
-  console.log("[A pageerror]", e.message);
-  fails++;
-});
-A.on("dialog", (d) => d.accept());
+const A = await newPage("A");
 const suffix = String(Date.now() % 1000000);
 const path = (p) => new URL(p.url()).pathname;
 const cardOf = async (index) => {
@@ -163,6 +149,4 @@ await sleep(1000);
 check((await cardOf(2)) === null, "editing the link away removes the card");
 
 site.close();
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

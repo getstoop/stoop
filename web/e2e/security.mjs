@@ -2,20 +2,9 @@
 // withheld over plain HTTP, and the page still works under it — the one
 // inline script (the theme stamp) runs, the bundle runs, nothing is
 // blocked. Reads only; it needs no particular instance state.
-import puppeteer from "puppeteer-core";
-import {
-  BASE as base,
-  chromePath,
-  reloadShared,
-  sleep,
-  waitFor,
-} from "./lib.mjs";
+import { BASE as base, harness, reloadShared, sleep, waitFor } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
+const { check, newPage, done } = await harness();
 
 const res = await fetch(`${base}/`);
 const h = (name) => res.headers.get(name) ?? "";
@@ -60,15 +49,7 @@ check(
   "the policy is on every response, not just the page",
 );
 
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
-const p = await (await browser.createBrowserContext()).newPage();
-p.on("pageerror", (e) => {
-  console.log("[pageerror]", e.message);
-  fails++;
-});
+const p = await newPage("p");
 await p.evaluateOnNewDocument(() => {
   window.__csp = [];
   document.addEventListener("securitypolicyviolation", (e) =>
@@ -113,6 +94,4 @@ check(
   `still nothing blocked: ${await blocked()}`,
 );
 
-await browser.close();
-console.log(fails ? `${fails} failure(s)` : "all passed");
-process.exit(fails ? 1 : 0);
+await done();

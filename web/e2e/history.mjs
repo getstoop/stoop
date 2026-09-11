@@ -1,32 +1,20 @@
 // Older history: the timeline opens on the latest page, loads the page
 // before it when scrolled to the top without the view jumping, and shows
 // "Beginning of #channel" once there is nothing older.
-import puppeteer from "puppeteer-core";
 import {
   BASE as base,
-  chromePath,
   gotoShared,
+  harness,
   reloadShared,
   sleep,
   waitFor,
 } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-  defaultViewport: { width: 1100, height: 700 },
+const { check, newPage, done } = await harness({
+  dialogs: true,
+  launch: { defaultViewport: { width: 1100, height: 700 } },
 });
-const A = await (await browser.createBrowserContext()).newPage();
-A.on("pageerror", (e) => {
-  console.log("[A pageerror]", e.message);
-  fails++;
-});
-A.on("dialog", (d) => d.accept());
+const A = await newPage("A");
 const suffix = String(Date.now() % 1000000);
 const count = () => A.$$eval(".message", (els) => els.length);
 const waitForCount = async (n, ms = 8000) => {
@@ -149,8 +137,7 @@ check(
   ),
   "away from the bottom, a 'Jump to latest' pill appears",
 );
-const B = await (await browser.createBrowserContext()).newPage();
-B.on("dialog", (d) => d.accept());
+const B = await newPage("B");
 await gotoShared(B, link || `${base}/login`);
 await sleep(300);
 if (link) {
@@ -211,6 +198,4 @@ check(
   "a new message scrolls the view to the bottom",
 );
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();

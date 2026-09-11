@@ -2,42 +2,20 @@
 // way, undo from the profile page); a manager can ban someone from a
 // space, which removes them and refuses the invite link until they're
 // unbanned from the space's settings.
-import puppeteer from "puppeteer-core";
 import {
   acceptDialog,
   BASE as base,
-  chromePath,
   dialog,
   dismissDialog,
   gotoShared,
+  harness,
   sleep,
   spaceMenu,
   waitFor,
 } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
-});
+const { check, newPage, done } = await harness({ dialogs: true });
 const suffix = String(Date.now() % 1000000);
-const dialogs = {};
-const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
-  p.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
-  });
-  p.on("dialog", (d) => {
-    dialogs[tag] = d.message();
-    d.accept();
-  });
-  return p;
-};
 const path = (p) => new URL(p.url()).pathname;
 
 // A sets up the instance; B and C join via the invite link.
@@ -204,6 +182,4 @@ check(
   `after unban, the link admits them (${path(C)})`,
 );
 
-await browser.close();
-console.log(fails ? `${fails} FAILED` : "ALL PASS");
-process.exit(fails ? 1 : 0);
+await done();

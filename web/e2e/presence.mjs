@@ -1,30 +1,8 @@
-import puppeteer from "puppeteer-core";
-import {
-  BASE as base,
-  chromePath,
-  gotoShared,
-  sleep,
-  waitFor,
-} from "./lib.mjs";
+import { BASE as base, gotoShared, harness, sleep, waitFor } from "./lib.mjs";
 
-let fails = 0;
-const check = (ok, msg) => {
-  console.log(ok ? "PASS" : "FAIL", msg);
-  if (!ok) fails++;
-};
-const browser = await puppeteer.launch({
-  executablePath: chromePath(),
-  headless: true,
+const { browser, check, wire, newPage, done } = await harness({
+  dialogs: true,
 });
-const newPage = async (tag) => {
-  const p = await (await browser.createBrowserContext()).newPage();
-  p.on("pageerror", (e) => {
-    console.log(`[${tag} pageerror]`, e.message);
-    fails++;
-  });
-  p.on("dialog", (d) => d.accept());
-  return p;
-};
 const suffix = String(Date.now() % 1000000);
 const text = (p, sel) => p.$eval(sel, (e) => e.innerText).catch(() => "");
 const path = (p) => new URL(p.url()).pathname;
@@ -60,11 +38,7 @@ check(
 
 // B joins: both sides show two online.
 const Bctx = await browser.createBrowserContext();
-const B = await Bctx.newPage();
-B.on("pageerror", (e) => {
-  console.log("[B pageerror]", e.message);
-  fails++;
-});
+const B = wire(await Bctx.newPage(), "B");
 await gotoShared(B, link);
 await sleep(300);
 await B.type('input[autocomplete="username"]', `bea${suffix}`);
@@ -178,6 +152,4 @@ check(
 );
 await sleep(1000);
 
-await browser.close();
-console.log(fails ? `\n${fails} FAILURES` : "\nALL PASSED");
-process.exit(fails ? 1 : 0);
+await done();
