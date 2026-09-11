@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect, reload, seed, signIn, test } from "./lib";
 
 // Presence status (STOOP-71): a chosen status shows on everyone else's
-// dots and card, and survives a reload. Mutes live in mutes.mjs.
+// dots and card, and survives a reload. Mutes live in mutes.spec.ts.
 // Ported from web/e2e/status.mjs (STOOP-238).
 test("the status a member picks, as everyone else sees it", async ({
   browser,
