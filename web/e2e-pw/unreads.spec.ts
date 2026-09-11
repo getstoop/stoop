@@ -117,6 +117,9 @@ test("unread markers, dividers and the space dot", async ({ browser }) => {
     channelLink(A, "random"),
     "A: #random (where B posted) is bold",
   ).toHaveClass(/unread/);
+  // Reading gates on hasAttention() — visible *and* focused — and B was
+  // opened after A, so A is not the front page until it is told to be.
+  await A.bringToFront();
   await channelLink(A, "random").click();
   await expect(
     A.locator(".space-rail-list .pill-dot"),
