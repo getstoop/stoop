@@ -113,6 +113,26 @@ sections, in this order:
   Playwright lib, never `page.reload()`: a channel URL meets the
   desktop-app gate on reload and a plain reload walks into it.
 
+- **Reading only counts while a page has attention.** Both
+  `useMarkChannelRead` and `useAutoReadActivity` gate on `hasAttention()`
+  — `document.visibilityState === "visible" && document.hasFocus()` — so
+  that an unfocused tab still raises a desktop alert. That is deliberate
+  product behaviour, and it makes every "…clears the badge", "…is read
+  immediately" assertion depend on *which page is at the front*.
+
+  A spec with two or three pages has only one at the front, so bring the
+  page to the front before asserting that something it viewed became
+  read:
+
+  ```js
+  await B.bringToFront();
+  check(await waitFor(async () => (await B.$(".pill-badge")) === null), …);
+  ```
+
+  This was behind the long-standing `dms` flake ("reading the DM clears
+  B's alert"), which was misdiagnosed for weeks as a timeout too short
+  under load. It is not: 20s did not help, because focus never arrived.
+
 - **Assertions poll; they never sleep a fixed time.** Use `waitFor` from
   `web/e2e/lib.mjs` — it polls until the condition holds or a generous
   timeout expires, and returns the last value so a failure reports real
