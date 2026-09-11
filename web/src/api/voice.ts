@@ -471,6 +471,19 @@ export async function toggleCamera() {
   reportVoiceState();
 }
 
+// What a shared screen's own audio is captured with. restrictOwnAudio is
+// the one that matters: without it the capture includes our own output,
+// so sharing inside a call publishes the call back into itself. The rest
+// turn off processing meant for a microphone, not for whatever is
+// playing. LiveKit passes these through to getDisplayMedia untouched.
+const SCREEN_AUDIO = {
+  restrictOwnAudio: true,
+  echoCancellation: false,
+  noiseSuppression: false,
+  autoGainControl: false,
+  channelCount: 2,
+};
+
 export async function toggleScreenShare() {
   const store = useVoiceStore.getState();
   if (!room) return;
@@ -479,7 +492,7 @@ export async function toggleScreenShare() {
   try {
     const lk = await livekit();
     await room.localParticipant.setScreenShareEnabled(on, {
-      audio: true,
+      audio: SCREEN_AUDIO,
       contentHint: "detail",
       resolution: lk.ScreenSharePresets.h1080fps15.resolution,
     });
