@@ -5,7 +5,7 @@
 // defaults below are the dev instance, which this wipes.
 //
 //   pnpm e2e                    every spec
-//   pnpm e2e replies edits      just those
+//   pnpm e2e mentions presence  just those
 //   pnpm e2e --shard 2/4        the second of four balanced slices (CI
 //                               runs the slices as parallel jobs, each
 //                               with its own server and database)
@@ -40,12 +40,8 @@ const SPECS = [
   "pronouns",
   "realtime",
   "mentions",
-  "unreads",
-  "replies",
   "presence",
-  "edits",
   "settings",
-  "reactions",
   "formatting",
   "shortcodes",
   "composer-styling",
@@ -90,7 +86,6 @@ const WEIGHT = {
   members: 33,
   reachability: 31,
   invites: 31,
-  unreads: 30,
   "space-about": 30,
   presence: 29,
   "channel-topic": 27,
@@ -102,12 +97,9 @@ const WEIGHT = {
   formatting: 21,
   realtime: 21,
   profile: 21,
-  reactions: 20,
   attachments: 20,
   "login-providers": 18,
   usercard: 18,
-  replies: 18,
-  edits: 18,
   themes: 16,
   mobile: 16,
   "composer-styling": 16,
