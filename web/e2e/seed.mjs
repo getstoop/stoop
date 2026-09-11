@@ -21,6 +21,13 @@ async function rpc(proc, body, token) {
     },
     body: JSON.stringify(body),
   });
+  // The auth rate limit (20/min) is real, and a suite seeding a cast per
+  // spec clears it in well under a minute. Servers meant for a suite turn
+  // it off; back off and retry for the ones that don't.
+  if (res.status === 429) {
+    await new Promise((r) => setTimeout(r, 5000));
+    return rpc(proc, body, token);
+  }
   const out = await res.json();
   if (!res.ok) throw new Error(`${proc}: ${res.status} ${JSON.stringify(out)}`);
   return out;
