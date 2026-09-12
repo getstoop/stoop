@@ -14,7 +14,6 @@ import {
 import { useConnectionStore } from "../stores/connection";
 import { useVoiceStore } from "../stores/voice";
 import { receiveActivityItem } from "./activity";
-import { patchDirectMessageParticipants, removeDirectMessage } from "./dms";
 import { isLive, useHistoryStore } from "./history";
 import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
@@ -235,15 +234,10 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     }
     case "channelDeleted":
-      // With no space it is a conversation the caller has left.
-      if (payload.value.spaceId) {
-        queryClient.setQueryData<Channel[]>(
-          ["channels", payload.value.spaceId],
-          (old) => old?.filter((x) => x.id !== payload.value.channelId),
-        );
-      } else {
-        removeDirectMessage(queryClient, payload.value.channelId);
-      }
+      queryClient.setQueryData<Channel[]>(
+        ["channels", payload.value.spaceId],
+        (old) => old?.filter((x) => x.id !== payload.value.channelId),
+      );
       queryClient.removeQueries({
         queryKey: ["messages", payload.value.channelId],
       });
@@ -275,13 +269,6 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
           ? ["channels", payload.value.spaceId]
           : ["dms"],
       });
-      break;
-    case "directMessageMembersChanged":
-      patchDirectMessageParticipants(
-        queryClient,
-        payload.value.channelId,
-        payload.value.participants,
-      );
       break;
     case "spaceJoined":
       queryClient.invalidateQueries({ queryKey: ["spaces"] });

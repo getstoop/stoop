@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -19,8 +21,13 @@ import (
 // dm_members. The message RPCs don't know the difference: they read the
 // channel through accessChannel and publish through publishChannel, and
 // those two are where a DM and a space channel part ways. A conversation
-// with more than two people is a group; its RPCs are in dm_groups.go. See
-// docs/architecture/messaging.md → Direct messages.
+// holds two people or ten, and either way it *is* its people — dm_key is
+// the whole set, so opening it is idempotent and membership never changes
+// afterwards. See docs/architecture/messaging.md → Direct messages.
+
+// maxDMParticipants caps a conversation, the caller included. Past ten the
+// thing being asked for is a space.
+const maxDMParticipants = 10
 
 func isDM(c dbgen.Channel) bool { return c.SpaceID == nil }
 
@@ -33,13 +40,13 @@ func spaceOf(c dbgen.Channel) string {
 	return *c.SpaceID
 }
 
-// dmKey is the identity of a 1:1 DM: both ids in a fixed order. A group
-// has none — it is not identified by who is in it.
-func dmKey(a, b string) string {
-	if b < a {
-		a, b = b, a
-	}
-	return a + ":" + b
+// dmKey is the identity of a conversation: everyone in it, in a fixed
+// order. Two people or ten, the same rule — which is what makes "open the
+// conversation with these people" answer with the one that exists.
+func dmKey(ids []string) string {
+	sorted := append([]string{}, ids...)
+	slices.Sort(sorted)
+	return strings.Join(sorted, ":")
 }
 
 // accessChannel loads a channel the caller may read: a member of its
@@ -118,36 +125,13 @@ func (s *Service) IsAttachmentReadable(ctx context.Context, userID, fileID strin
 
 func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[chatv1.OpenDirectMessageRequest]) (*connect.Response[chatv1.OpenDirectMessageResponse], error) {
 	me := authctx.UserID(ctx)
-	other := req.Msg.UserId
-	if other == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_id is required"))
-	}
-	if other == me {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("you can't message yourself"))
-	}
-	// Eligibility before existence: someone you don't share a space with
-	// is "not reachable" whether or not the id is real.
-	if !authctx.IsAdmin(ctx) {
-		shares, err := s.q.SharesSpace(ctx, dbgen.SharesSpaceParams{UserID: me, UserID_2: other})
-		if err != nil {
-			return nil, fmt.Errorf("check shared space: %w", err)
-		}
-		if !shares {
-			return nil, connect.NewError(connect.CodePermissionDenied,
-				errors.New("you can only message people you share a space with"))
-		}
-	}
-	records, err := s.users.GetUsers(ctx, []string{other})
+	others, err := s.dmTargets(ctx, me, req.Msg.UserIds)
 	if err != nil {
-		return nil, fmt.Errorf("look up user: %w", err)
-	}
-	if len(records) == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
-	}
-	if blocked, err := s.blockedBetween(ctx, me, other); err != nil {
 		return nil, err
-	} else if blocked {
-		return nil, errBlocked
+	}
+	participants := append([]string{me}, others...)
+	if err := s.checkNoBlocks(ctx, participants); err != nil {
+		return nil, err
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -157,11 +141,12 @@ func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[ch
 	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
 	qtx := s.q.WithTx(tx)
 	id := newID()
-	channel, err := qtx.OpenDMChannel(ctx, dbgen.OpenDMChannelParams{ID: id, DmKey: &[]string{dmKey(me, other)}[0]})
+	key := dmKey(participants)
+	channel, err := qtx.OpenDMChannel(ctx, dbgen.OpenDMChannelParams{ID: id, DmKey: &key})
 	if err != nil {
 		return nil, fmt.Errorf("open dm: %w", err)
 	}
-	for _, uid := range []string{me, other} {
+	for _, uid := range participants {
 		if err := qtx.AddDMMember(ctx, dbgen.AddDMMemberParams{ChannelID: channel.ID, UserID: uid}); err != nil {
 			return nil, fmt.Errorf("add participant: %w", err)
 		}
@@ -169,7 +154,8 @@ func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[ch
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
 	}
-	// A brand-new conversation shows up in both people's lists at once.
+	// A brand-new conversation shows up in everyone's list at once. An
+	// existing one needs no announcement: they all already have it.
 	if channel.ID == id {
 		s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ChannelCreated{ChannelCreated: toProtoChannel(channel)},
@@ -180,6 +166,71 @@ func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[ch
 		return nil, err
 	}
 	return connect.NewResponse(&chatv1.OpenDirectMessageResponse{DirectMessage: dms[0]}), nil
+}
+
+// dmTargets validates the people a caller wants to talk to: real accounts,
+// not the caller, and each one the caller could message. Deduplicated, so
+// the same person twice is the same conversation.
+func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]string, error) {
+	seen := map[string]bool{me: true}
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if id == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_ids holds an empty id"))
+		}
+		if id == me {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("you can't message yourself"))
+		}
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	if len(out) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_ids is required"))
+	}
+	if len(out) >= maxDMParticipants {
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			fmt.Errorf("a conversation holds %d people; make a space for anything bigger", maxDMParticipants))
+	}
+	records, err := s.users.GetUsers(ctx, out)
+	if err != nil {
+		return nil, fmt.Errorf("look up users: %w", err)
+	}
+	if len(records) != len(out) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
+	}
+	// Eligibility before existence: someone you don't share a space with
+	// is "not reachable" whether or not the id is real.
+	if !authctx.IsAdmin(ctx) {
+		reachable, err := s.q.SharesSpaceAmong(ctx, dbgen.SharesSpaceAmongParams{UserID: me, Ids: out})
+		if err != nil {
+			return nil, fmt.Errorf("check shared spaces: %w", err)
+		}
+		if len(reachable) != len(out) {
+			return nil, connect.NewError(connect.CodePermissionDenied,
+				errors.New("you can only message people you share a space with"))
+		}
+	}
+	return out, nil
+}
+
+// checkNoBlocks refuses a conversation holding anyone who has blocked, or
+// is blocked by, anyone else in it. Membership never changes, so this is
+// the only moment it has to be asked.
+func (s *Service) checkNoBlocks(ctx context.Context, everyone []string) error {
+	for i, id := range everyone {
+		others := append(append([]string{}, everyone[:i]...), everyone[i+1:]...)
+		hits, err := s.q.BlockedAmong(ctx, dbgen.BlockedAmongParams{UserID: id, Ids: others})
+		if err != nil {
+			return fmt.Errorf("check blocks: %w", err)
+		}
+		if len(hits) > 0 {
+			return errBlocked
+		}
+	}
+	return nil
 }
 
 func (s *Service) ListDirectMessages(ctx context.Context, _ *connect.Request[chatv1.ListDirectMessagesRequest]) (*connect.Response[chatv1.ListDirectMessagesResponse], error) {
@@ -226,7 +277,7 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 		}
 		channel.UnreadCount = int32(r.UnreadCount)
 		channel.Muted = r.Muted
-		dm := &chatv1.DirectMessage{Channel: channel, Group: !isPairDM(r.Channel)}
+		dm := &chatv1.DirectMessage{Channel: channel}
 		for _, uid := range byChannel[r.Channel.ID] {
 			if a := authors[uid]; a != nil {
 				dm.Participants = append(dm.Participants, a)

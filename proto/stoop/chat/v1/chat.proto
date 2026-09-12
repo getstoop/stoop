@@ -126,27 +126,17 @@ service ChatService {
   // markers and reactions use the channel RPCs above. Instance admins get
   // no RPC into other people's DMs.
   //
-  // OpenDirectMessage returns the caller's DM with another user, creating
-  // it if needed. The two must share a space, unless the caller is an
-  // instance admin.
+  // OpenDirectMessage returns the caller's conversation with one or more
+  // other people, creating it if it does not exist. A conversation *is*
+  // its participants, so this is idempotent for any number of them and
+  // there is only ever one conversation with a given set. The caller must
+  // share a space with each of them, unless they are an instance admin,
+  // and a block in either direction between any two refuses the call.
+  // Membership never changes afterwards: nobody can be added, and nobody
+  // can leave.
   rpc OpenDirectMessage(OpenDirectMessageRequest) returns (OpenDirectMessageResponse) {}
   // The caller's DMs, most recent activity first.
   rpc ListDirectMessages(ListDirectMessagesRequest) returns (ListDirectMessagesResponse) {}
-  // CreateGroupDirectMessage starts a conversation with several people.
-  // Always a new conversation: unlike a 1:1, a group is not identified by
-  // who is in it. 2 to 9 others, each of whom the caller could message
-  // directly; a block between any two of them refuses the call.
-  rpc CreateGroupDirectMessage(CreateGroupDirectMessageRequest) returns (CreateGroupDirectMessageResponse) {}
-  // AddDirectMessageMembers adds people to a group the caller is in; they
-  // can then read all of it. A 1:1 is refused — its two people are its
-  // identity. To bring somebody into one, start a group with all three
-  // through CreateGroupDirectMessage, which is a different conversation
-  // and carries no history.
-  rpc AddDirectMessageMembers(AddDirectMessageMembersRequest) returns (AddDirectMessageMembersResponse) {}
-  // LeaveDirectMessage removes the caller from a group conversation, which
-  // stays for everyone else; the last person to leave deletes it. A 1:1
-  // cannot be left.
-  rpc LeaveDirectMessage(LeaveDirectMessageRequest) returns (LeaveDirectMessageResponse) {}
   // ListDirectMessageCandidates is everyone the caller may start a
   // conversation with: the people they share a space with, minus blocks in
   // either direction. Instance admins get the same list, not every account.
@@ -574,20 +564,22 @@ message ListPinnedMessagesResponse {
   repeated PinnedMessage pins = 1;
 }
 
-// DirectMessage is a DM channel with the people in it. A conversation
-// with more than two participants is a group; it has no name of its own,
-// so clients render one from the participants.
+// DirectMessage is a DM channel with the people in it. More than two
+// participants is a group conversation; it has no name of its own, so
+// clients render one from the participants. The list never changes, so
+// counting it is a reliable test.
 message DirectMessage {
   Channel channel = 1;
   // Everyone in the conversation, the caller included.
   repeated MessageAuthor participants = 2;
-  // A group rather than a 1:1. Not a count: a group people have left is
-  // still a group, and never becomes the pair conversation.
-  bool group = 3;
 }
 
 message OpenDirectMessageRequest {
-  string user_id = 1;
+  // Was `string user_id`, before a conversation could hold more than two.
+  reserved 1;
+  reserved "user_id";
+  // Everyone else in the conversation, without the caller: 1 to 9 of them.
+  repeated string user_ids = 2;
 }
 
 message OpenDirectMessageResponse {
@@ -599,30 +591,6 @@ message ListDirectMessagesRequest {}
 message ListDirectMessagesResponse {
   repeated DirectMessage direct_messages = 1;
 }
-
-message CreateGroupDirectMessageRequest {
-  // The other people, without the caller.
-  repeated string user_ids = 1;
-}
-
-message CreateGroupDirectMessageResponse {
-  DirectMessage direct_message = 1;
-}
-
-message AddDirectMessageMembersRequest {
-  string channel_id = 1;
-  repeated string user_ids = 2;
-}
-
-message AddDirectMessageMembersResponse {
-  DirectMessage direct_message = 1;
-}
-
-message LeaveDirectMessageRequest {
-  string channel_id = 1;
-}
-
-message LeaveDirectMessageResponse {}
 
 message ListDirectMessageCandidatesRequest {}
 

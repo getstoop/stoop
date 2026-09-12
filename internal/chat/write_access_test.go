@@ -113,7 +113,7 @@ func TestWritesStopAtKickBanAndBlock(t *testing.T) {
 	}
 
 	// A DM, then a block: neither side may edit or react afterwards.
-	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: caseyID}))
+	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{caseyID}}))
 	if err != nil {
 		t.Fatal(err)
 	}

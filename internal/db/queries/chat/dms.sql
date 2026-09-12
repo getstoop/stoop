@@ -3,7 +3,9 @@
 
 -- OpenDMChannel creates the channel for a dm_key or returns the existing
 -- one: the no-op ON CONFLICT update makes RETURNING yield the row either
--- way, so two people opening the same DM at once get the same channel.
+-- way, so two people opening the same conversation at once get the same
+-- channel. The key is every participant sorted and joined, so this holds
+-- for a pair and for a group alike.
 -- name: OpenDMChannel :one
 INSERT INTO channels (id, space_id, name, kind, dm_key)
 VALUES ($1, NULL, '', 3, $2)
@@ -39,29 +41,13 @@ FROM channels c
 JOIN dm_members d ON d.channel_id = c.id AND d.user_id = sqlc.arg(user_id)
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = sqlc.arg(user_id)
 WHERE c.kind = 3
-  -- A block hides the pair conversation. In a group it would hide a whole
-  -- conversation from the person who made the block; there, blocks are
-  -- enforced when somebody is added instead.
-  AND (c.dm_key IS NULL OR NOT EXISTS (
+  -- A conversation holding somebody you blocked is not yours to see.
+  AND NOT EXISTS (
     SELECT 1 FROM dm_members o
     JOIN user_blocks b ON b.blocked_id = o.user_id AND b.blocker_id = sqlc.arg(user_id)
     WHERE o.channel_id = c.id AND o.user_id <> sqlc.arg(user_id)
-  ))
+  )
 ORDER BY c.last_message_id DESC NULLS LAST, c.created_at DESC;
-
--- CreateGroupDMChannel makes a group conversation. No dm_key: a group is
--- not identified by who is in it, so opening "the same" group twice is two
--- conversations.
--- name: CreateGroupDMChannel :one
-INSERT INTO channels (id, space_id, name, kind, dm_key)
-VALUES ($1, NULL, '', 3, NULL)
-RETURNING *;
-
--- name: RemoveDMMember :exec
-DELETE FROM dm_members WHERE channel_id = $1 AND user_id = $2;
-
--- name: CountDMMembers :one
-SELECT count(*) FROM dm_members WHERE channel_id = $1;
 
 -- SharesSpace: do two users belong to at least one common space?
 -- name: SharesSpace :one

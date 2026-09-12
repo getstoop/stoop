@@ -28,7 +28,7 @@ func TestBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A conversation exists before the block.
-	dm, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: bobID}))
+	dm, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{bobID}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestBlocks(t *testing.T) {
 	if _, err := svc.SendMessage(alice, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: dmID, Content: "hey"})); code(err) != connect.CodePermissionDenied {
 		t.Errorf("blocker sends: want permission_denied, got %v", err)
 	}
-	if _, err := svc.OpenDirectMessage(bob, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: aliceID})); code(err) != connect.CodePermissionDenied {
+	if _, err := svc.OpenDirectMessage(bob, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{aliceID}})); code(err) != connect.CodePermissionDenied {
 		t.Errorf("blocked opens DM: want permission_denied, got %v", err)
 	}
 	al, _ := svc.ListDirectMessages(alice, connect.NewRequest(&chatv1.ListDirectMessagesRequest{}))

@@ -83,11 +83,11 @@ export function dmOthers(
   return dm.participants.filter((p) => p.id !== meId);
 }
 
-// A group rather than a 1:1, as the server says: a group people have left
-// is still a group. It has no name of its own, so its title and face are
-// made from who is in it.
+// More than two people. Membership is fixed when the conversation is
+// created, so counting is a reliable test. A group has no name of its
+// own, so its title and face are made from who is in it.
 export function dmIsGroup(dm: DirectMessage): boolean {
-  return dm.group;
+  return dm.participants.length > 2;
 }
 
 export function personName(p: MessageAuthor | undefined): string {
@@ -121,51 +121,17 @@ export function dmFaces(
   return (others.length > 0 ? others : dm.participants).slice(0, 2);
 }
 
-// Opens (or finds) the DM with a user and returns its channel id. The
-// list is refetched so the conversation is there to navigate to.
+// Opens the conversation with these people, creating it if it does not
+// exist — a conversation is its participants, so there is only ever one
+// with a given set. Returns its channel id.
 export async function openDirectMessage(
   queryClient: QueryClient,
-  userId: string,
-): Promise<string> {
-  const res = await chatClient.openDirectMessage({ userId });
-  const id = res.directMessage?.channel?.id ?? "";
-  await queryClient.invalidateQueries({ queryKey: ["dms"] });
-  return id;
-}
-
-// Starts a group conversation and returns its channel id. Always a new
-// conversation: a group is not identified by who is in it.
-export async function createGroupDirectMessage(
-  queryClient: QueryClient,
   userIds: string[],
 ): Promise<string> {
-  const res = await chatClient.createGroupDirectMessage({ userIds });
+  const res = await chatClient.openDirectMessage({ userIds });
   const id = res.directMessage?.channel?.id ?? "";
   await queryClient.invalidateQueries({ queryKey: ["dms"] });
   return id;
-}
-
-// Adds people to a group. A 1:1 is refused by the server: bringing a
-// third person in means starting a group with all three, which is
-// createGroupDirectMessage.
-export async function addDirectMessageMembers(
-  queryClient: QueryClient,
-  channelId: string,
-  userIds: string[],
-): Promise<string> {
-  const res = await chatClient.addDirectMessageMembers({ channelId, userIds });
-  const id = res.directMessage?.channel?.id ?? "";
-  await queryClient.invalidateQueries({ queryKey: ["dms"] });
-  return id;
-}
-
-export async function leaveDirectMessage(
-  queryClient: QueryClient,
-  channelId: string,
-) {
-  await chatClient.leaveDirectMessage({ channelId });
-  queryClient.removeQueries({ queryKey: ["messages", channelId] });
-  await queryClient.invalidateQueries({ queryKey: ["dms"] });
 }
 
 // The people the caller can start a conversation with. Fetched when a
@@ -199,26 +165,5 @@ export function patchDirectMessage(
           a.channel?.lastMessageId ?? "",
         ),
       ),
-  );
-}
-
-// Replaces one conversation's participants, from the realtime event.
-export function patchDirectMessageParticipants(
-  queryClient: QueryClient,
-  channelId: string,
-  participants: MessageAuthor[],
-) {
-  queryClient.setQueryData<DirectMessage[]>(["dms"], (old) =>
-    old?.map((d) => (d.channel?.id === channelId ? { ...d, participants } : d)),
-  );
-}
-
-// Drops a conversation the caller is no longer in.
-export function removeDirectMessage(
-  queryClient: QueryClient,
-  channelId: string,
-) {
-  queryClient.setQueryData<DirectMessage[]>(["dms"], (old) =>
-    old?.filter((d) => d.channel?.id !== channelId),
   );
 }

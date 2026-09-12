@@ -58,43 +58,6 @@ func (q *Queries) BlockedAmong(ctx context.Context, arg BlockedAmongParams) ([]s
 	return items, nil
 }
 
-const countDMMembers = `-- name: CountDMMembers :one
-SELECT count(*) FROM dm_members WHERE channel_id = $1
-`
-
-func (q *Queries) CountDMMembers(ctx context.Context, channelID string) (int64, error) {
-	row := q.db.QueryRow(ctx, countDMMembers, channelID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const createGroupDMChannel = `-- name: CreateGroupDMChannel :one
-INSERT INTO channels (id, space_id, name, kind, dm_key)
-VALUES ($1, NULL, '', 3, NULL)
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic
-`
-
-// CreateGroupDMChannel makes a group conversation. No dm_key: a group is
-// not identified by who is in it, so opening "the same" group twice is two
-// conversations.
-func (q *Queries) CreateGroupDMChannel(ctx context.Context, id string) (Channel, error) {
-	row := q.db.QueryRow(ctx, createGroupDMChannel, id)
-	var i Channel
-	err := row.Scan(
-		&i.ID,
-		&i.SpaceID,
-		&i.Name,
-		&i.Kind,
-		&i.Position,
-		&i.CreatedAt,
-		&i.LastMessageID,
-		&i.DmKey,
-		&i.Topic,
-	)
-	return i, err
-}
-
 const isDMMember = `-- name: IsDMMember :one
 SELECT EXISTS (
     SELECT 1 FROM dm_members WHERE channel_id = $1 AND user_id = $2
@@ -162,14 +125,12 @@ FROM channels c
 JOIN dm_members d ON d.channel_id = c.id AND d.user_id = $1
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = $1
 WHERE c.kind = 3
-  -- A block hides the pair conversation. In a group it would hide a whole
-  -- conversation from the person who made the block; there, blocks are
-  -- enforced when somebody is added instead.
-  AND (c.dm_key IS NULL OR NOT EXISTS (
+  -- A conversation holding somebody you blocked is not yours to see.
+  AND NOT EXISTS (
     SELECT 1 FROM dm_members o
     JOIN user_blocks b ON b.blocked_id = o.user_id AND b.blocker_id = $1
     WHERE o.channel_id = c.id AND o.user_id <> $1
-  ))
+  )
 ORDER BY c.last_message_id DESC NULLS LAST, c.created_at DESC
 `
 
@@ -282,7 +243,9 @@ type OpenDMChannelParams struct {
 // Owned by the chat module. Only internal/chat may use these queries.
 // OpenDMChannel creates the channel for a dm_key or returns the existing
 // one: the no-op ON CONFLICT update makes RETURNING yield the row either
-// way, so two people opening the same DM at once get the same channel.
+// way, so two people opening the same conversation at once get the same
+// channel. The key is every participant sorted and joined, so this holds
+// for a pair and for a group alike.
 func (q *Queries) OpenDMChannel(ctx context.Context, arg OpenDMChannelParams) (Channel, error) {
 	row := q.db.QueryRow(ctx, openDMChannel, arg.ID, arg.DmKey)
 	var i Channel
@@ -298,20 +261,6 @@ func (q *Queries) OpenDMChannel(ctx context.Context, arg OpenDMChannelParams) (C
 		&i.Topic,
 	)
 	return i, err
-}
-
-const removeDMMember = `-- name: RemoveDMMember :exec
-DELETE FROM dm_members WHERE channel_id = $1 AND user_id = $2
-`
-
-type RemoveDMMemberParams struct {
-	ChannelID string
-	UserID    string
-}
-
-func (q *Queries) RemoveDMMember(ctx context.Context, arg RemoveDMMemberParams) error {
-	_, err := q.db.Exec(ctx, removeDMMember, arg.ChannelID, arg.UserID)
-	return err
 }
 
 const sharesSpace = `-- name: SharesSpace :one

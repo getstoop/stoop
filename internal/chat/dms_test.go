@@ -62,15 +62,15 @@ func TestDirectMessages(t *testing.T) {
 	}
 
 	// ---- opening ----
-	_, err = svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: aliceID}))
+	_, err = svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{aliceID}}))
 	if code(err) != connect.CodeInvalidArgument {
 		t.Errorf("DM with self: want invalid_argument, got %v", err)
 	}
-	_, err = svc.OpenDirectMessage(stranger, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: aliceID}))
+	_, err = svc.OpenDirectMessage(stranger, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{aliceID}}))
 	if code(err) != connect.CodePermissionDenied {
 		t.Errorf("DM without a shared space: want permission_denied, got %v", err)
 	}
-	_, err = svc.OpenDirectMessage(operator, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: uuid.NewString()}))
+	_, err = svc.OpenDirectMessage(operator, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{uuid.NewString()}}))
 	if code(err) != connect.CodeNotFound {
 		t.Errorf("DM with unknown user: want not_found, got %v", err)
 	}
@@ -80,7 +80,7 @@ func TestDirectMessages(t *testing.T) {
 	bobSub := bus.Subscribe("user:" + bobID)
 	defer bobSub.Close()
 
-	opened, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: bobID}))
+	opened, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{bobID}}))
 	if err != nil {
 		t.Fatalf("alice opens DM with bob: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestDirectMessages(t *testing.T) {
 		}
 	}
 	// Idempotent from either side.
-	again, err := svc.OpenDirectMessage(bob, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: aliceID}))
+	again, err := svc.OpenDirectMessage(bob, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{aliceID}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestDirectMessages(t *testing.T) {
 	}
 	noEvent(t, aliceSub)
 	// An instance admin may open one without a shared space.
-	if _, err := svc.OpenDirectMessage(operator, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: bobID})); err != nil {
+	if _, err := svc.OpenDirectMessage(operator, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{bobID}})); err != nil {
 		t.Errorf("admin opens DM: %v", err)
 	}
 	nextEvent(t, bobSub) // its ChannelCreated

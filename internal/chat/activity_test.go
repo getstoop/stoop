@@ -99,7 +99,7 @@ func TestActivityMuteStamp(t *testing.T) {
 	}
 
 	// A direct message has no space, so only its own row applies.
-	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: authctx.UserID(bea)}))
+	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{authctx.UserID(bea)}}))
 	if err != nil {
 		t.Fatal(err)
 	}

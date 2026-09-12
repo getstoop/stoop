@@ -134,15 +134,6 @@ const (
 	// ChatServiceListDirectMessagesProcedure is the fully-qualified name of the ChatService's
 	// ListDirectMessages RPC.
 	ChatServiceListDirectMessagesProcedure = "/stoop.chat.v1.ChatService/ListDirectMessages"
-	// ChatServiceCreateGroupDirectMessageProcedure is the fully-qualified name of the ChatService's
-	// CreateGroupDirectMessage RPC.
-	ChatServiceCreateGroupDirectMessageProcedure = "/stoop.chat.v1.ChatService/CreateGroupDirectMessage"
-	// ChatServiceAddDirectMessageMembersProcedure is the fully-qualified name of the ChatService's
-	// AddDirectMessageMembers RPC.
-	ChatServiceAddDirectMessageMembersProcedure = "/stoop.chat.v1.ChatService/AddDirectMessageMembers"
-	// ChatServiceLeaveDirectMessageProcedure is the fully-qualified name of the ChatService's
-	// LeaveDirectMessage RPC.
-	ChatServiceLeaveDirectMessageProcedure = "/stoop.chat.v1.ChatService/LeaveDirectMessage"
 	// ChatServiceListDirectMessageCandidatesProcedure is the fully-qualified name of the ChatService's
 	// ListDirectMessageCandidates RPC.
 	ChatServiceListDirectMessageCandidatesProcedure = "/stoop.chat.v1.ChatService/ListDirectMessageCandidates"
@@ -268,27 +259,17 @@ type ChatServiceClient interface {
 	// markers and reactions use the channel RPCs above. Instance admins get
 	// no RPC into other people's DMs.
 	//
-	// OpenDirectMessage returns the caller's DM with another user, creating
-	// it if needed. The two must share a space, unless the caller is an
-	// instance admin.
+	// OpenDirectMessage returns the caller's conversation with one or more
+	// other people, creating it if it does not exist. A conversation *is*
+	// its participants, so this is idempotent for any number of them and
+	// there is only ever one conversation with a given set. The caller must
+	// share a space with each of them, unless they are an instance admin,
+	// and a block in either direction between any two refuses the call.
+	// Membership never changes afterwards: nobody can be added, and nobody
+	// can leave.
 	OpenDirectMessage(context.Context, *connect.Request[v1.OpenDirectMessageRequest]) (*connect.Response[v1.OpenDirectMessageResponse], error)
 	// The caller's DMs, most recent activity first.
 	ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error)
-	// CreateGroupDirectMessage starts a conversation with several people.
-	// Always a new conversation: unlike a 1:1, a group is not identified by
-	// who is in it. 2 to 9 others, each of whom the caller could message
-	// directly; a block between any two of them refuses the call.
-	CreateGroupDirectMessage(context.Context, *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error)
-	// AddDirectMessageMembers adds people to a group the caller is in; they
-	// can then read all of it. A 1:1 is refused — its two people are its
-	// identity. To bring somebody into one, start a group with all three
-	// through CreateGroupDirectMessage, which is a different conversation
-	// and carries no history.
-	AddDirectMessageMembers(context.Context, *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error)
-	// LeaveDirectMessage removes the caller from a group conversation, which
-	// stays for everyone else; the last person to leave deletes it. A 1:1
-	// cannot be left.
-	LeaveDirectMessage(context.Context, *connect.Request[v1.LeaveDirectMessageRequest]) (*connect.Response[v1.LeaveDirectMessageResponse], error)
 	// ListDirectMessageCandidates is everyone the caller may start a
 	// conversation with: the people they share a space with, minus blocks in
 	// either direction. Instance admins get the same list, not every account.
@@ -551,24 +532,6 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("ListDirectMessages")),
 			connect.WithClientOptions(opts...),
 		),
-		createGroupDirectMessage: connect.NewClient[v1.CreateGroupDirectMessageRequest, v1.CreateGroupDirectMessageResponse](
-			httpClient,
-			baseURL+ChatServiceCreateGroupDirectMessageProcedure,
-			connect.WithSchema(chatServiceMethods.ByName("CreateGroupDirectMessage")),
-			connect.WithClientOptions(opts...),
-		),
-		addDirectMessageMembers: connect.NewClient[v1.AddDirectMessageMembersRequest, v1.AddDirectMessageMembersResponse](
-			httpClient,
-			baseURL+ChatServiceAddDirectMessageMembersProcedure,
-			connect.WithSchema(chatServiceMethods.ByName("AddDirectMessageMembers")),
-			connect.WithClientOptions(opts...),
-		),
-		leaveDirectMessage: connect.NewClient[v1.LeaveDirectMessageRequest, v1.LeaveDirectMessageResponse](
-			httpClient,
-			baseURL+ChatServiceLeaveDirectMessageProcedure,
-			connect.WithSchema(chatServiceMethods.ByName("LeaveDirectMessage")),
-			connect.WithClientOptions(opts...),
-		),
 		listDirectMessageCandidates: connect.NewClient[v1.ListDirectMessageCandidatesRequest, v1.ListDirectMessageCandidatesResponse](
 			httpClient,
 			baseURL+ChatServiceListDirectMessageCandidatesProcedure,
@@ -638,9 +601,6 @@ type chatServiceClient struct {
 	toggleReaction              *connect.Client[v1.ToggleReactionRequest, v1.ToggleReactionResponse]
 	openDirectMessage           *connect.Client[v1.OpenDirectMessageRequest, v1.OpenDirectMessageResponse]
 	listDirectMessages          *connect.Client[v1.ListDirectMessagesRequest, v1.ListDirectMessagesResponse]
-	createGroupDirectMessage    *connect.Client[v1.CreateGroupDirectMessageRequest, v1.CreateGroupDirectMessageResponse]
-	addDirectMessageMembers     *connect.Client[v1.AddDirectMessageMembersRequest, v1.AddDirectMessageMembersResponse]
-	leaveDirectMessage          *connect.Client[v1.LeaveDirectMessageRequest, v1.LeaveDirectMessageResponse]
 	listDirectMessageCandidates *connect.Client[v1.ListDirectMessageCandidatesRequest, v1.ListDirectMessageCandidatesResponse]
 	markChannelRead             *connect.Client[v1.MarkChannelReadRequest, v1.MarkChannelReadResponse]
 	listActivity                *connect.Client[v1.ListActivityRequest, v1.ListActivityResponse]
@@ -847,21 +807,6 @@ func (c *chatServiceClient) ListDirectMessages(ctx context.Context, req *connect
 	return c.listDirectMessages.CallUnary(ctx, req)
 }
 
-// CreateGroupDirectMessage calls stoop.chat.v1.ChatService.CreateGroupDirectMessage.
-func (c *chatServiceClient) CreateGroupDirectMessage(ctx context.Context, req *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error) {
-	return c.createGroupDirectMessage.CallUnary(ctx, req)
-}
-
-// AddDirectMessageMembers calls stoop.chat.v1.ChatService.AddDirectMessageMembers.
-func (c *chatServiceClient) AddDirectMessageMembers(ctx context.Context, req *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error) {
-	return c.addDirectMessageMembers.CallUnary(ctx, req)
-}
-
-// LeaveDirectMessage calls stoop.chat.v1.ChatService.LeaveDirectMessage.
-func (c *chatServiceClient) LeaveDirectMessage(ctx context.Context, req *connect.Request[v1.LeaveDirectMessageRequest]) (*connect.Response[v1.LeaveDirectMessageResponse], error) {
-	return c.leaveDirectMessage.CallUnary(ctx, req)
-}
-
 // ListDirectMessageCandidates calls stoop.chat.v1.ChatService.ListDirectMessageCandidates.
 func (c *chatServiceClient) ListDirectMessageCandidates(ctx context.Context, req *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error) {
 	return c.listDirectMessageCandidates.CallUnary(ctx, req)
@@ -993,27 +938,17 @@ type ChatServiceHandler interface {
 	// markers and reactions use the channel RPCs above. Instance admins get
 	// no RPC into other people's DMs.
 	//
-	// OpenDirectMessage returns the caller's DM with another user, creating
-	// it if needed. The two must share a space, unless the caller is an
-	// instance admin.
+	// OpenDirectMessage returns the caller's conversation with one or more
+	// other people, creating it if it does not exist. A conversation *is*
+	// its participants, so this is idempotent for any number of them and
+	// there is only ever one conversation with a given set. The caller must
+	// share a space with each of them, unless they are an instance admin,
+	// and a block in either direction between any two refuses the call.
+	// Membership never changes afterwards: nobody can be added, and nobody
+	// can leave.
 	OpenDirectMessage(context.Context, *connect.Request[v1.OpenDirectMessageRequest]) (*connect.Response[v1.OpenDirectMessageResponse], error)
 	// The caller's DMs, most recent activity first.
 	ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error)
-	// CreateGroupDirectMessage starts a conversation with several people.
-	// Always a new conversation: unlike a 1:1, a group is not identified by
-	// who is in it. 2 to 9 others, each of whom the caller could message
-	// directly; a block between any two of them refuses the call.
-	CreateGroupDirectMessage(context.Context, *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error)
-	// AddDirectMessageMembers adds people to a group the caller is in; they
-	// can then read all of it. A 1:1 is refused — its two people are its
-	// identity. To bring somebody into one, start a group with all three
-	// through CreateGroupDirectMessage, which is a different conversation
-	// and carries no history.
-	AddDirectMessageMembers(context.Context, *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error)
-	// LeaveDirectMessage removes the caller from a group conversation, which
-	// stays for everyone else; the last person to leave deletes it. A 1:1
-	// cannot be left.
-	LeaveDirectMessage(context.Context, *connect.Request[v1.LeaveDirectMessageRequest]) (*connect.Response[v1.LeaveDirectMessageResponse], error)
 	// ListDirectMessageCandidates is everyone the caller may start a
 	// conversation with: the people they share a space with, minus blocks in
 	// either direction. Instance admins get the same list, not every account.
@@ -1272,24 +1207,6 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("ListDirectMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
-	chatServiceCreateGroupDirectMessageHandler := connect.NewUnaryHandler(
-		ChatServiceCreateGroupDirectMessageProcedure,
-		svc.CreateGroupDirectMessage,
-		connect.WithSchema(chatServiceMethods.ByName("CreateGroupDirectMessage")),
-		connect.WithHandlerOptions(opts...),
-	)
-	chatServiceAddDirectMessageMembersHandler := connect.NewUnaryHandler(
-		ChatServiceAddDirectMessageMembersProcedure,
-		svc.AddDirectMessageMembers,
-		connect.WithSchema(chatServiceMethods.ByName("AddDirectMessageMembers")),
-		connect.WithHandlerOptions(opts...),
-	)
-	chatServiceLeaveDirectMessageHandler := connect.NewUnaryHandler(
-		ChatServiceLeaveDirectMessageProcedure,
-		svc.LeaveDirectMessage,
-		connect.WithSchema(chatServiceMethods.ByName("LeaveDirectMessage")),
-		connect.WithHandlerOptions(opts...),
-	)
 	chatServiceListDirectMessageCandidatesHandler := connect.NewUnaryHandler(
 		ChatServiceListDirectMessageCandidatesProcedure,
 		svc.ListDirectMessageCandidates,
@@ -1396,12 +1313,6 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceOpenDirectMessageHandler.ServeHTTP(w, r)
 		case ChatServiceListDirectMessagesProcedure:
 			chatServiceListDirectMessagesHandler.ServeHTTP(w, r)
-		case ChatServiceCreateGroupDirectMessageProcedure:
-			chatServiceCreateGroupDirectMessageHandler.ServeHTTP(w, r)
-		case ChatServiceAddDirectMessageMembersProcedure:
-			chatServiceAddDirectMessageMembersHandler.ServeHTTP(w, r)
-		case ChatServiceLeaveDirectMessageProcedure:
-			chatServiceLeaveDirectMessageHandler.ServeHTTP(w, r)
 		case ChatServiceListDirectMessageCandidatesProcedure:
 			chatServiceListDirectMessageCandidatesHandler.ServeHTTP(w, r)
 		case ChatServiceMarkChannelReadProcedure:
@@ -1577,18 +1488,6 @@ func (UnimplementedChatServiceHandler) OpenDirectMessage(context.Context, *conne
 
 func (UnimplementedChatServiceHandler) ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListDirectMessages is not implemented"))
-}
-
-func (UnimplementedChatServiceHandler) CreateGroupDirectMessage(context.Context, *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.CreateGroupDirectMessage is not implemented"))
-}
-
-func (UnimplementedChatServiceHandler) AddDirectMessageMembers(context.Context, *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.AddDirectMessageMembers is not implemented"))
-}
-
-func (UnimplementedChatServiceHandler) LeaveDirectMessage(context.Context, *connect.Request[v1.LeaveDirectMessageRequest]) (*connect.Response[v1.LeaveDirectMessageResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.LeaveDirectMessage is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error) {

@@ -405,69 +405,59 @@ anyone from.
 
 ## Direct messages
 
-A DM is a channel with `space_id IS NULL`, `kind = 3` and its participants
-in `dm_members`. It comes in two shapes, and `dm_key` is which:
+A DM is a channel with `space_id IS NULL`, `kind = 3`, its participants in
+`dm_members`, and `dm_key` — every participant's id, sorted and joined —
+carrying a `UNIQUE` constraint. That key is the whole model:
 
-- **A 1:1** carries `dm_key`, the two user ids sorted, whose `UNIQUE`
-  makes "open a DM with X" idempotent: two people opening the same
-  conversation at once get the same row, because the second insert loses
-  to a constraint rather than to a check that could interleave.
-- **A group** carries no key. A group is not identified by who is in it —
-  people are added and leave — so it is identified by its id, and starting
-  a group with the same people twice makes two conversations. It never
-  becomes the pair conversation however small it gets; `DirectMessage.group`
-  on the wire is `dm_key IS NULL`, not a participant count.
-
-Ten participants, the caller included (`maxDMParticipants`). Past that the
-thing being asked for is a space.
+- **A conversation *is* its people.** `OpenDirectMessage` takes a set of
+  user ids and is idempotent for any size: the same people always open the
+  same conversation, whoever asks and in whatever order, because the
+  second insert loses to the constraint rather than to a check that could
+  interleave. There is only ever one conversation with a given set, and a
+  subset is a different conversation — you and ada are not the three of
+  you.
+- **Membership never changes.** Nobody can be added and nobody can leave,
+  so the key can never become a lie. Two people or ten, it is one rule
+  with no special case, and `DirectMessage.participants` can be counted to
+  tell a pair from a group.
+- **Ten participants**, the caller included (`maxDMParticipants`). Past
+  that the thing being asked for is a space. The cap bounds one
+  conversation, not how many exist — what bounds *that* is the eligibility
+  rule below, and rate limiting if an instance ever needs it.
 
 DMs have no manager: they are never renamed, reordered or deleted, and each
 person deletes only their own messages. Mentions resolve against
 participants; `@everyone` and `@here` are plain text.
 
 **Who may open one:** people who share a space, or an instance admin with
-anyone. Nothing else about instance admins reaches into DMs — see
+anyone — checked between the caller and each person named. It follows that
+a conversation can hold two people who share no space, introduced by
+somebody who shares one with each; that is what an introduction is.
+Nothing else about instance admins reaches into DMs — see
 [permissions.md](permissions.md) for the boundary and its honest limits.
 `ListDirectMessageCandidates` is that rule as a list, for the picker.
 
-**Adding and leaving are group-only.** `AddDirectMessageMembers` and
-`LeaveDirectMessage` both refuse a 1:1 with `InvalidArgument`: a 1:1 *is*
-its two people, so there is nobody to add and nothing to leave. Bringing a
-third person into one means starting a group with all three
-(`CreateGroupDirectMessage`) — a different conversation that carries none
-of what the two of them said, and leaves the pair's alone.
+**Blocks are the whole safety story**, since nothing can be left. One rule,
+two people or ten: a conversation holding somebody you blocked cannot be
+started, cannot be written in, and is not listed for you. The write refusal
+is symmetric — `dmBlocked` refuses both sides — but the *hiding* is only
+the blocker's own view, because making the conversation vanish for the
+blocked person would tell them they had been blocked, which a block
+deliberately never does.
 
-In a group, any participant may add, and the newcomer can read everything
-already said — a group is one room with one history, and a per-member
-floor would have to be respected by every read path in the DM code. Any
-participant may leave; the messages stay, because they are the other
-people's conversation too. A group that everybody else has left is still
-the remaining person's to read, and they may add people back to it; when
-the last one leaves, the channel row goes and the cascades take its
-messages.
-
-**What is missing** is a way to take a conversation *off your list* without
-blocking the person, which today is the only thing that hides a 1:1. That
-is a close-or-hide flag per participant, not a leave, and it is not built.
-
-**Blocks** are enforced when somebody is added, not afterwards: nobody is
-ever put in a room with a person they blocked, and a block made later does
-not silently gag either of them for everybody. So `dmBlocked` (the write
-rule) and the block filter in `ListDMChannelsByUser` both apply to keyed
-DMs only.
-
-**Realtime.** `DirectMessageMembersChanged` carries the new participant
-list to everyone still in the conversation — the list, because it is at
-most ten names and the clients that care are exactly the people in it, and
-no `Channel`, so no caller's unread state can ride a broadcast. Somebody
-added also gets `ChannelCreated` on their own topic; somebody who left gets
-`ChannelDeleted` with an empty `space_id`.
+**What is missing** is a way to take a conversation off your list without
+blocking anyone. Closing is list grooming, not leaving: it would come back
+on the next message, and mute decides whether that arrival is noisy. It
+applies to the 1:1s that already exist as much as to groups, so it is its
+own change — STOOP-249.
 
 On the web, `spaceId === ""` is the DM signal. `ChannelView` renders a DM
 from `/dm/$channelId` with an empty space; `api/dms.ts` holds the `["dms"]`
 list and `usePeople`, which hands the timeline, composer and reaction
 tooltips a DM's participants *in the shape of members*, so those components
 never learn there are two kinds of channel either. A group has no name, so
+`dmTitle` makes one from the people in it ("ada, bea and 2 others") and
+`AvatarStack` makes a face from the first two. A group has no name, so
 `dmTitle` makes one from the people in it ("ada, bea and 2 others") and
 `AvatarStack` makes a face from the first two.
 

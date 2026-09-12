@@ -21,7 +21,6 @@ import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkChannelRead } from "../../hooks/useMarkChannelRead";
 import { useConnectionStore } from "../../stores/connection";
 import { useVoiceStore } from "../../stores/voice";
-import { DMActions } from "../DirectMessages/DMActions";
 import { DMTitle } from "../DirectMessages/DMTitle";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
@@ -126,7 +125,6 @@ export function ChannelView() {
             <span className="channel-title">{channel?.name ?? "…"}</span>
           </>
         )}
-        {isDM && <DMActions channelId={channelId} />}
         {channel && <ChannelTopic channel={channel} space={space} />}
         {channel?.kind === ChannelKind.VOICE && (
           <JoinVoiceChip spaceId={spaceId} channelId={channel.id} />

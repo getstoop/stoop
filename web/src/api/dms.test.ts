@@ -9,8 +9,6 @@ import {
   dmOther,
   dmTitle,
   patchDirectMessage,
-  patchDirectMessageParticipants,
-  removeDirectMessage,
 } from "./dms";
 
 // This module reaches ./clients, which builds its transport from
@@ -31,10 +29,11 @@ const channel = (id: string, lastMessageId = ""): Channel =>
   ({ id, lastMessageId, lastReadMessageId: "", unreadCount: 0 }) as Channel;
 
 const dm = (c: Channel, participants: MessageAuthor[] = []): DirectMessage =>
-  ({ channel: c, participants, group: false }) as unknown as DirectMessage;
+  ({ channel: c, participants }) as unknown as DirectMessage;
 
-const groupDm = (c: Channel, participants: MessageAuthor[]): DirectMessage =>
-  ({ channel: c, participants, group: true }) as unknown as DirectMessage;
+// More than two people is a group; membership never changes, so the count
+// is the whole test.
+const groupDm = dm;
 
 const casey = author("u1", "casey", "Casey");
 const ada = author("u2", "ada", "Ada W.");
@@ -96,18 +95,6 @@ describe("dmTitle for a group", () => {
     );
   });
 
-  // Everyone else left: the conversation and its history are still mine.
-  it("says so when only I am left", () => {
-    expect(dmTitle(groupDm(channel("g1"), [casey]), "u1")).toBe("Just you");
-  });
-
-  // Two people left in a group is not the pair conversation with them.
-  it("stays a group when it shrinks to two", () => {
-    const pair = groupDm(channel("g1"), [casey, ada]);
-    expect(dmIsGroup(pair)).toBe(true);
-    expect(dmTitle(pair, "u1")).toBe("Ada W.");
-  });
-
   it("leaves a 1:1 alone", () => {
     expect(dmIsGroup(dm(channel("d1"), [casey, ada]))).toBe(false);
     expect(dmTitle(dm(channel("d1"), [casey, ada]), "u1")).toBe("Ada W.");
@@ -125,49 +112,8 @@ describe("dmFaces", () => {
     ).toEqual([ada, bea]);
   });
 
-  it("falls back to me in a group everyone left", () => {
-    expect(dmFaces(groupDm(channel("g1"), [casey]), "u1")).toEqual([casey]);
-  });
-
   it("has nobody to show in an empty conversation", () => {
     expect(dmFaces(dm(channel("d1")), "u1")).toEqual([]);
-  });
-});
-
-describe("patchDirectMessageParticipants", () => {
-  it("replaces one conversation's people", () => {
-    const qc = new QueryClient();
-    qc.setQueryData(["dms"], [groupDm(channel("g1"), [casey, ada])]);
-    patchDirectMessageParticipants(qc, "g1", [casey, ada, bea]);
-    expect(qc.getQueryData<DirectMessage[]>(["dms"])?.[0].participants).toEqual(
-      [casey, ada, bea],
-    );
-  });
-
-  it("leaves the unread state alone", () => {
-    const qc = new QueryClient();
-    qc.setQueryData(["dms"], [dm(channel("g1", "07"), [casey, ada])]);
-    patchDirectMessageParticipants(qc, "g1", [casey, ada, bea]);
-    expect(
-      qc.getQueryData<DirectMessage[]>(["dms"])?.[0].channel,
-    ).toMatchObject({ id: "g1", lastMessageId: "07" });
-  });
-
-  it("leaves an unloaded list alone", () => {
-    const qc = new QueryClient();
-    patchDirectMessageParticipants(qc, "g1", [casey]);
-    expect(qc.getQueryData(["dms"])).toBeUndefined();
-  });
-});
-
-describe("removeDirectMessage", () => {
-  it("drops the conversation the caller left", () => {
-    const qc = new QueryClient();
-    qc.setQueryData(["dms"], [dm(channel("g1")), dm(channel("g2"))]);
-    removeDirectMessage(qc, "g1");
-    expect(
-      qc.getQueryData<DirectMessage[]>(["dms"])?.map((d) => d.channel?.id),
-    ).toEqual(["g2"]);
   });
 });
 
