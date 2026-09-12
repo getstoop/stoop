@@ -62,15 +62,18 @@ test("direct messages", async ({ browser }) => {
     "the DM list has the one conversation",
   ).toHaveCount(1);
 
-  // A talks (twice); B gets one alert for the conversation, not one per
-  // message, and reads it live.
+  // A talks (twice) and B reads it live. The rail pill counts messages,
+  // the same number the row badge shows: the activity feed holds one
+  // entry per conversation, but a pill reading 1 beside a row reading 2
+  // would be two identical badges disagreeing (api/dms.ts →
+  // dmUnreadTotal, and the unit tests beside it).
   await say(A, "hello bea");
   await A.locator(".message-content", { hasText: "hello bea" }).waitFor();
   await say(A, "you there?");
   await expect(
     dmsPill(B).locator(".pill-badge"),
-    "B's DMs pill shows one alert for the conversation",
-  ).toHaveText("1");
+    "B's DMs pill counts both messages",
+  ).toHaveText("2");
   await expect(
     B.locator(".space-pill.activity .pill-dot"),
     "B's activity pill is dotted after two messages",
