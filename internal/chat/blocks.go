@@ -19,8 +19,19 @@ import (
 // can block anyone; it says nothing to the blocked side beyond a DM being
 // refused, so only the blocker's own view changes.
 
-var errBlocked = connect.NewError(connect.CodePermissionDenied,
-	errors.New("you can't message this person"))
+// The refusals a block produces. None of them says who blocked whom, or
+// which way round; a block is not announced to the side it lands on.
+// "This person" is only true of a conversation with two people in it —
+// in a group the block may be with any of several, and naming which would
+// be naming them.
+var (
+	errBlocked = connect.NewError(connect.CodePermissionDenied,
+		errors.New("you can't message this person"))
+	errBlockedGroupOpen = connect.NewError(connect.CodePermissionDenied,
+		errors.New("you can't start a conversation with these people"))
+	errBlockedGroupSend = connect.NewError(connect.CodePermissionDenied,
+		errors.New("you can't send messages in this conversation"))
+)
 
 func (s *Service) BlockUser(ctx context.Context, req *connect.Request[chatv1.BlockUserRequest]) (*connect.Response[chatv1.BlockUserResponse], error) {
 	me := authctx.UserID(ctx)

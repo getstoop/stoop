@@ -445,6 +445,14 @@ the blocker's own view, because making the conversation vanish for the
 blocked person would tell them they had been blocked, which a block
 deliberately never does.
 
+Opening one checks **every pair**, not just the caller's: a conversation
+two of its people could never speak in would be worse than a refusal. The
+cost is stated rather than hidden — the caller can infer that two *other*
+people have blocked each other, since they can message each of them alone.
+Deliberate, and the smaller of the two harms. None of the refusals names
+anybody: "this person" is used only where there is exactly one other, and
+a group says "these people" or "this conversation" instead.
+
 Blocking also **deletes the blocker's existing alerts** from that person
 and from every conversation they are in (`DeleteActivityForBlocked`), not
 just stopping new ones. The rail's DM badge counts unread activity items

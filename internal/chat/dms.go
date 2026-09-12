@@ -78,7 +78,11 @@ func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.
 			return dbgen.Channel{}, err
 		}
 		if blocked {
-			return dbgen.Channel{}, errBlocked
+			ids, err := s.q.ListDMMembers(ctx, channel.ID)
+			if err != nil {
+				return dbgen.Channel{}, fmt.Errorf("list participants: %w", err)
+			}
+			return dbgen.Channel{}, blockRefusal(len(ids), errBlockedGroupSend)
 		}
 	}
 	return channel, nil
@@ -216,9 +220,21 @@ func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]str
 	return out, nil
 }
 
+// blockRefusal picks the wording for a conversation of this size: "this
+// person" only means something when there is exactly one other.
+func blockRefusal(participants int, group *connect.Error) *connect.Error {
+	if participants > 2 {
+		return group
+	}
+	return errBlocked
+}
+
 // checkNoBlocks refuses a conversation holding anyone who has blocked, or
-// is blocked by, anyone else in it. Membership never changes, so this is
-// the only moment it has to be asked.
+// is blocked by, anyone else in it. Every pair is checked, not just the
+// caller's: a conversation nobody can speak in would be worse than a
+// refusal. The cost is that the caller can infer two *other* people have
+// blocked each other, which is stated in messaging.md rather than traded
+// away. Membership never changes, so this is the only moment it is asked.
 func (s *Service) checkNoBlocks(ctx context.Context, everyone []string) error {
 	for i, id := range everyone {
 		others := append(append([]string{}, everyone[:i]...), everyone[i+1:]...)
@@ -227,7 +243,7 @@ func (s *Service) checkNoBlocks(ctx context.Context, everyone []string) error {
 			return fmt.Errorf("check blocks: %w", err)
 		}
 		if len(hits) > 0 {
-			return errBlocked
+			return blockRefusal(len(everyone), errBlockedGroupOpen)
 		}
 	}
 	return nil

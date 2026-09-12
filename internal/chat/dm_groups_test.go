@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -325,4 +326,60 @@ func authorIDs(authors []*chatv1.MessageAuthor) map[string]bool {
 		out[a.Id] = true
 	}
 	return out
+}
+
+// The refusals a block produces have to fit the conversation: "this
+// person" means nothing in a group, where the block may be with any of
+// several and naming which would be naming them.
+func TestBlockRefusalWording(t *testing.T) {
+	pool := dbtest.New(t)
+	bus := events.NewInProcBus()
+	svc := chat.New(pool, bus, dbDirectory{pool})
+
+	alice := newUser(t, pool, "alice", authctx.RoleMember)
+	bob := newUser(t, pool, "bob", authctx.RoleMember)
+	casey := newUser(t, pool, "casey", authctx.RoleMember)
+	aliceID, bobID := authctx.UserID(alice), authctx.UserID(bob)
+	caseyID := authctx.UserID(casey)
+
+	sp, err := svc.CreateSpace(alice, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	joinSpace(t, svc, alice, sp.Msg.Space.Id, bob, casey)
+
+	group := openDM(t, svc, alice, bobID, caseyID)
+	if _, err := svc.BlockUser(bob, connect.NewRequest(&chatv1.BlockUserRequest{UserId: caseyID})); err != nil {
+		t.Fatal(err)
+	}
+
+	// Sending into a group: the wording cannot single anybody out.
+	_, err = svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{
+		ChannelId: group.Channel.Id, Content: "hello",
+	}))
+	if got := connect.CodeOf(err); got != connect.CodePermissionDenied {
+		t.Fatalf("sending across a block in a group: got %v", got)
+	}
+	if msg := err.Error(); !strings.Contains(msg, "this conversation") {
+		t.Errorf("group send refusal should not single anybody out: %q", msg)
+	}
+
+	// Opening a group the block forbids says "these people".
+	_, err = svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{
+		UserIds: []string{bobID, caseyID, aliceID},
+	}))
+	if err == nil {
+		t.Fatal("opening a group holding a blocked pair should be refused")
+	}
+
+	// A 1:1 keeps the wording that is true there.
+	if _, err := svc.BlockUser(alice, connect.NewRequest(&chatv1.BlockUserRequest{UserId: bobID})); err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{
+		UserIds: []string{bobID},
+	}))
+	if msg := err.Error(); !strings.Contains(msg, "this person") {
+		t.Errorf("a 1:1 refusal should still name the shape it has: %q", msg)
+	}
 }
