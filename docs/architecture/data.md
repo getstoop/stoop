@@ -87,15 +87,18 @@ ALTER TABLE channels ADD CONSTRAINT channels_dm_shape
 ```
 
 That constraint is the whole DM data model in three lines. A DM is a
-channel with no space; `dm_key` is the participant ids sorted and joined,
-and its `UNIQUE` makes "open a DM with X" idempotent under a race — two
-people opening the same conversation simultaneously get the same row
-because the second insert loses to a unique constraint rather than to a
-check that could interleave. `last_message_id` is maintained on send so the
-channel list can answer "anything new?" without touching `messages`.
+channel with no space. `dm_key` is every participant's id sorted and
+joined — two of them or ten — and its `UNIQUE` makes "open the conversation
+with these people" idempotent under a race: two people opening it
+simultaneously get the same row because the second insert loses to a unique
+constraint rather than to a check that could interleave. Membership never
+changes, so the key never goes stale ([messaging.md](messaging.md) →
+Direct messages). `last_message_id` is maintained on send so the channel
+list can answer "anything new?" without touching `messages`.
 
 **`dm_members`** — a participants *table* rather than two columns on the
-channel, so group DMs can follow without a migration. v1 is 1:1 only.
+channel, which is what let group conversations arrive with no migration at
+all.
 
 **`channel_reads`** — `(user_id, channel_id) → last_read_message_id`, only
 ever moving forward. Because message ids are time-ordered, "unread" is an

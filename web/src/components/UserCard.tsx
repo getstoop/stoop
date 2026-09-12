@@ -52,7 +52,7 @@ export function UserCard({
 
   const message = async () => {
     try {
-      const id = await openDirectMessage(queryClient, userId);
+      const id = await openDirectMessage(queryClient, [userId]);
       onClose();
       navigate({ to: "/dm/$channelId", params: { channelId: id } });
     } catch (err) {

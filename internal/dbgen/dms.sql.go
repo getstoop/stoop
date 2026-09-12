@@ -24,6 +24,40 @@ func (q *Queries) AddDMMember(ctx context.Context, arg AddDMMemberParams) error 
 	return err
 }
 
+const blockedAmong = `-- name: BlockedAmong :many
+SELECT DISTINCT (CASE WHEN blocker_id = $1 THEN blocked_id ELSE blocker_id END)::uuid AS user_id
+FROM user_blocks
+WHERE (blocker_id = $1 AND blocked_id = ANY($2::uuid[]))
+   OR (blocked_id = $1 AND blocker_id = ANY($2::uuid[]))
+`
+
+type BlockedAmongParams struct {
+	UserID string
+	Ids    []string
+}
+
+// BlockedAmong: which of these users block, or are blocked by, the given
+// user. One round trip instead of a pair check each.
+func (q *Queries) BlockedAmong(ctx context.Context, arg BlockedAmongParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, blockedAmong, arg.UserID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const isDMMember = `-- name: IsDMMember :one
 SELECT EXISTS (
     SELECT 1 FROM dm_members WHERE channel_id = $1 AND user_id = $2
@@ -42,6 +76,45 @@ func (q *Queries) IsDMMember(ctx context.Context, arg IsDMMemberParams) (bool, e
 	return is_member, err
 }
 
+const listDMCandidates = `-- name: ListDMCandidates :many
+SELECT DISTINCT o.user_id FROM space_members me
+JOIN space_members o ON o.space_id = me.space_id AND o.user_id <> me.user_id
+WHERE me.user_id = $1
+  AND NOT EXISTS (
+    SELECT 1 FROM user_blocks b
+    WHERE (b.blocker_id = $1 AND b.blocked_id = o.user_id)
+       OR (b.blocked_id = $1 AND b.blocker_id = o.user_id)
+  )
+LIMIT $2
+`
+
+type ListDMCandidatesParams struct {
+	UserID string
+	Lim    int32
+}
+
+// ListDMCandidates: everyone the caller may start a conversation with —
+// the people they share a space with, minus blocks in either direction.
+func (q *Queries) ListDMCandidates(ctx context.Context, arg ListDMCandidatesParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listDMCandidates, arg.UserID, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDMChannelsByUser = `-- name: ListDMChannelsByUser :many
 SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
@@ -52,6 +125,7 @@ FROM channels c
 JOIN dm_members d ON d.channel_id = c.id AND d.user_id = $1
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = $1
 WHERE c.kind = 3
+  -- A conversation holding somebody you blocked is not yours to see.
   AND NOT EXISTS (
     SELECT 1 FROM dm_members o
     JOIN user_blocks b ON b.blocked_id = o.user_id AND b.blocker_id = $1
@@ -169,7 +243,9 @@ type OpenDMChannelParams struct {
 // Owned by the chat module. Only internal/chat may use these queries.
 // OpenDMChannel creates the channel for a dm_key or returns the existing
 // one: the no-op ON CONFLICT update makes RETURNING yield the row either
-// way, so two people opening the same DM at once get the same channel.
+// way, so two people opening the same conversation at once get the same
+// channel. The key is every participant sorted and joined, so this holds
+// for a pair and for a group alike.
 func (q *Queries) OpenDMChannel(ctx context.Context, arg OpenDMChannelParams) (Channel, error) {
 	row := q.db.QueryRow(ctx, openDMChannel, arg.ID, arg.DmKey)
 	var i Channel
@@ -206,4 +282,38 @@ func (q *Queries) SharesSpace(ctx context.Context, arg SharesSpaceParams) (bool,
 	var shares bool
 	err := row.Scan(&shares)
 	return shares, err
+}
+
+const sharesSpaceAmong = `-- name: SharesSpaceAmong :many
+SELECT DISTINCT b.user_id FROM space_members a
+JOIN space_members b ON b.space_id = a.space_id
+WHERE a.user_id = $1 AND b.user_id = ANY($2::uuid[])
+`
+
+type SharesSpaceAmongParams struct {
+	UserID string
+	Ids    []string
+}
+
+// SharesSpaceAmong: which of these users share at least one space with the
+// caller. The caller may message exactly those, so a short list back means
+// somebody in the request is out of reach.
+func (q *Queries) SharesSpaceAmong(ctx context.Context, arg SharesSpaceAmongParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, sharesSpaceAmong, arg.UserID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

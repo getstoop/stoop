@@ -39,6 +39,7 @@ export function MessageList({
   channelId,
   channelName,
   dm = false,
+  group = false,
   newAfterId,
   jumpTarget,
   onReply,
@@ -49,6 +50,8 @@ export function MessageList({
   channelName: string;
   // A direct message: channelName is the other person.
   dm?: boolean;
+  // A group conversation: named after its people, who change.
+  group?: boolean;
   // Messages with an ID above this were unread when the channel opened;
   // "" means every message was (never opened before), null means the
   // snapshot isn't taken yet.
@@ -315,9 +318,11 @@ export function MessageList({
         >
           {history && !history.hasOlder ? (
             <span>
-              {dm
-                ? `Beginning of your conversation with ${channelName}`
-                : `Beginning of #${channelName}`}
+              {group
+                ? "Beginning of this conversation"
+                : dm
+                  ? `Beginning of your conversation with ${channelName}`
+                  : `Beginning of #${channelName}`}
             </span>
           ) : history?.loading ? (
             "Loading earlier messages…"

@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
-import { dmOther, dmTitle, patchDirectMessage } from "./dms";
+import {
+  dmFaces,
+  dmIsGroup,
+  dmOther,
+  dmTitle,
+  dmUnreadTotal,
+  patchDirectMessage,
+} from "./dms";
 
 // This module reaches ./clients, which builds its transport from
 // location.origin at import time; the node environment has no location.
@@ -22,8 +29,21 @@ const author = (
 const channel = (id: string, lastMessageId = ""): Channel =>
   ({ id, lastMessageId, lastReadMessageId: "", unreadCount: 0 }) as Channel;
 
+const unreadChannel = (id: string, unreadCount: number, muted = false) =>
+  ({
+    id,
+    lastMessageId: "",
+    lastReadMessageId: "",
+    unreadCount,
+    muted,
+  }) as Channel;
+
 const dm = (c: Channel, participants: MessageAuthor[] = []): DirectMessage =>
   ({ channel: c, participants }) as unknown as DirectMessage;
+
+// More than two people is a group; membership never changes, so the count
+// is the whole test.
+const groupDm = dm;
 
 const casey = author("u1", "casey", "Casey");
 const ada = author("u2", "ada", "Ada W.");
@@ -61,6 +81,49 @@ describe("dmTitle", () => {
 
   it("has a placeholder when there is nobody to name", () => {
     expect(dmTitle(dm(channel("d1")), "u1")).toBe("…");
+  });
+});
+
+const dee = author("u4", "dee", "Dee");
+const eli = author("u5", "eli", "Eli");
+
+describe("dmTitle for a group", () => {
+  const group = (...people: MessageAuthor[]) =>
+    groupDm(channel("g1"), [casey, ...people]);
+
+  it("names two people with an and", () => {
+    expect(dmTitle(group(ada, bea), "u1")).toBe("Ada W. and bea");
+  });
+
+  it("names three", () => {
+    expect(dmTitle(group(ada, bea, dee), "u1")).toBe("Ada W., bea and Dee");
+  });
+
+  it("counts the rest past three", () => {
+    expect(dmTitle(group(ada, bea, dee, eli), "u1")).toBe(
+      "Ada W., bea and 2 others",
+    );
+  });
+
+  it("leaves a 1:1 alone", () => {
+    expect(dmIsGroup(dm(channel("d1"), [casey, ada]))).toBe(false);
+    expect(dmTitle(dm(channel("d1"), [casey, ada]), "u1")).toBe("Ada W.");
+  });
+});
+
+describe("dmFaces", () => {
+  it("is the other person in a 1:1", () => {
+    expect(dmFaces(dm(channel("d1"), [casey, ada]), "u1")).toEqual([ada]);
+  });
+
+  it("is the first two others in a group", () => {
+    expect(
+      dmFaces(groupDm(channel("g1"), [casey, ada, bea, dee]), "u1"),
+    ).toEqual([ada, bea]);
+  });
+
+  it("has nobody to show in an empty conversation", () => {
+    expect(dmFaces(dm(channel("d1")), "u1")).toEqual([]);
   });
 });
 
@@ -132,5 +195,33 @@ describe("patchDirectMessage", () => {
     expect(
       qc.getQueryData<DirectMessage[]>(["dms"])?.map((d) => d.channel?.id),
     ).toEqual(["ada", "bea"]);
+  });
+});
+
+// The rail pill must equal the sum of the row badges: they used to count
+// different things — conversations in the feed, messages on the row — and
+// disagreed in plain sight.
+describe("dmUnreadTotal", () => {
+  it("adds up the messages, not the conversations", () => {
+    expect(
+      dmUnreadTotal([
+        dm(unreadChannel("a", 4), [casey, ada]),
+        dm(unreadChannel("b", 2), [casey, bea]),
+      ]),
+    ).toBe(6);
+  });
+
+  it("skips a muted conversation, as its row skips the badge", () => {
+    expect(
+      dmUnreadTotal([
+        dm(unreadChannel("a", 4), [casey, ada]),
+        dm(unreadChannel("b", 9, true), [casey, bea]),
+      ]),
+    ).toBe(4);
+  });
+
+  it("is zero with nothing unread, and with nothing loaded", () => {
+    expect(dmUnreadTotal([dm(unreadChannel("a", 0), [casey, ada])])).toBe(0);
+    expect(dmUnreadTotal(undefined)).toBe(0);
   });
 });

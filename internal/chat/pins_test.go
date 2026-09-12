@@ -224,7 +224,7 @@ func TestPinsAreNotForDMs(t *testing.T) {
 		t.Fatal(err)
 	}
 	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{
-		UserId: authctx.UserID(bea),
+		UserIds: []string{authctx.UserID(bea)},
 	}))
 	if err != nil {
 		t.Fatal(err)

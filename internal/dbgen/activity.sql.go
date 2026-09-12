@@ -65,6 +65,34 @@ func (q *Queries) CreateActivityItem(ctx context.Context, arg CreateActivityItem
 	return i, err
 }
 
+const deleteActivityForBlocked = `-- name: DeleteActivityForBlocked :execrows
+DELETE FROM activity_items a
+WHERE a.user_id = $1
+  AND (a.actor_id = $2
+    OR EXISTS (
+      SELECT 1 FROM dm_members d
+      WHERE d.channel_id = a.channel_id AND d.user_id = $2
+    ))
+`
+
+type DeleteActivityForBlockedParams struct {
+	UserID    string
+	BlockedID string
+}
+
+// DeleteActivityForBlocked drops the alerts a block is meant to silence:
+// anything the blocked person caused, and anything in a direct message
+// they are part of. Without it a block leaves a badge nobody can clear —
+// the conversation is hidden from the blocker's list, so there is nothing
+// left to open and mark read.
+func (q *Queries) DeleteActivityForBlocked(ctx context.Context, arg DeleteActivityForBlockedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteActivityForBlocked, arg.UserID, arg.BlockedID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteReadActivityBefore = `-- name: DeleteReadActivityBefore :execrows
 DELETE FROM activity_items WHERE read_at IS NOT NULL AND read_at < $1::timestamptz
 `

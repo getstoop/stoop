@@ -75,21 +75,75 @@ export function dmOther(
   return dm.participants.find((p) => p.id !== meId) ?? dm.participants[0];
 }
 
-export function dmTitle(dm: DirectMessage, meId: string | undefined): string {
-  const other = dmOther(dm, meId);
-  return other?.displayName || other?.username || "…";
+// Everyone but me, in the order the server lists them.
+export function dmOthers(
+  dm: DirectMessage,
+  meId: string | undefined,
+): MessageAuthor[] {
+  return dm.participants.filter((p) => p.id !== meId);
 }
 
-// Opens (or finds) the DM with a user and returns its channel id. The
-// list is refetched so the conversation is there to navigate to.
+// More than two people. Membership is fixed when the conversation is
+// created, so counting is a reliable test. A group has no name of its
+// own, so its title and face are made from who is in it.
+export function dmIsGroup(dm: DirectMessage): boolean {
+  return dm.participants.length > 2;
+}
+
+export function personName(p: MessageAuthor | undefined): string {
+  return p?.displayName || p?.username || "";
+}
+
+export function dmTitle(dm: DirectMessage, meId: string | undefined): string {
+  const others = dmOthers(dm, meId);
+  if (dmIsGroup(dm)) {
+    if (others.length === 0) return "Just you";
+    const names = others.slice(0, 2).map(personName);
+    const rest = others.length - names.length;
+    if (rest === 0) return names.join(" and ");
+    if (rest === 1) return `${names.join(", ")} and ${personName(others[2])}`;
+    return `${names.join(", ")} and ${rest} others`;
+  }
+  return personName(dmOther(dm, meId)) || "…";
+}
+
+// The one or two faces a conversation shows: the other person, or the
+// first two of a group.
+export function dmFaces(
+  dm: DirectMessage,
+  meId: string | undefined,
+): MessageAuthor[] {
+  if (!dmIsGroup(dm)) {
+    const other = dmOther(dm, meId);
+    return other ? [other] : [];
+  }
+  const others = dmOthers(dm, meId);
+  return (others.length > 0 ? others : dm.participants).slice(0, 2);
+}
+
+// Opens the conversation with these people, creating it if it does not
+// exist — a conversation is its participants, so there is only ever one
+// with a given set. Returns its channel id.
 export async function openDirectMessage(
   queryClient: QueryClient,
-  userId: string,
+  userIds: string[],
 ): Promise<string> {
-  const res = await chatClient.openDirectMessage({ userId });
+  const res = await chatClient.openDirectMessage({ userIds });
   const id = res.directMessage?.channel?.id ?? "";
   await queryClient.invalidateQueries({ queryKey: ["dms"] });
   return id;
+}
+
+// The people the caller can start a conversation with. Fetched when a
+// picker opens, not held: it is a list of names and it goes stale.
+export function useDMCandidates(enabled = true) {
+  return useQuery({
+    queryKey: ["dm-candidates"],
+    queryFn: async () =>
+      (await chatClient.listDirectMessageCandidates({})).users,
+    enabled,
+    gcTime: 0,
+  });
 }
 
 // Patches one DM's channel in the cache and keeps the list in activity
@@ -112,4 +166,18 @@ export function patchDirectMessage(
         ),
       ),
   );
+}
+
+// What the rail's DM pill shows: the same numbers the rows do, added up.
+// It cannot come from the activity feed — a conversation holds one unread
+// entry there however many messages arrive (recordDM refreshes it rather
+// than adding rows), so the feed counts conversations while a row counts
+// messages, and two identical-looking pills disagree. The predicate is
+// the row's own, so the pill is the sum of what you can see.
+export function dmUnreadTotal(dms: DirectMessage[] | undefined): number {
+  let total = 0;
+  for (const dm of dms ?? []) {
+    if (dm.channel && !dm.channel.muted) total += dm.channel.unreadCount;
+  }
+  return total;
 }

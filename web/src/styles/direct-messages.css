@@ -32,3 +32,100 @@
   font-weight: 400;
   font-size: var(--text-ui);
 }
+
+/* ---- Group conversations (STOOP-220) ---- */
+
+/* Two faces for a conversation with no one face. The second sits behind
+   the first with a cut-out so the overlap reads as two people. */
+.avatar-stack {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  /* off-scale: a 24px avatar plus the half of the second that shows
+     past it. */
+  width: 36px;
+  height: 24px;
+}
+
+.avatar-stack .avatar {
+  position: absolute;
+  top: 0;
+  border: 2px solid var(--panel);
+}
+
+.avatar-stack .avatar:first-child {
+  left: 0;
+  z-index: 1;
+}
+
+.avatar-stack .avatar:last-child {
+  /* off-scale: half an avatar, so both faces stay readable. */
+  left: 12px;
+}
+
+/* The cut-out matches whatever the stack sits on. */
+.channel-header .avatar-stack .avatar {
+  border-color: var(--surface);
+}
+
+.modal .avatar-stack .avatar {
+  border-color: var(--panel);
+}
+
+.dm-leave {
+  margin-left: auto;
+}
+
+/* ---- The people picker ---- */
+
+.new-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.picked-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.picked-chips .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.candidate-row:hover {
+  background: var(--hover);
+}
+
+.candidate-row.disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.candidate-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

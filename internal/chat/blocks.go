@@ -13,10 +13,11 @@ import (
 )
 
 // Blocks. One person's decision about another: no direct messages in
-// either direction, the existing conversation hidden from the blocker's
-// list, and no mention/reply/DM alerts from the blocked person. Anyone
-// can block anyone; it says nothing to the blocked side beyond a DM
-// being refused.
+// either direction, every conversation they are both in hidden from the
+// blocker's list, and no mention/reply/DM alerts from the blocked person
+// — the ones already in the feed are deleted, not just stopped. Anyone
+// can block anyone; it says nothing to the blocked side beyond a DM being
+// refused, so only the blocker's own view changes.
 
 var errBlocked = connect.NewError(connect.CodePermissionDenied,
 	errors.New("you can't message this person"))
@@ -35,6 +36,14 @@ func (s *Service) BlockUser(ctx context.Context, req *connect.Request[chatv1.Blo
 	}
 	if err := s.q.BlockUser(ctx, dbgen.BlockUserParams{BlockerID: me, BlockedID: req.Msg.UserId}); err != nil {
 		return nil, fmt.Errorf("block: %w", err)
+	}
+	// The alerts have to go with the conversation. Blocking hides every
+	// direct message they are in, so an unread item pointing at one would
+	// leave a badge with nothing behind it to open and mark read.
+	if _, err := s.q.DeleteActivityForBlocked(ctx, dbgen.DeleteActivityForBlockedParams{
+		UserID: me, BlockedID: req.Msg.UserId,
+	}); err != nil {
+		return nil, fmt.Errorf("clear their activity: %w", err)
 	}
 	return connect.NewResponse(&chatv1.BlockUserResponse{}), nil
 }
@@ -71,7 +80,9 @@ func (s *Service) blockedBetween(ctx context.Context, a, b string) (bool, error)
 	return s.q.BlockedEitherWay(ctx, dbgen.BlockedEitherWayParams{BlockerID: a, BlockedID: b})
 }
 
-// dmBlocked: is userID blocked by, or blocking, anyone else in the DM?
+// dmBlocked: is userID blocked by, or blocking, anyone else in the
+// conversation? One rule for two people or ten — a conversation holding
+// somebody you blocked is one you can neither see nor write in.
 func (s *Service) dmBlocked(ctx context.Context, channel dbgen.Channel, userID string) (bool, error) {
 	ids, err := s.q.ListDMMembers(ctx, channel.ID)
 	if err != nil {

@@ -126,12 +126,21 @@ service ChatService {
   // markers and reactions use the channel RPCs above. Instance admins get
   // no RPC into other people's DMs.
   //
-  // OpenDirectMessage returns the caller's DM with another user, creating
-  // it if needed. The two must share a space, unless the caller is an
-  // instance admin.
+  // OpenDirectMessage returns the caller's conversation with one or more
+  // other people, creating it if it does not exist. A conversation *is*
+  // its participants, so this is idempotent for any number of them and
+  // there is only ever one conversation with a given set. The caller must
+  // share a space with each of them, unless they are an instance admin,
+  // and a block in either direction between any two refuses the call.
+  // Membership never changes afterwards: nobody can be added, and nobody
+  // can leave.
   rpc OpenDirectMessage(OpenDirectMessageRequest) returns (OpenDirectMessageResponse) {}
   // The caller's DMs, most recent activity first.
   rpc ListDirectMessages(ListDirectMessagesRequest) returns (ListDirectMessagesResponse) {}
+  // ListDirectMessageCandidates is everyone the caller may start a
+  // conversation with: the people they share a space with, minus blocks in
+  // either direction. Instance admins get the same list, not every account.
+  rpc ListDirectMessageCandidates(ListDirectMessageCandidatesRequest) returns (ListDirectMessageCandidatesResponse) {}
   rpc MarkChannelRead(MarkChannelReadRequest) returns (MarkChannelReadResponse) {}
   rpc ListActivity(ListActivityRequest) returns (ListActivityResponse) {}
   // MarkActivityRead marks the given activity items (or all of them)
@@ -555,7 +564,10 @@ message ListPinnedMessagesResponse {
   repeated PinnedMessage pins = 1;
 }
 
-// DirectMessage is a DM channel with the people in it.
+// DirectMessage is a DM channel with the people in it. More than two
+// participants is a group conversation; it has no name of its own, so
+// clients render one from the participants. The list never changes, so
+// counting it is a reliable test.
 message DirectMessage {
   Channel channel = 1;
   // Everyone in the conversation, the caller included.
@@ -563,7 +575,11 @@ message DirectMessage {
 }
 
 message OpenDirectMessageRequest {
-  string user_id = 1;
+  // Was `string user_id`, before a conversation could hold more than two.
+  reserved 1;
+  reserved "user_id";
+  // Everyone else in the conversation, without the caller: 1 to 9 of them.
+  repeated string user_ids = 2;
 }
 
 message OpenDirectMessageResponse {
@@ -574,4 +590,10 @@ message ListDirectMessagesRequest {}
 
 message ListDirectMessagesResponse {
   repeated DirectMessage direct_messages = 1;
+}
+
+message ListDirectMessageCandidatesRequest {}
+
+message ListDirectMessageCandidatesResponse {
+  repeated MessageAuthor users = 1;
 }

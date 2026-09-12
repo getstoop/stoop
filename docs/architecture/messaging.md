@@ -405,28 +405,78 @@ anyone from.
 
 ## Direct messages
 
-A DM is a channel with `space_id IS NULL`, `kind = 3`, participants in
-`dm_members`, and `dm_key` (the two user ids, sorted) making "open a DM
-with X" idempotent: two people opening the same conversation at once get
-the same row, because the second insert loses to a `UNIQUE` constraint
-rather than to a check that could interleave.
+A DM is a channel with `space_id IS NULL`, `kind = 3`, its participants in
+`dm_members`, and `dm_key` — every participant's id, sorted and joined —
+carrying a `UNIQUE` constraint. That key is the whole model:
 
-`dm_members` is a *table* rather than two columns on the channel so group
-DMs can follow without a migration, though v1 is 1:1 only.
+- **A conversation *is* its people.** `OpenDirectMessage` takes a set of
+  user ids and is idempotent for any size: the same people always open the
+  same conversation, whoever asks and in whatever order, because the
+  second insert loses to the constraint rather than to a check that could
+  interleave. There is only ever one conversation with a given set, and a
+  subset is a different conversation — you and ada are not the three of
+  you.
+- **Membership never changes.** Nobody can be added and nobody can leave,
+  so the key can never become a lie. Two people or ten, it is one rule
+  with no special case, and `DirectMessage.participants` can be counted to
+  tell a pair from a group.
+- **Ten participants**, the caller included (`maxDMParticipants`). Past
+  that the thing being asked for is a space. The cap bounds one
+  conversation, not how many exist — what bounds *that* is the eligibility
+  rule below, and rate limiting if an instance ever needs it.
 
 DMs have no manager: they are never renamed, reordered or deleted, and each
 person deletes only their own messages. Mentions resolve against
 participants; `@everyone` and `@here` are plain text.
 
-**Who may open one:** two people who share a space, or an instance admin
-with anyone. Nothing else about instance admins reaches into DMs — see
+**Who may open one:** people who share a space, or an instance admin with
+anyone — checked between the caller and each person named. It follows that
+a conversation can hold two people who share no space, introduced by
+somebody who shares one with each; that is what an introduction is.
+Nothing else about instance admins reaches into DMs — see
 [permissions.md](permissions.md) for the boundary and its honest limits.
+`ListDirectMessageCandidates` is that rule as a list, for the picker.
+
+**Blocks are the whole safety story**, since nothing can be left. One rule,
+two people or ten: a conversation holding somebody you blocked cannot be
+started, cannot be written in, and is not listed for you. The write refusal
+is symmetric — `dmBlocked` refuses both sides — but the *hiding* is only
+the blocker's own view, because making the conversation vanish for the
+blocked person would tell them they had been blocked, which a block
+deliberately never does.
+
+Blocking also **deletes the blocker's existing alerts** from that person
+and from every conversation they are in (`DeleteActivityForBlocked`), not
+just stopping new ones. The rail's DM badge counts unread activity items
+rather than the conversation list, so an item left behind would be a badge
+pointing at a conversation that is no longer in the list — a count with
+nothing to open and no way to clear it. Unblocking restores the
+conversation and all its messages; it does not bring the alerts back.
+
+**The rail's DM pill counts messages, not conversations.** It sums
+`channel.unreadCount` over the list (`dmUnreadTotal`), using the same
+predicate a row uses, so the pill is always the sum of the badges beside
+it. It deliberately does *not* come from the activity feed like the space
+pills do: a conversation holds one unread feed entry however many messages
+arrive — `recordDM` refreshes it rather than adding rows — so the feed
+counts conversations, and two identical-looking pills would disagree in
+plain sight.
+
+**What is missing** is a way to take a conversation off your list without
+blocking anyone. Closing is list grooming, not leaving: it would come back
+on the next message, and mute decides whether that arrival is noisy. It
+applies to the 1:1s that already exist as much as to groups, so it is its
+own change — STOOP-249.
 
 On the web, `spaceId === ""` is the DM signal. `ChannelView` renders a DM
 from `/dm/$channelId` with an empty space; `api/dms.ts` holds the `["dms"]`
 list and `usePeople`, which hands the timeline, composer and reaction
 tooltips a DM's participants *in the shape of members*, so those components
-never learn there are two kinds of channel either.
+never learn there are two kinds of channel either. A group has no name, so
+`dmTitle` makes one from the people in it ("ada, bea and 2 others") and
+`AvatarStack` makes a face from the first two. A group has no name, so
+`dmTitle` makes one from the people in it ("ada, bea and 2 others") and
+`AvatarStack` makes a face from the first two.
 
 ## Link previews
 
