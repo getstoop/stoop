@@ -70,14 +70,15 @@ test("group direct messages", async ({ browser }) => {
   // ---- everyone in it has it ----
   await say(A, "saturday?");
   for (const p of [B, C]) {
-    await expect(
-      p.locator(".dm-link"),
-      "the group is in their DM list",
-    ).toHaveCount(1);
+    // The DM list only exists on /dm, so the pill comes first.
     await dmsPill(p).click();
-    await expect(p, "…and opens from the pill").toHaveURL(
+    await expect(p, "the pill opens the group").toHaveURL(
       new RegExp(`${dmPath}$`),
     );
+    await expect(
+      p.locator(".dm-link"),
+      "…the one conversation they are in",
+    ).toHaveCount(1);
     await expect(
       p.locator(".message-content", { hasText: "saturday?" }),
       "…with the message in it",
@@ -163,7 +164,7 @@ test("adding to a 1:1 forks a new conversation", async ({ browser }) => {
   // Adding cal forks: a new conversation, empty, with the pair untouched.
   await A.getByRole("button", { name: "Add people" }).click();
   await expect(
-    A.locator(".new-conversation p"),
+    A.locator(".new-conversation > p"),
     "the modal says the history does not go with it",
   ).toContainText("Nothing already said here goes with it");
   await A.locator(".candidate-row", { hasText: cName }).click();
