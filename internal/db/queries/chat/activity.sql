@@ -51,3 +51,17 @@ RETURNING *;
 -- retention window; unread ones stay however old (see chat.SweepActivity).
 -- name: DeleteReadActivityBefore :execrows
 DELETE FROM activity_items WHERE read_at IS NOT NULL AND read_at < sqlc.arg(before)::timestamptz;
+
+-- DeleteActivityForBlocked drops the alerts a block is meant to silence:
+-- anything the blocked person caused, and anything in a direct message
+-- they are part of. Without it a block leaves a badge nobody can clear —
+-- the conversation is hidden from the blocker's list, so there is nothing
+-- left to open and mark read.
+-- name: DeleteActivityForBlocked :execrows
+DELETE FROM activity_items a
+WHERE a.user_id = sqlc.arg(user_id)
+  AND (a.actor_id = sqlc.arg(blocked_id)
+    OR EXISTS (
+      SELECT 1 FROM dm_members d
+      WHERE d.channel_id = a.channel_id AND d.user_id = sqlc.arg(blocked_id)
+    ));

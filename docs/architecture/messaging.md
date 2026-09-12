@@ -445,6 +445,14 @@ the blocker's own view, because making the conversation vanish for the
 blocked person would tell them they had been blocked, which a block
 deliberately never does.
 
+Blocking also **deletes the blocker's existing alerts** from that person
+and from every conversation they are in (`DeleteActivityForBlocked`), not
+just stopping new ones. The rail's DM badge counts unread activity items
+rather than the conversation list, so an item left behind would be a badge
+pointing at a conversation that is no longer in the list — a count with
+nothing to open and no way to clear it. Unblocking restores the
+conversation and all its messages; it does not bring the alerts back.
+
 **What is missing** is a way to take a conversation off your list without
 blocking anyone. Closing is list grooming, not leaving: it would come back
 on the next message, and mute decides whether that arrival is noisy. It

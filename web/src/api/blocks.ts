@@ -20,6 +20,9 @@ export async function setBlocked(
   if (blocked) await chatClient.blockUser({ userId });
   else await chatClient.unblockUser({ userId });
   await queryClient.invalidateQueries({ queryKey: ["blocked"] });
-  // The conversation with them is hidden while blocked.
+  // Every conversation they are in is hidden while blocked, and the
+  // server drops the alerts that pointed at them — otherwise the rail
+  // keeps a badge with nothing behind it to open.
   await queryClient.invalidateQueries({ queryKey: ["dms"] });
+  await queryClient.invalidateQueries({ queryKey: ["activity"] });
 }
