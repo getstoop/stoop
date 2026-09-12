@@ -18,22 +18,24 @@ import { filterCandidates } from "./candidates";
 // cap, mirrored so the picker can stop before the refusal.
 const MAX_PARTICIPANTS = 10;
 
-// Picking people, for the two moments that need it: starting a
-// conversation from the DM list, and adding to one that exists. The
-// difference is `channel`, which also decides the wording.
+// Picking people, for the three moments that need it: starting a
+// conversation, adding to a group, and bringing somebody into a 1:1 —
+// which is not an add at all. A 1:1 is its two people, so a third means a
+// new conversation with all of them, and the wording says so before the
+// button is pressed.
 export function NewConversation({
-  channel,
+  group,
+  carry = [],
   present = [],
-  isPair = false,
   onClose,
 }: {
-  // The conversation being added to; absent when starting a new one.
-  channel?: string;
-  // Who is already in it, the caller included.
+  // The group being added to. Absent for the other two cases.
+  group?: string;
+  // People who come along into a new conversation: the other half of a
+  // 1:1 that a third person is being brought into.
+  carry?: string[];
+  // Who is already in it, the caller included — hidden from the picker.
   present?: string[];
-  // Adding to a 1:1 forks a new group rather than converting it, which
-  // is worth saying before it happens.
-  isPair?: boolean;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -44,8 +46,8 @@ export function NewConversation({
   const [busy, setBusy] = useState(false);
 
   const shown = filterCandidates(candidates ?? [], query, present);
-  const room = MAX_PARTICIPANTS - present.length - (channel ? 0 : 1);
-  const full = picked.length >= room;
+  // present holds the caller; with nothing to start from, it is just me.
+  const full = picked.length >= MAX_PARTICIPANTS - (present.length || 1);
 
   const toggle = (person: MessageAuthor) =>
     setPicked((old) =>
@@ -56,13 +58,14 @@ export function NewConversation({
 
   const submit = async () => {
     const ids = picked.map((p) => p.id);
+    const others = [...carry, ...ids];
     setBusy(true);
     try {
-      const id = channel
-        ? await addDirectMessageMembers(queryClient, channel, ids)
-        : ids.length === 1
-          ? await openDirectMessage(queryClient, ids[0])
-          : await createGroupDirectMessage(queryClient, ids);
+      const id = group
+        ? await addDirectMessageMembers(queryClient, group, ids)
+        : others.length > 1
+          ? await createGroupDirectMessage(queryClient, others)
+          : await openDirectMessage(queryClient, others[0]);
       onClose();
       navigate({ to: "/dm/$channelId", params: { channelId: id } });
     } catch (err) {
@@ -71,15 +74,16 @@ export function NewConversation({
     }
   };
 
-  const action = channel
+  const starting = !group && carry.length + picked.length > 1;
+  const action = group
     ? "Add to conversation"
-    : picked.length > 1
+    : starting
       ? "Start conversation"
       : "Message";
 
   return (
     <Modal
-      title={channel ? "Add people" : "New conversation"}
+      title={group || carry.length ? "Add people" : "New conversation"}
       onClose={onClose}
       footer={
         <button
@@ -93,11 +97,15 @@ export function NewConversation({
       }
     >
       <div className="new-conversation">
-        {channel && (
+        {group && (
           <p className="muted small">
-            {isPair
-              ? "This starts a new conversation with everyone picked. Nothing already said here goes with it."
-              : "Whoever you add can read everything said in this conversation."}
+            Whoever you add can read everything said in this conversation.
+          </p>
+        )}
+        {carry.length > 0 && (
+          <p className="muted small">
+            This starts a new conversation with everyone picked. Nothing already
+            said here goes with it.
           </p>
         )}
         {picked.length > 0 && (

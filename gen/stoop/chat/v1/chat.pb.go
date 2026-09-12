@@ -4426,12 +4426,8 @@ func (x *AddDirectMessageMembersRequest) GetUserIds() []string {
 }
 
 type AddDirectMessageMembersResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The conversation those people are now in: the same one for a group,
-	// a new one when a 1:1 forked.
-	DirectMessage *DirectMessage `protobuf:"bytes,1,opt,name=direct_message,json=directMessage,proto3" json:"direct_message,omitempty"`
-	// True when a 1:1 forked and this is a different conversation.
-	Forked        bool `protobuf:"varint,2,opt,name=forked,proto3" json:"forked,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DirectMessage *DirectMessage         `protobuf:"bytes,1,opt,name=direct_message,json=directMessage,proto3" json:"direct_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4471,13 +4467,6 @@ func (x *AddDirectMessageMembersResponse) GetDirectMessage() *DirectMessage {
 		return x.DirectMessage
 	}
 	return nil
-}
-
-func (x *AddDirectMessageMembersResponse) GetForked() bool {
-	if x != nil {
-		return x.Forked
-	}
-	return false
 }
 
 type LeaveDirectMessageRequest struct {
@@ -4891,10 +4880,9 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\x1eAddDirectMessageMembersRequest\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x01 \x01(\tR\tchannelId\x12\x19\n" +
-	"\buser_ids\x18\x02 \x03(\tR\auserIds\"~\n" +
+	"\buser_ids\x18\x02 \x03(\tR\auserIds\"f\n" +
 	"\x1fAddDirectMessageMembersResponse\x12C\n" +
-	"\x0edirect_message\x18\x01 \x01(\v2\x1c.stoop.chat.v1.DirectMessageR\rdirectMessage\x12\x16\n" +
-	"\x06forked\x18\x02 \x01(\bR\x06forked\":\n" +
+	"\x0edirect_message\x18\x01 \x01(\v2\x1c.stoop.chat.v1.DirectMessageR\rdirectMessage\":\n" +
 	"\x19LeaveDirectMessageRequest\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x01 \x01(\tR\tchannelId\"\x1c\n" +

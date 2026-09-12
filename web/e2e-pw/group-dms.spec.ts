@@ -134,9 +134,11 @@ test("group direct messages", async ({ browser }) => {
   ).toHaveCount(2);
 });
 
-// Adding somebody to a 1:1 does not hand them the two people's history:
-// it starts a new conversation and leaves the pair alone.
-test("adding to a 1:1 forks a new conversation", async ({ browser }) => {
+// Bringing a third person into a 1:1 does not hand them the two people's
+// history: it starts a new conversation and leaves the pair alone.
+test("a third person in a 1:1 starts a new conversation", async ({
+  browser,
+}) => {
   const { suffix, tokens } = await seed({
     users: ["ada", "bea", "cal"],
     channels: ["general"],
@@ -161,14 +163,14 @@ test("adding to a 1:1 forks a new conversation", async ({ browser }) => {
   await say(A, "just between us");
   await A.locator(".message-content", { hasText: "just between us" }).waitFor();
 
-  // Adding cal forks: a new conversation, empty, with the pair untouched.
+  // Bringing cal in starts a new conversation, empty, pair untouched.
   await A.getByRole("button", { name: "Add people" }).click();
   await expect(
     A.locator(".new-conversation > p"),
     "the modal says the history does not go with it",
   ).toContainText("Nothing already said here goes with it");
   await A.locator(".candidate-row", { hasText: cName }).click();
-  await A.getByRole("button", { name: "Add to conversation" }).click();
+  await A.getByRole("button", { name: "Start conversation" }).click();
   await expect(A, "a different conversation opens").not.toHaveURL(
     new RegExp(`${pairPath}$`),
   );

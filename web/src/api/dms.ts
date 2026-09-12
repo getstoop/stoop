@@ -145,8 +145,9 @@ export async function createGroupDirectMessage(
   return id;
 }
 
-// Adds people to a conversation and returns the one they are now in —
-// a different id when a 1:1 forked into a new group.
+// Adds people to a group. A 1:1 is refused by the server: bringing a
+// third person in means starting a group with all three, which is
+// createGroupDirectMessage.
 export async function addDirectMessageMembers(
   queryClient: QueryClient,
   channelId: string,

@@ -28,8 +28,8 @@ it, and a name and face for a conversation that is not one other person.
 | Identity | A 1:1 is identified by its pair (`dm_key`); a group is not identified by who is in it, so a group carries no key. Two groups with the same people are two conversations. |
 | Cap | 10 participants, the caller included. |
 | Who may start one | The same rule as a 1:1: people you share a space with, or anyone if you are an instance admin. |
-| Adding | Any participant may add. Adding to a **1:1** does not convert it — it forks a new group with no history. Adding to a **group** lets the newcomer read all of it. |
-| Leaving | Any participant may leave a group; a 1:1 cannot be left. The last person out deletes the conversation. |
+| Adding | Group-only, by any participant, and the newcomer reads all of it. A **1:1** is refused: bringing a third person in is starting a group with all three, which carries no history. |
+| Leaving | Group-only, by any participant; the last person out deletes the conversation. A 1:1 cannot be left — what that asks for is a close-or-hide flag, which is not in this cut. |
 | Blocks | Enforced when somebody is added, not afterwards: no group is ever *created* holding a blocked pair, and a block made later does not silently gag the group. |
 | Name | Derived from the participants. No custom name in this cut. |
 | Realtime | One new event carrying the new participant list; `ChannelDeleted` to whoever left. |
@@ -189,20 +189,30 @@ simpler rule is also the one that can be stated in a sentence to the
 person doing the adding, and the UI states it: "bea will be able to read
 this conversation."
 
-**Adding to a 1:1 does not convert it.** Two people's private
-conversation stays private: `AddDirectMessageMembers` on a pair creates a
-*new* group holding both of them plus everybody added, with no history,
-and returns it for the client to navigate to. The pair conversation is
-left exactly as it was. This is the only place the two rules meet, and
-they meet cleanly: nothing a newcomer can read was ever said somewhere
-they were not.
+**A 1:1's members cannot be changed at all.** Both
+`AddDirectMessageMembers` and `LeaveDirectMessage` refuse one with
+`InvalidArgument`, because a 1:1 *is* its two people — that pair is its
+identity, the thing `dm_key` spells out. Bringing a third person in is
+therefore not an add: it is starting a group with all three, which the
+client does by calling `CreateGroupDirectMessage` with the other person
+plus the picks. The pair conversation is left exactly as it was, and
+nothing the newcomer can read was ever said somewhere they were not.
+
+An earlier draft had `AddDirectMessageMembers` do that forking itself and
+return a `forked` flag. Same outcome by a worse route: an RPC whose
+meaning depended on the state of its argument, and a response field
+saying "actually I did something else". The client already knows which
+shape it is holding (`DirectMessage.group`), so it can pick the right
+call, and both membership RPCs mean exactly one thing.
 
 **Leaving** removes the row from `dm_members` and nothing else. Messages
 stay — they are the other people's conversation too, and a departure
 should not punch holes in it. The leaver stops seeing the conversation,
 stops being notified, and is no longer a participant for `publishChannel`
-or the gateway. A 1:1 cannot be left: `InvalidArgument`, because the
-thing being asked for there is a block or a delete, and both exist.
+or the gateway. A 1:1 cannot be left: `InvalidArgument`. What somebody asking for that
+usually wants is to take the conversation *off their list*, which is a
+close-or-hide flag per participant and is not in this change — see "Not
+in the first cut".
 
 **A group can shrink to one and survive.** The remaining person keeps the
 conversation and its history, shown as "Just you", and may add people to
@@ -225,10 +235,10 @@ and "always a new row" behind one name.
 // message. Blocks between any of them refuse the whole call.
 rpc CreateGroupDirectMessage(CreateGroupDirectMessageRequest) returns (CreateGroupDirectMessageResponse) {}
 
-// AddDirectMessageMembers adds people to a conversation the caller is
-// in. On a group they join it and can read all of it. On a 1:1 nothing
-// is converted: a new group is created holding both people plus the
-// ones added, with no history, and returned.
+// AddDirectMessageMembers adds people to a group the caller is in; they
+// can then read all of it. A 1:1 is refused — its two people are its
+// identity. To bring somebody into one, start a group with all three
+// through CreateGroupDirectMessage.
 rpc AddDirectMessageMembers(AddDirectMessageMembersRequest) returns (AddDirectMessageMembersResponse) {}
 
 // LeaveDirectMessage removes the caller from a group conversation. The
@@ -256,11 +266,7 @@ message AddDirectMessageMembersRequest {
   repeated string user_ids = 2;
 }
 message AddDirectMessageMembersResponse {
-  // The conversation the people are now in: the same one for a group,
-  // a new one when a 1:1 forked.
   DirectMessage direct_message = 1;
-  // True when a 1:1 forked and this is a different conversation.
-  bool forked = 2;
 }
 
 message LeaveDirectMessageRequest {
@@ -442,14 +448,21 @@ pair-only.
   that is its own design (token minting, the stage, who may start one).
 - **A per-member history floor.** Ruled out above; if it is ever wanted,
   it is a `joined_at` column and an audit of every read path.
+- **Closing or hiding a conversation.** A gap this change makes visible
+  rather than one it creates: today the only thing that takes a 1:1 off
+  your list is blocking the person, which is a much bigger hammer than "I
+  am done with this". It is a per-participant flag on `dm_members`, unset
+  when they next message you — a `SetDirectMessageHidden` and one
+  predicate in `ListDMChannelsByUser`. It applies to the 1:1s that already
+  exist, so it is its own change, not a dependency of this one.
 
 ## Verification
 
 - `internal/chat/dms_test.go` grows: a group of three is created and all
   three see it; the same three again is a second conversation; a
-  participant adds a fourth who can read the history; adding to a 1:1
-  forks and the pair keeps its history; a non-participant adding is
-  refused; the eleventh participant is refused; a blocked pair cannot be
+  participant adds a fourth who can read the history; a 1:1 refuses both
+  membership calls and keeps its history private from the group started
+  beside it; a non-participant adding is refused; the eleventh participant is refused; a blocked pair cannot be
   put in the same group; a block made afterwards does not stop either
   from posting; leaving hides it from the leaver and keeps it for the
   rest; the last leaver deletes the channel and its messages; leaving a
@@ -475,8 +488,10 @@ pair-only.
 
 Answered by the maintainer on 2026-09-12, before this was written.
 
-1. **Adding to a 1:1 forks a new group with no history**, rather than
-   converting the pair conversation in place.
+1. **A third person in a 1:1 means a new group with no history**, rather
+   than converting the pair conversation in place. (The maintainer then
+   asked why the server was doing that forking at all, which is how
+   `AddDirectMessageMembers` became group-only.)
 2. **A newcomer to a group reads all of it.** No per-member history
    floor.
 3. **Create, add and leave ship together.** No custom name, no owner, no

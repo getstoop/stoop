@@ -279,10 +279,11 @@ type ChatServiceClient interface {
 	// who is in it. 2 to 9 others, each of whom the caller could message
 	// directly; a block between any two of them refuses the call.
 	CreateGroupDirectMessage(context.Context, *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error)
-	// AddDirectMessageMembers adds people to a conversation the caller is
-	// in. On a group they join it and can read all of it. On a 1:1 nothing
-	// is converted: a new group holding both people plus the ones added is
-	// created with no history, and returned.
+	// AddDirectMessageMembers adds people to a group the caller is in; they
+	// can then read all of it. A 1:1 is refused — its two people are its
+	// identity. To bring somebody into one, start a group with all three
+	// through CreateGroupDirectMessage, which is a different conversation
+	// and carries no history.
 	AddDirectMessageMembers(context.Context, *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error)
 	// LeaveDirectMessage removes the caller from a group conversation, which
 	// stays for everyone else; the last person to leave deletes it. A 1:1
@@ -1003,10 +1004,11 @@ type ChatServiceHandler interface {
 	// who is in it. 2 to 9 others, each of whom the caller could message
 	// directly; a block between any two of them refuses the call.
 	CreateGroupDirectMessage(context.Context, *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error)
-	// AddDirectMessageMembers adds people to a conversation the caller is
-	// in. On a group they join it and can read all of it. On a 1:1 nothing
-	// is converted: a new group holding both people plus the ones added is
-	// created with no history, and returned.
+	// AddDirectMessageMembers adds people to a group the caller is in; they
+	// can then read all of it. A 1:1 is refused — its two people are its
+	// identity. To bring somebody into one, start a group with all three
+	// through CreateGroupDirectMessage, which is a different conversation
+	// and carries no history.
 	AddDirectMessageMembers(context.Context, *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error)
 	// LeaveDirectMessage removes the caller from a group conversation, which
 	// stays for everyone else; the last person to leave deletes it. A 1:1

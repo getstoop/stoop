@@ -62,9 +62,9 @@ export function DMActions({ channelId }: { channelId: string }) {
       )}
       {adding && (
         <NewConversation
-          channel={channelId}
+          group={group ? channelId : undefined}
+          carry={group ? [] : dmOthers(dm, me?.id).map((p) => p.id)}
           present={dm.participants.map((p) => p.id)}
-          isPair={!group}
           onClose={() => setAdding(false)}
         />
       )}

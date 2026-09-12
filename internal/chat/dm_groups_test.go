@@ -152,9 +152,6 @@ func TestGroupDirectMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("casey adds dana: %v", err)
 	}
-	if added.Msg.Forked {
-		t.Errorf("adding to a group forked")
-	}
 	if added.Msg.DirectMessage.Channel.Id != group.Channel.Id || len(added.Msg.DirectMessage.Participants) != 4 {
 		t.Errorf("after the add: channel %q with %d participants",
 			added.Msg.DirectMessage.Channel.Id, len(added.Msg.DirectMessage.Participants))
@@ -210,52 +207,63 @@ func TestGroupDirectMessages(t *testing.T) {
 		}
 	}
 
-	// ---- adding to a 1:1 forks ----
+	// ---- a 1:1's members can't be changed ----
 	pair, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserId: bobID}))
 	if err != nil {
 		t.Fatal(err)
 	}
+	pairID := pair.Msg.DirectMessage.Channel.Id
+	if pair.Msg.DirectMessage.Group {
+		t.Errorf("a 1:1 is marked as a group")
+	}
 	if _, err := svc.SendMessage(alice, connect.NewRequest(&chatv1.SendMessageRequest{
-		ChannelId: pair.Msg.DirectMessage.Channel.Id, Content: "just between us",
+		ChannelId: pairID, Content: "just between us",
 	})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.LeaveDirectMessage(alice, connect.NewRequest(&chatv1.LeaveDirectMessageRequest{
-		ChannelId: pair.Msg.DirectMessage.Channel.Id,
-	})); code(err) != connect.CodeInvalidArgument {
-		t.Errorf("leaving a 1:1: want invalid_argument, got %v", err)
+	for _, err := range []error{
+		errOf(svc.LeaveDirectMessage(alice, connect.NewRequest(&chatv1.LeaveDirectMessageRequest{ChannelId: pairID}))),
+		errOf(svc.AddDirectMessageMembers(alice, connect.NewRequest(&chatv1.AddDirectMessageMembersRequest{
+			ChannelId: pairID, UserIds: []string{caseyID},
+		}))),
+	} {
+		if code(err) != connect.CodeInvalidArgument {
+			t.Errorf("changing a 1:1's members: want invalid_argument, got %v", err)
+		}
 	}
-	forked, err := svc.AddDirectMessageMembers(alice, connect.NewRequest(&chatv1.AddDirectMessageMembersRequest{
-		ChannelId: pair.Msg.DirectMessage.Channel.Id, UserIds: []string{caseyID},
+
+	// Bringing casey in is a new conversation with all three, and it
+	// carries none of what the two of them said.
+	three, err := svc.CreateGroupDirectMessage(alice, connect.NewRequest(&chatv1.CreateGroupDirectMessageRequest{
+		UserIds: []string{bobID, caseyID},
 	}))
 	if err != nil {
-		t.Fatalf("alice adds casey to her DM with bob: %v", err)
+		t.Fatalf("alice starts a group with bob and casey: %v", err)
 	}
-	if !forked.Msg.Forked || forked.Msg.DirectMessage.Channel.Id == pair.Msg.DirectMessage.Channel.Id {
-		t.Fatalf("adding to a 1:1 converted it instead of forking")
-	}
-	if pair.Msg.DirectMessage.Group || !forked.Msg.DirectMessage.Group {
-		t.Errorf("pair marked group %v, fork marked group %v",
-			pair.Msg.DirectMessage.Group, forked.Msg.DirectMessage.Group)
-	}
-	if ids := dmIDs(forked.Msg.DirectMessage); len(ids) != 3 || !ids[aliceID] || !ids[bobID] || !ids[caseyID] {
-		t.Errorf("the fork holds the wrong people: %v", ids)
+	if ids := dmIDs(three.Msg.DirectMessage); len(ids) != 3 || !ids[aliceID] || !ids[bobID] || !ids[caseyID] {
+		t.Errorf("the new conversation holds the wrong people: %v", ids)
 	}
 	caseySees, err := svc.ListMessages(casey, connect.NewRequest(&chatv1.ListMessagesRequest{
-		ChannelId: forked.Msg.DirectMessage.Channel.Id,
+		ChannelId: three.Msg.DirectMessage.Channel.Id,
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(caseySees.Msg.Messages) != 0 {
-		t.Errorf("the fork carried the pair's history: %d messages", len(caseySees.Msg.Messages))
+		t.Errorf("the new conversation carried the pair's history: %d messages", len(caseySees.Msg.Messages))
 	}
-	if _, err := svc.ListMessages(casey, connect.NewRequest(&chatv1.ListMessagesRequest{
-		ChannelId: pair.Msg.DirectMessage.Channel.Id,
-	})); code(err) != connect.CodePermissionDenied {
+	if _, err := svc.ListMessages(casey, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: pairID})); code(err) != connect.CodePermissionDenied {
 		t.Errorf("the pair conversation is no longer private: %v", err)
 	}
+	stillPrivate, err := svc.ListMessages(bob, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: pairID}))
+	if err != nil || len(stillPrivate.Msg.Messages) != 1 {
+		t.Errorf("the 1:1 lost its message: %v", err)
+	}
 }
+
+// errOf drops a Connect response and keeps the error, so a table of calls
+// that should all be refused reads as one.
+func errOf[T any](_ *connect.Response[T], err error) error { return err }
 
 func TestGroupDirectMessageLimitsAndBlocks(t *testing.T) {
 	pool := dbtest.New(t)

@@ -26,6 +26,13 @@ const maxDMParticipants = 10
 var errTooManyParticipants = connect.NewError(connect.CodeFailedPrecondition,
 	fmt.Errorf("a conversation holds %d people; make a space for anything bigger", maxDMParticipants))
 
+// A 1:1 is its two people: there is nobody to add and nothing to leave.
+// Bringing a third in means starting a group with all three, which is a
+// different conversation; getting out means blocking, or deleting what
+// you said.
+var errNotAGroup = connect.NewError(connect.CodeInvalidArgument,
+	errors.New("a one-to-one conversation's members can't be changed"))
+
 // isPairDM: a 1:1, identified by its two ids. A group has no key.
 func isPairDM(c dbgen.Channel) bool { return c.DmKey != nil }
 
@@ -61,8 +68,8 @@ func (s *Service) AddDirectMessageMembers(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, err
 	}
-	if !isDM(channel) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("not a direct message"))
+	if !isDM(channel) || isPairDM(channel) {
+		return nil, errNotAGroup
 	}
 	current, err := s.q.ListDMMembers(ctx, channel.ID)
 	if err != nil {
@@ -84,20 +91,6 @@ func (s *Service) AddDirectMessageMembers(ctx context.Context, req *connect.Requ
 		return nil, err
 	}
 
-	// A 1:1 is not converted: its two people keep their private history and
-	// the newcomers start a fresh conversation with them.
-	if isPairDM(channel) {
-		group, err := s.createGroup(ctx, final)
-		if err != nil {
-			return nil, err
-		}
-		dm, err := s.announceGroup(ctx, group, final, final)
-		if err != nil {
-			return nil, err
-		}
-		return connect.NewResponse(&chatv1.AddDirectMessageMembersResponse{DirectMessage: dm, Forked: true}), nil
-	}
-
 	if err := s.addMembers(ctx, channel.ID, added); err != nil {
 		return nil, err
 	}
@@ -115,8 +108,7 @@ func (s *Service) LeaveDirectMessage(ctx context.Context, req *connect.Request[c
 		return nil, err
 	}
 	if !isDM(channel) || isPairDM(channel) {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			errors.New("a one-to-one conversation can't be left; block the person or delete your messages"))
+		return nil, errNotAGroup
 	}
 	if err := s.q.RemoveDMMember(ctx, dbgen.RemoveDMMemberParams{ChannelID: channel.ID, UserID: me}); err != nil {
 		return nil, fmt.Errorf("leave conversation: %w", err)

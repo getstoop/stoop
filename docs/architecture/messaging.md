@@ -430,18 +430,25 @@ anyone. Nothing else about instance admins reaches into DMs — see
 [permissions.md](permissions.md) for the boundary and its honest limits.
 `ListDirectMessageCandidates` is that rule as a list, for the picker.
 
-**Adding and leaving.** Any participant may add, and the newcomer can read
-everything already said — a group is one room with one history, and a
-per-member floor would have to be respected by every read path in the DM
-code. Adding to a *1:1* therefore does not convert it: a new group is
-created holding both people plus the ones added, with no history, and the
-pair conversation is left alone (`AddDirectMessageMembers` returns
-`forked`). Any participant may leave a group; the messages stay, because
-they are the other people's conversation too. A group that everybody else
-has left is still the remaining person's to read, and they may add people
-back to it; when the last one leaves, the channel row goes and the cascades
-take its messages. A 1:1 cannot be left — that request is a block or a
-delete, and both exist.
+**Adding and leaving are group-only.** `AddDirectMessageMembers` and
+`LeaveDirectMessage` both refuse a 1:1 with `InvalidArgument`: a 1:1 *is*
+its two people, so there is nobody to add and nothing to leave. Bringing a
+third person into one means starting a group with all three
+(`CreateGroupDirectMessage`) — a different conversation that carries none
+of what the two of them said, and leaves the pair's alone.
+
+In a group, any participant may add, and the newcomer can read everything
+already said — a group is one room with one history, and a per-member
+floor would have to be respected by every read path in the DM code. Any
+participant may leave; the messages stay, because they are the other
+people's conversation too. A group that everybody else has left is still
+the remaining person's to read, and they may add people back to it; when
+the last one leaves, the channel row goes and the cascades take its
+messages.
+
+**What is missing** is a way to take a conversation *off your list* without
+blocking the person, which today is the only thing that hides a 1:1. That
+is a close-or-hide flag per participant, not a leave, and it is not built.
 
 **Blocks** are enforced when somebody is added, not afterwards: nobody is
 ever put in a room with a person they blocked, and a block made later does
