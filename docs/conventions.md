@@ -87,8 +87,8 @@ here was written after a file got too big to work in.
   replaced by `confirm`, `prompt` and `notice` from `stores/dialogs.ts` —
   the same promise shape, rendered by `components/DialogHost.tsx` at the
   root route on the `Modal` frame (`components/Modal.tsx`), which every
-  other modal uses too. Specs answer them with `acceptDialog` /
-  `dismissDialog` from `e2e/lib.mjs`.
+  other modal uses too. Specs answer them with `acceptDialog` from
+  `e2e-pw/lib.ts`.
 - **Focus is global** (`:focus-visible` in `base.css`); fields swap the ring
   for an accent border. A feature overrides it only for a stated reason
   (the composer's overlay border is one).

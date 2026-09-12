@@ -367,8 +367,10 @@ rebuild ships the previous front end.
 
 ## The browser suite
 
-`web/e2e/*.mjs`, puppeteer driving a local Chrome against a running server,
-with a spec per feature and shared helpers in `lib.mjs`.
+`web/e2e-pw/*.spec.ts`, Playwright driving Chromium against a running
+server, with a spec per feature and shared helpers in `lib.ts`. The
+instance each one starts from is built over RPC by `web/e2e/seed.mjs`
+rather than through the signup wizard.
 
 It is a real browser because most of what it protects is browser behaviour:
 the drawer's transform containment, iOS's input zoom, the composer

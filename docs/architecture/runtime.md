@@ -300,7 +300,7 @@ Six required jobs, and each protects a specific claim:
 | **Protobuf** | `buf lint`, and that the committed `gen/` and `web/src/gen/` match the protos. |
 | **Go** | That `internal/dbgen` matches the queries; golangci-lint including the module boundary rules; `go test ./...` against a real Postgres. |
 | **Web** | biome, `tsc -b`, and that the SPA builds. |
-| **Browser E2E** | The full puppeteer suite against a built binary and its own throwaway Postgres. |
+| **Browser E2E** | The full Playwright suite against a built binary, its own throwaway Postgres, and a LiveKit for the voice spec. |
 | **Cross-compile (amd64)** | The release target. |
 | **Cross-compile (arm64)** | That "runs on a Raspberry Pi" stays honest on every PR. |
 

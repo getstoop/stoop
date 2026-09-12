@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, seed, signIn, test } from "./lib";
+import { expect, focus, seed, signIn, test } from "./lib";
 
 // STOOP-38: live Markdown styling in the message box. The composer and the
 // inline editor layer a styled overlay under the textarea: markers stay
@@ -295,12 +295,25 @@ test("live Markdown styling under the composer", async ({ browser }) => {
   );
   await A.keyboard.press("Backspace"); // drop the trailing space
 
-  // The toolbar Bold button still wraps the selection.
+  // The toolbar Bold button still wraps the selection. This needs the page
+  // at the front: earlier specs leave their pages open, and an unfocused
+  // textarea does not keep a selection across the click on the button —
+  // Bold then appends "****" at the caret instead of wrapping. Passes
+  // alone either way, which is what made it look like a flake.
+  await focus(A);
   await composer.fill("");
   await composer.pressSequentially("hi there");
   await composer.evaluate((e: HTMLTextAreaElement) => {
     e.focus();
     e.select();
+  });
+  // waitForFunction, because no locator assertion covers a selection:
+  // actionability is about the element, not about what is selected in it.
+  await A.waitForFunction(() => {
+    const t = document.querySelector(
+      ".composer textarea",
+    ) as HTMLTextAreaElement;
+    return t?.selectionStart === 0 && t?.selectionEnd === 8;
   });
   await A.locator('.composer .format-button[aria-label="Bold"]').click();
   await expect(composer, "toolbar bold wraps the selection").toHaveValue(

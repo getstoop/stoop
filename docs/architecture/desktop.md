@@ -235,7 +235,7 @@ landed on a shared link could no longer be driven at all. The choice
 still renders and its button still fires — a spec must never click it.
 Nearly every spec joins its second user by following an invite link, and
 many navigate straight to a channel or reload one, so they go through
-`gotoShared` and `reloadShared` in `e2e/lib.mjs`, which take the way past.
+`gotoShared` and `reload` in `e2e-pw/lib.ts`, which take the way past.
 Either is safe on a page with no gate — it costs one selector check — so
 a spec that lands on a shared link by way of a variable, or reloads onto
 one, does not have to know in advance.

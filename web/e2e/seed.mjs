@@ -1,8 +1,6 @@
-// Seeding the instance over RPC (STOOP-234). Framework-agnostic on
-// purpose: the puppeteer suite and the Playwright one share it so the
-// two can never drift apart on what a seeded world looks like. Only
-// signing a page in differs between them, and that lives in each
-// harness.
+// Seeding the instance over RPC (STOOP-234). Plain JavaScript because it
+// was shared with the puppeteer suite; web/e2e/seed.d.mts types it for
+// the Playwright specs, which are all that is left.
 
 export const BASE = process.env.STOOP_E2E_BASE_URL ?? "http://localhost:8091";
 export const SESSION_COOKIE = "stoop_session";
