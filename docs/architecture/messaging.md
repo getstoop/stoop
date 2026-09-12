@@ -453,6 +453,15 @@ pointing at a conversation that is no longer in the list — a count with
 nothing to open and no way to clear it. Unblocking restores the
 conversation and all its messages; it does not bring the alerts back.
 
+**The rail's DM pill counts messages, not conversations.** It sums
+`channel.unreadCount` over the list (`dmUnreadTotal`), using the same
+predicate a row uses, so the pill is always the sum of the badges beside
+it. It deliberately does *not* come from the activity feed like the space
+pills do: a conversation holds one unread feed entry however many messages
+arrive — `recordDM` refreshes it rather than adding rows — so the feed
+counts conversations, and two identical-looking pills would disagree in
+plain sight.
+
 **What is missing** is a way to take a conversation off your list without
 blocking anyone. Closing is list grooming, not leaving: it would come back
 on the next message, and mute decides whether that arrival is noisy. It

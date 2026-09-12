@@ -167,3 +167,17 @@ export function patchDirectMessage(
       ),
   );
 }
+
+// What the rail's DM pill shows: the same numbers the rows do, added up.
+// It cannot come from the activity feed — a conversation holds one unread
+// entry there however many messages arrive (recordDM refreshes it rather
+// than adding rows), so the feed counts conversations while a row counts
+// messages, and two identical-looking pills disagree. The predicate is
+// the row's own, so the pill is the sum of what you can see.
+export function dmUnreadTotal(dms: DirectMessage[] | undefined): number {
+  let total = 0;
+  for (const dm of dms ?? []) {
+    if (dm.channel && !dm.channel.muted) total += dm.channel.unreadCount;
+  }
+  return total;
+}

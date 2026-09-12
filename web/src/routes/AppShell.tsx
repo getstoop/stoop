@@ -9,7 +9,7 @@ import {
 import { useEffect } from "react";
 import { unreadCounts } from "../api/activity";
 import { chatClient } from "../api/clients";
-import { useDirectMessages } from "../api/dms";
+import { dmUnreadTotal, useDirectMessages } from "../api/dms";
 import { errorText } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import {
@@ -88,13 +88,13 @@ function SpaceRail() {
   const { data: me } = useMe();
   const { data: activity } = useActivity();
   const { bySpace: unreadBySpace } = unreadCounts(activity);
-  // Direct messages: a dot for anything unread, a badge for alerts (a dm
-  // activity item carries no space, so it counts under "").
+  // Direct messages: a dot for anything unread, a badge counting the
+  // messages the rows count (api/dms.ts → dmUnreadTotal).
   const { data: dms } = useDirectMessages();
   const dmUnread = dms?.some(
     (d) => d.channel && isAlerting(queryClient, "", d.channel),
   );
-  const dmAlerts = unreadBySpace.get("") ?? 0;
+  const dmAlerts = dmUnreadTotal(dms);
   const { data: instanceStatus } = useInstanceStatus();
   const canCreateSpace =
     me?.role === InstanceRole.ADMIN ||

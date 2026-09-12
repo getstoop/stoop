@@ -8,6 +8,7 @@ import {
   dmIsGroup,
   dmOther,
   dmTitle,
+  dmUnreadTotal,
   patchDirectMessage,
 } from "./dms";
 
@@ -27,6 +28,15 @@ const author = (
 
 const channel = (id: string, lastMessageId = ""): Channel =>
   ({ id, lastMessageId, lastReadMessageId: "", unreadCount: 0 }) as Channel;
+
+const unreadChannel = (id: string, unreadCount: number, muted = false) =>
+  ({
+    id,
+    lastMessageId: "",
+    lastReadMessageId: "",
+    unreadCount,
+    muted,
+  }) as Channel;
 
 const dm = (c: Channel, participants: MessageAuthor[] = []): DirectMessage =>
   ({ channel: c, participants }) as unknown as DirectMessage;
@@ -185,5 +195,33 @@ describe("patchDirectMessage", () => {
     expect(
       qc.getQueryData<DirectMessage[]>(["dms"])?.map((d) => d.channel?.id),
     ).toEqual(["ada", "bea"]);
+  });
+});
+
+// The rail pill must equal the sum of the row badges: they used to count
+// different things — conversations in the feed, messages on the row — and
+// disagreed in plain sight.
+describe("dmUnreadTotal", () => {
+  it("adds up the messages, not the conversations", () => {
+    expect(
+      dmUnreadTotal([
+        dm(unreadChannel("a", 4), [casey, ada]),
+        dm(unreadChannel("b", 2), [casey, bea]),
+      ]),
+    ).toBe(6);
+  });
+
+  it("skips a muted conversation, as its row skips the badge", () => {
+    expect(
+      dmUnreadTotal([
+        dm(unreadChannel("a", 4), [casey, ada]),
+        dm(unreadChannel("b", 9, true), [casey, bea]),
+      ]),
+    ).toBe(4);
+  });
+
+  it("is zero with nothing unread, and with nothing loaded", () => {
+    expect(dmUnreadTotal([dm(unreadChannel("a", 0), [casey, ada])])).toBe(0);
+    expect(dmUnreadTotal(undefined)).toBe(0);
   });
 });
