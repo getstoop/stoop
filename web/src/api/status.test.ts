@@ -54,6 +54,44 @@ describe("loadStatusPreference", () => {
   });
 });
 
+// A shell hands its choice over on window.stoop; the page has no window
+// at all under the node suite, so one is stubbed for these.
+const shellSaying = (status: unknown) =>
+  vi.stubGlobal("window", { stoop: { status } });
+
+describe("loadStatusPreference inside a shell", () => {
+  // The shell keeps one status for every server it holds, so whatever a
+  // particular server's page once wrote for itself no longer decides.
+  it("takes the shell's status over anything stored", () => {
+    vi.stubGlobal("localStorage", fakeStorage({ [KEY]: "3" }));
+    shellSaying("away");
+    expect(loadStatusPreference()).toBe(PresenceStatus.AWAY);
+  });
+
+  it("maps each of the three the shell can say", () => {
+    vi.stubGlobal("localStorage", fakeStorage({}));
+    for (const [said, want] of [
+      ["online", PresenceStatus.ONLINE],
+      ["away", PresenceStatus.AWAY],
+      ["dnd", PresenceStatus.DND],
+    ] as const) {
+      shellSaying(said);
+      expect(loadStatusPreference()).toBe(want);
+    }
+  });
+
+  // A bridge-2 shell has no status at all, and a malformed one is not
+  // worth trusting: either way the page decides for itself, as a browser
+  // does, rather than silently reporting Online.
+  it("falls back to the stored choice when the shell says nothing it knows", () => {
+    vi.stubGlobal("localStorage", fakeStorage({ [KEY]: "3" }));
+    for (const bad of [undefined, "", "busy", 2, null]) {
+      shellSaying(bad);
+      expect(loadStatusPreference()).toBe(PresenceStatus.DND);
+    }
+  });
+});
+
 describe("effectiveStatus", () => {
   it("reports the chosen status while there is activity", () => {
     for (const s of [

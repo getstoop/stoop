@@ -45,6 +45,9 @@ installed PWA, and every wrapper there is a no-op. Version 2:
 | `onShortcut(name, handler)` | `(name: "pushToTalk", h: (down: boolean) => void) => () => void` | Global shortcuts the shell captured while the window was not focused. Returns the unsubscribe. |
 | `theme` | `ShellTheme` | Bridge 2. The theme the shell wears now, whole: `{ scheme, tokens }`, tokens keyed by CSS name. Set before the page's first script runs, so `index.html` paints it with no flash. |
 | `onTheme(handler)` | `(h: (theme: ShellTheme) => void) => () => void` | Bridge 2. The shell changed theme. Returns the unsubscribe. |
+| `status` | `"online" \| "away" \| "dnd"` | Bridge 3. The status the shell keeps for every server it holds. Strings, not the realtime enum: the shell has no protos. |
+| `onStatus(handler)` | `(h: (s: PresenceChoice) => void) => () => void` | Bridge 3. The status changed — in App settings, or because the computer went idle. Returns the unsubscribe. |
+| `notificationsAllowed()` | `() => boolean` | Bridge 3. Whether App settings is letting desktop banners through, **asked at the moment one would fire**. A function rather than a value because `contextBridge` copies values across once, at load, and this one changes while the page is open. |
 
 Two rules keep the number honest. **Adding a member is a bump**, so a
 shell can tell an app that expects more than it has. **The app checks
@@ -53,6 +56,17 @@ shell", so a newer server never breaks an older shell.
 
 `BRIDGE` in `platform.ts` and `Bridge` in `internal/webui/bridge.go` are
 the same number and move in the same pull request.
+
+**The bump waits for the shell that implements it.** `Bridge` is what
+`GET /version` publishes, and the shell offers "Update the app" whenever
+a server publishes a level above its own. Raising the number the moment
+the *page* learns to use a member would tell every desktop user to update
+to an app that does not exist yet. So a level lands in two steps: the
+page grows the optional members and feature-detects them, inert until
+something provides them; both constants go up once a shell that
+implements them has shipped. Members are listed here under the level they
+will be, which is the level the shell declares — the table is the
+contract, the constants are the announcement.
 
 ## The theme
 
@@ -97,6 +111,39 @@ The browser's picker and its `localStorage` preference are untouched:
 the same server opened in a browser keeps the theme chosen there. A
 bridge-1 shell has no `theme` member; against one, the page behaves as
 a browser too.
+
+## The status
+
+**The shell owns the status, and the banner switch with it.** A person is
+away, or not to be disturbed; neither is a fact about a server. Someone
+using the desktop app sets it once, under App settings → Notifications,
+and every server they have open is told. The shell keeps the choice in
+its own settings file beside the theme.
+
+Idle goes with it. In a browser, `api/status.ts` watches its own window
+for input and reports Away after ten minutes without any. A shell holds
+several servers at once and only one of them is in front, so a page's own
+events cannot tell "this person has gone" from "this person is reading
+something else" — a page that is not in front sees no events either way.
+The shell asks the computer instead (`powerMonitor.getSystemIdleTime()`)
+and decides once, for every server.
+
+The page does not stop announcing: `announceStatus()` still runs after
+every Ready and every reconnect, because the gateway's idea of a status
+belongs to a connection. All that changes is who set it. `shellStatus()`
+is the whole test — defined means something else is keeping the status,
+so the page seeds `myStatus` from it, follows `onStatus`, and does not
+start its idle watch. Undefined means a browser, a PWA, or a shell older
+than bridge 3, and the page keeps its own `localStorage` choice exactly
+as before.
+
+**Both settings leave account settings inside such a shell.** The
+Notifications tab holds the status and the desktop banners, and under a
+bridge-3 shell both are set upstairs, so the tab is filtered out the way
+Appearance already is — on what the bridge hands over, never on "is this
+the desktop app". The same account in a browser is offered all five
+sections; nothing is removed from the web app. Muted is not affected
+either way: mutes are per-server and stay the server's.
 
 ## What needs no bridge
 
