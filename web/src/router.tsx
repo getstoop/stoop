@@ -163,13 +163,14 @@ const profileRoute = createRoute({
   validateSearch: (
     search: Record<string, unknown>,
   ): {
-    tab?: "appearance" | "notifications" | "security";
+    tab?: "appearance" | "notifications" | "muted" | "security";
     linked?: string;
     error?: string;
   } => ({
     tab:
       search.tab === "appearance" ||
       search.tab === "notifications" ||
+      search.tab === "muted" ||
       search.tab === "security"
         ? search.tab
         : undefined,
