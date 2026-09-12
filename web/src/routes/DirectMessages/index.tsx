@@ -17,16 +17,20 @@ export function DMLayout() {
     <>
       <aside className="channel-sidebar" onClickCapture={closeDrawerOnLink}>
         <header className="sidebar-header">
-          <span className="space-name">Direct messages</span>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="New conversation"
-            title="New conversation"
-            onClick={() => setPicking(true)}
-          >
-            +
-          </button>
+          {/* .sidebar-header is a column; the row is what puts the
+              control beside the name, as the space sidebar does. */}
+          <div className="sidebar-header-row">
+            <span className="space-name">Direct messages</span>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="New conversation"
+              title="New conversation"
+              onClick={() => setPicking(true)}
+            >
+              +
+            </button>
+          </div>
         </header>
         <div className="channel-list dm-list">
           {dms?.map(
