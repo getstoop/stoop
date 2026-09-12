@@ -75,9 +75,50 @@ export function dmOther(
   return dm.participants.find((p) => p.id !== meId) ?? dm.participants[0];
 }
 
+// Everyone but me, in the order the server lists them.
+export function dmOthers(
+  dm: DirectMessage,
+  meId: string | undefined,
+): MessageAuthor[] {
+  return dm.participants.filter((p) => p.id !== meId);
+}
+
+// A group rather than a 1:1, as the server says: a group people have left
+// is still a group. It has no name of its own, so its title and face are
+// made from who is in it.
+export function dmIsGroup(dm: DirectMessage): boolean {
+  return dm.group;
+}
+
+export function personName(p: MessageAuthor | undefined): string {
+  return p?.displayName || p?.username || "";
+}
+
 export function dmTitle(dm: DirectMessage, meId: string | undefined): string {
-  const other = dmOther(dm, meId);
-  return other?.displayName || other?.username || "…";
+  const others = dmOthers(dm, meId);
+  if (dmIsGroup(dm)) {
+    if (others.length === 0) return "Just you";
+    const names = others.slice(0, 2).map(personName);
+    const rest = others.length - names.length;
+    if (rest === 0) return names.join(" and ");
+    if (rest === 1) return `${names.join(", ")} and ${personName(others[2])}`;
+    return `${names.join(", ")} and ${rest} others`;
+  }
+  return personName(dmOther(dm, meId)) || "…";
+}
+
+// The one or two faces a conversation shows: the other person, or the
+// first two of a group.
+export function dmFaces(
+  dm: DirectMessage,
+  meId: string | undefined,
+): MessageAuthor[] {
+  if (!dmIsGroup(dm)) {
+    const other = dmOther(dm, meId);
+    return other ? [other] : [];
+  }
+  const others = dmOthers(dm, meId);
+  return (others.length > 0 ? others : dm.participants).slice(0, 2);
 }
 
 // Opens (or finds) the DM with a user and returns its channel id. The
@@ -90,6 +131,52 @@ export async function openDirectMessage(
   const id = res.directMessage?.channel?.id ?? "";
   await queryClient.invalidateQueries({ queryKey: ["dms"] });
   return id;
+}
+
+// Starts a group conversation and returns its channel id. Always a new
+// conversation: a group is not identified by who is in it.
+export async function createGroupDirectMessage(
+  queryClient: QueryClient,
+  userIds: string[],
+): Promise<string> {
+  const res = await chatClient.createGroupDirectMessage({ userIds });
+  const id = res.directMessage?.channel?.id ?? "";
+  await queryClient.invalidateQueries({ queryKey: ["dms"] });
+  return id;
+}
+
+// Adds people to a conversation and returns the one they are now in —
+// a different id when a 1:1 forked into a new group.
+export async function addDirectMessageMembers(
+  queryClient: QueryClient,
+  channelId: string,
+  userIds: string[],
+): Promise<string> {
+  const res = await chatClient.addDirectMessageMembers({ channelId, userIds });
+  const id = res.directMessage?.channel?.id ?? "";
+  await queryClient.invalidateQueries({ queryKey: ["dms"] });
+  return id;
+}
+
+export async function leaveDirectMessage(
+  queryClient: QueryClient,
+  channelId: string,
+) {
+  await chatClient.leaveDirectMessage({ channelId });
+  queryClient.removeQueries({ queryKey: ["messages", channelId] });
+  await queryClient.invalidateQueries({ queryKey: ["dms"] });
+}
+
+// The people the caller can start a conversation with. Fetched when a
+// picker opens, not held: it is a list of names and it goes stale.
+export function useDMCandidates(enabled = true) {
+  return useQuery({
+    queryKey: ["dm-candidates"],
+    queryFn: async () =>
+      (await chatClient.listDirectMessageCandidates({})).users,
+    enabled,
+    gcTime: 0,
+  });
 }
 
 // Patches one DM's channel in the cache and keeps the list in activity
@@ -111,5 +198,26 @@ export function patchDirectMessage(
           a.channel?.lastMessageId ?? "",
         ),
       ),
+  );
+}
+
+// Replaces one conversation's participants, from the realtime event.
+export function patchDirectMessageParticipants(
+  queryClient: QueryClient,
+  channelId: string,
+  participants: MessageAuthor[],
+) {
+  queryClient.setQueryData<DirectMessage[]>(["dms"], (old) =>
+    old?.map((d) => (d.channel?.id === channelId ? { ...d, participants } : d)),
+  );
+}
+
+// Drops a conversation the caller is no longer in.
+export function removeDirectMessage(
+  queryClient: QueryClient,
+  channelId: string,
+) {
+  queryClient.setQueryData<DirectMessage[]>(["dms"], (old) =>
+    old?.filter((d) => d.channel?.id !== channelId),
   );
 }

@@ -83,19 +83,22 @@ work:
 ALTER TABLE channels ALTER COLUMN space_id DROP NOT NULL;
 ALTER TABLE channels ADD COLUMN dm_key text UNIQUE;
 ALTER TABLE channels ADD CONSTRAINT channels_dm_shape
-  CHECK ((kind = 3) = (space_id IS NULL) AND (kind = 3) = (dm_key IS NOT NULL));
+  CHECK ((kind = 3) = (space_id IS NULL) AND (kind = 3 OR dm_key IS NULL));
 ```
 
 That constraint is the whole DM data model in three lines. A DM is a
-channel with no space; `dm_key` is the participant ids sorted and joined,
-and its `UNIQUE` makes "open a DM with X" idempotent under a race — two
-people opening the same conversation simultaneously get the same row
+channel with no space. `dm_key` is the two participant ids sorted and
+joined, and its `UNIQUE` makes "open a DM with X" idempotent under a race —
+two people opening the same conversation simultaneously get the same row
 because the second insert loses to a unique constraint rather than to a
-check that could interleave. `last_message_id` is maintained on send so the
-channel list can answer "anything new?" without touching `messages`.
+check that could interleave. It is *pair-only*: a group DM carries no key,
+because a group is not identified by who is in it (00031, and
+[messaging.md](messaging.md) → Direct messages). `last_message_id` is
+maintained on send so the channel list can answer "anything new?" without
+touching `messages`.
 
 **`dm_members`** — a participants *table* rather than two columns on the
-channel, so group DMs can follow without a migration. v1 is 1:1 only.
+channel, which is what let group DMs arrive without touching it.
 
 **`channel_reads`** — `(user_id, channel_id) → last_read_message_id`, only
 ever moving forward. Because message ids are time-ordered, "unread" is an

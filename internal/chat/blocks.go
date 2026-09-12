@@ -71,8 +71,13 @@ func (s *Service) blockedBetween(ctx context.Context, a, b string) (bool, error)
 	return s.q.BlockedEitherWay(ctx, dbgen.BlockedEitherWayParams{BlockerID: a, BlockedID: b})
 }
 
-// dmBlocked: is userID blocked by, or blocking, anyone else in the DM?
+// dmBlocked: is userID blocked by, or blocking, the other person in a 1:1?
+// A group is not covered: one member blocking another would otherwise gag
+// them for everybody. There the rule is enforced when somebody is added.
 func (s *Service) dmBlocked(ctx context.Context, channel dbgen.Channel, userID string) (bool, error) {
+	if !isPairDM(channel) {
+		return false, nil
+	}
 	ids, err := s.q.ListDMMembers(ctx, channel.ID)
 	if err != nil {
 		return false, fmt.Errorf("list participants: %w", err)

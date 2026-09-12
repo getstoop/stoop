@@ -39,12 +39,29 @@ FROM channels c
 JOIN dm_members d ON d.channel_id = c.id AND d.user_id = sqlc.arg(user_id)
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = sqlc.arg(user_id)
 WHERE c.kind = 3
-  AND NOT EXISTS (
+  -- A block hides the pair conversation. In a group it would hide a whole
+  -- conversation from the person who made the block; there, blocks are
+  -- enforced when somebody is added instead.
+  AND (c.dm_key IS NULL OR NOT EXISTS (
     SELECT 1 FROM dm_members o
     JOIN user_blocks b ON b.blocked_id = o.user_id AND b.blocker_id = sqlc.arg(user_id)
     WHERE o.channel_id = c.id AND o.user_id <> sqlc.arg(user_id)
-  )
+  ))
 ORDER BY c.last_message_id DESC NULLS LAST, c.created_at DESC;
+
+-- CreateGroupDMChannel makes a group conversation. No dm_key: a group is
+-- not identified by who is in it, so opening "the same" group twice is two
+-- conversations.
+-- name: CreateGroupDMChannel :one
+INSERT INTO channels (id, space_id, name, kind, dm_key)
+VALUES ($1, NULL, '', 3, NULL)
+RETURNING *;
+
+-- name: RemoveDMMember :exec
+DELETE FROM dm_members WHERE channel_id = $1 AND user_id = $2;
+
+-- name: CountDMMembers :one
+SELECT count(*) FROM dm_members WHERE channel_id = $1;
 
 -- SharesSpace: do two users belong to at least one common space?
 -- name: SharesSpace :one
@@ -53,3 +70,32 @@ SELECT EXISTS (
     JOIN space_members b ON b.space_id = a.space_id
     WHERE a.user_id = $1 AND b.user_id = $2
 ) AS shares;
+
+-- SharesSpaceAmong: which of these users share at least one space with the
+-- caller. The caller may message exactly those, so a short list back means
+-- somebody in the request is out of reach.
+-- name: SharesSpaceAmong :many
+SELECT DISTINCT b.user_id FROM space_members a
+JOIN space_members b ON b.space_id = a.space_id
+WHERE a.user_id = sqlc.arg(user_id) AND b.user_id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- BlockedAmong: which of these users block, or are blocked by, the given
+-- user. One round trip instead of a pair check each.
+-- name: BlockedAmong :many
+SELECT DISTINCT (CASE WHEN blocker_id = sqlc.arg(user_id) THEN blocked_id ELSE blocker_id END)::uuid AS user_id
+FROM user_blocks
+WHERE (blocker_id = sqlc.arg(user_id) AND blocked_id = ANY(sqlc.arg(ids)::uuid[]))
+   OR (blocked_id = sqlc.arg(user_id) AND blocker_id = ANY(sqlc.arg(ids)::uuid[]));
+
+-- ListDMCandidates: everyone the caller may start a conversation with —
+-- the people they share a space with, minus blocks in either direction.
+-- name: ListDMCandidates :many
+SELECT DISTINCT o.user_id FROM space_members me
+JOIN space_members o ON o.space_id = me.space_id AND o.user_id <> me.user_id
+WHERE me.user_id = sqlc.arg(user_id)
+  AND NOT EXISTS (
+    SELECT 1 FROM user_blocks b
+    WHERE (b.blocker_id = sqlc.arg(user_id) AND b.blocked_id = o.user_id)
+       OR (b.blocked_id = sqlc.arg(user_id) AND b.blocker_id = o.user_id)
+  )
+LIMIT sqlc.arg(lim);

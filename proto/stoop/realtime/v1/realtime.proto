@@ -50,6 +50,7 @@ message ServerEvent {
     ChannelMuted channel_muted = 30;
     SpaceMuted space_muted = 31;
     MessagePinned message_pinned = 32;
+    DirectMessageMembersChanged direct_message_members_changed = 33;
   }
 }
 
@@ -171,6 +172,15 @@ message Pong {}
 message ChannelDeleted {
   string space_id = 1;
   string channel_id = 2;
+}
+
+// DirectMessageMembersChanged carries a group conversation's new
+// participant list to everyone still in it. The list, not a delta: it is
+// at most ten names, and the clients that care are exactly the people in
+// it. No Channel, so no caller's unread state can ride a broadcast.
+message DirectMessageMembersChanged {
+  string channel_id = 1;
+  repeated stoop.chat.v1.MessageAuthor participants = 2;
 }
 
 // ChannelsReordered carries the space's channels in their new order.

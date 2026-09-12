@@ -132,6 +132,24 @@ service ChatService {
   rpc OpenDirectMessage(OpenDirectMessageRequest) returns (OpenDirectMessageResponse) {}
   // The caller's DMs, most recent activity first.
   rpc ListDirectMessages(ListDirectMessagesRequest) returns (ListDirectMessagesResponse) {}
+  // CreateGroupDirectMessage starts a conversation with several people.
+  // Always a new conversation: unlike a 1:1, a group is not identified by
+  // who is in it. 2 to 9 others, each of whom the caller could message
+  // directly; a block between any two of them refuses the call.
+  rpc CreateGroupDirectMessage(CreateGroupDirectMessageRequest) returns (CreateGroupDirectMessageResponse) {}
+  // AddDirectMessageMembers adds people to a conversation the caller is
+  // in. On a group they join it and can read all of it. On a 1:1 nothing
+  // is converted: a new group holding both people plus the ones added is
+  // created with no history, and returned.
+  rpc AddDirectMessageMembers(AddDirectMessageMembersRequest) returns (AddDirectMessageMembersResponse) {}
+  // LeaveDirectMessage removes the caller from a group conversation, which
+  // stays for everyone else; the last person to leave deletes it. A 1:1
+  // cannot be left.
+  rpc LeaveDirectMessage(LeaveDirectMessageRequest) returns (LeaveDirectMessageResponse) {}
+  // ListDirectMessageCandidates is everyone the caller may start a
+  // conversation with: the people they share a space with, minus blocks in
+  // either direction. Instance admins get the same list, not every account.
+  rpc ListDirectMessageCandidates(ListDirectMessageCandidatesRequest) returns (ListDirectMessageCandidatesResponse) {}
   rpc MarkChannelRead(MarkChannelReadRequest) returns (MarkChannelReadResponse) {}
   rpc ListActivity(ListActivityRequest) returns (ListActivityResponse) {}
   // MarkActivityRead marks the given activity items (or all of them)
@@ -555,11 +573,16 @@ message ListPinnedMessagesResponse {
   repeated PinnedMessage pins = 1;
 }
 
-// DirectMessage is a DM channel with the people in it.
+// DirectMessage is a DM channel with the people in it. A conversation
+// with more than two participants is a group; it has no name of its own,
+// so clients render one from the participants.
 message DirectMessage {
   Channel channel = 1;
   // Everyone in the conversation, the caller included.
   repeated MessageAuthor participants = 2;
+  // A group rather than a 1:1. Not a count: a group people have left is
+  // still a group, and never becomes the pair conversation.
+  bool group = 3;
 }
 
 message OpenDirectMessageRequest {
@@ -574,4 +597,38 @@ message ListDirectMessagesRequest {}
 
 message ListDirectMessagesResponse {
   repeated DirectMessage direct_messages = 1;
+}
+
+message CreateGroupDirectMessageRequest {
+  // The other people, without the caller.
+  repeated string user_ids = 1;
+}
+
+message CreateGroupDirectMessageResponse {
+  DirectMessage direct_message = 1;
+}
+
+message AddDirectMessageMembersRequest {
+  string channel_id = 1;
+  repeated string user_ids = 2;
+}
+
+message AddDirectMessageMembersResponse {
+  // The conversation those people are now in: the same one for a group,
+  // a new one when a 1:1 forked.
+  DirectMessage direct_message = 1;
+  // True when a 1:1 forked and this is a different conversation.
+  bool forked = 2;
+}
+
+message LeaveDirectMessageRequest {
+  string channel_id = 1;
+}
+
+message LeaveDirectMessageResponse {}
+
+message ListDirectMessageCandidatesRequest {}
+
+message ListDirectMessageCandidatesResponse {
+  repeated MessageAuthor users = 1;
 }

@@ -46,6 +46,7 @@ export function Composer({
   channelId,
   channelName,
   dm = false,
+  group = false,
   spaceId,
   replyTo,
   onCancelReply,
@@ -53,6 +54,8 @@ export function Composer({
   channelId: string;
   channelName?: string;
   dm?: boolean;
+  // A group conversation: its title is a list of names, not a handle.
+  group?: boolean;
   spaceId: string;
   replyTo: Message | null;
   onCancelReply: () => void;
@@ -390,7 +393,9 @@ export function Composer({
           placeholder={
             channelName
               ? dm
-                ? `Message @${channelName}`
+                ? group
+                  ? `Message ${channelName}`
+                  : `Message @${channelName}`
                 : `Message #${channelName}`
               : "Message"
           }

@@ -18,7 +18,8 @@ import (
 // Direct messages are channels with no space (kind DM), their people in
 // dm_members. The message RPCs don't know the difference: they read the
 // channel through accessChannel and publish through publishChannel, and
-// those two are where a DM and a space channel part ways. See
+// those two are where a DM and a space channel part ways. A conversation
+// with more than two people is a group; its RPCs are in dm_groups.go. See
 // docs/architecture/messaging.md → Direct messages.
 
 func isDM(c dbgen.Channel) bool { return c.SpaceID == nil }
@@ -32,7 +33,8 @@ func spaceOf(c dbgen.Channel) string {
 	return *c.SpaceID
 }
 
-// dmKey is the identity of a 1:1 DM: both ids in a fixed order.
+// dmKey is the identity of a 1:1 DM: both ids in a fixed order. A group
+// has none — it is not identified by who is in it.
 func dmKey(a, b string) string {
 	if b < a {
 		a, b = b, a
@@ -224,7 +226,7 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 		}
 		channel.UnreadCount = int32(r.UnreadCount)
 		channel.Muted = r.Muted
-		dm := &chatv1.DirectMessage{Channel: channel}
+		dm := &chatv1.DirectMessage{Channel: channel, Group: !isPairDM(r.Channel)}
 		for _, uid := range byChannel[r.Channel.ID] {
 			if a := authors[uid]; a != nil {
 				dm.Participants = append(dm.Participants, a)

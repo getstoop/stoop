@@ -134,6 +134,18 @@ const (
 	// ChatServiceListDirectMessagesProcedure is the fully-qualified name of the ChatService's
 	// ListDirectMessages RPC.
 	ChatServiceListDirectMessagesProcedure = "/stoop.chat.v1.ChatService/ListDirectMessages"
+	// ChatServiceCreateGroupDirectMessageProcedure is the fully-qualified name of the ChatService's
+	// CreateGroupDirectMessage RPC.
+	ChatServiceCreateGroupDirectMessageProcedure = "/stoop.chat.v1.ChatService/CreateGroupDirectMessage"
+	// ChatServiceAddDirectMessageMembersProcedure is the fully-qualified name of the ChatService's
+	// AddDirectMessageMembers RPC.
+	ChatServiceAddDirectMessageMembersProcedure = "/stoop.chat.v1.ChatService/AddDirectMessageMembers"
+	// ChatServiceLeaveDirectMessageProcedure is the fully-qualified name of the ChatService's
+	// LeaveDirectMessage RPC.
+	ChatServiceLeaveDirectMessageProcedure = "/stoop.chat.v1.ChatService/LeaveDirectMessage"
+	// ChatServiceListDirectMessageCandidatesProcedure is the fully-qualified name of the ChatService's
+	// ListDirectMessageCandidates RPC.
+	ChatServiceListDirectMessageCandidatesProcedure = "/stoop.chat.v1.ChatService/ListDirectMessageCandidates"
 	// ChatServiceMarkChannelReadProcedure is the fully-qualified name of the ChatService's
 	// MarkChannelRead RPC.
 	ChatServiceMarkChannelReadProcedure = "/stoop.chat.v1.ChatService/MarkChannelRead"
@@ -262,6 +274,24 @@ type ChatServiceClient interface {
 	OpenDirectMessage(context.Context, *connect.Request[v1.OpenDirectMessageRequest]) (*connect.Response[v1.OpenDirectMessageResponse], error)
 	// The caller's DMs, most recent activity first.
 	ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error)
+	// CreateGroupDirectMessage starts a conversation with several people.
+	// Always a new conversation: unlike a 1:1, a group is not identified by
+	// who is in it. 2 to 9 others, each of whom the caller could message
+	// directly; a block between any two of them refuses the call.
+	CreateGroupDirectMessage(context.Context, *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error)
+	// AddDirectMessageMembers adds people to a conversation the caller is
+	// in. On a group they join it and can read all of it. On a 1:1 nothing
+	// is converted: a new group holding both people plus the ones added is
+	// created with no history, and returned.
+	AddDirectMessageMembers(context.Context, *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error)
+	// LeaveDirectMessage removes the caller from a group conversation, which
+	// stays for everyone else; the last person to leave deletes it. A 1:1
+	// cannot be left.
+	LeaveDirectMessage(context.Context, *connect.Request[v1.LeaveDirectMessageRequest]) (*connect.Response[v1.LeaveDirectMessageResponse], error)
+	// ListDirectMessageCandidates is everyone the caller may start a
+	// conversation with: the people they share a space with, minus blocks in
+	// either direction. Instance admins get the same list, not every account.
+	ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error)
 	MarkChannelRead(context.Context, *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error)
 	ListActivity(context.Context, *connect.Request[v1.ListActivityRequest]) (*connect.Response[v1.ListActivityResponse], error)
 	// MarkActivityRead marks the given activity items (or all of them)
@@ -520,6 +550,30 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("ListDirectMessages")),
 			connect.WithClientOptions(opts...),
 		),
+		createGroupDirectMessage: connect.NewClient[v1.CreateGroupDirectMessageRequest, v1.CreateGroupDirectMessageResponse](
+			httpClient,
+			baseURL+ChatServiceCreateGroupDirectMessageProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("CreateGroupDirectMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		addDirectMessageMembers: connect.NewClient[v1.AddDirectMessageMembersRequest, v1.AddDirectMessageMembersResponse](
+			httpClient,
+			baseURL+ChatServiceAddDirectMessageMembersProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("AddDirectMessageMembers")),
+			connect.WithClientOptions(opts...),
+		),
+		leaveDirectMessage: connect.NewClient[v1.LeaveDirectMessageRequest, v1.LeaveDirectMessageResponse](
+			httpClient,
+			baseURL+ChatServiceLeaveDirectMessageProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("LeaveDirectMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		listDirectMessageCandidates: connect.NewClient[v1.ListDirectMessageCandidatesRequest, v1.ListDirectMessageCandidatesResponse](
+			httpClient,
+			baseURL+ChatServiceListDirectMessageCandidatesProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListDirectMessageCandidates")),
+			connect.WithClientOptions(opts...),
+		),
 		markChannelRead: connect.NewClient[v1.MarkChannelReadRequest, v1.MarkChannelReadResponse](
 			httpClient,
 			baseURL+ChatServiceMarkChannelReadProcedure,
@@ -543,49 +597,53 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // chatServiceClient implements ChatServiceClient.
 type chatServiceClient struct {
-	createSpace        *connect.Client[v1.CreateSpaceRequest, v1.CreateSpaceResponse]
-	listSpaces         *connect.Client[v1.ListSpacesRequest, v1.ListSpacesResponse]
-	getSpace           *connect.Client[v1.GetSpaceRequest, v1.GetSpaceResponse]
-	joinSpace          *connect.Client[v1.JoinSpaceRequest, v1.JoinSpaceResponse]
-	createInvite       *connect.Client[v1.CreateInviteRequest, v1.CreateInviteResponse]
-	listInvites        *connect.Client[v1.ListInvitesRequest, v1.ListInvitesResponse]
-	revokeInvite       *connect.Client[v1.RevokeInviteRequest, v1.RevokeInviteResponse]
-	lookupInvite       *connect.Client[v1.LookupInviteRequest, v1.LookupInviteResponse]
-	getMember          *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
-	listMembers        *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
-	setMemberRole      *connect.Client[v1.SetMemberRoleRequest, v1.SetMemberRoleResponse]
-	kickMember         *connect.Client[v1.KickMemberRequest, v1.KickMemberResponse]
-	addMember          *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
-	banMember          *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
-	unbanMember        *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
-	listBans           *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
-	blockUser          *connect.Client[v1.BlockUserRequest, v1.BlockUserResponse]
-	unblockUser        *connect.Client[v1.UnblockUserRequest, v1.UnblockUserResponse]
-	listBlockedUsers   *connect.Client[v1.ListBlockedUsersRequest, v1.ListBlockedUsersResponse]
-	leaveSpace         *connect.Client[v1.LeaveSpaceRequest, v1.LeaveSpaceResponse]
-	transferOwnership  *connect.Client[v1.TransferOwnershipRequest, v1.TransferOwnershipResponse]
-	updateSpace        *connect.Client[v1.UpdateSpaceRequest, v1.UpdateSpaceResponse]
-	deleteSpace        *connect.Client[v1.DeleteSpaceRequest, v1.DeleteSpaceResponse]
-	createChannel      *connect.Client[v1.CreateChannelRequest, v1.CreateChannelResponse]
-	listChannels       *connect.Client[v1.ListChannelsRequest, v1.ListChannelsResponse]
-	updateChannel      *connect.Client[v1.UpdateChannelRequest, v1.UpdateChannelResponse]
-	deleteChannel      *connect.Client[v1.DeleteChannelRequest, v1.DeleteChannelResponse]
-	reorderChannels    *connect.Client[v1.ReorderChannelsRequest, v1.ReorderChannelsResponse]
-	setChannelMuted    *connect.Client[v1.SetChannelMutedRequest, v1.SetChannelMutedResponse]
-	setSpaceMuted      *connect.Client[v1.SetSpaceMutedRequest, v1.SetSpaceMutedResponse]
-	sendMessage        *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
-	listMessages       *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
-	searchMessages     *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
-	setMessagePinned   *connect.Client[v1.SetMessagePinnedRequest, v1.SetMessagePinnedResponse]
-	listPinnedMessages *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
-	editMessage        *connect.Client[v1.EditMessageRequest, v1.EditMessageResponse]
-	deleteMessage      *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
-	toggleReaction     *connect.Client[v1.ToggleReactionRequest, v1.ToggleReactionResponse]
-	openDirectMessage  *connect.Client[v1.OpenDirectMessageRequest, v1.OpenDirectMessageResponse]
-	listDirectMessages *connect.Client[v1.ListDirectMessagesRequest, v1.ListDirectMessagesResponse]
-	markChannelRead    *connect.Client[v1.MarkChannelReadRequest, v1.MarkChannelReadResponse]
-	listActivity       *connect.Client[v1.ListActivityRequest, v1.ListActivityResponse]
-	markActivityRead   *connect.Client[v1.MarkActivityReadRequest, v1.MarkActivityReadResponse]
+	createSpace                 *connect.Client[v1.CreateSpaceRequest, v1.CreateSpaceResponse]
+	listSpaces                  *connect.Client[v1.ListSpacesRequest, v1.ListSpacesResponse]
+	getSpace                    *connect.Client[v1.GetSpaceRequest, v1.GetSpaceResponse]
+	joinSpace                   *connect.Client[v1.JoinSpaceRequest, v1.JoinSpaceResponse]
+	createInvite                *connect.Client[v1.CreateInviteRequest, v1.CreateInviteResponse]
+	listInvites                 *connect.Client[v1.ListInvitesRequest, v1.ListInvitesResponse]
+	revokeInvite                *connect.Client[v1.RevokeInviteRequest, v1.RevokeInviteResponse]
+	lookupInvite                *connect.Client[v1.LookupInviteRequest, v1.LookupInviteResponse]
+	getMember                   *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
+	listMembers                 *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
+	setMemberRole               *connect.Client[v1.SetMemberRoleRequest, v1.SetMemberRoleResponse]
+	kickMember                  *connect.Client[v1.KickMemberRequest, v1.KickMemberResponse]
+	addMember                   *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
+	banMember                   *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
+	unbanMember                 *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
+	listBans                    *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
+	blockUser                   *connect.Client[v1.BlockUserRequest, v1.BlockUserResponse]
+	unblockUser                 *connect.Client[v1.UnblockUserRequest, v1.UnblockUserResponse]
+	listBlockedUsers            *connect.Client[v1.ListBlockedUsersRequest, v1.ListBlockedUsersResponse]
+	leaveSpace                  *connect.Client[v1.LeaveSpaceRequest, v1.LeaveSpaceResponse]
+	transferOwnership           *connect.Client[v1.TransferOwnershipRequest, v1.TransferOwnershipResponse]
+	updateSpace                 *connect.Client[v1.UpdateSpaceRequest, v1.UpdateSpaceResponse]
+	deleteSpace                 *connect.Client[v1.DeleteSpaceRequest, v1.DeleteSpaceResponse]
+	createChannel               *connect.Client[v1.CreateChannelRequest, v1.CreateChannelResponse]
+	listChannels                *connect.Client[v1.ListChannelsRequest, v1.ListChannelsResponse]
+	updateChannel               *connect.Client[v1.UpdateChannelRequest, v1.UpdateChannelResponse]
+	deleteChannel               *connect.Client[v1.DeleteChannelRequest, v1.DeleteChannelResponse]
+	reorderChannels             *connect.Client[v1.ReorderChannelsRequest, v1.ReorderChannelsResponse]
+	setChannelMuted             *connect.Client[v1.SetChannelMutedRequest, v1.SetChannelMutedResponse]
+	setSpaceMuted               *connect.Client[v1.SetSpaceMutedRequest, v1.SetSpaceMutedResponse]
+	sendMessage                 *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
+	listMessages                *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
+	searchMessages              *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
+	setMessagePinned            *connect.Client[v1.SetMessagePinnedRequest, v1.SetMessagePinnedResponse]
+	listPinnedMessages          *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
+	editMessage                 *connect.Client[v1.EditMessageRequest, v1.EditMessageResponse]
+	deleteMessage               *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
+	toggleReaction              *connect.Client[v1.ToggleReactionRequest, v1.ToggleReactionResponse]
+	openDirectMessage           *connect.Client[v1.OpenDirectMessageRequest, v1.OpenDirectMessageResponse]
+	listDirectMessages          *connect.Client[v1.ListDirectMessagesRequest, v1.ListDirectMessagesResponse]
+	createGroupDirectMessage    *connect.Client[v1.CreateGroupDirectMessageRequest, v1.CreateGroupDirectMessageResponse]
+	addDirectMessageMembers     *connect.Client[v1.AddDirectMessageMembersRequest, v1.AddDirectMessageMembersResponse]
+	leaveDirectMessage          *connect.Client[v1.LeaveDirectMessageRequest, v1.LeaveDirectMessageResponse]
+	listDirectMessageCandidates *connect.Client[v1.ListDirectMessageCandidatesRequest, v1.ListDirectMessageCandidatesResponse]
+	markChannelRead             *connect.Client[v1.MarkChannelReadRequest, v1.MarkChannelReadResponse]
+	listActivity                *connect.Client[v1.ListActivityRequest, v1.ListActivityResponse]
+	markActivityRead            *connect.Client[v1.MarkActivityReadRequest, v1.MarkActivityReadResponse]
 }
 
 // CreateSpace calls stoop.chat.v1.ChatService.CreateSpace.
@@ -788,6 +846,26 @@ func (c *chatServiceClient) ListDirectMessages(ctx context.Context, req *connect
 	return c.listDirectMessages.CallUnary(ctx, req)
 }
 
+// CreateGroupDirectMessage calls stoop.chat.v1.ChatService.CreateGroupDirectMessage.
+func (c *chatServiceClient) CreateGroupDirectMessage(ctx context.Context, req *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error) {
+	return c.createGroupDirectMessage.CallUnary(ctx, req)
+}
+
+// AddDirectMessageMembers calls stoop.chat.v1.ChatService.AddDirectMessageMembers.
+func (c *chatServiceClient) AddDirectMessageMembers(ctx context.Context, req *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error) {
+	return c.addDirectMessageMembers.CallUnary(ctx, req)
+}
+
+// LeaveDirectMessage calls stoop.chat.v1.ChatService.LeaveDirectMessage.
+func (c *chatServiceClient) LeaveDirectMessage(ctx context.Context, req *connect.Request[v1.LeaveDirectMessageRequest]) (*connect.Response[v1.LeaveDirectMessageResponse], error) {
+	return c.leaveDirectMessage.CallUnary(ctx, req)
+}
+
+// ListDirectMessageCandidates calls stoop.chat.v1.ChatService.ListDirectMessageCandidates.
+func (c *chatServiceClient) ListDirectMessageCandidates(ctx context.Context, req *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error) {
+	return c.listDirectMessageCandidates.CallUnary(ctx, req)
+}
+
 // MarkChannelRead calls stoop.chat.v1.ChatService.MarkChannelRead.
 func (c *chatServiceClient) MarkChannelRead(ctx context.Context, req *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error) {
 	return c.markChannelRead.CallUnary(ctx, req)
@@ -920,6 +998,24 @@ type ChatServiceHandler interface {
 	OpenDirectMessage(context.Context, *connect.Request[v1.OpenDirectMessageRequest]) (*connect.Response[v1.OpenDirectMessageResponse], error)
 	// The caller's DMs, most recent activity first.
 	ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error)
+	// CreateGroupDirectMessage starts a conversation with several people.
+	// Always a new conversation: unlike a 1:1, a group is not identified by
+	// who is in it. 2 to 9 others, each of whom the caller could message
+	// directly; a block between any two of them refuses the call.
+	CreateGroupDirectMessage(context.Context, *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error)
+	// AddDirectMessageMembers adds people to a conversation the caller is
+	// in. On a group they join it and can read all of it. On a 1:1 nothing
+	// is converted: a new group holding both people plus the ones added is
+	// created with no history, and returned.
+	AddDirectMessageMembers(context.Context, *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error)
+	// LeaveDirectMessage removes the caller from a group conversation, which
+	// stays for everyone else; the last person to leave deletes it. A 1:1
+	// cannot be left.
+	LeaveDirectMessage(context.Context, *connect.Request[v1.LeaveDirectMessageRequest]) (*connect.Response[v1.LeaveDirectMessageResponse], error)
+	// ListDirectMessageCandidates is everyone the caller may start a
+	// conversation with: the people they share a space with, minus blocks in
+	// either direction. Instance admins get the same list, not every account.
+	ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error)
 	MarkChannelRead(context.Context, *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error)
 	ListActivity(context.Context, *connect.Request[v1.ListActivityRequest]) (*connect.Response[v1.ListActivityResponse], error)
 	// MarkActivityRead marks the given activity items (or all of them)
@@ -1174,6 +1270,30 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("ListDirectMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceCreateGroupDirectMessageHandler := connect.NewUnaryHandler(
+		ChatServiceCreateGroupDirectMessageProcedure,
+		svc.CreateGroupDirectMessage,
+		connect.WithSchema(chatServiceMethods.ByName("CreateGroupDirectMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceAddDirectMessageMembersHandler := connect.NewUnaryHandler(
+		ChatServiceAddDirectMessageMembersProcedure,
+		svc.AddDirectMessageMembers,
+		connect.WithSchema(chatServiceMethods.ByName("AddDirectMessageMembers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceLeaveDirectMessageHandler := connect.NewUnaryHandler(
+		ChatServiceLeaveDirectMessageProcedure,
+		svc.LeaveDirectMessage,
+		connect.WithSchema(chatServiceMethods.ByName("LeaveDirectMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceListDirectMessageCandidatesHandler := connect.NewUnaryHandler(
+		ChatServiceListDirectMessageCandidatesProcedure,
+		svc.ListDirectMessageCandidates,
+		connect.WithSchema(chatServiceMethods.ByName("ListDirectMessageCandidates")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceMarkChannelReadHandler := connect.NewUnaryHandler(
 		ChatServiceMarkChannelReadProcedure,
 		svc.MarkChannelRead,
@@ -1274,6 +1394,14 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceOpenDirectMessageHandler.ServeHTTP(w, r)
 		case ChatServiceListDirectMessagesProcedure:
 			chatServiceListDirectMessagesHandler.ServeHTTP(w, r)
+		case ChatServiceCreateGroupDirectMessageProcedure:
+			chatServiceCreateGroupDirectMessageHandler.ServeHTTP(w, r)
+		case ChatServiceAddDirectMessageMembersProcedure:
+			chatServiceAddDirectMessageMembersHandler.ServeHTTP(w, r)
+		case ChatServiceLeaveDirectMessageProcedure:
+			chatServiceLeaveDirectMessageHandler.ServeHTTP(w, r)
+		case ChatServiceListDirectMessageCandidatesProcedure:
+			chatServiceListDirectMessageCandidatesHandler.ServeHTTP(w, r)
 		case ChatServiceMarkChannelReadProcedure:
 			chatServiceMarkChannelReadHandler.ServeHTTP(w, r)
 		case ChatServiceListActivityProcedure:
@@ -1447,6 +1575,22 @@ func (UnimplementedChatServiceHandler) OpenDirectMessage(context.Context, *conne
 
 func (UnimplementedChatServiceHandler) ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListDirectMessages is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) CreateGroupDirectMessage(context.Context, *connect.Request[v1.CreateGroupDirectMessageRequest]) (*connect.Response[v1.CreateGroupDirectMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.CreateGroupDirectMessage is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) AddDirectMessageMembers(context.Context, *connect.Request[v1.AddDirectMessageMembersRequest]) (*connect.Response[v1.AddDirectMessageMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.AddDirectMessageMembers is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) LeaveDirectMessage(context.Context, *connect.Request[v1.LeaveDirectMessageRequest]) (*connect.Response[v1.LeaveDirectMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.LeaveDirectMessage is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListDirectMessageCandidates is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) MarkChannelRead(context.Context, *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error) {

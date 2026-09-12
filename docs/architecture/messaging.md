@@ -405,28 +405,64 @@ anyone from.
 
 ## Direct messages
 
-A DM is a channel with `space_id IS NULL`, `kind = 3`, participants in
-`dm_members`, and `dm_key` (the two user ids, sorted) making "open a DM
-with X" idempotent: two people opening the same conversation at once get
-the same row, because the second insert loses to a `UNIQUE` constraint
-rather than to a check that could interleave.
+A DM is a channel with `space_id IS NULL`, `kind = 3` and its participants
+in `dm_members`. It comes in two shapes, and `dm_key` is which:
 
-`dm_members` is a *table* rather than two columns on the channel so group
-DMs can follow without a migration, though v1 is 1:1 only.
+- **A 1:1** carries `dm_key`, the two user ids sorted, whose `UNIQUE`
+  makes "open a DM with X" idempotent: two people opening the same
+  conversation at once get the same row, because the second insert loses
+  to a constraint rather than to a check that could interleave.
+- **A group** carries no key. A group is not identified by who is in it —
+  people are added and leave — so it is identified by its id, and starting
+  a group with the same people twice makes two conversations. It never
+  becomes the pair conversation however small it gets; `DirectMessage.group`
+  on the wire is `dm_key IS NULL`, not a participant count.
+
+Ten participants, the caller included (`maxDMParticipants`). Past that the
+thing being asked for is a space.
 
 DMs have no manager: they are never renamed, reordered or deleted, and each
 person deletes only their own messages. Mentions resolve against
 participants; `@everyone` and `@here` are plain text.
 
-**Who may open one:** two people who share a space, or an instance admin
-with anyone. Nothing else about instance admins reaches into DMs — see
+**Who may open one:** people who share a space, or an instance admin with
+anyone. Nothing else about instance admins reaches into DMs — see
 [permissions.md](permissions.md) for the boundary and its honest limits.
+`ListDirectMessageCandidates` is that rule as a list, for the picker.
+
+**Adding and leaving.** Any participant may add, and the newcomer can read
+everything already said — a group is one room with one history, and a
+per-member floor would have to be respected by every read path in the DM
+code. Adding to a *1:1* therefore does not convert it: a new group is
+created holding both people plus the ones added, with no history, and the
+pair conversation is left alone (`AddDirectMessageMembers` returns
+`forked`). Any participant may leave a group; the messages stay, because
+they are the other people's conversation too. A group that everybody else
+has left is still the remaining person's to read, and they may add people
+back to it; when the last one leaves, the channel row goes and the cascades
+take its messages. A 1:1 cannot be left — that request is a block or a
+delete, and both exist.
+
+**Blocks** are enforced when somebody is added, not afterwards: nobody is
+ever put in a room with a person they blocked, and a block made later does
+not silently gag either of them for everybody. So `dmBlocked` (the write
+rule) and the block filter in `ListDMChannelsByUser` both apply to keyed
+DMs only.
+
+**Realtime.** `DirectMessageMembersChanged` carries the new participant
+list to everyone still in the conversation — the list, because it is at
+most ten names and the clients that care are exactly the people in it, and
+no `Channel`, so no caller's unread state can ride a broadcast. Somebody
+added also gets `ChannelCreated` on their own topic; somebody who left gets
+`ChannelDeleted` with an empty `space_id`.
 
 On the web, `spaceId === ""` is the DM signal. `ChannelView` renders a DM
 from `/dm/$channelId` with an empty space; `api/dms.ts` holds the `["dms"]`
 list and `usePeople`, which hands the timeline, composer and reaction
 tooltips a DM's participants *in the shape of members*, so those components
-never learn there are two kinds of channel either.
+never learn there are two kinds of channel either. A group has no name, so
+`dmTitle` makes one from the people in it ("ada, bea and 2 others") and
+`AvatarStack` makes a face from the first two.
 
 ## Link previews
 

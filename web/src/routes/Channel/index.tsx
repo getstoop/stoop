@@ -1,6 +1,7 @@
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  dmIsGroup,
   dmTitle,
   useChannelRecord,
   useDirectMessages,
@@ -20,7 +21,8 @@ import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkChannelRead } from "../../hooks/useMarkChannelRead";
 import { useConnectionStore } from "../../stores/connection";
 import { useVoiceStore } from "../../stores/voice";
-import { DMTitle } from "../DirectMessages";
+import { DMActions } from "../DirectMessages/DMActions";
+import { DMTitle } from "../DirectMessages/DMTitle";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
 
@@ -65,6 +67,7 @@ export function ChannelView() {
       ? dmTitle(dm, meForTitle?.id)
       : ""
     : (channel?.name ?? "");
+  const isGroup = !!dm && dmIsGroup(dm);
   // ?m=<messageId>: open the window around that message rather than the
   // newest page (activity, shared links).
   const { m: jumpTarget } = useSearch({ strict: false }) as { m?: string };
@@ -123,6 +126,7 @@ export function ChannelView() {
             <span className="channel-title">{channel?.name ?? "…"}</span>
           </>
         )}
+        {isDM && <DMActions channelId={channelId} />}
         {channel && <ChannelTopic channel={channel} space={space} />}
         {channel?.kind === ChannelKind.VOICE && (
           <JoinVoiceChip spaceId={spaceId} channelId={channel.id} />
@@ -147,6 +151,7 @@ export function ChannelView() {
             channelId={channelId}
             channelName={title}
             dm={isDM}
+            group={isGroup}
             newAfterId={
               divider?.channelId === channelId ? divider.afterId : null
             }
@@ -158,6 +163,7 @@ export function ChannelView() {
             channelId={channelId}
             channelName={title}
             dm={isDM}
+            group={isGroup}
             spaceId={spaceId}
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}
