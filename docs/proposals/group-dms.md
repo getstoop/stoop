@@ -123,9 +123,12 @@ better. The eleventh add is `FailedPrecondition` with a message that says
 so: "a group conversation holds 10 people; make a space for anything
 bigger".
 
-The check is per add, inside the transaction that inserts, so two people
-adding at once cannot both read nine and both write. It is a `count(*)`
-over at most ten rows on a primary-key range scan.
+The check is per add, inside the transaction that inserts — a `count(*)`
+over at most ten rows on a primary-key range scan. Two people adding at
+once can both pass it under `READ COMMITTED` and land at eleven, the same
+bounded overshoot the pin cap has: bounded by the number of concurrent
+adders, harmless to everything downstream, and not worth serialising every
+add behind a lock on the channel row to prevent.
 
 ## Who may be in one
 
@@ -272,7 +275,21 @@ message ListDirectMessageCandidatesResponse {
 ```
 
 `DirectMessage` already carries `repeated MessageAuthor participants`, so
-the response shape for a group is the shape that has always been there.
+the response shape for a group is nearly the shape that has always been
+there. It gains one field:
+
+```proto
+  // A group rather than a 1:1. Not a count: a group people have left is
+  // still a group, and never becomes the pair conversation.
+  bool group = 3;
+```
+
+A participant count would be the obvious way for a client to tell the two
+apart, and it is wrong in both directions: a group everybody has left has
+one participant, and a group two people are left in is still not the pair
+conversation with that person. The server knows — it is `dm_key IS NULL` —
+so it says so.
+
 `Channel.name` stays empty for every DM; the title is the client's to
 render, which is where it has to be anyway once "the people in it" is the
 name.
@@ -336,7 +353,7 @@ becomes "the people", in four places.
 
 | Others | Title |
 | --- | --- |
-| 0 | Just you |
+| 0 | Just you (everybody else left) |
 | 1 | ada |
 | 2 | ada and bea |
 | 3 | ada, bea and casey |
