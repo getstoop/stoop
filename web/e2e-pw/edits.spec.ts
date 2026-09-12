@@ -35,7 +35,7 @@ test("message actions, editing and deleting", async ({ browser }) => {
 
   // Actions visible (Add reaction, Copy link and Reply for everyone): B
   // (member) sees Edit/Delete on her own, not on A's; A (owner) sees
-  // Delete on B's.
+  // Delete on B's, and Pin on any of them (manage_channels).
   await expect
     .poll(() => actions(B, 0), {
       message: "member: own message has Reply/Edit/Delete",
@@ -48,9 +48,9 @@ test("message actions, editing and deleting", async ({ browser }) => {
     .toEqual(["Add reaction", "Copy link", "Reply"]);
   await expect
     .poll(() => actions(A, 0), {
-      message: "owner: another's message has Reply/Delete (no Edit)",
+      message: "owner: another's message has Pin/Reply/Delete (no Edit)",
     })
-    .toEqual(["Add reaction", "Copy link", "Reply", "Delete"]);
+    .toEqual(["Add reaction", "Copy link", "Pin", "Reply", "Delete"]);
 
   // B edits: inline editor, Enter saves, (edited) marker, A sees it live.
   await clickAction(B, 0, "Edit");

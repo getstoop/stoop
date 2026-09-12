@@ -64,7 +64,7 @@ export function MessageActions({
           className={`message-action ${message.pinned ? "on" : ""}`}
           onClick={onTogglePin}
           title={message.pinned ? "Unpin" : "Pin"}
-          aria-label={message.pinned ? "Unpin message" : "Pin message"}
+          aria-label={message.pinned ? "Unpin" : "Pin"}
         >
           <PinIcon size={15} filled={message.pinned} />
         </button>
