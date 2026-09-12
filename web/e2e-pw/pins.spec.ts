@@ -32,6 +32,13 @@ test("pinned messages", async ({ browser }) => {
 
   await signIn(A, tokens.ada);
   await signIn(B, tokens.bea);
+  // Both pages have to be live before A speaks. signIn returns on the
+  // goto, so a page still connecting can miss a message published between
+  // its first fetch and its subscription — B then holds one of the two
+  // and waits ten seconds to say so. Every other spec that talks across
+  // two pages waits for the composer first.
+  await A.locator(".composer textarea").waitFor();
+  await B.locator(".composer textarea").waitFor();
   await say(A, "server address is stoop.example.net");
   await say(A, "be decent to each other");
   await expect(
