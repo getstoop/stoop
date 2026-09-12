@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { copyShareLink } from "../../api/shareLinks";
+import { PinIcon } from "../../components/Icons";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 export function MessageActions({
@@ -7,20 +8,25 @@ export function MessageActions({
   link,
   mine,
   canDelete,
+  canPin,
   onReply,
   onEdit,
   onDelete,
   onReact,
+  onTogglePin,
 }: {
   message: Message;
   // The message's permalink, ready to copy.
   link: string;
   mine: boolean;
   canDelete: boolean;
+  // Whoever manages the channel; never in a direct message.
+  canPin: boolean;
   onReply: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onReact: (anchor: DOMRect) => void;
+  onTogglePin: () => void;
 }) {
   // The tick that stands in for the icon once the link is copied.
   const [copied, setCopied] = useState(false);
@@ -52,6 +58,17 @@ export function MessageActions({
       >
         {copied ? <CheckIcon /> : <LinkIcon />}
       </button>
+      {canPin && (
+        <button
+          type="button"
+          className={`message-action ${message.pinned ? "on" : ""}`}
+          onClick={onTogglePin}
+          title={message.pinned ? "Unpin" : "Pin"}
+          aria-label={message.pinned ? "Unpin" : "Pin"}
+        >
+          <PinIcon size={15} filled={message.pinned} />
+        </button>
+      )}
       <button
         type="button"
         className="message-action"

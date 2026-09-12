@@ -8,6 +8,7 @@ import "stoop/chat/v1/channel.proto";
 import "stoop/chat/v1/invite.proto";
 import "stoop/chat/v1/member.proto";
 import "stoop/chat/v1/message.proto";
+import "stoop/chat/v1/pin.proto";
 import "stoop/chat/v1/activity.proto";
 import "stoop/chat/v1/space.proto";
 
@@ -99,6 +100,15 @@ service ChatService {
   // SearchMessages finds messages by their words within one space the
   // caller belongs to, newest first. See docs/proposals/message-search.md.
   rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse) {}
+  // SetMessagePinned pins or unpins a message in a space channel, so the
+  // channel keeps it. Requires manage_channels in the channel's space;
+  // every member reads the list. Setting the state it already has is a
+  // no-op. Pinning into a channel that already holds the maximum is
+  // refused. See docs/proposals/pinned-messages.md.
+  rpc SetMessagePinned(SetMessagePinnedRequest) returns (SetMessagePinnedResponse) {}
+  // ListPinnedMessages returns a channel's pins, most recently pinned
+  // first. Members only; no paging — a channel holds at most 50.
+  rpc ListPinnedMessages(ListPinnedMessagesRequest) returns (ListPinnedMessagesResponse) {}
   // EditMessage replaces the content of the caller's own message.
   rpc EditMessage(EditMessageRequest) returns (EditMessageResponse) {}
   // DeleteMessage removes a message: the author's own, or anyone's with
@@ -523,6 +533,26 @@ message SearchMessagesResponse {
   repeated Message messages = 1;
   // Whether there (may) be older matches than the last returned.
   bool has_older = 2;
+}
+
+message SetMessagePinnedRequest {
+  string message_id = 1;
+  // True pins, false unpins.
+  bool pinned = 2;
+}
+
+message SetMessagePinnedResponse {
+  // The pin after the call; unset after an unpin.
+  PinnedMessage pin = 1;
+}
+
+message ListPinnedMessagesRequest {
+  string channel_id = 1;
+}
+
+message ListPinnedMessagesResponse {
+  // Ordered most recently pinned first.
+  repeated PinnedMessage pins = 1;
 }
 
 // DirectMessage is a DM channel with the people in it.

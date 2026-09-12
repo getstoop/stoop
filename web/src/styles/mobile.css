@@ -78,6 +78,9 @@
   /* Channel view: narrower gutters, smaller avatar column. */
   .channel-header {
     padding: 8px 12px;
+    /* The pinned-messages sheet spans the header and positions against
+       it (pins.css). */
+    position: relative;
   }
 
   /* The name alone can fill a phone's header. The topic stays reachable
@@ -261,5 +264,25 @@
 
   .voice-stage.tiles-only .stage-tile {
     width: 150px;
+  }
+
+  /* Pinned messages: a sheet under the header, not a dropdown — there is
+     no room beside the button, and the list is the whole screen's worth. */
+  .pins-anchor {
+    position: static;
+  }
+
+  .pins-panel {
+    top: 100%;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: 60dvh;
+    border-inline: none;
+    border-radius: 0;
+  }
+
+  .pins-close {
+    display: inline-flex;
   }
 }

@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/chat/v1/message.proto";
+
+// PinnedMessage is one message a channel keeps, with the decision that
+// kept it. See docs/proposals/pinned-messages.md.
+message PinnedMessage {
+  Message message = 1;
+  // Who pinned it, resolved through the user-directory port.
+  MessageAuthor pinned_by = 2;
+  google.protobuf.Timestamp pinned_at = 3;
+}

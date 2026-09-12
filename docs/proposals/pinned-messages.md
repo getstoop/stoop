@@ -212,9 +212,10 @@ know the state without a second call:
 ```
 
 Errors are the ones the client has to word: `PermissionDenied` for a
-member without `manage_channels`, `NotFound` for a message outside the
-caller's spaces (never "exists but not yours"), `FailedPrecondition` at
-the cap, and `InvalidArgument` for a message in a DM until DM pins ship.
+member without `manage_channels` and for anyone outside the space (the
+shape every other message RPC already uses), `NotFound` for a message id
+that does not exist, `FailedPrecondition` at the cap, and
+`InvalidArgument` for a message in a DM until DM pins ship.
 
 ## Realtime
 
@@ -276,10 +277,12 @@ opens.
 
 ### The panel
 
-A popover anchored to the button, right-aligned under it, fixed to the
-viewport so the header cannot clip it — the mechanics `DotsMenu` already
-has (Escape, a click outside, a scroll anywhere, or picking a row closes
-it), applied to rows of messages instead of a list of labels.
+A popover anchored to the button, right-aligned under it, with the
+mechanics `DotsMenu` already has — Escape, a click outside, a scroll
+outside it, or picking a row closes it — applied to rows of messages
+instead of a list of labels. Unlike `DotsMenu` it is absolute to the
+header rather than fixed to the viewport: the header does not scroll, so
+there are no coordinates to compute.
 
 - **Head.** "Pinned messages" and the count.
 - **Rows.** Avatar, author, the date the message was sent, and a small

@@ -261,7 +261,10 @@ type Message struct {
 	// Previews for links in content, in order of appearance, once the server
 	// has fetched them (a MessageUpdated event delivers them when the fetch
 	// finishes after the message was sent).
-	LinkPreviews  []*LinkPreview `protobuf:"bytes,14,rep,name=link_previews,json=linkPreviews,proto3" json:"link_previews,omitempty"`
+	LinkPreviews []*LinkPreview `protobuf:"bytes,14,rep,name=link_previews,json=linkPreviews,proto3" json:"link_previews,omitempty"`
+	// True while this message is in its channel's pin list. Kept current by
+	// the MessagePinned realtime event.
+	Pinned        bool `protobuf:"varint,15,opt,name=pinned,proto3" json:"pinned,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -394,6 +397,13 @@ func (x *Message) GetLinkPreviews() []*LinkPreview {
 	return nil
 }
 
+func (x *Message) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
 // LinkPreview is the unfurled metadata of a URL in a message.
 type LinkPreview struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -508,7 +518,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
-	"\x04size\x18\x04 \x01(\x03R\x04size\"\xfc\x04\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\"\x94\x05\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -526,7 +536,8 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\tedited_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\beditedAt\x125\n" +
 	"\treactions\x18\f \x03(\v2\x17.stoop.chat.v1.ReactionR\treactions\x12;\n" +
 	"\vattachments\x18\r \x03(\v2\x19.stoop.chat.v1.AttachmentR\vattachments\x12?\n" +
-	"\rlink_previews\x18\x0e \x03(\v2\x1a.stoop.chat.v1.LinkPreviewR\flinkPreviews\"\xdc\x01\n" +
+	"\rlink_previews\x18\x0e \x03(\v2\x1a.stoop.chat.v1.LinkPreviewR\flinkPreviews\x12\x16\n" +
+	"\x06pinned\x18\x0f \x01(\bR\x06pinned\"\xdc\x01\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +

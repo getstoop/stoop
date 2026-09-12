@@ -10,6 +10,7 @@ import { useMe, useMessages, useSpaces } from "../../api/queries";
 import { joinVoice } from "../../api/voice";
 import { ChannelTopic } from "../../components/ChannelTopic";
 import { MenuButton } from "../../components/MenuButton";
+import { PinnedMessages } from "../../components/PinnedMessages";
 import { SearchLauncher } from "../../components/SearchLauncher";
 import { SpeakerIcon } from "../../components/VoiceIcons";
 import { VoiceStage } from "../../components/VoiceStage";
@@ -126,6 +127,7 @@ export function ChannelView() {
         {channel?.kind === ChannelKind.VOICE && (
           <JoinVoiceChip spaceId={spaceId} channelId={channel.id} />
         )}
+        {!isDM && <PinnedMessages spaceId={spaceId} channelId={channelId} />}
         {!isDM && <SearchLauncher spaceId={spaceId} channelId={channelId} />}
       </header>
       {stage && (

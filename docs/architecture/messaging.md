@@ -347,6 +347,35 @@ code does:
   `ResourceExhausted` with `Retry-After`) and a 2 s statement timeout
   in a read-only transaction (`DeadlineExceeded`). The client words both.
 
+## Pins
+
+A channel keeps up to 50 messages, most recently pinned first. The design
+is in [proposals/pinned-messages.md](../proposals/pinned-messages.md);
+what the code does:
+
+- **Storage.** `channel_pins` (migration 00030) is `message_id` (the key),
+  `channel_id`, `pinned_by` and `pinned_at`. Cascades do the cleanup:
+  deleting the message, the channel or the pinner's account drops the pin,
+  so there is no sweep and no dangling row.
+- **Permission.** `SetMessagePinned` needs `manage_channels` in the
+  channel's space; every member reads `ListPinnedMessages`. Setting the
+  state a message already has is a no-op and broadcasts nothing.
+  Direct messages have no pins yet (`InvalidArgument`).
+- **The cap.** 50 per channel, which is what makes the list one query with
+  no paging. The count and the insert are one statement
+  (`queries/chat/pins.sql`), so a pin cannot act on a stale count; at the
+  cap a pin is `FailedPrecondition` rather than evicting the oldest.
+  Concurrent pins into a nearly-full channel can overshoot by a row or
+  two under `READ COMMITTED`; nothing downstream cares, and an unpin
+  corrects it.
+- **Reading.** `ListChannelPins` carries the same reply columns as
+  `ListMessagesBefore` and hydrates through the same path;
+  `PinnedMessageIDs` stamps `Message.pinned` on each page of history, so
+  the timeline marks a kept message without a join.
+- **Realtime.** `MessagePinned` carries the change — ids, the flag, who
+  and when — not the list, which can be fifty full messages. Clients mark
+  the message and refetch the list only if they are showing it.
+
 ## Edits, deletions, reactions, replies
 
 Anything that adds to or changes what other people see — send, edit,

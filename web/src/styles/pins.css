@@ -1,0 +1,177 @@
+/* ---- Pinned messages: the pin in the channel header and the panel it
+   opens. docs/proposals/pinned-messages.md. The panel follows the ⋮
+   menu's recipe (--panel, --border, --shadow, --z-popover) but is
+   absolute to the header rather than fixed: the header never scrolls, so
+   there are no coordinates to compute. ---- */
+
+.pins-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+/* The button holds the open state, the way a pressed control would. */
+.pins-anchor.open .pins-button {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.pins-panel {
+  position: absolute;
+  /* off-scale: clears the header's own 12px padding below the button */
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: var(--z-popover);
+  width: 380px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.pins-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pins-title {
+  font-size: var(--text-ui);
+  font-weight: 600;
+}
+
+/* The sheet's way out on a phone; the dropdown closes on a click away. */
+.pins-close {
+  display: none;
+  margin-left: auto;
+}
+
+.pins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.pins-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 16px;
+  text-align: center;
+}
+
+.pins-empty p {
+  margin: 0;
+}
+
+/* A row: the avatar column, then who and when, who pinned it, and the
+   message clamped to three lines. */
+.pin-row {
+  display: flex;
+  align-items: flex-start;
+  border-radius: var(--radius);
+}
+
+.pin-row:hover {
+  background: var(--raised);
+}
+
+.pin-row-open {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 8px;
+  padding: 8px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+/* The avatar column beside the three lines of text; a files strip, when
+   there is one, takes a fourth row in the second column. */
+.pin-row-open .avatar {
+  grid-row: 1 / span 3;
+}
+
+.pin-row-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--text-ui);
+}
+
+.pin-row-title strong {
+  color: var(--accent);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pin-row-by {
+  font-size: var(--text-xs);
+}
+
+.pin-row-body {
+  font-size: var(--text-ui);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* A files strip takes its own line beside the avatar, under the words. */
+.pin-row-files {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.pin-row-unpin {
+  margin: 8px 6px 0 0;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.pin-row:hover .pin-row-unpin,
+.pin-row-unpin:focus-visible {
+  opacity: 1;
+}
+
+/* No hover to reveal it on a touch screen, as for the channel row's ⋮. */
+@media (hover: none) {
+  .pin-row-unpin {
+    opacity: 1;
+  }
+}
+
+/* In the timeline: a kept message says so above its first line, in the
+   day separator's type. */
+.pinned-marker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+/* The pin in a message's hover toolbar, once it is pinned. */
+.message-action.on {
+  color: var(--accent);
+}
