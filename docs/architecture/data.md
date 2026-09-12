@@ -128,6 +128,14 @@ timestamp ordering because ids are UUIDv7 — see below. Search reads the
 GIN index on `search` instead
 ([messaging.md](messaging.md#search)).
 
+**`channel_pins`** — `message_id` (the primary key, because a message
+belongs to exactly one channel), `channel_id`, `pinned_by`, `pinned_at`,
+with `(channel_id, pinned_at DESC)` for the list. The three cascades are
+the whole cleanup story: deleting the message, the channel or the
+pinner's account drops the pin. Capped at 50 per channel in the chat
+module, which is what lets the list be one query with no paging
+([messaging.md](messaging.md#pins)).
+
 **`message_mentions`** — `(message_id, user_id)`. Recipients of
 `@everyone` and `@here` are *materialised* here at send time, not
 recomputed at read time, so activity delivery has one shape regardless

@@ -49,6 +49,7 @@ message ServerEvent {
     VoiceStateChanged voice_state_changed = 29;
     ChannelMuted channel_muted = 30;
     SpaceMuted space_muted = 31;
+    MessagePinned message_pinned = 32;
   }
 }
 
@@ -191,6 +192,20 @@ message MessageDeleted {
   string message_id = 1;
   string channel_id = 2;
   string space_id = 3;
+}
+
+// MessagePinned is broadcast to the space when a message is pinned or
+// unpinned. It carries the change, not the list: a channel's pins can be
+// fifty full messages, and a client that shows them asks for them.
+message MessagePinned {
+  string space_id = 1;
+  string channel_id = 2;
+  string message_id = 3;
+  // False when unpinned.
+  bool pinned = 4;
+  // Set when pinned.
+  stoop.chat.v1.MessageAuthor pinned_by = 5;
+  google.protobuf.Timestamp pinned_at = 6;
 }
 
 // SpaceJoined is delivered on the joining user's personal topic; the gateway

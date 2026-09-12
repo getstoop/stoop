@@ -38,6 +38,13 @@ type ChannelMute struct {
 	CreatedAt time.Time
 }
 
+type ChannelPin struct {
+	MessageID string
+	ChannelID string
+	PinnedBy  string
+	PinnedAt  time.Time
+}
+
 type ChannelRead struct {
 	UserID            string
 	ChannelID         string

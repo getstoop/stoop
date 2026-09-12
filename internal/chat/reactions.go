@@ -125,10 +125,15 @@ func (s *Service) loadMessage(ctx context.Context, row dbgen.Message, spaceID st
 	if err != nil {
 		return nil, err
 	}
+	pinned, err := s.pinnedByMessage(ctx, []string{row.ID})
+	if err != nil {
+		return nil, err
+	}
 	out := toProtoMessage(row, authors, mentions[row.ID], spaceID)
 	out.Reactions = reactions[row.ID]
 	out.Attachments = attachments[row.ID]
 	out.LinkPreviews = previews[row.ID]
+	out.Pinned = pinned[row.ID]
 	if row.ReplyToMessageID != nil {
 		if parent, err := s.q.GetMessage(ctx, *row.ReplyToMessageID); err == nil {
 			pa, _ := s.resolveAuthors(ctx, []string{parent.AuthorID})

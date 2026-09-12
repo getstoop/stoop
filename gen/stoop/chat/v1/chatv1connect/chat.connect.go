@@ -114,6 +114,12 @@ const (
 	// ChatServiceSearchMessagesProcedure is the fully-qualified name of the ChatService's
 	// SearchMessages RPC.
 	ChatServiceSearchMessagesProcedure = "/stoop.chat.v1.ChatService/SearchMessages"
+	// ChatServiceSetMessagePinnedProcedure is the fully-qualified name of the ChatService's
+	// SetMessagePinned RPC.
+	ChatServiceSetMessagePinnedProcedure = "/stoop.chat.v1.ChatService/SetMessagePinned"
+	// ChatServiceListPinnedMessagesProcedure is the fully-qualified name of the ChatService's
+	// ListPinnedMessages RPC.
+	ChatServiceListPinnedMessagesProcedure = "/stoop.chat.v1.ChatService/ListPinnedMessages"
 	// ChatServiceEditMessageProcedure is the fully-qualified name of the ChatService's EditMessage RPC.
 	ChatServiceEditMessageProcedure = "/stoop.chat.v1.ChatService/EditMessage"
 	// ChatServiceDeleteMessageProcedure is the fully-qualified name of the ChatService's DeleteMessage
@@ -224,6 +230,15 @@ type ChatServiceClient interface {
 	// SearchMessages finds messages by their words within one space the
 	// caller belongs to, newest first. See docs/proposals/message-search.md.
 	SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error)
+	// SetMessagePinned pins or unpins a message in a space channel, so the
+	// channel keeps it. Requires manage_channels in the channel's space;
+	// every member reads the list. Setting the state it already has is a
+	// no-op. Pinning into a channel that already holds the maximum is
+	// refused. See docs/proposals/pinned-messages.md.
+	SetMessagePinned(context.Context, *connect.Request[v1.SetMessagePinnedRequest]) (*connect.Response[v1.SetMessagePinnedResponse], error)
+	// ListPinnedMessages returns a channel's pins, most recently pinned
+	// first. Members only; no paging — a channel holds at most 50.
+	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
 	// EditMessage replaces the content of the caller's own message.
 	EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error)
 	// DeleteMessage removes a message: the author's own, or anyone's with
@@ -463,6 +478,18 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("SearchMessages")),
 			connect.WithClientOptions(opts...),
 		),
+		setMessagePinned: connect.NewClient[v1.SetMessagePinnedRequest, v1.SetMessagePinnedResponse](
+			httpClient,
+			baseURL+ChatServiceSetMessagePinnedProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("SetMessagePinned")),
+			connect.WithClientOptions(opts...),
+		),
+		listPinnedMessages: connect.NewClient[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse](
+			httpClient,
+			baseURL+ChatServiceListPinnedMessagesProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListPinnedMessages")),
+			connect.WithClientOptions(opts...),
+		),
 		editMessage: connect.NewClient[v1.EditMessageRequest, v1.EditMessageResponse](
 			httpClient,
 			baseURL+ChatServiceEditMessageProcedure,
@@ -549,6 +576,8 @@ type chatServiceClient struct {
 	sendMessage        *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
 	listMessages       *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
 	searchMessages     *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
+	setMessagePinned   *connect.Client[v1.SetMessagePinnedRequest, v1.SetMessagePinnedResponse]
+	listPinnedMessages *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
 	editMessage        *connect.Client[v1.EditMessageRequest, v1.EditMessageResponse]
 	deleteMessage      *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
 	toggleReaction     *connect.Client[v1.ToggleReactionRequest, v1.ToggleReactionResponse]
@@ -724,6 +753,16 @@ func (c *chatServiceClient) SearchMessages(ctx context.Context, req *connect.Req
 	return c.searchMessages.CallUnary(ctx, req)
 }
 
+// SetMessagePinned calls stoop.chat.v1.ChatService.SetMessagePinned.
+func (c *chatServiceClient) SetMessagePinned(ctx context.Context, req *connect.Request[v1.SetMessagePinnedRequest]) (*connect.Response[v1.SetMessagePinnedResponse], error) {
+	return c.setMessagePinned.CallUnary(ctx, req)
+}
+
+// ListPinnedMessages calls stoop.chat.v1.ChatService.ListPinnedMessages.
+func (c *chatServiceClient) ListPinnedMessages(ctx context.Context, req *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error) {
+	return c.listPinnedMessages.CallUnary(ctx, req)
+}
+
 // EditMessage calls stoop.chat.v1.ChatService.EditMessage.
 func (c *chatServiceClient) EditMessage(ctx context.Context, req *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error) {
 	return c.editMessage.CallUnary(ctx, req)
@@ -849,6 +888,15 @@ type ChatServiceHandler interface {
 	// SearchMessages finds messages by their words within one space the
 	// caller belongs to, newest first. See docs/proposals/message-search.md.
 	SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error)
+	// SetMessagePinned pins or unpins a message in a space channel, so the
+	// channel keeps it. Requires manage_channels in the channel's space;
+	// every member reads the list. Setting the state it already has is a
+	// no-op. Pinning into a channel that already holds the maximum is
+	// refused. See docs/proposals/pinned-messages.md.
+	SetMessagePinned(context.Context, *connect.Request[v1.SetMessagePinnedRequest]) (*connect.Response[v1.SetMessagePinnedResponse], error)
+	// ListPinnedMessages returns a channel's pins, most recently pinned
+	// first. Members only; no paging — a channel holds at most 50.
+	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
 	// EditMessage replaces the content of the caller's own message.
 	EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error)
 	// DeleteMessage removes a message: the author's own, or anyone's with
@@ -1084,6 +1132,18 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("SearchMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceSetMessagePinnedHandler := connect.NewUnaryHandler(
+		ChatServiceSetMessagePinnedProcedure,
+		svc.SetMessagePinned,
+		connect.WithSchema(chatServiceMethods.ByName("SetMessagePinned")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceListPinnedMessagesHandler := connect.NewUnaryHandler(
+		ChatServiceListPinnedMessagesProcedure,
+		svc.ListPinnedMessages,
+		connect.WithSchema(chatServiceMethods.ByName("ListPinnedMessages")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceEditMessageHandler := connect.NewUnaryHandler(
 		ChatServiceEditMessageProcedure,
 		svc.EditMessage,
@@ -1200,6 +1260,10 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceListMessagesHandler.ServeHTTP(w, r)
 		case ChatServiceSearchMessagesProcedure:
 			chatServiceSearchMessagesHandler.ServeHTTP(w, r)
+		case ChatServiceSetMessagePinnedProcedure:
+			chatServiceSetMessagePinnedHandler.ServeHTTP(w, r)
+		case ChatServiceListPinnedMessagesProcedure:
+			chatServiceListPinnedMessagesHandler.ServeHTTP(w, r)
 		case ChatServiceEditMessageProcedure:
 			chatServiceEditMessageHandler.ServeHTTP(w, r)
 		case ChatServiceDeleteMessageProcedure:
@@ -1355,6 +1419,14 @@ func (UnimplementedChatServiceHandler) ListMessages(context.Context, *connect.Re
 
 func (UnimplementedChatServiceHandler) SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SearchMessages is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) SetMessagePinned(context.Context, *connect.Request[v1.SetMessagePinnedRequest]) (*connect.Response[v1.SetMessagePinnedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SetMessagePinned is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListPinnedMessages is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error) {

@@ -68,6 +68,9 @@ message Message {
   // has fetched them (a MessageUpdated event delivers them when the fetch
   // finishes after the message was sent).
   repeated LinkPreview link_previews = 14;
+  // True while this message is in its channel's pin list. Kept current by
+  // the MessagePinned realtime event.
+  bool pinned = 15;
 }
 
 // LinkPreview is the unfurled metadata of a URL in a message.

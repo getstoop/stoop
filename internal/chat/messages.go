@@ -281,6 +281,10 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	if err != nil {
 		return nil, err
 	}
+	pinned, err := s.pinnedByMessage(ctx, messageIDs)
+	if err != nil {
+		return nil, err
+	}
 	// Quoted messages without text preview as their first attachment.
 	var replyFileIDs []string
 	for _, r := range rows {
@@ -300,6 +304,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		m.Reactions = reactions[r.Message.ID]
 		m.Attachments = attachments[r.Message.ID]
 		m.LinkPreviews = previews[r.Message.ID]
+		m.Pinned = pinned[r.Message.ID]
 		if r.Message.ReplyToMessageID != nil {
 			var author *chatv1.MessageAuthor
 			if r.ReplyAuthorID != nil {

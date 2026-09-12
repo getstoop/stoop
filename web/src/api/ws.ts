@@ -18,6 +18,7 @@ import { isLive, useHistoryStore } from "./history";
 import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
 import { socketUrl } from "./origin";
+import { applyPinEvent } from "./pins";
 import { setReactions } from "./reactions";
 import { announceStatus, loadStatusPreference, startIdleWatch } from "./status";
 import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
@@ -198,6 +199,11 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.setQueryData<Message[]>(["messages", m.channelId], (old) =>
         old?.map((x) => (x.id === m.id ? m : x)),
       );
+      break;
+    }
+    case "messagePinned": {
+      // The delta, not the list: mark the message, drop the pin list.
+      applyPinEvent(queryClient, payload.value);
       break;
     }
     case "reactionsChanged": {

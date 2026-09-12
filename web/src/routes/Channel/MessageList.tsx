@@ -14,7 +14,8 @@ import { dayLabel, fullDateTime, sameDay } from "../../api/dates";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import { isLive, useHistoryStore } from "../../api/history";
-import { canDeleteAnyMessage } from "../../api/permissions";
+import { canDeleteAnyMessage, canManageChannels } from "../../api/permissions";
+import { setMessagePinned } from "../../api/pins";
 import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { toggleReaction } from "../../api/reactions";
 import { messagePath, shareUrl } from "../../api/shareLinks";
@@ -22,6 +23,7 @@ import { removeMessageFromCache } from "../../api/ws";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { EmojiPicker } from "../../components/EmojiPicker";
+import { PinIcon } from "../../components/Icons";
 import { LinkPreviews } from "../../components/LinkPreviews";
 import { MessageBody } from "../../components/MessageBody";
 import { ReactionBar } from "../../components/ReactionBar";
@@ -340,6 +342,12 @@ export function MessageList({
               tabIndex={-1}
               className={`message ${continues(message, messages[i - 1]) ? "continued" : ""}`}
             >
+              {message.pinned && (
+                <div className="pinned-marker">
+                  <PinIcon size={11} />
+                  Pinned
+                </div>
+              )}
               {message.replyTo && (
                 <button
                   type="button"
@@ -444,10 +452,14 @@ export function MessageList({
                     me?.id === message.author?.id ||
                     (!!spaceForPerms && canDeleteAnyMessage(spaceForPerms))
                   }
+                  canPin={!!spaceForPerms && canManageChannels(spaceForPerms)}
                   onReply={() => onReply(message)}
                   onEdit={() => setEditingId(message.id)}
                   onDelete={() => remove(message)}
                   onReact={(anchor) => setPicker({ message, anchor })}
+                  onTogglePin={() =>
+                    setMessagePinned(queryClient, message, !message.pinned)
+                  }
                 />
               </div>
               {editingId === message.id ? (
