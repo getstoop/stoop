@@ -21,9 +21,8 @@ sections, in this order:
    per feature), "don't touch the message format / server / protos", no
    new dependencies, Biome rules that bite (`aria-hidden` on SVGs, no ARIA
    roles on divs, index keys need a `biome-ignore`), no `console.log`.
-4. **Tests** — the browser spec to write (`web/e2e/<name>.mjs`, added to
-   `SPECS` in `web/e2e/run.mjs`, modelled on an existing spec) and what it
-   must check. Say what the spec *cannot* see (pixel alignment, scroll
+4. **Tests** — the browser spec to write (`web/e2e-pw/<name>.spec.ts`,
+   modelled on an existing spec) and what it must check. Say what the spec *cannot* see (pixel alignment, scroll
    position) and demand a direct measurement for those.
 5. **How to build, run, and verify** — copy the block below verbatim.
 6. **Housekeeping** — work on a branch and open a pull request (see "How
@@ -93,13 +92,11 @@ sections, in this order:
   opposite sides of the wire, so a case added to one belongs in the
   other.
 
-- **The browser suite is moving to Playwright** (STOOP-238). Specs under
-  `web/e2e-pw/` are the new ones (`npx playwright test`); `web/e2e/`
-  is the original puppeteer suite (`pnpm e2e`). Both run in CI against
-  the same server, and **a spec lives in exactly one of them**: porting
-  it means deleting the `.mjs` and taking its entries out of `SPECS` and
-  `WEIGHT` in `run.mjs`. Only `attachments` is left on puppeteer, plus
-  the opt-in `voice` spec, which CI has never run.
+- **The browser suite is Playwright** (`web/e2e-pw/*.spec.ts`,
+  `npx playwright test`). The puppeteer suite it replaced is gone
+  (STOOP-238); all that survives of `web/e2e/` is `seed.mjs`, which builds
+  an instance over RPC, and the `seed.d.mts` that types it. Both the specs
+  and that directory are typechecked (`tsconfig.e2e.json`) and linted.
 
   Seeding is shared. `web/e2e/seed.mjs` holds `seed()` and `joinSpace()`
   for both suites, so the two can never drift on what a seeded world
@@ -134,10 +131,11 @@ sections, in this order:
   B's alert"), which was misdiagnosed for weeks as a timeout too short
   under load. It is not: 20s did not help, because focus never arrived.
 
-- **Assertions poll; they never sleep a fixed time.** Use `waitFor` from
-  `web/e2e/lib.mjs` — it polls until the condition holds or a generous
-  timeout expires, and returns the last value so a failure reports real
-  state rather than a timeout:
+- **Assertions poll; they never sleep a fixed time.** Playwright's
+  `expect(locator)` assertions retry on their own; `expect.poll(fn)` wraps
+  anything else, and `page.waitForFunction` waits on an in-page predicate
+  that no locator covers. A fixed wait is only right for proving something
+  did *not* happen, which cannot be polled for:
 
   ```js
   check(
@@ -158,11 +156,11 @@ sections, in this order:
   returns the instant it is true, which is immediately, so the assertion
   stops meaning anything. Those keep their sleep.
 
-- **Do not run any browser spec — `make e2e`, `scripts/e2e-scratch.sh` or
-  `node e2e/run.mjs <spec>` — until the maintainer has reviewed the change
+- **Do not run any browser spec — `make e2e` or `scripts/e2e-scratch.sh`
+  — until the maintainer has reviewed the change
   on their running dev instance and said so.** Iterate with `make lint`, `make test`,
   `make build`, a restarted `bin/stoop`, and (for UI work) your own
-  puppeteer screenshots; then present the change set and wait. Once
+  screenshots; then present the change set and wait. Once
   approved, `make e2e` builds, then runs every spec (~7 minutes) on a
   throwaway instance: `scripts/e2e-scratch.sh` recreates the `stoop_e2e`
   database on the dev Postgres, starts a second `bin/stoop` on :8092 with
@@ -221,14 +219,14 @@ got big enough that a red `main` cost more than the round-trip saves.
   `web/`, `make build` and restart `bin/stoop` before running a browser spec,
   or the spec tests the old code. The symptom is a fix that "doesn't work"
   while the source is plainly right.
-- **Enter sends.** A newline in the composer is Shift+Enter. A puppeteer
-  script that does `page.type("…\n…")` posts a message per line (as the
-  seeded user) instead of building a multi-line draft.
+- **Enter sends.** A newline in the composer is Shift+Enter. A script that
+  types `"…\n…"` posts a message per line (as the seeded user) instead of
+  building a multi-line draft.
 - **The e2e suite needs the maintainer's go-ahead.** Don't run it per-iteration;
   rebuild, restart, and let a human look. Run it once, as the gate before
   commit, after the change has been approved. `make e2e` no longer touches
-  the dev database, but `node e2e/run.mjs` on its own still wipes whatever
-  `STOOP_E2E_DATABASE_URL` names, and `.env` names the dev one.
+  the dev database, but `npx playwright test` on its own still wipes
+  whatever `STOOP_E2E_DATABASE_URL` names, and `.env` names the dev one.
 - **A tab opened before a rebuild keeps the old JavaScript until it
   navigates.** `index.html` is served `Cache-Control: no-cache` with an
   ETag (since 2026-08-27), so any reload picks up a new build — but a tab
@@ -297,20 +295,25 @@ got big enough that a red `main` cost more than the round-trip saves.
   `STOOP_STORAGE_DIR` set for both the server and the runner (the
   `uploads` and `attachments` specs stat blobs on disk themselves) and
   `STOOP_UNFURL_ALLOW_PRIVATE` on the server (`unfurl` serves its fixture
-  site on 127.0.0.1). Pointing `pnpm e2e` at a hand-made scratch database
+  site on 127.0.0.1). It also hands the server the dev LiveKit's key pair
+  when one is running, which is what lets the `voice` spec run rather than
+  skip. Pointing Playwright at a hand-made scratch database
   instead needs all of that by hand, and a scratch database that outlives
   a branch can carry goose rows for migration numbers another branch used
   for something else — the specs then fail in their preamble while the
   server log says `relation … does not exist`. Recreate it; the script
   does so on every run.
-- **CI runs both suites in one job**, against a single server and
-  database. It ran as four shards until the Playwright migration left
-  `attachments` as the only puppeteer spec and three of the four started
-  costing a billed minute each to run nothing. `run.mjs` still takes
-  `--shard N/M` and splits by the seconds in `WEIGHT` rather than by
-  count, and Playwright has a `--shard` of its own, so shard again when
+- **CI runs the suite in one job**, against a single server, database and
+  LiveKit. It ran as four shards until the Playwright migration emptied
+  three of them and they started costing a billed minute each to run
+  nothing. Playwright has `--shard N/M` of its own, so shard again when
   there is enough work to need it. The branch ruleset requires only the
   roll-up job named "Browser E2E" — change what runs under it freely.
+- **The voice spec runs with the rest.** CI starts LiveKit on the host
+  network beside the server and hands both the same key pair, so voice is
+  covered on every PR rather than opted into. Without a LiveKit the spec
+  skips itself, which is what happens on a machine that has not run
+  `make dev-services`.
 - **`make dev-reset` wipes whatever the maintainer typed on the dev
   instance.** They often try a change live; say so before running, and expect the
   seeded cast ("The Stoop" and "Basement Arcade") afterwards — their test
@@ -386,6 +389,5 @@ got big enough that a red `main` cost more than the round-trip saves.
 - **Long commands die at the harness's foreground timeout.** `make e2e`
   takes ~7 min; run it in the background with completion notification, or
   raise the timeout, rather than letting the harness kill the suite
-  (`make: *** [e2e] Terminated: 15` plus a puppeteer "detached Frame"
-  error is what that looks like). `nohup`/`setsid` wrappers may be
+  (`make: *** [e2e] Terminated: 15` is what that looks like). `nohup`/`setsid` wrappers may be
   rejected by the harness.

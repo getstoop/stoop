@@ -181,24 +181,58 @@ jobs:
         with:
           name: stoop-e2e-binary
           path: bin
+      # One key pair for both sides. The server prefers
+      # STOOP_LIVEKIT_API_KEY/_SECRET over the pair it would otherwise mint
+      # (internal/app/app.go, livekitKeys), so neither process has to start
+      # first — unlike dev and self-hosting, where the server mints the pair
+      # and LiveKit reads the file it writes.
+      - name: Mint a LiveKit key pair
+        run: |
+          secret=$(openssl rand -base64 36 | tr -d '\n=+/' | cut -c1-43)
+          # Masked before export, or every later step prints it in its own
+          # env block. LiveKit wants at least 32 characters.
+          echo "::add-mask::$secret"
+          echo "LK_KEY=APIci$(openssl rand -hex 6)" >> "$GITHUB_ENV"
+          echo "LK_SECRET=$secret" >> "$GITHUB_ENV"
+
+      # Host networking, not a service container: browsers hide their local
+      # IPs behind mDNS names, which nothing on a Docker bridge network can
+      # resolve, so a bridged LiveKit never gets media from a local browser.
+      # See docs/architecture/voice.md.
+      - name: Start LiveKit
+        run: |
+          printf '%s: %s\n' "$LK_KEY" "$LK_SECRET" > /tmp/livekit-keys.yaml
+          # LiveKit refuses a key file anyone else can read.
+          chmod 600 /tmp/livekit-keys.yaml
+          docker run -d --name livekit --network host \
+            -v /tmp/livekit-keys.yaml:/keys.yaml:ro \
+            -v "$PWD/deploy/livekit.dev.yaml:/etc/livekit.yaml:ro" \
+            livekit/livekit-server:v1.13.6 \
+            --config /etc/livekit.yaml --key-file /keys.yaml
+          # Fail here rather than let the voice spec report the consequence
+          # forty seconds later as "Couldn't join voice".
+          for i in $(seq 1 30); do
+            curl -sf localhost:7880 >/dev/null 2>&1 && exit 0
+            docker inspect -f '{{.State.Running}}' livekit | grep -q true || break
+            sleep 1
+          done
+          echo "LiveKit did not come up on :7880" >&2
+          docker logs livekit >&2
+          exit 1
+
       - name: Start server
         run: |
           chmod +x bin/stoop
           STOOP_DATABASE_URL=postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable \
           STOOP_LISTEN_ADDR=:8091 STOOP_UNFURL_ALLOW_PRIVATE=1 \
-          STOOP_AUTH_RATE_LIMIT=0 ./bin/stoop > server.log 2>&1 &
+          STOOP_AUTH_RATE_LIMIT=0 \
+          STOOP_LIVEKIT_URL=http://localhost:7880 \
+          STOOP_LIVEKIT_API_KEY="$LK_KEY" STOOP_LIVEKIT_API_SECRET="$LK_SECRET" \
+          ./bin/stoop > server.log 2>&1 &
           for i in $(seq 1 30); do curl -sf localhost:8091/healthz && break; sleep 1; done
-      - name: Run browser suite
-        run: cd web && pnpm e2e
-        env:
-          STOOP_E2E_DATABASE_URL: postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable
-          STOOP_E2E_CHROME: /usr/bin/google-chrome
-      # Both suites share this server. A spec lives in one or the other,
-      # never both; all that is left on puppeteer is attachments (and the
-      # opt-in voice spec, which CI does not run).
       - name: Install Playwright browser
         run: cd web && npx playwright install chromium
-      - name: Run Playwright specs
+      - name: Run the browser suite
         run: cd web && npx playwright test
         env:
           STOOP_E2E_DATABASE_URL: postgres://stoop:stoop@localhost:5432/stoop?sslmode=disable
@@ -212,6 +246,9 @@ jobs:
       - name: Server log
         if: failure()
         run: cat server.log
+      - name: LiveKit log
+        if: failure()
+        run: docker logs livekit
 
   e2e:
     name: Browser E2E
