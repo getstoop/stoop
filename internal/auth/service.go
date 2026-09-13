@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -24,10 +25,10 @@ type Options struct {
 	// Argon2Params tunes password hashing; nil uses defaults suited to
 	// small servers (64 MiB, t=2). Lower memory on Pi-class hardware.
 	Argon2Params *argon2id.Params
-	// PublicProcedures are additional Connect procedure names (e.g.
-	// "/stoop.instance.v1.InstanceService/GetInstanceStatus") that may be
-	// called without a session.
-	PublicProcedures []string
+	// Procedures classifies every Connect procedure for the credential gate
+	// (see authctx.Rule). Register and Login are always public. Nil admits any
+	// caller to everything else, so a Service built in a test is ungated.
+	Procedures map[string]authctx.Rule
 }
 
 type Service struct {

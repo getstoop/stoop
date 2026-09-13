@@ -32,7 +32,7 @@ const (
 )
 
 func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.CreateInviteRequest]) (*connect.Response[chatv1.CreateInviteResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermCreateInvites); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.InvitesCreate); err != nil {
 		return nil, err
 	}
 
@@ -88,7 +88,7 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 // ListInvites is gated like CreateInvite: seeing live codes is as good as
 // minting them.
 func (s *Service) ListInvites(ctx context.Context, req *connect.Request[chatv1.ListInvitesRequest]) (*connect.Response[chatv1.ListInvitesResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermCreateInvites); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.InvitesCreate); err != nil {
 		return nil, err
 	}
 	rows, err := s.q.ListInvitesBySpace(ctx, req.Msg.SpaceId)
@@ -109,9 +109,9 @@ func (s *Service) RevokeInvite(ctx context.Context, req *connect.Request[chatv1.
 		return nil, notFoundOr(err, "invite")
 	}
 	// Your own invites are always yours to revoke; anyone else's needs
-	// manage_invites.
+	// invites.manage.
 	if invite.CreatedBy != userID {
-		if err := s.requirePermission(ctx, invite.SpaceID, PermManageInvites); err != nil {
+		if err := s.requirePermission(ctx, invite.SpaceID, authctx.InvitesManage); err != nil {
 			return nil, err
 		}
 	}
@@ -305,7 +305,7 @@ func (s *Service) roleGrantedBy(ctx context.Context, invite dbgen.Invite) (Role,
 // operator. They enter as a plain member: their admin powers come from the
 // instance role, so demoting them later leaves an ordinary membership.
 func (s *Service) joinAsInstanceAdmin(ctx context.Context, userID, spaceID string) (*connect.Response[chatv1.JoinSpaceResponse], error) {
-	if !authctx.IsAdmin(ctx) {
+	if !authctx.Allows(ctx, authctx.SpacesJoinAny) {
 		return nil, connect.NewError(connect.CodePermissionDenied,
 			errors.New("joining without an invite requires the instance admin role"))
 	}

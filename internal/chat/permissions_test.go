@@ -1,17 +1,21 @@
 package chat
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/getstoop/stoop/internal/authctx"
+)
 
 func TestAllowed(t *testing.T) {
-	all := []Permission{
-		PermCreateInvites, PermManageInvites, PermManageChannels,
-		PermManageMembers, PermManageSpace, PermTransferOwnership, PermDeleteSpace,
+	all := []authctx.Action{
+		authctx.InvitesCreate, authctx.InvitesManage, authctx.ChannelsManage,
+		authctx.MembersManage, authctx.SpaceManage, authctx.SpaceTransfer, authctx.SpaceDelete,
 	}
-	adminSet := map[Permission]bool{
-		PermCreateInvites: true, PermManageInvites: true, PermManageChannels: true,
-		PermManageMembers: true, PermManageSpace: true,
+	adminSet := map[authctx.Action]bool{
+		authctx.InvitesCreate: true, authctx.InvitesManage: true, authctx.ChannelsManage: true,
+		authctx.MembersManage: true, authctx.SpaceManage: true,
 	}
-	ownerSet := map[Permission]bool{}
+	ownerSet := map[authctx.Action]bool{}
 	for _, p := range all {
 		ownerSet[p] = true
 	}
@@ -20,17 +24,17 @@ func TestAllowed(t *testing.T) {
 		name             string
 		actor            actor
 		membersCanInvite bool
-		want             map[Permission]bool
+		want             map[authctx.Action]bool
 	}{
-		{"non-member", actor{}, true, map[Permission]bool{}},
-		{"member", actor{role: RoleMember, member: true}, false, map[Permission]bool{}},
-		{"member, space opts in", actor{role: RoleMember, member: true}, true, map[Permission]bool{PermCreateInvites: true}},
+		{"non-member", actor{}, true, map[authctx.Action]bool{}},
+		{"member", actor{role: RoleMember, member: true}, false, map[authctx.Action]bool{}},
+		{"member, space opts in", actor{role: RoleMember, member: true}, true, map[authctx.Action]bool{authctx.InvitesCreate: true}},
 		{"admin", actor{role: RoleAdmin, member: true}, false, adminSet},
 		{"owner", actor{role: RoleOwner, member: true}, false, ownerSet},
 		{"instance admin, not a member", actor{role: RoleAdmin, instanceAdmin: true}, false,
-			merge(adminSet, map[Permission]bool{PermDeleteSpace: true})},
+			merge(adminSet, map[authctx.Action]bool{authctx.SpaceDelete: true})},
 		{"instance admin who is a plain member", actor{role: RoleAdmin, member: true, instanceAdmin: true}, false,
-			merge(adminSet, map[Permission]bool{PermDeleteSpace: true})},
+			merge(adminSet, map[authctx.Action]bool{authctx.SpaceDelete: true})},
 		{"instance admin who is the owner", actor{role: RoleOwner, member: true, instanceAdmin: true}, false, ownerSet},
 	}
 	for _, tc := range tests {
@@ -42,13 +46,13 @@ func TestAllowed(t *testing.T) {
 			}
 		})
 	}
-	if allowed(actor{role: RoleOwner, member: true}, Permission("bogus"), true) {
+	if allowed(actor{role: RoleOwner, member: true}, authctx.Action("bogus"), true) {
 		t.Error("unknown permission must be denied")
 	}
 }
 
-func merge(a, b map[Permission]bool) map[Permission]bool {
-	out := map[Permission]bool{}
+func merge(a, b map[authctx.Action]bool) map[authctx.Action]bool {
+	out := map[authctx.Action]bool{}
 	for k, v := range a {
 		out[k] = v
 	}
@@ -64,5 +68,16 @@ func TestRoleOrdering(t *testing.T) {
 	}
 	if Role("").atLeast(RoleMember) {
 		t.Error("empty role must rank below member")
+	}
+}
+
+func TestMemberActions(t *testing.T) {
+	for _, p := range []authctx.Action{authctx.SpaceRead, authctx.MessagesRead, authctx.MessagesPost, authctx.VoiceJoin} {
+		if !allowed(actor{role: RoleMember, member: true}, p, false) {
+			t.Errorf("member lacks %s", p)
+		}
+		if allowed(actor{}, p, true) {
+			t.Errorf("non-member holds %s", p)
+		}
 	}
 }

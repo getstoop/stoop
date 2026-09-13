@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -302,7 +303,7 @@ func (s *Service) GetInstanceStatus(ctx context.Context, _ *connect.Request[inst
 }
 
 func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[instancev1.UpdateSettingsRequest]) (*connect.Response[instancev1.UpdateSettingsResponse], error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := requireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
 	// The name goes first: it is the one field with a validation that can

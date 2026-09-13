@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -29,7 +30,7 @@ func parseMentionHandles(content string) []string {
 
 // everyoneHandle addresses the whole space; hereHandle only the members
 // currently online. Both are reserved usernames (auth refuses to register
-// them) and need the mention_everyone permission; without it the token is
+// them) and need the messages.notify_everyone permission; without it the token is
 // plain text.
 const (
 	everyoneHandle = "everyone"
@@ -75,7 +76,7 @@ func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, au
 		wantEveryone = wantEveryone || h == everyoneHandle
 		wantHere = wantHere || h == hereHandle
 	}
-	if (wantEveryone || wantHere) && !isDM(channel) && s.requirePermission(ctx, *channel.SpaceID, PermMentionEveryone) == nil {
+	if (wantEveryone || wantHere) && !isDM(channel) && s.requirePermission(ctx, *channel.SpaceID, authctx.MessagesNotifyEveryone) == nil {
 		targets := ids
 		if !wantEveryone {
 			if s.presence == nil {

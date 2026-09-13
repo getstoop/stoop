@@ -36,7 +36,7 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("direct messages don't have pinned messages"))
 	}
-	if err := s.requirePermission(ctx, *channel.SpaceID, PermManageChannels); err != nil {
+	if err := s.requirePermission(ctx, *channel.SpaceID, authctx.ChannelsManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.Pinned {
@@ -91,6 +91,9 @@ func (s *Service) unpin(ctx context.Context, msg dbgen.Message, channel dbgen.Ch
 func (s *Service) ListPinnedMessages(ctx context.Context, req *connect.Request[chatv1.ListPinnedMessagesRequest]) (*connect.Response[chatv1.ListPinnedMessagesResponse], error) {
 	channel, err := s.accessChannel(ctx, req.Msg.ChannelId)
 	if err != nil {
+		return nil, err
+	}
+	if err := requireChannelAction(ctx, channel, authctx.MessagesRead, authctx.DMsRead); err != nil {
 		return nil, err
 	}
 	rows, err := s.q.ListChannelPins(ctx, dbgen.ListChannelPinsParams{

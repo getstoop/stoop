@@ -49,7 +49,7 @@ func (s *Service) ListMembers(ctx context.Context, req *connect.Request[chatv1.L
 }
 
 func (s *Service) SetMemberRole(ctx context.Context, req *connect.Request[chatv1.SetMemberRoleRequest]) (*connect.Response[chatv1.SetMemberRoleResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageMembers); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.MembersManage); err != nil {
 		return nil, err
 	}
 	actor, target, err := s.actorAndTarget(ctx, req.Msg.SpaceId, req.Msg.UserId)
@@ -79,14 +79,14 @@ func (s *Service) SetMemberRole(ctx context.Context, req *connect.Request[chatv1
 }
 
 // AddMember puts an existing account into the space without an invite.
-// Same permission as kicking (manage_members: space admins, the owner,
+// Same permission as kicking (members.manage: space admins, the owner,
 // instance admins); bans are honoured; already-in is reported, not
 // silently ignored, so the admin page can say so.
 func (s *Service) AddMember(ctx context.Context, req *connect.Request[chatv1.AddMemberRequest]) (*connect.Response[chatv1.AddMemberResponse], error) {
 	if req.Msg.UserId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_id is required"))
 	}
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageMembers); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.MembersManage); err != nil {
 		return nil, err
 	}
 	space, err := s.q.GetSpace(ctx, req.Msg.SpaceId)
@@ -120,7 +120,7 @@ func (s *Service) KickMember(ctx context.Context, req *connect.Request[chatv1.Ki
 	if req.Msg.UserId == authctx.UserID(ctx) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("use LeaveSpace to remove yourself"))
 	}
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageMembers); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.MembersManage); err != nil {
 		return nil, err
 	}
 	if _, _, err := s.actorAndTarget(ctx, req.Msg.SpaceId, req.Msg.UserId); err != nil {

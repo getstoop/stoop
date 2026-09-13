@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // Login providers: external identities people can sign in with (OIDC).
@@ -93,7 +94,7 @@ func (s *Service) CallbackURL(ctx context.Context, id string) (string, error) {
 }
 
 func (s *Service) GetLoginProviders(ctx context.Context, _ *connect.Request[instancev1.GetLoginProvidersRequest]) (*connect.Response[instancev1.GetLoginProvidersResponse], error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	resp, err := s.loginProvidersResponse(ctx)
@@ -134,7 +135,7 @@ func (s *Service) loginProvidersResponse(ctx context.Context) (*instancev1.GetLo
 }
 
 func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request[instancev1.UpdateLoginProvidersRequest]) (*connect.Response[instancev1.UpdateLoginProvidersResponse], error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := requireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
 	if len(req.Msg.Providers) > maxLoginProviders {

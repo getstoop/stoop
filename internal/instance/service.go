@@ -90,10 +90,14 @@ func (s *Service) UsePublicURL(fn func() string) {
 	}
 }
 
-func requireAdmin(ctx context.Context) error {
-	if !authctx.IsAdmin(ctx) {
+// requireAction is both gates for an action on the instance.
+func requireAction(ctx context.Context, a authctx.Action) error {
+	if !authctx.Holds(ctx, a) {
 		return connect.NewError(connect.CodePermissionDenied,
 			errors.New("instance admin role required"))
+	}
+	if !authctx.Covers(ctx, a) {
+		return connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(a))
 	}
 	return nil
 }

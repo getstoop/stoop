@@ -65,7 +65,7 @@ func (s *Service) checkRegistrationAllowed(ctx context.Context, inviteCode strin
 	}
 	// Instance admins may create accounts under any policy (the admin page
 	// and dev seeding rely on this).
-	if authctx.IsAdmin(ctx) {
+	if authctx.Allows(ctx, authctx.InstanceUsersManage) {
 		return false, nil
 	}
 	policy, err := s.policy.RegistrationPolicy(ctx)
@@ -142,7 +142,7 @@ func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.Regi
 	}
 	// Password sign-up follows the password sign-in setting; the first
 	// account (bootstrap) and admin-created accounts are exempt.
-	if existing > 0 && !authctx.IsAdmin(ctx) {
+	if existing > 0 && !authctx.Allows(ctx, authctx.InstanceUsersManage) {
 		if err := s.passwordSignInAllowed(ctx, authctx.RoleMember); err != nil {
 			return nil, connect.NewError(connect.CodePermissionDenied,
 				errors.New("password sign-up is turned off on this server; use a login provider"))

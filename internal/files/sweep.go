@@ -323,15 +323,19 @@ func (s *Service) RunSweeper(ctx context.Context, interval time.Duration) {
 	}
 }
 
-func requireAdmin(ctx context.Context) error {
-	if !authctx.IsAdmin(ctx) {
+// requireAction is both gates for an action on the instance.
+func requireAction(ctx context.Context, a authctx.Action) error {
+	if !authctx.Holds(ctx, a) {
 		return connect.NewError(connect.CodePermissionDenied, errors.New("instance admin role required"))
+	}
+	if !authctx.Covers(ctx, a) {
+		return connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(a))
 	}
 	return nil
 }
 
 func (s *Service) GetStorageUsage(ctx context.Context, _ *connect.Request[filesv1.GetStorageUsageRequest]) (*connect.Response[filesv1.GetStorageUsageResponse], error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	u, err := s.q.StorageUsage(ctx)
@@ -350,7 +354,7 @@ func (s *Service) GetStorageUsage(ctx context.Context, _ *connect.Request[filesv
 }
 
 func (s *Service) SweepFiles(ctx context.Context, _ *connect.Request[filesv1.SweepFilesRequest]) (*connect.Response[filesv1.SweepFilesResponse], error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := requireAction(ctx, authctx.InstanceFilesManage); err != nil {
 		return nil, err
 	}
 	rep, err := s.Sweep(ctx)

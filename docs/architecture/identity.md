@@ -138,17 +138,25 @@ connection secure?" genuinely varies per request.
 ## Enforcement
 
 One Connect interceptor, built by `auth.NewInterceptor`, validates the
-token and deposits an `authctx.Identity{UserID, SessionID, Role}` into the
-request context. Every other module reads identity from the context and
-therefore never imports auth — `internal/authctx` is a single file that
-imports nothing and may be imported by everything, playing the role a
-shared proto would play between separate services.
+token and deposits an `authctx.Identity{UserID, SessionID, Role, Credential}`
+into the request context. Every other module reads identity from the
+context and therefore never imports auth — `internal/authctx` is a small
+package that imports nothing outside the standard library and may be
+imported by everything, playing the role a shared proto would play between
+separate services.
 
-**Public procedures** are `Register` and `Login` always, plus whatever
-`internal/app` allowlists through `auth.Options.PublicProcedures`:
-`GetInstanceStatus` (the setup and login screens need it before anyone has
-an account) and `LookupInvite` (an invited stranger has to see what they
-were invited to).
+**Every procedure has an access rule** in `internal/app/procedures.go`:
+public, any caller, or the actions a credential must cover to call it. The
+interceptor checks the credential against that rule before the handler
+runs; whether the *identity* holds the action stays with the module that
+owns the data (see [permissions.md](permissions.md)). A test walks every
+service Stoop declares and fails on a procedure with no rule. A session
+covers every action, so today the rule only ever refuses an unknown
+procedure; it is the seam personal and bot tokens use.
+
+**Public procedures** are `Register`, `Login`, `GetInstanceStatus` (the
+setup and login screens need it before anyone has an account) and
+`LookupInvite` (an invited stranger has to see what they were invited to).
 
 A public procedure still gets an identity **when a valid session is
 present**. That is not a loophole; it is load-bearing. It is how an admin

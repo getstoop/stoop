@@ -1,7 +1,8 @@
-// Package authctx is the one-file contract through which modules read the
-// authenticated identity from a request context. It plays the role a shared
-// proto would play between separate services: everything may import it, and
-// it imports nothing.
+// Package authctx is the contract through which modules read who is calling
+// and what they called with: the identity, its credential, and the action
+// vocabulary both are measured against. It plays the role a shared proto
+// would play between separate services: everything may import it, and it
+// imports nothing outside the standard library.
 package authctx
 
 import "context"
@@ -17,9 +18,10 @@ const (
 )
 
 type Identity struct {
-	UserID    string
-	SessionID string
-	Role      Role
+	UserID     string
+	SessionID  string
+	Role       Role
+	Credential Credential
 }
 
 type ctxKey struct{}
@@ -39,7 +41,8 @@ func UserID(ctx context.Context) string {
 	return id.UserID
 }
 
-// IsAdmin reports whether the authenticated user is an instance admin.
+// IsAdmin reports whether the authenticated user is an instance admin. It is
+// a fact about the identity; decide with Allows or chat's requirePermission.
 func IsAdmin(ctx context.Context) bool {
 	id, _ := From(ctx)
 	return id.Role == RoleAdmin
