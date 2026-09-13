@@ -163,8 +163,14 @@ instance and files modules wrap it as `requireAction`. Inheritance lives in
 chat's `actorFor` alone — the file download handler asks chat
 (`MayReadSpace`) rather than reading the instance role itself.
 
-`Space` carries the caller's effective `my_role`, so the UI hides controls
-someone can't use rather than showing them and failing. The server still
+`Space` carries `my_permissions` — the space actions the caller holds,
+already narrowed to the credential they called with — and `GetMe` carries
+the same for the instance and the caller's own account. The UI hides a
+control unless its permission is listed, rather than showing it and
+failing, and it keeps no copy of this table: `web/src/api/permissions.ts`
+only reads the list. `my_role` stays, for display and for who may act on
+whom. A broadcast can't carry one person's list, so the client refetches
+its spaces when its own role or a space's settings change. The server still
 enforces; the client is just polite.
 
 ## Invites

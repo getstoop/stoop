@@ -17,6 +17,7 @@ the Go and SQL trees follow (`docs/conventions.md`).
 
 ```
 proto/stoop/
+  access/v1/access.proto      the Permission enum, shared by auth and chat
   auth/v1/auth.proto
   chat/v1/{chat,space,channel,message,member,reaction,invite,activity}.proto
   files/v1/files.proto
@@ -42,7 +43,7 @@ listed as public below.
 | `Register` | **Public.** Subject to the registration policy; may carry an invite code. Honours a session when one is present, which is how an admin creates accounts under a closed policy. |
 | `Login` | **Public.** Username and password; rate-limited per client IP. |
 | `Logout` | Revokes the current session immediately. |
-| `GetMe` | The signed-in user, including instance role. |
+| `GetMe` | The signed-in user, including instance role, and the instance and own-account permissions their credential covers. |
 | `UpdateProfile` | Display name, username, pronouns, bio. |
 | `GetUserProfile` | One person's public profile card. Visible to any signed-in user. |
 | `ChangePassword` | Current password required, except for a provider-created account setting its first one. |

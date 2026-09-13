@@ -6,13 +6,15 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Permission } from "../../access/v1/access_pb";
+import { file_stoop_access_v1_access } from "../../access/v1/access_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file stoop/chat/v1/space.proto.
  */
 export const file_stoop_chat_v1_space: GenFile = /*@__PURE__*/
-  fileDesc("ChlzdG9vcC9jaGF0L3YxL3NwYWNlLnByb3RvEg1zdG9vcC5jaGF0LnYxIqUCCgVTcGFjZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCG93bmVyX2lkGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKB215X3JvbGUYBSABKA4yGC5zdG9vcC5jaGF0LnYxLlNwYWNlUm9sZRIaChJtZW1iZXJzX2Nhbl9pbnZpdGUYBiABKAgSEgoKaGFzX3VucmVhZBgHIAEoCBIUCgxpY29uX2ZpbGVfaWQYCCABKAkSEwoLZGVzY3JpcHRpb24YCSABKAkSDwoHd2VsY29tZRgKIAEoCRIaChJkZWZhdWx0X2NoYW5uZWxfaWQYCyABKAkSDQoFbXV0ZWQYDCABKAgqagoJU3BhY2VSb2xlEhoKFlNQQUNFX1JPTEVfVU5TUEVDSUZJRUQQABIVChFTUEFDRV9ST0xFX01FTUJFUhABEhQKEFNQQUNFX1JPTEVfQURNSU4QAhIUChBTUEFDRV9ST0xFX09XTkVSEANCqQEKEWNvbS5zdG9vcC5jaGF0LnYxQgpTcGFjZVByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2NoYXQvdjE7Y2hhdHYxogIDU0NYqgINU3Rvb3AuQ2hhdC5WMcoCDVN0b29wXENoYXRcVjHiAhlTdG9vcFxDaGF0XFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkNoYXQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChlzdG9vcC9jaGF0L3YxL3NwYWNlLnByb3RvEg1zdG9vcC5jaGF0LnYxItoCCgVTcGFjZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCG93bmVyX2lkGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKB215X3JvbGUYBSABKA4yGC5zdG9vcC5jaGF0LnYxLlNwYWNlUm9sZRIaChJtZW1iZXJzX2Nhbl9pbnZpdGUYBiABKAgSEgoKaGFzX3VucmVhZBgHIAEoCBIUCgxpY29uX2ZpbGVfaWQYCCABKAkSEwoLZGVzY3JpcHRpb24YCSABKAkSDwoHd2VsY29tZRgKIAEoCRIaChJkZWZhdWx0X2NoYW5uZWxfaWQYCyABKAkSDQoFbXV0ZWQYDCABKAgSMwoObXlfcGVybWlzc2lvbnMYDSADKA4yGy5zdG9vcC5hY2Nlc3MudjEuUGVybWlzc2lvbipqCglTcGFjZVJvbGUSGgoWU1BBQ0VfUk9MRV9VTlNQRUNJRklFRBAAEhUKEVNQQUNFX1JPTEVfTUVNQkVSEAESFAoQU1BBQ0VfUk9MRV9BRE1JThACEhQKEFNQQUNFX1JPTEVfT1dORVIQA0KpAQoRY29tLnN0b29wLmNoYXQudjFCClNwYWNlUHJvdG9QAVoyZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvY2hhdC92MTtjaGF0djGiAgNTQ1iqAg1TdG9vcC5DaGF0LlYxygINU3Rvb3BcQ2hhdFxWMeICGVN0b29wXENoYXRcVjFcR1BCTWV0YWRhdGHqAg9TdG9vcDo6Q2hhdDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
 
 /**
  * @generated from message stoop.chat.v1.Space
@@ -106,6 +108,15 @@ export type Space = Message<"stoop.chat.v1.Space"> & {
    * @generated from field: bool muted = 12;
    */
   muted: boolean;
+
+  /**
+   * What the caller may do here, already narrowed to the credential they
+   * called with. Clients show a control only when its permission is
+   * listed; the server still enforces. Empty on broadcast events.
+   *
+   * @generated from field: repeated stoop.access.v1.Permission my_permissions = 13;
+   */
+  myPermissions: Permission[];
 };
 
 /**

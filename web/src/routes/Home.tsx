@@ -1,15 +1,15 @@
 import { Navigate } from "@tanstack/react-router";
-import { useInstanceStatus, useMe, useSpaces } from "../api/queries";
-import { InstanceRole } from "../gen/stoop/auth/v1/auth_pb";
+import { useInstanceStatus, useMyPermissions, useSpaces } from "../api/queries";
+import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { SpaceCreationPolicy } from "../gen/stoop/instance/v1/instance_pb";
 
 // Landing view: bounce to the first space, or invite the user to make one.
 export function HomePage() {
   const { data: spaces, isLoading } = useSpaces();
-  const { data: me } = useMe();
+  const { data: permissions } = useMyPermissions();
   const { data: status } = useInstanceStatus();
   const canCreateSpace =
-    me?.role === InstanceRole.ADMIN ||
+    !!permissions?.includes(Permission.SPACES_CREATE) ||
     status?.spaceCreation === SpaceCreationPolicy.EVERYONE;
 
   if (isLoading) {

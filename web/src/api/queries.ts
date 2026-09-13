@@ -49,13 +49,21 @@ export function useInvitePreview(code: string | undefined) {
   });
 }
 
+// One cached GetMe answers both: the signed-in user, and what they may do
+// on the instance with the credential in use.
+const meQuery = {
+  queryKey: ["me"],
+  queryFn: async () => authClient.getMe({}),
+  retry: false,
+  staleTime: Number.POSITIVE_INFINITY,
+};
+
 export function useMe() {
-  return useQuery({
-    queryKey: ["me"],
-    queryFn: async () => (await authClient.getMe({})).user ?? null,
-    retry: false,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  return useQuery({ ...meQuery, select: (r) => r.user ?? null });
+}
+
+export function useMyPermissions() {
+  return useQuery({ ...meQuery, select: (r) => r.permissions });
 }
 
 export function useSpaces() {

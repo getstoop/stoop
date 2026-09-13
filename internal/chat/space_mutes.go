@@ -39,7 +39,7 @@ func (s *Service) SetSpaceMuted(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, fmt.Errorf("set space mute: %w", err)
 	}
-	out := toProtoSpace(space, a.role)
+	out := toProtoSpace(space, a, callerCredential(ctx))
 	out.Muted = req.Msg.Muted
 	s.bus.Publish("user:"+userID, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceMuted{

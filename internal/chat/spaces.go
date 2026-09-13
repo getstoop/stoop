@@ -12,6 +12,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -65,7 +66,7 @@ func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.C
 	}
 
 	return connect.NewResponse(&chatv1.CreateSpaceResponse{
-		Space:          toProtoSpace(space, RoleOwner),
+		Space:          toProtoSpace(space, memberActor(RoleOwner, authctx.IsAdmin(ctx)), callerCredential(ctx)),
 		DefaultChannel: toProtoChannel(channel),
 	}), nil
 }
@@ -75,11 +76,17 @@ func (s *Service) ListSpaces(ctx context.Context, _ *connect.Request[chatv1.List
 	if err != nil {
 		return nil, fmt.Errorf("list spaces: %w", err)
 	}
-	spaces := make([]*chatv1.Space, len(rows))
-	for i, r := range rows {
-		spaces[i] = toProtoSpace(r.Space, Role(r.MyRole))
-		spaces[i].HasUnread = r.HasUnread
-		spaces[i].Muted = r.Muted
+	cred := callerCredential(ctx)
+	spaces := make([]*chatv1.Space, 0, len(rows))
+	for _, r := range rows {
+		// A bounded credential lists only the spaces it reaches.
+		if !cred.Reaches(r.Space.ID, "") {
+			continue
+		}
+		space := toProtoSpace(r.Space, memberActor(Role(r.MyRole), authctx.IsAdmin(ctx)), cred)
+		space.HasUnread = r.HasUnread
+		space.Muted = r.Muted
+		spaces = append(spaces, space)
 	}
 	return connect.NewResponse(&chatv1.ListSpacesResponse{Spaces: spaces}), nil
 }
@@ -96,15 +103,15 @@ func (s *Service) GetSpace(ctx context.Context, req *connect.Request[chatv1.GetS
 	if err != nil {
 		return nil, notFoundOr(err, "space")
 	}
-	return connect.NewResponse(&chatv1.GetSpaceResponse{Space: toProtoSpace(space, a.role)}), nil
+	return connect.NewResponse(&chatv1.GetSpaceResponse{Space: toProtoSpace(space, a, callerCredential(ctx))}), nil
 }
 
 // publishSpaceJoined tells the joiner's live connections about their new
 // space; the gateway also uses it to subscribe them to the space's events.
-func (s *Service) publishSpaceJoined(userID string, space dbgen.Space, role Role) {
+func (s *Service) publishSpaceJoined(userID string, space dbgen.Space, viewer actor) {
 	s.bus.Publish("user:"+userID, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceJoined{
-			SpaceJoined: &realtimev1.SpaceJoined{Space: toProtoSpace(space, role)},
+			SpaceJoined: &realtimev1.SpaceJoined{Space: toProtoSpace(space, viewer, authctx.Credential{})},
 		},
 	}))
 	// Existing members learn about the newcomer on the space topic.
@@ -130,11 +137,14 @@ func oneLine(s string) string {
 
 // toProtoSpace renders a space for one caller; myRole is that caller's
 // effective role in it.
-func toProtoSpace(s dbgen.Space, myRole Role) *chatv1.Space {
+// toProtoSpace renders a space for one viewer holding cred. A broadcast
+// passes actor{} and carries no role or permissions.
+func toProtoSpace(s dbgen.Space, viewer actor, cred authctx.Credential) *chatv1.Space {
 	space := &chatv1.Space{
 		Id: s.ID, Name: s.Name, OwnerId: s.OwnerID, CreatedAt: timestamppb.New(s.CreatedAt),
-		MyRole: toProtoRole(myRole), MembersCanInvite: s.MembersCanInvite,
-		Description: s.Description, Welcome: s.Welcome,
+		MyRole: toProtoRole(viewer.role), MembersCanInvite: s.MembersCanInvite,
+		MyPermissions: accesswire.ToProto(spacePermissions(viewer, s, cred)),
+		Description:   s.Description, Welcome: s.Welcome,
 	}
 	if s.IconFileID != nil {
 		space.IconFileId = *s.IconFileID
@@ -186,7 +196,7 @@ func (s *Service) SetSpaceIcon(ctx context.Context, spaceID, fileID string) (pre
 	}
 	s.bus.Publish("space:"+space.ID, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceUpdated{
-			SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(space, "")},
+			SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(space, actor{}, authctx.Credential{})},
 		},
 	}))
 	if prev != nil {
@@ -257,10 +267,10 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 	}
 	s.bus.Publish("space:"+space.ID, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceUpdated{
-			SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(space, "")},
+			SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(space, actor{}, authctx.Credential{})},
 		},
 	}))
-	return connect.NewResponse(&chatv1.UpdateSpaceResponse{Space: toProtoSpace(space, a.role)}), nil
+	return connect.NewResponse(&chatv1.UpdateSpaceResponse{Space: toProtoSpace(space, a, callerCredential(ctx))}), nil
 }
 
 func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[chatv1.TransferOwnershipRequest]) (*connect.Response[chatv1.TransferOwnershipResponse], error) {
@@ -307,7 +317,7 @@ func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[ch
 	if err != nil {
 		return nil, notFoundOr(err, "space")
 	}
-	return connect.NewResponse(&chatv1.TransferOwnershipResponse{Space: toProtoSpace(space, RoleAdmin)}), nil
+	return connect.NewResponse(&chatv1.TransferOwnershipResponse{Space: toProtoSpace(space, memberActor(RoleAdmin, authctx.IsAdmin(ctx)), callerCredential(ctx))}), nil
 }
 
 func (s *Service) DeleteSpace(ctx context.Context, req *connect.Request[chatv1.DeleteSpaceRequest]) (*connect.Response[chatv1.DeleteSpaceResponse], error) {

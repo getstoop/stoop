@@ -159,8 +159,9 @@ are testable and reusable:
   do not ask: the badge counts in `activity.ts` and the desktop banner in
   `ws.ts` read the server's `item.muted` stamp, which is right even on a
   cache that has never loaded the space.
-- `permissions.ts` — the client-side mirror of the permission table, used
-  only to hide controls. The server still enforces.
+- `permissions.ts` — reads `Space.my_permissions` (and `GetMe`'s permissions
+  through `useMyPermissions`) to decide which controls to show; it keeps no
+  copy of the role table. The server still enforces.
 - `theme.ts`, `status.ts`, `emoji.ts`, `shortcodes.ts`, `formatting.ts`,
   `errors.ts`, `loginErrors.ts`, `dates.ts`.
 

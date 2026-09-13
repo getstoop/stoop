@@ -7,6 +7,7 @@
 package chatv1
 
 import (
+	v1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -111,7 +112,11 @@ type Space struct {
 	// badges anywhere in it, no desktop alerts (mentions still reach
 	// activity). Their own setting; see SetSpaceMuted. Never set on
 	// broadcast events.
-	Muted         bool `protobuf:"varint,12,opt,name=muted,proto3" json:"muted,omitempty"`
+	Muted bool `protobuf:"varint,12,opt,name=muted,proto3" json:"muted,omitempty"`
+	// What the caller may do here, already narrowed to the credential they
+	// called with. Clients show a control only when its permission is
+	// listed; the server still enforces. Empty on broadcast events.
+	MyPermissions []v1.Permission `protobuf:"varint,13,rep,packed,name=my_permissions,json=myPermissions,proto3,enum=stoop.access.v1.Permission" json:"my_permissions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -230,11 +235,18 @@ func (x *Space) GetMuted() bool {
 	return false
 }
 
+func (x *Space) GetMyPermissions() []v1.Permission {
+	if x != nil {
+		return x.MyPermissions
+	}
+	return nil
+}
+
 var File_stoop_chat_v1_space_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_space_proto_rawDesc = "" +
 	"\n" +
-	"\x19stoop/chat/v1/space.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x03\n" +
+	"\x19stoop/chat/v1/space.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\xe7\x03\n" +
 	"\x05Space\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
@@ -251,7 +263,8 @@ const file_stoop_chat_v1_space_proto_rawDesc = "" +
 	"\awelcome\x18\n" +
 	" \x01(\tR\awelcome\x12,\n" +
 	"\x12default_channel_id\x18\v \x01(\tR\x10defaultChannelId\x12\x14\n" +
-	"\x05muted\x18\f \x01(\bR\x05muted*j\n" +
+	"\x05muted\x18\f \x01(\bR\x05muted\x12B\n" +
+	"\x0emy_permissions\x18\r \x03(\x0e2\x1b.stoop.access.v1.PermissionR\rmyPermissions*j\n" +
 	"\tSpaceRole\x12\x1a\n" +
 	"\x16SPACE_ROLE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SPACE_ROLE_MEMBER\x10\x01\x12\x14\n" +
@@ -278,15 +291,17 @@ var file_stoop_chat_v1_space_proto_goTypes = []any{
 	(SpaceRole)(0),                // 0: stoop.chat.v1.SpaceRole
 	(*Space)(nil),                 // 1: stoop.chat.v1.Space
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(v1.Permission)(0),            // 3: stoop.access.v1.Permission
 }
 var file_stoop_chat_v1_space_proto_depIdxs = []int32{
 	2, // 0: stoop.chat.v1.Space.created_at:type_name -> google.protobuf.Timestamp
 	0, // 1: stoop.chat.v1.Space.my_role:type_name -> stoop.chat.v1.SpaceRole
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 2: stoop.chat.v1.Space.my_permissions:type_name -> stoop.access.v1.Permission
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_space_proto_init() }

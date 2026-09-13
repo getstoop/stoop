@@ -3,6 +3,7 @@ syntax = "proto3";
 package stoop.auth.v1;
 
 import "google/protobuf/timestamp.proto";
+import "stoop/access/v1/access.proto";
 
 // AuthService handles account registration and session management.
 //
@@ -104,6 +105,10 @@ message GetMeRequest {}
 
 message GetMeResponse {
   User user = 1;
+  // The caller's actions on the instance and on their own account, already
+  // narrowed to the credential they called with. Space actions arrive on
+  // each Space as my_permissions.
+  repeated stoop.access.v1.Permission permissions = 2;
 }
 
 message UpdateProfileRequest {

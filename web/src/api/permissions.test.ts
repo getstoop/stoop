@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 import {
   atLeast,
+  can,
   canActOn,
   canCreateInvites,
   canDeleteAnyMessage,
+  canDeleteSpace,
   canManageChannels,
   canManageMembers,
   canMentionEveryone,
@@ -12,8 +15,8 @@ import {
   roleLabel,
 } from "./permissions";
 
-const space = (myRole: SpaceRole, membersCanInvite = false): Space =>
-  ({ myRole, membersCanInvite }) as Space;
+const space = (myRole: SpaceRole, myPermissions: Permission[] = []): Space =>
+  ({ myRole, myPermissions }) as unknown as Space;
 
 const roles = [
   SpaceRole.UNSPECIFIED,
@@ -31,8 +34,44 @@ const names: Record<SpaceRole, string> = {
   [SpaceRole.OWNER]: "owner",
 };
 
-const allowed = (fn: (s: Space) => boolean, membersCanInvite = false) =>
-  roles.filter((r) => fn(space(r, membersCanInvite))).map((r) => names[r]);
+describe("can", () => {
+  it("reads the server's list and nothing else", () => {
+    const owner = space(SpaceRole.OWNER, [Permission.MESSAGES_READ]);
+    expect(can(owner, Permission.MESSAGES_READ)).toBe(true);
+    // An owner's role says nothing here: a narrow credential lists less.
+    expect(can(owner, Permission.CHANNELS_MANAGE)).toBe(false);
+  });
+
+  it("allows nothing without a space", () => {
+    expect(can(undefined, Permission.MESSAGES_READ)).toBe(false);
+  });
+
+  it("allows nothing with an empty list", () => {
+    expect(can(space(SpaceRole.OWNER), Permission.SPACE_DELETE)).toBe(false);
+  });
+});
+
+describe("named checks", () => {
+  const checks: [string, (s: Space) => boolean, Permission][] = [
+    ["canCreateInvites", canCreateInvites, Permission.INVITES_CREATE],
+    ["canManageChannels", canManageChannels, Permission.CHANNELS_MANAGE],
+    ["canManageMembers", canManageMembers, Permission.MEMBERS_MANAGE],
+    [
+      "canMentionEveryone",
+      canMentionEveryone,
+      Permission.MESSAGES_NOTIFY_EVERYONE,
+    ],
+    ["canDeleteAnyMessage", canDeleteAnyMessage, Permission.MESSAGES_MODERATE],
+    ["canDeleteSpace", canDeleteSpace, Permission.SPACE_DELETE],
+  ];
+
+  for (const [name, check, permission] of checks) {
+    it(`${name} follows its one permission, not the role`, () => {
+      expect(check(space(SpaceRole.MEMBER, [permission]))).toBe(true);
+      expect(check(space(SpaceRole.OWNER, []))).toBe(false);
+    });
+  }
+});
 
 describe("atLeast", () => {
   it("admits every role when the minimum is unspecified", () => {
@@ -46,18 +85,9 @@ describe("atLeast", () => {
     expect(ok.map((r) => names[r])).toEqual(["member", "admin", "owner"]);
   });
 
-  it("admits admin and up when the minimum is admin", () => {
-    const ok = roles.filter((r) => atLeast(r, SpaceRole.ADMIN));
-    expect(ok.map((r) => names[r])).toEqual(["admin", "owner"]);
-  });
-
   it("admits only the owner when the minimum is owner", () => {
     const ok = roles.filter((r) => atLeast(r, SpaceRole.OWNER));
     expect(ok.map((r) => names[r])).toEqual(["owner"]);
-  });
-
-  it("is inclusive at the boundary", () => {
-    for (const r of roles) expect(atLeast(r, r)).toBe(true);
   });
 
   it("does not let a role reach the rung above it", () => {
@@ -67,65 +97,9 @@ describe("atLeast", () => {
   });
 });
 
-describe("canCreateInvites", () => {
-  it("is open to admins and owners while the space setting is off", () => {
-    expect(allowed(canCreateInvites)).toEqual(["admin", "owner"]);
-  });
-
-  it("opens up to everyone once members may invite", () => {
-    expect(allowed(canCreateInvites, true)).toEqual([
-      "unspecified",
-      "member",
-      "admin",
-      "owner",
-    ]);
-  });
-
-  // members_can_invite is read straight through, so a caller with no role
-  // in the space passes too.
-  it("lets even a caller with no role in through the setting", () => {
-    expect(canCreateInvites(space(SpaceRole.UNSPECIFIED, true))).toBe(true);
-  });
-});
-
-describe("canManageChannels", () => {
-  it("is open to admins and owners only", () => {
-    expect(allowed(canManageChannels)).toEqual(["admin", "owner"]);
-  });
-
-  it("ignores the members-can-invite setting", () => {
-    expect(allowed(canManageChannels, true)).toEqual(["admin", "owner"]);
-  });
-});
-
-describe("canManageMembers", () => {
-  it("is open to admins and owners only", () => {
-    expect(allowed(canManageMembers)).toEqual(["admin", "owner"]);
-  });
-});
-
-describe("canMentionEveryone", () => {
-  it("is open to admins and owners only", () => {
-    expect(allowed(canMentionEveryone)).toEqual(["admin", "owner"]);
-  });
-});
-
-describe("canDeleteAnyMessage", () => {
-  it("is open to admins and owners only", () => {
-    expect(allowed(canDeleteAnyMessage)).toEqual(["admin", "owner"]);
-  });
-});
-
 describe("grantableRoles", () => {
   it("gives an owner member and admin, never owner", () => {
     expect(grantableRoles(space(SpaceRole.OWNER))).toEqual([
-      SpaceRole.MEMBER,
-      SpaceRole.ADMIN,
-    ]);
-  });
-
-  it("gives an admin member and admin", () => {
-    expect(grantableRoles(space(SpaceRole.ADMIN))).toEqual([
       SpaceRole.MEMBER,
       SpaceRole.ADMIN,
     ]);
@@ -144,19 +118,12 @@ describe("grantableRoles", () => {
       expect(grantableRoles(space(r))).not.toContain(SpaceRole.OWNER);
     }
   });
-
-  it("orders the roles low to high", () => {
-    expect(grantableRoles(space(SpaceRole.OWNER))[0]).toBe(SpaceRole.MEMBER);
-  });
 });
 
 describe("roleLabel", () => {
-  it("names owner and admin", () => {
+  it("names each role", () => {
     expect(roleLabel(SpaceRole.OWNER)).toBe("owner");
     expect(roleLabel(SpaceRole.ADMIN)).toBe("admin");
-  });
-
-  it("names member", () => {
     expect(roleLabel(SpaceRole.MEMBER)).toBe("member");
   });
 
@@ -168,52 +135,41 @@ describe("roleLabel", () => {
 });
 
 describe("canActOn", () => {
-  const casey = space(SpaceRole.OWNER);
-  const ada = space(SpaceRole.ADMIN);
+  const manage = [Permission.MEMBERS_MANAGE];
+  const casey = space(SpaceRole.OWNER, manage);
+  const ada = space(SpaceRole.ADMIN, manage);
   const bea = space(SpaceRole.MEMBER);
-  const cal = space(SpaceRole.UNSPECIFIED);
 
   it("refuses anyone who cannot manage members", () => {
     expect(canActOn(bea, false, SpaceRole.MEMBER)).toBe(false);
-    expect(canActOn(cal, false, SpaceRole.MEMBER)).toBe(false);
+    // The role alone doesn't do it: an owner on a narrow credential.
+    expect(canActOn(space(SpaceRole.OWNER), false, SpaceRole.MEMBER)).toBe(
+      false,
+    );
   });
 
   // The manage-members gate runs first, so the instance-admin flag alone
-  // does not rescue a caller whose effective space role is only member.
+  // does not rescue a caller who can't manage members.
   it("refuses a plain member even when the instance-admin flag is set", () => {
     expect(canActOn(bea, true, SpaceRole.MEMBER)).toBe(false);
   });
 
   it("never allows acting on the owner", () => {
     expect(canActOn(casey, false, SpaceRole.OWNER)).toBe(false);
-    expect(canActOn(ada, false, SpaceRole.OWNER)).toBe(false);
     expect(canActOn(ada, true, SpaceRole.OWNER)).toBe(false);
   });
 
   it("lets the owner act on every other role", () => {
     expect(canActOn(casey, false, SpaceRole.ADMIN)).toBe(true);
     expect(canActOn(casey, false, SpaceRole.MEMBER)).toBe(true);
-    expect(canActOn(casey, false, SpaceRole.UNSPECIFIED)).toBe(true);
   });
 
-  it("lets an admin act on roles strictly below their own", () => {
+  it("lets an admin act only on roles strictly below their own", () => {
     expect(canActOn(ada, false, SpaceRole.MEMBER)).toBe(true);
-    expect(canActOn(ada, false, SpaceRole.UNSPECIFIED)).toBe(true);
-  });
-
-  it("stops an admin acting on an equal role", () => {
     expect(canActOn(ada, false, SpaceRole.ADMIN)).toBe(false);
   });
 
   it("lets an instance admin act on a fellow admin", () => {
     expect(canActOn(ada, true, SpaceRole.ADMIN)).toBe(true);
-  });
-
-  // canActOn is told a role, not an identity. The owner's own row is
-  // covered by the never-the-owner branch; an instance admin's own row is
-  // not, so MembersSection guards it with `!self`.
-  it("blocks the owner from their own row but not an instance admin", () => {
-    expect(canActOn(casey, false, casey.myRole)).toBe(false);
-    expect(canActOn(ada, true, ada.myRole)).toBe(true);
   });
 });

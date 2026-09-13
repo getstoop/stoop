@@ -140,7 +140,7 @@ func (s *Service) JoinSpace(ctx context.Context, req *connect.Request[chatv1.Joi
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&chatv1.JoinSpaceResponse{Space: toProtoSpace(space, role)}), nil
+	return connect.NewResponse(&chatv1.JoinSpaceResponse{Space: toProtoSpace(space, memberActor(role, authctx.IsAdmin(ctx)), callerCredential(ctx))}), nil
 }
 
 // ValidateInvite reports whether a code could be redeemed right now,
@@ -273,7 +273,7 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 		return dbgen.Space{}, "", fmt.Errorf("commit: %w", err)
 	}
 
-	s.publishSpaceJoined(userID, space, granted)
+	s.publishSpaceJoined(userID, space, memberActor(granted, authctx.IsAdmin(ctx)))
 	return space, granted, nil
 }
 
@@ -318,8 +318,8 @@ func (s *Service) joinAsInstanceAdmin(ctx context.Context, userID, spaceID strin
 	}); err != nil {
 		return nil, fmt.Errorf("join space: %w", err)
 	}
-	s.publishSpaceJoined(userID, space, RoleAdmin) // effective role: instance admin
-	return connect.NewResponse(&chatv1.JoinSpaceResponse{Space: toProtoSpace(space, RoleAdmin)}), nil
+	s.publishSpaceJoined(userID, space, memberActor(RoleMember, true))
+	return connect.NewResponse(&chatv1.JoinSpaceResponse{Space: toProtoSpace(space, memberActor(RoleMember, true), callerCredential(ctx))}), nil
 }
 
 // inviteRejection explains why ConsumeInvite's guard refused an invite,

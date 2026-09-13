@@ -3,6 +3,7 @@ syntax = "proto3";
 package stoop.chat.v1;
 
 import "google/protobuf/timestamp.proto";
+import "stoop/access/v1/access.proto";
 
 // SpaceRole is a member's role within one space: owner > admin > member.
 // The permission each role holds is fixed in code; see
@@ -48,4 +49,8 @@ message Space {
   // activity). Their own setting; see SetSpaceMuted. Never set on
   // broadcast events.
   bool muted = 12;
+  // What the caller may do here, already narrowed to the credential they
+  // called with. Clients show a control only when its permission is
+  // listed; the server still enforces. Empty on broadcast events.
+  repeated stoop.access.v1.Permission my_permissions = 13;
 }

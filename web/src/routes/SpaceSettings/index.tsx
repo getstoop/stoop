@@ -1,10 +1,9 @@
 import { Link, Navigate, useParams, useSearch } from "@tanstack/react-router";
-import { canManageChannels } from "../../api/permissions";
-import { useMe, useSpaces } from "../../api/queries";
+import { canDeleteSpace, canManageChannels } from "../../api/permissions";
+import { useSpaces } from "../../api/queries";
 import { MenuButton } from "../../components/MenuButton";
 import { SettingsFrame } from "../../components/SettingsFrame";
 import { SpaceIcon } from "../../components/SpaceIcon";
-import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
 import { AboutSection } from "./AboutSection";
 import { BansSection } from "./BansSection";
@@ -33,7 +32,6 @@ const TABS: { key: Tab; label: string }[] = [
 export function SpaceSettingsPage() {
   const { spaceId } = useParams({ strict: false }) as { spaceId: string };
   const { data: spaces } = useSpaces();
-  const { data: me } = useMe();
   const { tab } = useSearch({ strict: false }) as {
     tab?: Exclude<Tab, "general">;
   };
@@ -49,7 +47,7 @@ export function SpaceSettingsPage() {
   const owner = space.myRole === SpaceRole.OWNER;
   const ownerTab = owner
     ? { key: "owner" as const, label: "Owner" }
-    : me?.role === InstanceRole.ADMIN
+    : canDeleteSpace(space)
       ? { key: "owner" as const, label: "Server admin" }
       : null;
   const tabs = ownerTab ? [...TABS, ownerTab] : TABS;
