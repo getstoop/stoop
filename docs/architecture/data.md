@@ -35,15 +35,25 @@ people's conversations, and neither is a good answer.
 | `display_name` | What people actually see. |
 | `password_hash` | Nullable: an account created by an identity provider has no password until its owner sets one. "Has a password" is a schema fact, not a sentinel value. |
 | `role` | `admin` or `member`, checked by constraint. See [permissions.md](permissions.md). |
-| `deactivated_at` | Set on deactivation; can't log in, sessions revoked. |
+| `kind` | `person` or `bot`. Only a person holds a session or counts toward the last-admin guard. |
+| `deactivated_at` | Set on deactivation; can't log in, every credential revoked. |
 | `avatar_file_id` | → `files(id) ON DELETE SET NULL`. A pointer, not a copy. |
 | `username_pending` | The handle was derived from a provider claim and hasn't been confirmed; the client nudges about it. |
 | `username_frozen` | An admin locked self-service renames on this account. Admin renames bypass it. |
 | `pronouns`, `bio` | 40 and 300 characters, whitespace-collapsed. Shown on the profile card and nowhere else. |
 
-**`sessions`** — `token_hash bytea UNIQUE` is the SHA-256 of an opaque
-32-byte token. The token itself is never stored, so a database dump does
-not hand over live sessions. Indexed on `expires_at` for cleanup.
+**`credentials`** — every way of presenting yourself; `kind` is `session`,
+`personal_token`, `bot_token` or `incoming_hook`. `token_hash bytea UNIQUE`
+is the SHA-256 of an opaque 32-byte token, never the token, so a database
+dump does not hand over live credentials. `grants` is NULL only for a
+session, which covers every action. `bounded`, with rows in
+**`credential_bounds`** (one space or one channel each, cascading with it),
+limits where a credential reaches; bounded with no rows left reaches
+nothing. See [the access model](../proposals/access-model.md).
+
+**`sessions`** — legacy. Read only by the previous release; its rows are
+copied into `credentials` by migration 00031 and the table is dropped by a
+later contract migration.
 
 **`user_identities`** — `(provider, subject) PRIMARY KEY` maps an OIDC
 subject to an account, with `UNIQUE (user_id, provider)` so one account

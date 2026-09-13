@@ -33,7 +33,7 @@ func (f *fakeUsers) CountUsers(context.Context) (int64, error) { return int64(le
 func (f *fakeUsers) CountActiveAdmins(context.Context) (int64, error) {
 	var n int64
 	for _, u := range f.users {
-		if u.Role == authctx.RoleAdmin && u.DeactivatedAt == nil {
+		if u.Role == authctx.RoleAdmin && u.Kind != authctx.KindBot && u.DeactivatedAt == nil {
 			n++
 		}
 	}

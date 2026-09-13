@@ -64,7 +64,7 @@ this plainly.
 
 | Package             | Owns |
 | ------------------- | ---- |
-| `internal/auth`     | users (incl. instance role), sessions, password hashing, OIDC sign-in and account linking, self-service profiles, the auth interceptor |
+| `internal/auth`     | users (incl. instance role and kind), credentials (sessions today), password hashing, OIDC sign-in and account linking, self-service profiles, the auth interceptor |
 | `internal/chat`     | spaces, members (incl. space role), channels + read markers + mutes, messages (replies, edits, reactions, attachments), mentions, activity, invites, bans, blocks, direct messages, link records |
 | `internal/instance` | instance status, runtime settings (registration policy, quotas, reachability, login providers), user administration |
 | `internal/realtime` | the WebSocket gateway; in-memory presence, status, typing and voice state (no database access at all) |

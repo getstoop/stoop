@@ -25,6 +25,7 @@ type UserSummary struct {
 	Username       string
 	DisplayName    string
 	Role           authctx.Role
+	Kind           authctx.IdentityKind
 	CreatedAt      time.Time
 	DeactivatedAt  *time.Time
 	UsernameFrozen bool
@@ -41,7 +42,7 @@ type UserAdmin interface {
 	SetUserRole(ctx context.Context, userID string, role authctx.Role) (UserSummary, error)
 	SetUserActive(ctx context.Context, userID string, active bool) (UserSummary, error)
 	// ResetUserPassword sets a temporary password, revokes the account's
-	// sessions, and returns the password (shown once).
+	// credentials, and returns the password (shown once).
 	ResetUserPassword(ctx context.Context, userID string) (temporary string, user UserSummary, err error)
 	// RenameUser changes the username and/or display name; nil leaves a
 	// field unchanged.
@@ -97,7 +98,7 @@ func requireAction(ctx context.Context, a authctx.Action) error {
 			errors.New("instance admin role required"))
 	}
 	if !authctx.Covers(ctx, a) {
-		return connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(a))
+		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, a))
 	}
 	return nil
 }

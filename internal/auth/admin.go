@@ -21,6 +21,7 @@ type AccountSummary struct {
 	Username      string
 	DisplayName   string
 	Role          authctx.Role
+	Kind          authctx.IdentityKind
 	CreatedAt     time.Time
 	DeactivatedAt *time.Time
 	// UsernameFrozen: an admin locked self-service renames.
@@ -59,7 +60,7 @@ func (s *Service) SetAccountRole(ctx context.Context, userID string, role authct
 }
 
 // SetAccountActive deactivates or reactivates an account. Deactivating
-// revokes every session immediately; the row (and the user's messages)
+// revokes every credential immediately; the row (and the user's messages)
 // remain.
 func (s *Service) SetAccountActive(ctx context.Context, userID string, active bool) (AccountSummary, error) {
 	u, err := s.q.SetUserDeactivated(ctx, dbgen.SetUserDeactivatedParams{ID: userID, Deactivated: !active})
@@ -67,8 +68,8 @@ func (s *Service) SetAccountActive(ctx context.Context, userID string, active bo
 		return AccountSummary{}, notFoundOr(err, "user")
 	}
 	if !active {
-		if err := s.q.DeleteUserSessions(ctx, userID); err != nil {
-			return AccountSummary{}, fmt.Errorf("revoke sessions: %w", err)
+		if err := s.q.DeleteUserCredentials(ctx, userID); err != nil {
+			return AccountSummary{}, fmt.Errorf("revoke credentials: %w", err)
 		}
 	}
 	return toSummary(u), nil
@@ -148,7 +149,7 @@ func (s *Service) SetAccountUsernameFrozen(ctx context.Context, userID string, f
 func toSummary(u dbgen.User) AccountSummary {
 	return AccountSummary{
 		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
-		Role: authctx.Role(u.Role), CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
+		Role: authctx.Role(u.Role), Kind: authctx.IdentityKind(u.Kind), CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
 		UsernameFrozen: u.UsernameFrozen,
 		HasPassword:    u.PasswordHash != nil,
 		Pronouns:       u.Pronouns,
@@ -165,7 +166,7 @@ func (s *Service) SetRoleByUsername(ctx context.Context, username string, role a
 		if err != nil {
 			return AccountSummary{}, notFoundOr(err, "user")
 		}
-		if authctx.Role(u.Role) == authctx.RoleAdmin && u.DeactivatedAt == nil {
+		if authctx.Role(u.Role) == authctx.RoleAdmin && u.Kind == string(authctx.KindPerson) && u.DeactivatedAt == nil {
 			n, err := s.q.CountAdmins(ctx)
 			if err != nil {
 				return AccountSummary{}, fmt.Errorf("count admins: %w", err)

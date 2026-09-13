@@ -116,6 +116,14 @@ A database dump therefore does not contain live credentials, and revocation
 is a `DELETE` — instant, no key rotation, no "the JWT is still valid for
 another nine minutes".
 
+**A session is one kind of credential.** It is a row in `credentials`, the
+table personal tokens, bot tokens and hook URLs will share (see
+[the access model](../proposals/access-model.md)), and only a person can
+hold one: the insert refuses a bot. Every revocation — logout, a password
+change, deactivation, an admin reset — also clears the matching rows in the
+legacy `sessions` table until a contract migration drops it, so rolling back
+to the previous release can't revive a revoked session.
+
 No JWTs anywhere in the session path. Statelessness buys nothing here: this
 is a single process that already has a database open.
 

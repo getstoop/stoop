@@ -488,7 +488,7 @@ func (a userAdmin) ResetUserPassword(ctx context.Context, userID string) (string
 func toUserSummary(u auth.AccountSummary) instance.UserSummary {
 	return instance.UserSummary{
 		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
-		Role: u.Role, CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
+		Role: u.Role, Kind: u.Kind, CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
 		UsernameFrozen: u.UsernameFrozen, HasPassword: u.HasPassword,
 		Pronouns: u.Pronouns, Bio: u.Bio,
 	}

@@ -138,8 +138,9 @@ One helper, `requirePermission(ctx, spaceID, action)` in
 `internal/chat/permissions.go`, used by every management RPC in place of a
 bare membership check. It:
 
-1. Refuses when the **credential** doesn't cover the action, before
-   anything is read, with "this token isn't allowed to …".
+1. Refuses when the **credential** doesn't cover the action, or its
+   bounds don't reach this space, before anything is read ("this token
+   isn't allowed to …", "this token isn't allowed here").
 2. Resolves the caller's **effective role**: the greater of their
    `space_members.role` and the `admin` inherited from an instance-admin
    identity. The instance-admin flag is read from `authctx.Identity`, so

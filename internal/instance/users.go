@@ -157,8 +157,9 @@ func (s *Service) SetUsernameFrozen(ctx context.Context, req *connect.Request[in
 	return connect.NewResponse(&instancev1.SetUsernameFrozenResponse{User: toProtoUser(u)}), nil
 }
 
-// guardLastAdmin refuses to demote or deactivate the only active admin —
-// that would lock everyone out of instance administration.
+// guardLastAdmin refuses to demote or deactivate the only active person
+// who is an admin — that would lock everyone out of instance
+// administration. A bot admin never counts.
 func (s *Service) guardLastAdmin(ctx context.Context, targetID string) error {
 	users, err := s.users.ListUsers(ctx)
 	if err != nil {
@@ -170,7 +171,7 @@ func (s *Service) guardLastAdmin(ctx context.Context, targetID string) error {
 			target = &users[i]
 		}
 	}
-	if target == nil || target.Role != authctx.RoleAdmin || target.DeactivatedAt != nil {
+	if target == nil || target.Role != authctx.RoleAdmin || target.Kind == authctx.KindBot || target.DeactivatedAt != nil {
 		return nil // not an active admin; nothing to guard
 	}
 	n, err := s.users.CountActiveAdmins(ctx)
