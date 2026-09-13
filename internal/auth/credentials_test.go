@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -50,6 +51,38 @@ func TestSessionIsACredential(t *testing.T) {
 	}
 	if id.Credential.Grants != nil || id.Credential.Bounded {
 		t.Error("a session covers everything, unbounded")
+	}
+}
+
+func TestGetMePermissions(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	admin, _ := signIn(t, svc, "casey", "correct horse battery") // the first account is admin
+	member, _ := signIn(t, svc, "ada", "correct horse battery")
+	has := func(ctx context.Context, p accessv1.Permission) bool {
+		t.Helper()
+		res, err := svc.GetMe(ctx, connect.NewRequest(&authv1.GetMeRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return slices.Contains(res.Msg.Permissions, p)
+	}
+
+	if !has(admin, accessv1.Permission_PERMISSION_INSTANCE_READ) || !has(admin, accessv1.Permission_PERMISSION_ACCOUNT_SECURITY) {
+		t.Error("an admin's session should list instance.read and account.security")
+	}
+	if has(member, accessv1.Permission_PERMISSION_INSTANCE_READ) || !has(member, accessv1.Permission_PERMISSION_PROFILE_MANAGE) {
+		t.Error("a member lists their own-account actions and no instance ones")
+	}
+	if has(admin, accessv1.Permission_PERMISSION_CHANNELS_MANAGE) {
+		t.Error("space actions arrive on each Space, not on GetMe")
+	}
+
+	id, _ := authctx.From(admin)
+	id.Credential = authctx.Credential{Kind: authctx.CredentialPersonalToken, Grants: []authctx.Action{authctx.InstanceRead}}
+	narrow := authctx.WithIdentity(context.Background(), id)
+	if !has(narrow, accessv1.Permission_PERMISSION_INSTANCE_READ) ||
+		has(narrow, accessv1.Permission_PERMISSION_PROFILE_MANAGE) || has(narrow, accessv1.Permission_PERMISSION_ACCOUNT_SECURITY) {
+		t.Error("a token lists only what it was granted, and never account.security")
 	}
 }
 

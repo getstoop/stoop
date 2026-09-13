@@ -170,6 +170,52 @@ func requireChannelAction(ctx context.Context, channel dbgen.Channel, inSpace, i
 	return nil
 }
 
+// memberActor is a member whose membership role is already known, with the
+// admin an instance admin inherits.
+func memberActor(role Role, instanceAdmin bool) actor {
+	a := actor{role: role, member: true, instanceAdmin: instanceAdmin}
+	if instanceAdmin && !a.role.atLeast(RoleAdmin) {
+		a.role = RoleAdmin
+	}
+	return a
+}
+
+// spacePermissions is every space action the viewer holds in a space and
+// cred covers there: Space.my_permissions.
+func spacePermissions(viewer actor, space dbgen.Space, cred authctx.Credential) []authctx.Action {
+	if !viewer.member && !viewer.instanceAdmin {
+		return nil
+	}
+	var out []authctx.Action
+	for _, a := range authctx.AllActions() {
+		if _, isSpaceAction := minRole[a]; isSpaceAction &&
+			allowed(viewer, a, space.MembersCanInvite) && cred.Covers(a) && cred.Reaches(space.ID, "") {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+func callerCredential(ctx context.Context) authctx.Credential {
+	id, _ := authctx.From(ctx)
+	return id.Credential
+}
+
+// isInstanceAdmin asks the directory about another user. A failed lookup
+// reads as false, which can only withhold.
+func (s *Service) isInstanceAdmin(ctx context.Context, userID string) bool {
+	records, err := s.users.GetUsers(ctx, []string{userID})
+	if err != nil {
+		return false
+	}
+	for _, r := range records {
+		if r.ID == userID {
+			return r.InstanceAdmin
+		}
+	}
+	return false
+}
+
 // grantableRole validates the role an invite may confer: member or admin,
 // never above the granting actor's own effective role.
 func grantableRole(a actor, requested Role) error {

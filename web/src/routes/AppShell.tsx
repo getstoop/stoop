@@ -16,6 +16,7 @@ import {
   useActivity,
   useInstanceStatus,
   useMe,
+  useMyPermissions,
   useSpaces,
 } from "../api/queries";
 import { presenceClass } from "../api/status";
@@ -32,7 +33,7 @@ import { closeDrawerOnLink } from "../components/MenuButton";
 import { NavBackdrop } from "../components/NavBackdrop";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { Tooltip } from "../components/Tooltip";
-import { InstanceRole } from "../gen/stoop/auth/v1/auth_pb";
+import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { SpaceCreationPolicy } from "../gen/stoop/instance/v1/instance_pb";
 import { useConnectionStore } from "../stores/connection";
 import { notice, prompt } from "../stores/dialogs";
@@ -86,6 +87,7 @@ function SpaceRail() {
   const queryClient = useQueryClient();
   const { data: spaces } = useSpaces();
   const { data: me } = useMe();
+  const { data: permissions } = useMyPermissions();
   const { data: activity } = useActivity();
   const { bySpace: unreadBySpace } = unreadCounts(activity);
   // Direct messages: a dot for anything unread, a badge counting the
@@ -97,7 +99,7 @@ function SpaceRail() {
   const dmAlerts = dmUnreadTotal(dms);
   const { data: instanceStatus } = useInstanceStatus();
   const canCreateSpace =
-    me?.role === InstanceRole.ADMIN ||
+    !!permissions?.includes(Permission.SPACES_CREATE) ||
     instanceStatus?.spaceCreation === SpaceCreationPolicy.EVERYONE;
   const { spaceId } = useParams({ strict: false }) as { spaceId?: string };
   const status = useConnectionStore((s) => s.status);
@@ -230,7 +232,7 @@ function SpaceRail() {
             <span className="pill-dot" title="Unread activity" />
           )}
         </Link>
-        {me?.role === InstanceRole.ADMIN && (
+        {permissions?.includes(Permission.INSTANCE_READ) && (
           <Link
             to="/admin"
             className="space-pill add"

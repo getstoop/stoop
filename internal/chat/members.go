@@ -112,8 +112,10 @@ func (s *Service) AddMember(ctx context.Context, req *connect.Request[chatv1.Add
 		}
 		return nil, fmt.Errorf("add member: %w", err)
 	}
-	s.publishSpaceJoined(req.Msg.UserId, space, RoleMember)
-	return connect.NewResponse(&chatv1.AddMemberResponse{Space: toProtoSpace(space, RoleMember)}), nil
+	// The space as the added person sees it.
+	added := memberActor(RoleMember, s.isInstanceAdmin(ctx, req.Msg.UserId))
+	s.publishSpaceJoined(req.Msg.UserId, space, added)
+	return connect.NewResponse(&chatv1.AddMemberResponse{Space: toProtoSpace(space, added, authctx.Credential{})}), nil
 }
 
 func (s *Service) KickMember(ctx context.Context, req *connect.Request[chatv1.KickMemberRequest]) (*connect.Response[chatv1.KickMemberResponse], error) {

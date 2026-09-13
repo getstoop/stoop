@@ -7,6 +7,7 @@
 package authv1
 
 import (
+	v1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -541,8 +542,12 @@ func (*GetMeRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetMeResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	User  *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	// The caller's actions on the instance and on their own account, already
+	// narrowed to the credential they called with. Space actions arrive on
+	// each Space as my_permissions.
+	Permissions   []v1.Permission `protobuf:"varint,2,rep,packed,name=permissions,proto3,enum=stoop.access.v1.Permission" json:"permissions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -580,6 +585,13 @@ func (*GetMeResponse) Descriptor() ([]byte, []int) {
 func (x *GetMeResponse) GetUser() *User {
 	if x != nil {
 		return x.User
+	}
+	return nil
+}
+
+func (x *GetMeResponse) GetPermissions() []v1.Permission {
+	if x != nil {
+		return x.Permissions
 	}
 	return nil
 }
@@ -1194,7 +1206,7 @@ var File_stoop_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x18stoop/auth/v1/auth.proto\x12\rstoop.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8c\x03\n" +
+	"\x18stoop/auth/v1/auth.proto\x12\rstoop.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\x8c\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -1225,9 +1237,10 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\x05token\x18\x02 \x01(\tR\x05token\"\x0f\n" +
 	"\rLogoutRequest\"\x10\n" +
 	"\x0eLogoutResponse\"\x0e\n" +
-	"\fGetMeRequest\"8\n" +
+	"\fGetMeRequest\"w\n" +
 	"\rGetMeResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.stoop.auth.v1.UserR\x04user\"\xb4\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.stoop.auth.v1.UserR\x04user\x12=\n" +
+	"\vpermissions\x18\x02 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\"\xb4\x01\n" +
 	"\x14UpdateProfileRequest\x12!\n" +
 	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1f\n" +
 	"\busername\x18\x02 \x01(\tH\x00R\busername\x88\x01\x01\x12\x1f\n" +
@@ -1320,6 +1333,7 @@ var file_stoop_auth_v1_auth_proto_goTypes = []any{
 	(*UnlinkIdentityRequest)(nil),  // 20: stoop.auth.v1.UnlinkIdentityRequest
 	(*UnlinkIdentityResponse)(nil), // 21: stoop.auth.v1.UnlinkIdentityResponse
 	(*timestamppb.Timestamp)(nil),  // 22: google.protobuf.Timestamp
+	(v1.Permission)(0),             // 23: stoop.access.v1.Permission
 }
 var file_stoop_auth_v1_auth_proto_depIdxs = []int32{
 	22, // 0: stoop.auth.v1.User.created_at:type_name -> google.protobuf.Timestamp
@@ -1327,33 +1341,34 @@ var file_stoop_auth_v1_auth_proto_depIdxs = []int32{
 	1,  // 2: stoop.auth.v1.RegisterResponse.user:type_name -> stoop.auth.v1.User
 	1,  // 3: stoop.auth.v1.LoginResponse.user:type_name -> stoop.auth.v1.User
 	1,  // 4: stoop.auth.v1.GetMeResponse.user:type_name -> stoop.auth.v1.User
-	1,  // 5: stoop.auth.v1.UpdateProfileResponse.user:type_name -> stoop.auth.v1.User
-	12, // 6: stoop.auth.v1.GetUserProfileResponse.profile:type_name -> stoop.auth.v1.PublicProfile
-	22, // 7: stoop.auth.v1.Identity.created_at:type_name -> google.protobuf.Timestamp
-	17, // 8: stoop.auth.v1.ListIdentitiesResponse.identities:type_name -> stoop.auth.v1.Identity
-	2,  // 9: stoop.auth.v1.AuthService.Register:input_type -> stoop.auth.v1.RegisterRequest
-	4,  // 10: stoop.auth.v1.AuthService.Login:input_type -> stoop.auth.v1.LoginRequest
-	6,  // 11: stoop.auth.v1.AuthService.Logout:input_type -> stoop.auth.v1.LogoutRequest
-	8,  // 12: stoop.auth.v1.AuthService.GetMe:input_type -> stoop.auth.v1.GetMeRequest
-	10, // 13: stoop.auth.v1.AuthService.UpdateProfile:input_type -> stoop.auth.v1.UpdateProfileRequest
-	13, // 14: stoop.auth.v1.AuthService.GetUserProfile:input_type -> stoop.auth.v1.GetUserProfileRequest
-	15, // 15: stoop.auth.v1.AuthService.ChangePassword:input_type -> stoop.auth.v1.ChangePasswordRequest
-	18, // 16: stoop.auth.v1.AuthService.ListIdentities:input_type -> stoop.auth.v1.ListIdentitiesRequest
-	20, // 17: stoop.auth.v1.AuthService.UnlinkIdentity:input_type -> stoop.auth.v1.UnlinkIdentityRequest
-	3,  // 18: stoop.auth.v1.AuthService.Register:output_type -> stoop.auth.v1.RegisterResponse
-	5,  // 19: stoop.auth.v1.AuthService.Login:output_type -> stoop.auth.v1.LoginResponse
-	7,  // 20: stoop.auth.v1.AuthService.Logout:output_type -> stoop.auth.v1.LogoutResponse
-	9,  // 21: stoop.auth.v1.AuthService.GetMe:output_type -> stoop.auth.v1.GetMeResponse
-	11, // 22: stoop.auth.v1.AuthService.UpdateProfile:output_type -> stoop.auth.v1.UpdateProfileResponse
-	14, // 23: stoop.auth.v1.AuthService.GetUserProfile:output_type -> stoop.auth.v1.GetUserProfileResponse
-	16, // 24: stoop.auth.v1.AuthService.ChangePassword:output_type -> stoop.auth.v1.ChangePasswordResponse
-	19, // 25: stoop.auth.v1.AuthService.ListIdentities:output_type -> stoop.auth.v1.ListIdentitiesResponse
-	21, // 26: stoop.auth.v1.AuthService.UnlinkIdentity:output_type -> stoop.auth.v1.UnlinkIdentityResponse
-	18, // [18:27] is the sub-list for method output_type
-	9,  // [9:18] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	23, // 5: stoop.auth.v1.GetMeResponse.permissions:type_name -> stoop.access.v1.Permission
+	1,  // 6: stoop.auth.v1.UpdateProfileResponse.user:type_name -> stoop.auth.v1.User
+	12, // 7: stoop.auth.v1.GetUserProfileResponse.profile:type_name -> stoop.auth.v1.PublicProfile
+	22, // 8: stoop.auth.v1.Identity.created_at:type_name -> google.protobuf.Timestamp
+	17, // 9: stoop.auth.v1.ListIdentitiesResponse.identities:type_name -> stoop.auth.v1.Identity
+	2,  // 10: stoop.auth.v1.AuthService.Register:input_type -> stoop.auth.v1.RegisterRequest
+	4,  // 11: stoop.auth.v1.AuthService.Login:input_type -> stoop.auth.v1.LoginRequest
+	6,  // 12: stoop.auth.v1.AuthService.Logout:input_type -> stoop.auth.v1.LogoutRequest
+	8,  // 13: stoop.auth.v1.AuthService.GetMe:input_type -> stoop.auth.v1.GetMeRequest
+	10, // 14: stoop.auth.v1.AuthService.UpdateProfile:input_type -> stoop.auth.v1.UpdateProfileRequest
+	13, // 15: stoop.auth.v1.AuthService.GetUserProfile:input_type -> stoop.auth.v1.GetUserProfileRequest
+	15, // 16: stoop.auth.v1.AuthService.ChangePassword:input_type -> stoop.auth.v1.ChangePasswordRequest
+	18, // 17: stoop.auth.v1.AuthService.ListIdentities:input_type -> stoop.auth.v1.ListIdentitiesRequest
+	20, // 18: stoop.auth.v1.AuthService.UnlinkIdentity:input_type -> stoop.auth.v1.UnlinkIdentityRequest
+	3,  // 19: stoop.auth.v1.AuthService.Register:output_type -> stoop.auth.v1.RegisterResponse
+	5,  // 20: stoop.auth.v1.AuthService.Login:output_type -> stoop.auth.v1.LoginResponse
+	7,  // 21: stoop.auth.v1.AuthService.Logout:output_type -> stoop.auth.v1.LogoutResponse
+	9,  // 22: stoop.auth.v1.AuthService.GetMe:output_type -> stoop.auth.v1.GetMeResponse
+	11, // 23: stoop.auth.v1.AuthService.UpdateProfile:output_type -> stoop.auth.v1.UpdateProfileResponse
+	14, // 24: stoop.auth.v1.AuthService.GetUserProfile:output_type -> stoop.auth.v1.GetUserProfileResponse
+	16, // 25: stoop.auth.v1.AuthService.ChangePassword:output_type -> stoop.auth.v1.ChangePasswordResponse
+	19, // 26: stoop.auth.v1.AuthService.ListIdentities:output_type -> stoop.auth.v1.ListIdentitiesResponse
+	21, // 27: stoop.auth.v1.AuthService.UnlinkIdentity:output_type -> stoop.auth.v1.UnlinkIdentityResponse
+	19, // [19:28] is the sub-list for method output_type
+	10, // [10:19] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_stoop_auth_v1_auth_proto_init() }

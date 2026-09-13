@@ -185,7 +185,7 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	if wasDefault {
 		s.bus.Publish("space:"+cleared.ID, events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_SpaceUpdated{
-				SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(cleared, "")},
+				SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(cleared, actor{}, authctx.Credential{})},
 			},
 		}))
 	}

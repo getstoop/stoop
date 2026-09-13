@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -20,7 +21,22 @@ func (s *Service) GetMe(ctx context.Context, _ *connect.Request[authv1.GetMeRequ
 	if err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
-	return connect.NewResponse(&authv1.GetMeResponse{User: toProtoUser(user)}), nil
+	return connect.NewResponse(&authv1.GetMeResponse{
+		User: toProtoUser(user), Permissions: accesswire.ToProto(myActions(ctx)),
+	}), nil
+}
+
+// myActions is every instance and own-account action the caller may use
+// with the credential they called with. Members may also create spaces when
+// the instance allows it; that policy is chat's, and not reflected here.
+func myActions(ctx context.Context) []authctx.Action {
+	var out []authctx.Action
+	for _, a := range authctx.AllActions() {
+		if authctx.Allows(ctx, a) {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // GetUserProfile is one person's public face, for their profile card.

@@ -1,8 +1,8 @@
 import { Link, Navigate, useSearch } from "@tanstack/react-router";
-import { useMe } from "../../api/queries";
+import { useMe, useMyPermissions } from "../../api/queries";
 import { MenuButton } from "../../components/MenuButton";
 import { SettingsFrame } from "../../components/SettingsFrame";
-import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
+import { Permission } from "../../gen/stoop/access/v1/access_pb";
 import { AboutSection } from "./AboutSection";
 import { CleanupSection } from "./CleanupSection";
 import { LoginProvidersSection } from "./LoginProvidersSection";
@@ -29,12 +29,14 @@ const TABS: { key: Tab; label: string }[] = [
 
 export function AdminPage() {
   const { data: me } = useMe();
+  const { data: permissions } = useMyPermissions();
   const { tab } = useSearch({ strict: false }) as {
     tab?: Exclude<Tab, "server">;
   };
   const active: Tab = tab ?? "server";
   if (!me) return <div className="centered muted">Loading…</div>;
-  if (me.role !== InstanceRole.ADMIN) return <Navigate to="/" replace />;
+  if (!permissions?.includes(Permission.INSTANCE_READ))
+    return <Navigate to="/" replace />;
   return (
     <SettingsFrame
       label="Server admin sections"

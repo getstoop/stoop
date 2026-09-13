@@ -1,5 +1,7 @@
 package authctx
 
+import "slices"
+
 // Action is one entry in the closed vocabulary that roles hold and
 // credentials are granted. See docs/proposals/access-model.md.
 type Action string
@@ -75,6 +77,16 @@ var descriptions = map[Action]string{
 	DMsRead:           "read direct messages",
 	DMsPost:           "send direct messages",
 	AccountSecurity:   "change your password, linked accounts or tokens",
+}
+
+// AllActions is the whole vocabulary, sorted.
+func AllActions() []Action {
+	out := make([]Action, 0, len(descriptions))
+	for a := range descriptions {
+		out = append(out, a)
+	}
+	slices.Sort(out)
+	return out
 }
 
 // Describe is the action in words, for a refusal.

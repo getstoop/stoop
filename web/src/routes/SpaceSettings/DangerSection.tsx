@@ -3,8 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
+import { canDeleteSpace } from "../../api/permissions";
 import { useMe, useMembers } from "../../api/queries";
-import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { confirm, prompt } from "../../stores/dialogs";
 
@@ -80,10 +80,9 @@ export function DangerSection({ space }: { space: Space }) {
 
 // Instance admins may delete a space they don't own.
 export function InstanceAdminDelete({ space }: { space: Space }) {
-  const { data: me } = useMe();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  if (me?.role !== InstanceRole.ADMIN) return null;
+  if (!canDeleteSpace(space)) return null;
   return (
     <section className="card danger-zone">
       <h3>Server admin</h3>
