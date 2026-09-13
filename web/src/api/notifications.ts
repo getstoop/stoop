@@ -1,6 +1,6 @@
 import type { ActivityItem } from "../gen/stoop/chat/v1/activity_pb";
 import { activityVerb } from "./activity";
-import { isDesktop } from "./platform";
+import { isDesktop, shellNotifications } from "./platform";
 
 // Desktop banners: the browser's Notification API, and the rules for when
 // a banner is worth firing. The feed itself lives in activity.ts.
@@ -75,6 +75,10 @@ function showDesktopNotification(
   path: string,
 ) {
   if (desktopPermission() !== "granted") return;
+  // A shell holds several servers at once, so the switch that silences
+  // banners is the app's rather than any one page's. The permission is
+  // still granted; the app is choosing not to spend it.
+  if (!shellNotifications()) return;
   // The same tag replaces an earlier banner (a refreshed DM entry keeps
   // its id); renotify makes the replacement alert again where supported.
   const options: NotificationOptions & { renotify?: boolean } = {

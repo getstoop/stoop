@@ -1,5 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Link, useSearch } from "@tanstack/react-router";
+import { shellStatus } from "../../api/platform";
 import { useInstanceStatus, useMe } from "../../api/queries";
 import { useThemeStore } from "../../api/theme";
 import { SettingsFrame } from "../../components/SettingsFrame";
@@ -16,19 +17,26 @@ import { ProfileForm } from "./ProfileForm";
 import { ProfileHeader } from "./ProfileHeader";
 import { StatusSection } from "./StatusSection";
 
-// Your account, in four sections under one header: who other people see
+// Your account, in five sections under one header: who other people see
 // (Profile), how Stoop looks to you (Appearance), what is allowed to
-// interrupt you and how you appear while online (Notifications), and how
-// you get in and who you keep out (Security). Log out is the last entry
-// of the nav. Inside the desktop shell the theme is the shell's, chosen
-// in its App settings, so Appearance is not offered there.
+// interrupt you and how you appear while online (Notifications), what you
+// have silenced (Muted), and how you get in and who you keep out
+// (Security). Log out is the last entry of the nav.
+//
+// Two of them are the shell's inside the desktop app and are not offered
+// there: the theme, chosen in its App settings, and — from bridge 3 —
+// the status and the banner switch, which the shell keeps for every
+// server at once. Both are decided by what the bridge hands over, never
+// by "is this the desktop app", so an older shell keeps what it can
+// still set for itself.
 
-type Tab = "profile" | "appearance" | "notifications" | "security";
+type Tab = "profile" | "appearance" | "notifications" | "muted" | "security";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "profile", label: "Profile" },
   { key: "appearance", label: "Appearance" },
   { key: "notifications", label: "Notifications" },
+  { key: "muted", label: "Muted" },
   { key: "security", label: "Security" },
 ];
 
@@ -37,16 +45,26 @@ export function ProfilePage() {
   const { data: status } = useInstanceStatus();
   const shellTheme = useThemeStore((s) => s.shell);
   const search = useSearch({ strict: false }) as {
-    tab?: "appearance" | "notifications" | "security";
+    tab?: "appearance" | "notifications" | "muted" | "security";
     linked?: string;
     error?: string;
   };
-  const tabs = TABS.filter((t) => t.key !== "appearance" || !shellTheme);
+  // A shell that keeps the status keeps the banner switch with it, so
+  // both of the Notifications tab's rows are set in App settings and the
+  // tab itself would stand empty.
+  const shellOwnsStatus = shellStatus() !== undefined;
+  const tabs = TABS.filter(
+    (t) =>
+      (t.key !== "appearance" || !shellTheme) &&
+      (t.key !== "notifications" || !shellOwnsStatus),
+  );
   // A finished (or failed) provider link lands back here; it belongs to
   // Security, whichever tab the user left from.
   const asked: Tab =
     search.tab ?? (search.linked || search.error ? "security" : "profile");
-  const active: Tab = asked === "appearance" && shellTheme ? "profile" : asked;
+  // A link to a tab this host does not offer lands on Profile rather than
+  // on a heading with nothing under it.
+  const active: Tab = tabs.some((t) => t.key === asked) ? asked : "profile";
   if (!me) {
     return <div className="centered muted">Loading…</div>;
   }
@@ -92,14 +110,12 @@ export function ProfilePage() {
       {active === "profile" && <ProfileForm me={me} />}
       {active === "appearance" && <AppearanceSection />}
       {active === "notifications" && (
-        <>
-          <section className="card">
-            <StatusSection />
-            <NotificationsSection />
-          </section>
-          <MutesSection />
-        </>
+        <section className="card">
+          <StatusSection />
+          <NotificationsSection />
+        </section>
       )}
+      {active === "muted" && <MutesSection />}
       {active === "security" && (
         <>
           {passwordsAllowed && <PasswordForm hasPassword={me.hasPassword} />}

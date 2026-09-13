@@ -422,7 +422,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     "and so does the space pill",
   ).toHaveCount(1);
 
-  // ---- Profile → Notifications lists every mute (STOOP-136) ----
+  // ---- Profile → Muted lists every mute (STOOP-136, moved by STOOP-251) ----
 
   // A second space, so there is a channel mute that isn't under the muted
   // space; A lands in it, and its #general is the one muted.
@@ -469,12 +469,26 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     await expect(alike).toHaveCount(before - 1);
   };
 
-  await A.goto("/profile?tab=notifications");
+  await A.goto("/profile?tab=muted");
+
+  // Muted is a section of its own now. The two the desktop shell takes
+  // over are not the shell's here — this suite is a browser — so account
+  // settings must still offer all five, and the frame's own title does
+  // the section's heading for it.
+  await expect(
+    A.locator(".settings-tabs .settings-tab"),
+    "a browser is offered every section",
+  ).toHaveText(["Profile", "Appearance", "Notifications", "Muted", "Security"]);
+  await expect(
+    A.locator(".settings-title"),
+    "and the frame heads the page with the section's name",
+  ).toHaveText("Muted");
+
   await expect(muteRows, "three things are muted").toHaveCount(3);
   const listed = await muteLabels();
   expect(
     listed,
-    "the tab lists the space, the other space's channel and the DM",
+    "the section lists the space, the other space's channel and the DM",
   ).toEqual([
     "Stoop HQ",
     "Book club › # general",

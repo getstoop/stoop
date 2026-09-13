@@ -19,8 +19,14 @@ import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
 import { socketUrl } from "./origin";
 import { applyPinEvent } from "./pins";
+import { shellStatus } from "./platform";
 import { setReactions } from "./reactions";
-import { announceStatus, loadStatusPreference, startIdleWatch } from "./status";
+import {
+  announceStatus,
+  loadStatusPreference,
+  startIdleWatch,
+  startShellStatusWatch,
+} from "./status";
 import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
 import { leaveVoice, reportVoiceState } from "./voice";
 
@@ -90,13 +96,17 @@ export function startRealtime(queryClient: QueryClient): () => void {
     () => useConnectionStore.getState().expireTyping(),
     1000,
   );
-  const stopIdleWatch = startIdleWatch();
+  // Who decides the status: a shell that keeps one for every server it
+  // holds, or this page watching its own window for idleness.
+  const stopStatusWatch = shellStatus()
+    ? startShellStatusWatch()
+    : startIdleWatch();
 
   return () => {
     stopped = true;
     clearTimeout(reconnectTimer);
     clearInterval(sweep);
-    stopIdleWatch();
+    stopStatusWatch();
     ws?.close();
     liveSocket = null;
     useConnectionStore.getState().setStatus("disconnected");

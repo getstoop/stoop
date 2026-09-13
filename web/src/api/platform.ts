@@ -10,6 +10,11 @@ export const BRIDGE = 2;
 
 export type ShortcutName = "pushToTalk";
 
+// Bridge 3. How the shell names a status, so the contract does not
+// depend on the realtime protos the shell has no copy of. The page maps
+// them to PresenceStatus on the way in.
+export type PresenceChoice = "online" | "away" | "dnd";
+
 export interface StoopBridge {
   bridge: number;
   version: string;
@@ -26,6 +31,19 @@ export interface StoopBridge {
   // own choice as a browser does.
   theme?: ShellTheme;
   onTheme?(handler: (theme: ShellTheme) => void): () => void;
+  // Bridge 3. The status is the app's, not the server's: the shell keeps
+  // one choice and hands it to every server page it holds, so a person is
+  // away everywhere or nowhere. Optional for the same reason the theme
+  // is: a bridge-2 shell has neither, and the app then decides for
+  // itself as a browser does.
+  status?: PresenceChoice;
+  onStatus?(handler: (status: PresenceChoice) => void): () => void;
+  // Bridge 3. Whether App settings is letting desktop banners through —
+  // off there silences them for every server at once. A function rather
+  // than a value because the answer changes while the page is open and
+  // the bridge copies values across once, at load; it is asked at the
+  // moment a banner would fire.
+  notificationsAllowed?(): boolean;
 }
 
 // The shape of a theme, as the shell hands it over: no name, only what
@@ -71,4 +89,29 @@ export function shellTheme(): ShellTheme | undefined {
 
 export function onShellTheme(handler: (theme: ShellTheme) => void): () => void {
   return bridge()?.onTheme?.(handler) ?? (() => {});
+}
+
+// The status the shell is keeping for every server, or undefined when
+// nothing is keeping one — a browser, a PWA, or a shell older than
+// bridge 3. Whoever gets undefined owns the choice themselves, so this
+// is also what decides whether the page offers a status control at all.
+export function shellStatus(): PresenceChoice | undefined {
+  const status = bridge()?.status;
+  return status === "online" || status === "away" || status === "dnd"
+    ? status
+    : undefined;
+}
+
+export function onShellStatus(
+  handler: (status: PresenceChoice) => void,
+): () => void {
+  return bridge()?.onStatus?.(handler) ?? (() => {});
+}
+
+// Whether the shell is letting desktop banners through, right now. True
+// everywhere that cannot say: a browser answers for itself through the
+// Notification permission, and a shell too old to have the switch is not
+// saying no.
+export function shellNotifications(): boolean {
+  return bridge()?.notificationsAllowed?.() ?? true;
 }
