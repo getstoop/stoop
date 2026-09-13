@@ -38,49 +38,25 @@ func (r Role) rank() int {
 
 func (r Role) atLeast(o Role) bool { return r.rank() >= o.rank() }
 
-// Permission names one management capability. Reading, sending messages,
-// and joining voice need only membership and are not permissions.
-type Permission string
-
-const (
-	PermCreateInvites     Permission = "create_invites"
-	PermManageInvites     Permission = "manage_invites"
-	PermManageChannels    Permission = "manage_channels"
-	PermManageMembers     Permission = "manage_members"
-	PermManageSpace       Permission = "manage_space"
-	PermTransferOwnership Permission = "transfer_ownership"
-	PermDeleteSpace       Permission = "delete_space"
-	PermMentionEveryone   Permission = "mention_everyone"
-	// PermDeleteAnyMessage is held by whoever can manage channels.
-	PermDeleteAnyMessage Permission = "delete_any_message"
-)
-
 // minRole is the fixed permission table: the least space role that holds
-// each permission. Two exceptions live in allowed(): members get
-// create_invites when the space opts in, and instance admins get
-// delete_space.
-var minRole = map[Permission]Role{
-	PermCreateInvites:     RoleAdmin,
-	PermManageInvites:     RoleAdmin,
-	PermManageChannels:    RoleAdmin,
-	PermManageMembers:     RoleAdmin,
-	PermManageSpace:       RoleAdmin,
-	PermTransferOwnership: RoleOwner,
-	PermDeleteSpace:       RoleOwner,
-	PermMentionEveryone:   RoleAdmin,
-	PermDeleteAnyMessage:  RoleAdmin,
-}
-
-var permDescription = map[Permission]string{
-	PermCreateInvites:     "create invites for this space",
-	PermManageInvites:     "revoke other people's invites",
-	PermManageChannels:    "manage channels in this space",
-	PermManageMembers:     "manage members of this space",
-	PermManageSpace:       "change this space's settings",
-	PermTransferOwnership: "transfer ownership of this space",
-	PermDeleteSpace:       "delete this space",
-	PermMentionEveryone:   "mention everyone in this space",
-	PermDeleteAnyMessage:  "delete other people's messages",
+// each space action. Two exceptions live in allowed(): members get
+// invites.create when the space opts in, and instance admins get
+// space.delete. Reading, posting and voice are actions only so that a
+// credential can withhold them.
+var minRole = map[authctx.Action]Role{
+	authctx.SpaceRead:              RoleMember,
+	authctx.MessagesRead:           RoleMember,
+	authctx.MessagesPost:           RoleMember,
+	authctx.VoiceJoin:              RoleMember,
+	authctx.InvitesCreate:          RoleAdmin,
+	authctx.InvitesManage:          RoleAdmin,
+	authctx.ChannelsManage:         RoleAdmin,
+	authctx.MembersManage:          RoleAdmin,
+	authctx.SpaceManage:            RoleAdmin,
+	authctx.MessagesNotifyEveryone: RoleAdmin,
+	authctx.MessagesModerate:       RoleAdmin,
+	authctx.SpaceTransfer:          RoleOwner,
+	authctx.SpaceDelete:            RoleOwner,
 }
 
 // actor is the caller as seen by a specific space.
@@ -94,12 +70,12 @@ type actor struct {
 	instanceAdmin bool
 }
 
-// allowed is the permission check, pure so it can be tested as a table.
-func allowed(a actor, perm Permission, membersCanInvite bool) bool {
-	if perm == PermCreateInvites && a.member && membersCanInvite {
+// allowed is the identity gate, pure so it can be tested as a table.
+func allowed(a actor, perm authctx.Action, membersCanInvite bool) bool {
+	if perm == authctx.InvitesCreate && a.member && membersCanInvite {
 		return true
 	}
-	if perm == PermDeleteSpace && a.instanceAdmin {
+	if perm == authctx.SpaceDelete && a.instanceAdmin {
 		return true
 	}
 	min, ok := minRole[perm]
@@ -113,6 +89,7 @@ func (s *Service) actorFor(ctx context.Context, spaceID string) (actor, error) {
 
 // actorForUser describes any user's standing in a space; instanceAdmin
 // must be supplied by the caller (from the identity, or the directory).
+// This is the one place instance admins inherit admin in a space.
 func (s *Service) actorForUser(ctx context.Context, spaceID, userID string, instanceAdmin bool) (actor, error) {
 	a := actor{instanceAdmin: instanceAdmin}
 	role, err := s.q.GetSpaceMemberRole(ctx, dbgen.GetSpaceMemberRoleParams{
@@ -131,10 +108,13 @@ func (s *Service) actorForUser(ctx context.Context, spaceID, userID string, inst
 	return a, nil
 }
 
-// requirePermission is the single enforcement point for every management
-// RPC. Non-members (other than instance admins) are refused before the
-// permission is even considered.
-func (s *Service) requirePermission(ctx context.Context, spaceID string, perm Permission) error {
+// requirePermission is the single enforcement point for actions on a space.
+// The credential is checked first, before anything is read; non-members
+// (other than instance admins) are refused before the role is considered.
+func (s *Service) requirePermission(ctx context.Context, spaceID string, perm authctx.Action) error {
+	if !authctx.Covers(ctx, perm) {
+		return connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(perm))
+	}
 	a, err := s.actorFor(ctx, spaceID)
 	if err != nil {
 		return err
@@ -146,7 +126,7 @@ func (s *Service) requirePermission(ctx context.Context, spaceID string, perm Pe
 
 	// Only members below admin need the space's opt-in flag consulted.
 	membersCanInvite := false
-	if perm == PermCreateInvites && a.member && !a.role.atLeast(RoleAdmin) {
+	if perm == authctx.InvitesCreate && a.member && !a.role.atLeast(RoleAdmin) {
 		space, err := s.q.GetSpace(ctx, spaceID)
 		if err != nil {
 			return notFoundOr(err, "space")
@@ -156,7 +136,36 @@ func (s *Service) requirePermission(ctx context.Context, spaceID string, perm Pe
 
 	if !allowed(a, perm, membersCanInvite) {
 		return connect.NewError(connect.CodePermissionDenied,
-			fmt.Errorf("you don't have permission to %s", permDescription[perm]))
+			fmt.Errorf("you don't have permission to %s", perm.Describe()))
+	}
+	return nil
+}
+
+// MayReadSpace reports whether the caller in ctx may read a space's
+// messages. Exposed for the files module's download check.
+func (s *Service) MayReadSpace(ctx context.Context, spaceID string) (bool, error) {
+	err := s.requirePermission(ctx, spaceID, authctx.MessagesRead)
+	var cerr *connect.Error
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.As(err, &cerr) && cerr.Code() == connect.CodePermissionDenied:
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+// requireChannelAction is the credential gate for acting in a channel: a
+// space action in a space channel, a DM action in a direct message.
+// Membership is checked separately.
+func requireChannelAction(ctx context.Context, channel dbgen.Channel, inSpace, inDM authctx.Action) error {
+	a := inSpace
+	if isDM(channel) {
+		a = inDM
+	}
+	if !authctx.Covers(ctx, a) {
+		return connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(a))
 	}
 	return nil
 }

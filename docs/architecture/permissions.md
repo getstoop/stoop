@@ -1,6 +1,14 @@
 # Permissions
 
-Two independent axes, each owned by the module that owns its table:
+A request is allowed when **the identity holds the action on the resource
+and the credential it was made with covers that action**. This page is the
+identity half. Actions come from one closed vocabulary in
+`internal/authctx/actions.go`; credentials, and why a session covers
+everything while a token covers a list, are in
+[the access model proposal](../proposals/access-model.md).
+
+Identity has two independent axes, each owned by the module that owns its
+table:
 
 - **Instance user type** — `users.role`, owned by auth. Who operates the
   server.
@@ -107,44 +115,52 @@ CREATE UNIQUE INDEX space_members_one_owner_idx
 Ownership is transferable, and the owner cannot leave without transferring
 — a space with no owner has no one who can delete it.
 
-| Permission | owner | admin | member |
-| ---------- | :---: | :---: | :----: |
-| read, send messages, join voice | ✓ | ✓ | ✓ |
-| `create_invites` | ✓ | ✓ | if `spaces.members_can_invite` (default off) |
-| `manage_invites` (revoke anyone's) | ✓ | ✓ | |
-| `manage_channels` (create, rename, set topic, delete, reorder) | ✓ | ✓ | |
-| `manage_members` (kick, ban, set role ≤ admin) | ✓ | ✓ | |
-| `manage_space` (name, icon, description, welcome, settings) | ✓ | ✓ | |
-| `mention_everyone` (`@everyone`, `@here`) | ✓ | ✓ | |
-| `delete_any_message` (own messages always) | ✓ | ✓ | |
-| `transfer_ownership`, `delete_space` | ✓ | | |
+| Action | owner | admin | member |
+| ------ | :---: | :---: | :----: |
+| `space.read`, `messages.read`, `messages.post`, `voice.join` | ✓ | ✓ | ✓ |
+| `invites.create` | ✓ | ✓ | if `spaces.members_can_invite` (default off) |
+| `invites.manage` (revoke anyone's) | ✓ | ✓ | |
+| `channels.manage` (create, rename, set topic, delete, reorder, pin) | ✓ | ✓ | |
+| `members.manage` (kick, ban, set role ≤ admin) | ✓ | ✓ | |
+| `space.manage` (name, icon, description, welcome, settings) | ✓ | ✓ | |
+| `messages.notify_everyone` (`@everyone`, `@here`) | ✓ | ✓ | |
+| `messages.moderate` (delete others' messages; own always) | ✓ | ✓ | |
+| `space.transfer`, `space.delete` | ✓ | | |
 
-Note what is *not* in that table: reading, sending, and joining voice.
-Those need membership and nothing else, and are deliberately not modelled
-as permissions — making them permissions would invite per-channel
+Reading, posting and joining voice need membership and nothing else. They
+are actions only so that a *credential* can withhold them — a read-only
+token — and never so that a role can. There are still no per-channel
 overrides, which is precisely the complexity being avoided.
 
 ### Enforcement
 
-One helper, `requirePermission(ctx, spaceID, perm)` in
+One helper, `requirePermission(ctx, spaceID, action)` in
 `internal/chat/permissions.go`, used by every management RPC in place of a
 bare membership check. It:
 
-1. Resolves the caller's **effective role**: the greater of their
+1. Refuses when the **credential** doesn't cover the action, before
+   anything is read, with "this token isn't allowed to …".
+2. Resolves the caller's **effective role**: the greater of their
    `space_members.role` and the `admin` inherited from an instance-admin
    identity. The instance-admin flag is read from `authctx.Identity`, so
    **chat never imports auth**.
-2. Refuses non-members who are not instance admins before the permission is
+3. Refuses non-members who are not instance admins before the permission is
    even considered.
-3. Consults `spaces.members_can_invite` only when it could matter — a
-   member below admin asking for `create_invites` — so the common path is
+4. Consults `spaces.members_can_invite` only when it could matter — a
+   member below admin asking for `invites.create` — so the common path is
    one query, not two.
-4. Answers with a `PermissionDenied` whose message names the action in
+5. Answers with a `PermissionDenied` whose message names the action in
    words ("you don't have permission to revoke other people's invites").
 
-The check itself, `allowed(actor, perm, membersCanInvite)`, is a pure
+The check itself, `allowed(actor, action, membersCanInvite)`, is a pure
 function over a table, which is what lets it be tested exhaustively rather
 than through the RPCs.
+
+Instance actions have the same two gates without a table lookup:
+`authctx.Allows` checks the instance role and the credential, and the
+instance and files modules wrap it as `requireAction`. Inheritance lives in
+chat's `actorFor` alone — the file download handler asks chat
+(`MayReadSpace`) rather than reading the instance role itself.
 
 `Space` carries the caller's effective `my_role`, so the UI hides controls
 someone can't use rather than showing them and failing. The server still

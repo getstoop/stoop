@@ -72,6 +72,9 @@ func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.
 	if err != nil {
 		return dbgen.Channel{}, err
 	}
+	if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
+		return dbgen.Channel{}, err
+	}
 	if isDM(channel) {
 		blocked, err := s.dmBlocked(ctx, channel, authctx.UserID(ctx))
 		if err != nil {
@@ -207,7 +210,7 @@ func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]str
 	}
 	// Eligibility before existence: someone you don't share a space with
 	// is "not reachable" whether or not the id is real.
-	if !authctx.IsAdmin(ctx) {
+	if !authctx.Allows(ctx, authctx.DMsReachAnyone) {
 		reachable, err := s.q.SharesSpaceAmong(ctx, dbgen.SharesSpaceAmongParams{UserID: me, Ids: out})
 		if err != nil {
 			return nil, fmt.Errorf("check shared spaces: %w", err)

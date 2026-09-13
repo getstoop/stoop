@@ -58,7 +58,9 @@ type Spaces interface {
 	// SetSpaceIcon points the space at fileID ("" clears), announces the
 	// change to members, and returns the id it replaced ("" if none).
 	SetSpaceIcon(ctx context.Context, spaceID, fileID string) (previous string, err error)
-	IsSpaceMember(ctx context.Context, userID, spaceID string) (bool, error)
+	// MayReadSpace reports whether the caller in ctx may read the space's
+	// messages, and so its icon and attachments.
+	MayReadSpace(ctx context.Context, spaceID string) (bool, error)
 	// ListSpaceIDs is used to tell a user's spaces about a new avatar.
 	ListSpaceIDs(ctx context.Context, userID string) ([]string, error)
 	// ChannelSpaceForMember returns the channel's space id ("" for a

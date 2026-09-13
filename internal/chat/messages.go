@@ -158,6 +158,9 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	if err != nil {
 		return nil, err
 	}
+	if err := requireChannelAction(ctx, channel, authctx.MessagesRead, authctx.DMsRead); err != nil {
+		return nil, err
+	}
 
 	limit := req.Msg.Limit
 	if limit <= 0 {
@@ -379,7 +382,7 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 			return nil, connect.NewError(connect.CodePermissionDenied,
 				errors.New("you can only delete your own messages"))
 		}
-		if err := s.requirePermission(ctx, *channel.SpaceID, PermDeleteAnyMessage); err != nil {
+		if err := s.requirePermission(ctx, *channel.SpaceID, authctx.MessagesModerate); err != nil {
 			return nil, err
 		}
 	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {

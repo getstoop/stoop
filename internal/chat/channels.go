@@ -19,7 +19,7 @@ import (
 )
 
 func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1.CreateChannelRequest]) (*connect.Response[chatv1.CreateChannelResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageChannels); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.ChannelsManage); err != nil {
 		return nil, err
 	}
 	name := req.Msg.Name
@@ -193,7 +193,7 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 }
 
 func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chatv1.ReorderChannelsRequest]) (*connect.Response[chatv1.ReorderChannelsResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageChannels); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.ChannelsManage); err != nil {
 		return nil, err
 	}
 	rows, err := s.q.ListChannelsBySpace(ctx, dbgen.ListChannelsBySpaceParams{
@@ -298,7 +298,7 @@ func (s *Service) spaceChannelToManage(ctx context.Context, channelID string) (d
 		return dbgen.Channel{}, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("direct messages can't be managed"))
 	}
-	if err := s.requirePermission(ctx, *channel.SpaceID, PermManageChannels); err != nil {
+	if err := s.requirePermission(ctx, *channel.SpaceID, authctx.ChannelsManage); err != nil {
 		return dbgen.Channel{}, err
 	}
 	return channel, nil

@@ -106,6 +106,7 @@ func (s *Service) VerifyToken(ctx context.Context, token string) (authctx.Identi
 	}
 	return authctx.Identity{
 		UserID: sess.UserID, SessionID: sess.ID, Role: authctx.Role(sess.UserRole),
+		Credential: authctx.Credential{ID: sess.ID, Kind: authctx.CredentialSession},
 	}, nil
 }
 

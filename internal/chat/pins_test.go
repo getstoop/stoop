@@ -114,7 +114,7 @@ func TestPins(t *testing.T) {
 		t.Fatalf("expected [address rules], got %v", pinIDs(pins))
 	}
 
-	// A member without manage_channels can read but not pin.
+	// A member without channels.manage can read but not pin.
 	third := send(bea, "map seed?")
 	if _, err := setPinned(bea, third, true); code(err) != connect.CodePermissionDenied {
 		t.Errorf("member pinning: want PermissionDenied, got %v", err)

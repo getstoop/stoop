@@ -106,8 +106,8 @@ func (s *Service) ListSpaceIDs(ctx context.Context, userID string) ([]string, er
 	return s.q.ListSpaceIDsByUser(ctx, userID)
 }
 
-// IsSpaceMember reports whether a user belongs to the space. Exposed for
-// the files module's authorisation port (space icons are members-only).
+// IsSpaceMember reports whether a user belongs to the space. It says
+// nothing about what they may do there; for that, MayReadSpace.
 func (s *Service) IsSpaceMember(ctx context.Context, userID, spaceID string) (bool, error) {
 	return s.q.IsSpaceMember(ctx, dbgen.IsSpaceMemberParams{SpaceID: spaceID, UserID: userID})
 }

@@ -90,8 +90,8 @@ func (f *fakeSpaces) SetSpaceIcon(_ context.Context, _ string, fileID string) (s
 	f.icon = fileID
 	return prev, nil
 }
-func (f *fakeSpaces) IsSpaceMember(_ context.Context, userID, _ string) (bool, error) {
-	return f.members[userID], nil
+func (f *fakeSpaces) MayReadSpace(ctx context.Context, _ string) (bool, error) {
+	return f.members[authctx.UserID(ctx)] || authctx.IsAdmin(ctx), nil
 }
 func (f *fakeSpaces) ListSpaceIDs(context.Context, string) ([]string, error) {
 	return []string{f.spaceID}, nil

@@ -114,7 +114,7 @@ func (s *Service) serveBlob(w http.ResponseWriter, r *http.Request, f dbgen.File
 
 // mayDownload is the per-kind authorisation rule. Avatars are visible to
 // every signed-in user (they appear wherever a name does); space icons
-// and message attachments to the space's members and instance admins. An
+// and message attachments to whoever chat says may read the space. An
 // attachment with no space belongs to a direct message: its uploader and
 // the people in the conversation, and nobody else — not even an admin.
 func (s *Service) mayDownload(ctx context.Context, id authctx.Identity, f dbgen.File) (bool, error) {
@@ -131,10 +131,7 @@ func (s *Service) mayDownload(ctx context.Context, id authctx.Identity, f dbgen.
 			}
 			return s.spaces.IsAttachmentReadable(ctx, id.UserID, f.ID)
 		}
-		if id.Role == authctx.RoleAdmin {
-			return true, nil
-		}
-		return s.spaces.IsSpaceMember(ctx, id.UserID, *f.SpaceID)
+		return s.spaces.MayReadSpace(authctx.WithIdentity(ctx, id), *f.SpaceID)
 	default:
 		return false, nil
 	}

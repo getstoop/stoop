@@ -75,13 +75,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 
 	authSvc := auth.New(pool, auth.Options{
 		SecureCookies: cfg.SecureCookies,
-		// Procedures other modules expose without a session.
-		PublicProcedures: []string{
-			instancev1connect.InstanceServiceGetInstanceStatusProcedure,
-			// An invited stranger sees the space behind their code before
-			// they have an account to see it with.
-			chatv1connect.ChatServiceLookupInviteProcedure,
-		},
+		Procedures:    procedures,
 	})
 	instanceSvc := instance.New(pool, userAdmin{authSvc})
 	if err := instanceSvc.Seed(ctx, instance.Defaults{

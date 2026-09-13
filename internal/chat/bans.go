@@ -16,7 +16,7 @@ import (
 
 // Bans. A kick only removes; a banned account is also refused by every
 // way back in — an invite, or JoinSpace by id for an instance admin —
-// until someone with manage_members unbans them. The banned person gets
+// until someone with members.manage unbans them. The banned person gets
 // a plain "removed and can't rejoin"; the reason is for admins.
 
 var errBanned = connect.NewError(connect.CodePermissionDenied,
@@ -39,7 +39,7 @@ func (s *Service) BanMember(ctx context.Context, req *connect.Request[chatv1.Ban
 	if req.Msg.UserId == me {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("you can't ban yourself"))
 	}
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageMembers); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.MembersManage); err != nil {
 		return nil, err
 	}
 	a, err := s.actorFor(ctx, req.Msg.SpaceId)
@@ -88,7 +88,7 @@ func (s *Service) BanMember(ctx context.Context, req *connect.Request[chatv1.Ban
 }
 
 func (s *Service) UnbanMember(ctx context.Context, req *connect.Request[chatv1.UnbanMemberRequest]) (*connect.Response[chatv1.UnbanMemberResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageMembers); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.MembersManage); err != nil {
 		return nil, err
 	}
 	n, err := s.q.UnbanUser(ctx, dbgen.UnbanUserParams{SpaceID: req.Msg.SpaceId, UserID: req.Msg.UserId})
@@ -102,7 +102,7 @@ func (s *Service) UnbanMember(ctx context.Context, req *connect.Request[chatv1.U
 }
 
 func (s *Service) ListBans(ctx context.Context, req *connect.Request[chatv1.ListBansRequest]) (*connect.Response[chatv1.ListBansResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageMembers); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.MembersManage); err != nil {
 		return nil, err
 	}
 	rows, err := s.q.ListBans(ctx, req.Msg.SpaceId)

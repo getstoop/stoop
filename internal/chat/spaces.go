@@ -19,7 +19,7 @@ import (
 
 func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.CreateSpaceRequest]) (*connect.Response[chatv1.CreateSpaceResponse], error) {
 	userID := authctx.UserID(ctx)
-	if !authctx.IsAdmin(ctx) && s.policy != nil {
+	if !authctx.Allows(ctx, authctx.SpacesCreate) && s.policy != nil {
 		ok, err := s.policy.MembersMayCreateSpaces(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("check space creation policy: %w", err)
@@ -146,10 +146,10 @@ func toProtoSpace(s dbgen.Space, myRole Role) *chatv1.Space {
 }
 
 // RequireManageSpace is the files module's pre-flight check before it
-// processes an icon upload: the caller must hold manage_space here. The
+// processes an icon upload: the caller must hold space.manage here. The
 // error is already a Connect error when it is a permission problem.
 func (s *Service) RequireManageSpace(ctx context.Context, spaceID string) error {
-	return s.requirePermission(ctx, spaceID, PermManageSpace)
+	return s.requirePermission(ctx, spaceID, authctx.SpaceManage)
 }
 
 // SetSpaceIcon points a space at a new icon file (or clears it with "")
@@ -157,7 +157,7 @@ func (s *Service) RequireManageSpace(ctx context.Context, spaceID string) error 
 // module's port, which owns the file rows and deletes the old one after
 // this returns. Members hear about it as SpaceUpdated.
 func (s *Service) SetSpaceIcon(ctx context.Context, spaceID, fileID string) (previous string, err error) {
-	if err := s.requirePermission(ctx, spaceID, PermManageSpace); err != nil {
+	if err := s.requirePermission(ctx, spaceID, authctx.SpaceManage); err != nil {
 		return "", err
 	}
 	tx, err := s.pool.Begin(ctx)
@@ -196,7 +196,7 @@ func (s *Service) SetSpaceIcon(ctx context.Context, spaceID, fileID string) (pre
 }
 
 func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.UpdateSpaceRequest]) (*connect.Response[chatv1.UpdateSpaceResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermManageSpace); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.SpaceManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.Name != nil {
@@ -264,7 +264,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 }
 
 func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[chatv1.TransferOwnershipRequest]) (*connect.Response[chatv1.TransferOwnershipResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermTransferOwnership); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.SpaceTransfer); err != nil {
 		return nil, err
 	}
 	userID := authctx.UserID(ctx)
@@ -311,7 +311,7 @@ func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[ch
 }
 
 func (s *Service) DeleteSpace(ctx context.Context, req *connect.Request[chatv1.DeleteSpaceRequest]) (*connect.Response[chatv1.DeleteSpaceResponse], error) {
-	if err := s.requirePermission(ctx, req.Msg.SpaceId, PermDeleteSpace); err != nil {
+	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.SpaceDelete); err != nil {
 		return nil, err
 	}
 	// Read before the delete cascades the channels away.
