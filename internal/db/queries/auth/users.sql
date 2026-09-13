@@ -71,8 +71,10 @@ UPDATE users SET password_hash = $2 WHERE id = $1;
 -- name: ListUsers :many
 SELECT * FROM users ORDER BY created_at;
 
+-- CountAdmins counts people: a bot admin can't be the one left to recover
+-- the instance.
 -- name: CountAdmins :one
-SELECT count(*) FROM users WHERE role = 'admin' AND deactivated_at IS NULL;
+SELECT count(*) FROM users WHERE role = 'admin' AND kind = 'person' AND deactivated_at IS NULL;
 
 -- name: SetUserRole :one
 UPDATE users SET role = $2 WHERE id = $1 RETURNING *;

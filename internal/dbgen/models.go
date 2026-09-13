@@ -52,6 +52,26 @@ type ChannelRead struct {
 	UpdatedAt         time.Time
 }
 
+type Credential struct {
+	ID         string
+	HolderID   string
+	Kind       string
+	TokenHash  []byte
+	Name       string
+	Grants     []string
+	Bounded    bool
+	CreatedBy  *string
+	CreatedAt  time.Time
+	ExpiresAt  *time.Time
+	LastUsedAt *time.Time
+}
+
+type CredentialBound struct {
+	CredentialID string
+	SpaceID      *string
+	ChannelID    *string
+}
+
 type DmMember struct {
 	ChannelID string
 	UserID    string
@@ -196,6 +216,7 @@ type User struct {
 	UsernameFrozen  bool
 	Pronouns        string
 	Bio             string
+	Kind            string
 }
 
 type UserBlock struct {

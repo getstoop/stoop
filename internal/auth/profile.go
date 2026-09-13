@@ -135,7 +135,7 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 	// Anyone holding an old session (a stolen cookie, a forgotten laptop)
 	// is signed out; the caller's own session stays valid.
 	if err := s.q.DeleteOtherSessions(ctx, dbgen.DeleteOtherSessionsParams{
-		UserID: id.UserID, ID: id.SessionID,
+		HolderID: id.UserID, ID: id.SessionID,
 	}); err != nil {
 		return nil, fmt.Errorf("revoke other sessions: %w", err)
 	}

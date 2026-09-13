@@ -84,15 +84,17 @@ func (s *Service) Logout(ctx context.Context, _ *connect.Request[authv1.LogoutRe
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not logged in"))
 	}
-	if err := s.q.DeleteSession(ctx, id.SessionID); err != nil {
-		return nil, fmt.Errorf("delete session: %w", err)
+	if id.SessionID != "" {
+		if err := s.q.DeleteCredential(ctx, id.SessionID); err != nil {
+			return nil, fmt.Errorf("delete session: %w", err)
+		}
 	}
 	resp := connect.NewResponse(&authv1.LogoutResponse{})
 	resp.Header().Add("Set-Cookie", s.sessionCookie(ctx, "", -time.Second).String())
 	return resp, nil
 }
 
-// VerifyToken validates an opaque session token. It is the single
+// VerifyToken validates an opaque credential token. It is the single
 // verification path shared by the Connect interceptor and the WebSocket
 // upgrade handler.
 func (s *Service) VerifyToken(ctx context.Context, token string) (authctx.Identity, error) {
@@ -100,14 +102,33 @@ func (s *Service) VerifyToken(ctx context.Context, token string) (authctx.Identi
 		return authctx.Identity{}, errors.New("missing token")
 	}
 	hash := sha256.Sum256([]byte(token))
-	sess, err := s.q.GetSessionByTokenHash(ctx, hash[:])
+	c, err := s.q.GetCredentialByTokenHash(ctx, hash[:])
 	if err != nil {
 		return authctx.Identity{}, errors.New("invalid or expired session")
 	}
-	return authctx.Identity{
-		UserID: sess.UserID, SessionID: sess.ID, Role: authctx.Role(sess.UserRole),
-		Credential: authctx.Credential{ID: sess.ID, Kind: authctx.CredentialSession},
-	}, nil
+	id := authctx.Identity{
+		UserID: c.HolderID, Role: authctx.Role(c.HolderRole), Kind: authctx.IdentityKind(c.HolderKind),
+		Credential: authctx.Credential{
+			ID: c.ID, Kind: authctx.CredentialKind(c.Kind), Grants: toActions(c.Grants),
+			Bounded: c.Bounded, Spaces: c.BoundSpaces, Channels: c.BoundChannels,
+		},
+	}
+	if id.Credential.Kind == authctx.CredentialSession {
+		id.SessionID = c.ID
+	}
+	return id, nil
+}
+
+// toActions keeps nil as nil: a session's grant, which covers everything.
+func toActions(grants []string) []authctx.Action {
+	if grants == nil {
+		return nil
+	}
+	out := make([]authctx.Action, len(grants))
+	for i, g := range grants {
+		out[i] = authctx.Action(g)
+	}
+	return out
 }
 
 func (s *Service) createSession(ctx context.Context, userID string) (string, error) {
@@ -124,10 +145,13 @@ func (s *Service) createSession(ctx context.Context, userID string) (string, err
 	}
 	_, err = s.q.CreateSession(ctx, dbgen.CreateSessionParams{
 		ID:        id.String(),
-		UserID:    userID,
+		HolderID:  userID,
 		TokenHash: hash[:],
 		ExpiresAt: time.Now().Add(sessionTTL),
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", errors.New("only a person can have a session")
+	}
 	if err != nil {
 		return "", fmt.Errorf("create session: %w", err)
 	}

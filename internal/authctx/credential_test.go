@@ -12,10 +12,13 @@ func TestSessionCoversEverything(t *testing.T) {
 			t.Errorf("session should cover %s", a)
 		}
 	}
+	if !session.Reaches("", "") || !session.Reaches("s", "c") {
+		t.Error("an unbounded credential reaches everything")
+	}
 }
 
 func TestGrantCoversOnlyItsList(t *testing.T) {
-	token := Credential{Kind: "personal_token", Grants: []Action{MessagesRead, AccountSecurity}}
+	token := Credential{Kind: CredentialPersonalToken, Grants: []Action{MessagesRead, AccountSecurity}}
 	if !token.Covers(MessagesRead) {
 		t.Error("token should cover its grant")
 	}
@@ -27,6 +30,34 @@ func TestGrantCoversOnlyItsList(t *testing.T) {
 	}
 	if token.Covers(Action("bogus")) {
 		t.Error("unknown action covered")
+	}
+	if (Credential{Grants: []Action{}}).Covers(MessagesRead) {
+		t.Error("an empty grant covers nothing")
+	}
+}
+
+func TestBounds(t *testing.T) {
+	token := Credential{Grants: []Action{MessagesRead}, Bounded: true, Spaces: []string{"homelab"}, Channels: []string{"alerts"}}
+	cases := []struct {
+		space, channel string
+		want           bool
+	}{
+		{"homelab", "", true},
+		{"homelab", "general", true},
+		{"bookclub", "alerts", true},
+		{"bookclub", "", false},
+		{"", "dm", false},
+		{"", "", false},
+	}
+	for _, tc := range cases {
+		if got := token.Reaches(tc.space, tc.channel); got != tc.want {
+			t.Errorf("Reaches(%q, %q) = %v, want %v", tc.space, tc.channel, got, tc.want)
+		}
+	}
+	// Every bound row gone: bounded still, so it reaches nothing.
+	orphan := Credential{Grants: []Action{MessagesRead}, Bounded: true}
+	if orphan.Reaches("homelab", "general") {
+		t.Error("a bounded credential with no bounds left must reach nothing")
 	}
 }
 
@@ -45,11 +76,11 @@ func TestRoleHolds(t *testing.T) {
 	}
 }
 
-func TestAllowsNeedsBothGates(t *testing.T) {
-	narrow := WithIdentity(context.Background(), Identity{
-		UserID: "u", Role: RoleAdmin,
-		Credential: Credential{Kind: "personal_token", Grants: []Action{InstanceRead}},
-	})
+func TestContextGates(t *testing.T) {
+	with := func(c Credential) context.Context {
+		return WithIdentity(context.Background(), Identity{UserID: "u", Role: RoleAdmin, Credential: c})
+	}
+	narrow := with(Credential{Grants: []Action{InstanceRead}})
 	if !Allows(narrow, InstanceRead) {
 		t.Error("admin with a covering token should be allowed")
 	}
@@ -58,6 +89,20 @@ func TestAllowsNeedsBothGates(t *testing.T) {
 	}
 	if Allows(context.Background(), InstanceRead) {
 		t.Error("no identity allows nothing")
+	}
+
+	bounded := with(Credential{Grants: []Action{InstanceRead, ChannelsManage}, Bounded: true, Spaces: []string{"homelab"}})
+	if Allows(bounded, InstanceRead) {
+		t.Error("a bounded credential never reaches the instance")
+	}
+	if !CoversSpace(bounded, ChannelsManage, "homelab") || CoversSpace(bounded, ChannelsManage, "bookclub") {
+		t.Error("CoversSpace must follow the bounds")
+	}
+	if err := Refusal(bounded, ChannelsManage); err != errOutOfBounds {
+		t.Errorf("refusal for a covered action should blame the bounds, got %v", err)
+	}
+	if err := Refusal(bounded, SpaceDelete); err == errOutOfBounds {
+		t.Error("refusal for an uncovered action should blame the grant")
 	}
 }
 

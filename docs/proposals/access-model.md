@@ -1,8 +1,8 @@
 # Access model: who asks, with what, for what
 
-Status: decided 2026-09-13. Tracked as STOOP-269 (Access 1–6). Access 1 —
-the vocabulary, the procedure registry and the credential gate — is built;
-the rest is below.
+Status: decided 2026-09-13. Tracked as STOOP-269 (Access 1–6). Built:
+Access 1 (the vocabulary, the procedure registry, the credential gate) and
+Access 2 (the credentials table, bounds, `users.kind`). The rest is below.
 
 Every request answers three questions: **who is asking** (the identity),
 **what they are asking with** (the credential), and **what the ask
@@ -111,6 +111,9 @@ Losing the last bound must not widen a credential: bound rows cascade with
 their space or channel, so `credentials.bounded` records the intent, and a
 bounded credential with no rows left covers nothing.
 
+A bounded credential never reaches the instance or the caller's own
+account, direct messages included: no bound contains them.
+
 ### Schema (Access 2, migration 00031)
 
 ```sql
@@ -143,7 +146,9 @@ ALTER TABLE users ADD COLUMN kind text NOT NULL DEFAULT 'person'
 
 Live sessions are copied in with their ids and hashes, so nobody is signed
 out by the upgrade. `sessions` is dropped a minor later; a rollback loses
-sessions created after upgrading, which costs a sign-in.
+sessions created after upgrading, which costs a sign-in. Until the drop,
+every revocation clears the matching legacy rows too, so a rollback can't
+revive a revoked session.
 
 ## Actions
 
@@ -197,7 +202,8 @@ module that owns the table it reads.
 3. **Auth interceptor** — does the grant cover the rule's action? If not:
    "this token isn't allowed to …".
 4. **Owning module** — resolve the resource (a channel to its space).
-5. **`authctx`** — do the credential's bounds cover that resource? (Access 2)
+5. **`authctx`** — do the credential's bounds reach that resource? If not:
+   "this token isn't allowed here".
 6. **Owning module** — does the identity hold the action there? If not:
    "you don't have permission to …".
 

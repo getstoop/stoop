@@ -34,7 +34,7 @@ func TestCredentialNarrowsRole(t *testing.T) {
 
 	id, _ := authctx.From(owner)
 	id.Credential = authctx.Credential{
-		ID: "t", Kind: "personal_token",
+		ID: "t", Kind: authctx.CredentialPersonalToken,
 		Grants: []authctx.Action{authctx.SpaceRead, authctx.MessagesRead},
 	}
 	readOnly := authctx.WithIdentity(context.Background(), id)
@@ -63,5 +63,23 @@ func TestCredentialNarrowsRole(t *testing.T) {
 	id.Credential.Grants = []authctx.Action{authctx.SpaceRead}
 	if ok, err := svc.MayReadSpace(authctx.WithIdentity(context.Background(), id), spaceID); err != nil || ok {
 		t.Errorf("token without messages.read MayReadSpace: %v, %v", ok, err)
+	}
+
+	// The right grant, bounded to a different space.
+	id.Credential = authctx.Credential{
+		ID: "t", Kind: authctx.CredentialPersonalToken,
+		Grants:  []authctx.Action{authctx.ChannelsManage, authctx.MessagesRead},
+		Bounded: true, Spaces: []string{"00000000-0000-0000-0000-000000000001"},
+	}
+	elsewhere := authctx.WithIdentity(context.Background(), id)
+	_, err = svc.CreateChannel(elsewhere, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: spaceID, Name: "nope"}))
+	refusedByToken("token bounded to another space CreateChannel", err)
+	_, err = svc.ListMessages(elsewhere, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID}))
+	refusedByToken("token bounded to another space ListMessages", err)
+
+	id.Credential.Spaces = []string{spaceID}
+	if _, err := svc.CreateChannel(authctx.WithIdentity(context.Background(), id),
+		connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: spaceID, Name: "allowed"})); err != nil {
+		t.Errorf("token bounded to this space CreateChannel: %v", err)
 	}
 }

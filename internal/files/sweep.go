@@ -329,7 +329,7 @@ func requireAction(ctx context.Context, a authctx.Action) error {
 		return connect.NewError(connect.CodePermissionDenied, errors.New("instance admin role required"))
 	}
 	if !authctx.Covers(ctx, a) {
-		return connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(a))
+		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, a))
 	}
 	return nil
 }

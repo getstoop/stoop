@@ -112,8 +112,8 @@ func (s *Service) actorForUser(ctx context.Context, spaceID, userID string, inst
 // The credential is checked first, before anything is read; non-members
 // (other than instance admins) are refused before the role is considered.
 func (s *Service) requirePermission(ctx context.Context, spaceID string, perm authctx.Action) error {
-	if !authctx.Covers(ctx, perm) {
-		return connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(perm))
+	if !authctx.CoversSpace(ctx, perm, spaceID) {
+		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, perm))
 	}
 	a, err := s.actorFor(ctx, spaceID)
 	if err != nil {
@@ -164,8 +164,8 @@ func requireChannelAction(ctx context.Context, channel dbgen.Channel, inSpace, i
 	if isDM(channel) {
 		a = inDM
 	}
-	if !authctx.Covers(ctx, a) {
-		return connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(a))
+	if !authctx.CoversChannel(ctx, a, spaceOf(channel), channel.ID) {
+		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, a))
 	}
 	return nil
 }

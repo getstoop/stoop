@@ -17,10 +17,20 @@ const (
 	RoleAdmin  Role = "admin"
 )
 
+// IdentityKind separates people from bots. Only people sign in.
+type IdentityKind string
+
+const (
+	KindPerson IdentityKind = "person"
+	KindBot    IdentityKind = "bot"
+)
+
 type Identity struct {
-	UserID     string
+	UserID string
+	// SessionID is the credential's id when it is a session, else "".
 	SessionID  string
 	Role       Role
+	Kind       IdentityKind
 	Credential Credential
 }
 
