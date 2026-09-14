@@ -251,8 +251,20 @@ into a scan loop:
   `STOOP_ACTIVITY_RETENTION` (default 30 days). Unread ones stay
   however old: nothing someone hasn't seen is taken from them.
 
-Neither is required for correctness. A server that never sweeps works; it
+- **The credential sweep** deletes expired sessions at once and expired
+  personal tokens a month after expiry.
+- **The hook sweep** revokes hook credentials whose hook row a channel or
+  space delete cascaded away, retires bots left with nothing, and removes
+  finished deliveries older than `STOOP_WEBHOOK_DELIVERY_RETENTION`.
+
+None is required for correctness. A server that never sweeps works; it
 just accumulates.
+
+Two more goroutines run for outgoing webhooks
+([integrations.md](integrations.md#outgoing)): the subscriber, which turns
+bus events into queued deliveries, and the worker, which leases and POSTs
+them. Both stop with the process; the queue is in Postgres, so nothing in
+flight is lost across a restart.
 
 ## The admin CLI
 
