@@ -2,14 +2,18 @@ package integrations
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
+	"github.com/getstoop/stoop/internal/accesswire"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
-// The bot RPCs: the admin surface over auth's bot accounts. Bot tokens
-// land with STOOP-266.
+// The bot RPCs: the admin surface over auth's bot accounts and their
+// bearer tokens.
 
 func (s *Service) ListBots(ctx context.Context, _ *connect.Request[integrationsv1.ListBotsRequest]) (*connect.Response[integrationsv1.ListBotsResponse], error) {
 	if err := requireManage(ctx); err != nil {
@@ -79,10 +83,60 @@ func (s *Service) DeactivateBot(ctx context.Context, req *connect.Request[integr
 	return connect.NewResponse(&integrationsv1.DeactivateBotResponse{}), nil
 }
 
-func (s *Service) CreateBotToken(context.Context, *connect.Request[integrationsv1.CreateBotTokenRequest]) (*connect.Response[integrationsv1.CreateBotTokenResponse], error) {
-	return nil, errNotBuilt
+// CreateBotToken mints a bearer token for an existing bot. The secret is
+// in the response and nowhere else.
+func (s *Service) CreateBotToken(ctx context.Context, req *connect.Request[integrationsv1.CreateBotTokenRequest]) (*connect.Response[integrationsv1.CreateBotTokenResponse], error) {
+	if err := requireManage(ctx); err != nil {
+		return nil, err
+	}
+	if err := s.ready(); err != nil {
+		return nil, err
+	}
+	bot, err := s.bots.GetBot(ctx, req.Msg.BotUserId)
+	if err != nil {
+		return nil, err
+	}
+	if bot.DeactivatedAt != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("that bot is deactivated"))
+	}
+	grants, ok := accesswire.FromProto(req.Msg.Permissions)
+	if !ok {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown permission"))
+	}
+	cred, secret, err := s.bots.MintCredential(ctx, MintRequest{
+		HolderID: bot.ID, Kind: authctx.CredentialBotToken, Name: req.Msg.Name, Grants: grants,
+		Limited: req.Msg.Limited, SpaceIDs: req.Msg.SpaceIds, CreatedBy: authctx.UserID(ctx),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&integrationsv1.CreateBotTokenResponse{Token: toProtoBotToken(cred), Secret: secret}), nil
 }
 
-func (s *Service) RevokeBotToken(context.Context, *connect.Request[integrationsv1.RevokeBotTokenRequest]) (*connect.Response[integrationsv1.RevokeBotTokenResponse], error) {
-	return nil, errNotBuilt
+// RevokeBotToken revokes a bot token and retires a bot left with nothing.
+func (s *Service) RevokeBotToken(ctx context.Context, req *connect.Request[integrationsv1.RevokeBotTokenRequest]) (*connect.Response[integrationsv1.RevokeBotTokenResponse], error) {
+	if err := requireManage(ctx); err != nil {
+		return nil, err
+	}
+	if err := s.ready(); err != nil {
+		return nil, err
+	}
+	notFound := connect.NewError(connect.CodeNotFound, errors.New("token not found"))
+	if _, err := uuid.Parse(req.Msg.TokenId); err != nil {
+		return nil, notFound
+	}
+	creds, err := s.bots.Credentials(ctx, nil, []string{req.Msg.TokenId})
+	if err != nil {
+		return nil, err
+	}
+	if len(creds) != 1 || creds[0].Kind != authctx.CredentialBotToken {
+		return nil, notFound
+	}
+	if err := s.bots.RevokeCredential(ctx, creds[0].ID); err != nil {
+		return nil, err
+	}
+	if err := s.retireIfIdle(ctx, creds[0].HolderID); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&integrationsv1.RevokeBotTokenResponse{}), nil
 }

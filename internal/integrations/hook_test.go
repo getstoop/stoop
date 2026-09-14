@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -96,18 +97,34 @@ func (f *fakeBots) DeactivateBot(ctx context.Context, id string) error {
 	return nil
 }
 
+// MintCredential applies auth's grant rules: at least one, each grantable.
 func (f *fakeBots) MintCredential(ctx context.Context, req integrations.MintRequest) (integrations.Credential, string, error) {
+	if len(req.Grants) == 0 {
+		return integrations.Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("choose at least one permission"))
+	}
+	for _, a := range req.Grants {
+		if !a.Grantable() {
+			return integrations.Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("not grantable"))
+		}
+	}
+	if b := f.bots[req.HolderID]; b.DeactivatedAt != nil {
+		return integrations.Credential{}, "", connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
+	}
 	id := uuid.NewString()
 	if _, err := f.pool.Exec(ctx, `INSERT INTO credentials (id, holder_id, kind, token_hash, name, grants, bounded) VALUES ($1, $2, $3, $4, $5, '{}', true)`,
 		id, req.HolderID, string(req.Kind), []byte(id), req.Name); err != nil {
 		return integrations.Credential{}, "", err
 	}
-	c := integrations.Credential{ID: id, HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants, Bounded: true, ChannelIDs: []string{req.ChannelID}, Hint: id[len(id)-4:]}
+	bounded := req.Limited || req.ChannelID != ""
+	c := integrations.Credential{ID: id, HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants, Bounded: bounded, SpaceIDs: req.SpaceIDs, Hint: id[len(id)-4:]}
+	if req.ChannelID != "" {
+		c.ChannelIDs = []string{req.ChannelID}
+	}
 	f.creds[id] = c
-	secret := "stp_hook_" + id
+	secret := "stp_" + string(req.Kind) + "_" + id
 	f.tokens[secret] = authctx.Identity{
 		UserID: req.HolderID, Role: authctx.RoleMember, Kind: authctx.KindBot,
-		Credential: authctx.Credential{ID: id, Kind: req.Kind, Grants: req.Grants, Bounded: true, Channels: []string{req.ChannelID}},
+		Credential: authctx.Credential{ID: id, Kind: req.Kind, Grants: req.Grants, Bounded: bounded, Spaces: req.SpaceIDs, Channels: c.ChannelIDs},
 	}
 	return c, secret, nil
 }
@@ -306,7 +323,7 @@ func path(url string) string { return url[strings.Index(url, "/hooks/"):] }
 func TestIncomingHookPosts(t *testing.T) {
 	f := setup(t)
 	made := f.create(t, "Uptime Kuma", false)
-	if !strings.HasPrefix(made.Url, "https://stoop.example.com/hooks/stp_hook_") || made.Webhook.Hint == "" || !made.Webhook.Enabled {
+	if !strings.HasPrefix(made.Url, "https://stoop.example.com/hooks/stp_incoming_hook_") || made.Webhook.Hint == "" || !made.Webhook.Enabled {
 		t.Fatalf("created %+v url %q", made.Webhook, made.Url)
 	}
 	bot := f.bots.bots[made.Webhook.BotUserId]
@@ -430,7 +447,7 @@ func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 	if len(list.Msg.Incoming) != 1 || list.Msg.Incoming[0].Name != "UPS" || len(list.Msg.Incoming[0].Hint) != 4 {
 		t.Errorf("member list = %+v", list.Msg.Incoming)
 	}
-	if strings.Contains(list.Msg.String(), "stp_hook_") {
+	if strings.Contains(list.Msg.String(), "stp_incoming_hook_") {
 		t.Error("a listing carried a token")
 	}
 	if _, err := f.svc.ListWebhooks(f.member, connect.NewRequest(&integrationsv1.ListWebhooksRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
@@ -529,5 +546,76 @@ func TestHooksOfADeactivatedBot(t *testing.T) {
 	}
 	if _, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: made.Webhook.Id})); err != nil {
 		t.Errorf("deleting the hook of a deactivated bot: %v", err)
+	}
+}
+
+func TestBotTokens(t *testing.T) {
+	f := setup(t)
+	made := f.create(t, "Mirror", false)
+	bot := made.Webhook.BotUserId
+	read := []accessv1.Permission{accessv1.Permission_PERMISSION_SPACE_READ, accessv1.Permission_PERMISSION_MESSAGES_READ}
+
+	if _, err := f.svc.CreateBotToken(f.member, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("a member minted a bot token: %v", err)
+	}
+	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: authctx.UserID(f.member), Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("a token for a person: %v", err)
+	}
+	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACCOUNT_SECURITY}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("account.security granted: %v", err)
+	}
+	res, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{
+		BotUserId: bot, Name: "mirror reader", Permissions: read, Limited: true, SpaceIds: []string{f.space},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok := res.Msg.Token
+	if !strings.HasPrefix(res.Msg.Secret, "stp_bot_token_") || tok.BotUserId != bot || !tok.Limited || len(tok.SpaceIds) != 1 || len(tok.Permissions) != 2 || tok.Hint == "" {
+		t.Errorf("token = %+v secret %q", tok, res.Msg.Secret)
+	}
+	bots, err := f.svc.ListBots(f.admin, connect.NewRequest(&integrationsv1.ListBotsRequest{}))
+	if err != nil || len(bots.Msg.Bots) != 1 || len(bots.Msg.Bots[0].Tokens) != 1 || bots.Msg.Bots[0].Tokens[0].Id != tok.Id {
+		t.Errorf("ListBots tokens: %v %+v", err, bots.Msg.Bots)
+	}
+	if strings.Contains(bots.Msg.String(), res.Msg.Secret) {
+		t.Error("a listing carried the secret")
+	}
+
+	// Revoking: the hook credential is not a token; the token goes; the
+	// bot stays while its hook remains, and retires once that goes too.
+	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: made.Webhook.Id})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("revoking a hook id as a token: %v", err)
+	}
+	if _, err := f.svc.RevokeBotToken(f.member, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("a member revoked: %v", err)
+	}
+	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("revoking twice: %v", err)
+	}
+	if f.bots.bots[bot].DeactivatedAt != nil {
+		t.Error("bot retired while its hook remained")
+	}
+	res, err = f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "again", Permissions: read}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: made.Webhook.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if f.bots.bots[bot].DeactivatedAt != nil {
+		t.Error("bot retired while its token remained")
+	}
+	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: res.Msg.Token.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if f.bots.bots[bot].DeactivatedAt == nil {
+		t.Error("a bot with nothing left should retire")
+	}
+	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("a token for a deactivated bot: %v", err)
 	}
 }

@@ -108,6 +108,9 @@ func TestBotsAndHookTokens(t *testing.T) {
 	if err != nil || len(creds) != 2 {
 		t.Fatalf("credentials = %+v, %v", creds, err)
 	}
+	if all, err := svc.BotCredentials(bg, nil, nil); err != nil || len(all) != 2 {
+		t.Errorf("every bot credential = %+v, %v", all, err)
+	}
 	byID, err := svc.BotCredentials(bg, nil, []string{hook.ID})
 	if err != nil || len(byID) != 1 || len(byID[0].Grants) != 2 || byID[0].ChannelIDs[0] != channelID {
 		t.Errorf("by id = %+v, %v", byID, err)

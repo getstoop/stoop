@@ -105,8 +105,8 @@ Webhooks and bots (STOOP-256, [the proposal](../proposals/webhooks.md)):
 `DeleteWebhook`, `RotateSecret`, `TestWebhook`, `ListDeliveries`,
 `RedeliverDelivery`, `ListBots`, `CreateBot`, `UpdateBot`, `DeactivateBot`,
 `CreateBotToken`, `RevokeBotToken` — all behind
-`instance.integrations.manage`. Every procedure answers `Unimplemented`
-until its slice lands.
+`instance.integrations.manage`. The outgoing procedures answer
+`Unimplemented` until STOOP-260 lands.
 
 ## The non-RPC surface
 
