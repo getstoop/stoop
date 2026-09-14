@@ -21,6 +21,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -488,6 +489,40 @@ func TestSocialLink(t *testing.T) {
 	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1"); loc != "/login?error=login_state" {
 		t.Errorf("link without session landed on %q", loc)
 	}
+	// Nor one started with a personal token: only a session may attach an
+	// identity to the account.
+	pat := linkProbeToken(t, svc, token)
+	bearer := &http.Client{Transport: bearerTransport{pat}}
+	if loc := rig.run(t, bearer, "/auth/oidc/sso/start?link=1"); loc != "/login?error=login_state" {
+		t.Errorf("link with a personal token landed on %q", loc)
+	}
+	if status, _ := rig.linkAttempt(t, pat, s256("v")); status != http.StatusUnauthorized {
+		t.Errorf("desktop link start with a personal token = %d", status)
+	}
+}
+
+// linkProbeToken makes a personal token for the session's holder, granted every
+// space action so the refusal under test can only be about its kind.
+func linkProbeToken(t *testing.T, svc *auth.Service, session string) string {
+	t.Helper()
+	ident, err := svc.VerifyToken(context.Background(), session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	made, err := svc.CreatePersonalToken(authctx.WithIdentity(context.Background(), ident), connect.NewRequest(&authv1.CreatePersonalTokenRequest{
+		Name: "link probe", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_SPACE_READ},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return made.Msg.Secret
+}
+
+type bearerTransport struct{ token string }
+
+func (b bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("Authorization", "Bearer "+b.token)
+	return http.DefaultTransport.RoundTrip(req)
 }
 
 func TestSocialFlowFailures(t *testing.T) {

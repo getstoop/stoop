@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -47,8 +48,9 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
+		ctx := authctx.WithIdentity(r.Context(), identity)
 		// The operator's per-file cap
-		limit, err := s.maxUploadBytes(r.Context())
+		limit, err := s.maxUploadBytes(ctx)
 		if err != nil {
 			s.log.Error("read upload limit", "err", err)
 			writeError(w, http.StatusInternalServerError, "internal error")
@@ -71,17 +73,28 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusBadRequest, "channel_id is required")
 			return
 		}
-		spaceID, err := s.spaces.ChannelSpaceForMember(r.Context(), identity.UserID, channelID)
+		// Membership and the credential's bounds are chat's answer; the
+		// grant is checked here, since the handler isn't a Connect call.
+		spaceID, err := s.spaces.ChannelSpaceForMember(ctx, identity.UserID, channelID)
 		if err != nil {
-			switch connect.CodeOf(err) {
-			case connect.CodeNotFound:
+			var cerr *connect.Error
+			switch {
+			case connect.CodeOf(err) == connect.CodeNotFound:
 				writeError(w, http.StatusNotFound, "channel not found")
-			case connect.CodePermissionDenied:
-				writeError(w, http.StatusForbidden, "not a member of this channel's space")
+			case errors.As(err, &cerr) && cerr.Code() == connect.CodePermissionDenied:
+				writeError(w, http.StatusForbidden, cerr.Message())
 			default:
 				s.log.Error("resolve channel", "channel_id", channelID, "err", err)
 				writeError(w, http.StatusInternalServerError, "internal error")
 			}
+			return
+		}
+		action := authctx.MessagesPost
+		if spaceID == "" {
+			action = authctx.DMsPost
+		}
+		if !authctx.CoversChannel(ctx, action, spaceID, channelID) {
+			writeError(w, http.StatusForbidden, authctx.Refusal(ctx, action).Error())
 			return
 		}
 
@@ -99,7 +112,7 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusRequestEntityTooLarge, tooLargeMessage(limit))
 			return
 		}
-		if err := s.checkQuota(r.Context(), header.Size); err != nil {
+		if err := s.checkQuota(ctx, header.Size); err != nil {
 			if errors.Is(err, ErrStorageFull) {
 				writeError(w, http.StatusInsufficientStorage, "the server's "+err.Error())
 				return

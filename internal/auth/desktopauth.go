@@ -252,7 +252,7 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 	// The app's fetch is same-origin, so a link start carries the session
 	// cookie; the identity attaches to that account and nothing else.
 	if req.Link {
-		ident, err := s.VerifyToken(r.Context(), TokenFromHeader(r.Header))
+		ident, err := s.verifySession(r.Context(), r.Header)
 		if err != nil {
 			desktopError(w, http.StatusUnauthorized, "login_state")
 			return
@@ -362,7 +362,7 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 // confirms it. Neither binding tells the app whose identity came back,
 // so a person does.
 func (s *Service) desktopLink(w http.ResponseWriter, r *http.Request, c desktopCode, confirm bool) {
-	ident, err := s.VerifyToken(r.Context(), TokenFromHeader(r.Header))
+	ident, err := s.verifySession(r.Context(), r.Header)
 	if err != nil || ident.UserID != c.attempt.linkUserID || ident.SessionID != c.attempt.sessionID {
 		desktopError(w, http.StatusUnauthorized, "login_state")
 		return

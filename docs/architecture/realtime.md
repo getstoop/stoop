@@ -155,6 +155,13 @@ call so it works the same way a `MessageCreated` does, on every node there
 might one day be. A tab signed out from another tab is therefore told at
 once, and goes to the login page.
 
+**And the credential is re-verified with every ping** (every 30 s), with
+the same close code when it no longer verifies. That is what catches what
+the bus can't carry: a token past its expiry (the sweep only deletes it a
+month later), the `personal_tokens` setting turned down, a reset from the
+CLI (a separate process with no bus), or a revocation published in the gap
+between verifying the upgrade and subscribing.
+
 ## The wire format
 
 Binary protobuf frames. `ServerEvent` server → client, `ClientEvent`

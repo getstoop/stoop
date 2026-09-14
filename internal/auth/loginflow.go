@@ -125,7 +125,7 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		if att.isLink() {
 			st.LinkUserID, st.SessionID = att.linkUserID, att.sessionID
 		} else {
-			ident, err := s.VerifyToken(ctx, TokenFromHeader(r.Header))
+			ident, err := s.verifySession(ctx, r.Header)
 			if err != nil {
 				fail("login_state")
 				return

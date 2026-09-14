@@ -44,6 +44,32 @@ func TestDownloadsFollowTheCredential(t *testing.T) {
 		}
 	}
 
+	// Uploads need the posting action for the channel's kind, and a token
+	// limited to spaces never reaches a direct message.
+	f.sess.users["member-post"] = token(false, authctx.MessagesRead, authctx.MessagesPost)
+	f.sess.users["member-dmpost"] = token(false, authctx.DMsPost)
+	for user, want := range map[string]int{
+		"member-messages": http.StatusForbidden, // no posting grant
+		"member-limited":  http.StatusForbidden, // bounded: never a DM
+		"member-post":     http.StatusForbidden, // messages.post is not dms.post
+		"member-dmpost":   http.StatusCreated,
+	} {
+		if status, body := f.upload(t, user, f.spaces.channelID, "note.txt", []byte("hello")); status != want {
+			t.Errorf("DM upload as %s: %d %v, want %d", user, status, body, want)
+		}
+	}
+	f.spaces.spaceID = f.space
+	for user, want := range map[string]int{
+		"member-messages": http.StatusForbidden,
+		"member-dmpost":   http.StatusForbidden,
+		"member-post":     http.StatusCreated,
+		"member-limited":  http.StatusForbidden, // limited without messages.post
+	} {
+		if status, body := f.upload(t, user, f.spaces.channelID, "note.txt", []byte("hello")); status != want {
+			t.Errorf("space upload as %s: %d %v, want %d", user, status, body, want)
+		}
+	}
+
 	// Avatars are visible to any credential, as to any signed-in user.
 	f.sess.users["member-nothing"] = token(true)
 	avatar, err := f.svc.UploadAvatar(as(f.owner), connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 50, 50)}))
