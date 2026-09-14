@@ -1,10 +1,10 @@
 # Webhooks: events out, posts in
 
-Status: proposed 2026-09-13 (STOOP-256), revised the same day after a
-long review, then rebased onto [the access model](access-model.md) once
-STOOP-269 landed. Four decisions are still open; each is marked inline
-with the answer this draft assumes. The decisions and how they moved are
-at the end. Supersedes STOOP-113.
+Status: decided 2026-09-14 (STOOP-256). Proposed 2026-09-13, revised the
+same day after a long review, rebased onto [the access model](access-model.md)
+once STOOP-269 landed, and the last four decisions settled by the
+maintainer on 2026-09-14. The decisions and how they moved are at the
+end. Supersedes STOOP-113.
 
 Let the things in the house talk to the room. A URL that posts into a
 channel, and a channel that posts out to a URL, both sized for one
@@ -238,11 +238,11 @@ path would have had to re-earn every one of those. The first draft's
 Four to start, chosen by what the audience runs. `username`,
 `icon_emoji`, `icon_url` and `blocks` are accepted and ignored.
 
-> **Open — proposed: a payload's `username` is accepted and ignored.**
-> Slack senders set it constantly, and honouring it means the author
-> card can say something the account is not. The hook's own name is what
-> shows. One hook fronting several tools then looks like one sender; the
-> answer to that is a second hook, which is free.
+A payload's `username` never overrides the display name. Slack senders
+set it constantly, and honouring it means the author card can say
+something the account is not. The hook's own name is what shows. One
+hook fronting several tools then looks like one sender; the answer to
+that is a second hook, which is free.
 
 ### Answers
 
@@ -255,10 +255,12 @@ Four to start, chosen by what the audience runs. `username`,
 | Over the per-hook rate limit | `429` + `Retry-After` |
 | Text over 4000 characters | `200 ok`, truncated with an ellipsis |
 
-> **Open — proposed: truncate over-length text.** A monitoring tool that
-> gets a 413 usually drops the alert entirely, and a truncated alert
-> still wakes somebody up. Against: silent truncation is a lie about
-> what was sent, and an ellipsis is a thin answer to that.
+Over-length text is truncated, not refused. The 4000-character limit is
+`SendMessage`'s own (`internal/chat/messages.go`), so the handler cuts
+the text to fit before posting. A monitoring tool that gets an error
+status usually drops the alert entirely, and a truncated alert still
+wakes somebody up. The cost, accepted: the ellipsis is all that says
+something was cut.
 
 Unknown, revoked and disabled answer alike, for the reason `NotFound`
 works that way everywhere else: telling them apart hands a guesser an
@@ -604,11 +606,11 @@ Three settings in `instance_settings` (JSON, no migration):
 switches and a safety default rather than policy boundaries: stop every
 delivery on the server without deleting anything.
 
-> **Open — proposed: outgoing hooks are on from a fresh install, private
-> targets off.** Mostly settled by admin-only creation: nothing exists
-> until an admin makes it, so the switch only decides whether they must
-> flip a setting before making their first one. It stays in the design
-> as an incident switch, not a policy boundary.
+Both directions are on from a fresh install; private targets are off.
+Admin-only creation settles most of it: nothing exists until an admin
+makes it, so the switches only decide whether they must flip a setting
+before making their first one. They stay in the design as incident
+switches, not policy boundaries.
 
 ## Who may, and who can see
 
@@ -618,11 +620,10 @@ delivery on the server without deleting anything.
 | Space owner and admin | The member's view, deliberately. They can remove a misbehaving bot from the space, which stops every credential it holds there; revoking is the instance admin's. | |
 | Member | Read the list: name, direction, target host, bound channel, enabled state, whether it may notify everyone, and each credential's grants and bounds. No token, no secret, no bodies. | The same section, read-only |
 
-> **Open — proposed: plain members see the hook list, read-only.**
-> Members cannot create anything, so showing them the list carries no
-> delegation with it: it is purely "here is what this space sends out,
-> and which sources may ping you". Against: it shows everyone a little of
-> how the server is wired.
+Members see the list because they cannot create anything, so showing it
+carries no delegation with it: it is purely "here is what this space
+sends out, and which sources may ping you". The cost, accepted: it shows
+everyone a little of how the server is wired.
 
 Concentrating this at the instance level is what deletes the delegation
 model: no new entry in the permission table, no rule that a credential
@@ -731,7 +732,7 @@ the admin UI needs to show bots).
 ## Decisions taken
 
 Settled by the maintainer on 2026-09-13, in review and after the
-access-model rebase.
+access-model rebase, and on 2026-09-14 for the last four.
 
 1. **The module is `internal/integrations`**, not `internal/webhooks`.
    It owns bots and credentials too, and slash commands land there.
@@ -756,10 +757,14 @@ access-model rebase.
 7. **Four attempts over 2½ minutes**, not six over seven hours.
 8. **Bots may hold an instance role**, and "no DMs to bots" is a
    default, not a rule. Both from the access model.
-
-Still open, each marked inline above with the answer this draft assumes:
-the payload `username` override, truncating over-length text, outgoing
-hooks on by default, and members seeing the hook list.
+9. **A payload's `username` is accepted and ignored.** The hook's name
+   shows.
+10. **Incoming text over the message limit is truncated** with an
+    ellipsis and posted, not refused.
+11. **Outgoing hooks are on from a fresh install**; private-address
+    targets stay off until the operator allows them.
+12. **Plain members see the hook list, read-only**, with no token, secret
+    or body.
 
 ### What the review changed
 
