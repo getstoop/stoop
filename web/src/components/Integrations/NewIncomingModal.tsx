@@ -84,7 +84,7 @@ export function NewIncomingModal({
       <div className="modal-body integration-form">
         <p className="hint">
           A URL that posts into one channel. Paste it into anything with a
-          Discord or Slack webhook field, or curl it.
+          webhook URL field, from an uptime monitor to a CI runner, or curl it.
         </p>
         <label className="field">
           Name

@@ -68,7 +68,7 @@ delivery with a durable record to fall back on.
 
 ## Message format
 
-`messages.content` is a small Discord-style Markdown subset, and **the
+`messages.content` is a small chat-style Markdown subset, and **the
 client renders it — the server never does.**
 
 Rendering goes through a parser (`web/src/api/markdown.ts`) to a tree, then

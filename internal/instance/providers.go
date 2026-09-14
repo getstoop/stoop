@@ -24,7 +24,7 @@ const keyLoginProviders = "login_providers"
 // maxLoginProviders bounds the saved list; a homelab has one or two.
 const maxLoginProviders = 16
 
-// KindOIDC is the only provider kind today; GitHub/Discord-style plain
+// KindOIDC is the only provider kind today; GitHub-style plain
 // OAuth2 presets would add kinds.
 const KindOIDC = "oidc"
 

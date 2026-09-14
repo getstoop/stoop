@@ -74,8 +74,8 @@ blocks, mentions and the `@everyone` refusal apply as they do to anyone.
 | Body | Read from |
 | --- | --- |
 | `text/plain`, or anything that isn't JSON | verbatim |
-| Stoop, Slack, Mattermost | `text`, then `attachments[].title` and `.text` |
-| Discord | `content` |
+| JSON with `text` (Stoop's own shape; Alertmanager, Grafana, most CI) | `text`, then `attachments[].title` and `.text` |
+| JSON with `content` (Uptime Kuma, the `*arr` stack) | `content` |
 
 `username`, `icon_emoji`, `icon_url` and `blocks` are accepted and
 ignored. Text over the message limit is cut to fit with an ellipsis.

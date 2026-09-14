@@ -28,8 +28,8 @@ describe("integrations helpers", () => {
   });
 
   it("shows a member the host only", () => {
-    expect(hostOf("https://discord.com/api/webhooks/1/secret?x=1")).toBe(
-      "https://discord.com",
+    expect(hostOf("https://hooks.example.net/api/webhooks/1/secret?x=1")).toBe(
+      "https://hooks.example.net",
     );
     expect(hostOf("http://10.0.0.5:9911/hook")).toBe("http://10.0.0.5:9911");
     expect(hostOf("not a url")).toBe("not a url");

@@ -1,6 +1,6 @@
 // :shortcode: emoji. Names come from two places: every Unicode name in
 // the generated list, snake_cased ("loudly_crying_face", "flag_canada"),
-// and a curated alias map in the GitHub/Slack tradition ("sob", "+1",
+// and a curated alias map in the tradition chat apps share ("sob", "+1",
 // "tada"). Aliases win when they collide. Messages are sent with the
 // shortcodes already replaced by the emoji, so nothing downstream needs
 // to know about them; custom per-space emoji will keep the :name: form.

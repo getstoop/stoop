@@ -10,8 +10,7 @@ import (
 // the instance module and reaches auth through the ProviderSource port
 // (wired in internal/app), like RegistrationPolicy.
 
-// Provider kinds. Only OIDC exists today; plain-OAuth2 presets (GitHub,
-// Discord) would add kinds with their own claim mapping.
+// Provider kinds. Only OIDC exists today; plain-OAuth2 presets (GitHub, say) would add kinds with their own claim mapping.
 const KindOIDC = "oidc"
 
 // ProviderConfig is one effective provider, secret included (in-process

@@ -68,9 +68,8 @@ export function IntegrationsSection({ space }: { space: Space }) {
           )}
         </div>
         <p className="hint">
-          Tools with a Discord or Slack webhook field, and anything that can
-          curl, post here as a bot. Each URL posts into one channel and can do
-          nothing else.
+          Tools with a webhook URL field, and anything that can curl, post here
+          as a bot. Each URL posts into one channel and can do nothing else.
           {!manage &&
             " Only server admins can change these; a space admin can remove a bot from the space."}
         </p>
