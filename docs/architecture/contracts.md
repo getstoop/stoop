@@ -97,6 +97,17 @@ people who joined.
 `JoinVoiceChannel` — returns a short-lived LiveKit room token, the
 signaling URL, and any ICE servers the browser should use.
 
+### `stoop.integrations.v1.IntegrationService`
+
+Webhooks and bots (STOOP-256, [the proposal](../proposals/webhooks.md)):
+`ListWebhooks` (members, per space; the server-wide list is admins only),
+`CreateIncoming`, `CreateOutgoing`, `UpdateIncoming`, `UpdateOutgoing`,
+`DeleteWebhook`, `RotateSecret`, `TestWebhook`, `ListDeliveries`,
+`RedeliverDelivery`, `ListBots`, `CreateBot`, `UpdateBot`, `DeactivateBot`,
+`CreateBotToken`, `RevokeBotToken` — all behind
+`instance.integrations.manage`. Every procedure answers `Unimplemented`
+until its slice lands.
+
 ## The non-RPC surface
 
 Some things are not RPCs, each for a specific reason.

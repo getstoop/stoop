@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package stoop.integrations.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/access/v1/access.proto";
+
+// Bot is an account of kind bot: a member like any other, authenticated
+// only through the credentials it holds.
+message Bot {
+  string id = 1;
+  string username = 2;
+  string display_name = 3;
+  string avatar_file_id = 4;
+  // Whether the bot holds the instance admin role.
+  bool instance_admin = 5;
+  google.protobuf.Timestamp created_at = 6;
+  // Set once deactivated; its credentials are revoked with it.
+  google.protobuf.Timestamp deactivated_at = 7;
+  repeated BotToken tokens = 8;
+}
+
+// BotToken is a bearer credential of kind bot_token, shown once at
+// creation and by fingerprint afterwards.
+message BotToken {
+  string id = 1;
+  string bot_user_id = 2;
+  string name = 3;
+  repeated stoop.access.v1.Permission permissions = 4;
+  // Limited tokens work only in space_ids.
+  bool limited = 5;
+  repeated string space_ids = 6;
+  google.protobuf.Timestamp created_at = 7;
+  // Unset when never used. Recorded at most once a minute.
+  google.protobuf.Timestamp last_used_at = 8;
+  // The token's last four characters.
+  string hint = 9;
+}

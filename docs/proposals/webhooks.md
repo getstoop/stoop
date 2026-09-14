@@ -653,9 +653,11 @@ answers with both repeated fields in one round trip since the settings
 page renders both lists. Grants on the wire use
 `stoop.access.v1.Permission`.
 
-- Hooks: `CreateIncoming`, `CreateOutgoing`, `UpdateWebhook`,
-  `DeleteWebhook`, `RotateSecret`, `TestWebhook`, `ListWebhooks`,
-  `ListDeliveries`, `RedeliverDelivery`.
+- Hooks: `ListWebhooks`, `CreateIncoming`, `CreateOutgoing`,
+  `UpdateIncoming`, `UpdateOutgoing` (two, for the same reason the
+  messages are two), `DeleteWebhook`, `RotateSecret`, `TestWebhook`,
+  `ListDeliveries`, `RedeliverDelivery`. An empty `space_id` on
+  `ListWebhooks` is the server-wide list, instance admins only.
 - Bots: `ListBots`, `CreateBot`, `UpdateBot`, `DeactivateBot`,
   `CreateBotToken`, `RevokeBotToken`. Fronted here, backed by auth's
   `users` and `credentials` through the `BotIdentities` port, so a client

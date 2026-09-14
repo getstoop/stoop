@@ -91,6 +91,19 @@ type File struct {
 	Name        string
 }
 
+type IncomingWebhook struct {
+	ID             string
+	SpaceID        string
+	ChannelID      string
+	BotUserID      string
+	CredentialID   *string
+	Name           string
+	CreatedBy      string
+	CreatedAt      time.Time
+	DisabledAt     *time.Time
+	DisabledReason string
+}
+
 type InstanceSetting struct {
 	Key       string
 	Value     []byte
@@ -157,6 +170,21 @@ type MessageReaction struct {
 	UserID    string
 	Emoji     string
 	CreatedAt time.Time
+}
+
+type OutgoingWebhook struct {
+	ID             string
+	SpaceID        string
+	ChannelID      *string
+	Url            string
+	Secret         []byte
+	EventTypes     []string
+	Sequence       int64
+	Name           string
+	CreatedBy      string
+	CreatedAt      time.Time
+	DisabledAt     *time.Time
+	DisabledReason string
 }
 
 type SchemaFloor struct {
@@ -232,4 +260,20 @@ type UserIdentity struct {
 	UserID    string
 	Email     string
 	CreatedAt time.Time
+}
+
+type WebhookDelivery struct {
+	ID          string
+	Lane        string
+	EventType   string
+	Sequence    int64
+	Body        []byte
+	Attempts    int32
+	NotBefore   time.Time
+	LeasedUntil *time.Time
+	FinishedAt  *time.Time
+	StatusCode  *int32
+	Response    string
+	Error       string
+	CreatedAt   time.Time
 }

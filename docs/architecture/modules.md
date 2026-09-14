@@ -27,8 +27,8 @@ import graph.
 ## Modules and support packages
 
 A **module** owns a slice of the domain, owns the tables that slice lives
-in, and usually exposes a Connect service. There are six: `auth`, `chat`,
-`instance`, `realtime`, `voice`, `files`.
+in, and usually exposes a Connect service. There are seven: `auth`,
+`chat`, `instance`, `realtime`, `voice`, `files`, `integrations`.
 
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
@@ -48,7 +48,7 @@ What a module *may* import: `gen/` (generated protobuf and Connect code),
 third-party libraries.
 
 **Enforcement is mechanical.** `.golangci.yml` configures `depguard` with
-one rule block per module, denying the other five module paths by import
+one rule block per module, denying the other six module paths by import
 path. A violation fails `make lint` and therefore fails CI, which is what
 makes the rule a rule rather than a preference. Some deny entries are
 written as globs (`…/internal/auth{,/**}`) so that `internal/authctx` — a
@@ -104,6 +104,11 @@ rather than by what the provider happens to expose, and it stays small.
 | `files` | `Spaces` | chat | Set the icon pointer, authorise downloads, report referenced files. |
 | `files` | `SessionVerifier` | auth | Authenticate the plain-HTTP download handler: the identity and its credential. |
 | `files` | `Policy` | instance | The storage quota and the per-upload cap. |
+| `integrations` | `Poster` | chat | Post a message with the hook's bot identity and credential already on the context. |
+| `integrations` | `SpaceAccess` | chat | A channel's space and the space's name; add a bot as a member and set its role. |
+| `integrations` | `BotIdentities` | auth | Create, rename and deactivate bots; mint, revoke and verify their credentials. |
+| `integrations` | `Policy` | instance | Whether each webhook direction is on, whether private targets are allowed, the public URL. |
+| `integrations` | `Queue` | `internal/integrations` (Postgres) | Enqueue, lease, ack, nack and dead-letter outgoing deliveries; see [the webhooks proposal](../proposals/webhooks.md). |
 
 Two patterns recur in that table and are worth naming.
 
@@ -153,11 +158,13 @@ module's tests construct it alone.
 | `chat` | `spaces`, `space_members`, `space_bans`, `user_blocks`, `channels`, `channel_reads`, `channel_mutes`, `dm_members`, `messages`, `message_mentions`, `message_reactions`, `message_attachments`, `message_links`, `link_previews`, `activity_items`, `invites` |
 | `instance` | `instance_settings` |
 | `files` | `files` |
+| `integrations` | `incoming_webhooks`, `outgoing_webhooks`, `webhook_deliveries` |
 | `realtime` | *(none — by rule)* |
 | `voice` | *(none)* |
 
 Ownership is auditable from the filesystem: sqlc query files live one
-directory per module (`internal/db/queries/{auth,chat,instance,files}/`),
+directory per module
+(`internal/db/queries/{auth,chat,instance,files,integrations}/`),
 one file per entity. A query against another module's columns would have to
 be written into that module's directory, where it would be obvious in
 review.

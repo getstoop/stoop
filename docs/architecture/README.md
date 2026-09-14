@@ -70,6 +70,7 @@ this plainly.
 | `internal/realtime` | the WebSocket gateway; in-memory presence, status, typing and voice state (no database access at all) |
 | `internal/voice`    | LiveKit token minting, the `/livekit` signaling proxy, ICE/TURN sources |
 | `internal/files`    | uploaded files: the `files` table, upload RPCs, `GET /files/{id}`, the sweep, the quota |
+| `internal/integrations` | incoming and outgoing webhooks, the delivery queue, and the admin surface for bots and their credentials (being built: STOOP-256, [the proposal](../proposals/webhooks.md)) |
 
 Support packages, which are not modules and own no domain: `internal/events`
 (the bus), `internal/db` (pool + migrations), `internal/dbgen` (sqlc output),

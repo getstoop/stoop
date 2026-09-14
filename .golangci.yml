@@ -25,6 +25,8 @@ linters:
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/voice
               desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/integrations
+              desc: modules must not import each other (use ports via internal/app)
         chat-module:
           files: ["**/internal/chat/**"]
           deny:
@@ -37,6 +39,8 @@ linters:
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/voice
               desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/integrations
+              desc: modules must not import each other (use ports via internal/app)
         instance-module:
           files: ["**/internal/instance/**"]
           deny:
@@ -47,6 +51,8 @@ linters:
             - pkg: github.com/getstoop/stoop/internal/realtime
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/voice
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/integrations
               desc: modules must not import each other (use ports via internal/app)
         realtime-module:
           files: ["**/internal/realtime/**"]
@@ -59,6 +65,8 @@ linters:
             - pkg: github.com/getstoop/stoop/internal/chat
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/voice
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/integrations
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/dbgen
               desc: the gateway has no database access; use ports
@@ -74,6 +82,8 @@ linters:
             - pkg: github.com/getstoop/stoop/internal/realtime
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/voice
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/integrations
               desc: modules must not import each other (use ports via internal/app)
         blob-package:
           files: ["**/internal/blob/**"]
@@ -91,6 +101,25 @@ linters:
             - pkg: github.com/getstoop/stoop/internal/chat
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/realtime
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/integrations
+              desc: modules must not import each other (use ports via internal/app)
+
+        integrations-module:
+          files: ["**/internal/integrations/**"]
+          deny:
+            - pkg: github.com/getstoop/stoop/internal/instance
+              desc: modules must not import each other (use ports via internal/app)
+            # Glob form so internal/authctx (the shared contract) stays allowed.
+            - pkg: github.com/getstoop/stoop/internal/auth{,/**}
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/chat
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/realtime
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/voice
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/files
               desc: modules must not import each other (use ports via internal/app)
 
 formatters:

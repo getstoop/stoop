@@ -9,6 +9,7 @@ sql:
       - "internal/db/queries/chat"
       - "internal/db/queries/instance"
       - "internal/db/queries/files"
+      - "internal/db/queries/integrations"
     gen:
       go:
         package: "dbgen"
