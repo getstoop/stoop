@@ -290,6 +290,9 @@ func (s *Service) BotCredentials(ctx context.Context, holderIDs, ids []string) (
 			rows = append(rows, dbgen.ListBotCredentialsRow(r))
 		}
 	} else {
+		if holderIDs == nil {
+			holderIDs = []string{}
+		}
 		var err error
 		if rows, err = s.q.ListBotCredentials(ctx, holderIDs); err != nil {
 			return nil, fmt.Errorf("list credentials: %w", err)

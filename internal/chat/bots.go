@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -66,6 +67,19 @@ func (s *Service) AddBotMember(ctx context.Context, spaceID, userID string) erro
 	}
 	s.publishSpaceJoined(userID, space, memberActor(RoleMember, s.isInstanceAdmin(ctx, userID)))
 	return nil
+}
+
+// Member is one space member as the roster renders it.
+func (s *Service) Member(ctx context.Context, spaceID, userID string) (*chatv1.Member, error) {
+	row, err := s.q.GetSpaceMember(ctx, dbgen.GetSpaceMemberParams{SpaceID: spaceID, UserID: userID})
+	if err != nil {
+		return nil, notFoundOr(err, "member")
+	}
+	members, err := s.toProtoMembers(ctx, []dbgen.SpaceMember{row})
+	if err != nil {
+		return nil, err
+	}
+	return members[0], nil
 }
 
 // SetBotAdmin sets or clears a bot's admin role in a space.

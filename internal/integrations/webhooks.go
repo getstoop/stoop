@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -13,8 +14,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// The hook RPCs shared by both kinds. Outgoing behaviour lands with
-// STOOP-260.
+// The hook RPCs shared by both kinds.
 
 // ListWebhooks lists a space's hooks for its members, or every hook on the
 // server for an instance admin.
@@ -53,10 +53,25 @@ func (s *Service) ListWebhooks(ctx context.Context, req *connect.Request[integra
 		return nil, err
 	}
 	res := &integrationsv1.ListWebhooksResponse{Incoming: incoming}
+	manages := requireManage(ctx) == nil
 	for _, o := range out {
-		res.Outgoing = append(res.Outgoing, toProtoOutgoing(o))
+		p := toProtoOutgoing(o)
+		if !manages {
+			p.Url = targetHost(o.Url)
+		}
+		res.Outgoing = append(res.Outgoing, p)
 	}
 	return connect.NewResponse(res), nil
+}
+
+// targetHost is what a member sees of a URL: a path or query can carry
+// the receiver's own secret.
+func targetHost(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
 }
 
 // requireSpaceRead is the members' view: the credential covers space.read
@@ -115,35 +130,23 @@ func (s *Service) RotateSecret(ctx context.Context, req *connect.Request[integra
 		return nil, err
 	}
 	hook, err := s.incomingHook(ctx, req.Msg.Id)
-	if err != nil {
-		if connect.CodeOf(err) == connect.CodeNotFound {
-			return nil, errNotBuilt
+	if err == nil {
+		url, err := s.rotateIncoming(ctx, hook)
+		if err != nil {
+			return nil, err
 		}
+		return connect.NewResponse(&integrationsv1.RotateSecretResponse{Url: url}), nil
+	}
+	if connect.CodeOf(err) != connect.CodeNotFound {
 		return nil, err
 	}
-	url, err := s.rotateIncoming(ctx, hook)
+	out, err := s.outgoingHook(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&integrationsv1.RotateSecretResponse{Url: url}), nil
-}
-
-func (s *Service) CreateOutgoing(context.Context, *connect.Request[integrationsv1.CreateOutgoingRequest]) (*connect.Response[integrationsv1.CreateOutgoingResponse], error) {
-	return nil, errNotBuilt
-}
-
-func (s *Service) UpdateOutgoing(context.Context, *connect.Request[integrationsv1.UpdateOutgoingRequest]) (*connect.Response[integrationsv1.UpdateOutgoingResponse], error) {
-	return nil, errNotBuilt
-}
-
-func (s *Service) TestWebhook(context.Context, *connect.Request[integrationsv1.TestWebhookRequest]) (*connect.Response[integrationsv1.TestWebhookResponse], error) {
-	return nil, errNotBuilt
-}
-
-func (s *Service) ListDeliveries(context.Context, *connect.Request[integrationsv1.ListDeliveriesRequest]) (*connect.Response[integrationsv1.ListDeliveriesResponse], error) {
-	return nil, errNotBuilt
-}
-
-func (s *Service) RedeliverDelivery(context.Context, *connect.Request[integrationsv1.RedeliverDeliveryRequest]) (*connect.Response[integrationsv1.RedeliverDeliveryResponse], error) {
-	return nil, errNotBuilt
+	secret, err := s.rotateOutgoing(ctx, out)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&integrationsv1.RotateSecretResponse{Secret: secret}), nil
 }

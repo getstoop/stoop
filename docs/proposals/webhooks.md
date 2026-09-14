@@ -262,6 +262,10 @@ status usually drops the alert entirely, and a truncated alert still
 wakes somebody up. The cost, accepted: the ellipsis is all that says
 something was cut.
 
+A request whose `User-Agent` is Stoop's own delivery worker is refused:
+an outgoing hook pointed at one of this server's incoming URLs would
+otherwise post forever.
+
 Unknown, revoked and disabled answer alike, for the reason `NotFound`
 works that way everywhere else: telling them apart hands a guesser an
 oracle. The rate limit (`STOOP_WEBHOOK_RATE_LIMIT`, default 60 a minute)
@@ -588,9 +592,9 @@ either way.
 | Anything but http(s) | Refused | Refused |
 | A redirect to any of the above | Refused | Refused |
 
-STOOP-261 lifts the address predicate out of `internal/unfurl`'s dialer
-into `internal/netguard`, resolve-then-check ordering intact so a
-rebinding name cannot slip through, and has both callers consult it with
+`internal/netguard` holds the address predicate that used to live in
+`internal/unfurl`'s dialer, resolve-then-check ordering intact so a
+rebinding name cannot slip through, and both callers consult it with
 their own policy. One guard, one table test, two callers, instead of a
 second copy of an SSRF check, which is how the first one ends up subtly
 weaker. The metadata address stays refused whatever the policy says: on
@@ -618,7 +622,7 @@ switches, not policy boundaries.
 | --- | --- | --- |
 | Instance admin | Everything: the three policy settings, and creating, editing, disabling, revoking and deleting every bot, hook and token on the server. No space role required. `instance.integrations.manage`, which only the instance admin role holds. | Space settings → Integrations for the channel context; an instance-wide list in Admin settings |
 | Space owner and admin | The member's view, deliberately. They can remove a misbehaving bot from the space, which stops every credential it holds there; revoking is the instance admin's. | |
-| Member | Read the list: name, direction, target host, bound channel, enabled state, whether it may notify everyone, and each credential's grants and bounds. No token, no secret, no bodies. | The same section, read-only |
+| Member | Read the list: name, direction, target host (never the path or query, which can carry the receiver's own secret), bound channel, enabled state, whether it may notify everyone, and each credential's grants and bounds. No token, no secret, no bodies. | The same section, read-only |
 
 Members see the list because they cannot create anything, so showing it
 carries no delegation with it: it is purely "here is what this space

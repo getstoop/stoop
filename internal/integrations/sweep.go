@@ -54,9 +54,21 @@ func (s *Service) SweepOrphanHooks(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-// RunSweeper sweeps orphaned hook credentials shortly after start and
-// then every interval; 0 disables the timer.
-func (s *Service) RunSweeper(ctx context.Context, interval time.Duration) {
+// SweepDeliveries removes finished deliveries older than retention.
+func (s *Service) SweepDeliveries(ctx context.Context, retention time.Duration) (int64, error) {
+	if retention <= 0 {
+		return 0, nil
+	}
+	n, err := s.q.SweepFinishedDeliveries(ctx, s.now().Add(-retention))
+	if err != nil {
+		return 0, fmt.Errorf("sweep deliveries: %w", err)
+	}
+	return n, nil
+}
+
+// RunSweeper sweeps orphaned hook credentials and old deliveries shortly
+// after start and then every interval; 0 disables the timer.
+func (s *Service) RunSweeper(ctx context.Context, interval, retention time.Duration) {
 	if interval <= 0 {
 		return
 	}
@@ -65,6 +77,9 @@ func (s *Service) RunSweeper(ctx context.Context, interval time.Duration) {
 			s.log.Warn("hook sweep failed", "err", err)
 		} else if n > 0 {
 			s.log.Info("revoked orphaned hook credentials", "count", n)
+		}
+		if _, err := s.SweepDeliveries(ctx, retention); err != nil && ctx.Err() == nil {
+			s.log.Warn("delivery sweep failed", "err", err)
 		}
 	}
 	select {

@@ -118,6 +118,9 @@ type Config struct {
 	Webhooks bool
 	// WebhookRateLimit is posts per minute per incoming hook; 0 disables.
 	WebhookRateLimit int
+	// WebhookDeliveryRetention is how long finished outgoing deliveries
+	// are kept for the log; 0 keeps them forever.
+	WebhookDeliveryRetention time.Duration
 
 	// Tailscale embeds a tailnet node in the binary (tsnet) and serves the
 	// app over HTTPS on its tailnet address, in addition to ListenAddr.
@@ -239,6 +242,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.WebhookRateLimit, err = parseNonNegativeInt("STOOP_WEBHOOK_RATE_LIMIT", 60); err != nil {
+		return Config{}, err
+	}
+	if cfg.WebhookDeliveryRetention, err = parseDuration("STOOP_WEBHOOK_DELIVERY_RETENTION", "168h"); err != nil {
 		return Config{}, err
 	}
 

@@ -53,8 +53,10 @@ type App struct {
 	voice   *voice.Service
 	sweep   time.Duration
 	keep    time.Duration
-	pool    *pgxpool.Pool
-	log     *slog.Logger
+	// deliveries is how long finished webhook deliveries are kept.
+	deliveries time.Duration
+	pool       *pgxpool.Pool
+	log        *slog.Logger
 }
 
 func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error) {
@@ -124,9 +126,9 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	instanceSvc.UseUploadCeiling(files.MaxAttachmentBytes)
 	filesSvc.UseSweepGrace(cfg.FileSweepGrace)
 	chatSvc.UseFiles(fileDirectory{filesSvc})
-	// The queue arrives with the outgoing work (STOOP-260).
 	integrationsSvc := integrations.New(pool, bus, log)
 	integrationsSvc.UsePolicy(instanceSvc)
+	integrationsSvc.UseQueue(integrations.NewPostgresQueue(pool))
 	integrationsSvc.UsePoster(hookPoster{chatSvc})
 	integrationsSvc.UseSpaceAccess(chatSvc)
 	integrationsSvc.UseBotIdentities(botIdentities{authSvc})
@@ -220,8 +222,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		voice: voiceSvc,
 		sweep: cfg.FileSweepInterval,
 		keep:  cfg.ActivityRetention,
-		pool:  pool,
-		log:   log,
+
+		deliveries: cfg.WebhookDeliveryRetention,
+		pool:       pool,
+		log:        log,
 	}
 	a.tailnet = tailnet.NewManager(filepath.Join(cfg.StorageDir, "tailscale"), handler, log)
 	// The built-in node carries LiveKit's media ports as well as HTTPS, so
@@ -410,8 +414,11 @@ func (a *App) Run(ctx context.Context) error {
 	go a.chat.RunActivitySweeper(ctx, a.sweep, a.keep)
 	// Expired sessions, and personal tokens a month past expiry.
 	go a.auth.RunCredentialSweeper(ctx, a.sweep)
-	// Hook credentials whose channel or space was deleted.
-	go a.hooks.RunSweeper(ctx, a.sweep)
+	// Hook credentials whose channel or space was deleted, and old
+	// deliveries; then the outgoing pipeline: bus in, POSTs out.
+	go a.hooks.RunSweeper(ctx, a.sweep, a.deliveries)
+	go a.hooks.RunSubscriber(ctx)
+	go a.hooks.RunWorker(ctx)
 
 	select {
 	case err := <-errCh:

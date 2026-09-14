@@ -8,14 +8,17 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/netguard"
 	"github.com/getstoop/stoop/internal/ratelimit"
 )
 
@@ -42,6 +45,8 @@ type SpaceAccess interface {
 	// SetBotAdmin sets or clears the bot's admin role in the space.
 	SetBotAdmin(ctx context.Context, spaceID, userID string, admin bool) error
 	IsSpaceMember(ctx context.Context, userID, spaceID string) (bool, error)
+	// Member is a space member as chat renders it, for member.joined.
+	Member(ctx context.Context, spaceID, userID string) (*chatv1.Member, error)
 }
 
 // Bot is a bot account as auth reports it.
@@ -125,10 +130,28 @@ type Service struct {
 	policy    Policy
 	queue     Queue
 	hookLimit *ratelimit.Limiter
+
+	subs   subscriber
+	wake   chan struct{}
+	egress egress
+	ladder []time.Duration
+	now    func() time.Time
+}
+
+// egress holds one guarded transport per policy state.
+type egress struct {
+	public, private *http.Transport
 }
 
 func New(pool *pgxpool.Pool, bus events.Bus, log *slog.Logger) *Service {
-	return &Service{pool: pool, q: dbgen.New(pool), bus: bus, log: log}
+	return &Service{
+		pool: pool, q: dbgen.New(pool), bus: bus, log: log,
+		wake: make(chan struct{}, 1), ladder: defaultLadder, now: time.Now,
+		egress: egress{
+			public:  netguard.Policy{}.Transport(),
+			private: netguard.Policy{AllowPrivate: true}.Transport(),
+		},
+	}
 }
 
 // UsePoster wires chat. Without it incoming hooks refuse every post.
@@ -150,8 +173,6 @@ func (s *Service) UseQueue(q Queue) { s.queue = q }
 
 // UseHookThrottle limits posts per hook credential. Nil means no limit.
 func (s *Service) UseHookThrottle(l *ratelimit.Limiter) { s.hookLimit = l }
-
-var errNotBuilt = connect.NewError(connect.CodeUnimplemented, errors.New("not available yet"))
 
 // requireManage is the identity gate for configuring integrations.
 func requireManage(ctx context.Context) error {
