@@ -65,10 +65,15 @@ as an admin there, and nowhere else, with one token granted
 
 - **`users.kind` is `person` or `bot`.** Authorship, author cards, mentions
   and membership need no special case.
-- **A bot may hold an instance role.** The credential gate is what makes
-  that safe.
+- **A bot never holds an instance role.** Decided 2026-09-13 the other
+  way, on the argument that the credential gate makes it safe; reversed
+  2026-09-14 once bots existed: it is safe but not useful, since a
+  person's own token already carries the server actions, and admin
+  standing in every space contradicts the rule that a bot's reach is its
+  membership (STOOP-287). Migration 00034 demotes any bot promoted
+  before and adds the check.
 - **Break-glass stays human.** `password_sign_in: admins` honours person
-  admins only; a bot never signs in. The last-admin guard counts people.
+  admins only; a bot never signs in.
 - **Only people hold `account.security`.** A bot's credentials are managed
   by an instance admin.
 - **Bots are not barred from direct messages** by the model. Whether a bot

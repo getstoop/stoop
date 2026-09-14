@@ -60,7 +60,6 @@ type Bot struct {
 	DisplayName   string
 	AvatarFileID  string
 	Bio           string
-	InstanceAdmin bool
 	CreatedAt     time.Time
 	DeactivatedAt *time.Time
 }

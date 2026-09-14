@@ -63,7 +63,19 @@ func (s *Service) ListAccounts(ctx context.Context) ([]AccountSummary, error) {
 	return out, nil
 }
 
+// SetAccountRole changes an account's instance role. A bot never holds
+// the admin role: its reach is the spaces it has been put in, and the
+// instance actions belong to a person's own token.
 func (s *Service) SetAccountRole(ctx context.Context, userID string, role authctx.Role) (AccountSummary, error) {
+	target, err := s.q.GetUserByID(ctx, userID)
+	if err != nil {
+		return AccountSummary{}, notFoundOr(err, "user")
+	}
+	if role == authctx.RoleAdmin {
+		if err := refuseBotTarget(target, "a bot can't be a server admin; a person's own token carries the server actions"); err != nil {
+			return AccountSummary{}, err
+		}
+	}
 	u, err := s.q.SetUserRole(ctx, dbgen.SetUserRoleParams{ID: userID, Role: string(role)})
 	if err != nil {
 		return AccountSummary{}, notFoundOr(err, "user")
@@ -183,12 +195,15 @@ func toSummary(u dbgen.User) AccountSummary {
 // Demoting the last active admin is refused so the instance can't be left
 // without an administrator.
 func (s *Service) SetRoleByUsername(ctx context.Context, username string, role authctx.Role) (AccountSummary, error) {
+	u, err := s.q.GetUserByUsername(ctx, username)
+	if err != nil {
+		return AccountSummary{}, notFoundOr(err, "user")
+	}
+	if role == authctx.RoleAdmin && u.Kind == string(authctx.KindBot) {
+		return AccountSummary{}, errors.New("a bot can't be a server admin")
+	}
 	if role == authctx.RoleMember {
-		u, err := s.q.GetUserByUsername(ctx, username)
-		if err != nil {
-			return AccountSummary{}, notFoundOr(err, "user")
-		}
-		if authctx.Role(u.Role) == authctx.RoleAdmin && u.Kind == string(authctx.KindPerson) && u.DeactivatedAt == nil {
+		if authctx.Role(u.Role) == authctx.RoleAdmin && u.DeactivatedAt == nil {
 			n, err := s.q.CountAdmins(ctx)
 			if err != nil {
 				return AccountSummary{}, fmt.Errorf("count admins: %w", err)
@@ -198,9 +213,9 @@ func (s *Service) SetRoleByUsername(ctx context.Context, username string, role a
 			}
 		}
 	}
-	u, err := s.q.SetUserRoleByUsername(ctx, dbgen.SetUserRoleByUsernameParams{Username: username, Role: string(role)})
+	updated, err := s.q.SetUserRoleByUsername(ctx, dbgen.SetUserRoleByUsernameParams{Username: username, Role: string(role)})
 	if err != nil {
 		return AccountSummary{}, notFoundOr(err, "user")
 	}
-	return toSummary(u), nil
+	return toSummary(updated), nil
 }

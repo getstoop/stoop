@@ -124,7 +124,7 @@ func toProtoDelivery(d dbgen.WebhookDelivery) *integrationsv1.Delivery {
 func toProtoBot(b Bot, creds []Credential, spaceIDs []string) *integrationsv1.Bot {
 	out := &integrationsv1.Bot{
 		Id: b.ID, Username: b.Username, DisplayName: b.DisplayName, AvatarFileId: b.AvatarFileID, Bio: b.Bio,
-		InstanceAdmin: b.InstanceAdmin, CreatedAt: timestamppb.New(b.CreatedAt), SpaceIds: spaceIDs,
+		CreatedAt: timestamppb.New(b.CreatedAt), SpaceIds: spaceIDs,
 	}
 	if b.DeactivatedAt != nil {
 		out.DeactivatedAt = timestamppb.New(*b.DeactivatedAt)

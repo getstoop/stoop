@@ -35,7 +35,6 @@ type Bot struct {
 	DisplayName   string
 	AvatarFileID  string
 	Bio           string
-	InstanceAdmin bool
 	CreatedAt     time.Time
 	DeactivatedAt *time.Time
 }
@@ -370,6 +369,6 @@ func channelList(id string) []string {
 func toBot(u dbgen.User) Bot {
 	return Bot{
 		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, AvatarFileID: deref(u.AvatarFileID), Bio: u.Bio,
-		InstanceAdmin: authctx.Role(u.Role) == authctx.RoleAdmin, CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
+		CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
 	}
 }

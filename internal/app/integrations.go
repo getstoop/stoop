@@ -110,7 +110,7 @@ func (b botIdentities) VerifyHookToken(ctx context.Context, token string) (authc
 func toIntegrationsBot(b auth.Bot) integrations.Bot {
 	return integrations.Bot{
 		ID: b.ID, Username: b.Username, DisplayName: b.DisplayName, AvatarFileID: b.AvatarFileID, Bio: b.Bio,
-		InstanceAdmin: b.InstanceAdmin, CreatedAt: b.CreatedAt, DeactivatedAt: b.DeactivatedAt,
+		CreatedAt: b.CreatedAt, DeactivatedAt: b.DeactivatedAt,
 	}
 }
 

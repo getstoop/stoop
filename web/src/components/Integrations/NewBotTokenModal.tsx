@@ -4,7 +4,7 @@ import { integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import {
   BOT_GROUP_LABELS,
-  botOptions,
+  BOT_TOKEN_OPTIONS,
   canCreate,
   permissionsFor,
 } from "../../api/tokenOptions";
@@ -92,7 +92,7 @@ export function NewBotTokenModal({
           />
         </label>
         <PermissionPicker
-          options={botOptions(bot)}
+          options={BOT_TOKEN_OPTIONS}
           groupLabels={BOT_GROUP_LABELS}
           selected={keys}
           onChange={setKeys}

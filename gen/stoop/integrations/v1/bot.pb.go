@@ -31,9 +31,7 @@ type Bot struct {
 	Username     string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	DisplayName  string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	AvatarFileId string                 `protobuf:"bytes,4,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
-	// Whether the bot holds the instance admin role.
-	InstanceAdmin bool                   `protobuf:"varint,5,opt,name=instance_admin,json=instanceAdmin,proto3" json:"instance_admin,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Set once deactivated; its credentials are revoked with it.
 	DeactivatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=deactivated_at,json=deactivatedAt,proto3" json:"deactivated_at,omitempty"`
 	Tokens        []*BotToken            `protobuf:"bytes,8,rep,name=tokens,proto3" json:"tokens,omitempty"`
@@ -104,13 +102,6 @@ func (x *Bot) GetAvatarFileId() string {
 		return x.AvatarFileId
 	}
 	return ""
-}
-
-func (x *Bot) GetInstanceAdmin() bool {
-	if x != nil {
-		return x.InstanceAdmin
-	}
-	return false
 }
 
 func (x *Bot) GetCreatedAt() *timestamppb.Timestamp {
@@ -266,20 +257,19 @@ var File_stoop_integrations_v1_bot_proto protoreflect.FileDescriptor
 
 const file_stoop_integrations_v1_bot_proto_rawDesc = "" +
 	"\n" +
-	"\x1fstoop/integrations/v1/bot.proto\x12\x15stoop.integrations.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\x87\x03\n" +
+	"\x1fstoop/integrations/v1/bot.proto\x12\x15stoop.integrations.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\xf6\x02\n" +
 	"\x03Bot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12$\n" +
-	"\x0eavatar_file_id\x18\x04 \x01(\tR\favatarFileId\x12%\n" +
-	"\x0einstance_admin\x18\x05 \x01(\bR\rinstanceAdmin\x129\n" +
+	"\x0eavatar_file_id\x18\x04 \x01(\tR\favatarFileId\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12A\n" +
 	"\x0edeactivated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rdeactivatedAt\x127\n" +
 	"\x06tokens\x18\b \x03(\v2\x1f.stoop.integrations.v1.BotTokenR\x06tokens\x12\x10\n" +
 	"\x03bio\x18\t \x01(\tR\x03bio\x12\x1b\n" +
 	"\tspace_ids\x18\n" +
-	" \x03(\tR\bspaceIds\"\xd1\x02\n" +
+	" \x03(\tR\bspaceIdsJ\x04\b\x05\x10\x06R\x0einstance_admin\"\xd1\x02\n" +
 	"\bBotToken\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\vbot_user_id\x18\x02 \x01(\tR\tbotUserId\x12\x12\n" +

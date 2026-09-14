@@ -42,8 +42,10 @@ they are a member — the full space-admin permission set below, plus
 
 They do **not** inherit `owner`. Ownership only moves by transfer.
 
-A bot may hold the role too; what a bot can do is still bounded by the
-credential it presents ([integrations.md](integrations.md#bots)).
+A bot never holds the role: the schema refuses it, and both promote
+paths (the admin page and `stoop admin promote`) say so. A bot's reach is
+the spaces an instance admin has put it in, and the server actions belong
+to a person's own token ([integrations.md](integrations.md#bots)).
 
 Inheritance is a *permission check, not a membership row*. An instance
 admin who hasn't joined a space is not listed as a member, does not appear
