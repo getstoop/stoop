@@ -176,7 +176,7 @@ func (s *Service) CreateBotToken(ctx context.Context, req *connect.Request[integ
 	}
 	cred, secret, err := s.bots.MintCredential(ctx, MintRequest{
 		HolderID: bot.ID, Kind: authctx.CredentialBotToken, Name: req.Msg.Name, Grants: grants,
-		Limited: req.Msg.Limited, SpaceIDs: req.Msg.SpaceIds, CreatedBy: authctx.UserID(ctx),
+		CreatedBy: authctx.UserID(ctx),
 	})
 	if err != nil {
 		return nil, err

@@ -5,9 +5,9 @@ import { instanceClient, integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { eventLabel, hookCanText } from "../../api/integrations";
 import {
+  useAllSpaces,
   useBots,
   useInstanceStatus,
-  useSpaces,
   useWebhooks,
 } from "../../api/queries";
 import {
@@ -36,7 +36,7 @@ export function IntegrationsSection() {
   const { data: status } = useInstanceStatus();
   const { data: bots } = useBots(true);
   const { data: hooks } = useWebhooks("", true);
-  const { data: spaces } = useSpaces();
+  const { data: spaces } = useAllSpaces(true);
   const [newBot, setNewBot] = useState(false);
   const [editing, setEditing] = useState<Bot | null>(null);
   const [tokenFor, setTokenFor] = useState<Bot | null>(null);
@@ -188,9 +188,13 @@ export function IntegrationsSection() {
             <ListHead columns={["Bot", "Standing", "", ""]} />
             {bots.map((b) => {
               const own = hooksOf(b.id);
+              const where =
+                b.spaceIds.length === 0
+                  ? "in no spaces yet"
+                  : `in ${b.spaceIds.map((id) => nameOf(id) ?? "a space").join(", ")}`;
               const standing = b.deactivatedAt
                 ? "deactivated"
-                : `${own.length} webhook${own.length === 1 ? "" : "s"}, ${b.tokens.length} token${b.tokens.length === 1 ? "" : "s"}${b.instanceAdmin ? " · server admin" : ""}`;
+                : `${own.length} webhook${own.length === 1 ? "" : "s"}, ${b.tokens.length} token${b.tokens.length === 1 ? "" : "s"} · ${where}${b.instanceAdmin ? " · server admin" : ""}`;
               return (
                 <BotRow
                   key={b.id}
@@ -239,8 +243,10 @@ export function IntegrationsSection() {
                           <span>
                             token ·{" "}
                             {describePermissions(t.permissions).join(", ")}
-                            {" · "}
-                            {whereText(t, nameOf)} · …{t.hint}
+                            {t.limited && (
+                              <> · limited to {whereText(t, nameOf)}</>
+                            )}
+                            {" · "}…{t.hint}
                           </span>
                           <span className="muted">
                             {lastUsedText(

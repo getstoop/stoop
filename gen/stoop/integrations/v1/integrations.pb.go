@@ -1652,10 +1652,10 @@ type CreateBotTokenRequest struct {
 	BotUserId string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
 	// 1-50 characters after trimming.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// At least one; never PERMISSION_ACCOUNT_SECURITY.
+	// At least one; never PERMISSION_ACCOUNT_SECURITY. The token works
+	// wherever the bot is a member (Bot.space_ids); there is no limit of
+	// its own.
 	Permissions   []v1.Permission `protobuf:"varint,3,rep,packed,name=permissions,proto3,enum=stoop.access.v1.Permission" json:"permissions,omitempty"`
-	Limited       bool            `protobuf:"varint,4,opt,name=limited,proto3" json:"limited,omitempty"`
-	SpaceIds      []string        `protobuf:"bytes,5,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1707,20 +1707,6 @@ func (x *CreateBotTokenRequest) GetName() string {
 func (x *CreateBotTokenRequest) GetPermissions() []v1.Permission {
 	if x != nil {
 		return x.Permissions
-	}
-	return nil
-}
-
-func (x *CreateBotTokenRequest) GetLimited() bool {
-	if x != nil {
-		return x.Limited
-	}
-	return false
-}
-
-func (x *CreateBotTokenRequest) GetSpaceIds() []string {
-	if x != nil {
-		return x.SpaceIds
 	}
 	return nil
 }
@@ -1972,13 +1958,11 @@ const file_stoop_integrations_v1_integrations_proto_rawDesc = "" +
 	"\x03bot\x18\x01 \x01(\v2\x1a.stoop.integrations.v1.BotR\x03bot\"&\n" +
 	"\x14DeactivateBotRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
-	"\x15DeactivateBotResponse\"\xc1\x01\n" +
+	"\x15DeactivateBotResponse\"\xaa\x01\n" +
 	"\x15CreateBotTokenRequest\x12\x1e\n" +
 	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12=\n" +
-	"\vpermissions\x18\x03 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\x12\x18\n" +
-	"\alimited\x18\x04 \x01(\bR\alimited\x12\x1b\n" +
-	"\tspace_ids\x18\x05 \x03(\tR\bspaceIds\"g\n" +
+	"\vpermissions\x18\x03 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissionsJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\alimitedR\tspace_ids\"g\n" +
 	"\x16CreateBotTokenResponse\x125\n" +
 	"\x05token\x18\x01 \x01(\v2\x1f.stoop.integrations.v1.BotTokenR\x05token\x12\x16\n" +
 	"\x06secret\x18\x02 \x01(\tR\x06secret\"2\n" +

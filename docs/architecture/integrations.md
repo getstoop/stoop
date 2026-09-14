@@ -44,7 +44,7 @@ member of that one space. It acts only through the credentials it holds
 | Credential | Kind | Grant | Bound to | Presented as |
 | --- | --- | --- | --- | --- |
 | hook token | `incoming_hook` | `messages.post`, optionally `messages.notify_everyone` | one channel | the path of `/hooks/{token}` |
-| bot token | `bot_token` | any grantable actions | spaces, optional | `Authorization: Bearer stp_bot_…` |
+| bot token | `bot_token` | any grantable actions | the bot's memberships | `Authorization: Bearer stp_bot_…` |
 
 The grant gates the credential and the bot's role gates the identity;
 both must pass, checked by the same gates every request goes through. A

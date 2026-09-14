@@ -156,7 +156,8 @@ type BotToken struct {
 	BotUserId   string                 `protobuf:"bytes,2,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
 	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Permissions []v1.Permission        `protobuf:"varint,4,rep,packed,name=permissions,proto3,enum=stoop.access.v1.Permission" json:"permissions,omitempty"`
-	// Limited tokens work only in space_ids.
+	// Set only on tokens minted before membership lived on the bot; they
+	// keep their narrower reach. New tokens are never limited.
 	Limited   bool                   `protobuf:"varint,5,opt,name=limited,proto3" json:"limited,omitempty"`
 	SpaceIds  []string               `protobuf:"bytes,6,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`

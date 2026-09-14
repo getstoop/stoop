@@ -120,7 +120,8 @@ export type BotToken = Message<"stoop.integrations.v1.BotToken"> & {
   permissions: Permission[];
 
   /**
-   * Limited tokens work only in space_ids.
+   * Set only on tokens minted before membership lived on the bot; they
+   * keep their narrower reach. New tokens are never limited.
    *
    * @generated from field: bool limited = 5;
    */
