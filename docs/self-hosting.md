@@ -567,6 +567,52 @@ items that have been read for longer than `STOOP_ACTIVITY_RETENTION`
 (default `720h`, thirty days; `0` keeps them forever) are removed. Unread
 ones are never touched.
 
+## Webhooks
+
+**To post into a channel from another tool**, open the space's settings →
+Integrations, choose *New incoming webhook*, pick the channel, and paste
+the URL into the tool. Anything with a Discord or Slack webhook field
+works as is, and so does curl:
+
+```sh
+curl -d 'disk is full' https://chat.example.com/hooks/stp_hook_…
+```
+
+The URL posts into that one channel as a bot and can do nothing else.
+Treat it like a password: anyone with it can post there. Rotate it from
+the same page if it leaks.
+
+**To have Stoop call your own endpoint** when something happens, choose
+*New outgoing webhook*, give it the URL and tick the events. Each event
+is a JSON POST signed with the secret shown once at creation. Verifying
+it, in Python:
+
+```python
+import hmac, hashlib, time
+t, v1 = (p.split("=")[1] for p in headers["Stoop-Signature"].split(","))
+mine = hmac.new(secret, f"{t}.".encode() + body, hashlib.sha256).hexdigest()
+assert hmac.compare_digest(mine, v1) and time.time() - int(t) < 300
+```
+
+Deliveries retry four times over two and a half minutes and then stop;
+the page shows each hook's log and lets you send a failed one again.
+`Stoop-Sequence` counts up per hook, so a receiver can tell when it
+missed one. A receiver that answers `410 Gone`, or fails twenty times
+in a row, turns the hook off until you turn it back on.
+
+**A target on your LAN** (a Home Assistant box, a script on another
+machine) is refused until you tick *Allow private targets* on Server
+admin → Integrations. The cloud metadata address and link-local ranges
+are never reachable. Your own scripts should use a personal token
+against the API rather than a webhook; a program that can set a header
+should use a bot token, made from the same admin page. Never paste a bot
+token into someone else's appliance: a hook URL can only post, a bot
+token can read everything its bot can.
+
+`STOOP_WEBHOOKS=false` turns the whole feature off without deleting
+anything; the two direction switches on the admin page do the same per
+direction.
+
 ## Privacy of direct messages
 
 Direct messages are private *in the app*: nothing lets a server admin

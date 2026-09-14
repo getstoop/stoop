@@ -157,6 +157,26 @@ some spaces, and expires after 30, 90 or 365 days, or never.
 - An instance admin sees and revokes anyone's tokens from **Server admin →
   Accounts**; never the token itself.
 
+## Bots and their credentials
+
+A bot is an account of kind `bot`: a member like any other, with no
+password and never a session. It acts through two kinds of credential an
+instance admin mints for it ([integrations.md](integrations.md#bots)):
+
+- **A hook token** (`stp_hook_`, kind `incoming_hook`) lives in a hook
+  URL, is granted `messages.post` and optionally
+  `messages.notify_everyone`, and is bounded to one channel. It is
+  refused as a bearer token everywhere.
+- **A bot token** (`stp_bot_`, kind `bot_token`) is a bearer token with
+  any grantable actions and optional space bounds, like a personal token
+  without an expiry. It is refused in the hook path and on `/ws`.
+
+Both are stored as SHA-256 with a four-character hint, shown once, and
+verified by the same code as a session. Deactivating the bot revokes
+everything; revoking the last credential deactivates the bot. Bots may
+hold the instance admin role; break-glass sign-in and the last-admin guard
+count people only.
+
 No JWTs anywhere in the session path. Statelessness buys nothing here: this
 is a single process that already has a database open.
 

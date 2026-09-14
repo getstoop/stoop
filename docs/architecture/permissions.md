@@ -42,6 +42,9 @@ they are a member — the full space-admin permission set below, plus
 
 They do **not** inherit `owner`. Ownership only moves by transfer.
 
+A bot may hold the role too; what a bot can do is still bounded by the
+credential it presents ([integrations.md](integrations.md#bots)).
+
 Inheritance is a *permission check, not a membership row*. An instance
 admin who hasn't joined a space is not listed as a member, does not appear
 in the roster, and does not receive its realtime events. This distinction
@@ -81,6 +84,8 @@ setting once or acts as its fallback, depending on the setting — see
 | `storage_quota_bytes` | Total upload storage; 0 is unlimited. |
 | `password_sign_in` | `everyone` / `admins` / `off`. See [identity.md](identity.md). |
 | `personal_tokens` | `everyone` (default) / `admins` / `off`. Checked at every use. See [identity.md](identity.md#personal-tokens). |
+| `webhooks_incoming`, `webhooks_outgoing` | Each direction on (default) or off; `STOOP_WEBHOOKS=false` overrides both. See [integrations.md](integrations.md#switches). |
+| `webhooks_allow_private_targets` | Whether outgoing webhooks may reach LAN, loopback and CGNAT addresses (default off). |
 | `login_providers` | The OIDC provider list, replaced whole. |
 | reachability keys | Public URL, TURN, Cloudflare TURN, Tailscale, trusted proxies. See [runtime.md](runtime.md). |
 | `livekit` | The minted API key pair. See [voice.md](voice.md). |

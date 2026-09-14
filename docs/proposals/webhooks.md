@@ -1,6 +1,8 @@
 # Webhooks: events out, posts in
 
-Status: decided 2026-09-14 (STOOP-256). Proposed 2026-09-13, revised the
+Status: decided 2026-09-14, built 2026-09-14 (STOOP-256; what the code
+does is [integrations.md](../architecture/integrations.md)). Proposed
+2026-09-13, revised the
 same day after a long review, rebased onto [the access model](access-model.md)
 once STOOP-269 landed, and the last four decisions settled by the
 maintainer on 2026-09-14. The decisions and how they moved are at the
