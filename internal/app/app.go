@@ -484,9 +484,6 @@ func (d userDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserR
 type userAdmin struct{ auth *auth.Service }
 
 func (a userAdmin) CountUsers(ctx context.Context) (int64, error) { return a.auth.CountUsers(ctx) }
-func (a userAdmin) CountActiveAdmins(ctx context.Context) (int64, error) {
-	return a.auth.CountActiveAdmins(ctx)
-}
 func (a userAdmin) ListUsers(ctx context.Context) ([]instance.UserSummary, error) {
 	accounts, err := a.auth.ListAccounts(ctx)
 	if err != nil {

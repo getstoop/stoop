@@ -68,7 +68,10 @@ the database. End-to-end encryption remains deferred, and
 registration policy only that first user can register without an invite, so
 this is the natural first step of setup rather than a race. The count and
 insert run under a Postgres advisory lock, so two simultaneous first
-registrations cannot both see an empty table. `stoop admin promote
+registrations cannot both see an empty table. The last-admin guard, which
+refuses to demote or deactivate the only active admin, runs the same way:
+the count and the write share one transaction under a roster lock, so two
+admins demoting each other at once leave one. `stoop admin promote
 <username>` is the recovery path.
 
 ## Instance settings (`instance`: `instance_settings`)

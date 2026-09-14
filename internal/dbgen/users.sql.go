@@ -299,6 +299,17 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const lockAdminRoster = `-- name: LockAdminRoster :exec
+SELECT pg_advisory_xact_lock(7002)
+`
+
+// LockAdminRoster serialises anything that could remove an admin, so two
+// demotions can't both see "two admins left" and leave none.
+func (q *Queries) LockAdminRoster(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockAdminRoster)
+	return err
+}
+
 const lockUserBootstrap = `-- name: LockUserBootstrap :exec
 SELECT pg_advisory_xact_lock(7001)
 `

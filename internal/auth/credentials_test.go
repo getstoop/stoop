@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"slices"
+	"sync"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -148,6 +149,7 @@ func TestTokenBounds(t *testing.T) {
 func TestDeactivationRevokesEveryCredential(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
+	signIn(t, svc, "casey", "correct horse battery") // the admin, so ada can be deactivated
 	signedIn, session := signIn(t, svc, "ada", "correct horse battery")
 	ada, _ := authctx.From(signedIn)
 	ctx := context.Background()
@@ -205,5 +207,59 @@ func TestLastAdminIsAlwaysAPerson(t *testing.T) {
 	}
 	if _, err := svc.SetRoleByUsername(ctx, "casey", authctx.RoleMember); err == nil {
 		t.Error("demoted the last admin")
+	}
+}
+
+// Two admins demoting each other at the same moment must leave one. The
+// roster lock makes the count and the write one step; without it both
+// see "two left" and the server ends up with none.
+func TestLastAdminGuardIsAtomic(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
+	ctx := context.Background()
+	ids := map[string]string{}
+	for _, name := range []string{"casey", "ada"} {
+		res, err := svc.Register(ctx, connect.NewRequest(&authv1.RegisterRequest{Username: name, Password: "correct horse battery"}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[name] = res.Msg.User.Id
+	}
+	for round := 0; round < 10; round++ {
+		for _, id := range ids {
+			if _, err := svc.SetAccountRole(ctx, id, authctx.RoleAdmin); err != nil {
+				t.Fatal(err)
+			}
+		}
+		var wg sync.WaitGroup
+		for _, id := range ids {
+			wg.Add(1)
+			go func(id string) {
+				defer wg.Done()
+				_, _ = svc.SetAccountRole(ctx, id, authctx.RoleMember)
+			}(id)
+		}
+		wg.Wait()
+		if n, err := svc.CountActiveAdmins(ctx); err != nil || n != 1 {
+			t.Fatalf("round %d: %d admins left, %v", round, n, err)
+		}
+	}
+	// The same lock guards deactivation.
+	for _, id := range ids {
+		if _, err := svc.SetAccountRole(ctx, id, authctx.RoleAdmin); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var wg sync.WaitGroup
+	for _, id := range ids {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			_, _ = svc.SetAccountActive(ctx, id, false)
+		}(id)
+	}
+	wg.Wait()
+	if n, _ := svc.CountActiveAdmins(ctx); n != 1 {
+		t.Fatalf("deactivation left %d admins", n)
 	}
 }

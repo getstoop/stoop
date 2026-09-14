@@ -51,8 +51,25 @@ func (f *fakeUsers) SetUserRole(_ context.Context, id string, role authctx.Role)
 	if !ok {
 		return instance.UserSummary{}, errors.New("not found")
 	}
+	if role == authctx.RoleMember {
+		if err := f.guardLastAdmin(u); err != nil {
+			return instance.UserSummary{}, err
+		}
+	}
 	u.Role = role
 	return *u, nil
+}
+
+// guardLastAdmin mirrors auth's: the port refuses to remove the last
+// active admin.
+func (f *fakeUsers) guardLastAdmin(target *instance.UserSummary) error {
+	if target.Role != authctx.RoleAdmin || target.DeactivatedAt != nil {
+		return nil
+	}
+	if n, _ := f.CountActiveAdmins(context.Background()); n <= 1 {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("that's the last active admin; promote someone else first"))
+	}
+	return nil
 }
 func (f *fakeUsers) ResetUserPassword(_ context.Context, id string) (string, instance.UserSummary, error) {
 	u, ok := f.users[id]
@@ -69,6 +86,9 @@ func (f *fakeUsers) SetUserActive(_ context.Context, id string, active bool) (in
 	if active {
 		u.DeactivatedAt = nil
 	} else {
+		if err := f.guardLastAdmin(u); err != nil {
+			return instance.UserSummary{}, err
+		}
 		now := time.Now()
 		u.DeactivatedAt = &now
 	}

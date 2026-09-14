@@ -39,8 +39,9 @@ type UserSummary struct {
 // UserAdmin is instance's port onto the auth module, wired in internal/app.
 type UserAdmin interface {
 	CountUsers(ctx context.Context) (int64, error)
-	CountActiveAdmins(ctx context.Context) (int64, error)
 	ListUsers(ctx context.Context) ([]UserSummary, error)
+	// SetUserRole and SetUserActive refuse to demote or deactivate the
+	// last active admin, atomically with the count that decides it.
 	SetUserRole(ctx context.Context, userID string, role authctx.Role) (UserSummary, error)
 	SetUserActive(ctx context.Context, userID string, active bool) (UserSummary, error)
 	// ResetUserPassword sets a temporary password, revokes the account's
