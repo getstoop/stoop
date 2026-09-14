@@ -7,8 +7,9 @@ wrong.
 
 Two design commitments shape everything below:
 
-**One account per instance, many spaces.** Discord's identity model, not
-Slack's. You sign in once and participate in every space you belong to.
+**One account per instance, many spaces.** You sign in once and
+participate in every space you belong to; a space never has an identity
+of its own.
 
 **No email.** Stoop has no mail transport and does not want one — an
 operator running a Pi should not have to configure SMTP or sign up for a

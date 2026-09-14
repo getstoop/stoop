@@ -571,8 +571,8 @@ ones are never touched.
 
 **To post into a channel from another tool**, open the space's settings →
 Integrations, choose *New incoming webhook*, pick the channel, and paste
-the URL into the tool. Anything with a Discord or Slack webhook field
-works as is, and so does curl:
+the URL into the tool. Anything with a webhook URL field works as is,
+and so does curl:
 
 ```sh
 curl -d 'disk is full' https://chat.example.com/hooks/stp_hook_…

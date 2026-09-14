@@ -1873,9 +1873,9 @@ export const ListDirectMessageCandidatesResponseSchema: GenMessage<ListDirectMes
 
 /**
  * ChatService manages spaces, channels, and messages. A space is the
- * community-level container (what Discord calls a "server" — renamed so
- * "server" can unambiguously mean a Stoop instance). All RPCs require an
- * authenticated session.
+ * community-level container: a group of channels and their members. It
+ * is deliberately not called a "server", so that word can unambiguously
+ * mean a Stoop instance. All RPCs require an authenticated session.
  *
  * @generated from service stoop.chat.v1.ChatService
  */

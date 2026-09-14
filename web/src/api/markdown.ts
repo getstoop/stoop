@@ -1,4 +1,4 @@
-// The message format: a small Discord-style Markdown subset, parsed into a
+// The message format: a small chat-style Markdown subset, parsed into a
 // tree the renderer turns into React nodes (never HTML strings). Blocks:
 // fenced code, "> " quotes, "- "/"1. " lists, plain lines. Inline:
 // **bold**, *italic*, __underline__, ~~strike~~, ||spoiler||, `code`,

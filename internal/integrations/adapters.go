@@ -27,8 +27,8 @@ func looksLikeJSON(raw []byte) bool {
 	return strings.HasPrefix(strings.TrimSpace(string(raw)), "{")
 }
 
-// fromJSON reads, in order: Stoop and Slack's text, Discord's content,
-// then Slack attachments.
+// fromJSON reads, in order: a text field, a content field, then
+// attachments' titles and texts: the body shapes homelab tools send.
 func fromJSON(raw []byte) string {
 	var body struct {
 		Text        string `json:"text"`
