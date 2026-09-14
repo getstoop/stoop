@@ -20,6 +20,22 @@ func TestVocabularyAndEnumMatch(t *testing.T) {
 	}
 }
 
+func TestFromProtoRoundTrips(t *testing.T) {
+	actions := authctx.AllActions()
+	back, ok := FromProto(ToProto(actions))
+	if !ok || len(back) != len(actions) {
+		t.Fatalf("round trip lost actions: %v", back)
+	}
+	for i := range actions {
+		if back[i] != actions[i] {
+			t.Errorf("%s came back as %s", actions[i], back[i])
+		}
+	}
+	if _, ok := FromProto([]accessv1.Permission{accessv1.Permission_PERMISSION_UNSPECIFIED}); ok {
+		t.Error("UNSPECIFIED must not convert")
+	}
+}
+
 func TestToProtoKeepsOrder(t *testing.T) {
 	got := ToProto([]authctx.Action{authctx.SpaceDelete, authctx.InstanceRead, authctx.Action("bogus")})
 	want := []accessv1.Permission{accessv1.Permission_PERMISSION_SPACE_DELETE, accessv1.Permission_PERMISSION_INSTANCE_READ}

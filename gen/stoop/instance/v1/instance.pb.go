@@ -137,6 +137,63 @@ func (PasswordSignIn) EnumDescriptor() ([]byte, []int) {
 	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{1}
 }
 
+// PersonalTokens controls who may make and use personal tokens. Checked at
+// every use, so turning it down stops existing tokens until it goes back up.
+type PersonalTokens int32
+
+const (
+	PersonalTokens_PERSONAL_TOKENS_UNSPECIFIED PersonalTokens = 0
+	// Anyone (the default).
+	PersonalTokens_PERSONAL_TOKENS_EVERYONE PersonalTokens = 1
+	// Only instance admins.
+	PersonalTokens_PERSONAL_TOKENS_ADMINS PersonalTokens = 2
+	// Nobody.
+	PersonalTokens_PERSONAL_TOKENS_OFF PersonalTokens = 3
+)
+
+// Enum value maps for PersonalTokens.
+var (
+	PersonalTokens_name = map[int32]string{
+		0: "PERSONAL_TOKENS_UNSPECIFIED",
+		1: "PERSONAL_TOKENS_EVERYONE",
+		2: "PERSONAL_TOKENS_ADMINS",
+		3: "PERSONAL_TOKENS_OFF",
+	}
+	PersonalTokens_value = map[string]int32{
+		"PERSONAL_TOKENS_UNSPECIFIED": 0,
+		"PERSONAL_TOKENS_EVERYONE":    1,
+		"PERSONAL_TOKENS_ADMINS":      2,
+		"PERSONAL_TOKENS_OFF":         3,
+	}
+)
+
+func (x PersonalTokens) Enum() *PersonalTokens {
+	p := new(PersonalTokens)
+	*p = x
+	return p
+}
+
+func (x PersonalTokens) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PersonalTokens) Descriptor() protoreflect.EnumDescriptor {
+	return file_stoop_instance_v1_instance_proto_enumTypes[2].Descriptor()
+}
+
+func (PersonalTokens) Type() protoreflect.EnumType {
+	return &file_stoop_instance_v1_instance_proto_enumTypes[2]
+}
+
+func (x PersonalTokens) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PersonalTokens.Descriptor instead.
+func (PersonalTokens) EnumDescriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{2}
+}
+
 // SpaceCreationPolicy controls who may create spaces.
 type SpaceCreationPolicy int32
 
@@ -173,11 +230,11 @@ func (x SpaceCreationPolicy) String() string {
 }
 
 func (SpaceCreationPolicy) Descriptor() protoreflect.EnumDescriptor {
-	return file_stoop_instance_v1_instance_proto_enumTypes[2].Descriptor()
+	return file_stoop_instance_v1_instance_proto_enumTypes[3].Descriptor()
 }
 
 func (SpaceCreationPolicy) Type() protoreflect.EnumType {
-	return &file_stoop_instance_v1_instance_proto_enumTypes[2]
+	return &file_stoop_instance_v1_instance_proto_enumTypes[3]
 }
 
 func (x SpaceCreationPolicy) Number() protoreflect.EnumNumber {
@@ -186,7 +243,7 @@ func (x SpaceCreationPolicy) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SpaceCreationPolicy.Descriptor instead.
 func (SpaceCreationPolicy) EnumDescriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{2}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{3}
 }
 
 type GetInstanceStatusRequest struct {
@@ -251,9 +308,11 @@ type GetInstanceStatusResponse struct {
 	// random name (e.g. "Rusty Awning") until the operator picks one, so a
 	// client talking to more than one instance never sees them all
 	// introduce themselves as "Stoop".
-	InstanceName  string `protobuf:"bytes,9,opt,name=instance_name,json=instanceName,proto3" json:"instance_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	InstanceName string `protobuf:"bytes,9,opt,name=instance_name,json=instanceName,proto3" json:"instance_name,omitempty"`
+	// Who may make and use personal tokens.
+	PersonalTokens PersonalTokens `protobuf:"varint,10,opt,name=personal_tokens,json=personalTokens,proto3,enum=stoop.instance.v1.PersonalTokens" json:"personal_tokens,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetInstanceStatusResponse) Reset() {
@@ -349,6 +408,13 @@ func (x *GetInstanceStatusResponse) GetInstanceName() string {
 	return ""
 }
 
+func (x *GetInstanceStatusResponse) GetPersonalTokens() PersonalTokens {
+	if x != nil {
+		return x.PersonalTokens
+	}
+	return PersonalTokens_PERSONAL_TOKENS_UNSPECIFIED
+}
+
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset fields are left unchanged.
@@ -363,9 +429,10 @@ type UpdateSettingsRequest struct {
 	MaxUploadBytes *int64 `protobuf:"varint,5,opt,name=max_upload_bytes,json=maxUploadBytes,proto3,oneof" json:"max_upload_bytes,omitempty"`
 	// Trimmed; must not be blank. Once set, it replaces the random default
 	// for good — there's no way to ask for a new random name.
-	InstanceName  *string `protobuf:"bytes,6,opt,name=instance_name,json=instanceName,proto3,oneof" json:"instance_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	InstanceName   *string         `protobuf:"bytes,6,opt,name=instance_name,json=instanceName,proto3,oneof" json:"instance_name,omitempty"`
+	PersonalTokens *PersonalTokens `protobuf:"varint,7,opt,name=personal_tokens,json=personalTokens,proto3,enum=stoop.instance.v1.PersonalTokens,oneof" json:"personal_tokens,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -438,6 +505,13 @@ func (x *UpdateSettingsRequest) GetInstanceName() string {
 		return *x.InstanceName
 	}
 	return ""
+}
+
+func (x *UpdateSettingsRequest) GetPersonalTokens() PersonalTokens {
+	if x != nil && x.PersonalTokens != nil {
+		return *x.PersonalTokens
+	}
+	return PersonalTokens_PERSONAL_TOKENS_UNSPECIFIED
 }
 
 type UpdateSettingsResponse struct {
@@ -1514,12 +1588,188 @@ func (x *GetBuildInfoResponse) GetGoVersion() string {
 	return ""
 }
 
+type ListUserTokensRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserTokensRequest) Reset() {
+	*x = ListUserTokensRequest{}
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserTokensRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserTokensRequest) ProtoMessage() {}
+
+func (x *ListUserTokensRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserTokensRequest.ProtoReflect.Descriptor instead.
+func (*ListUserTokensRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListUserTokensRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type ListUserTokensResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tokens        []*v1.PersonalToken    `protobuf:"bytes,1,rep,name=tokens,proto3" json:"tokens,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserTokensResponse) Reset() {
+	*x = ListUserTokensResponse{}
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserTokensResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserTokensResponse) ProtoMessage() {}
+
+func (x *ListUserTokensResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserTokensResponse.ProtoReflect.Descriptor instead.
+func (*ListUserTokensResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListUserTokensResponse) GetTokens() []*v1.PersonalToken {
+	if x != nil {
+		return x.Tokens
+	}
+	return nil
+}
+
+type RevokeUserTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TokenId       string                 `protobuf:"bytes,2,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeUserTokenRequest) Reset() {
+	*x = RevokeUserTokenRequest{}
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeUserTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeUserTokenRequest) ProtoMessage() {}
+
+func (x *RevokeUserTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeUserTokenRequest.ProtoReflect.Descriptor instead.
+func (*RevokeUserTokenRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RevokeUserTokenRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *RevokeUserTokenRequest) GetTokenId() string {
+	if x != nil {
+		return x.TokenId
+	}
+	return ""
+}
+
+type RevokeUserTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeUserTokenResponse) Reset() {
+	*x = RevokeUserTokenResponse{}
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeUserTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeUserTokenResponse) ProtoMessage() {}
+
+func (x *RevokeUserTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeUserTokenResponse.ProtoReflect.Descriptor instead.
+func (*RevokeUserTokenResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{27}
+}
+
 var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
 
 const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\n" +
 	" stoop/instance/v1/instance.proto\x12\x11stoop.instance.v1\x1a\x18stoop/auth/v1/auth.proto\x1a!stoop/instance/v1/providers.proto\x1a$stoop/instance/v1/reachability.proto\x1a\x1cstoop/instance/v1/user.proto\"\x1a\n" +
-	"\x18GetInstanceStatusRequest\"\xa0\x04\n" +
+	"\x18GetInstanceStatusRequest\"\xec\x04\n" +
 	"\x19GetInstanceStatusResponse\x12\x1f\n" +
 	"\vneeds_setup\x18\x01 \x01(\bR\n" +
 	"needsSetup\x12V\n" +
@@ -1531,20 +1781,24 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x0flogin_providers\x18\x06 \x03(\v2'.stoop.instance.v1.LoginProviderSummaryR\x0eloginProviders\x12K\n" +
 	"\x10password_sign_in\x18\a \x01(\x0e2!.stoop.instance.v1.PasswordSignInR\x0epasswordSignIn\x12(\n" +
 	"\x10max_upload_bytes\x18\b \x01(\x03R\x0emaxUploadBytes\x12#\n" +
-	"\rinstance_name\x18\t \x01(\tR\finstanceName\"\xa7\x04\n" +
+	"\rinstance_name\x18\t \x01(\tR\finstanceName\x12J\n" +
+	"\x0fpersonal_tokens\x18\n" +
+	" \x01(\x0e2!.stoop.instance.v1.PersonalTokensR\x0epersonalTokens\"\x8c\x05\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
 	"\x0espace_creation\x18\x02 \x01(\x0e2&.stoop.instance.v1.SpaceCreationPolicyH\x01R\rspaceCreation\x88\x01\x01\x123\n" +
 	"\x13storage_quota_bytes\x18\x03 \x01(\x03H\x02R\x11storageQuotaBytes\x88\x01\x01\x12P\n" +
 	"\x10password_sign_in\x18\x04 \x01(\x0e2!.stoop.instance.v1.PasswordSignInH\x03R\x0epasswordSignIn\x88\x01\x01\x12-\n" +
 	"\x10max_upload_bytes\x18\x05 \x01(\x03H\x04R\x0emaxUploadBytes\x88\x01\x01\x12(\n" +
-	"\rinstance_name\x18\x06 \x01(\tH\x05R\finstanceName\x88\x01\x01B\x16\n" +
+	"\rinstance_name\x18\x06 \x01(\tH\x05R\finstanceName\x88\x01\x01\x12O\n" +
+	"\x0fpersonal_tokens\x18\a \x01(\x0e2!.stoop.instance.v1.PersonalTokensH\x06R\x0epersonalTokens\x88\x01\x01B\x16\n" +
 	"\x14_registration_policyB\x11\n" +
 	"\x0f_space_creationB\x16\n" +
 	"\x14_storage_quota_bytesB\x13\n" +
 	"\x11_password_sign_inB\x13\n" +
 	"\x11_max_upload_bytesB\x10\n" +
-	"\x0e_instance_name\"^\n" +
+	"\x0e_instance_nameB\x12\n" +
+	"\x10_personal_tokens\"^\n" +
 	"\x16UpdateSettingsResponse\x12D\n" +
 	"\x06status\x18\x01 \x01(\v2,.stoop.instance.v1.GetInstanceStatusResponseR\x06status\"\x12\n" +
 	"\x10ListUsersRequest\"J\n" +
@@ -1614,7 +1868,15 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x06commit\x18\x02 \x01(\tR\x06commit\x12\x19\n" +
 	"\bbuilt_at\x18\x03 \x01(\tR\abuiltAt\x12\x1d\n" +
 	"\n" +
-	"go_version\x18\x04 \x01(\tR\tgoVersion*\x97\x01\n" +
+	"go_version\x18\x04 \x01(\tR\tgoVersion\"0\n" +
+	"\x15ListUserTokensRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"N\n" +
+	"\x16ListUserTokensResponse\x124\n" +
+	"\x06tokens\x18\x01 \x03(\v2\x1c.stoop.auth.v1.PersonalTokenR\x06tokens\"L\n" +
+	"\x16RevokeUserTokenRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
+	"\btoken_id\x18\x02 \x01(\tR\atokenId\"\x19\n" +
+	"\x17RevokeUserTokenResponse*\x97\x01\n" +
 	"\x12RegistrationPolicy\x12#\n" +
 	"\x1fREGISTRATION_POLICY_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18REGISTRATION_POLICY_OPEN\x10\x01\x12\x1e\n" +
@@ -1624,11 +1886,16 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x1cPASSWORD_SIGN_IN_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19PASSWORD_SIGN_IN_EVERYONE\x10\x01\x12\x1b\n" +
 	"\x17PASSWORD_SIGN_IN_ADMINS\x10\x02\x12\x18\n" +
-	"\x14PASSWORD_SIGN_IN_OFF\x10\x03*\x82\x01\n" +
+	"\x14PASSWORD_SIGN_IN_OFF\x10\x03*\x84\x01\n" +
+	"\x0ePersonalTokens\x12\x1f\n" +
+	"\x1bPERSONAL_TOKENS_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18PERSONAL_TOKENS_EVERYONE\x10\x01\x12\x1a\n" +
+	"\x16PERSONAL_TOKENS_ADMINS\x10\x02\x12\x17\n" +
+	"\x13PERSONAL_TOKENS_OFF\x10\x03*\x82\x01\n" +
 	"\x13SpaceCreationPolicy\x12%\n" +
 	"!SPACE_CREATION_POLICY_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cSPACE_CREATION_POLICY_ADMINS\x10\x01\x12\"\n" +
-	"\x1eSPACE_CREATION_POLICY_EVERYONE\x10\x022\xed\v\n" +
+	"\x1eSPACE_CREATION_POLICY_EVERYONE\x10\x022\xc2\r\n" +
 	"\x0fInstanceService\x12p\n" +
 	"\x11GetInstanceStatus\x12+.stoop.instance.v1.GetInstanceStatusRequest\x1a,.stoop.instance.v1.GetInstanceStatusResponse\"\x00\x12g\n" +
 	"\x0eUpdateSettings\x12(.stoop.instance.v1.UpdateSettingsRequest\x1a).stoop.instance.v1.UpdateSettingsResponse\"\x00\x12X\n" +
@@ -1644,7 +1911,9 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x12UpdateReachability\x12,.stoop.instance.v1.UpdateReachabilityRequest\x1a-.stoop.instance.v1.UpdateReachabilityResponse\"\x00\x12p\n" +
 	"\x11GetLoginProviders\x12+.stoop.instance.v1.GetLoginProvidersRequest\x1a,.stoop.instance.v1.GetLoginProvidersResponse\"\x00\x12y\n" +
 	"\x14UpdateLoginProviders\x12..stoop.instance.v1.UpdateLoginProvidersRequest\x1a/.stoop.instance.v1.UpdateLoginProvidersResponse\"\x00\x12a\n" +
-	"\fGetBuildInfo\x12&.stoop.instance.v1.GetBuildInfoRequest\x1a'.stoop.instance.v1.GetBuildInfoResponse\"\x00B\xc8\x01\n" +
+	"\fGetBuildInfo\x12&.stoop.instance.v1.GetBuildInfoRequest\x1a'.stoop.instance.v1.GetBuildInfoResponse\"\x00\x12g\n" +
+	"\x0eListUserTokens\x12(.stoop.instance.v1.ListUserTokensRequest\x1a).stoop.instance.v1.ListUserTokensResponse\"\x00\x12j\n" +
+	"\x0fRevokeUserToken\x12).stoop.instance.v1.RevokeUserTokenRequest\x1a*.stoop.instance.v1.RevokeUserTokenResponse\"\x00B\xc8\x01\n" +
 	"\x15com.stoop.instance.v1B\rInstanceProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (
@@ -1659,109 +1928,122 @@ func file_stoop_instance_v1_instance_proto_rawDescGZIP() []byte {
 	return file_stoop_instance_v1_instance_proto_rawDescData
 }
 
-var file_stoop_instance_v1_instance_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_stoop_instance_v1_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_stoop_instance_v1_instance_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_stoop_instance_v1_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_stoop_instance_v1_instance_proto_goTypes = []any{
 	(RegistrationPolicy)(0),              // 0: stoop.instance.v1.RegistrationPolicy
 	(PasswordSignIn)(0),                  // 1: stoop.instance.v1.PasswordSignIn
-	(SpaceCreationPolicy)(0),             // 2: stoop.instance.v1.SpaceCreationPolicy
-	(*GetInstanceStatusRequest)(nil),     // 3: stoop.instance.v1.GetInstanceStatusRequest
-	(*GetInstanceStatusResponse)(nil),    // 4: stoop.instance.v1.GetInstanceStatusResponse
-	(*UpdateSettingsRequest)(nil),        // 5: stoop.instance.v1.UpdateSettingsRequest
-	(*UpdateSettingsResponse)(nil),       // 6: stoop.instance.v1.UpdateSettingsResponse
-	(*ListUsersRequest)(nil),             // 7: stoop.instance.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),            // 8: stoop.instance.v1.ListUsersResponse
-	(*SetUserRoleRequest)(nil),           // 9: stoop.instance.v1.SetUserRoleRequest
-	(*SetUserRoleResponse)(nil),          // 10: stoop.instance.v1.SetUserRoleResponse
-	(*SetUserActiveRequest)(nil),         // 11: stoop.instance.v1.SetUserActiveRequest
-	(*SetUserActiveResponse)(nil),        // 12: stoop.instance.v1.SetUserActiveResponse
-	(*ResetUserPasswordRequest)(nil),     // 13: stoop.instance.v1.ResetUserPasswordRequest
-	(*ResetUserPasswordResponse)(nil),    // 14: stoop.instance.v1.ResetUserPasswordResponse
-	(*RenameUserRequest)(nil),            // 15: stoop.instance.v1.RenameUserRequest
-	(*RenameUserResponse)(nil),           // 16: stoop.instance.v1.RenameUserResponse
-	(*SetUsernameFrozenRequest)(nil),     // 17: stoop.instance.v1.SetUsernameFrozenRequest
-	(*SetUsernameFrozenResponse)(nil),    // 18: stoop.instance.v1.SetUsernameFrozenResponse
-	(*ClearUserProfileRequest)(nil),      // 19: stoop.instance.v1.ClearUserProfileRequest
-	(*ClearUserProfileResponse)(nil),     // 20: stoop.instance.v1.ClearUserProfileResponse
-	(*GetReachabilityRequest)(nil),       // 21: stoop.instance.v1.GetReachabilityRequest
-	(*GetReachabilityResponse)(nil),      // 22: stoop.instance.v1.GetReachabilityResponse
-	(*UpdateReachabilityRequest)(nil),    // 23: stoop.instance.v1.UpdateReachabilityRequest
-	(*UpdateReachabilityResponse)(nil),   // 24: stoop.instance.v1.UpdateReachabilityResponse
-	(*GetBuildInfoRequest)(nil),          // 25: stoop.instance.v1.GetBuildInfoRequest
-	(*GetBuildInfoResponse)(nil),         // 26: stoop.instance.v1.GetBuildInfoResponse
-	(*LoginProviderSummary)(nil),         // 27: stoop.instance.v1.LoginProviderSummary
-	(*InstanceUser)(nil),                 // 28: stoop.instance.v1.InstanceUser
-	(v1.InstanceRole)(0),                 // 29: stoop.auth.v1.InstanceRole
-	(*Reachability)(nil),                 // 30: stoop.instance.v1.Reachability
-	(*TailscaleStatus)(nil),              // 31: stoop.instance.v1.TailscaleStatus
-	(*LiveKitStatus)(nil),                // 32: stoop.instance.v1.LiveKitStatus
-	(*TurnRelay)(nil),                    // 33: stoop.instance.v1.TurnRelay
-	(*CloudflareTurn)(nil),               // 34: stoop.instance.v1.CloudflareTurn
-	(*TailscaleSettings)(nil),            // 35: stoop.instance.v1.TailscaleSettings
-	(*TrustedProxies)(nil),               // 36: stoop.instance.v1.TrustedProxies
-	(*GetLoginProvidersRequest)(nil),     // 37: stoop.instance.v1.GetLoginProvidersRequest
-	(*UpdateLoginProvidersRequest)(nil),  // 38: stoop.instance.v1.UpdateLoginProvidersRequest
-	(*GetLoginProvidersResponse)(nil),    // 39: stoop.instance.v1.GetLoginProvidersResponse
-	(*UpdateLoginProvidersResponse)(nil), // 40: stoop.instance.v1.UpdateLoginProvidersResponse
+	(PersonalTokens)(0),                  // 2: stoop.instance.v1.PersonalTokens
+	(SpaceCreationPolicy)(0),             // 3: stoop.instance.v1.SpaceCreationPolicy
+	(*GetInstanceStatusRequest)(nil),     // 4: stoop.instance.v1.GetInstanceStatusRequest
+	(*GetInstanceStatusResponse)(nil),    // 5: stoop.instance.v1.GetInstanceStatusResponse
+	(*UpdateSettingsRequest)(nil),        // 6: stoop.instance.v1.UpdateSettingsRequest
+	(*UpdateSettingsResponse)(nil),       // 7: stoop.instance.v1.UpdateSettingsResponse
+	(*ListUsersRequest)(nil),             // 8: stoop.instance.v1.ListUsersRequest
+	(*ListUsersResponse)(nil),            // 9: stoop.instance.v1.ListUsersResponse
+	(*SetUserRoleRequest)(nil),           // 10: stoop.instance.v1.SetUserRoleRequest
+	(*SetUserRoleResponse)(nil),          // 11: stoop.instance.v1.SetUserRoleResponse
+	(*SetUserActiveRequest)(nil),         // 12: stoop.instance.v1.SetUserActiveRequest
+	(*SetUserActiveResponse)(nil),        // 13: stoop.instance.v1.SetUserActiveResponse
+	(*ResetUserPasswordRequest)(nil),     // 14: stoop.instance.v1.ResetUserPasswordRequest
+	(*ResetUserPasswordResponse)(nil),    // 15: stoop.instance.v1.ResetUserPasswordResponse
+	(*RenameUserRequest)(nil),            // 16: stoop.instance.v1.RenameUserRequest
+	(*RenameUserResponse)(nil),           // 17: stoop.instance.v1.RenameUserResponse
+	(*SetUsernameFrozenRequest)(nil),     // 18: stoop.instance.v1.SetUsernameFrozenRequest
+	(*SetUsernameFrozenResponse)(nil),    // 19: stoop.instance.v1.SetUsernameFrozenResponse
+	(*ClearUserProfileRequest)(nil),      // 20: stoop.instance.v1.ClearUserProfileRequest
+	(*ClearUserProfileResponse)(nil),     // 21: stoop.instance.v1.ClearUserProfileResponse
+	(*GetReachabilityRequest)(nil),       // 22: stoop.instance.v1.GetReachabilityRequest
+	(*GetReachabilityResponse)(nil),      // 23: stoop.instance.v1.GetReachabilityResponse
+	(*UpdateReachabilityRequest)(nil),    // 24: stoop.instance.v1.UpdateReachabilityRequest
+	(*UpdateReachabilityResponse)(nil),   // 25: stoop.instance.v1.UpdateReachabilityResponse
+	(*GetBuildInfoRequest)(nil),          // 26: stoop.instance.v1.GetBuildInfoRequest
+	(*GetBuildInfoResponse)(nil),         // 27: stoop.instance.v1.GetBuildInfoResponse
+	(*ListUserTokensRequest)(nil),        // 28: stoop.instance.v1.ListUserTokensRequest
+	(*ListUserTokensResponse)(nil),       // 29: stoop.instance.v1.ListUserTokensResponse
+	(*RevokeUserTokenRequest)(nil),       // 30: stoop.instance.v1.RevokeUserTokenRequest
+	(*RevokeUserTokenResponse)(nil),      // 31: stoop.instance.v1.RevokeUserTokenResponse
+	(*LoginProviderSummary)(nil),         // 32: stoop.instance.v1.LoginProviderSummary
+	(*InstanceUser)(nil),                 // 33: stoop.instance.v1.InstanceUser
+	(v1.InstanceRole)(0),                 // 34: stoop.auth.v1.InstanceRole
+	(*Reachability)(nil),                 // 35: stoop.instance.v1.Reachability
+	(*TailscaleStatus)(nil),              // 36: stoop.instance.v1.TailscaleStatus
+	(*LiveKitStatus)(nil),                // 37: stoop.instance.v1.LiveKitStatus
+	(*TurnRelay)(nil),                    // 38: stoop.instance.v1.TurnRelay
+	(*CloudflareTurn)(nil),               // 39: stoop.instance.v1.CloudflareTurn
+	(*TailscaleSettings)(nil),            // 40: stoop.instance.v1.TailscaleSettings
+	(*TrustedProxies)(nil),               // 41: stoop.instance.v1.TrustedProxies
+	(*v1.PersonalToken)(nil),             // 42: stoop.auth.v1.PersonalToken
+	(*GetLoginProvidersRequest)(nil),     // 43: stoop.instance.v1.GetLoginProvidersRequest
+	(*UpdateLoginProvidersRequest)(nil),  // 44: stoop.instance.v1.UpdateLoginProvidersRequest
+	(*GetLoginProvidersResponse)(nil),    // 45: stoop.instance.v1.GetLoginProvidersResponse
+	(*UpdateLoginProvidersResponse)(nil), // 46: stoop.instance.v1.UpdateLoginProvidersResponse
 }
 var file_stoop_instance_v1_instance_proto_depIdxs = []int32{
 	0,  // 0: stoop.instance.v1.GetInstanceStatusResponse.registration_policy:type_name -> stoop.instance.v1.RegistrationPolicy
-	2,  // 1: stoop.instance.v1.GetInstanceStatusResponse.space_creation:type_name -> stoop.instance.v1.SpaceCreationPolicy
-	27, // 2: stoop.instance.v1.GetInstanceStatusResponse.login_providers:type_name -> stoop.instance.v1.LoginProviderSummary
+	3,  // 1: stoop.instance.v1.GetInstanceStatusResponse.space_creation:type_name -> stoop.instance.v1.SpaceCreationPolicy
+	32, // 2: stoop.instance.v1.GetInstanceStatusResponse.login_providers:type_name -> stoop.instance.v1.LoginProviderSummary
 	1,  // 3: stoop.instance.v1.GetInstanceStatusResponse.password_sign_in:type_name -> stoop.instance.v1.PasswordSignIn
-	0,  // 4: stoop.instance.v1.UpdateSettingsRequest.registration_policy:type_name -> stoop.instance.v1.RegistrationPolicy
-	2,  // 5: stoop.instance.v1.UpdateSettingsRequest.space_creation:type_name -> stoop.instance.v1.SpaceCreationPolicy
-	1,  // 6: stoop.instance.v1.UpdateSettingsRequest.password_sign_in:type_name -> stoop.instance.v1.PasswordSignIn
-	4,  // 7: stoop.instance.v1.UpdateSettingsResponse.status:type_name -> stoop.instance.v1.GetInstanceStatusResponse
-	28, // 8: stoop.instance.v1.ListUsersResponse.users:type_name -> stoop.instance.v1.InstanceUser
-	29, // 9: stoop.instance.v1.SetUserRoleRequest.role:type_name -> stoop.auth.v1.InstanceRole
-	28, // 10: stoop.instance.v1.SetUserRoleResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	28, // 11: stoop.instance.v1.SetUserActiveResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	28, // 12: stoop.instance.v1.ResetUserPasswordResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	28, // 13: stoop.instance.v1.RenameUserResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	28, // 14: stoop.instance.v1.SetUsernameFrozenResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	28, // 15: stoop.instance.v1.ClearUserProfileResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	30, // 16: stoop.instance.v1.GetReachabilityResponse.reachability:type_name -> stoop.instance.v1.Reachability
-	31, // 17: stoop.instance.v1.GetReachabilityResponse.tailscale:type_name -> stoop.instance.v1.TailscaleStatus
-	32, // 18: stoop.instance.v1.GetReachabilityResponse.livekit:type_name -> stoop.instance.v1.LiveKitStatus
-	33, // 19: stoop.instance.v1.UpdateReachabilityRequest.turn:type_name -> stoop.instance.v1.TurnRelay
-	34, // 20: stoop.instance.v1.UpdateReachabilityRequest.cloudflare:type_name -> stoop.instance.v1.CloudflareTurn
-	35, // 21: stoop.instance.v1.UpdateReachabilityRequest.tailscale:type_name -> stoop.instance.v1.TailscaleSettings
-	36, // 22: stoop.instance.v1.UpdateReachabilityRequest.trusted_proxies:type_name -> stoop.instance.v1.TrustedProxies
-	22, // 23: stoop.instance.v1.UpdateReachabilityResponse.reachability:type_name -> stoop.instance.v1.GetReachabilityResponse
-	3,  // 24: stoop.instance.v1.InstanceService.GetInstanceStatus:input_type -> stoop.instance.v1.GetInstanceStatusRequest
-	5,  // 25: stoop.instance.v1.InstanceService.UpdateSettings:input_type -> stoop.instance.v1.UpdateSettingsRequest
-	7,  // 26: stoop.instance.v1.InstanceService.ListUsers:input_type -> stoop.instance.v1.ListUsersRequest
-	9,  // 27: stoop.instance.v1.InstanceService.SetUserRole:input_type -> stoop.instance.v1.SetUserRoleRequest
-	11, // 28: stoop.instance.v1.InstanceService.SetUserActive:input_type -> stoop.instance.v1.SetUserActiveRequest
-	13, // 29: stoop.instance.v1.InstanceService.ResetUserPassword:input_type -> stoop.instance.v1.ResetUserPasswordRequest
-	15, // 30: stoop.instance.v1.InstanceService.RenameUser:input_type -> stoop.instance.v1.RenameUserRequest
-	17, // 31: stoop.instance.v1.InstanceService.SetUsernameFrozen:input_type -> stoop.instance.v1.SetUsernameFrozenRequest
-	19, // 32: stoop.instance.v1.InstanceService.ClearUserProfile:input_type -> stoop.instance.v1.ClearUserProfileRequest
-	21, // 33: stoop.instance.v1.InstanceService.GetReachability:input_type -> stoop.instance.v1.GetReachabilityRequest
-	23, // 34: stoop.instance.v1.InstanceService.UpdateReachability:input_type -> stoop.instance.v1.UpdateReachabilityRequest
-	37, // 35: stoop.instance.v1.InstanceService.GetLoginProviders:input_type -> stoop.instance.v1.GetLoginProvidersRequest
-	38, // 36: stoop.instance.v1.InstanceService.UpdateLoginProviders:input_type -> stoop.instance.v1.UpdateLoginProvidersRequest
-	25, // 37: stoop.instance.v1.InstanceService.GetBuildInfo:input_type -> stoop.instance.v1.GetBuildInfoRequest
-	4,  // 38: stoop.instance.v1.InstanceService.GetInstanceStatus:output_type -> stoop.instance.v1.GetInstanceStatusResponse
-	6,  // 39: stoop.instance.v1.InstanceService.UpdateSettings:output_type -> stoop.instance.v1.UpdateSettingsResponse
-	8,  // 40: stoop.instance.v1.InstanceService.ListUsers:output_type -> stoop.instance.v1.ListUsersResponse
-	10, // 41: stoop.instance.v1.InstanceService.SetUserRole:output_type -> stoop.instance.v1.SetUserRoleResponse
-	12, // 42: stoop.instance.v1.InstanceService.SetUserActive:output_type -> stoop.instance.v1.SetUserActiveResponse
-	14, // 43: stoop.instance.v1.InstanceService.ResetUserPassword:output_type -> stoop.instance.v1.ResetUserPasswordResponse
-	16, // 44: stoop.instance.v1.InstanceService.RenameUser:output_type -> stoop.instance.v1.RenameUserResponse
-	18, // 45: stoop.instance.v1.InstanceService.SetUsernameFrozen:output_type -> stoop.instance.v1.SetUsernameFrozenResponse
-	20, // 46: stoop.instance.v1.InstanceService.ClearUserProfile:output_type -> stoop.instance.v1.ClearUserProfileResponse
-	22, // 47: stoop.instance.v1.InstanceService.GetReachability:output_type -> stoop.instance.v1.GetReachabilityResponse
-	24, // 48: stoop.instance.v1.InstanceService.UpdateReachability:output_type -> stoop.instance.v1.UpdateReachabilityResponse
-	39, // 49: stoop.instance.v1.InstanceService.GetLoginProviders:output_type -> stoop.instance.v1.GetLoginProvidersResponse
-	40, // 50: stoop.instance.v1.InstanceService.UpdateLoginProviders:output_type -> stoop.instance.v1.UpdateLoginProvidersResponse
-	26, // 51: stoop.instance.v1.InstanceService.GetBuildInfo:output_type -> stoop.instance.v1.GetBuildInfoResponse
-	38, // [38:52] is the sub-list for method output_type
-	24, // [24:38] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	2,  // 4: stoop.instance.v1.GetInstanceStatusResponse.personal_tokens:type_name -> stoop.instance.v1.PersonalTokens
+	0,  // 5: stoop.instance.v1.UpdateSettingsRequest.registration_policy:type_name -> stoop.instance.v1.RegistrationPolicy
+	3,  // 6: stoop.instance.v1.UpdateSettingsRequest.space_creation:type_name -> stoop.instance.v1.SpaceCreationPolicy
+	1,  // 7: stoop.instance.v1.UpdateSettingsRequest.password_sign_in:type_name -> stoop.instance.v1.PasswordSignIn
+	2,  // 8: stoop.instance.v1.UpdateSettingsRequest.personal_tokens:type_name -> stoop.instance.v1.PersonalTokens
+	5,  // 9: stoop.instance.v1.UpdateSettingsResponse.status:type_name -> stoop.instance.v1.GetInstanceStatusResponse
+	33, // 10: stoop.instance.v1.ListUsersResponse.users:type_name -> stoop.instance.v1.InstanceUser
+	34, // 11: stoop.instance.v1.SetUserRoleRequest.role:type_name -> stoop.auth.v1.InstanceRole
+	33, // 12: stoop.instance.v1.SetUserRoleResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	33, // 13: stoop.instance.v1.SetUserActiveResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	33, // 14: stoop.instance.v1.ResetUserPasswordResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	33, // 15: stoop.instance.v1.RenameUserResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	33, // 16: stoop.instance.v1.SetUsernameFrozenResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	33, // 17: stoop.instance.v1.ClearUserProfileResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	35, // 18: stoop.instance.v1.GetReachabilityResponse.reachability:type_name -> stoop.instance.v1.Reachability
+	36, // 19: stoop.instance.v1.GetReachabilityResponse.tailscale:type_name -> stoop.instance.v1.TailscaleStatus
+	37, // 20: stoop.instance.v1.GetReachabilityResponse.livekit:type_name -> stoop.instance.v1.LiveKitStatus
+	38, // 21: stoop.instance.v1.UpdateReachabilityRequest.turn:type_name -> stoop.instance.v1.TurnRelay
+	39, // 22: stoop.instance.v1.UpdateReachabilityRequest.cloudflare:type_name -> stoop.instance.v1.CloudflareTurn
+	40, // 23: stoop.instance.v1.UpdateReachabilityRequest.tailscale:type_name -> stoop.instance.v1.TailscaleSettings
+	41, // 24: stoop.instance.v1.UpdateReachabilityRequest.trusted_proxies:type_name -> stoop.instance.v1.TrustedProxies
+	23, // 25: stoop.instance.v1.UpdateReachabilityResponse.reachability:type_name -> stoop.instance.v1.GetReachabilityResponse
+	42, // 26: stoop.instance.v1.ListUserTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
+	4,  // 27: stoop.instance.v1.InstanceService.GetInstanceStatus:input_type -> stoop.instance.v1.GetInstanceStatusRequest
+	6,  // 28: stoop.instance.v1.InstanceService.UpdateSettings:input_type -> stoop.instance.v1.UpdateSettingsRequest
+	8,  // 29: stoop.instance.v1.InstanceService.ListUsers:input_type -> stoop.instance.v1.ListUsersRequest
+	10, // 30: stoop.instance.v1.InstanceService.SetUserRole:input_type -> stoop.instance.v1.SetUserRoleRequest
+	12, // 31: stoop.instance.v1.InstanceService.SetUserActive:input_type -> stoop.instance.v1.SetUserActiveRequest
+	14, // 32: stoop.instance.v1.InstanceService.ResetUserPassword:input_type -> stoop.instance.v1.ResetUserPasswordRequest
+	16, // 33: stoop.instance.v1.InstanceService.RenameUser:input_type -> stoop.instance.v1.RenameUserRequest
+	18, // 34: stoop.instance.v1.InstanceService.SetUsernameFrozen:input_type -> stoop.instance.v1.SetUsernameFrozenRequest
+	20, // 35: stoop.instance.v1.InstanceService.ClearUserProfile:input_type -> stoop.instance.v1.ClearUserProfileRequest
+	22, // 36: stoop.instance.v1.InstanceService.GetReachability:input_type -> stoop.instance.v1.GetReachabilityRequest
+	24, // 37: stoop.instance.v1.InstanceService.UpdateReachability:input_type -> stoop.instance.v1.UpdateReachabilityRequest
+	43, // 38: stoop.instance.v1.InstanceService.GetLoginProviders:input_type -> stoop.instance.v1.GetLoginProvidersRequest
+	44, // 39: stoop.instance.v1.InstanceService.UpdateLoginProviders:input_type -> stoop.instance.v1.UpdateLoginProvidersRequest
+	26, // 40: stoop.instance.v1.InstanceService.GetBuildInfo:input_type -> stoop.instance.v1.GetBuildInfoRequest
+	28, // 41: stoop.instance.v1.InstanceService.ListUserTokens:input_type -> stoop.instance.v1.ListUserTokensRequest
+	30, // 42: stoop.instance.v1.InstanceService.RevokeUserToken:input_type -> stoop.instance.v1.RevokeUserTokenRequest
+	5,  // 43: stoop.instance.v1.InstanceService.GetInstanceStatus:output_type -> stoop.instance.v1.GetInstanceStatusResponse
+	7,  // 44: stoop.instance.v1.InstanceService.UpdateSettings:output_type -> stoop.instance.v1.UpdateSettingsResponse
+	9,  // 45: stoop.instance.v1.InstanceService.ListUsers:output_type -> stoop.instance.v1.ListUsersResponse
+	11, // 46: stoop.instance.v1.InstanceService.SetUserRole:output_type -> stoop.instance.v1.SetUserRoleResponse
+	13, // 47: stoop.instance.v1.InstanceService.SetUserActive:output_type -> stoop.instance.v1.SetUserActiveResponse
+	15, // 48: stoop.instance.v1.InstanceService.ResetUserPassword:output_type -> stoop.instance.v1.ResetUserPasswordResponse
+	17, // 49: stoop.instance.v1.InstanceService.RenameUser:output_type -> stoop.instance.v1.RenameUserResponse
+	19, // 50: stoop.instance.v1.InstanceService.SetUsernameFrozen:output_type -> stoop.instance.v1.SetUsernameFrozenResponse
+	21, // 51: stoop.instance.v1.InstanceService.ClearUserProfile:output_type -> stoop.instance.v1.ClearUserProfileResponse
+	23, // 52: stoop.instance.v1.InstanceService.GetReachability:output_type -> stoop.instance.v1.GetReachabilityResponse
+	25, // 53: stoop.instance.v1.InstanceService.UpdateReachability:output_type -> stoop.instance.v1.UpdateReachabilityResponse
+	45, // 54: stoop.instance.v1.InstanceService.GetLoginProviders:output_type -> stoop.instance.v1.GetLoginProvidersResponse
+	46, // 55: stoop.instance.v1.InstanceService.UpdateLoginProviders:output_type -> stoop.instance.v1.UpdateLoginProvidersResponse
+	27, // 56: stoop.instance.v1.InstanceService.GetBuildInfo:output_type -> stoop.instance.v1.GetBuildInfoResponse
+	29, // 57: stoop.instance.v1.InstanceService.ListUserTokens:output_type -> stoop.instance.v1.ListUserTokensResponse
+	31, // 58: stoop.instance.v1.InstanceService.RevokeUserToken:output_type -> stoop.instance.v1.RevokeUserTokenResponse
+	43, // [43:59] is the sub-list for method output_type
+	27, // [27:43] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_stoop_instance_v1_instance_proto_init() }
@@ -1780,8 +2062,8 @@ func file_stoop_instance_v1_instance_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_instance_v1_instance_proto_rawDesc), len(file_stoop_instance_v1_instance_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   24,
+			NumEnums:      4,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

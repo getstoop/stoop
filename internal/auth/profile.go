@@ -139,5 +139,10 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 	}); err != nil {
 		return nil, fmt.Errorf("revoke other sessions: %w", err)
 	}
+	if req.Msg.RevokePersonalTokens {
+		if err := s.q.DeleteUserPersonalTokens(ctx, id.UserID); err != nil {
+			return nil, fmt.Errorf("revoke personal tokens: %w", err)
+		}
+	}
 	return connect.NewResponse(&authv1.ChangePasswordResponse{}), nil
 }

@@ -32,6 +32,8 @@ type AccountSummary struct {
 	// them, and clear them; never write them.
 	Pronouns string
 	Bio      string
+	// PersonalTokens counts the account's personal tokens, expired ones included.
+	PersonalTokens int
 }
 
 // CountActiveAdmins reports how many non-deactivated instance admins exist.
@@ -44,9 +46,18 @@ func (s *Service) ListAccounts(ctx context.Context) ([]AccountSummary, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
+	counts, err := s.q.CountPersonalTokensByHolder(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count tokens: %w", err)
+	}
+	byHolder := make(map[string]int, len(counts))
+	for _, c := range counts {
+		byHolder[c.HolderID] = int(c.N)
+	}
 	out := make([]AccountSummary, len(rows))
 	for i, r := range rows {
 		out[i] = toSummary(r)
+		out[i].PersonalTokens = byHolder[r.ID]
 	}
 	return out, nil
 }

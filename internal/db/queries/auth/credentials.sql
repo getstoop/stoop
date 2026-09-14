@@ -17,7 +17,7 @@ RETURNING id;
 -- GetCredentialByTokenHash is the whole of verification: the credential,
 -- its holder's role and kind, and its bounds.
 -- name: GetCredentialByTokenHash :one
-SELECT c.id, c.holder_id, c.kind, c.grants, c.bounded,
+SELECT c.id, c.holder_id, c.kind, c.grants, c.bounded, c.last_used_at,
        u.role AS holder_role, u.kind AS holder_kind,
        coalesce(array_agg(b.space_id) FILTER (WHERE b.space_id IS NOT NULL), '{}')::uuid[] AS bound_spaces,
        coalesce(array_agg(b.channel_id) FILTER (WHERE b.channel_id IS NOT NULL), '{}')::uuid[] AS bound_channels
@@ -45,3 +45,47 @@ WHERE holder_id = sqlc.arg(holder_id) AND kind = 'session' AND credentials.id <>
 -- name: DeleteUserCredentials :exec
 WITH legacy AS (DELETE FROM sessions WHERE user_id = $1)
 DELETE FROM credentials WHERE holder_id = $1;
+
+-- TouchCredential records a token's use. The caller throttles it.
+-- name: TouchCredential :exec
+UPDATE credentials SET last_used_at = now() WHERE id = $1;
+
+-- name: CreatePersonalToken :one
+INSERT INTO credentials (id, holder_id, kind, token_hash, name, grants, bounded, created_by, expires_at, hint)
+VALUES (sqlc.arg(id)::uuid, sqlc.arg(holder_id)::uuid, 'personal_token', sqlc.arg(token_hash)::bytea,
+        sqlc.arg(name)::text, sqlc.arg(grants)::text[], sqlc.arg(bounded)::boolean, sqlc.arg(holder_id)::uuid,
+        sqlc.narg(expires_at)::timestamptz, sqlc.arg(hint)::text)
+RETURNING *;
+
+-- name: AddCredentialSpaceBound :exec
+INSERT INTO credential_bounds (credential_id, space_id)
+VALUES (sqlc.arg(credential_id)::uuid, sqlc.arg(space_id)::uuid);
+
+-- ListPersonalTokens is one account's tokens, expired ones included.
+-- name: ListPersonalTokens :many
+SELECT c.id, c.name, c.grants, c.bounded, c.created_at, c.last_used_at, c.expires_at, c.hint,
+       coalesce(array_agg(b.space_id) FILTER (WHERE b.space_id IS NOT NULL), '{}')::uuid[] AS bound_spaces
+FROM credentials c
+LEFT JOIN credential_bounds b ON b.credential_id = c.id
+WHERE c.holder_id = $1 AND c.kind = 'personal_token'
+GROUP BY c.id
+ORDER BY c.created_at DESC;
+
+-- name: DeletePersonalToken :execrows
+DELETE FROM credentials
+WHERE id = sqlc.arg(id)::uuid AND holder_id = sqlc.arg(holder_id)::uuid AND kind = 'personal_token';
+
+-- name: DeleteUserPersonalTokens :exec
+DELETE FROM credentials WHERE holder_id = $1 AND kind = 'personal_token';
+
+-- name: CountPersonalTokensByHolder :many
+SELECT holder_id, count(*) AS n FROM credentials WHERE kind = 'personal_token' GROUP BY holder_id;
+
+-- SweepCredentials deletes sessions once they expire, and other credentials
+-- once they expired before expired_before, so a list can still explain a
+-- recently expired token.
+-- name: SweepCredentials :execrows
+WITH legacy AS (DELETE FROM sessions WHERE sessions.expires_at <= now())
+DELETE FROM credentials
+WHERE (kind = 'session' AND expires_at <= now())
+   OR (kind <> 'session' AND expires_at <= sqlc.arg(expired_before)::timestamptz);

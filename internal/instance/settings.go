@@ -273,6 +273,10 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 	if err != nil {
 		return nil, err
 	}
+	tokens, err := s.PersonalTokens(ctx)
+	if err != nil {
+		return nil, err
+	}
 	name, err := s.InstanceName(ctx)
 	if err != nil {
 		return nil, err
@@ -288,6 +292,7 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		SpaceCreation: toProtoSpaceCreation(sc), StorageQuotaBytes: quota,
 		LoginProviders: summaries, PasswordSignIn: toProtoPasswordSignIn(PasswordSignIn(pw)),
 		MaxUploadBytes: maxUpload, InstanceName: name,
+		PersonalTokens: toProtoPersonalTokens(TokenSetting(tokens)),
 	}, nil
 }
 
@@ -400,6 +405,11 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 			}
 		}
 		if err := s.SetPasswordSignIn(ctx, pw); err != nil {
+			return nil, err
+		}
+	}
+	if req.Msg.PersonalTokens != nil {
+		if err := s.setPersonalTokens(ctx, *req.Msg.PersonalTokens); err != nil {
 			return nil, err
 		}
 	}

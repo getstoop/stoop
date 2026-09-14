@@ -80,6 +80,7 @@ setting once or acts as its fallback, depending on the setting — see
 | `max_upload_bytes` | Per-file cap, bounded above by the built-in 100 MB. |
 | `storage_quota_bytes` | Total upload storage; 0 is unlimited. |
 | `password_sign_in` | `everyone` / `admins` / `off`. See [identity.md](identity.md). |
+| `personal_tokens` | `everyone` (default) / `admins` / `off`. Checked at every use. See [identity.md](identity.md#personal-tokens). |
 | `login_providers` | The OIDC provider list, replaced whole. |
 | reachability keys | Public URL, TURN, Cloudflare TURN, Tailscale, trusted proxies. See [runtime.md](runtime.md). |
 | `livekit` | The minted API key pair. See [voice.md](voice.md). |

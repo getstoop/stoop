@@ -45,7 +45,7 @@ export function AddToSpaceModal({
       small
       footer={
         <>
-          <button type="button" onClick={onClose}>
+          <button type="button" className="chip" onClick={onClose}>
             Cancel
           </button>
           <button

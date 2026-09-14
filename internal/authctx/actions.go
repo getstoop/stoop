@@ -109,6 +109,16 @@ var ownActions = map[Action]bool{
 	DMsRead: true, DMsPost: true, AccountSecurity: true,
 }
 
+var spaceActions = map[Action]bool{
+	SpaceRead: true, MessagesRead: true, MessagesPost: true, MessagesNotifyEveryone: true,
+	MessagesModerate: true, VoiceJoin: true, InvitesCreate: true, InvitesManage: true,
+	ChannelsManage: true, MembersManage: true, SpaceManage: true, SpaceTransfer: true, SpaceDelete: true,
+}
+
+// OnSpace reports whether a is an action on a space: the only kind a
+// bounded credential can use.
+func (a Action) OnSpace() bool { return spaceActions[a] }
+
 // RoleHolds is the identity gate for actions on the instance or on the
 // caller's own account. Space actions are answered by chat.
 func RoleHolds(r Role, a Action) bool {

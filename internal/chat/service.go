@@ -131,13 +131,29 @@ func (s *Service) ChannelSpaceForMember(ctx context.Context, userID, channelID s
 }
 
 // IsChannelMember reports whether a user belongs to the channel's space
-// or is a participant in the direct message. Exposed for the voice
-// module's membership port.
+// or is a participant in the direct message, and — when ctx carries that
+// user's bounded credential — whether its bounds reach the channel.
+// Exposed for the voice module's membership port.
 func (s *Service) IsChannelMember(ctx context.Context, userID, channelID string) (bool, error) {
-	return s.q.IsChannelMember(ctx, dbgen.IsChannelMemberParams{ID: channelID, UserID: userID})
+	ok, err := s.q.IsChannelMember(ctx, dbgen.IsChannelMemberParams{ID: channelID, UserID: userID})
+	if err != nil || !ok {
+		return ok, err
+	}
+	id, has := authctx.From(ctx)
+	if !has || id.UserID != userID || !id.Credential.Bounded {
+		return true, nil
+	}
+	channel, err := s.q.GetChannel(ctx, channelID)
+	if err != nil {
+		return false, fmt.Errorf("look up channel: %w", err)
+	}
+	return id.Credential.Reaches(spaceOf(channel), channel.ID), nil
 }
 
 func (s *Service) requireSpaceMember(ctx context.Context, spaceID string) error {
+	if id, _ := authctx.From(ctx); !id.Credential.Reaches(spaceID, "") {
+		return connect.NewError(connect.CodePermissionDenied, authctx.ErrOutOfBounds)
+	}
 	ok, err := s.q.IsSpaceMember(ctx, dbgen.IsSpaceMemberParams{
 		SpaceID: spaceID, UserID: authctx.UserID(ctx),
 	})
@@ -152,13 +168,24 @@ func (s *Service) requireSpaceMember(ctx context.Context, spaceID string) error 
 }
 
 func (s *Service) requireChannelMember(ctx context.Context, channelID string) error {
-	ok, err := s.IsChannelMember(ctx, authctx.UserID(ctx), channelID)
+	// Membership first, then the credential's bounds, so each refusal says
+	// which it was.
+	ok, err := s.q.IsChannelMember(ctx, dbgen.IsChannelMemberParams{ID: channelID, UserID: authctx.UserID(ctx)})
 	if err != nil {
 		return fmt.Errorf("check membership: %w", err)
 	}
 	if !ok {
 		return connect.NewError(connect.CodePermissionDenied,
 			errors.New("not a member of this channel's space"))
+	}
+	if id, _ := authctx.From(ctx); id.Credential.Bounded {
+		channel, err := s.q.GetChannel(ctx, channelID)
+		if err != nil {
+			return notFoundOr(err, "channel")
+		}
+		if !id.Credential.Reaches(spaceOf(channel), channel.ID) {
+			return connect.NewError(connect.CodePermissionDenied, authctx.ErrOutOfBounds)
+		}
 	}
 	return nil
 }

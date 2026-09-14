@@ -137,6 +137,9 @@ func (s *Service) KickMember(ctx context.Context, req *connect.Request[chatv1.Ki
 }
 
 func (s *Service) LeaveSpace(ctx context.Context, req *connect.Request[chatv1.LeaveSpaceRequest]) (*connect.Response[chatv1.LeaveSpaceResponse], error) {
+	if id, _ := authctx.From(ctx); !id.Credential.Reaches(req.Msg.SpaceId, "") {
+		return nil, connect.NewError(connect.CodePermissionDenied, authctx.ErrOutOfBounds)
+	}
 	userID := authctx.UserID(ctx)
 	role, err := s.q.GetSpaceMemberRole(ctx, dbgen.GetSpaceMemberRoleParams{SpaceID: req.Msg.SpaceId, UserID: userID})
 	if err != nil {

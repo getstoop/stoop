@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/auth/v1/auth.proto.
  */
 export const file_stoop_auth_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("ChhzdG9vcC9hdXRoL3YxL2F1dGgucHJvdG8SDXN0b29wLmF1dGgudjEilQIKBFVzZXISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBHJvbGUYBSABKA4yGy5zdG9vcC5hdXRoLnYxLkluc3RhbmNlUm9sZRIWCg5hdmF0YXJfZmlsZV9pZBgGIAEoCRIUCgxoYXNfcGFzc3dvcmQYByABKAgSGAoQdXNlcm5hbWVfcGVuZGluZxgIIAEoCBIXCg91c2VybmFtZV9mcm96ZW4YCSABKAgSEAoIcHJvbm91bnMYCiABKAkSCwoDYmlvGAsgASgJIkoKD1JlZ2lzdGVyUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRITCgtpbnZpdGVfY29kZRgDIAEoCSJOChBSZWdpc3RlclJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISFwoPam9pbmVkX3NwYWNlX2lkGAIgASgJIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSJBCg1Mb2dpblJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISDQoFdG9rZW4YAiABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiZAoNR2V0TWVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyEjAKC3Blcm1pc3Npb25zGAIgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24ijgEKFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EhQKDGRpc3BsYXlfbmFtZRgBIAEoCRIVCgh1c2VybmFtZRgCIAEoCUgAiAEBEhUKCHByb25vdW5zGAMgASgJSAGIAQESEAoDYmlvGAQgASgJSAKIAQFCCwoJX3VzZXJuYW1lQgsKCV9wcm9ub3Vuc0IGCgRfYmlvIjoKFVVwZGF0ZVByb2ZpbGVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyInoKDVB1YmxpY1Byb2ZpbGUSCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEhAKCHByb25vdW5zGAUgASgJEgsKA2JpbxgGIAEoCSIoChVHZXRVc2VyUHJvZmlsZVJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSJHChZHZXRVc2VyUHJvZmlsZVJlc3BvbnNlEi0KB3Byb2ZpbGUYASABKAsyHC5zdG9vcC5hdXRoLnYxLlB1YmxpY1Byb2ZpbGUiRwoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0EhgKEGN1cnJlbnRfcGFzc3dvcmQYASABKAkSFAoMbmV3X3Bhc3N3b3JkGAIgASgJIhgKFkNoYW5nZVBhc3N3b3JkUmVzcG9uc2UiWwoISWRlbnRpdHkSEAoIcHJvdmlkZXIYASABKAkSDQoFZW1haWwYAiABKAkSLgoKY3JlYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiFwoVTGlzdElkZW50aXRpZXNSZXF1ZXN0IkUKFkxpc3RJZGVudGl0aWVzUmVzcG9uc2USKwoKaWRlbnRpdGllcxgBIAMoCzIXLnN0b29wLmF1dGgudjEuSWRlbnRpdHkiKQoVVW5saW5rSWRlbnRpdHlSZXF1ZXN0EhAKCHByb3ZpZGVyGAEgASgJIhgKFlVubGlua0lkZW50aXR5UmVzcG9uc2UqYAoMSW5zdGFuY2VSb2xlEh0KGUlOU1RBTkNFX1JPTEVfVU5TUEVDSUZJRUQQABIYChRJTlNUQU5DRV9ST0xFX01FTUJFUhABEhcKE0lOU1RBTkNFX1JPTEVfQURNSU4QAjKTBgoLQXV0aFNlcnZpY2USTQoIUmVnaXN0ZXISHi5zdG9vcC5hdXRoLnYxLlJlZ2lzdGVyUmVxdWVzdBofLnN0b29wLmF1dGgudjEuUmVnaXN0ZXJSZXNwb25zZSIAEkQKBUxvZ2luEhsuc3Rvb3AuYXV0aC52MS5Mb2dpblJlcXVlc3QaHC5zdG9vcC5hdXRoLnYxLkxvZ2luUmVzcG9uc2UiABJHCgZMb2dvdXQSHC5zdG9vcC5hdXRoLnYxLkxvZ291dFJlcXVlc3QaHS5zdG9vcC5hdXRoLnYxLkxvZ291dFJlc3BvbnNlIgASRAoFR2V0TWUSGy5zdG9vcC5hdXRoLnYxLkdldE1lUmVxdWVzdBocLnN0b29wLmF1dGgudjEuR2V0TWVSZXNwb25zZSIAElwKDVVwZGF0ZVByb2ZpbGUSIy5zdG9vcC5hdXRoLnYxLlVwZGF0ZVByb2ZpbGVSZXF1ZXN0GiQuc3Rvb3AuYXV0aC52MS5VcGRhdGVQcm9maWxlUmVzcG9uc2UiABJfCg5HZXRVc2VyUHJvZmlsZRIkLnN0b29wLmF1dGgudjEuR2V0VXNlclByb2ZpbGVSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5HZXRVc2VyUHJvZmlsZVJlc3BvbnNlIgASXwoOQ2hhbmdlUGFzc3dvcmQSJC5zdG9vcC5hdXRoLnYxLkNoYW5nZVBhc3N3b3JkUmVxdWVzdBolLnN0b29wLmF1dGgudjEuQ2hhbmdlUGFzc3dvcmRSZXNwb25zZSIAEl8KDkxpc3RJZGVudGl0aWVzEiQuc3Rvb3AuYXV0aC52MS5MaXN0SWRlbnRpdGllc1JlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLkxpc3RJZGVudGl0aWVzUmVzcG9uc2UiABJfCg5VbmxpbmtJZGVudGl0eRIkLnN0b29wLmF1dGgudjEuVW5saW5rSWRlbnRpdHlSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5VbmxpbmtJZGVudGl0eVJlc3BvbnNlIgBCqAEKEWNvbS5zdG9vcC5hdXRoLnYxQglBdXRoUHJvdG9QAVoyZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvYXV0aC92MTthdXRodjGiAgNTQViqAg1TdG9vcC5BdXRoLlYxygINU3Rvb3BcQXV0aFxWMeICGVN0b29wXEF1dGhcVjFcR1BCTWV0YWRhdGHqAg9TdG9vcDo6QXV0aDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
+  fileDesc("ChhzdG9vcC9hdXRoL3YxL2F1dGgucHJvdG8SDXN0b29wLmF1dGgudjEilQIKBFVzZXISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBHJvbGUYBSABKA4yGy5zdG9vcC5hdXRoLnYxLkluc3RhbmNlUm9sZRIWCg5hdmF0YXJfZmlsZV9pZBgGIAEoCRIUCgxoYXNfcGFzc3dvcmQYByABKAgSGAoQdXNlcm5hbWVfcGVuZGluZxgIIAEoCBIXCg91c2VybmFtZV9mcm96ZW4YCSABKAgSEAoIcHJvbm91bnMYCiABKAkSCwoDYmlvGAsgASgJIkoKD1JlZ2lzdGVyUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRITCgtpbnZpdGVfY29kZRgDIAEoCSJOChBSZWdpc3RlclJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISFwoPam9pbmVkX3NwYWNlX2lkGAIgASgJIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSJBCg1Mb2dpblJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISDQoFdG9rZW4YAiABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiZAoNR2V0TWVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyEjAKC3Blcm1pc3Npb25zGAIgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24ijgEKFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EhQKDGRpc3BsYXlfbmFtZRgBIAEoCRIVCgh1c2VybmFtZRgCIAEoCUgAiAEBEhUKCHByb25vdW5zGAMgASgJSAGIAQESEAoDYmlvGAQgASgJSAKIAQFCCwoJX3VzZXJuYW1lQgsKCV9wcm9ub3Vuc0IGCgRfYmlvIjoKFVVwZGF0ZVByb2ZpbGVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyInoKDVB1YmxpY1Byb2ZpbGUSCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEhAKCHByb25vdW5zGAUgASgJEgsKA2JpbxgGIAEoCSIoChVHZXRVc2VyUHJvZmlsZVJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSJHChZHZXRVc2VyUHJvZmlsZVJlc3BvbnNlEi0KB3Byb2ZpbGUYASABKAsyHC5zdG9vcC5hdXRoLnYxLlB1YmxpY1Byb2ZpbGUiZwoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0EhgKEGN1cnJlbnRfcGFzc3dvcmQYASABKAkSFAoMbmV3X3Bhc3N3b3JkGAIgASgJEh4KFnJldm9rZV9wZXJzb25hbF90b2tlbnMYAyABKAgiGAoWQ2hhbmdlUGFzc3dvcmRSZXNwb25zZSJbCghJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRINCgVlbWFpbBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIXChVMaXN0SWRlbnRpdGllc1JlcXVlc3QiRQoWTGlzdElkZW50aXRpZXNSZXNwb25zZRIrCgppZGVudGl0aWVzGAEgAygLMhcuc3Rvb3AuYXV0aC52MS5JZGVudGl0eSIpChVVbmxpbmtJZGVudGl0eVJlcXVlc3QSEAoIcHJvdmlkZXIYASABKAkiGAoWVW5saW5rSWRlbnRpdHlSZXNwb25zZSKwAgoNUGVyc29uYWxUb2tlbhIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEjAKC3Blcm1pc3Npb25zGAMgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24SDwoHbGltaXRlZBgEIAEoCBIRCglzcGFjZV9pZHMYBSADKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRoaW50GAkgASgJEg8KB2Jsb2NrZWQYCiABKAgimQEKGkNyZWF0ZVBlcnNvbmFsVG9rZW5SZXF1ZXN0EgwKBG5hbWUYASABKAkSMAoLcGVybWlzc2lvbnMYAiADKA4yGy5zdG9vcC5hY2Nlc3MudjEuUGVybWlzc2lvbhIPCgdsaW1pdGVkGAMgASgIEhEKCXNwYWNlX2lkcxgEIAMoCRIXCg9leHBpcmVzX2luX2RheXMYBSABKAUiWgobQ3JlYXRlUGVyc29uYWxUb2tlblJlc3BvbnNlEisKBXRva2VuGAEgASgLMhwuc3Rvb3AuYXV0aC52MS5QZXJzb25hbFRva2VuEg4KBnNlY3JldBgCIAEoCSIbChlMaXN0UGVyc29uYWxUb2tlbnNSZXF1ZXN0IkoKGkxpc3RQZXJzb25hbFRva2Vuc1Jlc3BvbnNlEiwKBnRva2VucxgBIAMoCzIcLnN0b29wLmF1dGgudjEuUGVyc29uYWxUb2tlbiIuChpSZXZva2VQZXJzb25hbFRva2VuUmVxdWVzdBIQCgh0b2tlbl9pZBgBIAEoCSIdChtSZXZva2VQZXJzb25hbFRva2VuUmVzcG9uc2UqYAoMSW5zdGFuY2VSb2xlEh0KGUlOU1RBTkNFX1JPTEVfVU5TUEVDSUZJRUQQABIYChRJTlNUQU5DRV9ST0xFX01FTUJFUhABEhcKE0lOU1RBTkNFX1JPTEVfQURNSU4QAjLgCAoLQXV0aFNlcnZpY2USTQoIUmVnaXN0ZXISHi5zdG9vcC5hdXRoLnYxLlJlZ2lzdGVyUmVxdWVzdBofLnN0b29wLmF1dGgudjEuUmVnaXN0ZXJSZXNwb25zZSIAEkQKBUxvZ2luEhsuc3Rvb3AuYXV0aC52MS5Mb2dpblJlcXVlc3QaHC5zdG9vcC5hdXRoLnYxLkxvZ2luUmVzcG9uc2UiABJHCgZMb2dvdXQSHC5zdG9vcC5hdXRoLnYxLkxvZ291dFJlcXVlc3QaHS5zdG9vcC5hdXRoLnYxLkxvZ291dFJlc3BvbnNlIgASRAoFR2V0TWUSGy5zdG9vcC5hdXRoLnYxLkdldE1lUmVxdWVzdBocLnN0b29wLmF1dGgudjEuR2V0TWVSZXNwb25zZSIAElwKDVVwZGF0ZVByb2ZpbGUSIy5zdG9vcC5hdXRoLnYxLlVwZGF0ZVByb2ZpbGVSZXF1ZXN0GiQuc3Rvb3AuYXV0aC52MS5VcGRhdGVQcm9maWxlUmVzcG9uc2UiABJfCg5HZXRVc2VyUHJvZmlsZRIkLnN0b29wLmF1dGgudjEuR2V0VXNlclByb2ZpbGVSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5HZXRVc2VyUHJvZmlsZVJlc3BvbnNlIgASXwoOQ2hhbmdlUGFzc3dvcmQSJC5zdG9vcC5hdXRoLnYxLkNoYW5nZVBhc3N3b3JkUmVxdWVzdBolLnN0b29wLmF1dGgudjEuQ2hhbmdlUGFzc3dvcmRSZXNwb25zZSIAEl8KDkxpc3RJZGVudGl0aWVzEiQuc3Rvb3AuYXV0aC52MS5MaXN0SWRlbnRpdGllc1JlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLkxpc3RJZGVudGl0aWVzUmVzcG9uc2UiABJfCg5VbmxpbmtJZGVudGl0eRIkLnN0b29wLmF1dGgudjEuVW5saW5rSWRlbnRpdHlSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5VbmxpbmtJZGVudGl0eVJlc3BvbnNlIgASbgoTQ3JlYXRlUGVyc29uYWxUb2tlbhIpLnN0b29wLmF1dGgudjEuQ3JlYXRlUGVyc29uYWxUb2tlblJlcXVlc3QaKi5zdG9vcC5hdXRoLnYxLkNyZWF0ZVBlcnNvbmFsVG9rZW5SZXNwb25zZSIAEmsKEkxpc3RQZXJzb25hbFRva2VucxIoLnN0b29wLmF1dGgudjEuTGlzdFBlcnNvbmFsVG9rZW5zUmVxdWVzdBopLnN0b29wLmF1dGgudjEuTGlzdFBlcnNvbmFsVG9rZW5zUmVzcG9uc2UiABJuChNSZXZva2VQZXJzb25hbFRva2VuEikuc3Rvb3AuYXV0aC52MS5SZXZva2VQZXJzb25hbFRva2VuUmVxdWVzdBoqLnN0b29wLmF1dGgudjEuUmV2b2tlUGVyc29uYWxUb2tlblJlc3BvbnNlIgBCqAEKEWNvbS5zdG9vcC5hdXRoLnYxQglBdXRoUHJvdG9QAVoyZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvYXV0aC92MTthdXRodjGiAgNTQViqAg1TdG9vcC5BdXRoLlYxygINU3Rvb3BcQXV0aFxWMeICGVN0b29wXEF1dGhcVjFcR1BCTWV0YWRhdGHqAg9TdG9vcDo6QXV0aDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
 
 /**
  * @generated from message stoop.auth.v1.User
@@ -424,6 +424,14 @@ export type ChangePasswordRequest = Message<"stoop.auth.v1.ChangePasswordRequest
    * @generated from field: string new_password = 2;
    */
   newPassword: string;
+
+  /**
+   * Also revoke every personal token the account holds. Other sessions are
+   * signed out either way.
+   *
+   * @generated from field: bool revoke_personal_tokens = 3;
+   */
+  revokePersonalTokens: boolean;
 };
 
 /**
@@ -538,6 +546,211 @@ export type UnlinkIdentityResponse = Message<"stoop.auth.v1.UnlinkIdentityRespon
  */
 export const UnlinkIdentityResponseSchema: GenMessage<UnlinkIdentityResponse> = /*@__PURE__*/
   messageDesc(file_stoop_auth_v1_auth, 20);
+
+/**
+ * PersonalToken is one of a person's tokens, as its holder or an admin sees
+ * it: never the secret, which isn't stored.
+ *
+ * @generated from message stoop.auth.v1.PersonalToken
+ */
+export type PersonalToken = Message<"stoop.auth.v1.PersonalToken"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: repeated stoop.access.v1.Permission permissions = 3;
+   */
+  permissions: Permission[];
+
+  /**
+   * Limited tokens work only in space_ids. A limited token whose spaces
+   * were all deleted works nowhere.
+   *
+   * @generated from field: bool limited = 4;
+   */
+  limited: boolean;
+
+  /**
+   * @generated from field: repeated string space_ids = 5;
+   */
+  spaceIds: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 6;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * Unset when never used. Recorded at most once a minute.
+   *
+   * @generated from field: google.protobuf.Timestamp last_used_at = 7;
+   */
+  lastUsedAt?: Timestamp | undefined;
+
+  /**
+   * Unset when it never expires.
+   *
+   * @generated from field: google.protobuf.Timestamp expires_at = 8;
+   */
+  expiresAt?: Timestamp | undefined;
+
+  /**
+   * The token's last four characters, to tell tokens apart.
+   *
+   * @generated from field: string hint = 9;
+   */
+  hint: string;
+
+  /**
+   * True while the server's personal_tokens setting refuses this token.
+   *
+   * @generated from field: bool blocked = 10;
+   */
+  blocked: boolean;
+};
+
+/**
+ * Describes the message stoop.auth.v1.PersonalToken.
+ * Use `create(PersonalTokenSchema)` to create a new message.
+ */
+export const PersonalTokenSchema: GenMessage<PersonalToken> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 21);
+
+/**
+ * @generated from message stoop.auth.v1.CreatePersonalTokenRequest
+ */
+export type CreatePersonalTokenRequest = Message<"stoop.auth.v1.CreatePersonalTokenRequest"> & {
+  /**
+   * 1-50 characters after trimming.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * At least one; never PERMISSION_ACCOUNT_SECURITY.
+   *
+   * @generated from field: repeated stoop.access.v1.Permission permissions = 2;
+   */
+  permissions: Permission[];
+
+  /**
+   * @generated from field: bool limited = 3;
+   */
+  limited: boolean;
+
+  /**
+   * Required when limited, refused otherwise.
+   *
+   * @generated from field: repeated string space_ids = 4;
+   */
+  spaceIds: string[];
+
+  /**
+   * 0 never expires; otherwise 1-365.
+   *
+   * @generated from field: int32 expires_in_days = 5;
+   */
+  expiresInDays: number;
+};
+
+/**
+ * Describes the message stoop.auth.v1.CreatePersonalTokenRequest.
+ * Use `create(CreatePersonalTokenRequestSchema)` to create a new message.
+ */
+export const CreatePersonalTokenRequestSchema: GenMessage<CreatePersonalTokenRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 22);
+
+/**
+ * @generated from message stoop.auth.v1.CreatePersonalTokenResponse
+ */
+export type CreatePersonalTokenResponse = Message<"stoop.auth.v1.CreatePersonalTokenResponse"> & {
+  /**
+   * @generated from field: stoop.auth.v1.PersonalToken token = 1;
+   */
+  token?: PersonalToken | undefined;
+
+  /**
+   * The token itself. Shown once: nothing else ever returns it.
+   *
+   * @generated from field: string secret = 2;
+   */
+  secret: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.CreatePersonalTokenResponse.
+ * Use `create(CreatePersonalTokenResponseSchema)` to create a new message.
+ */
+export const CreatePersonalTokenResponseSchema: GenMessage<CreatePersonalTokenResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 23);
+
+/**
+ * @generated from message stoop.auth.v1.ListPersonalTokensRequest
+ */
+export type ListPersonalTokensRequest = Message<"stoop.auth.v1.ListPersonalTokensRequest"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.ListPersonalTokensRequest.
+ * Use `create(ListPersonalTokensRequestSchema)` to create a new message.
+ */
+export const ListPersonalTokensRequestSchema: GenMessage<ListPersonalTokensRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 24);
+
+/**
+ * @generated from message stoop.auth.v1.ListPersonalTokensResponse
+ */
+export type ListPersonalTokensResponse = Message<"stoop.auth.v1.ListPersonalTokensResponse"> & {
+  /**
+   * @generated from field: repeated stoop.auth.v1.PersonalToken tokens = 1;
+   */
+  tokens: PersonalToken[];
+};
+
+/**
+ * Describes the message stoop.auth.v1.ListPersonalTokensResponse.
+ * Use `create(ListPersonalTokensResponseSchema)` to create a new message.
+ */
+export const ListPersonalTokensResponseSchema: GenMessage<ListPersonalTokensResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 25);
+
+/**
+ * @generated from message stoop.auth.v1.RevokePersonalTokenRequest
+ */
+export type RevokePersonalTokenRequest = Message<"stoop.auth.v1.RevokePersonalTokenRequest"> & {
+  /**
+   * @generated from field: string token_id = 1;
+   */
+  tokenId: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.RevokePersonalTokenRequest.
+ * Use `create(RevokePersonalTokenRequestSchema)` to create a new message.
+ */
+export const RevokePersonalTokenRequestSchema: GenMessage<RevokePersonalTokenRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 26);
+
+/**
+ * @generated from message stoop.auth.v1.RevokePersonalTokenResponse
+ */
+export type RevokePersonalTokenResponse = Message<"stoop.auth.v1.RevokePersonalTokenResponse"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.RevokePersonalTokenResponse.
+ * Use `create(RevokePersonalTokenResponseSchema)` to create a new message.
+ */
+export const RevokePersonalTokenResponseSchema: GenMessage<RevokePersonalTokenResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 27);
 
 /**
  * InstanceRole is a user's server-level type. Admins operate the instance
@@ -669,6 +882,39 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof UnlinkIdentityRequestSchema;
     output: typeof UnlinkIdentityResponseSchema;
+  },
+  /**
+   * CreatePersonalToken makes a token that acts as the caller with only the
+   * permissions granted, optionally limited to some spaces. The secret is in
+   * this response and nowhere else. Needs a session: no token can make
+   * another, and the server setting may refuse it.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.CreatePersonalToken
+   */
+  createPersonalToken: {
+    methodKind: "unary";
+    input: typeof CreatePersonalTokenRequestSchema;
+    output: typeof CreatePersonalTokenResponseSchema;
+  },
+  /**
+   * ListPersonalTokens lists the caller's tokens, expired ones included.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.ListPersonalTokens
+   */
+  listPersonalTokens: {
+    methodKind: "unary";
+    input: typeof ListPersonalTokensRequestSchema;
+    output: typeof ListPersonalTokensResponseSchema;
+  },
+  /**
+   * RevokePersonalToken deletes one of the caller's tokens.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.RevokePersonalToken
+   */
+  revokePersonalToken: {
+    methodKind: "unary";
+    input: typeof RevokePersonalTokenRequestSchema;
+    output: typeof RevokePersonalTokenResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_stoop_auth_v1_auth, 0);

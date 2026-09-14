@@ -7,6 +7,7 @@ import { AboutSection } from "./AboutSection";
 import { CleanupSection } from "./CleanupSection";
 import { LoginProvidersSection } from "./LoginProvidersSection";
 import { PasswordSignInSection } from "./PasswordSignInSection";
+import { PersonalTokensSetting } from "./PersonalTokensSetting";
 import { ReachabilitySection } from "./ReachabilitySection";
 import { ServerSection } from "./ServerSection";
 import { StorageSection } from "./StorageSection";
@@ -69,7 +70,12 @@ export function AdminPage() {
           <AboutSection />
         </>
       )}
-      {active === "accounts" && <UsersSection meId={me.id} />}
+      {active === "accounts" && (
+        <>
+          <PersonalTokensSetting />
+          <UsersSection meId={me.id} />
+        </>
+      )}
       {active === "hosting" && <ReachabilitySection />}
       {active === "login" && (
         <>

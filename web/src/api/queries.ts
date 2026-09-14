@@ -164,6 +164,24 @@ export function useInstanceUsers(enabled: boolean) {
   });
 }
 
+// The caller's personal tokens (Profile → Security).
+export function usePersonalTokens() {
+  return useQuery({
+    queryKey: ["personal-tokens"],
+    queryFn: async () => (await authClient.listPersonalTokens({})).tokens,
+  });
+}
+
+// Another account's personal tokens, fetched when an admin opens them.
+export function useUserTokens(userId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["user-tokens", userId],
+    queryFn: async () =>
+      (await instanceClient.listUserTokens({ userId })).tokens,
+    enabled,
+  });
+}
+
 export function useActivity() {
   return useQuery({
     queryKey: ["activity"],

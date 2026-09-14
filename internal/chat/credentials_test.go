@@ -35,6 +35,69 @@ func sameSet(got map[accessv1.Permission]bool, want ...accessv1.Permission) bool
 	return true
 }
 
+// A bounded credential is held to its bounds on every path into a space,
+// not only the ones that check a permission.
+func TestBoundsReachEveryPath(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), noDirectory{})
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	bg := context.Background()
+
+	home, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Homelab"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	away, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Book club"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	homeID, awayID := home.Msg.Space.Id, away.Msg.Space.Id
+	channelOf := func(spaceID string) string {
+		res, err := svc.ListChannels(owner, connect.NewRequest(&chatv1.ListChannelsRequest{SpaceId: spaceID}))
+		if err != nil || len(res.Msg.Channels) == 0 {
+			t.Fatalf("channels of %s: %v", spaceID, err)
+		}
+		return res.Msg.Channels[0].Id
+	}
+	homeChannel, awayChannel := channelOf(homeID), channelOf(awayID)
+
+	id, _ := authctx.From(owner)
+	id.Credential = authctx.Credential{
+		Kind: authctx.CredentialPersonalToken, Bounded: true, Spaces: []string{homeID},
+		Grants: []authctx.Action{authctx.SpaceRead, authctx.MessagesRead, authctx.MessagesPost, authctx.VoiceJoin},
+	}
+	tok := authctx.WithIdentity(bg, id)
+	refused := func(name string, err error) {
+		t.Helper()
+		if code(err) != connect.CodePermissionDenied {
+			t.Errorf("%s outside the token's space: want permission_denied, got %v", name, err)
+		}
+	}
+
+	_, err = svc.GetSpace(tok, connect.NewRequest(&chatv1.GetSpaceRequest{SpaceId: awayID}))
+	refused("GetSpace", err)
+	_, err = svc.ListChannels(tok, connect.NewRequest(&chatv1.ListChannelsRequest{SpaceId: awayID}))
+	refused("ListChannels", err)
+	_, err = svc.ListMembers(tok, connect.NewRequest(&chatv1.ListMembersRequest{SpaceId: awayID}))
+	refused("ListMembers", err)
+	_, err = svc.SetSpaceMuted(tok, connect.NewRequest(&chatv1.SetSpaceMutedRequest{SpaceId: awayID, Muted: true}))
+	refused("SetSpaceMuted", err)
+	_, err = svc.LeaveSpace(tok, connect.NewRequest(&chatv1.LeaveSpaceRequest{SpaceId: awayID}))
+	refused("LeaveSpace", err)
+	_, err = svc.JoinSpace(tok, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: "anything"}))
+	refused("JoinSpace", err)
+
+	if ok, err := svc.IsChannelMember(tok, id.UserID, awayChannel); err != nil || ok {
+		t.Errorf("IsChannelMember outside the bounds = %v, %v (voice joins rely on it)", ok, err)
+	}
+	if ok, err := svc.IsChannelMember(tok, id.UserID, homeChannel); err != nil || !ok {
+		t.Errorf("IsChannelMember inside the bounds = %v, %v", ok, err)
+	}
+	if _, err := svc.GetSpace(tok, connect.NewRequest(&chatv1.GetSpaceRequest{SpaceId: homeID})); err != nil {
+		t.Errorf("GetSpace inside the bounds: %v", err)
+	}
+}
+
 // my_permissions is the server's answer for the viewer and the credential
 // they called with.
 func TestMyPermissions(t *testing.T) {

@@ -2,9 +2,11 @@
 
 Status: decided 2026-09-13. Tracked as STOOP-269 (Access 1–6). Built:
 Access 1 (the vocabulary, the procedure registry, the credential gate),
-Access 2 (the credentials table, bounds, `users.kind`) and Access 3
+Access 2 (the credentials table, bounds, `users.kind`), Access 3
 (`stoop.access.v1.Permission`, `Space.my_permissions`, `GetMe`'s
-permissions). The rest is below.
+permissions) and Access 4 (personal tokens; see
+[identity.md](../architecture/identity.md#personal-tokens)). The rest is
+below.
 
 Every request answers three questions: **who is asking** (the identity),
 **what they are asking with** (the credential), and **what the ask

@@ -127,6 +127,10 @@ func (s *Service) RevokeInvite(ctx context.Context, req *connect.Request[chatv1.
 // consumed in a single transaction; the consume is a guarded UPDATE so
 // concurrent joins cannot push use_count past max_uses.
 func (s *Service) JoinSpace(ctx context.Context, req *connect.Request[chatv1.JoinSpaceRequest]) (*connect.Response[chatv1.JoinSpaceResponse], error) {
+	// A token limited to spaces can't widen its own reach by joining another.
+	if id, _ := authctx.From(ctx); id.Credential.Bounded {
+		return nil, connect.NewError(connect.CodePermissionDenied, authctx.ErrOutOfBounds)
+	}
 	if req.Msg.SpaceId != "" {
 		if err := s.refuseIfBanned(ctx, req.Msg.SpaceId, authctx.UserID(ctx)); err != nil {
 			return nil, err

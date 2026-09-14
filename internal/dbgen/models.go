@@ -64,6 +64,7 @@ type Credential struct {
 	CreatedAt  time.Time
 	ExpiresAt  *time.Time
 	LastUsedAt *time.Time
+	Hint       string
 }
 
 type CredentialBound struct {

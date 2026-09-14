@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
+import { usePersonalTokens } from "../../api/queries";
 
 // Change password — or set the first one, for an account created via a
 // login provider (then there is no current password to ask for). The
@@ -13,6 +14,11 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
   const [confirm, setConfirm] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
+  const { data: tokens } = usePersonalTokens();
+  const tokenCount = tokens?.length ?? 0;
+  // Pre-ticked: whoever had the session long enough to change the password
+  // had it long enough to make a token.
+  const [revokeTokens, setRevokeTokens] = useState(true);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,6 +32,7 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
       await authClient.changePassword({
         currentPassword: current,
         newPassword: next,
+        revokePersonalTokens: tokenCount > 0 && revokeTokens,
       });
       setCurrent("");
       setNext("");
@@ -33,6 +40,9 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
       if (!hasPassword) {
         // "me" now reports hasPassword; the card becomes the change form.
         await queryClient.invalidateQueries({ queryKey: ["me"] });
+      }
+      if (tokenCount > 0 && revokeTokens) {
+        await queryClient.invalidateQueries({ queryKey: ["personal-tokens"] });
       }
       setState("saved");
       setTimeout(() => setState("idle"), 2500);
@@ -85,6 +95,21 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
           aria-invalid={confirm !== "" && confirm !== next ? true : undefined}
         />
       </label>
+      {tokenCount > 0 && (
+        <label className="toggle-row">
+          <input
+            type="checkbox"
+            checked={revokeTokens}
+            onChange={(e) => setRevokeTokens(e.target.checked)}
+          />
+          <span>
+            Also revoke my{" "}
+            {tokenCount === 1
+              ? "personal token"
+              : `${tokenCount} personal tokens`}
+          </span>
+        </label>
+      )}
       {error && <p className="error">{error}</p>}
       <div className="setting-actions">
         <button type="submit" className="primary" disabled={state === "busy"}>

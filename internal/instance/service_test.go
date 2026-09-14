@@ -440,3 +440,9 @@ func TestMaxUploadBytes(t *testing.T) {
 		t.Errorf("after clearing = %d, want the ceiling %d", res.Msg.Status.MaxUploadBytes, ceiling)
 	}
 }
+
+func (f *fakeUsers) ListUserTokens(context.Context, string) ([]*authv1.PersonalToken, error) {
+	return nil, nil
+}
+
+func (f *fakeUsers) RevokeUserToken(context.Context, string, string) error { return nil }

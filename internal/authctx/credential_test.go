@@ -98,11 +98,30 @@ func TestContextGates(t *testing.T) {
 	if !CoversSpace(bounded, ChannelsManage, "homelab") || CoversSpace(bounded, ChannelsManage, "bookclub") {
 		t.Error("CoversSpace must follow the bounds")
 	}
-	if err := Refusal(bounded, ChannelsManage); err != errOutOfBounds {
+	if err := Refusal(bounded, ChannelsManage); err != ErrOutOfBounds {
 		t.Errorf("refusal for a covered action should blame the bounds, got %v", err)
 	}
-	if err := Refusal(bounded, SpaceDelete); err == errOutOfBounds {
+	if err := Refusal(bounded, SpaceDelete); err == ErrOutOfBounds {
 		t.Error("refusal for an uncovered action should blame the grant")
+	}
+}
+
+func TestBoundedCredentialOnlyUsesSpaceActions(t *testing.T) {
+	c := Credential{Grants: []Action{MessagesRead, DMsRead, InstanceRead}, Bounded: true, Spaces: []string{"s"}}
+	if !(Rule{AnyOf: []Action{MessagesRead, DMsRead}}).CoveredBy(c) {
+		t.Error("a space action in the rule should pass")
+	}
+	if (Rule{AnyOf: []Action{DMsRead}}).CoveredBy(c) || (Rule{AnyOf: []Action{InstanceRead}}).CoveredBy(c) {
+		t.Error("a bounded credential used a DM or instance action")
+	}
+	unbounded := Credential{Grants: []Action{DMsRead}}
+	if !(Rule{AnyOf: []Action{DMsRead}}).CoveredBy(unbounded) {
+		t.Error("an unbounded credential should use its DM grant")
+	}
+	for a := range descriptions {
+		if a.OnSpace() && (RoleHolds(RoleAdmin, a) || ownActions[a]) {
+			t.Errorf("%s is both a space action and an instance or own-account one", a)
+		}
 	}
 }
 

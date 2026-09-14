@@ -24,4 +24,6 @@ message InstanceUser {
   // clear them, but never write them (see ClearUserProfile).
   string pronouns = 9;
   string bio = 10;
+  // How many personal tokens the account holds, expired ones included.
+  int32 personal_token_count = 11;
 }
