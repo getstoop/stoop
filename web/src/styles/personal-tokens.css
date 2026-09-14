@@ -4,9 +4,7 @@
 
 .user-list.table.tokens .user-row,
 .user-list.table.tokens .user-list-head {
-  grid-template-columns:
-    minmax(140px, 1.3fr) minmax(160px, 2fr) minmax(100px, 1.2fr)
-    1fr 1fr auto;
+  grid-template-columns: minmax(140px, 1.3fr) minmax(200px, 2.4fr) 1fr 1fr auto;
 }
 
 .badge.token-soon {
@@ -63,28 +61,17 @@
   color: var(--text-muted);
 }
 
-/* fields.css sizes checkboxes in a toggle row; a radio needs the same. */
-.token-scope input[type="radio"] {
-  width: auto;
-  margin: 4px 0 0;
-}
-
 .token-form .toggle-row .hint {
   display: block;
 }
 
-/* The spaces combobox (routes/Profile/SpacePicker.tsx): a search field,
-   its dropdown fixed to the viewport, and the picked spaces as pills. */
+/* The spaces combobox (components/SpacePicker.tsx), used by the bot
+   dialogs: a search field, its dropdown fixed to the viewport, and the
+   picked spaces as pills. */
 .space-picker {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-/* Under the "Only in these spaces" radio, the picker lines up with its
-   label; in the bot dialogs it stands on its own. */
-.token-form .space-picker {
-  padding-left: 24px;
 }
 
 .space-picker-options {

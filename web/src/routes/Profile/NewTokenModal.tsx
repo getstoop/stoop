@@ -12,10 +12,10 @@ import {
 } from "../../api/tokenOptions";
 import { Modal } from "../../components/Modal";
 import { PermissionPicker } from "../../components/PermissionPicker";
-import { SpacePicker } from "../../components/SpacePicker";
 
 // Security → Personal tokens → New token. It starts as narrow as it can:
-// nothing ticked, limited to spaces none of which are chosen yet.
+// nothing ticked. It works everywhere its holder does; the only dial is
+// what it may do.
 export function NewTokenModal({
   onClose,
   onCreated,
@@ -29,8 +29,6 @@ export function NewTokenModal({
   const [name, setName] = useState("");
   const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);
   const [keys, setKeys] = useState<string[]>([]);
-  const [limited, setLimited] = useState(true);
-  const [spaceIds, setSpaceIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +36,7 @@ export function NewTokenModal({
     ...(mine ?? []),
     ...(spaces ?? []).flatMap((s) => s.myPermissions),
   ]);
-  const ready = canCreate({ name, keys, limited, spaceIds });
+  const ready = canCreate({ name, keys });
 
   const create = async () => {
     if (!ready) return;
@@ -47,9 +45,7 @@ export function NewTokenModal({
     try {
       const res = await authClient.createPersonalToken({
         name: name.trim(),
-        permissions: permissionsFor(keys, limited),
-        limited,
-        spaceIds: limited ? spaceIds : [],
+        permissions: permissionsFor(keys),
         expiresInDays: days,
       });
       await queryClient.invalidateQueries({ queryKey: ["personal-tokens"] });
@@ -119,41 +115,13 @@ export function NewTokenModal({
         <PermissionPicker
           options={options}
           selected={keys}
-          limited={limited}
           onChange={setKeys}
         />
+        <p className="hint">
+          It works in every space you're in, including ones you join later, with
+          only what you tick here.
+        </p>
 
-        <fieldset className="token-scope">
-          <legend>Where it works</legend>
-          <label className="toggle-row">
-            <input
-              type="radio"
-              name="token-scope"
-              checked={!limited}
-              onChange={() => setLimited(false)}
-            />
-            <span>
-              Everywhere you can
-              <span className="hint">including spaces you join later</span>
-            </span>
-          </label>
-          <label className="toggle-row">
-            <input
-              type="radio"
-              name="token-scope"
-              checked={limited}
-              onChange={() => setLimited(true)}
-            />
-            <span>Only some spaces</span>
-          </label>
-          {limited && (
-            <SpacePicker
-              spaces={spaces ?? []}
-              selected={spaceIds}
-              onChange={setSpaceIds}
-            />
-          )}
-        </fieldset>
         {error && <p className="error">{error}</p>}
       </div>
     </Modal>

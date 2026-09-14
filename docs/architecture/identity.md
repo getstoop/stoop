@@ -127,8 +127,8 @@ to the previous release can't revive a revoked session.
 ## Personal tokens
 
 A person can make a token for a script from **Profile → Security**. It
-acts as them with only the permissions they tick, optionally limited to
-some spaces, and expires after 30, 90 or 365 days, or never.
+acts as them with only the permissions they tick, in every space they are
+in, and expires after 30, 90 or 365 days, or never.
 
 - **It is shown once.** The token is `stp_pat_` and 32 random bytes; Stoop
   stores its SHA-256 and its last four characters (`credentials.hint`),
@@ -140,10 +140,11 @@ some spaces, and expires after 30, 90 or 365 days, or never.
   message's attachment.
 - **No token can make, list or revoke tokens**, change a password or link
   a provider: those need `account.security`, which only a session carries.
-- **A token limited to spaces uses only space permissions**, and only in
-  those spaces — on every path, membership checks and voice joins included.
-  It can't be given DM, account or server permissions, and it can't join
-  or leave a space outside its limit.
+- **There is no space limit.** "This token can do what you can, wherever
+  you are" is the whole story; narrowing by space was withdrawn in
+  STOOP-287 once a bot's reach became its membership. Tokens made before
+  that with a limit keep it, are listed as "limited to …", and go when
+  they expire or are revoked. Nothing widens on upgrade.
 - **The server setting `personal_tokens`** (`everyone`, `admins`, `off`)
   is checked every time a token is used, not only when one is made. Turning
   it down stops existing tokens; they stay listed as blocked and work again

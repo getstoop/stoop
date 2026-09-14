@@ -133,37 +133,20 @@ export function heldOptions(held: Iterable<Permission>): TokenOption[] {
   return TOKEN_OPTIONS.filter((o) => o.permissions.every((p) => have.has(p)));
 }
 
-// A token limited to spaces can't reach the account or the server.
-export function groupAvailable(group: TokenGroup, limited: boolean): boolean {
-  return !limited || group === "space";
-}
-
-// The permissions behind the chosen options that can apply, deduplicated.
-export function permissionsFor(
-  keys: Iterable<string>,
-  limited: boolean,
-): Permission[] {
+// The permissions behind the chosen options, deduplicated.
+export function permissionsFor(keys: Iterable<string>): Permission[] {
   const chosen = new Set(keys);
   const out = new Set<Permission>();
   for (const o of TOKEN_OPTIONS) {
-    if (chosen.has(o.key) && groupAvailable(o.group, limited)) {
+    if (chosen.has(o.key)) {
       for (const p of o.permissions) out.add(p);
     }
   }
   return [...out];
 }
 
-export function canCreate(form: {
-  name: string;
-  keys: string[];
-  limited: boolean;
-  spaceIds: string[];
-}): boolean {
-  return (
-    form.name.trim() !== "" &&
-    permissionsFor(form.keys, form.limited).length > 0 &&
-    (!form.limited || form.spaceIds.length > 0)
-  );
+export function canCreate(form: { name: string; keys: string[] }): boolean {
+  return form.name.trim() !== "" && permissionsFor(form.keys).length > 0;
 }
 
 // The labels a token's permissions add up to, for a list.
@@ -176,7 +159,8 @@ export function describePermissions(
   ).map((o) => o.label);
 }
 
-// Where a token works, naming the spaces the viewer knows.
+// Where a token made before the space limit was withdrawn still works,
+// naming the spaces the viewer knows. New tokens are never limited.
 export function whereText(
   token: { limited: boolean; spaceIds: string[] },
   nameOf: (id: string) => string | undefined,

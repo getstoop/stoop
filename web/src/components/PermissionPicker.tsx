@@ -1,23 +1,19 @@
 import {
   GROUP_LABELS,
-  groupAvailable,
   type TokenGroup,
   type TokenOption,
 } from "../api/tokenOptions";
 
 const GROUPS: TokenGroup[] = ["space", "account", "server"];
 
-// A token's permissions as checkboxes, grouped by where they apply. A
-// token limited to spaces greys out the groups it could never use.
+// A token's permissions as checkboxes, grouped by where they apply.
 export function PermissionPicker({
   options,
   selected,
-  limited,
   onChange,
 }: {
   options: TokenOption[];
   selected: string[];
-  limited: boolean;
   onChange: (keys: string[]) => void;
 }) {
   const toggle = (key: string) =>
@@ -32,16 +28,15 @@ export function PermissionPicker({
       {GROUPS.map((group) => {
         const inGroup = options.filter((o) => o.group === group);
         if (inGroup.length === 0) return null;
-        const available = groupAvailable(group, limited);
         return (
-          <fieldset key={group} disabled={!available}>
+          <fieldset key={group}>
             <legend>{GROUP_LABELS[group]}</legend>
             {inGroup.map((o) => (
               <label key={o.key} className="toggle-row">
                 <input
                   type="checkbox"
                   name={`token-permission-${o.key}`}
-                  checked={available && selected.includes(o.key)}
+                  checked={selected.includes(o.key)}
                   onChange={() => toggle(o.key)}
                 />
                 <span>
@@ -50,11 +45,6 @@ export function PermissionPicker({
                 </span>
               </label>
             ))}
-            {!available && (
-              <p className="hint">
-                A token limited to spaces can't reach these.
-              </p>
-            )}
           </fieldset>
         );
       })}

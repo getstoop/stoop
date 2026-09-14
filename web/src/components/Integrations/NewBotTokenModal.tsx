@@ -29,7 +29,7 @@ export function NewBotTokenModal({
   const [keys, setKeys] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ready = canCreate({ name, keys, limited: false, spaceIds: [] });
+  const ready = canCreate({ name, keys });
 
   const create = async () => {
     if (!ready) return;
@@ -39,7 +39,7 @@ export function NewBotTokenModal({
       const res = await integrationsClient.createBotToken({
         botUserId: bot.id,
         name: name.trim(),
-        permissions: permissionsFor(keys, false),
+        permissions: permissionsFor(keys),
       });
       await queryClient.invalidateQueries({ queryKey: ["bots"] });
       onCreated({
@@ -93,7 +93,6 @@ export function NewBotTokenModal({
         <PermissionPicker
           options={TOKEN_OPTIONS}
           selected={keys}
-          limited={false}
           onChange={setKeys}
         />
         {error && <p className="error">{error}</p>}

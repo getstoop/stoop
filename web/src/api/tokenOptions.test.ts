@@ -4,7 +4,6 @@ import {
   canCreate,
   describePermissions,
   expiryOf,
-  groupAvailable,
   heldOptions,
   lastUsedText,
   permissionsFor,
@@ -36,35 +35,22 @@ describe("heldOptions", () => {
 
 describe("permissionsFor", () => {
   it("expands and deduplicates the chosen options", () => {
-    expect(permissionsFor(["read", "post", "read"], false)).toEqual([
+    expect(permissionsFor(["read", "post", "read"])).toEqual([
       Permission.SPACE_READ,
       Permission.MESSAGES_READ,
       Permission.MESSAGES_POST,
     ]);
   });
-
-  it("drops account and server options from a limited token", () => {
-    expect(permissionsFor(["read", "dms-read", "instance-read"], true)).toEqual(
-      [Permission.SPACE_READ, Permission.MESSAGES_READ],
-    );
-    expect(groupAvailable("account", true)).toBe(false);
-    expect(groupAvailable("account", false)).toBe(true);
-  });
 });
 
 describe("canCreate", () => {
-  const ok = { name: "script", keys: ["read"], limited: true, spaceIds: ["s"] };
+  const ok = { name: "script", keys: ["read"] };
 
-  it("needs a name, a permission, and a space when limited", () => {
+  it("needs a name and a permission", () => {
     expect(canCreate(ok)).toBe(true);
     expect(canCreate({ ...ok, name: "  " })).toBe(false);
     expect(canCreate({ ...ok, keys: [] })).toBe(false);
-    expect(canCreate({ ...ok, spaceIds: [] })).toBe(false);
-    expect(canCreate({ ...ok, limited: false, spaceIds: [] })).toBe(true);
-  });
-
-  it("doesn't count options a limited token can't use", () => {
-    expect(canCreate({ ...ok, keys: ["dms-read"] })).toBe(false);
+    expect(canCreate({ ...ok, keys: ["dms-read"] })).toBe(true);
   });
 });
 

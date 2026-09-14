@@ -105,22 +105,6 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	spaceIDs := dedupe(req.Msg.SpaceIds)
-	if req.Msg.Limited && len(spaceIDs) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			errors.New("choose at least one space, or let the token work everywhere"))
-	}
-	if !req.Msg.Limited && len(spaceIDs) > 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("space_ids are only for a limited token"))
-	}
-	if req.Msg.Limited {
-		for _, g := range grants {
-			if a := authctx.Action(g); !a.OnSpace() {
-				return nil, connect.NewError(connect.CodeInvalidArgument,
-					fmt.Errorf("a token limited to spaces can't be allowed to %s", a.Describe()))
-			}
-		}
-	}
 	days := req.Msg.ExpiresInDays
 	if days < 0 || days > maxTokenLifetimeDays {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
@@ -140,36 +124,19 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	row, err := qtx.CreatePersonalToken(ctx, dbgen.CreatePersonalTokenParams{
+	// A token reaches everything its holder does: no bounds, ever. Rows
+	// minted with space bounds before that keep them (a bound only narrows).
+	row, err := s.q.CreatePersonalToken(ctx, dbgen.CreatePersonalTokenParams{
 		ID: credID.String(), HolderID: id.UserID, TokenHash: hash, Name: name,
-		Grants: grants, Bounded: req.Msg.Limited, ExpiresAt: expires, Hint: secret[len(secret)-4:],
+		Grants: grants, Bounded: false, ExpiresAt: expires, Hint: secret[len(secret)-4:],
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create token: %w", err)
 	}
-	for _, spaceID := range spaceIDs {
-		if err := qtx.AddCredentialSpaceBound(ctx, dbgen.AddCredentialSpaceBoundParams{
-			CredentialID: row.ID, SpaceID: spaceID,
-		}); err != nil {
-			if isBadReference(err) {
-				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown space %q", spaceID))
-			}
-			return nil, fmt.Errorf("limit token: %w", err)
-		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
-	}
 
 	token := toProtoToken(dbgen.ListPersonalTokensRow{
 		ID: row.ID, Name: row.Name, Grants: row.Grants, Bounded: row.Bounded, CreatedAt: row.CreatedAt,
-		LastUsedAt: row.LastUsedAt, ExpiresAt: row.ExpiresAt, Hint: row.Hint, BoundSpaces: spaceIDs,
+		LastUsedAt: row.LastUsedAt, ExpiresAt: row.ExpiresAt, Hint: row.Hint, BoundSpaces: []string{},
 	}, false)
 	return connect.NewResponse(&authv1.CreatePersonalTokenResponse{Token: token, Secret: secret}), nil
 }

@@ -16,8 +16,8 @@ function listPosition(anchor: DOMRect): CSSProperties {
   return { top: anchor.bottom + 4, left, width };
 }
 
-// A limited token's spaces: type to find one in the dropdown, pick it, and
-// it joins the pills underneath.
+// A bot's spaces: type to find one in the dropdown, pick it, and it joins
+// the pills underneath.
 export function SpacePicker({
   spaces,
   selected,

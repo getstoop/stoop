@@ -201,8 +201,9 @@ message PersonalToken {
   string id = 1;
   string name = 2;
   repeated stoop.access.v1.Permission permissions = 3;
-  // Limited tokens work only in space_ids. A limited token whose spaces
-  // were all deleted works nowhere.
+  // Set only on tokens made before the space limit was withdrawn; they
+  // keep their narrower reach until they expire or are revoked. New
+  // tokens are never limited.
   bool limited = 4;
   repeated string space_ids = 5;
   google.protobuf.Timestamp created_at = 6;
@@ -219,11 +220,11 @@ message PersonalToken {
 message CreatePersonalTokenRequest {
   // 1-50 characters after trimming.
   string name = 1;
-  // At least one; never PERMISSION_ACCOUNT_SECURITY.
+  // At least one; never PERMISSION_ACCOUNT_SECURITY. The token works
+  // everywhere its holder does; there is no space limit.
   repeated stoop.access.v1.Permission permissions = 2;
-  bool limited = 3;
-  // Required when limited, refused otherwise.
-  repeated string space_ids = 4;
+  reserved 3, 4;
+  reserved "limited", "space_ids";
   // 0 never expires; otherwise 1-365.
   int32 expires_in_days = 5;
 }

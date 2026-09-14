@@ -1238,8 +1238,9 @@ type PersonalToken struct {
 	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Permissions []v1.Permission        `protobuf:"varint,3,rep,packed,name=permissions,proto3,enum=stoop.access.v1.Permission" json:"permissions,omitempty"`
-	// Limited tokens work only in space_ids. A limited token whose spaces
-	// were all deleted works nowhere.
+	// Set only on tokens made before the space limit was withdrawn; they
+	// keep their narrower reach until they expire or are revoked. New
+	// tokens are never limited.
 	Limited   bool                   `protobuf:"varint,4,opt,name=limited,proto3" json:"limited,omitempty"`
 	SpaceIds  []string               `protobuf:"bytes,5,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -1359,11 +1360,9 @@ type CreatePersonalTokenRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 1-50 characters after trimming.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// At least one; never PERMISSION_ACCOUNT_SECURITY.
+	// At least one; never PERMISSION_ACCOUNT_SECURITY. The token works
+	// everywhere its holder does; there is no space limit.
 	Permissions []v1.Permission `protobuf:"varint,2,rep,packed,name=permissions,proto3,enum=stoop.access.v1.Permission" json:"permissions,omitempty"`
-	Limited     bool            `protobuf:"varint,3,opt,name=limited,proto3" json:"limited,omitempty"`
-	// Required when limited, refused otherwise.
-	SpaceIds []string `protobuf:"bytes,4,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
 	// 0 never expires; otherwise 1-365.
 	ExpiresInDays int32 `protobuf:"varint,5,opt,name=expires_in_days,json=expiresInDays,proto3" json:"expires_in_days,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1410,20 +1409,6 @@ func (x *CreatePersonalTokenRequest) GetName() string {
 func (x *CreatePersonalTokenRequest) GetPermissions() []v1.Permission {
 	if x != nil {
 		return x.Permissions
-	}
-	return nil
-}
-
-func (x *CreatePersonalTokenRequest) GetLimited() bool {
-	if x != nil {
-		return x.Limited
-	}
-	return false
-}
-
-func (x *CreatePersonalTokenRequest) GetSpaceIds() []string {
-	if x != nil {
-		return x.SpaceIds
 	}
 	return nil
 }
@@ -1742,13 +1727,11 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x12\n" +
 	"\x04hint\x18\t \x01(\tR\x04hint\x12\x18\n" +
 	"\ablocked\x18\n" +
-	" \x01(\bR\ablocked\"\xce\x01\n" +
+	" \x01(\bR\ablocked\"\xb7\x01\n" +
 	"\x1aCreatePersonalTokenRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12=\n" +
-	"\vpermissions\x18\x02 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\x12\x18\n" +
-	"\alimited\x18\x03 \x01(\bR\alimited\x12\x1b\n" +
-	"\tspace_ids\x18\x04 \x03(\tR\bspaceIds\x12&\n" +
-	"\x0fexpires_in_days\x18\x05 \x01(\x05R\rexpiresInDays\"i\n" +
+	"\vpermissions\x18\x02 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\x12&\n" +
+	"\x0fexpires_in_days\x18\x05 \x01(\x05R\rexpiresInDaysJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\alimitedR\tspace_ids\"i\n" +
 	"\x1bCreatePersonalTokenResponse\x122\n" +
 	"\x05token\x18\x01 \x01(\v2\x1c.stoop.auth.v1.PersonalTokenR\x05token\x12\x16\n" +
 	"\x06secret\x18\x02 \x01(\tR\x06secret\"\x1b\n" +

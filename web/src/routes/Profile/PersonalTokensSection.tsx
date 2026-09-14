@@ -103,9 +103,7 @@ export function PersonalTokensSection() {
       )}
       {hasTokens && (
         <ul className="user-list table tokens">
-          <ListHead
-            columns={["Name", "Can", "Where", "Last used", "Expires", ""]}
-          />
+          <ListHead columns={["Name", "Can", "Last used", "Expires", ""]} />
           {tokens?.map((t) => {
             const expiry = expiryOf(t.expiresAt && timestampDate(t.expiresAt));
             const expired = expiry.state === "expired";
@@ -123,8 +121,13 @@ export function PersonalTokensSection() {
                 </div>
                 <span className="user-cell">
                   {describePermissions(t.permissions).join(", ")}
+                  {t.limited && (
+                    <span className="muted small">
+                      {" "}
+                      · limited to {whereText(t, nameOf)}
+                    </span>
+                  )}
                 </span>
-                <span className="user-cell">{whereText(t, nameOf)}</span>
                 <span className="user-cell">
                   {lastUsedText(t.lastUsedAt && timestampDate(t.lastUsedAt))}
                 </span>
