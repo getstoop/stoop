@@ -156,20 +156,27 @@ describe("BOT_TOKEN_OPTIONS", () => {
   });
 });
 
-describe("read activity depends on a read option", () => {
-  it("brings Read messages along when nothing readable is ticked", () => {
-    expect(withDependencies(["activity"])).toEqual(["activity", "read"]);
+describe("read activity depends on both read options", () => {
+  it("brings both reads along", () => {
+    expect(withDependencies(["activity"])).toEqual([
+      "activity",
+      "read",
+      "dms-read",
+    ]);
     expect(withDependencies(["dms-read", "activity"])).toEqual([
       "dms-read",
       "activity",
+      "read",
     ]);
     expect(withDependencies(["post"])).toEqual(["post"]);
   });
 
-  it("goes when the last read option goes", () => {
+  it("goes when either read option goes", () => {
     expect(withoutOrphans(["activity", "post"])).toEqual(["post"]);
-    expect(withoutOrphans(["activity", "dms-read"])).toEqual([
+    expect(withoutOrphans(["activity", "dms-read"])).toEqual(["dms-read"]);
+    expect(withoutOrphans(["activity", "read", "dms-read"])).toEqual([
       "activity",
+      "read",
       "dms-read",
     ]);
   });

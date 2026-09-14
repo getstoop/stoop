@@ -84,15 +84,19 @@ func TestPersonalTokens(t *testing.T) {
 		"account security": {Name: "x", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACCOUNT_SECURITY}, ExpiresInDays: 30},
 		"over a year":      {Name: "x", Permissions: readOnly, ExpiresInDays: 400},
 		"blank name":       {Name: "  ", Permissions: readOnly, ExpiresInDays: 30},
+		// Every activity item previews a message, so the grant goes only
+		// with both reads.
+		"activity alone":         {Name: "x", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACTIVITY_READ}, ExpiresInDays: 30},
+		"activity with one read": {Name: "x", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACTIVITY_READ, accessv1.Permission_PERMISSION_DMS_READ}, ExpiresInDays: 30},
 	} {
 		if _, err := svc.CreatePersonalToken(ada, connect.NewRequest(req)); codeOf(err) != connect.CodeInvalidArgument {
 			t.Errorf("%s: want invalid_argument, got %v", name, err)
 		}
 	}
 
-	// Activity with a read grant beside it is fine.
+	// Activity with both read grants beside it is fine.
 	pings, err := svc.CreatePersonalToken(ada, connect.NewRequest(&authv1.CreatePersonalTokenRequest{
-		Name: "pings", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACTIVITY_READ, accessv1.Permission_PERMISSION_DMS_READ}, ExpiresInDays: 30,
+		Name: "pings", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACTIVITY_READ, accessv1.Permission_PERMISSION_MESSAGES_READ, accessv1.Permission_PERMISSION_DMS_READ}, ExpiresInDays: 30,
 	}))
 	if err != nil {
 		t.Fatalf("activity with dms.read: %v", err)

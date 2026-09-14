@@ -102,7 +102,7 @@ export const TOKEN_OPTIONS: TokenOption[] = [
   {
     key: "activity",
     label: "Read activity",
-    hint: "your mentions and replies; needs Read messages or Read direct messages",
+    hint: "your mentions and replies; needs Read messages and Read direct messages",
     group: "account",
     permissions: [Permission.ACTIVITY_READ],
   },
@@ -193,20 +193,18 @@ export const BOT_TOKEN_OPTIONS: TokenOption[] = TOKEN_OPTIONS.filter((o) =>
   BOT_SPACE_KEYS.includes(o.key),
 );
 
-// Read activity is a preview of messages, so it needs a read option
-// beside it: ticking it brings Read messages along, and unticking the
-// last read option takes it away.
+// Every activity item previews a message from a space or a direct
+// message, so Read activity needs both read options beside it: ticking
+// it brings them along, and unticking either takes it away.
 const READ_KEYS = ["read", "dms-read"];
 export function withDependencies(keys: string[]): string[] {
-  const has = new Set(keys);
-  if (!has.has("activity")) return keys;
-  if (READ_KEYS.some((k) => has.has(k))) return keys;
-  return keys.includes("read") ? keys : [...keys, "read"];
+  if (!keys.includes("activity")) return keys;
+  const missing = READ_KEYS.filter((k) => !keys.includes(k));
+  return missing.length === 0 ? keys : [...keys, ...missing];
 }
 
 export function withoutOrphans(keys: string[]): string[] {
-  const has = new Set(keys);
-  if (has.has("activity") && !READ_KEYS.some((k) => has.has(k))) {
+  if (keys.includes("activity") && !READ_KEYS.every((k) => keys.includes(k))) {
     return keys.filter((k) => k !== "activity");
   }
   return keys;

@@ -145,9 +145,9 @@ in, and expires after 30, 90 or 365 days, or never.
   STOOP-287 once a bot's reach became its membership. Only a hook is
   bounded, to its one channel.
 - **Some grants need company.** Reading activity is refused without
-  reading messages or direct messages beside it, since an activity item
-  is a preview of a message and is delivered only where the token could
-  read that message ([realtime.md](realtime.md#credentials)).
+  reading messages and direct messages beside it, since every activity
+  item is a preview of a message from one or the other
+  ([realtime.md](realtime.md#credentials)).
 - **Leaving a space needs a session.** A token with `preferences.manage`
   mutes, blocks and moves read markers; leaving is a decision, and the
   app is where it is made.

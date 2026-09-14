@@ -193,7 +193,7 @@ can withhold them. Per-channel role overrides stay out.
 | `space.delete` | owner, instance admin | DeleteSpace |
 | `profile.manage` | person | UpdateProfile, UploadAvatar |
 | `preferences.manage` | everyone | mutes, blocks, MarkChannelRead; LeaveSpace, which also needs a session |
-| `activity.read` | everyone | ListActivity, MarkActivityRead; granted only beside `messages.read` or `dms.read` |
+| `activity.read` | everyone | ListActivity, MarkActivityRead; granted only together with `messages.read` and `dms.read` |
 | `dms.read` | everyone | ListDirectMessages, ListDirectMessageCandidates, DM history |
 | `dms.post` | everyone | OpenDirectMessage, posting into a DM (a bot also needs to be reachable) |
 | `account.security` (never grantable) | person | ChangePassword, ListIdentities, UnlinkIdentity, provider linking, credential management |

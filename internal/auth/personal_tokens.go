@@ -245,12 +245,12 @@ func tokenGrants(perms []accessv1.Permission) ([]string, error) {
 }
 
 // checkGrantDependencies refuses a grant that can't do anything on its
-// own: an activity item previews a message, so activity.read is nothing
-// without a grant that reads messages.
+// own: every activity item previews a message from a space or a direct
+// message, so activity.read goes only with both read grants.
 func checkGrantDependencies(has map[authctx.Action]bool) error {
-	if has[authctx.ActivityRead] && !has[authctx.MessagesRead] && !has[authctx.DMsRead] {
+	if has[authctx.ActivityRead] && (!has[authctx.MessagesRead] || !has[authctx.DMsRead]) {
 		return connect.NewError(connect.CodeInvalidArgument,
-			errors.New("reading activity needs reading messages or direct messages as well"))
+			errors.New("reading activity needs reading messages and direct messages as well"))
 	}
 	return nil
 }
