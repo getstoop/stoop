@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { canNotifyEveryone } from "../../api/integrations";
 import {
+  useBots,
   useChannels,
   useInstanceStatus,
   useMembers,
@@ -32,6 +33,8 @@ export function IntegrationsSection({ space }: { space: Space }) {
   const { data: status } = useInstanceStatus();
   const { data: mine } = useMyPermissions();
   const manage = !!mine?.includes(Permission.INSTANCE_INTEGRATIONS_MANAGE);
+  // Every active bot on the server, for the "posts as" choice.
+  const { data: allBots } = useBots(manage);
   const [newIncoming, setNewIncoming] = useState(false);
   const [outgoing, setOutgoing] = useState<{
     existing?: OutgoingWebhook;
@@ -168,10 +171,12 @@ export function IntegrationsSection({ space }: { space: Space }) {
       {newIncoming && (
         <NewIncomingModal
           space={space}
-          bots={[...byBot.keys()].map((id) => ({
-            id,
-            label: bots.get(id)?.displayName ?? byBot.get(id)?.[0].name ?? id,
-          }))}
+          bots={(allBots ?? [])
+            .filter((b) => !b.deactivatedAt)
+            .map((b) => ({
+              id: b.id,
+              label: `${b.displayName || b.username} (@${b.username})${bots.has(b.id) ? "" : " · not in this space yet"}`,
+            }))}
           onClose={() => setNewIncoming(false)}
           onCreated={(s) => {
             setNewIncoming(false);
