@@ -33,6 +33,15 @@ service AuthService {
   // UnlinkIdentity removes one linked provider. Refused when it is the
   // account's only way to sign in (no password and no other identity).
   rpc UnlinkIdentity(UnlinkIdentityRequest) returns (UnlinkIdentityResponse) {}
+  // CreatePersonalToken makes a token that acts as the caller with only the
+  // permissions granted, optionally limited to some spaces. The secret is in
+  // this response and nowhere else. Needs a session: no token can make
+  // another, and the server setting may refuse it.
+  rpc CreatePersonalToken(CreatePersonalTokenRequest) returns (CreatePersonalTokenResponse) {}
+  // ListPersonalTokens lists the caller's tokens, expired ones included.
+  rpc ListPersonalTokens(ListPersonalTokensRequest) returns (ListPersonalTokensResponse) {}
+  // RevokePersonalToken deletes one of the caller's tokens.
+  rpc RevokePersonalToken(RevokePersonalTokenRequest) returns (RevokePersonalTokenResponse) {}
 }
 
 // InstanceRole is a user's server-level type. Admins operate the instance
@@ -153,6 +162,9 @@ message ChangePasswordRequest {
   string current_password = 1;
   // At least 8 characters.
   string new_password = 2;
+  // Also revoke every personal token the account holds. Other sessions are
+  // signed out either way.
+  bool revoke_personal_tokens = 3;
 }
 
 message ChangePasswordResponse {}
@@ -177,3 +189,54 @@ message UnlinkIdentityRequest {
 }
 
 message UnlinkIdentityResponse {}
+
+// PersonalToken is one of a person's tokens, as its holder or an admin sees
+// it: never the secret, which isn't stored.
+message PersonalToken {
+  string id = 1;
+  string name = 2;
+  repeated stoop.access.v1.Permission permissions = 3;
+  // Limited tokens work only in space_ids. A limited token whose spaces
+  // were all deleted works nowhere.
+  bool limited = 4;
+  repeated string space_ids = 5;
+  google.protobuf.Timestamp created_at = 6;
+  // Unset when never used. Recorded at most once a minute.
+  google.protobuf.Timestamp last_used_at = 7;
+  // Unset when it never expires.
+  google.protobuf.Timestamp expires_at = 8;
+  // The token's last four characters, to tell tokens apart.
+  string hint = 9;
+  // True while the server's personal_tokens setting refuses this token.
+  bool blocked = 10;
+}
+
+message CreatePersonalTokenRequest {
+  // 1-50 characters after trimming.
+  string name = 1;
+  // At least one; never PERMISSION_ACCOUNT_SECURITY.
+  repeated stoop.access.v1.Permission permissions = 2;
+  bool limited = 3;
+  // Required when limited, refused otherwise.
+  repeated string space_ids = 4;
+  // 0 never expires; otherwise 1-365.
+  int32 expires_in_days = 5;
+}
+
+message CreatePersonalTokenResponse {
+  PersonalToken token = 1;
+  // The token itself. Shown once: nothing else ever returns it.
+  string secret = 2;
+}
+
+message ListPersonalTokensRequest {}
+
+message ListPersonalTokensResponse {
+  repeated PersonalToken tokens = 1;
+}
+
+message RevokePersonalTokenRequest {
+  string token_id = 1;
+}
+
+message RevokePersonalTokenResponse {}

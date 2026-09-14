@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/instance/v1/user.proto.
  */
 export const file_stoop_instance_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("ChxzdG9vcC9pbnN0YW5jZS92MS91c2VyLnByb3RvEhFzdG9vcC5pbnN0YW5jZS52MSKfAgoMSW5zdGFuY2VVc2VyEgoKAmlkGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIpCgRyb2xlGAQgASgOMhsuc3Rvb3AuYXV0aC52MS5JbnN0YW5jZVJvbGUSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoOZGVhY3RpdmF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKD3VzZXJuYW1lX2Zyb3plbhgHIAEoCBIUCgxoYXNfcGFzc3dvcmQYCCABKAgSEAoIcHJvbm91bnMYCSABKAkSCwoDYmlvGAogASgJQsQBChVjb20uc3Rvb3AuaW5zdGFuY2UudjFCCVVzZXJQcm90b1ABWjpnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9pbnN0YW5jZS92MTtpbnN0YW5jZXYxogIDU0lYqgIRU3Rvb3AuSW5zdGFuY2UuVjHKAhFTdG9vcFxJbnN0YW5jZVxWMeICHVN0b29wXEluc3RhbmNlXFYxXEdQQk1ldGFkYXRh6gITU3Rvb3A6Okluc3RhbmNlOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_auth_v1_auth]);
+  fileDesc("ChxzdG9vcC9pbnN0YW5jZS92MS91c2VyLnByb3RvEhFzdG9vcC5pbnN0YW5jZS52MSK9AgoMSW5zdGFuY2VVc2VyEgoKAmlkGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIpCgRyb2xlGAQgASgOMhsuc3Rvb3AuYXV0aC52MS5JbnN0YW5jZVJvbGUSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoOZGVhY3RpdmF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKD3VzZXJuYW1lX2Zyb3plbhgHIAEoCBIUCgxoYXNfcGFzc3dvcmQYCCABKAgSEAoIcHJvbm91bnMYCSABKAkSCwoDYmlvGAogASgJEhwKFHBlcnNvbmFsX3Rva2VuX2NvdW50GAsgASgFQsQBChVjb20uc3Rvb3AuaW5zdGFuY2UudjFCCVVzZXJQcm90b1ABWjpnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9pbnN0YW5jZS92MTtpbnN0YW5jZXYxogIDU0lYqgIRU3Rvb3AuSW5zdGFuY2UuVjHKAhFTdG9vcFxJbnN0YW5jZVxWMeICHVN0b29wXEluc3RhbmNlXFYxXEdQQk1ldGFkYXRh6gITU3Rvb3A6Okluc3RhbmNlOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_auth_v1_auth]);
 
 /**
  * InstanceUser is an account as the admin page sees it.
@@ -82,6 +82,13 @@ export type InstanceUser = Message<"stoop.instance.v1.InstanceUser"> & {
    * @generated from field: string bio = 10;
    */
   bio: string;
+
+  /**
+   * How many personal tokens the account holds, expired ones included.
+   *
+   * @generated from field: int32 personal_token_count = 11;
+   */
+  personalTokenCount: number;
 };
 
 /**

@@ -13,6 +13,7 @@ import { LogoutButton } from "./LogoutButton";
 import { MutesSection } from "./MutesSection";
 import { NotificationsSection } from "./NotificationsSection";
 import { PasswordForm } from "./PasswordForm";
+import { PersonalTokensSection } from "./PersonalTokensSection";
 import { ProfileForm } from "./ProfileForm";
 import { ProfileHeader } from "./ProfileHeader";
 import { StatusSection } from "./StatusSection";
@@ -120,6 +121,7 @@ export function ProfilePage() {
         <>
           {passwordsAllowed && <PasswordForm hasPassword={me.hasPassword} />}
           <LinkedAccountsSection />
+          <PersonalTokensSection />
           <BlockedSection />
         </>
       )}

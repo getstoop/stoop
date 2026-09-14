@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -115,6 +116,23 @@ func (s *Service) VerifyToken(ctx context.Context, token string) (authctx.Identi
 	}
 	if id.Credential.Kind == authctx.CredentialSession {
 		id.SessionID = c.ID
+	}
+	// The server's personal-token setting is checked at every use, so
+	// turning it down stops tokens that already exist.
+	if id.Credential.Kind == authctx.CredentialPersonalToken {
+		reason, err := s.tokenBlock(ctx, id.Role)
+		if err != nil {
+			return authctx.Identity{}, err
+		}
+		if reason != "" {
+			return authctx.Identity{}, errors.New(reason)
+		}
+	}
+	// At most once a minute, so a busy script doesn't make every read a write.
+	if id.Credential.Kind != authctx.CredentialSession && (c.LastUsedAt == nil || time.Since(*c.LastUsedAt) > time.Minute) {
+		if err := s.q.TouchCredential(ctx, c.ID); err != nil {
+			slog.Default().Warn("record credential use", "err", err)
+		}
 	}
 	return id, nil
 }

@@ -41,10 +41,12 @@ type InstanceUser struct {
 	HasPassword bool `protobuf:"varint,8,opt,name=has_password,json=hasPassword,proto3" json:"has_password,omitempty"`
 	// Self-described; an admin can read them here to decide whether to
 	// clear them, but never write them (see ClearUserProfile).
-	Pronouns      string `protobuf:"bytes,9,opt,name=pronouns,proto3" json:"pronouns,omitempty"`
-	Bio           string `protobuf:"bytes,10,opt,name=bio,proto3" json:"bio,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Pronouns string `protobuf:"bytes,9,opt,name=pronouns,proto3" json:"pronouns,omitempty"`
+	Bio      string `protobuf:"bytes,10,opt,name=bio,proto3" json:"bio,omitempty"`
+	// How many personal tokens the account holds, expired ones included.
+	PersonalTokenCount int32 `protobuf:"varint,11,opt,name=personal_token_count,json=personalTokenCount,proto3" json:"personal_token_count,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *InstanceUser) Reset() {
@@ -147,11 +149,18 @@ func (x *InstanceUser) GetBio() string {
 	return ""
 }
 
+func (x *InstanceUser) GetPersonalTokenCount() int32 {
+	if x != nil {
+		return x.PersonalTokenCount
+	}
+	return 0
+}
+
 var File_stoop_instance_v1_user_proto protoreflect.FileDescriptor
 
 const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x1cstoop/instance/v1/user.proto\x12\x11stoop.instance.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18stoop/auth/v1/auth.proto\"\x86\x03\n" +
+	"\x1cstoop/instance/v1/user.proto\x12\x11stoop.instance.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18stoop/auth/v1/auth.proto\"\xb8\x03\n" +
 	"\fInstanceUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -164,7 +173,8 @@ const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\fhas_password\x18\b \x01(\bR\vhasPassword\x12\x1a\n" +
 	"\bpronouns\x18\t \x01(\tR\bpronouns\x12\x10\n" +
 	"\x03bio\x18\n" +
-	" \x01(\tR\x03bioB\xc4\x01\n" +
+	" \x01(\tR\x03bio\x120\n" +
+	"\x14personal_token_count\x18\v \x01(\x05R\x12personalTokenCountB\xc4\x01\n" +
 	"\x15com.stoop.instance.v1B\tUserProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (

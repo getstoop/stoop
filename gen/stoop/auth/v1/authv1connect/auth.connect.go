@@ -56,6 +56,15 @@ const (
 	// AuthServiceUnlinkIdentityProcedure is the fully-qualified name of the AuthService's
 	// UnlinkIdentity RPC.
 	AuthServiceUnlinkIdentityProcedure = "/stoop.auth.v1.AuthService/UnlinkIdentity"
+	// AuthServiceCreatePersonalTokenProcedure is the fully-qualified name of the AuthService's
+	// CreatePersonalToken RPC.
+	AuthServiceCreatePersonalTokenProcedure = "/stoop.auth.v1.AuthService/CreatePersonalToken"
+	// AuthServiceListPersonalTokensProcedure is the fully-qualified name of the AuthService's
+	// ListPersonalTokens RPC.
+	AuthServiceListPersonalTokensProcedure = "/stoop.auth.v1.AuthService/ListPersonalTokens"
+	// AuthServiceRevokePersonalTokenProcedure is the fully-qualified name of the AuthService's
+	// RevokePersonalToken RPC.
+	AuthServiceRevokePersonalTokenProcedure = "/stoop.auth.v1.AuthService/RevokePersonalToken"
 )
 
 // AuthServiceClient is a client for the stoop.auth.v1.AuthService service.
@@ -83,6 +92,15 @@ type AuthServiceClient interface {
 	// UnlinkIdentity removes one linked provider. Refused when it is the
 	// account's only way to sign in (no password and no other identity).
 	UnlinkIdentity(context.Context, *connect.Request[v1.UnlinkIdentityRequest]) (*connect.Response[v1.UnlinkIdentityResponse], error)
+	// CreatePersonalToken makes a token that acts as the caller with only the
+	// permissions granted, optionally limited to some spaces. The secret is in
+	// this response and nowhere else. Needs a session: no token can make
+	// another, and the server setting may refuse it.
+	CreatePersonalToken(context.Context, *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error)
+	// ListPersonalTokens lists the caller's tokens, expired ones included.
+	ListPersonalTokens(context.Context, *connect.Request[v1.ListPersonalTokensRequest]) (*connect.Response[v1.ListPersonalTokensResponse], error)
+	// RevokePersonalToken deletes one of the caller's tokens.
+	RevokePersonalToken(context.Context, *connect.Request[v1.RevokePersonalTokenRequest]) (*connect.Response[v1.RevokePersonalTokenResponse], error)
 }
 
 // NewAuthServiceClient constructs a client for the stoop.auth.v1.AuthService service. By default,
@@ -150,20 +168,41 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("UnlinkIdentity")),
 			connect.WithClientOptions(opts...),
 		),
+		createPersonalToken: connect.NewClient[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse](
+			httpClient,
+			baseURL+AuthServiceCreatePersonalTokenProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CreatePersonalToken")),
+			connect.WithClientOptions(opts...),
+		),
+		listPersonalTokens: connect.NewClient[v1.ListPersonalTokensRequest, v1.ListPersonalTokensResponse](
+			httpClient,
+			baseURL+AuthServiceListPersonalTokensProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ListPersonalTokens")),
+			connect.WithClientOptions(opts...),
+		),
+		revokePersonalToken: connect.NewClient[v1.RevokePersonalTokenRequest, v1.RevokePersonalTokenResponse](
+			httpClient,
+			baseURL+AuthServiceRevokePersonalTokenProcedure,
+			connect.WithSchema(authServiceMethods.ByName("RevokePersonalToken")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	register       *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
-	login          *connect.Client[v1.LoginRequest, v1.LoginResponse]
-	logout         *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-	getMe          *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
-	updateProfile  *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
-	getUserProfile *connect.Client[v1.GetUserProfileRequest, v1.GetUserProfileResponse]
-	changePassword *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
-	listIdentities *connect.Client[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse]
-	unlinkIdentity *connect.Client[v1.UnlinkIdentityRequest, v1.UnlinkIdentityResponse]
+	register            *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
+	login               *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout              *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	getMe               *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	updateProfile       *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
+	getUserProfile      *connect.Client[v1.GetUserProfileRequest, v1.GetUserProfileResponse]
+	changePassword      *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
+	listIdentities      *connect.Client[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse]
+	unlinkIdentity      *connect.Client[v1.UnlinkIdentityRequest, v1.UnlinkIdentityResponse]
+	createPersonalToken *connect.Client[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse]
+	listPersonalTokens  *connect.Client[v1.ListPersonalTokensRequest, v1.ListPersonalTokensResponse]
+	revokePersonalToken *connect.Client[v1.RevokePersonalTokenRequest, v1.RevokePersonalTokenResponse]
 }
 
 // Register calls stoop.auth.v1.AuthService.Register.
@@ -211,6 +250,21 @@ func (c *authServiceClient) UnlinkIdentity(ctx context.Context, req *connect.Req
 	return c.unlinkIdentity.CallUnary(ctx, req)
 }
 
+// CreatePersonalToken calls stoop.auth.v1.AuthService.CreatePersonalToken.
+func (c *authServiceClient) CreatePersonalToken(ctx context.Context, req *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error) {
+	return c.createPersonalToken.CallUnary(ctx, req)
+}
+
+// ListPersonalTokens calls stoop.auth.v1.AuthService.ListPersonalTokens.
+func (c *authServiceClient) ListPersonalTokens(ctx context.Context, req *connect.Request[v1.ListPersonalTokensRequest]) (*connect.Response[v1.ListPersonalTokensResponse], error) {
+	return c.listPersonalTokens.CallUnary(ctx, req)
+}
+
+// RevokePersonalToken calls stoop.auth.v1.AuthService.RevokePersonalToken.
+func (c *authServiceClient) RevokePersonalToken(ctx context.Context, req *connect.Request[v1.RevokePersonalTokenRequest]) (*connect.Response[v1.RevokePersonalTokenResponse], error) {
+	return c.revokePersonalToken.CallUnary(ctx, req)
+}
+
 // AuthServiceHandler is an implementation of the stoop.auth.v1.AuthService service.
 type AuthServiceHandler interface {
 	// Register creates an account, subject to the instance's registration
@@ -236,6 +290,15 @@ type AuthServiceHandler interface {
 	// UnlinkIdentity removes one linked provider. Refused when it is the
 	// account's only way to sign in (no password and no other identity).
 	UnlinkIdentity(context.Context, *connect.Request[v1.UnlinkIdentityRequest]) (*connect.Response[v1.UnlinkIdentityResponse], error)
+	// CreatePersonalToken makes a token that acts as the caller with only the
+	// permissions granted, optionally limited to some spaces. The secret is in
+	// this response and nowhere else. Needs a session: no token can make
+	// another, and the server setting may refuse it.
+	CreatePersonalToken(context.Context, *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error)
+	// ListPersonalTokens lists the caller's tokens, expired ones included.
+	ListPersonalTokens(context.Context, *connect.Request[v1.ListPersonalTokensRequest]) (*connect.Response[v1.ListPersonalTokensResponse], error)
+	// RevokePersonalToken deletes one of the caller's tokens.
+	RevokePersonalToken(context.Context, *connect.Request[v1.RevokePersonalTokenRequest]) (*connect.Response[v1.RevokePersonalTokenResponse], error)
 }
 
 // NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -299,6 +362,24 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("UnlinkIdentity")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceCreatePersonalTokenHandler := connect.NewUnaryHandler(
+		AuthServiceCreatePersonalTokenProcedure,
+		svc.CreatePersonalToken,
+		connect.WithSchema(authServiceMethods.ByName("CreatePersonalToken")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceListPersonalTokensHandler := connect.NewUnaryHandler(
+		AuthServiceListPersonalTokensProcedure,
+		svc.ListPersonalTokens,
+		connect.WithSchema(authServiceMethods.ByName("ListPersonalTokens")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceRevokePersonalTokenHandler := connect.NewUnaryHandler(
+		AuthServiceRevokePersonalTokenProcedure,
+		svc.RevokePersonalToken,
+		connect.WithSchema(authServiceMethods.ByName("RevokePersonalToken")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/stoop.auth.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuthServiceRegisterProcedure:
@@ -319,6 +400,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceListIdentitiesHandler.ServeHTTP(w, r)
 		case AuthServiceUnlinkIdentityProcedure:
 			authServiceUnlinkIdentityHandler.ServeHTTP(w, r)
+		case AuthServiceCreatePersonalTokenProcedure:
+			authServiceCreatePersonalTokenHandler.ServeHTTP(w, r)
+		case AuthServiceListPersonalTokensProcedure:
+			authServiceListPersonalTokensHandler.ServeHTTP(w, r)
+		case AuthServiceRevokePersonalTokenProcedure:
+			authServiceRevokePersonalTokenHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -362,4 +449,16 @@ func (UnimplementedAuthServiceHandler) ListIdentities(context.Context, *connect.
 
 func (UnimplementedAuthServiceHandler) UnlinkIdentity(context.Context, *connect.Request[v1.UnlinkIdentityRequest]) (*connect.Response[v1.UnlinkIdentityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.UnlinkIdentity is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) CreatePersonalToken(context.Context, *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.CreatePersonalToken is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ListPersonalTokens(context.Context, *connect.Request[v1.ListPersonalTokensRequest]) (*connect.Response[v1.ListPersonalTokensResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.ListPersonalTokens is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) RevokePersonalToken(context.Context, *connect.Request[v1.RevokePersonalTokenRequest]) (*connect.Response[v1.RevokePersonalTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.RevokePersonalToken is not implemented"))
 }

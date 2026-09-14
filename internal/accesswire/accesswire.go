@@ -21,6 +21,30 @@ func ToProto(actions []authctx.Action) []accessv1.Permission {
 	return out
 }
 
+var fromProto = func() map[accessv1.Permission]authctx.Action {
+	m := map[accessv1.Permission]authctx.Action{}
+	for _, a := range authctx.AllActions() {
+		if p, ok := toProto(a); ok {
+			m[p] = a
+		}
+	}
+	return m
+}()
+
+// FromProto converts permissions to actions, in the same order. ok is false
+// when any of them is unspecified or unknown.
+func FromProto(perms []accessv1.Permission) ([]authctx.Action, bool) {
+	out := make([]authctx.Action, 0, len(perms))
+	for _, p := range perms {
+		a, ok := fromProto[p]
+		if !ok {
+			return nil, false
+		}
+		out = append(out, a)
+	}
+	return out, true
+}
+
 func toProto(a authctx.Action) (accessv1.Permission, bool) {
 	v, ok := accessv1.Permission_value["PERMISSION_"+strings.ToUpper(strings.ReplaceAll(string(a), ".", "_"))]
 	return accessv1.Permission(v), ok

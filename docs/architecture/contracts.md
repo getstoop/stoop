@@ -48,6 +48,7 @@ listed as public below.
 | `GetUserProfile` | One person's public profile card. Visible to any signed-in user. |
 | `ChangePassword` | Current password required, except for a provider-created account setting its first one. |
 | `ListIdentities` / `UnlinkIdentity` | Linked OIDC accounts. |
+| `CreatePersonalToken` / `ListPersonalTokens` / `RevokePersonalToken` | The caller's personal tokens. Need a session (`account.security`); the token is returned once, by `CreatePersonalToken`. |
 
 ### `stoop.chat.v1.ChatService`
 
@@ -79,11 +80,12 @@ people who joined.
 | Procedure | Notes |
 | --------- | ----- |
 | `GetInstanceStatus` | **Public.** What the setup and login screens need before anyone has an account: `needs_setup`, the registration and space-creation policies, the public URL invite links are built from, the login-provider summaries, whether the password form is offered, and the effective upload caps (so a client refuses an oversized file before sending it). |
-| `UpdateSettings` | Admins. Registration policy, space-creation policy, upload limit, storage quota, password sign-in. |
+| `UpdateSettings` | Admins. Registration policy, space-creation policy, upload limit, storage quota, password sign-in, personal tokens. |
 | `ListUsers`, `SetUserRole`, `SetUserActive`, `ResetUserPassword`, `RenameUser`, `SetUsernameFrozen`, `ClearUserProfile` | Admins. The user administration tab; each is backed by the `UserAdmin` port into auth. |
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
 | `GetLoginProviders` / `UpdateLoginProviders` | Admins. The OIDC provider list, replaced whole. |
 | `GetBuildInfo` | Admins. Version, commit, build time, Go version — admin-only because an exact version tells a stranger which bugs to try. |
+| `ListUserTokens` / `RevokeUserToken` | Admins. Another account's personal tokens, never the token itself. |
 
 ### `stoop.files.v1.FileService`
 

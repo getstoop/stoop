@@ -75,6 +75,12 @@ const (
 	// InstanceServiceGetBuildInfoProcedure is the fully-qualified name of the InstanceService's
 	// GetBuildInfo RPC.
 	InstanceServiceGetBuildInfoProcedure = "/stoop.instance.v1.InstanceService/GetBuildInfo"
+	// InstanceServiceListUserTokensProcedure is the fully-qualified name of the InstanceService's
+	// ListUserTokens RPC.
+	InstanceServiceListUserTokensProcedure = "/stoop.instance.v1.InstanceService/ListUserTokens"
+	// InstanceServiceRevokeUserTokenProcedure is the fully-qualified name of the InstanceService's
+	// RevokeUserToken RPC.
+	InstanceServiceRevokeUserTokenProcedure = "/stoop.instance.v1.InstanceService/RevokeUserToken"
 )
 
 // InstanceServiceClient is a client for the stoop.instance.v1.InstanceService service.
@@ -127,6 +133,12 @@ type InstanceServiceClient interface {
 	// GetBuildInfo reports which Stoop this is. Instance admins only: an
 	// exact version tells a stranger which bugs to try.
 	GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error)
+	// ListUserTokens lists another account's personal tokens, never their
+	// secrets. Instance admins only.
+	ListUserTokens(context.Context, *connect.Request[v1.ListUserTokensRequest]) (*connect.Response[v1.ListUserTokensResponse], error)
+	// RevokeUserToken revokes one of another account's personal tokens.
+	// Instance admins only.
+	RevokeUserToken(context.Context, *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error)
 }
 
 // NewInstanceServiceClient constructs a client for the stoop.instance.v1.InstanceService service.
@@ -224,6 +236,18 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(instanceServiceMethods.ByName("GetBuildInfo")),
 			connect.WithClientOptions(opts...),
 		),
+		listUserTokens: connect.NewClient[v1.ListUserTokensRequest, v1.ListUserTokensResponse](
+			httpClient,
+			baseURL+InstanceServiceListUserTokensProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("ListUserTokens")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeUserToken: connect.NewClient[v1.RevokeUserTokenRequest, v1.RevokeUserTokenResponse](
+			httpClient,
+			baseURL+InstanceServiceRevokeUserTokenProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("RevokeUserToken")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -243,6 +267,8 @@ type instanceServiceClient struct {
 	getLoginProviders    *connect.Client[v1.GetLoginProvidersRequest, v1.GetLoginProvidersResponse]
 	updateLoginProviders *connect.Client[v1.UpdateLoginProvidersRequest, v1.UpdateLoginProvidersResponse]
 	getBuildInfo         *connect.Client[v1.GetBuildInfoRequest, v1.GetBuildInfoResponse]
+	listUserTokens       *connect.Client[v1.ListUserTokensRequest, v1.ListUserTokensResponse]
+	revokeUserToken      *connect.Client[v1.RevokeUserTokenRequest, v1.RevokeUserTokenResponse]
 }
 
 // GetInstanceStatus calls stoop.instance.v1.InstanceService.GetInstanceStatus.
@@ -315,6 +341,16 @@ func (c *instanceServiceClient) GetBuildInfo(ctx context.Context, req *connect.R
 	return c.getBuildInfo.CallUnary(ctx, req)
 }
 
+// ListUserTokens calls stoop.instance.v1.InstanceService.ListUserTokens.
+func (c *instanceServiceClient) ListUserTokens(ctx context.Context, req *connect.Request[v1.ListUserTokensRequest]) (*connect.Response[v1.ListUserTokensResponse], error) {
+	return c.listUserTokens.CallUnary(ctx, req)
+}
+
+// RevokeUserToken calls stoop.instance.v1.InstanceService.RevokeUserToken.
+func (c *instanceServiceClient) RevokeUserToken(ctx context.Context, req *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error) {
+	return c.revokeUserToken.CallUnary(ctx, req)
+}
+
 // InstanceServiceHandler is an implementation of the stoop.instance.v1.InstanceService service.
 type InstanceServiceHandler interface {
 	// GetInstanceStatus is public (no session required): the web app calls it
@@ -365,6 +401,12 @@ type InstanceServiceHandler interface {
 	// GetBuildInfo reports which Stoop this is. Instance admins only: an
 	// exact version tells a stranger which bugs to try.
 	GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error)
+	// ListUserTokens lists another account's personal tokens, never their
+	// secrets. Instance admins only.
+	ListUserTokens(context.Context, *connect.Request[v1.ListUserTokensRequest]) (*connect.Response[v1.ListUserTokensResponse], error)
+	// RevokeUserToken revokes one of another account's personal tokens.
+	// Instance admins only.
+	RevokeUserToken(context.Context, *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error)
 }
 
 // NewInstanceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -458,6 +500,18 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(instanceServiceMethods.ByName("GetBuildInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
+	instanceServiceListUserTokensHandler := connect.NewUnaryHandler(
+		InstanceServiceListUserTokensProcedure,
+		svc.ListUserTokens,
+		connect.WithSchema(instanceServiceMethods.ByName("ListUserTokens")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServiceRevokeUserTokenHandler := connect.NewUnaryHandler(
+		InstanceServiceRevokeUserTokenProcedure,
+		svc.RevokeUserToken,
+		connect.WithSchema(instanceServiceMethods.ByName("RevokeUserToken")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/stoop.instance.v1.InstanceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InstanceServiceGetInstanceStatusProcedure:
@@ -488,6 +542,10 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 			instanceServiceUpdateLoginProvidersHandler.ServeHTTP(w, r)
 		case InstanceServiceGetBuildInfoProcedure:
 			instanceServiceGetBuildInfoHandler.ServeHTTP(w, r)
+		case InstanceServiceListUserTokensProcedure:
+			instanceServiceListUserTokensHandler.ServeHTTP(w, r)
+		case InstanceServiceRevokeUserTokenProcedure:
+			instanceServiceRevokeUserTokenHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -551,4 +609,12 @@ func (UnimplementedInstanceServiceHandler) UpdateLoginProviders(context.Context,
 
 func (UnimplementedInstanceServiceHandler) GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.GetBuildInfo is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) ListUserTokens(context.Context, *connect.Request[v1.ListUserTokensRequest]) (*connect.Response[v1.ListUserTokensResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.ListUserTokens is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) RevokeUserToken(context.Context, *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.RevokeUserToken is not implemented"))
 }

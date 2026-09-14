@@ -86,7 +86,9 @@ func Uncovered(a Action) error {
 	return fmt.Errorf("this token isn't allowed to %s", a.Describe())
 }
 
-var errOutOfBounds = errors.New("this token isn't allowed here")
+// ErrOutOfBounds is the refusal when a credential's bounds don't reach the
+// resource.
+var ErrOutOfBounds = errors.New("this token isn't allowed here")
 
 // Refusal explains why the credential in ctx failed a Covers check: the
 // grant, or else the bounds.
@@ -94,7 +96,7 @@ func Refusal(ctx context.Context, a Action) error {
 	if id, _ := From(ctx); !id.Credential.Covers(a) {
 		return Uncovered(a)
 	}
-	return errOutOfBounds
+	return ErrOutOfBounds
 }
 
 // Rule classifies a Connect procedure for the credential gate. A public
@@ -111,5 +113,9 @@ func (r Rule) CoveredBy(c Credential) bool {
 	if len(r.AnyOf) == 0 {
 		return true
 	}
-	return slices.ContainsFunc(r.AnyOf, c.Covers)
+	// A bounded credential reaches only spaces and channels, so only space
+	// actions can apply to it.
+	return slices.ContainsFunc(r.AnyOf, func(a Action) bool {
+		return c.Covers(a) && (!c.Bounded || a.OnSpace())
+	})
 }

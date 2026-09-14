@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/gen/stoop/auth/v1/authv1connect"
 	"github.com/getstoop/stoop/gen/stoop/chat/v1/chatv1connect"
 	"github.com/getstoop/stoop/gen/stoop/files/v1/filesv1connect"
@@ -43,6 +44,7 @@ type App struct {
 	server  *http.Server
 	tailnet *tailnet.Manager
 	nodeIP  *nodeIPWriter
+	auth    *auth.Service
 	files   *files.Service
 	chat    *chat.Service
 	voice   *voice.Service
@@ -91,6 +93,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	authSvc.UseRegistrationPorts(instanceSvc, chatSvc)
 	authSvc.UseProviders(providerSource{instanceSvc})
 	authSvc.UsePasswordPolicy(instanceSvc)
+	authSvc.UseTokenPolicy(instanceSvc)
 	instanceSvc.UsePasswordSignInEnv(cfg.PasswordSignIn)
 	bi := buildinfo.Get()
 	instanceSvc.UseBuildInfo(instance.BuildInfo{Version: bi.Version, Commit: bi.Commit, BuiltAt: bi.Date, GoVersion: bi.GoVersion})
@@ -196,6 +199,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			Handler:           handler,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
+		auth:  authSvc,
 		files: filesSvc,
 		chat:  chatSvc,
 		voice: voiceSvc,
@@ -389,6 +393,8 @@ func (a *App) Run(ctx context.Context) error {
 	go a.files.RunSweeper(ctx, a.sweep)
 	// Read activity items older than STOOP_ACTIVITY_RETENTION go too.
 	go a.chat.RunActivitySweeper(ctx, a.sweep, a.keep)
+	// Expired sessions, and personal tokens a month past expiry.
+	go a.auth.RunCredentialSweeper(ctx, a.sweep)
 
 	select {
 	case err := <-errCh:
@@ -485,12 +491,19 @@ func (a userAdmin) ResetUserPassword(ctx context.Context, userID string) (string
 	temp, u, err := a.auth.ResetPassword(ctx, userID)
 	return temp, toUserSummary(u), err
 }
+func (a userAdmin) ListUserTokens(ctx context.Context, userID string) ([]*authv1.PersonalToken, error) {
+	return a.auth.ListTokensOf(ctx, userID)
+}
+func (a userAdmin) RevokeUserToken(ctx context.Context, userID, tokenID string) error {
+	return a.auth.RevokeTokenOf(ctx, userID, tokenID)
+}
+
 func toUserSummary(u auth.AccountSummary) instance.UserSummary {
 	return instance.UserSummary{
 		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
 		Role: u.Role, Kind: u.Kind, CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
 		UsernameFrozen: u.UsernameFrozen, HasPassword: u.HasPassword,
-		Pronouns: u.Pronouns, Bio: u.Bio,
+		Pronouns: u.Pronouns, Bio: u.Bio, PersonalTokens: u.PersonalTokens,
 	}
 }
 
@@ -521,13 +534,26 @@ func (d fileDirectory) DeleteFiles(ctx context.Context, ids []string) error {
 type identityVerifier struct{ auth *auth.Service }
 
 func (v identityVerifier) VerifyRequest(ctx context.Context, h http.Header) (authctx.Identity, error) {
-	return v.auth.VerifyToken(ctx, auth.TokenFromHeader(h))
+	return sessionOnly(v.auth.VerifyToken(ctx, auth.TokenFromHeader(h)))
+}
+
+// sessionOnly refuses any credential but a session on the surfaces that
+// don't filter by credential yet: /ws streams every topic its person can
+// see, and not every download consults the grant (STOOP-274).
+func sessionOnly(id authctx.Identity, err error) (authctx.Identity, error) {
+	if err != nil {
+		return authctx.Identity{}, err
+	}
+	if id.Credential.Kind != authctx.CredentialSession {
+		return authctx.Identity{}, errors.New("only a signed-in session can open this")
+	}
+	return id, nil
 }
 
 type sessionVerifier struct{ auth *auth.Service }
 
 func (v sessionVerifier) VerifyRequest(ctx context.Context, h http.Header) (string, error) {
-	identity, err := v.auth.VerifyToken(ctx, auth.TokenFromHeader(h))
+	identity, err := sessionOnly(v.auth.VerifyToken(ctx, auth.TokenFromHeader(h)))
 	if err != nil {
 		return "", err
 	}

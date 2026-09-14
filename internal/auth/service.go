@@ -45,6 +45,7 @@ type Service struct {
 	invites   InviteRedeemer
 	providers ProviderSource
 	passwords PasswordPolicy
+	tokens    TokenPolicy
 	// stateKey signs the short-lived login-state cookie (loginflow.go).
 	// Per-process: a restart mid-sign-in just expires the attempt.
 	stateKey []byte

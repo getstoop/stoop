@@ -58,6 +58,12 @@ service InstanceService {
   // GetBuildInfo reports which Stoop this is. Instance admins only: an
   // exact version tells a stranger which bugs to try.
   rpc GetBuildInfo(GetBuildInfoRequest) returns (GetBuildInfoResponse) {}
+  // ListUserTokens lists another account's personal tokens, never their
+  // secrets. Instance admins only.
+  rpc ListUserTokens(ListUserTokensRequest) returns (ListUserTokensResponse) {}
+  // RevokeUserToken revokes one of another account's personal tokens.
+  // Instance admins only.
+  rpc RevokeUserToken(RevokeUserTokenRequest) returns (RevokeUserTokenResponse) {}
 }
 
 // RegistrationPolicy controls who may create an account.
@@ -83,6 +89,18 @@ enum PasswordSignIn {
   PASSWORD_SIGN_IN_ADMINS = 2;
   // Nobody via the login page; admins are still honoured by the server.
   PASSWORD_SIGN_IN_OFF = 3;
+}
+
+// PersonalTokens controls who may make and use personal tokens. Checked at
+// every use, so turning it down stops existing tokens until it goes back up.
+enum PersonalTokens {
+  PERSONAL_TOKENS_UNSPECIFIED = 0;
+  // Anyone (the default).
+  PERSONAL_TOKENS_EVERYONE = 1;
+  // Only instance admins.
+  PERSONAL_TOKENS_ADMINS = 2;
+  // Nobody.
+  PERSONAL_TOKENS_OFF = 3;
 }
 
 // SpaceCreationPolicy controls who may create spaces.
@@ -122,6 +140,8 @@ message GetInstanceStatusResponse {
   // client talking to more than one instance never sees them all
   // introduce themselves as "Stoop".
   string instance_name = 9;
+  // Who may make and use personal tokens.
+  PersonalTokens personal_tokens = 10;
 }
 
 message UpdateSettingsRequest {
@@ -138,6 +158,7 @@ message UpdateSettingsRequest {
   // Trimmed; must not be blank. Once set, it replaces the random default
   // for good — there's no way to ask for a new random name.
   optional string instance_name = 6;
+  optional PersonalTokens personal_tokens = 7;
 }
 
 message UpdateSettingsResponse {
@@ -258,3 +279,18 @@ message GetBuildInfoResponse {
   // The Go toolchain the binary was built with.
   string go_version = 4;
 }
+
+message ListUserTokensRequest {
+  string user_id = 1;
+}
+
+message ListUserTokensResponse {
+  repeated stoop.auth.v1.PersonalToken tokens = 1;
+}
+
+message RevokeUserTokenRequest {
+  string user_id = 1;
+  string token_id = 2;
+}
+
+message RevokeUserTokenResponse {}

@@ -49,7 +49,8 @@ dump does not hand over live credentials. `grants` is NULL only for a
 session, which covers every action. `bounded`, with rows in
 **`credential_bounds`** (one space or one channel each, cascading with it),
 limits where a credential reaches; bounded with no rows left reaches
-nothing. See [the access model](../proposals/access-model.md).
+`hint` keeps the token's last four characters, for
+telling tokens apart in a list. nothing. See [the access model](../proposals/access-model.md).
 
 **`sessions`** — legacy. Read only by the previous release; its rows are
 copied into `credentials` by migration 00031 and the table is dropped by a

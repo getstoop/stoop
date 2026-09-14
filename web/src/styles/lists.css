@@ -114,6 +114,11 @@
   grid-template-columns: 1fr auto;
 }
 
+.user-list.table.five .user-row,
+.user-list.table.five .user-list-head {
+  grid-template-columns: minmax(200px, 2fr) 1fr 1fr 1fr auto;
+}
+
 .user-list.table.channels .user-row,
 .user-list.table.channels .user-list-head {
   grid-template-columns: minmax(160px, 1fr) minmax(200px, 2fr) auto;

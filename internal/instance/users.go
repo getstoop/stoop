@@ -203,5 +203,6 @@ func toProtoUser(u UserSummary) *instancev1.InstanceUser {
 	out.HasPassword = u.HasPassword
 	out.Pronouns = u.Pronouns
 	out.Bio = u.Bio
+	out.PersonalTokenCount = int32(u.PersonalTokens)
 	return out
 }

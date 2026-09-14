@@ -22,15 +22,18 @@ func needs(a ...authctx.Action) authctx.Rule { return authctx.Rule{AnyOf: a} }
 // gate stays in the owning module. procedures_test.go fails on any
 // procedure missing here.
 var procedures = map[string]authctx.Rule{
-	authv1connect.AuthServiceRegisterProcedure:       public,
-	authv1connect.AuthServiceLoginProcedure:          public,
-	authv1connect.AuthServiceLogoutProcedure:         anyCaller,
-	authv1connect.AuthServiceGetMeProcedure:          anyCaller,
-	authv1connect.AuthServiceGetUserProfileProcedure: anyCaller,
-	authv1connect.AuthServiceUpdateProfileProcedure:  needs(authctx.ProfileManage),
-	authv1connect.AuthServiceChangePasswordProcedure: needs(authctx.AccountSecurity),
-	authv1connect.AuthServiceListIdentitiesProcedure: needs(authctx.AccountSecurity),
-	authv1connect.AuthServiceUnlinkIdentityProcedure: needs(authctx.AccountSecurity),
+	authv1connect.AuthServiceRegisterProcedure:            public,
+	authv1connect.AuthServiceLoginProcedure:               public,
+	authv1connect.AuthServiceLogoutProcedure:              anyCaller,
+	authv1connect.AuthServiceGetMeProcedure:               anyCaller,
+	authv1connect.AuthServiceGetUserProfileProcedure:      anyCaller,
+	authv1connect.AuthServiceUpdateProfileProcedure:       needs(authctx.ProfileManage),
+	authv1connect.AuthServiceChangePasswordProcedure:      needs(authctx.AccountSecurity),
+	authv1connect.AuthServiceListIdentitiesProcedure:      needs(authctx.AccountSecurity),
+	authv1connect.AuthServiceUnlinkIdentityProcedure:      needs(authctx.AccountSecurity),
+	authv1connect.AuthServiceCreatePersonalTokenProcedure: needs(authctx.AccountSecurity),
+	authv1connect.AuthServiceListPersonalTokensProcedure:  needs(authctx.AccountSecurity),
+	authv1connect.AuthServiceRevokePersonalTokenProcedure: needs(authctx.AccountSecurity),
 
 	// The setup and login screens need it before anyone has an account.
 	instancev1connect.InstanceServiceGetInstanceStatusProcedure:    public,
@@ -47,6 +50,8 @@ var procedures = map[string]authctx.Rule{
 	instancev1connect.InstanceServiceRenameUserProcedure:           needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceSetUsernameFrozenProcedure:    needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceClearUserProfileProcedure:     needs(authctx.InstanceUsersManage),
+	instancev1connect.InstanceServiceListUserTokensProcedure:       needs(authctx.InstanceUsersManage),
+	instancev1connect.InstanceServiceRevokeUserTokenProcedure:      needs(authctx.InstanceUsersManage),
 
 	filesv1connect.FileServiceUploadAvatarProcedure:    needs(authctx.ProfileManage),
 	filesv1connect.FileServiceUploadSpaceIconProcedure: needs(authctx.SpaceManage),

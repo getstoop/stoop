@@ -124,6 +124,37 @@ change, deactivation, an admin reset — also clears the matching rows in the
 legacy `sessions` table until a contract migration drops it, so rolling back
 to the previous release can't revive a revoked session.
 
+## Personal tokens
+
+A person can make a token for a script from **Profile → Security**. It
+acts as them with only the permissions they tick, optionally limited to
+some spaces, and expires after 30, 90 or 365 days, or never.
+
+- **It is shown once.** The token is `stp_pat_` and 32 random bytes; Stoop
+  stores its SHA-256 and its last four characters (`credentials.hint`),
+  never the token.
+- **It is a bearer token only.** `Authorization: Bearer` on Connect calls,
+  never a cookie. `/ws` and file downloads refuse anything but a session
+  until they filter by credential.
+- **No token can make, list or revoke tokens**, change a password or link
+  a provider: those need `account.security`, which only a session carries.
+- **A token limited to spaces uses only space permissions**, and only in
+  those spaces — on every path, membership checks and voice joins included.
+  It can't be given DM, account or server permissions, and it can't join
+  or leave a space outside its limit.
+- **The server setting `personal_tokens`** (`everyone`, `admins`, `off`)
+  is checked every time a token is used, not only when one is made. Turning
+  it down stops existing tokens; they stay listed as blocked and work again
+  when it goes back up.
+- **Changing your password** offers to revoke your tokens too, ticked by
+  default. An admin password reset and deactivation revoke them always.
+- **Last used** is recorded at most once a minute per token.
+- **Expired tokens stay listed** so a broken script has an explanation,
+  and the credential sweep deletes them 30 days after expiry (expired
+  sessions go at once).
+- An instance admin sees and revokes anyone's tokens from **Server admin →
+  Accounts**; never the token itself.
+
 No JWTs anywhere in the session path. Statelessness buys nothing here: this
 is a single process that already has a database open.
 

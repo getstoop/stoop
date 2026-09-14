@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useInstanceUsers } from "../../api/queries";
@@ -10,6 +10,7 @@ import { ListHead } from "../../components/ListHead";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import type { InstanceUser } from "../../gen/stoop/instance/v1/user_pb";
 import { confirm, notice, prompt } from "../../stores/dialogs";
+import { UserTokens } from "./UserTokens";
 
 export function UsersSection({ meId }: { meId: string }) {
   const queryClient = useQueryClient();
@@ -117,6 +118,7 @@ export function UsersSection({ meId }: { meId: string }) {
     );
   };
   const [addingTo, setAddingTo] = useState<InstanceUser | null>(null);
+  const [tokensOf, setTokensOf] = useState<string | null>(null);
   const toggleFrozen = (u: InstanceUser) =>
     act(() =>
       instanceClient.setUsernameFrozen({
@@ -224,44 +226,65 @@ export function UsersSection({ meId }: { meId: string }) {
       {shown && shown.length === 0 && needle && (
         <p className="muted small">No accounts match “{query.trim()}”.</p>
       )}
-      <ul className="user-list table four">
-        <ListHead columns={["Person", "Role", "Joined", ""]} />
+      <ul className="user-list table five">
+        <ListHead columns={["Person", "Role", "Tokens", "Joined", ""]} />
         {shown?.map((u) => {
           const self = u.id === meId;
           const inactive = !!u.deactivatedAt;
           return (
-            <li key={u.id} className={`user-row ${inactive ? "inactive" : ""}`}>
-              <div className="user-row-main">
-                <strong>{u.displayName || u.username}</strong>
-                <span className="muted small">
-                  @{u.username}
-                  {u.pronouns && <> · {u.pronouns}</>}
-                  {inactive && <span className="badge">deactivated</span>}
-                  {u.usernameFrozen && (
-                    <span className="badge">name frozen</span>
+            <Fragment key={u.id}>
+              <li className={`user-row ${inactive ? "inactive" : ""}`}>
+                <div className="user-row-main">
+                  <strong>{u.displayName || u.username}</strong>
+                  <span className="muted small">
+                    @{u.username}
+                    {u.pronouns && <> · {u.pronouns}</>}
+                    {inactive && <span className="badge">deactivated</span>}
+                    {u.usernameFrozen && (
+                      <span className="badge">name frozen</span>
+                    )}
+                  </span>
+                </div>
+                <span className="user-cell">
+                  {u.role === InstanceRole.ADMIN ? (
+                    <span className="badge">admin</span>
+                  ) : (
+                    "Member"
                   )}
                 </span>
-              </div>
-              <span className="user-cell">
-                {u.role === InstanceRole.ADMIN ? (
-                  <span className="badge">admin</span>
-                ) : (
-                  "Member"
+                <span className="user-cell">
+                  {u.personalTokenCount > 0 ? (
+                    <button
+                      type="button"
+                      className="chip"
+                      aria-expanded={tokensOf === u.id}
+                      onClick={() =>
+                        setTokensOf(tokensOf === u.id ? null : u.id)
+                      }
+                    >
+                      {u.personalTokenCount} token
+                      {u.personalTokenCount === 1 ? "" : "s"}
+                    </button>
+                  ) : (
+                    "None"
+                  )}
+                </span>
+                <span className="user-cell">
+                  {u.createdAt &&
+                    timestampDate(u.createdAt).toLocaleDateString()}
+                </span>
+                {!self && (
+                  <div className="user-row-actions">
+                    <DotsMenu
+                      label={`Actions for @${u.username}`}
+                      items={actionsFor(u)}
+                    />
+                  </div>
                 )}
-              </span>
-              <span className="user-cell">
-                {u.createdAt && timestampDate(u.createdAt).toLocaleDateString()}
-              </span>
-              {!self && (
-                <div className="user-row-actions">
-                  <DotsMenu
-                    label={`Actions for @${u.username}`}
-                    items={actionsFor(u)}
-                  />
-                </div>
-              )}
-              {self && <span className="muted small">you</span>}
-            </li>
+                {self && <span className="muted small">you</span>}
+              </li>
+              {tokensOf === u.id && <UserTokens user={u} />}
+            </Fragment>
           );
         })}
       </ul>

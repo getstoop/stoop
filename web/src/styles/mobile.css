@@ -228,6 +228,11 @@
     gap: 4px 12px;
   }
 
+  .user-token-row,
+  .token-form-row {
+    grid-template-columns: 1fr;
+  }
+
   .user-list.table .user-row-actions {
     flex-wrap: wrap;
     margin-left: auto;

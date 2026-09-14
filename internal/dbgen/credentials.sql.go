@@ -10,6 +10,98 @@ import (
 	"time"
 )
 
+const addCredentialSpaceBound = `-- name: AddCredentialSpaceBound :exec
+INSERT INTO credential_bounds (credential_id, space_id)
+VALUES ($1::uuid, $2::uuid)
+`
+
+type AddCredentialSpaceBoundParams struct {
+	CredentialID string
+	SpaceID      string
+}
+
+func (q *Queries) AddCredentialSpaceBound(ctx context.Context, arg AddCredentialSpaceBoundParams) error {
+	_, err := q.db.Exec(ctx, addCredentialSpaceBound, arg.CredentialID, arg.SpaceID)
+	return err
+}
+
+const countPersonalTokensByHolder = `-- name: CountPersonalTokensByHolder :many
+SELECT holder_id, count(*) AS n FROM credentials WHERE kind = 'personal_token' GROUP BY holder_id
+`
+
+type CountPersonalTokensByHolderRow struct {
+	HolderID string
+	N        int64
+}
+
+func (q *Queries) CountPersonalTokensByHolder(ctx context.Context) ([]CountPersonalTokensByHolderRow, error) {
+	rows, err := q.db.Query(ctx, countPersonalTokensByHolder)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountPersonalTokensByHolderRow
+	for rows.Next() {
+		var i CountPersonalTokensByHolderRow
+		if err := rows.Scan(&i.HolderID, &i.N); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const createPersonalToken = `-- name: CreatePersonalToken :one
+INSERT INTO credentials (id, holder_id, kind, token_hash, name, grants, bounded, created_by, expires_at, hint)
+VALUES ($1::uuid, $2::uuid, 'personal_token', $3::bytea,
+        $4::text, $5::text[], $6::boolean, $2::uuid,
+        $7::timestamptz, $8::text)
+RETURNING id, holder_id, kind, token_hash, name, grants, bounded, created_by, created_at, expires_at, last_used_at, hint
+`
+
+type CreatePersonalTokenParams struct {
+	ID        string
+	HolderID  string
+	TokenHash []byte
+	Name      string
+	Grants    []string
+	Bounded   bool
+	ExpiresAt *time.Time
+	Hint      string
+}
+
+func (q *Queries) CreatePersonalToken(ctx context.Context, arg CreatePersonalTokenParams) (Credential, error) {
+	row := q.db.QueryRow(ctx, createPersonalToken,
+		arg.ID,
+		arg.HolderID,
+		arg.TokenHash,
+		arg.Name,
+		arg.Grants,
+		arg.Bounded,
+		arg.ExpiresAt,
+		arg.Hint,
+	)
+	var i Credential
+	err := row.Scan(
+		&i.ID,
+		&i.HolderID,
+		&i.Kind,
+		&i.TokenHash,
+		&i.Name,
+		&i.Grants,
+		&i.Bounded,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.LastUsedAt,
+		&i.Hint,
+	)
+	return i, err
+}
+
 const createSession = `-- name: CreateSession :one
 
 INSERT INTO credentials (id, holder_id, kind, token_hash, expires_at)
@@ -74,6 +166,24 @@ func (q *Queries) DeleteOtherSessions(ctx context.Context, arg DeleteOtherSessio
 	return err
 }
 
+const deletePersonalToken = `-- name: DeletePersonalToken :execrows
+DELETE FROM credentials
+WHERE id = $1::uuid AND holder_id = $2::uuid AND kind = 'personal_token'
+`
+
+type DeletePersonalTokenParams struct {
+	ID       string
+	HolderID string
+}
+
+func (q *Queries) DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePersonalToken, arg.ID, arg.HolderID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteUserCredentials = `-- name: DeleteUserCredentials :exec
 WITH legacy AS (DELETE FROM sessions WHERE user_id = $1)
 DELETE FROM credentials WHERE holder_id = $1
@@ -86,8 +196,17 @@ func (q *Queries) DeleteUserCredentials(ctx context.Context, holderID string) er
 	return err
 }
 
+const deleteUserPersonalTokens = `-- name: DeleteUserPersonalTokens :exec
+DELETE FROM credentials WHERE holder_id = $1 AND kind = 'personal_token'
+`
+
+func (q *Queries) DeleteUserPersonalTokens(ctx context.Context, holderID string) error {
+	_, err := q.db.Exec(ctx, deleteUserPersonalTokens, holderID)
+	return err
+}
+
 const getCredentialByTokenHash = `-- name: GetCredentialByTokenHash :one
-SELECT c.id, c.holder_id, c.kind, c.grants, c.bounded,
+SELECT c.id, c.holder_id, c.kind, c.grants, c.bounded, c.last_used_at,
        u.role AS holder_role, u.kind AS holder_kind,
        coalesce(array_agg(b.space_id) FILTER (WHERE b.space_id IS NOT NULL), '{}')::uuid[] AS bound_spaces,
        coalesce(array_agg(b.channel_id) FILTER (WHERE b.channel_id IS NOT NULL), '{}')::uuid[] AS bound_channels
@@ -106,6 +225,7 @@ type GetCredentialByTokenHashRow struct {
 	Kind          string
 	Grants        []string
 	Bounded       bool
+	LastUsedAt    *time.Time
 	HolderRole    string
 	HolderKind    string
 	BoundSpaces   []string
@@ -123,10 +243,92 @@ func (q *Queries) GetCredentialByTokenHash(ctx context.Context, tokenHash []byte
 		&i.Kind,
 		&i.Grants,
 		&i.Bounded,
+		&i.LastUsedAt,
 		&i.HolderRole,
 		&i.HolderKind,
 		&i.BoundSpaces,
 		&i.BoundChannels,
 	)
 	return i, err
+}
+
+const listPersonalTokens = `-- name: ListPersonalTokens :many
+SELECT c.id, c.name, c.grants, c.bounded, c.created_at, c.last_used_at, c.expires_at, c.hint,
+       coalesce(array_agg(b.space_id) FILTER (WHERE b.space_id IS NOT NULL), '{}')::uuid[] AS bound_spaces
+FROM credentials c
+LEFT JOIN credential_bounds b ON b.credential_id = c.id
+WHERE c.holder_id = $1 AND c.kind = 'personal_token'
+GROUP BY c.id
+ORDER BY c.created_at DESC
+`
+
+type ListPersonalTokensRow struct {
+	ID          string
+	Name        string
+	Grants      []string
+	Bounded     bool
+	CreatedAt   time.Time
+	LastUsedAt  *time.Time
+	ExpiresAt   *time.Time
+	Hint        string
+	BoundSpaces []string
+}
+
+// ListPersonalTokens is one account's tokens, expired ones included.
+func (q *Queries) ListPersonalTokens(ctx context.Context, holderID string) ([]ListPersonalTokensRow, error) {
+	rows, err := q.db.Query(ctx, listPersonalTokens, holderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPersonalTokensRow
+	for rows.Next() {
+		var i ListPersonalTokensRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Grants,
+			&i.Bounded,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+			&i.ExpiresAt,
+			&i.Hint,
+			&i.BoundSpaces,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sweepCredentials = `-- name: SweepCredentials :execrows
+WITH legacy AS (DELETE FROM sessions WHERE sessions.expires_at <= now())
+DELETE FROM credentials
+WHERE (kind = 'session' AND expires_at <= now())
+   OR (kind <> 'session' AND expires_at <= $1::timestamptz)
+`
+
+// SweepCredentials deletes sessions once they expire, and other credentials
+// once they expired before expired_before, so a list can still explain a
+// recently expired token.
+func (q *Queries) SweepCredentials(ctx context.Context, expiredBefore time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, sweepCredentials, expiredBefore)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const touchCredential = `-- name: TouchCredential :exec
+UPDATE credentials SET last_used_at = now() WHERE id = $1
+`
+
+// TouchCredential records a token's use. The caller throttles it.
+func (q *Queries) TouchCredential(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, touchCredential, id)
+	return err
 }

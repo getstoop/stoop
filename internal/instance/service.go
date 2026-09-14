@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/trustedproxy"
@@ -32,6 +33,7 @@ type UserSummary struct {
 	HasPassword    bool
 	Pronouns       string
 	Bio            string
+	PersonalTokens int
 }
 
 // UserAdmin is instance's port onto the auth module, wired in internal/app.
@@ -52,6 +54,10 @@ type UserAdmin interface {
 	// ClearUserProfile empties the pronouns and/or bio. It can only clear:
 	// there is no admin path that writes either field.
 	ClearUserProfile(ctx context.Context, userID string, pronouns, bio bool) (UserSummary, error)
+	// ListUserTokens lists an account's personal tokens, never their secrets.
+	ListUserTokens(ctx context.Context, userID string) ([]*authv1.PersonalToken, error)
+	// RevokeUserToken revokes one of an account's personal tokens.
+	RevokeUserToken(ctx context.Context, userID, tokenID string) error
 }
 
 type Service struct {
