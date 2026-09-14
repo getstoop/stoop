@@ -220,3 +220,52 @@ func TestBotMembership(t *testing.T) {
 		t.Errorf("a member listed every space: %v", err)
 	}
 }
+
+// botToken is a bot acting through an unbounded token with broad grants:
+// the identity gate, not the credential, must hold the line.
+func botToken(botID string) context.Context {
+	return authctx.WithIdentity(context.Background(), authctx.Identity{
+		UserID: botID, Role: authctx.RoleMember, Kind: authctx.KindBot,
+		Credential: authctx.Credential{
+			ID: uuid.NewString(), Kind: authctx.CredentialBotToken,
+			Grants: []authctx.Action{authctx.SpacesCreate, authctx.PreferencesManage, authctx.DMsPost, authctx.MessagesPost},
+		},
+	})
+}
+
+func TestBotCannotWidenItself(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), botDirectory{pool})
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaceID := sp.Msg.Space.Id
+	bot := newBot(t, pool, "uptime")
+	asBot := botToken(bot)
+	bg := context.Background()
+
+	inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.JoinSpace(asBot, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a bot redeemed an invite: %v", err)
+	}
+	if _, err := svc.CreateSpace(asBot, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Bot's own"})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a bot created a space: %v", err)
+	}
+	if _, err := svc.OpenDirectMessage(asBot, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{authctx.UserID(owner)}})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a bot opened a DM: %v", err)
+	}
+	if err := svc.AddBotMember(bg, spaceID, bot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.LeaveSpace(asBot, connect.NewRequest(&chatv1.LeaveSpaceRequest{SpaceId: spaceID})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a bot left a space: %v", err)
+	}
+	if in, _ := svc.IsSpaceMember(bg, bot, spaceID); !in {
+		t.Error("the bot is no longer a member")
+	}
+}
