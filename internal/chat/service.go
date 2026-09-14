@@ -28,7 +28,9 @@ type UserRecord struct {
 	DisplayName string
 	// InstanceAdmin marks server operators, who hold admin in every space.
 	InstanceAdmin bool
-	AvatarFileID  string
+	// Bot marks an account that can't be messaged directly.
+	Bot          bool
+	AvatarFileID string
 }
 
 // UserDirectory is chat's port for looking up users; implemented by the auth

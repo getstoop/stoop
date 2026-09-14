@@ -107,7 +107,8 @@ export type CreateIncomingResponse = Message<"stoop.integrations.v1.CreateIncomi
   webhook?: IncomingWebhook | undefined;
 
   /**
-   * The full URL to paste into a sender. Shown once.
+   * The URL to paste into a sender, shown once. A path alone when the
+   * server has no public URL; the client prepends its own origin.
    *
    * @generated from field: string url = 2;
    */

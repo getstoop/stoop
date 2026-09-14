@@ -103,6 +103,12 @@ func (s *Service) Logout(ctx context.Context, _ *connect.Request[authv1.LogoutRe
 // verification path shared by the Connect interceptor and the WebSocket
 // upgrade handler.
 func (s *Service) VerifyToken(ctx context.Context, token string) (authctx.Identity, error) {
+	return s.verify(ctx, token, false)
+}
+
+// verify resolves any credential. A hook token is refused unless allowHook:
+// it belongs in a hook URL and nowhere else.
+func (s *Service) verify(ctx context.Context, token string, allowHook bool) (authctx.Identity, error) {
 	if token == "" {
 		return authctx.Identity{}, errors.New("missing token")
 	}
@@ -110,6 +116,9 @@ func (s *Service) VerifyToken(ctx context.Context, token string) (authctx.Identi
 	c, err := s.q.GetCredentialByTokenHash(ctx, hash[:])
 	if err != nil {
 		return authctx.Identity{}, errors.New("invalid or expired session")
+	}
+	if c.Kind == string(authctx.CredentialIncomingHook) && !allowHook {
+		return authctx.Identity{}, errors.New("a hook token is not a bearer token")
 	}
 	id := authctx.Identity{
 		UserID: c.HolderID, Role: authctx.Role(c.HolderRole), Kind: authctx.IdentityKind(c.HolderKind),

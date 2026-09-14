@@ -79,6 +79,7 @@ func (q *Queries) IsDMMember(ctx context.Context, arg IsDMMemberParams) (bool, e
 const listDMCandidates = `-- name: ListDMCandidates :many
 SELECT DISTINCT o.user_id FROM space_members me
 JOIN space_members o ON o.space_id = me.space_id AND o.user_id <> me.user_id
+JOIN users u ON u.id = o.user_id AND u.kind = 'person'
 WHERE me.user_id = $1
   AND NOT EXISTS (
     SELECT 1 FROM user_blocks b
@@ -95,6 +96,7 @@ type ListDMCandidatesParams struct {
 
 // ListDMCandidates: everyone the caller may start a conversation with —
 // the people they share a space with, minus blocks in either direction.
+// Bots are left out: see docs/proposals/webhooks.md.
 func (q *Queries) ListDMCandidates(ctx context.Context, arg ListDMCandidatesParams) ([]string, error) {
 	rows, err := q.db.Query(ctx, listDMCandidates, arg.UserID, arg.Lim)
 	if err != nil {
