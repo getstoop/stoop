@@ -130,11 +130,25 @@ func (s *Service) finishSocial(r *http.Request, providerID string, claims Claims
 	return s.registerSocial(ctx, providerID, claims, st)
 }
 
+// verifySession is VerifyToken for the requests that attach something to
+// an account: only a session may link a provider identity. A token's
+// SessionID is empty, which would otherwise match another token's.
+func (s *Service) verifySession(ctx context.Context, h http.Header) (authctx.Identity, error) {
+	ident, err := s.VerifyToken(ctx, TokenFromHeader(h))
+	if err != nil {
+		return authctx.Identity{}, err
+	}
+	if ident.SessionID == "" {
+		return authctx.Identity{}, errors.New("linking needs a signed-in session")
+	}
+	return ident, nil
+}
+
 // linkIdentity attaches the identity to the account that started the
 // link, after re-verifying that the same session is still live.
 func (s *Service) linkIdentity(r *http.Request, providerID string, claims Claims, st loginState) (flowResult, *flowErr) {
 	ctx := r.Context()
-	ident, err := s.VerifyToken(ctx, TokenFromHeader(r.Header))
+	ident, err := s.verifySession(ctx, r.Header)
 	if err != nil || ident.UserID != st.LinkUserID || ident.SessionID != st.SessionID {
 		return flowResult{}, &flowErr{code: "login_state"}
 	}

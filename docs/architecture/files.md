@@ -106,8 +106,10 @@ browser's download machinery work.
 | `attachment` (space) | The space's members, and instance admins — as chat's `MayReadSpace` decides, which includes the credential's grant and bounds (`messages.read` in that space). |
 | `attachment` (DM) | The uploader and the DM's participants — **no admin bypass** — with a credential that covers `dms.read`. |
 
-The handler takes the session cookie or a bearer credential (a personal
-token), through the same `SessionVerifier` port as `/ws`.
+Both handlers take the session cookie or a bearer credential (a personal
+token), through the same `SessionVerifier` port as `/ws`. An upload needs
+`messages.post` in the channel's space, or `dms.post` for a direct message,
+and chat's membership answer honours the credential's bounds.
 
 Downloads are served **through the app rather than by presigned URL**, so
 authorisation stays in one place. A presigned URL is a capability that

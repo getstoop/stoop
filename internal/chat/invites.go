@@ -108,11 +108,23 @@ func (s *Service) RevokeInvite(ctx context.Context, req *connect.Request[chatv1.
 	if err != nil {
 		return nil, notFoundOr(err, "invite")
 	}
-	// Your own invites are always yours to revoke; anyone else's needs
+	// Your own invites are yours to revoke as long as you're still in the
+	// space and the credential reaches it; anyone else's needs
 	// invites.manage.
 	if invite.CreatedBy != userID {
 		if err := s.requirePermission(ctx, invite.SpaceID, authctx.InvitesManage); err != nil {
 			return nil, err
+		}
+	} else {
+		if !authctx.CoversSpace(ctx, authctx.InvitesCreate, invite.SpaceID) {
+			return nil, connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, authctx.InvitesCreate))
+		}
+		a, err := s.actorFor(ctx, invite.SpaceID)
+		if err != nil {
+			return nil, err
+		}
+		if !a.member && !a.instanceAdmin {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("not a member of this space"))
 		}
 	}
 

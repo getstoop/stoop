@@ -227,9 +227,15 @@ Surfaces that aren't Connect calls (Access 5):
   report needs `voice.join`.
 - Every revocation publishes `CredentialRevoked` to the holder's topic;
   the gateway forwards it to the sockets opened with that credential and
-  closes them (close code 4001). Expiry does the same when the sweep runs.
+  closes them (close code 4001). The gateway also re-verifies the
+  credential on every ping, which catches expiry, a setting change and
+  anything the bus never carried.
 - `/files/{id}` accepts a bearer credential and checks `messages.read` on
-  the space, or `dms.read` for a DM attachment.
+  the space, or `dms.read` for a DM attachment. `/files/upload` checks
+  `messages.post` or `dms.post` the same way, with chat answering
+  membership and bounds.
+- Linking a login provider (browser or desktop) needs a session: a token
+  can never attach an identity to its holder's account.
 - Voice tokens, invites and desktop hand-off codes stay outside the table:
   short-lived tickets minted by a request that already passed both gates
   (`JoinVoiceChannel` needs `voice.join` and a bound that reaches the

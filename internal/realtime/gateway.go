@@ -51,6 +51,7 @@ type Gateway struct {
 	presence       *presence
 	voice          *voiceState
 	connSeq        atomic.Uint64
+	pingInterval   time.Duration
 }
 
 func NewGateway(bus events.Bus, verifier SessionVerifier, members MembershipLister, channels ChannelLookup, originPatterns []string, log *slog.Logger) *Gateway {
@@ -63,6 +64,7 @@ func NewGateway(bus events.Bus, verifier SessionVerifier, members MembershipList
 		log:            log,
 		presence:       newPresence(),
 		voice:          newVoiceState(),
+		pingInterval:   pingInterval,
 	}
 }
 
@@ -170,7 +172,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	g.log.Info("ws connected", "user_id", userID, "credential", cred.Kind)
 	defer g.log.Info("ws disconnected", "user_id", userID)
 
-	pings := time.NewTicker(pingInterval)
+	pings := time.NewTicker(g.pingInterval)
 	defer pings.Stop()
 
 	for {
@@ -179,6 +181,14 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_ = conn.Close(websocket.StatusNormalClosure, "")
 			return
 		case <-pings.C:
+			// The credential is checked again with every ping, so a
+			// token that expired, a setting that turned tokens off, or a
+			// revocation the bus never carried (the CLI, a publish that
+			// beat the subscription) ends the socket within a ping.
+			if fresh, err := g.verifier.VerifyRequest(ctx, r.Header); err != nil || fresh.Credential.ID != cred.ID {
+				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
+				return
+			}
 			pingCtx, done := context.WithTimeout(ctx, pingTimeout)
 			err := conn.Ping(pingCtx)
 			done()

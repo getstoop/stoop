@@ -87,6 +87,15 @@ func TestBoundsReachEveryPath(t *testing.T) {
 	_, err = svc.JoinSpace(tok, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: "anything"}))
 	refused("JoinSpace", err)
 
+	awayInvite, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: awayID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id.Credential.Grants = append(id.Credential.Grants, authctx.InvitesCreate)
+	tok = authctx.WithIdentity(bg, id)
+	_, err = svc.RevokeInvite(tok, connect.NewRequest(&chatv1.RevokeInviteRequest{InviteId: awayInvite.Msg.Invite.Id}))
+	refused("RevokeInvite (own)", err)
+
 	if ok, err := svc.IsChannelMember(tok, id.UserID, awayChannel); err != nil || ok {
 		t.Errorf("IsChannelMember outside the bounds = %v, %v (voice joins rely on it)", ok, err)
 	}
