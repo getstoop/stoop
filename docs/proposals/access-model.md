@@ -70,8 +70,7 @@ as an admin there, and nowhere else, with one token granted
   2026-09-14 once bots existed: it is safe but not useful, since a
   person's own token already carries the server actions, and admin
   standing in every space contradicts the rule that a bot's reach is its
-  membership (STOOP-287). Migration 00034 demotes any bot promoted
-  before and adds the check.
+  membership (STOOP-287). Migration 00034 adds the check.
 - **Break-glass stays human.** `password_sign_in: admins` honours person
   admins only; a bot never signs in.
 - **Only people hold `account.security`.** A bot's credentials are managed
