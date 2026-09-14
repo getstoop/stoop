@@ -147,6 +147,9 @@ func (s *Service) LeaveSpace(ctx context.Context, req *connect.Request[chatv1.Le
 	if id, _ := authctx.From(ctx); !id.Credential.Reaches(req.Msg.SpaceId, "") {
 		return nil, connect.NewError(connect.CodePermissionDenied, authctx.ErrOutOfBounds)
 	}
+	if err := refuseBot(ctx, "a bot's spaces are set from Server admin → Integrations"); err != nil {
+		return nil, err
+	}
 	userID := authctx.UserID(ctx)
 	role, err := s.q.GetSpaceMemberRole(ctx, dbgen.GetSpaceMemberRoleParams{SpaceID: req.Msg.SpaceId, UserID: userID})
 	if err != nil {

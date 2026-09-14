@@ -131,6 +131,11 @@ func (s *Service) IsAttachmentReadable(ctx context.Context, userID, fileID strin
 }
 
 func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[chatv1.OpenDirectMessageRequest]) (*connect.Response[chatv1.OpenDirectMessageResponse], error) {
+	// Bots and direct messages are a later feature, with consent in it;
+	// until then a bot neither receives one (dmTargets) nor opens one.
+	if err := refuseBot(ctx, "bots can't open direct messages"); err != nil {
+		return nil, err
+	}
 	me := authctx.UserID(ctx)
 	others, err := s.dmTargets(ctx, me, req.Msg.UserIds)
 	if err != nil {

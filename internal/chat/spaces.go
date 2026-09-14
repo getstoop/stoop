@@ -19,6 +19,9 @@ import (
 )
 
 func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.CreateSpaceRequest]) (*connect.Response[chatv1.CreateSpaceResponse], error) {
+	if err := refuseBot(ctx, "a bot can't create a space; a person makes one and adds the bot to it"); err != nil {
+		return nil, err
+	}
 	userID := authctx.UserID(ctx)
 	if !authctx.Allows(ctx, authctx.SpacesCreate) && s.policy != nil {
 		ok, err := s.policy.MembersMayCreateSpaces(ctx)

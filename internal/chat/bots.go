@@ -17,6 +17,16 @@ import (
 // port. Configuring integrations is instance.integrations.manage, checked
 // there; nothing here consults a space permission.
 
+// refuseBot keeps an action that shapes a person's own standing away from
+// a bot: where a bot is, and whom it talks to, is an instance admin's to
+// set, never the bot's own. The reason names the door to use instead.
+func refuseBot(ctx context.Context, reason string) error {
+	if id, _ := authctx.From(ctx); id.Kind == authctx.KindBot {
+		return connect.NewError(connect.CodePermissionDenied, errors.New(reason))
+	}
+	return nil
+}
+
 // mayNotifyEveryone is the @everyone gate: the credential covers it in
 // this channel and the author's role holds it.
 func (s *Service) mayNotifyEveryone(ctx context.Context, channel dbgen.Channel) bool {
