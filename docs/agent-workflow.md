@@ -81,6 +81,16 @@ sections, in this order:
   as often as you like; it is also part of `make test` and the CI Web
   job.
 
+- **Access rules get an end-to-end test over HTTP, not a browser.**
+  `go test ./internal/app -run TestE2E` boots the whole binary in-process
+  against a throwaway database and drives it the way curl would: mint an
+  identity or a credential, make requests, assert the status, the Connect
+  code and the sentence a person reads. The harness and its helpers are
+  in `internal/app/e2e_harness_test.go`. It needs only
+  `STOOP_TEST_DATABASE_URL`, runs in about a second, and is part of
+  `make test` and the Go CI job. Bots, tokens and webhooks belong here;
+  the browser suite is for what a person sees and clicks.
+
   Anything that is input-in, output-out belongs there rather than in a
   browser spec: the Markdown parser, shortcodes, member grouping. A
   parser case exercised through Chrome, a login and a composer is a slow
