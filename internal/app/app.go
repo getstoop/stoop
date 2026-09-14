@@ -399,6 +399,13 @@ func (p relayProvider) RelaySettings(ctx context.Context) (voice.RelaySettings, 
 
 // Run serves until ctx is canceled, then shuts down gracefully. The plain
 // listener always runs; the Tailscale one runs alongside it when enabled.
+// Handler is the whole HTTP surface, for a test that serves the binary
+// in-process.
+func (a *App) Handler() http.Handler { return a.server.Handler }
+
+// Close releases the database pool; Run does this itself on shutdown.
+func (a *App) Close() { a.pool.Close() }
+
 func (a *App) Run(ctx context.Context) error {
 	errCh := make(chan error, 2)
 	go func() {

@@ -23,6 +23,25 @@ const envVar = "STOOP_TEST_DATABASE_URL"
 // runs all migrations, and drops it when the test finishes.
 func New(t *testing.T) *pgxpool.Pool {
 	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	pool, err := db.Connect(ctx, NewURL(t))
+	if err != nil {
+		t.Fatalf("connect to test database: %v", err)
+	}
+	if err := db.Migrate(ctx, pool); err != nil {
+		pool.Close()
+		t.Fatalf("migrate test database: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	return pool
+}
+
+// NewURL creates a fresh, unmigrated database and returns its URL, for a
+// test that connects and migrates itself (the whole app, say). It is
+// dropped when the test finishes; whatever connected must have closed.
+func NewURL(t *testing.T) string {
+	t.Helper()
 	baseURL := os.Getenv(envVar)
 	if baseURL == "" {
 		t.Skipf("%s not set; skipping database test", envVar)
@@ -50,17 +69,7 @@ func New(t *testing.T) *pgxpool.Pool {
 		t.Fatal(err)
 	}
 	u.Path = "/" + name
-	pool, err := db.Connect(ctx, u.String())
-	if err != nil {
-		t.Fatalf("connect to test database: %v", err)
-	}
-	if err := db.Migrate(ctx, pool); err != nil {
-		pool.Close()
-		t.Fatalf("migrate test database: %v", err)
-	}
-
 	t.Cleanup(func() {
-		pool.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		if _, err := admin.Exec(ctx, "DROP DATABASE "+name); err != nil {
@@ -68,5 +77,5 @@ func New(t *testing.T) *pgxpool.Pool {
 		}
 		admin.Close()
 	})
-	return pool
+	return u.String()
 }

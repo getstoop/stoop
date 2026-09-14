@@ -706,7 +706,7 @@ Ten children, each a shippable PR. The order is carried in the titles.
 | STOOP-262 | The RPCs behind `instance.integrations.manage`, the members' read-only view, secrets once. |
 | STOOP-263 | Web: the Integrations section, the copy-once panel, the delivery log. |
 | STOOP-264 | Docs: `docs/architecture/integrations.md`, the operator recipes, the registrations in existing docs. |
-| STOOP-265 | Verification: the httptest receiver, lease expiry and ordering tests, the guard table, the DM-never-delivers assertion, one gated browser spec. |
+| STOOP-265 | Verification: the httptest receiver, lease expiry and ordering tests, the guard table, the DM-never-delivers assertion, and end-to-end tests over HTTP (no browser; reframed 2026-09-14). |
 
 The first useful moment is after STOOP-259: a curl line lands in a
 channel, with no UI yet. The first moment worth announcing is after
