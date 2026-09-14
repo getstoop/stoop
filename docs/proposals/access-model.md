@@ -116,10 +116,8 @@ as an admin there, and nowhere else, with one token granted
 A bound row names one space or one channel. Only a hook is minted bounded,
 to its one channel. A token's reach is its holder's: every space a person
 is in, or every space an instance admin has put a bot in (STOOP-287,
-2026-09-14). Tokens accepted space bounds before that; rows minted with
-them keep them, since a bound only narrows, and are listed as limited
-until they expire or are revoked. `Credential.Reaches` and the bounded
-rules below are unchanged.
+2026-09-14). `Credential.Reaches` and the bounded rules below are
+unchanged, and still apply to hooks.
 
 Losing the last bound must not widen a credential: bound rows cascade with
 their space or channel, so `credentials.bounded` records the intent, and a
@@ -194,8 +192,8 @@ can withhold them. Per-channel role overrides stay out.
 | `space.transfer` | owner | TransferOwnership |
 | `space.delete` | owner, instance admin | DeleteSpace |
 | `profile.manage` | person | UpdateProfile, UploadAvatar |
-| `preferences.manage` | everyone | mutes, blocks, MarkChannelRead, LeaveSpace |
-| `activity.read` | everyone | ListActivity, MarkActivityRead |
+| `preferences.manage` | everyone | mutes, blocks, MarkChannelRead; LeaveSpace, which also needs a session |
+| `activity.read` | everyone | ListActivity, MarkActivityRead; granted only together with `messages.read` and `dms.read` |
 | `dms.read` | everyone | ListDirectMessages, ListDirectMessageCandidates, DM history |
 | `dms.post` | everyone | OpenDirectMessage, posting into a DM (a bot also needs to be reachable) |
 | `account.security` (never grantable) | person | ChangePassword, ListIdentities, UnlinkIdentity, provider linking, credential management |

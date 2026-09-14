@@ -166,7 +166,7 @@ func TestBotsAndHookTokens(t *testing.T) {
 	}
 	token, tokenSecret, err := svc.MintCredential(bg, auth.MintBotCredential{
 		HolderID: bot.ID, Kind: authctx.CredentialBotToken, Name: "reader",
-		Grants: []authctx.Action{authctx.SpaceRead, authctx.MessagesRead}, Limited: true, SpaceIDs: []string{spaceID},
+		Grants: []authctx.Action{authctx.SpaceRead, authctx.MessagesRead},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -174,8 +174,13 @@ func TestBotsAndHookTokens(t *testing.T) {
 	if !strings.HasPrefix(tokenSecret, "stp_bot_") {
 		t.Errorf("bot token secret %q", tokenSecret)
 	}
-	if tid, err := svc.VerifyToken(bg, tokenSecret); err != nil || tid.Credential.Kind != authctx.CredentialBotToken || !tid.Credential.Reaches(spaceID, "") {
+	if tid, err := svc.VerifyToken(bg, tokenSecret); err != nil || tid.Credential.Kind != authctx.CredentialBotToken || tid.Credential.Bounded || !tid.Credential.Reaches(spaceID, "") {
 		t.Errorf("bot token verified as %+v, %v", tid, err)
+	}
+	// Activity is a preview of messages: a bot token can't be granted it
+	// without a read grant beside it.
+	if _, _, err := svc.MintCredential(bg, auth.MintBotCredential{HolderID: bot.ID, Kind: authctx.CredentialBotToken, Name: "x", Grants: []authctx.Action{authctx.ActivityRead}}); codeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("activity without a read: %v", err)
 	}
 	if _, err := svc.VerifyHookToken(bg, tokenSecret); err == nil {
 		t.Error("a bot token worked as a hook token")

@@ -140,7 +140,7 @@ func toProtoBot(b Bot, creds []Credential, spaceIDs []string) *integrationsv1.Bo
 func toProtoBotToken(c Credential) *integrationsv1.BotToken {
 	out := &integrationsv1.BotToken{
 		Id: c.ID, BotUserId: c.HolderID, Name: c.Name, Permissions: accesswire.ToProto(c.Grants),
-		Limited: c.Bounded, SpaceIds: c.SpaceIDs, CreatedAt: timestamppb.New(c.CreatedAt), Hint: c.Hint,
+		CreatedAt: timestamppb.New(c.CreatedAt), Hint: c.Hint,
 	}
 	if c.LastUsedAt != nil {
 		out.LastUsedAt = timestamppb.New(*c.LastUsedAt)

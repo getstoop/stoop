@@ -3,12 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { useSpaces, useUserTokens } from "../../api/queries";
+import { useUserTokens } from "../../api/queries";
 import {
   describePermissions,
   expiryOf,
   lastUsedText,
-  whereText,
 } from "../../api/tokenOptions";
 import type { PersonalToken } from "../../gen/stoop/auth/v1/auth_pb";
 import type { InstanceUser } from "../../gen/stoop/instance/v1/user_pb";
@@ -20,9 +19,7 @@ import { confirm } from "../../stores/dialogs";
 export function UserTokens({ user }: { user: InstanceUser }) {
   const queryClient = useQueryClient();
   const { data: tokens, isLoading } = useUserTokens(user.id, true);
-  const { data: spaces } = useSpaces();
   const [error, setError] = useState<string | null>(null);
-  const nameOf = (id: string) => spaces?.find((s) => s.id === id)?.name;
 
   const revoke = async (t: PersonalToken) => {
     const ok = await confirm({
@@ -52,10 +49,7 @@ export function UserTokens({ user }: { user: InstanceUser }) {
         return (
           <div key={t.id} className="user-token-row">
             <strong>{t.name}</strong>
-            <span>
-              {describePermissions(t.permissions).join(", ")}
-              {t.limited && <> · limited to {whereText(t, nameOf)}</>}
-            </span>
+            <span>{describePermissions(t.permissions).join(", ")}</span>
             <span className="muted">
               {lastUsedText(t.lastUsedAt && timestampDate(t.lastUsedAt))}
             </span>

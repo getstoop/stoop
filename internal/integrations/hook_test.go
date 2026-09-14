@@ -118,8 +118,8 @@ func (f *fakeBots) MintCredential(ctx context.Context, req MintRequest) (Credent
 		id, req.HolderID, string(req.Kind), []byte(id), req.Name); err != nil {
 		return Credential{}, "", err
 	}
-	bounded := req.Limited || req.ChannelID != ""
-	c := Credential{ID: id, HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants, Bounded: bounded, SpaceIDs: req.SpaceIDs, Hint: id[len(id)-4:]}
+	bounded := req.ChannelID != ""
+	c := Credential{ID: id, HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants, Bounded: bounded, Hint: id[len(id)-4:]}
 	if req.ChannelID != "" {
 		c.ChannelIDs = []string{req.ChannelID}
 	}
@@ -127,7 +127,7 @@ func (f *fakeBots) MintCredential(ctx context.Context, req MintRequest) (Credent
 	secret := "stp_" + string(req.Kind) + "_" + id
 	f.tokens[secret] = authctx.Identity{
 		UserID: req.HolderID, Role: authctx.RoleMember, Kind: authctx.KindBot,
-		Credential: authctx.Credential{ID: id, Kind: req.Kind, Grants: req.Grants, Bounded: bounded, Spaces: req.SpaceIDs, Channels: c.ChannelIDs},
+		Credential: authctx.Credential{ID: id, Kind: req.Kind, Grants: req.Grants, Bounded: bounded, Channels: c.ChannelIDs},
 	}
 	return c, secret, nil
 }
@@ -612,7 +612,7 @@ func TestBotTokens(t *testing.T) {
 	}
 	// A token has no limit of its own: it works wherever the bot is.
 	tok := res.Msg.Token
-	if !strings.HasPrefix(res.Msg.Secret, "stp_bot_token_") || tok.BotUserId != bot || tok.Limited || len(tok.SpaceIds) != 0 || len(tok.Permissions) != 2 || tok.Hint == "" {
+	if !strings.HasPrefix(res.Msg.Secret, "stp_bot_token_") || tok.BotUserId != bot || len(tok.Permissions) != 2 || tok.Hint == "" {
 		t.Errorf("token = %+v secret %q", tok, res.Msg.Secret)
 	}
 	bots, err := f.svc.ListBots(f.admin, connect.NewRequest(&integrationsv1.ListBotsRequest{}))

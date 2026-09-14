@@ -1238,12 +1238,7 @@ type PersonalToken struct {
 	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Permissions []v1.Permission        `protobuf:"varint,3,rep,packed,name=permissions,proto3,enum=stoop.access.v1.Permission" json:"permissions,omitempty"`
-	// Set only on tokens made before the space limit was withdrawn; they
-	// keep their narrower reach until they expire or are revoked. New
-	// tokens are never limited.
-	Limited   bool                   `protobuf:"varint,4,opt,name=limited,proto3" json:"limited,omitempty"`
-	SpaceIds  []string               `protobuf:"bytes,5,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Unset when never used. Recorded at most once a minute.
 	LastUsedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
 	// Unset when it never expires.
@@ -1303,20 +1298,6 @@ func (x *PersonalToken) GetName() string {
 func (x *PersonalToken) GetPermissions() []v1.Permission {
 	if x != nil {
 		return x.Permissions
-	}
-	return nil
-}
-
-func (x *PersonalToken) GetLimited() bool {
-	if x != nil {
-		return x.Limited
-	}
-	return false
-}
-
-func (x *PersonalToken) GetSpaceIds() []string {
-	if x != nil {
-		return x.SpaceIds
 	}
 	return nil
 }
@@ -1712,13 +1693,11 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"identities\"3\n" +
 	"\x15UnlinkIdentityRequest\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\"\x18\n" +
-	"\x16UnlinkIdentityResponse\"\x8b\x03\n" +
+	"\x16UnlinkIdentityResponse\"\xf4\x02\n" +
 	"\rPersonalToken\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12=\n" +
-	"\vpermissions\x18\x03 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\x12\x18\n" +
-	"\alimited\x18\x04 \x01(\bR\alimited\x12\x1b\n" +
-	"\tspace_ids\x18\x05 \x03(\tR\bspaceIds\x129\n" +
+	"\vpermissions\x18\x03 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\flast_used_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
@@ -1727,7 +1706,7 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x12\n" +
 	"\x04hint\x18\t \x01(\tR\x04hint\x12\x18\n" +
 	"\ablocked\x18\n" +
-	" \x01(\bR\ablocked\"\xb7\x01\n" +
+	" \x01(\bR\ablockedJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\alimitedR\tspace_ids\"\xb7\x01\n" +
 	"\x1aCreatePersonalTokenRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12=\n" +
 	"\vpermissions\x18\x02 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\x12&\n" +

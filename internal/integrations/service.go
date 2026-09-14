@@ -80,14 +80,12 @@ type Credential struct {
 }
 
 // MintRequest describes a credential to mint for a bot. A hook is bounded
-// to ChannelID; a token to SpaceIDs when Limited.
+// to ChannelID; a token has no bound and works wherever the bot is.
 type MintRequest struct {
 	HolderID  string
 	Kind      authctx.CredentialKind
 	Name      string
 	Grants    []authctx.Action
-	Limited   bool
-	SpaceIDs  []string
 	ChannelID string
 	CreatedBy string
 }

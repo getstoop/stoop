@@ -4,9 +4,9 @@ import { Permission } from "../gen/stoop/access/v1/access_pb";
 // grouped by where they apply. The server holds the real list; this is
 // only how it's offered. People and bots get different sets, phrased for
 // each: a person's token is offered only what they hold somewhere; a
-// bot's token is offered what a member holds, and never the account or
-// server actions a bot is refused (profile, DMs, mutes; a bot is never a
-// server admin).
+// bot's token is offered what a member holds in its spaces and nothing
+// else (a bot is never a server admin, has no profile, DMs or mutes of
+// its own, and gets its mentions from outgoing webhooks).
 //
 // Deliberately offered to nobody, and listed by name if a token somehow
 // holds one: SPACE_TRANSFER and SPACE_DELETE (one-off, destructive, done
@@ -102,6 +102,7 @@ export const TOKEN_OPTIONS: TokenOption[] = [
   {
     key: "activity",
     label: "Read activity",
+    hint: "your mentions and replies; needs Read messages and Read direct messages",
     group: "account",
     permissions: [Permission.ACTIVITY_READ],
   },
@@ -113,7 +114,7 @@ export const TOKEN_OPTIONS: TokenOption[] = [
   },
   {
     key: "preferences",
-    label: "Change mutes and blocks",
+    label: "Change mutes, blocks and read markers",
     group: "account",
     permissions: [Permission.PREFERENCES_MANAGE],
   },
@@ -173,8 +174,8 @@ export const GROUP_LABELS: Record<TokenGroup, string> = {
   server: "On this server",
 };
 
-// A bot's token: the space options in a bot's words, and one thing about
-// itself.
+// A bot's token: the space options in a bot's words, and nothing about
+// itself. A bot that wants its mentions has outgoing webhooks.
 const BOT_SPACE_KEYS = [
   "read",
   "post",
@@ -188,15 +189,26 @@ const BOT_SPACE_KEYS = [
   "space",
 ];
 
-export const BOT_TOKEN_OPTIONS: TokenOption[] = [
-  ...TOKEN_OPTIONS.filter((o) => BOT_SPACE_KEYS.includes(o.key)),
-  {
-    key: "activity",
-    label: "Read its mentions and replies",
-    group: "account",
-    permissions: [Permission.ACTIVITY_READ],
-  },
-];
+export const BOT_TOKEN_OPTIONS: TokenOption[] = TOKEN_OPTIONS.filter((o) =>
+  BOT_SPACE_KEYS.includes(o.key),
+);
+
+// Every activity item previews a message from a space or a direct
+// message, so Read activity needs both read options beside it: ticking
+// it brings them along, and unticking either takes it away.
+const READ_KEYS = ["read", "dms-read"];
+export function withDependencies(keys: string[]): string[] {
+  if (!keys.includes("activity")) return keys;
+  const missing = READ_KEYS.filter((k) => !keys.includes(k));
+  return missing.length === 0 ? keys : [...keys, ...missing];
+}
+
+export function withoutOrphans(keys: string[]): string[] {
+  if (keys.includes("activity") && !READ_KEYS.every((k) => keys.includes(k))) {
+    return keys.filter((k) => k !== "activity");
+  }
+  return keys;
+}
 
 export const BOT_GROUP_LABELS: Record<TokenGroup, string> = {
   space: "In the spaces it's in",
@@ -247,20 +259,6 @@ export function describePermissions(
 // PERMISSION_SPACE_DELETE → "space delete": the action, in words.
 export function permissionName(p: Permission): string {
   return (Permission[p] ?? "unknown").toLowerCase().replace(/_/g, " ");
-}
-
-// Where a token made before the space limit was withdrawn still works,
-// naming the spaces the viewer knows. New tokens are never limited.
-export function whereText(
-  token: { limited: boolean; spaceIds: string[] },
-  nameOf: (id: string) => string | undefined,
-): string {
-  if (!token.limited) return "Everywhere";
-  if (token.spaceIds.length === 0) return "Nowhere — its spaces are gone";
-  const names = token.spaceIds.map(nameOf);
-  if (names.every((n) => n !== undefined)) return names.join(", ");
-  const n = token.spaceIds.length;
-  return `${n} space${n === 1 ? "" : "s"}`;
 }
 
 export const EXPIRY_CHOICES = [

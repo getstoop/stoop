@@ -71,7 +71,7 @@ func (b botIdentities) DeactivateBot(ctx context.Context, id string) error {
 func (b botIdentities) MintCredential(ctx context.Context, req integrations.MintRequest) (integrations.Credential, string, error) {
 	cred, secret, err := b.auth.MintCredential(ctx, auth.MintBotCredential{
 		HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants,
-		Limited: req.Limited, SpaceIDs: req.SpaceIDs, ChannelID: req.ChannelID, CreatedBy: req.CreatedBy,
+		ChannelID: req.ChannelID, CreatedBy: req.CreatedBy,
 	})
 	return toIntegrationsCredential(cred), secret, err
 }

@@ -55,14 +55,12 @@ type BotCredential struct {
 }
 
 // MintBotCredential describes a credential to mint. A hook is bounded to
-// ChannelID; a token is bounded to SpaceIDs when Limited.
+// ChannelID; a token has no bound and works wherever the bot is.
 type MintBotCredential struct {
 	HolderID  string
 	Kind      authctx.CredentialKind
 	Name      string
 	Grants    []authctx.Action
-	Limited   bool
-	SpaceIDs  []string
 	ChannelID string
 	CreatedBy string
 }
@@ -173,7 +171,7 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 		}
 	case authctx.CredentialIncomingHook:
 		prefix = hookTokenPrefix
-		if m.ChannelID == "" || m.Limited || len(m.SpaceIDs) > 0 {
+		if m.ChannelID == "" {
 			return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("a hook is bounded to exactly one channel"))
 		}
 	default:
@@ -187,8 +185,9 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 	if len(m.Grants) == 0 {
 		return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("choose at least one permission"))
 	}
-	bounded := m.Limited || m.ChannelID != ""
+	bounded := m.ChannelID != ""
 	grants := make([]string, 0, len(m.Grants))
+	has := map[authctx.Action]bool{}
 	for _, a := range m.Grants {
 		if !a.Grantable() {
 			return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument,
@@ -198,11 +197,11 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 			return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument,
 				fmt.Errorf("a bounded credential can't be allowed to %s", a.Describe()))
 		}
+		has[a] = true
 		grants = append(grants, string(a))
 	}
-	spaceIDs := dedupe(m.SpaceIDs)
-	if m.Limited && len(spaceIDs) == 0 {
-		return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("choose at least one space"))
+	if err := checkGrantDependencies(has); err != nil {
+		return BotCredential{}, "", err
 	}
 
 	secret, hash, err := newToken(prefix)
@@ -233,14 +232,6 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 		}
 		return BotCredential{}, "", notFoundOr(err, "bot")
 	}
-	for _, spaceID := range spaceIDs {
-		if err := qtx.AddCredentialSpaceBound(ctx, dbgen.AddCredentialSpaceBoundParams{CredentialID: row.ID, SpaceID: spaceID}); err != nil {
-			if isBadReference(err) {
-				return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown space %q", spaceID))
-			}
-			return BotCredential{}, "", fmt.Errorf("bound credential: %w", err)
-		}
-	}
 	if m.ChannelID != "" {
 		if err := qtx.AddCredentialChannelBound(ctx, dbgen.AddCredentialChannelBoundParams{CredentialID: row.ID, ChannelID: m.ChannelID}); err != nil {
 			if isBadReference(err) {
@@ -254,7 +245,7 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 	}
 	return BotCredential{
 		ID: row.ID, HolderID: row.HolderID, Kind: m.Kind, Name: row.Name, Grants: m.Grants,
-		Bounded: row.Bounded, SpaceIDs: spaceIDs, ChannelIDs: channelList(m.ChannelID),
+		Bounded: row.Bounded, ChannelIDs: channelList(m.ChannelID),
 		Hint: row.Hint, CreatedAt: row.CreatedAt,
 	}, secret, nil
 }

@@ -142,9 +142,15 @@ in, and expires after 30, 90 or 365 days, or never.
   a provider: those need `account.security`, which only a session carries.
 - **There is no space limit.** "This token can do what you can, wherever
   you are" is the whole story; narrowing by space was withdrawn in
-  STOOP-287 once a bot's reach became its membership. Tokens made before
-  that with a limit keep it, are listed as "limited to …", and go when
-  they expire or are revoked. Nothing widens on upgrade.
+  STOOP-287 once a bot's reach became its membership. Only a hook is
+  bounded, to its one channel.
+- **Some grants need company.** Reading activity is refused without
+  reading messages and direct messages beside it, since every activity
+  item is a preview of a message from one or the other
+  ([realtime.md](realtime.md#credentials)).
+- **Leaving a space needs a session.** A token with `preferences.manage`
+  mutes, blocks and moves read markers; leaving is a decision, and the
+  app is where it is made.
 - **The server setting `personal_tokens`** (`everyone`, `admins`, `off`)
   is checked every time a token is used, not only when one is made. Turning
   it down stops existing tokens; they stay listed as blocked and work again
