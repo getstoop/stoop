@@ -22,9 +22,9 @@ func TestE2EIncomingHookAdapters(t *testing.T) {
 	for name, tc := range map[string]struct{ ctype, body, want string }{
 		"plain text":     {"text/plain", "disk is full", "disk is full"},
 		"stoop":          {"application/json", `{"text": "from a script"}`, "from a script"},
-		"discord":        {"application/json", `{"content": "[Down] jellyfin", "username": "Kuma", "avatar_url": "x"}`, "[Down] jellyfin"},
-		"slack text":     {"application/json", `{"text": "deploy finished", "icon_emoji": ":rocket:"}`, "deploy finished"},
-		"slack attach":   {"application/json", `{"attachments": [{"title": "Firing", "text": "DiskFull on nas"}]}`, "Firing\nDiskFull on nas"},
+		"content body":   {"application/json", `{"content": "[Down] jellyfin", "username": "Kuma", "avatar_url": "x"}`, "[Down] jellyfin"},
+		"text body":      {"application/json", `{"text": "deploy finished", "icon_emoji": ":rocket:"}`, "deploy finished"},
+		"attachments":    {"application/json", `{"attachments": [{"title": "Firing", "text": "DiskFull on nas"}]}`, "Firing\nDiskFull on nas"},
 		"json untyped":   {"", `{"text": "no content type"}`, "no content type"},
 		"text with json": {"text/plain", `{"text": "posted verbatim"}`, `{"text": "posted verbatim"}`},
 	} {
