@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
@@ -31,7 +32,7 @@ func (d botDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserRe
 		if err := rows.Scan(&r.ID, &r.Username, &role, &kind); err != nil {
 			return nil, err
 		}
-		r.InstanceAdmin, r.Bot = role == "admin", kind == "bot"
+		r.InstanceAdmin, r.Kind = role == "admin", authctx.IdentityKind(kind)
 		out = append(out, r)
 	}
 	return out, rows.Err()
@@ -88,6 +89,21 @@ func TestBotsInSpaces(t *testing.T) {
 	if len(cands.Msg.Users) != 0 {
 		t.Errorf("bot listed as a DM candidate: %+v", cands.Msg.Users)
 	}
+	// The roster and the author line both say what it is.
+	member, err := svc.Member(bg, spaceID, bot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if member.Kind != accessv1.IdentityKind_IDENTITY_KIND_BOT {
+		t.Errorf("bot member kind = %v", member.Kind)
+	}
+	ownerMember, err := svc.Member(bg, spaceID, authctx.UserID(owner))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ownerMember.Kind != accessv1.IdentityKind_IDENTITY_KIND_PERSON {
+		t.Errorf("owner member kind = %v", ownerMember.Kind)
+	}
 	if got, err := svc.ChannelSpace(bg, channelID); err != nil || got != spaceID {
 		t.Errorf("ChannelSpace = %q, %v", got, err)
 	}
@@ -106,6 +122,8 @@ func TestBotsInSpaces(t *testing.T) {
 	}
 	if m := post(hookIdentity(bot, channelID, authctx.MessagesPost)); m.MentionsEveryone {
 		t.Error("a hook without the grant pinged everyone")
+	} else if m.Author.Kind != accessv1.IdentityKind_IDENTITY_KIND_BOT {
+		t.Errorf("author kind = %v", m.Author.Kind)
 	}
 	if m := post(hookIdentity(bot, channelID, authctx.MessagesPost, authctx.MessagesNotifyEveryone)); m.MentionsEveryone {
 		t.Error("a member bot pinged everyone")

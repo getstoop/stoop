@@ -21,6 +21,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// IdentityKind is what an account is: a person or a bot (users.kind).
+// Readers treat UNSPECIFIED as a person, so a client and a server that
+// disagree on the enum still render people as people. A later kind is
+// appended here; nothing that carries it changes shape.
+type IdentityKind int32
+
+const (
+	IdentityKind_IDENTITY_KIND_UNSPECIFIED IdentityKind = 0
+	IdentityKind_IDENTITY_KIND_PERSON      IdentityKind = 1
+	IdentityKind_IDENTITY_KIND_BOT         IdentityKind = 2
+)
+
+// Enum value maps for IdentityKind.
+var (
+	IdentityKind_name = map[int32]string{
+		0: "IDENTITY_KIND_UNSPECIFIED",
+		1: "IDENTITY_KIND_PERSON",
+		2: "IDENTITY_KIND_BOT",
+	}
+	IdentityKind_value = map[string]int32{
+		"IDENTITY_KIND_UNSPECIFIED": 0,
+		"IDENTITY_KIND_PERSON":      1,
+		"IDENTITY_KIND_BOT":         2,
+	}
+)
+
+func (x IdentityKind) Enum() *IdentityKind {
+	p := new(IdentityKind)
+	*p = x
+	return p
+}
+
+func (x IdentityKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (IdentityKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_stoop_access_v1_access_proto_enumTypes[0].Descriptor()
+}
+
+func (IdentityKind) Type() protoreflect.EnumType {
+	return &file_stoop_access_v1_access_proto_enumTypes[0]
+}
+
+func (x IdentityKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use IdentityKind.Descriptor instead.
+func (IdentityKind) EnumDescriptor() ([]byte, []int) {
+	return file_stoop_access_v1_access_proto_rawDescGZIP(), []int{0}
+}
+
 // Permission is one action from the closed vocabulary a role holds and a
 // credential is granted (internal/authctx/actions.go). A value's name is
 // its action with dots as underscores: channels.manage is
@@ -136,11 +189,11 @@ func (x Permission) String() string {
 }
 
 func (Permission) Descriptor() protoreflect.EnumDescriptor {
-	return file_stoop_access_v1_access_proto_enumTypes[0].Descriptor()
+	return file_stoop_access_v1_access_proto_enumTypes[1].Descriptor()
 }
 
 func (Permission) Type() protoreflect.EnumType {
-	return &file_stoop_access_v1_access_proto_enumTypes[0]
+	return &file_stoop_access_v1_access_proto_enumTypes[1]
 }
 
 func (x Permission) Number() protoreflect.EnumNumber {
@@ -149,14 +202,18 @@ func (x Permission) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Permission.Descriptor instead.
 func (Permission) EnumDescriptor() ([]byte, []int) {
-	return file_stoop_access_v1_access_proto_rawDescGZIP(), []int{0}
+	return file_stoop_access_v1_access_proto_rawDescGZIP(), []int{1}
 }
 
 var File_stoop_access_v1_access_proto protoreflect.FileDescriptor
 
 const file_stoop_access_v1_access_proto_rawDesc = "" +
 	"\n" +
-	"\x1cstoop/access/v1/access.proto\x12\x0fstoop.access.v1*\x8d\a\n" +
+	"\x1cstoop/access/v1/access.proto\x12\x0fstoop.access.v1*^\n" +
+	"\fIdentityKind\x12\x1d\n" +
+	"\x19IDENTITY_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14IDENTITY_KIND_PERSON\x10\x01\x12\x15\n" +
+	"\x11IDENTITY_KIND_BOT\x10\x02*\x8d\a\n" +
 	"\n" +
 	"Permission\x12\x1a\n" +
 	"\x16PERMISSION_UNSPECIFIED\x10\x00\x12\x1c\n" +
@@ -201,9 +258,10 @@ func file_stoop_access_v1_access_proto_rawDescGZIP() []byte {
 	return file_stoop_access_v1_access_proto_rawDescData
 }
 
-var file_stoop_access_v1_access_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_stoop_access_v1_access_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_stoop_access_v1_access_proto_goTypes = []any{
-	(Permission)(0), // 0: stoop.access.v1.Permission
+	(IdentityKind)(0), // 0: stoop.access.v1.IdentityKind
+	(Permission)(0),   // 1: stoop.access.v1.Permission
 }
 var file_stoop_access_v1_access_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -223,7 +281,7 @@ func file_stoop_access_v1_access_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_access_v1_access_proto_rawDesc), len(file_stoop_access_v1_access_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   0,
 			NumExtensions: 0,
 			NumServices:   0,

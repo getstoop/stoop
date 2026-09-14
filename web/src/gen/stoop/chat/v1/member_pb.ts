@@ -6,6 +6,8 @@ import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { IdentityKind } from "../../access/v1/access_pb";
+import { file_stoop_access_v1_access } from "../../access/v1/access_pb";
 import type { SpaceRole } from "./space_pb";
 import { file_stoop_chat_v1_space } from "./space_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -14,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/member.proto.
  */
 export const file_stoop_chat_v1_member: GenFile = /*@__PURE__*/
-  fileDesc("ChpzdG9vcC9jaGF0L3YxL21lbWJlci5wcm90bxINc3Rvb3AuY2hhdC52MSLIAQoGTWVtYmVyEg8KB3VzZXJfaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEiYKBHJvbGUYBCABKA4yGC5zdG9vcC5jaGF0LnYxLlNwYWNlUm9sZRItCglqb2luZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmluc3RhbmNlX2FkbWluGAYgASgIEhYKDmF2YXRhcl9maWxlX2lkGAcgASgJQqoBChFjb20uc3Rvb3AuY2hhdC52MUILTWVtYmVyUHJvdG9QAVoyZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvY2hhdC92MTtjaGF0djGiAgNTQ1iqAg1TdG9vcC5DaGF0LlYxygINU3Rvb3BcQ2hhdFxWMeICGVN0b29wXENoYXRcVjFcR1BCTWV0YWRhdGHqAg9TdG9vcDo6Q2hhdDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_chat_v1_space]);
+  fileDesc("ChpzdG9vcC9jaGF0L3YxL21lbWJlci5wcm90bxINc3Rvb3AuY2hhdC52MSL1AQoGTWVtYmVyEg8KB3VzZXJfaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEiYKBHJvbGUYBCABKA4yGC5zdG9vcC5jaGF0LnYxLlNwYWNlUm9sZRItCglqb2luZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmluc3RhbmNlX2FkbWluGAYgASgIEhYKDmF2YXRhcl9maWxlX2lkGAcgASgJEisKBGtpbmQYCCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kQqoBChFjb20uc3Rvb3AuY2hhdC52MUILTWVtYmVyUHJvdG9QAVoyZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvY2hhdC92MTtjaGF0djGiAgNTQ1iqAg1TdG9vcC5DaGF0LlYxygINU3Rvb3BcQ2hhdFxWMeICGVN0b29wXENoYXRcVjFcR1BCTWV0YWRhdGHqAg9TdG9vcDo6Q2hhdDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_space]);
 
 /**
  * Member is a user as seen from inside one space: identity (resolved
@@ -65,6 +67,13 @@ export type Member = Message<"stoop.chat.v1.Member"> & {
    * @generated from field: string avatar_file_id = 7;
    */
   avatarFileId: string;
+
+  /**
+   * Person or bot. A bot is a member like any other; clients mark it.
+   *
+   * @generated from field: stoop.access.v1.IdentityKind kind = 8;
+   */
+  kind: IdentityKind;
 };
 
 /**

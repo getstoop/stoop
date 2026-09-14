@@ -1,6 +1,7 @@
 // Package accesswire converts the authctx action vocabulary to its wire
-// form, stoop.access.v1.Permission. The mapping is by name, so the enum and
-// the vocabulary can't drift without accesswire_test.go failing.
+// form, stoop.access.v1.Permission, and an identity's kind to
+// stoop.access.v1.IdentityKind. The permission mapping is by name, so the
+// enum and the vocabulary can't drift without accesswire_test.go failing.
 package accesswire
 
 import (
@@ -48,4 +49,17 @@ func FromProto(perms []accessv1.Permission) ([]authctx.Action, bool) {
 func toProto(a authctx.Action) (accessv1.Permission, bool) {
 	v, ok := accessv1.Permission_value["PERMISSION_"+strings.ToUpper(strings.ReplaceAll(string(a), ".", "_"))]
 	return accessv1.Permission(v), ok
+}
+
+// KindToProto converts an identity's kind. An unknown kind is UNSPECIFIED,
+// which readers treat as a person.
+func KindToProto(k authctx.IdentityKind) accessv1.IdentityKind {
+	switch k {
+	case authctx.KindPerson:
+		return accessv1.IdentityKind_IDENTITY_KIND_PERSON
+	case authctx.KindBot:
+		return accessv1.IdentityKind_IDENTITY_KIND_BOT
+	default:
+		return accessv1.IdentityKind_IDENTITY_KIND_UNSPECIFIED
+	}
 }

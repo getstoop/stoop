@@ -42,6 +42,9 @@ func (s *Service) ResetPassword(ctx context.Context, userID string) (temporary s
 	if err != nil {
 		return "", AccountSummary{}, notFoundOr(err, "user")
 	}
+	if err := refuseBotTarget(u, "a bot has no password; it acts through its tokens and webhooks"); err != nil {
+		return "", AccountSummary{}, err
+	}
 	temporary, err = generateTempPassword()
 	if err != nil {
 		return "", AccountSummary{}, err

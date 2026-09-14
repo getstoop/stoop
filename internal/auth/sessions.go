@@ -47,15 +47,18 @@ func (s *Service) Login(ctx context.Context, req *connect.Request[authv1.LoginRe
 	// to tell real handles from fake ones either.
 	// A provider-created account with no password yet also gets the dummy
 	// hash, so it can't be told apart from a wrong password either.
+	// A bot never signs in, whatever its row holds: it takes the same
+	// path as an unknown handle.
 	hash := s.dummyHash
-	if err == nil && user.PasswordHash != nil {
+	person := err == nil && user.Kind != string(authctx.KindBot)
+	if person && user.PasswordHash != nil {
 		hash = *user.PasswordHash
 	}
 	match, cmpErr := argon2id.ComparePasswordAndHash(req.Msg.Password, hash)
 	if cmpErr != nil {
 		return nil, fmt.Errorf("verify password: %w", cmpErr)
 	}
-	if err != nil || user.PasswordHash == nil || !match {
+	if !person || user.PasswordHash == nil || !match {
 		s.guard.failure(handle)
 		return nil, errInvalidCredentials()
 	}

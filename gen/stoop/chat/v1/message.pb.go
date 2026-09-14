@@ -7,6 +7,7 @@
 package chatv1
 
 import (
+	v1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -31,7 +32,9 @@ type MessageAuthor struct {
 	Username    string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	DisplayName string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// The author's current avatar (served at /files/{id}), if any.
-	AvatarFileId  string `protobuf:"bytes,4,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
+	AvatarFileId string `protobuf:"bytes,4,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
+	// Person or bot, so a reader can tell what wrote this.
+	Kind          v1.IdentityKind `protobuf:"varint,5,opt,name=kind,proto3,enum=stoop.access.v1.IdentityKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -92,6 +95,13 @@ func (x *MessageAuthor) GetAvatarFileId() string {
 		return x.AvatarFileId
 	}
 	return ""
+}
+
+func (x *MessageAuthor) GetKind() v1.IdentityKind {
+	if x != nil {
+		return x.Kind
+	}
+	return v1.IdentityKind(0)
 }
 
 // ReplyRef is a snapshot of the message being replied to, enough to render
@@ -502,12 +512,13 @@ var File_stoop_chat_v1_message_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
-	"\x1bstoop/chat/v1/message.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/chat/v1/reaction.proto\"\x84\x01\n" +
+	"\x1bstoop/chat/v1/message.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x1cstoop/chat/v1/reaction.proto\"\xb7\x01\n" +
 	"\rMessageAuthor\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12$\n" +
-	"\x0eavatar_file_id\x18\x04 \x01(\tR\favatarFileId\"y\n" +
+	"\x0eavatar_file_id\x18\x04 \x01(\tR\favatarFileId\x121\n" +
+	"\x04kind\x18\x05 \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kind\"y\n" +
 	"\bReplyRef\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x124\n" +
@@ -568,23 +579,25 @@ var file_stoop_chat_v1_message_proto_goTypes = []any{
 	(*Attachment)(nil),            // 2: stoop.chat.v1.Attachment
 	(*Message)(nil),               // 3: stoop.chat.v1.Message
 	(*LinkPreview)(nil),           // 4: stoop.chat.v1.LinkPreview
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
-	(*Reaction)(nil),              // 6: stoop.chat.v1.Reaction
+	(v1.IdentityKind)(0),          // 5: stoop.access.v1.IdentityKind
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*Reaction)(nil),              // 7: stoop.chat.v1.Reaction
 }
 var file_stoop_chat_v1_message_proto_depIdxs = []int32{
-	0, // 0: stoop.chat.v1.ReplyRef.author:type_name -> stoop.chat.v1.MessageAuthor
-	0, // 1: stoop.chat.v1.Message.author:type_name -> stoop.chat.v1.MessageAuthor
-	5, // 2: stoop.chat.v1.Message.created_at:type_name -> google.protobuf.Timestamp
-	1, // 3: stoop.chat.v1.Message.reply_to:type_name -> stoop.chat.v1.ReplyRef
-	5, // 4: stoop.chat.v1.Message.edited_at:type_name -> google.protobuf.Timestamp
-	6, // 5: stoop.chat.v1.Message.reactions:type_name -> stoop.chat.v1.Reaction
-	2, // 6: stoop.chat.v1.Message.attachments:type_name -> stoop.chat.v1.Attachment
-	4, // 7: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	5, // 0: stoop.chat.v1.MessageAuthor.kind:type_name -> stoop.access.v1.IdentityKind
+	0, // 1: stoop.chat.v1.ReplyRef.author:type_name -> stoop.chat.v1.MessageAuthor
+	0, // 2: stoop.chat.v1.Message.author:type_name -> stoop.chat.v1.MessageAuthor
+	6, // 3: stoop.chat.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	1, // 4: stoop.chat.v1.Message.reply_to:type_name -> stoop.chat.v1.ReplyRef
+	6, // 5: stoop.chat.v1.Message.edited_at:type_name -> google.protobuf.Timestamp
+	7, // 6: stoop.chat.v1.Message.reactions:type_name -> stoop.chat.v1.Reaction
+	2, // 7: stoop.chat.v1.Message.attachments:type_name -> stoop.chat.v1.Attachment
+	4, // 8: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_message_proto_init() }

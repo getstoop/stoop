@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -28,8 +29,8 @@ type UserRecord struct {
 	DisplayName string
 	// InstanceAdmin marks server operators, who hold admin in every space.
 	InstanceAdmin bool
-	// Bot marks an account that can't be messaged directly.
-	Bot          bool
+	// Kind is person or bot; a bot can't be messaged directly.
+	Kind         authctx.IdentityKind
 	AvatarFileID string
 }
 
@@ -204,6 +205,7 @@ func (s *Service) resolveAuthors(ctx context.Context, ids []string) (map[string]
 	for _, r := range records {
 		authors[r.ID] = &chatv1.MessageAuthor{
 			Id: r.ID, Username: r.Username, DisplayName: r.DisplayName, AvatarFileId: r.AvatarFileID,
+			Kind: accesswire.KindToProto(r.Kind),
 		}
 	}
 	return authors, nil

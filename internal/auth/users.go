@@ -53,6 +53,7 @@ func (s *Service) GetUserProfile(ctx context.Context, req *connect.Request[authv
 			Id: row.ID, Username: row.Username, DisplayName: row.DisplayName,
 			AvatarFileId: deref(row.AvatarFileID),
 			Pronouns:     row.Pronouns, Bio: row.Bio,
+			Kind: accesswire.KindToProto(authctx.IdentityKind(row.Kind)),
 		},
 	}), nil
 }
@@ -104,6 +105,7 @@ func toProtoUser(u dbgen.User) *authv1.User {
 		UsernameFrozen:  u.UsernameFrozen,
 		Pronouns:        u.Pronouns,
 		Bio:             u.Bio,
+		Kind:            accesswire.KindToProto(authctx.IdentityKind(u.Kind)),
 	}
 }
 

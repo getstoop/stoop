@@ -99,7 +99,10 @@ type User struct {
 	// their profile card. Empty when unset.
 	Pronouns string `protobuf:"bytes,10,opt,name=pronouns,proto3" json:"pronouns,omitempty"`
 	// A line or two about themselves, shown on the same card. Plain text.
-	Bio           string `protobuf:"bytes,11,opt,name=bio,proto3" json:"bio,omitempty"`
+	Bio string `protobuf:"bytes,11,opt,name=bio,proto3" json:"bio,omitempty"`
+	// Person or bot. Only a person ever signs in; a bot reaches GetMe with
+	// a bot token.
+	Kind          v1.IdentityKind `protobuf:"varint,12,opt,name=kind,proto3,enum=stoop.access.v1.IdentityKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -209,6 +212,13 @@ func (x *User) GetBio() string {
 		return x.Bio
 	}
 	return ""
+}
+
+func (x *User) GetKind() v1.IdentityKind {
+	if x != nil {
+		return x.Kind
+	}
+	return v1.IdentityKind(0)
 }
 
 type RegisterRequest struct {
@@ -723,9 +733,11 @@ type PublicProfile struct {
 	Username    string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	DisplayName string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Served at /files/{id}; empty when they have none.
-	AvatarFileId  string `protobuf:"bytes,4,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
-	Pronouns      string `protobuf:"bytes,5,opt,name=pronouns,proto3" json:"pronouns,omitempty"`
-	Bio           string `protobuf:"bytes,6,opt,name=bio,proto3" json:"bio,omitempty"`
+	AvatarFileId string `protobuf:"bytes,4,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
+	Pronouns     string `protobuf:"bytes,5,opt,name=pronouns,proto3" json:"pronouns,omitempty"`
+	Bio          string `protobuf:"bytes,6,opt,name=bio,proto3" json:"bio,omitempty"`
+	// Person or bot, so the card can say which.
+	Kind          v1.IdentityKind `protobuf:"varint,7,opt,name=kind,proto3,enum=stoop.access.v1.IdentityKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -800,6 +812,13 @@ func (x *PublicProfile) GetBio() string {
 		return x.Bio
 	}
 	return ""
+}
+
+func (x *PublicProfile) GetKind() v1.IdentityKind {
+	if x != nil {
+		return x.Kind
+	}
+	return v1.IdentityKind(0)
 }
 
 type GetUserProfileRequest struct {
@@ -1633,7 +1652,7 @@ var File_stoop_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x18stoop/auth/v1/auth.proto\x12\rstoop.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\x8c\x03\n" +
+	"\x18stoop/auth/v1/auth.proto\x12\rstoop.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\xbf\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -1647,7 +1666,8 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\x0fusername_frozen\x18\t \x01(\bR\x0eusernameFrozen\x12\x1a\n" +
 	"\bpronouns\x18\n" +
 	" \x01(\tR\bpronouns\x12\x10\n" +
-	"\x03bio\x18\v \x01(\tR\x03bio\"j\n" +
+	"\x03bio\x18\v \x01(\tR\x03bio\x121\n" +
+	"\x04kind\x18\f \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kind\"j\n" +
 	"\x0fRegisterRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1f\n" +
@@ -1677,14 +1697,15 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\t_pronounsB\x06\n" +
 	"\x04_bio\"@\n" +
 	"\x15UpdateProfileResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.stoop.auth.v1.UserR\x04user\"\xb2\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.stoop.auth.v1.UserR\x04user\"\xe5\x01\n" +
 	"\rPublicProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12$\n" +
 	"\x0eavatar_file_id\x18\x04 \x01(\tR\favatarFileId\x12\x1a\n" +
 	"\bpronouns\x18\x05 \x01(\tR\bpronouns\x12\x10\n" +
-	"\x03bio\x18\x06 \x01(\tR\x03bio\"0\n" +
+	"\x03bio\x18\x06 \x01(\tR\x03bio\x121\n" +
+	"\x04kind\x18\a \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kind\"0\n" +
 	"\x15GetUserProfileRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"P\n" +
 	"\x16GetUserProfileResponse\x126\n" +
@@ -1801,55 +1822,58 @@ var file_stoop_auth_v1_auth_proto_goTypes = []any{
 	(*RevokePersonalTokenRequest)(nil),  // 27: stoop.auth.v1.RevokePersonalTokenRequest
 	(*RevokePersonalTokenResponse)(nil), // 28: stoop.auth.v1.RevokePersonalTokenResponse
 	(*timestamppb.Timestamp)(nil),       // 29: google.protobuf.Timestamp
-	(v1.Permission)(0),                  // 30: stoop.access.v1.Permission
+	(v1.IdentityKind)(0),                // 30: stoop.access.v1.IdentityKind
+	(v1.Permission)(0),                  // 31: stoop.access.v1.Permission
 }
 var file_stoop_auth_v1_auth_proto_depIdxs = []int32{
 	29, // 0: stoop.auth.v1.User.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: stoop.auth.v1.User.role:type_name -> stoop.auth.v1.InstanceRole
-	1,  // 2: stoop.auth.v1.RegisterResponse.user:type_name -> stoop.auth.v1.User
-	1,  // 3: stoop.auth.v1.LoginResponse.user:type_name -> stoop.auth.v1.User
-	1,  // 4: stoop.auth.v1.GetMeResponse.user:type_name -> stoop.auth.v1.User
-	30, // 5: stoop.auth.v1.GetMeResponse.permissions:type_name -> stoop.access.v1.Permission
-	1,  // 6: stoop.auth.v1.UpdateProfileResponse.user:type_name -> stoop.auth.v1.User
-	12, // 7: stoop.auth.v1.GetUserProfileResponse.profile:type_name -> stoop.auth.v1.PublicProfile
-	29, // 8: stoop.auth.v1.Identity.created_at:type_name -> google.protobuf.Timestamp
-	17, // 9: stoop.auth.v1.ListIdentitiesResponse.identities:type_name -> stoop.auth.v1.Identity
-	30, // 10: stoop.auth.v1.PersonalToken.permissions:type_name -> stoop.access.v1.Permission
-	29, // 11: stoop.auth.v1.PersonalToken.created_at:type_name -> google.protobuf.Timestamp
-	29, // 12: stoop.auth.v1.PersonalToken.last_used_at:type_name -> google.protobuf.Timestamp
-	29, // 13: stoop.auth.v1.PersonalToken.expires_at:type_name -> google.protobuf.Timestamp
-	30, // 14: stoop.auth.v1.CreatePersonalTokenRequest.permissions:type_name -> stoop.access.v1.Permission
-	22, // 15: stoop.auth.v1.CreatePersonalTokenResponse.token:type_name -> stoop.auth.v1.PersonalToken
-	22, // 16: stoop.auth.v1.ListPersonalTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
-	2,  // 17: stoop.auth.v1.AuthService.Register:input_type -> stoop.auth.v1.RegisterRequest
-	4,  // 18: stoop.auth.v1.AuthService.Login:input_type -> stoop.auth.v1.LoginRequest
-	6,  // 19: stoop.auth.v1.AuthService.Logout:input_type -> stoop.auth.v1.LogoutRequest
-	8,  // 20: stoop.auth.v1.AuthService.GetMe:input_type -> stoop.auth.v1.GetMeRequest
-	10, // 21: stoop.auth.v1.AuthService.UpdateProfile:input_type -> stoop.auth.v1.UpdateProfileRequest
-	13, // 22: stoop.auth.v1.AuthService.GetUserProfile:input_type -> stoop.auth.v1.GetUserProfileRequest
-	15, // 23: stoop.auth.v1.AuthService.ChangePassword:input_type -> stoop.auth.v1.ChangePasswordRequest
-	18, // 24: stoop.auth.v1.AuthService.ListIdentities:input_type -> stoop.auth.v1.ListIdentitiesRequest
-	20, // 25: stoop.auth.v1.AuthService.UnlinkIdentity:input_type -> stoop.auth.v1.UnlinkIdentityRequest
-	23, // 26: stoop.auth.v1.AuthService.CreatePersonalToken:input_type -> stoop.auth.v1.CreatePersonalTokenRequest
-	25, // 27: stoop.auth.v1.AuthService.ListPersonalTokens:input_type -> stoop.auth.v1.ListPersonalTokensRequest
-	27, // 28: stoop.auth.v1.AuthService.RevokePersonalToken:input_type -> stoop.auth.v1.RevokePersonalTokenRequest
-	3,  // 29: stoop.auth.v1.AuthService.Register:output_type -> stoop.auth.v1.RegisterResponse
-	5,  // 30: stoop.auth.v1.AuthService.Login:output_type -> stoop.auth.v1.LoginResponse
-	7,  // 31: stoop.auth.v1.AuthService.Logout:output_type -> stoop.auth.v1.LogoutResponse
-	9,  // 32: stoop.auth.v1.AuthService.GetMe:output_type -> stoop.auth.v1.GetMeResponse
-	11, // 33: stoop.auth.v1.AuthService.UpdateProfile:output_type -> stoop.auth.v1.UpdateProfileResponse
-	14, // 34: stoop.auth.v1.AuthService.GetUserProfile:output_type -> stoop.auth.v1.GetUserProfileResponse
-	16, // 35: stoop.auth.v1.AuthService.ChangePassword:output_type -> stoop.auth.v1.ChangePasswordResponse
-	19, // 36: stoop.auth.v1.AuthService.ListIdentities:output_type -> stoop.auth.v1.ListIdentitiesResponse
-	21, // 37: stoop.auth.v1.AuthService.UnlinkIdentity:output_type -> stoop.auth.v1.UnlinkIdentityResponse
-	24, // 38: stoop.auth.v1.AuthService.CreatePersonalToken:output_type -> stoop.auth.v1.CreatePersonalTokenResponse
-	26, // 39: stoop.auth.v1.AuthService.ListPersonalTokens:output_type -> stoop.auth.v1.ListPersonalTokensResponse
-	28, // 40: stoop.auth.v1.AuthService.RevokePersonalToken:output_type -> stoop.auth.v1.RevokePersonalTokenResponse
-	29, // [29:41] is the sub-list for method output_type
-	17, // [17:29] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	30, // 2: stoop.auth.v1.User.kind:type_name -> stoop.access.v1.IdentityKind
+	1,  // 3: stoop.auth.v1.RegisterResponse.user:type_name -> stoop.auth.v1.User
+	1,  // 4: stoop.auth.v1.LoginResponse.user:type_name -> stoop.auth.v1.User
+	1,  // 5: stoop.auth.v1.GetMeResponse.user:type_name -> stoop.auth.v1.User
+	31, // 6: stoop.auth.v1.GetMeResponse.permissions:type_name -> stoop.access.v1.Permission
+	1,  // 7: stoop.auth.v1.UpdateProfileResponse.user:type_name -> stoop.auth.v1.User
+	30, // 8: stoop.auth.v1.PublicProfile.kind:type_name -> stoop.access.v1.IdentityKind
+	12, // 9: stoop.auth.v1.GetUserProfileResponse.profile:type_name -> stoop.auth.v1.PublicProfile
+	29, // 10: stoop.auth.v1.Identity.created_at:type_name -> google.protobuf.Timestamp
+	17, // 11: stoop.auth.v1.ListIdentitiesResponse.identities:type_name -> stoop.auth.v1.Identity
+	31, // 12: stoop.auth.v1.PersonalToken.permissions:type_name -> stoop.access.v1.Permission
+	29, // 13: stoop.auth.v1.PersonalToken.created_at:type_name -> google.protobuf.Timestamp
+	29, // 14: stoop.auth.v1.PersonalToken.last_used_at:type_name -> google.protobuf.Timestamp
+	29, // 15: stoop.auth.v1.PersonalToken.expires_at:type_name -> google.protobuf.Timestamp
+	31, // 16: stoop.auth.v1.CreatePersonalTokenRequest.permissions:type_name -> stoop.access.v1.Permission
+	22, // 17: stoop.auth.v1.CreatePersonalTokenResponse.token:type_name -> stoop.auth.v1.PersonalToken
+	22, // 18: stoop.auth.v1.ListPersonalTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
+	2,  // 19: stoop.auth.v1.AuthService.Register:input_type -> stoop.auth.v1.RegisterRequest
+	4,  // 20: stoop.auth.v1.AuthService.Login:input_type -> stoop.auth.v1.LoginRequest
+	6,  // 21: stoop.auth.v1.AuthService.Logout:input_type -> stoop.auth.v1.LogoutRequest
+	8,  // 22: stoop.auth.v1.AuthService.GetMe:input_type -> stoop.auth.v1.GetMeRequest
+	10, // 23: stoop.auth.v1.AuthService.UpdateProfile:input_type -> stoop.auth.v1.UpdateProfileRequest
+	13, // 24: stoop.auth.v1.AuthService.GetUserProfile:input_type -> stoop.auth.v1.GetUserProfileRequest
+	15, // 25: stoop.auth.v1.AuthService.ChangePassword:input_type -> stoop.auth.v1.ChangePasswordRequest
+	18, // 26: stoop.auth.v1.AuthService.ListIdentities:input_type -> stoop.auth.v1.ListIdentitiesRequest
+	20, // 27: stoop.auth.v1.AuthService.UnlinkIdentity:input_type -> stoop.auth.v1.UnlinkIdentityRequest
+	23, // 28: stoop.auth.v1.AuthService.CreatePersonalToken:input_type -> stoop.auth.v1.CreatePersonalTokenRequest
+	25, // 29: stoop.auth.v1.AuthService.ListPersonalTokens:input_type -> stoop.auth.v1.ListPersonalTokensRequest
+	27, // 30: stoop.auth.v1.AuthService.RevokePersonalToken:input_type -> stoop.auth.v1.RevokePersonalTokenRequest
+	3,  // 31: stoop.auth.v1.AuthService.Register:output_type -> stoop.auth.v1.RegisterResponse
+	5,  // 32: stoop.auth.v1.AuthService.Login:output_type -> stoop.auth.v1.LoginResponse
+	7,  // 33: stoop.auth.v1.AuthService.Logout:output_type -> stoop.auth.v1.LogoutResponse
+	9,  // 34: stoop.auth.v1.AuthService.GetMe:output_type -> stoop.auth.v1.GetMeResponse
+	11, // 35: stoop.auth.v1.AuthService.UpdateProfile:output_type -> stoop.auth.v1.UpdateProfileResponse
+	14, // 36: stoop.auth.v1.AuthService.GetUserProfile:output_type -> stoop.auth.v1.GetUserProfileResponse
+	16, // 37: stoop.auth.v1.AuthService.ChangePassword:output_type -> stoop.auth.v1.ChangePasswordResponse
+	19, // 38: stoop.auth.v1.AuthService.ListIdentities:output_type -> stoop.auth.v1.ListIdentitiesResponse
+	21, // 39: stoop.auth.v1.AuthService.UnlinkIdentity:output_type -> stoop.auth.v1.UnlinkIdentityResponse
+	24, // 40: stoop.auth.v1.AuthService.CreatePersonalToken:output_type -> stoop.auth.v1.CreatePersonalTokenResponse
+	26, // 41: stoop.auth.v1.AuthService.ListPersonalTokens:output_type -> stoop.auth.v1.ListPersonalTokensResponse
+	28, // 42: stoop.auth.v1.AuthService.RevokePersonalToken:output_type -> stoop.auth.v1.RevokePersonalTokenResponse
+	31, // [31:43] is the sub-list for method output_type
+	19, // [19:31] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_stoop_auth_v1_auth_proto_init() }

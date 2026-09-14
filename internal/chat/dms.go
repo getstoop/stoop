@@ -209,7 +209,7 @@ func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]str
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
 	for _, r := range records {
-		if r.Bot {
+		if r.Kind == authctx.KindBot {
 			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("bots can't be messaged directly"))
 		}
 	}

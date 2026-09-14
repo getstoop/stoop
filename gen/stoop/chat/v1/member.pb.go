@@ -7,6 +7,7 @@
 package chatv1
 
 import (
+	v1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -37,7 +38,9 @@ type Member struct {
 	// of role.
 	InstanceAdmin bool `protobuf:"varint,6,opt,name=instance_admin,json=instanceAdmin,proto3" json:"instance_admin,omitempty"`
 	// The member's avatar file id (GET /files/{id}); empty for initials.
-	AvatarFileId  string `protobuf:"bytes,7,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
+	AvatarFileId string `protobuf:"bytes,7,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
+	// Person or bot. A bot is a member like any other; clients mark it.
+	Kind          v1.IdentityKind `protobuf:"varint,8,opt,name=kind,proto3,enum=stoop.access.v1.IdentityKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -121,11 +124,18 @@ func (x *Member) GetAvatarFileId() string {
 	return ""
 }
 
+func (x *Member) GetKind() v1.IdentityKind {
+	if x != nil {
+		return x.Kind
+	}
+	return v1.IdentityKind(0)
+}
+
 var File_stoop_chat_v1_member_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_member_proto_rawDesc = "" +
 	"\n" +
-	"\x1astoop/chat/v1/member.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19stoop/chat/v1/space.proto\"\x94\x02\n" +
+	"\x1astoop/chat/v1/member.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x19stoop/chat/v1/space.proto\"\xc7\x02\n" +
 	"\x06Member\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -133,7 +143,8 @@ const file_stoop_chat_v1_member_proto_rawDesc = "" +
 	"\x04role\x18\x04 \x01(\x0e2\x18.stoop.chat.v1.SpaceRoleR\x04role\x127\n" +
 	"\tjoined_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bjoinedAt\x12%\n" +
 	"\x0einstance_admin\x18\x06 \x01(\bR\rinstanceAdmin\x12$\n" +
-	"\x0eavatar_file_id\x18\a \x01(\tR\favatarFileIdB\xaa\x01\n" +
+	"\x0eavatar_file_id\x18\a \x01(\tR\favatarFileId\x121\n" +
+	"\x04kind\x18\b \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kindB\xaa\x01\n" +
 	"\x11com.stoop.chat.v1B\vMemberProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
@@ -153,15 +164,17 @@ var file_stoop_chat_v1_member_proto_goTypes = []any{
 	(*Member)(nil),                // 0: stoop.chat.v1.Member
 	(SpaceRole)(0),                // 1: stoop.chat.v1.SpaceRole
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(v1.IdentityKind)(0),          // 3: stoop.access.v1.IdentityKind
 }
 var file_stoop_chat_v1_member_proto_depIdxs = []int32{
 	1, // 0: stoop.chat.v1.Member.role:type_name -> stoop.chat.v1.SpaceRole
 	2, // 1: stoop.chat.v1.Member.joined_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 2: stoop.chat.v1.Member.kind:type_name -> stoop.access.v1.IdentityKind
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_member_proto_init() }

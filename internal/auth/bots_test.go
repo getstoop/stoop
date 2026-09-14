@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/alexedwards/argon2id"
 	"github.com/google/uuid"
 
+	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -37,9 +39,52 @@ func TestBotsAndHookTokens(t *testing.T) {
 		t.Errorf("a person answered as a bot: %v", err)
 	}
 
-	// A bot never signs in.
+	// A bot never signs in, even if its row somehow holds a password:
+	// the answer is the one an unknown handle gets.
 	if _, err := svc.Login(bg, connect.NewRequest(&authv1.LoginRequest{Username: "uptime", Password: ""})); err == nil {
 		t.Error("a bot logged in")
+	}
+	hash, err := argon2id.CreateHash("hunter22", testArgon2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(bg, `UPDATE users SET password_hash = $1 WHERE id = $2`, hash, bot.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Login(bg, connect.NewRequest(&authv1.LoginRequest{Username: "uptime", Password: "hunter22"})); codeOf(err) != connect.CodeUnauthenticated {
+		t.Errorf("a bot with a password: want unauthenticated, got %v", err)
+	}
+
+	// What only makes sense for a person is refused for a bot, in words.
+	if _, _, err := svc.ResetPassword(bg, bot.ID); codeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("reset a bot's password: %v", err)
+	}
+	if _, err := svc.SetAccountUsernameFrozen(bg, bot.ID, true); codeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("freeze a bot's username: %v", err)
+	}
+	asBot := authctx.WithIdentity(bg, authctx.Identity{UserID: bot.ID, Role: authctx.RoleMember, Kind: authctx.KindBot,
+		Credential: authctx.Credential{Kind: authctx.CredentialBotToken, Grants: []authctx.Action{authctx.ProfileManage}}})
+	if _, err := svc.UpdateProfile(asBot, connect.NewRequest(&authv1.UpdateProfileRequest{DisplayName: "Sneaky"})); codeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("a bot edited its own profile: %v", err)
+	}
+
+	// The card and GetMe say what it is.
+	profile, err := svc.GetUserProfile(casey, connect.NewRequest(&authv1.GetUserProfileRequest{UserId: bot.ID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.Msg.Profile.Kind != accessv1.IdentityKind_IDENTITY_KIND_BOT {
+		t.Errorf("bot profile kind = %v", profile.Msg.Profile.Kind)
+	}
+	if me, err := svc.GetMe(asBot, connect.NewRequest(&authv1.GetMeRequest{})); err != nil {
+		t.Fatal(err)
+	} else if me.Msg.User.Kind != accessv1.IdentityKind_IDENTITY_KIND_BOT {
+		t.Errorf("bot GetMe kind = %v", me.Msg.User.Kind)
+	}
+	if me, err := svc.GetMe(casey, connect.NewRequest(&authv1.GetMeRequest{})); err != nil {
+		t.Fatal(err)
+	} else if me.Msg.User.Kind != accessv1.IdentityKind_IDENTITY_KIND_PERSON {
+		t.Errorf("person GetMe kind = %v", me.Msg.User.Kind)
 	}
 
 	spaceID, channelID := uuid.NewString(), uuid.NewString()

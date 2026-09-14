@@ -43,3 +43,17 @@ func TestToProtoKeepsOrder(t *testing.T) {
 		t.Errorf("ToProto = %v, want %v", got, want)
 	}
 }
+
+func TestKindToProto(t *testing.T) {
+	cases := map[authctx.IdentityKind]accessv1.IdentityKind{
+		authctx.KindPerson: accessv1.IdentityKind_IDENTITY_KIND_PERSON,
+		authctx.KindBot:    accessv1.IdentityKind_IDENTITY_KIND_BOT,
+		"":                 accessv1.IdentityKind_IDENTITY_KIND_UNSPECIFIED,
+		"agent":            accessv1.IdentityKind_IDENTITY_KIND_UNSPECIFIED,
+	}
+	for k, want := range cases {
+		if got := KindToProto(k); got != want {
+			t.Errorf("KindToProto(%q) = %v, want %v", k, got, want)
+		}
+	}
+}

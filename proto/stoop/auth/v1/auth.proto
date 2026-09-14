@@ -77,6 +77,9 @@ message User {
   string pronouns = 10;
   // A line or two about themselves, shown on the same card. Plain text.
   string bio = 11;
+  // Person or bot. Only a person ever signs in; a bot reaches GetMe with
+  // a bot token.
+  stoop.access.v1.IdentityKind kind = 12;
 }
 
 message RegisterRequest {
@@ -148,6 +151,8 @@ message PublicProfile {
   string avatar_file_id = 4;
   string pronouns = 5;
   string bio = 6;
+  // Person or bot, so the card can say which.
+  stoop.access.v1.IdentityKind kind = 7;
 }
 
 message GetUserProfileRequest {

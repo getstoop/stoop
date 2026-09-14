@@ -1,10 +1,13 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useState } from "react";
 import { instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
+import { isBot } from "../../api/identity";
 import { useInstanceUsers } from "../../api/queries";
 import { AddToSpaceModal } from "../../components/AddToSpaceModal";
+import { BotMark } from "../../components/BotMark";
 import { DotsMenu, type MenuItem } from "../../components/DotsMenu";
 import { ListHead } from "../../components/ListHead";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
@@ -14,6 +17,7 @@ import { UserTokens } from "./UserTokens";
 
 export function UsersSection({ meId }: { meId: string }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { data: users, isLoading } = useInstanceUsers(true);
   const [error, setError] = useState<string | null>(null);
   // Client-side filter: the list is already fully loaded, and a homelab
@@ -145,18 +149,31 @@ export function UsersSection({ meId }: { meId: string }) {
   };
 
   // A deactivated account can only be reactivated; everything else
-  // waits until it is.
+  // waits until it is. A bot has no password to reset and no username
+  // to freeze, and its spaces, tokens and webhooks are managed under
+  // Integrations; the server refuses those actions for a bot too.
   const actionsFor = (u: InstanceUser): MenuItem[] => {
     if (u.deactivatedAt) {
       return [{ label: "Reactivate", onSelect: () => toggleActive(u) }];
     }
     const admin = u.role === InstanceRole.ADMIN;
-    const items: MenuItem[] = [
-      {
+    const bot = isBot(u.kind);
+    const items: MenuItem[] = [];
+    if (bot) {
+      items.push({
+        label: "Manage integrations",
+        onSelect: () =>
+          navigate({ to: "/admin", search: { tab: "integrations" } }),
+        title: "Its tokens, webhooks and spaces",
+      });
+    } else {
+      items.push({
         label: "Add to space",
         onSelect: () => setAddingTo(u),
         title: "Put them in one of your spaces, no invite needed",
-      },
+      });
+    }
+    items.push(
       {
         label: admin ? "Remove admin" : "Make admin",
         onSelect: () => toggleRole(u),
@@ -170,7 +187,7 @@ export function UsersSection({ meId }: { meId: string }) {
         label: "Change display name",
         onSelect: () => renameDisplay(u),
       },
-    ];
+    );
     if (u.pronouns) {
       items.push({
         label: "Clear pronouns",
@@ -185,21 +202,25 @@ export function UsersSection({ meId }: { meId: string }) {
         title: "Remove their bio",
       });
     }
-    if (!admin) {
+    if (!admin && !bot) {
       items.push({
         label: u.usernameFrozen ? "Unfreeze username" : "Freeze username",
         onSelect: () => toggleFrozen(u),
         title: "Lock or unlock their @username against renames",
       });
     }
-    items.push(
-      {
+    if (!bot) {
+      items.push({
         label: "Reset password",
         onSelect: () => resetPassword(u),
         title: "Set a temporary password and sign them out everywhere",
-      },
-      { label: "Deactivate", onSelect: () => toggleActive(u), danger: true },
-    );
+      });
+    }
+    items.push({
+      label: "Deactivate",
+      onSelect: () => toggleActive(u),
+      danger: true,
+    });
     return items;
   };
 
@@ -227,17 +248,25 @@ export function UsersSection({ meId }: { meId: string }) {
         <p className="muted small">No accounts match “{query.trim()}”.</p>
       )}
       <ul className="user-list table five">
-        <ListHead columns={["Person", "Role", "Tokens", "Joined", ""]} />
+        <ListHead columns={["Account", "Role", "Tokens", "Joined", ""]} />
         {shown?.map((u) => {
           const self = u.id === meId;
           const inactive = !!u.deactivatedAt;
+          const bot = isBot(u.kind);
           return (
             <Fragment key={u.id}>
-              <li className={`user-row ${inactive ? "inactive" : ""}`}>
+              <li
+                className={`user-row ${inactive ? "inactive" : ""}`}
+                data-kind={bot ? "bot" : "person"}
+              >
                 <div className="user-row-main">
-                  <strong>{u.displayName || u.username}</strong>
+                  <strong>
+                    {u.displayName || u.username}
+                    <BotMark kind={u.kind} />
+                  </strong>
                   <span className="muted small">
                     @{u.username}
+                    {bot && <> · bot</>}
                     {u.pronouns && <> · {u.pronouns}</>}
                     {inactive && <span className="badge">deactivated</span>}
                     {u.usernameFrozen && (
@@ -253,7 +282,11 @@ export function UsersSection({ meId }: { meId: string }) {
                   )}
                 </span>
                 <span className="user-cell">
-                  {u.personalTokenCount > 0 ? (
+                  {bot ? (
+                    <span className="muted" title="Under Integrations">
+                      —
+                    </span>
+                  ) : u.personalTokenCount > 0 ? (
                     <button
                       type="button"
                       className="chip"

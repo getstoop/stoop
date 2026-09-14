@@ -467,7 +467,7 @@ func (d userDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserR
 	for i, u := range users {
 		records[i] = chat.UserRecord{
 			ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
-			InstanceAdmin: u.Role == authctx.RoleAdmin, Bot: u.Kind == authctx.KindBot, AvatarFileID: u.AvatarFileID,
+			InstanceAdmin: u.Role == authctx.RoleAdmin, Kind: u.Kind, AvatarFileID: u.AvatarFileID,
 		}
 	}
 	return records, nil

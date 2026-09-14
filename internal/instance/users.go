@@ -10,6 +10,7 @@ import (
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -204,5 +205,6 @@ func toProtoUser(u UserSummary) *instancev1.InstanceUser {
 	out.Pronouns = u.Pronouns
 	out.Bio = u.Bio
 	out.PersonalTokenCount = int32(u.PersonalTokens)
+	out.Kind = accesswire.KindToProto(u.Kind)
 	return out
 }
