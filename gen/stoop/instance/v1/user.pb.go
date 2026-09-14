@@ -7,6 +7,7 @@
 package instancev1
 
 import (
+	v11 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	v1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -45,8 +46,11 @@ type InstanceUser struct {
 	Bio      string `protobuf:"bytes,10,opt,name=bio,proto3" json:"bio,omitempty"`
 	// How many personal tokens the account holds, expired ones included.
 	PersonalTokenCount int32 `protobuf:"varint,11,opt,name=personal_token_count,json=personalTokenCount,proto3" json:"personal_token_count,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Person or bot. A bot has no password to reset and no username to
+	// freeze; its tokens and hooks are managed under Integrations.
+	Kind          v11.IdentityKind `protobuf:"varint,12,opt,name=kind,proto3,enum=stoop.access.v1.IdentityKind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *InstanceUser) Reset() {
@@ -156,11 +160,18 @@ func (x *InstanceUser) GetPersonalTokenCount() int32 {
 	return 0
 }
 
+func (x *InstanceUser) GetKind() v11.IdentityKind {
+	if x != nil {
+		return x.Kind
+	}
+	return v11.IdentityKind(0)
+}
+
 var File_stoop_instance_v1_user_proto protoreflect.FileDescriptor
 
 const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x1cstoop/instance/v1/user.proto\x12\x11stoop.instance.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18stoop/auth/v1/auth.proto\"\xb8\x03\n" +
+	"\x1cstoop/instance/v1/user.proto\x12\x11stoop.instance.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x18stoop/auth/v1/auth.proto\"\xeb\x03\n" +
 	"\fInstanceUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -174,7 +185,8 @@ const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\bpronouns\x18\t \x01(\tR\bpronouns\x12\x10\n" +
 	"\x03bio\x18\n" +
 	" \x01(\tR\x03bio\x120\n" +
-	"\x14personal_token_count\x18\v \x01(\x05R\x12personalTokenCountB\xc4\x01\n" +
+	"\x14personal_token_count\x18\v \x01(\x05R\x12personalTokenCount\x121\n" +
+	"\x04kind\x18\f \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kindB\xc4\x01\n" +
 	"\x15com.stoop.instance.v1B\tUserProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (
@@ -194,16 +206,18 @@ var file_stoop_instance_v1_user_proto_goTypes = []any{
 	(*InstanceUser)(nil),          // 0: stoop.instance.v1.InstanceUser
 	(v1.InstanceRole)(0),          // 1: stoop.auth.v1.InstanceRole
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(v11.IdentityKind)(0),         // 3: stoop.access.v1.IdentityKind
 }
 var file_stoop_instance_v1_user_proto_depIdxs = []int32{
 	1, // 0: stoop.instance.v1.InstanceUser.role:type_name -> stoop.auth.v1.InstanceRole
 	2, // 1: stoop.instance.v1.InstanceUser.created_at:type_name -> google.protobuf.Timestamp
 	2, // 2: stoop.instance.v1.InstanceUser.deactivated_at:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 3: stoop.instance.v1.InstanceUser.kind:type_name -> stoop.access.v1.IdentityKind
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_stoop_instance_v1_user_proto_init() }

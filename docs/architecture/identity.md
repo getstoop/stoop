@@ -177,6 +177,18 @@ everything; revoking the last credential deactivates the bot. Bots may
 hold the instance admin role; break-glass sign-in and the last-admin guard
 count people only.
 
+**A bot is seen as a bot.** Every wire shape that names an account
+carries `stoop.access.v1.IdentityKind` (`User`, `PublicProfile`,
+`chat.Member`, `chat.MessageAuthor`, `instance.InstanceUser`), so the
+roster, the author line, the card and the admin page can mark one, and an
+outgoing webhook's receiver can tell a bot wrote the message. Readers treat
+`UNSPECIFIED` as a person. What only makes sense for a person is refused
+for a bot, with the reason in words: `Login` (a bot with a password hash
+takes the unknown-handle path, so the answer and its timing match one),
+`ResetUserPassword`, `SetUsernameFrozen`, and `UpdateProfile` or
+`UploadAvatar` under a bot token. A bot's name, face and bio are an
+instance admin's to set, from Integrations.
+
 No JWTs anywhere in the session path. Statelessness buys nothing here: this
 is a single process that already has a database open.
 

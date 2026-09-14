@@ -52,7 +52,7 @@ SELECT id, username, display_name, role, kind, avatar_file_id FROM users WHERE i
 -- own query rather than GetUserByID because that one is SELECT * and would
 -- put the password hash one line away from a response.
 -- name: GetUserProfile :one
-SELECT id, username, display_name, avatar_file_id, pronouns, bio
+SELECT id, username, display_name, avatar_file_id, pronouns, bio, kind
 FROM users WHERE id = $1;
 
 -- UpdateUserProfile writes the fields a person (or an admin acting on

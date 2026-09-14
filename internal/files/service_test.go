@@ -213,6 +213,14 @@ func (f *fixture) get(t *testing.T, id, user string) *http.Response {
 	return rec.Result()
 }
 
+func TestUploadAvatarRefusesBots(t *testing.T) {
+	f := setup(t)
+	ctx := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: f.member, Role: authctx.RoleMember, Kind: authctx.KindBot})
+	if _, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 300, 200)})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("a bot set its own avatar: %v", err)
+	}
+}
+
 func TestUploadAvatarStoresAndReplaces(t *testing.T) {
 	f := setup(t)
 	ctx := as(f.member)

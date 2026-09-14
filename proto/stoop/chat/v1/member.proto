@@ -3,6 +3,7 @@ syntax = "proto3";
 package stoop.chat.v1;
 
 import "google/protobuf/timestamp.proto";
+import "stoop/access/v1/access.proto";
 import "stoop/chat/v1/space.proto";
 
 // Member is a user as seen from inside one space: identity (resolved
@@ -20,4 +21,6 @@ message Member {
   bool instance_admin = 6;
   // The member's avatar file id (GET /files/{id}); empty for initials.
   string avatar_file_id = 7;
+  // Person or bot. A bot is a member like any other; clients mark it.
+  stoop.access.v1.IdentityKind kind = 8;
 }

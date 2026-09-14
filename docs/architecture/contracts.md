@@ -17,7 +17,7 @@ the Go and SQL trees follow (`docs/conventions.md`).
 
 ```
 proto/stoop/
-  access/v1/access.proto      the Permission enum, shared by auth and chat
+  access/v1/access.proto      the Permission and IdentityKind enums, shared by every service
   auth/v1/auth.proto
   chat/v1/{chat,space,channel,message,member,reaction,invite,activity}.proto
   files/v1/files.proto
@@ -45,7 +45,7 @@ listed as public below.
 | `Logout` | Revokes the current session immediately. |
 | `GetMe` | The signed-in user, including instance role, and the instance and own-account permissions their credential covers. |
 | `UpdateProfile` | Display name, username, pronouns, bio. |
-| `GetUserProfile` | One person's public profile card. Visible to any signed-in user. |
+| `GetUserProfile` | One account's public profile card, with its `kind` (person or bot). Visible to any signed-in user. |
 | `ChangePassword` | Current password required, except for a provider-created account setting its first one. |
 | `ListIdentities` / `UnlinkIdentity` | Linked OIDC accounts. |
 | `CreatePersonalToken` / `ListPersonalTokens` / `RevokePersonalToken` | The caller's personal tokens. Need a session (`account.security`); the token is returned once, by `CreatePersonalToken`. |
@@ -81,7 +81,7 @@ people who joined.
 | --------- | ----- |
 | `GetInstanceStatus` | **Public.** What the setup and login screens need before anyone has an account: `needs_setup`, the registration and space-creation policies, the public URL invite links are built from, the login-provider summaries, whether the password form is offered, and the effective upload caps (so a client refuses an oversized file before sending it). |
 | `UpdateSettings` | Admins. Registration policy, space-creation policy, upload limit, storage quota, password sign-in, personal tokens. |
-| `ListUsers`, `SetUserRole`, `SetUserActive`, `ResetUserPassword`, `RenameUser`, `SetUsernameFrozen`, `ClearUserProfile` | Admins. The user administration tab; each is backed by the `UserAdmin` port into auth. |
+| `ListUsers`, `SetUserRole`, `SetUserActive`, `ResetUserPassword`, `RenameUser`, `SetUsernameFrozen`, `ClearUserProfile` | Admins. The user administration tab; each is backed by the `UserAdmin` port into auth. Each user carries its `kind`; a password reset or a username freeze on a bot is refused. |
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
 | `GetLoginProviders` / `UpdateLoginProviders` | Admins. The OIDC provider list, replaced whole. |
 | `GetBuildInfo` | Admins. Version, commit, build time, Go version — admin-only because an exact version tells a stranger which bugs to try. |

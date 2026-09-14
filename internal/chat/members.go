@@ -11,6 +11,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -250,5 +251,6 @@ func toProtoMember(m dbgen.SpaceMember, u UserRecord) *chatv1.Member {
 		UserId: m.UserID, Username: username, DisplayName: u.DisplayName,
 		Role: toProtoRole(Role(m.Role)), JoinedAt: timestamppb.New(m.JoinedAt),
 		InstanceAdmin: u.InstanceAdmin, AvatarFileId: u.AvatarFileID,
+		Kind: accesswire.KindToProto(u.Kind),
 	}
 }

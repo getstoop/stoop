@@ -18,6 +18,9 @@ import (
 )
 
 func (s *Service) UploadAvatar(ctx context.Context, req *connect.Request[filesv1.UploadAvatarRequest]) (*connect.Response[filesv1.UploadAvatarResponse], error) {
+	if id, _ := authctx.From(ctx); id.Kind == authctx.KindBot {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("a bot's avatar is set by a server admin"))
+	}
 	userID := authctx.UserID(ctx)
 	f, err := s.storeImage(ctx, KindAvatar, userID, nil, req.Msg.Data, AvatarSize)
 	if err != nil {

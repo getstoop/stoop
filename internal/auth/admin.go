@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/getstoop/stoop/internal/authctx"
@@ -150,6 +151,16 @@ func (s *Service) ClearAccountProfile(ctx context.Context, userID string, pronou
 // SetAccountUsernameFrozen locks or unlocks self-service renames on an
 // account. Policy (no freezing admins) is enforced by the instance module.
 func (s *Service) SetAccountUsernameFrozen(ctx context.Context, userID string, frozen bool) (AccountSummary, error) {
+	if _, err := uuid.Parse(userID); err != nil {
+		return AccountSummary{}, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
+	}
+	target, err := s.q.GetUserByID(ctx, userID)
+	if err != nil {
+		return AccountSummary{}, notFoundOr(err, "user")
+	}
+	if err := refuseBotTarget(target, "a bot never renames itself, so there is nothing to freeze"); err != nil {
+		return AccountSummary{}, err
+	}
 	u, err := s.q.SetUsernameFrozen(ctx, dbgen.SetUsernameFrozenParams{ID: userID, UsernameFrozen: frozen})
 	if err != nil {
 		return AccountSummary{}, notFoundOr(err, "user")

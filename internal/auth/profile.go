@@ -46,6 +46,9 @@ func profileText(v *string, label string, max int) (*string, error) {
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1.UpdateProfileRequest]) (*connect.Response[authv1.UpdateProfileResponse], error) {
+	if err := refuseBotCaller(ctx, "a bot's profile is set by a server admin"); err != nil {
+		return nil, err
+	}
 	name := strings.TrimSpace(req.Msg.DisplayName)
 	if name == "" || utf8.RuneCountInString(name) > maxDisplayNameLen {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
@@ -153,4 +156,22 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 		}
 	}
 	return connect.NewResponse(&authv1.ChangePasswordResponse{}), nil
+}
+
+// refuseBotCaller keeps an action that belongs to a person's own account
+// away from a bot token, with the reason in words.
+func refuseBotCaller(ctx context.Context, reason string) error {
+	if id, _ := authctx.From(ctx); id.Kind == authctx.KindBot {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New(reason))
+	}
+	return nil
+}
+
+// refuseBotTarget keeps an admin action that only makes sense for a
+// person away from a bot account.
+func refuseBotTarget(u dbgen.User, reason string) error {
+	if u.Kind == string(authctx.KindBot) {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New(reason))
+	}
+	return nil
 }

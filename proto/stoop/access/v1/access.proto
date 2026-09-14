@@ -2,6 +2,16 @@ syntax = "proto3";
 
 package stoop.access.v1;
 
+// IdentityKind is what an account is: a person or a bot (users.kind).
+// Readers treat UNSPECIFIED as a person, so a client and a server that
+// disagree on the enum still render people as people. A later kind is
+// appended here; nothing that carries it changes shape.
+enum IdentityKind {
+  IDENTITY_KIND_UNSPECIFIED = 0;
+  IDENTITY_KIND_PERSON = 1;
+  IDENTITY_KIND_BOT = 2;
+}
+
 // Permission is one action from the closed vocabulary a role holds and a
 // credential is granted (internal/authctx/actions.go). A value's name is
 // its action with dots as underscores: channels.manage is

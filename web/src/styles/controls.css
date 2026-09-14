@@ -114,6 +114,16 @@ button.primary.danger {
   background: color-mix(in srgb, var(--danger) 18%, transparent);
 }
 
+/* The bot glyph after a name (BotMark): the size of the text it follows,
+   quiet, never a badge. */
+.bot-mark {
+  display: inline-flex;
+  vertical-align: -0.12em;
+  margin-left: 4px;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
 /* The 24px avatar, used by the members panel and the pinned-messages
    panel; the bigger ones stay with the features that own them. */
 .avatar.small {

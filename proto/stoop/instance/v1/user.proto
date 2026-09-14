@@ -3,6 +3,7 @@ syntax = "proto3";
 package stoop.instance.v1;
 
 import "google/protobuf/timestamp.proto";
+import "stoop/access/v1/access.proto";
 import "stoop/auth/v1/auth.proto";
 
 // InstanceUser is an account as the admin page sees it.
@@ -26,4 +27,7 @@ message InstanceUser {
   string bio = 10;
   // How many personal tokens the account holds, expired ones included.
   int32 personal_token_count = 11;
+  // Person or bot. A bot has no password to reset and no username to
+  // freeze; its tokens and hooks are managed under Integrations.
+  stoop.access.v1.IdentityKind kind = 12;
 }

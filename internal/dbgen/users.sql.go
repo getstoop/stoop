@@ -189,7 +189,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const getUserProfile = `-- name: GetUserProfile :one
-SELECT id, username, display_name, avatar_file_id, pronouns, bio
+SELECT id, username, display_name, avatar_file_id, pronouns, bio, kind
 FROM users WHERE id = $1
 `
 
@@ -200,6 +200,7 @@ type GetUserProfileRow struct {
 	AvatarFileID *string
 	Pronouns     string
 	Bio          string
+	Kind         string
 }
 
 // GetUserProfile is one person's public face, for their profile card. Its
@@ -215,6 +216,7 @@ func (q *Queries) GetUserProfile(ctx context.Context, id string) (GetUserProfile
 		&i.AvatarFileID,
 		&i.Pronouns,
 		&i.Bio,
+		&i.Kind,
 	)
 	return i, err
 }

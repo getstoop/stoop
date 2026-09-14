@@ -32,7 +32,8 @@ page is what the code does.
 
 A bot is a `users` row with `kind = 'bot'`, no password and never a
 session; a member of the spaces it is added to, so authorship, mentions
-and roles need no special case. It acts only through the credentials it
+and roles need no special case, and every member, author and profile on
+the wire says which kind it is. It acts only through the credentials it
 holds ([identity.md](identity.md#bots-and-their-credentials)):
 
 | Credential | Kind | Grant | Bound to | Presented as |
