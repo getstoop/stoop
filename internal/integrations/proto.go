@@ -62,6 +62,10 @@ func (s *Service) protoIncomingList(ctx context.Context, hooks []dbgen.IncomingW
 			byID[creds[i].ID] = &creds[i]
 		}
 	}
+	// A kick or a ban doesn't pass through this module, so the row can
+	// still say on after the bot has gone; the sweep catches up, and the
+	// list doesn't wait for it.
+	in := map[string]bool{}
 	out := make([]*integrationsv1.IncomingWebhook, len(hooks))
 	for i, h := range hooks {
 		var cred *Credential
@@ -69,6 +73,22 @@ func (s *Service) protoIncomingList(ctx context.Context, hooks []dbgen.IncomingW
 			cred = byID[*h.CredentialID]
 		}
 		out[i] = toProtoIncoming(h, cred)
+		if !out[i].Enabled {
+			continue
+		}
+		key := h.SpaceID + "/" + h.BotUserID
+		member, seen := in[key]
+		if !seen {
+			var err error
+			if member, err = s.spaces.IsSpaceMember(ctx, h.BotUserID, h.SpaceID); err != nil {
+				return nil, err
+			}
+			in[key] = member
+		}
+		if !member {
+			out[i].Enabled = false
+			out[i].DisabledReason = reasonBotRemoved
+		}
 	}
 	return out, nil
 }

@@ -22,6 +22,9 @@ import (
 const (
 	maxHooksPerSpace = 20
 	maxHookNameRunes = 50
+	// reasonBotRemoved is why a hook is off once its bot has left the
+	// space; a hook never widens where a bot works, so it can't post.
+	reasonBotRemoved = "the bot was removed from this space"
 )
 
 func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integrationsv1.CreateIncomingRequest]) (*connect.Response[integrationsv1.CreateIncomingResponse], error) {
@@ -144,6 +147,9 @@ func (s *Service) UpdateIncoming(ctx context.Context, req *connect.Request[integ
 			if err := s.requireLiveBot(ctx, hook.BotUserID); err != nil {
 				return nil, err
 			}
+			if err := s.requireBotInSpace(ctx, hook.BotUserID, hook.SpaceID); err != nil {
+				return nil, err
+			}
 		}
 		switch {
 		case *req.Msg.Enabled && hook.CredentialID == nil:
@@ -217,6 +223,38 @@ func (s *Service) requireLiveBot(ctx context.Context, botID string) error {
 	}
 	if bot.DeactivatedAt != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("this hook's bot is deactivated; make a new hook"))
+	}
+	return nil
+}
+
+// requireBotInSpace refuses to turn a hook on while its bot is out of the
+// space; adding the bot back is the admin's explicit act.
+func (s *Service) requireBotInSpace(ctx context.Context, botID, spaceID string) error {
+	member, err := s.spaces.IsSpaceMember(ctx, botID, spaceID)
+	if err != nil {
+		return err
+	}
+	if !member {
+		return connect.NewError(connect.CodeFailedPrecondition,
+			errors.New("the bot isn't in this space; add it back from Server admin → Integrations first"))
+	}
+	return nil
+}
+
+// disableHooksOfBotInSpace turns off the bot's incoming hooks in a space
+// it has left, keeping their configuration for when it is back.
+func (s *Service) disableHooksOfBotInSpace(ctx context.Context, spaceID, botID string) error {
+	hooks, err := s.q.ListIncomingWebhooksBySpace(ctx, spaceID)
+	if err != nil {
+		return fmt.Errorf("list hooks: %w", err)
+	}
+	for _, h := range hooks {
+		if h.BotUserID != botID || h.DisabledAt != nil {
+			continue
+		}
+		if err := s.q.DisableIncomingWebhook(ctx, dbgen.DisableIncomingWebhookParams{ID: h.ID, DisabledReason: reasonBotRemoved}); err != nil {
+			return fmt.Errorf("disable hook: %w", err)
+		}
 	}
 	return nil
 }

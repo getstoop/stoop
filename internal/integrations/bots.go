@@ -115,6 +115,9 @@ func (s *Service) RemoveBotFromSpace(ctx context.Context, req *connect.Request[i
 	if err := s.spaces.RemoveBotMember(ctx, req.Msg.SpaceId, bot.ID); err != nil {
 		return nil, err
 	}
+	if err := s.disableHooksOfBotInSpace(ctx, req.Msg.SpaceId, bot.ID); err != nil {
+		return nil, err
+	}
 	out, err := s.botWithTokens(ctx, bot)
 	if err != nil {
 		return nil, err

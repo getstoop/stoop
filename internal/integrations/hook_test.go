@@ -729,3 +729,74 @@ func TestBotSpaces(t *testing.T) {
 		t.Errorf("removing twice: %v", err)
 	}
 }
+
+func TestRemovedBotHooks(t *testing.T) {
+	f := setup(t)
+	made := f.create(t, "Alerts", false)
+	bot, hookID := made.Webhook.BotUserId, made.Webhook.Id
+	url := path(made.Url)
+	on := true
+	listed := func() *integrationsv1.IncomingWebhook {
+		t.Helper()
+		res, err := f.svc.ListWebhooks(f.admin, connect.NewRequest(&integrationsv1.ListWebhooksRequest{SpaceId: f.space}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, h := range res.Msg.Incoming {
+			if h.Id == hookID {
+				return h
+			}
+		}
+		t.Fatal("hook not listed")
+		return nil
+	}
+
+	// Removing the bot from the space turns its hook off, with a reason,
+	// and posts stop; turning it on is refused until the bot is back.
+	if _, err := f.svc.RemoveBotFromSpace(f.admin, connect.NewRequest(&integrationsv1.RemoveBotFromSpaceRequest{BotUserId: bot, SpaceId: f.space})); err != nil {
+		t.Fatal(err)
+	}
+	if h := listed(); h.Enabled || h.DisabledReason != "the bot was removed from this space" {
+		t.Errorf("after removal: enabled=%v reason=%q", h.Enabled, h.DisabledReason)
+	}
+	if code, _ := f.post(t, url, "text/plain", "hi"); code != http.StatusNotFound {
+		t.Errorf("a disabled hook answered %d", code)
+	}
+	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: hookID, Enabled: &on})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("turned on while the bot is out: %v", err)
+	}
+	if _, err := f.svc.AddBotToSpace(f.admin, connect.NewRequest(&integrationsv1.AddBotToSpaceRequest{BotUserId: bot, SpaceId: f.space})); err != nil {
+		t.Fatal(err)
+	}
+	if h := listed(); h.Enabled {
+		t.Error("adding the bot back silently re-enabled the hook")
+	}
+	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: hookID, Enabled: &on})); err != nil {
+		t.Fatal(err)
+	}
+	if h := listed(); !h.Enabled {
+		t.Error("hook not back on")
+	}
+
+	// A kick doesn't pass through this module: the list still reads the
+	// hook as off at once, and the sweep makes the row agree.
+	if _, err := f.pool.Exec(context.Background(), `DELETE FROM space_members WHERE space_id = $1 AND user_id = $2`, f.space, bot); err != nil {
+		t.Fatal(err)
+	}
+	if h := listed(); h.Enabled || h.DisabledReason != "the bot was removed from this space" {
+		t.Errorf("after a kick: enabled=%v reason=%q", h.Enabled, h.DisabledReason)
+	}
+	row, err := f.svc.q.GetIncomingWebhook(context.Background(), hookID)
+	if err != nil || row.DisabledAt != nil {
+		t.Errorf("row disabled before the sweep: %v %v", row.DisabledAt, err)
+	}
+	if n, err := f.svc.SweepRemovedBotHooks(context.Background()); err != nil || n != 1 {
+		t.Errorf("sweep = %d, %v", n, err)
+	}
+	if row, err := f.svc.q.GetIncomingWebhook(context.Background(), hookID); err != nil || row.DisabledAt == nil || row.DisabledReason != "the bot was removed from this space" {
+		t.Errorf("row after sweep: %+v %v", row, err)
+	}
+	if n, _ := f.svc.SweepRemovedBotHooks(context.Background()); n != 0 {
+		t.Errorf("second sweep changed %d rows", n)
+	}
+}
