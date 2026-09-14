@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import {
+  BOT_TOKEN_OPTIONS,
+  botOptions,
   canCreate,
   describePermissions,
   expiryOf,
@@ -114,5 +116,66 @@ describe("lastUsedText and expiryOf", () => {
       text: "In 86 days",
       state: "ok",
     });
+  });
+});
+
+describe("every grantable permission has a home", () => {
+  const grantable = Object.values(Permission).filter(
+    (v): v is Permission =>
+      typeof v === "number" &&
+      v !== Permission.UNSPECIFIED &&
+      v !== Permission.ACCOUNT_SECURITY,
+  );
+  // Offered to nobody on purpose; a token holding one is still named.
+  const deliberatelyOut = new Set([
+    Permission.SPACE_TRANSFER,
+    Permission.SPACE_DELETE,
+  ]);
+
+  it("is offered to people or deliberately left out", () => {
+    const offered = new Set(TOKEN_OPTIONS.flatMap((o) => o.permissions));
+    for (const p of grantable) {
+      expect(offered.has(p) || deliberatelyOut.has(p)).toBe(true);
+    }
+  });
+
+  it("names a permission no option covers", () => {
+    expect(
+      describePermissions([Permission.MESSAGES_POST, Permission.SPACE_DELETE]),
+    ).toEqual(["Post messages", "space delete"]);
+    expect(describePermissions([Permission.SPACE_DELETE])).toEqual([
+      "space delete",
+    ]);
+  });
+});
+
+describe("botOptions", () => {
+  it("offers the server group only to an instance-admin bot", () => {
+    const groups = (admin: boolean) =>
+      new Set(botOptions({ instanceAdmin: admin }).map((o) => o.group));
+    expect(groups(false)).toEqual(new Set(["space", "account"]));
+    expect(groups(true)).toEqual(new Set(["space", "account", "server"]));
+  });
+
+  it("never offers a bot what the server refuses it", () => {
+    const offered = new Set(BOT_TOKEN_OPTIONS.flatMap((o) => o.permissions));
+    for (const p of [
+      Permission.PROFILE_MANAGE,
+      Permission.PREFERENCES_MANAGE,
+      Permission.DMS_READ,
+      Permission.DMS_POST,
+      Permission.DMS_REACH_ANYONE,
+      Permission.SPACES_CREATE,
+      Permission.SPACES_JOIN_ANY,
+    ]) {
+      expect(offered.has(p)).toBe(false);
+    }
+    expect(offered.has(Permission.ACTIVITY_READ)).toBe(true);
+  });
+
+  it("describes a bot's token in the bot's words", () => {
+    expect(
+      describePermissions([Permission.ACTIVITY_READ], BOT_TOKEN_OPTIONS),
+    ).toEqual(["Read its mentions and replies"]);
   });
 });

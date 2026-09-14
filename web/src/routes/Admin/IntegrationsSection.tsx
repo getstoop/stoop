@@ -11,6 +11,7 @@ import {
   useWebhooks,
 } from "../../api/queries";
 import {
+  BOT_TOKEN_OPTIONS,
   describePermissions,
   lastUsedText,
   whereText,
@@ -242,7 +243,10 @@ export function IntegrationsSection() {
                           <strong>{t.name}</strong>
                           <span>
                             token ·{" "}
-                            {describePermissions(t.permissions).join(", ")}
+                            {describePermissions(
+                              t.permissions,
+                              BOT_TOKEN_OPTIONS,
+                            ).join(", ")}
                             {t.limited && (
                               <> · limited to {whereText(t, nameOf)}</>
                             )}

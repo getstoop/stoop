@@ -3,9 +3,10 @@ import { useState } from "react";
 import { integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import {
+  BOT_GROUP_LABELS,
+  botOptions,
   canCreate,
   permissionsFor,
-  TOKEN_OPTIONS,
 } from "../../api/tokenOptions";
 import type { Bot } from "../../gen/stoop/integrations/v1/bot_pb";
 import { Modal } from "../Modal";
@@ -91,7 +92,8 @@ export function NewBotTokenModal({
           />
         </label>
         <PermissionPicker
-          options={TOKEN_OPTIONS}
+          options={botOptions(bot)}
+          groupLabels={BOT_GROUP_LABELS}
           selected={keys}
           onChange={setKeys}
         />
