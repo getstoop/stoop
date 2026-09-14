@@ -121,7 +121,11 @@ func (x *CreateSpaceResponse) GetDefaultChannel() *Channel {
 }
 
 type ListSpacesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every space on the server rather than the caller's own; needs
+	// spaces.join_any, which instance admins hold. Unread and mute state
+	// are not reported for spaces the caller isn't in.
+	All           bool `protobuf:"varint,1,opt,name=all,proto3" json:"all,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -154,6 +158,13 @@ func (x *ListSpacesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListSpacesRequest.ProtoReflect.Descriptor instead.
 func (*ListSpacesRequest) Descriptor() ([]byte, []int) {
 	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListSpacesRequest) GetAll() bool {
+	if x != nil {
+		return x.All
+	}
+	return false
 }
 
 type ListSpacesResponse struct {
@@ -4365,8 +4376,9 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"\x82\x01\n" +
 	"\x13CreateSpaceResponse\x12*\n" +
 	"\x05space\x18\x01 \x01(\v2\x14.stoop.chat.v1.SpaceR\x05space\x12?\n" +
-	"\x0fdefault_channel\x18\x02 \x01(\v2\x16.stoop.chat.v1.ChannelR\x0edefaultChannel\"\x13\n" +
-	"\x11ListSpacesRequest\"B\n" +
+	"\x0fdefault_channel\x18\x02 \x01(\v2\x16.stoop.chat.v1.ChannelR\x0edefaultChannel\"%\n" +
+	"\x11ListSpacesRequest\x12\x10\n" +
+	"\x03all\x18\x01 \x01(\bR\x03all\"B\n" +
 	"\x12ListSpacesResponse\x12,\n" +
 	"\x06spaces\x18\x01 \x03(\v2\x14.stoop.chat.v1.SpaceR\x06spaces\",\n" +
 	"\x0fGetSpaceRequest\x12\x19\n" +

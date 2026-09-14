@@ -119,6 +119,44 @@ func (q *Queries) GetSpaceIconForUpdate(ctx context.Context, id string) (*string
 	return icon_file_id, err
 }
 
+const listAllSpaces = `-- name: ListAllSpaces :many
+SELECT id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id FROM spaces ORDER BY name, id
+`
+
+// ListSpacesByUser also returns the caller's role in each space, whether
+// any channel there has messages newer than their read marker, and their
+// own mute for the space. has_unread does not know about space mutes; the
+// client derives the effective state from both flags.
+func (q *Queries) ListAllSpaces(ctx context.Context) ([]Space, error) {
+	rows, err := q.db.Query(ctx, listAllSpaces)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Space
+	for rows.Next() {
+		var i Space
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.OwnerID,
+			&i.CreatedAt,
+			&i.MembersCanInvite,
+			&i.IconFileID,
+			&i.Description,
+			&i.Welcome,
+			&i.DefaultChannelID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpacesByUser = `-- name: ListSpacesByUser :many
 SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file_id, s.description, s.welcome, s.default_channel_id, m.role AS my_role,
     EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.space_id = s.id AND sm.user_id = m.user_id) AS muted,
@@ -143,10 +181,6 @@ type ListSpacesByUserRow struct {
 	HasUnread bool
 }
 
-// ListSpacesByUser also returns the caller's role in each space, whether
-// any channel there has messages newer than their read marker, and their
-// own mute for the space. has_unread does not know about space mutes; the
-// client derives the effective state from both flags.
 func (q *Queries) ListSpacesByUser(ctx context.Context, userID string) ([]ListSpacesByUserRow, error) {
 	rows, err := q.db.Query(ctx, listSpacesByUser, userID)
 	if err != nil {

@@ -101,10 +101,10 @@ func toProtoDelivery(d dbgen.WebhookDelivery) *integrationsv1.Delivery {
 	return out
 }
 
-func toProtoBot(b Bot, creds []Credential) *integrationsv1.Bot {
+func toProtoBot(b Bot, creds []Credential, spaceIDs []string) *integrationsv1.Bot {
 	out := &integrationsv1.Bot{
 		Id: b.ID, Username: b.Username, DisplayName: b.DisplayName, AvatarFileId: b.AvatarFileID, Bio: b.Bio,
-		InstanceAdmin: b.InstanceAdmin, CreatedAt: timestamppb.New(b.CreatedAt),
+		InstanceAdmin: b.InstanceAdmin, CreatedAt: timestamppb.New(b.CreatedAt), SpaceIds: spaceIDs,
 	}
 	if b.DeactivatedAt != nil {
 		out.DeactivatedAt = timestamppb.New(*b.DeactivatedAt)
@@ -126,4 +126,13 @@ func toProtoBotToken(c Credential) *integrationsv1.BotToken {
 		out.LastUsedAt = timestamppb.New(*c.LastUsedAt)
 	}
 	return out
+}
+
+// protoBot is a bot with its tokens and the spaces it is in.
+func (s *Service) protoBot(ctx context.Context, b Bot, creds []Credential) (*integrationsv1.Bot, error) {
+	spaceIDs, err := s.spaces.ListSpaceIDs(ctx, b.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list bot spaces: %w", err)
+	}
+	return toProtoBot(b, creds, spaceIDs), nil
 }

@@ -72,6 +72,12 @@ const (
 	// IntegrationServiceUpdateBotProcedure is the fully-qualified name of the IntegrationService's
 	// UpdateBot RPC.
 	IntegrationServiceUpdateBotProcedure = "/stoop.integrations.v1.IntegrationService/UpdateBot"
+	// IntegrationServiceAddBotToSpaceProcedure is the fully-qualified name of the IntegrationService's
+	// AddBotToSpace RPC.
+	IntegrationServiceAddBotToSpaceProcedure = "/stoop.integrations.v1.IntegrationService/AddBotToSpace"
+	// IntegrationServiceRemoveBotFromSpaceProcedure is the fully-qualified name of the
+	// IntegrationService's RemoveBotFromSpace RPC.
+	IntegrationServiceRemoveBotFromSpaceProcedure = "/stoop.integrations.v1.IntegrationService/RemoveBotFromSpace"
 	// IntegrationServiceDeactivateBotProcedure is the fully-qualified name of the IntegrationService's
 	// DeactivateBot RPC.
 	IntegrationServiceDeactivateBotProcedure = "/stoop.integrations.v1.IntegrationService/DeactivateBot"
@@ -113,6 +119,11 @@ type IntegrationServiceClient interface {
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	UpdateBot(context.Context, *connect.Request[v1.UpdateBotRequest]) (*connect.Response[v1.UpdateBotResponse], error)
+	// AddBotToSpace makes the bot a member of a space; bans are honoured.
+	// Membership is what every bot credential works inside of.
+	AddBotToSpace(context.Context, *connect.Request[v1.AddBotToSpaceRequest]) (*connect.Response[v1.AddBotToSpaceResponse], error)
+	// RemoveBotFromSpace removes it, as a kick does.
+	RemoveBotFromSpace(context.Context, *connect.Request[v1.RemoveBotFromSpaceRequest]) (*connect.Response[v1.RemoveBotFromSpaceResponse], error)
 	// DeactivateBot revokes every credential the bot holds. Its messages
 	// stay.
 	DeactivateBot(context.Context, *connect.Request[v1.DeactivateBotRequest]) (*connect.Response[v1.DeactivateBotResponse], error)
@@ -211,6 +222,18 @@ func NewIntegrationServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(integrationServiceMethods.ByName("UpdateBot")),
 			connect.WithClientOptions(opts...),
 		),
+		addBotToSpace: connect.NewClient[v1.AddBotToSpaceRequest, v1.AddBotToSpaceResponse](
+			httpClient,
+			baseURL+IntegrationServiceAddBotToSpaceProcedure,
+			connect.WithSchema(integrationServiceMethods.ByName("AddBotToSpace")),
+			connect.WithClientOptions(opts...),
+		),
+		removeBotFromSpace: connect.NewClient[v1.RemoveBotFromSpaceRequest, v1.RemoveBotFromSpaceResponse](
+			httpClient,
+			baseURL+IntegrationServiceRemoveBotFromSpaceProcedure,
+			connect.WithSchema(integrationServiceMethods.ByName("RemoveBotFromSpace")),
+			connect.WithClientOptions(opts...),
+		),
 		deactivateBot: connect.NewClient[v1.DeactivateBotRequest, v1.DeactivateBotResponse](
 			httpClient,
 			baseURL+IntegrationServiceDeactivateBotProcedure,
@@ -234,22 +257,24 @@ func NewIntegrationServiceClient(httpClient connect.HTTPClient, baseURL string, 
 
 // integrationServiceClient implements IntegrationServiceClient.
 type integrationServiceClient struct {
-	listWebhooks      *connect.Client[v1.ListWebhooksRequest, v1.ListWebhooksResponse]
-	createIncoming    *connect.Client[v1.CreateIncomingRequest, v1.CreateIncomingResponse]
-	createOutgoing    *connect.Client[v1.CreateOutgoingRequest, v1.CreateOutgoingResponse]
-	updateIncoming    *connect.Client[v1.UpdateIncomingRequest, v1.UpdateIncomingResponse]
-	updateOutgoing    *connect.Client[v1.UpdateOutgoingRequest, v1.UpdateOutgoingResponse]
-	deleteWebhook     *connect.Client[v1.DeleteWebhookRequest, v1.DeleteWebhookResponse]
-	rotateSecret      *connect.Client[v1.RotateSecretRequest, v1.RotateSecretResponse]
-	testWebhook       *connect.Client[v1.TestWebhookRequest, v1.TestWebhookResponse]
-	listDeliveries    *connect.Client[v1.ListDeliveriesRequest, v1.ListDeliveriesResponse]
-	redeliverDelivery *connect.Client[v1.RedeliverDeliveryRequest, v1.RedeliverDeliveryResponse]
-	listBots          *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
-	createBot         *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
-	updateBot         *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
-	deactivateBot     *connect.Client[v1.DeactivateBotRequest, v1.DeactivateBotResponse]
-	createBotToken    *connect.Client[v1.CreateBotTokenRequest, v1.CreateBotTokenResponse]
-	revokeBotToken    *connect.Client[v1.RevokeBotTokenRequest, v1.RevokeBotTokenResponse]
+	listWebhooks       *connect.Client[v1.ListWebhooksRequest, v1.ListWebhooksResponse]
+	createIncoming     *connect.Client[v1.CreateIncomingRequest, v1.CreateIncomingResponse]
+	createOutgoing     *connect.Client[v1.CreateOutgoingRequest, v1.CreateOutgoingResponse]
+	updateIncoming     *connect.Client[v1.UpdateIncomingRequest, v1.UpdateIncomingResponse]
+	updateOutgoing     *connect.Client[v1.UpdateOutgoingRequest, v1.UpdateOutgoingResponse]
+	deleteWebhook      *connect.Client[v1.DeleteWebhookRequest, v1.DeleteWebhookResponse]
+	rotateSecret       *connect.Client[v1.RotateSecretRequest, v1.RotateSecretResponse]
+	testWebhook        *connect.Client[v1.TestWebhookRequest, v1.TestWebhookResponse]
+	listDeliveries     *connect.Client[v1.ListDeliveriesRequest, v1.ListDeliveriesResponse]
+	redeliverDelivery  *connect.Client[v1.RedeliverDeliveryRequest, v1.RedeliverDeliveryResponse]
+	listBots           *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
+	createBot          *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
+	updateBot          *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
+	addBotToSpace      *connect.Client[v1.AddBotToSpaceRequest, v1.AddBotToSpaceResponse]
+	removeBotFromSpace *connect.Client[v1.RemoveBotFromSpaceRequest, v1.RemoveBotFromSpaceResponse]
+	deactivateBot      *connect.Client[v1.DeactivateBotRequest, v1.DeactivateBotResponse]
+	createBotToken     *connect.Client[v1.CreateBotTokenRequest, v1.CreateBotTokenResponse]
+	revokeBotToken     *connect.Client[v1.RevokeBotTokenRequest, v1.RevokeBotTokenResponse]
 }
 
 // ListWebhooks calls stoop.integrations.v1.IntegrationService.ListWebhooks.
@@ -317,6 +342,16 @@ func (c *integrationServiceClient) UpdateBot(ctx context.Context, req *connect.R
 	return c.updateBot.CallUnary(ctx, req)
 }
 
+// AddBotToSpace calls stoop.integrations.v1.IntegrationService.AddBotToSpace.
+func (c *integrationServiceClient) AddBotToSpace(ctx context.Context, req *connect.Request[v1.AddBotToSpaceRequest]) (*connect.Response[v1.AddBotToSpaceResponse], error) {
+	return c.addBotToSpace.CallUnary(ctx, req)
+}
+
+// RemoveBotFromSpace calls stoop.integrations.v1.IntegrationService.RemoveBotFromSpace.
+func (c *integrationServiceClient) RemoveBotFromSpace(ctx context.Context, req *connect.Request[v1.RemoveBotFromSpaceRequest]) (*connect.Response[v1.RemoveBotFromSpaceResponse], error) {
+	return c.removeBotFromSpace.CallUnary(ctx, req)
+}
+
 // DeactivateBot calls stoop.integrations.v1.IntegrationService.DeactivateBot.
 func (c *integrationServiceClient) DeactivateBot(ctx context.Context, req *connect.Request[v1.DeactivateBotRequest]) (*connect.Response[v1.DeactivateBotResponse], error) {
 	return c.deactivateBot.CallUnary(ctx, req)
@@ -363,6 +398,11 @@ type IntegrationServiceHandler interface {
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
 	CreateBot(context.Context, *connect.Request[v1.CreateBotRequest]) (*connect.Response[v1.CreateBotResponse], error)
 	UpdateBot(context.Context, *connect.Request[v1.UpdateBotRequest]) (*connect.Response[v1.UpdateBotResponse], error)
+	// AddBotToSpace makes the bot a member of a space; bans are honoured.
+	// Membership is what every bot credential works inside of.
+	AddBotToSpace(context.Context, *connect.Request[v1.AddBotToSpaceRequest]) (*connect.Response[v1.AddBotToSpaceResponse], error)
+	// RemoveBotFromSpace removes it, as a kick does.
+	RemoveBotFromSpace(context.Context, *connect.Request[v1.RemoveBotFromSpaceRequest]) (*connect.Response[v1.RemoveBotFromSpaceResponse], error)
 	// DeactivateBot revokes every credential the bot holds. Its messages
 	// stay.
 	DeactivateBot(context.Context, *connect.Request[v1.DeactivateBotRequest]) (*connect.Response[v1.DeactivateBotResponse], error)
@@ -457,6 +497,18 @@ func NewIntegrationServiceHandler(svc IntegrationServiceHandler, opts ...connect
 		connect.WithSchema(integrationServiceMethods.ByName("UpdateBot")),
 		connect.WithHandlerOptions(opts...),
 	)
+	integrationServiceAddBotToSpaceHandler := connect.NewUnaryHandler(
+		IntegrationServiceAddBotToSpaceProcedure,
+		svc.AddBotToSpace,
+		connect.WithSchema(integrationServiceMethods.ByName("AddBotToSpace")),
+		connect.WithHandlerOptions(opts...),
+	)
+	integrationServiceRemoveBotFromSpaceHandler := connect.NewUnaryHandler(
+		IntegrationServiceRemoveBotFromSpaceProcedure,
+		svc.RemoveBotFromSpace,
+		connect.WithSchema(integrationServiceMethods.ByName("RemoveBotFromSpace")),
+		connect.WithHandlerOptions(opts...),
+	)
 	integrationServiceDeactivateBotHandler := connect.NewUnaryHandler(
 		IntegrationServiceDeactivateBotProcedure,
 		svc.DeactivateBot,
@@ -503,6 +555,10 @@ func NewIntegrationServiceHandler(svc IntegrationServiceHandler, opts ...connect
 			integrationServiceCreateBotHandler.ServeHTTP(w, r)
 		case IntegrationServiceUpdateBotProcedure:
 			integrationServiceUpdateBotHandler.ServeHTTP(w, r)
+		case IntegrationServiceAddBotToSpaceProcedure:
+			integrationServiceAddBotToSpaceHandler.ServeHTTP(w, r)
+		case IntegrationServiceRemoveBotFromSpaceProcedure:
+			integrationServiceRemoveBotFromSpaceHandler.ServeHTTP(w, r)
 		case IntegrationServiceDeactivateBotProcedure:
 			integrationServiceDeactivateBotHandler.ServeHTTP(w, r)
 		case IntegrationServiceCreateBotTokenProcedure:
@@ -568,6 +624,14 @@ func (UnimplementedIntegrationServiceHandler) CreateBot(context.Context, *connec
 
 func (UnimplementedIntegrationServiceHandler) UpdateBot(context.Context, *connect.Request[v1.UpdateBotRequest]) (*connect.Response[v1.UpdateBotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.integrations.v1.IntegrationService.UpdateBot is not implemented"))
+}
+
+func (UnimplementedIntegrationServiceHandler) AddBotToSpace(context.Context, *connect.Request[v1.AddBotToSpaceRequest]) (*connect.Response[v1.AddBotToSpaceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.integrations.v1.IntegrationService.AddBotToSpace is not implemented"))
+}
+
+func (UnimplementedIntegrationServiceHandler) RemoveBotFromSpace(context.Context, *connect.Request[v1.RemoveBotFromSpaceRequest]) (*connect.Response[v1.RemoveBotFromSpaceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.integrations.v1.IntegrationService.RemoveBotFromSpace is not implemented"))
 }
 
 func (UnimplementedIntegrationServiceHandler) DeactivateBot(context.Context, *connect.Request[v1.DeactivateBotRequest]) (*connect.Response[v1.DeactivateBotResponse], error) {

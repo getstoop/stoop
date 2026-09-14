@@ -39,7 +39,11 @@ type Bot struct {
 	Tokens        []*BotToken            `protobuf:"bytes,8,rep,name=tokens,proto3" json:"tokens,omitempty"`
 	// What the bot is and does, shown on its profile card. Set by an
 	// instance admin through UpdateBot; plain text, 300 characters.
-	Bio           string `protobuf:"bytes,9,opt,name=bio,proto3" json:"bio,omitempty"`
+	Bio string `protobuf:"bytes,9,opt,name=bio,proto3" json:"bio,omitempty"`
+	// The spaces it is a member of. Set by an instance admin through
+	// AddBotToSpace and RemoveBotFromSpace; every credential the bot holds
+	// works only inside them.
+	SpaceIds      []string `protobuf:"bytes,10,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -135,6 +139,13 @@ func (x *Bot) GetBio() string {
 		return x.Bio
 	}
 	return ""
+}
+
+func (x *Bot) GetSpaceIds() []string {
+	if x != nil {
+		return x.SpaceIds
+	}
+	return nil
 }
 
 // BotToken is a bearer credential of kind bot_token, shown once at
@@ -254,7 +265,7 @@ var File_stoop_integrations_v1_bot_proto protoreflect.FileDescriptor
 
 const file_stoop_integrations_v1_bot_proto_rawDesc = "" +
 	"\n" +
-	"\x1fstoop/integrations/v1/bot.proto\x12\x15stoop.integrations.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\xea\x02\n" +
+	"\x1fstoop/integrations/v1/bot.proto\x12\x15stoop.integrations.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\x87\x03\n" +
 	"\x03Bot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -265,7 +276,9 @@ const file_stoop_integrations_v1_bot_proto_rawDesc = "" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12A\n" +
 	"\x0edeactivated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rdeactivatedAt\x127\n" +
 	"\x06tokens\x18\b \x03(\v2\x1f.stoop.integrations.v1.BotTokenR\x06tokens\x12\x10\n" +
-	"\x03bio\x18\t \x01(\tR\x03bio\"\xd1\x02\n" +
+	"\x03bio\x18\t \x01(\tR\x03bio\x12\x1b\n" +
+	"\tspace_ids\x18\n" +
+	" \x03(\tR\bspaceIds\"\xd1\x02\n" +
 	"\bBotToken\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\vbot_user_id\x18\x02 \x01(\tR\tbotUserId\x12\x12\n" +
