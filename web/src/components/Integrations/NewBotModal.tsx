@@ -124,7 +124,6 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             value={bio}
             maxLength={BIO_MAX}
             rows={3}
-            placeholder="Posts when a service goes down or comes back."
             onChange={(e) => setBio(e.target.value)}
           />
           <span className="hint">
