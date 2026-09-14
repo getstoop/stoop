@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // The webhook settings, read by the integrations module through its
@@ -42,6 +44,17 @@ func (s *Service) WebhooksOutgoing(ctx context.Context) (bool, error) {
 // private addresses; off by default.
 func (s *Service) WebhooksAllowPrivateTargets(ctx context.Context) (bool, error) {
 	return s.readBool(ctx, keyWebhooksAllowPrivateTargets, false)
+}
+
+// WebhooksAvailable reports the STOOP_WEBHOOKS floor.
+func (s *Service) WebhooksAvailable() bool { return s.webhooksEnv }
+
+func (s *Service) writeBool(ctx context.Context, key string, v bool) error {
+	raw, _ := json.Marshal(v)
+	if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: key, Value: raw}); err != nil {
+		return fmt.Errorf("write %s: %w", key, err)
+	}
+	return nil
 }
 
 // readBool decodes one JSON-boolean setting, returning fallback if unset.

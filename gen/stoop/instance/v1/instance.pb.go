@@ -311,8 +311,15 @@ type GetInstanceStatusResponse struct {
 	InstanceName string `protobuf:"bytes,9,opt,name=instance_name,json=instanceName,proto3" json:"instance_name,omitempty"`
 	// Who may make and use personal tokens.
 	PersonalTokens PersonalTokens `protobuf:"varint,10,opt,name=personal_tokens,json=personalTokens,proto3,enum=stoop.instance.v1.PersonalTokens" json:"personal_tokens,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The webhook switches (docs/proposals/webhooks.md). webhooks_available
+	// is false when the operator turned the feature off in the environment,
+	// which overrides the three settings.
+	WebhooksAvailable           bool `protobuf:"varint,11,opt,name=webhooks_available,json=webhooksAvailable,proto3" json:"webhooks_available,omitempty"`
+	WebhooksIncoming            bool `protobuf:"varint,12,opt,name=webhooks_incoming,json=webhooksIncoming,proto3" json:"webhooks_incoming,omitempty"`
+	WebhooksOutgoing            bool `protobuf:"varint,13,opt,name=webhooks_outgoing,json=webhooksOutgoing,proto3" json:"webhooks_outgoing,omitempty"`
+	WebhooksAllowPrivateTargets bool `protobuf:"varint,14,opt,name=webhooks_allow_private_targets,json=webhooksAllowPrivateTargets,proto3" json:"webhooks_allow_private_targets,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *GetInstanceStatusResponse) Reset() {
@@ -415,6 +422,34 @@ func (x *GetInstanceStatusResponse) GetPersonalTokens() PersonalTokens {
 	return PersonalTokens_PERSONAL_TOKENS_UNSPECIFIED
 }
 
+func (x *GetInstanceStatusResponse) GetWebhooksAvailable() bool {
+	if x != nil {
+		return x.WebhooksAvailable
+	}
+	return false
+}
+
+func (x *GetInstanceStatusResponse) GetWebhooksIncoming() bool {
+	if x != nil {
+		return x.WebhooksIncoming
+	}
+	return false
+}
+
+func (x *GetInstanceStatusResponse) GetWebhooksOutgoing() bool {
+	if x != nil {
+		return x.WebhooksOutgoing
+	}
+	return false
+}
+
+func (x *GetInstanceStatusResponse) GetWebhooksAllowPrivateTargets() bool {
+	if x != nil {
+		return x.WebhooksAllowPrivateTargets
+	}
+	return false
+}
+
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset fields are left unchanged.
@@ -429,10 +464,15 @@ type UpdateSettingsRequest struct {
 	MaxUploadBytes *int64 `protobuf:"varint,5,opt,name=max_upload_bytes,json=maxUploadBytes,proto3,oneof" json:"max_upload_bytes,omitempty"`
 	// Trimmed; must not be blank. Once set, it replaces the random default
 	// for good — there's no way to ask for a new random name.
-	InstanceName   *string         `protobuf:"bytes,6,opt,name=instance_name,json=instanceName,proto3,oneof" json:"instance_name,omitempty"`
-	PersonalTokens *PersonalTokens `protobuf:"varint,7,opt,name=personal_tokens,json=personalTokens,proto3,enum=stoop.instance.v1.PersonalTokens,oneof" json:"personal_tokens,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	InstanceName     *string         `protobuf:"bytes,6,opt,name=instance_name,json=instanceName,proto3,oneof" json:"instance_name,omitempty"`
+	PersonalTokens   *PersonalTokens `protobuf:"varint,7,opt,name=personal_tokens,json=personalTokens,proto3,enum=stoop.instance.v1.PersonalTokens,oneof" json:"personal_tokens,omitempty"`
+	WebhooksIncoming *bool           `protobuf:"varint,8,opt,name=webhooks_incoming,json=webhooksIncoming,proto3,oneof" json:"webhooks_incoming,omitempty"`
+	WebhooksOutgoing *bool           `protobuf:"varint,9,opt,name=webhooks_outgoing,json=webhooksOutgoing,proto3,oneof" json:"webhooks_outgoing,omitempty"`
+	// Let outgoing webhooks reach private, loopback and CGNAT addresses.
+	// Link-local is never reachable.
+	WebhooksAllowPrivateTargets *bool `protobuf:"varint,10,opt,name=webhooks_allow_private_targets,json=webhooksAllowPrivateTargets,proto3,oneof" json:"webhooks_allow_private_targets,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -512,6 +552,27 @@ func (x *UpdateSettingsRequest) GetPersonalTokens() PersonalTokens {
 		return *x.PersonalTokens
 	}
 	return PersonalTokens_PERSONAL_TOKENS_UNSPECIFIED
+}
+
+func (x *UpdateSettingsRequest) GetWebhooksIncoming() bool {
+	if x != nil && x.WebhooksIncoming != nil {
+		return *x.WebhooksIncoming
+	}
+	return false
+}
+
+func (x *UpdateSettingsRequest) GetWebhooksOutgoing() bool {
+	if x != nil && x.WebhooksOutgoing != nil {
+		return *x.WebhooksOutgoing
+	}
+	return false
+}
+
+func (x *UpdateSettingsRequest) GetWebhooksAllowPrivateTargets() bool {
+	if x != nil && x.WebhooksAllowPrivateTargets != nil {
+		return *x.WebhooksAllowPrivateTargets
+	}
+	return false
 }
 
 type UpdateSettingsResponse struct {
@@ -1769,7 +1830,7 @@ var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
 const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\n" +
 	" stoop/instance/v1/instance.proto\x12\x11stoop.instance.v1\x1a\x18stoop/auth/v1/auth.proto\x1a!stoop/instance/v1/providers.proto\x1a$stoop/instance/v1/reachability.proto\x1a\x1cstoop/instance/v1/user.proto\"\x1a\n" +
-	"\x18GetInstanceStatusRequest\"\xec\x04\n" +
+	"\x18GetInstanceStatusRequest\"\xba\x06\n" +
 	"\x19GetInstanceStatusResponse\x12\x1f\n" +
 	"\vneeds_setup\x18\x01 \x01(\bR\n" +
 	"needsSetup\x12V\n" +
@@ -1783,7 +1844,11 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x10max_upload_bytes\x18\b \x01(\x03R\x0emaxUploadBytes\x12#\n" +
 	"\rinstance_name\x18\t \x01(\tR\finstanceName\x12J\n" +
 	"\x0fpersonal_tokens\x18\n" +
-	" \x01(\x0e2!.stoop.instance.v1.PersonalTokensR\x0epersonalTokens\"\x8c\x05\n" +
+	" \x01(\x0e2!.stoop.instance.v1.PersonalTokensR\x0epersonalTokens\x12-\n" +
+	"\x12webhooks_available\x18\v \x01(\bR\x11webhooksAvailable\x12+\n" +
+	"\x11webhooks_incoming\x18\f \x01(\bR\x10webhooksIncoming\x12+\n" +
+	"\x11webhooks_outgoing\x18\r \x01(\bR\x10webhooksOutgoing\x12C\n" +
+	"\x1ewebhooks_allow_private_targets\x18\x0e \x01(\bR\x1bwebhooksAllowPrivateTargets\"\x89\a\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
 	"\x0espace_creation\x18\x02 \x01(\x0e2&.stoop.instance.v1.SpaceCreationPolicyH\x01R\rspaceCreation\x88\x01\x01\x123\n" +
@@ -1791,14 +1856,21 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x10password_sign_in\x18\x04 \x01(\x0e2!.stoop.instance.v1.PasswordSignInH\x03R\x0epasswordSignIn\x88\x01\x01\x12-\n" +
 	"\x10max_upload_bytes\x18\x05 \x01(\x03H\x04R\x0emaxUploadBytes\x88\x01\x01\x12(\n" +
 	"\rinstance_name\x18\x06 \x01(\tH\x05R\finstanceName\x88\x01\x01\x12O\n" +
-	"\x0fpersonal_tokens\x18\a \x01(\x0e2!.stoop.instance.v1.PersonalTokensH\x06R\x0epersonalTokens\x88\x01\x01B\x16\n" +
+	"\x0fpersonal_tokens\x18\a \x01(\x0e2!.stoop.instance.v1.PersonalTokensH\x06R\x0epersonalTokens\x88\x01\x01\x120\n" +
+	"\x11webhooks_incoming\x18\b \x01(\bH\aR\x10webhooksIncoming\x88\x01\x01\x120\n" +
+	"\x11webhooks_outgoing\x18\t \x01(\bH\bR\x10webhooksOutgoing\x88\x01\x01\x12H\n" +
+	"\x1ewebhooks_allow_private_targets\x18\n" +
+	" \x01(\bH\tR\x1bwebhooksAllowPrivateTargets\x88\x01\x01B\x16\n" +
 	"\x14_registration_policyB\x11\n" +
 	"\x0f_space_creationB\x16\n" +
 	"\x14_storage_quota_bytesB\x13\n" +
 	"\x11_password_sign_inB\x13\n" +
 	"\x11_max_upload_bytesB\x10\n" +
 	"\x0e_instance_nameB\x12\n" +
-	"\x10_personal_tokens\"^\n" +
+	"\x10_personal_tokensB\x14\n" +
+	"\x12_webhooks_incomingB\x14\n" +
+	"\x12_webhooks_outgoingB!\n" +
+	"\x1f_webhooks_allow_private_targets\"^\n" +
 	"\x16UpdateSettingsResponse\x12D\n" +
 	"\x06status\x18\x01 \x01(\v2,.stoop.instance.v1.GetInstanceStatusResponseR\x06status\"\x12\n" +
 	"\x10ListUsersRequest\"J\n" +
