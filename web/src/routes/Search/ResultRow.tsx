@@ -43,6 +43,7 @@ export function ResultRow({
       <Avatar
         name={who}
         fileId={message.author?.avatarFileId ?? ""}
+        kind={message.author?.kind}
         size="medium"
       />
       <span className="search-row-title">

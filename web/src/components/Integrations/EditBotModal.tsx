@@ -3,6 +3,7 @@ import { useState } from "react";
 import { filesClient, integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useBots } from "../../api/queries";
+import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Bot } from "../../gen/stoop/integrations/v1/bot_pb";
 import { Avatar } from "../Avatar";
 import { ImagePicker } from "../ImagePicker";
@@ -92,6 +93,7 @@ export function EditBotModal({
           <Avatar
             name={bot.displayName || bot.username}
             fileId={avatarFileId}
+            kind={IdentityKind.BOT}
             size="medium"
           />
           <ImagePicker

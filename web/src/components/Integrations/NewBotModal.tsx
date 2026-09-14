@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { filesClient, integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
+import { BotIcon } from "../Icons";
 import { ImagePicker } from "../ImagePicker";
 import { Modal } from "../Modal";
 
@@ -86,7 +87,7 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
                 : undefined
             }
           >
-            {preview ? null : (displayName.trim()[0] ?? "?").toUpperCase()}
+            {preview ? null : <BotIcon />}
           </span>
           <ImagePicker
             label={avatar ? "Change avatar" : "Choose avatar"}

@@ -141,6 +141,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
       <Avatar
         name={who}
         fileId={item.actor?.avatarFileId ?? ""}
+        kind={item.actor?.kind}
         size="medium"
       />
       <span className="activity-title">
