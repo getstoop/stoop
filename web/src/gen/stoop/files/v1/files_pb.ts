@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/files/v1/files.proto.
  */
 export const file_stoop_files_v1_files: GenFile = /*@__PURE__*/
-  fileDesc("ChpzdG9vcC9maWxlcy92MS9maWxlcy5wcm90bxIOc3Rvb3AuZmlsZXMudjEiGAoWR2V0U3RvcmFnZVVzYWdlUmVxdWVzdCJWChdHZXRTdG9yYWdlVXNhZ2VSZXNwb25zZRISCgp1c2VkX2J5dGVzGAEgASgDEhIKCmZpbGVfY291bnQYAiABKAMSEwoLcXVvdGFfYnl0ZXMYAyABKAMiEwoRU3dlZXBGaWxlc1JlcXVlc3QibQoSU3dlZXBGaWxlc1Jlc3BvbnNlEhUKDWZpbGVzX3JlbW92ZWQYASABKAMSEwoLYnl0ZXNfZnJlZWQYAiABKAMSGwoTc3RyYXlfYmxvYnNfcmVtb3ZlZBgDIAEoAxIOCgZlcnJvcnMYBCABKAMiIwoTVXBsb2FkQXZhdGFyUmVxdWVzdBIMCgRkYXRhGAEgASgMIicKFFVwbG9hZEF2YXRhclJlc3BvbnNlEg8KB2ZpbGVfaWQYASABKAkiOAoWVXBsb2FkU3BhY2VJY29uUmVxdWVzdBIQCghzcGFjZV9pZBgBIAEoCRIMCgRkYXRhGAIgASgMIioKF1VwbG9hZFNwYWNlSWNvblJlc3BvbnNlEg8KB2ZpbGVfaWQYASABKAkyjQMKC0ZpbGVTZXJ2aWNlElsKDFVwbG9hZEF2YXRhchIjLnN0b29wLmZpbGVzLnYxLlVwbG9hZEF2YXRhclJlcXVlc3QaJC5zdG9vcC5maWxlcy52MS5VcGxvYWRBdmF0YXJSZXNwb25zZSIAEmQKD1VwbG9hZFNwYWNlSWNvbhImLnN0b29wLmZpbGVzLnYxLlVwbG9hZFNwYWNlSWNvblJlcXVlc3QaJy5zdG9vcC5maWxlcy52MS5VcGxvYWRTcGFjZUljb25SZXNwb25zZSIAEmQKD0dldFN0b3JhZ2VVc2FnZRImLnN0b29wLmZpbGVzLnYxLkdldFN0b3JhZ2VVc2FnZVJlcXVlc3QaJy5zdG9vcC5maWxlcy52MS5HZXRTdG9yYWdlVXNhZ2VSZXNwb25zZSIAElUKClN3ZWVwRmlsZXMSIS5zdG9vcC5maWxlcy52MS5Td2VlcEZpbGVzUmVxdWVzdBoiLnN0b29wLmZpbGVzLnYxLlN3ZWVwRmlsZXNSZXNwb25zZSIAQrABChJjb20uc3Rvb3AuZmlsZXMudjFCCkZpbGVzUHJvdG9QAVo0Z2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvZmlsZXMvdjE7ZmlsZXN2MaICA1NGWKoCDlN0b29wLkZpbGVzLlYxygIOU3Rvb3BcRmlsZXNcVjHiAhpTdG9vcFxGaWxlc1xWMVxHUEJNZXRhZGF0YeoCEFN0b29wOjpGaWxlczo6VjFiBnByb3RvMw");
+  fileDesc("ChpzdG9vcC9maWxlcy92MS9maWxlcy5wcm90bxIOc3Rvb3AuZmlsZXMudjEiGAoWR2V0U3RvcmFnZVVzYWdlUmVxdWVzdCJWChdHZXRTdG9yYWdlVXNhZ2VSZXNwb25zZRISCgp1c2VkX2J5dGVzGAEgASgDEhIKCmZpbGVfY291bnQYAiABKAMSEwoLcXVvdGFfYnl0ZXMYAyABKAMiEwoRU3dlZXBGaWxlc1JlcXVlc3QibQoSU3dlZXBGaWxlc1Jlc3BvbnNlEhUKDWZpbGVzX3JlbW92ZWQYASABKAMSEwoLYnl0ZXNfZnJlZWQYAiABKAMSGwoTc3RyYXlfYmxvYnNfcmVtb3ZlZBgDIAEoAxIOCgZlcnJvcnMYBCABKAMiIwoTVXBsb2FkQXZhdGFyUmVxdWVzdBIMCgRkYXRhGAEgASgMIicKFFVwbG9hZEF2YXRhclJlc3BvbnNlEg8KB2ZpbGVfaWQYASABKAkiNwoWVXBsb2FkQm90QXZhdGFyUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEgwKBGRhdGEYAiABKAwiKgoXVXBsb2FkQm90QXZhdGFyUmVzcG9uc2USDwoHZmlsZV9pZBgBIAEoCSI4ChZVcGxvYWRTcGFjZUljb25SZXF1ZXN0EhAKCHNwYWNlX2lkGAEgASgJEgwKBGRhdGEYAiABKAwiKgoXVXBsb2FkU3BhY2VJY29uUmVzcG9uc2USDwoHZmlsZV9pZBgBIAEoCTLzAwoLRmlsZVNlcnZpY2USWwoMVXBsb2FkQXZhdGFyEiMuc3Rvb3AuZmlsZXMudjEuVXBsb2FkQXZhdGFyUmVxdWVzdBokLnN0b29wLmZpbGVzLnYxLlVwbG9hZEF2YXRhclJlc3BvbnNlIgASZAoPVXBsb2FkQm90QXZhdGFyEiYuc3Rvb3AuZmlsZXMudjEuVXBsb2FkQm90QXZhdGFyUmVxdWVzdBonLnN0b29wLmZpbGVzLnYxLlVwbG9hZEJvdEF2YXRhclJlc3BvbnNlIgASZAoPVXBsb2FkU3BhY2VJY29uEiYuc3Rvb3AuZmlsZXMudjEuVXBsb2FkU3BhY2VJY29uUmVxdWVzdBonLnN0b29wLmZpbGVzLnYxLlVwbG9hZFNwYWNlSWNvblJlc3BvbnNlIgASZAoPR2V0U3RvcmFnZVVzYWdlEiYuc3Rvb3AuZmlsZXMudjEuR2V0U3RvcmFnZVVzYWdlUmVxdWVzdBonLnN0b29wLmZpbGVzLnYxLkdldFN0b3JhZ2VVc2FnZVJlc3BvbnNlIgASVQoKU3dlZXBGaWxlcxIhLnN0b29wLmZpbGVzLnYxLlN3ZWVwRmlsZXNSZXF1ZXN0GiIuc3Rvb3AuZmlsZXMudjEuU3dlZXBGaWxlc1Jlc3BvbnNlIgBCsAEKEmNvbS5zdG9vcC5maWxlcy52MUIKRmlsZXNQcm90b1ABWjRnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9maWxlcy92MTtmaWxlc3YxogIDU0ZYqgIOU3Rvb3AuRmlsZXMuVjHKAg5TdG9vcFxGaWxlc1xWMeICGlN0b29wXEZpbGVzXFYxXEdQQk1ldGFkYXRh6gIQU3Rvb3A6OkZpbGVzOjpWMWIGcHJvdG8z");
 
 /**
  * @generated from message stoop.files.v1.GetStorageUsageRequest
@@ -142,6 +142,51 @@ export const UploadAvatarResponseSchema: GenMessage<UploadAvatarResponse> = /*@_
   messageDesc(file_stoop_files_v1_files, 5);
 
 /**
+ * @generated from message stoop.files.v1.UploadBotAvatarRequest
+ */
+export type UploadBotAvatarRequest = Message<"stoop.files.v1.UploadBotAvatarRequest"> & {
+  /**
+   * The bot's user id.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId: string;
+
+  /**
+   * The image bytes as picked by the admin, at most 2 MB.
+   *
+   * @generated from field: bytes data = 2;
+   */
+  data: Uint8Array;
+};
+
+/**
+ * Describes the message stoop.files.v1.UploadBotAvatarRequest.
+ * Use `create(UploadBotAvatarRequestSchema)` to create a new message.
+ */
+export const UploadBotAvatarRequestSchema: GenMessage<UploadBotAvatarRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_files_v1_files, 6);
+
+/**
+ * @generated from message stoop.files.v1.UploadBotAvatarResponse
+ */
+export type UploadBotAvatarResponse = Message<"stoop.files.v1.UploadBotAvatarResponse"> & {
+  /**
+   * The new avatar's file id; fetch it at GET /files/{file_id}.
+   *
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+};
+
+/**
+ * Describes the message stoop.files.v1.UploadBotAvatarResponse.
+ * Use `create(UploadBotAvatarResponseSchema)` to create a new message.
+ */
+export const UploadBotAvatarResponseSchema: GenMessage<UploadBotAvatarResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_files_v1_files, 7);
+
+/**
  * @generated from message stoop.files.v1.UploadSpaceIconRequest
  */
 export type UploadSpaceIconRequest = Message<"stoop.files.v1.UploadSpaceIconRequest"> & {
@@ -163,7 +208,7 @@ export type UploadSpaceIconRequest = Message<"stoop.files.v1.UploadSpaceIconRequ
  * Use `create(UploadSpaceIconRequestSchema)` to create a new message.
  */
 export const UploadSpaceIconRequestSchema: GenMessage<UploadSpaceIconRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_files_v1_files, 6);
+  messageDesc(file_stoop_files_v1_files, 8);
 
 /**
  * @generated from message stoop.files.v1.UploadSpaceIconResponse
@@ -182,7 +227,7 @@ export type UploadSpaceIconResponse = Message<"stoop.files.v1.UploadSpaceIconRes
  * Use `create(UploadSpaceIconResponseSchema)` to create a new message.
  */
 export const UploadSpaceIconResponseSchema: GenMessage<UploadSpaceIconResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_files_v1_files, 7);
+  messageDesc(file_stoop_files_v1_files, 9);
 
 /**
  * FileService is the upload side of file storage. Bytes travel inside the
@@ -201,7 +246,8 @@ export const UploadSpaceIconResponseSchema: GenMessage<UploadSpaceIconResponse> 
  */
 export const FileService: GenService<{
   /**
-   * UploadAvatar sets the caller's avatar (256 px).
+   * UploadAvatar sets the caller's avatar (256 px). Refused for a bot,
+   * whose avatar an instance admin sets with UploadBotAvatar.
    *
    * @generated from rpc stoop.files.v1.FileService.UploadAvatar
    */
@@ -209,6 +255,17 @@ export const FileService: GenService<{
     methodKind: "unary";
     input: typeof UploadAvatarRequestSchema;
     output: typeof UploadAvatarResponseSchema;
+  },
+  /**
+   * UploadBotAvatar sets a bot's avatar (256 px). Requires
+   * instance.integrations.manage; the target must be a bot.
+   *
+   * @generated from rpc stoop.files.v1.FileService.UploadBotAvatar
+   */
+  uploadBotAvatar: {
+    methodKind: "unary";
+    input: typeof UploadBotAvatarRequestSchema;
+    output: typeof UploadBotAvatarResponseSchema;
   },
   /**
    * UploadSpaceIcon sets a space's icon (512 px). Requires manage_space.

@@ -47,7 +47,10 @@ hook token is refused as a bearer token everywhere, and a bot token is
 refused in the hook path. Bot tokens are refused on `/ws` in v1.
 
 Only instance admins create or change any of this
-(`instance.integrations.manage`). Deleting a hook or revoking a token
+(`instance.integrations.manage`), including the bot's names, its avatar
+(`FileService.UploadBotAvatar`) and its bio (`UpdateBot`), which shows on
+the bot's profile card so a reader can tell what it does; a bot token
+can't edit any of them. Deleting a hook or revoking a token
 removes a credential, never the member; a bot left holding no credential
 is deactivated, and its messages stay. Bots are refused as direct-message
 targets and left out of the candidates list. A deleted channel or space

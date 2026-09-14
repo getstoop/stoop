@@ -94,6 +94,12 @@
   gap: 16px;
 }
 
+.integration-form .bot-edit-avatar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .integration-form .event-types {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

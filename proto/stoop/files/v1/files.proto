@@ -14,8 +14,12 @@ package stoop.files.v1;
 // WebP, re-encodes to a fixed-size square PNG (which also strips EXIF),
 // and deletes the file it replaces.
 service FileService {
-  // UploadAvatar sets the caller's avatar (256 px).
+  // UploadAvatar sets the caller's avatar (256 px). Refused for a bot,
+  // whose avatar an instance admin sets with UploadBotAvatar.
   rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse) {}
+  // UploadBotAvatar sets a bot's avatar (256 px). Requires
+  // instance.integrations.manage; the target must be a bot.
+  rpc UploadBotAvatar(UploadBotAvatarRequest) returns (UploadBotAvatarResponse) {}
   // UploadSpaceIcon sets a space's icon (512 px). Requires manage_space.
   rpc UploadSpaceIcon(UploadSpaceIconRequest) returns (UploadSpaceIconResponse) {}
   // GetStorageUsage reports how much upload storage is in use and the
@@ -55,6 +59,18 @@ message UploadAvatarRequest {
 }
 
 message UploadAvatarResponse {
+  // The new avatar's file id; fetch it at GET /files/{file_id}.
+  string file_id = 1;
+}
+
+message UploadBotAvatarRequest {
+  // The bot's user id.
+  string user_id = 1;
+  // The image bytes as picked by the admin, at most 2 MB.
+  bytes data = 2;
+}
+
+message UploadBotAvatarResponse {
   // The new avatar's file id; fetch it at GET /files/{file_id}.
   string file_id = 1;
 }

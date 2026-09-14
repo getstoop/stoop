@@ -1254,10 +1254,12 @@ func (x *CreateBotResponse) GetBot() *Bot {
 }
 
 type UpdateBotRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Username      *string                `protobuf:"bytes,2,opt,name=username,proto3,oneof" json:"username,omitempty"`
-	DisplayName   *string                `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Username    *string                `protobuf:"bytes,2,opt,name=username,proto3,oneof" json:"username,omitempty"`
+	DisplayName *string                `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
+	// Plain text, 300 characters; whitespace collapses to one line.
+	Bio           *string `protobuf:"bytes,4,opt,name=bio,proto3,oneof" json:"bio,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1309,6 +1311,13 @@ func (x *UpdateBotRequest) GetUsername() string {
 func (x *UpdateBotRequest) GetDisplayName() string {
 	if x != nil && x.DisplayName != nil {
 		return *x.DisplayName
+	}
+	return ""
+}
+
+func (x *UpdateBotRequest) GetBio() string {
+	if x != nil && x.Bio != nil {
+		return *x.Bio
 	}
 	return ""
 }
@@ -1738,13 +1747,15 @@ const file_stoop_integrations_v1_integrations_proto_rawDesc = "" +
 	"\busername\x18\x01 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"A\n" +
 	"\x11CreateBotResponse\x12,\n" +
-	"\x03bot\x18\x01 \x01(\v2\x1a.stoop.integrations.v1.BotR\x03bot\"\x89\x01\n" +
+	"\x03bot\x18\x01 \x01(\v2\x1a.stoop.integrations.v1.BotR\x03bot\"\xa8\x01\n" +
 	"\x10UpdateBotRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\busername\x18\x02 \x01(\tH\x00R\busername\x88\x01\x01\x12&\n" +
-	"\fdisplay_name\x18\x03 \x01(\tH\x01R\vdisplayName\x88\x01\x01B\v\n" +
+	"\fdisplay_name\x18\x03 \x01(\tH\x01R\vdisplayName\x88\x01\x01\x12\x15\n" +
+	"\x03bio\x18\x04 \x01(\tH\x02R\x03bio\x88\x01\x01B\v\n" +
 	"\t_usernameB\x0f\n" +
-	"\r_display_name\"A\n" +
+	"\r_display_nameB\x06\n" +
+	"\x04_bio\"A\n" +
 	"\x11UpdateBotResponse\x12,\n" +
 	"\x03bot\x18\x01 \x01(\v2\x1a.stoop.integrations.v1.BotR\x03bot\"&\n" +
 	"\x14DeactivateBotRequest\x12\x0e\n" +

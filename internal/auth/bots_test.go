@@ -68,13 +68,34 @@ func TestBotsAndHookTokens(t *testing.T) {
 		t.Errorf("a bot edited its own profile: %v", err)
 	}
 
+	// An admin writes the bio; it takes a person's shape and shows on the
+	// card. Files asks who is a bot before setting an avatar for them.
+	long := strings.Repeat("x", 301)
+	if _, err := svc.UpdateBot(bg, bot.ID, nil, nil, &long); codeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("a 301-character bio: %v", err)
+	}
+	about := "Posts when a service\n\ngoes down."
+	updated, err := svc.UpdateBot(bg, bot.ID, nil, nil, &about)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Bio != "Posts when a service goes down." {
+		t.Errorf("bio = %q", updated.Bio)
+	}
+	if isBot, err := svc.IsBot(bg, bot.ID); err != nil || !isBot {
+		t.Errorf("IsBot(bot) = %v, %v", isBot, err)
+	}
+	if isBot, err := svc.IsBot(bg, authctx.UserID(casey)); err != nil || isBot {
+		t.Errorf("IsBot(person) = %v, %v", isBot, err)
+	}
+
 	// The card and GetMe say what it is.
 	profile, err := svc.GetUserProfile(casey, connect.NewRequest(&authv1.GetUserProfileRequest{UserId: bot.ID}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if profile.Msg.Profile.Kind != accessv1.IdentityKind_IDENTITY_KIND_BOT {
-		t.Errorf("bot profile kind = %v", profile.Msg.Profile.Kind)
+	if profile.Msg.Profile.Kind != accessv1.IdentityKind_IDENTITY_KIND_BOT || profile.Msg.Profile.Bio != updated.Bio {
+		t.Errorf("bot profile = %+v", profile.Msg.Profile)
 	}
 	if me, err := svc.GetMe(asBot, connect.NewRequest(&authv1.GetMeRequest{})); err != nil {
 		t.Fatal(err)

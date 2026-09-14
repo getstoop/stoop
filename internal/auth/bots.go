@@ -34,6 +34,7 @@ type Bot struct {
 	Username      string
 	DisplayName   string
 	AvatarFileID  string
+	Bio           string
 	InstanceAdmin bool
 	CreatedAt     time.Time
 	DeactivatedAt *time.Time
@@ -120,14 +121,36 @@ func (s *Service) ListBots(ctx context.Context) ([]Bot, error) {
 	return out, nil
 }
 
-func (s *Service) RenameBot(ctx context.Context, id string, username, displayName *string) (Bot, error) {
+// UpdateBot changes a bot's names and bio; a nil field is left alone.
+// The bio takes the same one-line, 300-character shape as a person's.
+func (s *Service) UpdateBot(ctx context.Context, id string, username, displayName, bio *string) (Bot, error) {
 	if _, err := s.GetBot(ctx, id); err != nil {
 		return Bot{}, err
 	}
-	if _, err := s.RenameAccount(ctx, id, username, displayName); err != nil {
+	text, err := profileText(bio, "bio", maxBioLen)
+	if err != nil {
 		return Bot{}, err
 	}
+	if username != nil || displayName != nil {
+		if _, err := s.RenameAccount(ctx, id, username, displayName); err != nil {
+			return Bot{}, err
+		}
+	}
+	if text != nil {
+		if _, err := s.q.UpdateUserProfile(ctx, dbgen.UpdateUserProfileParams{ID: id, Bio: text}); err != nil {
+			return Bot{}, fmt.Errorf("update bio: %w", err)
+		}
+	}
 	return s.GetBot(ctx, id)
+}
+
+// IsBot answers files' avatar port: only a bot takes an admin-set avatar.
+func (s *Service) IsBot(ctx context.Context, id string) (bool, error) {
+	_, err := s.GetBot(ctx, id)
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // DeactivateBot deactivates the account and revokes everything it holds.
@@ -346,7 +369,7 @@ func channelList(id string) []string {
 
 func toBot(u dbgen.User) Bot {
 	return Bot{
-		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, AvatarFileID: deref(u.AvatarFileID),
+		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, AvatarFileID: deref(u.AvatarFileID), Bio: u.Bio,
 		InstanceAdmin: authctx.Role(u.Role) == authctx.RoleAdmin, CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
 	}
 }

@@ -69,13 +69,16 @@ func (f *fakeBots) ListBots(context.Context) ([]Bot, error) {
 	return out, nil
 }
 
-func (f *fakeBots) RenameBot(_ context.Context, id string, username, displayName *string) (Bot, error) {
+func (f *fakeBots) UpdateBot(_ context.Context, id string, username, displayName, bio *string) (Bot, error) {
 	b := f.bots[id]
 	if username != nil {
 		b.Username = *username
 	}
 	if displayName != nil {
 		b.DisplayName = *displayName
+	}
+	if bio != nil {
+		b.Bio = *bio
 	}
 	f.bots[id] = b
 	return b, nil

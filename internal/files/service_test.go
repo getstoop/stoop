@@ -29,7 +29,14 @@ import (
 
 // Fake ports: the module under test only needs their contracts.
 
-type fakeAvatars struct{ current map[string]string }
+type fakeAvatars struct {
+	current map[string]string
+	bots    map[string]bool
+}
+
+func (f *fakeAvatars) IsBot(_ context.Context, userID string) (bool, error) {
+	return f.bots[userID], nil
+}
 
 func (f *fakeAvatars) ReferencedFiles(_ context.Context, ids []string) ([]string, error) {
 	current := map[string]bool{}
@@ -218,6 +225,33 @@ func TestUploadAvatarRefusesBots(t *testing.T) {
 	ctx := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: f.member, Role: authctx.RoleMember, Kind: authctx.KindBot})
 	if _, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 300, 200)})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Errorf("a bot set its own avatar: %v", err)
+	}
+}
+
+func TestUploadBotAvatar(t *testing.T) {
+	f := setup(t)
+	avatars := &fakeAvatars{current: map[string]string{}, bots: map[string]bool{f.member: true}}
+	svc := newService(f, avatars)
+	admin := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: f.other, Role: authctx.RoleAdmin})
+	data := pngBytes(t, 300, 200)
+
+	// A member can't; an admin can't aim it at a person.
+	if _, err := svc.UploadBotAvatar(as(f.owner), connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("a member set a bot's avatar: %v", err)
+	}
+	if _, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.owner, Data: data})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("an admin set a person's avatar: %v", err)
+	}
+	if _, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: "not-an-id", Data: data})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("a junk id: %v", err)
+	}
+
+	res, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if avatars.current[f.member] != res.Msg.FileId || !f.blobExists(t, "avatar/"+res.Msg.FileId) {
+		t.Errorf("avatar not set: current %q, file %q", avatars.current[f.member], res.Msg.FileId)
 	}
 }
 

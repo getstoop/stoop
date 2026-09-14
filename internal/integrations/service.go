@@ -55,6 +55,7 @@ type Bot struct {
 	Username      string
 	DisplayName   string
 	AvatarFileID  string
+	Bio           string
 	InstanceAdmin bool
 	CreatedAt     time.Time
 	DeactivatedAt *time.Time
@@ -94,7 +95,8 @@ type BotIdentities interface {
 	CreateBot(ctx context.Context, username, displayName string) (Bot, error)
 	GetBot(ctx context.Context, id string) (Bot, error)
 	ListBots(ctx context.Context) ([]Bot, error)
-	RenameBot(ctx context.Context, id string, username, displayName *string) (Bot, error)
+	// UpdateBot changes what is set; a nil field is left alone.
+	UpdateBot(ctx context.Context, id string, username, displayName, bio *string) (Bot, error)
 	// DeactivateBot revokes everything the bot holds.
 	DeactivateBot(ctx context.Context, id string) error
 	// MintCredential returns the credential and its secret, shown once.

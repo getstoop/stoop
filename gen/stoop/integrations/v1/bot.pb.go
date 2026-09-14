@@ -37,6 +37,9 @@ type Bot struct {
 	// Set once deactivated; its credentials are revoked with it.
 	DeactivatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=deactivated_at,json=deactivatedAt,proto3" json:"deactivated_at,omitempty"`
 	Tokens        []*BotToken            `protobuf:"bytes,8,rep,name=tokens,proto3" json:"tokens,omitempty"`
+	// What the bot is and does, shown on its profile card. Set by an
+	// instance admin through UpdateBot; plain text, 300 characters.
+	Bio           string `protobuf:"bytes,9,opt,name=bio,proto3" json:"bio,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -125,6 +128,13 @@ func (x *Bot) GetTokens() []*BotToken {
 		return x.Tokens
 	}
 	return nil
+}
+
+func (x *Bot) GetBio() string {
+	if x != nil {
+		return x.Bio
+	}
+	return ""
 }
 
 // BotToken is a bearer credential of kind bot_token, shown once at
@@ -244,7 +254,7 @@ var File_stoop_integrations_v1_bot_proto protoreflect.FileDescriptor
 
 const file_stoop_integrations_v1_bot_proto_rawDesc = "" +
 	"\n" +
-	"\x1fstoop/integrations/v1/bot.proto\x12\x15stoop.integrations.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\xd8\x02\n" +
+	"\x1fstoop/integrations/v1/bot.proto\x12\x15stoop.integrations.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\xea\x02\n" +
 	"\x03Bot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -254,7 +264,8 @@ const file_stoop_integrations_v1_bot_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12A\n" +
 	"\x0edeactivated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rdeactivatedAt\x127\n" +
-	"\x06tokens\x18\b \x03(\v2\x1f.stoop.integrations.v1.BotTokenR\x06tokens\"\xd1\x02\n" +
+	"\x06tokens\x18\b \x03(\v2\x1f.stoop.integrations.v1.BotTokenR\x06tokens\x12\x10\n" +
+	"\x03bio\x18\t \x01(\tR\x03bio\"\xd1\x02\n" +
 	"\bBotToken\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\vbot_user_id\x18\x02 \x01(\tR\tbotUserId\x12\x12\n" +

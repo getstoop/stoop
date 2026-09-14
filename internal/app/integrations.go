@@ -59,8 +59,8 @@ func (b botIdentities) ListBots(ctx context.Context) ([]integrations.Bot, error)
 	return out, nil
 }
 
-func (b botIdentities) RenameBot(ctx context.Context, id string, username, displayName *string) (integrations.Bot, error) {
-	bot, err := b.auth.RenameBot(ctx, id, username, displayName)
+func (b botIdentities) UpdateBot(ctx context.Context, id string, username, displayName, bio *string) (integrations.Bot, error) {
+	bot, err := b.auth.UpdateBot(ctx, id, username, displayName, bio)
 	return toIntegrationsBot(bot), err
 }
 
@@ -109,7 +109,7 @@ func (b botIdentities) VerifyHookToken(ctx context.Context, token string) (authc
 
 func toIntegrationsBot(b auth.Bot) integrations.Bot {
 	return integrations.Bot{
-		ID: b.ID, Username: b.Username, DisplayName: b.DisplayName, AvatarFileID: b.AvatarFileID,
+		ID: b.ID, Username: b.Username, DisplayName: b.DisplayName, AvatarFileID: b.AvatarFileID, Bio: b.Bio,
 		InstanceAdmin: b.InstanceAdmin, CreatedAt: b.CreatedAt, DeactivatedAt: b.DeactivatedAt,
 	}
 }

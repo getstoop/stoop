@@ -21,19 +21,50 @@ func (s *Service) UploadAvatar(ctx context.Context, req *connect.Request[filesv1
 	if id, _ := authctx.From(ctx); id.Kind == authctx.KindBot {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("a bot's avatar is set by a server admin"))
 	}
-	userID := authctx.UserID(ctx)
-	f, err := s.storeImage(ctx, KindAvatar, userID, nil, req.Msg.Data, AvatarSize)
+	f, err := s.setAvatar(ctx, authctx.UserID(ctx), req.Msg.Data)
 	if err != nil {
 		return nil, err
+	}
+	return connect.NewResponse(&filesv1.UploadAvatarResponse{FileId: f.ID}), nil
+}
+
+// UploadBotAvatar is the admin's path to a bot's face: the same image
+// pipeline as UploadAvatar, aimed at a bot the caller manages.
+func (s *Service) UploadBotAvatar(ctx context.Context, req *connect.Request[filesv1.UploadBotAvatarRequest]) (*connect.Response[filesv1.UploadBotAvatarResponse], error) {
+	if err := requireAction(ctx, authctx.InstanceIntegrationsManage); err != nil {
+		return nil, err
+	}
+	if _, err := uuid.Parse(req.Msg.UserId); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
+	}
+	bot, err := s.avatars.IsBot(ctx, req.Msg.UserId)
+	if err != nil {
+		return nil, err
+	}
+	if !bot {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("only a bot's avatar can be set for it; people set their own"))
+	}
+	f, err := s.setAvatar(ctx, req.Msg.UserId, req.Msg.Data)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&filesv1.UploadBotAvatarResponse{FileId: f.ID}), nil
+}
+
+// setAvatar stores the image, points the account at it, deletes the one
+// it replaced, and tells every space the account is in to refetch it.
+func (s *Service) setAvatar(ctx context.Context, userID string, data []byte) (dbgen.File, error) {
+	f, err := s.storeImage(ctx, KindAvatar, userID, nil, data, AvatarSize)
+	if err != nil {
+		return dbgen.File{}, err
 	}
 	prev, err := s.avatars.SetAvatar(ctx, userID, f.ID)
 	if err != nil {
 		s.discard(ctx, f)
-		return nil, err
+		return dbgen.File{}, err
 	}
 	s.deleteFile(ctx, prev)
 
-	// Everyone who can see this user learns to refetch them.
 	spaceIDs, err := s.spaces.ListSpaceIDs(ctx, userID)
 	if err != nil {
 		s.log.Warn("avatar changed but spaces not notified", "user_id", userID, "err", err)
@@ -45,7 +76,7 @@ func (s *Service) UploadAvatar(ctx context.Context, req *connect.Request[filesv1
 			},
 		}))
 	}
-	return connect.NewResponse(&filesv1.UploadAvatarResponse{FileId: f.ID}), nil
+	return f, nil
 }
 
 func (s *Service) UploadSpaceIcon(ctx context.Context, req *connect.Request[filesv1.UploadSpaceIconRequest]) (*connect.Response[filesv1.UploadSpaceIconResponse], error) {

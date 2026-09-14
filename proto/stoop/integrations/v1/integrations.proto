@@ -181,6 +181,8 @@ message UpdateBotRequest {
   string id = 1;
   optional string username = 2;
   optional string display_name = 3;
+  // Plain text, 300 characters; whitespace collapses to one line.
+  optional string bio = 4;
 }
 
 message UpdateBotResponse {

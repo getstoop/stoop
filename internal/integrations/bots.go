@@ -58,7 +58,7 @@ func (s *Service) UpdateBot(ctx context.Context, req *connect.Request[integratio
 	if err := s.ready(); err != nil {
 		return nil, err
 	}
-	bot, err := s.bots.RenameBot(ctx, req.Msg.Id, req.Msg.Username, req.Msg.DisplayName)
+	bot, err := s.bots.UpdateBot(ctx, req.Msg.Id, req.Msg.Username, req.Msg.DisplayName, req.Msg.Bio)
 	if err != nil {
 		return nil, err
 	}
