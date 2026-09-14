@@ -49,10 +49,11 @@ func TestTokenHearsOnlyWhatItCovers(t *testing.T) {
 		}}
 	}
 	verifier := fakeVerifier{
-		"ro":  token("ro", true, []string{"s1"}, authctx.MessagesRead),
-		"dm":  token("dm", false, nil, authctx.MessagesRead, authctx.DMsRead, authctx.MessagesPost),
-		"act": token("act", false, nil, authctx.ActivityRead, authctx.MessagesRead),
-		"bot": {UserID: "ops", Kind: authctx.KindBot, Credential: authctx.Credential{ID: "b", Kind: authctx.CredentialBotToken, Grants: []authctx.Action{authctx.MessagesRead}}},
+		"ro":   token("ro", true, []string{"s1"}, authctx.MessagesRead),
+		"dm":   token("dm", false, nil, authctx.MessagesRead, authctx.DMsRead, authctx.MessagesPost),
+		"act":  token("act", false, nil, authctx.ActivityRead, authctx.MessagesRead),
+		"feed": token("feed", false, nil, authctx.ActivityRead, authctx.MessagesRead, authctx.DMsRead),
+		"bot":  {UserID: "ops", Kind: authctx.KindBot, Credential: authctx.Credential{ID: "b", Kind: authctx.CredentialBotToken, Grants: []authctx.Action{authctx.MessagesRead}}},
 	}
 	bus := events.NewInProcBus()
 	gw := realtime.NewGateway(bus, verifier, fakeMembers{
@@ -115,20 +116,26 @@ func TestTokenHearsOnlyWhatItCovers(t *testing.T) {
 	}
 	dm.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetUserTyping() != nil }) // her own relay
 
-	// An activity item previews a message, so activity.read alone isn't
-	// enough: a token with messages.read but no dms.read hears the item
-	// about a space message and not the one about a direct message.
+	// Every activity item previews a message, so activity.read needs both
+	// read grants beside it: a token missing dms.read hears no item at
+	// all; one with all three hears every item.
 	act := dial(t, srv, "act")
 	if r := act.next(time.Second).GetReady(); r == nil {
 		t.Fatal("act never became ready")
 	}
+	feed := dial(t, srv, "feed")
+	if r := feed.next(time.Second).GetReady(); r == nil {
+		t.Fatal("feed never became ready")
+	}
 	bus.Publish("user:alice", activity(""))
 	bus.Publish("user:alice", activity("s1"))
-	if ev := act.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetActivityItemCreated() != nil }); ev == nil || ev.GetActivityItemCreated().Item.SpaceId != "s1" {
-		t.Fatalf("act's first activity = %v", ev)
+	for i := 0; i < 2; i++ {
+		if ev := feed.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetActivityItemCreated() != nil }); ev == nil {
+			t.Fatalf("feed missed activity item %d", i)
+		}
 	}
 	if ev := act.next(300 * time.Millisecond); ev != nil {
-		t.Fatalf("act heard an item it couldn't read: %v", ev.Payload)
+		t.Fatalf("act heard an item without dms.read: %v", ev.Payload)
 	}
 
 	// Revoking one token closes its socket with the revoked code and

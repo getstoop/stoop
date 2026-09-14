@@ -150,6 +150,8 @@ func (s *Service) recordDM(ctx context.Context, msg dbgen.Message, channel dbgen
 	return nil
 }
 
+var errActivityNeedsReads = errors.New("reading activity needs reading messages and direct messages as well")
+
 func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.ListActivityRequest]) (*connect.Response[chatv1.ListActivityResponse], error) {
 	userID := authctx.UserID(ctx)
 	limit := req.Msg.Limit
@@ -162,23 +164,15 @@ func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.
 	if req.Msg.BeforeId != "" {
 		before = &req.Msg.BeforeId
 	}
-	all, err := s.q.ListActivity(ctx, dbgen.ListActivityParams{UserID: userID, BeforeID: before, Limit: limit})
+	// Every item previews a message, from a space or a direct message, so
+	// the feed needs both read grants beside activity.read. A session has
+	// them; a token is only ever minted with all three together.
+	if !authctx.Covers(ctx, authctx.MessagesRead) || !authctx.Covers(ctx, authctx.DMsRead) {
+		return nil, connect.NewError(connect.CodePermissionDenied, errActivityNeedsReads)
+	}
+	rows, err := s.q.ListActivity(ctx, dbgen.ListActivityParams{UserID: userID, BeforeID: before, Limit: limit})
 	if err != nil {
 		return nil, fmt.Errorf("list activity: %w", err)
-	}
-	// An item previews the message it is about, so it needs the grant that
-	// message needs: dms.read for a direct message, messages.read in the
-	// space otherwise. A session covers both; a narrower token may not.
-	rows := all[:0]
-	for _, r := range all {
-		if r.ActivityItem.SpaceID == nil {
-			if !authctx.Covers(ctx, authctx.DMsRead) {
-				continue
-			}
-		} else if !authctx.CoversSpace(ctx, authctx.MessagesRead, *r.ActivityItem.SpaceID) {
-			continue
-		}
-		rows = append(rows, r)
 	}
 	actorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}

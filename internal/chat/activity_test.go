@@ -171,13 +171,16 @@ func TestActivityListFollowsTheReadGrants(t *testing.T) {
 	if got := kinds(bea); len(got) != 2 {
 		t.Fatalf("session sees %v, want both", got)
 	}
-	if got := kinds(asToken(authctx.ActivityRead)); len(got) != 0 {
-		t.Errorf("activity.read alone saw %v", got)
+	if got := kinds(asToken(authctx.ActivityRead, authctx.MessagesRead, authctx.DMsRead)); len(got) != 2 {
+		t.Errorf("with both reads saw %v, want both", got)
 	}
-	if got := kinds(asToken(authctx.ActivityRead, authctx.MessagesRead)); len(got) != 1 || got[0] != chatv1.ActivityKind_ACTIVITY_KIND_MENTION {
-		t.Errorf("with messages.read saw %v, want the mention only", got)
-	}
-	if got := kinds(asToken(authctx.ActivityRead, authctx.DMsRead)); len(got) != 1 || got[0] != chatv1.ActivityKind_ACTIVITY_KIND_DM {
-		t.Errorf("with dms.read saw %v, want the DM only", got)
+	for _, grants := range [][]authctx.Action{
+		{authctx.ActivityRead},
+		{authctx.ActivityRead, authctx.MessagesRead},
+		{authctx.ActivityRead, authctx.DMsRead},
+	} {
+		if _, err := svc.ListActivity(asToken(grants...), connect.NewRequest(&chatv1.ListActivityRequest{})); code(err) != connect.CodePermissionDenied {
+			t.Errorf("activity with %v: %v", grants, err)
+		}
 	}
 }
