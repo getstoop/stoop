@@ -446,3 +446,46 @@ func (f *fakeUsers) ListUserTokens(context.Context, string) ([]*authv1.PersonalT
 }
 
 func (f *fakeUsers) RevokeUserToken(context.Context, string, string) error { return nil }
+
+func TestWebhookSwitches(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := instance.New(pool, newFakeUsers())
+	svc.UseWebhooksEnv(true)
+	ctx := context.Background()
+	admin, member := as("a", authctx.RoleAdmin), as("m", authctx.RoleMember)
+
+	// Defaults: available, both directions on, private targets off.
+	st, err := svc.GetInstanceStatus(ctx, connect.NewRequest(&instancev1.GetInstanceStatusRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !st.Msg.WebhooksAvailable || !st.Msg.WebhooksIncoming || !st.Msg.WebhooksOutgoing || st.Msg.WebhooksAllowPrivateTargets {
+		t.Errorf("fresh switches = %+v", st.Msg)
+	}
+	on, off := true, false
+	if _, err := svc.UpdateSettings(member, connect.NewRequest(&instancev1.UpdateSettingsRequest{WebhooksIncoming: &off})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("member flipped a switch: %v", err)
+	}
+	res, err := svc.UpdateSettings(admin, connect.NewRequest(&instancev1.UpdateSettingsRequest{WebhooksOutgoing: &off, WebhooksAllowPrivateTargets: &on}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Msg.Status.WebhooksIncoming || res.Msg.Status.WebhooksOutgoing || !res.Msg.Status.WebhooksAllowPrivateTargets {
+		t.Errorf("after update = %+v", res.Msg.Status)
+	}
+	// The integrations port reads the same values, under the env floor.
+	if in, _ := svc.WebhooksIncoming(ctx); !in {
+		t.Error("port: incoming should be on")
+	}
+	if out, _ := svc.WebhooksOutgoing(ctx); out {
+		t.Error("port: outgoing should be off")
+	}
+	svc.UseWebhooksEnv(false)
+	if in, _ := svc.WebhooksIncoming(ctx); in {
+		t.Error("port: the env floor should win")
+	}
+	st, _ = svc.GetInstanceStatus(ctx, connect.NewRequest(&instancev1.GetInstanceStatusRequest{}))
+	if st.Msg.WebhooksAvailable {
+		t.Error("status should say the operator turned webhooks off")
+	}
+}

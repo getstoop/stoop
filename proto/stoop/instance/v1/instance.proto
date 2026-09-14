@@ -142,6 +142,13 @@ message GetInstanceStatusResponse {
   string instance_name = 9;
   // Who may make and use personal tokens.
   PersonalTokens personal_tokens = 10;
+  // The webhook switches (docs/proposals/webhooks.md). webhooks_available
+  // is false when the operator turned the feature off in the environment,
+  // which overrides the three settings.
+  bool webhooks_available = 11;
+  bool webhooks_incoming = 12;
+  bool webhooks_outgoing = 13;
+  bool webhooks_allow_private_targets = 14;
 }
 
 message UpdateSettingsRequest {
@@ -159,6 +166,11 @@ message UpdateSettingsRequest {
   // for good — there's no way to ask for a new random name.
   optional string instance_name = 6;
   optional PersonalTokens personal_tokens = 7;
+  optional bool webhooks_incoming = 8;
+  optional bool webhooks_outgoing = 9;
+  // Let outgoing webhooks reach private, loopback and CGNAT addresses.
+  // Link-local is never reachable.
+  optional bool webhooks_allow_private_targets = 10;
 }
 
 message UpdateSettingsResponse {

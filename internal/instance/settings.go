@@ -281,6 +281,18 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 	if err != nil {
 		return nil, err
 	}
+	incoming, err := s.readBool(ctx, keyWebhooksIncoming, true)
+	if err != nil {
+		return nil, err
+	}
+	outgoing, err := s.readBool(ctx, keyWebhooksOutgoing, true)
+	if err != nil {
+		return nil, err
+	}
+	private, err := s.WebhooksAllowPrivateTargets(ctx)
+	if err != nil {
+		return nil, err
+	}
 	summaries := make([]*instancev1.LoginProviderSummary, len(providers))
 	for i, lp := range providers {
 		summaries[i] = &instancev1.LoginProviderSummary{
@@ -292,7 +304,9 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		SpaceCreation: toProtoSpaceCreation(sc), StorageQuotaBytes: quota,
 		LoginProviders: summaries, PasswordSignIn: toProtoPasswordSignIn(PasswordSignIn(pw)),
 		MaxUploadBytes: maxUpload, InstanceName: name,
-		PersonalTokens: toProtoPersonalTokens(TokenSetting(tokens)),
+		PersonalTokens:    toProtoPersonalTokens(TokenSetting(tokens)),
+		WebhooksAvailable: s.webhooksEnv, WebhooksIncoming: incoming, WebhooksOutgoing: outgoing,
+		WebhooksAllowPrivateTargets: private,
 	}, nil
 }
 
@@ -411,6 +425,16 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	if req.Msg.PersonalTokens != nil {
 		if err := s.setPersonalTokens(ctx, *req.Msg.PersonalTokens); err != nil {
 			return nil, err
+		}
+	}
+	for key, v := range map[string]*bool{
+		keyWebhooksIncoming: req.Msg.WebhooksIncoming, keyWebhooksOutgoing: req.Msg.WebhooksOutgoing,
+		keyWebhooksAllowPrivateTargets: req.Msg.WebhooksAllowPrivateTargets,
+	} {
+		if v != nil {
+			if err := s.writeBool(ctx, key, *v); err != nil {
+				return nil, err
+			}
 		}
 	}
 	st, err := s.status(ctx)

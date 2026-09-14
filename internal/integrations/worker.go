@@ -83,8 +83,11 @@ func (s *Service) wakeWorker() {
 }
 
 // deliverOnce leases a batch and delivers each item; it reports how many
-// it leased.
+// it leased. With outgoing off, queued items wait.
 func (s *Service) deliverOnce(ctx context.Context) (int, error) {
+	if on, err := s.outgoingEnabled(ctx); err != nil || !on {
+		return 0, err
+	}
 	items, err := s.queue.Lease(ctx, leaseBatch, leaseFor)
 	if err != nil {
 		return 0, err

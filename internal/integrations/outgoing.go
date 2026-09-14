@@ -30,10 +30,8 @@ func (s *Service) CreateOutgoing(ctx context.Context, req *connect.Request[integ
 	if err := s.ready(); err != nil {
 		return nil, err
 	}
-	if on, err := s.outgoingEnabled(ctx); err != nil {
+	if err := s.requireOutgoing(ctx); err != nil {
 		return nil, err
-	} else if !on {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("outgoing webhooks are turned off on this server"))
 	}
 	name, err := hookName(req.Msg.Name)
 	if err != nil {
@@ -143,6 +141,9 @@ func (s *Service) TestWebhook(ctx context.Context, req *connect.Request[integrat
 	if s.queue == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("deliveries are not wired"))
 	}
+	if err := s.requireOutgoing(ctx); err != nil {
+		return nil, err
+	}
 	hook, err := s.outgoingHook(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, err
@@ -204,6 +205,9 @@ func (s *Service) RedeliverDelivery(ctx context.Context, req *connect.Request[in
 	if s.queue == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("deliveries are not wired"))
 	}
+	if err := s.requireOutgoing(ctx); err != nil {
+		return nil, err
+	}
 	if _, err := uuid.Parse(req.Msg.DeliveryId); err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("delivery not found"))
 	}
@@ -249,6 +253,17 @@ func (s *Service) rotateOutgoing(ctx context.Context, hook dbgen.OutgoingWebhook
 		return "", fmt.Errorf("rotate secret: %w", err)
 	}
 	return secret, nil
+}
+
+func (s *Service) requireOutgoing(ctx context.Context) error {
+	on, err := s.outgoingEnabled(ctx)
+	if err != nil {
+		return err
+	}
+	if !on {
+		return connect.NewError(connect.CodeUnavailable, errors.New("outgoing webhooks are turned off on this server"))
+	}
+	return nil
 }
 
 func (s *Service) outgoingEnabled(ctx context.Context) (bool, error) {
