@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -113,7 +114,7 @@ func (v *voiceState) participantsIn(spaceIDs []string) []*realtimev1.VoicePartic
 
 // handleVoiceState applies a client's self-report and broadcasts the
 // resulting changes to the space(s) involved.
-func (g *Gateway) handleVoiceState(ctx context.Context, userID string, conn uint64, sub *events.Subscription, vs *realtimev1.VoiceState) {
+func (g *Gateway) handleVoiceState(ctx context.Context, userID string, cred authctx.Credential, conn uint64, sub *events.Subscription, vs *realtimev1.VoiceState) {
 	if vs.ChannelId == "" {
 		if left := g.voice.clear(userID, conn, ""); left != nil {
 			g.publishVoice(userID, left, false)
@@ -125,9 +126,10 @@ func (g *Gateway) handleVoiceState(ctx context.Context, userID string, conn uint
 		g.log.Error("resolve voice channel", "err", err)
 		return
 	}
-	// Unknown channel, a text channel, or a space this connection isn't
-	// subscribed to (so not a member of): ignore the report.
-	if spaceID == "" || !sub.Has("space:"+spaceID) {
+	// Unknown channel, a text channel, a space this connection isn't
+	// subscribed to (so not a member of), or a credential that can't join
+	// voice there: ignore the report.
+	if spaceID == "" || !sub.Has("space:"+spaceID) || !coversSpace(cred, authctx.VoiceJoin, spaceID) {
 		return
 	}
 	left, now := g.voice.set(userID, conn, spaceID, vs)

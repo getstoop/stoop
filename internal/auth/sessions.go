@@ -86,8 +86,12 @@ func (s *Service) Logout(ctx context.Context, _ *connect.Request[authv1.LogoutRe
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not logged in"))
 	}
 	if id.SessionID != "" {
-		if err := s.q.DeleteCredential(ctx, id.SessionID); err != nil {
+		rows, err := s.q.DeleteCredential(ctx, id.SessionID)
+		if err != nil {
 			return nil, fmt.Errorf("delete session: %w", err)
+		}
+		for _, r := range rows {
+			s.announceRevoked(r.ID, r.HolderID)
 		}
 	}
 	resp := connect.NewResponse(&authv1.LogoutResponse{})

@@ -53,8 +53,8 @@ func (s *Service) ResetPassword(ctx context.Context, userID string) (temporary s
 	if err := s.q.UpdateUserPasswordHash(ctx, dbgen.UpdateUserPasswordHashParams{ID: u.ID, PasswordHash: &hash}); err != nil {
 		return "", AccountSummary{}, fmt.Errorf("update password: %w", err)
 	}
-	if err := s.q.DeleteUserCredentials(ctx, u.ID); err != nil {
-		return "", AccountSummary{}, fmt.Errorf("revoke credentials: %w", err)
+	if err := s.revokeAll(ctx, u.ID); err != nil {
+		return "", AccountSummary{}, err
 	}
 	return temporary, toSummary(u), nil
 }

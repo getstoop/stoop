@@ -10,8 +10,8 @@ import "stoop/chat/v1/activity.proto";
 import "stoop/chat/v1/space.proto";
 
 // The realtime gateway wire format. There is no Connect service here: clients
-// open a WebSocket at /ws (authenticated by session cookie) and exchange
-// binary frames containing these envelopes.
+// open a WebSocket at /ws (authenticated by the session cookie or a bearer
+// credential) and exchange binary frames containing these envelopes.
 //
 // ServerEvent oneof numbering convention: 3-9 are protocol events, 10+ are
 // domain events.
@@ -25,6 +25,7 @@ message ServerEvent {
     // Protocol events (3-9).
     Ready ready = 3;
     Ping ping = 4;
+    CredentialRevoked credential_revoked = 5;
 
     // Domain events (10+).
     stoop.chat.v1.Message message_created = 10;
@@ -128,6 +129,13 @@ message VoiceStateChanged {
 message Typing {
   string space_id = 1;
   string channel_id = 2;
+}
+
+// CredentialRevoked is published to the holder's topic when a credential is
+// revoked or expires. The gateway forwards it only to connections opened
+// with that credential and then closes them (close code 4001).
+message CredentialRevoked {
+  string credential_id = 1;
 }
 
 // Ready is sent once after the WebSocket is authenticated and subscribed.

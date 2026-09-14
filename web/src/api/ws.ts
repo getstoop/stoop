@@ -49,6 +49,12 @@ export function sendClientEvent(
   liveSocket.send(toBinary(ClientEventSchema, ev));
 }
 
+// The gateway's close code when the session this socket was opened with
+// was revoked: signed out elsewhere, password changed, or deactivated.
+// Reconnecting would only fail; the me query fails instead, and the shell
+// goes to the login page.
+const CLOSE_CREDENTIAL_REVOKED = 4001;
+
 export function startRealtime(queryClient: QueryClient): () => void {
   let ws: WebSocket | null = null;
   let stopped = false;
@@ -78,9 +84,15 @@ export function startRealtime(queryClient: QueryClient): () => void {
       applyEvent(queryClient, event);
     };
 
-    ws.onclose = () => {
+    ws.onclose = (e: CloseEvent) => {
       liveSocket = null;
       useConnectionStore.getState().setOnline([]);
+      if (e.code === CLOSE_CREDENTIAL_REVOKED) {
+        stopped = true;
+        useConnectionStore.getState().setStatus("disconnected");
+        queryClient.invalidateQueries({ queryKey: ["me"] });
+        return;
+      }
       if (stopped) return;
       useConnectionStore.getState().setStatus("reconnecting");
       const backoff = Math.min(1000 * 2 ** attempts, MAX_BACKOFF_MS);

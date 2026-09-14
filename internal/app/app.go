@@ -94,6 +94,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	authSvc.UseProviders(providerSource{instanceSvc})
 	authSvc.UsePasswordPolicy(instanceSvc)
 	authSvc.UseTokenPolicy(instanceSvc)
+	authSvc.UseBus(bus)
 	instanceSvc.UsePasswordSignInEnv(cfg.PasswordSignIn)
 	bi := buildinfo.Get()
 	instanceSvc.UseBuildInfo(instance.BuildInfo{Version: bi.Version, Commit: bi.Commit, BuiltAt: bi.Date, GoVersion: bi.GoVersion})
@@ -112,7 +113,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	voiceSvc := voice.New(chatSvc, displayNames{authSvc}, voiceOpts, log)
 	// The other direction: chat ends calls through the SFU.
 	chatSvc.UseVoiceRooms(voiceSvc)
-	gateway := realtime.NewGateway(bus, sessionVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
+	gateway := realtime.NewGateway(bus, identityVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
 	chatSvc.UsePresence(gateway)
 	filesSvc := files.New(pool, store, bus, authSvc, chatSvc, identityVerifier{authSvc}, log)
 	filesSvc.UsePolicy(instanceSvc)
@@ -529,35 +530,13 @@ func (d fileDirectory) DeleteFiles(ctx context.Context, ids []string) error {
 	return d.files.DeleteFiles(ctx, ids)
 }
 
-// identityVerifier is the same check for handlers that need the whole
-// identity (the files download handler consults the instance role).
+// identityVerifier adapts auth's token check onto the plain-HTTP handlers
+// (/ws, downloads) that don't pass through the Connect interceptor. They
+// get the whole identity, credential included, and filter by it.
 type identityVerifier struct{ auth *auth.Service }
 
 func (v identityVerifier) VerifyRequest(ctx context.Context, h http.Header) (authctx.Identity, error) {
-	return sessionOnly(v.auth.VerifyToken(ctx, auth.TokenFromHeader(h)))
-}
-
-// sessionOnly refuses any credential but a session on the surfaces that
-// don't filter by credential yet: /ws streams every topic its person can
-// see, and not every download consults the grant (STOOP-274).
-func sessionOnly(id authctx.Identity, err error) (authctx.Identity, error) {
-	if err != nil {
-		return authctx.Identity{}, err
-	}
-	if id.Credential.Kind != authctx.CredentialSession {
-		return authctx.Identity{}, errors.New("only a signed-in session can open this")
-	}
-	return id, nil
-}
-
-type sessionVerifier struct{ auth *auth.Service }
-
-func (v sessionVerifier) VerifyRequest(ctx context.Context, h http.Header) (string, error) {
-	identity, err := sessionOnly(v.auth.VerifyToken(ctx, auth.TokenFromHeader(h)))
-	if err != nil {
-		return "", err
-	}
-	return identity.UserID, nil
+	return v.auth.VerifyToken(ctx, auth.TokenFromHeader(h))
 }
 
 // unfurler adapts internal/unfurl to chat's port.

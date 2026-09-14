@@ -13,15 +13,21 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/realtime"
 )
 
-// Bearer token == user id; memberships are fixed per user.
-type fakeVerifier struct{}
+// Bearer token == user id, as a session, unless the token is listed here
+// with an identity of its own. Memberships are fixed per user.
+type fakeVerifier map[string]authctx.Identity
 
-func (fakeVerifier) VerifyRequest(_ context.Context, h http.Header) (string, error) {
-	return strings.TrimPrefix(h.Get("Authorization"), "Bearer "), nil
+func (f fakeVerifier) VerifyRequest(_ context.Context, h http.Header) (authctx.Identity, error) {
+	token := strings.TrimPrefix(h.Get("Authorization"), "Bearer ")
+	if id, ok := f[token]; ok {
+		return id, nil
+	}
+	return authctx.Identity{UserID: token, Credential: authctx.Credential{ID: "session:" + token, Kind: authctx.CredentialSession}}, nil
 }
 
 type fakeMembers map[string][]string
@@ -47,21 +53,33 @@ type client struct {
 	conn   *websocket.Conn
 	t      *testing.T
 	events chan *realtimev1.ServerEvent
+	// closeCode is how the server closed the socket, once events closes.
+	closeCode websocket.StatusCode
 }
 
 func dial(t *testing.T, srv *httptest.Server, user string) *client {
 	t.Helper()
-	h := http.Header{"Authorization": {"Bearer " + user}}
-	conn, _, err := websocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", &websocket.DialOptions{HTTPHeader: h})
+	c, res, err := tryDial(srv, user)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("dial as %s: %v (%v)", user, err, res)
 	}
-	c := &client{conn: conn, t: t, events: make(chan *realtimev1.ServerEvent, 64)}
+	c.t = t
+	return c
+}
+
+func tryDial(srv *httptest.Server, user string) (*client, *http.Response, error) {
+	h := http.Header{"Authorization": {"Bearer " + user}}
+	conn, res, err := websocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", &websocket.DialOptions{HTTPHeader: h})
+	if err != nil {
+		return nil, res, err
+	}
+	c := &client{conn: conn, events: make(chan *realtimev1.ServerEvent, 64)}
 	go func() {
 		defer close(c.events)
 		for {
 			_, data, err := conn.Read(context.Background())
 			if err != nil {
+				c.closeCode = websocket.CloseStatus(err)
 				return
 			}
 			ev := &realtimev1.ServerEvent{}
@@ -70,7 +88,7 @@ func dial(t *testing.T, srv *httptest.Server, user string) *client {
 			}
 		}
 	}()
-	return c
+	return c, res, nil
 }
 
 // next returns the next event or nil after timeout.
@@ -105,6 +123,21 @@ func (c *client) send(ev *realtimev1.ClientEvent) {
 	data, _ := proto.Marshal(ev)
 	if err := c.conn.Write(context.Background(), websocket.MessageBinary, data); err != nil {
 		c.t.Fatal(err)
+	}
+}
+
+// closed drains events until the socket closes or timeout passes.
+func (c *client) closed(timeout time.Duration) bool {
+	deadline := time.After(timeout)
+	for {
+		select {
+		case _, ok := <-c.events:
+			if !ok {
+				return true
+			}
+		case <-deadline:
+			return false
+		}
 	}
 }
 

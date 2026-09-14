@@ -134,8 +134,10 @@ some spaces, and expires after 30, 90 or 365 days, or never.
   stores its SHA-256 and its last four characters (`credentials.hint`),
   never the token.
 - **It is a bearer token only.** `Authorization: Bearer` on Connect calls,
-  never a cookie. `/ws` and file downloads refuse anything but a session
-  until they filter by credential.
+  `/ws` and file downloads, never a cookie. The socket delivers only what
+  the token covers ([realtime.md](realtime.md#credentials)); a download
+  needs `messages.read` in the file's space, or `dms.read` for a direct
+  message's attachment.
 - **No token can make, list or revoke tokens**, change a password or link
   a provider: those need `account.security`, which only a session carries.
 - **A token limited to spaces uses only space permissions**, and only in

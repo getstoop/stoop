@@ -94,7 +94,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `instance` | `UserAdmin` | auth | List, promote, deactivate, rename, reset — the admin page's user tab. |
 | `instance` | `TailscaleController` | `internal/tailnet` | Apply saved settings to the embedded node; report its status. |
 | `instance` | `LiveKitReporter` | `internal/app` | What the Hosting page can say about the voice sidecar. |
-| `realtime` | `SessionVerifier` | auth | Authenticate the WebSocket upgrade. |
+| `realtime` | `SessionVerifier` | auth | Authenticate the WebSocket upgrade: the identity and the credential it presents. |
 | `realtime` | `MembershipLister` | chat | Which space topics this connection subscribes to. |
 | `realtime` | `ChannelLookup` | chat | Resolve a voice channel's space; list a DM's participants. |
 | `voice` | `ChannelDirectory` | chat | Is the caller a member of this channel, and is it a voice channel? |
@@ -102,7 +102,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `voice` | `RelayProvider` | instance | The TURN relay in force, read per join. |
 | `files` | `Avatars` | auth | Set the avatar pointer; report which files are still someone's avatar. |
 | `files` | `Spaces` | chat | Set the icon pointer, authorise downloads, report referenced files. |
-| `files` | `SessionVerifier` | auth | Authenticate the plain-HTTP download handler. |
+| `files` | `SessionVerifier` | auth | Authenticate the plain-HTTP download handler: the identity and its credential. |
 | `files` | `Policy` | instance | The storage quota and the per-upload cap. |
 
 Two patterns recur in that table and are worth naming.
