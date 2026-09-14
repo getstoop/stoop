@@ -46,16 +46,16 @@ change. The model only shows when something narrower is presented.
 
 ## Worked examples
 
-Casey runs the instance. ops-bot is a bot Casey made an instance admin, with
-one token granted `channels.manage` and bounded to the Homelab space. Ada
-is an admin of Homelab.
+Casey runs the instance. ops-bot is a bot Casey put in the Homelab space
+as an admin there, and nowhere else, with one token granted
+`channels.manage`. Ada is an admin of Homelab.
 
 | Caller | Presenting | Asks to | Identity | Credential | Answer |
 | ------ | ---------- | ------- | :------: | :--------: | ------ |
 | casey | session | delete space Book club | ✓ | ✓ | allowed |
 | ops-bot | bot token | delete a channel in Homelab | ✓ | ✓ | allowed |
-| ops-bot | bot token | delete space Homelab | ✓ | ✗ | "this token isn't allowed to delete this space" |
-| ops-bot | bot token | delete a channel in Book club | ✓ | ✗ | outside the token's spaces |
+| ops-bot | bot token | rename space Homelab | ✓ | ✗ | "this token isn't allowed to change this space's settings" |
+| ops-bot | bot token | delete a channel in Book club | ✗ | ✓ | refused: ops-bot isn't in Book club, and its own token can't join it |
 | ada | personal token, `messages.read` | delete a channel in Homelab | ✓ | ✗ | refused |
 | ada, since demoted | personal token, `channels.manage` | delete a channel in Homelab | ✗ | ✓ | refused; nobody revoked anything |
 | bea | personal token, every grantable action | change her password | ✓ | ✗ | `account.security` is never grantable |
@@ -83,8 +83,8 @@ is an admin of Homelab.
 | Kind | Holder | Presented as | Grant | Bounds | Minted by |
 | ---- | ------ | ------------ | ----- | ------ | --------- |
 | `session` | person | cookie, or bearer from the desktop app | everything, including actions added later | none | signing in |
-| `personal_token` | person | `Authorization: Bearer stp_pat_…` | listed grantable actions | spaces, optional | its holder, from a session |
-| `bot_token` | bot | `Authorization: Bearer stp_bot_…` | listed grantable actions | spaces, optional | an instance admin |
+| `personal_token` | person | `Authorization: Bearer stp_pat_…` | listed grantable actions | none: wherever its holder is | its holder, from a session |
+| `bot_token` | bot | `Authorization: Bearer stp_bot_…` | listed grantable actions | none: wherever the bot has been put | an instance admin |
 | `incoming_hook` | bot | the path of `/hooks/{token}` | `messages.post`, optionally `messages.notify_everyone` | exactly one channel | an instance admin |
 
 - An explicit grant never grows when actions are added.
@@ -109,9 +109,13 @@ is an admin of Homelab.
 
 ### Bounds
 
-A bound row names one space or one channel. Tokens accept space bounds;
-hooks use a channel bound. Letting tokens take channel bounds later is a
-validation change, not a migration.
+A bound row names one space or one channel. Only a hook is minted bounded,
+to its one channel. A token's reach is its holder's: every space a person
+is in, or every space an instance admin has put a bot in (STOOP-287,
+2026-09-14). Tokens accepted space bounds before that; rows minted with
+them keep them, since a bound only narrows, and are listed as limited
+until they expire or are revoked. `Credential.Reaches` and the bounded
+rules below are unchanged.
 
 Losing the last bound must not widen a credential: bound rows cascade with
 their space or channel, so `credentials.bounded` records the intent, and a

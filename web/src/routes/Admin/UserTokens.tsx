@@ -53,8 +53,8 @@ export function UserTokens({ user }: { user: InstanceUser }) {
           <div key={t.id} className="user-token-row">
             <strong>{t.name}</strong>
             <span>
-              {describePermissions(t.permissions).join(", ")} ·{" "}
-              {whereText(t, nameOf)}
+              {describePermissions(t.permissions).join(", ")}
+              {t.limited && <> · limited to {whereText(t, nameOf)}</>}
             </span>
             <span className="muted">
               {lastUsedText(t.lastUsedAt && timestampDate(t.lastUsedAt))}
