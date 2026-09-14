@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package stoop.integrations.v1;
+
+import "google/protobuf/timestamp.proto";
+import "stoop/access/v1/access.proto";
+
+// IncomingWebhook is a URL the server hosts that posts into one channel
+// as its bot. The token is a credential; it appears only in the create
+// and rotate responses.
+message IncomingWebhook {
+  string id = 1;
+  string space_id = 2;
+  string channel_id = 3;
+  string bot_user_id = 4;
+  string name = 5;
+  // The hook credential's grants: messages.post, optionally
+  // messages.notify_everyone.
+  repeated stoop.access.v1.Permission permissions = 6;
+  // The token's last four characters, to tell hooks apart.
+  string hint = 7;
+  bool enabled = 8;
+  // Why it is disabled, when it is.
+  string disabled_reason = 9;
+  google.protobuf.Timestamp created_at = 10;
+  // Unset when never used. Recorded at most once a minute.
+  google.protobuf.Timestamp last_used_at = 11;
+}
+
+// OutgoingWebhook is a URL somebody else hosts that the server POSTs
+// signed events to. The signing secret appears only in the create and
+// rotate responses.
+message OutgoingWebhook {
+  string id = 1;
+  string space_id = 2;
+  // Empty means every channel in the space.
+  string channel_id = 3;
+  string name = 4;
+  string url = 5;
+  repeated string event_types = 6;
+  // The secret's last four characters.
+  string hint = 7;
+  bool enabled = 8;
+  string disabled_reason = 9;
+  google.protobuf.Timestamp created_at = 10;
+  // The Stoop-Sequence counter as of now.
+  int64 sequence = 11;
+}
+
+// Delivery is one queued or finished attempt series for an outgoing hook.
+message Delivery {
+  string id = 1;
+  string webhook_id = 2;
+  string event_type = 3;
+  int64 sequence = 4;
+  int32 attempts = 5;
+  // Unset until a receiver answered.
+  optional int32 status_code = 6;
+  // The first 500 bytes of the last response.
+  string response = 7;
+  string error = 8;
+  google.protobuf.Timestamp created_at = 9;
+  // Set once delivered or dead.
+  google.protobuf.Timestamp finished_at = 10;
+  // The next attempt's earliest time, while unfinished.
+  google.protobuf.Timestamp next_attempt_at = 11;
+}

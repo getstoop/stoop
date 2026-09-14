@@ -75,6 +75,8 @@ type Service struct {
 	// instanceNameEnv is the STOOP_INSTANCE_NAME fallback, set from Seed's
 	// Defaults. Empty unless the operator configured it (settings.go).
 	instanceNameEnv string
+	// webhooksEnv is STOOP_WEBHOOKS, the floor under the webhook settings.
+	webhooksEnv bool
 	// uploadCeiling is the files module's own hard per-file cap, wired in
 	// internal/app. It bounds the max_upload_bytes setting (settings.go).
 	uploadCeiling int64

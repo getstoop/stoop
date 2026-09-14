@@ -20,6 +20,7 @@ import (
 	"github.com/getstoop/stoop/gen/stoop/chat/v1/chatv1connect"
 	"github.com/getstoop/stoop/gen/stoop/files/v1/filesv1connect"
 	"github.com/getstoop/stoop/gen/stoop/instance/v1/instancev1connect"
+	"github.com/getstoop/stoop/gen/stoop/integrations/v1/integrationsv1connect"
 	"github.com/getstoop/stoop/gen/stoop/voice/v1/voicev1connect"
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -31,6 +32,7 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/files"
 	"github.com/getstoop/stoop/internal/instance"
+	"github.com/getstoop/stoop/internal/integrations"
 	"github.com/getstoop/stoop/internal/ratelimit"
 	"github.com/getstoop/stoop/internal/realtime"
 	"github.com/getstoop/stoop/internal/tailnet"
@@ -96,6 +98,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	authSvc.UseTokenPolicy(instanceSvc)
 	authSvc.UseBus(bus)
 	instanceSvc.UsePasswordSignInEnv(cfg.PasswordSignIn)
+	instanceSvc.UseWebhooksEnv(cfg.Webhooks)
 	bi := buildinfo.Get()
 	instanceSvc.UseBuildInfo(instance.BuildInfo{Version: bi.Version, Commit: bi.Commit, BuiltAt: bi.Date, GoVersion: bi.GoVersion})
 	chatSvc.UseInstancePolicy(instanceSvc)
@@ -120,6 +123,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	instanceSvc.UseUploadCeiling(files.MaxAttachmentBytes)
 	filesSvc.UseSweepGrace(cfg.FileSweepGrace)
 	chatSvc.UseFiles(fileDirectory{filesSvc})
+	// The other ports arrive with the behaviour that needs them
+	// (STOOP-259, 260, 266).
+	integrationsSvc := integrations.New(pool, bus, log)
+	integrationsSvc.UsePolicy(instanceSvc)
 	if cfg.LinkPreviews {
 		chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate})}, filesSvc, chat.UnfurlOptions{})
 		if cfg.UnfurlAllowPrivate {
@@ -157,6 +164,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	mux.Handle(instancev1connect.NewInstanceServiceHandler(instanceSvc, interceptors))
 	mux.Handle(voicev1connect.NewVoiceServiceHandler(voiceSvc, interceptors))
 	mux.Handle(filesv1connect.NewFileServiceHandler(filesSvc, interceptors))
+	mux.Handle(integrationsv1connect.NewIntegrationServiceHandler(integrationsSvc, interceptors))
 	mux.Handle("POST /files/upload", filesSvc.UploadHandler())
 	mux.Handle("GET /files/{id}", filesSvc.Handler())
 	mux.Handle("HEAD /files/{id}", filesSvc.Handler())

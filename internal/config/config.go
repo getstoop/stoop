@@ -112,6 +112,10 @@ type Config struct {
 	// addresses. Never in production: it's what stops the server being used
 	// as a proxy into your LAN. Dev and tests only.
 	UnfurlAllowPrivate bool
+	// Webhooks is the floor under the instance's webhook settings: false
+	// stops every incoming post and outgoing delivery without deleting
+	// anything.
+	Webhooks bool
 
 	// Tailscale embeds a tailnet node in the binary (tsnet) and serves the
 	// app over HTTPS on its tailnet address, in addition to ListenAddr.
@@ -227,6 +231,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.UnfurlAllowPrivate, err = parseBool("STOOP_UNFURL_ALLOW_PRIVATE", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.Webhooks, err = parseBool("STOOP_WEBHOOKS", true); err != nil {
 		return Config{}, err
 	}
 

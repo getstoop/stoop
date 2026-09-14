@@ -1,0 +1,215 @@
+syntax = "proto3";
+
+package stoop.integrations.v1;
+
+import "stoop/access/v1/access.proto";
+import "stoop/integrations/v1/bot.proto";
+import "stoop/integrations/v1/webhook.proto";
+
+// IntegrationService configures what the server talks to: incoming and
+// outgoing webhooks, and the bots they authenticate as. Every mutation
+// needs instance.integrations.manage. See docs/proposals/webhooks.md.
+service IntegrationService {
+  // ListWebhooks lists both kinds for one space, readable by any member
+  // of it. Without a space_id it lists the whole server, instance admins
+  // only. Never carries a token or secret.
+  rpc ListWebhooks(ListWebhooksRequest) returns (ListWebhooksResponse) {}
+  // CreateIncoming makes a hook and, unless bot_user_id names an existing
+  // bot, a new bot for it. The response carries the URL once.
+  rpc CreateIncoming(CreateIncomingRequest) returns (CreateIncomingResponse) {}
+  // CreateOutgoing makes a hook. The response carries the signing secret
+  // once.
+  rpc CreateOutgoing(CreateOutgoingRequest) returns (CreateOutgoingResponse) {}
+  rpc UpdateIncoming(UpdateIncomingRequest) returns (UpdateIncomingResponse) {}
+  rpc UpdateOutgoing(UpdateOutgoingRequest) returns (UpdateOutgoingResponse) {}
+  // DeleteWebhook removes a hook of either kind. Deleting an incoming hook
+  // revokes its credential and never the bot.
+  rpc DeleteWebhook(DeleteWebhookRequest) returns (DeleteWebhookResponse) {}
+  // RotateSecret mints a new token (incoming) or signing secret (outgoing)
+  // and returns it once.
+  rpc RotateSecret(RotateSecretRequest) returns (RotateSecretResponse) {}
+  // TestWebhook enqueues a webhook.test delivery for an outgoing hook.
+  rpc TestWebhook(TestWebhookRequest) returns (TestWebhookResponse) {}
+  rpc ListDeliveries(ListDeliveriesRequest) returns (ListDeliveriesResponse) {}
+  // RedeliverDelivery re-queues a failed delivery under a new id.
+  rpc RedeliverDelivery(RedeliverDeliveryRequest) returns (RedeliverDeliveryResponse) {}
+
+  // ListBots lists every bot on the server with its tokens. Instance
+  // admins only.
+  rpc ListBots(ListBotsRequest) returns (ListBotsResponse) {}
+  rpc CreateBot(CreateBotRequest) returns (CreateBotResponse) {}
+  rpc UpdateBot(UpdateBotRequest) returns (UpdateBotResponse) {}
+  // DeactivateBot revokes every credential the bot holds. Its messages
+  // stay.
+  rpc DeactivateBot(DeactivateBotRequest) returns (DeactivateBotResponse) {}
+  // CreateBotToken mints a bearer token for an existing bot and returns
+  // it once.
+  rpc CreateBotToken(CreateBotTokenRequest) returns (CreateBotTokenResponse) {}
+  rpc RevokeBotToken(RevokeBotTokenRequest) returns (RevokeBotTokenResponse) {}
+}
+
+message ListWebhooksRequest {
+  // Empty lists every space; instance admins only.
+  string space_id = 1;
+}
+
+message ListWebhooksResponse {
+  repeated IncomingWebhook incoming = 1;
+  repeated OutgoingWebhook outgoing = 2;
+}
+
+message CreateIncomingRequest {
+  string channel_id = 1;
+  // 1-50 characters after trimming.
+  string name = 2;
+  // Empty creates a new bot named after the hook.
+  string bot_user_id = 3;
+  // Grants messages.notify_everyone and makes the bot a space admin.
+  bool notify_everyone = 4;
+}
+
+message CreateIncomingResponse {
+  IncomingWebhook webhook = 1;
+  // The full URL to paste into a sender. Shown once.
+  string url = 2;
+}
+
+message CreateOutgoingRequest {
+  string space_id = 1;
+  // Empty means every channel in the space.
+  string channel_id = 2;
+  string name = 3;
+  string url = 4;
+  // At least one, from the catalogue.
+  repeated string event_types = 5;
+}
+
+message CreateOutgoingResponse {
+  OutgoingWebhook webhook = 1;
+  // The signing secret. Shown once.
+  string secret = 2;
+}
+
+message UpdateIncomingRequest {
+  string id = 1;
+  optional string name = 2;
+  optional bool notify_everyone = 3;
+  // True re-enables a hook disabled by the server; false disables it.
+  optional bool enabled = 4;
+}
+
+message UpdateIncomingResponse {
+  IncomingWebhook webhook = 1;
+}
+
+message UpdateOutgoingRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string url = 3;
+  // Empty means every channel in the space.
+  optional string channel_id = 4;
+  // Replaces the list when present.
+  repeated string event_types = 5;
+  bool set_event_types = 6;
+  optional bool enabled = 7;
+}
+
+message UpdateOutgoingResponse {
+  OutgoingWebhook webhook = 1;
+}
+
+message DeleteWebhookRequest {
+  string id = 1;
+}
+
+message DeleteWebhookResponse {}
+
+message RotateSecretRequest {
+  string id = 1;
+}
+
+message RotateSecretResponse {
+  // Set for an incoming hook: the new URL.
+  string url = 1;
+  // Set for an outgoing hook: the new signing secret.
+  string secret = 2;
+}
+
+message TestWebhookRequest {
+  string id = 1;
+}
+
+message TestWebhookResponse {
+  Delivery delivery = 1;
+}
+
+message ListDeliveriesRequest {
+  string webhook_id = 1;
+  // At most 100; 0 means 20.
+  int32 limit = 2;
+}
+
+message ListDeliveriesResponse {
+  repeated Delivery deliveries = 1;
+}
+
+message RedeliverDeliveryRequest {
+  string delivery_id = 1;
+}
+
+message RedeliverDeliveryResponse {
+  Delivery delivery = 1;
+}
+
+message ListBotsRequest {}
+
+message ListBotsResponse {
+  repeated Bot bots = 1;
+}
+
+message CreateBotRequest {
+  string username = 1;
+  string display_name = 2;
+}
+
+message CreateBotResponse {
+  Bot bot = 1;
+}
+
+message UpdateBotRequest {
+  string id = 1;
+  optional string username = 2;
+  optional string display_name = 3;
+}
+
+message UpdateBotResponse {
+  Bot bot = 1;
+}
+
+message DeactivateBotRequest {
+  string id = 1;
+}
+
+message DeactivateBotResponse {}
+
+message CreateBotTokenRequest {
+  string bot_user_id = 1;
+  // 1-50 characters after trimming.
+  string name = 2;
+  // At least one; never PERMISSION_ACCOUNT_SECURITY.
+  repeated stoop.access.v1.Permission permissions = 3;
+  bool limited = 4;
+  repeated string space_ids = 5;
+}
+
+message CreateBotTokenResponse {
+  BotToken token = 1;
+  // Shown once.
+  string secret = 2;
+}
+
+message RevokeBotTokenRequest {
+  string token_id = 1;
+}
+
+message RevokeBotTokenResponse {}

@@ -5,6 +5,7 @@ import (
 	"github.com/getstoop/stoop/gen/stoop/chat/v1/chatv1connect"
 	"github.com/getstoop/stoop/gen/stoop/files/v1/filesv1connect"
 	"github.com/getstoop/stoop/gen/stoop/instance/v1/instancev1connect"
+	"github.com/getstoop/stoop/gen/stoop/integrations/v1/integrationsv1connect"
 	"github.com/getstoop/stoop/gen/stoop/voice/v1/voicev1connect"
 	"github.com/getstoop/stoop/internal/authctx"
 )
@@ -52,6 +53,25 @@ var procedures = map[string]authctx.Rule{
 	instancev1connect.InstanceServiceClearUserProfileProcedure:     needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceListUserTokensProcedure:       needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceRevokeUserTokenProcedure:      needs(authctx.InstanceUsersManage),
+
+	// Members read a space's hooks; the handler requires
+	// instance.integrations.manage for the server-wide list.
+	integrationsv1connect.IntegrationServiceListWebhooksProcedure:      needs(authctx.SpaceRead),
+	integrationsv1connect.IntegrationServiceCreateIncomingProcedure:    needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceCreateOutgoingProcedure:    needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceUpdateIncomingProcedure:    needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceUpdateOutgoingProcedure:    needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceDeleteWebhookProcedure:     needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceRotateSecretProcedure:      needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceTestWebhookProcedure:       needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceListDeliveriesProcedure:    needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceRedeliverDeliveryProcedure: needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceListBotsProcedure:          needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceCreateBotProcedure:         needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceUpdateBotProcedure:         needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceDeactivateBotProcedure:     needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceCreateBotTokenProcedure:    needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceRevokeBotTokenProcedure:    needs(authctx.InstanceIntegrationsManage),
 
 	filesv1connect.FileServiceUploadAvatarProcedure:    needs(authctx.ProfileManage),
 	filesv1connect.FileServiceUploadSpaceIconProcedure: needs(authctx.SpaceManage),

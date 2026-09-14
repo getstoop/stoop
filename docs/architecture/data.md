@@ -202,6 +202,27 @@ under `storage_key`; this table is the record of truth for everything
 *about* them, including the content type used to serve them. See
 [files.md](files.md).
 
+### integrations
+
+**`incoming_webhooks`** — a URL the server hosts: `space_id`, `channel_id`
+(cascades: a hook with no target is nothing), `bot_user_id`, and
+`credential_id` → `credentials(id) ON DELETE SET NULL`, so revoking the
+token disables the hook rather than deleting it. `disabled_at`,
+`disabled_reason`.
+
+**`outgoing_webhooks`** — a URL somebody else hosts: `url`, the raw
+signing `secret`, `event_types`, an optional `channel_id` filter (SET NULL
+on delete: losing the channel widens the hook and must not destroy its
+secret, which is why the two hook kinds are two tables), and `sequence`,
+the `Stoop-Sequence` counter.
+
+**`webhook_deliveries`** — the Postgres queue behind the `Queue` port: a
+queued row is work, a finished row is the delivery log. `lane` is the hook,
+`not_before` and `leased_until` are the claim, `body` is cleared on success.
+Two partial/ordered indexes: due items for the worker, and `(lane,
+created_at DESC)` for the settings page. See
+[the webhooks proposal](../proposals/webhooks.md).
+
 ## Identifiers
 
 **Every id is a UUIDv7**, minted by the application (`uuid.NewV7()`), not
