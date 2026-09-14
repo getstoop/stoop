@@ -89,7 +89,8 @@ people who joined.
 
 ### `stoop.files.v1.FileService`
 
-`UploadAvatar`, `UploadSpaceIcon` (bytes ride inside the request; 2 MB cap),
+`UploadAvatar`, `UploadBotAvatar` (a bot's, by an instance admin),
+`UploadSpaceIcon` (bytes ride inside the request; 2 MB cap),
 `GetStorageUsage`, `SweepFiles` (admins).
 
 ### `stoop.voice.v1.VoiceService`

@@ -69,13 +69,16 @@ func (f *fakeBots) ListBots(context.Context) ([]Bot, error) {
 	return out, nil
 }
 
-func (f *fakeBots) RenameBot(_ context.Context, id string, username, displayName *string) (Bot, error) {
+func (f *fakeBots) UpdateBot(_ context.Context, id string, username, displayName, bio *string) (Bot, error) {
 	b := f.bots[id]
 	if username != nil {
 		b.Username = *username
 	}
 	if displayName != nil {
 		b.DisplayName = *displayName
+	}
+	if bio != nil {
+		b.Bio = *bio
 	}
 	f.bots[id] = b
 	return b, nil
@@ -631,5 +634,25 @@ func TestBotTokens(t *testing.T) {
 	}
 	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Errorf("a token for a deactivated bot: %v", err)
+	}
+}
+
+func TestCreateBotWithBio(t *testing.T) {
+	f := setup(t)
+	res, err := f.svc.CreateBot(f.admin, connect.NewRequest(&integrationsv1.CreateBotRequest{
+		Username: "hass", DisplayName: "Home Assistant", Bio: "  Says when the garage door is open.  ",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Msg.Bot.Bio != "Says when the garage door is open." {
+		t.Errorf("bio = %q", res.Msg.Bot.Bio)
+	}
+	plain, err := f.svc.CreateBot(f.admin, connect.NewRequest(&integrationsv1.CreateBotRequest{Username: "quiet", DisplayName: "Quiet"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.Msg.Bot.Bio != "" {
+		t.Errorf("no bio: %q", plain.Msg.Bot.Bio)
 	}
 }

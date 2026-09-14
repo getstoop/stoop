@@ -37,6 +37,7 @@ export function PinRow({
         <Avatar
           name={who}
           fileId={message.author?.avatarFileId ?? ""}
+          kind={message.author?.kind}
           size="small"
         />
         <span className="pin-row-title">

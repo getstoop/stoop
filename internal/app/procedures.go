@@ -74,6 +74,7 @@ var procedures = map[string]authctx.Rule{
 	integrationsv1connect.IntegrationServiceRevokeBotTokenProcedure:    needs(authctx.InstanceIntegrationsManage),
 
 	filesv1connect.FileServiceUploadAvatarProcedure:    needs(authctx.ProfileManage),
+	filesv1connect.FileServiceUploadBotAvatarProcedure: needs(authctx.InstanceIntegrationsManage),
 	filesv1connect.FileServiceUploadSpaceIconProcedure: needs(authctx.SpaceManage),
 	filesv1connect.FileServiceGetStorageUsageProcedure: needs(authctx.InstanceRead),
 	filesv1connect.FileServiceSweepFilesProcedure:      needs(authctx.InstanceFilesManage),

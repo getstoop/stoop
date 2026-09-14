@@ -120,6 +120,7 @@ export function MembersSection({ space }: { space: Space }) {
                   <Avatar
                     name={m.displayName || m.username}
                     fileId={m.avatarFileId}
+                    kind={m.kind}
                     size="small"
                   />
                   {m.displayName || m.username}

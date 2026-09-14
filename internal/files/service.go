@@ -44,6 +44,9 @@ type Avatars interface {
 	// SetAvatar points the user at fileID ("" clears) and returns the id
 	// it replaced ("" if none).
 	SetAvatar(ctx context.Context, userID, fileID string) (previous string, err error)
+	// IsBot reports whether the account is a bot, which is the only kind
+	// an instance admin sets an avatar for.
+	IsBot(ctx context.Context, userID string) (bool, error)
 	// ReferencedFiles reports which of these ids are someone's current
 	// avatar. For the sweep.
 	ReferencedFiles(ctx context.Context, ids []string) ([]string, error)

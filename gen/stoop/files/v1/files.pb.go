@@ -314,6 +314,105 @@ func (x *UploadAvatarResponse) GetFileId() string {
 	return ""
 }
 
+type UploadBotAvatarRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The bot's user id.
+	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// The image bytes as picked by the admin, at most 2 MB.
+	Data          []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadBotAvatarRequest) Reset() {
+	*x = UploadBotAvatarRequest{}
+	mi := &file_stoop_files_v1_files_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadBotAvatarRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadBotAvatarRequest) ProtoMessage() {}
+
+func (x *UploadBotAvatarRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_files_v1_files_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadBotAvatarRequest.ProtoReflect.Descriptor instead.
+func (*UploadBotAvatarRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_files_v1_files_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UploadBotAvatarRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UploadBotAvatarRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type UploadBotAvatarResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The new avatar's file id; fetch it at GET /files/{file_id}.
+	FileId        string `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadBotAvatarResponse) Reset() {
+	*x = UploadBotAvatarResponse{}
+	mi := &file_stoop_files_v1_files_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadBotAvatarResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadBotAvatarResponse) ProtoMessage() {}
+
+func (x *UploadBotAvatarResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_files_v1_files_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadBotAvatarResponse.ProtoReflect.Descriptor instead.
+func (*UploadBotAvatarResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_files_v1_files_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UploadBotAvatarResponse) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
 type UploadSpaceIconRequest struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	SpaceId string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
@@ -325,7 +424,7 @@ type UploadSpaceIconRequest struct {
 
 func (x *UploadSpaceIconRequest) Reset() {
 	*x = UploadSpaceIconRequest{}
-	mi := &file_stoop_files_v1_files_proto_msgTypes[6]
+	mi := &file_stoop_files_v1_files_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -337,7 +436,7 @@ func (x *UploadSpaceIconRequest) String() string {
 func (*UploadSpaceIconRequest) ProtoMessage() {}
 
 func (x *UploadSpaceIconRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_files_v1_files_proto_msgTypes[6]
+	mi := &file_stoop_files_v1_files_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -350,7 +449,7 @@ func (x *UploadSpaceIconRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadSpaceIconRequest.ProtoReflect.Descriptor instead.
 func (*UploadSpaceIconRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_files_v1_files_proto_rawDescGZIP(), []int{6}
+	return file_stoop_files_v1_files_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UploadSpaceIconRequest) GetSpaceId() string {
@@ -377,7 +476,7 @@ type UploadSpaceIconResponse struct {
 
 func (x *UploadSpaceIconResponse) Reset() {
 	*x = UploadSpaceIconResponse{}
-	mi := &file_stoop_files_v1_files_proto_msgTypes[7]
+	mi := &file_stoop_files_v1_files_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -389,7 +488,7 @@ func (x *UploadSpaceIconResponse) String() string {
 func (*UploadSpaceIconResponse) ProtoMessage() {}
 
 func (x *UploadSpaceIconResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_files_v1_files_proto_msgTypes[7]
+	mi := &file_stoop_files_v1_files_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -402,7 +501,7 @@ func (x *UploadSpaceIconResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadSpaceIconResponse.ProtoReflect.Descriptor instead.
 func (*UploadSpaceIconResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_files_v1_files_proto_rawDescGZIP(), []int{7}
+	return file_stoop_files_v1_files_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UploadSpaceIconResponse) GetFileId() string {
@@ -435,14 +534,20 @@ const file_stoop_files_v1_files_proto_rawDesc = "" +
 	"\x13UploadAvatarRequest\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\"/\n" +
 	"\x14UploadAvatarResponse\x12\x17\n" +
+	"\afile_id\x18\x01 \x01(\tR\x06fileId\"E\n" +
+	"\x16UploadBotAvatarRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"2\n" +
+	"\x17UploadBotAvatarResponse\x12\x17\n" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\"G\n" +
 	"\x16UploadSpaceIconRequest\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\"2\n" +
 	"\x17UploadSpaceIconResponse\x12\x17\n" +
-	"\afile_id\x18\x01 \x01(\tR\x06fileId2\x8d\x03\n" +
+	"\afile_id\x18\x01 \x01(\tR\x06fileId2\xf3\x03\n" +
 	"\vFileService\x12[\n" +
 	"\fUploadAvatar\x12#.stoop.files.v1.UploadAvatarRequest\x1a$.stoop.files.v1.UploadAvatarResponse\"\x00\x12d\n" +
+	"\x0fUploadBotAvatar\x12&.stoop.files.v1.UploadBotAvatarRequest\x1a'.stoop.files.v1.UploadBotAvatarResponse\"\x00\x12d\n" +
 	"\x0fUploadSpaceIcon\x12&.stoop.files.v1.UploadSpaceIconRequest\x1a'.stoop.files.v1.UploadSpaceIconResponse\"\x00\x12d\n" +
 	"\x0fGetStorageUsage\x12&.stoop.files.v1.GetStorageUsageRequest\x1a'.stoop.files.v1.GetStorageUsageResponse\"\x00\x12U\n" +
 	"\n" +
@@ -462,7 +567,7 @@ func file_stoop_files_v1_files_proto_rawDescGZIP() []byte {
 	return file_stoop_files_v1_files_proto_rawDescData
 }
 
-var file_stoop_files_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_stoop_files_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_stoop_files_v1_files_proto_goTypes = []any{
 	(*GetStorageUsageRequest)(nil),  // 0: stoop.files.v1.GetStorageUsageRequest
 	(*GetStorageUsageResponse)(nil), // 1: stoop.files.v1.GetStorageUsageResponse
@@ -470,20 +575,24 @@ var file_stoop_files_v1_files_proto_goTypes = []any{
 	(*SweepFilesResponse)(nil),      // 3: stoop.files.v1.SweepFilesResponse
 	(*UploadAvatarRequest)(nil),     // 4: stoop.files.v1.UploadAvatarRequest
 	(*UploadAvatarResponse)(nil),    // 5: stoop.files.v1.UploadAvatarResponse
-	(*UploadSpaceIconRequest)(nil),  // 6: stoop.files.v1.UploadSpaceIconRequest
-	(*UploadSpaceIconResponse)(nil), // 7: stoop.files.v1.UploadSpaceIconResponse
+	(*UploadBotAvatarRequest)(nil),  // 6: stoop.files.v1.UploadBotAvatarRequest
+	(*UploadBotAvatarResponse)(nil), // 7: stoop.files.v1.UploadBotAvatarResponse
+	(*UploadSpaceIconRequest)(nil),  // 8: stoop.files.v1.UploadSpaceIconRequest
+	(*UploadSpaceIconResponse)(nil), // 9: stoop.files.v1.UploadSpaceIconResponse
 }
 var file_stoop_files_v1_files_proto_depIdxs = []int32{
 	4, // 0: stoop.files.v1.FileService.UploadAvatar:input_type -> stoop.files.v1.UploadAvatarRequest
-	6, // 1: stoop.files.v1.FileService.UploadSpaceIcon:input_type -> stoop.files.v1.UploadSpaceIconRequest
-	0, // 2: stoop.files.v1.FileService.GetStorageUsage:input_type -> stoop.files.v1.GetStorageUsageRequest
-	2, // 3: stoop.files.v1.FileService.SweepFiles:input_type -> stoop.files.v1.SweepFilesRequest
-	5, // 4: stoop.files.v1.FileService.UploadAvatar:output_type -> stoop.files.v1.UploadAvatarResponse
-	7, // 5: stoop.files.v1.FileService.UploadSpaceIcon:output_type -> stoop.files.v1.UploadSpaceIconResponse
-	1, // 6: stoop.files.v1.FileService.GetStorageUsage:output_type -> stoop.files.v1.GetStorageUsageResponse
-	3, // 7: stoop.files.v1.FileService.SweepFiles:output_type -> stoop.files.v1.SweepFilesResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
+	6, // 1: stoop.files.v1.FileService.UploadBotAvatar:input_type -> stoop.files.v1.UploadBotAvatarRequest
+	8, // 2: stoop.files.v1.FileService.UploadSpaceIcon:input_type -> stoop.files.v1.UploadSpaceIconRequest
+	0, // 3: stoop.files.v1.FileService.GetStorageUsage:input_type -> stoop.files.v1.GetStorageUsageRequest
+	2, // 4: stoop.files.v1.FileService.SweepFiles:input_type -> stoop.files.v1.SweepFilesRequest
+	5, // 5: stoop.files.v1.FileService.UploadAvatar:output_type -> stoop.files.v1.UploadAvatarResponse
+	7, // 6: stoop.files.v1.FileService.UploadBotAvatar:output_type -> stoop.files.v1.UploadBotAvatarResponse
+	9, // 7: stoop.files.v1.FileService.UploadSpaceIcon:output_type -> stoop.files.v1.UploadSpaceIconResponse
+	1, // 8: stoop.files.v1.FileService.GetStorageUsage:output_type -> stoop.files.v1.GetStorageUsageResponse
+	3, // 9: stoop.files.v1.FileService.SweepFiles:output_type -> stoop.files.v1.SweepFilesResponse
+	5, // [5:10] is the sub-list for method output_type
+	0, // [0:5] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -500,7 +609,7 @@ func file_stoop_files_v1_files_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_files_v1_files_proto_rawDesc), len(file_stoop_files_v1_files_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

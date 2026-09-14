@@ -141,6 +141,7 @@ export function UserCard({
             <Avatar
               name={profile.displayName || profile.username}
               fileId={profile.avatarFileId}
+              kind={profile.kind}
             />
             <div className="user-card-names">
               <strong>

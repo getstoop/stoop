@@ -31,6 +31,7 @@ export function MemberRow({
         <Avatar
           name={memberName(member)}
           fileId={member.avatarFileId}
+          kind={member.kind}
           size="small"
         >
           {online && (

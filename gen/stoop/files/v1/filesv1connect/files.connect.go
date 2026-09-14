@@ -36,6 +36,9 @@ const (
 	// FileServiceUploadAvatarProcedure is the fully-qualified name of the FileService's UploadAvatar
 	// RPC.
 	FileServiceUploadAvatarProcedure = "/stoop.files.v1.FileService/UploadAvatar"
+	// FileServiceUploadBotAvatarProcedure is the fully-qualified name of the FileService's
+	// UploadBotAvatar RPC.
+	FileServiceUploadBotAvatarProcedure = "/stoop.files.v1.FileService/UploadBotAvatar"
 	// FileServiceUploadSpaceIconProcedure is the fully-qualified name of the FileService's
 	// UploadSpaceIcon RPC.
 	FileServiceUploadSpaceIconProcedure = "/stoop.files.v1.FileService/UploadSpaceIcon"
@@ -48,8 +51,12 @@ const (
 
 // FileServiceClient is a client for the stoop.files.v1.FileService service.
 type FileServiceClient interface {
-	// UploadAvatar sets the caller's avatar (256 px).
+	// UploadAvatar sets the caller's avatar (256 px). Refused for a bot,
+	// whose avatar an instance admin sets with UploadBotAvatar.
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
+	// UploadBotAvatar sets a bot's avatar (256 px). Requires
+	// instance.integrations.manage; the target must be a bot.
+	UploadBotAvatar(context.Context, *connect.Request[v1.UploadBotAvatarRequest]) (*connect.Response[v1.UploadBotAvatarResponse], error)
 	// UploadSpaceIcon sets a space's icon (512 px). Requires manage_space.
 	UploadSpaceIcon(context.Context, *connect.Request[v1.UploadSpaceIconRequest]) (*connect.Response[v1.UploadSpaceIconResponse], error)
 	// GetStorageUsage reports how much upload storage is in use and the
@@ -80,6 +87,12 @@ func NewFileServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(fileServiceMethods.ByName("UploadAvatar")),
 			connect.WithClientOptions(opts...),
 		),
+		uploadBotAvatar: connect.NewClient[v1.UploadBotAvatarRequest, v1.UploadBotAvatarResponse](
+			httpClient,
+			baseURL+FileServiceUploadBotAvatarProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("UploadBotAvatar")),
+			connect.WithClientOptions(opts...),
+		),
 		uploadSpaceIcon: connect.NewClient[v1.UploadSpaceIconRequest, v1.UploadSpaceIconResponse](
 			httpClient,
 			baseURL+FileServiceUploadSpaceIconProcedure,
@@ -104,6 +117,7 @@ func NewFileServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 // fileServiceClient implements FileServiceClient.
 type fileServiceClient struct {
 	uploadAvatar    *connect.Client[v1.UploadAvatarRequest, v1.UploadAvatarResponse]
+	uploadBotAvatar *connect.Client[v1.UploadBotAvatarRequest, v1.UploadBotAvatarResponse]
 	uploadSpaceIcon *connect.Client[v1.UploadSpaceIconRequest, v1.UploadSpaceIconResponse]
 	getStorageUsage *connect.Client[v1.GetStorageUsageRequest, v1.GetStorageUsageResponse]
 	sweepFiles      *connect.Client[v1.SweepFilesRequest, v1.SweepFilesResponse]
@@ -112,6 +126,11 @@ type fileServiceClient struct {
 // UploadAvatar calls stoop.files.v1.FileService.UploadAvatar.
 func (c *fileServiceClient) UploadAvatar(ctx context.Context, req *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
 	return c.uploadAvatar.CallUnary(ctx, req)
+}
+
+// UploadBotAvatar calls stoop.files.v1.FileService.UploadBotAvatar.
+func (c *fileServiceClient) UploadBotAvatar(ctx context.Context, req *connect.Request[v1.UploadBotAvatarRequest]) (*connect.Response[v1.UploadBotAvatarResponse], error) {
+	return c.uploadBotAvatar.CallUnary(ctx, req)
 }
 
 // UploadSpaceIcon calls stoop.files.v1.FileService.UploadSpaceIcon.
@@ -131,8 +150,12 @@ func (c *fileServiceClient) SweepFiles(ctx context.Context, req *connect.Request
 
 // FileServiceHandler is an implementation of the stoop.files.v1.FileService service.
 type FileServiceHandler interface {
-	// UploadAvatar sets the caller's avatar (256 px).
+	// UploadAvatar sets the caller's avatar (256 px). Refused for a bot,
+	// whose avatar an instance admin sets with UploadBotAvatar.
 	UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error)
+	// UploadBotAvatar sets a bot's avatar (256 px). Requires
+	// instance.integrations.manage; the target must be a bot.
+	UploadBotAvatar(context.Context, *connect.Request[v1.UploadBotAvatarRequest]) (*connect.Response[v1.UploadBotAvatarResponse], error)
 	// UploadSpaceIcon sets a space's icon (512 px). Requires manage_space.
 	UploadSpaceIcon(context.Context, *connect.Request[v1.UploadSpaceIconRequest]) (*connect.Response[v1.UploadSpaceIconResponse], error)
 	// GetStorageUsage reports how much upload storage is in use and the
@@ -159,6 +182,12 @@ func NewFileServiceHandler(svc FileServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(fileServiceMethods.ByName("UploadAvatar")),
 		connect.WithHandlerOptions(opts...),
 	)
+	fileServiceUploadBotAvatarHandler := connect.NewUnaryHandler(
+		FileServiceUploadBotAvatarProcedure,
+		svc.UploadBotAvatar,
+		connect.WithSchema(fileServiceMethods.ByName("UploadBotAvatar")),
+		connect.WithHandlerOptions(opts...),
+	)
 	fileServiceUploadSpaceIconHandler := connect.NewUnaryHandler(
 		FileServiceUploadSpaceIconProcedure,
 		svc.UploadSpaceIcon,
@@ -181,6 +210,8 @@ func NewFileServiceHandler(svc FileServiceHandler, opts ...connect.HandlerOption
 		switch r.URL.Path {
 		case FileServiceUploadAvatarProcedure:
 			fileServiceUploadAvatarHandler.ServeHTTP(w, r)
+		case FileServiceUploadBotAvatarProcedure:
+			fileServiceUploadBotAvatarHandler.ServeHTTP(w, r)
 		case FileServiceUploadSpaceIconProcedure:
 			fileServiceUploadSpaceIconHandler.ServeHTTP(w, r)
 		case FileServiceGetStorageUsageProcedure:
@@ -198,6 +229,10 @@ type UnimplementedFileServiceHandler struct{}
 
 func (UnimplementedFileServiceHandler) UploadAvatar(context.Context, *connect.Request[v1.UploadAvatarRequest]) (*connect.Response[v1.UploadAvatarResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.files.v1.FileService.UploadAvatar is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) UploadBotAvatar(context.Context, *connect.Request[v1.UploadBotAvatarRequest]) (*connect.Response[v1.UploadBotAvatarResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.files.v1.FileService.UploadBotAvatar is not implemented"))
 }
 
 func (UnimplementedFileServiceHandler) UploadSpaceIcon(context.Context, *connect.Request[v1.UploadSpaceIconRequest]) (*connect.Response[v1.UploadSpaceIconResponse], error) {

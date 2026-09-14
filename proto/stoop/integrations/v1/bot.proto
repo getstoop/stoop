@@ -18,6 +18,9 @@ message Bot {
   // Set once deactivated; its credentials are revoked with it.
   google.protobuf.Timestamp deactivated_at = 7;
   repeated BotToken tokens = 8;
+  // What the bot is and does, shown on its profile card. Set by an
+  // instance admin through UpdateBot; plain text, 300 characters.
+  string bio = 9;
 }
 
 // BotToken is a bearer credential of kind bot_token, shown once at

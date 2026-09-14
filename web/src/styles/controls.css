@@ -124,6 +124,12 @@ button.primary.danger {
   line-height: 1;
 }
 
+/* The bot face as a default avatar, sized to the circle it sits in. */
+.avatar > svg {
+  width: 60%;
+  height: 60%;
+}
+
 /* The 24px avatar, used by the members panel and the pinned-messages
    panel; the bigger ones stay with the features that own them. */
 .avatar.small {

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import { Avatar } from "../Avatar";
 
 // A bot as a row: who it is, where it stands, and the credentials it
@@ -32,6 +33,7 @@ export function BotRow({
             <Avatar
               name={displayName || username}
               fileId={avatarFileId}
+              kind={IdentityKind.BOT}
               size="small"
             />{" "}
             {displayName || username}

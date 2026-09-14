@@ -1,5 +1,8 @@
 import type { CSSProperties } from "react";
 import { fileUrl } from "../api/files";
+import { isBot } from "../api/identity";
+import type { IdentityKind } from "../gen/stoop/access/v1/access_pb";
+import { BotIcon } from "./Icons";
 
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -25,11 +28,14 @@ export function imageStyle(fileId: string): CSSProperties {
 export function Avatar({
   name,
   fileId,
+  kind,
   size = "",
   children,
 }: {
   name: string;
   fileId?: string;
+  // A bot with no image wears the bot face rather than initials.
+  kind?: IdentityKind;
   size?: "" | "small" | "medium" | "large";
   children?: React.ReactNode;
 }) {
@@ -39,7 +45,7 @@ export function Avatar({
       style={fileId ? imageStyle(fileId) : undefined}
       data-file-id={fileId || undefined}
     >
-      {fileId ? null : initials(name)}
+      {fileId ? null : isBot(kind) ? <BotIcon /> : initials(name)}
       {children}
     </span>
   );

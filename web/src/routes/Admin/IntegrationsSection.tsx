@@ -16,6 +16,7 @@ import {
   whereText,
 } from "../../api/tokenOptions";
 import { BotRow } from "../../components/Integrations/BotRow";
+import { EditBotModal } from "../../components/Integrations/EditBotModal";
 import { NewBotModal } from "../../components/Integrations/NewBotModal";
 import { NewBotTokenModal } from "../../components/Integrations/NewBotTokenModal";
 import {
@@ -25,7 +26,7 @@ import {
 import { ListHead } from "../../components/ListHead";
 import { SettingRow } from "../../components/SettingRow";
 import type { Bot, BotToken } from "../../gen/stoop/integrations/v1/bot_pb";
-import { confirm, prompt } from "../../stores/dialogs";
+import { confirm } from "../../stores/dialogs";
 
 // Server admin → Integrations: the three switches, every bot with its
 // tokens, and every webhook on the server grouped by space — the one
@@ -37,6 +38,7 @@ export function IntegrationsSection() {
   const { data: hooks } = useWebhooks("", true);
   const { data: spaces } = useSpaces();
   const [newBot, setNewBot] = useState(false);
+  const [editing, setEditing] = useState<Bot | null>(null);
   const [tokenFor, setTokenFor] = useState<Bot | null>(null);
   const [secret, setSecret] = useState<Secret | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,19 +65,6 @@ export function IntegrationsSection() {
     value: boolean,
   ) => act(() => instanceClient.updateSettings({ [key]: value }));
 
-  const rename = async (b: Bot) => {
-    const next = await prompt({
-      title: `Rename ${b.displayName || b.username}`,
-      label: "Display name",
-      initial: b.displayName,
-      action: "Rename",
-    });
-    if (next?.trim()) {
-      act(() =>
-        integrationsClient.updateBot({ id: b.id, displayName: next.trim() }),
-      );
-    }
-  };
   const deactivate = async (b: Bot) => {
     const ok = await confirm({
       title: `Deactivate ${b.displayName || b.username}?`,
@@ -223,9 +212,9 @@ export function IntegrationsSection() {
                         <button
                           type="button"
                           className="chip"
-                          onClick={() => rename(b)}
+                          onClick={() => setEditing(b)}
                         >
-                          Rename
+                          Edit
                         </button>
                         <button
                           type="button"
@@ -339,6 +328,9 @@ export function IntegrationsSection() {
       </section>
 
       {newBot && <NewBotModal onClose={() => setNewBot(false)} />}
+      {editing && (
+        <EditBotModal bot={editing} onClose={() => setEditing(null)} />
+      )}
       {tokenFor && (
         <NewBotTokenModal
           bot={tokenFor}

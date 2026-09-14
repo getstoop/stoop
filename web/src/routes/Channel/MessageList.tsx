@@ -393,6 +393,7 @@ export function MessageList({
                       "?"
                     }
                     fileId={message.author?.avatarFileId}
+                    kind={message.author?.kind}
                     size="medium"
                   />
                 </button>

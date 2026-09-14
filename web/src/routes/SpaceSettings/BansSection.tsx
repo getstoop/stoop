@@ -50,6 +50,7 @@ export function BansSection({ space }: { space: Space }) {
                 <Avatar
                   name={b.user?.displayName || b.user?.username || "?"}
                   fileId={b.user?.avatarFileId}
+                  kind={b.user?.kind}
                   size="small"
                 />
                 {b.user?.displayName || b.user?.username}
