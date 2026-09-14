@@ -55,7 +55,7 @@ The single-instance experience is built and verified: accounts and
 sessions, spaces and channels, realtime messaging over a protobuf WebSocket
 protocol, roles and permissions, invites, an activity feed with per-space
 and per-channel mutes, presence, message editing, replies, reactions, Markdown, link previews, file uploads
-(avatars, space icons, attachments), direct messages, voice channels on LiveKit, twenty-five client-side themes, and the space and server admin tooling — all from a
+(avatars, space icons, attachments), direct messages, voice channels on LiveKit, twenty-seven client-side themes, and the space and server admin tooling — all from a
 single binary with the web app embedded. Reaching the server is a product
 question, not an ops one: the setup wizard walks an operator through a
 reverse proxy, Cloudflare Tunnel (with Cloudflare TURN so voice works

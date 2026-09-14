@@ -64,7 +64,7 @@ test("picking a theme", async ({ browser }) => {
   await filterChip("Dim").click();
   await expect
     .poll(ids, { message: "dim filter" })
-    .toEqual(["rooftop", "water-tower"]);
+    .toEqual(["rooftop", "water-tower", "scaffolding", "sidewalk-chalk"]);
   await expect(
     A.locator('.theme-card[data-theme="rooftop"] .theme-card-kind'),
     "a dim card is labelled dim",
@@ -72,8 +72,8 @@ test("picking a theme", async ({ browser }) => {
 
   await filterChip("All").click();
   await expect
-    .poll(() => cards.count(), { message: "all twenty-five cards" })
-    .toBe(25);
+    .poll(() => cards.count(), { message: "all twenty-seven cards" })
+    .toBe(27);
   await expect(
     A.locator(".theme-card.active"),
     "current theme is marked active",
