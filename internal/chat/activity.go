@@ -150,6 +150,8 @@ func (s *Service) recordDM(ctx context.Context, msg dbgen.Message, channel dbgen
 	return nil
 }
 
+var errActivityNeedsReads = errors.New("reading activity needs reading messages and direct messages as well")
+
 func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.ListActivityRequest]) (*connect.Response[chatv1.ListActivityResponse], error) {
 	userID := authctx.UserID(ctx)
 	limit := req.Msg.Limit
@@ -161,6 +163,12 @@ func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.
 	var before *string
 	if req.Msg.BeforeId != "" {
 		before = &req.Msg.BeforeId
+	}
+	// Every item previews a message, from a space or a direct message, so
+	// the feed needs both read grants beside activity.read. A session has
+	// them; a token is only ever minted with all three together.
+	if !authctx.Covers(ctx, authctx.MessagesRead) || !authctx.Covers(ctx, authctx.DMsRead) {
+		return nil, connect.NewError(connect.CodePermissionDenied, errActivityNeedsReads)
 	}
 	rows, err := s.q.ListActivity(ctx, dbgen.ListActivityParams{UserID: userID, BeforeID: before, Limit: limit})
 	if err != nil {

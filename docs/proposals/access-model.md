@@ -231,7 +231,9 @@ Surfaces that aren't Connect calls (Access 5):
   The user topic is always subscribed, because it is the control plane
   (joins, revocation), and what it delivers is filtered per credential:
   direct-message events only with `dms.read`, activity only with
-  `activity.read`. Typing needs `messages.post` or `dms.post`; a voice
+  `activity.read` together with `messages.read` and `dms.read`, since
+  every item previews a message, on the socket and in `ListActivity`
+  alike. Typing needs `messages.post` or `dms.post`; a voice
   report needs `voice.join`.
 - Every revocation publishes `CredentialRevoked` to the holder's topic;
   the gateway forwards it to the sockets opened with that credential and

@@ -46,16 +46,18 @@ func coveredSpaces(c authctx.Credential, spaceIDs []string) []string {
 }
 
 // admits is the per-connection filter on what the user topic carries: a
-// revocation only for the credential it names, activity only with
-// activity.read, direct-message events only with dms.read. Everything
-// else on the topic is the user's own state (joins, read markers, mutes).
+// revocation only for the credential it names, direct-message events only
+// with dms.read, and activity only with activity.read plus both read
+// grants, since every item previews a message from a space or a direct
+// message. Everything else on the topic is the user's own state (joins,
+// read markers, mutes).
 func admits(c authctx.Credential, ev *realtimev1.ServerEvent) bool {
 	dm := func(spaceID string) bool { return spaceID != "" || coversOwn(c, authctx.DMsRead) }
 	switch p := ev.Payload.(type) {
 	case *realtimev1.ServerEvent_CredentialRevoked:
 		return p.CredentialRevoked.CredentialId == c.ID
 	case *realtimev1.ServerEvent_ActivityItemCreated:
-		return coversOwn(c, authctx.ActivityRead)
+		return coversOwn(c, authctx.ActivityRead) && c.Covers(authctx.MessagesRead) && coversOwn(c, authctx.DMsRead)
 	case *realtimev1.ServerEvent_MessageCreated:
 		return dm(p.MessageCreated.SpaceId)
 	case *realtimev1.ServerEvent_MessageUpdated:
