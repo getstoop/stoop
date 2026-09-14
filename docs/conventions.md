@@ -94,7 +94,7 @@ here was written after a file got too big to work in.
   (the composer's overlay border is one).
 - **`scripts/check-styles.mjs` enforces all of the above** in `make lint`.
   **`/kit` (dev builds only, `routes/Kit/`) renders every shared part**, with
-  a theme switch, so a kit change is checked in all ten themes before it
+  a theme switch, so a kit change is checked in every theme before it
   ships. `styles/kit.css` is loaded by that route, not `index.css`, so it is
   never in the binary.
 

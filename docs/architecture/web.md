@@ -204,13 +204,31 @@ requested.
 picker's cards can scope a theme to their own subtree and preview it with
 the real CSS rather than an approximation.
 
-Ten themes ship: Brownstone (the default, and the original look), Daylight
-(the light default), Dusk, Bodega, Newsprint, Blackout, Fire Escape,
-Nightcap, Night Bus, and Mailbox. Adding one is four touches — a block in `themes.css`,
-an entry in `THEMES` (`api/theme.ts`), its id in `index.html`'s pre-mount
-list, and the expected card list in `web/e2e/themes.mjs` — and `make lint`
+Twenty-five themes ship, in three tiers. Light: Daylight (the light
+default), Newsprint, Subway Tile, Pigeon, Laundromat, Boardwalk, Whiteout,
+Library, Ginkgo. Dim, grounds a step lighter than any dark, for a lit
+room: Rooftop, Water Tower. Dark: Brownstone (the default, and the
+original look), Dusk, Bodega, Blackout, Fire Escape, Nightcap, Night Bus,
+Mailbox, Streetlight, Neon, Ferry, Bike Lane, Crosswalk, Concrete.
+
+The picker shows one filter at a time rather than the whole wall: the
+three tiers, Accessible, or All. Each `THEMES` entry carries a `tier`
+(what it files under and what its card prints), `kind` (the dark-or-light
+half it can be under Follow system; dim is dark here), and optionally
+`tags: ["accessible"]` with a `why` line the Accessible filter shows under
+the card. Five carry that tag: Whiteout and Blackout for contrast,
+Crosswalk for red-green colour blindness (its status colours are the
+Okabe-Ito blue, yellow-green and vermilion), Concrete for no tint, Library
+for low glare. The picker opens on the tier of the theme in use, so the
+highlighted card is on screen; the filter is not remembered.
+
+Adding one is four touches — a block in `themes.css`, an entry in
+`THEMES` (`api/theme.ts`), its id in `index.html`'s pre-mount list, and
+the expected card list in `web/e2e-pw/themes.spec.ts` — and `make lint`
 refuses it until it passes contrast: `scripts/check-themes.mjs` rejects a
 theme whose text, accent, or muted text fail WCAG contrast on its surfaces.
+`api/theme.test.ts` fails if the pre-mount list or `themes.css` falls out
+of step with `THEMES`.
 
 ## The kit
 

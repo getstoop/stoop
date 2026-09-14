@@ -1,5 +1,29 @@
 /* ---- Appearance / theme picker ---- */
 
+.theme-in-use {
+  margin-bottom: 8px;
+}
+
+.theme-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  border: none;
+}
+
+.theme-filters legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+}
+
 .theme-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -54,6 +78,12 @@
   padding: 0 12px;
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* Under an Accessible card: what the tag is for. */
+.theme-card-why {
+  padding: 0 12px;
+  font-size: var(--text-sm);
 }
 
 /* The miniature. Every colour here is the card's own theme's token. */
