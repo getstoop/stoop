@@ -6,13 +6,17 @@ import {
 
 const GROUPS: TokenGroup[] = ["space", "account", "server"];
 
-// A token's permissions as checkboxes, grouped by where they apply.
+// A token's permissions as checkboxes, grouped by where they apply. The
+// group labels come with the option set, since a bot's read differently
+// from a person's.
 export function PermissionPicker({
   options,
+  groupLabels = GROUP_LABELS,
   selected,
   onChange,
 }: {
   options: TokenOption[];
+  groupLabels?: Record<TokenGroup, string>;
   selected: string[];
   onChange: (keys: string[]) => void;
 }) {
@@ -30,7 +34,7 @@ export function PermissionPicker({
         if (inGroup.length === 0) return null;
         return (
           <fieldset key={group}>
-            <legend>{GROUP_LABELS[group]}</legend>
+            <legend>{groupLabels[group]}</legend>
             {inGroup.map((o) => (
               <label key={o.key} className="toggle-row">
                 <input

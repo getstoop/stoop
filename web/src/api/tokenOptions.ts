@@ -1,8 +1,17 @@
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 
-// The personal-token picker's choices: a few permissions under one plain
-// label, grouped by where they apply. The server holds the real list; this
-// is only how it's offered, and only options the person holds are shown.
+// The token pickers' choices: a few permissions under one plain label,
+// grouped by where they apply. The server holds the real list; this is
+// only how it's offered. People and bots get different sets, phrased for
+// each: a person's token is offered only what they hold somewhere; a
+// bot's token is offered what a member holds, plus the server group when
+// the bot is an instance admin, and never the account actions a bot is
+// refused (profile, DMs, mutes).
+//
+// Deliberately offered to nobody, and listed by name if a token somehow
+// holds one: SPACE_TRANSFER and SPACE_DELETE (one-off, destructive, done
+// in the app); for bots also SPACES_CREATE, SPACES_JOIN_ANY and
+// DMS_REACH_ANYONE, which the server refuses a bot.
 
 export type TokenGroup = "space" | "account" | "server";
 
@@ -38,8 +47,15 @@ export const TOKEN_OPTIONS: TokenOption[] = [
   {
     key: "invites",
     label: "Create invites",
+    hint: "and revoke its own",
     group: "space",
     permissions: [Permission.INVITES_CREATE],
+  },
+  {
+    key: "invites-manage",
+    label: "Revoke anyone's invites",
+    group: "space",
+    permissions: [Permission.INVITES_MANAGE],
   },
   {
     key: "everyone",
@@ -119,6 +135,36 @@ export const TOKEN_OPTIONS: TokenOption[] = [
     group: "server",
     permissions: [Permission.INSTANCE_USERS_MANAGE],
   },
+  {
+    key: "instance-integrations",
+    label: "Manage bots and webhooks",
+    group: "server",
+    permissions: [Permission.INSTANCE_INTEGRATIONS_MANAGE],
+  },
+  {
+    key: "instance-files",
+    label: "Manage file storage",
+    group: "server",
+    permissions: [Permission.INSTANCE_FILES_MANAGE],
+  },
+  {
+    key: "spaces-create",
+    label: "Create spaces",
+    group: "server",
+    permissions: [Permission.SPACES_CREATE],
+  },
+  {
+    key: "spaces-join-any",
+    label: "Join any space without an invite",
+    group: "server",
+    permissions: [Permission.SPACES_JOIN_ANY],
+  },
+  {
+    key: "dms-reach-anyone",
+    label: "Message people you don't share a space with",
+    group: "server",
+    permissions: [Permission.DMS_REACH_ANYONE],
+  },
 ];
 
 export const GROUP_LABELS: Record<TokenGroup, string> = {
@@ -126,6 +172,53 @@ export const GROUP_LABELS: Record<TokenGroup, string> = {
   account: "Your account",
   server: "On this server",
 };
+
+// A bot's token: the space options in a bot's words, one thing about
+// itself, and the server group for an instance-admin bot.
+const BOT_SPACE_KEYS = [
+  "read",
+  "post",
+  "everyone",
+  "moderate",
+  "voice",
+  "invites",
+  "invites-manage",
+  "channels",
+  "members",
+  "space",
+];
+const BOT_SERVER_KEYS = [
+  "instance-read",
+  "instance-settings",
+  "instance-users",
+  "instance-integrations",
+  "instance-files",
+];
+
+export const BOT_TOKEN_OPTIONS: TokenOption[] = [
+  ...TOKEN_OPTIONS.filter((o) => BOT_SPACE_KEYS.includes(o.key)),
+  {
+    key: "activity",
+    label: "Read its mentions and replies",
+    group: "account",
+    permissions: [Permission.ACTIVITY_READ],
+  },
+  ...TOKEN_OPTIONS.filter((o) => BOT_SERVER_KEYS.includes(o.key)),
+];
+
+export const BOT_GROUP_LABELS: Record<TokenGroup, string> = {
+  space: "In the spaces it's in",
+  account: "About itself",
+  server: "On this server",
+};
+
+// The options a bot's token may be offered: everything a member holds in
+// its spaces, plus the server group when the bot is an instance admin.
+export function botOptions(bot: { instanceAdmin: boolean }): TokenOption[] {
+  return BOT_TOKEN_OPTIONS.filter(
+    (o) => o.group !== "server" || bot.instanceAdmin,
+  );
+}
 
 // Options whose every permission the person holds somewhere.
 export function heldOptions(held: Iterable<Permission>): TokenOption[] {
@@ -149,14 +242,27 @@ export function canCreate(form: { name: string; keys: string[] }): boolean {
   return form.name.trim() !== "" && permissionsFor(form.keys).length > 0;
 }
 
-// The labels a token's permissions add up to, for a list.
+// The labels a token's permissions add up to, for a list. A permission
+// no option covers is still named, from the enum, so a row never reads
+// blank.
 export function describePermissions(
   permissions: Iterable<Permission>,
+  options: TokenOption[] = TOKEN_OPTIONS,
 ): string[] {
   const have = new Set(permissions);
-  return TOKEN_OPTIONS.filter((o) =>
+  const matched = options.filter((o) =>
     o.permissions.every((p) => have.has(p)),
-  ).map((o) => o.label);
+  );
+  const covered = new Set(matched.flatMap((o) => o.permissions));
+  const rest = [...have]
+    .filter((p) => !covered.has(p) && p !== Permission.UNSPECIFIED)
+    .map(permissionName);
+  return [...matched.map((o) => o.label), ...rest];
+}
+
+// PERMISSION_SPACE_DELETE → "space delete": the action, in words.
+export function permissionName(p: Permission): string {
+  return (Permission[p] ?? "unknown").toLowerCase().replace(/_/g, " ");
 }
 
 // Where a token made before the space limit was withdrawn still works,
