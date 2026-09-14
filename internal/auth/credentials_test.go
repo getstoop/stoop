@@ -94,7 +94,9 @@ func TestBotsNeverGetASession(t *testing.T) {
 	if _, err := svc.Register(ctx, connect.NewRequest(creds)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE users SET kind = 'bot' WHERE username = 'uptime'`); err != nil {
+	// The first account is admin; a bot can't be, so it steps down as it
+	// changes kind.
+	if _, err := pool.Exec(ctx, `UPDATE users SET kind = 'bot', role = 'member' WHERE username = 'uptime'`); err != nil {
 		t.Fatal(err)
 	}
 	res, err := svc.Login(ctx, connect.NewRequest(&authv1.LoginRequest{Username: creds.Username, Password: creds.Password}))
@@ -178,24 +180,30 @@ func TestDeactivationRevokesEveryCredential(t *testing.T) {
 	}
 }
 
-func TestLastAdminCountsPeople(t *testing.T) {
+func TestLastAdminIsAlwaysAPerson(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
 	ctx := context.Background()
 	if _, err := svc.Register(ctx, connect.NewRequest(&authv1.RegisterRequest{Username: "casey", Password: "correct horse battery"})); err != nil {
 		t.Fatal(err)
 	}
+	// A bot can't be an admin at all, so it can never be the one that
+	// keeps the guard satisfied.
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO users (id, username, role, kind) VALUES ($1, 'opsbot', 'admin', 'bot')`, uuid.NewString()); err != nil {
+		`INSERT INTO users (id, username, role, kind) VALUES ($1, 'opsbot', 'admin', 'bot')`, uuid.NewString()); err == nil {
+		t.Fatal("the schema accepted an admin bot")
+	}
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO users (id, username, role, kind) VALUES ($1, 'opsbot', 'member', 'bot')`, uuid.NewString()); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := svc.SetRoleByUsername(ctx, "opsbot", authctx.RoleAdmin); err == nil {
+		t.Error("promoted a bot from the command line")
+	}
 	if n, err := svc.CountActiveAdmins(ctx); err != nil || n != 1 {
-		t.Errorf("CountActiveAdmins = %d, %v; want 1 (people only)", n, err)
+		t.Errorf("CountActiveAdmins = %d, %v; want 1", n, err)
 	}
 	if _, err := svc.SetRoleByUsername(ctx, "casey", authctx.RoleMember); err == nil {
-		t.Error("demoted the last person admin because a bot admin remained")
-	}
-	if _, err := svc.SetRoleByUsername(ctx, "opsbot", authctx.RoleMember); err != nil {
-		t.Errorf("demoting a bot admin is never guarded: %v", err)
+		t.Error("demoted the last admin")
 	}
 }

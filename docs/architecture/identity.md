@@ -176,9 +176,10 @@ instance admin mints for it ([integrations.md](integrations.md#bots)):
 
 Both are stored as SHA-256 with a four-character hint, shown once, and
 verified by the same code as a session. Deactivating the bot revokes
-everything; revoking the last credential deactivates the bot. Bots may
-hold the instance admin role; break-glass sign-in and the last-admin guard
-count people only.
+everything; revoking the last credential deactivates the bot. A bot is
+never an instance admin: `users_bot_never_admin` refuses the row, and the
+promote paths refuse before it. Break-glass sign-in and the last-admin
+guard therefore only ever see people.
 
 **A bot is seen as a bot.** Every wire shape that names an account
 carries `stoop.access.v1.IdentityKind` (`User`, `PublicProfile`,

@@ -308,9 +308,8 @@ the second lets them take the archive.
   account's do.
 - It shows in the member list with a marker: a person reading the
   channel can see what is posting and click it like any other author.
-- Bots may hold an instance role. Every credential a bot holds is
-  narrower than the bot, which is what makes that safe. Break-glass
-  sign-in and the last-admin guard count people only.
+- Bots never hold an instance role (reversed 2026-09-14; see the access
+  model). Their reach is the spaces an instance admin puts them in.
 - **Bots aren't reachable by DM, by default.** They are left out of
   `dm_candidates` and `OpenDirectMessage` refuses them, because a message
   to a bot is read by whatever runs it. The access model doesn't forbid
@@ -763,8 +762,9 @@ access-model rebase, and on 2026-09-14 for the last four.
    in-memory queue, not a transactional outbox. Reopen only with new
    evidence.
 7. **Four attempts over 2½ minutes**, not six over seven hours.
-8. **Bots may hold an instance role**, and "no DMs to bots" is a
-   default, not a rule. Both from the access model.
+8. **"No DMs to bots" is a default, not a rule.** Bots holding an
+   instance role, decided alongside it, was reversed on 2026-09-14
+   (access-model.md → Identities).
 9. **A payload's `username` is accepted and ignored.** The hook's name
    shows.
 10. **Incoming text over the message limit is truncated** with an

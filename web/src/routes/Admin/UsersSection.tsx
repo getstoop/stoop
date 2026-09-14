@@ -149,9 +149,10 @@ export function UsersSection({ meId }: { meId: string }) {
   };
 
   // A deactivated account can only be reactivated; everything else
-  // waits until it is. A bot has no password to reset and no username
-  // to freeze, and its spaces, tokens and webhooks are managed under
-  // Integrations; the server refuses those actions for a bot too.
+  // waits until it is. A bot has no password to reset, no username to
+  // freeze and is never a server admin, and its spaces, tokens and
+  // webhooks are managed under Integrations; the server refuses those
+  // actions for a bot too.
   const actionsFor = (u: InstanceUser): MenuItem[] => {
     if (u.deactivatedAt) {
       return [{ label: "Reactivate", onSelect: () => toggleActive(u) }];
@@ -173,11 +174,13 @@ export function UsersSection({ meId }: { meId: string }) {
         title: "Put them in one of your spaces, no invite needed",
       });
     }
-    items.push(
-      {
+    if (!bot) {
+      items.push({
         label: admin ? "Remove admin" : "Make admin",
         onSelect: () => toggleRole(u),
-      },
+      });
+    }
+    items.push(
       {
         label: "Change username",
         onSelect: () => renameHandle(u),

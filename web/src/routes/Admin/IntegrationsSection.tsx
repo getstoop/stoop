@@ -195,7 +195,7 @@ export function IntegrationsSection() {
                   : `in ${b.spaceIds.map((id) => nameOf(id) ?? "a space").join(", ")}`;
               const standing = b.deactivatedAt
                 ? "deactivated"
-                : `${own.length} webhook${own.length === 1 ? "" : "s"}, ${b.tokens.length} token${b.tokens.length === 1 ? "" : "s"} · ${where}${b.instanceAdmin ? " · server admin" : ""}`;
+                : `${own.length} webhook${own.length === 1 ? "" : "s"}, ${b.tokens.length} token${b.tokens.length === 1 ? "" : "s"} · ${where}`;
               return (
                 <BotRow
                   key={b.id}

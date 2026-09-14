@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import {
   BOT_TOKEN_OPTIONS,
-  botOptions,
   canCreate,
   describePermissions,
   expiryOf,
@@ -149,12 +148,11 @@ describe("every grantable permission has a home", () => {
   });
 });
 
-describe("botOptions", () => {
-  it("offers the server group only to an instance-admin bot", () => {
-    const groups = (admin: boolean) =>
-      new Set(botOptions({ instanceAdmin: admin }).map((o) => o.group));
-    expect(groups(false)).toEqual(new Set(["space", "account"]));
-    expect(groups(true)).toEqual(new Set(["space", "account", "server"]));
+describe("BOT_TOKEN_OPTIONS", () => {
+  it("has no server group: a bot is never a server admin", () => {
+    expect(new Set(BOT_TOKEN_OPTIONS.map((o) => o.group))).toEqual(
+      new Set(["space", "account"]),
+    );
   });
 
   it("never offers a bot what the server refuses it", () => {

@@ -12,8 +12,9 @@ message Bot {
   string username = 2;
   string display_name = 3;
   string avatar_file_id = 4;
-  // Whether the bot holds the instance admin role.
-  bool instance_admin = 5;
+  // A bot never holds the instance admin role (2026-09-14).
+  reserved 5;
+  reserved "instance_admin";
   google.protobuf.Timestamp created_at = 6;
   // Set once deactivated; its credentials are revoked with it.
   google.protobuf.Timestamp deactivated_at = 7;

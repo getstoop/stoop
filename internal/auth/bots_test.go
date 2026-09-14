@@ -26,7 +26,7 @@ func TestBotsAndHookTokens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bot.Username != "uptime" || bot.InstanceAdmin || bot.DeactivatedAt != nil {
+	if bot.Username != "uptime" || bot.DeactivatedAt != nil {
 		t.Errorf("bot = %+v", bot)
 	}
 	if _, err := svc.CreateBot(bg, "uptime", "again"); codeOf(err) != connect.CodeAlreadyExists {
@@ -53,6 +53,21 @@ func TestBotsAndHookTokens(t *testing.T) {
 	}
 	if _, err := svc.Login(bg, connect.NewRequest(&authv1.LoginRequest{Username: "uptime", Password: "hunter22"})); codeOf(err) != connect.CodeUnauthenticated {
 		t.Errorf("a bot with a password: want unauthenticated, got %v", err)
+	}
+
+	// A bot never holds the instance role: both promote paths refuse it,
+	// and the schema refuses a row that slips past them.
+	if _, err := svc.SetAccountRole(bg, bot.ID, authctx.RoleAdmin); codeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("promote a bot by id: %v", err)
+	}
+	if _, err := svc.SetRoleByUsername(bg, "uptime", authctx.RoleAdmin); err == nil {
+		t.Error("promote a bot by username succeeded")
+	}
+	if _, err := pool.Exec(bg, `UPDATE users SET role = 'admin' WHERE id = $1`, bot.ID); err == nil {
+		t.Error("the schema let a bot be admin")
+	}
+	if _, err := svc.SetAccountRole(bg, bot.ID, authctx.RoleMember); err != nil {
+		t.Errorf("setting a bot to member should be a no-op, got %v", err)
 	}
 
 	// What only makes sense for a person is refused for a bot, in words.

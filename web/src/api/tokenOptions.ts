@@ -4,14 +4,14 @@ import { Permission } from "../gen/stoop/access/v1/access_pb";
 // grouped by where they apply. The server holds the real list; this is
 // only how it's offered. People and bots get different sets, phrased for
 // each: a person's token is offered only what they hold somewhere; a
-// bot's token is offered what a member holds, plus the server group when
-// the bot is an instance admin, and never the account actions a bot is
-// refused (profile, DMs, mutes).
+// bot's token is offered what a member holds, and never the account or
+// server actions a bot is refused (profile, DMs, mutes; a bot is never a
+// server admin).
 //
 // Deliberately offered to nobody, and listed by name if a token somehow
 // holds one: SPACE_TRANSFER and SPACE_DELETE (one-off, destructive, done
-// in the app); for bots also SPACES_CREATE, SPACES_JOIN_ANY and
-// DMS_REACH_ANYONE, which the server refuses a bot.
+// in the app); for bots also every server action and SPACES_CREATE,
+// SPACES_JOIN_ANY and DMS_REACH_ANYONE, which the server refuses a bot.
 
 export type TokenGroup = "space" | "account" | "server";
 
@@ -173,8 +173,8 @@ export const GROUP_LABELS: Record<TokenGroup, string> = {
   server: "On this server",
 };
 
-// A bot's token: the space options in a bot's words, one thing about
-// itself, and the server group for an instance-admin bot.
+// A bot's token: the space options in a bot's words, and one thing about
+// itself.
 const BOT_SPACE_KEYS = [
   "read",
   "post",
@@ -187,13 +187,6 @@ const BOT_SPACE_KEYS = [
   "members",
   "space",
 ];
-const BOT_SERVER_KEYS = [
-  "instance-read",
-  "instance-settings",
-  "instance-users",
-  "instance-integrations",
-  "instance-files",
-];
 
 export const BOT_TOKEN_OPTIONS: TokenOption[] = [
   ...TOKEN_OPTIONS.filter((o) => BOT_SPACE_KEYS.includes(o.key)),
@@ -203,7 +196,6 @@ export const BOT_TOKEN_OPTIONS: TokenOption[] = [
     group: "account",
     permissions: [Permission.ACTIVITY_READ],
   },
-  ...TOKEN_OPTIONS.filter((o) => BOT_SERVER_KEYS.includes(o.key)),
 ];
 
 export const BOT_GROUP_LABELS: Record<TokenGroup, string> = {
@@ -211,14 +203,6 @@ export const BOT_GROUP_LABELS: Record<TokenGroup, string> = {
   account: "About itself",
   server: "On this server",
 };
-
-// The options a bot's token may be offered: everything a member holds in
-// its spaces, plus the server group when the bot is an instance admin.
-export function botOptions(bot: { instanceAdmin: boolean }): TokenOption[] {
-  return BOT_TOKEN_OPTIONS.filter(
-    (o) => o.group !== "server" || bot.instanceAdmin,
-  );
-}
 
 // Options whose every permission the person holds somewhere.
 export function heldOptions(held: Iterable<Permission>): TokenOption[] {
