@@ -1375,6 +1375,198 @@ func (x *UpdateBotResponse) GetBot() *Bot {
 	return nil
 }
 
+type AddBotToSpaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BotUserId     string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	SpaceId       string                 `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddBotToSpaceRequest) Reset() {
+	*x = AddBotToSpaceRequest{}
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddBotToSpaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddBotToSpaceRequest) ProtoMessage() {}
+
+func (x *AddBotToSpaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddBotToSpaceRequest.ProtoReflect.Descriptor instead.
+func (*AddBotToSpaceRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *AddBotToSpaceRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *AddBotToSpaceRequest) GetSpaceId() string {
+	if x != nil {
+		return x.SpaceId
+	}
+	return ""
+}
+
+type AddBotToSpaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bot           *Bot                   `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddBotToSpaceResponse) Reset() {
+	*x = AddBotToSpaceResponse{}
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddBotToSpaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddBotToSpaceResponse) ProtoMessage() {}
+
+func (x *AddBotToSpaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddBotToSpaceResponse.ProtoReflect.Descriptor instead.
+func (*AddBotToSpaceResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AddBotToSpaceResponse) GetBot() *Bot {
+	if x != nil {
+		return x.Bot
+	}
+	return nil
+}
+
+type RemoveBotFromSpaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BotUserId     string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	SpaceId       string                 `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveBotFromSpaceRequest) Reset() {
+	*x = RemoveBotFromSpaceRequest{}
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveBotFromSpaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveBotFromSpaceRequest) ProtoMessage() {}
+
+func (x *RemoveBotFromSpaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveBotFromSpaceRequest.ProtoReflect.Descriptor instead.
+func (*RemoveBotFromSpaceRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RemoveBotFromSpaceRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *RemoveBotFromSpaceRequest) GetSpaceId() string {
+	if x != nil {
+		return x.SpaceId
+	}
+	return ""
+}
+
+type RemoveBotFromSpaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bot           *Bot                   `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveBotFromSpaceResponse) Reset() {
+	*x = RemoveBotFromSpaceResponse{}
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveBotFromSpaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveBotFromSpaceResponse) ProtoMessage() {}
+
+func (x *RemoveBotFromSpaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveBotFromSpaceResponse.ProtoReflect.Descriptor instead.
+func (*RemoveBotFromSpaceResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *RemoveBotFromSpaceResponse) GetBot() *Bot {
+	if x != nil {
+		return x.Bot
+	}
+	return nil
+}
+
 type DeactivateBotRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1384,7 +1576,7 @@ type DeactivateBotRequest struct {
 
 func (x *DeactivateBotRequest) Reset() {
 	*x = DeactivateBotRequest{}
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[26]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1396,7 +1588,7 @@ func (x *DeactivateBotRequest) String() string {
 func (*DeactivateBotRequest) ProtoMessage() {}
 
 func (x *DeactivateBotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[26]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1409,7 +1601,7 @@ func (x *DeactivateBotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivateBotRequest.ProtoReflect.Descriptor instead.
 func (*DeactivateBotRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{26}
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DeactivateBotRequest) GetId() string {
@@ -1427,7 +1619,7 @@ type DeactivateBotResponse struct {
 
 func (x *DeactivateBotResponse) Reset() {
 	*x = DeactivateBotResponse{}
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[27]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1439,7 +1631,7 @@ func (x *DeactivateBotResponse) String() string {
 func (*DeactivateBotResponse) ProtoMessage() {}
 
 func (x *DeactivateBotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[27]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1452,7 +1644,7 @@ func (x *DeactivateBotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeactivateBotResponse.ProtoReflect.Descriptor instead.
 func (*DeactivateBotResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{27}
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{31}
 }
 
 type CreateBotTokenRequest struct {
@@ -1470,7 +1662,7 @@ type CreateBotTokenRequest struct {
 
 func (x *CreateBotTokenRequest) Reset() {
 	*x = CreateBotTokenRequest{}
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[28]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1482,7 +1674,7 @@ func (x *CreateBotTokenRequest) String() string {
 func (*CreateBotTokenRequest) ProtoMessage() {}
 
 func (x *CreateBotTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[28]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1495,7 +1687,7 @@ func (x *CreateBotTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotTokenRequest.ProtoReflect.Descriptor instead.
 func (*CreateBotTokenRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{28}
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *CreateBotTokenRequest) GetBotUserId() string {
@@ -1544,7 +1736,7 @@ type CreateBotTokenResponse struct {
 
 func (x *CreateBotTokenResponse) Reset() {
 	*x = CreateBotTokenResponse{}
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[29]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1556,7 +1748,7 @@ func (x *CreateBotTokenResponse) String() string {
 func (*CreateBotTokenResponse) ProtoMessage() {}
 
 func (x *CreateBotTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[29]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1569,7 +1761,7 @@ func (x *CreateBotTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotTokenResponse.ProtoReflect.Descriptor instead.
 func (*CreateBotTokenResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{29}
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CreateBotTokenResponse) GetToken() *BotToken {
@@ -1595,7 +1787,7 @@ type RevokeBotTokenRequest struct {
 
 func (x *RevokeBotTokenRequest) Reset() {
 	*x = RevokeBotTokenRequest{}
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[30]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1607,7 +1799,7 @@ func (x *RevokeBotTokenRequest) String() string {
 func (*RevokeBotTokenRequest) ProtoMessage() {}
 
 func (x *RevokeBotTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[30]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1620,7 +1812,7 @@ func (x *RevokeBotTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeBotTokenRequest.ProtoReflect.Descriptor instead.
 func (*RevokeBotTokenRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{30}
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *RevokeBotTokenRequest) GetTokenId() string {
@@ -1638,7 +1830,7 @@ type RevokeBotTokenResponse struct {
 
 func (x *RevokeBotTokenResponse) Reset() {
 	*x = RevokeBotTokenResponse{}
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[31]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1650,7 +1842,7 @@ func (x *RevokeBotTokenResponse) String() string {
 func (*RevokeBotTokenResponse) ProtoMessage() {}
 
 func (x *RevokeBotTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[31]
+	mi := &file_stoop_integrations_v1_integrations_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1663,7 +1855,7 @@ func (x *RevokeBotTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeBotTokenResponse.ProtoReflect.Descriptor instead.
 func (*RevokeBotTokenResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{31}
+	return file_stoop_integrations_v1_integrations_proto_rawDescGZIP(), []int{35}
 }
 
 var File_stoop_integrations_v1_integrations_proto protoreflect.FileDescriptor
@@ -1767,6 +1959,16 @@ const file_stoop_integrations_v1_integrations_proto_rawDesc = "" +
 	"\r_display_nameB\x06\n" +
 	"\x04_bio\"A\n" +
 	"\x11UpdateBotResponse\x12,\n" +
+	"\x03bot\x18\x01 \x01(\v2\x1a.stoop.integrations.v1.BotR\x03bot\"Q\n" +
+	"\x14AddBotToSpaceRequest\x12\x1e\n" +
+	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x19\n" +
+	"\bspace_id\x18\x02 \x01(\tR\aspaceId\"E\n" +
+	"\x15AddBotToSpaceResponse\x12,\n" +
+	"\x03bot\x18\x01 \x01(\v2\x1a.stoop.integrations.v1.BotR\x03bot\"V\n" +
+	"\x19RemoveBotFromSpaceRequest\x12\x1e\n" +
+	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x19\n" +
+	"\bspace_id\x18\x02 \x01(\tR\aspaceId\"J\n" +
+	"\x1aRemoveBotFromSpaceResponse\x12,\n" +
 	"\x03bot\x18\x01 \x01(\v2\x1a.stoop.integrations.v1.BotR\x03bot\"&\n" +
 	"\x14DeactivateBotRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
@@ -1782,7 +1984,7 @@ const file_stoop_integrations_v1_integrations_proto_rawDesc = "" +
 	"\x06secret\x18\x02 \x01(\tR\x06secret\"2\n" +
 	"\x15RevokeBotTokenRequest\x12\x19\n" +
 	"\btoken_id\x18\x01 \x01(\tR\atokenId\"\x18\n" +
-	"\x16RevokeBotTokenResponse2\xe2\r\n" +
+	"\x16RevokeBotTokenResponse2\xcd\x0f\n" +
 	"\x12IntegrationService\x12i\n" +
 	"\fListWebhooks\x12*.stoop.integrations.v1.ListWebhooksRequest\x1a+.stoop.integrations.v1.ListWebhooksResponse\"\x00\x12o\n" +
 	"\x0eCreateIncoming\x12,.stoop.integrations.v1.CreateIncomingRequest\x1a-.stoop.integrations.v1.CreateIncomingResponse\"\x00\x12o\n" +
@@ -1797,6 +1999,8 @@ const file_stoop_integrations_v1_integrations_proto_rawDesc = "" +
 	"\bListBots\x12&.stoop.integrations.v1.ListBotsRequest\x1a'.stoop.integrations.v1.ListBotsResponse\"\x00\x12`\n" +
 	"\tCreateBot\x12'.stoop.integrations.v1.CreateBotRequest\x1a(.stoop.integrations.v1.CreateBotResponse\"\x00\x12`\n" +
 	"\tUpdateBot\x12'.stoop.integrations.v1.UpdateBotRequest\x1a(.stoop.integrations.v1.UpdateBotResponse\"\x00\x12l\n" +
+	"\rAddBotToSpace\x12+.stoop.integrations.v1.AddBotToSpaceRequest\x1a,.stoop.integrations.v1.AddBotToSpaceResponse\"\x00\x12{\n" +
+	"\x12RemoveBotFromSpace\x120.stoop.integrations.v1.RemoveBotFromSpaceRequest\x1a1.stoop.integrations.v1.RemoveBotFromSpaceResponse\"\x00\x12l\n" +
 	"\rDeactivateBot\x12+.stoop.integrations.v1.DeactivateBotRequest\x1a,.stoop.integrations.v1.DeactivateBotResponse\"\x00\x12o\n" +
 	"\x0eCreateBotToken\x12,.stoop.integrations.v1.CreateBotTokenRequest\x1a-.stoop.integrations.v1.CreateBotTokenResponse\"\x00\x12o\n" +
 	"\x0eRevokeBotToken\x12,.stoop.integrations.v1.RevokeBotTokenRequest\x1a-.stoop.integrations.v1.RevokeBotTokenResponse\"\x00B\xe8\x01\n" +
@@ -1814,99 +2018,109 @@ func file_stoop_integrations_v1_integrations_proto_rawDescGZIP() []byte {
 	return file_stoop_integrations_v1_integrations_proto_rawDescData
 }
 
-var file_stoop_integrations_v1_integrations_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_stoop_integrations_v1_integrations_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_stoop_integrations_v1_integrations_proto_goTypes = []any{
-	(*ListWebhooksRequest)(nil),       // 0: stoop.integrations.v1.ListWebhooksRequest
-	(*ListWebhooksResponse)(nil),      // 1: stoop.integrations.v1.ListWebhooksResponse
-	(*CreateIncomingRequest)(nil),     // 2: stoop.integrations.v1.CreateIncomingRequest
-	(*CreateIncomingResponse)(nil),    // 3: stoop.integrations.v1.CreateIncomingResponse
-	(*CreateOutgoingRequest)(nil),     // 4: stoop.integrations.v1.CreateOutgoingRequest
-	(*CreateOutgoingResponse)(nil),    // 5: stoop.integrations.v1.CreateOutgoingResponse
-	(*UpdateIncomingRequest)(nil),     // 6: stoop.integrations.v1.UpdateIncomingRequest
-	(*UpdateIncomingResponse)(nil),    // 7: stoop.integrations.v1.UpdateIncomingResponse
-	(*UpdateOutgoingRequest)(nil),     // 8: stoop.integrations.v1.UpdateOutgoingRequest
-	(*UpdateOutgoingResponse)(nil),    // 9: stoop.integrations.v1.UpdateOutgoingResponse
-	(*DeleteWebhookRequest)(nil),      // 10: stoop.integrations.v1.DeleteWebhookRequest
-	(*DeleteWebhookResponse)(nil),     // 11: stoop.integrations.v1.DeleteWebhookResponse
-	(*RotateSecretRequest)(nil),       // 12: stoop.integrations.v1.RotateSecretRequest
-	(*RotateSecretResponse)(nil),      // 13: stoop.integrations.v1.RotateSecretResponse
-	(*TestWebhookRequest)(nil),        // 14: stoop.integrations.v1.TestWebhookRequest
-	(*TestWebhookResponse)(nil),       // 15: stoop.integrations.v1.TestWebhookResponse
-	(*ListDeliveriesRequest)(nil),     // 16: stoop.integrations.v1.ListDeliveriesRequest
-	(*ListDeliveriesResponse)(nil),    // 17: stoop.integrations.v1.ListDeliveriesResponse
-	(*RedeliverDeliveryRequest)(nil),  // 18: stoop.integrations.v1.RedeliverDeliveryRequest
-	(*RedeliverDeliveryResponse)(nil), // 19: stoop.integrations.v1.RedeliverDeliveryResponse
-	(*ListBotsRequest)(nil),           // 20: stoop.integrations.v1.ListBotsRequest
-	(*ListBotsResponse)(nil),          // 21: stoop.integrations.v1.ListBotsResponse
-	(*CreateBotRequest)(nil),          // 22: stoop.integrations.v1.CreateBotRequest
-	(*CreateBotResponse)(nil),         // 23: stoop.integrations.v1.CreateBotResponse
-	(*UpdateBotRequest)(nil),          // 24: stoop.integrations.v1.UpdateBotRequest
-	(*UpdateBotResponse)(nil),         // 25: stoop.integrations.v1.UpdateBotResponse
-	(*DeactivateBotRequest)(nil),      // 26: stoop.integrations.v1.DeactivateBotRequest
-	(*DeactivateBotResponse)(nil),     // 27: stoop.integrations.v1.DeactivateBotResponse
-	(*CreateBotTokenRequest)(nil),     // 28: stoop.integrations.v1.CreateBotTokenRequest
-	(*CreateBotTokenResponse)(nil),    // 29: stoop.integrations.v1.CreateBotTokenResponse
-	(*RevokeBotTokenRequest)(nil),     // 30: stoop.integrations.v1.RevokeBotTokenRequest
-	(*RevokeBotTokenResponse)(nil),    // 31: stoop.integrations.v1.RevokeBotTokenResponse
-	(*IncomingWebhook)(nil),           // 32: stoop.integrations.v1.IncomingWebhook
-	(*OutgoingWebhook)(nil),           // 33: stoop.integrations.v1.OutgoingWebhook
-	(*Delivery)(nil),                  // 34: stoop.integrations.v1.Delivery
-	(*Bot)(nil),                       // 35: stoop.integrations.v1.Bot
-	(v1.Permission)(0),                // 36: stoop.access.v1.Permission
-	(*BotToken)(nil),                  // 37: stoop.integrations.v1.BotToken
+	(*ListWebhooksRequest)(nil),        // 0: stoop.integrations.v1.ListWebhooksRequest
+	(*ListWebhooksResponse)(nil),       // 1: stoop.integrations.v1.ListWebhooksResponse
+	(*CreateIncomingRequest)(nil),      // 2: stoop.integrations.v1.CreateIncomingRequest
+	(*CreateIncomingResponse)(nil),     // 3: stoop.integrations.v1.CreateIncomingResponse
+	(*CreateOutgoingRequest)(nil),      // 4: stoop.integrations.v1.CreateOutgoingRequest
+	(*CreateOutgoingResponse)(nil),     // 5: stoop.integrations.v1.CreateOutgoingResponse
+	(*UpdateIncomingRequest)(nil),      // 6: stoop.integrations.v1.UpdateIncomingRequest
+	(*UpdateIncomingResponse)(nil),     // 7: stoop.integrations.v1.UpdateIncomingResponse
+	(*UpdateOutgoingRequest)(nil),      // 8: stoop.integrations.v1.UpdateOutgoingRequest
+	(*UpdateOutgoingResponse)(nil),     // 9: stoop.integrations.v1.UpdateOutgoingResponse
+	(*DeleteWebhookRequest)(nil),       // 10: stoop.integrations.v1.DeleteWebhookRequest
+	(*DeleteWebhookResponse)(nil),      // 11: stoop.integrations.v1.DeleteWebhookResponse
+	(*RotateSecretRequest)(nil),        // 12: stoop.integrations.v1.RotateSecretRequest
+	(*RotateSecretResponse)(nil),       // 13: stoop.integrations.v1.RotateSecretResponse
+	(*TestWebhookRequest)(nil),         // 14: stoop.integrations.v1.TestWebhookRequest
+	(*TestWebhookResponse)(nil),        // 15: stoop.integrations.v1.TestWebhookResponse
+	(*ListDeliveriesRequest)(nil),      // 16: stoop.integrations.v1.ListDeliveriesRequest
+	(*ListDeliveriesResponse)(nil),     // 17: stoop.integrations.v1.ListDeliveriesResponse
+	(*RedeliverDeliveryRequest)(nil),   // 18: stoop.integrations.v1.RedeliverDeliveryRequest
+	(*RedeliverDeliveryResponse)(nil),  // 19: stoop.integrations.v1.RedeliverDeliveryResponse
+	(*ListBotsRequest)(nil),            // 20: stoop.integrations.v1.ListBotsRequest
+	(*ListBotsResponse)(nil),           // 21: stoop.integrations.v1.ListBotsResponse
+	(*CreateBotRequest)(nil),           // 22: stoop.integrations.v1.CreateBotRequest
+	(*CreateBotResponse)(nil),          // 23: stoop.integrations.v1.CreateBotResponse
+	(*UpdateBotRequest)(nil),           // 24: stoop.integrations.v1.UpdateBotRequest
+	(*UpdateBotResponse)(nil),          // 25: stoop.integrations.v1.UpdateBotResponse
+	(*AddBotToSpaceRequest)(nil),       // 26: stoop.integrations.v1.AddBotToSpaceRequest
+	(*AddBotToSpaceResponse)(nil),      // 27: stoop.integrations.v1.AddBotToSpaceResponse
+	(*RemoveBotFromSpaceRequest)(nil),  // 28: stoop.integrations.v1.RemoveBotFromSpaceRequest
+	(*RemoveBotFromSpaceResponse)(nil), // 29: stoop.integrations.v1.RemoveBotFromSpaceResponse
+	(*DeactivateBotRequest)(nil),       // 30: stoop.integrations.v1.DeactivateBotRequest
+	(*DeactivateBotResponse)(nil),      // 31: stoop.integrations.v1.DeactivateBotResponse
+	(*CreateBotTokenRequest)(nil),      // 32: stoop.integrations.v1.CreateBotTokenRequest
+	(*CreateBotTokenResponse)(nil),     // 33: stoop.integrations.v1.CreateBotTokenResponse
+	(*RevokeBotTokenRequest)(nil),      // 34: stoop.integrations.v1.RevokeBotTokenRequest
+	(*RevokeBotTokenResponse)(nil),     // 35: stoop.integrations.v1.RevokeBotTokenResponse
+	(*IncomingWebhook)(nil),            // 36: stoop.integrations.v1.IncomingWebhook
+	(*OutgoingWebhook)(nil),            // 37: stoop.integrations.v1.OutgoingWebhook
+	(*Delivery)(nil),                   // 38: stoop.integrations.v1.Delivery
+	(*Bot)(nil),                        // 39: stoop.integrations.v1.Bot
+	(v1.Permission)(0),                 // 40: stoop.access.v1.Permission
+	(*BotToken)(nil),                   // 41: stoop.integrations.v1.BotToken
 }
 var file_stoop_integrations_v1_integrations_proto_depIdxs = []int32{
-	32, // 0: stoop.integrations.v1.ListWebhooksResponse.incoming:type_name -> stoop.integrations.v1.IncomingWebhook
-	33, // 1: stoop.integrations.v1.ListWebhooksResponse.outgoing:type_name -> stoop.integrations.v1.OutgoingWebhook
-	32, // 2: stoop.integrations.v1.CreateIncomingResponse.webhook:type_name -> stoop.integrations.v1.IncomingWebhook
-	33, // 3: stoop.integrations.v1.CreateOutgoingResponse.webhook:type_name -> stoop.integrations.v1.OutgoingWebhook
-	32, // 4: stoop.integrations.v1.UpdateIncomingResponse.webhook:type_name -> stoop.integrations.v1.IncomingWebhook
-	33, // 5: stoop.integrations.v1.UpdateOutgoingResponse.webhook:type_name -> stoop.integrations.v1.OutgoingWebhook
-	34, // 6: stoop.integrations.v1.TestWebhookResponse.delivery:type_name -> stoop.integrations.v1.Delivery
-	34, // 7: stoop.integrations.v1.ListDeliveriesResponse.deliveries:type_name -> stoop.integrations.v1.Delivery
-	34, // 8: stoop.integrations.v1.RedeliverDeliveryResponse.delivery:type_name -> stoop.integrations.v1.Delivery
-	35, // 9: stoop.integrations.v1.ListBotsResponse.bots:type_name -> stoop.integrations.v1.Bot
-	35, // 10: stoop.integrations.v1.CreateBotResponse.bot:type_name -> stoop.integrations.v1.Bot
-	35, // 11: stoop.integrations.v1.UpdateBotResponse.bot:type_name -> stoop.integrations.v1.Bot
-	36, // 12: stoop.integrations.v1.CreateBotTokenRequest.permissions:type_name -> stoop.access.v1.Permission
-	37, // 13: stoop.integrations.v1.CreateBotTokenResponse.token:type_name -> stoop.integrations.v1.BotToken
-	0,  // 14: stoop.integrations.v1.IntegrationService.ListWebhooks:input_type -> stoop.integrations.v1.ListWebhooksRequest
-	2,  // 15: stoop.integrations.v1.IntegrationService.CreateIncoming:input_type -> stoop.integrations.v1.CreateIncomingRequest
-	4,  // 16: stoop.integrations.v1.IntegrationService.CreateOutgoing:input_type -> stoop.integrations.v1.CreateOutgoingRequest
-	6,  // 17: stoop.integrations.v1.IntegrationService.UpdateIncoming:input_type -> stoop.integrations.v1.UpdateIncomingRequest
-	8,  // 18: stoop.integrations.v1.IntegrationService.UpdateOutgoing:input_type -> stoop.integrations.v1.UpdateOutgoingRequest
-	10, // 19: stoop.integrations.v1.IntegrationService.DeleteWebhook:input_type -> stoop.integrations.v1.DeleteWebhookRequest
-	12, // 20: stoop.integrations.v1.IntegrationService.RotateSecret:input_type -> stoop.integrations.v1.RotateSecretRequest
-	14, // 21: stoop.integrations.v1.IntegrationService.TestWebhook:input_type -> stoop.integrations.v1.TestWebhookRequest
-	16, // 22: stoop.integrations.v1.IntegrationService.ListDeliveries:input_type -> stoop.integrations.v1.ListDeliveriesRequest
-	18, // 23: stoop.integrations.v1.IntegrationService.RedeliverDelivery:input_type -> stoop.integrations.v1.RedeliverDeliveryRequest
-	20, // 24: stoop.integrations.v1.IntegrationService.ListBots:input_type -> stoop.integrations.v1.ListBotsRequest
-	22, // 25: stoop.integrations.v1.IntegrationService.CreateBot:input_type -> stoop.integrations.v1.CreateBotRequest
-	24, // 26: stoop.integrations.v1.IntegrationService.UpdateBot:input_type -> stoop.integrations.v1.UpdateBotRequest
-	26, // 27: stoop.integrations.v1.IntegrationService.DeactivateBot:input_type -> stoop.integrations.v1.DeactivateBotRequest
-	28, // 28: stoop.integrations.v1.IntegrationService.CreateBotToken:input_type -> stoop.integrations.v1.CreateBotTokenRequest
-	30, // 29: stoop.integrations.v1.IntegrationService.RevokeBotToken:input_type -> stoop.integrations.v1.RevokeBotTokenRequest
-	1,  // 30: stoop.integrations.v1.IntegrationService.ListWebhooks:output_type -> stoop.integrations.v1.ListWebhooksResponse
-	3,  // 31: stoop.integrations.v1.IntegrationService.CreateIncoming:output_type -> stoop.integrations.v1.CreateIncomingResponse
-	5,  // 32: stoop.integrations.v1.IntegrationService.CreateOutgoing:output_type -> stoop.integrations.v1.CreateOutgoingResponse
-	7,  // 33: stoop.integrations.v1.IntegrationService.UpdateIncoming:output_type -> stoop.integrations.v1.UpdateIncomingResponse
-	9,  // 34: stoop.integrations.v1.IntegrationService.UpdateOutgoing:output_type -> stoop.integrations.v1.UpdateOutgoingResponse
-	11, // 35: stoop.integrations.v1.IntegrationService.DeleteWebhook:output_type -> stoop.integrations.v1.DeleteWebhookResponse
-	13, // 36: stoop.integrations.v1.IntegrationService.RotateSecret:output_type -> stoop.integrations.v1.RotateSecretResponse
-	15, // 37: stoop.integrations.v1.IntegrationService.TestWebhook:output_type -> stoop.integrations.v1.TestWebhookResponse
-	17, // 38: stoop.integrations.v1.IntegrationService.ListDeliveries:output_type -> stoop.integrations.v1.ListDeliveriesResponse
-	19, // 39: stoop.integrations.v1.IntegrationService.RedeliverDelivery:output_type -> stoop.integrations.v1.RedeliverDeliveryResponse
-	21, // 40: stoop.integrations.v1.IntegrationService.ListBots:output_type -> stoop.integrations.v1.ListBotsResponse
-	23, // 41: stoop.integrations.v1.IntegrationService.CreateBot:output_type -> stoop.integrations.v1.CreateBotResponse
-	25, // 42: stoop.integrations.v1.IntegrationService.UpdateBot:output_type -> stoop.integrations.v1.UpdateBotResponse
-	27, // 43: stoop.integrations.v1.IntegrationService.DeactivateBot:output_type -> stoop.integrations.v1.DeactivateBotResponse
-	29, // 44: stoop.integrations.v1.IntegrationService.CreateBotToken:output_type -> stoop.integrations.v1.CreateBotTokenResponse
-	31, // 45: stoop.integrations.v1.IntegrationService.RevokeBotToken:output_type -> stoop.integrations.v1.RevokeBotTokenResponse
-	30, // [30:46] is the sub-list for method output_type
-	14, // [14:30] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	36, // 0: stoop.integrations.v1.ListWebhooksResponse.incoming:type_name -> stoop.integrations.v1.IncomingWebhook
+	37, // 1: stoop.integrations.v1.ListWebhooksResponse.outgoing:type_name -> stoop.integrations.v1.OutgoingWebhook
+	36, // 2: stoop.integrations.v1.CreateIncomingResponse.webhook:type_name -> stoop.integrations.v1.IncomingWebhook
+	37, // 3: stoop.integrations.v1.CreateOutgoingResponse.webhook:type_name -> stoop.integrations.v1.OutgoingWebhook
+	36, // 4: stoop.integrations.v1.UpdateIncomingResponse.webhook:type_name -> stoop.integrations.v1.IncomingWebhook
+	37, // 5: stoop.integrations.v1.UpdateOutgoingResponse.webhook:type_name -> stoop.integrations.v1.OutgoingWebhook
+	38, // 6: stoop.integrations.v1.TestWebhookResponse.delivery:type_name -> stoop.integrations.v1.Delivery
+	38, // 7: stoop.integrations.v1.ListDeliveriesResponse.deliveries:type_name -> stoop.integrations.v1.Delivery
+	38, // 8: stoop.integrations.v1.RedeliverDeliveryResponse.delivery:type_name -> stoop.integrations.v1.Delivery
+	39, // 9: stoop.integrations.v1.ListBotsResponse.bots:type_name -> stoop.integrations.v1.Bot
+	39, // 10: stoop.integrations.v1.CreateBotResponse.bot:type_name -> stoop.integrations.v1.Bot
+	39, // 11: stoop.integrations.v1.UpdateBotResponse.bot:type_name -> stoop.integrations.v1.Bot
+	39, // 12: stoop.integrations.v1.AddBotToSpaceResponse.bot:type_name -> stoop.integrations.v1.Bot
+	39, // 13: stoop.integrations.v1.RemoveBotFromSpaceResponse.bot:type_name -> stoop.integrations.v1.Bot
+	40, // 14: stoop.integrations.v1.CreateBotTokenRequest.permissions:type_name -> stoop.access.v1.Permission
+	41, // 15: stoop.integrations.v1.CreateBotTokenResponse.token:type_name -> stoop.integrations.v1.BotToken
+	0,  // 16: stoop.integrations.v1.IntegrationService.ListWebhooks:input_type -> stoop.integrations.v1.ListWebhooksRequest
+	2,  // 17: stoop.integrations.v1.IntegrationService.CreateIncoming:input_type -> stoop.integrations.v1.CreateIncomingRequest
+	4,  // 18: stoop.integrations.v1.IntegrationService.CreateOutgoing:input_type -> stoop.integrations.v1.CreateOutgoingRequest
+	6,  // 19: stoop.integrations.v1.IntegrationService.UpdateIncoming:input_type -> stoop.integrations.v1.UpdateIncomingRequest
+	8,  // 20: stoop.integrations.v1.IntegrationService.UpdateOutgoing:input_type -> stoop.integrations.v1.UpdateOutgoingRequest
+	10, // 21: stoop.integrations.v1.IntegrationService.DeleteWebhook:input_type -> stoop.integrations.v1.DeleteWebhookRequest
+	12, // 22: stoop.integrations.v1.IntegrationService.RotateSecret:input_type -> stoop.integrations.v1.RotateSecretRequest
+	14, // 23: stoop.integrations.v1.IntegrationService.TestWebhook:input_type -> stoop.integrations.v1.TestWebhookRequest
+	16, // 24: stoop.integrations.v1.IntegrationService.ListDeliveries:input_type -> stoop.integrations.v1.ListDeliveriesRequest
+	18, // 25: stoop.integrations.v1.IntegrationService.RedeliverDelivery:input_type -> stoop.integrations.v1.RedeliverDeliveryRequest
+	20, // 26: stoop.integrations.v1.IntegrationService.ListBots:input_type -> stoop.integrations.v1.ListBotsRequest
+	22, // 27: stoop.integrations.v1.IntegrationService.CreateBot:input_type -> stoop.integrations.v1.CreateBotRequest
+	24, // 28: stoop.integrations.v1.IntegrationService.UpdateBot:input_type -> stoop.integrations.v1.UpdateBotRequest
+	26, // 29: stoop.integrations.v1.IntegrationService.AddBotToSpace:input_type -> stoop.integrations.v1.AddBotToSpaceRequest
+	28, // 30: stoop.integrations.v1.IntegrationService.RemoveBotFromSpace:input_type -> stoop.integrations.v1.RemoveBotFromSpaceRequest
+	30, // 31: stoop.integrations.v1.IntegrationService.DeactivateBot:input_type -> stoop.integrations.v1.DeactivateBotRequest
+	32, // 32: stoop.integrations.v1.IntegrationService.CreateBotToken:input_type -> stoop.integrations.v1.CreateBotTokenRequest
+	34, // 33: stoop.integrations.v1.IntegrationService.RevokeBotToken:input_type -> stoop.integrations.v1.RevokeBotTokenRequest
+	1,  // 34: stoop.integrations.v1.IntegrationService.ListWebhooks:output_type -> stoop.integrations.v1.ListWebhooksResponse
+	3,  // 35: stoop.integrations.v1.IntegrationService.CreateIncoming:output_type -> stoop.integrations.v1.CreateIncomingResponse
+	5,  // 36: stoop.integrations.v1.IntegrationService.CreateOutgoing:output_type -> stoop.integrations.v1.CreateOutgoingResponse
+	7,  // 37: stoop.integrations.v1.IntegrationService.UpdateIncoming:output_type -> stoop.integrations.v1.UpdateIncomingResponse
+	9,  // 38: stoop.integrations.v1.IntegrationService.UpdateOutgoing:output_type -> stoop.integrations.v1.UpdateOutgoingResponse
+	11, // 39: stoop.integrations.v1.IntegrationService.DeleteWebhook:output_type -> stoop.integrations.v1.DeleteWebhookResponse
+	13, // 40: stoop.integrations.v1.IntegrationService.RotateSecret:output_type -> stoop.integrations.v1.RotateSecretResponse
+	15, // 41: stoop.integrations.v1.IntegrationService.TestWebhook:output_type -> stoop.integrations.v1.TestWebhookResponse
+	17, // 42: stoop.integrations.v1.IntegrationService.ListDeliveries:output_type -> stoop.integrations.v1.ListDeliveriesResponse
+	19, // 43: stoop.integrations.v1.IntegrationService.RedeliverDelivery:output_type -> stoop.integrations.v1.RedeliverDeliveryResponse
+	21, // 44: stoop.integrations.v1.IntegrationService.ListBots:output_type -> stoop.integrations.v1.ListBotsResponse
+	23, // 45: stoop.integrations.v1.IntegrationService.CreateBot:output_type -> stoop.integrations.v1.CreateBotResponse
+	25, // 46: stoop.integrations.v1.IntegrationService.UpdateBot:output_type -> stoop.integrations.v1.UpdateBotResponse
+	27, // 47: stoop.integrations.v1.IntegrationService.AddBotToSpace:output_type -> stoop.integrations.v1.AddBotToSpaceResponse
+	29, // 48: stoop.integrations.v1.IntegrationService.RemoveBotFromSpace:output_type -> stoop.integrations.v1.RemoveBotFromSpaceResponse
+	31, // 49: stoop.integrations.v1.IntegrationService.DeactivateBot:output_type -> stoop.integrations.v1.DeactivateBotResponse
+	33, // 50: stoop.integrations.v1.IntegrationService.CreateBotToken:output_type -> stoop.integrations.v1.CreateBotTokenResponse
+	35, // 51: stoop.integrations.v1.IntegrationService.RevokeBotToken:output_type -> stoop.integrations.v1.RevokeBotTokenResponse
+	34, // [34:52] is the sub-list for method output_type
+	16, // [16:34] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_stoop_integrations_v1_integrations_proto_init() }
@@ -1925,7 +2139,7 @@ func file_stoop_integrations_v1_integrations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_integrations_v1_integrations_proto_rawDesc), len(file_stoop_integrations_v1_integrations_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   32,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -13,6 +13,9 @@ SELECT * FROM spaces WHERE id = $1;
 -- any channel there has messages newer than their read marker, and their
 -- own mute for the space. has_unread does not know about space mutes; the
 -- client derives the effective state from both flags.
+-- name: ListAllSpaces :many
+SELECT * FROM spaces ORDER BY name, id;
+
 -- name: ListSpacesByUser :many
 SELECT sqlc.embed(s), m.role AS my_role,
     EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.space_id = s.id AND sm.user_id = m.user_id) AS muted,

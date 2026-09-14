@@ -158,3 +158,65 @@ func TestBotsInSpaces(t *testing.T) {
 		t.Errorf("posted outside the bound channel: %v", err)
 	}
 }
+
+func TestBotMembership(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), botDirectory{pool})
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	admin := newUser(t, pool, "casey", authctx.RoleAdmin)
+	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaceID := sp.Msg.Space.Id
+	bot := newBot(t, pool, "uptime")
+	bg := context.Background()
+
+	// AddMember is for people: a bot's spaces are set on the bot.
+	if _, err := svc.AddMember(owner, connect.NewRequest(&chatv1.AddMemberRequest{SpaceId: spaceID, UserId: bot})); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("AddMember with a bot: %v", err)
+	}
+	if err := svc.RemoveBotMember(bg, spaceID, bot); code(err) != connect.CodeNotFound {
+		t.Errorf("remove a bot that isn't in: %v", err)
+	}
+	if err := svc.AddBotMember(bg, spaceID, bot); err != nil {
+		t.Fatal(err)
+	}
+	if in, _ := svc.IsSpaceMember(bg, bot, spaceID); !in {
+		t.Error("bot not a member after add")
+	}
+	if err := svc.RemoveBotMember(bg, spaceID, bot); err != nil {
+		t.Fatal(err)
+	}
+	if in, _ := svc.IsSpaceMember(bg, bot, spaceID); in {
+		t.Error("bot still a member after remove")
+	}
+
+	// A ban holds for a bot as for anyone.
+	if _, err := svc.BanMember(owner, connect.NewRequest(&chatv1.BanMemberRequest{SpaceId: spaceID, UserId: bot, Reason: "noisy"})); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.AddBotMember(bg, spaceID, bot); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a banned bot was added: %v", err)
+	}
+
+	// Every space, for whoever may join any: an instance admin sees the
+	// space they aren't in; a member sees only their own.
+	all, err := svc.ListSpaces(admin, connect.NewRequest(&chatv1.ListSpacesRequest{All: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all.Msg.Spaces) != 1 || all.Msg.Spaces[0].Id != spaceID {
+		t.Errorf("all spaces = %+v", all.Msg.Spaces)
+	}
+	mine, err := svc.ListSpaces(admin, connect.NewRequest(&chatv1.ListSpacesRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mine.Msg.Spaces) != 0 {
+		t.Errorf("admin's own spaces = %+v", mine.Msg.Spaces)
+	}
+	if _, err := svc.ListSpaces(owner, connect.NewRequest(&chatv1.ListSpacesRequest{All: true})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a member listed every space: %v", err)
+	}
+}

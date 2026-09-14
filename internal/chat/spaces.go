@@ -71,7 +71,10 @@ func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.C
 	}), nil
 }
 
-func (s *Service) ListSpaces(ctx context.Context, _ *connect.Request[chatv1.ListSpacesRequest]) (*connect.Response[chatv1.ListSpacesResponse], error) {
+func (s *Service) ListSpaces(ctx context.Context, req *connect.Request[chatv1.ListSpacesRequest]) (*connect.Response[chatv1.ListSpacesResponse], error) {
+	if req.Msg.All {
+		return s.listAllSpaces(ctx)
+	}
 	rows, err := s.q.ListSpacesByUser(ctx, authctx.UserID(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("list spaces: %w", err)
@@ -87,6 +90,29 @@ func (s *Service) ListSpaces(ctx context.Context, _ *connect.Request[chatv1.List
 		space.HasUnread = r.HasUnread
 		space.Muted = r.Muted
 		spaces = append(spaces, space)
+	}
+	return connect.NewResponse(&chatv1.ListSpacesResponse{Spaces: spaces}), nil
+}
+
+// listAllSpaces is every space on the server, for whoever may join any
+// of them: the standing they'd have on arrival, with no unread or mute
+// state, since they may not be in it.
+func (s *Service) listAllSpaces(ctx context.Context) (*connect.Response[chatv1.ListSpacesResponse], error) {
+	if !authctx.Allows(ctx, authctx.SpacesJoinAny) {
+		return nil, connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(authctx.SpacesJoinAny))
+	}
+	rows, err := s.q.ListAllSpaces(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list spaces: %w", err)
+	}
+	cred := callerCredential(ctx)
+	spaces := make([]*chatv1.Space, 0, len(rows))
+	for _, space := range rows {
+		a, err := s.actorFor(ctx, space.ID)
+		if err != nil {
+			return nil, err
+		}
+		spaces = append(spaces, toProtoSpace(space, a, cred))
 	}
 	return connect.NewResponse(&chatv1.ListSpacesResponse{Spaces: spaces}), nil
 }

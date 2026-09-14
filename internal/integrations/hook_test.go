@@ -213,6 +213,29 @@ func (f *fakeSpaces) AddBotMember(ctx context.Context, spaceID, userID string) e
 	_, err := f.pool.Exec(ctx, `INSERT INTO space_members (space_id, user_id, role) VALUES ($1, $2, 'member') ON CONFLICT DO NOTHING`, spaceID, userID)
 	return err
 }
+func (f *fakeSpaces) RemoveBotMember(ctx context.Context, spaceID, userID string) error {
+	tag, err := f.pool.Exec(ctx, `DELETE FROM space_members WHERE space_id = $1 AND user_id = $2`, spaceID, userID)
+	if err == nil && tag.RowsAffected() == 0 {
+		return connect.NewError(connect.CodeNotFound, errors.New("the bot is not a member of that space"))
+	}
+	return err
+}
+func (f *fakeSpaces) ListSpaceIDs(ctx context.Context, userID string) ([]string, error) {
+	rows, err := f.pool.Query(ctx, `SELECT space_id FROM space_members WHERE user_id = $1 ORDER BY space_id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
 func (f *fakeSpaces) SetBotAdmin(_ context.Context, spaceID, userID string, admin bool) error {
 	f.admin[spaceID+"/"+userID] = admin
 	return nil
@@ -654,5 +677,54 @@ func TestCreateBotWithBio(t *testing.T) {
 	}
 	if plain.Msg.Bot.Bio != "" {
 		t.Errorf("no bio: %q", plain.Msg.Bot.Bio)
+	}
+}
+
+func TestBotSpaces(t *testing.T) {
+	f := setup(t)
+	made, err := f.svc.CreateBot(f.admin, connect.NewRequest(&integrationsv1.CreateBotRequest{Username: "mirror", DisplayName: "Mirror"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bot := made.Msg.Bot.Id
+	add := &integrationsv1.AddBotToSpaceRequest{BotUserId: bot, SpaceId: f.space}
+
+	// Instance admins only; a hook for a bot outside the space is refused.
+	if _, err := f.svc.AddBotToSpace(f.member, connect.NewRequest(add)); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("a member added a bot to a space: %v", err)
+	}
+	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "alerts", BotUserId: bot})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("a hook widened a bot into a space: %v", err)
+	}
+
+	res, err := f.svc.AddBotToSpace(f.admin, connect.NewRequest(add))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Msg.Bot.SpaceIds; len(got) != 1 || got[0] != f.space {
+		t.Errorf("space_ids after add = %v", got)
+	}
+	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "alerts", BotUserId: bot})); err != nil {
+		t.Errorf("a hook for a member bot: %v", err)
+	}
+	bots, err := f.svc.ListBots(f.admin, connect.NewRequest(&integrationsv1.ListBotsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range bots.Msg.Bots {
+		if b.Id == bot && (len(b.SpaceIds) != 1 || b.SpaceIds[0] != f.space) {
+			t.Errorf("ListBots space_ids = %v", b.SpaceIds)
+		}
+	}
+
+	out, err := f.svc.RemoveBotFromSpace(f.admin, connect.NewRequest(&integrationsv1.RemoveBotFromSpaceRequest{BotUserId: bot, SpaceId: f.space}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Msg.Bot.SpaceIds) != 0 {
+		t.Errorf("space_ids after remove = %v", out.Msg.Bot.SpaceIds)
+	}
+	if _, err := f.svc.RemoveBotFromSpace(f.admin, connect.NewRequest(&integrationsv1.RemoveBotFromSpaceRequest{BotUserId: bot, SpaceId: f.space})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("removing twice: %v", err)
 	}
 }

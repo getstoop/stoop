@@ -31,10 +31,15 @@ page is what the code does.
 ## Bots
 
 A bot is a `users` row with `kind = 'bot'`, no password and never a
-session; a member of the spaces it is added to, so authorship, mentions
-and roles need no special case, and every member, author and profile on
-the wire says which kind it is. It acts only through the credentials it
-holds ([identity.md](identity.md#bots-and-their-credentials)):
+session; a member of the spaces an instance admin puts it in
+(`AddBotToSpace`, `RemoveBotFromSpace`; bans hold, removal is a kick), so
+authorship, mentions and roles need no special case, and every member,
+author and profile on the wire says which kind it is. Membership is set
+on the bot and nowhere else: chat's `AddMember` refuses a bot, and an
+incoming hook for an existing bot is refused unless the bot is already in
+the channel's space. A hook made with a new bot creates that bot as a
+member of that one space. It acts only through the credentials it holds
+([identity.md](identity.md#bots-and-their-credentials)):
 
 | Credential | Kind | Grant | Bound to | Presented as |
 | --- | --- | --- | --- | --- |

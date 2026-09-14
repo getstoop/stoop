@@ -39,6 +39,11 @@ service IntegrationService {
   rpc ListBots(ListBotsRequest) returns (ListBotsResponse) {}
   rpc CreateBot(CreateBotRequest) returns (CreateBotResponse) {}
   rpc UpdateBot(UpdateBotRequest) returns (UpdateBotResponse) {}
+  // AddBotToSpace makes the bot a member of a space; bans are honoured.
+  // Membership is what every bot credential works inside of.
+  rpc AddBotToSpace(AddBotToSpaceRequest) returns (AddBotToSpaceResponse) {}
+  // RemoveBotFromSpace removes it, as a kick does.
+  rpc RemoveBotFromSpace(RemoveBotFromSpaceRequest) returns (RemoveBotFromSpaceResponse) {}
   // DeactivateBot revokes every credential the bot holds. Its messages
   // stay.
   rpc DeactivateBot(DeactivateBotRequest) returns (DeactivateBotResponse) {}
@@ -188,6 +193,24 @@ message UpdateBotRequest {
 }
 
 message UpdateBotResponse {
+  Bot bot = 1;
+}
+
+message AddBotToSpaceRequest {
+  string bot_user_id = 1;
+  string space_id = 2;
+}
+
+message AddBotToSpaceResponse {
+  Bot bot = 1;
+}
+
+message RemoveBotFromSpaceRequest {
+  string bot_user_id = 1;
+  string space_id = 2;
+}
+
+message RemoveBotFromSpaceResponse {
   Bot bot = 1;
 }
 

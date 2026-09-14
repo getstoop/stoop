@@ -53,6 +53,8 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 			fmt.Errorf("a space holds at most %d incoming webhooks", maxHooksPerSpace))
 	}
 
+	// A hook never widens where a bot works: an existing bot must already
+	// be in the space; a new bot is made a member of it, and nothing else.
 	var bot Bot
 	if req.Msg.BotUserId != "" {
 		if bot, err = s.bots.GetBot(ctx, req.Msg.BotUserId); err != nil {
@@ -61,11 +63,21 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 		if bot.DeactivatedAt != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("that bot is deactivated"))
 		}
-	} else if bot, err = s.newBotNamed(ctx, name); err != nil {
-		return nil, err
-	}
-	if err := s.spaces.AddBotMember(ctx, spaceID, bot.ID); err != nil {
-		return nil, err
+		member, err := s.spaces.IsSpaceMember(ctx, bot.ID, spaceID)
+		if err != nil {
+			return nil, err
+		}
+		if !member {
+			return nil, connect.NewError(connect.CodeFailedPrecondition,
+				errors.New("that bot isn't in this space; add it from Server admin → Integrations first"))
+		}
+	} else {
+		if bot, err = s.newBotNamed(ctx, name); err != nil {
+			return nil, err
+		}
+		if err := s.spaces.AddBotMember(ctx, spaceID, bot.ID); err != nil {
+			return nil, err
+		}
 	}
 	if req.Msg.NotifyEveryone {
 		if err := s.spaces.SetBotAdmin(ctx, spaceID, bot.ID, true); err != nil {

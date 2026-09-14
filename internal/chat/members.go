@@ -94,6 +94,12 @@ func (s *Service) AddMember(ctx context.Context, req *connect.Request[chatv1.Add
 	if err != nil {
 		return nil, notFoundOr(err, "space")
 	}
+	if records, err := s.users.GetUsers(ctx, []string{req.Msg.UserId}); err != nil {
+		return nil, fmt.Errorf("look up user: %w", err)
+	} else if len(records) == 1 && records[0].Kind == authctx.KindBot {
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			errors.New("a bot's spaces are set from Server admin → Integrations"))
+	}
 	if err := s.refuseIfBanned(ctx, space.ID, req.Msg.UserId); err != nil {
 		return nil, err
 	}

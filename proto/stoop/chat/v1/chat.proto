@@ -158,7 +158,12 @@ message CreateSpaceResponse {
   Channel default_channel = 2;
 }
 
-message ListSpacesRequest {}
+message ListSpacesRequest {
+  // Every space on the server rather than the caller's own; needs
+  // spaces.join_any, which instance admins hold. Unread and mute state
+  // are not reported for spaces the caller isn't in.
+  bool all = 1;
+}
 
 message ListSpacesResponse {
   repeated Space spaces = 1;

@@ -42,6 +42,10 @@ type SpaceAccess interface {
 	ChannelSpace(ctx context.Context, channelID string) (string, error)
 	SpaceName(ctx context.Context, spaceID string) (string, error)
 	AddBotMember(ctx context.Context, spaceID, userID string) error
+	// RemoveBotMember takes the bot out of the space as a kick would.
+	RemoveBotMember(ctx context.Context, spaceID, userID string) error
+	// ListSpaceIDs is the spaces the user is a member of.
+	ListSpaceIDs(ctx context.Context, userID string) ([]string, error)
 	// SetBotAdmin sets or clears the bot's admin role in the space.
 	SetBotAdmin(ctx context.Context, spaceID, userID string, admin bool) error
 	IsSpaceMember(ctx context.Context, userID, spaceID string) (bool, error)

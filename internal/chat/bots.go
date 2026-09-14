@@ -48,6 +48,7 @@ func (s *Service) SpaceName(ctx context.Context, spaceID string) (string, error)
 }
 
 // AddBotMember puts a bot into a space as a member; already in is fine.
+// A ban holds for a bot as for anyone.
 func (s *Service) AddBotMember(ctx context.Context, spaceID, userID string) error {
 	space, err := s.q.GetSpace(ctx, spaceID)
 	if err != nil {
@@ -60,12 +61,36 @@ func (s *Service) AddBotMember(ctx context.Context, spaceID, userID string) erro
 	if isMember {
 		return nil
 	}
+	if err := s.refuseIfBanned(ctx, spaceID, userID); err != nil {
+		return err
+	}
 	if err := s.q.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
 		SpaceID: spaceID, UserID: userID, Role: string(RoleMember),
 	}); err != nil {
 		return fmt.Errorf("add member: %w", err)
 	}
 	s.publishSpaceJoined(userID, space, memberActor(RoleMember, s.isInstanceAdmin(ctx, userID)))
+	return nil
+}
+
+// RemoveBotMember takes a bot out of a space the way a kick does: the
+// row and its mute go, the space hears it, and voice drops it.
+func (s *Service) RemoveBotMember(ctx context.Context, spaceID, userID string) error {
+	role, err := s.q.GetSpaceMemberRole(ctx, dbgen.GetSpaceMemberRoleParams{SpaceID: spaceID, UserID: userID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return connect.NewError(connect.CodeNotFound, errors.New("the bot is not a member of that space"))
+	}
+	if err != nil {
+		return fmt.Errorf("look up member role: %w", err)
+	}
+	if Role(role) == RoleOwner {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("the bot owns that space; transfer it first"))
+	}
+	if err := s.removeMember(ctx, spaceID, userID); err != nil {
+		return fmt.Errorf("remove member: %w", err)
+	}
+	s.publishMemberRemoved(spaceID, userID, true)
+	s.evictFromSpaceVoice(ctx, spaceID, userID)
 	return nil
 }
 
