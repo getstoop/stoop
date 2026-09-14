@@ -636,3 +636,23 @@ func TestBotTokens(t *testing.T) {
 		t.Errorf("a token for a deactivated bot: %v", err)
 	}
 }
+
+func TestCreateBotWithBio(t *testing.T) {
+	f := setup(t)
+	res, err := f.svc.CreateBot(f.admin, connect.NewRequest(&integrationsv1.CreateBotRequest{
+		Username: "hass", DisplayName: "Home Assistant", Bio: "  Says when the garage door is open.  ",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Msg.Bot.Bio != "Says when the garage door is open." {
+		t.Errorf("bio = %q", res.Msg.Bot.Bio)
+	}
+	plain, err := f.svc.CreateBot(f.admin, connect.NewRequest(&integrationsv1.CreateBotRequest{Username: "quiet", DisplayName: "Quiet"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.Msg.Bot.Bio != "" {
+		t.Errorf("no bio: %q", plain.Msg.Bot.Bio)
+	}
+}

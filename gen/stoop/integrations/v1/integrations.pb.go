@@ -1158,9 +1158,11 @@ func (x *ListBotsResponse) GetBots() []*Bot {
 }
 
 type CreateBotRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Username    string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	DisplayName string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// Optional. Plain text, 300 characters; shown on the bot's card.
+	Bio           string `protobuf:"bytes,3,opt,name=bio,proto3" json:"bio,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1205,6 +1207,13 @@ func (x *CreateBotRequest) GetUsername() string {
 func (x *CreateBotRequest) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *CreateBotRequest) GetBio() string {
+	if x != nil {
+		return x.Bio
 	}
 	return ""
 }
@@ -1742,10 +1751,11 @@ const file_stoop_integrations_v1_integrations_proto_rawDesc = "" +
 	"\bdelivery\x18\x01 \x01(\v2\x1f.stoop.integrations.v1.DeliveryR\bdelivery\"\x11\n" +
 	"\x0fListBotsRequest\"B\n" +
 	"\x10ListBotsResponse\x12.\n" +
-	"\x04bots\x18\x01 \x03(\v2\x1a.stoop.integrations.v1.BotR\x04bots\"Q\n" +
+	"\x04bots\x18\x01 \x03(\v2\x1a.stoop.integrations.v1.BotR\x04bots\"c\n" +
 	"\x10CreateBotRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"A\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x10\n" +
+	"\x03bio\x18\x03 \x01(\tR\x03bio\"A\n" +
 	"\x11CreateBotResponse\x12,\n" +
 	"\x03bot\x18\x01 \x01(\v2\x1a.stoop.integrations.v1.BotR\x03bot\"\xa8\x01\n" +
 	"\x10UpdateBotRequest\x12\x0e\n" +

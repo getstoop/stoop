@@ -171,6 +171,8 @@ message ListBotsResponse {
 message CreateBotRequest {
   string username = 1;
   string display_name = 2;
+  // Optional. Plain text, 300 characters; shown on the bot's card.
+  string bio = 3;
 }
 
 message CreateBotResponse {

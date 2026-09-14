@@ -92,6 +92,7 @@ export function EditBotModal({
           <Avatar
             name={bot.displayName || bot.username}
             fileId={avatarFileId}
+            size="medium"
           />
           <ImagePicker
             label={avatarFileId ? "Change avatar" : "Upload avatar"}

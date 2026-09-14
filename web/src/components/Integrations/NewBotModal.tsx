@@ -1,28 +1,48 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { integrationsClient } from "../../api/clients";
+import { useEffect, useState } from "react";
+import { filesClient, integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
+import { ImagePicker } from "../ImagePicker";
 import { Modal } from "../Modal";
 
+const BIO_MAX = 300;
+
 // A bot account on its own: a member with no password, authenticated only
-// through the tokens and hooks it's given later.
+// through the tokens and hooks it's given later. Its face and a line
+// about what it does are set here too, so the card can say what it is
+// from its first post.
 export function NewBotModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  // The picked image waits for the bot to exist, then is uploaded to it.
+  const [avatar, setAvatar] = useState<Uint8Array | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ready = username.trim() !== "" && displayName.trim() !== "";
+
+  useEffect(() => {
+    if (!avatar) return;
+    const url = URL.createObjectURL(new Blob([avatar as BlobPart]));
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [avatar]);
 
   const create = async () => {
     if (!ready) return;
     setBusy(true);
     setError(null);
     try {
-      await integrationsClient.createBot({
+      const res = await integrationsClient.createBot({
         username: username.trim(),
         displayName: displayName.trim(),
+        bio,
       });
+      if (avatar && res.bot) {
+        await filesClient.uploadBotAvatar({ userId: res.bot.id, data: avatar });
+      }
       await queryClient.invalidateQueries({ queryKey: ["bots"] });
       onClose();
     } catch (err) {
@@ -53,6 +73,27 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="modal-body integration-form">
+        <div className="bot-edit-avatar">
+          <span
+            className="avatar medium"
+            style={
+              preview
+                ? {
+                    backgroundImage: `url(${preview})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
+                : undefined
+            }
+          >
+            {preview ? null : (displayName.trim()[0] ?? "?").toUpperCase()}
+          </span>
+          <ImagePicker
+            label={avatar ? "Change avatar" : "Choose avatar"}
+            busyLabel="Reading…"
+            onPick={async (bytes) => setAvatar(bytes)}
+          />
+        </div>
         <label className="field">
           Username
           <input
@@ -74,6 +115,21 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             placeholder="e.g. Home Assistant"
             onChange={(e) => setDisplayName(e.target.value)}
           />
+        </label>
+        <label className="field">
+          About this bot
+          <textarea
+            name="bot-bio"
+            value={bio}
+            maxLength={BIO_MAX}
+            rows={3}
+            placeholder="Posts when a service goes down or comes back."
+            onChange={(e) => setBio(e.target.value)}
+          />
+          <span className="hint">
+            Shown on its profile card, so people can tell what it does.{" "}
+            {bio.length}/{BIO_MAX}
+          </span>
         </label>
         {error && <p className="error">{error}</p>}
       </div>

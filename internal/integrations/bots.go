@@ -3,6 +3,7 @@ package integrations
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -47,6 +48,11 @@ func (s *Service) CreateBot(ctx context.Context, req *connect.Request[integratio
 	bot, err := s.bots.CreateBot(ctx, req.Msg.Username, req.Msg.DisplayName)
 	if err != nil {
 		return nil, err
+	}
+	if bio := strings.TrimSpace(req.Msg.Bio); bio != "" {
+		if bot, err = s.bots.UpdateBot(ctx, bot.ID, nil, nil, &bio); err != nil {
+			return nil, err
+		}
 	}
 	return connect.NewResponse(&integrationsv1.CreateBotResponse{Bot: toProtoBot(bot, nil)}), nil
 }
