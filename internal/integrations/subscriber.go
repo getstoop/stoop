@@ -126,10 +126,14 @@ func rawJSON(v any) json.RawMessage {
 	return b
 }
 
-// enqueue renders one item per enabled hook that wants the event.
+// enqueue renders one item per enabled hook that wants the event. With
+// outgoing off nothing is queued; the gap shows in Stoop-Sequence.
 func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 	if s.queue == nil {
 		return nil
+	}
+	if on, err := s.outgoingEnabled(ctx); err != nil || !on {
+		return err
 	}
 	hooks, err := s.q.ListEnabledOutgoingWebhooksBySpace(ctx, ev.SpaceID)
 	if err != nil {

@@ -354,11 +354,32 @@ func TestOutgoingTargetsAndAuthorisation(t *testing.T) {
 	}
 	f.policy.private = true
 
-	// Rotate replaces the secret; the old one no longer verifies.
+	// The outgoing switch stops queueing, delivering and testing; queued
+	// items wait for it to come back.
+	f.policy.outgoing = false
+	f.enqueue(t, out)
+	if _, err := f.svc.TestWebhook(f.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id})); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Errorf("test with outgoing off: %v", err)
+	}
+	if _, err := f.pool.Exec(context.Background(), `INSERT INTO webhook_deliveries (id, lane, event_type, sequence, body, not_before, created_at) VALUES ($1, $2, 'message.created', 99, '{}', now(), now())`, newID(), hook.Id); err != nil {
+		t.Fatal(err)
+	}
+	f.drain(t)
+	if len(r.deliveries()) != 0 {
+		t.Error("delivered with outgoing off")
+	}
+	f.policy.outgoing = true
 	on := true
 	if _, err := f.svc.UpdateOutgoing(f.admin, connect.NewRequest(&integrationsv1.UpdateOutgoingRequest{Id: hook.Id, Enabled: &on})); err != nil {
 		t.Fatal(err)
 	}
+	f.drain(t)
+	if len(r.deliveries()) != 1 {
+		t.Errorf("queued item after outgoing came back: %d deliveries", len(r.deliveries()))
+	}
+	r.got = nil
+
+	// Rotate replaces the secret; the old one no longer verifies.
 	rot, err := f.svc.RotateSecret(f.admin, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: hook.Id}))
 	if err != nil || rot.Msg.Secret == "" || rot.Msg.Secret == secret || rot.Msg.Url != "" {
 		t.Fatalf("rotate: %v %+v", err, rot)
