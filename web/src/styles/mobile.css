@@ -47,6 +47,7 @@
     left: 68px;
     width: min(280px, calc(100vw - 68px));
     box-shadow: var(--shadow);
+    border-top-left-radius: 0;
   }
 
   .app-shell.drawer-open .space-rail,

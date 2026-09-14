@@ -19,6 +19,7 @@
       // none of ours is stamped.
       (function () {
         var ids = ["brownstone", "daylight", "dusk", "bodega", "newsprint", "blackout", "fire-escape", "nightcap", "night-bus", "mailbox", "subway-tile", "pigeon", "laundromat", "boardwalk", "whiteout", "library", "ginkgo", "rooftop", "water-tower", "streetlight", "neon", "ferry", "bike-lane", "crosswalk", "concrete", "scaffolding", "sidewalk-chalk"];
+        if (window.stoop) document.documentElement.setAttribute("data-shell", "");
         var shell = window.stoop && window.stoop.theme;
         if (shell && typeof shell === "object") {
           var tokens = shell.tokens || {};
