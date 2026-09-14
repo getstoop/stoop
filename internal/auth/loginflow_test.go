@@ -564,6 +564,15 @@ func TestSocialFlowFailures(t *testing.T) {
 	if err != nil || len(accounts) == 0 {
 		t.Fatalf("list accounts: %v", err)
 	}
+	// The provider-made account is the first, so the admin; a second admin
+	// lets the guard allow its deactivation.
+	backup, err := svc.Register(context.Background(), connect.NewRequest(&authv1.RegisterRequest{Username: "backup", Password: "correct horse battery"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SetAccountRole(context.Background(), backup.Msg.User.Id, authctx.RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := svc.SetAccountActive(context.Background(), accounts[0].ID, false); err != nil {
 		t.Fatal(err)
 	}

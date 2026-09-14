@@ -45,11 +45,6 @@ func (s *Service) SetUserRole(ctx context.Context, req *connect.Request[instance
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("role must be admin or member"))
 	}
-	if role == authctx.RoleMember {
-		if err := s.guardLastAdmin(ctx, req.Msg.UserId); err != nil {
-			return nil, err
-		}
-	}
 	u, err := s.users.SetUserRole(ctx, req.Msg.UserId, role)
 	if err != nil {
 		return nil, err
@@ -64,9 +59,6 @@ func (s *Service) SetUserActive(ctx context.Context, req *connect.Request[instan
 	if !req.Msg.Active {
 		if req.Msg.UserId == authctx.UserID(ctx) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("you can't deactivate yourself"))
-		}
-		if err := s.guardLastAdmin(ctx, req.Msg.UserId); err != nil {
-			return nil, err
 		}
 	}
 	u, err := s.users.SetUserActive(ctx, req.Msg.UserId, req.Msg.Active)
@@ -156,34 +148,6 @@ func (s *Service) SetUsernameFrozen(ctx context.Context, req *connect.Request[in
 		return nil, err
 	}
 	return connect.NewResponse(&instancev1.SetUsernameFrozenResponse{User: toProtoUser(u)}), nil
-}
-
-// guardLastAdmin refuses to demote or deactivate the only active person
-// who is an admin — that would lock everyone out of instance
-// administration. A bot admin never counts.
-func (s *Service) guardLastAdmin(ctx context.Context, targetID string) error {
-	users, err := s.users.ListUsers(ctx)
-	if err != nil {
-		return fmt.Errorf("list users: %w", err)
-	}
-	var target *UserSummary
-	for i := range users {
-		if users[i].ID == targetID {
-			target = &users[i]
-		}
-	}
-	if target == nil || target.Role != authctx.RoleAdmin || target.Kind == authctx.KindBot || target.DeactivatedAt != nil {
-		return nil // not an active admin; nothing to guard
-	}
-	n, err := s.users.CountActiveAdmins(ctx)
-	if err != nil {
-		return fmt.Errorf("count admins: %w", err)
-	}
-	if n <= 1 {
-		return connect.NewError(connect.CodeFailedPrecondition,
-			errors.New("that's the last active admin; promote someone else first"))
-	}
-	return nil
 }
 
 func toProtoUser(u UserSummary) *instancev1.InstanceUser {

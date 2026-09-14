@@ -39,6 +39,11 @@ SELECT count(*) FROM users;
 -- name: LockUserBootstrap :exec
 SELECT pg_advisory_xact_lock(7001);
 
+-- LockAdminRoster serialises anything that could remove an admin, so two
+-- demotions can't both see "two admins left" and leave none.
+-- name: LockAdminRoster :exec
+SELECT pg_advisory_xact_lock(7002);
+
 -- name: GetUserByUsername :one
 SELECT * FROM users WHERE username = $1;
 

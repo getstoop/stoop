@@ -63,18 +63,30 @@ func (s *Service) ListAccounts(ctx context.Context) ([]AccountSummary, error) {
 	return out, nil
 }
 
+// errLastAdmin is the refusal that keeps a server administrable.
+var errLastAdmin = connect.NewError(connect.CodeFailedPrecondition,
+	errors.New("that's the last active admin; promote someone else first"))
+
 // SetAccountRole changes an account's instance role. A bot never holds
 // the admin role: its reach is the spaces it has been put in, and the
-// instance actions belong to a person's own token.
+// instance actions belong to a person's own token. A demotion runs under
+// the admin guard.
 func (s *Service) SetAccountRole(ctx context.Context, userID string, role authctx.Role) (AccountSummary, error) {
+	if role == authctx.RoleMember {
+		u, err := s.underAdminGuard(ctx, userID, func(qtx *dbgen.Queries) (dbgen.User, error) {
+			return qtx.SetUserRole(ctx, dbgen.SetUserRoleParams{ID: userID, Role: string(role)})
+		})
+		if err != nil {
+			return AccountSummary{}, err
+		}
+		return toSummary(u), nil
+	}
 	target, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
 		return AccountSummary{}, notFoundOr(err, "user")
 	}
-	if role == authctx.RoleAdmin {
-		if err := refuseBotTarget(target, "a bot can't be a server admin; a person's own token carries the server actions"); err != nil {
-			return AccountSummary{}, err
-		}
+	if err := refuseBotTarget(target, "a bot can't be a server admin; a person's own token carries the server actions"); err != nil {
+		return AccountSummary{}, err
 	}
 	u, err := s.q.SetUserRole(ctx, dbgen.SetUserRoleParams{ID: userID, Role: string(role)})
 	if err != nil {
@@ -84,19 +96,63 @@ func (s *Service) SetAccountRole(ctx context.Context, userID string, role authct
 }
 
 // SetAccountActive deactivates or reactivates an account. Deactivating
-// revokes every credential immediately; the row (and the user's messages)
-// remain.
+// runs under the admin guard and revokes every credential immediately;
+// the row (and the user's messages) remain.
 func (s *Service) SetAccountActive(ctx context.Context, userID string, active bool) (AccountSummary, error) {
-	u, err := s.q.SetUserDeactivated(ctx, dbgen.SetUserDeactivatedParams{ID: userID, Deactivated: !active})
-	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
-	}
-	if !active {
-		if err := s.revokeAll(ctx, userID); err != nil {
-			return AccountSummary{}, err
+	if active {
+		u, err := s.q.SetUserDeactivated(ctx, dbgen.SetUserDeactivatedParams{ID: userID, Deactivated: false})
+		if err != nil {
+			return AccountSummary{}, notFoundOr(err, "user")
 		}
+		return toSummary(u), nil
+	}
+	u, err := s.underAdminGuard(ctx, userID, func(qtx *dbgen.Queries) (dbgen.User, error) {
+		return qtx.SetUserDeactivated(ctx, dbgen.SetUserDeactivatedParams{ID: userID, Deactivated: true})
+	})
+	if err != nil {
+		return AccountSummary{}, err
+	}
+	if err := s.revokeAll(ctx, userID); err != nil {
+		return AccountSummary{}, err
 	}
 	return toSummary(u), nil
+}
+
+// underAdminGuard runs a write that could remove an admin (a demotion, a
+// deactivation) in one transaction with the count that decides whether
+// it may: the roster lock makes the check and the write one step, so two
+// admins demoting each other at once can't leave a server with none.
+func (s *Service) underAdminGuard(ctx context.Context, targetID string, write func(qtx *dbgen.Queries) (dbgen.User, error)) (dbgen.User, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return dbgen.User{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
+	qtx := s.q.WithTx(tx)
+	if err := qtx.LockAdminRoster(ctx); err != nil {
+		return dbgen.User{}, fmt.Errorf("lock admin roster: %w", err)
+	}
+	target, err := qtx.GetUserByID(ctx, targetID)
+	if err != nil {
+		return dbgen.User{}, notFoundOr(err, "user")
+	}
+	if authctx.Role(target.Role) == authctx.RoleAdmin && target.DeactivatedAt == nil {
+		n, err := qtx.CountAdmins(ctx)
+		if err != nil {
+			return dbgen.User{}, fmt.Errorf("count admins: %w", err)
+		}
+		if n <= 1 {
+			return dbgen.User{}, errLastAdmin
+		}
+	}
+	u, err := write(qtx)
+	if err != nil {
+		return dbgen.User{}, notFoundOr(err, "user")
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return dbgen.User{}, fmt.Errorf("commit: %w", err)
+	}
+	return u, nil
 }
 
 // RenameAccount changes an account's username and/or display name on an
@@ -191,31 +247,17 @@ func toSummary(u dbgen.User) AccountSummary {
 	}
 }
 
-// SetRoleByUsername is the CLI recovery path (stoop admin promote/demote).
-// Demoting the last active admin is refused so the instance can't be left
-// without an administrator.
+// SetRoleByUsername is the CLI recovery path (stoop admin promote/demote):
+// SetAccountRole by name, with its refusals as plain sentences.
 func (s *Service) SetRoleByUsername(ctx context.Context, username string, role authctx.Role) (AccountSummary, error) {
 	u, err := s.q.GetUserByUsername(ctx, username)
 	if err != nil {
 		return AccountSummary{}, notFoundOr(err, "user")
 	}
-	if role == authctx.RoleAdmin && u.Kind == string(authctx.KindBot) {
-		return AccountSummary{}, errors.New("a bot can't be a server admin")
+	out, err := s.SetAccountRole(ctx, u.ID, role)
+	var cerr *connect.Error
+	if errors.As(err, &cerr) {
+		return AccountSummary{}, errors.New(cerr.Message())
 	}
-	if role == authctx.RoleMember {
-		if authctx.Role(u.Role) == authctx.RoleAdmin && u.DeactivatedAt == nil {
-			n, err := s.q.CountAdmins(ctx)
-			if err != nil {
-				return AccountSummary{}, fmt.Errorf("count admins: %w", err)
-			}
-			if n <= 1 {
-				return AccountSummary{}, errors.New("refusing to demote the last active admin; promote someone else first")
-			}
-		}
-	}
-	updated, err := s.q.SetUserRoleByUsername(ctx, dbgen.SetUserRoleByUsernameParams{Username: username, Role: string(role)})
-	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
-	}
-	return toSummary(updated), nil
+	return out, err
 }
