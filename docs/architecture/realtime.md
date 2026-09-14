@@ -140,8 +140,10 @@ everything, so the web app sees no difference. For a token,
 - **The user topic is always subscribed, and filtered per event.** It is
   the control plane — `SpaceJoined`, `CredentialRevoked` — so every
   connection needs it; `admits` then drops direct-message events unless the
-  credential covers `dms.read`, and activity unless it covers
-  `activity.read`. A bounded credential reaches neither.
+  credential covers `dms.read`, and an activity item unless it covers
+  `activity.read` and the grant its preview needs: `dms.read` for a direct
+  message, `messages.read` in the space otherwise. `ListActivity` applies
+  the same rule. A bounded credential reaches neither.
 - **Client events need the matching action.** Typing is relayed only with
   `messages.post` in that space (or `dms.post`); a voice report is kept
   only with `voice.join` there.

@@ -1,9 +1,12 @@
 package chat_test
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -115,5 +118,66 @@ func TestActivityMuteStamp(t *testing.T) {
 	}
 	if !newest(t).Muted {
 		t.Error("muted DM: listed muted = false")
+	}
+}
+
+// An activity item previews the message it is about, so a token sees it
+// only with the grant that message needs.
+func TestActivityListFollowsTheReadGrants(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	beaID := authctx.UserID(bea)
+	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv, _ := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: sp.Msg.Space.Id}))
+	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+		t.Fatal(err)
+	}
+	// One mention in the space, one direct message: two items for bea.
+	if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: sp.Msg.DefaultChannel.Id, Content: "@bea the gate"})); err != nil {
+		t.Fatal(err)
+	}
+	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{beaID}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: dm.Msg.DirectMessage.Channel.Id, Content: "the secret word"})); err != nil {
+		t.Fatal(err)
+	}
+
+	asToken := func(grants ...authctx.Action) context.Context {
+		return authctx.WithIdentity(context.Background(), authctx.Identity{UserID: beaID, Role: authctx.RoleMember, Kind: authctx.KindPerson,
+			Credential: authctx.Credential{ID: uuid.NewString(), Kind: authctx.CredentialPersonalToken, Grants: grants}})
+	}
+	kinds := func(ctx context.Context) []chatv1.ActivityKind {
+		t.Helper()
+		list, err := svc.ListActivity(ctx, connect.NewRequest(&chatv1.ListActivityRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := []chatv1.ActivityKind{}
+		for _, it := range list.Msg.Items {
+			out = append(out, it.Kind)
+			if it.Kind == chatv1.ActivityKind_ACTIVITY_KIND_DM && !strings.Contains(it.Preview, "secret") {
+				t.Errorf("DM preview lost: %q", it.Preview)
+			}
+		}
+		return out
+	}
+	if got := kinds(bea); len(got) != 2 {
+		t.Fatalf("session sees %v, want both", got)
+	}
+	if got := kinds(asToken(authctx.ActivityRead)); len(got) != 0 {
+		t.Errorf("activity.read alone saw %v", got)
+	}
+	if got := kinds(asToken(authctx.ActivityRead, authctx.MessagesRead)); len(got) != 1 || got[0] != chatv1.ActivityKind_ACTIVITY_KIND_MENTION {
+		t.Errorf("with messages.read saw %v, want the mention only", got)
+	}
+	if got := kinds(asToken(authctx.ActivityRead, authctx.DMsRead)); len(got) != 1 || got[0] != chatv1.ActivityKind_ACTIVITY_KIND_DM {
+		t.Errorf("with dms.read saw %v, want the DM only", got)
 	}
 }

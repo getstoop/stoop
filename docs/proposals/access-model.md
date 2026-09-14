@@ -226,8 +226,10 @@ Surfaces that aren't Connect calls (Access 5):
   v1. Space topics subscribe only where `messages.read` covers the space.
   The user topic is always subscribed, because it is the control plane
   (joins, revocation), and what it delivers is filtered per credential:
-  direct-message events only with `dms.read`, activity only with
-  `activity.read`. Typing needs `messages.post` or `dms.post`; a voice
+  direct-message events only with `dms.read`, an activity item only with
+  `activity.read` plus what its preview needs (`dms.read` for a direct
+  message, `messages.read` in the space), on the socket and in
+  `ListActivity` alike. Typing needs `messages.post` or `dms.post`; a voice
   report needs `voice.join`.
 - Every revocation publishes `CredentialRevoked` to the holder's topic;
   the gateway forwards it to the sockets opened with that credential and

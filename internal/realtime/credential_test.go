@@ -22,9 +22,11 @@ func message(spaceID, channelID string) *realtimev1.ServerEvent {
 	}})
 }
 
-func activity() *realtimev1.ServerEvent {
+// activity is an item about a message in spaceID, or a direct message
+// when spaceID is "".
+func activity(spaceID string) *realtimev1.ServerEvent {
 	return events.Stamp(&realtimev1.ServerEvent{Payload: &realtimev1.ServerEvent_ActivityItemCreated{
-		ActivityItemCreated: &realtimev1.ActivityItemCreated{Item: &chatv1.ActivityItem{Id: "a"}},
+		ActivityItemCreated: &realtimev1.ActivityItemCreated{Item: &chatv1.ActivityItem{Id: "a", SpaceId: spaceID}},
 	}})
 }
 
@@ -49,6 +51,7 @@ func TestTokenHearsOnlyWhatItCovers(t *testing.T) {
 	verifier := fakeVerifier{
 		"ro":  token("ro", true, []string{"s1"}, authctx.MessagesRead),
 		"dm":  token("dm", false, nil, authctx.MessagesRead, authctx.DMsRead, authctx.MessagesPost),
+		"act": token("act", false, nil, authctx.ActivityRead, authctx.MessagesRead),
 		"bot": {UserID: "ops", Kind: authctx.KindBot, Credential: authctx.Credential{ID: "b", Kind: authctx.CredentialBotToken, Grants: []authctx.Action{authctx.MessagesRead}}},
 	}
 	bus := events.NewInProcBus()
@@ -75,7 +78,7 @@ func TestTokenHearsOnlyWhatItCovers(t *testing.T) {
 	bob.waitFor(presenceOf("alice"))
 	bus.Publish("space:s2", message("s2", "c2"))
 	bus.Publish("user:alice", message("", "dm1"))
-	bus.Publish("user:alice", activity())
+	bus.Publish("user:alice", activity(""))
 	bus.Publish("space:s1", message("s1", "c1"))
 	if ev := ro.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetMessageCreated() != nil }); ev == nil || ev.GetMessageCreated().SpaceId != "s1" {
 		t.Fatalf("ro's first message = %v", ev)
@@ -99,7 +102,7 @@ func TestTokenHearsOnlyWhatItCovers(t *testing.T) {
 	if r := dm.next(time.Second).GetReady(); r == nil || len(r.SpaceIds) != 2 {
 		t.Fatalf("dm ready = %+v", r)
 	}
-	bus.Publish("user:alice", activity())
+	bus.Publish("user:alice", activity(""))
 	bus.Publish("user:alice", message("", "dm1"))
 	if ev := dm.waitFor(func(e *realtimev1.ServerEvent) bool {
 		return e.GetMessageCreated() != nil || e.GetActivityItemCreated() != nil
@@ -111,6 +114,22 @@ func TestTokenHearsOnlyWhatItCovers(t *testing.T) {
 		t.Fatal("bob never saw the posting token type")
 	}
 	dm.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetUserTyping() != nil }) // her own relay
+
+	// An activity item previews a message, so activity.read alone isn't
+	// enough: a token with messages.read but no dms.read hears the item
+	// about a space message and not the one about a direct message.
+	act := dial(t, srv, "act")
+	if r := act.next(time.Second).GetReady(); r == nil {
+		t.Fatal("act never became ready")
+	}
+	bus.Publish("user:alice", activity(""))
+	bus.Publish("user:alice", activity("s1"))
+	if ev := act.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetActivityItemCreated() != nil }); ev == nil || ev.GetActivityItemCreated().Item.SpaceId != "s1" {
+		t.Fatalf("act's first activity = %v", ev)
+	}
+	if ev := act.next(300 * time.Millisecond); ev != nil {
+		t.Fatalf("act heard an item it couldn't read: %v", ev.Payload)
+	}
 
 	// Revoking one token closes its socket with the revoked code and
 	// leaves the other alone.
@@ -133,7 +152,7 @@ func TestSessionHearsEverythingAndItsRevocation(t *testing.T) {
 
 	alice := dial(t, srv, "alice")
 	alice.waitFor(presenceOf("alice")) // Ready, then her own presence
-	bus.Publish("user:alice", activity())
+	bus.Publish("user:alice", activity(""))
 	bus.Publish("user:alice", message("", "dm1"))
 	bus.Publish("space:s1", message("s1", "c1"))
 	for _, want := range []string{"activity", "dm", "space"} {

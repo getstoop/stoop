@@ -3,6 +3,7 @@ package realtime
 import (
 	"github.com/coder/websocket"
 
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 )
@@ -46,8 +47,10 @@ func coveredSpaces(c authctx.Credential, spaceIDs []string) []string {
 }
 
 // admits is the per-connection filter on what the user topic carries: a
-// revocation only for the credential it names, activity only with
-// activity.read, direct-message events only with dms.read. Everything
+// revocation only for the credential it names, direct-message events only
+// with dms.read, and an activity item only with activity.read plus the
+// grant its preview needs (dms.read for a direct message, messages.read
+// in the space otherwise), since the preview is the message. Everything
 // else on the topic is the user's own state (joins, read markers, mutes).
 func admits(c authctx.Credential, ev *realtimev1.ServerEvent) bool {
 	dm := func(spaceID string) bool { return spaceID != "" || coversOwn(c, authctx.DMsRead) }
@@ -55,7 +58,7 @@ func admits(c authctx.Credential, ev *realtimev1.ServerEvent) bool {
 	case *realtimev1.ServerEvent_CredentialRevoked:
 		return p.CredentialRevoked.CredentialId == c.ID
 	case *realtimev1.ServerEvent_ActivityItemCreated:
-		return coversOwn(c, authctx.ActivityRead)
+		return coversOwn(c, authctx.ActivityRead) && coversActivity(c, p.ActivityItemCreated.Item)
 	case *realtimev1.ServerEvent_MessageCreated:
 		return dm(p.MessageCreated.SpaceId)
 	case *realtimev1.ServerEvent_MessageUpdated:
@@ -70,4 +73,13 @@ func admits(c authctx.Credential, ev *realtimev1.ServerEvent) bool {
 		return dm(p.UserTyping.SpaceId)
 	}
 	return true
+}
+
+// coversActivity reports whether c may see the message an activity item
+// previews.
+func coversActivity(c authctx.Credential, item *chatv1.ActivityItem) bool {
+	if item.GetSpaceId() == "" {
+		return coversOwn(c, authctx.DMsRead)
+	}
+	return coversSpace(c, authctx.MessagesRead, item.GetSpaceId())
 }
