@@ -266,7 +266,8 @@ and the instance list on `GetMe` replace `web/src/api/permissions.ts`.
   channel bound.
 - "Bots have no DMs" becomes a per-bot default, enforced in chat's
   reachability check.
-- Its migration moves to 00032.
+- Its migration moves to 00033 (00032 went to `credentials.hint`). The
+  rebased design is [webhooks.md](webhooks.md).
 
 ## Deliberately not
 
