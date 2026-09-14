@@ -103,6 +103,10 @@
   border: none;
 }
 
+.integration-form .toggle-row .hint {
+  display: block;
+}
+
 .integration-form .event-types legend {
   padding: 0;
   margin-bottom: 8px;
