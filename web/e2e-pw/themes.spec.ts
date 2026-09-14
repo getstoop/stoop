@@ -4,7 +4,7 @@ import { expect, seed, signIn, test } from "./lib";
 // stamped on <html data-theme> and survives a reload (localStorage), the
 // page's colours actually change, "follow system" picks the dark/light
 // pair by the OS setting, and nothing on the server is involved.
-// Ported from web/e2e/themes.mjs (STOOP-238).
+// Ported from web/e2e/themes.mjs (STOOP-238); filters added 2026-09-14.
 test("picking a theme", async ({ browser }) => {
   const { tokens } = await seed({ users: ["ada"] });
   const A = await (await browser.newContext()).newPage();
@@ -24,26 +24,56 @@ test("picking a theme", async ({ browser }) => {
   const darkBg = await bgOf("body");
 
   await A.goto("/profile?tab=appearance");
+  const ids = () =>
+    cards.evaluateAll((els: HTMLElement[]) => els.map((e) => e.dataset.theme));
+  const filterChip = (label: string) =>
+    A.locator(".theme-filters .chip", { hasText: label });
+
+  // The picker opens on the tier of the theme in use: Brownstone is dark,
+  // so the dark cards, and only those.
   await expect
-    .poll(
-      () =>
-        cards.evaluateAll((els: HTMLElement[]) =>
-          els.map((e) => e.dataset.theme),
-        ),
-      { message: "ten theme cards" },
-    )
+    .poll(ids, { message: "opens on the dark tier" })
     .toEqual([
       "brownstone",
-      "daylight",
       "dusk",
       "bodega",
-      "newsprint",
       "blackout",
       "fire-escape",
       "nightcap",
       "night-bus",
       "mailbox",
+      "streetlight",
+      "neon",
+      "ferry",
+      "bike-lane",
+      "crosswalk",
+      "concrete",
     ]);
+  await expect(filterChip("Dark")).toHaveAttribute("aria-pressed", "true");
+
+  // Accessible is a tag over the tiers, and each card says why.
+  await filterChip("Accessible").click();
+  await expect
+    .poll(ids, { message: "accessible filter" })
+    .toEqual(["blackout", "whiteout", "library", "crosswalk", "concrete"]);
+  await expect(
+    A.locator('.theme-card[data-theme="crosswalk"] .theme-card-why'),
+    "an accessible card carries its reason",
+  ).toContainText("colour blindness");
+
+  await filterChip("Dim").click();
+  await expect
+    .poll(ids, { message: "dim filter" })
+    .toEqual(["rooftop", "water-tower"]);
+  await expect(
+    A.locator('.theme-card[data-theme="rooftop"] .theme-card-kind'),
+    "a dim card is labelled dim",
+  ).toHaveText("dim");
+
+  await filterChip("All").click();
+  await expect
+    .poll(() => cards.count(), { message: "all twenty-five cards" })
+    .toBe(25);
   await expect(
     A.locator(".theme-card.active"),
     "current theme is marked active",
@@ -89,8 +119,13 @@ test("picking a theme", async ({ browser }) => {
 
   // Follow system: dark OS → the dark half (Brownstone), light OS → Daylight.
   await A.goto("/profile?tab=appearance");
+  await expect(
+    filterChip("Light"),
+    "reopens on the tier of the theme in use, now Daylight",
+  ).toHaveAttribute("aria-pressed", "true");
   await A.emulateMedia({ colorScheme: "dark" });
   await A.locator(".theme-system input").click();
+  await filterChip("Dark").click();
   await expect(
     html,
     "follow system: dark OS picks the dark theme",

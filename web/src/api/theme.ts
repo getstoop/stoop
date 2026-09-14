@@ -24,75 +24,237 @@ export type ThemeId =
   | "fire-escape"
   | "nightcap"
   | "night-bus"
-  | "mailbox";
+  | "mailbox"
+  | "subway-tile"
+  | "pigeon"
+  | "laundromat"
+  | "boardwalk"
+  | "whiteout"
+  | "library"
+  | "ginkgo"
+  | "rooftop"
+  | "water-tower"
+  | "streetlight"
+  | "neon"
+  | "ferry"
+  | "bike-lane"
+  | "crosswalk"
+  | "concrete";
 
 export interface ThemeInfo {
   id: ThemeId;
   name: string;
+  // The half of the Follow-system pair this theme can be; dim themes are
+  // dark here.
   kind: "dark" | "light";
+  // What the picker files it under and prints on its card.
+  tier: "light" | "dim" | "dark";
+  // Extra picker filters it also answers to.
+  tags?: ThemeTag[];
   blurb: string;
+  // Why it carries the "accessible" tag; shown under the card in that filter.
+  why?: string;
 }
+
+export type ThemeTag = "accessible";
+export type ThemeFilter = ThemeInfo["tier"] | ThemeTag | "all";
+
+export const THEME_FILTERS: { id: ThemeFilter; label: string }[] = [
+  { id: "light", label: "Light" },
+  { id: "dim", label: "Dim" },
+  { id: "dark", label: "Dark" },
+  { id: "accessible", label: "Accessible" },
+  { id: "all", label: "All" },
+];
+
+export const matchesFilter = (t: ThemeInfo, f: ThemeFilter): boolean =>
+  f === "all" || t.tier === f || (t.tags ?? []).includes(f as ThemeTag);
 
 export const THEMES: ThemeInfo[] = [
   {
     id: "brownstone",
     name: "Brownstone",
     kind: "dark",
+    tier: "dark",
     blurb: "Charcoal and terracotta. The original.",
   },
   {
     id: "daylight",
     name: "Daylight",
     kind: "light",
+    tier: "light",
     blurb: "Warm paper, the same terracotta.",
   },
   {
     id: "dusk",
     name: "Dusk",
     kind: "dark",
+    tier: "dark",
     blurb: "Ink violet, streetlight amber.",
   },
   {
     id: "bodega",
     name: "Bodega",
     kind: "dark",
+    tier: "dark",
     blurb: "Bottle green, mustard awning.",
   },
   {
     id: "newsprint",
     name: "Newsprint",
     kind: "light",
+    tier: "light",
     blurb: "Cool paper, steel. Tool, not hangout.",
   },
   {
     id: "blackout",
     name: "Blackout",
     kind: "dark",
+    tier: "dark",
+    tags: ["accessible"],
     blurb: "True black, high contrast.",
+    why: "Highest contrast on a dark ground.",
   },
   {
     id: "fire-escape",
     name: "Fire Escape",
     kind: "dark",
+    tier: "dark",
     blurb: "Charcoal, painted-iron blue.",
   },
   {
     id: "nightcap",
     name: "Nightcap",
     kind: "dark",
+    tier: "dark",
     blurb: "Espresso and cream, dusty rose.",
   },
   {
     id: "night-bus",
     name: "Night Bus",
     kind: "dark",
+    tier: "dark",
     blurb: "Indigo windows, lilac rail.",
   },
   {
     id: "mailbox",
     name: "Mailbox",
     kind: "dark",
+    tier: "dark",
     blurb: "Postal blue, chalk lettering.",
+  },
+  {
+    id: "subway-tile",
+    name: "Subway Tile",
+    kind: "light",
+    tier: "light",
+    blurb: "White tile, grout, enamel green.",
+  },
+  {
+    id: "pigeon",
+    name: "Pigeon",
+    kind: "light",
+    tier: "light",
+    blurb: "Feather grey, iridescent violet.",
+  },
+  {
+    id: "laundromat",
+    name: "Laundromat",
+    kind: "light",
+    tier: "light",
+    blurb: "Fluorescent white, mint machines, raspberry.",
+  },
+  {
+    id: "boardwalk",
+    name: "Boardwalk",
+    kind: "light",
+    tier: "light",
+    blurb: "Sand, weathered planks, the Atlantic.",
+  },
+  {
+    id: "whiteout",
+    name: "Whiteout",
+    kind: "light",
+    tier: "light",
+    tags: ["accessible"],
+    blurb: "Pure white, pure black, cobalt.",
+    why: "Highest contrast on a light ground.",
+  },
+  {
+    id: "library",
+    name: "Library",
+    kind: "light",
+    tier: "light",
+    tags: ["accessible"],
+    blurb: "Oak, parchment, a green-shaded lamp.",
+    why: "Lower glare: text near 8:1 instead of 15:1.",
+  },
+  {
+    id: "ginkgo",
+    name: "Ginkgo",
+    kind: "light",
+    tier: "light",
+    blurb: "November sidewalk, gold leaves.",
+  },
+  {
+    id: "rooftop",
+    name: "Rooftop",
+    kind: "dark",
+    tier: "dim",
+    blurb: "Slate at dusk, a peach horizon.",
+  },
+  {
+    id: "water-tower",
+    name: "Water Tower",
+    kind: "dark",
+    tier: "dim",
+    blurb: "Cedar planks, galvanized steel, sky.",
+  },
+  {
+    id: "streetlight",
+    name: "Streetlight",
+    kind: "dark",
+    tier: "dark",
+    blurb: "Sodium amber on a warm black.",
+  },
+  {
+    id: "neon",
+    name: "Neon",
+    kind: "dark",
+    tier: "dark",
+    blurb: "Open 24 hours. Magenta tube, cyan tube.",
+  },
+  {
+    id: "ferry",
+    name: "Ferry",
+    kind: "dark",
+    tier: "dark",
+    blurb: "Harbor at night, that orange boat.",
+  },
+  {
+    id: "bike-lane",
+    name: "Bike Lane",
+    kind: "dark",
+    tier: "dark",
+    blurb: "Asphalt, thermoplastic white, painted green.",
+  },
+  {
+    id: "crosswalk",
+    name: "Crosswalk",
+    kind: "dark",
+    tier: "dark",
+    tags: ["accessible"],
+    blurb: "Asphalt, painted stripes, safe signals.",
+    why: "Status colours stay apart under red-green colour blindness.",
+  },
+  {
+    id: "concrete",
+    name: "Concrete",
+    kind: "dark",
+    tier: "dark",
+    tags: ["accessible"],
+    blurb: "Grey on grey. Colour only where it means something.",
+    why: "No tint anywhere; colour only where it means something.",
   },
 ];
 

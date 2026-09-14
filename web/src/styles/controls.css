@@ -38,6 +38,13 @@ button.primary.danger {
   border-color: var(--accent);
 }
 
+/* A chip that is the selected one of a set (search scope, theme filter). */
+.chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .chip:disabled {
   opacity: 0.5;
   cursor: default;

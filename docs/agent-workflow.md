@@ -333,7 +333,9 @@ got big enough that a red `main` cost more than the round-trip saves.
   `src/api/theme.ts` (biome formats it one field per line — edit it, don't
   pattern-match one-line objects), the id in `index.html`'s inline
   pre-mount list (must stay in step with `theme.ts` or a saved choice is
-  ignored before React mounts), and the card list in `e2e/themes.mjs`.
+  ignored before React mounts; `api/theme.test.ts` checks), and the card
+  list in `e2e-pw/themes.spec.ts`. Every entry needs a `tier`; only the
+  accessible ones take `tags` and `why`.
   `pnpm check:themes` (part of `make lint`) must pass; the checker's
   regex allows hyphenated ids. Then the places that name the count:
   `README.md`, `docs/conventions.md`, `docs/self-hosting.md` and the

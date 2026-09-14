@@ -61,12 +61,6 @@
   padding: 8px 16px 4px;
 }
 
-.search-scope .chip.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
 /* Rows fade in under the chips instead of being cut off by the scroll
    edge. The mask only touches the top 20px. */
 .search-scroll {
