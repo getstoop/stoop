@@ -49,7 +49,12 @@ func newHarness(t *testing.T, env ...string) *harness {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(a.Handler())
+	// The pipeline behind the handler (sweepers, outgoing deliveries)
+	// runs until the test ends, then the pool closes.
+	bg, stop := context.WithCancel(context.Background())
+	a.StartBackground(bg)
 	t.Cleanup(func() {
+		stop()
 		srv.Close()
 		a.Close()
 	})

@@ -406,15 +406,10 @@ func (a *App) Handler() http.Handler { return a.server.Handler }
 // Close releases the database pool; Run does this itself on shutdown.
 func (a *App) Close() { a.pool.Close() }
 
-func (a *App) Run(ctx context.Context) error {
-	errCh := make(chan error, 2)
-	go func() {
-		a.log.Info("stoop listening", "addr", a.server.Addr)
-		errCh <- a.server.ListenAndServe()
-	}()
-	// The Tailscale listener starts, stops, and restarts as its settings
-	// change; a failure there is logged, never fatal to the plain listener.
-	go a.tailnet.Run(ctx)
+// StartBackground launches everything that runs beside the listener:
+// the sweepers and the outgoing-webhook pipeline. Run calls it; a test
+// that serves the handler itself calls it too, so deliveries happen.
+func (a *App) StartBackground(ctx context.Context) {
 	// Storage hygiene on a timer (STOOP_FILE_SWEEP_INTERVAL; 0 disables).
 	go a.files.RunSweeper(ctx, a.sweep)
 	// Read activity items older than STOOP_ACTIVITY_RETENTION go too.
@@ -426,6 +421,18 @@ func (a *App) Run(ctx context.Context) error {
 	go a.hooks.RunSweeper(ctx, a.sweep, a.deliveries)
 	go a.hooks.RunSubscriber(ctx)
 	go a.hooks.RunWorker(ctx)
+}
+
+func (a *App) Run(ctx context.Context) error {
+	errCh := make(chan error, 2)
+	go func() {
+		a.log.Info("stoop listening", "addr", a.server.Addr)
+		errCh <- a.server.ListenAndServe()
+	}()
+	// The Tailscale listener starts, stops, and restarts as its settings
+	// change; a failure there is logged, never fatal to the plain listener.
+	go a.tailnet.Run(ctx)
+	a.StartBackground(ctx)
 
 	select {
 	case err := <-errCh:
