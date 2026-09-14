@@ -6,13 +6,17 @@ package integrations
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"time"
 
+	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/ratelimit"
 )
 
 // PostRequest is one message an incoming hook posts.
@@ -37,34 +41,65 @@ type SpaceAccess interface {
 	AddBotMember(ctx context.Context, spaceID, userID string) error
 	// SetBotAdmin sets or clears the bot's admin role in the space.
 	SetBotAdmin(ctx context.Context, spaceID, userID string, admin bool) error
+	IsSpaceMember(ctx context.Context, userID, spaceID string) (bool, error)
 }
 
-// MintRequest describes a credential to mint for a bot.
+// Bot is a bot account as auth reports it.
+type Bot struct {
+	ID            string
+	Username      string
+	DisplayName   string
+	AvatarFileID  string
+	InstanceAdmin bool
+	CreatedAt     time.Time
+	DeactivatedAt *time.Time
+}
+
+// Credential is a bot token or hook token, never its secret.
+type Credential struct {
+	ID         string
+	HolderID   string
+	Kind       authctx.CredentialKind
+	Name       string
+	Grants     []authctx.Action
+	Bounded    bool
+	SpaceIDs   []string
+	ChannelIDs []string
+	Hint       string
+	CreatedAt  time.Time
+	LastUsedAt *time.Time
+}
+
+// MintRequest describes a credential to mint for a bot. A hook is bounded
+// to ChannelID; a token to SpaceIDs when Limited.
 type MintRequest struct {
-	HolderID string
-	Kind     authctx.CredentialKind
-	Name     string
-	Grants   []authctx.Action
-	// SpaceIDs bounds a bot token; ChannelID bounds a hook.
+	HolderID  string
+	Kind      authctx.CredentialKind
+	Name      string
+	Grants    []authctx.Action
+	Limited   bool
 	SpaceIDs  []string
 	ChannelID string
-}
-
-// Minted is a freshly minted credential; Secret is shown once.
-type Minted struct {
-	ID     string
-	Secret string
-	Hint   string
+	CreatedBy string
 }
 
 // BotIdentities is integrations' port onto auth, which keeps owning
-// users and credentials.
+// users and credentials. Authorisation is integrations' job.
 type BotIdentities interface {
-	CreateBot(ctx context.Context, username, displayName string) (userID string, err error)
-	RenameBot(ctx context.Context, userID string, username, displayName *string) error
-	DeactivateBot(ctx context.Context, userID string) error
-	MintCredential(ctx context.Context, req MintRequest) (Minted, error)
-	RevokeCredential(ctx context.Context, credentialID string) error
+	CreateBot(ctx context.Context, username, displayName string) (Bot, error)
+	GetBot(ctx context.Context, id string) (Bot, error)
+	ListBots(ctx context.Context) ([]Bot, error)
+	RenameBot(ctx context.Context, id string, username, displayName *string) (Bot, error)
+	// DeactivateBot revokes everything the bot holds.
+	DeactivateBot(ctx context.Context, id string) error
+	// MintCredential returns the credential and its secret, shown once.
+	MintCredential(ctx context.Context, req MintRequest) (Credential, string, error)
+	SetCredentialGrants(ctx context.Context, id string, grants []authctx.Action) error
+	RevokeCredential(ctx context.Context, id string) error
+	// Credentials lists by id, or with no ids every bot credential of the
+	// holders (of every bot when both are empty).
+	Credentials(ctx context.Context, holderIDs, ids []string) ([]Credential, error)
+	CountCredentials(ctx context.Context, holderID string) (int64, error)
 	// VerifyHookToken resolves an incoming_hook token to its bot's
 	// identity, or fails for any other kind.
 	VerifyHookToken(ctx context.Context, token string) (authctx.Identity, error)
@@ -80,15 +115,16 @@ type Policy interface {
 
 // Service is the integrations module.
 type Service struct {
-	pool   *pgxpool.Pool
-	q      *dbgen.Queries
-	bus    events.Bus
-	log    *slog.Logger
-	poster Poster
-	spaces SpaceAccess
-	bots   BotIdentities
-	policy Policy
-	queue  Queue
+	pool      *pgxpool.Pool
+	q         *dbgen.Queries
+	bus       events.Bus
+	log       *slog.Logger
+	poster    Poster
+	spaces    SpaceAccess
+	bots      BotIdentities
+	policy    Policy
+	queue     Queue
+	hookLimit *ratelimit.Limiter
 }
 
 func New(pool *pgxpool.Pool, bus events.Bus, log *slog.Logger) *Service {
@@ -111,3 +147,33 @@ func (s *Service) UsePolicy(p Policy) { s.policy = p }
 // UseQueue wires the delivery queue. Without it outgoing hooks deliver
 // nothing.
 func (s *Service) UseQueue(q Queue) { s.queue = q }
+
+// UseHookThrottle limits posts per hook credential. Nil means no limit.
+func (s *Service) UseHookThrottle(l *ratelimit.Limiter) { s.hookLimit = l }
+
+var errNotBuilt = connect.NewError(connect.CodeUnimplemented, errors.New("not available yet"))
+
+// requireManage is the identity gate for configuring integrations.
+func requireManage(ctx context.Context) error {
+	if !authctx.Holds(ctx, authctx.InstanceIntegrationsManage) {
+		return connect.NewError(connect.CodePermissionDenied, errors.New("instance admin role required"))
+	}
+	if !authctx.Covers(ctx, authctx.InstanceIntegrationsManage) {
+		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, authctx.InstanceIntegrationsManage))
+	}
+	return nil
+}
+
+func (s *Service) incomingEnabled(ctx context.Context) (bool, error) {
+	if s.policy == nil {
+		return false, nil
+	}
+	return s.policy.WebhooksIncoming(ctx)
+}
+
+func (s *Service) ready() error {
+	if s.bots == nil || s.spaces == nil {
+		return connect.NewError(connect.CodeUnavailable, errors.New("integrations are not wired"))
+	}
+	return nil
+}

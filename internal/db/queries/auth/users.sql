@@ -46,7 +46,7 @@ SELECT * FROM users WHERE username = $1;
 SELECT * FROM users WHERE id = $1;
 
 -- name: GetUsersByIDs :many
-SELECT id, username, display_name, role, avatar_file_id FROM users WHERE id = ANY($1::uuid[]);
+SELECT id, username, display_name, role, kind, avatar_file_id FROM users WHERE id = ANY($1::uuid[]);
 
 -- GetUserProfile is one person's public face, for their profile card. Its
 -- own query rather than GetUserByID because that one is SELECT * and would

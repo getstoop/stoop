@@ -220,7 +220,7 @@ func (q *Queries) GetUserProfile(ctx context.Context, id string) (GetUserProfile
 }
 
 const getUsersByIDs = `-- name: GetUsersByIDs :many
-SELECT id, username, display_name, role, avatar_file_id FROM users WHERE id = ANY($1::uuid[])
+SELECT id, username, display_name, role, kind, avatar_file_id FROM users WHERE id = ANY($1::uuid[])
 `
 
 type GetUsersByIDsRow struct {
@@ -228,6 +228,7 @@ type GetUsersByIDsRow struct {
 	Username     string
 	DisplayName  string
 	Role         string
+	Kind         string
 	AvatarFileID *string
 }
 
@@ -245,6 +246,7 @@ func (q *Queries) GetUsersByIDs(ctx context.Context, dollar_1 []string) ([]GetUs
 			&i.Username,
 			&i.DisplayName,
 			&i.Role,
+			&i.Kind,
 			&i.AvatarFileID,
 		); err != nil {
 			return nil, err

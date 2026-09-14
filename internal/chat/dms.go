@@ -208,6 +208,11 @@ func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]str
 	if len(records) != len(out) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
+	for _, r := range records {
+		if r.Bot {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("bots can't be messaged directly"))
+		}
+	}
 	// Eligibility before existence: someone you don't share a space with
 	// is "not reachable" whether or not the id is real.
 	if !authctx.Allows(ctx, authctx.DMsReachAnyone) {

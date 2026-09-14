@@ -116,6 +116,8 @@ type Config struct {
 	// stops every incoming post and outgoing delivery without deleting
 	// anything.
 	Webhooks bool
+	// WebhookRateLimit is posts per minute per incoming hook; 0 disables.
+	WebhookRateLimit int
 
 	// Tailscale embeds a tailnet node in the binary (tsnet) and serves the
 	// app over HTTPS on its tailnet address, in addition to ListenAddr.
@@ -234,6 +236,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.Webhooks, err = parseBool("STOOP_WEBHOOKS", true); err != nil {
+		return Config{}, err
+	}
+	if cfg.WebhookRateLimit, err = parseNonNegativeInt("STOOP_WEBHOOK_RATE_LIMIT", 60); err != nil {
 		return Config{}, err
 	}
 

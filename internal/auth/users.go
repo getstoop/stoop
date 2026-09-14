@@ -69,6 +69,7 @@ type PublicUser struct {
 	Username     string
 	DisplayName  string
 	Role         authctx.Role
+	Kind         authctx.IdentityKind
 	AvatarFileID string
 }
 
@@ -83,7 +84,7 @@ func (s *Service) GetPublicUsers(ctx context.Context, ids []string) ([]PublicUse
 	for i, r := range rows {
 		users[i] = PublicUser{
 			ID: r.ID, Username: r.Username, DisplayName: r.DisplayName,
-			Role: authctx.Role(r.Role), AvatarFileID: deref(r.AvatarFileID),
+			Role: authctx.Role(r.Role), Kind: authctx.IdentityKind(r.Kind), AvatarFileID: deref(r.AvatarFileID),
 		}
 	}
 	return users, nil

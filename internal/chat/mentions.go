@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -76,7 +75,7 @@ func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, au
 		wantEveryone = wantEveryone || h == everyoneHandle
 		wantHere = wantHere || h == hereHandle
 	}
-	if (wantEveryone || wantHere) && !isDM(channel) && s.requirePermission(ctx, *channel.SpaceID, authctx.MessagesNotifyEveryone) == nil {
+	if (wantEveryone || wantHere) && !isDM(channel) && s.mayNotifyEveryone(ctx, channel) {
 		targets := ids
 		if !wantEveryone {
 			if s.presence == nil {

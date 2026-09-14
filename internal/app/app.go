@@ -123,10 +123,13 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	instanceSvc.UseUploadCeiling(files.MaxAttachmentBytes)
 	filesSvc.UseSweepGrace(cfg.FileSweepGrace)
 	chatSvc.UseFiles(fileDirectory{filesSvc})
-	// The other ports arrive with the behaviour that needs them
-	// (STOOP-259, 260, 266).
+	// The queue arrives with the outgoing work (STOOP-260).
 	integrationsSvc := integrations.New(pool, bus, log)
 	integrationsSvc.UsePolicy(instanceSvc)
+	integrationsSvc.UsePoster(hookPoster{chatSvc})
+	integrationsSvc.UseSpaceAccess(chatSvc)
+	integrationsSvc.UseBotIdentities(botIdentities{authSvc})
+	integrationsSvc.UseHookThrottle(ratelimit.New(cfg.WebhookRateLimit, cfg.WebhookRateLimit))
 	if cfg.LinkPreviews {
 		chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate})}, filesSvc, chat.UnfurlOptions{})
 		if cfg.UnfurlAllowPrivate {
@@ -166,6 +169,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	mux.Handle(filesv1connect.NewFileServiceHandler(filesSvc, interceptors))
 	mux.Handle(integrationsv1connect.NewIntegrationServiceHandler(integrationsSvc, interceptors))
 	mux.Handle("POST /files/upload", filesSvc.UploadHandler())
+	mux.Handle("POST /hooks/{token}", integrationsSvc.HookHandler())
 	mux.Handle("GET /files/{id}", filesSvc.Handler())
 	mux.Handle("HEAD /files/{id}", filesSvc.Handler())
 	mux.Handle("/ws", gateway)
@@ -452,7 +456,7 @@ func (d userDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserR
 	for i, u := range users {
 		records[i] = chat.UserRecord{
 			ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
-			InstanceAdmin: u.Role == authctx.RoleAdmin, AvatarFileID: u.AvatarFileID,
+			InstanceAdmin: u.Role == authctx.RoleAdmin, Bot: u.Kind == authctx.KindBot, AvatarFileID: u.AvatarFileID,
 		}
 	}
 	return records, nil

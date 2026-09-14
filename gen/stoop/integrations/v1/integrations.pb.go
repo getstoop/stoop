@@ -193,7 +193,8 @@ func (x *CreateIncomingRequest) GetNotifyEveryone() bool {
 type CreateIncomingResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Webhook *IncomingWebhook       `protobuf:"bytes,1,opt,name=webhook,proto3" json:"webhook,omitempty"`
-	// The full URL to paste into a sender. Shown once.
+	// The URL to paste into a sender, shown once. A path alone when the
+	// server has no public URL; the client prepends its own origin.
 	Url           string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
