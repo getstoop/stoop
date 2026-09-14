@@ -150,6 +150,11 @@ func (s *Service) LeaveSpace(ctx context.Context, req *connect.Request[chatv1.Le
 	if err := refuseBot(ctx, "a bot's spaces are set from Server admin → Integrations"); err != nil {
 		return nil, err
 	}
+	// Leaving is a decision, not a preference: a token never makes it.
+	switch id, _ := authctx.From(ctx); id.Credential.Kind {
+	case authctx.CredentialPersonalToken, authctx.CredentialBotToken, authctx.CredentialIncomingHook:
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("leaving a space needs the app, not a token"))
+	}
 	userID := authctx.UserID(ctx)
 	role, err := s.q.GetSpaceMemberRole(ctx, dbgen.GetSpaceMemberRoleParams{SpaceID: req.Msg.SpaceId, UserID: userID})
 	if err != nil {

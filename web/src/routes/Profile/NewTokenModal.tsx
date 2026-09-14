@@ -9,6 +9,8 @@ import {
   EXPIRY_CHOICES,
   heldOptions,
   permissionsFor,
+  withDependencies,
+  withoutOrphans,
 } from "../../api/tokenOptions";
 import { Modal } from "../../components/Modal";
 import { PermissionPicker } from "../../components/PermissionPicker";
@@ -115,7 +117,7 @@ export function NewTokenModal({
         <PermissionPicker
           options={options}
           selected={keys}
-          onChange={setKeys}
+          onChange={(next) => setKeys(withDependencies(withoutOrphans(next)))}
         />
         <p className="hint">
           It works in every space you're in, including ones you join later, with

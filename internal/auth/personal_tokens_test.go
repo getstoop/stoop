@@ -2,7 +2,6 @@ package auth_test
 
 import (
 	"context"
-	"crypto/sha256"
 	"strings"
 	"testing"
 
@@ -60,9 +59,6 @@ func TestPersonalTokens(t *testing.T) {
 	if id.Credential.Bounded || !id.Credential.Reaches(spaceID, "") || !id.Credential.Covers(authctx.MessagesRead) || id.Credential.Covers(authctx.MessagesPost) {
 		t.Errorf("the token's grant or bounds are wrong: %+v", id.Credential)
 	}
-	if made.Msg.Token.Limited || len(made.Msg.Token.SpaceIds) != 0 {
-		t.Errorf("a new token is never limited: %+v", made.Msg.Token)
-	}
 
 	listed, err := svc.ListPersonalTokens(ada, connect.NewRequest(&authv1.ListPersonalTokensRequest{}))
 	if err != nil {
@@ -92,6 +88,17 @@ func TestPersonalTokens(t *testing.T) {
 		if _, err := svc.CreatePersonalToken(ada, connect.NewRequest(req)); codeOf(err) != connect.CodeInvalidArgument {
 			t.Errorf("%s: want invalid_argument, got %v", name, err)
 		}
+	}
+
+	// Activity with a read grant beside it is fine.
+	pings, err := svc.CreatePersonalToken(ada, connect.NewRequest(&authv1.CreatePersonalTokenRequest{
+		Name: "pings", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACTIVITY_READ, accessv1.Permission_PERMISSION_DMS_READ}, ExpiresInDays: 30,
+	}))
+	if err != nil {
+		t.Fatalf("activity with dms.read: %v", err)
+	}
+	if _, err := svc.RevokePersonalToken(ada, connect.NewRequest(&authv1.RevokePersonalTokenRequest{TokenId: pings.Msg.Token.Id})); err != nil {
+		t.Fatal(err)
 	}
 
 	// The server's setting is checked at every use.
@@ -238,46 +245,5 @@ func TestAdminSeesAndRevokesTokens(t *testing.T) {
 	}
 	if _, err := svc.VerifyToken(bg, made.Msg.Secret); err == nil {
 		t.Error("an admin-revoked token still verifies")
-	}
-}
-
-// A token minted with space bounds before the limit was withdrawn keeps
-// them: nothing widens on upgrade, and the list says so.
-func TestLegacyLimitedTokenStaysLimited(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
-	ada, _ := signIn(t, svc, "ada", "correct horse battery")
-	adaID := authctx.UserID(ada)
-	bg := context.Background()
-	spaceID, otherID := uuid.NewString(), uuid.NewString()
-	for _, id := range []string{spaceID, otherID} {
-		if _, err := pool.Exec(bg, `INSERT INTO spaces (id, name, owner_id) VALUES ($1, 'S', $2)`, id, adaID); err != nil {
-			t.Fatal(err)
-		}
-	}
-	secret := "stp_pat_legacy_" + uuid.NewString()
-	sum := sha256.Sum256([]byte(secret))
-	credID := uuid.NewString()
-	if _, err := pool.Exec(bg, `INSERT INTO credentials (id, holder_id, kind, token_hash, name, grants, bounded, hint)
-		VALUES ($1, $2, 'personal_token', $3, 'old script', '{space.read,messages.read}', true, $4)`, credID, adaID, sum[:], secret[len(secret)-4:]); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pool.Exec(bg, `INSERT INTO credential_bounds (credential_id, space_id) VALUES ($1, $2)`, credID, spaceID); err != nil {
-		t.Fatal(err)
-	}
-
-	id, err := svc.VerifyToken(bg, secret)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !id.Credential.Bounded || !id.Credential.Reaches(spaceID, "") || id.Credential.Reaches(otherID, "") {
-		t.Errorf("legacy bounds not enforced: %+v", id.Credential)
-	}
-	listed, err := svc.ListPersonalTokens(ada, connect.NewRequest(&authv1.ListPersonalTokensRequest{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(listed.Msg.Tokens) != 1 || !listed.Msg.Tokens[0].Limited || len(listed.Msg.Tokens[0].SpaceIds) != 1 {
-		t.Errorf("legacy token listed as %+v", listed.Msg.Tokens)
 	}
 }

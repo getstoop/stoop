@@ -35,10 +35,9 @@ message BotToken {
   string bot_user_id = 2;
   string name = 3;
   repeated stoop.access.v1.Permission permissions = 4;
-  // Set only on tokens minted before membership lived on the bot; they
-  // keep their narrower reach. New tokens are never limited.
-  bool limited = 5;
-  repeated string space_ids = 6;
+  // A bot token has no space limit: it works wherever the bot is.
+  reserved 5, 6;
+  reserved "limited", "space_ids";
   google.protobuf.Timestamp created_at = 7;
   // Unset when never used. Recorded at most once a minute.
   google.protobuf.Timestamp last_used_at = 8;

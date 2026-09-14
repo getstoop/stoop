@@ -9,7 +9,8 @@ import {
   lastUsedText,
   permissionsFor,
   TOKEN_OPTIONS,
-  whereText,
+  withDependencies,
+  withoutOrphans,
 } from "./tokenOptions";
 
 describe("heldOptions", () => {
@@ -64,29 +65,6 @@ describe("describePermissions", () => {
         Permission.MESSAGES_POST,
       ]),
     ).toEqual(["Read messages", "Post messages"]);
-  });
-});
-
-describe("whereText", () => {
-  const names: Record<string, string> = {
-    a: "The Stoop",
-    b: "Basement Arcade",
-  };
-  const nameOf = (id: string) => names[id];
-
-  it("reads everywhere, named spaces, a count, or nowhere", () => {
-    expect(whereText({ limited: false, spaceIds: [] }, nameOf)).toBe(
-      "Everywhere",
-    );
-    expect(whereText({ limited: true, spaceIds: ["a", "b"] }, nameOf)).toBe(
-      "The Stoop, Basement Arcade",
-    );
-    expect(whereText({ limited: true, spaceIds: ["a", "zz"] }, nameOf)).toBe(
-      "2 spaces",
-    );
-    expect(whereText({ limited: true, spaceIds: [] }, nameOf)).toMatch(
-      /Nowhere/,
-    );
   });
 });
 
@@ -149,9 +127,9 @@ describe("every grantable permission has a home", () => {
 });
 
 describe("BOT_TOKEN_OPTIONS", () => {
-  it("has no server group: a bot is never a server admin", () => {
+  it("offers space options only", () => {
     expect(new Set(BOT_TOKEN_OPTIONS.map((o) => o.group))).toEqual(
-      new Set(["space", "account"]),
+      new Set(["space"]),
     );
   });
 
@@ -168,12 +146,31 @@ describe("BOT_TOKEN_OPTIONS", () => {
     ]) {
       expect(offered.has(p)).toBe(false);
     }
-    expect(offered.has(Permission.ACTIVITY_READ)).toBe(true);
+    expect(offered.has(Permission.ACTIVITY_READ)).toBe(false);
   });
 
   it("describes a bot's token in the bot's words", () => {
     expect(
-      describePermissions([Permission.ACTIVITY_READ], BOT_TOKEN_OPTIONS),
-    ).toEqual(["Read its mentions and replies"]);
+      describePermissions([Permission.MESSAGES_POST], BOT_TOKEN_OPTIONS),
+    ).toEqual(["Post messages"]);
+  });
+});
+
+describe("read activity depends on a read option", () => {
+  it("brings Read messages along when nothing readable is ticked", () => {
+    expect(withDependencies(["activity"])).toEqual(["activity", "read"]);
+    expect(withDependencies(["dms-read", "activity"])).toEqual([
+      "dms-read",
+      "activity",
+    ]);
+    expect(withDependencies(["post"])).toEqual(["post"]);
+  });
+
+  it("goes when the last read option goes", () => {
+    expect(withoutOrphans(["activity", "post"])).toEqual(["post"]);
+    expect(withoutOrphans(["activity", "dms-read"])).toEqual([
+      "activity",
+      "dms-read",
+    ]);
   });
 });

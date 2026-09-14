@@ -93,7 +93,7 @@ type AuthServiceClient interface {
 	// account's only way to sign in (no password and no other identity).
 	UnlinkIdentity(context.Context, *connect.Request[v1.UnlinkIdentityRequest]) (*connect.Response[v1.UnlinkIdentityResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
-	// permissions granted, optionally limited to some spaces. The secret is in
+	// permissions granted. The secret is in
 	// this response and nowhere else. Needs a session: no token can make
 	// another, and the server setting may refuse it.
 	CreatePersonalToken(context.Context, *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error)
@@ -291,7 +291,7 @@ type AuthServiceHandler interface {
 	// account's only way to sign in (no password and no other identity).
 	UnlinkIdentity(context.Context, *connect.Request[v1.UnlinkIdentityRequest]) (*connect.Response[v1.UnlinkIdentityResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
-	// permissions granted, optionally limited to some spaces. The secret is in
+	// permissions granted. The secret is in
 	// this response and nowhere else. Needs a session: no token can make
 	// another, and the server setting may refuse it.
 	CreatePersonalToken(context.Context, *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error)

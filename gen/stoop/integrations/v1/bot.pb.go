@@ -147,11 +147,7 @@ type BotToken struct {
 	BotUserId   string                 `protobuf:"bytes,2,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
 	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Permissions []v1.Permission        `protobuf:"varint,4,rep,packed,name=permissions,proto3,enum=stoop.access.v1.Permission" json:"permissions,omitempty"`
-	// Set only on tokens minted before membership lived on the bot; they
-	// keep their narrower reach. New tokens are never limited.
-	Limited   bool                   `protobuf:"varint,5,opt,name=limited,proto3" json:"limited,omitempty"`
-	SpaceIds  []string               `protobuf:"bytes,6,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Unset when never used. Recorded at most once a minute.
 	LastUsedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
 	// The token's last four characters.
@@ -218,20 +214,6 @@ func (x *BotToken) GetPermissions() []v1.Permission {
 	return nil
 }
 
-func (x *BotToken) GetLimited() bool {
-	if x != nil {
-		return x.Limited
-	}
-	return false
-}
-
-func (x *BotToken) GetSpaceIds() []string {
-	if x != nil {
-		return x.SpaceIds
-	}
-	return nil
-}
-
 func (x *BotToken) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
@@ -269,19 +251,17 @@ const file_stoop_integrations_v1_bot_proto_rawDesc = "" +
 	"\x06tokens\x18\b \x03(\v2\x1f.stoop.integrations.v1.BotTokenR\x06tokens\x12\x10\n" +
 	"\x03bio\x18\t \x01(\tR\x03bio\x12\x1b\n" +
 	"\tspace_ids\x18\n" +
-	" \x03(\tR\bspaceIdsJ\x04\b\x05\x10\x06R\x0einstance_admin\"\xd1\x02\n" +
+	" \x03(\tR\bspaceIdsJ\x04\b\x05\x10\x06R\x0einstance_admin\"\xba\x02\n" +
 	"\bBotToken\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\vbot_user_id\x18\x02 \x01(\tR\tbotUserId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12=\n" +
-	"\vpermissions\x18\x04 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\x12\x18\n" +
-	"\alimited\x18\x05 \x01(\bR\alimited\x12\x1b\n" +
-	"\tspace_ids\x18\x06 \x03(\tR\bspaceIds\x129\n" +
+	"\vpermissions\x18\x04 \x03(\x0e2\x1b.stoop.access.v1.PermissionR\vpermissions\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\flast_used_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"lastUsedAt\x12\x12\n" +
-	"\x04hint\x18\t \x01(\tR\x04hintB\xdf\x01\n" +
+	"\x04hint\x18\t \x01(\tR\x04hintJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\alimitedR\tspace_idsB\xdf\x01\n" +
 	"\x19com.stoop.integrations.v1B\bBotProtoP\x01ZBgithub.com/getstoop/stoop/gen/stoop/integrations/v1;integrationsv1\xa2\x02\x03SIX\xaa\x02\x15Stoop.Integrations.V1\xca\x02\x15Stoop\\Integrations\\V1\xe2\x02!Stoop\\Integrations\\V1\\GPBMetadata\xea\x02\x17Stoop::Integrations::V1b\x06proto3"
 
 var (

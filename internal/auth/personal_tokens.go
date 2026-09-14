@@ -124,8 +124,7 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	// A token reaches everything its holder does: no bounds, ever. Rows
-	// minted with space bounds before that keep them (a bound only narrows).
+	// A token reaches everything its holder does: no bounds, ever.
 	row, err := s.q.CreatePersonalToken(ctx, dbgen.CreatePersonalTokenParams{
 		ID: credID.String(), HolderID: id.UserID, TokenHash: hash, Name: name,
 		Grants: grants, Bounded: false, ExpiresAt: expires, Hint: secret[len(secret)-4:],
@@ -136,7 +135,7 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 
 	token := toProtoToken(dbgen.ListPersonalTokensRow{
 		ID: row.ID, Name: row.Name, Grants: row.Grants, Bounded: row.Bounded, CreatedAt: row.CreatedAt,
-		LastUsedAt: row.LastUsedAt, ExpiresAt: row.ExpiresAt, Hint: row.Hint, BoundSpaces: []string{},
+		LastUsedAt: row.LastUsedAt, ExpiresAt: row.ExpiresAt, Hint: row.Hint,
 	}, false)
 	return connect.NewResponse(&authv1.CreatePersonalTokenResponse{Token: token, Secret: secret}), nil
 }
@@ -239,7 +238,21 @@ func tokenGrants(perms []accessv1.Permission) ([]string, error) {
 			out = append(out, string(a))
 		}
 	}
+	if err := checkGrantDependencies(seen); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+// checkGrantDependencies refuses a grant that can't do anything on its
+// own: an activity item previews a message, so activity.read is nothing
+// without a grant that reads messages.
+func checkGrantDependencies(has map[authctx.Action]bool) error {
+	if has[authctx.ActivityRead] && !has[authctx.MessagesRead] && !has[authctx.DMsRead] {
+		return connect.NewError(connect.CodeInvalidArgument,
+			errors.New("reading activity needs reading messages or direct messages as well"))
+	}
+	return nil
 }
 
 func newPersonalToken() (secret string, hash []byte, err error) {
@@ -255,26 +268,13 @@ func newPersonalToken() (secret string, hash []byte, err error) {
 func toProtoToken(r dbgen.ListPersonalTokensRow, blocked bool) *authv1.PersonalToken {
 	out := &authv1.PersonalToken{
 		Id: r.ID, Name: r.Name, Permissions: accesswire.ToProto(toActions(r.Grants)),
-		Limited: r.Bounded, SpaceIds: r.BoundSpaces, CreatedAt: timestamppb.New(r.CreatedAt),
-		Hint: r.Hint, Blocked: blocked,
+		CreatedAt: timestamppb.New(r.CreatedAt), Hint: r.Hint, Blocked: blocked,
 	}
 	if r.LastUsedAt != nil {
 		out.LastUsedAt = timestamppb.New(*r.LastUsedAt)
 	}
 	if r.ExpiresAt != nil {
 		out.ExpiresAt = timestamppb.New(*r.ExpiresAt)
-	}
-	return out
-}
-
-func dedupe(ids []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, id := range ids {
-		if id != "" && !seen[id] {
-			seen[id] = true
-			out = append(out, id)
-		}
 	}
 	return out
 }

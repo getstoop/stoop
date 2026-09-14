@@ -269,3 +269,32 @@ func TestBotCannotWidenItself(t *testing.T) {
 		t.Error("the bot is no longer a member")
 	}
 }
+
+// Leaving a space is a decision, not a preference: a person's token with
+// preferences.manage can mute and block, and can't leave.
+func TestTokenCannotLeaveASpace(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), botDirectory{pool})
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv, _ := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: sp.Msg.Space.Id}))
+	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+		t.Fatal(err)
+	}
+	beaID := authctx.UserID(bea)
+	asToken := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: beaID, Role: authctx.RoleMember, Kind: authctx.KindPerson,
+		Credential: authctx.Credential{ID: uuid.NewString(), Kind: authctx.CredentialPersonalToken, Grants: []authctx.Action{authctx.PreferencesManage}}})
+	if _, err := svc.SetSpaceMuted(asToken, connect.NewRequest(&chatv1.SetSpaceMutedRequest{SpaceId: sp.Msg.Space.Id, Muted: true})); err != nil {
+		t.Errorf("a preferences token couldn't mute: %v", err)
+	}
+	if _, err := svc.LeaveSpace(asToken, connect.NewRequest(&chatv1.LeaveSpaceRequest{SpaceId: sp.Msg.Space.Id})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a token left a space: %v", err)
+	}
+	if _, err := svc.LeaveSpace(bea, connect.NewRequest(&chatv1.LeaveSpaceRequest{SpaceId: sp.Msg.Space.Id})); err != nil {
+		t.Errorf("the session couldn't leave: %v", err)
+	}
+}

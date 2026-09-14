@@ -34,7 +34,7 @@ service AuthService {
   // account's only way to sign in (no password and no other identity).
   rpc UnlinkIdentity(UnlinkIdentityRequest) returns (UnlinkIdentityResponse) {}
   // CreatePersonalToken makes a token that acts as the caller with only the
-  // permissions granted, optionally limited to some spaces. The secret is in
+  // permissions granted. The secret is in
   // this response and nowhere else. Needs a session: no token can make
   // another, and the server setting may refuse it.
   rpc CreatePersonalToken(CreatePersonalTokenRequest) returns (CreatePersonalTokenResponse) {}
@@ -201,11 +201,9 @@ message PersonalToken {
   string id = 1;
   string name = 2;
   repeated stoop.access.v1.Permission permissions = 3;
-  // Set only on tokens made before the space limit was withdrawn; they
-  // keep their narrower reach until they expire or are revoked. New
-  // tokens are never limited.
-  bool limited = 4;
-  repeated string space_ids = 5;
+  // A token has no space limit: it works wherever its holder is.
+  reserved 4, 5;
+  reserved "limited", "space_ids";
   google.protobuf.Timestamp created_at = 6;
   // Unset when never used. Recorded at most once a minute.
   google.protobuf.Timestamp last_used_at = 7;

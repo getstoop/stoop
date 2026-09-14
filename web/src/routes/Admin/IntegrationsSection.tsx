@@ -14,7 +14,6 @@ import {
   BOT_TOKEN_OPTIONS,
   describePermissions,
   lastUsedText,
-  whereText,
 } from "../../api/tokenOptions";
 import { BotRow } from "../../components/Integrations/BotRow";
 import { EditBotModal } from "../../components/Integrations/EditBotModal";
@@ -247,9 +246,6 @@ export function IntegrationsSection() {
                               t.permissions,
                               BOT_TOKEN_OPTIONS,
                             ).join(", ")}
-                            {t.limited && (
-                              <> · limited to {whereText(t, nameOf)}</>
-                            )}
                             {" · "}…{t.hint}
                           </span>
                           <span className="muted">

@@ -3,17 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { authClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import {
-  useInstanceStatus,
-  useMe,
-  usePersonalTokens,
-  useSpaces,
-} from "../../api/queries";
+import { useInstanceStatus, useMe, usePersonalTokens } from "../../api/queries";
 import {
   describePermissions,
   expiryOf,
   lastUsedText,
-  whereText,
 } from "../../api/tokenOptions";
 import { ListHead } from "../../components/ListHead";
 import {
@@ -30,7 +24,6 @@ import { TokenCreatedModal } from "./TokenCreatedModal";
 export function PersonalTokensSection() {
   const queryClient = useQueryClient();
   const { data: tokens } = usePersonalTokens();
-  const { data: spaces } = useSpaces();
   const { data: status } = useInstanceStatus();
   const { data: me } = useMe();
   const [creating, setCreating] = useState(false);
@@ -44,7 +37,6 @@ export function PersonalTokensSection() {
   const allowed =
     setting === PersonalTokens.EVERYONE ||
     (setting === PersonalTokens.ADMINS && me?.role === InstanceRole.ADMIN);
-  const nameOf = (id: string) => spaces?.find((s) => s.id === id)?.name;
 
   const revoke = async (t: PersonalToken) => {
     const expired =
@@ -121,12 +113,6 @@ export function PersonalTokensSection() {
                 </div>
                 <span className="user-cell">
                   {describePermissions(t.permissions).join(", ")}
-                  {t.limited && (
-                    <span className="muted small">
-                      {" "}
-                      · limited to {whereText(t, nameOf)}
-                    </span>
-                  )}
                 </span>
                 <span className="user-cell">
                   {lastUsedText(t.lastUsedAt && timestampDate(t.lastUsedAt))}

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/integrations/v1/bot.proto.
  */
 export const file_stoop_integrations_v1_bot: GenFile = /*@__PURE__*/
-  fileDesc("Ch9zdG9vcC9pbnRlZ3JhdGlvbnMvdjEvYm90LnByb3RvEhVzdG9vcC5pbnRlZ3JhdGlvbnMudjEinAIKA0JvdBIKCgJpZBgBIAEoCRIQCgh1c2VybmFtZRgCIAEoCRIUCgxkaXNwbGF5X25hbWUYAyABKAkSFgoOYXZhdGFyX2ZpbGVfaWQYBCABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoOZGVhY3RpdmF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KBnRva2VucxgIIAMoCzIfLnN0b29wLmludGVncmF0aW9ucy52MS5Cb3RUb2tlbhILCgNiaW8YCSABKAkSEQoJc3BhY2VfaWRzGAogAygJSgQIBRAGUg5pbnN0YW5jZV9hZG1pbiL/AQoIQm90VG9rZW4SCgoCaWQYASABKAkSEwoLYm90X3VzZXJfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIwCgtwZXJtaXNzaW9ucxgEIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEg8KB2xpbWl0ZWQYBSABKAgSEQoJc3BhY2VfaWRzGAYgAygJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEaGludBgJIAEoCULfAQoZY29tLnN0b29wLmludGVncmF0aW9ucy52MUIIQm90UHJvdG9QAVpCZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvaW50ZWdyYXRpb25zL3YxO2ludGVncmF0aW9uc3YxogIDU0lYqgIVU3Rvb3AuSW50ZWdyYXRpb25zLlYxygIVU3Rvb3BcSW50ZWdyYXRpb25zXFYx4gIhU3Rvb3BcSW50ZWdyYXRpb25zXFYxXEdQQk1ldGFkYXRh6gIXU3Rvb3A6OkludGVncmF0aW9uczo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
+  fileDesc("Ch9zdG9vcC9pbnRlZ3JhdGlvbnMvdjEvYm90LnByb3RvEhVzdG9vcC5pbnRlZ3JhdGlvbnMudjEinAIKA0JvdBIKCgJpZBgBIAEoCRIQCgh1c2VybmFtZRgCIAEoCRIUCgxkaXNwbGF5X25hbWUYAyABKAkSFgoOYXZhdGFyX2ZpbGVfaWQYBCABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoOZGVhY3RpdmF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KBnRva2VucxgIIAMoCzIfLnN0b29wLmludGVncmF0aW9ucy52MS5Cb3RUb2tlbhILCgNiaW8YCSABKAkSEQoJc3BhY2VfaWRzGAogAygJSgQIBRAGUg5pbnN0YW5jZV9hZG1pbiL7AQoIQm90VG9rZW4SCgoCaWQYASABKAkSEwoLYm90X3VzZXJfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIwCgtwZXJtaXNzaW9ucxgEIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEaGludBgJIAEoCUoECAUQBkoECAYQB1IHbGltaXRlZFIJc3BhY2VfaWRzQt8BChljb20uc3Rvb3AuaW50ZWdyYXRpb25zLnYxQghCb3RQcm90b1ABWkJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9pbnRlZ3JhdGlvbnMvdjE7aW50ZWdyYXRpb25zdjGiAgNTSViqAhVTdG9vcC5JbnRlZ3JhdGlvbnMuVjHKAhVTdG9vcFxJbnRlZ3JhdGlvbnNcVjHiAiFTdG9vcFxJbnRlZ3JhdGlvbnNcVjFcR1BCTWV0YWRhdGHqAhdTdG9vcDo6SW50ZWdyYXRpb25zOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
 
 /**
  * Bot is an account of kind bot: a member like any other, authenticated
@@ -111,19 +111,6 @@ export type BotToken = Message<"stoop.integrations.v1.BotToken"> & {
    * @generated from field: repeated stoop.access.v1.Permission permissions = 4;
    */
   permissions: Permission[];
-
-  /**
-   * Set only on tokens minted before membership lived on the bot; they
-   * keep their narrower reach. New tokens are never limited.
-   *
-   * @generated from field: bool limited = 5;
-   */
-  limited: boolean;
-
-  /**
-   * @generated from field: repeated string space_ids = 6;
-   */
-  spaceIds: string[];
 
   /**
    * @generated from field: google.protobuf.Timestamp created_at = 7;
