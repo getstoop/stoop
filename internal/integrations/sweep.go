@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // A deleted channel or space cascades its hook rows but not their
 // credentials, which live in auth's table. The sweep revokes those and
-// retires bots left with nothing.
+// retires bots left with nothing, and turns off the hooks of bots kicked
+// or banned out of their space.
 
 const sweepStartupDelay = 45 * time.Second
 
@@ -54,6 +56,41 @@ func (s *Service) SweepOrphanHooks(ctx context.Context) (int, error) {
 	return n, nil
 }
 
+// SweepRemovedBotHooks turns off hooks whose bot has left the space by a
+// path this module doesn't see (a kick, a ban) and reports how many.
+func (s *Service) SweepRemovedBotHooks(ctx context.Context) (int, error) {
+	if s.spaces == nil {
+		return 0, nil
+	}
+	hooks, err := s.q.ListIncomingWebhooks(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("list hooks: %w", err)
+	}
+	n := 0
+	in := map[string]bool{}
+	for _, h := range hooks {
+		if h.DisabledAt != nil {
+			continue
+		}
+		key := h.SpaceID + "/" + h.BotUserID
+		member, seen := in[key]
+		if !seen {
+			if member, err = s.spaces.IsSpaceMember(ctx, h.BotUserID, h.SpaceID); err != nil {
+				return n, err
+			}
+			in[key] = member
+		}
+		if member {
+			continue
+		}
+		if err := s.q.DisableIncomingWebhook(ctx, dbgen.DisableIncomingWebhookParams{ID: h.ID, DisabledReason: reasonBotRemoved}); err != nil {
+			return n, fmt.Errorf("disable hook: %w", err)
+		}
+		n++
+	}
+	return n, nil
+}
+
 // SweepDeliveries removes finished deliveries older than retention.
 func (s *Service) SweepDeliveries(ctx context.Context, retention time.Duration) (int64, error) {
 	if retention <= 0 {
@@ -77,6 +114,11 @@ func (s *Service) RunSweeper(ctx context.Context, interval, retention time.Durat
 			s.log.Warn("hook sweep failed", "err", err)
 		} else if n > 0 {
 			s.log.Info("revoked orphaned hook credentials", "count", n)
+		}
+		if n, err := s.SweepRemovedBotHooks(ctx); err != nil && ctx.Err() == nil {
+			s.log.Warn("removed-bot hook sweep failed", "err", err)
+		} else if n > 0 {
+			s.log.Info("turned off hooks of bots removed from their space", "count", n)
 		}
 		if _, err := s.SweepDeliveries(ctx, retention); err != nil && ctx.Err() == nil {
 			s.log.Warn("delivery sweep failed", "err", err)

@@ -90,6 +90,13 @@ ignored. Text over the message limit is cut to fit with an ellipsis.
 | Body over 256 KB | `413` |
 | Sent by a Stoop delivery worker (`User-Agent: Stoop/…`) | `403`, so a hook pointed at this server can't loop |
 
+A hook whose bot has left its space, by any path, reads and is stored as
+off with the reason "the bot was removed from this space": removal from
+the bot's settings turns it off at once, a kick or a ban is caught by the
+list on read and by the sweep on its timer. Adding the bot back doesn't
+turn the hook on again; the admin does, and *Turn on* is refused while
+the bot is out.
+
 Ticking *may notify everyone* on a hook grants `messages.notify_everyone`
 and makes the bot a space admin, since only admins hold it; unticking the
 last such grant returns the bot to member. Rotating a hook mints a new
