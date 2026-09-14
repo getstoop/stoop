@@ -3,7 +3,7 @@ import {
   groupAvailable,
   type TokenGroup,
   type TokenOption,
-} from "../../api/tokenOptions";
+} from "../api/tokenOptions";
 
 const GROUPS: TokenGroup[] = ["space", "account", "server"];
 

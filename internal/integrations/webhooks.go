@@ -54,8 +54,21 @@ func (s *Service) ListWebhooks(ctx context.Context, req *connect.Request[integra
 	}
 	res := &integrationsv1.ListWebhooksResponse{Incoming: incoming}
 	manages := requireManage(ctx) == nil
+	names := map[string]string{}
+	nameOf := func(spaceID string) string {
+		if n, ok := names[spaceID]; ok {
+			return n
+		}
+		n, _ := s.spaces.SpaceName(ctx, spaceID)
+		names[spaceID] = n
+		return n
+	}
+	for _, h := range incoming {
+		h.SpaceName = nameOf(h.SpaceId)
+	}
 	for _, o := range out {
 		p := toProtoOutgoing(o)
+		p.SpaceName = nameOf(o.SpaceID)
 		if !manages {
 			p.Url = targetHost(o.Url)
 		}

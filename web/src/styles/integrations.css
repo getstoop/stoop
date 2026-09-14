@@ -1,0 +1,118 @@
+/* ---- Integrations: Space settings → Integrations and Server admin →
+   Integrations. Bots with their hooks and tokens underneath, the
+   outgoing list with its delivery log, and the shown-once panels, which
+   reuse personal-tokens.css. Phone layout is in mobile.css. ---- */
+
+.integrations-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.integrations-head h3 {
+  margin: 0;
+}
+
+.user-list.table.bots .user-row,
+.user-list.table.bots .user-list-head {
+  grid-template-columns: minmax(160px, 1.4fr) minmax(160px, 2fr) 1fr auto;
+}
+
+.user-list.table.outgoing .user-row,
+.user-list.table.outgoing .user-list-head {
+  grid-template-columns: minmax(140px, 1.2fr) minmax(160px, 2fr) minmax(
+      120px,
+      1.4fr
+    ) auto;
+}
+
+/* A bot's hooks and tokens sit under its row, indented like an account's
+   tokens in Accounts. */
+.user-list.table .bot-credentials {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 12px 32px;
+  border-top: 1px dashed var(--border);
+}
+
+.bot-credential-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(160px, 2fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--text-sm);
+}
+
+.bot-credential-row .user-row-actions {
+  margin-left: 0;
+}
+
+.bot-credential-row .toggle-row {
+  display: inline-flex;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.hook-disabled {
+  color: var(--warn);
+}
+
+/* The delivery log under an outgoing row. */
+.delivery-log {
+  padding: 8px 12px 12px 32px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.delivery-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(160px, 2fr) auto;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--text-sm);
+}
+
+.delivery-row.failed strong {
+  color: var(--warn);
+}
+
+.delivery-row .response {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.integration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.integration-form .event-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.integration-form .event-types legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+}
+
+.integration-switches .setting-control input[type="checkbox"] {
+  width: auto;
+}

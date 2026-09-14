@@ -5,6 +5,7 @@ import { SettingsFrame } from "../../components/SettingsFrame";
 import { Permission } from "../../gen/stoop/access/v1/access_pb";
 import { AboutSection } from "./AboutSection";
 import { CleanupSection } from "./CleanupSection";
+import { IntegrationsSection } from "./IntegrationsSection";
 import { LoginProvidersSection } from "./LoginProvidersSection";
 import { PasswordSignInSection } from "./PasswordSignInSection";
 import { PersonalTokensSetting } from "./PersonalTokensSetting";
@@ -18,7 +19,13 @@ import { UsersSection } from "./UsersSection";
 // the upload disk.
 // Instance admins only; everyone else is sent home.
 
-type Tab = "server" | "accounts" | "hosting" | "login" | "storage";
+type Tab =
+  | "server"
+  | "accounts"
+  | "hosting"
+  | "login"
+  | "storage"
+  | "integrations";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "server", label: "Server" },
@@ -26,6 +33,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "hosting", label: "Hosting" },
   { key: "login", label: "Login" },
   { key: "storage", label: "Storage" },
+  { key: "integrations", label: "Integrations" },
 ];
 
 export function AdminPage() {
@@ -83,6 +91,7 @@ export function AdminPage() {
           <LoginProvidersSection />
         </>
       )}
+      {active === "integrations" && <IntegrationsSection />}
       {active === "storage" && (
         <>
           <section className="card">

@@ -229,8 +229,15 @@
   }
 
   .user-token-row,
-  .token-form-row {
+  .token-form-row,
+  .bot-credential-row,
+  .delivery-row {
     grid-template-columns: 1fr;
+  }
+
+  .user-list.table .bot-credentials,
+  .delivery-log {
+    padding-left: 12px;
   }
 
   .user-list.table .user-row-actions {

@@ -25,6 +25,8 @@ message IncomingWebhook {
   google.protobuf.Timestamp created_at = 10;
   // Unset when never used. Recorded at most once a minute.
   google.protobuf.Timestamp last_used_at = 11;
+  // The space's name, for the server-wide list.
+  string space_name = 12;
 }
 
 // OutgoingWebhook is a URL somebody else hosts that the server POSTs
@@ -45,6 +47,7 @@ message OutgoingWebhook {
   google.protobuf.Timestamp created_at = 10;
   // The Stoop-Sequence counter as of now.
   int64 sequence = 11;
+  string space_name = 12;
 }
 
 // Delivery is one queued or finished attempt series for an outgoing hook.

@@ -1,6 +1,6 @@
 import type { CSSProperties, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import type { Space } from "../../gen/stoop/chat/v1/space_pb";
+import type { Space } from "../gen/stoop/chat/v1/space_pb";
 
 const LIST_MAX_HEIGHT = 240;
 
