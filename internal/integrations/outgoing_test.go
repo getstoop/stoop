@@ -220,6 +220,9 @@ func TestOutgoingDeliversSignedEvents(t *testing.T) {
 	if full, _ := f.svc.ListWebhooks(f.admin, connect.NewRequest(&integrationsv1.ListWebhooksRequest{SpaceId: f.space})); full.Msg.Outgoing[0].Url != r.srv.URL+"/hook" {
 		t.Errorf("the admin saw %q", full.Msg.Outgoing[0].Url)
 	}
+	if all, _ := f.svc.ListWebhooks(f.admin, connect.NewRequest(&integrationsv1.ListWebhooksRequest{})); all.Msg.Outgoing[0].SpaceName != "Porch" {
+		t.Errorf("the server-wide list lacks space names: %+v", all.Msg)
+	}
 	if _, ok := f.svc.translate(context.Background(), message("dm-channel", "", "private")); ok {
 		t.Error("a direct message was translated for hooks")
 	}

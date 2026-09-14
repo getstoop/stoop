@@ -10,6 +10,7 @@ import { BansSection } from "./BansSection";
 import { ChannelsSection } from "./ChannelsSection";
 import { DangerSection, InstanceAdminDelete } from "./DangerSection";
 import { GeneralSection } from "./GeneralSection";
+import { IntegrationsSection } from "./IntegrationsSection";
 import { MembersSection } from "./MembersSection";
 import { ModerationLegend } from "./ModerationLegend";
 
@@ -19,7 +20,14 @@ import { ModerationLegend } from "./ModerationLegend";
 // space layout rather than inside it, so the settings nav takes the
 // channel sidebar's place.
 
-type Tab = "general" | "about" | "channels" | "members" | "banned" | "owner";
+type Tab =
+  | "general"
+  | "about"
+  | "channels"
+  | "members"
+  | "banned"
+  | "integrations"
+  | "owner";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "general", label: "General" },
@@ -27,7 +35,12 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "channels", label: "Channels" },
   { key: "members", label: "Members" },
   { key: "banned", label: "Banned" },
+  { key: "integrations", label: "Integrations" },
 ];
+
+// Every member may read Integrations (docs/proposals/webhooks.md → Who
+// may, and who can see); the rest of the page needs channels.manage.
+const MEMBER_TABS = TABS.filter((t) => t.key === "integrations");
 
 export function SpaceSettingsPage() {
   const { spaceId } = useParams({ strict: false }) as { spaceId: string };
@@ -39,7 +52,8 @@ export function SpaceSettingsPage() {
   const space = spaces?.find((s) => s.id === spaceId);
   if (spaces && !space) return <Navigate to="/" replace />;
   if (!space) return <div className="centered muted">Loading…</div>;
-  if (!canManageChannels(space)) {
+  const manages = canManageChannels(space);
+  if (!manages && active !== "integrations") {
     return <Navigate to="/s/$spaceId" params={{ spaceId }} replace />;
   }
   // The last item is the owner's: transfer and delete. An instance admin
@@ -50,7 +64,7 @@ export function SpaceSettingsPage() {
     : canDeleteSpace(space)
       ? { key: "owner" as const, label: "Server admin" }
       : null;
-  const tabs = ownerTab ? [...TABS, ownerTab] : TABS;
+  const tabs = !manages ? MEMBER_TABS : ownerTab ? [...TABS, ownerTab] : TABS;
   return (
     <SettingsFrame
       label="Settings sections"
@@ -96,6 +110,7 @@ export function SpaceSettingsPage() {
         </>
       )}
       {active === "banned" && <BansSection space={space} />}
+      {active === "integrations" && <IntegrationsSection space={space} />}
       {active === "owner" && owner && <DangerSection space={space} />}
       {active === "owner" && !owner && <InstanceAdminDelete space={space} />}
     </SettingsFrame>

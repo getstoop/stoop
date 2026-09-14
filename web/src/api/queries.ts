@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
-import { authClient, chatClient, instanceClient } from "./clients";
+import {
+  authClient,
+  chatClient,
+  instanceClient,
+  integrationsClient,
+} from "./clients";
 import { isLive, useHistoryStore } from "./history";
 
 // Server-state hooks. Query keys are the vocabulary the WS client uses to
@@ -169,6 +174,37 @@ export function usePersonalTokens() {
   return useQuery({
     queryKey: ["personal-tokens"],
     queryFn: async () => (await authClient.listPersonalTokens({})).tokens,
+  });
+}
+
+// A space's webhooks (any member), or every webhook on the server when
+// spaceId is "" (instance admins).
+export function useWebhooks(spaceId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["webhooks", spaceId],
+    queryFn: async () => await integrationsClient.listWebhooks({ spaceId }),
+    enabled,
+  });
+}
+
+// Every bot on the server with its tokens. Instance admins only.
+export function useBots(enabled: boolean) {
+  return useQuery({
+    queryKey: ["bots"],
+    queryFn: async () => (await integrationsClient.listBots({})).bots,
+    enabled,
+  });
+}
+
+// An outgoing webhook's recent deliveries, fetched when its log is open.
+export function useDeliveries(webhookId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["deliveries", webhookId],
+    queryFn: async () =>
+      (await integrationsClient.listDeliveries({ webhookId, limit: 10 }))
+        .deliveries,
+    enabled,
+    refetchInterval: enabled ? 5000 : false,
   });
 }
 

@@ -43,7 +43,9 @@ type IncomingWebhook struct {
 	DisabledReason string                 `protobuf:"bytes,9,opt,name=disabled_reason,json=disabledReason,proto3" json:"disabled_reason,omitempty"`
 	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Unset when never used. Recorded at most once a minute.
-	LastUsedAt    *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	LastUsedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	// The space's name, for the server-wide list.
+	SpaceName     string `protobuf:"bytes,12,opt,name=space_name,json=spaceName,proto3" json:"space_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -155,6 +157,13 @@ func (x *IncomingWebhook) GetLastUsedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *IncomingWebhook) GetSpaceName() string {
+	if x != nil {
+		return x.SpaceName
+	}
+	return ""
+}
+
 // OutgoingWebhook is a URL somebody else hosts that the server POSTs
 // signed events to. The signing secret appears only in the create and
 // rotate responses.
@@ -173,7 +182,8 @@ type OutgoingWebhook struct {
 	DisabledReason string                 `protobuf:"bytes,9,opt,name=disabled_reason,json=disabledReason,proto3" json:"disabled_reason,omitempty"`
 	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// The Stoop-Sequence counter as of now.
-	Sequence      int64 `protobuf:"varint,11,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Sequence      int64  `protobuf:"varint,11,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	SpaceName     string `protobuf:"bytes,12,opt,name=space_name,json=spaceName,proto3" json:"space_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -283,6 +293,13 @@ func (x *OutgoingWebhook) GetSequence() int64 {
 		return x.Sequence
 	}
 	return 0
+}
+
+func (x *OutgoingWebhook) GetSpaceName() string {
+	if x != nil {
+		return x.SpaceName
+	}
+	return ""
 }
 
 // Delivery is one queued or finished attempt series for an outgoing hook.
@@ -418,7 +435,7 @@ var File_stoop_integrations_v1_webhook_proto protoreflect.FileDescriptor
 
 const file_stoop_integrations_v1_webhook_proto_rawDesc = "" +
 	"\n" +
-	"#stoop/integrations/v1/webhook.proto\x12\x15stoop.integrations.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\x9e\x03\n" +
+	"#stoop/integrations/v1/webhook.proto\x12\x15stoop.integrations.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\xbd\x03\n" +
 	"\x0fIncomingWebhook\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x1d\n" +
@@ -434,7 +451,9 @@ const file_stoop_integrations_v1_webhook_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
 	"\flast_used_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"lastUsedAt\"\xd0\x02\n" +
+	"lastUsedAt\x12\x1d\n" +
+	"\n" +
+	"space_name\x18\f \x01(\tR\tspaceName\"\xef\x02\n" +
 	"\x0fOutgoingWebhook\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x1d\n" +
@@ -450,7 +469,9 @@ const file_stoop_integrations_v1_webhook_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1a\n" +
-	"\bsequence\x18\v \x01(\x03R\bsequence\"\xb4\x03\n" +
+	"\bsequence\x18\v \x01(\x03R\bsequence\x12\x1d\n" +
+	"\n" +
+	"space_name\x18\f \x01(\tR\tspaceName\"\xb4\x03\n" +
 	"\bDelivery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +

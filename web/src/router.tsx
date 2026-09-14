@@ -138,12 +138,15 @@ const adminRoute = createRoute({
   // server) / ?tab=login (sign-in providers) / ?tab=storage (uploads).
   validateSearch: (
     search: Record<string, unknown>,
-  ): { tab?: "accounts" | "hosting" | "login" | "storage" } => ({
+  ): {
+    tab?: "accounts" | "hosting" | "login" | "storage" | "integrations";
+  } => ({
     tab:
       search.tab === "accounts" ||
       search.tab === "hosting" ||
       search.tab === "login" ||
-      search.tab === "storage"
+      search.tab === "storage" ||
+      search.tab === "integrations"
         ? search.tab
         : undefined,
   }),
@@ -238,6 +241,7 @@ const SPACE_SETTINGS_TABS = [
   "channels",
   "members",
   "banned",
+  "integrations",
   "owner",
 ] as const;
 const spaceSettingsRoute = createRoute({

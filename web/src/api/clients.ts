@@ -4,6 +4,7 @@ import { AuthService } from "../gen/stoop/auth/v1/auth_pb";
 import { ChatService } from "../gen/stoop/chat/v1/chat_pb";
 import { FileService } from "../gen/stoop/files/v1/files_pb";
 import { InstanceService } from "../gen/stoop/instance/v1/instance_pb";
+import { IntegrationService } from "../gen/stoop/integrations/v1/integrations_pb";
 import { VoiceService } from "../gen/stoop/voice/v1/voice_pb";
 import { serverOrigin } from "./origin";
 
@@ -18,4 +19,5 @@ export const authClient = createClient(AuthService, transport);
 export const chatClient = createClient(ChatService, transport);
 export const filesClient = createClient(FileService, transport);
 export const instanceClient = createClient(InstanceService, transport);
+export const integrationsClient = createClient(IntegrationService, transport);
 export const voiceClient = createClient(VoiceService, transport);

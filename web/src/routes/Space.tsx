@@ -129,6 +129,19 @@ export function SpaceLayout() {
         },
       });
     }
+    if (!canManageChannels(space)) {
+      spaceActions.push({
+        label: "Integrations",
+        onSelect: () => {
+          useLayoutStore.getState().closeDrawer();
+          navigate({
+            to: "/s/$spaceId/settings",
+            params: { spaceId },
+            search: { tab: "integrations" },
+          });
+        },
+      });
+    }
     spaceActions.push({
       label: space.muted ? "Unmute space" : "Mute space",
       onSelect: toggleMute,

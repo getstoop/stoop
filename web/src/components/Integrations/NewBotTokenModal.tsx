@@ -1,43 +1,38 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { authClient } from "../../api/clients";
+import { integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { useMyPermissions, useSpaces } from "../../api/queries";
+import { useSpaces } from "../../api/queries";
 import {
   canCreate,
-  DEFAULT_EXPIRY_DAYS,
-  EXPIRY_CHOICES,
-  heldOptions,
   permissionsFor,
+  TOKEN_OPTIONS,
 } from "../../api/tokenOptions";
-import { Modal } from "../../components/Modal";
-import { PermissionPicker } from "../../components/PermissionPicker";
-import { SpacePicker } from "../../components/SpacePicker";
+import type { Bot } from "../../gen/stoop/integrations/v1/bot_pb";
+import { Modal } from "../Modal";
+import { PermissionPicker } from "../PermissionPicker";
+import { SpacePicker } from "../SpacePicker";
+import type { Secret } from "./SecretModal";
 
-// Security → Personal tokens → New token. It starts as narrow as it can:
-// nothing ticked, limited to spaces none of which are chosen yet.
-export function NewTokenModal({
+// A bearer token for a bot: any grantable permission, optionally limited
+// to spaces. Unlike a personal token it never expires; revoke it instead.
+export function NewBotTokenModal({
+  bot,
   onClose,
   onCreated,
 }: {
+  bot: Bot;
   onClose: () => void;
-  onCreated: (name: string, secret: string) => void;
+  onCreated: (secret: Secret) => void;
 }) {
   const queryClient = useQueryClient();
   const { data: spaces } = useSpaces();
-  const { data: mine } = useMyPermissions();
   const [name, setName] = useState("");
-  const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);
   const [keys, setKeys] = useState<string[]>([]);
   const [limited, setLimited] = useState(true);
   const [spaceIds, setSpaceIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const options = heldOptions([
-    ...(mine ?? []),
-    ...(spaces ?? []).flatMap((s) => s.myPermissions),
-  ]);
   const ready = canCreate({ name, keys, limited, spaceIds });
 
   const create = async () => {
@@ -45,15 +40,19 @@ export function NewTokenModal({
     setBusy(true);
     setError(null);
     try {
-      const res = await authClient.createPersonalToken({
+      const res = await integrationsClient.createBotToken({
+        botUserId: bot.id,
         name: name.trim(),
         permissions: permissionsFor(keys, limited),
         limited,
         spaceIds: limited ? spaceIds : [],
-        expiresInDays: days,
       });
-      await queryClient.invalidateQueries({ queryKey: ["personal-tokens"] });
-      onCreated(res.token?.name ?? name.trim(), res.secret);
+      await queryClient.invalidateQueries({ queryKey: ["bots"] });
+      onCreated({
+        kind: "token",
+        name: res.token?.name ?? name.trim(),
+        secret: res.secret,
+      });
     } catch (err) {
       setError(errorText(err));
       setBusy(false);
@@ -62,7 +61,7 @@ export function NewTokenModal({
 
   return (
     <Modal
-      title="New personal token"
+      title={`New token for ${bot.displayName || bot.username}`}
       onClose={onClose}
       footer={
         <>
@@ -81,70 +80,50 @@ export function NewTokenModal({
       }
     >
       <div className="modal-body token-form">
-        <div className="token-form-row">
-          <label className="field">
-            Name
-            <input
-              name="token-name"
-              value={name}
-              maxLength={50}
-              placeholder="e.g. backup script"
-              onChange={(e) => setName(e.target.value)}
-              // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
-              autoFocus
-            />
-          </label>
-          <label className="field">
-            Expires
-            <select
-              name="token-expiry"
-              value={days}
-              onChange={(e) => setDays(Number(e.target.value))}
-            >
-              {EXPIRY_CHOICES.map((c) => (
-                <option key={c.days} value={c.days}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        {days === 0 && (
-          <p className="token-warning">
-            A token that never expires keeps working until you revoke it, even
-            if you forget it exists.
-          </p>
-        )}
-
+        <p className="hint">
+          The bot can only do what it could as a member, and the token only what
+          you tick here. It doesn't expire; revoke it when it's done.
+        </p>
+        <label className="field">
+          Name
+          <input
+            name="bot-token-name"
+            value={name}
+            maxLength={50}
+            placeholder="e.g. mirror to Matrix"
+            onChange={(e) => setName(e.target.value)}
+            // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
+            autoFocus
+          />
+        </label>
         <PermissionPicker
-          options={options}
+          options={TOKEN_OPTIONS}
           selected={keys}
           limited={limited}
           onChange={setKeys}
         />
-
         <fieldset className="token-scope">
           <legend>Where it works</legend>
           <label className="toggle-row">
             <input
               type="radio"
-              name="token-scope"
+              name="bot-token-scope"
               checked={!limited}
               onChange={() => setLimited(false)}
             />
             <span>
-              Everywhere you can
-              <span className="hint">including spaces you join later</span>
+              Everywhere the bot is
+              <span className="hint">including spaces it's added to later</span>
             </span>
           </label>
           <label className="toggle-row">
             <input
               type="radio"
-              name="token-scope"
+              name="bot-token-scope"
               checked={limited}
               onChange={() => setLimited(true)}
             />
-            <span>Only some spaces</span>
+            <span>Only in these spaces</span>
           </label>
           {limited && (
             <SpacePicker
