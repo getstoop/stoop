@@ -5,26 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"net/netip"
 	"strings"
 	"testing"
 )
-
-func TestIsPublic(t *testing.T) {
-	for _, tc := range []struct {
-		ip     string
-		public bool
-	}{
-		{"8.8.8.8", true}, {"2606:4700::1111", true},
-		{"127.0.0.1", false}, {"10.1.2.3", false}, {"192.168.2.134", false}, {"172.16.5.5", false},
-		{"169.254.169.254", false}, {"100.65.98.12", false}, {"::1", false}, {"fe80::1", false},
-		{"fd00::1", false}, {"224.0.0.1", false}, {"0.0.0.0", false}, {"::ffff:10.0.0.1", false},
-	} {
-		if got := isPublic(netip.MustParseAddr(tc.ip)); got != tc.public {
-			t.Errorf("isPublic(%s) = %v, want %v", tc.ip, got, tc.public)
-		}
-	}
-}
 
 func TestParseHTML(t *testing.T) {
 	page := `<html><head><title>Fallback title</title>

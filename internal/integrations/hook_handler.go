@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -26,6 +27,11 @@ func (s *Service) HookHandler() http.Handler {
 			return
 		} else if !on || s.bots == nil || s.poster == nil {
 			http.NotFound(w, r)
+			return
+		}
+		// A delivery from a Stoop worker posting back in would loop forever.
+		if strings.HasPrefix(r.Header.Get("User-Agent"), userAgentPrefix) {
+			http.Error(w, "a Stoop delivery can't post into a hook", http.StatusForbidden)
 			return
 		}
 		id, err := s.bots.VerifyHookToken(ctx, r.PathValue("token"))

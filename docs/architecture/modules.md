@@ -32,8 +32,8 @@ in, and usually exposes a Connect service. There are seven: `auth`,
 
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
-`authctx`, `accesswire`, `blob`, `unfurl`, `ratelimit`, `trustedproxy`,
-`tailnet`, `webui`.
+`authctx`, `accesswire`, `blob`, `unfurl`, `netguard`, `ratelimit`,
+`trustedproxy`, `tailnet`, `webui`.
 
 `internal/app` is neither. It is the composition root, and it is allowed to
 know everything.
@@ -85,7 +85,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `chat` | `PresenceLister` | realtime | Which of these users are connected — the whole of `@here`. |
 | `chat` | `InstancePolicy` | instance | Whether members may create spaces. |
 | `chat` | `FileDirectory` | files | Verify an attachment claim; delete a deleted message's files. |
-| `chat` | `Unfurler` | `internal/unfurl` | Fetch a URL's Open Graph metadata. |
+| `chat` | `Unfurler` | `internal/unfurl` | Fetch a URL's Open Graph metadata, through `internal/netguard`. |
 | `chat` | `PreviewImages` | files | Store a fetched preview image as a file. |
 | `auth` | `RegistrationPolicy` | instance | May this registration proceed? |
 | `auth` | `InviteRedeemer` | chat | Validate a code before creating an account; redeem it after. |
@@ -108,7 +108,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `integrations` | `SpaceAccess` | chat | A channel's space and the space's name; add a bot as a member and set its role. |
 | `integrations` | `BotIdentities` | auth | Create, rename and deactivate bots; mint, revoke and verify their credentials. |
 | `integrations` | `Policy` | instance | Whether each webhook direction is on, whether private targets are allowed, the public URL. |
-| `integrations` | `Queue` | `internal/integrations` (Postgres) | Enqueue, lease, ack, nack and dead-letter outgoing deliveries; see [the webhooks proposal](../proposals/webhooks.md). |
+| `integrations` | `Queue` | `internal/integrations` (Postgres) | Enqueue, lease, ack, nack and dead-letter outgoing deliveries; see [the webhooks proposal](../proposals/webhooks.md). Deliveries go out through `internal/netguard`. |
 
 Two patterns recur in that table and are worth naming.
 

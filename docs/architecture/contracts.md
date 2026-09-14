@@ -105,8 +105,9 @@ Webhooks and bots (STOOP-256, [the proposal](../proposals/webhooks.md)):
 `DeleteWebhook`, `RotateSecret`, `TestWebhook`, `ListDeliveries`,
 `RedeliverDelivery`, `ListBots`, `CreateBot`, `UpdateBot`, `DeactivateBot`,
 `CreateBotToken`, `RevokeBotToken` — all behind
-`instance.integrations.manage`. The outgoing procedures answer
-`Unimplemented` until STOOP-260 lands.
+`instance.integrations.manage`, except `ListWebhooks` per space, which
+any member may call and which never carries a token, a secret or more of
+a receiver's URL than its host.
 
 ## The non-RPC surface
 

@@ -475,6 +475,7 @@ the server. Three are pinned by the compose file itself and ignore what
 | `STOOP_UNFURL_ALLOW_PRIVATE` | `false`                   | Let link previews fetch private/loopback addresses. **Dev and tests only** — it is what stops the server being used as a proxy into your LAN |
 | `STOOP_WEBHOOKS`           | `true`                      | `false` stops every incoming webhook post and outgoing delivery, whatever the admin settings say; nothing is deleted |
 | `STOOP_WEBHOOK_RATE_LIMIT` | `60`                        | Posts per minute one incoming webhook may make; `0` removes the limit |
+| `STOOP_WEBHOOK_DELIVERY_RETENTION` | `168h`              | How long finished outgoing webhook deliveries are kept in the log; `0` keeps them forever |
 | `STOOP_DEV_WEB_URL`        | (empty)                     | Serve the web app from a Vite dev server at this address instead of the embedded build, allowing inline scripts for its hot reload. **Development only** — `make dev` sets it |
 | `STOOP_LIVEKIT_URL`        | (empty)                     | LiveKit sidecar address the app proxies signaling to, e.g. `http://livekit:7880` (voice) |
 | `STOOP_LIVEKIT_API_KEY`    | (empty)                     | LiveKit API key (voice is off until key and secret are set) |

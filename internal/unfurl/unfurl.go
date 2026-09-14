@@ -14,13 +14,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"golang.org/x/net/html"
+
+	"github.com/getstoop/stoop/internal/netguard"
 )
 
 // Preview is what a URL unfurled to. Image is the raw bytes of the page's
@@ -40,8 +41,8 @@ const (
 )
 
 var (
-	ErrNotPublic  = errors.New("address is not a public host")
-	ErrBadScheme  = errors.New("only http and https URLs are unfurled")
+	ErrNotPublic  = netguard.ErrNotPublic
+	ErrBadScheme  = netguard.ErrBadScheme
 	ErrNotHTML    = errors.New("not an HTML page or image")
 	ErrTooLarge   = errors.New("response too large")
 	ErrBadStatus  = errors.New("unexpected HTTP status")
@@ -63,35 +64,8 @@ func New(opts Options) *Fetcher {
 	if opts.Timeout == 0 {
 		opts.Timeout = 10 * time.Second
 	}
-	dialer := &net.Dialer{Timeout: 5 * time.Second}
-	transport := &http.Transport{
-		Proxy: nil, // never route through an environment proxy
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			host, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				return nil, err
-			}
-			ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
-			if err != nil {
-				return nil, err
-			}
-			if len(ips) == 0 {
-				return nil, fmt.Errorf("%s: no addresses", host)
-			}
-			for _, ip := range ips {
-				if !opts.AllowPrivate && !isPublic(ip) {
-					return nil, fmt.Errorf("%s resolves to %s: %w", host, ip, ErrNotPublic)
-				}
-			}
-			// Dial the address we checked, not the name, so a second
-			// resolution can't produce a different answer.
-			return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].Unmap().String(), port))
-		},
-		TLSHandshakeTimeout:    5 * time.Second,
-		ResponseHeaderTimeout:  8 * time.Second,
-		MaxResponseHeaderBytes: 64 << 10,
-		DisableKeepAlives:      true,
-	}
+	// The guard resolves once and dials what it checked (internal/netguard).
+	transport := netguard.Policy{AllowPrivate: opts.AllowPrivate}.Transport()
 	client := &http.Client{
 		Transport: transport,
 		Timeout:   opts.Timeout,
@@ -105,23 +79,7 @@ func New(opts Options) *Fetcher {
 	return &Fetcher{client: client, opts: opts}
 }
 
-func checkURL(u *url.URL) error {
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return ErrBadScheme
-	}
-	if u.Hostname() == "" || u.User != nil {
-		return ErrBadScheme
-	}
-	return nil
-}
-
-// isPublic reports whether ip is a globally routable unicast address.
-func isPublic(ip netipAddr) bool {
-	ip = ip.Unmap()
-	return ip.IsValid() && ip.IsGlobalUnicast() &&
-		!ip.IsPrivate() && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() &&
-		!ip.IsMulticast() && !ip.IsUnspecified() && !isCGNAT(ip)
-}
+func checkURL(u *url.URL) error { return netguard.CheckURL(u) }
 
 // Fetch unfurls one URL. A direct image URL becomes a preview with only an
 // image; an HTML page yields its metadata and, when it names one, its

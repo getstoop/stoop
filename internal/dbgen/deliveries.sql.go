@@ -12,48 +12,58 @@ import (
 
 const ackDelivery = `-- name: AckDelivery :exec
 UPDATE webhook_deliveries
-SET finished_at = now(), leased_until = NULL, body = NULL, status_code = $2, response = $3
-WHERE id = $1
+SET finished_at = $1::timestamptz, leased_until = NULL, body = NULL,
+    status_code = $2, response = $3, error = ''
+WHERE id = $4
 `
 
 type AckDeliveryParams struct {
-	ID         string
+	Now        time.Time
 	StatusCode *int32
 	Response   string
+	ID         string
 }
 
 func (q *Queries) AckDelivery(ctx context.Context, arg AckDeliveryParams) error {
-	_, err := q.db.Exec(ctx, ackDelivery, arg.ID, arg.StatusCode, arg.Response)
+	_, err := q.db.Exec(ctx, ackDelivery,
+		arg.Now,
+		arg.StatusCode,
+		arg.Response,
+		arg.ID,
+	)
 	return err
 }
 
 const deadDelivery = `-- name: DeadDelivery :exec
 UPDATE webhook_deliveries
-SET finished_at = now(), leased_until = NULL, status_code = $2, response = $3, error = $4
-WHERE id = $1
+SET finished_at = $1::timestamptz, leased_until = NULL,
+    status_code = $2, response = $3, error = $4
+WHERE id = $5
 `
 
 type DeadDeliveryParams struct {
-	ID         string
+	Now        time.Time
 	StatusCode *int32
 	Response   string
 	Error      string
+	ID         string
 }
 
 func (q *Queries) DeadDelivery(ctx context.Context, arg DeadDeliveryParams) error {
 	_, err := q.db.Exec(ctx, deadDelivery,
-		arg.ID,
+		arg.Now,
 		arg.StatusCode,
 		arg.Response,
 		arg.Error,
+		arg.ID,
 	)
 	return err
 }
 
 const enqueueDelivery = `-- name: EnqueueDelivery :exec
 
-INSERT INTO webhook_deliveries (id, lane, event_type, sequence, body, not_before)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO webhook_deliveries (id, lane, event_type, sequence, body, not_before, created_at)
+VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::timestamptz)
 `
 
 type EnqueueDeliveryParams struct {
@@ -63,11 +73,14 @@ type EnqueueDeliveryParams struct {
 	Sequence  int64
 	Body      []byte
 	NotBefore time.Time
+	Now       time.Time
 }
 
 // Webhook deliveries: the Postgres implementation of the Queue port.
 // Owned by the integrations module; only internal/integrations may use
-// these queries. See docs/proposals/webhooks.md → The queue contract.
+// these queries. The clock is always the caller's, never now(), so one
+// clock decides due-ness and leases.
+// See docs/proposals/webhooks.md → The queue contract.
 func (q *Queries) EnqueueDelivery(ctx context.Context, arg EnqueueDeliveryParams) error {
 	_, err := q.db.Exec(ctx, enqueueDelivery,
 		arg.ID,
@@ -76,6 +89,7 @@ func (q *Queries) EnqueueDelivery(ctx context.Context, arg EnqueueDeliveryParams
 		arg.Sequence,
 		arg.Body,
 		arg.NotBefore,
+		arg.Now,
 	)
 	return err
 }
@@ -111,15 +125,15 @@ SET leased_until = $1::timestamptz, attempts = d.attempts + 1
 WHERE d.id IN (
     SELECT c.id FROM webhook_deliveries c
     WHERE c.finished_at IS NULL
-      AND c.not_before <= now()
-      AND (c.leased_until IS NULL OR c.leased_until < now())
+      AND c.not_before <= $2::timestamptz
+      AND (c.leased_until IS NULL OR c.leased_until < $2::timestamptz)
       AND NOT EXISTS (
           SELECT 1 FROM webhook_deliveries o
           WHERE o.lane = c.lane AND o.finished_at IS NULL
-            AND o.leased_until IS NOT NULL AND o.leased_until >= now()
+            AND (o.sequence, o.id) < (c.sequence, c.id)
       )
     ORDER BY c.not_before, c.sequence
-    LIMIT $2
+    LIMIT $3
     FOR UPDATE SKIP LOCKED
 )
 RETURNING d.id, d.lane, d.event_type, d.sequence, d.body, d.attempts, d.not_before, d.leased_until, d.finished_at, d.status_code, d.response, d.error, d.created_at
@@ -127,13 +141,15 @@ RETURNING d.id, d.lane, d.event_type, d.sequence, d.body, d.attempts, d.not_befo
 
 type LeaseDeliveriesParams struct {
 	Until time.Time
+	Now   time.Time
 	Limit int32
 }
 
-// LeaseDeliveries claims due, unfinished, unleased items whose lane has
-// nothing in flight, oldest first.
+// LeaseDeliveries claims due, unleased items that are the oldest
+// unfinished item of their lane, so a lane has one in flight and stays
+// in sequence order.
 func (q *Queries) LeaseDeliveries(ctx context.Context, arg LeaseDeliveriesParams) ([]WebhookDelivery, error) {
-	rows, err := q.db.Query(ctx, leaseDeliveries, arg.Until, arg.Limit)
+	rows, err := q.db.Query(ctx, leaseDeliveries, arg.Until, arg.Now, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +183,7 @@ func (q *Queries) LeaseDeliveries(ctx context.Context, arg LeaseDeliveriesParams
 }
 
 const listDeliveriesByLane = `-- name: ListDeliveriesByLane :many
-SELECT id, lane, event_type, sequence, body, attempts, not_before, leased_until, finished_at, status_code, response, error, created_at FROM webhook_deliveries WHERE lane = $1 ORDER BY created_at DESC LIMIT $2
+SELECT id, lane, event_type, sequence, body, attempts, not_before, leased_until, finished_at, status_code, response, error, created_at FROM webhook_deliveries WHERE lane = $1 ORDER BY created_at DESC, sequence DESC LIMIT $2
 `
 
 type ListDeliveriesByLaneParams struct {
@@ -211,35 +227,36 @@ func (q *Queries) ListDeliveriesByLane(ctx context.Context, arg ListDeliveriesBy
 
 const nackDelivery = `-- name: NackDelivery :exec
 UPDATE webhook_deliveries
-SET leased_until = NULL, not_before = $2, status_code = $3, response = $4, error = $5
-WHERE id = $1
+SET leased_until = NULL, not_before = $1::timestamptz,
+    status_code = $2, response = $3, error = $4
+WHERE id = $5
 `
 
 type NackDeliveryParams struct {
-	ID         string
 	NotBefore  time.Time
 	StatusCode *int32
 	Response   string
 	Error      string
+	ID         string
 }
 
 func (q *Queries) NackDelivery(ctx context.Context, arg NackDeliveryParams) error {
 	_, err := q.db.Exec(ctx, nackDelivery,
-		arg.ID,
 		arg.NotBefore,
 		arg.StatusCode,
 		arg.Response,
 		arg.Error,
+		arg.ID,
 	)
 	return err
 }
 
 const sweepFinishedDeliveries = `-- name: SweepFinishedDeliveries :execrows
-DELETE FROM webhook_deliveries WHERE finished_at IS NOT NULL AND finished_at < $1
+DELETE FROM webhook_deliveries WHERE finished_at IS NOT NULL AND finished_at < $1::timestamptz
 `
 
-func (q *Queries) SweepFinishedDeliveries(ctx context.Context, finishedAt *time.Time) (int64, error) {
-	result, err := q.db.Exec(ctx, sweepFinishedDeliveries, finishedAt)
+func (q *Queries) SweepFinishedDeliveries(ctx context.Context, before time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, sweepFinishedDeliveries, before)
 	if err != nil {
 		return 0, err
 	}

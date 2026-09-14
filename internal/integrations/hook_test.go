@@ -1,4 +1,4 @@
-package integrations_test
+package integrations
 
 import (
 	"context"
@@ -15,11 +15,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
-	"github.com/getstoop/stoop/internal/integrations"
 	"github.com/getstoop/stoop/internal/ratelimit"
 )
 
@@ -29,47 +29,47 @@ import (
 type fakeBots struct {
 	pool    *pgxpool.Pool
 	tokens  map[string]authctx.Identity
-	creds   map[string]integrations.Credential
-	bots    map[string]integrations.Bot
+	creds   map[string]Credential
+	bots    map[string]Bot
 	revoked []string
 }
 
 func newFakeBots(pool *pgxpool.Pool) *fakeBots {
-	return &fakeBots{pool: pool, tokens: map[string]authctx.Identity{}, creds: map[string]integrations.Credential{}, bots: map[string]integrations.Bot{}}
+	return &fakeBots{pool: pool, tokens: map[string]authctx.Identity{}, creds: map[string]Credential{}, bots: map[string]Bot{}}
 }
 
-func (f *fakeBots) CreateBot(ctx context.Context, username, displayName string) (integrations.Bot, error) {
+func (f *fakeBots) CreateBot(ctx context.Context, username, displayName string) (Bot, error) {
 	for _, b := range f.bots {
 		if b.Username == username {
-			return integrations.Bot{}, connect.NewError(connect.CodeAlreadyExists, errors.New("username is taken"))
+			return Bot{}, connect.NewError(connect.CodeAlreadyExists, errors.New("username is taken"))
 		}
 	}
 	id := uuid.NewString()
 	if _, err := f.pool.Exec(ctx, `INSERT INTO users (id, username, display_name, role, kind) VALUES ($1, $2, $3, 'member', 'bot')`, id, username, displayName); err != nil {
-		return integrations.Bot{}, err
+		return Bot{}, err
 	}
-	b := integrations.Bot{ID: id, Username: username, DisplayName: displayName}
+	b := Bot{ID: id, Username: username, DisplayName: displayName}
 	f.bots[id] = b
 	return b, nil
 }
 
-func (f *fakeBots) GetBot(_ context.Context, id string) (integrations.Bot, error) {
+func (f *fakeBots) GetBot(_ context.Context, id string) (Bot, error) {
 	b, ok := f.bots[id]
 	if !ok {
-		return integrations.Bot{}, connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
+		return Bot{}, connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
 	}
 	return b, nil
 }
 
-func (f *fakeBots) ListBots(context.Context) ([]integrations.Bot, error) {
-	var out []integrations.Bot
+func (f *fakeBots) ListBots(context.Context) ([]Bot, error) {
+	var out []Bot
 	for _, b := range f.bots {
 		out = append(out, b)
 	}
 	return out, nil
 }
 
-func (f *fakeBots) RenameBot(_ context.Context, id string, username, displayName *string) (integrations.Bot, error) {
+func (f *fakeBots) RenameBot(_ context.Context, id string, username, displayName *string) (Bot, error) {
 	b := f.bots[id]
 	if username != nil {
 		b.Username = *username
@@ -98,25 +98,25 @@ func (f *fakeBots) DeactivateBot(ctx context.Context, id string) error {
 }
 
 // MintCredential applies auth's grant rules: at least one, each grantable.
-func (f *fakeBots) MintCredential(ctx context.Context, req integrations.MintRequest) (integrations.Credential, string, error) {
+func (f *fakeBots) MintCredential(ctx context.Context, req MintRequest) (Credential, string, error) {
 	if len(req.Grants) == 0 {
-		return integrations.Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("choose at least one permission"))
+		return Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("choose at least one permission"))
 	}
 	for _, a := range req.Grants {
 		if !a.Grantable() {
-			return integrations.Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("not grantable"))
+			return Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("not grantable"))
 		}
 	}
 	if b := f.bots[req.HolderID]; b.DeactivatedAt != nil {
-		return integrations.Credential{}, "", connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
+		return Credential{}, "", connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
 	}
 	id := uuid.NewString()
 	if _, err := f.pool.Exec(ctx, `INSERT INTO credentials (id, holder_id, kind, token_hash, name, grants, bounded) VALUES ($1, $2, $3, $4, $5, '{}', true)`,
 		id, req.HolderID, string(req.Kind), []byte(id), req.Name); err != nil {
-		return integrations.Credential{}, "", err
+		return Credential{}, "", err
 	}
 	bounded := req.Limited || req.ChannelID != ""
-	c := integrations.Credential{ID: id, HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants, Bounded: bounded, SpaceIDs: req.SpaceIDs, Hint: id[len(id)-4:]}
+	c := Credential{ID: id, HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants, Bounded: bounded, SpaceIDs: req.SpaceIDs, Hint: id[len(id)-4:]}
 	if req.ChannelID != "" {
 		c.ChannelIDs = []string{req.ChannelID}
 	}
@@ -151,8 +151,8 @@ func (f *fakeBots) RevokeCredential(ctx context.Context, id string) error {
 	return err
 }
 
-func (f *fakeBots) Credentials(_ context.Context, holderIDs, ids []string) ([]integrations.Credential, error) {
-	var out []integrations.Credential
+func (f *fakeBots) Credentials(_ context.Context, holderIDs, ids []string) ([]Credential, error) {
+	var out []Credential
 	for _, c := range f.creds {
 		if len(ids) > 0 && !contains(ids, c.ID) {
 			continue
@@ -214,6 +214,9 @@ func (f *fakeSpaces) SetBotAdmin(_ context.Context, spaceID, userID string, admi
 	f.admin[spaceID+"/"+userID] = admin
 	return nil
 }
+func (f *fakeSpaces) Member(_ context.Context, spaceID, userID string) (*chatv1.Member, error) {
+	return &chatv1.Member{UserId: userID, Username: "member-" + userID[:4], Role: chatv1.SpaceRole_SPACE_ROLE_MEMBER}, nil
+}
 func (f *fakeSpaces) IsSpaceMember(ctx context.Context, userID, spaceID string) (bool, error) {
 	var ok bool
 	err := f.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2)`, spaceID, userID).Scan(&ok)
@@ -222,7 +225,7 @@ func (f *fakeSpaces) IsSpaceMember(ctx context.Context, userID, spaceID string) 
 
 type posted struct {
 	identity authctx.Identity
-	req      integrations.PostRequest
+	req      PostRequest
 }
 
 type fakePoster struct {
@@ -230,7 +233,7 @@ type fakePoster struct {
 	fail  error
 }
 
-func (p *fakePoster) Post(ctx context.Context, req integrations.PostRequest) (string, error) {
+func (p *fakePoster) Post(ctx context.Context, req PostRequest) (string, error) {
 	if p.fail != nil {
 		return "", p.fail
 	}
@@ -239,17 +242,20 @@ func (p *fakePoster) Post(ctx context.Context, req integrations.PostRequest) (st
 	return uuid.NewString(), nil
 }
 
-type fakePolicy struct{ incoming, outgoing bool }
+type fakePolicy struct{ incoming, outgoing, private bool }
 
-func (p *fakePolicy) WebhooksIncoming(context.Context) (bool, error)            { return p.incoming, nil }
-func (p *fakePolicy) WebhooksOutgoing(context.Context) (bool, error)            { return p.outgoing, nil }
-func (p *fakePolicy) WebhooksAllowPrivateTargets(context.Context) (bool, error) { return false, nil }
+func (p *fakePolicy) WebhooksIncoming(context.Context) (bool, error) { return p.incoming, nil }
+func (p *fakePolicy) WebhooksOutgoing(context.Context) (bool, error) { return p.outgoing, nil }
+func (p *fakePolicy) WebhooksAllowPrivateTargets(context.Context) (bool, error) {
+	return p.private, nil
+}
 func (p *fakePolicy) PublicURL(context.Context) (string, error) {
 	return "https://stoop.example.com", nil
 }
 
 type fixture struct {
-	svc     *integrations.Service
+	pool    *pgxpool.Pool
+	svc     *Service
 	bots    *fakeBots
 	spaces  *fakeSpaces
 	poster  *fakePoster
@@ -277,7 +283,8 @@ func setup(t *testing.T) *fixture {
 		}
 	}
 	f := &fixture{
-		svc: integrations.New(pool, events.NewInProcBus(), slog.Default()), bots: newFakeBots(pool),
+		svc: New(pool, events.NewInProcBus(), slog.Default()), bots: newFakeBots(pool),
+		pool:   pool,
 		spaces: &fakeSpaces{pool: pool, channel: map[string]string{channelID: spaceID}, admin: map[string]bool{}},
 		poster: &fakePoster{}, policy: &fakePolicy{incoming: true, outgoing: true},
 		space: spaceID, channel: channelID,
@@ -357,6 +364,13 @@ func TestIncomingHookPosts(t *testing.T) {
 	}
 	if status, _ := f.post(t, "/hooks/stp_hook_nope", "text/plain", "hi"); status != http.StatusNotFound {
 		t.Errorf("unknown token: %d", status)
+	}
+	req := httptest.NewRequest(http.MethodPost, path(made.Url), strings.NewReader("looping"))
+	req.Header.Set("User-Agent", userAgent)
+	rec := httptest.NewRecorder()
+	f.svc.HookHandler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("a Stoop delivery posted into a hook: %d", rec.Code)
 	}
 	f.poster.fail = connect.NewError(connect.CodePermissionDenied, errors.New("not a member of this space"))
 	if status, _ := f.post(t, path(made.Url), "text/plain", "hi"); status != http.StatusForbidden {
