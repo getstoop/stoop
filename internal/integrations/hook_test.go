@@ -80,11 +80,19 @@ func (f *fakeBots) RenameBot(_ context.Context, id string, username, displayName
 	return b, nil
 }
 
-func (f *fakeBots) DeactivateBot(_ context.Context, id string) error {
+// DeactivateBot revokes everything the bot holds, as auth does.
+func (f *fakeBots) DeactivateBot(ctx context.Context, id string) error {
 	b := f.bots[id]
 	now := b.CreatedAt
 	b.DeactivatedAt = &now
 	f.bots[id] = b
+	for _, c := range f.creds {
+		if c.HolderID == id {
+			if err := f.RevokeCredential(ctx, c.ID); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -456,5 +464,70 @@ func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 	}
 	if _, err := f.svc.ListBots(f.member, connect.NewRequest(&integrationsv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Errorf("a member listed bots: %v", err)
+	}
+}
+
+func TestOrphanedHookCredentialsAreSwept(t *testing.T) {
+	f := setup(t)
+	first := f.create(t, "Stays", false)
+	other := uuid.NewString()
+	if _, err := f.bots.pool.Exec(context.Background(), `INSERT INTO channels (id, space_id, name, position) VALUES ($1, $2, 'other', 1)`, other, f.space); err != nil {
+		t.Fatal(err)
+	}
+	f.spaces.channel[other] = f.space
+	second, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: other, Name: "Goes", BotUserId: first.Webhook.BotUserId}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	third := f.create(t, "Alone", false)
+
+	// Nothing to sweep while every hook is in place.
+	if n, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || n != 0 {
+		t.Fatalf("sweep on a clean table: %d, %v", n, err)
+	}
+	// Deleting the channel cascades the hook row; the credential lingers
+	// until the sweep.
+	if _, err := f.bots.pool.Exec(context.Background(), `DELETE FROM channels WHERE id = $1`, other); err != nil {
+		t.Fatal(err)
+	}
+	if status, _ := f.post(t, path(second.Msg.Url), "text/plain", "orphan"); status != http.StatusNotFound {
+		t.Errorf("orphaned hook answered %d", status)
+	}
+	if n, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || n != 1 {
+		t.Fatalf("sweep = %d, %v", n, err)
+	}
+	if len(f.bots.revoked) != 1 || f.bots.bots[first.Webhook.BotUserId].DeactivatedAt != nil {
+		t.Errorf("revoked %v; bot with a live hook left deactivated=%v", f.bots.revoked, f.bots.bots[first.Webhook.BotUserId].DeactivatedAt)
+	}
+	if status, _ := f.post(t, path(first.Url), "text/plain", "still here"); status != http.StatusOK {
+		t.Errorf("the surviving hook answered %d", status)
+	}
+	// A space delete orphans a bot's only hook: the bot retires.
+	if _, err := f.bots.pool.Exec(context.Background(), `DELETE FROM incoming_webhooks WHERE id = $1`, third.Webhook.Id); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || n != 1 {
+		t.Fatalf("second sweep = %d, %v", n, err)
+	}
+	if f.bots.bots[third.Webhook.BotUserId].DeactivatedAt == nil {
+		t.Error("a bot whose only hook was orphaned should retire")
+	}
+}
+
+func TestHooksOfADeactivatedBot(t *testing.T) {
+	f := setup(t)
+	made := f.create(t, "Doomed", false)
+	if _, err := f.svc.DeactivateBot(f.admin, connect.NewRequest(&integrationsv1.DeactivateBotRequest{Id: made.Webhook.BotUserId})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.RotateSecret(f.admin, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: made.Webhook.Id})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("rotate on a deactivated bot: %v", err)
+	}
+	on := true
+	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: made.Webhook.Id, Enabled: &on})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("re-enable on a deactivated bot: %v", err)
+	}
+	if _, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: made.Webhook.Id})); err != nil {
+		t.Errorf("deleting the hook of a deactivated bot: %v", err)
 	}
 }

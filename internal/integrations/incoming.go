@@ -128,6 +128,11 @@ func (s *Service) UpdateIncoming(ctx context.Context, req *connect.Request[integ
 		}
 	}
 	if req.Msg.Enabled != nil {
+		if *req.Msg.Enabled {
+			if err := s.requireLiveBot(ctx, hook.BotUserID); err != nil {
+				return nil, err
+			}
+		}
 		switch {
 		case *req.Msg.Enabled && hook.CredentialID == nil:
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this hook's token was revoked; rotate it to re-enable"))
@@ -164,6 +169,9 @@ func (s *Service) deleteIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 // rotateIncoming mints a new token with the old one's grant and revokes
 // the old one.
 func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook) (string, error) {
+	if err := s.requireLiveBot(ctx, hook.BotUserID); err != nil {
+		return "", err
+	}
 	grants := hookGrants(false)
 	if hook.CredentialID != nil {
 		if creds, err := s.bots.Credentials(ctx, nil, []string{*hook.CredentialID}); err == nil && len(creds) == 1 {
@@ -187,6 +195,18 @@ func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 		}
 	}
 	return s.hookURL(ctx, secret)
+}
+
+// requireLiveBot refuses work on a hook whose bot is deactivated.
+func (s *Service) requireLiveBot(ctx context.Context, botID string) error {
+	bot, err := s.bots.GetBot(ctx, botID)
+	if err != nil {
+		return err
+	}
+	if bot.DeactivatedAt != nil {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("this hook's bot is deactivated; make a new hook"))
+	}
+	return nil
 }
 
 // retireIfIdle deactivates a bot that holds no credentials.

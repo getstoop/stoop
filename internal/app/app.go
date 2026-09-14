@@ -48,6 +48,7 @@ type App struct {
 	nodeIP  *nodeIPWriter
 	auth    *auth.Service
 	files   *files.Service
+	hooks   *integrations.Service
 	chat    *chat.Service
 	voice   *voice.Service
 	sweep   time.Duration
@@ -214,6 +215,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		},
 		auth:  authSvc,
 		files: filesSvc,
+		hooks: integrationsSvc,
 		chat:  chatSvc,
 		voice: voiceSvc,
 		sweep: cfg.FileSweepInterval,
@@ -408,6 +410,8 @@ func (a *App) Run(ctx context.Context) error {
 	go a.chat.RunActivitySweeper(ctx, a.sweep, a.keep)
 	// Expired sessions, and personal tokens a month past expiry.
 	go a.auth.RunCredentialSweeper(ctx, a.sweep)
+	// Hook credentials whose channel or space was deleted.
+	go a.hooks.RunSweeper(ctx, a.sweep)
 
 	select {
 	case err := <-errCh:
