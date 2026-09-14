@@ -204,10 +204,11 @@ requested.
 picker's cards can scope a theme to their own subtree and preview it with
 the real CSS rather than an approximation.
 
-Twenty-five themes ship, in three tiers. Light: Daylight (the light
+Twenty-seven themes ship, in three tiers. Light: Daylight (the light
 default), Newsprint, Subway Tile, Pigeon, Laundromat, Boardwalk, Whiteout,
 Library, Ginkgo. Dim, grounds a step lighter than any dark, for a lit
-room: Rooftop, Water Tower. Dark: Brownstone (the default, and the
+room, one per hue family: Rooftop, Water Tower, Scaffolding, Sidewalk
+Chalk. Dark: Brownstone (the default, and the
 original look), Dusk, Bodega, Blackout, Fire Escape, Nightcap, Night Bus,
 Mailbox, Streetlight, Neon, Ferry, Bike Lane, Crosswalk, Concrete.
 

@@ -39,7 +39,9 @@ export type ThemeId =
   | "ferry"
   | "bike-lane"
   | "crosswalk"
-  | "concrete";
+  | "concrete"
+  | "scaffolding"
+  | "sidewalk-chalk";
 
 export interface ThemeInfo {
   id: ThemeId;
@@ -255,6 +257,20 @@ export const THEMES: ThemeInfo[] = [
     tags: ["accessible"],
     blurb: "Grey on grey. Colour only where it means something.",
     why: "No tint anywhere; colour only where it means something.",
+  },
+  {
+    id: "scaffolding",
+    name: "Scaffolding",
+    kind: "dark",
+    tier: "dim",
+    blurb: "Sidewalk shed green, safety orange.",
+  },
+  {
+    id: "sidewalk-chalk",
+    name: "Sidewalk Chalk",
+    kind: "dark",
+    tier: "dim",
+    blurb: "Warm concrete, chalk pastels.",
   },
 ];
 
