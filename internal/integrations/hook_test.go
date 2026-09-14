@@ -605,13 +605,14 @@ func TestBotTokens(t *testing.T) {
 		t.Errorf("account.security granted: %v", err)
 	}
 	res, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{
-		BotUserId: bot, Name: "mirror reader", Permissions: read, Limited: true, SpaceIds: []string{f.space},
+		BotUserId: bot, Name: "mirror reader", Permissions: read,
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A token has no limit of its own: it works wherever the bot is.
 	tok := res.Msg.Token
-	if !strings.HasPrefix(res.Msg.Secret, "stp_bot_token_") || tok.BotUserId != bot || !tok.Limited || len(tok.SpaceIds) != 1 || len(tok.Permissions) != 2 || tok.Hint == "" {
+	if !strings.HasPrefix(res.Msg.Secret, "stp_bot_token_") || tok.BotUserId != bot || tok.Limited || len(tok.SpaceIds) != 0 || len(tok.Permissions) != 2 || tok.Hint == "" {
 		t.Errorf("token = %+v secret %q", tok, res.Msg.Secret)
 	}
 	bots, err := f.svc.ListBots(f.admin, connect.NewRequest(&integrationsv1.ListBotsRequest{}))

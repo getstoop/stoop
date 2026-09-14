@@ -78,6 +78,15 @@ export function useSpaces() {
   });
 }
 
+// Every space on the server, for an instance admin placing a bot.
+export function useAllSpaces(enabled: boolean) {
+  return useQuery({
+    queryKey: ["spaces", "all"],
+    queryFn: async () => (await chatClient.listSpaces({ all: true })).spaces,
+    enabled,
+  });
+}
+
 // Split out so a caller with several spaces in hand can ask for all of
 // their channel lists at once (`useQueries`) instead of a hook per space.
 export function channelsQuery(spaceId: string) {

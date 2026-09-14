@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { useSpaces } from "../../api/queries";
 import {
   canCreate,
   permissionsFor,
@@ -11,11 +10,11 @@ import {
 import type { Bot } from "../../gen/stoop/integrations/v1/bot_pb";
 import { Modal } from "../Modal";
 import { PermissionPicker } from "../PermissionPicker";
-import { SpacePicker } from "../SpacePicker";
 import type { Secret } from "./SecretModal";
 
-// A bearer token for a bot: any grantable permission, optionally limited
-// to spaces. Unlike a personal token it never expires; revoke it instead.
+// A bearer token for a bot: any grantable permission, working wherever
+// the bot is a member. Unlike a personal token it never expires; revoke
+// it instead.
 export function NewBotTokenModal({
   bot,
   onClose,
@@ -26,14 +25,11 @@ export function NewBotTokenModal({
   onCreated: (secret: Secret) => void;
 }) {
   const queryClient = useQueryClient();
-  const { data: spaces } = useSpaces();
   const [name, setName] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
-  const [limited, setLimited] = useState(true);
-  const [spaceIds, setSpaceIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ready = canCreate({ name, keys, limited, spaceIds });
+  const ready = canCreate({ name, keys, limited: false, spaceIds: [] });
 
   const create = async () => {
     if (!ready) return;
@@ -43,9 +39,7 @@ export function NewBotTokenModal({
       const res = await integrationsClient.createBotToken({
         botUserId: bot.id,
         name: name.trim(),
-        permissions: permissionsFor(keys, limited),
-        limited,
-        spaceIds: limited ? spaceIds : [],
+        permissions: permissionsFor(keys, false),
       });
       await queryClient.invalidateQueries({ queryKey: ["bots"] });
       onCreated({
@@ -81,8 +75,8 @@ export function NewBotTokenModal({
     >
       <div className="modal-body token-form">
         <p className="hint">
-          The bot can only do what it could as a member, and the token only what
-          you tick here. It doesn't expire; revoke it when it's done.
+          The token works in every space the bot is in, and only what you tick
+          here. It doesn't expire; revoke it when it's done.
         </p>
         <label className="field">
           Name
@@ -99,40 +93,9 @@ export function NewBotTokenModal({
         <PermissionPicker
           options={TOKEN_OPTIONS}
           selected={keys}
-          limited={limited}
+          limited={false}
           onChange={setKeys}
         />
-        <fieldset className="token-scope">
-          <legend>Where it works</legend>
-          <label className="toggle-row">
-            <input
-              type="radio"
-              name="bot-token-scope"
-              checked={!limited}
-              onChange={() => setLimited(false)}
-            />
-            <span>
-              Everywhere the bot is
-              <span className="hint">including spaces it's added to later</span>
-            </span>
-          </label>
-          <label className="toggle-row">
-            <input
-              type="radio"
-              name="bot-token-scope"
-              checked={limited}
-              onChange={() => setLimited(true)}
-            />
-            <span>Only in these spaces</span>
-          </label>
-          {limited && (
-            <SpacePicker
-              spaces={spaces ?? []}
-              selected={spaceIds}
-              onChange={setSpaceIds}
-            />
-          )}
-        </fieldset>
         {error && <p className="error">{error}</p>}
       </div>
     </Modal>

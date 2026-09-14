@@ -168,8 +168,10 @@ instance admin mints for it ([integrations.md](integrations.md#bots)):
   `messages.notify_everyone`, and is bounded to one channel. It is
   refused as a bearer token everywhere.
 - **A bot token** (`stp_bot_`, kind `bot_token`) is a bearer token with
-  any grantable actions and optional space bounds, like a personal token
-  without an expiry. It is refused in the hook path and on `/ws`.
+  any grantable actions, like a personal token without an expiry. It has
+  no space limit of its own: it works wherever the bot is a member, so
+  adding the bot to a space extends it and removing the bot shrinks it.
+  It is refused in the hook path and on `/ws`.
 
 Both are stored as SHA-256 with a four-character hint, shown once, and
 verified by the same code as a session. Deactivating the bot revokes

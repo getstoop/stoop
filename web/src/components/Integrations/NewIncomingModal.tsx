@@ -126,6 +126,10 @@ export function NewIncomingModal({
               </option>
             ))}
           </select>
+          <span className="hint">
+            Only bots already in this space are listed; add one from Server
+            admin → Integrations first.
+          </span>
         </label>
         <label className="toggle-row">
           <input

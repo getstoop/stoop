@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isBot } from "../../api/identity";
 import { canNotifyEveryone } from "../../api/integrations";
 import {
   useChannels,
@@ -168,10 +169,9 @@ export function IntegrationsSection({ space }: { space: Space }) {
       {newIncoming && (
         <NewIncomingModal
           space={space}
-          bots={[...byBot.keys()].map((id) => ({
-            id,
-            label: bots.get(id)?.displayName ?? byBot.get(id)?.[0].name ?? id,
-          }))}
+          bots={(members ?? [])
+            .filter((m) => isBot(m.kind))
+            .map((m) => ({ id: m.userId, label: m.displayName || m.username }))}
           onClose={() => setNewIncoming(false)}
           onCreated={(s) => {
             setNewIncoming(false);

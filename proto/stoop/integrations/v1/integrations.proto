@@ -224,10 +224,12 @@ message CreateBotTokenRequest {
   string bot_user_id = 1;
   // 1-50 characters after trimming.
   string name = 2;
-  // At least one; never PERMISSION_ACCOUNT_SECURITY.
+  // At least one; never PERMISSION_ACCOUNT_SECURITY. The token works
+  // wherever the bot is a member (Bot.space_ids); there is no limit of
+  // its own.
   repeated stoop.access.v1.Permission permissions = 3;
-  bool limited = 4;
-  repeated string space_ids = 5;
+  reserved 4, 5;
+  reserved "limited", "space_ids";
 }
 
 message CreateBotTokenResponse {

@@ -2,21 +2,25 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { filesClient, integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
+import { useAllSpaces } from "../../api/queries";
 import { BotIcon } from "../Icons";
 import { ImagePicker } from "../ImagePicker";
 import { Modal } from "../Modal";
+import { SpacePicker } from "../SpacePicker";
 
 const BIO_MAX = 300;
 
-// A bot account on its own: a member with no password, authenticated only
-// through the tokens and hooks it's given later. Its face and a line
-// about what it does are set here too, so the card can say what it is
-// from its first post.
+// A bot account on its own: a member of the spaces picked here, with no
+// password, authenticated only through the tokens and hooks it's given
+// later. Its face and a line about what it does are set here too, so the
+// card can say what it is from its first post.
 export function NewBotModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
+  const { data: spaces } = useAllSpaces(true);
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [spaceIds, setSpaceIds] = useState<string[]>([]);
   // The picked image waits for the bot to exist, then is uploaded to it.
   const [avatar, setAvatar] = useState<Uint8Array | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -41,10 +45,15 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
         displayName: displayName.trim(),
         bio,
       });
-      if (avatar && res.bot) {
-        await filesClient.uploadBotAvatar({ userId: res.bot.id, data: avatar });
+      const id = res.bot?.id ?? "";
+      for (const spaceId of spaceIds) {
+        await integrationsClient.addBotToSpace({ botUserId: id, spaceId });
+      }
+      if (avatar && id) {
+        await filesClient.uploadBotAvatar({ userId: id, data: avatar });
       }
       await queryClient.invalidateQueries({ queryKey: ["bots"] });
+      await queryClient.invalidateQueries({ queryKey: ["members"] });
       onClose();
     } catch (err) {
       setError(errorText(err));
@@ -131,6 +140,18 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             {bio.length}/{BIO_MAX}
           </span>
         </label>
+        <fieldset className="token-scope">
+          <legend>In these spaces</legend>
+          <SpacePicker
+            spaces={spaces ?? []}
+            selected={spaceIds}
+            onChange={setSpaceIds}
+          />
+          <span className="hint">
+            Its tokens and webhooks work only in the spaces it's in. You can
+            change this later.
+          </span>
+        </fieldset>
         {error && <p className="error">{error}</p>}
       </div>
     </Modal>
