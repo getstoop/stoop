@@ -107,6 +107,12 @@ the shell did not send takes the default's value, and renaming or
 dropping one in `themes.css` changes what a page expects to be handed,
 so it bumps the bridge. `TOKEN_NAMES` in `api/theme.ts` is the list.
 
+`index.html` also stamps `data-shell` on `<html>` whenever the bridge is
+present, so a style that only makes sense inside the shell can key on it.
+One does: the sidebar's top-left corner rounds into the L the rail and the
+shell's title strip make (`app-shell.css`). In a browser there is no strip
+and the corner stays square.
+
 The browser's picker and its `localStorage` preference are untouched:
 the same server opened in a browser keeps the theme chosen there. A
 bridge-1 shell has no `theme` member; against one, the page behaves as

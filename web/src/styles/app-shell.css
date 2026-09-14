@@ -5,6 +5,21 @@
   height: 100%;
 }
 
+/* Inside the desktop shell (html[data-shell], stamped by index.html) the
+   rail and the shell's title strip make one L of canvas around the
+   sidebar, so the sidebar's top-left corner rounds into it. The shell
+   paints canvas under the first 80px (the rail plus the corner) for the
+   rounding to reveal; the sidebar column covers the rest. */
+[data-shell] .app-shell {
+  /* off-scale: 68px is the rail, plus the corner's radius */
+  background: linear-gradient(to right, var(--canvas) 80px, transparent 80px);
+}
+
+[data-shell] .channel-sidebar,
+[data-shell] .settings-nav {
+  border-top-left-radius: var(--radius-lg);
+}
+
 .space-rail {
   width: 68px;
   background: var(--canvas);
