@@ -28,13 +28,18 @@ type harness struct {
 	srv *httptest.Server
 }
 
-func newHarness(t *testing.T) *harness {
+// newHarness boots the binary; env is extra STOOP_* settings as
+// key/value pairs, over the defaults a test needs.
+func newHarness(t *testing.T, env ...string) *harness {
 	t.Helper()
 	t.Setenv("STOOP_DATABASE_URL", dbtest.NewURL(t))
 	t.Setenv("STOOP_STORAGE_DIR", t.TempDir())
 	t.Setenv("STOOP_REGISTRATION", "open")
 	t.Setenv("STOOP_AUTH_RATE_LIMIT", "0")
 	t.Setenv("STOOP_ALLOWED_WS_ORIGINS", "*")
+	for i := 0; i+1 < len(env); i += 2 {
+		t.Setenv(env[i], env[i+1])
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		t.Fatal(err)
@@ -294,4 +299,30 @@ func (h *harness) spaceNames(token string) []string {
 		}
 	}
 	return out
+}
+
+// messages is a channel's history as the caller sees it, each message a
+// map of its wire fields.
+func (h *harness) messages(token, channelID string) []map[string]any {
+	h.t.Helper()
+	var out []map[string]any
+	for _, m := range h.list(token, channelID).expect(h.t, "ok").list("messages") {
+		if mm, ok := m.(map[string]any); ok {
+			out = append(out, mm)
+		}
+	}
+	return out
+}
+
+// message finds the one message in a channel whose content contains a
+// phrase, or fails.
+func (h *harness) message(token, channelID, contains string) map[string]any {
+	h.t.Helper()
+	for _, m := range h.messages(token, channelID) {
+		if c, _ := m["content"].(string); strings.Contains(c, contains) {
+			return m
+		}
+	}
+	h.t.Fatalf("no message containing %q", contains)
+	return nil
 }
