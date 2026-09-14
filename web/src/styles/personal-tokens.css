@@ -79,6 +79,11 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Under the "Only in these spaces" radio, the picker lines up with its
+   label; in the bot dialogs it stands on its own. */
+.token-form .space-picker {
   padding-left: 24px;
 }
 
