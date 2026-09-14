@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { headingText, matches, memberName, splitMembers } from "./groups";
 
 const member = (userId: string, username: string, displayName = ""): Member =>
   ({ userId, username, displayName }) as Member;
+const bot = (userId: string, username: string): Member =>
+  ({ userId, username, displayName: "", kind: IdentityKind.BOT }) as Member;
 
 describe("memberName", () => {
   it("prefers the display name", () => {
@@ -68,6 +71,22 @@ describe("splitMembers", () => {
     const { online: on, offline } = splitMembers(members, new Set(), "");
     expect(on).toEqual([]);
     expect(offline).toHaveLength(3);
+  });
+
+  // A bot holds no socket, so it is never online and never "offline"
+  // either: it has its own group, which a search still looks through.
+  it("keeps bots in their own group, whatever presence says", () => {
+    const withBot = [...members, bot("4", "uptime_kuma")];
+    const {
+      online: on,
+      offline,
+      bots,
+    } = splitMembers(withBot, new Set(["1", "4"]), "");
+    expect(on.map((m) => m.username)).toEqual(["ada"]);
+    expect(offline.map((m) => m.username)).toEqual(["bea", "casey"]);
+    expect(bots.map((m) => m.username)).toEqual(["uptime_kuma"]);
+    expect(splitMembers(withBot, new Set(), "kuma").bots).toHaveLength(1);
+    expect(splitMembers(withBot, new Set(), "ada").bots).toEqual([]);
   });
 });
 

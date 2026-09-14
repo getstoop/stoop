@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { isBot } from "../../api/identity";
 import { useMembers } from "../../api/queries";
 import { useConnectionStore } from "../../stores/connection";
 import { SearchIcon } from "../Icons";
@@ -26,15 +27,18 @@ export function MembersPanel({ spaceId }: { spaceId: string }) {
   };
   const [onlineOpen, setOnlineOpen] = useState(true);
   const [offlineOpen, setOfflineOpen] = useState<boolean | null>(null);
+  const [botsOpen, setBotsOpen] = useState(true);
   const [card, setCard] = useState<{ userId: string; anchor: DOMRect } | null>(
     null,
   );
 
   const all = members ?? [];
+  const people = all.filter((m) => !isBot(m.kind));
   const searching = query.trim() !== "";
   const groups = splitMembers(all, online, query);
-  const onlineCount = all.filter((m) => online.has(m.userId)).length;
-  const shownCount = groups.online.length + groups.offline.length;
+  const onlineCount = people.filter((m) => online.has(m.userId)).length;
+  const shownCount =
+    groups.online.length + groups.offline.length + groups.bots.length;
   // A search looks through folded groups too.
   const showOffline =
     searching || (offlineOpen ?? all.length <= COLLAPSE_OFFLINE_ABOVE);
@@ -58,7 +62,7 @@ export function MembersPanel({ spaceId }: { spaceId: string }) {
       <h4 className="members-heading">
         Members
         {members &&
-          ` · ${headingText(all.length, onlineCount, shownCount, searching)}`}
+          ` · ${headingText(searching ? all.length : people.length, onlineCount, shownCount, searching)}`}
       </h4>
       <label className="members-search">
         <SearchIcon />
@@ -89,6 +93,14 @@ export function MembersPanel({ spaceId }: { spaceId: string }) {
           onToggle={() => setOfflineOpen(!showOffline)}
         >
           {groups.offline.map(row)}
+        </MemberGroup>
+        <MemberGroup
+          label="Bots"
+          count={groups.bots.length}
+          open={searching || botsOpen}
+          onToggle={() => setBotsOpen((v) => !v)}
+        >
+          {groups.bots.map(row)}
         </MemberGroup>
         {searching && shownCount === 0 && (
           <li className="members-empty muted small">

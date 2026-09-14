@@ -4,6 +4,7 @@ import { fullDateTime, shortDateTime } from "../../api/dates";
 import { useChannels, useMe } from "../../api/queries";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
+import { BotMark } from "../../components/BotMark";
 import { MessageBody } from "../../components/MessageBody";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
@@ -45,7 +46,10 @@ export function ResultRow({
         size="medium"
       />
       <span className="search-row-title">
-        <strong>{who}</strong>
+        <strong>
+          {who}
+          <BotMark kind={message.author?.kind} />
+        </strong>
         <span className="muted"> in #{channel?.name ?? "…"}</span>
       </span>
       <span

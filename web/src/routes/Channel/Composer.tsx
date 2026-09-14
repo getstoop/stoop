@@ -33,6 +33,7 @@ import {
   type PendingAttachment,
 } from "../../components/AttachmentStrip";
 import { messagePreview } from "../../components/Attachments";
+import { BotMark } from "../../components/BotMark";
 import { ComposerOverlay } from "../../components/ComposerOverlay";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
@@ -325,6 +326,7 @@ export function Composer({
             Replying to{" "}
             <strong>
               {replyTo.author?.displayName || replyTo.author?.username}
+              <BotMark kind={replyTo.author?.kind} />
             </strong>
             <span className="muted">
               {" "}

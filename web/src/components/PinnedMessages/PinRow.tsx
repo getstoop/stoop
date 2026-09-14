@@ -4,6 +4,7 @@ import { useMe } from "../../api/queries";
 import type { PinnedMessage } from "../../gen/stoop/chat/v1/pin_pb";
 import { Attachments } from "../Attachments";
 import { Avatar } from "../Avatar";
+import { BotMark } from "../BotMark";
 import { MessageBody } from "../MessageBody";
 
 // One kept message: who said it and when, who pinned it, then the message
@@ -39,7 +40,10 @@ export function PinRow({
           size="small"
         />
         <span className="pin-row-title">
-          <strong>{who}</strong>
+          <strong>
+            {who}
+            <BotMark kind={message.author?.kind} />
+          </strong>
           <span
             className="muted small"
             title={when ? fullDateTime(when) : undefined}

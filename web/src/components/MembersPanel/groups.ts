@@ -1,3 +1,4 @@
+import { isBot } from "../../api/identity";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 
 // Offline members fold away by default once a space is big enough that
@@ -15,22 +16,27 @@ export function matches(m: Member, needle: string): boolean {
   );
 }
 
-// The two groups the panel shows, in the server's role order, narrowed
-// to the search when there is one.
+// The three groups the panel shows, in the server's role order, narrowed
+// to the search when there is one. A bot is never online: it holds no
+// socket, so it gets its own group rather than sitting with the people
+// who went to bed.
 export function splitMembers(
   members: Member[],
   online: Set<string>,
   query: string,
-): { online: Member[]; offline: Member[] } {
+): { online: Member[]; offline: Member[]; bots: Member[] } {
   const needle = query.trim().toLowerCase();
   const shown = needle ? members.filter((m) => matches(m, needle)) : members;
+  const people = shown.filter((m) => !isBot(m.kind));
   return {
-    online: shown.filter((m) => online.has(m.userId)),
-    offline: shown.filter((m) => !online.has(m.userId)),
+    online: people.filter((m) => online.has(m.userId)),
+    offline: people.filter((m) => !online.has(m.userId)),
+    bots: shown.filter((m) => isBot(m.kind)),
   };
 }
 
-// "5/48 online" at rest, "3 of 48 match" while searching.
+// "5/48 online" at rest, counting people; "3 of 48 match" while
+// searching, counting everyone.
 export function headingText(
   total: number,
   onlineCount: number,

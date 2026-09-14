@@ -22,6 +22,7 @@ import { messagePath, shareUrl } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
+import { BotMark } from "../../components/BotMark";
 import { EmojiPicker } from "../../components/EmojiPicker";
 import { PinIcon } from "../../components/Icons";
 import { LinkPreviews } from "../../components/LinkPreviews";
@@ -365,6 +366,7 @@ export function MessageList({
                     {message.replyTo.author?.displayName ||
                       message.replyTo.author?.username ||
                       "deleted"}
+                    <BotMark kind={message.replyTo.author?.kind} />
                   </strong>
                   <span className="reply-preview">
                     {message.replyTo.preview || "(message deleted)"}
@@ -408,6 +410,7 @@ export function MessageList({
                   }
                 >
                   {message.author?.displayName || message.author?.username}
+                  <BotMark kind={message.author?.kind} />
                 </button>
                 <span
                   className="message-time"

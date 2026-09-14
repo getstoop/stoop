@@ -6,12 +6,15 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setBlocked, useBlocked } from "../api/blocks";
 import { openDirectMessage } from "../api/dms";
 import { errorText } from "../api/errors";
+import { isBot } from "../api/identity";
 import { canManageMembers, roleLabel } from "../api/permissions";
 import { useMe, useMember, useSpaces, useUserProfile } from "../api/queries";
 import { presenceClass, presenceLabel } from "../api/status";
+import { InstanceRole } from "../gen/stoop/auth/v1/auth_pb";
 import { useConnectionStore } from "../stores/connection";
 import { confirm, dialogOpen, notice } from "../stores/dialogs";
 import { Avatar } from "./Avatar";
+import { BotMark } from "./BotMark";
 
 // A small profile card, anchored below the element that opened it. Who
 // they are comes from GetUserProfile, so it is the same in a space and in
@@ -46,6 +49,10 @@ export function UserCard({
   const { data: blocked } = useBlocked();
   const isBlocked = !!blocked?.some((u) => u.id === userId);
   const name = profile?.displayName || profile?.username || "them";
+  // A bot can't be messaged, and has no presence; its face and bio are
+  // an instance admin's to set, under Integrations.
+  const bot = isBot(profile?.kind);
+  const instanceAdmin = me?.role === InstanceRole.ADMIN;
   // Roles, kicks and bans are not on this card: they live in the space's
   // settings, where each one is spelled out. Managers get a link there.
   const canManage = !!space && !isSelf && canManageMembers(space);
@@ -138,6 +145,7 @@ export function UserCard({
             <div className="user-card-names">
               <strong>
                 {profile.displayName || profile.username}
+                <BotMark kind={profile.kind} />
                 {profile.pronouns && (
                   <span className="user-card-pronouns">
                     {" "}
@@ -147,13 +155,19 @@ export function UserCard({
               </strong>
               <span className="muted">
                 @{profile.username} ·{" "}
-                <span
-                  className={
-                    isOnline ? `presence ${presenceClass(status)}` : "presence"
-                  }
-                >
-                  {presenceLabel(isOnline, status)}
-                </span>
+                {bot ? (
+                  "bot"
+                ) : (
+                  <span
+                    className={
+                      isOnline
+                        ? `presence ${presenceClass(status)}`
+                        : "presence"
+                    }
+                  >
+                    {presenceLabel(isOnline, status)}
+                  </span>
+                )}
               </span>
             </div>
           </div>
@@ -176,7 +190,7 @@ export function UserCard({
           )}
           {!isSelf && (
             <div className="user-card-actions">
-              {spaceId && (
+              {spaceId && !bot && (
                 <button
                   type="button"
                   className="chip message-button"
@@ -193,6 +207,16 @@ export function UserCard({
                 {isBlocked ? "Unblock" : "Block"}
               </button>
             </div>
+          )}
+          {bot && instanceAdmin && (
+            <Link
+              to="/admin"
+              search={{ tab: "integrations" }}
+              className="muted small card-manage-link"
+              onClick={onClose}
+            >
+              Manage this bot in Server admin
+            </Link>
           )}
           {canManage && (
             <Link

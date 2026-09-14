@@ -1,5 +1,6 @@
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import { initials } from "./Avatar";
+import { BotMark } from "./BotMark";
 
 // Autocomplete list shown above the composer while typing @handle.
 export function MentionPicker({
@@ -28,7 +29,10 @@ export function MentionPicker({
             <span className="avatar small">
               {initials(m.displayName || m.username)}
             </span>
-            <span className="member-name">{m.displayName || m.username}</span>
+            <span className="member-name">
+              {m.displayName || m.username}
+              <BotMark kind={m.kind} />
+            </span>
             <span className="muted small">@{m.username}</span>
           </button>
         </li>
