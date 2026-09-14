@@ -84,12 +84,15 @@ everything it knows comes from three ports: `SessionVerifier` (auth),
 ### Connection lifecycle
 
 1. **Authenticate before upgrading.** `SessionVerifier.VerifyRequest` reads
-   the same cookie or bearer token the Connect interceptor does. A failure
-   is a plain `401`, not a WebSocket close — a client that isn't signed in
-   should find out from HTTP.
+   the same cookie or bearer token the Connect interceptor does and returns
+   the identity with its credential. A failure is a plain `401`, not a
+   WebSocket close — a client that isn't signed in should find out from
+   HTTP. A credential that may not open the socket (a bot's token, in v1)
+   is a `403`.
 2. **Resolve memberships and subscribe**, before the upgrade. The
    subscription exists from the moment the socket does, so nothing
-   published during setup is missed.
+   published during setup is missed. Only the spaces the credential covers
+   are subscribed ([Credentials](#credentials) below).
 3. **Accept the upgrade**, with origin patterns checked against the request
    host, `STOOP_PUBLIC_URL`'s host, and `STOOP_ALLOWED_WS_ORIGINS`.
 4. **Register presence.** The first connection for a user announces them
@@ -114,7 +117,7 @@ subscription:
 
 | Event seen | Action |
 | ---------- | ------ |
-| `SpaceJoined` | `sub.Add("space:"+id)`, record the space in presence, announce presence into it. |
+| `SpaceJoined` | If the credential covers `messages.read` there: `sub.Add("space:"+id)`, record the space in presence, announce presence into it. |
 | `MemberRemoved` (this user) | Leave any voice channel there, `sub.Remove(…)`, drop the space from presence. |
 | `SpaceDeleted` | Same. |
 | `ChannelDeleted` | Clear anyone the gateway believed was in that voice channel. |
@@ -122,6 +125,35 @@ subscription:
 So joining a space mid-session starts delivering its events on the same
 socket, and being kicked stops it — with no reconnect and no separate
 control channel. The event stream is its own control plane.
+
+### Credentials
+
+A connection is opened with a credential — a session, or a personal token
+— and hears only what that credential covers
+([the access model](../proposals/access-model.md)). A session covers
+everything, so the web app sees no difference. For a token,
+`internal/realtime/credential.go` applies three rules:
+
+- **Space topics subscribe only where `messages.read` covers the space.**
+  `Ready.space_ids`, the presence snapshot and the voice snapshot are the
+  covered spaces, not the memberships.
+- **The user topic is always subscribed, and filtered per event.** It is
+  the control plane — `SpaceJoined`, `CredentialRevoked` — so every
+  connection needs it; `admits` then drops direct-message events unless the
+  credential covers `dms.read`, and activity unless it covers
+  `activity.read`. A token limited to spaces reaches neither.
+- **Client events need the matching action.** Typing is relayed only with
+  `messages.post` in that space (or `dms.post`); a voice report is kept
+  only with `voice.join` there.
+
+**Revocation closes the socket.** Every path that deletes a credential —
+logout, a password change, an admin reset, deactivation, revoking a token,
+the expiry sweep — publishes `CredentialRevoked` to the holder's topic. The
+gateway forwards it only to connections opened with that credential, then
+closes them with code **4001**. It goes over the bus rather than a direct
+call so it works the same way a `MessageCreated` does, on every node there
+might one day be. A tab signed out from another tab is therefore told at
+once, and goes to the login page.
 
 ## The wire format
 
@@ -137,6 +169,7 @@ the server side.
 | - | ----- | ----- | ------- |
 | 3 | `ready` | — | Connection established; carries the initial snapshot. |
 | 4 | `ping` | — | Reserved. Liveness today is a WebSocket control ping every 30 s with a 10 s timeout; the envelope pair exists for clients that cannot see control frames. |
+| 5 | `credential_revoked` | user | The credential this socket was opened with is gone; the socket closes with code 4001 right after. Never forwarded to a socket opened with another credential. |
 | 10 | `message_created` | space / user | A `stoop.chat.v1.Message`, the same type `ListMessages` returns. |
 | 11 | `message_deleted` | space / user | |
 | 23 | `message_updated` | space / user | Edits, and link previews arriving after the fact. |
@@ -231,6 +264,9 @@ dependency, and voice works with none configured.
 **One socket, exponential backoff to 15 s.** On open it records the
 connection status; on a *re*connect it calls `queryClient.invalidateQueries()`
 — everything — and re-reports voice state, because the gateway forgot it.
+A close with code 4001 (credential revoked) is the one close it does not
+reconnect from: it invalidates the `me` query instead, which fails, and the
+shell goes to the login page.
 
 **Events are applied directly to the TanStack Query cache.** There is no
 parallel event store and no reducer layer. A `message_created` is spliced

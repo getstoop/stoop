@@ -1,12 +1,14 @@
 # Access model: who asks, with what, for what
 
-Status: decided 2026-09-13. Tracked as STOOP-269 (Access 1–6). Built:
-Access 1 (the vocabulary, the procedure registry, the credential gate),
-Access 2 (the credentials table, bounds, `users.kind`), Access 3
-(`stoop.access.v1.Permission`, `Space.my_permissions`, `GetMe`'s
-permissions) and Access 4 (personal tokens; see
-[identity.md](../architecture/identity.md#personal-tokens)). The rest is
-below.
+Status: decided 2026-09-13, built 2026-09-14. Tracked as STOOP-269
+(Access 1–6). Access 1 (the vocabulary, the procedure registry, the
+credential gate), Access 2 (the credentials table, bounds, `users.kind`),
+Access 3 (`stoop.access.v1.Permission`, `Space.my_permissions`, `GetMe`'s
+permissions), Access 4 (personal tokens; see
+[identity.md](../architecture/identity.md#personal-tokens)) and Access 5
+(`/ws` and `/files` filtered per credential; see
+[realtime.md](../architecture/realtime.md#credentials)) are in. Access 6
+reshaped the webhooks plan (STOOP-256).
 
 Every request answers three questions: **who is asking** (the identity),
 **what they are asking with** (the credential), and **what the ask
@@ -217,12 +219,21 @@ actions in its rule; the handler narrows to one once it knows the channel.
 Surfaces that aren't Connect calls (Access 5):
 
 - `/ws` accepts a session or a personal token; bot tokens are refused in
-  v1. Space topics subscribe only where `messages.read` covers the space;
-  the user topic only where `dms.read` or `activity.read` does.
+  v1. Space topics subscribe only where `messages.read` covers the space.
+  The user topic is always subscribed, because it is the control plane
+  (joins, revocation), and what it delivers is filtered per credential:
+  direct-message events only with `dms.read`, activity only with
+  `activity.read`. Typing needs `messages.post` or `dms.post`; a voice
+  report needs `voice.join`.
+- Every revocation publishes `CredentialRevoked` to the holder's topic;
+  the gateway forwards it to the sockets opened with that credential and
+  closes them (close code 4001). Expiry does the same when the sweep runs.
 - `/files/{id}` accepts a bearer credential and checks `messages.read` on
   the space, or `dms.read` for a DM attachment.
 - Voice tokens, invites and desktop hand-off codes stay outside the table:
-  short-lived tickets minted by a request that already passed both gates.
+  short-lived tickets minted by a request that already passed both gates
+  (`JoinVoiceChannel` needs `voice.join` and a bound that reaches the
+  channel's space).
 
 The client stops copying the role table (Access 3): `Space.my_permissions`
 and the instance list on `GetMe` replace `web/src/api/permissions.ts`.

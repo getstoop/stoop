@@ -134,14 +134,22 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 	}
 	// Anyone holding an old session (a stolen cookie, a forgotten laptop)
 	// is signed out; the caller's own session stays valid.
-	if err := s.q.DeleteOtherSessions(ctx, dbgen.DeleteOtherSessionsParams{
+	sessions, err := s.q.DeleteOtherSessions(ctx, dbgen.DeleteOtherSessionsParams{
 		HolderID: id.UserID, ID: id.SessionID,
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("revoke other sessions: %w", err)
 	}
+	for _, r := range sessions {
+		s.announceRevoked(r.ID, r.HolderID)
+	}
 	if req.Msg.RevokePersonalTokens {
-		if err := s.q.DeleteUserPersonalTokens(ctx, id.UserID); err != nil {
+		tokens, err := s.q.DeleteUserPersonalTokens(ctx, id.UserID)
+		if err != nil {
 			return nil, fmt.Errorf("revoke personal tokens: %w", err)
+		}
+		for _, r := range tokens {
+			s.announceRevoked(r.ID, r.HolderID)
 		}
 	}
 	return connect.NewResponse(&authv1.ChangePasswordResponse{}), nil

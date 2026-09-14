@@ -237,12 +237,15 @@ func (s *Service) revokeToken(ctx context.Context, holderID, tokenID string) err
 	if _, err := uuid.Parse(tokenID); err != nil {
 		return notFound
 	}
-	n, err := s.q.DeletePersonalToken(ctx, dbgen.DeletePersonalTokenParams{ID: tokenID, HolderID: holderID})
+	rows, err := s.q.DeletePersonalToken(ctx, dbgen.DeletePersonalTokenParams{ID: tokenID, HolderID: holderID})
 	if err != nil {
 		return fmt.Errorf("revoke token: %w", err)
 	}
-	if n == 0 {
+	if len(rows) == 0 {
 		return notFound
+	}
+	for _, r := range rows {
+		s.announceRevoked(r.ID, r.HolderID)
 	}
 	return nil
 }

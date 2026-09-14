@@ -23,6 +23,8 @@ and needs no sidecar.
 2. Checks **membership before channel kind**, through
    `voice.ChannelDirectory` (backed by chat) — so a non-member gets
    "not a member" for every channel id and cannot probe which ones exist.
+   The credential gate ran first: the procedure needs `voice.join`, and
+   chat's membership answer honours a token's space bounds.
 3. Looks up the display name through `voice.UserDirectory` (backed by
    auth), because LiveKit shows a participant name to other participants.
 4. Mints a short-lived room token.

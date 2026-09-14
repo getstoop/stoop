@@ -3,7 +3,8 @@
 --
 -- Until the contract migration drops sessions, every revocation also clears
 -- the matching legacy rows, so rolling back to the previous release can't
--- bring a revoked session back.
+-- bring a revoked session back. Every revocation returns what it removed,
+-- so auth can tell the gateway to close the sockets opened with it.
 
 -- CreateSession mints a session for a person. A bot never gets one: the
 -- insert finds no holder and returns no row.
@@ -29,22 +30,25 @@ WHERE c.token_hash = $1
   AND u.deactivated_at IS NULL
 GROUP BY c.id, u.role, u.kind;
 
--- name: DeleteCredential :exec
+-- name: DeleteCredential :many
 WITH legacy AS (DELETE FROM sessions WHERE sessions.id = $1)
-DELETE FROM credentials WHERE credentials.id = $1;
+DELETE FROM credentials WHERE credentials.id = $1
+RETURNING id, holder_id;
 
 -- DeleteOtherSessions signs a person out everywhere except the calling
 -- session (used after a password change).
--- name: DeleteOtherSessions :exec
+-- name: DeleteOtherSessions :many
 WITH legacy AS (DELETE FROM sessions WHERE user_id = sqlc.arg(holder_id) AND sessions.id <> sqlc.arg(id))
 DELETE FROM credentials
-WHERE holder_id = sqlc.arg(holder_id) AND kind = 'session' AND credentials.id <> sqlc.arg(id);
+WHERE holder_id = sqlc.arg(holder_id) AND kind = 'session' AND credentials.id <> sqlc.arg(id)
+RETURNING id, holder_id;
 
 -- DeleteUserCredentials revokes everything an account holds, on
 -- deactivation and on an admin password reset.
--- name: DeleteUserCredentials :exec
+-- name: DeleteUserCredentials :many
 WITH legacy AS (DELETE FROM sessions WHERE user_id = $1)
-DELETE FROM credentials WHERE holder_id = $1;
+DELETE FROM credentials WHERE holder_id = $1
+RETURNING id, holder_id;
 
 -- TouchCredential records a token's use. The caller throttles it.
 -- name: TouchCredential :exec
@@ -71,12 +75,14 @@ WHERE c.holder_id = $1 AND c.kind = 'personal_token'
 GROUP BY c.id
 ORDER BY c.created_at DESC;
 
--- name: DeletePersonalToken :execrows
+-- name: DeletePersonalToken :many
 DELETE FROM credentials
-WHERE id = sqlc.arg(id)::uuid AND holder_id = sqlc.arg(holder_id)::uuid AND kind = 'personal_token';
+WHERE id = sqlc.arg(id)::uuid AND holder_id = sqlc.arg(holder_id)::uuid AND kind = 'personal_token'
+RETURNING id, holder_id;
 
--- name: DeleteUserPersonalTokens :exec
-DELETE FROM credentials WHERE holder_id = $1 AND kind = 'personal_token';
+-- name: DeleteUserPersonalTokens :many
+DELETE FROM credentials WHERE holder_id = $1 AND kind = 'personal_token'
+RETURNING id, holder_id;
 
 -- name: CountPersonalTokensByHolder :many
 SELECT holder_id, count(*) AS n FROM credentials WHERE kind = 'personal_token' GROUP BY holder_id;
@@ -84,8 +90,9 @@ SELECT holder_id, count(*) AS n FROM credentials WHERE kind = 'personal_token' G
 -- SweepCredentials deletes sessions once they expire, and other credentials
 -- once they expired before expired_before, so a list can still explain a
 -- recently expired token.
--- name: SweepCredentials :execrows
+-- name: SweepCredentials :many
 WITH legacy AS (DELETE FROM sessions WHERE sessions.expires_at <= now())
 DELETE FROM credentials
 WHERE (kind = 'session' AND expires_at <= now())
-   OR (kind <> 'session' AND expires_at <= sqlc.arg(expired_before)::timestamptz);
+   OR (kind <> 'session' AND expires_at <= sqlc.arg(expired_before)::timestamptz)
+RETURNING id, holder_id;

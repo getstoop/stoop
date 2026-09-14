@@ -123,7 +123,8 @@ type CreateSessionParams struct {
 //
 // Until the contract migration drops sessions, every revocation also clears
 // the matching legacy rows, so rolling back to the previous release can't
-// bring a revoked session back.
+// bring a revoked session back. Every revocation returns what it removed,
+// so auth can tell the gateway to close the sockets opened with it.
 // CreateSession mints a session for a person. A bot never gets one: the
 // insert finds no holder and returns no row.
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (string, error) {
@@ -138,20 +139,42 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (s
 	return id, err
 }
 
-const deleteCredential = `-- name: DeleteCredential :exec
+const deleteCredential = `-- name: DeleteCredential :many
 WITH legacy AS (DELETE FROM sessions WHERE sessions.id = $1)
 DELETE FROM credentials WHERE credentials.id = $1
+RETURNING id, holder_id
 `
 
-func (q *Queries) DeleteCredential(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, deleteCredential, id)
-	return err
+type DeleteCredentialRow struct {
+	ID       string
+	HolderID string
 }
 
-const deleteOtherSessions = `-- name: DeleteOtherSessions :exec
+func (q *Queries) DeleteCredential(ctx context.Context, id string) ([]DeleteCredentialRow, error) {
+	rows, err := q.db.Query(ctx, deleteCredential, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteCredentialRow
+	for rows.Next() {
+		var i DeleteCredentialRow
+		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteOtherSessions = `-- name: DeleteOtherSessions :many
 WITH legacy AS (DELETE FROM sessions WHERE user_id = $1 AND sessions.id <> $2)
 DELETE FROM credentials
 WHERE holder_id = $1 AND kind = 'session' AND credentials.id <> $2
+RETURNING id, holder_id
 `
 
 type DeleteOtherSessionsParams struct {
@@ -159,16 +182,37 @@ type DeleteOtherSessionsParams struct {
 	ID       string
 }
 
-// DeleteOtherSessions signs a person out everywhere except the calling
-// session (used after a password change).
-func (q *Queries) DeleteOtherSessions(ctx context.Context, arg DeleteOtherSessionsParams) error {
-	_, err := q.db.Exec(ctx, deleteOtherSessions, arg.HolderID, arg.ID)
-	return err
+type DeleteOtherSessionsRow struct {
+	ID       string
+	HolderID string
 }
 
-const deletePersonalToken = `-- name: DeletePersonalToken :execrows
+// DeleteOtherSessions signs a person out everywhere except the calling
+// session (used after a password change).
+func (q *Queries) DeleteOtherSessions(ctx context.Context, arg DeleteOtherSessionsParams) ([]DeleteOtherSessionsRow, error) {
+	rows, err := q.db.Query(ctx, deleteOtherSessions, arg.HolderID, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteOtherSessionsRow
+	for rows.Next() {
+		var i DeleteOtherSessionsRow
+		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deletePersonalToken = `-- name: DeletePersonalToken :many
 DELETE FROM credentials
 WHERE id = $1::uuid AND holder_id = $2::uuid AND kind = 'personal_token'
+RETURNING id, holder_id
 `
 
 type DeletePersonalTokenParams struct {
@@ -176,33 +220,92 @@ type DeletePersonalTokenParams struct {
 	HolderID string
 }
 
-func (q *Queries) DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) (int64, error) {
-	result, err := q.db.Exec(ctx, deletePersonalToken, arg.ID, arg.HolderID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+type DeletePersonalTokenRow struct {
+	ID       string
+	HolderID string
 }
 
-const deleteUserCredentials = `-- name: DeleteUserCredentials :exec
+func (q *Queries) DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) ([]DeletePersonalTokenRow, error) {
+	rows, err := q.db.Query(ctx, deletePersonalToken, arg.ID, arg.HolderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeletePersonalTokenRow
+	for rows.Next() {
+		var i DeletePersonalTokenRow
+		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteUserCredentials = `-- name: DeleteUserCredentials :many
 WITH legacy AS (DELETE FROM sessions WHERE user_id = $1)
 DELETE FROM credentials WHERE holder_id = $1
+RETURNING id, holder_id
 `
+
+type DeleteUserCredentialsRow struct {
+	ID       string
+	HolderID string
+}
 
 // DeleteUserCredentials revokes everything an account holds, on
 // deactivation and on an admin password reset.
-func (q *Queries) DeleteUserCredentials(ctx context.Context, holderID string) error {
-	_, err := q.db.Exec(ctx, deleteUserCredentials, holderID)
-	return err
+func (q *Queries) DeleteUserCredentials(ctx context.Context, holderID string) ([]DeleteUserCredentialsRow, error) {
+	rows, err := q.db.Query(ctx, deleteUserCredentials, holderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteUserCredentialsRow
+	for rows.Next() {
+		var i DeleteUserCredentialsRow
+		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
-const deleteUserPersonalTokens = `-- name: DeleteUserPersonalTokens :exec
+const deleteUserPersonalTokens = `-- name: DeleteUserPersonalTokens :many
 DELETE FROM credentials WHERE holder_id = $1 AND kind = 'personal_token'
+RETURNING id, holder_id
 `
 
-func (q *Queries) DeleteUserPersonalTokens(ctx context.Context, holderID string) error {
-	_, err := q.db.Exec(ctx, deleteUserPersonalTokens, holderID)
-	return err
+type DeleteUserPersonalTokensRow struct {
+	ID       string
+	HolderID string
+}
+
+func (q *Queries) DeleteUserPersonalTokens(ctx context.Context, holderID string) ([]DeleteUserPersonalTokensRow, error) {
+	rows, err := q.db.Query(ctx, deleteUserPersonalTokens, holderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteUserPersonalTokensRow
+	for rows.Next() {
+		var i DeleteUserPersonalTokensRow
+		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getCredentialByTokenHash = `-- name: GetCredentialByTokenHash :one
@@ -305,22 +408,40 @@ func (q *Queries) ListPersonalTokens(ctx context.Context, holderID string) ([]Li
 	return items, nil
 }
 
-const sweepCredentials = `-- name: SweepCredentials :execrows
+const sweepCredentials = `-- name: SweepCredentials :many
 WITH legacy AS (DELETE FROM sessions WHERE sessions.expires_at <= now())
 DELETE FROM credentials
 WHERE (kind = 'session' AND expires_at <= now())
    OR (kind <> 'session' AND expires_at <= $1::timestamptz)
+RETURNING id, holder_id
 `
+
+type SweepCredentialsRow struct {
+	ID       string
+	HolderID string
+}
 
 // SweepCredentials deletes sessions once they expire, and other credentials
 // once they expired before expired_before, so a list can still explain a
 // recently expired token.
-func (q *Queries) SweepCredentials(ctx context.Context, expiredBefore time.Time) (int64, error) {
-	result, err := q.db.Exec(ctx, sweepCredentials, expiredBefore)
+func (q *Queries) SweepCredentials(ctx context.Context, expiredBefore time.Time) ([]SweepCredentialsRow, error) {
+	rows, err := q.db.Query(ctx, sweepCredentials, expiredBefore)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return result.RowsAffected(), nil
+	defer rows.Close()
+	var items []SweepCredentialsRow
+	for rows.Next() {
+		var i SweepCredentialsRow
+		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const touchCredential = `-- name: TouchCredential :exec

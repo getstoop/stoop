@@ -15,11 +15,14 @@ const credentialSweepDelay = time.Minute
 // SweepCredentials deletes expired credentials, and the legacy sessions
 // rows that expired with them.
 func (s *Service) SweepCredentials(ctx context.Context) (int64, error) {
-	n, err := s.q.SweepCredentials(ctx, time.Now().Add(-expiredTokenKeep))
+	rows, err := s.q.SweepCredentials(ctx, time.Now().Add(-expiredTokenKeep))
 	if err != nil {
 		return 0, fmt.Errorf("sweep credentials: %w", err)
 	}
-	return n, nil
+	for _, r := range rows {
+		s.announceRevoked(r.ID, r.HolderID)
+	}
+	return int64(len(rows)), nil
 }
 
 // RunCredentialSweeper sweeps on a timer until ctx ends: once shortly after

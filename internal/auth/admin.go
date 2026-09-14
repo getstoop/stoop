@@ -79,8 +79,8 @@ func (s *Service) SetAccountActive(ctx context.Context, userID string, active bo
 		return AccountSummary{}, notFoundOr(err, "user")
 	}
 	if !active {
-		if err := s.q.DeleteUserCredentials(ctx, userID); err != nil {
-			return AccountSummary{}, fmt.Errorf("revoke credentials: %w", err)
+		if err := s.revokeAll(ctx, userID); err != nil {
+			return AccountSummary{}, err
 		}
 	}
 	return toSummary(u), nil

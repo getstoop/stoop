@@ -100,11 +100,14 @@ browser's download machinery work.
 
 | Kind | Visible to |
 | ---- | ---------- |
-| `avatar` | Any signed-in user. The same line drawn for profiles. |
+| `avatar` | Any signed-in user, with any credential. The same line drawn for profiles. |
 | `link_preview` | Any signed-in user. The bytes are a public page's own preview image, fetched by the server; gating them per message would mean a membership check per card. |
 | `space_icon` | The space's members, and instance admins. |
-| `attachment` (space) | The space's members, and instance admins. |
-| `attachment` (DM) | The uploader and the DM's participants — **no admin bypass**. |
+| `attachment` (space) | The space's members, and instance admins — as chat's `MayReadSpace` decides, which includes the credential's grant and bounds (`messages.read` in that space). |
+| `attachment` (DM) | The uploader and the DM's participants — **no admin bypass** — with a credential that covers `dms.read`. |
+
+The handler takes the session cookie or a bearer credential (a personal
+token), through the same `SessionVerifier` port as `/ws`.
 
 Downloads are served **through the app rather than by presigned URL**, so
 authorisation stays in one place. A presigned URL is a capability that

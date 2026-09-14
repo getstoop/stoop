@@ -1,7 +1,7 @@
 // Package realtime is the WebSocket gateway: it holds one authenticated
-// connection per client, subscribes it to the bus topics the user is entitled
-// to, and pushes protobuf-encoded ServerEvent frames. It never talks to the
-// database or other modules directly — only through its ports.
+// connection per client, subscribes it to the bus topics its credential
+// covers, and pushes protobuf-encoded ServerEvent frames. It never talks to
+// the database or other modules directly — only through its ports.
 package realtime
 
 import (
@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -28,10 +29,10 @@ const (
 )
 
 // SessionVerifier authenticates the WebSocket upgrade from the request
-// headers (cookie or bearer token); implemented by the auth module, wired in
-// internal/app.
+// headers (cookie or bearer token): who is calling, with what credential.
+// Implemented by the auth module, wired in internal/app.
 type SessionVerifier interface {
-	VerifyRequest(ctx context.Context, h http.Header) (userID string, err error)
+	VerifyRequest(ctx context.Context, h http.Header) (authctx.Identity, error)
 }
 
 // MembershipLister reports which spaces a user belongs to; implemented by
@@ -68,18 +69,26 @@ func NewGateway(bus events.Bus, verifier SessionVerifier, members MembershipList
 func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID, err := g.verifier.VerifyRequest(ctx, r.Header)
+	id, err := g.verifier.VerifyRequest(ctx, r.Header)
 	if err != nil {
 		http.Error(w, "authentication required", http.StatusUnauthorized)
 		return
 	}
+	if !opensSocket(id.Credential.Kind) {
+		http.Error(w, "this credential can't open a realtime connection", http.StatusForbidden)
+		return
+	}
+	userID, cred := id.UserID, id.Credential
 
-	spaceIDs, err := g.members.ListSpaceIDs(ctx, userID)
+	memberOf, err := g.members.ListSpaceIDs(ctx, userID)
 	if err != nil {
 		g.log.Error("list memberships", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	// Only the spaces the credential may read are subscribed, snapshotted
+	// and counted for presence.
+	spaceIDs := coveredSpaces(cred, memberOf)
 
 	topics := make([]string, 0, len(spaceIDs)+1)
 	topics = append(topics, "user:"+userID)
@@ -132,10 +141,10 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if t := ev.GetTyping(); t != nil {
-				g.relayTyping(ctx, userID, sub, t, lastTyping)
+				g.relayTyping(ctx, userID, cred, sub, t, lastTyping)
 			}
 			if vs := ev.GetVoiceState(); vs != nil {
-				g.handleVoiceState(ctx, userID, connID, sub, vs)
+				g.handleVoiceState(ctx, userID, cred, connID, sub, vs)
 			}
 			if st := ev.GetSetStatus(); st != nil {
 				if g.presence.setStatus(userID, st.Status) {
@@ -158,7 +167,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g.log.Info("ws connected", "user_id", userID)
+	g.log.Info("ws connected", "user_id", userID, "credential", cred.Kind)
 	defer g.log.Info("ws disconnected", "user_id", userID)
 
 	pings := time.NewTicker(pingInterval)
@@ -184,8 +193,8 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Joining a space while connected: start receiving its events
-			// on this same connection.
-			if joined := ev.GetSpaceJoined(); joined != nil {
+			// on this same connection, if the credential reaches it.
+			if joined := ev.GetSpaceJoined(); joined != nil && coversSpace(cred, authctx.MessagesRead, joined.Space.Id) {
 				sub.Add("space:" + joined.Space.Id)
 				g.presence.addSpace(userID, joined.Space.Id)
 				g.publishPresence(userID, []string{joined.Space.Id}, true)
@@ -204,7 +213,16 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if deleted := ev.GetChannelDeleted(); deleted != nil {
 				g.channelDeleted(deleted.ChannelId)
 			}
+			if !admits(cred, ev) {
+				continue
+			}
 			if err := g.send(ctx, conn, ev); err != nil {
+				return
+			}
+			// The credential this socket was opened with is gone: the
+			// client has been told, and must not come back with it.
+			if ev.GetCredentialRevoked() != nil {
+				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
 				return
 			}
 		}
@@ -228,8 +246,9 @@ func (g *Gateway) publishPresence(userID string, spaceIDs []string, online bool)
 // relayTyping rebroadcasts a typing hint — to the space, if the connection
 // is actually subscribed to it, or (with no space) to the direct message's
 // other participants, if the sender is one — unless it relayed for this
-// channel a moment ago.
-func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, t *realtimev1.Typing, last map[string]time.Time) {
+// channel a moment ago. Typing is a promise to post, so the credential
+// must cover posting there.
+func (g *Gateway) relayTyping(ctx context.Context, userID string, cred authctx.Credential, sub *events.Subscription, t *realtimev1.Typing, last map[string]time.Time) {
 	if t.ChannelId == "" {
 		return
 	}
@@ -241,11 +260,14 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Su
 
 	var topics []string
 	if t.SpaceId != "" {
-		if !sub.Has("space:" + t.SpaceId) {
+		if !sub.Has("space:"+t.SpaceId) || !coversSpace(cred, authctx.MessagesPost, t.SpaceId) {
 			return
 		}
 		topics = []string{"space:" + t.SpaceId}
 	} else {
+		if !coversOwn(cred, authctx.DMsPost) {
+			return
+		}
 		ids, err := g.channels.DMParticipants(ctx, t.ChannelId)
 		if err != nil {
 			g.log.Error("resolve dm participants", "err", err)
