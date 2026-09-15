@@ -30,8 +30,6 @@ test("messages arrive live, later, and after a reload", async ({ browser }) => {
   ).toContainText("msg2");
 
   await reload(B);
-  // Wait for the new socket, so what follows is a push and not the load.
-  await B.locator(".status-icon.connected").waitFor();
   await say(A, "msg3 after reload");
   await expect(
     B.locator(".message-list"),

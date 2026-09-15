@@ -208,6 +208,20 @@ func TestE2EOutgoingDeliveries(t *testing.T) {
 	if d.headers.Get("Stoop-Delivery") != again.str("delivery.id") || d.body["data"].(map[string]any)["content"] != "gone" {
 		t.Errorf("redelivery = %v %s", d.headers.Get("Stoop-Delivery"), d.raw)
 	}
+	// The receiver has it before the dispatcher has recorded the response,
+	// and until then a redelivery is refused as still in progress instead.
+	var recorded bool
+	for i := 0; i < 50 && !recorded; i++ {
+		for _, dl := range h.rpc(casey, "stoop.integrations.v1.IntegrationService/ListDeliveries", map[string]any{"webhookId": hookID}).expect(t, "ok").list("deliveries") {
+			if dm := dl.(map[string]any); dm["id"] == again.str("delivery.id") && dm["statusCode"] == float64(200) {
+				recorded = true
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !recorded {
+		t.Fatal("the redelivery was never recorded as delivered")
+	}
 	// A delivered item's body is not kept, so it can't be sent twice.
 	h.rpc(casey, "stoop.integrations.v1.IntegrationService/RedeliverDelivery", map[string]any{"deliveryId": again.str("delivery.id")}).expect(t, "failed_precondition", "not kept")
 
