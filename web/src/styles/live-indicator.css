@@ -54,38 +54,71 @@
   animation: pulse 1.2s ease-in-out infinite;
 }
 
-/* A call's first moment, once per call (LiveIndicator/index.tsx): the rail
-   pill grows in and pushes the rest of the rail down, the header pill pops
-   in, and either then pings twice in its own colour. */
-/* backwards, never both or forwards: an animation still holding a transform
-   makes its element the box every fixed descendant is measured from. */
-.live-indicator.rail.intro {
-  animation: live-grow 320ms cubic-bezier(0.2, 0, 0, 1) backwards;
+/* A call's first and last moments (LiveIndicator/index.tsx). Only
+   transform and opacity move, so the compositor keeps them smooth while
+   the page is busy joining: loading livekit-client and connecting land on
+   the same frames. Nothing holds its end frame into the settled state — a
+   held transform makes its element the box fixed descendants are measured
+   from. */
+
+.live-indicator.intro .live-pill {
+  animation: live-pop 280ms cubic-bezier(0.2, 0, 0, 1) backwards;
 }
 
-.live-indicator.header.intro .live-pill {
-  animation: live-pop 260ms cubic-bezier(0.2, 0, 0, 1) backwards;
+.live-indicator.rail.intro .rail-divider {
+  animation: live-fade 280ms ease-out backwards;
 }
 
-/* The call has ended: the rail pill shrinks back up and the rail follows,
-   the header pill pops out. The component unmounts it when this ends. */
+/* The rail makes room: everything under the pill starts where the pill
+   now is and slides down into place. */
+.space-rail-top:has(> .live-indicator.rail.intro) > :not(.live-indicator) {
+  animation: live-push 320ms cubic-bezier(0.2, 0, 0, 1) backwards;
+}
+
+/* Then a ring pings out of it twice, in its own colour. */
+.live-indicator.intro .live-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid currentColor;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  animation: live-ping 900ms ease-out 300ms 2;
+}
+
+.live-pill.screen::after,
+.live-pill.error::after {
+  color: var(--danger);
+}
+
+/* The call has ended: the pill pops out and the rail closes the gap,
+   sliding up to where it sits once the pill unmounts. Unmounting drops
+   these rules in the same frame as the space they covered. */
 .live-indicator.outro {
   pointer-events: none;
 }
 
-.live-indicator.rail.outro {
-  animation: live-shrink 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+.live-indicator.outro .live-pill,
+.live-indicator.rail.outro .rail-divider {
+  animation: live-unpop 240ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
-.live-indicator.header.outro .live-pill {
-  animation: live-unpop 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+.space-rail-top:has(> .live-indicator.rail.outro) > :not(.live-indicator) {
+  animation: live-pull 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
-@keyframes live-shrink {
-  to {
-    margin-top: -62px;
+@keyframes live-pop {
+  from {
     opacity: 0;
-    transform: scale(0.6);
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.1);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -96,63 +129,44 @@
   }
 }
 
-.live-indicator.intro .live-pill::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  animation: live-ping 900ms ease-out 320ms 2;
-}
-
-.live-pill.screen::after,
-.live-pill.error::after {
-  color: var(--danger);
-}
-
-@keyframes live-grow {
-  from {
-    margin-top: -62px;
-    opacity: 0;
-    transform: scale(0.6);
-  }
-  to {
-    margin-top: 0;
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes live-pop {
+@keyframes live-fade {
   from {
     opacity: 0;
-    transform: scale(0.4);
   }
-  70% {
-    transform: scale(1.12);
+}
+
+/* 62px: the pill, the divider under it and the two gaps. */
+@keyframes live-push {
+  from {
+    transform: translateY(-62px);
   }
+}
+
+@keyframes live-pull {
   to {
-    opacity: 1;
-    transform: none;
+    transform: translateY(-62px);
   }
 }
 
 @keyframes live-ping {
   from {
-    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent);
+    opacity: 0.7;
+    transform: scale(1);
   }
   to {
-    box-shadow: 0 0 0 12px transparent;
+    opacity: 0;
+    transform: scale(1.6);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .live-pill.joining svg,
-  .live-indicator.intro,
   .live-indicator.intro .live-pill,
   .live-indicator.intro .live-pill::after,
-  .live-indicator.outro,
-  .live-indicator.outro .live-pill {
+  .live-indicator.rail .rail-divider,
+  .live-indicator.outro .live-pill,
+  .space-rail-top:has(> .live-indicator.intro) > :not(.live-indicator),
+  .space-rail-top:has(> .live-indicator.outro) > :not(.live-indicator) {
     animation: none;
   }
 }
