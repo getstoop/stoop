@@ -254,7 +254,7 @@ only the feed. Inside a muted space the channel menu's mute item reads
 bell, so the dimmed rows explain themselves.
 
 Two neighbouring mechanisms are not mutes. **Do not disturb** is a
-presence status that silences every banner while set, on top of mutes
+choice on the account that holds every banner, on every device, on top of mutes
 ([realtime.md](realtime.md)): it is about the person, mutes are about
 rooms. **Blocks** are unrelated: a blocked person raises no activity at
 all, filtered at delivery before any of this.

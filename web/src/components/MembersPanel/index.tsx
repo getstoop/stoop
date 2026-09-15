@@ -14,7 +14,7 @@ import { MemberRow } from "./MemberRow";
 export function MembersPanel({ spaceId }: { spaceId: string }) {
   const { data: members } = useMembers(spaceId);
   const online = useConnectionStore((s) => s.online);
-  const presence = useConnectionStore((s) => s.presence);
+  const dnd = useConnectionStore((s) => s.dnd);
   const [query, setQuery] = useState("");
   // The panel keeps the height it had when the search began, so the
   // field does not move as the results narrow.
@@ -48,7 +48,7 @@ export function MembersPanel({ spaceId }: { spaceId: string }) {
       key={m.userId}
       member={m}
       online={online.has(m.userId)}
-      presence={presence[m.userId]}
+      dnd={dnd[m.userId]}
       onOpen={(anchor) => setCard({ userId: m.userId, anchor })}
     />
   );

@@ -12,6 +12,7 @@ import { chatClient } from "../api/clients";
 import { dmUnreadTotal, useDirectMessages } from "../api/dms";
 import { errorText } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
+import { dndActive, presenceClass } from "../api/presence";
 import {
   useActivity,
   useInstanceStatus,
@@ -19,7 +20,6 @@ import {
   useMyPermissions,
   useSpaces,
 } from "../api/queries";
-import { presenceClass } from "../api/status";
 import { badgeCount, isAlerting } from "../api/unreads";
 import { startVoiceBridge } from "../api/voiceBridge";
 import { startRealtime } from "../api/ws";
@@ -67,20 +67,24 @@ export function AppShell() {
     });
   }, [isError, navigate, router]);
 
-  useEffect(() => {
-    if (!me) return;
-    return startRealtime(queryClient);
-  }, [me, queryClient]);
+  // Keyed on who is signed in rather than on the user object, which do not
+  // disturb and profile edits replace without anyone signing in or out.
+  const userId = me?.id;
 
   useEffect(() => {
-    if (!me) return;
+    if (!userId) return;
+    return startRealtime(queryClient);
+  }, [userId, queryClient]);
+
+  useEffect(() => {
+    if (!userId) return;
     return startVoiceBridge(queryClient, (spaceId, channelId) =>
       navigate({
         to: "/s/$spaceId/c/$channelId",
         params: { spaceId, channelId },
       }),
     );
-  }, [me, queryClient, navigate]);
+  }, [userId, queryClient, navigate]);
 
   if (isLoading || isError || !me) {
     return <div className="centered muted">Loading…</div>;
@@ -115,7 +119,7 @@ function SpaceRail() {
     instanceStatus?.spaceCreation === SpaceCreationPolicy.EVERYONE;
   const { spaceId } = useParams({ strict: false }) as { spaceId?: string };
   const status = useConnectionStore((s) => s.status);
-  const myStatus = useConnectionStore((s) => s.myStatus);
+  const onDnd = dndActive(me);
   const navigate = useNavigate();
 
   const createSpace = async () => {
@@ -264,8 +268,8 @@ function SpaceRail() {
           {me ? (
             <Avatar name={me.displayName} fileId={me.avatarFileId}>
               <span
-                className={`online-dot ${presenceClass(myStatus)}`}
-                title={`You're ${presenceClass(myStatus) === "dnd" ? "on do not disturb" : presenceClass(myStatus)}`}
+                className={`online-dot ${presenceClass(onDnd)}`}
+                title={onDnd ? "You're on do not disturb" : "You're online"}
               />
             </Avatar>
           ) : (

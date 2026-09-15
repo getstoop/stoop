@@ -11,6 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -335,57 +336,85 @@ func TestVoiceState(t *testing.T) {
 	_ = alice.conn.Close(websocket.StatusNormalClosure, "")
 }
 
-func TestStatus(t *testing.T) {
+// The do-not-disturb lookup as the auth module would answer it on connect.
+type fakeDnd map[string]bool
+
+func (f fakeDnd) DoNotDisturb(_ context.Context, userID string) (bool, *time.Time, error) {
+	return f[userID], nil, nil
+}
+
+func dndIn(r *realtimev1.Ready, userID string) (dnd, listed bool) {
+	for _, p := range r.GetPresences() {
+		if p.UserId == userID {
+			return p.Dnd, true
+		}
+	}
+	return false, false
+}
+
+func TestDoNotDisturb(t *testing.T) {
 	bus := events.NewInProcBus()
 	gw := realtime.NewGateway(bus, fakeVerifier{}, fakeMembers{
 		"alice": {"s1"}, "bob": {"s1"},
 	}, fakeVoiceChannels{}, []string{"*"}, slog.Default())
+	gw.UseDoNotDisturb(fakeDnd{"alice": true})
 	mux := http.NewServeMux()
 	mux.Handle("/ws", gw)
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
+	// Alice is already on do not disturb when she connects. It is read on
+	// connect, so her own Ready and bob's both show it.
 	alice := dial(t, srv, "alice")
-	if r := alice.next(time.Second).GetReady(); r == nil || len(r.Presences) != 1 ||
-		r.Presences[0].Status != realtimev1.PresenceStatus_PRESENCE_STATUS_ONLINE {
-		t.Fatalf("alice ready presences = %+v", r)
-	}
-	// Alice goes DND: bob's Ready shows it, and a change reaches him live.
-	alice.send(&realtimev1.ClientEvent{Payload: &realtimev1.ClientEvent_SetStatus{
-		SetStatus: &realtimev1.SetStatus{Status: realtimev1.PresenceStatus_PRESENCE_STATUS_DND},
-	}})
-	if ev := alice.waitFor(func(ev *realtimev1.ServerEvent) bool {
-		p := ev.GetPresenceChanged()
-		return p != nil && p.UserId == "alice" && p.Status == realtimev1.PresenceStatus_PRESENCE_STATUS_DND
-	}); ev == nil {
-		t.Fatal("alice never saw her own status change")
+	if dnd, listed := dndIn(alice.next(time.Second).GetReady(), "alice"); !listed || !dnd {
+		t.Fatalf("alice's Ready: dnd %v (listed %v), want on", dnd, listed)
 	}
 	bob := dial(t, srv, "bob")
-	r := bob.next(time.Second).GetReady()
-	var got realtimev1.PresenceStatus
-	for _, p := range r.GetPresences() {
-		if p.UserId == "alice" {
-			got = p.Status
+	if dnd, listed := dndIn(bob.next(time.Second).GetReady(), "alice"); !listed || !dnd {
+		t.Fatalf("bob's Ready: alice dnd %v (listed %v), want on", dnd, listed)
+	}
+
+	changed := func(on bool, until *time.Time) {
+		c := &realtimev1.DoNotDisturbChanged{UserId: "alice", Dnd: on}
+		if until != nil {
+			c.Until = timestamppb.New(*until)
 		}
+		bus.Publish("user:alice", events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_DoNotDisturbChanged{DoNotDisturbChanged: c},
+		}))
 	}
-	if got != realtimev1.PresenceStatus_PRESENCE_STATUS_DND {
-		t.Errorf("bob's Ready: alice status %v, want DND", got)
+	heard := func(c *client, dnd bool) bool {
+		return c.waitFor(func(ev *realtimev1.ServerEvent) bool {
+			p := ev.GetPresenceChanged()
+			return p != nil && p.UserId == "alice" && p.Online && p.Dnd == dnd
+		}) != nil
 	}
-	alice.send(&realtimev1.ClientEvent{Payload: &realtimev1.ClientEvent_SetStatus{
-		SetStatus: &realtimev1.SetStatus{Status: realtimev1.PresenceStatus_PRESENCE_STATUS_AWAY},
-	}})
-	if ev := bob.waitFor(func(ev *realtimev1.ServerEvent) bool {
-		p := ev.GetPresenceChanged()
-		return p != nil && p.UserId == "alice" && p.Online && p.Status == realtimev1.PresenceStatus_PRESENCE_STATUS_AWAY
-	}); ev == nil {
-		t.Error("bob never heard alice go away")
+
+	// Turned off on another device: bob hears it live, and alice's own
+	// client gets the change itself.
+	changed(false, nil)
+	if !heard(bob, false) {
+		t.Fatal("bob never heard alice's do not disturb end")
 	}
-	// The same status again is not re-announced.
-	alice.send(&realtimev1.ClientEvent{Payload: &realtimev1.ClientEvent_SetStatus{
-		SetStatus: &realtimev1.SetStatus{Status: realtimev1.PresenceStatus_PRESENCE_STATUS_AWAY},
-	}})
+	if alice.waitFor(func(ev *realtimev1.ServerEvent) bool { return ev.GetDoNotDisturbChanged() != nil }) == nil {
+		t.Error("alice's own client never got DoNotDisturbChanged")
+	}
+
+	// The same state again announces nothing.
+	changed(false, nil)
 	if ev := bob.next(300 * time.Millisecond); ev != nil && ev.GetPresenceChanged() != nil {
-		t.Errorf("unchanged status was re-announced: %v", ev.Payload)
+		t.Errorf("unchanged do not disturb was re-announced: %v", ev.Payload)
+	}
+
+	// On until a moment from now: announced, then ended by the gateway's
+	// own timer with nothing else published.
+	until := time.Now().Add(400 * time.Millisecond)
+	changed(true, &until)
+	if !heard(bob, true) {
+		t.Fatal("bob never heard alice go on do not disturb")
+	}
+	if !heard(bob, false) {
+		t.Fatal("do not disturb never ended at its end time")
 	}
 }
 

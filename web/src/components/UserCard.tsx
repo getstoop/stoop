@@ -8,8 +8,8 @@ import { openDirectMessage } from "../api/dms";
 import { errorText } from "../api/errors";
 import { isBot } from "../api/identity";
 import { canManageMembers, roleLabel } from "../api/permissions";
+import { presenceClass, presenceLabel } from "../api/presence";
 import { useMe, useMember, useSpaces, useUserProfile } from "../api/queries";
-import { presenceClass, presenceLabel } from "../api/status";
 import { InstanceRole } from "../gen/stoop/auth/v1/auth_pb";
 import { useConnectionStore } from "../stores/connection";
 import { confirm, dialogOpen, notice } from "../stores/dialogs";
@@ -39,7 +39,7 @@ export function UserCard({
   const { error, isLoading } = profileQuery;
   const navigate = useNavigate();
   const isOnline = useConnectionStore((s) => s.online.has(userId));
-  const status = useConnectionStore((s) => s.presence[userId]);
+  const dnd = useConnectionStore((s) => s.dnd[userId]);
   const { data: me } = useMe();
   const { data: spaces } = useSpaces();
   const queryClient = useQueryClient();
@@ -161,12 +161,10 @@ export function UserCard({
                 ) : (
                   <span
                     className={
-                      isOnline
-                        ? `presence ${presenceClass(status)}`
-                        : "presence"
+                      isOnline ? `presence ${presenceClass(dnd)}` : "presence"
                     }
                   >
-                    {presenceLabel(isOnline, status)}
+                    {presenceLabel(isOnline, dnd)}
                   </span>
                 )}
               </span>

@@ -41,11 +41,18 @@ type MembershipLister interface {
 	ListSpaceIDs(ctx context.Context, userID string) ([]string, error)
 }
 
+// DoNotDisturbLookup reports whether a person is on do not disturb and when
+// it ends; implemented by the auth module, wired in internal/app.
+type DoNotDisturbLookup interface {
+	DoNotDisturb(ctx context.Context, userID string) (on bool, until *time.Time, err error)
+}
+
 type Gateway struct {
 	bus            events.Bus
 	verifier       SessionVerifier
 	members        MembershipLister
 	channels       ChannelLookup
+	dnd            DoNotDisturbLookup
 	originPatterns []string
 	log            *slog.Logger
 	presence       *presence
@@ -118,9 +125,15 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer g.leaveVoice(userID, connID, "")
 
 	// Presence: first connection announces "online" to the user's spaces,
-	// last disconnect announces "offline".
-	if g.presence.connect(userID, spaceIDs) {
-		g.publishPresence(userID, spaceIDs, true)
+	// last disconnect announces "offline". Do not disturb is read again on
+	// every connect, which also rebuilds an end timer a restart lost.
+	first := g.presence.connect(userID, spaceIDs)
+	changed := false
+	if s, ok := g.lookupDoNotDisturb(ctx, userID); ok {
+		changed = g.applyDoNotDisturb(userID, s)
+	}
+	if first || changed {
+		g.publishPresence(userID, g.presence.spacesOf(userID), true)
 	}
 	defer func() {
 		if g.presence.disconnect(userID) {
@@ -147,11 +160,6 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			if vs := ev.GetVoiceState(); vs != nil {
 				g.handleVoiceState(ctx, userID, cred, connID, sub, vs)
-			}
-			if st := ev.GetSetStatus(); st != nil {
-				if g.presence.setStatus(userID, st.Status) {
-					g.publishPresence(userID, spaceIDs, true)
-				}
 			}
 		}
 	}()
@@ -223,6 +231,13 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if deleted := ev.GetChannelDeleted(); deleted != nil {
 				g.channelDeleted(deleted.ChannelId)
 			}
+			// Set from any of the person's devices. Every connection hears
+			// it; only the first to apply it finds a change to announce.
+			if dnd := ev.GetDoNotDisturbChanged(); dnd != nil && dnd.UserId == userID {
+				if g.applyDoNotDisturb(userID, dndFrom(dnd)) {
+					g.publishPresence(userID, g.presence.spacesOf(userID), true)
+				}
+			}
 			if !admits(cred, ev) {
 				continue
 			}
@@ -240,14 +255,11 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *Gateway) publishPresence(userID string, spaceIDs []string, online bool) {
-	var status realtimev1.PresenceStatus
-	if online {
-		status = g.presence.statusOf(userID)
-	}
+	dnd := online && g.presence.dndOf(userID)
 	for _, s := range spaceIDs {
 		g.bus.Publish("space:"+s, events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_PresenceChanged{
-				PresenceChanged: &realtimev1.PresenceChanged{UserId: userID, Online: online, Status: status},
+				PresenceChanged: &realtimev1.PresenceChanged{UserId: userID, Online: online, Dnd: dnd},
 			},
 		}))
 	}

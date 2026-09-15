@@ -120,6 +120,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	// The other direction: chat ends calls through the SFU.
 	chatSvc.UseVoiceRooms(voiceSvc)
 	gateway := realtime.NewGateway(bus, identityVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
+	gateway.UseDoNotDisturb(authSvc)
 	chatSvc.UsePresence(gateway)
 	filesSvc := files.New(pool, store, bus, authSvc, chatSvc, identityVerifier{authSvc}, log)
 	filesSvc.UsePolicy(instanceSvc)

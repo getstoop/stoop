@@ -189,6 +189,7 @@ the server side.
 | 26 | `channels_reordered` | space | |
 | 30 | `channel_muted` | user | Keeps a person's other devices in step. |
 | 31 | `space_muted` | user | Same, for a whole space's mute. |
+| 33 | `do_not_disturb_changed` | user | Do not disturb set on any device, so every other device holds alerts alike. Also how the gateway learns of it. |
 | 20 | `channel_read` | user | Same, for the read marker. |
 | 13 | `space_joined` | user | Also the gateway's cue to subscribe. |
 | 16 | `space_updated` | space | |
@@ -198,7 +199,7 @@ the server side.
 | 15 | `member_removed` | space | Kick, leave, or ban. |
 | 28 | `member_updated` | space | A member's profile or avatar changed; refetch them. |
 | 19 | `activity_item_created` | user | |
-| 21 | `presence_changed` | space | Online, offline, or a status change. |
+| 21 | `presence_changed` | space | Online, offline, or do not disturb turning on or off, including when it ends on its own. |
 | 22 | `user_typing` | space / user | |
 | 27 | `reactions_changed` | space / user | |
 | 29 | `voice_state_changed` | space | Join, leave, mute, camera, screen share. |
@@ -210,7 +211,7 @@ the server side.
 | 3 | `pong` | Reserved, alongside `ping` above. |
 | 10 | `typing` | Sent at most every couple of seconds while keys are pressed; the gateway rate-limits regardless. |
 | 11 | `voice_state` | Sent after the LiveKit connection is up, and again on every reconnect — the gateway forgot it when the socket closed. |
-| 12 | `set_status` | Sent after every `Ready`, from a per-browser preference, and when an idle timer fires. |
+| 12 | *(reserved)* | Was `set_status`. No client chooses a presence: do not disturb is set with `AuthService.SetDoNotDisturb`. |
 
 The client's surface is deliberately tiny. Everything that changes durable
 state is a Connect RPC; the socket carries only things that are true of a
@@ -220,21 +221,23 @@ state is a Connect RPC; the socket carries only things that are true of a
 
 Three kinds, all in gateway memory, none persisted.
 
-### Presence and status
+### Presence and do not disturb
 
-`presence` keeps `userID → {connection count, spaces, status}`.
+`presence` keeps `userID → {connection count, spaces, do not disturb}`.
 
 - Online is a **connection count**, so five tabs are one presence and
-  closing one of them announces nothing.
-- **Status** (`ONLINE`, `AWAY`, `DND`) is set by the client with
-  `SetStatus` after every `Ready` — from a per-browser preference — and
-  automatically set to Away by the client after ten idle minutes. The last
-  `SetStatus` from any of a user's connections wins.
-- **Do not disturb is honoured by that user's own client**, which suppresses
-  its desktop banners. The server does not enforce it: activity items are
-  still created and still delivered. DND is a statement about this person's
-  attention, not a filter other people's messages have to pass, and a
-  server-side filter would silently lose things.
+  closing one of them announces nothing. Nothing else is presence: there
+  is no away, and no client announces one.
+- **Do not disturb is stored on the account** (`users.dnd`,
+  `users.dnd_until`) and set with `AuthService.SetDoNotDisturb`. The gateway
+  reads it through the `DoNotDisturbLookup` port on every connect, follows
+  `DoNotDisturbChanged` on the person's own topic after that, and keeps a
+  timer only while it has an end, announcing when it runs out.
+- **It is honoured by that person's own clients**, which hold their desktop
+  banners. The server does not enforce it: activity items are still created
+  and still delivered. It is a statement about this person's attention, not
+  a filter other people's messages have to pass, and a server-side filter
+  would silently lose things.
 - `Ready.presences` snapshots it; `PresenceChanged` maintains it.
 
 Chat reaches presence through `PresenceLister` for exactly one feature:
