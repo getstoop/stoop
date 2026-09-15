@@ -56,14 +56,25 @@ to miss.
 
 ## Clicking it
 
-A popover lists only what is live, one action each (Mute, Turn off,
-Stop), and ends with **Go to channel**. It has no Disconnect: a global
-control is easy to hit by accident, and the channel is one click from its
-own. Revisit if people ask.
+A popover lists the call, one action each (Mute or Unmute, Turn the
+camera off or on, Stop sharing), and ends with **Go to channel**. It has no
+Disconnect: a global control is easy to hit by accident, and the channel
+is one click from its own. Revisit if people ask.
 
-In the desktop app the strip pill opens the same popover: the shell brings
-the server holding voice to the front and asks its page to open it, under
-the strip.
+In the desktop app the shell draws the popover itself, over whichever
+server is in front, from the report the page already sends. Its buttons
+act on the call in the background, and only Go to channel switches
+servers. A popover drawn by the page would have to bring that server
+forward first, and controlling a call should never cost the page you are
+reading.
+
+## Drawing the eye
+
+The first time the indicator appears for a call it moves once, so people
+learn there are controls there: the rail pill grows in and pushes the rest
+of the rail down, the strip pill drops into the strip, the phone header
+pill pops in, and each then pings twice. Once per call, not on every page
+change, and not at all under reduced motion.
 
 ## The bridge (level 3)
 
@@ -72,8 +83,11 @@ Two members, beside the status members already listed under bridge 3 in
 
 - `setVoice(report | null)`: the page's voice state, sent whenever it
   changes and `null` on leave. The shell knows which server sent it.
-- `onVoiceAction(handler)`: the shell asks the page to `open` its
-  popover, `mute`, turn the `camera-off` or `stop-screen`.
+- `onVoiceAction(handler)`: the shell asks the page to `show` the channel
+  (after bringing that server forward), `mute`, `unmute`, turn the
+  camera on or off (`camera-on`, `camera-off`), or `stop-screen`. Each is
+  a request for a state, not a toggle, so a late click cannot flip it
+  back.
 
 STOOP-255 (joining voice on one server leaves it on another) needs the
 shell to know the same fact, so it builds on `setVoice` rather than adding
