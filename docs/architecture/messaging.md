@@ -494,7 +494,10 @@ characters — are recorded in `message_links` at send time. A worker then fetch
 metadata through chat's `Unfurler` port (`internal/unfurl`), stores the
 preview image through the `PreviewImages` port (files, kind
 `link_preview`, re-encoded and bounded like every other image), and
-republishes the message as `MessageUpdated`.
+republishes the message as `MessageUpdated`. A link straight to an image
+is a preview of just that image. An animated GIF is written again frame
+by frame and stays animated, at its own size rather than fitted, since a
+frame that paints part of the canvas cannot be scaled on its own.
 
 Previews are cached per URL in `link_previews` for a week and shared by
 every message linking it. **Failures are cached too**, so a dead link isn't
@@ -512,7 +515,8 @@ which is a serious thing to be. So the fetcher:
   multicast ranges, and dials the checked IP** — so a name that resolves
   differently the second time cannot rebind onto a local address;
 - **re-checks every redirect** against the same rules;
-- caps bodies at 1 MB of HTML and 5 MB of image;
+- caps bodies at 1 MB of HTML and 5 MB of image, the cap chosen by the
+  Content-Type the server announces;
 - **never uses an environment proxy**, which would otherwise route the
   whole defence around itself.
 

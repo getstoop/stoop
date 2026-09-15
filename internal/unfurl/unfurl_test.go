@@ -44,6 +44,12 @@ func TestFetch_LocalServerRefusedUnlessAllowed(t *testing.T) {
 		case "/big":
 			w.Header().Set("Content-Type", "text/html")
 			_, _ = w.Write([]byte("<title>big</title>" + strings.Repeat("a", maxHTMLBytes+10)))
+		case "/big.gif":
+			w.Header().Set("Content-Type", "image/gif")
+			_, _ = w.Write([]byte("GIF89a" + strings.Repeat("a", maxHTMLBytes+10)))
+		case "/huge.gif":
+			w.Header().Set("Content-Type", "image/gif")
+			_, _ = w.Write([]byte("GIF89a" + strings.Repeat("a", maxImageBytes+10)))
 		default:
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			_, _ = w.Write([]byte(`<html><head><title>T</title><meta property="og:description" content="D"><meta property="og:image" content="/img.png"></head><body>hi</body></html>`))
@@ -79,5 +85,12 @@ func TestFetch_LocalServerRefusedUnlessAllowed(t *testing.T) {
 	}
 	if _, err := f.Fetch(ctx, srv.URL+"/big"); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("oversize page should be refused, got %v", err)
+	}
+	// A direct image gets the image cap, not the page cap.
+	if p, err := f.Fetch(ctx, srv.URL+"/big.gif"); err != nil || len(p.Image) <= maxHTMLBytes {
+		t.Errorf("image over the page cap: %v, %d bytes", err, len(p.Image))
+	}
+	if _, err := f.Fetch(ctx, srv.URL+"/huge.gif"); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("oversize image should be refused, got %v", err)
 	}
 }

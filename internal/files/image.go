@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	_ "image/gif"  // registers the GIF decoder
+	"image/gif"
 	_ "image/jpeg" // registers the JPEG decoder
 	"image/png"
 	"net/http"
@@ -89,26 +89,58 @@ func isRaster(contentType string) bool { return rasterTypes[contentType] }
 // LinkPreviewMaxDim bounds a link preview image's longer side.
 const LinkPreviewMaxDim = 480
 
+// An animated GIF is decoded and written again frame by frame, so the
+// animation survives and only frames, delays and the loop count come
+// through. Frames are not resized: one that paints part of the canvas
+// means nothing without the frames before it. The caps bound what a
+// decode may hold, one byte a pixel a frame.
+const (
+	maxGIFFrames = 500
+	maxGIFPixels = 100 << 20
+)
+
 // processImageFit re-encodes an image to fit within maxDim on its longer
-// side, keeping the aspect ratio (never upscaling). Same validation and
-// metadata stripping as processImage.
-func processImageFit(data []byte, maxDim int) ([]byte, int, int, error) {
+// side, keeping the aspect ratio (never upscaling), and returns the type
+// it wrote: PNG, or GIF for an animation. Same validation and metadata
+// stripping as processImage.
+func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) {
 	if len(data) == 0 {
-		return nil, 0, 0, errEmptyUpload
+		return nil, "", 0, 0, errEmptyUpload
 	}
-	if !rasterTypes[http.DetectContentType(data)] {
-		return nil, 0, 0, errNotAnImage
+	sniffed := http.DetectContentType(data)
+	if !rasterTypes[sniffed] {
+		return nil, "", 0, 0, errNotAnImage
 	}
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return nil, 0, 0, errNotAnImage
+		return nil, "", 0, 0, errNotAnImage
 	}
 	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > maxImagePixels {
-		return nil, 0, 0, errHugeImage
+		return nil, "", 0, 0, errHugeImage
+	}
+	if sniffed == "image/gif" {
+		frames, err := gifFrames(data)
+		if err != nil {
+			return nil, "", 0, 0, errNotAnImage
+		}
+		if frames > 1 {
+			if frames > maxGIFFrames || frames*cfg.Width*cfg.Height > maxGIFPixels {
+				return nil, "", 0, 0, errHugeImage
+			}
+			g, err := gif.DecodeAll(bytes.NewReader(data))
+			if err != nil {
+				return nil, "", 0, 0, errNotAnImage
+			}
+			var out bytes.Buffer
+			if err := gif.EncodeAll(&out, g); err != nil {
+				return nil, "", 0, 0, fmt.Errorf("encode gif: %w", err)
+			}
+			return out.Bytes(), "image/gif", cfg.Width, cfg.Height, nil
+		}
 	}
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, 0, 0, errNotAnImage
+		return nil, "", 0, 0, errNotAnImage
 	}
 	b := src.Bounds()
 	w, h := b.Dx(), b.Dy()
@@ -125,7 +157,63 @@ func processImageFit(data []byte, maxDim int) ([]byte, int, int, error) {
 	draw.CatmullRom.Scale(dst, dst.Bounds(), src, b, draw.Src, nil)
 	var out bytes.Buffer
 	if err := (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, dst); err != nil {
-		return nil, 0, 0, fmt.Errorf("encode png: %w", err)
+		return nil, "", 0, 0, fmt.Errorf("encode png: %w", err)
 	}
-	return out.Bytes(), w, h, nil
+	return out.Bytes(), "image/png", w, h, nil
+}
+
+// gifFrames counts the image descriptors in a GIF by walking its blocks,
+// which is cheap where decoding every frame is not; the count bounds the
+// decode. Malformed input is an error.
+func gifFrames(data []byte) (int, error) {
+	bad := errors.New("malformed gif")
+	if len(data) < 13 || (string(data[:6]) != "GIF87a" && string(data[:6]) != "GIF89a") {
+		return 0, bad
+	}
+	colorTable := func(packed byte) int {
+		if packed&0x80 == 0 {
+			return 0
+		}
+		return 3 << ((packed & 7) + 1)
+	}
+	i := 13 + colorTable(data[10])
+	subBlocks := func() error {
+		for {
+			if i >= len(data) {
+				return bad
+			}
+			n := int(data[i])
+			i++
+			if n == 0 {
+				return nil
+			}
+			i += n
+		}
+	}
+	frames := 0
+	for {
+		if i >= len(data) {
+			return 0, bad
+		}
+		switch data[i] {
+		case 0x3B:
+			return frames, nil
+		case 0x21:
+			i += 2
+			if err := subBlocks(); err != nil {
+				return 0, err
+			}
+		case 0x2C:
+			if i+10 > len(data) {
+				return 0, bad
+			}
+			frames++
+			i += 10 + colorTable(data[i+9]) + 1
+			if err := subBlocks(); err != nil {
+				return 0, err
+			}
+		default:
+			return 0, bad
+		}
+	}
 }

@@ -120,3 +120,70 @@ func TestIsRaster(t *testing.T) {
 		}
 	}
 }
+
+func encodeGIFFrames(t *testing.T, w, h, frames int) []byte {
+	t.Helper()
+	pal := color.Palette{color.Black, color.White}
+	g := &gif.GIF{LoopCount: 0}
+	for i := 0; i < frames; i++ {
+		f := image.NewPaletted(image.Rect(0, 0, w, h), pal)
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				f.SetColorIndex(x, y, uint8((x+i)%2))
+			}
+		}
+		g.Image = append(g.Image, f)
+		g.Delay = append(g.Delay, 10)
+	}
+	var b bytes.Buffer
+	if err := gif.EncodeAll(&b, g); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+func TestProcessImageFitKeepsAnimation(t *testing.T) {
+	out, ctype, w, h, err := processImageFit(encodeGIFFrames(t, 10, 8, 3), 480)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ctype != "image/gif" || w != 10 || h != 8 {
+		t.Fatalf("got %s %dx%d", ctype, w, h)
+	}
+	g, err := gif.DecodeAll(bytes.NewReader(out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Image) != 3 || g.LoopCount != 0 {
+		t.Errorf("frames %d loop %d", len(g.Image), g.LoopCount)
+	}
+}
+
+func TestProcessImageFitStillGIFIsPNG(t *testing.T) {
+	_, ctype, _, _, err := processImageFit(encodeGIFFrames(t, 10, 8, 1), 480)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ctype != "image/png" {
+		t.Errorf("a single frame should be re-encoded as PNG, got %s", ctype)
+	}
+}
+
+func TestProcessImageFitCapsAnimation(t *testing.T) {
+	if _, _, _, _, err := processImageFit(encodeGIFFrames(t, 1, 1, maxGIFFrames+1), 480); !errors.Is(err, errHugeImage) {
+		t.Errorf("too many frames should be refused, got %v", err)
+	}
+}
+
+func TestGIFFrames(t *testing.T) {
+	data := encodeGIFFrames(t, 4, 4, 7)
+	if n, err := gifFrames(data); err != nil || n != 7 {
+		t.Errorf("frames = %d, %v", n, err)
+	}
+	if _, err := gifFrames(data[:len(data)/2]); err == nil {
+		t.Error("a truncated gif should be an error")
+	}
+	if _, err := gifFrames([]byte("GIF89a")); err == nil {
+		t.Error("a header alone should be an error")
+	}
+}
