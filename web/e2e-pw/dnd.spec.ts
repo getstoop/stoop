@@ -22,6 +22,8 @@ test("do not disturb, as everyone else and every device sees it", async ({
   const dotFor = (p: Page, name: string) =>
     p.locator(".member-row", { hasText: name }).locator(".online-dot");
   const ownDot = (p: Page) => p.locator(".space-pill.avatar .online-dot");
+  // The switch moves only once the server has answered, so it is clicked
+  // and then waited on rather than check()ed.
   const dndSwitch = (p: Page) => p.locator(".dnd-section input[type=checkbox]");
 
   await expect(dotFor(B, aName), "A starts online for B").toHaveClass(
@@ -29,7 +31,8 @@ test("do not disturb, as everyone else and every device sees it", async ({
   );
 
   await A.goto("/profile?tab=notifications");
-  await dndSwitch(A).check();
+  await dndSwitch(A).click();
+  await expect(dndSwitch(A)).toBeChecked();
   await expect(ownDot(A), "A's own rail dot shows it").toHaveClass(
     /online-dot dnd/,
   );
@@ -60,7 +63,8 @@ test("do not disturb, as everyone else and every device sees it", async ({
 
   // Turned off on the second device, it ends everywhere.
   await A2.goto("/profile?tab=notifications");
-  await dndSwitch(A2).uncheck();
+  await dndSwitch(A2).click();
+  await expect(dndSwitch(A2)).not.toBeChecked();
   await expect(dotFor(B, aName), "back to online for B").toHaveClass(
     /online-dot online/,
   );
