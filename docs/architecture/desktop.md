@@ -45,8 +45,6 @@ installed PWA, and every wrapper there is a no-op. Version 2:
 | `onShortcut(name, handler)` | `(name: "pushToTalk", h: (down: boolean) => void) => () => void` | Global shortcuts the shell captured while the window was not focused. Returns the unsubscribe. |
 | `theme` | `ShellTheme` | Bridge 2. The theme the shell wears now, whole: `{ scheme, tokens }`, tokens keyed by CSS name. Set before the page's first script runs, so `index.html` paints it with no flash. |
 | `onTheme(handler)` | `(h: (theme: ShellTheme) => void) => () => void` | Bridge 2. The shell changed theme. Returns the unsubscribe. |
-| `status` | `"online" \| "away" \| "dnd"` | Bridge 3. The status the shell keeps for every server it holds. Strings, not the realtime enum: the shell has no protos. |
-| `onStatus(handler)` | `(h: (s: PresenceChoice) => void) => () => void` | Bridge 3. The status changed — in App settings, or because the computer went idle. Returns the unsubscribe. |
 | `notificationsAllowed()` | `() => boolean` | Bridge 3. Whether App settings is letting desktop banners through, **asked at the moment one would fire**. A function rather than a value because `contextBridge` copies values across once, at load, and this one changes while the page is open. |
 | `setVoice(report)` | `(r: VoiceReport \| null) => void` | Bridge 3. What this page captures — `{ kind, mic, camera, screen, channel, space }`, names resolved — sent on every change and `null` out of voice. The shell draws it centred in the strip and in the tray; the page hides its rail pill whenever this member exists. |
 | `onVoiceAction(handler)` | `(h: (a: VoiceAction) => void) => () => void` | Bridge 3. The strip, the shell's own voice popover or the tray asks the page holding voice to `show` the channel, `mute`, `unmute`, `camera-on`, `camera-off`, `stop-screen` or `leave` — each a state, not a toggle. The shell draws the popover itself over whichever server is in front, so only `show` brings the holder forward first. `leave` keeps one call at a time: when a page reports a new call, the shell sends every other page holding one `mute`, `camera-off`, `stop-screen` and `leave`, so a page too old for `leave` still goes silent. Every join starts muted, so there is never a moment with two live mics. Returns the unsubscribe. |
@@ -120,38 +118,18 @@ the same server opened in a browser keeps the theme chosen there. A
 bridge-1 shell has no `theme` member; against one, the page behaves as
 a browser too.
 
-## The status
+## Do not disturb
 
-**The shell owns the status, and the banner switch with it.** A person is
-away, or not to be disturbed; neither is a fact about a server. Someone
-using the desktop app sets it once, under App settings → Notifications,
-and every server they have open is told. The shell keeps the choice in
-its own settings file beside the theme.
+Presence is online or offline, and do not disturb is the one choice a
+person makes. It is stored on the account on each server, so the page reads
+it from its server and never from the shell
+([../proposals/presence-and-dnd.md](../proposals/presence-and-dnd.md)).
+That is why bridge 3 no longer has `status` or `onStatus`: nothing in the
+page reads them. The desktop app's one switch for every server arrives as
+`dnd` members. Until then, do not disturb is set per server, under
+Notifications in account settings, in the app as in a browser.
 
-Idle goes with it. In a browser, `api/status.ts` watches its own window
-for input and reports Away after ten minutes without any. A shell holds
-several servers at once and only one of them is in front, so a page's own
-events cannot tell "this person has gone" from "this person is reading
-something else" — a page that is not in front sees no events either way.
-The shell asks the computer instead (`powerMonitor.getSystemIdleTime()`)
-and decides once, for every server.
-
-The page does not stop announcing: `announceStatus()` still runs after
-every Ready and every reconnect, because the gateway's idea of a status
-belongs to a connection. All that changes is who set it. `shellStatus()`
-is the whole test — defined means something else is keeping the status,
-so the page seeds `myStatus` from it, follows `onStatus`, and does not
-start its idle watch. Undefined means a browser, a PWA, or a shell older
-than bridge 3, and the page keeps its own `localStorage` choice exactly
-as before.
-
-**Both settings leave account settings inside such a shell.** The
-Notifications tab holds the status and the desktop banners, and under a
-bridge-3 shell both are set upstairs, so the tab is filtered out the way
-Appearance already is — on what the bridge hands over, never on "is this
-the desktop app". The same account in a browser is offered all five
-sections; nothing is removed from the web app. Muted is not affected
-either way: mutes are per-server and stay the server's.
+The banner switch stays the shell's: `notificationsAllowed()` above.
 
 ## What needs no bridge
 

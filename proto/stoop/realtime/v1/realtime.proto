@@ -66,31 +66,19 @@ message ClientEvent {
     // channel. Send after the LiveKit connection is established and again
     // on every WebSocket reconnect; the gateway forgets it on disconnect.
     VoiceState voice_state = 11;
-    // The client's chosen status (or an automatic Away). Send after Ready
-    // and again on reconnect; the gateway forgets it with the last
-    // connection.
-    SetStatus set_status = 12;
   }
+  // 12 was SetStatus. No client chooses a presence any more: do not
+  // disturb is set with stoop.auth.v1.AuthService.SetDoNotDisturb.
+  reserved 12;
+  reserved "set_status";
 }
 
-// PresenceStatus is how someone who is online wants to be seen.
-enum PresenceStatus {
-  PRESENCE_STATUS_UNSPECIFIED = 0;
-  PRESENCE_STATUS_ONLINE = 1;
-  PRESENCE_STATUS_AWAY = 2;
-  // Do not disturb: shown as such; the client suppresses its own desktop
-  // alerts while set.
-  PRESENCE_STATUS_DND = 3;
-}
-
-message SetStatus {
-  PresenceStatus status = 1;
-}
-
-// UserPresence is one online user and their status.
+// UserPresence is one online user, and whether they are on do not disturb.
 message UserPresence {
   string user_id = 1;
-  PresenceStatus status = 2;
+  reserved 2;
+  reserved "status";
+  bool dnd = 3;
 }
 
 // VoiceState is the client's self-report. An empty channel_id means "left
@@ -149,19 +137,21 @@ message Ready {
   // Everyone currently in a voice channel of the caller's spaces. Kept
   // current by VoiceStateChanged.
   repeated VoiceParticipant voice_participants = 4;
-  // The same users as online_user_ids, with their status. Kept current
-  // by PresenceChanged.
+  // The same users as online_user_ids, with whether each is on do not
+  // disturb. Kept current by PresenceChanged.
   repeated UserPresence presences = 5;
 }
 
 // PresenceChanged is broadcast to a user's spaces when they come online
-// (first connection), go offline (last connection closed), or change
-// their status.
+// (first connection), go offline (last connection closed), or do not
+// disturb turns on or off, including when it ends on its own.
 message PresenceChanged {
   string user_id = 1;
   bool online = 2;
+  reserved 3;
+  reserved "status";
   // Meaningful while online.
-  PresenceStatus status = 3;
+  bool dnd = 4;
 }
 
 // UserTyping is broadcast to the space (or, with an empty space_id, to a

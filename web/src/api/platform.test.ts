@@ -5,7 +5,6 @@ import {
   reportVoice,
   shellDrawsVoice,
   shellNotifications,
-  shellStatus,
 } from "./platform";
 
 describe("the voice members", () => {
@@ -55,31 +54,6 @@ describe("isDesktop", () => {
   it("is true for any bridge at all", () => {
     hosted({ bridge: 1 });
     expect(isDesktop()).toBe(true);
-  });
-});
-
-describe("shellStatus", () => {
-  // Undefined is the answer that means "nobody else is keeping a status,
-  // so this page keeps its own" — it decides whether the page offers a
-  // status control, so a shell too old to have one must reach it.
-  it("is undefined in a browser and on a bridge that has no status", () => {
-    expect(shellStatus()).toBeUndefined();
-    hosted({ bridge: 2 });
-    expect(shellStatus()).toBeUndefined();
-  });
-
-  it("passes the three it knows straight through", () => {
-    for (const said of ["online", "away", "dnd"] as const) {
-      hosted({ bridge: 3, status: said });
-      expect(shellStatus()).toBe(said);
-    }
-  });
-
-  it("is undefined for anything else a bridge might say", () => {
-    for (const bad of ["", "busy", "ONLINE", 2, null, {}]) {
-      hosted({ bridge: 3, status: bad });
-      expect(shellStatus()).toBeUndefined();
-    }
   });
 });
 

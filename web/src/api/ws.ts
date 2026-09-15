@@ -7,7 +7,6 @@ import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import {
   type ClientEvent,
   ClientEventSchema,
-  PresenceStatus,
   type ServerEvent,
   ServerEventSchema,
 } from "../gen/stoop/realtime/v1/realtime_pb";
@@ -19,14 +18,8 @@ import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
 import { socketUrl } from "./origin";
 import { applyPinEvent } from "./pins";
-import { shellStatus } from "./platform";
+import { myDnd, patchMyDnd } from "./presence";
 import { setReactions } from "./reactions";
-import {
-  announceStatus,
-  loadStatusPreference,
-  startIdleWatch,
-  startShellStatusWatch,
-} from "./status";
 import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
 import { leaveVoice, reportVoiceState } from "./voice";
 
@@ -102,23 +95,16 @@ export function startRealtime(queryClient: QueryClient): () => void {
   };
 
   useConnectionStore.getState().setStatus("connecting");
-  useConnectionStore.getState().setMyStatus(loadStatusPreference());
   connect();
   const sweep = setInterval(
     () => useConnectionStore.getState().expireTyping(),
     1000,
   );
-  // Who decides the status: a shell that keeps one for every server it
-  // holds, or this page watching its own window for idleness.
-  const stopStatusWatch = shellStatus()
-    ? startShellStatusWatch()
-    : startIdleWatch();
 
   return () => {
     stopped = true;
     clearTimeout(reconnectTimer);
     clearInterval(sweep);
-    stopStatusWatch();
     ws?.close();
     liveSocket = null;
     useConnectionStore.getState().setStatus("disconnected");
@@ -133,8 +119,6 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       useConnectionStore.getState().setOnline(payload.value.onlineUserIds);
       useConnectionStore.getState().setPresences(payload.value.presences);
       useVoiceStore.getState().setParticipants(payload.value.voiceParticipants);
-      // The gateway forgot our status with the last connection.
-      announceStatus();
       break;
     case "voiceStateChanged":
       if (payload.value.participant) {
@@ -149,8 +133,12 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         .setPresence(
           payload.value.userId,
           payload.value.online,
-          payload.value.status,
+          payload.value.dnd,
         );
+      break;
+    case "doNotDisturbChanged":
+      // Set on this device or another: every device holds alerts alike.
+      patchMyDnd(queryClient, payload.value.dnd, payload.value.until);
       break;
     case "userTyping":
       if (payload.value.userId !== useConnectionStore.getState().userId) {
@@ -302,12 +290,12 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         // No banner while reading that DM, while we're on Do not disturb,
         // or from somewhere we muted — the server stamped that on the item,
         // so it holds even for a space this tab has never opened.
-        const { activeChannelId, myStatus } = useConnectionStore.getState();
+        const { activeChannelId } = useConnectionStore.getState();
         const reading = item.channelId === activeChannelId && hasAttention();
         maybeDesktopNotify(
           item,
           activityPath(item),
-          myStatus === PresenceStatus.DND ||
+          myDnd(queryClient) ||
             item.muted ||
             (reading && item.kind === ActivityKind.DM),
         );

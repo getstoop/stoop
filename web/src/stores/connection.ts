@@ -1,8 +1,5 @@
 import { create } from "zustand";
-import {
-  PresenceStatus,
-  type UserPresence,
-} from "../gen/stoop/realtime/v1/realtime_pb";
+import type { UserPresence } from "../gen/stoop/realtime/v1/realtime_pb";
 
 // Ephemeral connection/UI state lives in zustand; server data lives in
 // TanStack Query caches.
@@ -25,11 +22,10 @@ interface ConnectionState {
   // Users with a live connection who share a space with us (from Ready,
   // kept current by PresenceChanged).
   online: Set<string>;
-  // userId → status for everyone online (from Ready.presences, kept
-  // current by PresenceChanged).
-  presence: Record<string, PresenceStatus>;
-  // Our own chosen status (api/status.ts owns the preference).
-  myStatus: PresenceStatus;
+  // userId → on do not disturb, for everyone online (from Ready.presences,
+  // kept current by PresenceChanged). Our own is the signed-in user's
+  // (api/presence.ts).
+  dnd: Record<string, boolean>;
   // channelId → userId → expiry (ms since epoch) for "is typing…" hints.
   typing: Record<string, Record<string, number>>;
   setStatus: (status: ConnectionStatus) => void;
@@ -37,12 +33,7 @@ interface ConnectionState {
   setActiveChannel: (channelId: string | null) => void;
   setOnline: (ids: string[]) => void;
   setPresences: (list: UserPresence[]) => void;
-  setPresence: (
-    userId: string,
-    online: boolean,
-    status?: PresenceStatus,
-  ) => void;
-  setMyStatus: (status: PresenceStatus) => void;
+  setPresence: (userId: string, online: boolean, dnd: boolean) => void;
   setTyping: (channelId: string, userId: string) => void;
   expireTyping: () => void;
 }
@@ -52,8 +43,7 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   userId: null,
   activeChannelId: null,
   online: new Set(),
-  presence: {},
-  myStatus: PresenceStatus.ONLINE,
+  dnd: {},
   typing: {},
   setStatus: (status) => set({ status }),
   setUserId: (userId) => set({ userId }),
@@ -61,22 +51,21 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   setOnline: (ids) => set({ online: new Set(ids) }),
   setPresences: (list) =>
     set({
-      presence: Object.fromEntries(list.map((p) => [p.userId, p.status])),
+      dnd: Object.fromEntries(list.map((p) => [p.userId, p.dnd])),
     }),
-  setPresence: (userId, online, status) =>
+  setPresence: (userId, online, isDnd) =>
     set((s) => {
       const next = new Set(s.online);
-      const presence = { ...s.presence };
+      const dnd = { ...s.dnd };
       if (online) {
         next.add(userId);
-        presence[userId] = status ?? PresenceStatus.ONLINE;
+        dnd[userId] = isDnd;
       } else {
         next.delete(userId);
-        delete presence[userId];
+        delete dnd[userId];
       }
-      return { online: next, presence };
+      return { online: next, dnd };
     }),
-  setMyStatus: (myStatus) => set({ myStatus }),
   setTyping: (channelId, userId) =>
     set((s) => ({
       typing: {

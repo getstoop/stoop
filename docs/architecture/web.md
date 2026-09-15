@@ -162,7 +162,7 @@ are testable and reusable:
 - `permissions.ts` — reads `Space.my_permissions` (and `GetMe`'s permissions
   through `useMyPermissions`) to decide which controls to show; it keeps no
   copy of the role table. The server still enforces.
-- `theme.ts`, `status.ts`, `emoji.ts`, `shortcodes.ts`, `formatting.ts`,
+- `theme.ts`, `presence.ts`, `emoji.ts`, `shortcodes.ts`, `formatting.ts`,
   `errors.ts`, `loginErrors.ts`, `dates.ts`.
 
 `errors.ts` maps Connect codes to human sentences, so a server-side error

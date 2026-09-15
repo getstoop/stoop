@@ -3,6 +3,7 @@ package realtime
 import (
 	"context"
 	"sync"
+	"time"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 )
@@ -18,9 +19,11 @@ type presence struct {
 type presenceEntry struct {
 	conns  int
 	spaces map[string]struct{}
-	// status is the user's chosen (or automatic) status while online; the
-	// last SetStatus from any of their connections wins.
-	status realtimev1.PresenceStatus
+	// dnd is whether the person is on do not disturb. until is when it
+	// ends (nil for no end), and timer is what ends it.
+	dnd   bool
+	until *time.Time
+	timer *time.Timer
 }
 
 func newPresence() *presence {
@@ -33,7 +36,7 @@ func (p *presence) connect(userID string, spaceIDs []string) bool {
 	defer p.mu.Unlock()
 	e := p.users[userID]
 	if e == nil {
-		e = &presenceEntry{spaces: map[string]struct{}{}, status: realtimev1.PresenceStatus_PRESENCE_STATUS_ONLINE}
+		e = &presenceEntry{spaces: map[string]struct{}{}}
 		p.users[userID] = e
 	}
 	for _, s := range spaceIDs {
@@ -53,6 +56,9 @@ func (p *presence) disconnect(userID string) bool {
 	}
 	e.conns--
 	if e.conns <= 0 {
+		if e.timer != nil {
+			e.timer.Stop()
+		}
 		delete(p.users, userID)
 		return true
 	}
@@ -75,38 +81,82 @@ func (p *presence) removeSpace(userID, spaceID string) {
 	}
 }
 
-// setStatus records a user's status; true when it changed (and they are
-// online — a status for someone with no connection is dropped).
-func (p *presence) setStatus(userID string, st realtimev1.PresenceStatus) bool {
-	if st == realtimev1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED {
-		st = realtimev1.PresenceStatus_PRESENCE_STATUS_ONLINE
+// setDnd records do not disturb for someone online; true when it changed
+// what others see. An end in the future arms a timer that turns it off and
+// calls ended; an end already past reads as off. Someone with no
+// connection is dropped: their next connect reads it again.
+func (p *presence) setDnd(userID string, on bool, until *time.Time, ended func()) bool {
+	now := time.Now()
+	if !on || (until != nil && !until.After(now)) {
+		on, until = false, nil
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	e := p.users[userID]
-	if e == nil || e.status == st {
+	if e == nil {
 		return false
 	}
-	e.status = st
+	if e.timer != nil {
+		e.timer.Stop()
+		e.timer = nil
+	}
+	changed := e.dnd != on
+	e.dnd, e.until = on, until
+	if until != nil {
+		end := *until
+		e.timer = time.AfterFunc(end.Sub(now), func() {
+			if p.endDnd(userID, end) {
+				ended()
+			}
+		})
+	}
+	return changed
+}
+
+// endDnd turns off do not disturb that has reached end; false when it was
+// changed again after the timer was armed.
+func (p *presence) endDnd(userID string, end time.Time) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	e := p.users[userID]
+	if e == nil || !e.dnd || e.until == nil || !e.until.Equal(end) {
+		return false
+	}
+	e.dnd, e.until, e.timer = false, nil, nil
 	return true
 }
 
-// statusOf is a user's current status (ONLINE when unknown).
-func (p *presence) statusOf(userID string) realtimev1.PresenceStatus {
+// dndOf is whether an online user is on do not disturb.
+func (p *presence) dndOf(userID string) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if e := p.users[userID]; e != nil {
-		return e.status
+		return e.dnd
 	}
-	return realtimev1.PresenceStatus_PRESENCE_STATUS_ONLINE
+	return false
 }
 
-// presencesIn lists users online in any of the given spaces with their
-// status; the same set as onlineIn.
+// spacesOf is every space a user's connections are counted in.
+func (p *presence) spacesOf(userID string) []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	e := p.users[userID]
+	if e == nil {
+		return nil
+	}
+	out := make([]string, 0, len(e.spaces))
+	for s := range e.spaces {
+		out = append(out, s)
+	}
+	return out
+}
+
+// presencesIn lists users online in any of the given spaces with whether
+// each is on do not disturb; the same set as onlineIn.
 func (p *presence) presencesIn(spaceIDs []string) []*realtimev1.UserPresence {
 	var out []*realtimev1.UserPresence
 	for _, id := range p.onlineIn(spaceIDs) {
-		out = append(out, &realtimev1.UserPresence{UserId: id, Status: p.statusOf(id)})
+		out = append(out, &realtimev1.UserPresence{UserId: id, Dnd: p.dndOf(id)})
 	}
 	return out
 }

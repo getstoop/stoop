@@ -1,6 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Link, useSearch } from "@tanstack/react-router";
-import { shellStatus } from "../../api/platform";
 import { useInstanceStatus, useMe } from "../../api/queries";
 import { useThemeStore } from "../../api/theme";
 import { SettingsFrame } from "../../components/SettingsFrame";
@@ -8,6 +7,7 @@ import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { PasswordSignIn } from "../../gen/stoop/instance/v1/instance_pb";
 import { AppearanceSection } from "./AppearanceSection";
 import { BlockedSection } from "./BlockedSection";
+import { DoNotDisturbSection } from "./DoNotDisturbSection";
 import { LinkedAccountsSection } from "./LinkedAccountsSection";
 import { LogoutButton } from "./LogoutButton";
 import { MutesSection } from "./MutesSection";
@@ -16,20 +16,16 @@ import { PasswordForm } from "./PasswordForm";
 import { PersonalTokensSection } from "./PersonalTokensSection";
 import { ProfileForm } from "./ProfileForm";
 import { ProfileHeader } from "./ProfileHeader";
-import { StatusSection } from "./StatusSection";
 
 // Your account, in five sections under one header: who other people see
 // (Profile), how Stoop looks to you (Appearance), what is allowed to
-// interrupt you and how you appear while online (Notifications), what you
-// have silenced (Muted), and how you get in and who you keep out
-// (Security). Log out is the last entry of the nav.
+// interrupt you, do not disturb included (Notifications), what you have
+// silenced (Muted), and how you get in and who you keep out (Security).
+// Log out is the last entry of the nav.
 //
-// Two of them are the shell's inside the desktop app and are not offered
-// there: the theme, chosen in its App settings, and — from bridge 3 —
-// the status and the banner switch, which the shell keeps for every
-// server at once. Both are decided by what the bridge hands over, never
-// by "is this the desktop app", so an older shell keeps what it can
-// still set for itself.
+// Appearance is the shell's inside the desktop app, chosen in its App
+// settings, and is not offered there. That is decided by what the bridge
+// hands over, never by "is this the desktop app".
 
 type Tab = "profile" | "appearance" | "notifications" | "muted" | "security";
 
@@ -50,15 +46,7 @@ export function ProfilePage() {
     linked?: string;
     error?: string;
   };
-  // A shell that keeps the status keeps the banner switch with it, so
-  // both of the Notifications tab's rows are set in App settings and the
-  // tab itself would stand empty.
-  const shellOwnsStatus = shellStatus() !== undefined;
-  const tabs = TABS.filter(
-    (t) =>
-      (t.key !== "appearance" || !shellTheme) &&
-      (t.key !== "notifications" || !shellOwnsStatus),
-  );
+  const tabs = TABS.filter((t) => t.key !== "appearance" || !shellTheme);
   // A finished (or failed) provider link lands back here; it belongs to
   // Security, whichever tab the user left from.
   const asked: Tab =
@@ -112,7 +100,7 @@ export function ProfilePage() {
       {active === "appearance" && <AppearanceSection />}
       {active === "notifications" && (
         <section className="card">
-          <StatusSection />
+          <DoNotDisturbSection />
           <NotificationsSection />
         </section>
       )}

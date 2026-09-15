@@ -190,8 +190,7 @@ against `FILE` — so:
   adding one is always safe.
 - **Enums always have an `_UNSPECIFIED = 0`.** A zero value that means
   "nobody set this" is distinguishable from a real value, which matters for
-  `PresenceStatus` and `ActivityKind` where a default would otherwise
-  be a silent lie.
+  `ActivityKind`, where a default would otherwise be a silent lie.
 - **`oneof` ranges follow the convention above**, so an event's number
   tells you what kind of thing it is.
 

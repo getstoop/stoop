@@ -2,8 +2,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { dmFaces, dmIsGroup, dmOther, dmTitle } from "../../api/dms";
 import { isMuted } from "../../api/mutes";
+import { presenceClass } from "../../api/presence";
 import { useMe } from "../../api/queries";
-import { presenceClass } from "../../api/status";
 import { badgeCount, isAlerting } from "../../api/unreads";
 import { AvatarStack } from "../../components/AvatarStack";
 import { ChannelMenu } from "../../components/ChannelMenu";
@@ -17,7 +17,7 @@ export function DMRow({ dm }: { dm: DirectMessage }) {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
   const online = useConnectionStore((s) => s.online);
-  const presence = useConnectionStore((s) => s.presence);
+  const dnd = useConnectionStore((s) => s.dnd);
   const channel = dm.channel;
   if (!channel) return null;
   const other = dmIsGroup(dm) ? undefined : dmOther(dm, me?.id);
@@ -37,9 +37,7 @@ export function DMRow({ dm }: { dm: DirectMessage }) {
       >
         <AvatarStack people={dmFaces(dm, me?.id)} name={title} size="small">
           {other && online.has(other.id) && (
-            <span
-              className={`online-dot ${presenceClass(presence[other.id])}`}
-            />
+            <span className={`online-dot ${presenceClass(dnd[other.id])}`} />
           )}
         </AvatarStack>
         <span className="channel-name">{title}</span>

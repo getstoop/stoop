@@ -6,8 +6,8 @@ import {
   personName,
   useDirectMessages,
 } from "../../api/dms";
+import { presenceClass } from "../../api/presence";
 import { useMe } from "../../api/queries";
-import { presenceClass } from "../../api/status";
 import { AvatarStack } from "../../components/AvatarStack";
 import { useConnectionStore } from "../../stores/connection";
 
@@ -24,13 +24,13 @@ export function DMTitle({ channelId }: { channelId: string }) {
   const isOnline = useConnectionStore(
     (s) => otherId !== "" && s.online.has(otherId),
   );
-  const status = useConnectionStore((s) => s.presence[otherId]);
+  const dnd = useConnectionStore((s) => s.dnd[otherId]);
   if (!dm) return <span className="channel-hash">…</span>;
   const title = dmTitle(dm, me?.id);
   return (
     <span className="dm-title">
       <AvatarStack people={dmFaces(dm, me?.id)} name={title} size="small">
-        {isOnline && <span className={`online-dot ${presenceClass(status)}`} />}
+        {isOnline && <span className={`online-dot ${presenceClass(dnd)}`} />}
       </AvatarStack>
       <span className="channel-title">{title}</span>
       {group ? (
