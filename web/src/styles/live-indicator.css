@@ -1,0 +1,278 @@
+/* ---- Live capture indicator (components/LiveIndicator): the rail pill,
+   the phone header pill, and the popover both open. ---- */
+
+.live-indicator {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* On a wide screen the header copy stays hidden; mobile.css shows it. */
+.live-indicator.header {
+  display: none;
+}
+
+.live-pill {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--panel);
+  font-size: var(--text-lg);
+}
+
+.live-pill svg {
+  width: 20px;
+  height: 20px;
+}
+
+.live-pill.mic,
+.live-pill.camera {
+  color: var(--ok);
+  box-shadow: inset 0 0 0 2px var(--ok);
+}
+
+.live-pill.screen,
+.live-pill.screen:hover {
+  border-radius: var(--radius-lg);
+  background: var(--danger);
+  color: var(--on-accent);
+}
+
+.live-pill.error {
+  color: var(--danger);
+  box-shadow: inset 0 0 0 2px var(--danger);
+}
+
+.live-pill.joining {
+  box-shadow: inset 0 0 0 2px var(--border);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .live-pill.joining svg {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+}
+
+.live-indicator.outro {
+  pointer-events: none;
+}
+
+/* A call's first and last moments (LiveIndicator/index.tsx), and only
+   for those who have not asked for less motion. Only transform and
+   opacity move, so the compositor keeps them smooth while the page is
+   busy joining: loading livekit-client and connecting land on the same
+   frames. Nothing holds its end frame into the settled state — a held
+   transform makes its element the box fixed descendants are measured
+   from. */
+@media (prefers-reduced-motion: no-preference) {
+  .live-indicator.intro .live-pill {
+    animation: live-pop 280ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  }
+
+  .live-indicator.rail.intro .rail-divider {
+    animation: live-fade 280ms ease-out backwards;
+  }
+
+  /* The rail makes room: everything under the pill starts where the pill
+     now is and slides down into place. */
+  .space-rail-top:has(> .live-indicator.rail.intro) > :not(.live-indicator) {
+    animation: live-push 320ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  }
+
+  /* Then a ring pings out of it twice, in its own colour. */
+  .live-indicator.intro .live-pill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid currentColor;
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+    animation: live-ping 900ms ease-out 300ms 2;
+  }
+
+  .live-pill.screen::after,
+  .live-pill.error::after {
+    color: var(--danger);
+  }
+
+  /* The call has ended: the pill pops out and the rail closes the gap,
+     sliding up to where it sits once the pill unmounts. Unmounting drops
+     these rules in the same frame as the space they covered. */
+  .live-indicator.outro .live-pill,
+  .live-indicator.rail.outro .rail-divider {
+    animation: live-unpop 240ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
+
+  .space-rail-top:has(> .live-indicator.rail.outro) > :not(.live-indicator) {
+    animation: live-pull 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
+}
+
+@keyframes live-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.1);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes live-unpop {
+  to {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@keyframes live-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 62px: the pill, the divider under it and the two gaps. */
+@keyframes live-push {
+  from {
+    transform: translateY(-62px);
+  }
+}
+
+@keyframes live-pull {
+  to {
+    transform: translateY(-62px);
+  }
+}
+
+@keyframes live-ping {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+/* The mic's state, on the corner of a camera or screen pill. */
+.live-pill-mic {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ok);
+  color: var(--on-accent);
+  box-shadow: 0 0 0 2px var(--canvas);
+}
+
+.live-pill .live-pill-mic svg {
+  width: 11px;
+  height: 11px;
+}
+
+.live-pill-mic.off {
+  background: var(--raised);
+  color: var(--text-muted);
+}
+
+.live-indicator.header .live-pill {
+  width: 32px;
+  height: 32px;
+}
+
+.live-indicator.header .live-pill svg {
+  width: 16px;
+  height: 16px;
+}
+
+.live-indicator.header .live-pill-mic {
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.live-popover {
+  position: fixed;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  font-size: var(--text-ui);
+  color: var(--text);
+}
+
+.live-popover-head {
+  display: grid;
+  gap: 2px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.live-popover-head span {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.live-popover-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+}
+
+.live-popover-row svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.live-popover-row.live svg {
+  color: var(--ok);
+}
+
+.live-popover-row.screen,
+.live-popover-row.screen svg,
+.live-popover-row.error {
+  color: var(--danger);
+}
+
+.live-popover-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.live-popover-note {
+  margin: 0;
+  padding: 6px 12px;
+  color: var(--text-muted);
+}
+
+.live-popover-go {
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.live-popover-go:hover {
+  background: var(--raised);
+}

@@ -29,6 +29,7 @@ import {
   PulseIcon,
   WifiIcon,
 } from "../components/Icons";
+import { LiveIndicator } from "../components/LiveIndicator";
 import { closeDrawerOnLink } from "../components/MenuButton";
 import { NavBackdrop } from "../components/NavBackdrop";
 import { SpaceIcon } from "../components/SpaceIcon";
@@ -146,6 +147,7 @@ function SpaceRail() {
   return (
     <nav className="space-rail">
       <div className="space-rail-top">
+        <LiveIndicator placement="rail" />
         {/* Not a space, so not in the spaces list: DMs sit above it. */}
         <Link
           to="/dm"

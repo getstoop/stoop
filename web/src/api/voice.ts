@@ -235,7 +235,16 @@ export async function joinVoice(spaceId: string, channelId: string) {
   // a retry.
   const here = store.connection?.channelId === channelId;
   if (here && store.connection?.status !== "error") return;
-  if (room) await leaveVoice();
+  if (room) {
+    // Moving channels: leaving the old call is not leaving voice.
+    store.setSwitching(true);
+    try {
+      await leaveVoice();
+    } catch (err) {
+      store.setSwitching(false);
+      throw err;
+    }
+  }
 
   // Every join starts quiet: muted, camera off, nothing shared.
   store.setMuted(true);
