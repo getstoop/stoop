@@ -20,7 +20,7 @@ import { socketUrl } from "./origin";
 import { applyPinEvent } from "./pins";
 import { myDnd, patchMyDnd } from "./presence";
 import { setReactions } from "./reactions";
-import { refetchOlderThan } from "./stale";
+import { refetch, refetchOlderThan } from "./stale";
 import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
 import { leaveVoice, reportVoiceState } from "./voice";
 
@@ -400,12 +400,11 @@ export function appendMessage(queryClient: QueryClient, message: Message) {
   const key = ["messages", message.channelId];
   const current = queryClient.getQueryData<Message[]>(key);
   if (current === undefined) {
-    // The channel's history isn't in the cache yet. If a fetch is in
-    // flight it may have started before this message existed, so make
-    // sure it's refetched rather than silently dropping the event.
-    if (queryClient.getQueryState(key)?.fetchStatus === "fetching") {
-      queryClient.invalidateQueries({ queryKey: key });
-    }
+    // The channel's history isn't in the cache yet. A load in flight may
+    // have read the server before this message existed, so it goes again
+    // once it lands rather than dropping the event.
+    const query = queryClient.getQueryCache().find({ queryKey: key });
+    if (query?.state.fetchStatus === "fetching") refetch(queryClient, query);
     return;
   }
   if (current.some((m) => m.id === message.id)) return;
