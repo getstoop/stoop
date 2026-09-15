@@ -424,9 +424,36 @@ export async function resumeAudio() {
   useVoiceStore.getState().setAudioBlocked(!(room?.canPlaybackAudio ?? true));
 }
 
-export async function listMicrophones(): Promise<MediaDeviceInfo[]> {
+export type DeviceKind = "audioinput" | "videoinput";
+
+export async function listDevices(
+  kind: DeviceKind,
+): Promise<MediaDeviceInfo[]> {
   const { Room } = await livekit();
-  return Room.getLocalDevices("audioinput");
+  return Room.getLocalDevices(kind);
+}
+
+// The device the room publishes from, as LiveKit knows it.
+export function activeDevice(kind: DeviceKind): string | undefined {
+  return room?.getActiveDevice(kind);
+}
+
+// Runs cb whenever the devices on offer or the one in use change: a
+// headset plugged in mid-call, or the one in use unplugged, which LiveKit
+// answers by falling back to the default. Stops when the returned
+// function is called.
+export function onDevicesChanged(cb: () => void): () => void {
+  const r = room;
+  if (!r) return () => {};
+  const active = (kind: MediaDeviceKind) => {
+    if (kind === "audioinput") syncMicLevel();
+    cb();
+  };
+  r.on("mediaDevicesChanged", cb).on("activeDeviceChanged", active);
+  return () => {
+    r.off("mediaDevicesChanged", cb);
+    r.off("activeDeviceChanged", active);
+  };
 }
 
 export async function switchMicrophone(deviceId: string) {
@@ -516,11 +543,6 @@ export async function toggleScreenShare() {
     }
   }
   reportVoiceState();
-}
-
-export async function listCameras(): Promise<MediaDeviceInfo[]> {
-  const { Room } = await livekit();
-  return Room.getLocalDevices("videoinput");
 }
 
 export async function switchCamera(deviceId: string) {

@@ -1,14 +1,7 @@
-import { useEffect, useState } from "react";
 import { useChannels, useSpaces } from "../api/queries";
-import {
-  leaveVoice,
-  listCameras,
-  listMicrophones,
-  resumeAudio,
-  switchCamera,
-  switchMicrophone,
-} from "../api/voice";
+import { leaveVoice, resumeAudio } from "../api/voice";
 import { useVoiceStore } from "../stores/voice";
+import { DevicePicker } from "./DevicePicker";
 import { VoiceActions } from "./VoiceActions";
 
 // The "connected to voice" panel at the bottom of the channel sidebar:
@@ -60,75 +53,15 @@ export function VoiceBar() {
       )}
       {videoError && <span className="voice-bar-error">{videoError}</span>}
       <div className="voice-bar-devices">
-        <MicrophonePicker enabled={connection.status === "connected"} />
-        <CameraPicker enabled={cameraOn} />
+        <DevicePicker
+          kind="audioinput"
+          enabled={connection.status === "connected"}
+        />
+        {/* Front / back on a phone, webcams on a desktop; only while the
+            camera is on, which is when its permission and labels exist. */}
+        <DevicePicker kind="videoinput" enabled={cameraOn} />
       </div>
       <VoiceActions />
     </section>
-  );
-}
-
-// Front / back on a phone, webcams on a desktop; only while the camera is
-// on (that's when the permission, and so the labels, exist).
-function CameraPicker({ enabled }: { enabled: boolean }) {
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  useEffect(() => {
-    if (!enabled) {
-      setDevices([]);
-      return;
-    }
-    let cancelled = false;
-    listCameras()
-      .then((d) => !cancelled && setDevices(d))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
-  if (devices.length < 2) return null;
-  return (
-    <select
-      className="voice-mic-select"
-      aria-label="Camera"
-      title="Camera"
-      onChange={(e) => switchCamera(e.target.value)}
-    >
-      {devices.map((d) => (
-        <option key={d.deviceId} value={d.deviceId}>
-          {d.label || "Camera"}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-// Only shown when there is a choice to make. Labels are available once
-// the microphone permission has been granted, which joining does.
-function MicrophonePicker({ enabled }: { enabled: boolean }) {
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-    listMicrophones()
-      .then((d) => !cancelled && setDevices(d))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled]);
-  if (devices.length < 2) return null;
-  return (
-    <select
-      className="voice-mic-select"
-      aria-label="Microphone"
-      title="Microphone"
-      onChange={(e) => switchMicrophone(e.target.value)}
-    >
-      {devices.map((d) => (
-        <option key={d.deviceId} value={d.deviceId}>
-          {d.label || "Microphone"}
-        </option>
-      ))}
-    </select>
   );
 }
