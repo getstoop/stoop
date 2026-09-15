@@ -15,6 +15,7 @@ import { useConnectionStore } from "../stores/connection";
 import { confirm, dialogOpen, notice } from "../stores/dialogs";
 import { Avatar } from "./Avatar";
 import { BotMark } from "./BotMark";
+import { DeletedMark } from "./DeletedMark";
 
 // A small profile card, anchored below the element that opened it. Who
 // they are comes from GetUserProfile, so it is the same in a space and in
@@ -147,6 +148,7 @@ export function UserCard({
               <strong>
                 {profile.displayName || profile.username}
                 <BotMark kind={profile.kind} />
+                <DeletedMark deleted={profile.deleted} />
                 {profile.pronouns && (
                   <span className="user-card-pronouns">
                     {" "}

@@ -23,6 +23,7 @@ import { removeMessageFromCache } from "../../api/ws";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
+import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiPicker } from "../../components/EmojiPicker";
 import { PinIcon } from "../../components/Icons";
 import { LinkPreviews } from "../../components/LinkPreviews";
@@ -367,6 +368,7 @@ export function MessageList({
                       message.replyTo.author?.username ||
                       "deleted"}
                     <BotMark kind={message.replyTo.author?.kind} />
+                    <DeletedMark deleted={message.replyTo.author?.deleted} />
                   </strong>
                   <span className="reply-preview">
                     {message.replyTo.preview || "(message deleted)"}
@@ -412,6 +414,7 @@ export function MessageList({
                 >
                   {message.author?.displayName || message.author?.username}
                   <BotMark kind={message.author?.kind} />
+                  <DeletedMark deleted={message.author?.deleted} />
                 </button>
                 <span
                   className="message-time"

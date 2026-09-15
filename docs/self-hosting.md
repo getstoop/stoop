@@ -821,6 +821,21 @@ Privacy: the provider learns that this person signs in to *this server*
 knowledge at home. The server stores which provider identity belongs to
 which account and nothing else — no provider tokens.
 
+## Deleting your own account
+
+Anyone can delete their own account from **Profile → Security**, after
+typing their password again. Their messages stay in the channels and
+conversations they were in, under their username marked "(deleted)";
+their profile, avatar and bio go, every device is signed out, their tokens
+stop working, and any space they owned passes to its longest-serving
+admin, or to yours when it had none. The username stays taken, so nobody
+can register it and be mistaken for them. There is no undo, and an admin
+cannot reactivate the account.
+
+To turn this off, untick **People can delete their own accounts** under
+**Server admin → Accounts**. The account page then says to ask an admin,
+and deactivating from that tab is what an admin does instead.
+
 ## Forgotten passwords
 
 There is no email, so nobody can reset their own password. If a login

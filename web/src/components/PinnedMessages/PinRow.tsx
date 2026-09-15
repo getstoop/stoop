@@ -5,6 +5,7 @@ import type { PinnedMessage } from "../../gen/stoop/chat/v1/pin_pb";
 import { Attachments } from "../Attachments";
 import { Avatar } from "../Avatar";
 import { BotMark } from "../BotMark";
+import { DeletedMark } from "../DeletedMark";
 import { MessageBody } from "../MessageBody";
 
 // One kept message: who said it and when, who pinned it, then the message
@@ -44,6 +45,7 @@ export function PinRow({
           <strong>
             {who}
             <BotMark kind={message.author?.kind} />
+            <DeletedMark deleted={message.author?.deleted} />
           </strong>
           <span
             className="muted small"

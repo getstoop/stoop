@@ -123,6 +123,14 @@ button.primary.danger {
 
 /* The bot glyph after a name (BotMark): the size of the text it follows,
    quiet, never a badge. */
+/* "(deleted)" after the name of an account its owner deleted. */
+.deleted-mark {
+  margin-left: 0.35em;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .bot-mark {
   display: inline-flex;
   vertical-align: -0.12em;

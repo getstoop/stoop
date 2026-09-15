@@ -5,6 +5,7 @@ import { useChannels, useMe } from "../../api/queries";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
+import { DeletedMark } from "../../components/DeletedMark";
 import { MessageBody } from "../../components/MessageBody";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
@@ -50,6 +51,7 @@ export function ResultRow({
         <strong>
           {who}
           <BotMark kind={message.author?.kind} />
+          <DeletedMark deleted={message.author?.deleted} />
         </strong>
         <span className="muted"> in #{channel?.name ?? "…"}</span>
       </span>

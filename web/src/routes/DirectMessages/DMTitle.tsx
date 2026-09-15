@@ -9,6 +9,7 @@ import {
 import { presenceClass } from "../../api/presence";
 import { useMe } from "../../api/queries";
 import { AvatarStack } from "../../components/AvatarStack";
+import { DeletedMark } from "../../components/DeletedMark";
 import { useConnectionStore } from "../../stores/connection";
 
 // The channel header for a DM: the other person with their presence, or a
@@ -33,6 +34,7 @@ export function DMTitle({ channelId }: { channelId: string }) {
         {isOnline && <span className={`online-dot ${presenceClass(dnd)}`} />}
       </AvatarStack>
       <span className="channel-title">{title}</span>
+      {other && <DeletedMark deleted={other.deleted} />}
       {group ? (
         <span
           className="muted dm-handle"

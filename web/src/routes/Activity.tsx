@@ -7,6 +7,7 @@ import { chatClient } from "../api/clients";
 import { dayLabel, fullDateTime, sameDay } from "../api/dates";
 import { useActivity, useChannels, useSpaces } from "../api/queries";
 import { Avatar } from "../components/Avatar";
+import { DeletedMark } from "../components/DeletedMark";
 import { MenuButton } from "../components/MenuButton";
 import type { ActivityItem } from "../gen/stoop/chat/v1/activity_pb";
 
@@ -145,7 +146,8 @@ function ActivityRow({ item }: { item: ActivityItem }) {
         size="medium"
       />
       <span className="activity-title">
-        <strong>{who}</strong> {activityVerb(item.kind)}
+        <strong>{who}</strong>
+        <DeletedMark deleted={item.actor?.deleted} /> {activityVerb(item.kind)}
         {item.spaceId && <> in #{channel?.name ?? "…"}</>}
         {space && <span className="muted"> · {space.name}</span>}
       </span>
