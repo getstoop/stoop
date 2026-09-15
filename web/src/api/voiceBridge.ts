@@ -33,6 +33,9 @@ export function startVoiceBridge(
       .getQueryData<Channel[]>(channelsQuery(spaceId).queryKey)
       ?.find((c) => c.id === voice.connection?.channelId);
     const next = voiceReport(captureState(voice), channel?.name, space?.name);
+    // Moving channels is not leaving voice: keep the strip as it is until
+    // the new call reports, so it neither exits nor arrives again.
+    if (next === null && voice.switching) return;
     const key = JSON.stringify(next);
     if (key === last) return;
     last = key;
