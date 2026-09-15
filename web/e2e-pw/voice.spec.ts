@@ -142,7 +142,7 @@ const heightOf = (p: Page, selector: string) =>
 // before pressing anything on it.
 const stageClick = async (p: Page, selector: string) => {
   await p.locator(".voice-stage").hover();
-  await p.waitForTimeout(150);
+  await expect(p.locator(".stage-bar")).not.toHaveClass(/idle/);
   await p.locator(`.stage-bar ${selector}`).click();
 };
 
@@ -266,7 +266,6 @@ test("voice channels, the stage, and who is in them", async ({
 
   // A late arrival gets the snapshot: B reloads and still sees A.
   await reload(B);
-  await B.waitForTimeout(800);
   await expect
     .poll(() => names(B), { message: "Ready snapshot lists A", timeout: 8_000 })
     .toEqual([ada]);
@@ -355,7 +354,6 @@ test("voice channels, the stage, and who is in them", async ({
   // sides are already on that view, since joining opened it; a camera makes
   // a tile on the other side and a sidebar flag; a screen share takes the
   // spotlight; turning them off clears both.
-  await A.waitForTimeout(800);
   await expect(
     A.locator(".voice-stage"),
     "the stage shows above the chat",
@@ -518,7 +516,10 @@ test("voice channels, the stage, and who is in them", async ({
   ).toBe(false);
 
   await A.locator('.voice-bar button[aria-label="Stop sharing"]').click();
-  await A.waitForTimeout(1500);
+  await expect(
+    A.locator('.voice-bar button[aria-label="Share your screen"]'),
+    "the share has stopped on A's side",
+  ).toHaveCount(1);
   await A.locator('.voice-bar button[aria-label="Turn camera off"]').click();
   await expect(
     B.locator(".stage-spotlight"),
@@ -541,7 +542,10 @@ test("voice channels, the stage, and who is in them", async ({
     "the stage bar's mic and the sidebar's are the same control",
   ).toHaveCount(1);
   await stageClick(A, `button[aria-label="${flipped}"]`);
-  await A.waitForTimeout(400);
+  await expect(
+    A.locator(`.voice-bar button[aria-label="${micNow}"]`),
+    "…and flips it back",
+  ).toHaveCount(1);
 
   // StageBar holds itself visible while focus is inside it, and the click
   // above focused one of its buttons. Take focus off it, or "nothing is

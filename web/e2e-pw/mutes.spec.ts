@@ -199,14 +199,10 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // ---- A muted DM: the DMs pill stays clean, activity still hears.
   await A.locator(".member-row", { hasText: bName }).click();
   await A.locator(".user-card .message-button").click();
-  // A DM opened straight off the user card mounts its composer before
-  // React has the conversation wired up; fill()+Enter there sets the
-  // value but sends nothing. Typing it generates the events the composer
-  // actually listens to.
-  const dmComposer = A.locator(".composer textarea");
-  await dmComposer.click();
-  await dmComposer.pressSequentially("starting a thread", { delay: 20 });
-  await A.keyboard.press("Enter");
+  // Message navigates once the server has answered; until then the
+  // composer on the page is still #random's.
+  await expect(A, "Message opens the conversation").toHaveURL(/\/dm\//);
+  await say(A, "starting a thread");
   await A.locator(".message-content", {
     hasText: "starting a thread",
   }).waitFor();

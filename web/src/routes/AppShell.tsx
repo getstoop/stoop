@@ -72,10 +72,12 @@ export function AppShell() {
   // disturb and profile edits replace without anyone signing in or out.
   const userId = me?.id;
 
-  useEffect(() => {
-    if (!userId) return;
-    return startRealtime(queryClient);
-  }, [userId, queryClient]);
+  // Connected as the shell mounts, alongside the me query rather than
+  // after it, so the queries the pages make start once the socket is
+  // subscribed and the refetch Ready triggers (api/ws.ts) has nothing to
+  // redo. Signed out, the upgrade is refused once before me sends us to
+  // login.
+  useEffect(() => startRealtime(queryClient), [queryClient]);
 
   useEffect(() => {
     if (!userId) return;

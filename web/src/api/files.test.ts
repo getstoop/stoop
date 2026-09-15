@@ -6,6 +6,8 @@ import {
   isPlayableAudio,
   isPlayableVideo,
   MAX_ATTACHMENT_BYTES,
+  MAX_PARALLEL_UPLOADS,
+  uploadAttachment,
 } from "./files";
 
 // api/clients.ts builds its transport from location.origin as it loads,
@@ -147,5 +149,43 @@ describe("formatBytes", () => {
     expect(formatBytes(1023n)).toBe("1023 B");
     expect(formatBytes(1024n)).toBe("1.0 KB");
     expect(formatBytes(BigInt(MAX_ATTACHMENT_BYTES))).toBe("100.0 MB");
+  });
+});
+
+describe("uploadAttachment", () => {
+  // The server refuses a fourth concurrent upload per account, so the
+  // client must hold the rest back rather than fire ten at once.
+  it("runs at most the server's concurrency at a time", async () => {
+    const pending: ((r: Response) => void)[] = [];
+    const fetchMock = vi.fn(
+      () => new Promise<Response>((resolve) => pending.push(resolve)),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const file = new File(["x"], "x.txt");
+      const uploads = Array.from({ length: 5 }, () =>
+        uploadAttachment("ch", file),
+      );
+      await Promise.resolve();
+      expect(fetchMock).toHaveBeenCalledTimes(MAX_PARALLEL_UPLOADS);
+
+      const done = () => Response.json({ id: "f", name: "x.txt", size: 1 });
+      // A finished upload hands its slot on a few microtasks later.
+      const settle = async () => {
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+      };
+      pending.shift()?.(done());
+      await settle();
+      expect(fetchMock).toHaveBeenCalledTimes(MAX_PARALLEL_UPLOADS + 1);
+
+      while (pending.length) {
+        pending.shift()?.(done());
+        await settle();
+      }
+      await Promise.all(uploads);
+      expect(fetchMock).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

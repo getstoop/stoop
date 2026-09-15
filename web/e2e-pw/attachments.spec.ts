@@ -258,6 +258,11 @@ test("attachments: sending, serving, capping and deleting", async ({
     A.locator(".attachment-strip .pending"),
     "ten files are held",
   ).toHaveCount(10);
+  // The server takes three at a time; the client queues the rest.
+  await expect(
+    A.locator(".attachment-strip .pending.ready"),
+    "…and all ten upload",
+  ).toHaveCount(10);
   // Clear them without sending. dispatchEvent, not click: the remove
   // button sits behind the file-name label, so a real click never reaches
   // it — the original went straight to the handler too. One at a time,
@@ -270,13 +275,18 @@ test("attachments: sending, serving, capping and deleting", async ({
   await expect(A.locator(".attachment-strip .pending")).toHaveCount(0);
 
   // --- a pending upload can't be claimed by someone else, or twice
-  const pendingId = await A.evaluate(async (chId: string) => {
+  const pendingUpload = await A.evaluate(async (chId: string) => {
     const form = new FormData();
     form.append("channel_id", chId);
     form.append("file", new Blob(["secret"]), "secret.txt");
     const r = await fetch("/files/upload", { method: "POST", body: form });
-    return (await r.json()).id as string;
+    return { status: r.status, body: await r.json() };
   }, channelId);
+  expect(
+    pendingUpload.status,
+    `the upload is accepted (${JSON.stringify(pendingUpload.body)})`,
+  ).toBe(201);
+  const pendingId = pendingUpload.body.id as string;
 
   const sendWith = (page: Page, ids: string[], content = "x") =>
     page.evaluate(
@@ -301,7 +311,10 @@ test("attachments: sending, serving, capping and deleting", async ({
     `B cannot claim A's pending upload (${forged.status} ${forged.body.message})`,
   ).toBe(true);
   const own = await sendWith(A, [pendingId], "");
-  expect(own.status, "A claims it in an attachment-only message").toBe(200);
+  expect(
+    own.status,
+    `A claims it in an attachment-only message (${own.status} ${own.body.message})`,
+  ).toBe(200);
   const twice = await sendWith(A, [pendingId]);
   expect(
     twice.status === 400 && twice.body.message?.includes("already used"),

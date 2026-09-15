@@ -394,7 +394,15 @@ func TestVoiceState(t *testing.T) {
 	bus.Publish("space:s2", events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MemberRemoved{MemberRemoved: &realtimev1.MemberRemoved{SpaceId: "s2", UserId: "carol", Kicked: true}},
 	}))
-	// carol's connection no longer hears s2, so check via a fresh Ready.
+	// The kick clears carol's voice entry on her own connection's goroutine
+	// before that connection relays the event, so hearing it proves the
+	// eviction ran; only then is a fresh Ready worth reading.
+	if ev := carol.waitFor(func(ev *realtimev1.ServerEvent) bool {
+		r := ev.GetMemberRemoved()
+		return r != nil && r.UserId == "carol"
+	}); ev == nil {
+		t.Fatal("carol never heard she was kicked")
+	}
 	carol2 := dial(t, srv, "carol")
 	if ready := carol2.next(time.Second).GetReady(); ready == nil || len(ready.VoiceParticipants) != 0 {
 		t.Fatalf("carol still in voice after kick: %+v", ready)
