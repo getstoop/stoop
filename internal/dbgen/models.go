@@ -246,6 +246,8 @@ type User struct {
 	Pronouns        string
 	Bio             string
 	Kind            string
+	Dnd             bool
+	DndUntil        *time.Time
 }
 
 type UserBlock struct {

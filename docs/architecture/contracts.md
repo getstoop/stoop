@@ -45,6 +45,7 @@ listed as public below.
 | `Logout` | Revokes the current session immediately. |
 | `GetMe` | The signed-in user, including instance role, and the instance and own-account permissions their credential covers. |
 | `UpdateProfile` | Display name, username, pronouns, bio. |
+| `SetDoNotDisturb` | Turns do not disturb on, with an optional end in the future, or off. Stored on the account (`users.dnd`, `users.dnd_until`) and published to the person's own topic as `DoNotDisturbChanged`, so every device follows. Refused for bots. |
 | `GetUserProfile` | One account's public profile card, with its `kind` (person or bot). Visible to any signed-in user. |
 | `ChangePassword` | Current password required, except for a provider-created account setting its first one. |
 | `ListIdentities` / `UnlinkIdentity` | Linked OIDC accounts. |
