@@ -53,15 +53,13 @@ test("emoji shortcodes and the suggestion list", async ({ browser }) => {
     "oh no 😭",
   );
 
-  // Unpicked shortcodes convert on send; unknown ones and times stay put;
-  // code spans are left alone.
-  await composer.pressSequentially(
-    "ship it :rocket: :crying: :nope: at 10:30:45 and `:sob:` ",
-  );
+  // An unpicked shortcode converts on send. What does and does not
+  // convert is api/shortcodes.test.ts.
+  await composer.pressSequentially("ship it :rocket: ");
   await A.keyboard.press("Escape");
   await A.keyboard.press("Enter");
-  await expect(lastMessage, "send converts known shortcodes only").toHaveText(
-    "ship it 🚀 😢 :nope: at 10:30:45 and :sob:",
+  await expect(lastMessage, "send converts the shortcode").toHaveText(
+    "ship it 🚀",
   );
 
   // Tab picks too; Esc closes without inserting; a Unicode-derived name
