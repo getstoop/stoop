@@ -102,23 +102,24 @@ describe("replaceShortcodes", () => {
     expect(replaceShortcodes(":sob::tada:")).toBe("😭🎉");
   });
 
-  // The alias table maps "taco" to the hamburger; 🌮 is in EMOJI_GROUPS
-  // under the same name but aliases win.
-  it.skip("resolves :taco: to the taco", () => {
+  it("resolves :taco: to the taco", () => {
     expect(replaceShortcodes(":taco:")).toBe("🌮");
+    expect(replaceShortcodes(":burger:")).toBe("🍔");
   });
 
-  // The token needs two code characters, so the one-letter aliases "x" and
-  // "v" can never be sent even though the lookup knows them.
-  it.skip("converts the one-letter codes", () => {
+  it("converts the one-letter codes", () => {
     expect(replaceShortcodes(":x:")).toBe("❌");
     expect(replaceShortcodes(":v:")).toBe("✌️");
   });
 
-  // ":100:" is a real code, so a digit run between digits converts: a
-  // score or timestamp comes out with 💯 in the middle of it.
-  it.skip("leaves a digit run between digits alone", () => {
+  it("leaves a digit run between digits alone", () => {
     expect(replaceShortcodes("ended 10:100:45")).toBe("ended 10:100:45");
+    expect(replaceShortcodes("at 10:x:45")).toBe("at 10:x:45");
+  });
+
+  it("leaves a code glued to a word alone", () => {
+    expect(replaceShortcodes("a:sob:b")).toBe("a:sob:b");
+    expect(replaceShortcodes("(:sob:)")).toBe("(😭)");
   });
 });
 
@@ -215,10 +216,7 @@ describe("searchShortcodes", () => {
     expect(searchShortcodes("a", 50)).toHaveLength(50);
   });
 
-  // The query is ranked purely by prefix-then-substring, so a longer code
-  // declared earlier buries the code the typist spelled out in full:
-  // ":raised_hand" offers 🙌 first and ":kiss" pushes 💏 to seventh.
-  it.skip("puts the code typed in full first", () => {
+  it("puts the code typed in full first", () => {
     expect(codes("raised_hand")[0]).toBe("raised_hand");
     expect(codes("kiss")[0]).toBe("kiss");
   });
@@ -251,6 +249,6 @@ describe("aliasesFor", () => {
   });
 
   it("gives an empty list for an emoji with no alias", () => {
-    expect(aliasesFor("🌮")).toEqual([]);
+    expect(aliasesFor("🥑")).toEqual([]);
   });
 });

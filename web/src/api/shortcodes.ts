@@ -123,7 +123,7 @@ export const ALIASES: [string, string][] = [
   ["champagne", "🥂"],
   ["wine", "🍷"],
   ["pizza", "🍕"],
-  ["taco", "🍔"],
+  ["taco", "🌮"],
   ["burger", "🍔"],
   ["cake", "🎂"],
   ["cookie", "🍪"],
@@ -225,20 +225,24 @@ export function aliasesFor(emoji: string): string[] {
 }
 
 const CODE_CHARS = "a-z0-9_+\\-";
-const SHORTCODE_TOKEN = new RegExp(`:([${CODE_CHARS}]{2,}):`, "gi");
+const SHORTCODE_TOKEN = new RegExp(`:([${CODE_CHARS}]+):`, "gi");
 const CODE_SPANS = /(```[\s\S]*?```|`[^`\n]+`)/;
+const WORD_CHAR = /[a-z0-9]/i;
 
-// Replaces every known :shortcode: outside code with its emoji; unknown
-// ones (and things like 10:30:45) are left alone.
+// Replaces every known :shortcode: outside code with its emoji. Unknown
+// ones are left alone, and so is a code wedged between letters or
+// digits, so 10:100:45 stays a time.
 export function replaceShortcodes(text: string): string {
   return text
     .split(CODE_SPANS)
     .map((seg, i) =>
       i % 2 === 1
         ? seg
-        : seg.replace(SHORTCODE_TOKEN, (m, code: string) => {
-            const emoji = emojiForShortcode(code);
-            return emoji ?? m;
+        : seg.replace(SHORTCODE_TOKEN, (m, code: string, at: number) => {
+            const before = seg[at - 1] ?? "";
+            const after = seg[at + m.length] ?? "";
+            if (WORD_CHAR.test(before) || WORD_CHAR.test(after)) return m;
+            return emojiForShortcode(code) ?? m;
           }),
     )
     .join("");
@@ -256,8 +260,9 @@ export function shortcodeQueryAt(
   return { start: caret - m[1].length - 1, query: m[1].toLowerCase() };
 }
 
-// Prefix matches first, then anything containing the query; one entry per
-// emoji so 👍 doesn't show up as both +1 and thumbsup.
+// The code typed in full first, then prefix matches, then anything
+// containing the query; one entry per emoji so 👍 doesn't show up as both
+// +1 and thumbsup.
 export function searchShortcodes(query: string, limit = 8): Shortcode[] {
   const q = query.toLowerCase();
   if (!q) return [];
@@ -272,6 +277,7 @@ export function searchShortcodes(query: string, limit = 8): Shortcode[] {
       }
     }
   };
+  take((s) => s.code === q);
   take((s) => s.code.startsWith(q));
   take((s) => s.code.includes(q));
   return out;
