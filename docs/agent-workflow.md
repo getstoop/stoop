@@ -141,6 +141,32 @@ sections, in this order:
   B's alert"), which was misdiagnosed for weeks as a timeout too short
   under load. It is not: 20s did not help, because focus never arrived.
 
+- **A page's socket subscribes after its first queries land.** The
+  channel list, the messages and the DM list are fetched as the page
+  mounts, in parallel with the WebSocket handshake, and only the socket
+  carries what happens next. Anything another page does in that window
+  reaches this one by refetch alone. Two guards: the app refetches
+  whatever it fetched before the gateway's Ready (`api/ws.ts`), and
+  `signIn()`/`reload()` in `web/e2e-pw/lib.ts` wait for the rail's status
+  icon to read connected before returning, so a spec never talks to a
+  page that cannot hear yet. The 2026-09-13 flakes in `dms` ("counts both
+  messages" read 1), `pins` and `group-dms` (a row or message that never
+  arrived) fit this shape: a second page missing exactly what was sent
+  right after it landed.
+
+- **Wait for a navigation the app starts on its own.** Message on a
+  member's card opens the conversation only once the server has
+  answered; a `.composer textarea` reached before that is still the
+  channel's, and the text typed into it is gone when the route changes.
+  `await expect(page).toHaveURL(/\/dm\//)` first. The `mutes` spec's
+  "sends nothing" workaround was this.
+
+- **The server admits three uploads per account at a time**
+  (`files.MaxInflightUploads`); the client queues the rest
+  (`api/files.ts`). A spec that attaches many files waits for
+  `.pending.ready` to count them all before moving on, or the next upload
+  meets the ones still in flight.
+
 - **Assertions poll; they never sleep a fixed time.** Playwright's
   `expect(locator)` assertions retry on their own; `expect.poll(fn)` wraps
   anything else, and `page.waitForFunction` waits on an in-page predicate

@@ -20,6 +20,7 @@ import { socketUrl } from "./origin";
 import { applyPinEvent } from "./pins";
 import { myDnd, patchMyDnd } from "./presence";
 import { setReactions } from "./reactions";
+import { refetchOlderThan } from "./stale";
 import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
 import { leaveVoice, reportVoiceState } from "./voice";
 
@@ -64,12 +65,9 @@ export function startRealtime(queryClient: QueryClient): () => void {
       const wasReconnect = attempts > 0;
       attempts = 0;
       useConnectionStore.getState().setStatus("connected");
-      if (wasReconnect) {
-        // Recover whatever we missed while disconnected, and remind the
-        // gateway where we are in voice (it forgot on disconnect).
-        queryClient.invalidateQueries();
-        reportVoiceState();
-      }
+      // What was missed while disconnected is refetched when Ready lands;
+      // the gateway forgot where we are in voice, so remind it.
+      if (wasReconnect) reportVoiceState();
     };
 
     ws.onmessage = (e: MessageEvent<ArrayBuffer>) => {
@@ -115,6 +113,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
   const payload = event.payload;
   switch (payload.case) {
     case "ready":
+      // Sent once this socket is subscribed: anything fetched before now
+      // may have missed an event, so it goes again.
+      refetchOlderThan(queryClient, Date.now());
       useConnectionStore.getState().setUserId(payload.value.userId);
       useConnectionStore.getState().setOnline(payload.value.onlineUserIds);
       useConnectionStore.getState().setPresences(payload.value.presences);

@@ -46,13 +46,21 @@ export const test = base.extend<{ fresh: undefined }>({
   ],
 });
 
-// Puts a page straight into the app. The session token doubles as the
-// cookie value, so there is no login form to drive.
+// The rail's status icon follows the socket. A page whose socket is not
+// subscribed yet hears nothing another page does until a refetch, so a
+// spec that talks to a page waits for this first.
+export async function live(page: Page) {
+  await page.locator(".status-icon.connected").waitFor();
+}
+
+// Puts a page straight into the app, live. The session token doubles as
+// the cookie value, so there is no login form to drive.
 export async function signIn(page: Page, token: string, path = "/") {
   await page
     .context()
     .addCookies([{ name: SESSION_COOKIE, value: token, url: BASE }]);
   await page.goto(path);
+  await live(page);
 }
 
 // Entering on a shared link — an invite, a space, a channel, a message —
@@ -94,10 +102,12 @@ export async function focus(page: Page) {
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 }
 
-// reload() on a channel URL meets the gate, so always come back through it.
+// reload() on a channel URL meets the gate, so always come back through
+// it, and wait for the new socket so what follows is a push, not the load.
 export async function reload(page: Page) {
   await page.reload();
   await pastGate(page);
+  await live(page);
 }
 
 // Go to a shared link (invite, space, channel, message) and take the way

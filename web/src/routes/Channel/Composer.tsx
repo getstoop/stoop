@@ -6,6 +6,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -192,14 +193,26 @@ export function Composer({
     });
   };
 
+  // Where the caret goes once React has committed a draft a picker wrote.
+  // Moved in a layout effect, before the browser paints or takes the next
+  // key: a deferred frame let a keystroke, or a select-all, land first and
+  // be undone by the move.
+  const caretRef = useRef<number | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs after each draft commit
+  useLayoutEffect(() => {
+    const pos = caretRef.current;
+    if (pos === null) return;
+    caretRef.current = null;
+    inputRef.current?.setSelectionRange(pos, pos);
+  }, [draft]);
+
   const pick = (m: Member) => {
     if (!mention) return;
     const caret = inputRef.current?.selectionStart ?? draft.length;
     const next = `${draft.slice(0, mention.start)}@${m.username} ${draft.slice(caret)}`;
     setDraft(next);
     setMention(null);
-    const pos = mention.start + m.username.length + 2;
-    requestAnimationFrame(() => inputRef.current?.setSelectionRange(pos, pos));
+    caretRef.current = mention.start + m.username.length + 2;
   };
 
   const pickEmoji = (sc: Shortcode) => {
@@ -208,8 +221,7 @@ export function Composer({
     const next = `${draft.slice(0, shortcode.start)}${sc.emoji} ${draft.slice(caret)}`;
     setDraft(next);
     setShortcode(null);
-    const pos = shortcode.start + sc.emoji.length + 1;
-    requestAnimationFrame(() => inputRef.current?.setSelectionRange(pos, pos));
+    caretRef.current = shortcode.start + sc.emoji.length + 1;
   };
 
   // Focus the box when a reply is started.

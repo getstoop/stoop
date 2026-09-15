@@ -45,6 +45,26 @@ export type UploadedFile = {
   size: number;
 };
 
+// The server admits this many uploads per account at once
+// (files.MaxInflightUploads) and refuses the next; a message may carry
+// ten, so the rest wait their turn here.
+export const MAX_PARALLEL_UPLOADS = 3;
+let uploading = 0;
+const queued: (() => void)[] = [];
+
+async function withUploadSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (uploading >= MAX_PARALLEL_UPLOADS) {
+    await new Promise<void>((next) => queued.push(next));
+  }
+  uploading++;
+  try {
+    return await fn();
+  } finally {
+    uploading--;
+    queued.shift()?.();
+  }
+}
+
 // Uploads one file for a channel as a multipart form
 export async function uploadAttachment(
   channelId: string,
@@ -60,11 +80,13 @@ export async function uploadAttachment(
   const form = new FormData();
   form.append("channel_id", channelId);
   form.append("file", file, file.name);
-  const res = await fetch(serverUrl("/files/upload"), {
-    method: "POST",
-    body: form,
-    credentials: "include",
-  });
+  const res = await withUploadSlot(() =>
+    fetch(serverUrl("/files/upload"), {
+      method: "POST",
+      body: form,
+      credentials: "include",
+    }),
+  );
   if (!res.ok) {
     let message = `upload failed (${res.status})`;
     try {
