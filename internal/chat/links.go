@@ -75,7 +75,7 @@ func extractLinks(content string) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, m := range urlPattern.FindAllString(text, -1) {
-		m = strings.TrimRight(m, ".,;:!?)]}")
+		m = trimURL(m)
 		if seen[m] || len(m) > 2048 {
 			continue
 		}
@@ -86,6 +86,19 @@ func extractLinks(content string) []string {
 		}
 	}
 	return out
+}
+
+// trimURL drops the sentence's trailing punctuation from a matched URL,
+// except a ")" that closes a "(" inside it. Mirrors trimUrl in the web
+// client's markdown.ts.
+func trimURL(raw string) string {
+	u := strings.TrimRight(raw, ".,;:!?)]}")
+	rest := raw[len(u):]
+	for strings.HasPrefix(rest, ")") && strings.Count(u, "(") > strings.Count(u, ")") {
+		u += ")"
+		rest = rest[1:]
+	}
+	return u
 }
 
 // recordLinks replaces a message's link rows (within the caller's

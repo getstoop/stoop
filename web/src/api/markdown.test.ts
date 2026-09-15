@@ -102,11 +102,14 @@ describe("parseInline", () => {
     expect(parseInline("*it *")).toEqual([text("*it *")]);
   });
 
-  // "**" is the one delimiter the closer rule misses: the bold fails on the
-  // space, then "*" closes on the second star of the trailing pair, so this
-  // renders as a stray "*" plus italic "bold *".
-  it.skip("needs a non-space before the closer of a bold span too", () => {
+  it("needs a non-space before the closer of a bold span too", () => {
     expect(parseInline("**bold **")).toEqual([text("**bold **")]);
+  });
+
+  it("nests bold inside italic", () => {
+    expect(parseInline("*a **b** c*")).toEqual([
+      italic(text("a "), bold(text("b")), text(" c")),
+    ]);
   });
 
   it("leaves an empty backtick pair as text", () => {
@@ -158,11 +161,15 @@ describe("parseInline", () => {
     ]);
   });
 
-  // TRAILING_PUNCT strips ")" with no balance check, so an encyclopaedia
-  // URL loses its last character and the link lands on a 404.
-  it.skip("keeps a closing paren that belongs to the URL", () => {
+  it("keeps a closing paren that belongs to the URL", () => {
     const url = "https://example.com/wiki/Ada_(mathematician)";
     expect(parseInline(url)).toEqual([link(url)]);
+    expect(parseInline(`${url}.`)).toEqual([link(url), text(".")]);
+    expect(parseInline(`(see ${url})`)).toEqual([
+      text("(see "),
+      link(url),
+      text(")"),
+    ]);
   });
 });
 
