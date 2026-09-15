@@ -1,3 +1,7 @@
+<!-- Do not include any private link in this description — a Claude
+session, an internal dashboard, a DM thread, anything a reader outside
+that account or network can't open. -->
+
 ## What changed and why
 
 <!-- One or two paragraphs. Link the issue if there is one. -->
