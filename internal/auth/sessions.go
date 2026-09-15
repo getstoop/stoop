@@ -63,10 +63,8 @@ func (s *Service) Login(ctx context.Context, req *connect.Request[authv1.LoginRe
 		return nil, errInvalidCredentials()
 	}
 	s.guard.success(handle)
-	if user.DeletedAt != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied,
-			errors.New("this account was deleted"))
-	}
+	// A deleted account has no password, so it never gets this far: it
+	// reads as a wrong password, and says nothing about having existed.
 	if user.DeactivatedAt != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied,
 			errors.New("this account has been deactivated"))
