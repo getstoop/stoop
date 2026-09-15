@@ -150,6 +150,9 @@ server.
 
 - The App settings switch is the app's own setting, kept in its settings
   file with its optional end.
+- Account settings and App settings offer the same menu: Off, or on for
+  1 hour, 3 hours, 1 day, 1 week, or Never expire. An end already chosen
+  shows as "Until" and its time.
 - Turning it on or off tells every server page to set its own server. A
   server added or reloaded while it is on sets it too.
 - The app holds its own desktop banners at once, without waiting for any
@@ -174,7 +177,5 @@ server.
 - A status line or status emoji: the word is reserved for it.
 - Silencing one device. "Don't alert me here" would be local to a device and
   separate from do not disturb, which says "don't bother me" to everyone.
-- Preset durations ("for an hour", "until tomorrow"): the column is ready
-  for them.
 - Push notifications (STOOP-88) respecting do not disturb: this makes it
   possible, since the server now knows.

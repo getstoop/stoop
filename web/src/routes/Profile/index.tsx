@@ -1,5 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Link, useSearch } from "@tanstack/react-router";
+import { shellDnd } from "../../api/platform";
 import { useInstanceStatus, useMe } from "../../api/queries";
 import { useThemeStore } from "../../api/theme";
 import { SettingsFrame } from "../../components/SettingsFrame";
@@ -23,9 +24,10 @@ import { ProfileHeader } from "./ProfileHeader";
 // silenced (Muted), and how you get in and who you keep out (Security).
 // Log out is the last entry of the nav.
 //
-// Appearance is the shell's inside the desktop app, chosen in its App
-// settings, and is not offered there. That is decided by what the bridge
-// hands over, never by "is this the desktop app".
+// Inside the desktop app, Appearance and — once the app has its own do not
+// disturb switch — Notifications are set in its App settings and not
+// offered here. That is decided by what the bridge hands over, never by
+// "is this the desktop app".
 
 type Tab = "profile" | "appearance" | "notifications" | "muted" | "security";
 
@@ -46,7 +48,14 @@ export function ProfilePage() {
     linked?: string;
     error?: string;
   };
-  const tabs = TABS.filter((t) => t.key !== "appearance" || !shellTheme);
+  // Inside a desktop app with its own do not disturb switch, both of the
+  // Notifications tab's rows are set in App settings.
+  const shellOwnsNotifications = shellDnd() !== undefined;
+  const tabs = TABS.filter(
+    (t) =>
+      (t.key !== "appearance" || !shellTheme) &&
+      (t.key !== "notifications" || !shellOwnsNotifications),
+  );
   // A finished (or failed) provider link lands back here; it belongs to
   // Security, whichever tab the user left from.
   const asked: Tab =

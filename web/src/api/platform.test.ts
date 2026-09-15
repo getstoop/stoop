@@ -3,6 +3,7 @@ import {
   isDesktop,
   onShellVoiceAction,
   reportVoice,
+  shellDnd,
   shellDrawsVoice,
   shellNotifications,
 } from "./platform";
@@ -54,6 +55,29 @@ describe("isDesktop", () => {
   it("is true for any bridge at all", () => {
     hosted({ bridge: 1 });
     expect(isDesktop()).toBe(true);
+  });
+});
+
+describe("shellDnd", () => {
+  // Undefined means no switch, which is what leaves do not disturb to
+  // account settings.
+  it("is undefined in a browser and on a bridge without the switch", () => {
+    expect(shellDnd()).toBeUndefined();
+    hosted({ bridge: 3 });
+    expect(shellDnd()).toBeUndefined();
+    hosted({ bridge: 3, dnd: true });
+    expect(shellDnd()).toBeUndefined();
+    hosted({ bridge: 3, dnd: { on: "yes" } });
+    expect(shellDnd()).toBeUndefined();
+  });
+
+  it("passes the switch and its end through", () => {
+    hosted({ bridge: 3, dnd: { on: true, until: 1_800_000_000_000 } });
+    expect(shellDnd()).toEqual({ on: true, until: 1_800_000_000_000 });
+    hosted({ bridge: 3, dnd: { on: true, until: null } });
+    expect(shellDnd()).toEqual({ on: true, until: null });
+    hosted({ bridge: 3, dnd: { on: false } });
+    expect(shellDnd()).toEqual({ on: false, until: null });
   });
 });
 
