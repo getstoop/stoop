@@ -51,6 +51,7 @@ message ServerEvent {
     ChannelMuted channel_muted = 30;
     SpaceMuted space_muted = 31;
     MessagePinned message_pinned = 32;
+    DoNotDisturbChanged do_not_disturb_changed = 33;
   }
 }
 
@@ -235,6 +236,15 @@ message ChannelMuted {
 message SpaceMuted {
   string space_id = 1;
   bool muted = 2;
+}
+
+// DoNotDisturbChanged is delivered on the person's own topic when they turn
+// do not disturb on or off, so their other devices follow and hold alerts.
+message DoNotDisturbChanged {
+  string user_id = 1;
+  bool dnd = 2;
+  // When it ends on its own. Unset for no end, or while it is off.
+  google.protobuf.Timestamp until = 3;
 }
 
 // ChannelRead is delivered on the reader's personal topic when their read

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -48,12 +49,14 @@ func (s *Service) GetUserProfile(ctx context.Context, req *connect.Request[authv
 	if err != nil {
 		return nil, notFoundOr(err, "user")
 	}
+	dnd, _ := dndState(row.Dnd, row.DndUntil, time.Now())
 	return connect.NewResponse(&authv1.GetUserProfileResponse{
 		Profile: &authv1.PublicProfile{
 			Id: row.ID, Username: row.Username, DisplayName: row.DisplayName,
 			AvatarFileId: deref(row.AvatarFileID),
 			Pronouns:     row.Pronouns, Bio: row.Bio,
 			Kind: accesswire.KindToProto(authctx.IdentityKind(row.Kind)),
+			Dnd:  dnd,
 		},
 	}), nil
 }
@@ -92,6 +95,7 @@ func (s *Service) GetPublicUsers(ctx context.Context, ids []string) ([]PublicUse
 }
 
 func toProtoUser(u dbgen.User) *authv1.User {
+	dnd, dndUntil := dndState(u.Dnd, u.DndUntil, time.Now())
 	return &authv1.User{
 		Id:           u.ID,
 		Username:     u.Username,
@@ -106,6 +110,8 @@ func toProtoUser(u dbgen.User) *authv1.User {
 		Pronouns:        u.Pronouns,
 		Bio:             u.Bio,
 		Kind:            accesswire.KindToProto(authctx.IdentityKind(u.Kind)),
+		Dnd:             dnd,
+		DndUntil:        timestampOrNil(dndUntil),
 	}
 }
 

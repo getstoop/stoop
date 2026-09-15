@@ -44,6 +44,9 @@ const (
 	// AuthServiceUpdateProfileProcedure is the fully-qualified name of the AuthService's UpdateProfile
 	// RPC.
 	AuthServiceUpdateProfileProcedure = "/stoop.auth.v1.AuthService/UpdateProfile"
+	// AuthServiceSetDoNotDisturbProcedure is the fully-qualified name of the AuthService's
+	// SetDoNotDisturb RPC.
+	AuthServiceSetDoNotDisturbProcedure = "/stoop.auth.v1.AuthService/SetDoNotDisturb"
 	// AuthServiceGetUserProfileProcedure is the fully-qualified name of the AuthService's
 	// GetUserProfile RPC.
 	AuthServiceGetUserProfileProcedure = "/stoop.auth.v1.AuthService/GetUserProfile"
@@ -78,6 +81,9 @@ type AuthServiceClient interface {
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
 	// UpdateProfile changes the caller's display name, pronouns and bio.
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
+	// SetDoNotDisturb turns do not disturb on, with an optional end, or off.
+	// It belongs to the account, so every device the person uses follows it.
+	SetDoNotDisturb(context.Context, *connect.Request[v1.SetDoNotDisturbRequest]) (*connect.Response[v1.SetDoNotDisturbResponse], error)
 	// GetUserProfile is one person's public face, for their profile card.
 	// Any signed-in caller may read any profile — the same line drawn for
 	// avatars in docs/architecture/files.md; there is no shared-space test.
@@ -144,6 +150,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("UpdateProfile")),
 			connect.WithClientOptions(opts...),
 		),
+		setDoNotDisturb: connect.NewClient[v1.SetDoNotDisturbRequest, v1.SetDoNotDisturbResponse](
+			httpClient,
+			baseURL+AuthServiceSetDoNotDisturbProcedure,
+			connect.WithSchema(authServiceMethods.ByName("SetDoNotDisturb")),
+			connect.WithClientOptions(opts...),
+		),
 		getUserProfile: connect.NewClient[v1.GetUserProfileRequest, v1.GetUserProfileResponse](
 			httpClient,
 			baseURL+AuthServiceGetUserProfileProcedure,
@@ -196,6 +208,7 @@ type authServiceClient struct {
 	logout              *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
 	getMe               *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
 	updateProfile       *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
+	setDoNotDisturb     *connect.Client[v1.SetDoNotDisturbRequest, v1.SetDoNotDisturbResponse]
 	getUserProfile      *connect.Client[v1.GetUserProfileRequest, v1.GetUserProfileResponse]
 	changePassword      *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
 	listIdentities      *connect.Client[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse]
@@ -228,6 +241,11 @@ func (c *authServiceClient) GetMe(ctx context.Context, req *connect.Request[v1.G
 // UpdateProfile calls stoop.auth.v1.AuthService.UpdateProfile.
 func (c *authServiceClient) UpdateProfile(ctx context.Context, req *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
 	return c.updateProfile.CallUnary(ctx, req)
+}
+
+// SetDoNotDisturb calls stoop.auth.v1.AuthService.SetDoNotDisturb.
+func (c *authServiceClient) SetDoNotDisturb(ctx context.Context, req *connect.Request[v1.SetDoNotDisturbRequest]) (*connect.Response[v1.SetDoNotDisturbResponse], error) {
+	return c.setDoNotDisturb.CallUnary(ctx, req)
 }
 
 // GetUserProfile calls stoop.auth.v1.AuthService.GetUserProfile.
@@ -276,6 +294,9 @@ type AuthServiceHandler interface {
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
 	// UpdateProfile changes the caller's display name, pronouns and bio.
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
+	// SetDoNotDisturb turns do not disturb on, with an optional end, or off.
+	// It belongs to the account, so every device the person uses follows it.
+	SetDoNotDisturb(context.Context, *connect.Request[v1.SetDoNotDisturbRequest]) (*connect.Response[v1.SetDoNotDisturbResponse], error)
 	// GetUserProfile is one person's public face, for their profile card.
 	// Any signed-in caller may read any profile — the same line drawn for
 	// avatars in docs/architecture/files.md; there is no shared-space test.
@@ -338,6 +359,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("UpdateProfile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceSetDoNotDisturbHandler := connect.NewUnaryHandler(
+		AuthServiceSetDoNotDisturbProcedure,
+		svc.SetDoNotDisturb,
+		connect.WithSchema(authServiceMethods.ByName("SetDoNotDisturb")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceGetUserProfileHandler := connect.NewUnaryHandler(
 		AuthServiceGetUserProfileProcedure,
 		svc.GetUserProfile,
@@ -392,6 +419,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceGetMeHandler.ServeHTTP(w, r)
 		case AuthServiceUpdateProfileProcedure:
 			authServiceUpdateProfileHandler.ServeHTTP(w, r)
+		case AuthServiceSetDoNotDisturbProcedure:
+			authServiceSetDoNotDisturbHandler.ServeHTTP(w, r)
 		case AuthServiceGetUserProfileProcedure:
 			authServiceGetUserProfileHandler.ServeHTTP(w, r)
 		case AuthServiceChangePasswordProcedure:
@@ -433,6 +462,10 @@ func (UnimplementedAuthServiceHandler) GetMe(context.Context, *connect.Request[v
 
 func (UnimplementedAuthServiceHandler) UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.UpdateProfile is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) SetDoNotDisturb(context.Context, *connect.Request[v1.SetDoNotDisturbRequest]) (*connect.Response[v1.SetDoNotDisturbResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.SetDoNotDisturb is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) GetUserProfile(context.Context, *connect.Request[v1.GetUserProfileRequest]) (*connect.Response[v1.GetUserProfileResponse], error) {

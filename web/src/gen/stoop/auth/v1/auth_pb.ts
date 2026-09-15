@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/auth/v1/auth.proto.
  */
 export const file_stoop_auth_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("ChhzdG9vcC9hdXRoL3YxL2F1dGgucHJvdG8SDXN0b29wLmF1dGgudjEiwgIKBFVzZXISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBHJvbGUYBSABKA4yGy5zdG9vcC5hdXRoLnYxLkluc3RhbmNlUm9sZRIWCg5hdmF0YXJfZmlsZV9pZBgGIAEoCRIUCgxoYXNfcGFzc3dvcmQYByABKAgSGAoQdXNlcm5hbWVfcGVuZGluZxgIIAEoCBIXCg91c2VybmFtZV9mcm96ZW4YCSABKAgSEAoIcHJvbm91bnMYCiABKAkSCwoDYmlvGAsgASgJEisKBGtpbmQYDCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kIkoKD1JlZ2lzdGVyUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRITCgtpbnZpdGVfY29kZRgDIAEoCSJOChBSZWdpc3RlclJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISFwoPam9pbmVkX3NwYWNlX2lkGAIgASgJIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSJBCg1Mb2dpblJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISDQoFdG9rZW4YAiABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiZAoNR2V0TWVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyEjAKC3Blcm1pc3Npb25zGAIgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24ijgEKFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EhQKDGRpc3BsYXlfbmFtZRgBIAEoCRIVCgh1c2VybmFtZRgCIAEoCUgAiAEBEhUKCHByb25vdW5zGAMgASgJSAGIAQESEAoDYmlvGAQgASgJSAKIAQFCCwoJX3VzZXJuYW1lQgsKCV9wcm9ub3Vuc0IGCgRfYmlvIjoKFVVwZGF0ZVByb2ZpbGVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyIqcBCg1QdWJsaWNQcm9maWxlEgoKAmlkGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIWCg5hdmF0YXJfZmlsZV9pZBgEIAEoCRIQCghwcm9ub3VucxgFIAEoCRILCgNiaW8YBiABKAkSKwoEa2luZBgHIAEoDjIdLnN0b29wLmFjY2Vzcy52MS5JZGVudGl0eUtpbmQiKAoVR2V0VXNlclByb2ZpbGVSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkiRwoWR2V0VXNlclByb2ZpbGVSZXNwb25zZRItCgdwcm9maWxlGAEgASgLMhwuc3Rvb3AuYXV0aC52MS5QdWJsaWNQcm9maWxlImcKFUNoYW5nZVBhc3N3b3JkUmVxdWVzdBIYChBjdXJyZW50X3Bhc3N3b3JkGAEgASgJEhQKDG5ld19wYXNzd29yZBgCIAEoCRIeChZyZXZva2VfcGVyc29uYWxfdG9rZW5zGAMgASgIIhgKFkNoYW5nZVBhc3N3b3JkUmVzcG9uc2UiWwoISWRlbnRpdHkSEAoIcHJvdmlkZXIYASABKAkSDQoFZW1haWwYAiABKAkSLgoKY3JlYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiFwoVTGlzdElkZW50aXRpZXNSZXF1ZXN0IkUKFkxpc3RJZGVudGl0aWVzUmVzcG9uc2USKwoKaWRlbnRpdGllcxgBIAMoCzIXLnN0b29wLmF1dGgudjEuSWRlbnRpdHkiKQoVVW5saW5rSWRlbnRpdHlSZXF1ZXN0EhAKCHByb3ZpZGVyGAEgASgJIhgKFlVubGlua0lkZW50aXR5UmVzcG9uc2UirAIKDVBlcnNvbmFsVG9rZW4SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIwCgtwZXJtaXNzaW9ucxgDIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEi4KCmNyZWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZXhwaXJlc19hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEaGludBgJIAEoCRIPCgdibG9ja2VkGAogASgISgQIBBAFSgQIBRAGUgdsaW1pdGVkUglzcGFjZV9pZHMilQEKGkNyZWF0ZVBlcnNvbmFsVG9rZW5SZXF1ZXN0EgwKBG5hbWUYASABKAkSMAoLcGVybWlzc2lvbnMYAiADKA4yGy5zdG9vcC5hY2Nlc3MudjEuUGVybWlzc2lvbhIXCg9leHBpcmVzX2luX2RheXMYBSABKAVKBAgDEARKBAgEEAVSB2xpbWl0ZWRSCXNwYWNlX2lkcyJaChtDcmVhdGVQZXJzb25hbFRva2VuUmVzcG9uc2USKwoFdG9rZW4YASABKAsyHC5zdG9vcC5hdXRoLnYxLlBlcnNvbmFsVG9rZW4SDgoGc2VjcmV0GAIgASgJIhsKGUxpc3RQZXJzb25hbFRva2Vuc1JlcXVlc3QiSgoaTGlzdFBlcnNvbmFsVG9rZW5zUmVzcG9uc2USLAoGdG9rZW5zGAEgAygLMhwuc3Rvb3AuYXV0aC52MS5QZXJzb25hbFRva2VuIi4KGlJldm9rZVBlcnNvbmFsVG9rZW5SZXF1ZXN0EhAKCHRva2VuX2lkGAEgASgJIh0KG1Jldm9rZVBlcnNvbmFsVG9rZW5SZXNwb25zZSpgCgxJbnN0YW5jZVJvbGUSHQoZSU5TVEFOQ0VfUk9MRV9VTlNQRUNJRklFRBAAEhgKFElOU1RBTkNFX1JPTEVfTUVNQkVSEAESFwoTSU5TVEFOQ0VfUk9MRV9BRE1JThACMuAICgtBdXRoU2VydmljZRJNCghSZWdpc3RlchIeLnN0b29wLmF1dGgudjEuUmVnaXN0ZXJSZXF1ZXN0Gh8uc3Rvb3AuYXV0aC52MS5SZWdpc3RlclJlc3BvbnNlIgASRAoFTG9naW4SGy5zdG9vcC5hdXRoLnYxLkxvZ2luUmVxdWVzdBocLnN0b29wLmF1dGgudjEuTG9naW5SZXNwb25zZSIAEkcKBkxvZ291dBIcLnN0b29wLmF1dGgudjEuTG9nb3V0UmVxdWVzdBodLnN0b29wLmF1dGgudjEuTG9nb3V0UmVzcG9uc2UiABJECgVHZXRNZRIbLnN0b29wLmF1dGgudjEuR2V0TWVSZXF1ZXN0Ghwuc3Rvb3AuYXV0aC52MS5HZXRNZVJlc3BvbnNlIgASXAoNVXBkYXRlUHJvZmlsZRIjLnN0b29wLmF1dGgudjEuVXBkYXRlUHJvZmlsZVJlcXVlc3QaJC5zdG9vcC5hdXRoLnYxLlVwZGF0ZVByb2ZpbGVSZXNwb25zZSIAEl8KDkdldFVzZXJQcm9maWxlEiQuc3Rvb3AuYXV0aC52MS5HZXRVc2VyUHJvZmlsZVJlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLkdldFVzZXJQcm9maWxlUmVzcG9uc2UiABJfCg5DaGFuZ2VQYXNzd29yZBIkLnN0b29wLmF1dGgudjEuQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlIgASXwoOTGlzdElkZW50aXRpZXMSJC5zdG9vcC5hdXRoLnYxLkxpc3RJZGVudGl0aWVzUmVxdWVzdBolLnN0b29wLmF1dGgudjEuTGlzdElkZW50aXRpZXNSZXNwb25zZSIAEl8KDlVubGlua0lkZW50aXR5EiQuc3Rvb3AuYXV0aC52MS5VbmxpbmtJZGVudGl0eVJlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLlVubGlua0lkZW50aXR5UmVzcG9uc2UiABJuChNDcmVhdGVQZXJzb25hbFRva2VuEikuc3Rvb3AuYXV0aC52MS5DcmVhdGVQZXJzb25hbFRva2VuUmVxdWVzdBoqLnN0b29wLmF1dGgudjEuQ3JlYXRlUGVyc29uYWxUb2tlblJlc3BvbnNlIgASawoSTGlzdFBlcnNvbmFsVG9rZW5zEiguc3Rvb3AuYXV0aC52MS5MaXN0UGVyc29uYWxUb2tlbnNSZXF1ZXN0Gikuc3Rvb3AuYXV0aC52MS5MaXN0UGVyc29uYWxUb2tlbnNSZXNwb25zZSIAEm4KE1Jldm9rZVBlcnNvbmFsVG9rZW4SKS5zdG9vcC5hdXRoLnYxLlJldm9rZVBlcnNvbmFsVG9rZW5SZXF1ZXN0Giouc3Rvb3AuYXV0aC52MS5SZXZva2VQZXJzb25hbFRva2VuUmVzcG9uc2UiAEKoAQoRY29tLnN0b29wLmF1dGgudjFCCUF1dGhQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9hdXRoL3YxO2F1dGh2MaICA1NBWKoCDVN0b29wLkF1dGguVjHKAg1TdG9vcFxBdXRoXFYx4gIZU3Rvb3BcQXV0aFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpBdXRoOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
+  fileDesc("ChhzdG9vcC9hdXRoL3YxL2F1dGgucHJvdG8SDXN0b29wLmF1dGgudjEi/gIKBFVzZXISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBHJvbGUYBSABKA4yGy5zdG9vcC5hdXRoLnYxLkluc3RhbmNlUm9sZRIWCg5hdmF0YXJfZmlsZV9pZBgGIAEoCRIUCgxoYXNfcGFzc3dvcmQYByABKAgSGAoQdXNlcm5hbWVfcGVuZGluZxgIIAEoCBIXCg91c2VybmFtZV9mcm96ZW4YCSABKAgSEAoIcHJvbm91bnMYCiABKAkSCwoDYmlvGAsgASgJEisKBGtpbmQYDCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEgsKA2RuZBgNIAEoCBItCglkbmRfdW50aWwYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkoKD1JlZ2lzdGVyUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRITCgtpbnZpdGVfY29kZRgDIAEoCSJOChBSZWdpc3RlclJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISFwoPam9pbmVkX3NwYWNlX2lkGAIgASgJIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSJBCg1Mb2dpblJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISDQoFdG9rZW4YAiABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiZAoNR2V0TWVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyEjAKC3Blcm1pc3Npb25zGAIgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24ijgEKFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EhQKDGRpc3BsYXlfbmFtZRgBIAEoCRIVCgh1c2VybmFtZRgCIAEoCUgAiAEBEhUKCHByb25vdW5zGAMgASgJSAGIAQESEAoDYmlvGAQgASgJSAKIAQFCCwoJX3VzZXJuYW1lQgsKCV9wcm9ub3Vuc0IGCgRfYmlvIjoKFVVwZGF0ZVByb2ZpbGVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyIk8KFlNldERvTm90RGlzdHVyYlJlcXVlc3QSCgoCb24YASABKAgSKQoFdW50aWwYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjwKF1NldERvTm90RGlzdHVyYlJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXIitAEKDVB1YmxpY1Byb2ZpbGUSCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEhAKCHByb25vdW5zGAUgASgJEgsKA2JpbxgGIAEoCRIrCgRraW5kGAcgASgOMh0uc3Rvb3AuYWNjZXNzLnYxLklkZW50aXR5S2luZBILCgNkbmQYCCABKAgiKAoVR2V0VXNlclByb2ZpbGVSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkiRwoWR2V0VXNlclByb2ZpbGVSZXNwb25zZRItCgdwcm9maWxlGAEgASgLMhwuc3Rvb3AuYXV0aC52MS5QdWJsaWNQcm9maWxlImcKFUNoYW5nZVBhc3N3b3JkUmVxdWVzdBIYChBjdXJyZW50X3Bhc3N3b3JkGAEgASgJEhQKDG5ld19wYXNzd29yZBgCIAEoCRIeChZyZXZva2VfcGVyc29uYWxfdG9rZW5zGAMgASgIIhgKFkNoYW5nZVBhc3N3b3JkUmVzcG9uc2UiWwoISWRlbnRpdHkSEAoIcHJvdmlkZXIYASABKAkSDQoFZW1haWwYAiABKAkSLgoKY3JlYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiFwoVTGlzdElkZW50aXRpZXNSZXF1ZXN0IkUKFkxpc3RJZGVudGl0aWVzUmVzcG9uc2USKwoKaWRlbnRpdGllcxgBIAMoCzIXLnN0b29wLmF1dGgudjEuSWRlbnRpdHkiKQoVVW5saW5rSWRlbnRpdHlSZXF1ZXN0EhAKCHByb3ZpZGVyGAEgASgJIhgKFlVubGlua0lkZW50aXR5UmVzcG9uc2UirAIKDVBlcnNvbmFsVG9rZW4SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIwCgtwZXJtaXNzaW9ucxgDIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEi4KCmNyZWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGxhc3RfdXNlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZXhwaXJlc19hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEaGludBgJIAEoCRIPCgdibG9ja2VkGAogASgISgQIBBAFSgQIBRAGUgdsaW1pdGVkUglzcGFjZV9pZHMilQEKGkNyZWF0ZVBlcnNvbmFsVG9rZW5SZXF1ZXN0EgwKBG5hbWUYASABKAkSMAoLcGVybWlzc2lvbnMYAiADKA4yGy5zdG9vcC5hY2Nlc3MudjEuUGVybWlzc2lvbhIXCg9leHBpcmVzX2luX2RheXMYBSABKAVKBAgDEARKBAgEEAVSB2xpbWl0ZWRSCXNwYWNlX2lkcyJaChtDcmVhdGVQZXJzb25hbFRva2VuUmVzcG9uc2USKwoFdG9rZW4YASABKAsyHC5zdG9vcC5hdXRoLnYxLlBlcnNvbmFsVG9rZW4SDgoGc2VjcmV0GAIgASgJIhsKGUxpc3RQZXJzb25hbFRva2Vuc1JlcXVlc3QiSgoaTGlzdFBlcnNvbmFsVG9rZW5zUmVzcG9uc2USLAoGdG9rZW5zGAEgAygLMhwuc3Rvb3AuYXV0aC52MS5QZXJzb25hbFRva2VuIi4KGlJldm9rZVBlcnNvbmFsVG9rZW5SZXF1ZXN0EhAKCHRva2VuX2lkGAEgASgJIh0KG1Jldm9rZVBlcnNvbmFsVG9rZW5SZXNwb25zZSpgCgxJbnN0YW5jZVJvbGUSHQoZSU5TVEFOQ0VfUk9MRV9VTlNQRUNJRklFRBAAEhgKFElOU1RBTkNFX1JPTEVfTUVNQkVSEAESFwoTSU5TVEFOQ0VfUk9MRV9BRE1JThACMsQJCgtBdXRoU2VydmljZRJNCghSZWdpc3RlchIeLnN0b29wLmF1dGgudjEuUmVnaXN0ZXJSZXF1ZXN0Gh8uc3Rvb3AuYXV0aC52MS5SZWdpc3RlclJlc3BvbnNlIgASRAoFTG9naW4SGy5zdG9vcC5hdXRoLnYxLkxvZ2luUmVxdWVzdBocLnN0b29wLmF1dGgudjEuTG9naW5SZXNwb25zZSIAEkcKBkxvZ291dBIcLnN0b29wLmF1dGgudjEuTG9nb3V0UmVxdWVzdBodLnN0b29wLmF1dGgudjEuTG9nb3V0UmVzcG9uc2UiABJECgVHZXRNZRIbLnN0b29wLmF1dGgudjEuR2V0TWVSZXF1ZXN0Ghwuc3Rvb3AuYXV0aC52MS5HZXRNZVJlc3BvbnNlIgASXAoNVXBkYXRlUHJvZmlsZRIjLnN0b29wLmF1dGgudjEuVXBkYXRlUHJvZmlsZVJlcXVlc3QaJC5zdG9vcC5hdXRoLnYxLlVwZGF0ZVByb2ZpbGVSZXNwb25zZSIAEmIKD1NldERvTm90RGlzdHVyYhIlLnN0b29wLmF1dGgudjEuU2V0RG9Ob3REaXN0dXJiUmVxdWVzdBomLnN0b29wLmF1dGgudjEuU2V0RG9Ob3REaXN0dXJiUmVzcG9uc2UiABJfCg5HZXRVc2VyUHJvZmlsZRIkLnN0b29wLmF1dGgudjEuR2V0VXNlclByb2ZpbGVSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5HZXRVc2VyUHJvZmlsZVJlc3BvbnNlIgASXwoOQ2hhbmdlUGFzc3dvcmQSJC5zdG9vcC5hdXRoLnYxLkNoYW5nZVBhc3N3b3JkUmVxdWVzdBolLnN0b29wLmF1dGgudjEuQ2hhbmdlUGFzc3dvcmRSZXNwb25zZSIAEl8KDkxpc3RJZGVudGl0aWVzEiQuc3Rvb3AuYXV0aC52MS5MaXN0SWRlbnRpdGllc1JlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLkxpc3RJZGVudGl0aWVzUmVzcG9uc2UiABJfCg5VbmxpbmtJZGVudGl0eRIkLnN0b29wLmF1dGgudjEuVW5saW5rSWRlbnRpdHlSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5VbmxpbmtJZGVudGl0eVJlc3BvbnNlIgASbgoTQ3JlYXRlUGVyc29uYWxUb2tlbhIpLnN0b29wLmF1dGgudjEuQ3JlYXRlUGVyc29uYWxUb2tlblJlcXVlc3QaKi5zdG9vcC5hdXRoLnYxLkNyZWF0ZVBlcnNvbmFsVG9rZW5SZXNwb25zZSIAEmsKEkxpc3RQZXJzb25hbFRva2VucxIoLnN0b29wLmF1dGgudjEuTGlzdFBlcnNvbmFsVG9rZW5zUmVxdWVzdBopLnN0b29wLmF1dGgudjEuTGlzdFBlcnNvbmFsVG9rZW5zUmVzcG9uc2UiABJuChNSZXZva2VQZXJzb25hbFRva2VuEikuc3Rvb3AuYXV0aC52MS5SZXZva2VQZXJzb25hbFRva2VuUmVxdWVzdBoqLnN0b29wLmF1dGgudjEuUmV2b2tlUGVyc29uYWxUb2tlblJlc3BvbnNlIgBCqAEKEWNvbS5zdG9vcC5hdXRoLnYxQglBdXRoUHJvdG9QAVoyZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvYXV0aC92MTthdXRodjGiAgNTQViqAg1TdG9vcC5BdXRoLlYxygINU3Rvb3BcQXV0aFxWMeICGVN0b29wXEF1dGhcVjFcR1BCTWV0YWRhdGHqAg9TdG9vcDo6QXV0aDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
 
 /**
  * @generated from message stoop.auth.v1.User
@@ -100,6 +100,22 @@ export type User = Message<"stoop.auth.v1.User"> & {
    * @generated from field: stoop.access.v1.IdentityKind kind = 12;
    */
   kind: IdentityKind;
+
+  /**
+   * True while the person is on do not disturb: others see it, and their
+   * devices hold alerts. An end time that has passed reads as false.
+   *
+   * @generated from field: bool dnd = 13;
+   */
+  dnd: boolean;
+
+  /**
+   * When do not disturb ends on its own. Unset while it is off or has no
+   * end.
+   *
+   * @generated from field: google.protobuf.Timestamp dnd_until = 14;
+   */
+  dndUntil?: Timestamp | undefined;
 };
 
 /**
@@ -336,6 +352,48 @@ export const UpdateProfileResponseSchema: GenMessage<UpdateProfileResponse> = /*
   messageDesc(file_stoop_auth_v1_auth, 10);
 
 /**
+ * @generated from message stoop.auth.v1.SetDoNotDisturbRequest
+ */
+export type SetDoNotDisturbRequest = Message<"stoop.auth.v1.SetDoNotDisturbRequest"> & {
+  /**
+   * @generated from field: bool on = 1;
+   */
+  on: boolean;
+
+  /**
+   * When it ends on its own. Unset for no end; ignored when turning it
+   * off. Must be in the future.
+   *
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message stoop.auth.v1.SetDoNotDisturbRequest.
+ * Use `create(SetDoNotDisturbRequestSchema)` to create a new message.
+ */
+export const SetDoNotDisturbRequestSchema: GenMessage<SetDoNotDisturbRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 11);
+
+/**
+ * @generated from message stoop.auth.v1.SetDoNotDisturbResponse
+ */
+export type SetDoNotDisturbResponse = Message<"stoop.auth.v1.SetDoNotDisturbResponse"> & {
+  /**
+   * @generated from field: stoop.auth.v1.User user = 1;
+   */
+  user?: User | undefined;
+};
+
+/**
+ * Describes the message stoop.auth.v1.SetDoNotDisturbResponse.
+ * Use `create(SetDoNotDisturbResponseSchema)` to create a new message.
+ */
+export const SetDoNotDisturbResponseSchema: GenMessage<SetDoNotDisturbResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 12);
+
+/**
  * PublicProfile is one user as anyone signed in may see them: identity
  * only. Their standing in a space (role, join date) comes from
  * stoop.chat.v1.Member instead.
@@ -381,6 +439,14 @@ export type PublicProfile = Message<"stoop.auth.v1.PublicProfile"> & {
    * @generated from field: stoop.access.v1.IdentityKind kind = 7;
    */
   kind: IdentityKind;
+
+  /**
+   * True while they are on do not disturb, so the card can say so whether
+   * or not they are online.
+   *
+   * @generated from field: bool dnd = 8;
+   */
+  dnd: boolean;
 };
 
 /**
@@ -388,7 +454,7 @@ export type PublicProfile = Message<"stoop.auth.v1.PublicProfile"> & {
  * Use `create(PublicProfileSchema)` to create a new message.
  */
 export const PublicProfileSchema: GenMessage<PublicProfile> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 11);
+  messageDesc(file_stoop_auth_v1_auth, 13);
 
 /**
  * @generated from message stoop.auth.v1.GetUserProfileRequest
@@ -405,7 +471,7 @@ export type GetUserProfileRequest = Message<"stoop.auth.v1.GetUserProfileRequest
  * Use `create(GetUserProfileRequestSchema)` to create a new message.
  */
 export const GetUserProfileRequestSchema: GenMessage<GetUserProfileRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 12);
+  messageDesc(file_stoop_auth_v1_auth, 14);
 
 /**
  * @generated from message stoop.auth.v1.GetUserProfileResponse
@@ -422,7 +488,7 @@ export type GetUserProfileResponse = Message<"stoop.auth.v1.GetUserProfileRespon
  * Use `create(GetUserProfileResponseSchema)` to create a new message.
  */
 export const GetUserProfileResponseSchema: GenMessage<GetUserProfileResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 13);
+  messageDesc(file_stoop_auth_v1_auth, 15);
 
 /**
  * @generated from message stoop.auth.v1.ChangePasswordRequest
@@ -454,7 +520,7 @@ export type ChangePasswordRequest = Message<"stoop.auth.v1.ChangePasswordRequest
  * Use `create(ChangePasswordRequestSchema)` to create a new message.
  */
 export const ChangePasswordRequestSchema: GenMessage<ChangePasswordRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 14);
+  messageDesc(file_stoop_auth_v1_auth, 16);
 
 /**
  * @generated from message stoop.auth.v1.ChangePasswordResponse
@@ -467,7 +533,7 @@ export type ChangePasswordResponse = Message<"stoop.auth.v1.ChangePasswordRespon
  * Use `create(ChangePasswordResponseSchema)` to create a new message.
  */
 export const ChangePasswordResponseSchema: GenMessage<ChangePasswordResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 15);
+  messageDesc(file_stoop_auth_v1_auth, 17);
 
 /**
  * Identity is one linked sign-in provider on the caller's account.
@@ -500,7 +566,7 @@ export type Identity = Message<"stoop.auth.v1.Identity"> & {
  * Use `create(IdentitySchema)` to create a new message.
  */
 export const IdentitySchema: GenMessage<Identity> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 16);
+  messageDesc(file_stoop_auth_v1_auth, 18);
 
 /**
  * @generated from message stoop.auth.v1.ListIdentitiesRequest
@@ -513,7 +579,7 @@ export type ListIdentitiesRequest = Message<"stoop.auth.v1.ListIdentitiesRequest
  * Use `create(ListIdentitiesRequestSchema)` to create a new message.
  */
 export const ListIdentitiesRequestSchema: GenMessage<ListIdentitiesRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 17);
+  messageDesc(file_stoop_auth_v1_auth, 19);
 
 /**
  * @generated from message stoop.auth.v1.ListIdentitiesResponse
@@ -530,7 +596,7 @@ export type ListIdentitiesResponse = Message<"stoop.auth.v1.ListIdentitiesRespon
  * Use `create(ListIdentitiesResponseSchema)` to create a new message.
  */
 export const ListIdentitiesResponseSchema: GenMessage<ListIdentitiesResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 18);
+  messageDesc(file_stoop_auth_v1_auth, 20);
 
 /**
  * @generated from message stoop.auth.v1.UnlinkIdentityRequest
@@ -547,7 +613,7 @@ export type UnlinkIdentityRequest = Message<"stoop.auth.v1.UnlinkIdentityRequest
  * Use `create(UnlinkIdentityRequestSchema)` to create a new message.
  */
 export const UnlinkIdentityRequestSchema: GenMessage<UnlinkIdentityRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 19);
+  messageDesc(file_stoop_auth_v1_auth, 21);
 
 /**
  * @generated from message stoop.auth.v1.UnlinkIdentityResponse
@@ -560,7 +626,7 @@ export type UnlinkIdentityResponse = Message<"stoop.auth.v1.UnlinkIdentityRespon
  * Use `create(UnlinkIdentityResponseSchema)` to create a new message.
  */
 export const UnlinkIdentityResponseSchema: GenMessage<UnlinkIdentityResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 20);
+  messageDesc(file_stoop_auth_v1_auth, 22);
 
 /**
  * PersonalToken is one of a person's tokens, as its holder or an admin sees
@@ -623,7 +689,7 @@ export type PersonalToken = Message<"stoop.auth.v1.PersonalToken"> & {
  * Use `create(PersonalTokenSchema)` to create a new message.
  */
 export const PersonalTokenSchema: GenMessage<PersonalToken> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 21);
+  messageDesc(file_stoop_auth_v1_auth, 23);
 
 /**
  * @generated from message stoop.auth.v1.CreatePersonalTokenRequest
@@ -657,7 +723,7 @@ export type CreatePersonalTokenRequest = Message<"stoop.auth.v1.CreatePersonalTo
  * Use `create(CreatePersonalTokenRequestSchema)` to create a new message.
  */
 export const CreatePersonalTokenRequestSchema: GenMessage<CreatePersonalTokenRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 22);
+  messageDesc(file_stoop_auth_v1_auth, 24);
 
 /**
  * @generated from message stoop.auth.v1.CreatePersonalTokenResponse
@@ -681,7 +747,7 @@ export type CreatePersonalTokenResponse = Message<"stoop.auth.v1.CreatePersonalT
  * Use `create(CreatePersonalTokenResponseSchema)` to create a new message.
  */
 export const CreatePersonalTokenResponseSchema: GenMessage<CreatePersonalTokenResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 23);
+  messageDesc(file_stoop_auth_v1_auth, 25);
 
 /**
  * @generated from message stoop.auth.v1.ListPersonalTokensRequest
@@ -694,7 +760,7 @@ export type ListPersonalTokensRequest = Message<"stoop.auth.v1.ListPersonalToken
  * Use `create(ListPersonalTokensRequestSchema)` to create a new message.
  */
 export const ListPersonalTokensRequestSchema: GenMessage<ListPersonalTokensRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 24);
+  messageDesc(file_stoop_auth_v1_auth, 26);
 
 /**
  * @generated from message stoop.auth.v1.ListPersonalTokensResponse
@@ -711,7 +777,7 @@ export type ListPersonalTokensResponse = Message<"stoop.auth.v1.ListPersonalToke
  * Use `create(ListPersonalTokensResponseSchema)` to create a new message.
  */
 export const ListPersonalTokensResponseSchema: GenMessage<ListPersonalTokensResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 25);
+  messageDesc(file_stoop_auth_v1_auth, 27);
 
 /**
  * @generated from message stoop.auth.v1.RevokePersonalTokenRequest
@@ -728,7 +794,7 @@ export type RevokePersonalTokenRequest = Message<"stoop.auth.v1.RevokePersonalTo
  * Use `create(RevokePersonalTokenRequestSchema)` to create a new message.
  */
 export const RevokePersonalTokenRequestSchema: GenMessage<RevokePersonalTokenRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 26);
+  messageDesc(file_stoop_auth_v1_auth, 28);
 
 /**
  * @generated from message stoop.auth.v1.RevokePersonalTokenResponse
@@ -741,7 +807,7 @@ export type RevokePersonalTokenResponse = Message<"stoop.auth.v1.RevokePersonalT
  * Use `create(RevokePersonalTokenResponseSchema)` to create a new message.
  */
 export const RevokePersonalTokenResponseSchema: GenMessage<RevokePersonalTokenResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 27);
+  messageDesc(file_stoop_auth_v1_auth, 29);
 
 /**
  * InstanceRole is a user's server-level type. Admins operate the instance
@@ -827,6 +893,17 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof UpdateProfileRequestSchema;
     output: typeof UpdateProfileResponseSchema;
+  },
+  /**
+   * SetDoNotDisturb turns do not disturb on, with an optional end, or off.
+   * It belongs to the account, so every device the person uses follows it.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.SetDoNotDisturb
+   */
+  setDoNotDisturb: {
+    methodKind: "unary";
+    input: typeof SetDoNotDisturbRequestSchema;
+    output: typeof SetDoNotDisturbResponseSchema;
   },
   /**
    * GetUserProfile is one person's public face, for their profile card.

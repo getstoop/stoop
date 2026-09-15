@@ -57,7 +57,7 @@ SELECT id, username, display_name, role, kind, avatar_file_id FROM users WHERE i
 -- own query rather than GetUserByID because that one is SELECT * and would
 -- put the password hash one line away from a response.
 -- name: GetUserProfile :one
-SELECT id, username, display_name, avatar_file_id, pronouns, bio, kind
+SELECT id, username, display_name, avatar_file_id, pronouns, bio, kind, dnd, dnd_until
 FROM users WHERE id = $1;
 
 -- UpdateUserProfile writes the fields a person (or an admin acting on
@@ -69,6 +69,19 @@ UPDATE users SET
     bio          = coalesce(sqlc.narg('bio')::text,          bio)
 WHERE id = $1
 RETURNING *;
+
+-- SetDoNotDisturb turns do not disturb on, with an optional end, or off.
+-- Turning it off passes a null end, which users_dnd_until_needs_dnd
+-- requires.
+-- name: SetDoNotDisturb :one
+UPDATE users SET dnd = $2, dnd_until = sqlc.narg('dnd_until')
+WHERE id = $1
+RETURNING *;
+
+-- GetDoNotDisturb is the stored state for the gateway's lookup; whether it
+-- has ended is decided by the caller against the clock.
+-- name: GetDoNotDisturb :one
+SELECT dnd, dnd_until FROM users WHERE id = $1;
 
 -- name: UpdateUserPasswordHash :exec
 UPDATE users SET password_hash = $2 WHERE id = $1;

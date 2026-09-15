@@ -29,6 +29,7 @@ var procedures = map[string]authctx.Rule{
 	authv1connect.AuthServiceGetMeProcedure:               anyCaller,
 	authv1connect.AuthServiceGetUserProfileProcedure:      anyCaller,
 	authv1connect.AuthServiceUpdateProfileProcedure:       needs(authctx.ProfileManage),
+	authv1connect.AuthServiceSetDoNotDisturbProcedure:     needs(authctx.ProfileManage),
 	authv1connect.AuthServiceChangePasswordProcedure:      needs(authctx.AccountSecurity),
 	authv1connect.AuthServiceListIdentitiesProcedure:      needs(authctx.AccountSecurity),
 	authv1connect.AuthServiceUnlinkIdentityProcedure:      needs(authctx.AccountSecurity),
