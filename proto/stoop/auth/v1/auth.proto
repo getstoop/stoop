@@ -36,6 +36,13 @@ service AuthService {
   // UnlinkIdentity removes one linked provider. Refused when it is the
   // account's only way to sign in (no password and no other identity).
   rpc UnlinkIdentity(UnlinkIdentityRequest) returns (UnlinkIdentityResponse) {}
+  // DeleteAccount is the caller deleting their own account, from a session
+  // only. Their messages stay under their username, marked as a deleted
+  // author; everything else that was theirs goes, and every session and
+  // token is revoked. It asks for the password again, or for a sign-in
+  // within the last few minutes when the account has none. Refused when
+  // the operator has turned self-deletion off, and for the last admin.
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse) {}
   // CreatePersonalToken makes a token that acts as the caller with only the
   // permissions granted. The secret is in
   // this response and nowhere else. Needs a session: no token can make
@@ -176,6 +183,8 @@ message PublicProfile {
   // True while they are on do not disturb, so the card can say so whether
   // or not they are online.
   bool dnd = 8;
+  // The account was deleted by its owner; the name is all that is left.
+  bool deleted = 9;
 }
 
 message GetUserProfileRequest {
@@ -217,6 +226,13 @@ message UnlinkIdentityRequest {
 }
 
 message UnlinkIdentityResponse {}
+
+message DeleteAccountRequest {
+  // Ignored for an account without one; then the sign-in must be recent.
+  string password = 1;
+}
+
+message DeleteAccountResponse {}
 
 // PersonalToken is one of a person's tokens, as its holder or an admin sees
 // it: never the secret, which isn't stored.

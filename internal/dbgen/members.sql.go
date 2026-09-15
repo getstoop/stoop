@@ -125,6 +125,30 @@ func (q *Queries) IsSpaceMember(ctx context.Context, arg IsSpaceMemberParams) (b
 	return is_member, err
 }
 
+const listOwnedSpaceIDs = `-- name: ListOwnedSpaceIDs :many
+SELECT id FROM spaces WHERE owner_id = $1
+`
+
+func (q *Queries) ListOwnedSpaceIDs(ctx context.Context, ownerID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listOwnedSpaceIDs, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpaceIDsByUser = `-- name: ListSpaceIDsByUser :many
 SELECT space_id FROM space_members WHERE user_id = $1
 `
@@ -178,6 +202,21 @@ func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID string) ([]Space
 		return nil, err
 	}
 	return items, nil
+}
+
+const longestServingAdmin = `-- name: LongestServingAdmin :one
+SELECT user_id FROM space_members
+WHERE space_id = $1 AND role = 'admin'
+ORDER BY joined_at LIMIT 1
+`
+
+// LongestServingAdmin is who takes a space when its owner's account is
+// deleted: the admin who joined first.
+func (q *Queries) LongestServingAdmin(ctx context.Context, spaceID string) (string, error) {
+	row := q.db.QueryRow(ctx, longestServingAdmin, spaceID)
+	var user_id string
+	err := row.Scan(&user_id)
+	return user_id, err
 }
 
 const setSpaceMemberRole = `-- name: SetSpaceMemberRole :execrows

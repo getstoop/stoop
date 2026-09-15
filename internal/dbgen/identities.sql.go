@@ -51,6 +51,15 @@ func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) 
 	return i, err
 }
 
+const deleteUserIdentities = `-- name: DeleteUserIdentities :exec
+DELETE FROM user_identities WHERE user_id = $1
+`
+
+func (q *Queries) DeleteUserIdentities(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, deleteUserIdentities, userID)
+	return err
+}
+
 const deleteUserIdentity = `-- name: DeleteUserIdentity :execrows
 DELETE FROM user_identities WHERE user_id = $1 AND provider = $2
 `
@@ -70,7 +79,7 @@ func (q *Queries) DeleteUserIdentity(ctx context.Context, arg DeleteUserIdentity
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
 
-SELECT u.id, u.username, u.display_name, u.password_hash, u.created_at, u.role, u.deactivated_at, u.avatar_file_id, u.username_pending, u.username_frozen, u.pronouns, u.bio, u.kind, u.dnd, u.dnd_until FROM users u
+SELECT u.id, u.username, u.display_name, u.password_hash, u.created_at, u.role, u.deactivated_at, u.avatar_file_id, u.username_pending, u.username_frozen, u.pronouns, u.bio, u.kind, u.dnd, u.dnd_until, u.deleted_at FROM users u
 JOIN user_identities i ON i.user_id = u.id
 WHERE i.provider = $1 AND i.subject = $2
 `
@@ -101,6 +110,7 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }

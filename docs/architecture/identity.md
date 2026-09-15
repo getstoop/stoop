@@ -37,6 +37,30 @@ a provider claim that its owner hasn't confirmed, so the client can nudge
 them once. `username_frozen` is an admin lock on self-service renames,
 for after an offensive handle has been cleaned up; admin renames bypass it.
 
+### Deleting your account
+
+`AuthService.DeleteAccount` is a person deleting their own account, and
+it follows the same rule: the row stays. Their messages keep their
+author, shown with the name and a mark that the account is deleted
+(`MessageAuthor.deleted`, `PublicProfile.deleted`); the username stays
+held so nobody can be impersonated by registering it; the display name
+becomes the username and the avatar, bio, pronouns, do-not-disturb state
+and password go, as do every session, token and provider link. The
+account is deactivated for good: an admin cannot bring it back.
+
+Before any of that, the spaces they own are handed on through chat's
+`RemovePerson` port: to the space's longest-serving admin, or with none,
+to the longest-serving instance admin, who is joined to the space as its
+owner. Then they leave every space. Conversations are left as they are.
+The hand-over runs first because it is not undone: a failure after it
+leaves an account that still works and can be deleted again.
+
+The call takes the password again, or for an account that has none, a
+session started within the last ten minutes; it comes only from a
+session, never a token; the last active admin is refused, under the same
+lock as a demotion; and the operator can turn it off with the
+`self_deletion` setting, on by default.
+
 ### Profiles
 
 `users.pronouns` (40 characters) and `users.bio` (300), both plain text run

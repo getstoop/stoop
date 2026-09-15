@@ -355,6 +355,17 @@ func (q *Queries) GetCredentialByTokenHash(ctx context.Context, tokenHash []byte
 	return i, err
 }
 
+const getCredentialCreatedAt = `-- name: GetCredentialCreatedAt :one
+SELECT created_at FROM credentials WHERE id = $1
+`
+
+func (q *Queries) GetCredentialCreatedAt(ctx context.Context, id string) (time.Time, error) {
+	row := q.db.QueryRow(ctx, getCredentialCreatedAt, id)
+	var created_at time.Time
+	err := row.Scan(&created_at)
+	return created_at, err
+}
+
 const listPersonalTokens = `-- name: ListPersonalTokens :many
 SELECT c.id, c.name, c.grants, c.bounded, c.created_at, c.last_used_at, c.expires_at, c.hint,
        coalesce(array_agg(b.space_id) FILTER (WHERE b.space_id IS NOT NULL), '{}')::uuid[] AS bound_spaces

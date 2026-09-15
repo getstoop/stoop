@@ -29,6 +29,7 @@ type UserSummary struct {
 	Kind           authctx.IdentityKind
 	CreatedAt      time.Time
 	DeactivatedAt  *time.Time
+	DeletedAt      *time.Time
 	UsernameFrozen bool
 	HasPassword    bool
 	Pronouns       string

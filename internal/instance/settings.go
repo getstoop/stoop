@@ -43,6 +43,10 @@ const (
 	// keyPasswordSignIn) it's left unseeded and stays live as the
 	// fallback.
 	keyInstanceName = "instance_name"
+	// keySelfDeletion: whether a person may delete their own account. On
+	// unless the operator turns it off. Read by auth through its
+	// DeletionPolicy port.
+	keySelfDeletion = "self_deletion"
 )
 
 // MaxInstanceNameRunes bounds the name in characters, not bytes. The
@@ -293,6 +297,10 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 	if err != nil {
 		return nil, err
 	}
+	selfDeletion, err := s.SelfDeletion(ctx)
+	if err != nil {
+		return nil, err
+	}
 	summaries := make([]*instancev1.LoginProviderSummary, len(providers))
 	for i, lp := range providers {
 		summaries[i] = &instancev1.LoginProviderSummary{
@@ -306,8 +314,14 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		MaxUploadBytes: maxUpload, InstanceName: name,
 		PersonalTokens:    toProtoPersonalTokens(TokenSetting(tokens)),
 		WebhooksAvailable: s.webhooksEnv, WebhooksIncoming: incoming, WebhooksOutgoing: outgoing,
-		WebhooksAllowPrivateTargets: private,
+		WebhooksAllowPrivateTargets: private, SelfDeletion: selfDeletion,
 	}, nil
+}
+
+// SelfDeletion is whether a person may delete their own account. Also
+// the auth module's port.
+func (s *Service) SelfDeletion(ctx context.Context) (bool, error) {
+	return s.readBool(ctx, keySelfDeletion, true)
 }
 
 func (s *Service) GetInstanceStatus(ctx context.Context, _ *connect.Request[instancev1.GetInstanceStatusRequest]) (*connect.Response[instancev1.GetInstanceStatusResponse], error) {
@@ -430,6 +444,7 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	for key, v := range map[string]*bool{
 		keyWebhooksIncoming: req.Msg.WebhooksIncoming, keyWebhooksOutgoing: req.Msg.WebhooksOutgoing,
 		keyWebhooksAllowPrivateTargets: req.Msg.WebhooksAllowPrivateTargets,
+		keySelfDeletion:                req.Msg.SelfDeletion,
 	} {
 		if v != nil {
 			if err := s.writeBool(ctx, key, *v); err != nil {

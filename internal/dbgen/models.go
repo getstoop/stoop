@@ -248,6 +248,7 @@ type User struct {
 	Kind            string
 	Dnd             bool
 	DndUntil        *time.Time
+	DeletedAt       *time.Time
 }
 
 type UserBlock struct {

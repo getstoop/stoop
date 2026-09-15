@@ -96,3 +96,6 @@ DELETE FROM credentials
 WHERE (kind = 'session' AND expires_at <= now())
    OR (kind <> 'session' AND expires_at <= sqlc.arg(expired_before)::timestamptz)
 RETURNING id, holder_id;
+
+-- name: GetCredentialCreatedAt :one
+SELECT created_at FROM credentials WHERE id = $1;

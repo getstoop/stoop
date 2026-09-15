@@ -40,7 +40,7 @@ const createBot = `-- name: CreateBot :one
 
 INSERT INTO users (id, username, display_name, password_hash, role, kind)
 VALUES ($1, $2, $3, NULL, 'member', 'bot')
-RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type CreateBotParams struct {
@@ -70,6 +70,7 @@ func (q *Queries) CreateBot(ctx context.Context, arg CreateBotParams) (User, err
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -276,7 +277,7 @@ func (q *Queries) ListBotCredentials(ctx context.Context, holderIds []string) ([
 }
 
 const listBots = `-- name: ListBots :many
-SELECT id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until FROM users WHERE kind = 'bot' ORDER BY created_at, id
+SELECT id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at FROM users WHERE kind = 'bot' ORDER BY created_at, id
 `
 
 func (q *Queries) ListBots(ctx context.Context) ([]User, error) {
@@ -304,6 +305,7 @@ func (q *Queries) ListBots(ctx context.Context) ([]User, error) {
 			&i.Kind,
 			&i.Dnd,
 			&i.DndUntil,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}

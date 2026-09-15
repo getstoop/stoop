@@ -55,8 +55,9 @@ func (s *Service) GetUserProfile(ctx context.Context, req *connect.Request[authv
 			Id: row.ID, Username: row.Username, DisplayName: row.DisplayName,
 			AvatarFileId: deref(row.AvatarFileID),
 			Pronouns:     row.Pronouns, Bio: row.Bio,
-			Kind: accesswire.KindToProto(authctx.IdentityKind(row.Kind)),
-			Dnd:  dnd,
+			Kind:    accesswire.KindToProto(authctx.IdentityKind(row.Kind)),
+			Dnd:     dnd,
+			Deleted: row.DeletedAt != nil,
 		},
 	}), nil
 }
@@ -75,6 +76,8 @@ type PublicUser struct {
 	Role         authctx.Role
 	Kind         authctx.IdentityKind
 	AvatarFileID string
+	// Deleted: the person deleted the account; the username is all that is left.
+	Deleted bool
 }
 
 // GetPublicUsers is the lookup other modules consume (via ports wired in
@@ -89,6 +92,7 @@ func (s *Service) GetPublicUsers(ctx context.Context, ids []string) ([]PublicUse
 		users[i] = PublicUser{
 			ID: r.ID, Username: r.Username, DisplayName: r.DisplayName,
 			Role: authctx.Role(r.Role), Kind: authctx.IdentityKind(r.Kind), AvatarFileID: deref(r.AvatarFileID),
+			Deleted: r.DeletedAt != nil,
 		}
 	}
 	return users, nil

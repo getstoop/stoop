@@ -13,7 +13,7 @@ import (
 const adminSetUsername = `-- name: AdminSetUsername :one
 UPDATE users SET username = $2, username_pending = false
 WHERE id = $1
-RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type AdminSetUsernameParams struct {
@@ -42,6 +42,7 @@ func (q *Queries) AdminSetUsername(ctx context.Context, arg AdminSetUsernamePara
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -74,7 +75,7 @@ const createUser = `-- name: CreateUser :one
 
 INSERT INTO users (id, username, display_name, password_hash, role, username_pending)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type CreateUserParams struct {
@@ -114,6 +115,49 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const deleteAccount = `-- name: DeleteAccount :one
+UPDATE users
+SET deleted_at = now(),
+    deactivated_at = COALESCE(deactivated_at, now()),
+    display_name = username,
+    avatar_file_id = NULL,
+    pronouns = '',
+    bio = '',
+    dnd = false,
+    dnd_until = NULL,
+    password_hash = NULL
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
+`
+
+// DeleteAccount is what a person's own deletion leaves: the row, its id
+// and username, and nothing that was theirs to show. The password goes
+// too; there is no signing in to a deleted account.
+func (q *Queries) DeleteAccount(ctx context.Context, id string) (User, error) {
+	row := q.db.QueryRow(ctx, deleteAccount, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.CreatedAt,
+		&i.Role,
+		&i.DeactivatedAt,
+		&i.AvatarFileID,
+		&i.UsernamePending,
+		&i.UsernameFrozen,
+		&i.Pronouns,
+		&i.Bio,
+		&i.Kind,
+		&i.Dnd,
+		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -162,7 +206,7 @@ func (q *Queries) GetUserAvatarForUpdate(ctx context.Context, id string) (*strin
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until FROM users WHERE id = $1
+SELECT id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -184,12 +228,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until FROM users WHERE username = $1
+SELECT id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at FROM users WHERE username = $1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -211,12 +256,13 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserProfile = `-- name: GetUserProfile :one
-SELECT id, username, display_name, avatar_file_id, pronouns, bio, kind, dnd, dnd_until
+SELECT id, username, display_name, avatar_file_id, pronouns, bio, kind, dnd, dnd_until, deleted_at
 FROM users WHERE id = $1
 `
 
@@ -230,6 +276,7 @@ type GetUserProfileRow struct {
 	Kind         string
 	Dnd          bool
 	DndUntil     *time.Time
+	DeletedAt    *time.Time
 }
 
 // GetUserProfile is one person's public face, for their profile card. Its
@@ -248,12 +295,13 @@ func (q *Queries) GetUserProfile(ctx context.Context, id string) (GetUserProfile
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUsersByIDs = `-- name: GetUsersByIDs :many
-SELECT id, username, display_name, role, kind, avatar_file_id FROM users WHERE id = ANY($1::uuid[])
+SELECT id, username, display_name, role, kind, avatar_file_id, deleted_at FROM users WHERE id = ANY($1::uuid[])
 `
 
 type GetUsersByIDsRow struct {
@@ -263,6 +311,7 @@ type GetUsersByIDsRow struct {
 	Role         string
 	Kind         string
 	AvatarFileID *string
+	DeletedAt    *time.Time
 }
 
 func (q *Queries) GetUsersByIDs(ctx context.Context, dollar_1 []string) ([]GetUsersByIDsRow, error) {
@@ -281,6 +330,7 @@ func (q *Queries) GetUsersByIDs(ctx context.Context, dollar_1 []string) ([]GetUs
 			&i.Role,
 			&i.Kind,
 			&i.AvatarFileID,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -293,7 +343,7 @@ func (q *Queries) GetUsersByIDs(ctx context.Context, dollar_1 []string) ([]GetUs
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until FROM users ORDER BY created_at
+SELECT id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at FROM users ORDER BY created_at
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -321,6 +371,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Kind,
 			&i.Dnd,
 			&i.DndUntil,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -352,6 +403,22 @@ func (q *Queries) LockUserBootstrap(ctx context.Context) error {
 	return err
 }
 
+const oldestOtherAdmin = `-- name: OldestOtherAdmin :one
+SELECT id FROM users
+WHERE role = 'admin' AND kind = 'person' AND deactivated_at IS NULL AND id <> $1
+ORDER BY created_at LIMIT 1
+`
+
+// OldestOtherAdmin is the instance admin who has served longest, apart
+// from one person: where a deleted owner's space goes when no space admin
+// can take it.
+func (q *Queries) OldestOtherAdmin(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, oldestOtherAdmin, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const referencedAvatarFileIDs = `-- name: ReferencedAvatarFileIDs :many
 SELECT avatar_file_id::uuid AS id FROM users WHERE avatar_file_id = ANY($1::uuid[])
 `
@@ -381,7 +448,7 @@ func (q *Queries) ReferencedAvatarFileIDs(ctx context.Context, ids []string) ([]
 const setDoNotDisturb = `-- name: SetDoNotDisturb :one
 UPDATE users SET dnd = $2, dnd_until = $3
 WHERE id = $1
-RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type SetDoNotDisturbParams struct {
@@ -412,6 +479,7 @@ func (q *Queries) SetDoNotDisturb(ctx context.Context, arg SetDoNotDisturbParams
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -434,7 +502,7 @@ const setUserDeactivated = `-- name: SetUserDeactivated :one
 UPDATE users
 SET deactivated_at = CASE WHEN $2::boolean THEN now() ELSE NULL END
 WHERE id = $1
-RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type SetUserDeactivatedParams struct {
@@ -461,12 +529,13 @@ func (q *Queries) SetUserDeactivated(ctx context.Context, arg SetUserDeactivated
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const setUserRole = `-- name: SetUserRole :one
-UPDATE users SET role = $2 WHERE id = $1 RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+UPDATE users SET role = $2 WHERE id = $1 RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type SetUserRoleParams struct {
@@ -493,12 +562,13 @@ func (q *Queries) SetUserRole(ctx context.Context, arg SetUserRoleParams) (User,
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const setUserRoleByUsername = `-- name: SetUserRoleByUsername :one
-UPDATE users SET role = $2 WHERE username = $1 RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+UPDATE users SET role = $2 WHERE username = $1 RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type SetUserRoleByUsernameParams struct {
@@ -525,6 +595,7 @@ func (q *Queries) SetUserRoleByUsername(ctx context.Context, arg SetUserRoleByUs
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -532,7 +603,7 @@ func (q *Queries) SetUserRoleByUsername(ctx context.Context, arg SetUserRoleByUs
 const setUsername = `-- name: SetUsername :one
 UPDATE users SET username = $2, username_pending = false
 WHERE id = $1 AND NOT username_frozen
-RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type SetUsernameParams struct {
@@ -563,12 +634,13 @@ func (q *Queries) SetUsername(ctx context.Context, arg SetUsernameParams) (User,
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const setUsernameFrozen = `-- name: SetUsernameFrozen :one
-UPDATE users SET username_frozen = $2 WHERE id = $1 RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+UPDATE users SET username_frozen = $2 WHERE id = $1 RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type SetUsernameFrozenParams struct {
@@ -595,6 +667,7 @@ func (q *Queries) SetUsernameFrozen(ctx context.Context, arg SetUsernameFrozenPa
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -619,7 +692,7 @@ UPDATE users SET
     pronouns     = coalesce($3::text,     pronouns),
     bio          = coalesce($4::text,          bio)
 WHERE id = $1
-RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until
+RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at
 `
 
 type UpdateUserProfileParams struct {
@@ -655,6 +728,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Kind,
 		&i.Dnd,
 		&i.DndUntil,
+		&i.DeletedAt,
 	)
 	return i, err
 }

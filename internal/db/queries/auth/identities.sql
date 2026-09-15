@@ -19,3 +19,6 @@ DELETE FROM user_identities WHERE user_id = $1 AND provider = $2;
 
 -- name: CountUserIdentities :one
 SELECT count(*) FROM user_identities WHERE user_id = $1;
+
+-- name: DeleteUserIdentities :exec
+DELETE FROM user_identities WHERE user_id = $1;

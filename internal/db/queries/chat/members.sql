@@ -41,3 +41,13 @@ DELETE FROM space_members WHERE space_id = $1 AND user_id = $2;
 
 -- name: GetSpaceMember :one
 SELECT * FROM space_members WHERE space_id = $1 AND user_id = $2;
+
+-- LongestServingAdmin is who takes a space when its owner's account is
+-- deleted: the admin who joined first.
+-- name: LongestServingAdmin :one
+SELECT user_id FROM space_members
+WHERE space_id = $1 AND role = 'admin'
+ORDER BY joined_at LIMIT 1;
+
+-- name: ListOwnedSpaceIDs :many
+SELECT id FROM spaces WHERE owner_id = $1;

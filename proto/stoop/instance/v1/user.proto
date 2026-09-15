@@ -30,4 +30,7 @@ message InstanceUser {
   // Person or bot. A bot has no password to reset and no username to
   // freeze; its tokens and hooks are managed under Integrations.
   stoop.access.v1.IdentityKind kind = 12;
+  // Set when the person deleted their own account. It stays deactivated
+  // and cannot be brought back.
+  google.protobuf.Timestamp deleted_at = 13;
 }
