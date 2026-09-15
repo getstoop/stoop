@@ -212,10 +212,12 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			// Joining a space while connected: start receiving its events
 			// on this same connection, if the credential reaches it.
+			joinedSpace := ""
 			if joined := ev.GetSpaceJoined(); joined != nil && coversSpace(cred, authctx.MessagesRead, joined.Space.Id) {
-				sub.Add("space:" + joined.Space.Id)
-				g.presence.addSpace(userID, joined.Space.Id)
-				g.publishPresence(userID, []string{joined.Space.Id}, true)
+				joinedSpace = joined.Space.Id
+				sub.Add("space:" + joinedSpace)
+				g.presence.addSpace(userID, joinedSpace)
+				g.publishPresence(userID, []string{joinedSpace}, true)
 			}
 			// Kicked, left, or the space is gone: stop receiving its events.
 			if removed := ev.GetMemberRemoved(); removed != nil && removed.UserId == userID {
@@ -244,6 +246,13 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if err := g.send(ctx, conn, ev); err != nil {
 				return
 			}
+			// Ready only covered the spaces held at connect time; the new
+			// space's presence and voice state follow its SpaceJoined.
+			if joinedSpace != "" {
+				if err := g.sendSpaceSnapshot(ctx, conn, joinedSpace); err != nil {
+					return
+				}
+			}
 			// The credential this socket was opened with is gone: the
 			// client has been told, and must not come back with it.
 			if ev.GetCredentialRevoked() != nil {
@@ -252,6 +261,34 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// sendSpaceSnapshot tells one connection who is online and in voice in a
+// space it just joined, as the change events it would have seen had it
+// been subscribed all along.
+func (g *Gateway) sendSpaceSnapshot(ctx context.Context, conn *websocket.Conn, spaceID string) error {
+	ids := []string{spaceID}
+	for _, p := range g.presence.presencesIn(ids) {
+		err := g.send(ctx, conn, events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_PresenceChanged{
+				PresenceChanged: &realtimev1.PresenceChanged{UserId: p.UserId, Online: true, Dnd: p.Dnd},
+			},
+		}))
+		if err != nil {
+			return err
+		}
+	}
+	for _, p := range g.voice.participantsIn(ids) {
+		err := g.send(ctx, conn, events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_VoiceStateChanged{
+				VoiceStateChanged: &realtimev1.VoiceStateChanged{Participant: p, Joined: true},
+			},
+		}))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *Gateway) publishPresence(userID string, spaceIDs []string, online bool) {
