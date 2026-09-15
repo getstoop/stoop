@@ -208,8 +208,11 @@ got big enough that a red `main` cost more than the round-trip saves.
   `main`. After the merge, `git switch main && git pull` in that checkout;
   `make dev` prints what it runs and warns when `origin/main` is ahead.
 - Commit as before (`git commit -F <file>` with the trailer), push with
-  `git push -u origin HEAD`, then `gh pr create --fill` (or with a body that
-  says what changed and why; the ticket id goes in the title).
+  `git push -u origin HEAD`, then `gh pr create` with a body that follows
+  `.github/pull_request_template.md` (What changed and why / How it was
+  verified / Checklist, ticked truthfully) — not `--fill`, which copies the
+  commit log instead and skips the template entirely. The ticket id goes in
+  the title.
 - CI runs the same jobs it runs on `main`, including the browser suite —
   on its own throwaway Postgres, so it never touches the dev database.
   Local `make lint` / `make test` / `make build` before pushing keep the
