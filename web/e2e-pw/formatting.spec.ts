@@ -6,7 +6,10 @@ import { expect, seed, signIn, test } from "./lib";
 // and spoilers work, previews stay plain, and editing keeps the markup.
 // Ported from web/e2e/formatting.mjs (STOOP-238). Typing is the subject
 // throughout — the caret, the selection and the mention picker all
-// depend on keystrokes — so this spec types instead of filling.
+// depend on keystrokes — so this spec types instead of filling. What each
+// marker does to a selection or a caret is api/formatting.test.ts; here
+// one button and one shortcut prove the wiring, and the rest is what the
+// timeline renders.
 test("markdown in the composer and the timeline", async ({ browser }) => {
   const { suffix, tokens } = await seed({ channels: ["general"] });
   const A = await (await browser.newContext()).newPage();
@@ -89,41 +92,17 @@ test("markdown in the composer and the timeline", async ({ browser }) => {
       { message: "the inner text is left selected" },
     )
     .toBe(2);
-  await clickTool(A, "Bold");
-  await expect(composer(A), "bold again unwraps").toHaveValue("hi there");
-  // Shortcuts.
-  await selectAll(A);
-  await A.keyboard.press("Control+i");
-  await expect(composer(A), "Ctrl+I italicises").toHaveValue("*hi there*");
+  // A shortcut reaches the same function from the keyboard.
   await selectAll(A);
   await A.keyboard.press("Control+Shift+X");
   await expect(composer(A), "Ctrl+Shift+X strikes").toHaveValue(
-    "~~*hi there*~~",
+    "~~**hi there**~~",
   );
   await A.keyboard.press("Enter");
   await expect(
-    last(A).locator("s em"),
-    "nested strike/italic renders",
+    last(A).locator("s strong"),
+    "nested strike/bold renders",
   ).toHaveText("hi there");
-  // With no selection the markers open around the caret, so what you type
-  // next is inside them; the same shortcut again with the empty pair removes it.
-  await composer(A).pressSequentially("say ");
-  await A.keyboard.press("Control+b");
-  await composer(A).pressSequentially("loud");
-  await expect(
-    composer(A),
-    "caret-only bold wraps what you type next",
-  ).toHaveValue("say **loud**");
-  await A.keyboard.press("Control+b");
-  await composer(A).pressSequentially("er");
-  await expect(
-    composer(A),
-    "the shortcut at the closer moves past it",
-  ).toHaveValue("say **loud**er");
-  await composer(A).fill("");
-  await expect(composer(A), "composer cleared for the next step").toHaveValue(
-    "",
-  );
 
   // Quote and code block via the toolbar, multi-line.
   await composer(A).pressSequentially("wise words");
@@ -198,17 +177,7 @@ test("markdown in the composer and the timeline", async ({ browser }) => {
       { message: "switching marker kind starts a new list" },
     )
     .toBe("UL,OL");
-  // Switching list style swaps the prefix rather than stacking it.
-  await composer(A).pressSequentially("- a thing");
-  await clickTool(A, "Numbered list");
-  await expect(composer(A), "list buttons swap prefixes").toHaveValue(
-    "1. a thing",
-  );
-  await clickTool(A, "Numbered list");
-  await expect(
-    composer(A),
-    "clicking the same one again removes it",
-  ).toHaveValue("a thing");
+  await composer(A).pressSequentially("a thing");
   await selectAll(A);
   await clickTool(A, "Spoiler");
   await expect(

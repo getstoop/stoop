@@ -23,7 +23,9 @@ declare global {
 // activity feed and lights the activity pill's dot. STOOP-135 adds the
 // space half: muting a space silences every channel under it. STOOP-136
 // lists every mute on Profile → Notifications.
-// Ported from web/e2e/mutes.mjs (STOOP-238).
+// Ported from web/e2e/mutes.mjs (STOOP-238). One case per wiring: which
+// mute silences what is api/mutes.test.ts and api/unreads.test.ts, so the
+// mention is the case here, and a plain message is not checked again.
 test("mutes silence every badge but the feed", async ({ browser }) => {
   const { suffix, tokens } = await seed();
   const aName = `ada${suffix}`;
@@ -125,28 +127,21 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // A parks in #random so nothing in #general is read on arrival.
   await channelLink(A, "random").click();
 
-  // An ordinary message in a muted channel: no bold, no unread dot.
-  await say(B, "ping while muted");
-  await B.locator(".message-content", {
-    hasText: "ping while muted",
-  }).waitFor();
-  // Nothing is supposed to reach A, so this waits rather than polls.
-  await A.waitForTimeout(1200);
-  await expect(
-    row(A).locator(".channel-link.unread"),
-    "a new message in a muted channel doesn't bold the row",
-  ).toHaveCount(0);
-  await expect(
-    railPill(A).locator(".pill-dot"),
-    "and raises no unread dot on the space pill",
-  ).toHaveCount(0);
-
-  // A mention in a muted channel: activity yes, every other badge no.
+  // A mention in a muted channel: activity yes, every other badge no. The
+  // dot first, so the rest is asserted once the event has landed.
   await mention(B, aName, "are you around?");
   await expect(
     activityDot(A),
     "a mention in a muted channel lights the activity pill's dot",
   ).toBeAttached();
+  await expect(
+    row(A).locator(".channel-link.unread"),
+    "a message in a muted channel doesn't bold the row",
+  ).toHaveCount(0);
+  await expect(
+    railPill(A).locator(".pill-dot"),
+    "and raises no unread dot on the space pill",
+  ).toHaveCount(0);
   await expect(
     row(A).locator(".channel-badge"),
     "and raises no mention badge on the channel row",
@@ -367,20 +362,16 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   const notesBefore = await notes();
 
   await channelLink(B, "general").click();
-  await say(B, "quiet in here");
-  await B.locator(".message-content", { hasText: "quiet in here" }).waitFor();
-  // A dot that should never appear: nothing to poll on.
+  await mention(B, aName, "muted space mention");
+  // Badges that should never appear: nothing to poll on.
   await A.waitForTimeout(1500);
   await expect(
     railPill(A).locator(".pill-dot"),
-    "a plain message in a muted space raises no unread dot",
+    "a message in a muted space raises no unread dot",
   ).toHaveCount(0);
-
-  await mention(B, aName, "muted space mention");
-  await A.waitForTimeout(1500);
   await expect(
     railPill(A).locator(".pill-badge"),
-    "a mention there raises no badge on the space pill",
+    "and a mention there raises no badge on the space pill",
   ).toHaveCount(0);
   await expect(
     activityDot(A),
