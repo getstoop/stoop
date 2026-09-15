@@ -543,10 +543,69 @@ or a self-run MinIO/Garage) is on the roadmap.
 
 Two things hold your data: the Postgres database and the uploads directory
 (`STOOP_STORAGE_DIR`; the `stoop-data` volume in the compose file), which
-holds avatars, space icons, and message attachments. Back up both — a
-database dump alone restores every message but points at files that are
-gone. The `docker compose` volumes are `postgres-data` and `stoop-data`.
-LiveKit holds no state.
+holds avatars, space icons, message attachments and link preview images.
+Back up both — a database dump alone restores every message but points at
+files that are gone. LiveKit holds no state.
+
+### Taking a backup
+
+From the install directory, with everything running:
+
+```sh
+docker compose exec -T postgres pg_dump -U stoop -Fc stoop > stoop.dump
+docker run --rm --volumes-from "$(docker compose ps -q stoop)" -v "$PWD":/backup \
+  alpine tar -C /data -cf /backup/stoop-data.tar .
+```
+
+The dump is a consistent snapshot while the server keeps running. Take
+it before the files, in that order: a file uploaded between the two is
+then an extra in the archive the sweep will remove, never a row in the
+database whose file is missing. The second command borrows the app
+container's mounts to reach the volume, so it needs no volume name.
+
+The uploads directory also holds the built-in Tailscale node's identity
+and, for a bare binary, the LiveKit key pair, so a backup carries those
+too.
+
+### Restoring onto a fresh install
+
+Set up the install directory as in the [quick start](#quick-start-docker-compose)
+with the **same release** the backup came from, or a newer one, and copy
+the two backup files in. Then, before the server has ever started:
+
+```sh
+docker compose up -d --wait postgres
+docker compose exec -T postgres pg_restore -U stoop -d stoop --no-owner < stoop.dump
+docker compose create stoop
+docker run --rm --volumes-from "$(docker compose ps -aq stoop)" -v "$PWD":/backup \
+  alpine sh -c 'tar -C /data -xf /backup/stoop-data.tar && chown -R 65532:65532 /data'
+docker compose up -d
+```
+
+`create` makes the app container and its empty volume without starting
+it, so the files can go in first.
+
+The `chown` matters: the archive carries the files' old owner, and the
+server runs as user 65532, so without it every restored file is readable
+but nothing new can be written beside it, and uploads fail with "could
+not store the file".
+
+A dump from the same release starts with "no migrations to run"; from an
+older release, the missing migrations run at startup. A dump from a newer
+release is refused, as [Upgrading](#upgrading) describes: restore it
+onto that release instead.
+
+Then sign in with a password from before the backup. Everyone's sessions
+are in the database, so people who were signed in still are. Open a
+channel that had attachments and link previews, check avatars show, and
+upload something. This procedure was run on 2026-09-15 from a working
+instance onto a fresh install, and those checks are what proved it:
+every stored file kind was served from the restored volume, and an upload
+landed on it.
+
+To restore as a **different** Tailscale machine rather than take over the
+old node's identity, delete `tailscale/` from the uploads directory before
+starting.
 
 ## Upload storage: the sweep and the quota
 

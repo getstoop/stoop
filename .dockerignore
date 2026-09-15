@@ -1,0 +1,15 @@
+# What the image build must not take from a working checkout: host
+# dependencies and build output (the stages install and build their own),
+# a dev instance's data and secrets, and editor and tool state.
+.git
+.claude
+.env
+deploy/.env
+web/node_modules
+web/dist
+web/test-results
+web/playwright-report
+bin
+tmp
+data
+internal/webui/dist
