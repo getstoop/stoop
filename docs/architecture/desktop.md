@@ -46,8 +46,8 @@ installed PWA, and every wrapper there is a no-op. Version 2:
 | `theme` | `ShellTheme` | Bridge 2. The theme the shell wears now, whole: `{ scheme, tokens }`, tokens keyed by CSS name. Set before the page's first script runs, so `index.html` paints it with no flash. |
 | `onTheme(handler)` | `(h: (theme: ShellTheme) => void) => () => void` | Bridge 2. The shell changed theme. Returns the unsubscribe. |
 | `notificationsAllowed()` | `() => boolean` | Bridge 3. Whether App settings is letting desktop banners through, **asked at the moment one would fire**. A function rather than a value because `contextBridge` copies values across once, at load, and this one changes while the page is open. |
-| `dnd` | `boolean` | Bridge 3. Where the app's do not disturb switch stands as the page loads, asked of the app at that moment, so a reloaded page is never stale. The page sets its own server on when this is true, and never off on load (`api/dndBridge.ts`). Its presence also takes the Notifications tab out of account settings. |
-| `onDnd(handler)` | `(h: (on: boolean) => void) => () => void` | Bridge 3. The switch moved; the page sets its own server to match, on or off. Returns the unsubscribe. |
+| `dnd` | `{ on: boolean; until: number \| null }` | Bridge 3. Where the app's do not disturb switch stands as the page loads, and when it ends (epoch ms, or null for never), asked of the app at that moment, so a reloaded page is never stale. A switch past its end is handed over as off. The page sets its own server on, with the same end, when `on` is true, and never off on load (`api/dndBridge.ts`). Its presence also takes the Notifications tab out of account settings. |
+| `onDnd(handler)` | `(h: (dnd: { on: boolean; until: number \| null }) => void) => () => void` | Bridge 3. The switch moved; the page sets its own server to match, on (with its end) or off. The end passing sends nothing: each server ends it on its own. Returns the unsubscribe. |
 | `setVoice(report)` | `(r: VoiceReport \| null) => void` | Bridge 3. What this page captures — `{ kind, mic, camera, screen, channel, space }`, names resolved — sent on every change and `null` out of voice. The shell draws it centred in the strip and in the tray; the page hides its rail pill whenever this member exists. |
 | `onVoiceAction(handler)` | `(h: (a: VoiceAction) => void) => () => void` | Bridge 3. The strip, the shell's own voice popover or the tray asks the page holding voice to `show` the channel, `mute`, `unmute`, `camera-on`, `camera-off`, `stop-screen` or `leave` — each a state, not a toggle. The shell draws the popover itself over whichever server is in front, so only `show` brings the holder forward first. `leave` keeps one call at a time: when a page reports a new call, the shell sends every other page holding one `mute`, `camera-off`, `stop-screen` and `leave`, so a page too old for `leave` still goes silent. Every join starts muted, so there is never a moment with two live mics. Returns the unsubscribe. |
 
@@ -132,7 +132,11 @@ That is why bridge 3 has no `status` or `onStatus`.
 as `dnd` and `onDnd`. Each page applies it to its own server: on whenever the
 switch is on, including as the page loads, and off only when the switch is
 turned off. Never off on load, or opening the app would clear do not disturb
-set from a phone. The app holds its banners itself while the switch is on:
+set from a phone. The switch is a menu, Off or on for 1 hour, 3 hours,
+1 day, 1 week or Never expire, the same list account settings offers. When
+an end passes the app lets banners through again and tells no server: each
+ends it on its own, and an "off" would clear a later one set elsewhere.
+The app holds its banners itself while the switch is on:
 `notificationsAllowed()` answers no. A banner is also held whenever the page's
 own server says do not disturb, so setting it from a phone silences that
 server in the app too. Inside such an app the Notifications tab leaves

@@ -65,15 +65,19 @@ describe("shellDnd", () => {
     expect(shellDnd()).toBeUndefined();
     hosted({ bridge: 3 });
     expect(shellDnd()).toBeUndefined();
-    hosted({ bridge: 3, dnd: "on" });
+    hosted({ bridge: 3, dnd: true });
+    expect(shellDnd()).toBeUndefined();
+    hosted({ bridge: 3, dnd: { on: "yes" } });
     expect(shellDnd()).toBeUndefined();
   });
 
-  it("passes the switch straight through", () => {
-    hosted({ bridge: 3, dnd: true });
-    expect(shellDnd()).toBe(true);
-    hosted({ bridge: 3, dnd: false });
-    expect(shellDnd()).toBe(false);
+  it("passes the switch and its end through", () => {
+    hosted({ bridge: 3, dnd: { on: true, until: 1_800_000_000_000 } });
+    expect(shellDnd()).toEqual({ on: true, until: 1_800_000_000_000 });
+    hosted({ bridge: 3, dnd: { on: true, until: null } });
+    expect(shellDnd()).toEqual({ on: true, until: null });
+    hosted({ bridge: 3, dnd: { on: false } });
+    expect(shellDnd()).toEqual({ on: false, until: null });
   });
 });
 

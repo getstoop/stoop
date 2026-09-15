@@ -54,8 +54,8 @@ export interface StoopBridge {
   // Bridge 3. The app's one do not disturb switch, for every server it
   // holds (api/dndBridge.ts). Optional: a browser has no switch, and do not
   // disturb then lives in account settings alone.
-  dnd?: boolean;
-  onDnd?(handler: (on: boolean) => void): () => void;
+  dnd?: ShellDnd;
+  onDnd?(handler: (dnd: ShellDnd) => void): () => void;
   // Bridge 3. Whether App settings is letting desktop banners through —
   // off there silences them for every server at once. A function rather
   // than a value because the answer changes while the page is open and
@@ -76,6 +76,14 @@ export interface StoopBridge {
 export interface ShellTheme {
   scheme: "dark" | "light";
   tokens: Record<string, string>;
+}
+
+// The app's do not disturb switch: on or off, and when it ends, in epoch
+// milliseconds, or null for no end. A switch whose end has passed is
+// handed over as off.
+export interface ShellDnd {
+  on: boolean;
+  until: number | null;
 }
 
 declare global {
@@ -117,12 +125,17 @@ export function onShellTheme(handler: (theme: ShellTheme) => void): () => void {
 // Where the desktop app's do not disturb switch stands, or undefined
 // outside an app that has one. Defined also means the switch, not account
 // settings, is where the person sets it.
-export function shellDnd(): boolean | undefined {
-  const on = bridge()?.dnd;
-  return typeof on === "boolean" ? on : undefined;
+export function shellDnd(): ShellDnd | undefined {
+  const dnd = bridge()?.dnd;
+  if (!dnd || typeof dnd !== "object" || typeof dnd.on !== "boolean")
+    return undefined;
+  return {
+    on: dnd.on,
+    until: typeof dnd.until === "number" ? dnd.until : null,
+  };
 }
 
-export function onShellDnd(handler: (on: boolean) => void): () => void {
+export function onShellDnd(handler: (dnd: ShellDnd) => void): () => void {
   return bridge()?.onDnd?.(handler) ?? (() => {});
 }
 

@@ -1,6 +1,12 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { describe, expect, it, vi } from "vitest";
-import { dndActive, presenceClass, presenceLabel } from "./presence";
+import {
+  dndActive,
+  dndChoice,
+  dndEnd,
+  presenceClass,
+  presenceLabel,
+} from "./presence";
 
 // api/clients.ts builds its transport from location.origin as it loads,
 // and the unit suite runs in node.
@@ -27,6 +33,25 @@ describe("dndActive", () => {
     expect(dndActive({ dnd: true, dndUntil: at(60_000) }, now)).toBe(true);
     expect(dndActive({ dnd: true, dndUntil: at(0) }, now)).toBe(false);
     expect(dndActive({ dnd: true, dndUntil: at(-60_000) }, now)).toBe(false);
+  });
+});
+
+describe("the do not disturb menu", () => {
+  it("stands on off, never, or the end already chosen", () => {
+    expect(dndChoice(undefined, now)).toBe("off");
+    expect(dndChoice({ dnd: true, dndUntil: undefined }, now)).toBe("never");
+    expect(dndChoice({ dnd: true, dndUntil: at(60_000) }, now)).toBe("until");
+    expect(dndChoice({ dnd: true, dndUntil: at(-60_000) }, now)).toBe("off");
+  });
+
+  it("ends a duration that long from now, and never expire not at all", () => {
+    const hour = 60 * 60 * 1000;
+    expect(dndEnd("1h", now)).toEqual(new Date(now.getTime() + hour));
+    expect(dndEnd("3h", now)).toEqual(new Date(now.getTime() + 3 * hour));
+    expect(dndEnd("1d", now)).toEqual(new Date(now.getTime() + 24 * hour));
+    expect(dndEnd("1w", now)).toEqual(new Date(now.getTime() + 168 * hour));
+    expect(dndEnd("never", now)).toBeUndefined();
+    expect(dndEnd("off", now)).toBeUndefined();
   });
 });
 

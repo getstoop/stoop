@@ -22,14 +22,14 @@ test("do not disturb, as everyone else and every device sees it", async ({
   const dotFor = (p: Page, name: string) =>
     p.locator(".member-row", { hasText: name }).locator(".online-dot");
   const ownDot = (p: Page) => p.locator(".space-pill.avatar .online-dot");
-  const dndSwitch = (p: Page) => p.locator(".dnd-section input[type=checkbox]");
+  const dndMenu = (p: Page) => p.locator("#dnd-duration");
 
   await expect(dotFor(B, aName), "A starts online for B").toHaveClass(
     /online-dot online/,
   );
 
   await A.goto("/profile?tab=notifications");
-  await dndSwitch(A).check();
+  await dndMenu(A).selectOption("never");
   await expect(ownDot(A), "A's own rail dot shows it").toHaveClass(
     /online-dot dnd/,
   );
@@ -56,13 +56,21 @@ test("do not disturb, as everyone else and every device sees it", async ({
   );
 
   await reload(A);
-  await expect(dndSwitch(A), "it survives a reload").toBeChecked();
+  await expect(dndMenu(A), "it survives a reload").toHaveValue("never");
+
+  // A duration shows its end on every device.
+  await A2.goto("/profile?tab=notifications");
+  await dndMenu(A2).selectOption("1h");
+  await expect(dndMenu(A2), "an hour shows as its end").toHaveValue("until");
+  await expect(dndMenu(A), "on the first device too").toHaveValue("until");
+  await expect(dotFor(B, aName), "and B still sees it").toHaveClass(
+    /online-dot dnd/,
+  );
 
   // Turned off on the second device, it ends everywhere.
-  await A2.goto("/profile?tab=notifications");
-  await dndSwitch(A2).uncheck();
+  await dndMenu(A2).selectOption("off");
   await expect(dotFor(B, aName), "back to online for B").toHaveClass(
     /online-dot online/,
   );
-  await expect(dndSwitch(A), "and off on A's first device").not.toBeChecked();
+  await expect(dndMenu(A), "and off on A's first device").toHaveValue("off");
 });
