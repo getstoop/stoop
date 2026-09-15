@@ -10,6 +10,10 @@ interface LayoutState {
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
+  // The live indicator's popover, opened from the desktop shell's strip
+  // rather than from a pill on the page (components/ShellLivePopover.tsx).
+  shellLiveOpen: boolean;
+  setShellLiveOpen: (open: boolean) => void;
 }
 
 export const useLayoutStore = create<LayoutState>((set) => ({
@@ -17,4 +21,6 @@ export const useLayoutStore = create<LayoutState>((set) => ({
   openDrawer: () => set({ drawerOpen: true }),
   closeDrawer: () => set({ drawerOpen: false }),
   toggleDrawer: () => set((s) => ({ drawerOpen: !s.drawerOpen })),
+  shellLiveOpen: false,
+  setShellLiveOpen: (shellLiveOpen) => set({ shellLiveOpen }),
 }));

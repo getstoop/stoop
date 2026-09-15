@@ -1,4 +1,5 @@
 import type { VoiceConnection } from "../stores/voice";
+import type { VoiceReport } from "./platform";
 
 // What Stoop is capturing right now, as one state every surface draws:
 // the rail and header pills, the tab and the desktop strip.
@@ -72,6 +73,24 @@ export function captureLabel(c: Capture): string {
     default:
       return "";
   }
+}
+
+// What the desktop shell is told: null outside voice, and names it cannot
+// look up for itself. A name still loading is an ellipsis, not empty.
+export function voiceReport(
+  c: Capture,
+  channel: string | undefined,
+  space: string | undefined,
+): VoiceReport | null {
+  if (c.kind === "none") return null;
+  return {
+    kind: c.kind,
+    mic: c.mic,
+    camera: c.camera,
+    screen: c.screen,
+    channel: channel || "…",
+    space: space || "…",
+  };
 }
 
 // The tab is all a background tab has: a dot ahead of the title.
