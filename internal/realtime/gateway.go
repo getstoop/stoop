@@ -136,8 +136,8 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		g.publishPresence(userID, g.presence.spacesOf(userID), true)
 	}
 	defer func() {
-		if g.presence.disconnect(userID) {
-			g.publishPresence(userID, spaceIDs, false)
+		if spaces := g.presence.disconnect(userID); spaces != nil {
+			g.publishPresence(userID, spaces, false)
 		}
 	}()
 
