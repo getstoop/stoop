@@ -285,7 +285,7 @@ test("attachments: sending, serving, capping and deleting", async ({
   expect(
     pendingUpload.status,
     `the upload is accepted (${JSON.stringify(pendingUpload.body)})`,
-  ).toBe(200);
+  ).toBe(201);
   const pendingId = pendingUpload.body.id as string;
 
   const sendWith = (page: Page, ids: string[], content = "x") =>

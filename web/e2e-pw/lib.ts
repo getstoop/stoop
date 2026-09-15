@@ -46,11 +46,17 @@ export const test = base.extend<{ fresh: undefined }>({
   ],
 });
 
-// The rail's status icon follows the socket. A page whose socket is not
-// subscribed yet hears nothing another page does until a refetch, so a
-// spec that talks to a page waits for this first.
+// Waits for the page to be somewhere settled: the shell with its socket
+// live, the login page, or the desktop gate (pastGate takes it from
+// there). The rail's status icon follows the socket, and a page whose
+// socket is not subscribed yet hears nothing another page does until a
+// refetch, so a spec never talks to a page before this. Attached, not
+// visible: below 768px the rail is a drawer.
 export async function live(page: Page) {
-  await page.locator(".status-icon.connected").waitFor();
+  await page
+    .locator(".status-icon.connected, .login-card, .open-in-app button")
+    .first()
+    .waitFor({ state: "attached" });
 }
 
 // Puts a page straight into the app, live. The session token doubles as
@@ -76,7 +82,10 @@ export async function pastGate(page: Page) {
     .waitFor({ state: "visible", timeout: 10_000 })
     .catch(() => {});
   const stay = page.locator(".open-in-app button");
-  if (await stay.count()) await stay.click();
+  if (await stay.count()) {
+    await stay.click();
+    await live(page);
+  }
 }
 
 // Read-marking gates on hasAttention() — visible *and* focused — so any
