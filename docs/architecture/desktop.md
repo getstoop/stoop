@@ -48,6 +48,8 @@ installed PWA, and every wrapper there is a no-op. Version 2:
 | `status` | `"online" \| "away" \| "dnd"` | Bridge 3. The status the shell keeps for every server it holds. Strings, not the realtime enum: the shell has no protos. |
 | `onStatus(handler)` | `(h: (s: PresenceChoice) => void) => () => void` | Bridge 3. The status changed — in App settings, or because the computer went idle. Returns the unsubscribe. |
 | `notificationsAllowed()` | `() => boolean` | Bridge 3. Whether App settings is letting desktop banners through, **asked at the moment one would fire**. A function rather than a value because `contextBridge` copies values across once, at load, and this one changes while the page is open. |
+| `setVoice(report)` | `(r: VoiceReport \| null) => void` | Bridge 3. What this page captures — `{ kind, mic, camera, screen, channel, space }`, names resolved — sent on every change and `null` out of voice. The shell draws it centred in the strip and in the tray; the page hides its rail pill whenever this member exists. |
+| `onVoiceAction(handler)` | `(h: (a: VoiceAction) => void) => () => void` | Bridge 3. The strip, the shell's own voice popover or the tray asks the page holding voice to `show` the channel, `mute`, `unmute`, `camera-on`, `camera-off` or `stop-screen` — each a state, not a toggle. The shell draws the popover itself over whichever server is in front, so only `show` brings the holder forward first. Returns the unsubscribe. |
 
 Two rules keep the number honest. **Adding a member is a bump**, so a
 shell can tell an app that expects more than it has. **The app checks

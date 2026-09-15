@@ -1,5 +1,41 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isDesktop, shellNotifications, shellStatus } from "./platform";
+import {
+  isDesktop,
+  onShellVoiceAction,
+  reportVoice,
+  shellDrawsVoice,
+  shellNotifications,
+  shellStatus,
+} from "./platform";
+
+describe("the voice members", () => {
+  // Their presence is what hides the rail pill, so an older shell must
+  // leave it showing.
+  it("leave the page drawing its own indicator without setVoice", () => {
+    expect(shellDrawsVoice()).toBe(false);
+    hosted({ bridge: 2 });
+    expect(shellDrawsVoice()).toBe(false);
+    hosted({ bridge: 3, setVoice: () => {} });
+    expect(shellDrawsVoice()).toBe(true);
+  });
+
+  it("report through the shell, and do nothing without one", () => {
+    const setVoice = vi.fn();
+    expect(() => reportVoice(null)).not.toThrow();
+    hosted({ bridge: 3, setVoice });
+    reportVoice(null);
+    expect(setVoice).toHaveBeenCalledWith(null);
+  });
+
+  it("hand back an unsubscribe even from a shell without actions", () => {
+    hosted({ bridge: 2 });
+    expect(typeof onShellVoiceAction(() => {})).toBe("function");
+    const off = vi.fn();
+    hosted({ bridge: 3, onVoiceAction: () => off });
+    onShellVoiceAction(() => {})();
+    expect(off).toHaveBeenCalled();
+  });
+});
 
 // The seam the shell injects. There is no window at all under the node
 // suite, which is the browser case; the rest stub one.

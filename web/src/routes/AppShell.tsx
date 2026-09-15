@@ -21,6 +21,7 @@ import {
 } from "../api/queries";
 import { presenceClass } from "../api/status";
 import { badgeCount, isAlerting } from "../api/unreads";
+import { startVoiceBridge } from "../api/voiceBridge";
 import { startRealtime } from "../api/ws";
 import { Avatar } from "../components/Avatar";
 import {
@@ -70,6 +71,16 @@ export function AppShell() {
     if (!me) return;
     return startRealtime(queryClient);
   }, [me, queryClient]);
+
+  useEffect(() => {
+    if (!me) return;
+    return startVoiceBridge(queryClient, (spaceId, channelId) =>
+      navigate({
+        to: "/s/$spaceId/c/$channelId",
+        params: { spaceId, channelId },
+      }),
+    );
+  }, [me, queryClient, navigate]);
 
   if (isLoading || isError || !me) {
     return <div className="centered muted">Loading…</div>;

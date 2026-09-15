@@ -15,6 +15,29 @@ export type ShortcutName = "pushToTalk";
 // them to PresenceStatus on the way in.
 export type PresenceChoice = "online" | "away" | "dnd";
 
+// Bridge 3. What this page is capturing, for the strip and the tray:
+// api/capture.ts's state with the names already resolved, because the
+// shell has no queries of its own.
+export interface VoiceReport {
+  kind: "joining" | "error" | "muted" | "mic" | "camera" | "screen";
+  mic: boolean;
+  camera: boolean;
+  screen: boolean;
+  channel: string;
+  space: string;
+}
+
+// Bridge 3. What the strip, the shell's voice popover and the tray ask of
+// the page holding voice. Each is a state, not a toggle. "show" opens the
+// channel; the shell has already brought this server forward.
+export type VoiceAction =
+  | "show"
+  | "mute"
+  | "unmute"
+  | "camera-on"
+  | "camera-off"
+  | "stop-screen";
+
 export interface StoopBridge {
   bridge: number;
   version: string;
@@ -44,6 +67,11 @@ export interface StoopBridge {
   // the bridge copies values across once, at load; it is asked at the
   // moment a banner would fire.
   notificationsAllowed?(): boolean;
+  // Bridge 3. The shell draws the live indicator in its strip and tray,
+  // so the page reports what it captures (null once out of voice) and
+  // hides its own rail pill. docs/proposals/live-indicator.md.
+  setVoice?(report: VoiceReport | null): void;
+  onVoiceAction?(handler: (action: VoiceAction) => void): () => void;
 }
 
 // The shape of a theme, as the shell hands it over: no name, only what
@@ -114,4 +142,20 @@ export function onShellStatus(
 // saying no.
 export function shellNotifications(): boolean {
   return bridge()?.notificationsAllowed?.() ?? true;
+}
+
+// Whether the shell draws the live indicator itself. Anywhere it does
+// not — a browser, an older shell — the page keeps its rail pill.
+export function shellDrawsVoice(): boolean {
+  return typeof bridge()?.setVoice === "function";
+}
+
+export function reportVoice(report: VoiceReport | null) {
+  bridge()?.setVoice?.(report);
+}
+
+export function onShellVoiceAction(
+  handler: (action: VoiceAction) => void,
+): () => void {
+  return bridge()?.onVoiceAction?.(handler) ?? (() => {});
 }

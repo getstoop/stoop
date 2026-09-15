@@ -6,6 +6,7 @@ import {
   captureState,
   isCapturing,
   tabTitle,
+  voiceReport,
 } from "./capture";
 
 const conn = (status: VoiceConnection["status"]): VoiceConnection => ({
@@ -100,6 +101,34 @@ describe("captureLabel", () => {
     expect(captureLabel(captureState(input({ screenOn: true })))).toBe(
       "Sharing your screen",
     );
+  });
+});
+
+describe("voiceReport", () => {
+  // null is what tells the shell to clear the strip.
+  it("is null outside voice", () => {
+    expect(
+      voiceReport(captureState(input({ connection: null })), "standup", "Work"),
+    ).toBeNull();
+  });
+
+  it("carries the state and the names", () => {
+    expect(
+      voiceReport(captureState(input({ cameraOn: true })), "standup", "Work"),
+    ).toEqual({
+      kind: "camera",
+      mic: true,
+      camera: true,
+      screen: false,
+      channel: "standup",
+      space: "Work",
+    });
+  });
+
+  it("stands in an ellipsis for a name still loading", () => {
+    const r = voiceReport(captureState(input()), undefined, "");
+    expect(r?.channel).toBe("…");
+    expect(r?.space).toBe("…");
   });
 });
 
