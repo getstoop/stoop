@@ -29,14 +29,16 @@ export interface VoiceReport {
 
 // Bridge 3. What the strip, the shell's voice popover and the tray ask of
 // the page holding voice. Each is a state, not a toggle. "show" opens the
-// channel; the shell has already brought this server forward.
+// channel; the shell has already brought this server forward. "leave" is
+// the shell keeping one call at a time: voice started on another server.
 export type VoiceAction =
   | "show"
   | "mute"
   | "unmute"
   | "camera-on"
   | "camera-off"
-  | "stop-screen";
+  | "stop-screen"
+  | "leave";
 
 export interface StoopBridge {
   bridge: number;
