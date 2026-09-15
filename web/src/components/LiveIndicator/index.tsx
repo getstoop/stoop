@@ -8,8 +8,10 @@ import { CameraIcon, MicIcon, ScreenIcon } from "../VoiceIcons";
 import { LivePopover } from "./LivePopover";
 import { type Placement, popoverPosition } from "./position";
 
-// How long a pill stays after its call ends: the outro in live-indicator.css.
-const OUTRO_MS = 260;
+// How long a pill stays after its call ends: a little past the 260ms outro
+// in live-indicator.css, which holds its last frame, so the unmount never
+// lands a frame before the rail has finished closing up.
+const OUTRO_MS = 320;
 
 // The call each placement last introduced itself for. The header pill
 // remounts with every page, and the intro belongs to the call, not the page.
@@ -31,10 +33,11 @@ export function LiveIndicator({ placement }: { placement: Placement }) {
   const muted = useVoiceStore((s) => s.muted);
   const cameraOn = useVoiceStore((s) => s.cameraOn);
   const screenOn = useVoiceStore((s) => s.screenOn);
+  const switching = useVoiceStore((s) => s.switching);
   const capture = captureState({ connection, muted, cameraOn, screenOn });
   const live =
     connection && capture.kind !== "none" ? { capture, connection } : null;
-  const { shown, leaving } = useLingering(live, placement);
+  const { shown, leaving } = useLingering(live, switching, placement);
   if (!shown) return null;
   return (
     <LivePill
@@ -46,12 +49,30 @@ export function LiveIndicator({ placement }: { placement: Placement }) {
   );
 }
 
-// Keeps the last call on screen long enough to animate out once it ends.
-function useLingering(live: Live | null, placement: Placement) {
+// Keeps the last call on screen long enough to animate out once it ends,
+// and holds it still — as joining — while moving to another channel, so a
+// switch is neither an exit nor an arrival.
+function useLingering(
+  live: Live | null,
+  switching: boolean,
+  placement: Placement,
+) {
   const last = useRef<Live | null>(null);
   const [ending, setEnding] = useState<Live | null>(null);
   if (live) last.current = live;
-  const inCall = live !== null;
+  const held: Live | null =
+    !live && switching && last.current
+      ? {
+          connection: last.current.connection,
+          capture: {
+            kind: "joining",
+            mic: false,
+            camera: false,
+            screen: false,
+          },
+        }
+      : null;
+  const inCall = live !== null || held !== null;
 
   useEffect(() => {
     if (inCall) {
@@ -68,7 +89,10 @@ function useLingering(live: Live | null, placement: Placement) {
     return () => clearTimeout(id);
   }, [inCall, placement]);
 
-  return { shown: live ?? ending, leaving: !live && ending !== null };
+  return {
+    shown: live ?? held ?? ending,
+    leaving: !live && !held && ending !== null,
+  };
 }
 
 // Mounted when a call starts, so its first render is the call's first
@@ -135,7 +159,7 @@ function LivePill({
           className={`icon-button live-pill ${capture.kind}`}
           aria-label={where ? `${label}: ${where}` : label}
           aria-expanded={at !== null}
-          disabled={leaving}
+          tabIndex={leaving ? -1 : undefined}
           onClick={(e) =>
             setAt(
               at

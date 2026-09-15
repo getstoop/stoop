@@ -38,6 +38,10 @@ interface VoiceState {
   // userId → participant. A user is in at most one voice channel.
   participants: Record<string, VoiceParticipant>;
   connection: VoiceConnection | null;
+  // Moving from one voice channel to another: the old call is being left
+  // so the new one can start. connection is briefly null, but the person
+  // has not left voice, so indicators hold still instead of exiting.
+  switching: boolean;
   muted: boolean;
   deafened: boolean;
   // Users LiveKit currently reports as speaking (identity = user id).
@@ -58,6 +62,7 @@ interface VoiceState {
   applyChange: (p: VoiceParticipant, joined: boolean) => void;
   dropChannel: (channelId: string) => void;
   setConnection: (c: VoiceConnection | null) => void;
+  setSwitching: (switching: boolean) => void;
   setMuted: (muted: boolean) => void;
   setDeafened: (deafened: boolean) => void;
   setSpeaking: (ids: string[]) => void;
@@ -76,6 +81,7 @@ let trackOrder = 0;
 export const useVoiceStore = create<VoiceState>((set) => ({
   participants: {},
   connection: null,
+  switching: false,
   muted: false,
   deafened: false,
   speaking: new Set(),
@@ -105,12 +111,15 @@ export const useVoiceStore = create<VoiceState>((set) => ({
         ),
       ),
     })),
+  // A new connection ends any switch in the same update, so no render sees
+  // the call gone and the switch over at once.
   setConnection: (connection) =>
     set(
       connection
-        ? { connection }
+        ? { connection, switching: false }
         : { connection, speaking: new Set(), localSpeaking: null },
     ),
+  setSwitching: (switching) => set({ switching }),
   setMuted: (muted) => set({ muted }),
   setDeafened: (deafened) => set({ deafened }),
   setSpeaking: (ids) => set({ speaking: new Set(ids) }),
