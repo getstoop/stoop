@@ -2,11 +2,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { type ActivityData, alertingCount } from "../api/activity";
+import { captureState, isCapturing, tabTitle } from "../api/capture";
 import { setBadge } from "../api/platform";
 import { useInstanceStatus } from "../api/queries";
 import { DialogHost } from "../components/DialogHost";
 import { LinkGate } from "../components/LinkGate";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
+import { useVoiceStore } from "../stores/voice";
 
 // The outermost frame: whatever page is routed, plus the one place the
 // app's dialogs render.
@@ -19,18 +21,29 @@ export function Root() {
   // the app. It watches the cache rather than useInstanceStatus's data:
   // login and setup call queryClient.clear(), which detaches an observer
   // that mounted before it (this one, for the life of the tab) from the
-  // entry the admin page later refetches into.
+  // entry the admin page later refetches into. While a mic, camera or
+  // screen is live the title and favicon carry a dot (api/capture.ts).
   useEffect(() => {
     const apply = () => {
       const status = queryClient.getQueryData<GetInstanceStatusResponse>([
         "instance-status",
       ]);
-      document.title = status?.instanceName || "Stoop";
+      const capture = captureState(useVoiceStore.getState());
+      document.title = tabTitle(status?.instanceName || "Stoop", capture);
+      const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+      const href = isCapturing(capture) ? "/favicon-live.svg" : "/favicon.svg";
+      if (icon && icon.getAttribute("href") !== href)
+        icon.setAttribute("href", href);
     };
     apply();
-    return queryClient.getQueryCache().subscribe((event) => {
+    const unwatchVoice = useVoiceStore.subscribe(apply);
+    const unwatchCache = queryClient.getQueryCache().subscribe((event) => {
       if (event.query.queryKey[0] === "instance-status") apply();
     });
+    return () => {
+      unwatchVoice();
+      unwatchCache();
+    };
   }, [queryClient]);
   // The unread badge the desktop shell shows on the dock and tray, read
   // off the activity cache the same way, and a no-op in a browser.

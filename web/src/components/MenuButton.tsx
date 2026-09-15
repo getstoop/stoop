@@ -1,26 +1,32 @@
 import type { MouseEvent } from "react";
 import { useLayoutStore } from "../stores/layout";
 import { MenuIcon } from "./Icons";
+import { LiveIndicator } from "./LiveIndicator";
 
 // The navigation drawer's controls for narrow screens (the scrim is
 // NavBackdrop). All are inert on a wide screen: the button and backdrop
 // are display: none there, and closing an already-hidden drawer changes
 // nothing.
 
-// Opens (or closes) the drawer; lives in the header of every page.
+// Opens (or closes) the drawer; lives in the header of every page. The
+// live indicator rides beside it, because on a phone the rail that
+// otherwise carries it is inside the drawer.
 export function MenuButton() {
   const open = useLayoutStore((s) => s.drawerOpen);
   const toggle = useLayoutStore((s) => s.toggleDrawer);
   return (
-    <button
-      type="button"
-      className="icon-button menu-button"
-      onClick={toggle}
-      aria-label={open ? "Close navigation" : "Open navigation"}
-      aria-expanded={open}
-    >
-      <MenuIcon />
-    </button>
+    <>
+      <button
+        type="button"
+        className="icon-button menu-button"
+        onClick={toggle}
+        aria-label={open ? "Close navigation" : "Open navigation"}
+        aria-expanded={open}
+      >
+        <MenuIcon />
+      </button>
+      <LiveIndicator placement="header" />
+    </>
   );
 }
 

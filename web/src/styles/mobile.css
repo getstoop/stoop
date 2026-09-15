@@ -71,6 +71,12 @@
     margin: -4px 2px -4px -4px;
   }
 
+  /* The rail is in the drawer, so the live indicator rides in the header. */
+  .live-indicator.header {
+    display: flex;
+    margin: -4px 4px -4px 0;
+  }
+
   /* Page headers are taller than one line; the button sits at their top. */
   .profile-header .menu-button {
     align-self: flex-start;
