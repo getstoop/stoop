@@ -63,15 +63,13 @@ export function LivePopover({
               onClick={() => void toggleScreenShare()}
             />
           )}
-          {capture.camera && (
-            <Row
-              className="live"
-              icon={<CameraIcon />}
-              label="Camera on"
-              action="Turn off"
-              onClick={() => void toggleCamera()}
-            />
-          )}
+          <Row
+            className={capture.camera ? "live" : ""}
+            icon={<CameraIcon off={!capture.camera} />}
+            label={capture.camera ? "Camera on" : "Camera off"}
+            action={capture.camera ? "Turn off" : "Turn on"}
+            onClick={() => void toggleCamera()}
+          />
           <Row
             className={capture.mic ? "live" : ""}
             icon={<MicIcon off={!capture.mic} />}

@@ -54,8 +54,72 @@
   animation: pulse 1.2s ease-in-out infinite;
 }
 
+/* A call's first moment, once per call (LiveIndicator/index.tsx): the rail
+   pill grows in and pushes the rest of the rail down, the header pill pops
+   in, and either then pings twice in its own colour. */
+.live-indicator.rail.intro {
+  animation: live-grow 320ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.live-indicator.header.intro .live-pill {
+  animation: live-pop 260ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.live-indicator.intro .live-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: live-ping 900ms ease-out 320ms 2;
+}
+
+.live-pill.screen::after,
+.live-pill.error::after {
+  color: var(--danger);
+}
+
+@keyframes live-grow {
+  from {
+    margin-top: -62px;
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    margin-top: 0;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes live-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes live-ping {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .live-pill.joining svg {
+  .live-pill.joining svg,
+  .live-indicator.intro,
+  .live-indicator.intro .live-pill,
+  .live-indicator.intro .live-pill::after {
     animation: none;
   }
 }

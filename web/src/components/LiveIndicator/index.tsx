@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Capture, captureLabel, captureState } from "../../api/capture";
 import { useChannels, useSpaces } from "../../api/queries";
-import { useVoiceStore } from "../../stores/voice";
+import { useVoiceStore, type VoiceConnection } from "../../stores/voice";
 import { Tooltip } from "../Tooltip";
 import { CameraIcon, MicIcon, ScreenIcon } from "../VoiceIcons";
 import { LivePopover } from "./LivePopover";
 import { type Placement, popoverPosition } from "./position";
+
+// The call each placement last introduced itself for. The header pill
+// remounts with every page, and the intro belongs to the call, not the page.
+const introduced: Record<Placement, string | null> = {
+  rail: null,
+  header: null,
+};
 
 // Says what is live — mic, camera, screen — on every page: a pill at the
 // top of the rail, and beside the menu button on a phone, where the rail
@@ -15,11 +22,41 @@ export function LiveIndicator({ placement }: { placement: Placement }) {
   const muted = useVoiceStore((s) => s.muted);
   const cameraOn = useVoiceStore((s) => s.cameraOn);
   const screenOn = useVoiceStore((s) => s.screenOn);
+  const inCall = connection !== null;
+
+  useEffect(() => {
+    if (!inCall) introduced[placement] = null;
+  }, [inCall, placement]);
+
+  const capture = captureState({ connection, muted, cameraOn, screenOn });
+  if (!connection || capture.kind === "none") return null;
+  return (
+    <LivePill placement={placement} capture={capture} connection={connection} />
+  );
+}
+
+// Mounted when a call starts, so its first render is the call's first
+// moment: that is when it moves, once.
+function LivePill({
+  placement,
+  capture,
+  connection,
+}: {
+  placement: Placement;
+  capture: Capture;
+  connection: VoiceConnection;
+}) {
+  const callKey = `${connection.spaceId}/${connection.channelId}`;
+  const [intro] = useState(() => introduced[placement] !== callKey);
   const { data: spaces } = useSpaces();
-  const { data: channels } = useChannels(connection?.spaceId ?? "");
+  const { data: channels } = useChannels(connection.spaceId);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setAt(null), []);
+
+  useEffect(() => {
+    introduced[placement] = callKey;
+  }, [placement, callKey]);
 
   useEffect(() => {
     if (!at) return;
@@ -39,16 +76,16 @@ export function LiveIndicator({ placement }: { placement: Placement }) {
     };
   }, [at, close]);
 
-  const capture = captureState({ connection, muted, cameraOn, screenOn });
-  if (capture.kind === "none") return null;
-
   const label = captureLabel(capture);
-  const space = spaces?.find((s) => s.id === connection?.spaceId);
-  const channel = channels?.find((c) => c.id === connection?.channelId);
+  const space = spaces?.find((s) => s.id === connection.spaceId);
+  const channel = channels?.find((c) => c.id === connection.channelId);
   const where = channel && space ? `${channel.name} · ${space.name}` : "";
 
   return (
-    <div ref={ref} className={`live-indicator ${placement}`}>
+    <div
+      ref={ref}
+      className={`live-indicator ${placement} ${intro ? "intro" : ""}`}
+    >
       <Tooltip
         text={label}
         detail={where}
