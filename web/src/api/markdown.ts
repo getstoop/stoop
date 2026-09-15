@@ -272,7 +272,7 @@ export function parseStyledInline(s: string): StyledInline[] {
     if (ch === "h" || ch === "H") {
       const m = URL_AT.exec(s.slice(i));
       if (m) {
-        const href = m[0].replace(TRAILING_PUNCT, "");
+        const href = trimUrl(m[0]);
         flush();
         out.push({ type: "link", href });
         i += href.length;
@@ -369,10 +369,35 @@ function matchDelimited(s: string, i: number) {
 }
 
 // The first occurrence of d at or after `from` that follows a non-space.
+// A lone "*" never closes on half of a "**" pair.
 function findCloser(s: string, d: string, from: number): number {
   let j = s.indexOf(d, from);
-  while (j !== -1 && /\s/.test(s[j - 1])) j = s.indexOf(d, j + 1);
+  while (
+    j !== -1 &&
+    (/\s/.test(s[j - 1]) ||
+      (d === "*" && (s[j - 1] === "*" || s[j + 1] === "*")))
+  ) {
+    j = s.indexOf(d, j + 1);
+  }
   return j;
+}
+
+// Trailing punctuation belongs to the sentence, not the link, except a
+// ")" that closes a "(" inside the URL.
+function trimUrl(raw: string): string {
+  let href = raw.replace(TRAILING_PUNCT, "");
+  let rest = raw.slice(href.length);
+  while (rest.startsWith(")") && count(href, "(") > count(href, ")")) {
+    href += ")";
+    rest = rest.slice(1);
+  }
+  return href;
+}
+
+function count(s: string, ch: string): number {
+  let n = 0;
+  for (const c of s) if (c === ch) n++;
+  return n;
 }
 
 // The message with its markup removed, for one-line previews (reply bar,
