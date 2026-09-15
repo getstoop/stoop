@@ -57,9 +57,11 @@ describe("the do not disturb menu", () => {
 
 describe("the dot", () => {
   it("shows do not disturb for someone online on it, and online otherwise", () => {
-    expect(presenceClass(true)).toBe("dnd");
-    expect(presenceClass(false)).toBe("online");
-    expect(presenceClass(undefined)).toBe("online");
+    expect(presenceClass(true, true)).toBe("dnd");
+    expect(presenceClass(true, false)).toBe("online");
+    expect(presenceClass(true, undefined)).toBe("online");
+    expect(presenceClass(false, true)).toBe("offline");
+    expect(presenceClass(false, false)).toBe("offline");
   });
 
   // Offline beats do not disturb: the dot is whether they can be reached.

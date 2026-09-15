@@ -159,11 +159,7 @@ export function UserCard({
                 {bot ? (
                   "bot"
                 ) : (
-                  <span
-                    className={
-                      isOnline ? `presence ${presenceClass(dnd)}` : "presence"
-                    }
-                  >
+                  <span className={`presence ${presenceClass(isOnline, dnd)}`}>
                     {presenceLabel(isOnline, dnd)}
                   </span>
                 )}

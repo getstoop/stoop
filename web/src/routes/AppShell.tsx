@@ -13,7 +13,7 @@ import { dmUnreadTotal, useDirectMessages } from "../api/dms";
 import { startDndBridge } from "../api/dndBridge";
 import { errorText } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
-import { presenceClass, useDndActive } from "../api/presence";
+import { presenceClass, presenceLabel, useDndActive } from "../api/presence";
 import {
   useActivity,
   useInstanceStatus,
@@ -128,6 +128,7 @@ function SpaceRail() {
   const { spaceId } = useParams({ strict: false }) as { spaceId?: string };
   const status = useConnectionStore((s) => s.status);
   const onDnd = useDndActive(me);
+  const connected = status === "connected";
   const navigate = useNavigate();
 
   const createSpace = async () => {
@@ -276,8 +277,9 @@ function SpaceRail() {
           {me ? (
             <Avatar name={me.displayName} fileId={me.avatarFileId}>
               <span
-                className={`online-dot ${presenceClass(onDnd)}`}
-                title={onDnd ? "You're on do not disturb" : "You're online"}
+                className={`online-dot ${presenceClass(connected, onDnd)}`}
+                role="img"
+                aria-label={`You're ${presenceLabel(connected, onDnd)}`}
               />
             </Avatar>
           ) : (
