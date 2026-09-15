@@ -465,7 +465,7 @@ the server. Three are pinned by the compose file itself and ignore what
 | `STOOP_SEARCH_RATE_LIMIT`  | `30`                        | Message searches per user per minute. `0` disables |
 | `STOOP_REGISTRATION`       | `invite`                    | Seeds the registration policy on first boot only (`open`, `invite`, `closed`); change it later from the admin page |
 | `STOOP_INSTANCE_NAME`      | (random, e.g. `Chalk Avenue`) | The server's name, shown in the browser tab. Unset, a random two-word name is picked on first boot and kept, so several instances never all call themselves "Stoop". The admin page's saved value overrides it |
-| `STOOP_STORAGE`            | `fs`                        | File storage backend. `fs` is the only one today; any other value (including `s3`) refuses to start |
+| `STOOP_STORAGE`            | `fs`                        | File storage backend. `fs` is the only one; any other value (including `s3`) refuses to start |
 | `STOOP_STORAGE_DIR`        | `./data`                    | Directory for uploaded files (compose: `/data` on the `stoop-data` volume) |
 | `STOOP_LIVEKIT_KEY_FILE`   | `<STOOP_STORAGE_DIR>/livekit/keys.yaml` | Where to write the LiveKit key pair for a sidecar started with `--key-file`. Written on every boot (minted or from the environment); the file is `0600` in a `0700` directory because LiveKit refuses a key file others can read |
 | `STOOP_LINK_PREVIEWS`      | `true`                      | Fetch Open Graph cards for links in messages. The server fetches (readers' browsers never contact the site); set `false` if the server should make no outbound requests on members' behalf |
@@ -533,11 +533,12 @@ most installs use) rejects request bodies above 100 MB; raising the cap
 means chunked uploads, which is planned but not built. Long videos are
 best shared as a link.
 
-There is no object-storage option yet. `STOOP_STORAGE` exists so the
+There is no object-storage option. `STOOP_STORAGE` exists so the
 choice has a home, but `fs` is the only value it accepts: setting `s3`
 makes the server exit at startup with a message saying so, rather than
-silently keeping files on disk. An S3-compatible backend (AWS, B2, R2,
-or a self-run MinIO/Garage) is on the roadmap.
+silently keeping files on disk. An S3-compatible backend is not built
+and not scheduled. If you need one, open an issue and say which
+provider you would point it at.
 
 ## Backups
 

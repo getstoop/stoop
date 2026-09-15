@@ -2,7 +2,8 @@
 // opens, stats, and deletes opaque blobs by key. It is the only package
 // that touches storage; everything else (the files module, phase-2
 // attachments) goes through the interface. The filesystem implementation
-// is the default; an S3-compatible one is planned (see the STOOP-5 design).
+// is the only one; an object-storage backend would be a second Store
+// behind this port, and is not built until someone needs it (STOOP-221).
 package blob
 
 import (

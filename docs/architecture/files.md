@@ -159,16 +159,17 @@ That grammar has a second, useful consequence: the LiveKit key file lives
 in the storage directory, and because its name contains a dot, `blob.Walk`
 skips it and the sweep cannot touch it.
 
-**Today `fs` is the only backend.** `STOOP_STORAGE` is validated at
+**`fs` is the only backend.** `STOOP_STORAGE` is validated at
 startup, and anything else — `s3` included — is a fatal configuration error
 rather than a silent fallback to local disk, which is the failure mode that
 loses people's files. The fs backend writes atomically via a temp file and
 a rename, so a concurrent `Open` sees either the old blob or the complete
 new one, never a partial write.
 
-An S3-compatible backend will be a second `blob.Store` selected by that
-same knob. `app.New` is the only place a store is constructed, so nothing
-in `internal/files` changes when it lands.
+An object-storage backend, if someone asks for one, would be a second
+`blob.Store` selected by that same knob. `app.New` is the only place a
+store is constructed, so nothing in `internal/files` would change. It is
+not built and not scheduled (STOOP-221).
 
 `blob` may not import `dbgen`: it is bytes by key, and the metadata that
 gives them meaning belongs to the files table.

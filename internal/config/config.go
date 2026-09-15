@@ -54,7 +54,8 @@ type Config struct {
 	RegistrationPolicy string
 
 	// Storage selects the blob store behind file uploads: "fs" (default;
-	// files under StorageDir) or "s3" (not yet implemented).
+	// files under StorageDir). "s3" is reserved and refused: an
+	// object-storage backend is not built (STOOP-221).
 	Storage string
 	// StorageDir is the fs store's root directory. Back it up alongside
 	// Postgres.
@@ -202,7 +203,7 @@ func Load() (Config, error) {
 	switch cfg.Storage {
 	case "fs":
 	case "s3":
-		return Config{}, fmt.Errorf("STOOP_STORAGE=s3 is not available yet; use fs")
+		return Config{}, fmt.Errorf("STOOP_STORAGE=s3 is not built; use fs")
 	default:
 		return Config{}, fmt.Errorf("STOOP_STORAGE must be fs or s3 (got %q)", cfg.Storage)
 	}
