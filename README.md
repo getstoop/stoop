@@ -85,20 +85,19 @@ coding agent? The brief template and this environment's traps are in
   "Basement Arcade" (a gaming guild), each with a description, welcome text and
   channels with topics, and a few people in both. It prints the accounts and
   their roles when it finishes.
-- `make e2e` — browser end-to-end suite (`web/e2e/*.mjs`, puppeteer driving
-  a local Chrome). It builds, then `scripts/e2e-scratch.sh` recreates a
+- `make e2e` — browser end-to-end suite (`web/e2e-pw/*.spec.ts`, Playwright
+  driving Chromium). It builds, then `scripts/e2e-scratch.sh` recreates a
   `stoop_e2e` database on the dev Postgres, starts a second server on :8092
-  with its own storage directory, runs every spec against it and stops it;
-  the dev server and its data are left alone. `make e2e specs="setup members"`
-  runs a subset. Set `STOOP_E2E_CHROME` if Chrome isn't in the usual place.
-  The runner itself (`cd web && pnpm e2e`) works against any server named
-  by `STOOP_E2E_BASE_URL`, wiping the database in `STOOP_E2E_DATABASE_URL`
+  with its own storage directory and the dev LiveKit's key pair, runs every
+  spec against it and stops it; the dev server and its data are left alone.
+  `make e2e specs="setup members"` runs a subset. The runner itself
+  (`cd web && npx playwright test`) works against any server named by
+  `STOOP_E2E_BASE_URL`, wiping the database in `STOOP_E2E_DATABASE_URL`
   before each spec; a hand-started server needs
   `STOOP_UNFURL_ALLOW_PRIVATE=true STOOP_AUTH_RATE_LIMIT=0` (the suite signs
-  in far more than 20 times a minute from one address). The voice spec is
-  opt-in — `STOOP_E2E_VOICE=1 pnpm e2e voice` — because it needs the server
-  pointed at a running LiveKit with the key pair it minted (`make dev`
-  does that; the scratch server has no LiveKit); CI skips it.
+  in far more than 20 times a minute from one address). The voice spec runs
+  with the rest when the server was started against a LiveKit (`make dev`
+  and the scratch script both do that) and skips itself otherwise.
 
 CI runs lint, codegen drift checks, the Go tests, and the browser suite.
 
