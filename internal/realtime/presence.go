@@ -46,23 +46,29 @@ func (p *presence) connect(userID string, spaceIDs []string) bool {
 	return e.conns == 1
 }
 
-// disconnect records a closed connection; true when the user went offline.
-func (p *presence) disconnect(userID string) bool {
+// disconnect records a closed connection. When it was the user's last,
+// the spaces they were visible in across every connection are returned,
+// joins made while connected included; nil while they are still online.
+func (p *presence) disconnect(userID string) []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	e := p.users[userID]
 	if e == nil {
-		return false
+		return nil
 	}
 	e.conns--
-	if e.conns <= 0 {
-		if e.timer != nil {
-			e.timer.Stop()
-		}
-		delete(p.users, userID)
-		return true
+	if e.conns > 0 {
+		return nil
 	}
-	return false
+	if e.timer != nil {
+		e.timer.Stop()
+	}
+	delete(p.users, userID)
+	spaces := make([]string, 0, len(e.spaces))
+	for s := range e.spaces {
+		spaces = append(spaces, s)
+	}
+	return spaces
 }
 
 func (p *presence) addSpace(userID, spaceID string) {

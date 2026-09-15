@@ -281,6 +281,17 @@ func TestJoinWhileConnected(t *testing.T) {
 		t.Fatalf("alice received an unrelated event: %v", ev)
 	}
 
+	// And hears him leave: the space was joined after this connection
+	// opened, so "offline" has to go to what he was visible in, not to the
+	// list the connection started with (STOOP-282).
+	_ = bob.conn.Close(websocket.StatusNormalClosure, "")
+	if ev := alice.waitFor(func(e *realtimev1.ServerEvent) bool {
+		p := e.GetPresenceChanged()
+		return p != nil && p.UserId == "bob" && !p.Online
+	}); ev == nil {
+		t.Fatal("alice never heard bob go offline from the space he joined while connected")
+	}
+
 	_ = alice.conn.Close(websocket.StatusNormalClosure, "")
 	_ = carol.conn.Close(websocket.StatusNormalClosure, "")
 	_ = bob.conn.Close(websocket.StatusNormalClosure, "")
