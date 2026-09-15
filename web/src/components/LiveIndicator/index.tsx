@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { type Capture, captureLabel, captureState } from "../../api/capture";
 import { useChannels, useSpaces } from "../../api/queries";
 import { useVoiceStore, type VoiceConnection } from "../../stores/voice";
@@ -7,12 +8,20 @@ import { CameraIcon, MicIcon, ScreenIcon } from "../VoiceIcons";
 import { LivePopover } from "./LivePopover";
 import { type Placement, popoverPosition } from "./position";
 
+// How long a pill stays after its call ends: the outro in live-indicator.css.
+const OUTRO_MS = 260;
+
 // The call each placement last introduced itself for. The header pill
 // remounts with every page, and the intro belongs to the call, not the page.
 const introduced: Record<Placement, string | null> = {
   rail: null,
   header: null,
 };
+
+interface Live {
+  capture: Capture;
+  connection: VoiceConnection;
+}
 
 // Says what is live — mic, camera, screen — on every page: a pill at the
 // top of the rail, and beside the menu button on a phone, where the rail
@@ -22,17 +31,44 @@ export function LiveIndicator({ placement }: { placement: Placement }) {
   const muted = useVoiceStore((s) => s.muted);
   const cameraOn = useVoiceStore((s) => s.cameraOn);
   const screenOn = useVoiceStore((s) => s.screenOn);
-  const inCall = connection !== null;
+  const capture = captureState({ connection, muted, cameraOn, screenOn });
+  const live =
+    connection && capture.kind !== "none" ? { capture, connection } : null;
+  const { shown, leaving } = useLingering(live, placement);
+  if (!shown) return null;
+  return (
+    <LivePill
+      placement={placement}
+      capture={shown.capture}
+      connection={shown.connection}
+      leaving={leaving}
+    />
+  );
+}
+
+// Keeps the last call on screen long enough to animate out once it ends.
+function useLingering(live: Live | null, placement: Placement) {
+  const last = useRef<Live | null>(null);
+  const [ending, setEnding] = useState<Live | null>(null);
+  if (live) last.current = live;
+  const inCall = live !== null;
 
   useEffect(() => {
-    if (!inCall) introduced[placement] = null;
+    if (inCall) {
+      setEnding(null);
+      return;
+    }
+    introduced[placement] = null;
+    const gone = last.current;
+    last.current = null;
+    if (!gone || window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return;
+    setEnding(gone);
+    const id = setTimeout(() => setEnding(null), OUTRO_MS);
+    return () => clearTimeout(id);
   }, [inCall, placement]);
 
-  const capture = captureState({ connection, muted, cameraOn, screenOn });
-  if (!connection || capture.kind === "none") return null;
-  return (
-    <LivePill placement={placement} capture={capture} connection={connection} />
-  );
+  return { shown: live ?? ending, leaving: !live && ending !== null };
 }
 
 // Mounted when a call starts, so its first render is the call's first
@@ -41,10 +77,12 @@ function LivePill({
   placement,
   capture,
   connection,
+  leaving,
 }: {
   placement: Placement;
   capture: Capture;
   connection: VoiceConnection;
+  leaving: boolean;
 }) {
   const callKey = `${connection.spaceId}/${connection.channelId}`;
   const [intro] = useState(() => introduced[placement] !== callKey);
@@ -52,6 +90,7 @@ function LivePill({
   const { data: channels } = useChannels(connection.spaceId);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setAt(null), []);
 
   useEffect(() => {
@@ -64,7 +103,9 @@ function LivePill({
       if (e.key === "Escape") close();
     };
     const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) close();
+      const target = e.target as Node;
+      if (!ref.current?.contains(target) && !popRef.current?.contains(target))
+        close();
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onDown);
@@ -80,12 +121,10 @@ function LivePill({
   const space = spaces?.find((s) => s.id === connection.spaceId);
   const channel = channels?.find((c) => c.id === connection.channelId);
   const where = channel && space ? `${channel.name} · ${space.name}` : "";
+  const phase = leaving ? "outro" : intro ? "intro" : "";
 
   return (
-    <div
-      ref={ref}
-      className={`live-indicator ${placement} ${intro ? "intro" : ""}`}
-    >
+    <div ref={ref} className={`live-indicator ${placement} ${phase}`}>
       <Tooltip
         text={label}
         detail={where}
@@ -96,6 +135,7 @@ function LivePill({
           className={`icon-button live-pill ${capture.kind}`}
           aria-label={where ? `${label}: ${where}` : label}
           aria-expanded={at !== null}
+          disabled={leaving}
           onClick={(e) =>
             setAt(
               at
@@ -114,7 +154,16 @@ function LivePill({
       {placement === "rail" && (
         <span className="rail-divider" aria-hidden="true" />
       )}
-      {at && <LivePopover at={at} onClose={close} />}
+      {/* On the body, so no animating or scrolling ancestor can clip it
+          or become what its fixed position is measured from. */}
+      {at &&
+        !leaving &&
+        createPortal(
+          <div ref={popRef}>
+            <LivePopover at={at} onClose={close} />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

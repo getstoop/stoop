@@ -57,12 +57,43 @@
 /* A call's first moment, once per call (LiveIndicator/index.tsx): the rail
    pill grows in and pushes the rest of the rail down, the header pill pops
    in, and either then pings twice in its own colour. */
+/* backwards, never both or forwards: an animation still holding a transform
+   makes its element the box every fixed descendant is measured from. */
 .live-indicator.rail.intro {
-  animation: live-grow 320ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: live-grow 320ms cubic-bezier(0.2, 0, 0, 1) backwards;
 }
 
 .live-indicator.header.intro .live-pill {
-  animation: live-pop 260ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: live-pop 260ms cubic-bezier(0.2, 0, 0, 1) backwards;
+}
+
+/* The call has ended: the rail pill shrinks back up and the rail follows,
+   the header pill pops out. The component unmounts it when this ends. */
+.live-indicator.outro {
+  pointer-events: none;
+}
+
+.live-indicator.rail.outro {
+  animation: live-shrink 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.live-indicator.header.outro .live-pill {
+  animation: live-unpop 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes live-shrink {
+  to {
+    margin-top: -62px;
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes live-unpop {
+  to {
+    opacity: 0;
+    transform: scale(0.4);
+  }
 }
 
 .live-indicator.intro .live-pill::after {
@@ -119,7 +150,9 @@
   .live-pill.joining svg,
   .live-indicator.intro,
   .live-indicator.intro .live-pill,
-  .live-indicator.intro .live-pill::after {
+  .live-indicator.intro .live-pill::after,
+  .live-indicator.outro,
+  .live-indicator.outro .live-pill {
     animation: none;
   }
 }
