@@ -51,6 +51,11 @@ export interface StoopBridge {
   // own choice as a browser does.
   theme?: ShellTheme;
   onTheme?(handler: (theme: ShellTheme) => void): () => void;
+  // Bridge 3. The app's one do not disturb switch, for every server it
+  // holds (api/dndBridge.ts). Optional: a browser has no switch, and do not
+  // disturb then lives in account settings alone.
+  dnd?: boolean;
+  onDnd?(handler: (on: boolean) => void): () => void;
   // Bridge 3. Whether App settings is letting desktop banners through —
   // off there silences them for every server at once. A function rather
   // than a value because the answer changes while the page is open and
@@ -107,6 +112,18 @@ export function shellTheme(): ShellTheme | undefined {
 
 export function onShellTheme(handler: (theme: ShellTheme) => void): () => void {
   return bridge()?.onTheme?.(handler) ?? (() => {});
+}
+
+// Where the desktop app's do not disturb switch stands, or undefined
+// outside an app that has one. Defined also means the switch, not account
+// settings, is where the person sets it.
+export function shellDnd(): boolean | undefined {
+  const on = bridge()?.dnd;
+  return typeof on === "boolean" ? on : undefined;
+}
+
+export function onShellDnd(handler: (on: boolean) => void): () => void {
+  return bridge()?.onDnd?.(handler) ?? (() => {});
 }
 
 // Whether the shell is letting desktop banners through, right now. True

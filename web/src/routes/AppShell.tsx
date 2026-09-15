@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { unreadCounts } from "../api/activity";
 import { chatClient } from "../api/clients";
 import { dmUnreadTotal, useDirectMessages } from "../api/dms";
+import { startDndBridge } from "../api/dndBridge";
 import { errorText } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { dndActive, presenceClass } from "../api/presence";
@@ -85,6 +86,11 @@ export function AppShell() {
       }),
     );
   }, [userId, queryClient, navigate]);
+
+  useEffect(() => {
+    if (!userId) return;
+    return startDndBridge(queryClient);
+  }, [userId, queryClient]);
 
   if (isLoading || isError || !me) {
     return <div className="centered muted">Loading…</div>;
