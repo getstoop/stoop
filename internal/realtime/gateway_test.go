@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/events"
@@ -216,6 +217,73 @@ func TestPresenceAndTyping(t *testing.T) {
 	}
 	_ = alice.conn.Close(websocket.StatusNormalClosure, "")
 	_ = carol.conn.Close(websocket.StatusNormalClosure, "")
+}
+
+// Joining a space mid-connection: Ready never covered it, so the joiner
+// is told who is online and in voice there.
+func TestJoinWhileConnected(t *testing.T) {
+	bus := events.NewInProcBus()
+	gw := realtime.NewGateway(bus, fakeVerifier{}, fakeMembers{
+		"alice": {"s1"}, "carol": {"s1"}, "bob": {},
+	}, fakeVoiceChannels{"v1": "s1"}, []string{"*"}, slog.Default())
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+
+	alice := dial(t, srv, "alice")
+	alice.next(time.Second)
+	carol := dial(t, srv, "carol")
+	carol.next(time.Second)
+	carol.send(voiceEvent("v1", false))
+	alice.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetVoiceStateChanged() != nil })
+
+	bob := dial(t, srv, "bob")
+	if ready := bob.next(time.Second).GetReady(); ready == nil || len(ready.OnlineUserIds) != 0 {
+		t.Fatalf("bob ready = %+v", ready)
+	}
+
+	// The chat module tells the joiner's connections on their user topic.
+	bus.Publish("user:bob", events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_SpaceJoined{
+			SpaceJoined: &realtimev1.SpaceJoined{Space: &chatv1.Space{Id: "s1"}},
+		},
+	}))
+
+	// bob hears SpaceJoined first, then the space's presence and voice.
+	if ev := bob.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetSpaceJoined() != nil }); ev == nil {
+		t.Fatal("bob never received SpaceJoined")
+	}
+	online := map[string]bool{}
+	var inVoice []string
+	bob.waitFor(func(e *realtimev1.ServerEvent) bool {
+		if p := e.GetPresenceChanged(); p != nil && p.Online {
+			online[p.UserId] = true
+		}
+		if v := e.GetVoiceStateChanged(); v != nil && v.Joined {
+			inVoice = append(inVoice, v.Participant.UserId)
+		}
+		return len(online) == 3 && len(inVoice) == 1
+	})
+	if !online["alice"] || !online["carol"] || !online["bob"] {
+		t.Errorf("bob's view of who is online after joining = %v", online)
+	}
+	if len(inVoice) != 1 || inVoice[0] != "carol" {
+		t.Errorf("bob's view of voice after joining = %v", inVoice)
+	}
+
+	// The room heard bob arrive, and only bob.
+	if ev := alice.waitFor(func(e *realtimev1.ServerEvent) bool {
+		p := e.GetPresenceChanged()
+		return p != nil && p.UserId == "bob" && p.Online
+	}); ev == nil {
+		t.Fatal("alice never heard bob come online")
+	}
+	if ev := alice.next(300 * time.Millisecond); ev != nil {
+		t.Fatalf("alice received an unrelated event: %v", ev)
+	}
+
+	_ = alice.conn.Close(websocket.StatusNormalClosure, "")
+	_ = carol.conn.Close(websocket.StatusNormalClosure, "")
+	_ = bob.conn.Close(websocket.StatusNormalClosure, "")
 }
 
 func voiceEvent(channelID string, muted bool) *realtimev1.ClientEvent {

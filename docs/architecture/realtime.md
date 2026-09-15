@@ -117,7 +117,7 @@ subscription:
 
 | Event seen | Action |
 | ---------- | ------ |
-| `SpaceJoined` | If the credential covers `messages.read` there: `sub.Add("space:"+id)`, record the space in presence, announce presence into it. |
+| `SpaceJoined` | If the credential covers `messages.read` there: `sub.Add("space:"+id)`, record the space in presence, announce presence into it, then send this connection who is online and in voice there — `Ready` only covered the spaces held at connect time. |
 | `MemberRemoved` (this user) | Leave any voice channel there, `sub.Remove(…)`, drop the space from presence. |
 | `SpaceDeleted` | Same. |
 | `ChannelDeleted` | Clear anyone the gateway believed was in that voice channel. |
