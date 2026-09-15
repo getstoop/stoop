@@ -92,7 +92,7 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string) (Preview, error) {
 	if err := checkURL(u); err != nil {
 		return Preview{}, err
 	}
-	body, ctype, finalURL, err := f.get(ctx, u.String(), maxHTMLBytes, "text/html, application/xhtml+xml, image/*;q=0.8")
+	body, ctype, finalURL, err := f.get(ctx, u.String(), "text/html, application/xhtml+xml, image/*;q=0.8")
 	if err != nil {
 		return Preview{}, err
 	}
@@ -111,7 +111,7 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string) (Preview, error) {
 	}
 	if imageURL != "" {
 		if abs, err := finalURL.Parse(imageURL); err == nil && checkURL(abs) == nil {
-			if img, ictype, _, err := f.get(ctx, abs.String(), maxImageBytes, "image/*"); err == nil && strings.HasPrefix(ictype, "image/") {
+			if img, ictype, _, err := f.get(ctx, abs.String(), "image/*"); err == nil && strings.HasPrefix(ictype, "image/") {
 				p.Image = img
 			}
 		}
@@ -119,8 +119,10 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string) (Preview, error) {
 	return p, nil
 }
 
-// get performs a guarded GET, returning at most limit bytes.
-func (f *Fetcher) get(ctx context.Context, raw string, limit int64, accept string) ([]byte, string, *url.URL, error) {
+// get performs a guarded GET. The body cap depends on what the server
+// says it is sending: an image may run to maxImageBytes, anything else
+// to maxHTMLBytes.
+func (f *Fetcher) get(ctx context.Context, raw string, accept string) ([]byte, string, *url.URL, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
 		return nil, "", nil, err
@@ -135,6 +137,11 @@ func (f *Fetcher) get(ctx context.Context, raw string, limit int64, accept strin
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", nil, fmt.Errorf("%w: %s", ErrBadStatus, resp.Status)
 	}
+	ctype := strings.ToLower(strings.TrimSpace(strings.SplitN(resp.Header.Get("Content-Type"), ";", 2)[0]))
+	limit := int64(maxHTMLBytes)
+	if strings.HasPrefix(ctype, "image/") {
+		limit = maxImageBytes
+	}
 	if resp.ContentLength > limit {
 		return nil, "", nil, ErrTooLarge
 	}
@@ -145,7 +152,6 @@ func (f *Fetcher) get(ctx context.Context, raw string, limit int64, accept strin
 	if int64(len(body)) > limit {
 		return nil, "", nil, ErrTooLarge
 	}
-	ctype := strings.ToLower(strings.TrimSpace(strings.SplitN(resp.Header.Get("Content-Type"), ";", 2)[0]))
 	if ctype == "" || ctype == "application/octet-stream" {
 		ctype = http.DetectContentType(body)
 	}

@@ -16,7 +16,7 @@ knows how bytes are stored.
 | `avatar` | 2 MB in | Decoded and re-encoded to a 256 px PNG. |
 | `space_icon` | 2 MB in | Decoded and re-encoded to a 512 px PNG. |
 | `attachment` | 100 MB, or the operator's lower `max_upload_bytes` | Stored exactly as uploaded. |
-| `link_preview` | fetched, bounded at 5 MB | Re-encoded like an icon. |
+| `link_preview` | fetched, bounded at 5 MB | Re-encoded like an icon; an animated GIF frame by frame, kept as a GIF. |
 
 Kind decides the size cap, the image treatment, and who may download it.
 
