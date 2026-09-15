@@ -116,7 +116,10 @@ changed a font size would visibly desynchronise the overlay from the text.
 
 `plainText` (`internal/chat/markdown.go`) strips markers for reply-quote
 and activity previews, including bullets and `||`, so a preview reads
-as the words themselves.
+as the words themselves. It is the client's parser ported to Go, not a
+second set of rules, and the same test cases run on both sides: a
+preview never shows an address or a word the rendered message does not.
+The link extractor for previews walks the same parse.
 
 Note the consequence: **a spoiler's text does appear in a preview.**
 The marker hides it *in the message*; an activity preview of a blank

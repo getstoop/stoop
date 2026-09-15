@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -62,43 +60,47 @@ const (
 	unfurlTimeout = 20 * time.Second
 )
 
-var (
-	urlPattern      = regexp.MustCompile(`https?://[^\s<>"'` + "`" + `]+`)
-	fencedCodeBlock = regexp.MustCompile("(?s)```.*?```")
-	inlineCode      = regexp.MustCompile("`[^`\n]*`")
-)
-
 // extractLinks finds up to maxLinksPerMessage distinct http(s) URLs in
-// message content, skipping code, in order of appearance.
+// message content, in order of appearance: the link nodes of the same
+// parse the client renders from, so code is skipped and a URL ends where
+// the client's does.
 func extractLinks(content string) []string {
-	text := inlineCode.ReplaceAllString(fencedCodeBlock.ReplaceAllString(content, " "), " ")
 	seen := map[string]bool{}
 	var out []string
-	for _, m := range urlPattern.FindAllString(text, -1) {
-		m = trimURL(m)
-		if seen[m] || len(m) > 2048 {
-			continue
+	var walk func(nodes []inlineNode) bool
+	walk = func(nodes []inlineNode) bool {
+		for _, n := range nodes {
+			switch n.kind {
+			case inlineLink:
+				if seen[n.text] || len(n.text) > 2048 {
+					continue
+				}
+				seen[n.text] = true
+				out = append(out, n.text)
+				if len(out) == maxLinksPerMessage {
+					return true
+				}
+			case inlineStyled:
+				if walk(n.children) {
+					return true
+				}
+			}
 		}
-		seen[m] = true
-		out = append(out, m)
-		if len(out) == maxLinksPerMessage {
-			break
+		return false
+	}
+	for _, b := range parseMarkdown(content) {
+		for _, l := range b.lines {
+			if walk(l) {
+				return out
+			}
+		}
+		for _, it := range b.items {
+			if walk(it) {
+				return out
+			}
 		}
 	}
 	return out
-}
-
-// trimURL drops the sentence's trailing punctuation from a matched URL,
-// except a ")" that closes a "(" inside it. Mirrors trimUrl in the web
-// client's markdown.ts.
-func trimURL(raw string) string {
-	u := strings.TrimRight(raw, ".,;:!?)]}")
-	rest := raw[len(u):]
-	for strings.HasPrefix(rest, ")") && strings.Count(u, "(") > strings.Count(u, ")") {
-		u += ")"
-		rest = rest[1:]
-	}
-	return u
 }
 
 // recordLinks replaces a message's link rows (within the caller's
