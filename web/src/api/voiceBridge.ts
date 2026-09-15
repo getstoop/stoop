@@ -10,7 +10,12 @@ import {
   type VoiceAction,
 } from "./platform";
 import { channelsQuery } from "./queries";
-import { toggleCamera, toggleMute, toggleScreenShare } from "./voice";
+import {
+  leaveVoice,
+  toggleCamera,
+  toggleMute,
+  toggleScreenShare,
+} from "./voice";
 
 // Keeps the desktop shell's strip, popover and tray in step with this
 // page's voice state, and carries out what they ask. A no-op wherever the
@@ -83,6 +88,10 @@ function act(
       break;
     case "stop-screen":
       if (voice.screenOn) void toggleScreenShare();
+      break;
+    // Voice started on another server the shell holds: one call at a time.
+    case "leave":
+      if (voice.connection) void leaveVoice();
       break;
   }
 }
