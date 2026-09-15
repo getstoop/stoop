@@ -146,7 +146,10 @@ sections, in this order:
   mounts, in parallel with the WebSocket handshake, and only the socket
   carries what happens next. Anything another page does in that window
   reaches this one by refetch alone. Two guards: the app refetches
-  whatever it fetched before the gateway's Ready (`api/ws.ts`), and
+  whatever it fetched before the gateway's Ready (`api/ws.ts` through
+  `api/stale.ts`, which waits for a load still in flight to land and
+  then goes again, because a refetch asked of a load with no data yet is
+  deduped onto it rather than restarting it), and
   `signIn()`/`reload()` in `web/e2e-pw/lib.ts` wait for the rail's status
   icon to read connected before returning, so a spec never talks to a
   page that cannot hear yet. The 2026-09-13 flakes in `dms` ("counts both
