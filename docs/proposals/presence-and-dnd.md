@@ -172,6 +172,8 @@ server.
 ## Not in scope
 
 - A status line or status emoji: the word is reserved for it.
+- Silencing one device. "Don't alert me here" would be local to a device and
+  separate from do not disturb, which says "don't bother me" to everyone.
 - Preset durations ("for an hour", "until tomorrow"): the column is ready
   for them.
 - Push notifications (STOOP-88) respecting do not disturb: this makes it
