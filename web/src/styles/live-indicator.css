@@ -50,62 +50,66 @@
   box-shadow: inset 0 0 0 2px var(--border);
 }
 
-.live-pill.joining svg {
-  animation: pulse 1.2s ease-in-out infinite;
+@media (prefers-reduced-motion: no-preference) {
+  .live-pill.joining svg {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
 }
 
-/* A call's first and last moments (LiveIndicator/index.tsx). Only
-   transform and opacity move, so the compositor keeps them smooth while
-   the page is busy joining: loading livekit-client and connecting land on
-   the same frames. Nothing holds its end frame into the settled state — a
-   held transform makes its element the box fixed descendants are measured
-   from. */
-
-.live-indicator.intro .live-pill {
-  animation: live-pop 280ms cubic-bezier(0.2, 0, 0, 1) backwards;
-}
-
-.live-indicator.rail.intro .rail-divider {
-  animation: live-fade 280ms ease-out backwards;
-}
-
-/* The rail makes room: everything under the pill starts where the pill
-   now is and slides down into place. */
-.space-rail-top:has(> .live-indicator.rail.intro) > :not(.live-indicator) {
-  animation: live-push 320ms cubic-bezier(0.2, 0, 0, 1) backwards;
-}
-
-/* Then a ring pings out of it twice, in its own colour. */
-.live-indicator.intro .live-pill::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 2px solid currentColor;
-  border-radius: inherit;
-  opacity: 0;
-  pointer-events: none;
-  animation: live-ping 900ms ease-out 300ms 2;
-}
-
-.live-pill.screen::after,
-.live-pill.error::after {
-  color: var(--danger);
-}
-
-/* The call has ended: the pill pops out and the rail closes the gap,
-   sliding up to where it sits once the pill unmounts. Unmounting drops
-   these rules in the same frame as the space they covered. */
 .live-indicator.outro {
   pointer-events: none;
 }
 
-.live-indicator.outro .live-pill,
-.live-indicator.rail.outro .rail-divider {
-  animation: live-unpop 240ms cubic-bezier(0.4, 0, 1, 1) forwards;
-}
+/* A call's first and last moments (LiveIndicator/index.tsx), and only
+   for those who have not asked for less motion. Only transform and
+   opacity move, so the compositor keeps them smooth while the page is
+   busy joining: loading livekit-client and connecting land on the same
+   frames. Nothing holds its end frame into the settled state — a held
+   transform makes its element the box fixed descendants are measured
+   from. */
+@media (prefers-reduced-motion: no-preference) {
+  .live-indicator.intro .live-pill {
+    animation: live-pop 280ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  }
 
-.space-rail-top:has(> .live-indicator.rail.outro) > :not(.live-indicator) {
-  animation: live-pull 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  .live-indicator.rail.intro .rail-divider {
+    animation: live-fade 280ms ease-out backwards;
+  }
+
+  /* The rail makes room: everything under the pill starts where the pill
+     now is and slides down into place. */
+  .space-rail-top:has(> .live-indicator.rail.intro) > :not(.live-indicator) {
+    animation: live-push 320ms cubic-bezier(0.2, 0, 0, 1) backwards;
+  }
+
+  /* Then a ring pings out of it twice, in its own colour. */
+  .live-indicator.intro .live-pill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid currentColor;
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+    animation: live-ping 900ms ease-out 300ms 2;
+  }
+
+  .live-pill.screen::after,
+  .live-pill.error::after {
+    color: var(--danger);
+  }
+
+  /* The call has ended: the pill pops out and the rail closes the gap,
+     sliding up to where it sits once the pill unmounts. Unmounting drops
+     these rules in the same frame as the space they covered. */
+  .live-indicator.outro .live-pill,
+  .live-indicator.rail.outro .rail-divider {
+    animation: live-unpop 240ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
+
+  .space-rail-top:has(> .live-indicator.rail.outro) > :not(.live-indicator) {
+    animation: live-pull 260ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
 }
 
 @keyframes live-pop {
@@ -156,18 +160,6 @@
   to {
     opacity: 0;
     transform: scale(1.6);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .live-pill.joining svg,
-  .live-indicator.intro .live-pill,
-  .live-indicator.intro .live-pill::after,
-  .live-indicator.rail .rail-divider,
-  .live-indicator.outro .live-pill,
-  .space-rail-top:has(> .live-indicator.intro) > :not(.live-indicator),
-  .space-rail-top:has(> .live-indicator.outro) > :not(.live-indicator) {
-    animation: none;
   }
 }
 
