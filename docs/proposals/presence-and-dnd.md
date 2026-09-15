@@ -77,6 +77,37 @@ ALTER TABLE users
   them.
 - After the write, auth publishes a change event to `user:<id>`.
 
+## Every device agrees
+
+Do not disturb belongs to the account, so every device a person uses
+follows it. The server is the only place it is set; devices never keep
+their own copy.
+
+- **Turning it on stops alerts everywhere.** The change event goes to
+  `user:<id>`, which every connection a person has already subscribes to
+  (`realtime/gateway.go`). Each device updates its own flag on arrival
+  and holds its alerts from then on. Today every alert is raised by a
+  client from a realtime event, so a connected device goes quiet at once.
+- **A device that was asleep catches up on reconnect.** Its `Ready`
+  includes the person's own presence, `dnd` included, and `GetMe` carries
+  `dnd` and `dnd_until`. It must not act on a stale cached copy.
+- **Signing in on a new device adopts do not disturb.** Connecting makes a
+  person online, and that has nothing to do with do not disturb. The dot
+  stays on do not disturb, and the new device holds its alerts. Only
+  turning it off, or `dnd_until` passing, ends it.
+- **Nothing a device does by connecting can clear it.** In particular, the
+  desktop app applies its switch only when the person changes it, or when
+  a page loads while the switch is **on**. A page that loads while the
+  switch is off leaves the server alone. Otherwise, opening the desktop
+  app would wipe do not disturb set from a phone.
+- **Alerts are held if either says so.** Inside the desktop app a banner is
+  held while the app's switch is on, or while that page's server says do
+  not disturb. Setting it from a phone silences that server's banners on
+  the desktop too, even though the app's switch doesn't show it.
+- **Later push notifications check the server.** When push arrives
+  (STOOP-88), the server decides whether to send, from `dnd` and
+  `dnd_until`. No client is involved.
+
 ## Presence in the gateway
 
 The gateway stays in memory and never touches the database.
