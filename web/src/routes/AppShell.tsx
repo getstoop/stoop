@@ -67,20 +67,24 @@ export function AppShell() {
     });
   }, [isError, navigate, router]);
 
-  useEffect(() => {
-    if (!me) return;
-    return startRealtime(queryClient);
-  }, [me, queryClient]);
+  // Keyed on who is signed in rather than on the user object, which do not
+  // disturb and profile edits replace without anyone signing in or out.
+  const userId = me?.id;
 
   useEffect(() => {
-    if (!me) return;
+    if (!userId) return;
+    return startRealtime(queryClient);
+  }, [userId, queryClient]);
+
+  useEffect(() => {
+    if (!userId) return;
     return startVoiceBridge(queryClient, (spaceId, channelId) =>
       navigate({
         to: "/s/$spaceId/c/$channelId",
         params: { spaceId, channelId },
       }),
     );
-  }, [me, queryClient, navigate]);
+  }, [userId, queryClient, navigate]);
 
   if (isLoading || isError || !me) {
     return <div className="centered muted">Loading…</div>;
