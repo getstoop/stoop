@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { type Capture, captureLabel, captureState } from "../../api/capture";
+import { shellDrawsVoice } from "../../api/platform";
 import { useChannels, useSpaces } from "../../api/queries";
 import { useVoiceStore, type VoiceConnection } from "../../stores/voice";
 import { Tooltip } from "../Tooltip";
@@ -38,7 +39,8 @@ export function LiveIndicator({ placement }: { placement: Placement }) {
   const live =
     connection && capture.kind !== "none" ? { capture, connection } : null;
   const { shown, leaving } = useLingering(live, switching, placement);
-  if (!shown) return null;
+  // The desktop shell draws its own in the strip.
+  if (!shown || shellDrawsVoice()) return null;
   return (
     <LivePill
       placement={placement}

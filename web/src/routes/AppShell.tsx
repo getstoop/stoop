@@ -33,7 +33,6 @@ import {
 import { LiveIndicator } from "../components/LiveIndicator";
 import { closeDrawerOnLink } from "../components/MenuButton";
 import { NavBackdrop } from "../components/NavBackdrop";
-import { ShellLivePopover } from "../components/ShellLivePopover";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { Tooltip } from "../components/Tooltip";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
@@ -75,8 +74,13 @@ export function AppShell() {
 
   useEffect(() => {
     if (!me) return;
-    return startVoiceBridge(queryClient);
-  }, [me, queryClient]);
+    return startVoiceBridge(queryClient, (spaceId, channelId) =>
+      navigate({
+        to: "/s/$spaceId/c/$channelId",
+        params: { spaceId, channelId },
+      }),
+    );
+  }, [me, queryClient, navigate]);
 
   if (isLoading || isError || !me) {
     return <div className="centered muted">Loading…</div>;
@@ -87,7 +91,6 @@ export function AppShell() {
       <SpaceRail />
       <NavBackdrop />
       <Outlet />
-      <ShellLivePopover />
     </div>
   );
 }
