@@ -51,13 +51,6 @@ FROM credentials
 WHERE holder_id = $1 AND kind = 'session' AND expires_at > now()
 ORDER BY coalesce(last_used_at, created_at) DESC;
 
--- DeleteSession revokes one of a person's own sessions.
--- name: DeleteSession :many
-WITH legacy AS (DELETE FROM sessions WHERE sessions.id = sqlc.arg(id)::uuid AND user_id = sqlc.arg(holder_id)::uuid)
-DELETE FROM credentials
-WHERE credentials.id = sqlc.arg(id)::uuid AND holder_id = sqlc.arg(holder_id)::uuid AND kind = 'session'
-RETURNING id, holder_id;
-
 -- DeleteUserCredentials revokes everything an account holds, on
 -- deactivation and on an admin password reset.
 -- name: DeleteUserCredentials :many

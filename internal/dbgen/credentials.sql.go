@@ -249,44 +249,6 @@ func (q *Queries) DeletePersonalToken(ctx context.Context, arg DeletePersonalTok
 	return items, nil
 }
 
-const deleteSession = `-- name: DeleteSession :many
-WITH legacy AS (DELETE FROM sessions WHERE sessions.id = $1::uuid AND user_id = $2::uuid)
-DELETE FROM credentials
-WHERE credentials.id = $1::uuid AND holder_id = $2::uuid AND kind = 'session'
-RETURNING id, holder_id
-`
-
-type DeleteSessionParams struct {
-	ID       string
-	HolderID string
-}
-
-type DeleteSessionRow struct {
-	ID       string
-	HolderID string
-}
-
-// DeleteSession revokes one of a person's own sessions.
-func (q *Queries) DeleteSession(ctx context.Context, arg DeleteSessionParams) ([]DeleteSessionRow, error) {
-	rows, err := q.db.Query(ctx, deleteSession, arg.ID, arg.HolderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []DeleteSessionRow
-	for rows.Next() {
-		var i DeleteSessionRow
-		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const deleteUserCredentials = `-- name: DeleteUserCredentials :many
 WITH legacy AS (DELETE FROM sessions WHERE user_id = $1)
 DELETE FROM credentials WHERE holder_id = $1

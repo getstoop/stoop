@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// A person sees where they are signed in and signs any of it out; only a
-// session may, and only their own. The server's session lifetime applies
+// A person sees where they are signed in and signs everywhere else out;
+// only a session may. The server's session lifetime applies
 // to sign-ins from then on. (STOOP-107)
 func TestE2ESessions(t *testing.T) {
 	h := newHarness(t, "STOOP_SESSION_LIFETIME_DAYS", "2")
@@ -38,38 +38,23 @@ func TestE2ESessions(t *testing.T) {
 	if left := until(t, byAgent["Phone browser"]["expiresAt"]); left < 47*time.Hour || left > 48*time.Hour {
 		t.Errorf("a session under STOOP_SESSION_LIFETIME_DAYS=2 lasts %v", left)
 	}
-	phoneID := byAgent["Phone browser"]["id"].(string)
-
-	// A token sees and ends nothing; nobody ends someone else's session.
+	// A token sees and ends nothing.
 	pat := h.pat(laptop, "messages.read")
 	h.rpc(pat, "stoop.auth.v1.AuthService/ListSessions", map[string]any{}).expect(t, "permission_denied")
 	h.rpc(pat, "stoop.auth.v1.AuthService/RevokeOtherSessions", map[string]any{}).expect(t, "permission_denied")
-	h.rpc(casey, "stoop.auth.v1.AuthService/RevokeSession", map[string]any{"sessionId": phoneID}).expect(t, "not_found")
-	h.rpc(casey, "stoop.auth.v1.AuthService/RevokeSession", map[string]any{"sessionId": "nope"}).expect(t, "not_found")
 
-	// One session.
-	h.rpc(laptop, "stoop.auth.v1.AuthService/RevokeSession", map[string]any{"sessionId": phoneID}).expect(t, "ok")
+	// Everywhere else: the first sign-in and the phone go, this one stays,
+	// and a token isn't a session so it stays too.
+	got := h.rpc(laptop, "stoop.auth.v1.AuthService/RevokeOtherSessions", map[string]any{}).expect(t, "ok")
+	if n, _ := got.body["revoked"].(float64); n != 2 {
+		t.Errorf("revoked = %v, want 2", got.body["revoked"])
+	}
 	h.rpc(phone, "stoop.auth.v1.AuthService/GetMe", map[string]any{}).expect(t, "unauthenticated")
 	h.rpc(laptop, "stoop.auth.v1.AuthService/GetMe", map[string]any{}).expect(t, "ok")
-
-	// Everywhere else: the first sign-in goes, this one stays, and a
-	// token isn't a session so it stays too.
-	got := h.rpc(laptop, "stoop.auth.v1.AuthService/RevokeOtherSessions", map[string]any{}).expect(t, "ok")
-	if n, _ := got.body["revoked"].(float64); n != 1 {
-		t.Errorf("revoked = %v, want 1", got.body["revoked"])
-	}
 	if left := h.rpc(laptop, "stoop.auth.v1.AuthService/ListSessions", map[string]any{}).expect(t, "ok").list("sessions"); len(left) != 1 {
 		t.Errorf("%d sessions left, want 1", len(left))
 	}
 	h.rpc(pat, "stoop.chat.v1.ChatService/ListSpaces", map[string]any{}).expect(t, "ok")
-
-	// Ending this session is signing out.
-	self := h.rpc(laptop, "stoop.auth.v1.AuthService/ListSessions", map[string]any{}).expect(t, "ok").list("sessions")[0].(map[string]any)["id"]
-	out := h.rpc(laptop, "stoop.auth.v1.AuthService/RevokeSession", map[string]any{"sessionId": self}).expect(t, "ok")
-	if c := out.header.Get("Set-Cookie"); !strings.Contains(c, "stoop_session=;") {
-		t.Errorf("ending the calling session doesn't clear its cookie: %q", c)
-	}
-	h.rpc(laptop, "stoop.auth.v1.AuthService/GetMe", map[string]any{}).expect(t, "unauthenticated")
 
 	// The lifetime setting: bounded, applied to new sign-ins only, and 0
 	// falls back to the environment.

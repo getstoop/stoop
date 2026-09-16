@@ -35,7 +35,6 @@ var procedures = map[string]authctx.Rule{
 	authv1connect.AuthServiceUnlinkIdentityProcedure:      needs(authctx.AccountSecurity),
 	authv1connect.AuthServiceDeleteAccountProcedure:       needs(authctx.AccountSecurity),
 	authv1connect.AuthServiceListSessionsProcedure:        needs(authctx.AccountSecurity),
-	authv1connect.AuthServiceRevokeSessionProcedure:       needs(authctx.AccountSecurity),
 	authv1connect.AuthServiceRevokeOtherSessionsProcedure: needs(authctx.AccountSecurity),
 	authv1connect.AuthServiceCreatePersonalTokenProcedure: needs(authctx.AccountSecurity),
 	authv1connect.AuthServiceListPersonalTokensProcedure:  needs(authctx.AccountSecurity),

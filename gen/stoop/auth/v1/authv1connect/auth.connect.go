@@ -65,9 +65,6 @@ const (
 	// AuthServiceListSessionsProcedure is the fully-qualified name of the AuthService's ListSessions
 	// RPC.
 	AuthServiceListSessionsProcedure = "/stoop.auth.v1.AuthService/ListSessions"
-	// AuthServiceRevokeSessionProcedure is the fully-qualified name of the AuthService's RevokeSession
-	// RPC.
-	AuthServiceRevokeSessionProcedure = "/stoop.auth.v1.AuthService/RevokeSession"
 	// AuthServiceRevokeOtherSessionsProcedure is the fully-qualified name of the AuthService's
 	// RevokeOtherSessions RPC.
 	AuthServiceRevokeOtherSessionsProcedure = "/stoop.auth.v1.AuthService/RevokeOtherSessions"
@@ -120,9 +117,6 @@ type AuthServiceClient interface {
 	// ListSessions lists where the caller is signed in, most recently used
 	// first. Needs a session: a token can't see or end sessions.
 	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
-	// RevokeSession signs out one of the caller's sessions. Revoking the
-	// calling session signs this browser out, as Logout does.
-	RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error)
 	// RevokeOtherSessions signs the caller out everywhere but here.
 	RevokeOtherSessions(context.Context, *connect.Request[v1.RevokeOtherSessionsRequest]) (*connect.Response[v1.RevokeOtherSessionsResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
@@ -219,12 +213,6 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("ListSessions")),
 			connect.WithClientOptions(opts...),
 		),
-		revokeSession: connect.NewClient[v1.RevokeSessionRequest, v1.RevokeSessionResponse](
-			httpClient,
-			baseURL+AuthServiceRevokeSessionProcedure,
-			connect.WithSchema(authServiceMethods.ByName("RevokeSession")),
-			connect.WithClientOptions(opts...),
-		),
 		revokeOtherSessions: connect.NewClient[v1.RevokeOtherSessionsRequest, v1.RevokeOtherSessionsResponse](
 			httpClient,
 			baseURL+AuthServiceRevokeOtherSessionsProcedure,
@@ -266,7 +254,6 @@ type authServiceClient struct {
 	unlinkIdentity      *connect.Client[v1.UnlinkIdentityRequest, v1.UnlinkIdentityResponse]
 	deleteAccount       *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
 	listSessions        *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
-	revokeSession       *connect.Client[v1.RevokeSessionRequest, v1.RevokeSessionResponse]
 	revokeOtherSessions *connect.Client[v1.RevokeOtherSessionsRequest, v1.RevokeOtherSessionsResponse]
 	createPersonalToken *connect.Client[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse]
 	listPersonalTokens  *connect.Client[v1.ListPersonalTokensRequest, v1.ListPersonalTokensResponse]
@@ -333,11 +320,6 @@ func (c *authServiceClient) ListSessions(ctx context.Context, req *connect.Reque
 	return c.listSessions.CallUnary(ctx, req)
 }
 
-// RevokeSession calls stoop.auth.v1.AuthService.RevokeSession.
-func (c *authServiceClient) RevokeSession(ctx context.Context, req *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error) {
-	return c.revokeSession.CallUnary(ctx, req)
-}
-
 // RevokeOtherSessions calls stoop.auth.v1.AuthService.RevokeOtherSessions.
 func (c *authServiceClient) RevokeOtherSessions(ctx context.Context, req *connect.Request[v1.RevokeOtherSessionsRequest]) (*connect.Response[v1.RevokeOtherSessionsResponse], error) {
 	return c.revokeOtherSessions.CallUnary(ctx, req)
@@ -396,9 +378,6 @@ type AuthServiceHandler interface {
 	// ListSessions lists where the caller is signed in, most recently used
 	// first. Needs a session: a token can't see or end sessions.
 	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
-	// RevokeSession signs out one of the caller's sessions. Revoking the
-	// calling session signs this browser out, as Logout does.
-	RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error)
 	// RevokeOtherSessions signs the caller out everywhere but here.
 	RevokeOtherSessions(context.Context, *connect.Request[v1.RevokeOtherSessionsRequest]) (*connect.Response[v1.RevokeOtherSessionsResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
@@ -491,12 +470,6 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("ListSessions")),
 		connect.WithHandlerOptions(opts...),
 	)
-	authServiceRevokeSessionHandler := connect.NewUnaryHandler(
-		AuthServiceRevokeSessionProcedure,
-		svc.RevokeSession,
-		connect.WithSchema(authServiceMethods.ByName("RevokeSession")),
-		connect.WithHandlerOptions(opts...),
-	)
 	authServiceRevokeOtherSessionsHandler := connect.NewUnaryHandler(
 		AuthServiceRevokeOtherSessionsProcedure,
 		svc.RevokeOtherSessions,
@@ -547,8 +520,6 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceDeleteAccountHandler.ServeHTTP(w, r)
 		case AuthServiceListSessionsProcedure:
 			authServiceListSessionsHandler.ServeHTTP(w, r)
-		case AuthServiceRevokeSessionProcedure:
-			authServiceRevokeSessionHandler.ServeHTTP(w, r)
 		case AuthServiceRevokeOtherSessionsProcedure:
 			authServiceRevokeOtherSessionsHandler.ServeHTTP(w, r)
 		case AuthServiceCreatePersonalTokenProcedure:
@@ -612,10 +583,6 @@ func (UnimplementedAuthServiceHandler) DeleteAccount(context.Context, *connect.R
 
 func (UnimplementedAuthServiceHandler) ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.ListSessions is not implemented"))
-}
-
-func (UnimplementedAuthServiceHandler) RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.RevokeSession is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) RevokeOtherSessions(context.Context, *connect.Request[v1.RevokeOtherSessionsRequest]) (*connect.Response[v1.RevokeOtherSessionsResponse], error) {

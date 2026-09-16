@@ -185,10 +185,10 @@ exists. Use doesn't extend it.
 **A person manages their own.** `ListSessions` shows each session's
 sign-in time, last use (recorded at most once a minute, like a token's),
 expiry and the User-Agent it signed in with (`credentials.user_agent`,
-kept to 512 bytes). `RevokeSession` ends one, and ending the calling one
-is signing out; `RevokeOtherSessions` ends every other. All three need
-`account.security`, so only a session can call them, and each revocation
-is announced so the gateway closes that session's sockets.
+kept to 512 bytes). `RevokeOtherSessions` ends every session but the
+calling one; this one ends with `Logout`. Both need `account.security`,
+so only a session can call them, and each revocation is announced so the
+gateway closes that session's sockets.
 
 ## Personal tokens
 
