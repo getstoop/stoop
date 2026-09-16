@@ -532,8 +532,9 @@ be believed?": the rate-limit interceptor, the signaling middleware, and
 `secureTransport`. All three call `instance.Service.TrustsPeer`, which
 reads an `atomic.Pointer` cache refreshed at startup and on every save — so
 a change applies to the next request, with no restart and no database read
-on the hot path. `STOOP_TRUST_PROXY=true` maps to the legacy
-trust-everyone set and is the fallback when no addresses are saved.
+on the hot path. When no addresses are saved, the fallback is
+`STOOP_TRUSTED_PROXIES`, or the legacy trust-everyone set for
+`STOOP_TRUST_PROXY=true`; the server refuses to start with both.
 
 Independently, every Connect handler caps request bodies at 4 MiB
 (`WithReadMaxBytes`); the largest legitimate Connect payload is a 2 MB

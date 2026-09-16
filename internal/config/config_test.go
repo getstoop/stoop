@@ -91,6 +91,29 @@ func TestLoad_PublicURL(t *testing.T) {
 	}
 }
 
+func TestLoad_TrustedProxies(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	t.Setenv("STOOP_TRUSTED_PROXIES", "172.18.0.0/16, ,192.168.1.5")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.TrustedProxies.Strings(); len(got) != 2 || got[0] != "172.18.0.0/16" || got[1] != "192.168.1.5" {
+		t.Errorf("TrustedProxies = %v", got)
+	}
+
+	t.Setenv("STOOP_TRUST_PROXY", "true")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "not both") {
+		t.Errorf("both proxy settings should be rejected, got %v", err)
+	}
+
+	t.Setenv("STOOP_TRUST_PROXY", "false")
+	t.Setenv("STOOP_TRUSTED_PROXIES", "proxy.lan")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_TRUSTED_PROXIES") {
+		t.Errorf("a hostname should be rejected, got %v", err)
+	}
+}
+
 func TestLoad_RateLimits(t *testing.T) {
 	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
 	cfg, err := Load()

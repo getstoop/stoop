@@ -118,7 +118,8 @@ settings matter for any front door:
   to Stoop: your reverse proxy, a tunnel daemon, whatever sits in front.
   Set them under **Server admin → Hosting → Trusted proxies** (CIDR
   ranges or single addresses, comma-separated); they apply immediately,
-  with no restart. Only requests arriving *from* those addresses have
+  with no restart. Or set `STOOP_TRUSTED_PROXIES` in `.env`; a list saved
+  on the page overrides it. Only requests arriving *from* those addresses have
   their `X-Forwarded-For` and `X-Forwarded-Proto` believed. This matters
   because:
   - session cookies are marked `Secure` for requests the proxy says
@@ -457,7 +458,8 @@ the server. Three are pinned by the compose file itself and ignore what
 | `STOOP_DATABASE_URL`       | (required)                  | Postgres connection string       |
 | `STOOP_LISTEN_ADDR`        | `:8080`                     | HTTP bind address                |
 | `STOOP_PUBLIC_URL`         | (empty)                     | The address people use to reach the server; invite links use it, its host is an allowed WS origin. Defaults to the tailnet address with the built-in Tailscale listener |
-| `STOOP_TRUST_PROXY`        | `false`                     | Believe `X-Forwarded-For` / `X-Forwarded-Proto` from **every** caller, taking the header's rightmost address as the client. Blunt, and spoofable unless the proxy sets or appends the header itself; prefer naming your proxy's address under Server admin → Hosting → Trusted proxies, which overrides this |
+| `STOOP_TRUST_PROXY`        | `false`                     | Believe `X-Forwarded-For` / `X-Forwarded-Proto` from **every** caller, taking the header's rightmost address as the client. Blunt, and spoofable unless the proxy sets or appends the header itself; prefer `STOOP_TRUSTED_PROXIES`. Can't be combined with it |
+| `STOOP_TRUSTED_PROXIES`    | (empty)                     | Comma-separated addresses or CIDR ranges of your reverse proxy or tunnel (`172.18.0.0/16, 192.168.1.5`); only those callers' `X-Forwarded-*` headers are believed. A list saved under Server admin → Hosting → Trusted proxies overrides it |
 | `STOOP_SECURE_COOKIES`     | `false`                     | Force session cookies Secure on every listener. Rarely needed: TLS listeners and trusted HTTPS proxies get it automatically |
 | `STOOP_ALLOWED_WS_ORIGINS` | `localhost:*,127.0.0.1:*`   | Extra WebSocket origin patterns. The request's own host (and `STOOP_PUBLIC_URL`'s) is always allowed, so this is only needed behind a proxy that rewrites `Host` |
 | `STOOP_AUTH_RATE_LIMIT`    | `20`                        | Sign-in and registration attempts allowed per client address per minute. `0` disables (dev/e2e only). The per-account lockout after 5 wrong passwords is always on |

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
 type Config struct {
@@ -30,6 +32,9 @@ type Config struct {
 	// Secure. Only enable it when a proxy you control is the only way to
 	// reach ListenAddr.
 	TrustProxy bool
+	// TrustedProxies names the proxies whose forwarded headers are
+	// believed. The admin page's saved list overrides it.
+	TrustedProxies trustedproxy.Set
 	// SecureCookies forces session cookies Secure on every listener.
 	// Usually unnecessary: cookies issued over TLS (the Tailscale
 	// listener) or through a trusted HTTPS proxy are Secure already.
@@ -218,6 +223,12 @@ func Load() (Config, error) {
 	}
 	if cfg.TrustProxy, err = parseBool("STOOP_TRUST_PROXY", false); err != nil {
 		return Config{}, err
+	}
+	if cfg.TrustedProxies, err = trustedproxy.Parse(splitList(os.Getenv("STOOP_TRUSTED_PROXIES"))); err != nil {
+		return Config{}, fmt.Errorf("STOOP_TRUSTED_PROXIES: %w", err)
+	}
+	if cfg.TrustProxy && !cfg.TrustedProxies.Empty() {
+		return Config{}, fmt.Errorf("set STOOP_TRUSTED_PROXIES or STOOP_TRUST_PROXY=true, not both")
 	}
 
 	cfg.TURNURLs = splitList(os.Getenv("STOOP_TURN_URLS"))
