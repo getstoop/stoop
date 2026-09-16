@@ -7,7 +7,7 @@ import { MegaphoneIcon } from "./Icons";
 export function ChannelGlyph({ channel }: { channel: Channel | undefined }) {
   if (!isAnnouncement(channel)) return <span className="channel-hash">#</span>;
   return (
-    <span className="channel-hash" title="Announcement channel">
+    <span className="channel-hash icon" title="Announcement channel">
       <MegaphoneIcon />
     </span>
   );
