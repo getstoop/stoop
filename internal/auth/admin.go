@@ -25,6 +25,8 @@ type AccountSummary struct {
 	Kind          authctx.IdentityKind
 	CreatedAt     time.Time
 	DeactivatedAt *time.Time
+	// DeletedAt: the person deleted the account. It stays deactivated.
+	DeletedAt *time.Time
 	// UsernameFrozen: an admin locked self-service renames.
 	UsernameFrozen bool
 	// HasPassword is false for a provider-created account with none yet.
@@ -100,6 +102,12 @@ func (s *Service) SetAccountRole(ctx context.Context, userID string, role authct
 // the row (and the user's messages) remain.
 func (s *Service) SetAccountActive(ctx context.Context, userID string, active bool) (AccountSummary, error) {
 	if active {
+		if cur, err := s.q.GetUserByID(ctx, userID); err != nil {
+			return AccountSummary{}, notFoundOr(err, "user")
+		} else if cur.DeletedAt != nil {
+			return AccountSummary{}, connect.NewError(connect.CodeFailedPrecondition,
+				errors.New("they deleted their account; it can't be brought back"))
+		}
 		u, err := s.q.SetUserDeactivated(ctx, dbgen.SetUserDeactivatedParams{ID: userID, Deactivated: false})
 		if err != nil {
 			return AccountSummary{}, notFoundOr(err, "user")
@@ -240,6 +248,7 @@ func toSummary(u dbgen.User) AccountSummary {
 	return AccountSummary{
 		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
 		Role: authctx.Role(u.Role), Kind: authctx.IdentityKind(u.Kind), CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
+		DeletedAt:      u.DeletedAt,
 		UsernameFrozen: u.UsernameFrozen,
 		HasPassword:    u.PasswordHash != nil,
 		Pronouns:       u.Pronouns,

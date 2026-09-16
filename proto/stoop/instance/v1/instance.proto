@@ -149,6 +149,9 @@ message GetInstanceStatusResponse {
   bool webhooks_incoming = 12;
   bool webhooks_outgoing = 13;
   bool webhooks_allow_private_targets = 14;
+  // Whether a person may delete their own account; on unless the operator
+  // turned it off.
+  bool self_deletion = 15;
 }
 
 message UpdateSettingsRequest {
@@ -171,6 +174,7 @@ message UpdateSettingsRequest {
   // Let outgoing webhooks reach private, loopback and CGNAT addresses.
   // Link-local is never reachable.
   optional bool webhooks_allow_private_targets = 10;
+  optional bool self_deletion = 11;
 }
 
 message UpdateSettingsResponse {

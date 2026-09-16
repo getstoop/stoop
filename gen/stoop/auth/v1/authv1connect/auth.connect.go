@@ -59,6 +59,9 @@ const (
 	// AuthServiceUnlinkIdentityProcedure is the fully-qualified name of the AuthService's
 	// UnlinkIdentity RPC.
 	AuthServiceUnlinkIdentityProcedure = "/stoop.auth.v1.AuthService/UnlinkIdentity"
+	// AuthServiceDeleteAccountProcedure is the fully-qualified name of the AuthService's DeleteAccount
+	// RPC.
+	AuthServiceDeleteAccountProcedure = "/stoop.auth.v1.AuthService/DeleteAccount"
 	// AuthServiceCreatePersonalTokenProcedure is the fully-qualified name of the AuthService's
 	// CreatePersonalToken RPC.
 	AuthServiceCreatePersonalTokenProcedure = "/stoop.auth.v1.AuthService/CreatePersonalToken"
@@ -98,6 +101,13 @@ type AuthServiceClient interface {
 	// UnlinkIdentity removes one linked provider. Refused when it is the
 	// account's only way to sign in (no password and no other identity).
 	UnlinkIdentity(context.Context, *connect.Request[v1.UnlinkIdentityRequest]) (*connect.Response[v1.UnlinkIdentityResponse], error)
+	// DeleteAccount is the caller deleting their own account, from a session
+	// only. Their messages stay under their username, marked as a deleted
+	// author; everything else that was theirs goes, and every session and
+	// token is revoked. It asks for the password again, or for a sign-in
+	// within the last few minutes when the account has none. Refused when
+	// the operator has turned self-deletion off, and for the last admin.
+	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
 	// permissions granted. The secret is in
 	// this response and nowhere else. Needs a session: no token can make
@@ -180,6 +190,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("UnlinkIdentity")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteAccount: connect.NewClient[v1.DeleteAccountRequest, v1.DeleteAccountResponse](
+			httpClient,
+			baseURL+AuthServiceDeleteAccountProcedure,
+			connect.WithSchema(authServiceMethods.ByName("DeleteAccount")),
+			connect.WithClientOptions(opts...),
+		),
 		createPersonalToken: connect.NewClient[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse](
 			httpClient,
 			baseURL+AuthServiceCreatePersonalTokenProcedure,
@@ -213,6 +229,7 @@ type authServiceClient struct {
 	changePassword      *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
 	listIdentities      *connect.Client[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse]
 	unlinkIdentity      *connect.Client[v1.UnlinkIdentityRequest, v1.UnlinkIdentityResponse]
+	deleteAccount       *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
 	createPersonalToken *connect.Client[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse]
 	listPersonalTokens  *connect.Client[v1.ListPersonalTokensRequest, v1.ListPersonalTokensResponse]
 	revokePersonalToken *connect.Client[v1.RevokePersonalTokenRequest, v1.RevokePersonalTokenResponse]
@@ -268,6 +285,11 @@ func (c *authServiceClient) UnlinkIdentity(ctx context.Context, req *connect.Req
 	return c.unlinkIdentity.CallUnary(ctx, req)
 }
 
+// DeleteAccount calls stoop.auth.v1.AuthService.DeleteAccount.
+func (c *authServiceClient) DeleteAccount(ctx context.Context, req *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error) {
+	return c.deleteAccount.CallUnary(ctx, req)
+}
+
 // CreatePersonalToken calls stoop.auth.v1.AuthService.CreatePersonalToken.
 func (c *authServiceClient) CreatePersonalToken(ctx context.Context, req *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error) {
 	return c.createPersonalToken.CallUnary(ctx, req)
@@ -311,6 +333,13 @@ type AuthServiceHandler interface {
 	// UnlinkIdentity removes one linked provider. Refused when it is the
 	// account's only way to sign in (no password and no other identity).
 	UnlinkIdentity(context.Context, *connect.Request[v1.UnlinkIdentityRequest]) (*connect.Response[v1.UnlinkIdentityResponse], error)
+	// DeleteAccount is the caller deleting their own account, from a session
+	// only. Their messages stay under their username, marked as a deleted
+	// author; everything else that was theirs goes, and every session and
+	// token is revoked. It asks for the password again, or for a sign-in
+	// within the last few minutes when the account has none. Refused when
+	// the operator has turned self-deletion off, and for the last admin.
+	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
 	// permissions granted. The secret is in
 	// this response and nowhere else. Needs a session: no token can make
@@ -389,6 +418,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("UnlinkIdentity")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceDeleteAccountHandler := connect.NewUnaryHandler(
+		AuthServiceDeleteAccountProcedure,
+		svc.DeleteAccount,
+		connect.WithSchema(authServiceMethods.ByName("DeleteAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceCreatePersonalTokenHandler := connect.NewUnaryHandler(
 		AuthServiceCreatePersonalTokenProcedure,
 		svc.CreatePersonalToken,
@@ -429,6 +464,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceListIdentitiesHandler.ServeHTTP(w, r)
 		case AuthServiceUnlinkIdentityProcedure:
 			authServiceUnlinkIdentityHandler.ServeHTTP(w, r)
+		case AuthServiceDeleteAccountProcedure:
+			authServiceDeleteAccountHandler.ServeHTTP(w, r)
 		case AuthServiceCreatePersonalTokenProcedure:
 			authServiceCreatePersonalTokenHandler.ServeHTTP(w, r)
 		case AuthServiceListPersonalTokensProcedure:
@@ -482,6 +519,10 @@ func (UnimplementedAuthServiceHandler) ListIdentities(context.Context, *connect.
 
 func (UnimplementedAuthServiceHandler) UnlinkIdentity(context.Context, *connect.Request[v1.UnlinkIdentityRequest]) (*connect.Response[v1.UnlinkIdentityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.UnlinkIdentity is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.DeleteAccount is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) CreatePersonalToken(context.Context, *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error) {

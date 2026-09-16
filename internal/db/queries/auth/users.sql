@@ -51,13 +51,13 @@ SELECT * FROM users WHERE username = $1;
 SELECT * FROM users WHERE id = $1;
 
 -- name: GetUsersByIDs :many
-SELECT id, username, display_name, role, kind, avatar_file_id FROM users WHERE id = ANY($1::uuid[]);
+SELECT id, username, display_name, role, kind, avatar_file_id, deleted_at FROM users WHERE id = ANY($1::uuid[]);
 
 -- GetUserProfile is one person's public face, for their profile card. Its
 -- own query rather than GetUserByID because that one is SELECT * and would
 -- put the password hash one line away from a response.
 -- name: GetUserProfile :one
-SELECT id, username, display_name, avatar_file_id, pronouns, bio, kind, dnd, dnd_until
+SELECT id, username, display_name, avatar_file_id, pronouns, bio, kind, dnd, dnd_until, deleted_at
 FROM users WHERE id = $1;
 
 -- UpdateUserProfile writes the fields a person (or an admin acting on
@@ -96,6 +96,31 @@ SELECT count(*) FROM users WHERE role = 'admin' AND kind = 'person' AND deactiva
 
 -- name: SetUserRole :one
 UPDATE users SET role = $2 WHERE id = $1 RETURNING *;
+
+-- DeleteAccount is what a person's own deletion leaves: the row, its id
+-- and username, and nothing that was theirs to show. The password goes
+-- too; there is no signing in to a deleted account.
+-- name: DeleteAccount :one
+UPDATE users
+SET deleted_at = now(),
+    deactivated_at = COALESCE(deactivated_at, now()),
+    display_name = username,
+    avatar_file_id = NULL,
+    pronouns = '',
+    bio = '',
+    dnd = false,
+    dnd_until = NULL,
+    password_hash = NULL
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
+
+-- OldestOtherAdmin is the instance admin who has served longest, apart
+-- from one person: where a deleted owner's space goes when no space admin
+-- can take it.
+-- name: OldestOtherAdmin :one
+SELECT id FROM users
+WHERE role = 'admin' AND kind = 'person' AND deactivated_at IS NULL AND id <> $1
+ORDER BY created_at LIMIT 1;
 
 -- name: SetUserDeactivated :one
 UPDATE users

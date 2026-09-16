@@ -32,6 +32,9 @@ type UserRecord struct {
 	// Kind is person or bot; a bot can't be messaged directly.
 	Kind         authctx.IdentityKind
 	AvatarFileID string
+	// Deleted: the person deleted the account; the username is all that
+	// is left, and readers are told so.
+	Deleted bool
 }
 
 // UserDirectory is chat's port for looking up users; implemented by the auth
@@ -205,7 +208,7 @@ func (s *Service) resolveAuthors(ctx context.Context, ids []string) (map[string]
 	for _, r := range records {
 		authors[r.ID] = &chatv1.MessageAuthor{
 			Id: r.ID, Username: r.Username, DisplayName: r.DisplayName, AvatarFileId: r.AvatarFileID,
-			Kind: accesswire.KindToProto(r.Kind),
+			Kind: accesswire.KindToProto(r.Kind), Deleted: r.Deleted,
 		}
 	}
 	return authors, nil

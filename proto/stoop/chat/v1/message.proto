@@ -17,6 +17,9 @@ message MessageAuthor {
   string avatar_file_id = 4;
   // Person or bot, so a reader can tell what wrote this.
   stoop.access.v1.IdentityKind kind = 5;
+  // The account was deleted by its owner since; the words stay, the name
+  // is shown as a deleted account's.
+  bool deleted = 6;
 }
 
 // ReplyRef is a snapshot of the message being replied to, enough to render

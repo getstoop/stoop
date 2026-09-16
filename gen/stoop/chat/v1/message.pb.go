@@ -34,7 +34,10 @@ type MessageAuthor struct {
 	// The author's current avatar (served at /files/{id}), if any.
 	AvatarFileId string `protobuf:"bytes,4,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
 	// Person or bot, so a reader can tell what wrote this.
-	Kind          v1.IdentityKind `protobuf:"varint,5,opt,name=kind,proto3,enum=stoop.access.v1.IdentityKind" json:"kind,omitempty"`
+	Kind v1.IdentityKind `protobuf:"varint,5,opt,name=kind,proto3,enum=stoop.access.v1.IdentityKind" json:"kind,omitempty"`
+	// The account was deleted by its owner since; the words stay, the name
+	// is shown as a deleted account's.
+	Deleted       bool `protobuf:"varint,6,opt,name=deleted,proto3" json:"deleted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -102,6 +105,13 @@ func (x *MessageAuthor) GetKind() v1.IdentityKind {
 		return x.Kind
 	}
 	return v1.IdentityKind(0)
+}
+
+func (x *MessageAuthor) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
 }
 
 // ReplyRef is a snapshot of the message being replied to, enough to render
@@ -512,13 +522,14 @@ var File_stoop_chat_v1_message_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
-	"\x1bstoop/chat/v1/message.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x1cstoop/chat/v1/reaction.proto\"\xb7\x01\n" +
+	"\x1bstoop/chat/v1/message.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x1cstoop/chat/v1/reaction.proto\"\xd1\x01\n" +
 	"\rMessageAuthor\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12$\n" +
 	"\x0eavatar_file_id\x18\x04 \x01(\tR\favatarFileId\x121\n" +
-	"\x04kind\x18\x05 \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kind\"y\n" +
+	"\x04kind\x18\x05 \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kind\x12\x18\n" +
+	"\adeleted\x18\x06 \x01(\bR\adeleted\"y\n" +
 	"\bReplyRef\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x124\n" +

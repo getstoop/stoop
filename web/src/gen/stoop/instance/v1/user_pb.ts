@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/instance/v1/user.proto.
  */
 export const file_stoop_instance_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("ChxzdG9vcC9pbnN0YW5jZS92MS91c2VyLnByb3RvEhFzdG9vcC5pbnN0YW5jZS52MSLqAgoMSW5zdGFuY2VVc2VyEgoKAmlkGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIpCgRyb2xlGAQgASgOMhsuc3Rvb3AuYXV0aC52MS5JbnN0YW5jZVJvbGUSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoOZGVhY3RpdmF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKD3VzZXJuYW1lX2Zyb3plbhgHIAEoCBIUCgxoYXNfcGFzc3dvcmQYCCABKAgSEAoIcHJvbm91bnMYCSABKAkSCwoDYmlvGAogASgJEhwKFHBlcnNvbmFsX3Rva2VuX2NvdW50GAsgASgFEisKBGtpbmQYDCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kQsQBChVjb20uc3Rvb3AuaW5zdGFuY2UudjFCCVVzZXJQcm90b1ABWjpnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9pbnN0YW5jZS92MTtpbnN0YW5jZXYxogIDU0lYqgIRU3Rvb3AuSW5zdGFuY2UuVjHKAhFTdG9vcFxJbnN0YW5jZVxWMeICHVN0b29wXEluc3RhbmNlXFYxXEdQQk1ldGFkYXRh6gITU3Rvb3A6Okluc3RhbmNlOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_auth_v1_auth]);
+  fileDesc("ChxzdG9vcC9pbnN0YW5jZS92MS91c2VyLnByb3RvEhFzdG9vcC5pbnN0YW5jZS52MSKaAwoMSW5zdGFuY2VVc2VyEgoKAmlkGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRIpCgRyb2xlGAQgASgOMhsuc3Rvb3AuYXV0aC52MS5JbnN0YW5jZVJvbGUSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoOZGVhY3RpdmF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKD3VzZXJuYW1lX2Zyb3plbhgHIAEoCBIUCgxoYXNfcGFzc3dvcmQYCCABKAgSEAoIcHJvbm91bnMYCSABKAkSCwoDYmlvGAogASgJEhwKFHBlcnNvbmFsX3Rva2VuX2NvdW50GAsgASgFEisKBGtpbmQYDCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEi4KCmRlbGV0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQsQBChVjb20uc3Rvb3AuaW5zdGFuY2UudjFCCVVzZXJQcm90b1ABWjpnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9pbnN0YW5jZS92MTtpbnN0YW5jZXYxogIDU0lYqgIRU3Rvb3AuSW5zdGFuY2UuVjHKAhFTdG9vcFxJbnN0YW5jZVxWMeICHVN0b29wXEluc3RhbmNlXFYxXEdQQk1ldGFkYXRh6gITU3Rvb3A6Okluc3RhbmNlOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_auth_v1_auth]);
 
 /**
  * InstanceUser is an account as the admin page sees it.
@@ -99,6 +99,14 @@ export type InstanceUser = Message<"stoop.instance.v1.InstanceUser"> & {
    * @generated from field: stoop.access.v1.IdentityKind kind = 12;
    */
   kind: IdentityKind;
+
+  /**
+   * Set when the person deleted their own account. It stays deactivated
+   * and cannot be brought back.
+   *
+   * @generated from field: google.protobuf.Timestamp deleted_at = 13;
+   */
+  deletedAt?: Timestamp | undefined;
 };
 
 /**

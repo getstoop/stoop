@@ -99,6 +99,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	authSvc.UseProviders(providerSource{instanceSvc})
 	authSvc.UsePasswordPolicy(instanceSvc)
 	authSvc.UseTokenPolicy(instanceSvc)
+	authSvc.UseDeletionPorts(instanceSvc, chatSvc)
 	authSvc.UseBus(bus)
 	instanceSvc.UsePasswordSignInEnv(cfg.PasswordSignIn)
 	instanceSvc.UseWebhooksEnv(cfg.Webhooks)
@@ -483,6 +484,7 @@ func (d userDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserR
 		records[i] = chat.UserRecord{
 			ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
 			InstanceAdmin: u.Role == authctx.RoleAdmin, Kind: u.Kind, AvatarFileID: u.AvatarFileID,
+			Deleted: u.Deleted,
 		}
 	}
 	return records, nil
@@ -538,6 +540,7 @@ func toUserSummary(u auth.AccountSummary) instance.UserSummary {
 	return instance.UserSummary{
 		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
 		Role: u.Role, Kind: u.Kind, CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
+		DeletedAt:      u.DeletedAt,
 		UsernameFrozen: u.UsernameFrozen, HasPassword: u.HasPassword,
 		Pronouns: u.Pronouns, Bio: u.Bio, PersonalTokens: u.PersonalTokens,
 	}

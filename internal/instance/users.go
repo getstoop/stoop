@@ -164,6 +164,9 @@ func toProtoUser(u UserSummary) *instancev1.InstanceUser {
 	if u.DeactivatedAt != nil {
 		out.DeactivatedAt = timestamppb.New(*u.DeactivatedAt)
 	}
+	if u.DeletedAt != nil {
+		out.DeletedAt = timestamppb.New(*u.DeletedAt)
+	}
 	out.UsernameFrozen = u.UsernameFrozen
 	out.HasPassword = u.HasPassword
 	out.Pronouns = u.Pronouns
