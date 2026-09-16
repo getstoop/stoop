@@ -8,6 +8,7 @@ import { isBot } from "../../api/identity";
 import { useInstanceUsers } from "../../api/queries";
 import { AddToSpaceModal } from "../../components/AddToSpaceModal";
 import { BotMark } from "../../components/BotMark";
+import { CopyButton } from "../../components/CopyButton";
 import { DotsMenu, type MenuItem } from "../../components/DotsMenu";
 import { ListHead } from "../../components/ListHead";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
@@ -337,15 +338,7 @@ export function UsersSection({ meId }: { meId: string }) {
           </p>
           <div className="card-row">
             <code>{tempPassword.password}</code>
-            <button
-              type="button"
-              className="chip"
-              onClick={() =>
-                navigator.clipboard?.writeText(tempPassword.password)
-              }
-            >
-              Copy
-            </button>
+            <CopyButton text={tempPassword.password} />
             <button
               type="button"
               className="chip"

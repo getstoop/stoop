@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { CopyButton } from "../CopyButton";
 import { Modal } from "../Modal";
 import type { ProviderRowState } from "./fields";
 import { PRESETS, type Preset } from "./presets";
@@ -204,13 +205,7 @@ export function ProviderModal({
             <span className="muted small">Callback URL for the console</span>
             <div className="link-box">
               <code>{callback}</code>
-              <button
-                type="button"
-                className="chip"
-                onClick={() => navigator.clipboard?.writeText(callback)}
-              >
-                Copy
-              </button>
+              <CopyButton text={callback} />
             </div>
           </div>
         ) : (
