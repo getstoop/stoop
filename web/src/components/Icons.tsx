@@ -354,9 +354,11 @@ export function MegaphoneIcon() {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M3 10v4a1 1 0 0 0 1 1h3l6 4V5L7 9H4a1 1 0 0 0-1 1z" />
-      <path d="M17 8.5a5 5 0 0 1 0 7" />
-      <path d="M7 15l1.5 5h2.5L10 16" />
+      {/* Tilted up so it can't be read as the voice channels' speaker. */}
+      <g transform="rotate(-28 12 12)">
+        <path d="m3 11 18-5v12L3 14v-3z" />
+        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+      </g>
     </svg>
   );
 }
