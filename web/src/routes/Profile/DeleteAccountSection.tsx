@@ -55,7 +55,10 @@ export function DeleteAccountSection({
         "(deleted)" mark. Your profile, avatar, bio and pronouns go, every
         device is signed out, and your tokens stop working. Spaces you own pass
         to their longest-serving admin. The username stays yours: nobody can
-        register it. This can't be undone, not even by an admin.
+        register it.{" "}
+        <span className="warning">
+          This can't be undone, not even by an admin.
+        </span>
       </p>
       {!open ? (
         <button
@@ -84,7 +87,6 @@ export function DeleteAccountSection({
               minutes of signing in.
             </p>
           )}
-          <p className="warning">This action cannot be undone.</p>
           {error && <p className="error">{error}</p>}
           <div className="form-actions">
             <button
