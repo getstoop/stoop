@@ -338,6 +338,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.removeQueries({
         queryKey: ["member", payload.value.spaceId, payload.value.userId],
       });
+      // Their messages stay, and what they are shown as may have changed:
+      // an account deleting itself leaves every space this way.
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
       // If it was us, the spaces list shrinks and SpaceLayout bounces home.
       if (payload.value.userId === useConnectionStore.getState().userId) {
         queryClient.invalidateQueries({ queryKey: ["spaces"] });
