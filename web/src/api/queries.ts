@@ -186,6 +186,14 @@ export function usePersonalTokens() {
   });
 }
 
+// Where the signed-in person is signed in (Profile → Security).
+export function useSessions() {
+  return useQuery({
+    queryKey: ["sessions"],
+    queryFn: async () => (await authClient.listSessions({})).sessions,
+  });
+}
+
 // A space's webhooks (any member), or every webhook on the server when
 // spaceId is "" (instance admins).
 export function useWebhooks(spaceId: string, enabled = true) {
