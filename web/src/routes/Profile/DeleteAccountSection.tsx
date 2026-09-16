@@ -84,6 +84,7 @@ export function DeleteAccountSection({
               minutes of signing in.
             </p>
           )}
+          <p className="warning">This action cannot be undone.</p>
           {error && <p className="error">{error}</p>}
           <div className="form-actions">
             <button

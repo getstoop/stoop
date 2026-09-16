@@ -314,3 +314,9 @@
   gap: 12px;
   margin-top: 12px;
 }
+
+.delete-account .warning {
+  color: var(--danger);
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+}
