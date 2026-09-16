@@ -239,6 +239,11 @@ Three kinds, all in gateway memory, none persisted.
   a filter other people's messages have to pass, and a server-side filter
   would silently lose things.
 - `Ready.presences` snapshots it; `PresenceChanged` maintains it.
+- **The web app draws it as a shape, not only a colour**
+  (`styles/presence.css`): a filled dot for online, an empty ring for
+  offline, a dot with a bar through it for do not disturb, each with an
+  accessible name saying the state. Offline wins over do not disturb,
+  since the dot is whether the person can be reached.
 
 Chat reaches presence through `PresenceLister` for exactly one feature:
 resolving `@here` to the members who are online right now.

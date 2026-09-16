@@ -69,8 +69,14 @@ export function dndEnd(key: string, now = new Date()): Date | undefined {
   return ms ? new Date(now.getTime() + ms) : undefined;
 }
 
-// The dot's modifier for someone who is online.
-export function presenceClass(dnd: boolean | undefined): "dnd" | "online" {
+// The dot's modifier: an empty ring, a filled dot, or a dot with a bar
+// through it (styles/presence.css). Offline beats do not disturb: the dot
+// is whether they can be reached.
+export function presenceClass(
+  online: boolean,
+  dnd: boolean | undefined,
+): "offline" | "dnd" | "online" {
+  if (!online) return "offline";
   return dnd ? "dnd" : "online";
 }
 

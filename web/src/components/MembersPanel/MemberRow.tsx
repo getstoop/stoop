@@ -1,6 +1,6 @@
 import { isBot } from "../../api/identity";
 import { roleLabel } from "../../api/permissions";
-import { presenceClass } from "../../api/presence";
+import { presenceClass, presenceLabel } from "../../api/presence";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
 import { Avatar } from "../Avatar";
@@ -33,7 +33,13 @@ export function MemberRow({
           kind={member.kind}
           size="small"
         >
-          {online && <span className={`online-dot ${presenceClass(dnd)}`} />}
+          {!bot && (
+            <span
+              className={`online-dot ${presenceClass(online, dnd)}`}
+              role="img"
+              aria-label={presenceLabel(online, dnd)}
+            />
+          )}
         </Avatar>
         <span className="member-name">{memberName(member)}</span>
         <BotMark kind={member.kind} />

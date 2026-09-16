@@ -58,6 +58,15 @@ test("who is online, who is typing, and who @here reaches", async ({
   await composer(B).click({ clickCount: 3 });
   await B.keyboard.press("Backspace");
 
+  // The dot says the state in its class and its name, never only in a
+  // colour (STOOP-278).
+  const dotFor = (p: Page, name: string) =>
+    p.locator(".member-row", { hasText: name }).locator(".online-dot");
+  await expect(dotFor(A, beaName), "B's dot is the online shape").toHaveClass(
+    /online-dot online/,
+  );
+  await expect(dotFor(A, beaName)).toHaveAccessibleName("online");
+
   // Profile card shows presence.
   await A.locator(".member-row.online").first().click();
   await expect(
@@ -108,10 +117,14 @@ test("who is online, who is typing, and who @here reaches", async ({
     "offline member was not notified by @here",
   ).toBe(0);
 
-  // B closes: A sees B offline.
+  // B closes: A sees B offline, as an empty ring that says so.
   await Bctx.close();
   await expect(
     onlineNames(A).filter({ hasText: beaName }),
     "A sees B go offline",
   ).toHaveCount(0);
+  await expect(dotFor(A, beaName), "B's dot is the offline shape").toHaveClass(
+    /online-dot offline/,
+  );
+  await expect(dotFor(A, beaName)).toHaveAccessibleName("offline");
 });

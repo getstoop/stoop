@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { dmFaces, dmIsGroup, dmOther, dmTitle } from "../../api/dms";
 import { isMuted } from "../../api/mutes";
-import { presenceClass } from "../../api/presence";
+import { presenceClass, presenceLabel } from "../../api/presence";
 import { useMe } from "../../api/queries";
 import { badgeCount, isAlerting } from "../../api/unreads";
 import { AvatarStack } from "../../components/AvatarStack";
@@ -36,8 +36,12 @@ export function DMRow({ dm }: { dm: DirectMessage }) {
         }}
       >
         <AvatarStack people={dmFaces(dm, me?.id)} name={title} size="small">
-          {other && online.has(other.id) && (
-            <span className={`online-dot ${presenceClass(dnd[other.id])}`} />
+          {other && (
+            <span
+              className={`online-dot ${presenceClass(online.has(other.id), dnd[other.id])}`}
+              role="img"
+              aria-label={presenceLabel(online.has(other.id), dnd[other.id])}
+            />
           )}
         </AvatarStack>
         <span className="channel-name">{title}</span>
