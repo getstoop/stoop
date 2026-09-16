@@ -40,6 +40,11 @@ test("pinned messages", async ({ browser }) => {
   await A.locator(".composer textarea").waitFor();
   await B.locator(".composer textarea").waitFor();
   await say(A, "server address is stoop.example.net");
+  // The first has to land before the second is sent, or the server may
+  // store them the other way round and the indices below swap.
+  await A.locator(".message-content", {
+    hasText: "server address",
+  }).waitFor();
   await say(A, "be decent to each other");
   await expect(
     B.locator(".message"),
