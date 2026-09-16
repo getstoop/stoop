@@ -18,6 +18,7 @@ import { canDeleteAnyMessage, canManageChannels } from "../../api/permissions";
 import { setMessagePinned } from "../../api/pins";
 import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { toggleReaction } from "../../api/reactions";
+import { historyRetentionNote } from "../../api/retention";
 import { messagePath, shareUrl } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
 import { Attachments } from "../../components/Attachments";
@@ -68,6 +69,9 @@ export function MessageList({
   // The permalink each message offers to copy. An ordinary https:// link,
   // on the server's public address when it has one (api/shareLinks.ts).
   const { data: instanceStatus } = useInstanceStatus();
+  const retentionNote = historyRetentionNote(
+    instanceStatus?.messageRetentionDays ?? 0,
+  );
   const linkOrigin = instanceStatus?.publicUrl;
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -325,6 +329,12 @@ export function MessageList({
                 : dm
                   ? `Beginning of your conversation with ${channelName}`
                   : `Beginning of #${channelName}`}
+              {retentionNote && (
+                <>
+                  {" · "}
+                  <strong>{retentionNote}</strong>
+                </>
+              )}
             </span>
           ) : history?.loading ? (
             "Loading earlier messages…"
