@@ -11,6 +11,9 @@ import { DMRow } from "./DMRow";
 // more than two people is a group, named after who is in it.
 export function DMLayout() {
   const { data: dms } = useDirectMessages();
+  // A closed conversation stays in the data, so a link to it still
+  // resolves, and off the list, which is what closing meant.
+  const listed = dms?.filter((dm) => !dm.closed);
   const [picking, setPicking] = useState(false);
 
   return (
@@ -33,10 +36,10 @@ export function DMLayout() {
           </div>
         </header>
         <div className="channel-list dm-list">
-          {dms?.map(
+          {listed?.map(
             (dm) => dm.channel && <DMRow key={dm.channel.id} dm={dm} />,
           )}
-          {dms && dms.length === 0 && (
+          {listed && listed.length === 0 && (
             <p className="muted small dm-empty">
               No conversations yet. Start one with the + above, or click
               someone's name and choose Message.

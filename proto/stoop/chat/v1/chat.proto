@@ -137,6 +137,11 @@ service ChatService {
   rpc OpenDirectMessage(OpenDirectMessageRequest) returns (OpenDirectMessageResponse) {}
   // The caller's DMs, most recent activity first.
   rpc ListDirectMessages(ListDirectMessagesRequest) returns (ListDirectMessagesResponse) {}
+  // SetDirectMessageClosed takes a conversation off the caller's own list,
+  // or puts it back. Nobody else's list changes, and the next message in
+  // it puts it back for everyone. Closing is not leaving: membership never
+  // changes, and getting away from a person is what blocking is for.
+  rpc SetDirectMessageClosed(SetDirectMessageClosedRequest) returns (SetDirectMessageClosedResponse) {}
   // ListDirectMessageCandidates is everyone the caller may start a
   // conversation with: the people they share a space with, minus blocks in
   // either direction. Instance admins get the same list, not every account.
@@ -575,6 +580,9 @@ message ListPinnedMessagesResponse {
 // counting it is a reliable test.
 message DirectMessage {
   Channel channel = 1;
+  // The caller took it off their list; it comes back with the next
+  // message. Still listed here so a link to it still resolves.
+  bool closed = 3;
   // Everyone in the conversation, the caller included.
   repeated MessageAuthor participants = 2;
 }
@@ -595,6 +603,15 @@ message ListDirectMessagesRequest {}
 
 message ListDirectMessagesResponse {
   repeated DirectMessage direct_messages = 1;
+}
+
+message SetDirectMessageClosedRequest {
+  string channel_id = 1;
+  bool closed = 2;
+}
+
+message SetDirectMessageClosedResponse {
+  DirectMessage direct_message = 1;
 }
 
 message ListDirectMessageCandidatesRequest {}

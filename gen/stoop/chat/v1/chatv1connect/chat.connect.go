@@ -134,6 +134,9 @@ const (
 	// ChatServiceListDirectMessagesProcedure is the fully-qualified name of the ChatService's
 	// ListDirectMessages RPC.
 	ChatServiceListDirectMessagesProcedure = "/stoop.chat.v1.ChatService/ListDirectMessages"
+	// ChatServiceSetDirectMessageClosedProcedure is the fully-qualified name of the ChatService's
+	// SetDirectMessageClosed RPC.
+	ChatServiceSetDirectMessageClosedProcedure = "/stoop.chat.v1.ChatService/SetDirectMessageClosed"
 	// ChatServiceListDirectMessageCandidatesProcedure is the fully-qualified name of the ChatService's
 	// ListDirectMessageCandidates RPC.
 	ChatServiceListDirectMessageCandidatesProcedure = "/stoop.chat.v1.ChatService/ListDirectMessageCandidates"
@@ -270,6 +273,11 @@ type ChatServiceClient interface {
 	OpenDirectMessage(context.Context, *connect.Request[v1.OpenDirectMessageRequest]) (*connect.Response[v1.OpenDirectMessageResponse], error)
 	// The caller's DMs, most recent activity first.
 	ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error)
+	// SetDirectMessageClosed takes a conversation off the caller's own list,
+	// or puts it back. Nobody else's list changes, and the next message in
+	// it puts it back for everyone. Closing is not leaving: membership never
+	// changes, and getting away from a person is what blocking is for.
+	SetDirectMessageClosed(context.Context, *connect.Request[v1.SetDirectMessageClosedRequest]) (*connect.Response[v1.SetDirectMessageClosedResponse], error)
 	// ListDirectMessageCandidates is everyone the caller may start a
 	// conversation with: the people they share a space with, minus blocks in
 	// either direction. Instance admins get the same list, not every account.
@@ -532,6 +540,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("ListDirectMessages")),
 			connect.WithClientOptions(opts...),
 		),
+		setDirectMessageClosed: connect.NewClient[v1.SetDirectMessageClosedRequest, v1.SetDirectMessageClosedResponse](
+			httpClient,
+			baseURL+ChatServiceSetDirectMessageClosedProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("SetDirectMessageClosed")),
+			connect.WithClientOptions(opts...),
+		),
 		listDirectMessageCandidates: connect.NewClient[v1.ListDirectMessageCandidatesRequest, v1.ListDirectMessageCandidatesResponse](
 			httpClient,
 			baseURL+ChatServiceListDirectMessageCandidatesProcedure,
@@ -601,6 +615,7 @@ type chatServiceClient struct {
 	toggleReaction              *connect.Client[v1.ToggleReactionRequest, v1.ToggleReactionResponse]
 	openDirectMessage           *connect.Client[v1.OpenDirectMessageRequest, v1.OpenDirectMessageResponse]
 	listDirectMessages          *connect.Client[v1.ListDirectMessagesRequest, v1.ListDirectMessagesResponse]
+	setDirectMessageClosed      *connect.Client[v1.SetDirectMessageClosedRequest, v1.SetDirectMessageClosedResponse]
 	listDirectMessageCandidates *connect.Client[v1.ListDirectMessageCandidatesRequest, v1.ListDirectMessageCandidatesResponse]
 	markChannelRead             *connect.Client[v1.MarkChannelReadRequest, v1.MarkChannelReadResponse]
 	listActivity                *connect.Client[v1.ListActivityRequest, v1.ListActivityResponse]
@@ -807,6 +822,11 @@ func (c *chatServiceClient) ListDirectMessages(ctx context.Context, req *connect
 	return c.listDirectMessages.CallUnary(ctx, req)
 }
 
+// SetDirectMessageClosed calls stoop.chat.v1.ChatService.SetDirectMessageClosed.
+func (c *chatServiceClient) SetDirectMessageClosed(ctx context.Context, req *connect.Request[v1.SetDirectMessageClosedRequest]) (*connect.Response[v1.SetDirectMessageClosedResponse], error) {
+	return c.setDirectMessageClosed.CallUnary(ctx, req)
+}
+
 // ListDirectMessageCandidates calls stoop.chat.v1.ChatService.ListDirectMessageCandidates.
 func (c *chatServiceClient) ListDirectMessageCandidates(ctx context.Context, req *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error) {
 	return c.listDirectMessageCandidates.CallUnary(ctx, req)
@@ -949,6 +969,11 @@ type ChatServiceHandler interface {
 	OpenDirectMessage(context.Context, *connect.Request[v1.OpenDirectMessageRequest]) (*connect.Response[v1.OpenDirectMessageResponse], error)
 	// The caller's DMs, most recent activity first.
 	ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error)
+	// SetDirectMessageClosed takes a conversation off the caller's own list,
+	// or puts it back. Nobody else's list changes, and the next message in
+	// it puts it back for everyone. Closing is not leaving: membership never
+	// changes, and getting away from a person is what blocking is for.
+	SetDirectMessageClosed(context.Context, *connect.Request[v1.SetDirectMessageClosedRequest]) (*connect.Response[v1.SetDirectMessageClosedResponse], error)
 	// ListDirectMessageCandidates is everyone the caller may start a
 	// conversation with: the people they share a space with, minus blocks in
 	// either direction. Instance admins get the same list, not every account.
@@ -1207,6 +1232,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("ListDirectMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceSetDirectMessageClosedHandler := connect.NewUnaryHandler(
+		ChatServiceSetDirectMessageClosedProcedure,
+		svc.SetDirectMessageClosed,
+		connect.WithSchema(chatServiceMethods.ByName("SetDirectMessageClosed")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceListDirectMessageCandidatesHandler := connect.NewUnaryHandler(
 		ChatServiceListDirectMessageCandidatesProcedure,
 		svc.ListDirectMessageCandidates,
@@ -1313,6 +1344,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceOpenDirectMessageHandler.ServeHTTP(w, r)
 		case ChatServiceListDirectMessagesProcedure:
 			chatServiceListDirectMessagesHandler.ServeHTTP(w, r)
+		case ChatServiceSetDirectMessageClosedProcedure:
+			chatServiceSetDirectMessageClosedHandler.ServeHTTP(w, r)
 		case ChatServiceListDirectMessageCandidatesProcedure:
 			chatServiceListDirectMessageCandidatesHandler.ServeHTTP(w, r)
 		case ChatServiceMarkChannelReadProcedure:
@@ -1488,6 +1521,10 @@ func (UnimplementedChatServiceHandler) OpenDirectMessage(context.Context, *conne
 
 func (UnimplementedChatServiceHandler) ListDirectMessages(context.Context, *connect.Request[v1.ListDirectMessagesRequest]) (*connect.Response[v1.ListDirectMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListDirectMessages is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) SetDirectMessageClosed(context.Context, *connect.Request[v1.SetDirectMessageClosedRequest]) (*connect.Response[v1.SetDirectMessageClosedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SetDirectMessageClosed is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error) {

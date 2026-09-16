@@ -42,6 +42,7 @@ because a key that could change would stop being an identity.
 | Safety | Blocks: cannot start, cannot write, not listed for the blocker. |
 | Name | Derived from the participants. No custom name. |
 | Realtime | `ChannelCreated` on each participant's topic. No new event. |
+| Closing | Per person, later (STOOP-249): off your own list until the next message; not leaving. |
 
 ## Why membership is fixed
 

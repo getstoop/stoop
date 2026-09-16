@@ -32,7 +32,7 @@ ORDER BY channel_id, user_id;
 -- ListDMChannelsByUser is the caller's DM list, newest activity first,
 -- with the same read marker and unread count ListChannelsBySpace gives.
 -- name: ListDMChannelsByUser :many
-SELECT sqlc.embed(c), r.last_read_message_id,
+SELECT sqlc.embed(c), r.last_read_message_id, d.closed_at,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = sqlc.arg(user_id)) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id
@@ -48,6 +48,20 @@ WHERE c.kind = 3
     WHERE o.channel_id = c.id AND o.user_id <> sqlc.arg(user_id)
   )
 ORDER BY c.last_message_id DESC NULLS LAST, c.created_at DESC;
+
+-- SetDMClosed takes a conversation off the caller's own list, or puts it
+-- back. Only their row: closing is never leaving.
+-- name: SetDMClosed :exec
+UPDATE dm_members
+SET closed_at = CASE WHEN sqlc.arg(closed)::boolean THEN now() ELSE NULL END
+WHERE channel_id = $1 AND user_id = $2;
+
+-- ReopenDM puts a conversation back on every list it was closed off,
+-- returning whose; a new message is what calls it.
+-- name: ReopenDM :many
+UPDATE dm_members SET closed_at = NULL
+WHERE channel_id = $1 AND closed_at IS NOT NULL
+RETURNING user_id;
 
 -- SharesSpace: do two users belong to at least one common space?
 -- name: SharesSpace :one

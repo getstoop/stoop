@@ -76,6 +76,7 @@ type CredentialBound struct {
 type DmMember struct {
 	ChannelID string
 	UserID    string
+	ClosedAt  *time.Time
 }
 
 type File struct {

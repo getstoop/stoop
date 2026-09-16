@@ -136,6 +136,7 @@ var procedures = map[string]authctx.Rule{
 
 	chatv1connect.ChatServiceOpenDirectMessageProcedure:           needs(authctx.DMsPost),
 	chatv1connect.ChatServiceListDirectMessagesProcedure:          needs(authctx.DMsRead),
+	chatv1connect.ChatServiceSetDirectMessageClosedProcedure:      needs(authctx.PreferencesManage),
 	chatv1connect.ChatServiceListDirectMessageCandidatesProcedure: needs(authctx.DMsRead),
 
 	chatv1connect.ChatServiceListActivityProcedure:     needs(authctx.ActivityRead),

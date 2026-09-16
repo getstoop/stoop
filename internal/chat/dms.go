@@ -163,6 +163,11 @@ func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[ch
 			return nil, fmt.Errorf("add participant: %w", err)
 		}
 	}
+	// Opening a conversation the caller had closed puts it back on their
+	// list; nobody else's row is touched.
+	if err := qtx.SetDMClosed(ctx, dbgen.SetDMClosedParams{ChannelID: channel.ID, UserID: me, Closed: false}); err != nil {
+		return nil, fmt.Errorf("reopen dm: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
 	}
@@ -178,6 +183,58 @@ func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[ch
 		return nil, err
 	}
 	return connect.NewResponse(&chatv1.OpenDirectMessageResponse{DirectMessage: dms[0]}), nil
+}
+
+// SetDirectMessageClosed takes a conversation off the caller's own list,
+// or puts it back. Closing is list grooming and nothing more: nobody
+// else's list changes, membership never changes, and reopenDM brings it
+// back for everyone the moment someone writes.
+func (s *Service) SetDirectMessageClosed(ctx context.Context, req *connect.Request[chatv1.SetDirectMessageClosedRequest]) (*connect.Response[chatv1.SetDirectMessageClosedResponse], error) {
+	me := authctx.UserID(ctx)
+	channel, err := s.q.GetChannel(ctx, req.Msg.ChannelId)
+	if err != nil || !isDM(channel) {
+		return nil, notFoundOr(err, "conversation")
+	}
+	isMember, err := s.q.IsDMMember(ctx, dbgen.IsDMMemberParams{ChannelID: channel.ID, UserID: me})
+	if err != nil {
+		return nil, fmt.Errorf("check participant: %w", err)
+	}
+	if !isMember {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("conversation not found"))
+	}
+	if err := s.q.SetDMClosed(ctx, dbgen.SetDMClosedParams{ChannelID: channel.ID, UserID: me, Closed: req.Msg.Closed}); err != nil {
+		return nil, fmt.Errorf("close dm: %w", err)
+	}
+	rows, err := s.q.ListDMChannelsByUser(ctx, me)
+	if err != nil {
+		return nil, fmt.Errorf("list dms: %w", err)
+	}
+	for _, r := range rows {
+		if r.Channel.ID == channel.ID {
+			dms, err := s.directMessages(ctx, []dbgen.ListDMChannelsByUserRow{r})
+			if err != nil {
+				return nil, err
+			}
+			return connect.NewResponse(&chatv1.SetDirectMessageClosedResponse{DirectMessage: dms[0]}), nil
+		}
+	}
+	return nil, connect.NewError(connect.CodeNotFound, errors.New("conversation not found"))
+}
+
+// reopenDM puts a conversation back on every list it had been closed off,
+// and tells those people, the way a new conversation is told: their
+// client refetches its list on ChannelCreated.
+func (s *Service) reopenDM(ctx context.Context, channel dbgen.Channel) {
+	reopened, err := s.q.ReopenDM(ctx, channel.ID)
+	if err != nil {
+		slog.Default().Warn("dm: could not reopen", "channel_id", channel.ID, "err", err)
+		return
+	}
+	for _, uid := range reopened {
+		s.bus.Publish("user:"+uid, events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_ChannelCreated{ChannelCreated: toProtoChannel(channel)},
+		}))
+	}
 }
 
 // dmTargets validates the people a caller wants to talk to: real accounts,
@@ -306,7 +363,7 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 		}
 		channel.UnreadCount = int32(r.UnreadCount)
 		channel.Muted = r.Muted
-		dm := &chatv1.DirectMessage{Channel: channel}
+		dm := &chatv1.DirectMessage{Channel: channel, Closed: r.ClosedAt != nil}
 		for _, uid := range byChannel[r.Channel.ID] {
 			if a := authors[uid]; a != nil {
 				dm.Participants = append(dm.Participants, a)

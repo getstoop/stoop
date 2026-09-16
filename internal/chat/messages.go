@@ -132,6 +132,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		if err := s.recordDM(ctx, row, channel, parent, mentioned, msg.Author, firstAttachment); err != nil {
 			return nil, err
 		}
+		s.reopenDM(ctx, channel)
 	}
 
 	// Cached link previews go out with the message itself; ones still to

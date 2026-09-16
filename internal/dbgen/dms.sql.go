@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"time"
 )
 
 const addDMMember = `-- name: AddDMMember :exec
@@ -118,7 +119,7 @@ func (q *Queries) ListDMCandidates(ctx context.Context, arg ListDMCandidatesPara
 }
 
 const listDMChannelsByUser = `-- name: ListDMChannelsByUser :many
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, r.last_read_message_id,
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, r.last_read_message_id, d.closed_at,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id
@@ -139,6 +140,7 @@ ORDER BY c.last_message_id DESC NULLS LAST, c.created_at DESC
 type ListDMChannelsByUserRow struct {
 	Channel           Channel
 	LastReadMessageID *string
+	ClosedAt          *time.Time
 	Muted             bool
 	UnreadCount       int64
 }
@@ -165,6 +167,7 @@ func (q *Queries) ListDMChannelsByUser(ctx context.Context, userID string) ([]Li
 			&i.Channel.DmKey,
 			&i.Channel.Topic,
 			&i.LastReadMessageID,
+			&i.ClosedAt,
 			&i.Muted,
 			&i.UnreadCount,
 		); err != nil {
@@ -208,15 +211,20 @@ WHERE channel_id = ANY($1::uuid[])
 ORDER BY channel_id, user_id
 `
 
-func (q *Queries) ListDMMembersForChannels(ctx context.Context, channelIds []string) ([]DmMember, error) {
+type ListDMMembersForChannelsRow struct {
+	ChannelID string
+	UserID    string
+}
+
+func (q *Queries) ListDMMembersForChannels(ctx context.Context, channelIds []string) ([]ListDMMembersForChannelsRow, error) {
 	rows, err := q.db.Query(ctx, listDMMembersForChannels, channelIds)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []DmMember
+	var items []ListDMMembersForChannelsRow
 	for rows.Next() {
-		var i DmMember
+		var i ListDMMembersForChannelsRow
 		if err := rows.Scan(&i.ChannelID, &i.UserID); err != nil {
 			return nil, err
 		}
@@ -263,6 +271,53 @@ func (q *Queries) OpenDMChannel(ctx context.Context, arg OpenDMChannelParams) (C
 		&i.Topic,
 	)
 	return i, err
+}
+
+const reopenDM = `-- name: ReopenDM :many
+UPDATE dm_members SET closed_at = NULL
+WHERE channel_id = $1 AND closed_at IS NOT NULL
+RETURNING user_id
+`
+
+// ReopenDM puts a conversation back on every list it was closed off,
+// returning whose; a new message is what calls it.
+func (q *Queries) ReopenDM(ctx context.Context, channelID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, reopenDM, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setDMClosed = `-- name: SetDMClosed :exec
+UPDATE dm_members
+SET closed_at = CASE WHEN $3::boolean THEN now() ELSE NULL END
+WHERE channel_id = $1 AND user_id = $2
+`
+
+type SetDMClosedParams struct {
+	ChannelID string
+	UserID    string
+	Closed    bool
+}
+
+// SetDMClosed takes a conversation off the caller's own list, or puts it
+// back. Only their row: closing is never leaving.
+func (q *Queries) SetDMClosed(ctx context.Context, arg SetDMClosedParams) error {
+	_, err := q.db.Exec(ctx, setDMClosed, arg.ChannelID, arg.UserID, arg.Closed)
+	return err
 }
 
 const sharesSpace = `-- name: SharesSpace :one

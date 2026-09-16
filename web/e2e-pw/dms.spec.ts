@@ -141,4 +141,23 @@ test("direct messages", async ({ browser }) => {
     dmsPill(A).locator(".pill-badge"),
     "A is alerted to the new conversation",
   ).toHaveText("1");
+
+  // Closing (STOOP-249): the row goes from A's list and nobody else's,
+  // and the next message from that side brings it back.
+  const calRow = A.locator(".channel-row", {
+    has: A.locator(".dm-link", { hasText: cName }),
+  });
+  await calRow.hover();
+  await calRow.locator(".dots-menu-button").click();
+  await A.getByRole("menuitem", {
+    name: "Close conversation",
+    exact: true,
+  }).click();
+  await expect(list, "closing takes the conversation off A's list").toHaveCount(
+    1,
+  );
+  await expect(C.locator(".dm-link"), "…and not off cal's").toHaveCount(1);
+  await say(C, "still there?");
+  await expect(list, "a new message brings it back").toHaveCount(2);
+  await expect(list.first(), "…at the top").toHaveText(cName);
 });
