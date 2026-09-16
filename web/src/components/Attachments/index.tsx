@@ -10,6 +10,7 @@ import type { Attachment, Message } from "../../gen/stoop/chat/v1/message_pb";
 import { DownloadIcon } from "../Icons";
 import { AttachmentCard } from "./AttachmentCard";
 import { AudioAttachment } from "./AudioAttachment";
+import { ExpiredAttachment } from "./ExpiredAttachment";
 import { VideoAttachment } from "./VideoAttachment";
 
 // A message's attachments, rendered under its body: raster images inline
@@ -22,7 +23,9 @@ export function Attachments({ attachments }: { attachments: Attachment[] }) {
   return (
     <div className="attachments">
       {attachments.map((a) =>
-        isPlayableVideo(a.contentType) ? (
+        a.expired ? (
+          <ExpiredAttachment key={a.fileId} attachment={a} />
+        ) : isPlayableVideo(a.contentType) ? (
           <VideoAttachment key={a.fileId} attachment={a} />
         ) : isPlayableAudio(a.contentType) ? (
           <AudioAttachment key={a.fileId} attachment={a} />
@@ -72,5 +75,6 @@ export function messagePreview(m: Message): string {
   const text = plainText(m.content);
   if (text) return text;
   const first = m.attachments[0];
-  return first ? `📎 ${first.name}` : "";
+  if (!first) return "";
+  return first.expired ? "📎 Expired attachment" : `📎 ${first.name}`;
 }

@@ -10,6 +10,7 @@ import { LoginProvidersSection } from "./LoginProvidersSection";
 import { PasswordSignInSection } from "./PasswordSignInSection";
 import { PersonalTokensSetting } from "./PersonalTokensSetting";
 import { ReachabilitySection } from "./ReachabilitySection";
+import { RetentionSection } from "./RetentionSection";
 import { SelfDeletionSetting } from "./SelfDeletionSetting";
 import { ServerSection } from "./ServerSection";
 import { SessionLifetimeSetting } from "./SessionLifetimeSetting";
@@ -100,6 +101,9 @@ export function AdminPage() {
         <>
           <section className="card">
             <StorageSection />
+          </section>
+          <section className="card">
+            <RetentionSection />
           </section>
           <section className="card">
             <CleanupSection />
