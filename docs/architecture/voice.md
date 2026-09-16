@@ -55,6 +55,19 @@ same tokens with a different grant, so they did not flip that trade.
   screen share need no separate token, no separate RPC, and no additional
   server-side concept.
 
+## Devices
+
+The voice bar's microphone and camera pickers (`components/DevicePicker`,
+over `hooks/useDevices`) list what LiveKit's `getLocalDevices` returns
+and show the device the room publishes from. They list again on the
+room's `mediaDevicesChanged` and `activeDeviceChanged` events, so a
+headset plugged in mid-call is offered without reconnecting, and one
+unplugged is no longer shown as in use: LiveKit falls back to the
+default device on its own and announces it, and the picker follows. A
+picker with one device to offer is not shown at all, and appears when a
+second arrives. Chromium's fake devices cannot be hot-plugged, so this is
+checked by hand rather than by the voice spec.
+
 ## Leaving, when it isn't your idea
 
 LiveKit checks a participant's right to be in a room **once, when the token
