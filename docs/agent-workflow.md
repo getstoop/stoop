@@ -232,10 +232,12 @@ got big enough that a red `main` cost more than the round-trip saves.
   (`~/Projects/stoop`, `~/Projects/stoop-desktop`), not a worktree: their
   `make dev` rebuilds live, so they review the change as it is made, and
   the running instance is never quietly on another branch. A branch that
-  adds a migration is the exception — that one goes in a worktree, so
-  switching the checkout back does not leave the dev database ahead of
-  `main`. After the merge, `git switch main && git pull` in that checkout;
-  `make dev` prints what it runs and warns when `origin/main` is ahead.
+  adds a migration lives there too: the dev database runs a migration
+  ahead of `main` until it lands, and that is accepted. A separate
+  worktree only when the maintainer asks for one, because another session
+  holds the checkout. After the merge, `git switch main && git pull` in
+  that checkout; `make dev` prints what it runs and warns when
+  `origin/main` is ahead.
 - Commit as before (`git commit -F <file>` with the trailer), push with
   `git push -u origin HEAD`, then `gh pr create` with a body that follows
   `.github/pull_request_template.md` (What changed and why / How it was
