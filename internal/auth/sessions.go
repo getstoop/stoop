@@ -166,8 +166,10 @@ func (s *Service) verify(ctx context.Context, token string, allowHook bool) (aut
 		}
 	}
 	// At most once a minute, so a busy client doesn't make every read a write.
+	// Not cancelled with the request: a browser dropping a request it no
+	// longer needs would otherwise abort the write and log it.
 	if c.LastUsedAt == nil || time.Since(*c.LastUsedAt) > time.Minute {
-		if err := s.q.TouchCredential(ctx, c.ID); err != nil {
+		if err := s.q.TouchCredential(context.WithoutCancel(ctx), c.ID); err != nil {
 			slog.Default().Warn("record credential use", "err", err)
 		}
 	}
