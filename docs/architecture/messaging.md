@@ -42,7 +42,8 @@ deliberate:
 1. **Validate.** Content is 1–4000 characters, *or* empty with at least one
    attachment.
 2. **Authorise** via `writableChannel` — channel membership, plus the block
-   rule in a DM.
+   rule in a DM — then `requirePostPolicy` for an
+   [announcement channel](#announcement-channels).
 3. **Claim attachments** — check each id through the `FileDirectory` port
    for kind, owner and space ([files.md](files.md)).
 4. **Resolve mentions** against the channel's people.
@@ -378,6 +379,27 @@ what the code does:
 - **Realtime.** `MessagePinned` carries the change — ids, the flag, who
   and when — not the list, which can be fifty full messages. Clients mark
   the message and refetch the list only if they are showing it.
+
+## Announcement channels
+
+A text channel's `post_policy` is `everyone` (the default) or `admins`,
+which the UI calls an announcement channel. There, only the space's
+admins and owner (instance admins inherit admin) and bots in the space
+post; everyone else reads, reacts, and deletes their own messages.
+Changed with `UpdateChannel` under `manage_channels`, and carried to
+clients by the ordinary `ChannelUpdated`.
+
+`requirePostPolicy` checks the identity, not the credential: the
+credential was already checked for `messages.post`, so an admin's token
+that grants only that still posts. It guards `SendMessage` (replies
+included), `EditMessage`, and the upload handler through
+`ChannelSpaceToPostIn`, so a file that could never be sent isn't stored.
+It stays out of `writableChannel` because reactions go through that too.
+An incoming webhook posts as its bot, so one pointed at an announcement
+channel just works.
+
+Voice channels and DMs are always `everyone`. The reasoning is in
+[the proposal](../proposals/announcement-channels.md).
 
 ## Edits, deletions, reactions, replies
 

@@ -118,8 +118,20 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 		}
 		topic = &t
 	}
+	var policy *string
+	if req.Msg.PostPolicy != nil {
+		p, ok := postPolicies[*req.Msg.PostPolicy]
+		if !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown post policy"))
+		}
+		if channel.Kind != int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT) {
+			return nil, connect.NewError(connect.CodeInvalidArgument,
+				errors.New("only a text channel can be an announcement channel"))
+		}
+		policy = &p
+	}
 	row, err := s.q.UpdateChannel(ctx, dbgen.UpdateChannelParams{
-		ID: channel.ID, Name: req.Msg.Name, Topic: topic,
+		ID: channel.ID, Name: req.Msg.Name, Topic: topic, PostPolicy: policy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update channel: %w", err)
@@ -308,11 +320,27 @@ func (s *Service) spaceChannelToManage(ctx context.Context, channelID string) (d
 // gets a 244 px sidebar row.
 const maxChannelTopic = 250
 
+// The channels.post_policy values; the column's check constraint holds
+// the same two.
+const (
+	postPolicyEveryone = "everyone"
+	postPolicyAdmins   = "admins"
+)
+
+var postPolicies = map[chatv1.ChannelPostPolicy]string{
+	chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_EVERYONE: postPolicyEveryone,
+	chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_ADMINS:   postPolicyAdmins,
+}
+
 func toProtoChannel(c dbgen.Channel) *chatv1.Channel {
 	out := &chatv1.Channel{
 		Id: c.ID, SpaceId: spaceOf(c), Name: c.Name,
 		Kind: chatv1.ChannelKind(c.Kind), Position: c.Position,
 		CreatedAt: timestamppb.New(c.CreatedAt), Topic: c.Topic,
+		PostPolicy: chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_EVERYONE,
+	}
+	if c.PostPolicy == postPolicyAdmins {
+		out.PostPolicy = chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_ADMINS
 	}
 	if c.LastMessageID != nil {
 		out.LastMessageId = *c.LastMessageID

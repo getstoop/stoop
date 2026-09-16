@@ -118,10 +118,11 @@ func (s *Service) IsSpaceMember(ctx context.Context, userID, spaceID string) (bo
 	return s.q.IsSpaceMember(ctx, dbgen.IsSpaceMemberParams{SpaceID: spaceID, UserID: userID})
 }
 
-// ChannelSpaceForMember resolves a channel to its space ("" for a direct
-// message) for a user who may read it. Exposed for the files module's
-// upload handler.
-func (s *Service) ChannelSpaceForMember(ctx context.Context, userID, channelID string) (string, error) {
+// ChannelSpaceToPostIn resolves a channel to its space ("" for a direct
+// message) for a user who may post in it: a member, and an admin or a bot
+// in an announcement channel. ctx carries that user's identity. Exposed
+// for the files module's upload handler.
+func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID string) (string, error) {
 	ok, err := s.IsChannelMember(ctx, userID, channelID)
 	if err != nil {
 		return "", fmt.Errorf("check membership: %w", err)
@@ -132,6 +133,9 @@ func (s *Service) ChannelSpaceForMember(ctx context.Context, userID, channelID s
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if err != nil {
 		return "", notFoundOr(err, "channel")
+	}
+	if err := s.requirePostPolicy(ctx, channel); err != nil {
+		return "", err
 	}
 	return spaceOf(channel), nil
 }

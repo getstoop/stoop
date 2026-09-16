@@ -11,7 +11,7 @@ import (
 )
 
 const getChannelInSpaceByName = `-- name: GetChannelInSpaceByName :one
-SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic FROM channels
+SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy FROM channels
 WHERE space_id = $1::uuid AND name = $2
 ORDER BY position, created_at
 LIMIT 1
@@ -37,6 +37,7 @@ func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInS
 		&i.LastMessageID,
 		&i.DmKey,
 		&i.Topic,
+		&i.PostPolicy,
 	)
 	return i, err
 }

@@ -106,7 +106,7 @@ func (f *fakeSpaces) ListSpaceIDs(context.Context, string) ([]string, error) {
 func (f *fakeSpaces) IsAttachmentReadable(_ context.Context, userID, _ string) (bool, error) {
 	return f.members[userID], nil
 }
-func (f *fakeSpaces) ChannelSpaceForMember(_ context.Context, userID, channelID string) (string, error) {
+func (f *fakeSpaces) ChannelSpaceToPostIn(_ context.Context, userID, channelID string) (string, error) {
 	if channelID != f.channelID {
 		return "", connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
 	}

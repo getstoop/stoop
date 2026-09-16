@@ -81,3 +81,26 @@ func TestMemberActions(t *testing.T) {
 		}
 	}
 }
+
+func TestMayPost(t *testing.T) {
+	member, admin, owner := actor{role: RoleMember, member: true}, actor{role: RoleAdmin, member: true}, actor{role: RoleOwner, member: true}
+	cases := []struct {
+		name   string
+		a      actor
+		bot    bool
+		policy string
+		want   bool
+	}{
+		{"member, everyone", member, false, postPolicyEveryone, true},
+		{"member, admins", member, false, postPolicyAdmins, false},
+		{"admin, admins", admin, false, postPolicyAdmins, true},
+		{"owner, admins", owner, false, postPolicyAdmins, true},
+		{"inherited admin, admins", memberActor(RoleMember, true), false, postPolicyAdmins, true},
+		{"member bot, admins", member, true, postPolicyAdmins, true},
+	}
+	for _, c := range cases {
+		if got := mayPost(c.a, c.bot, c.policy); got != c.want {
+			t.Errorf("%s: mayPost = %v, want %v", c.name, got, c.want)
+		}
+	}
+}

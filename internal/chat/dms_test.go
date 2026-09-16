@@ -274,8 +274,8 @@ func TestDirectMessages(t *testing.T) {
 	if ok, _ := svc.IsChannelMember(context.Background(), aliceID, dm.Channel.Id); !ok {
 		t.Errorf("IsChannelMember(alice, dm) = false")
 	}
-	if sp, err := svc.ChannelSpaceForMember(context.Background(), bobID, dm.Channel.Id); err != nil || sp != "" {
-		t.Errorf("ChannelSpaceForMember(dm) = %q, %v", sp, err)
+	if sp, err := svc.ChannelSpaceToPostIn(context.Background(), bobID, dm.Channel.Id); err != nil || sp != "" {
+		t.Errorf("ChannelSpaceToPostIn(dm) = %q, %v", sp, err)
 	}
 }
 

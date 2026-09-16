@@ -82,6 +82,31 @@ func allowed(a actor, perm authctx.Action, membersCanInvite bool) bool {
 	return ok && a.role.atLeast(min)
 }
 
+// mayPost is the announcement-channel rule, pure so it can be tested as
+// a table: under the admins policy only admins, the owner and bots post.
+func mayPost(a actor, bot bool, policy string) bool {
+	return policy != postPolicyAdmins || bot || a.role.atLeast(RoleAdmin)
+}
+
+// requirePostPolicy refuses a post in an announcement channel from anyone
+// below admin. Identity only: the credential was already checked for
+// messages.post, so an admin's token that grants just that still posts.
+func (s *Service) requirePostPolicy(ctx context.Context, channel dbgen.Channel) error {
+	if isDM(channel) || channel.PostPolicy != postPolicyAdmins {
+		return nil
+	}
+	a, err := s.actorFor(ctx, *channel.SpaceID)
+	if err != nil {
+		return err
+	}
+	id, _ := authctx.From(ctx)
+	if !mayPost(a, id.Kind == authctx.KindBot, channel.PostPolicy) {
+		return connect.NewError(connect.CodePermissionDenied,
+			fmt.Errorf("#%s is an announcement channel; only admins can post", channel.Name))
+	}
+	return nil
+}
+
 // actorFor describes the caller's standing in a space.
 func (s *Service) actorFor(ctx context.Context, spaceID string) (actor, error) {
 	return s.actorForUser(ctx, spaceID, authctx.UserID(ctx), authctx.IsAdmin(ctx))

@@ -39,7 +39,8 @@ SET last_read_message_id = GREATEST(channel_reads.last_read_message_id, EXCLUDED
 UPDATE channels
 SET name = COALESCE(sqlc.narg('name'), name),
     position = COALESCE(sqlc.narg('position'), position),
-    topic = COALESCE(sqlc.narg('topic'), topic)
+    topic = COALESCE(sqlc.narg('topic'), topic),
+    post_policy = COALESCE(sqlc.narg('post_policy'), post_policy)
 WHERE id = $1
 RETURNING *;
 

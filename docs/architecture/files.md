@@ -34,8 +34,8 @@ upload does not become a large allocation.
 
 The handler authorises before it reads: the operator's per-file cap wraps
 the body in a `MaxBytesReader` (plus a little slack for the multipart
-framing), and `Spaces.ChannelSpaceForMember` decides membership through the
-port — returning a Connect error that is translated to the right HTTP
+framing), and `Spaces.ChannelSpaceToPostIn` decides membership and the
+announcement-channel rule through the port — returning a Connect error that is translated to the right HTTP
 status, so there is one implementation of "may you post here".
 
 ### Attachments are claimed, not pushed
