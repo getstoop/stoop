@@ -30,6 +30,7 @@ type Channel struct {
 	LastMessageID *string
 	DmKey         *string
 	Topic         string
+	PostPolicy    string
 }
 
 type ChannelMute struct {

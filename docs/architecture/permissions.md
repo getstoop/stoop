@@ -147,10 +147,16 @@ Ownership is transferable, and the owner cannot leave without transferring
 | `messages.moderate` (delete others' messages; own always) | ✓ | ✓ | |
 | `space.transfer`, `space.delete` | ✓ | | |
 
-Reading, posting and joining voice need membership and nothing else. They
-are actions only so that a *credential* can withhold them — a read-only
-token — and never so that a role can. There are still no per-channel
-overrides, which is precisely the complexity being avoided.
+Reading, posting and joining voice need membership and nothing else.
+They are actions only so that a *credential* can withhold them — a
+read-only token — and never so that a role can. There are still no
+per-channel overrides, which is precisely the complexity being avoided.
+
+One rule belongs to a channel rather than the table: in an
+[announcement channel](messaging.md#announcement-channels) only admins,
+the owner and bots post. It is a fixed meaning a channel either has or
+doesn't, not a per-role or per-person setting, so the table above is
+unchanged.
 
 ### Enforcement
 

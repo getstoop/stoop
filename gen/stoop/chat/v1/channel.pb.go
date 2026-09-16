@@ -76,6 +76,58 @@ func (ChannelKind) EnumDescriptor() ([]byte, []int) {
 	return file_stoop_chat_v1_channel_proto_rawDescGZIP(), []int{0}
 }
 
+// Who may post in a text channel.
+type ChannelPostPolicy int32
+
+const (
+	ChannelPostPolicy_CHANNEL_POST_POLICY_UNSPECIFIED ChannelPostPolicy = 0
+	ChannelPostPolicy_CHANNEL_POST_POLICY_EVERYONE    ChannelPostPolicy = 1
+	// An announcement channel: the space's admins and owner, and bots in the
+	// space, post; everyone else reads, reacts and deletes their own.
+	ChannelPostPolicy_CHANNEL_POST_POLICY_ADMINS ChannelPostPolicy = 2
+)
+
+// Enum value maps for ChannelPostPolicy.
+var (
+	ChannelPostPolicy_name = map[int32]string{
+		0: "CHANNEL_POST_POLICY_UNSPECIFIED",
+		1: "CHANNEL_POST_POLICY_EVERYONE",
+		2: "CHANNEL_POST_POLICY_ADMINS",
+	}
+	ChannelPostPolicy_value = map[string]int32{
+		"CHANNEL_POST_POLICY_UNSPECIFIED": 0,
+		"CHANNEL_POST_POLICY_EVERYONE":    1,
+		"CHANNEL_POST_POLICY_ADMINS":      2,
+	}
+)
+
+func (x ChannelPostPolicy) Enum() *ChannelPostPolicy {
+	p := new(ChannelPostPolicy)
+	*p = x
+	return p
+}
+
+func (x ChannelPostPolicy) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ChannelPostPolicy) Descriptor() protoreflect.EnumDescriptor {
+	return file_stoop_chat_v1_channel_proto_enumTypes[1].Descriptor()
+}
+
+func (ChannelPostPolicy) Type() protoreflect.EnumType {
+	return &file_stoop_chat_v1_channel_proto_enumTypes[1]
+}
+
+func (x ChannelPostPolicy) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ChannelPostPolicy.Descriptor instead.
+func (ChannelPostPolicy) EnumDescriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_channel_proto_rawDescGZIP(), []int{1}
+}
+
 type Channel struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -99,7 +151,10 @@ type Channel struct {
 	Muted bool `protobuf:"varint,10,opt,name=muted,proto3" json:"muted,omitempty"`
 	// One plain-text line saying what the channel is for, shown in its
 	// header. Empty for a direct message. Written with manage_channels.
-	Topic         string `protobuf:"bytes,11,opt,name=topic,proto3" json:"topic,omitempty"`
+	Topic string `protobuf:"bytes,11,opt,name=topic,proto3" json:"topic,omitempty"`
+	// EVERYONE for a direct message and a voice channel. Written with
+	// manage_channels.
+	PostPolicy    ChannelPostPolicy `protobuf:"varint,12,opt,name=post_policy,json=postPolicy,proto3,enum=stoop.chat.v1.ChannelPostPolicy" json:"post_policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -211,11 +266,18 @@ func (x *Channel) GetTopic() string {
 	return ""
 }
 
+func (x *Channel) GetPostPolicy() ChannelPostPolicy {
+	if x != nil {
+		return x.PostPolicy
+	}
+	return ChannelPostPolicy_CHANNEL_POST_POLICY_UNSPECIFIED
+}
+
 var File_stoop_chat_v1_channel_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	"\n" +
-	"\x1bstoop/chat/v1/channel.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf7\x02\n" +
+	"\x1bstoop/chat/v1/channel.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x03\n" +
 	"\aChannel\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x12\n" +
@@ -229,12 +291,18 @@ const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	"\funread_count\x18\t \x01(\x05R\vunreadCount\x12\x14\n" +
 	"\x05muted\x18\n" +
 	" \x01(\bR\x05muted\x12\x14\n" +
-	"\x05topic\x18\v \x01(\tR\x05topic*o\n" +
+	"\x05topic\x18\v \x01(\tR\x05topic\x12A\n" +
+	"\vpost_policy\x18\f \x01(\x0e2 .stoop.chat.v1.ChannelPostPolicyR\n" +
+	"postPolicy*o\n" +
 	"\vChannelKind\x12\x1c\n" +
 	"\x18CHANNEL_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CHANNEL_KIND_TEXT\x10\x01\x12\x16\n" +
 	"\x12CHANNEL_KIND_VOICE\x10\x02\x12\x13\n" +
-	"\x0fCHANNEL_KIND_DM\x10\x03B\xab\x01\n" +
+	"\x0fCHANNEL_KIND_DM\x10\x03*z\n" +
+	"\x11ChannelPostPolicy\x12#\n" +
+	"\x1fCHANNEL_POST_POLICY_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cCHANNEL_POST_POLICY_EVERYONE\x10\x01\x12\x1e\n" +
+	"\x1aCHANNEL_POST_POLICY_ADMINS\x10\x02B\xab\x01\n" +
 	"\x11com.stoop.chat.v1B\fChannelProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
@@ -249,21 +317,23 @@ func file_stoop_chat_v1_channel_proto_rawDescGZIP() []byte {
 	return file_stoop_chat_v1_channel_proto_rawDescData
 }
 
-var file_stoop_chat_v1_channel_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_stoop_chat_v1_channel_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_stoop_chat_v1_channel_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_stoop_chat_v1_channel_proto_goTypes = []any{
 	(ChannelKind)(0),              // 0: stoop.chat.v1.ChannelKind
-	(*Channel)(nil),               // 1: stoop.chat.v1.Channel
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(ChannelPostPolicy)(0),        // 1: stoop.chat.v1.ChannelPostPolicy
+	(*Channel)(nil),               // 2: stoop.chat.v1.Channel
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_stoop_chat_v1_channel_proto_depIdxs = []int32{
 	0, // 0: stoop.chat.v1.Channel.kind:type_name -> stoop.chat.v1.ChannelKind
-	2, // 1: stoop.chat.v1.Channel.created_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 1: stoop.chat.v1.Channel.created_at:type_name -> google.protobuf.Timestamp
+	1, // 2: stoop.chat.v1.Channel.post_policy:type_name -> stoop.chat.v1.ChannelPostPolicy
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_channel_proto_init() }
@@ -276,7 +346,7 @@ func file_stoop_chat_v1_channel_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_chat_v1_channel_proto_rawDesc), len(file_stoop_chat_v1_channel_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,

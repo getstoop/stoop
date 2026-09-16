@@ -113,7 +113,7 @@ rather than by what the provider happens to expose, and it stays small.
 Two patterns recur in that table and are worth naming.
 
 **Authorisation is asked, never re-implemented.** `files` does not know what
-a space member is. It asks chat — `Spaces.ChannelSpaceForMember`,
+a space member is. It asks chat — `Spaces.ChannelSpaceToPostIn`,
 `Spaces.RequireManageSpace`, `Spaces.IsSpaceMember` — and gets back either
 an answer or a Connect error it can return unchanged. There is exactly one
 implementation of "may this person read this channel", and it lives in the

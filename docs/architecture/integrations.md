@@ -61,7 +61,9 @@ removes a credential, never the member; a bot left holding no credential
 is deactivated, and its messages stay. Bots are refused as direct-message
 targets and left out of the candidates list. A deleted channel or space
 cascades its hook rows; the sweep revokes the credentials they pointed at
-and retires bots left with nothing.
+and retires bots left with nothing. A bot posts in an
+[announcement channel](messaging.md#announcement-channels) whatever its
+space role, so a hook needn't be made an admin to feed one.
 
 ## Incoming
 

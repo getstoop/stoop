@@ -35,6 +35,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	if err != nil {
 		return nil, err
 	}
+	if err := s.requirePostPolicy(ctx, channel); err != nil {
+		return nil, err
+	}
 	attachments, err := s.claimAttachments(ctx, userID, spaceOf(channel), req.Msg.AttachmentIds)
 	if err != nil {
 		return nil, err
@@ -340,6 +343,11 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	// its links.
 	channel, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
+		return nil, err
+	}
+	// Editing is posting again: a member's old message in what is now an
+	// announcement channel stays as it was, though they may delete it.
+	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return nil, err
 	}
 	row, err := s.q.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content})

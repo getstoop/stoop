@@ -13,6 +13,15 @@ enum ChannelKind {
   CHANNEL_KIND_DM = 3;
 }
 
+// Who may post in a text channel.
+enum ChannelPostPolicy {
+  CHANNEL_POST_POLICY_UNSPECIFIED = 0;
+  CHANNEL_POST_POLICY_EVERYONE = 1;
+  // An announcement channel: the space's admins and owner, and bots in the
+  // space, post; everyone else reads, reacts and deletes their own.
+  CHANNEL_POST_POLICY_ADMINS = 2;
+}
+
 message Channel {
   string id = 1;
   // Empty for a direct message.
@@ -36,4 +45,7 @@ message Channel {
   // One plain-text line saying what the channel is for, shown in its
   // header. Empty for a direct message. Written with manage_channels.
   string topic = 11;
+  // EVERYONE for a direct message and a voice channel. Written with
+  // manage_channels.
+  ChannelPostPolicy post_policy = 12;
 }

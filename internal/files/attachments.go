@@ -73,9 +73,10 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusBadRequest, "channel_id is required")
 			return
 		}
-		// Membership and the credential's bounds are chat's answer; the
+		// Membership, the credential's bounds and an announcement channel
+		// are chat's answer; the
 		// grant is checked here, since the handler isn't a Connect call.
-		spaceID, err := s.spaces.ChannelSpaceForMember(ctx, identity.UserID, channelID)
+		spaceID, err := s.spaces.ChannelSpaceToPostIn(ctx, identity.UserID, channelID)
 		if err != nil {
 			var cerr *connect.Error
 			switch {

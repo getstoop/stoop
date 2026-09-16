@@ -66,10 +66,10 @@ type Spaces interface {
 	MayReadSpace(ctx context.Context, spaceID string) (bool, error)
 	// ListSpaceIDs is used to tell a user's spaces about a new avatar.
 	ListSpaceIDs(ctx context.Context, userID string) ([]string, error)
-	// ChannelSpaceForMember returns the channel's space id ("" for a
-	// direct message) if the user may read it; otherwise a Connect
-	// NotFound / PermissionDenied error.
-	ChannelSpaceForMember(ctx context.Context, userID, channelID string) (string, error)
+	// ChannelSpaceToPostIn returns the channel's space id ("" for a
+	// direct message) if the user in ctx may post there; otherwise a
+	// Connect NotFound / PermissionDenied error.
+	ChannelSpaceToPostIn(ctx context.Context, userID, channelID string) (string, error)
 	// IsAttachmentReadable reports whether the file is attached to a
 	// message the user can read. The download rule for attachments that
 	// have no space (direct messages).

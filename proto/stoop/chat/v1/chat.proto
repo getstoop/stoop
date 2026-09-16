@@ -439,6 +439,8 @@ message UpdateChannelRequest {
   optional string name = 2;
   // Unset leaves the topic alone; empty clears it.
   optional string topic = 3;
+  // Text channels only; UNSPECIFIED is refused.
+  optional ChannelPostPolicy post_policy = 4;
 }
 
 message UpdateChannelResponse {

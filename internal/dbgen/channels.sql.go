@@ -24,7 +24,7 @@ const createChannel = `-- name: CreateChannel :one
 
 INSERT INTO channels (id, space_id, name, kind, position)
 VALUES ($1, $2::uuid, $3, $4, $5)
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy
 `
 
 type CreateChannelParams struct {
@@ -56,6 +56,7 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		&i.LastMessageID,
 		&i.DmKey,
 		&i.Topic,
+		&i.PostPolicy,
 	)
 	return i, err
 }
@@ -70,7 +71,7 @@ func (q *Queries) DeleteChannel(ctx context.Context, id string) error {
 }
 
 const getChannel = `-- name: GetChannel :one
-SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic FROM channels WHERE id = $1
+SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy FROM channels WHERE id = $1
 `
 
 func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
@@ -86,6 +87,7 @@ func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
 		&i.LastMessageID,
 		&i.DmKey,
 		&i.Topic,
+		&i.PostPolicy,
 	)
 	return i, err
 }
@@ -124,7 +126,7 @@ func (q *Queries) ListChannelIDsByKind(ctx context.Context, arg ListChannelIDsBy
 }
 
 const listChannelsBySpace = `-- name: ListChannelsBySpace :many
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, r.last_read_message_id,
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id
@@ -169,6 +171,7 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 			&i.Channel.LastMessageID,
 			&i.Channel.DmKey,
 			&i.Channel.Topic,
+			&i.Channel.PostPolicy,
 			&i.LastReadMessageID,
 			&i.Muted,
 			&i.UnreadCount,
@@ -216,16 +219,18 @@ const updateChannel = `-- name: UpdateChannel :one
 UPDATE channels
 SET name = COALESCE($2, name),
     position = COALESCE($3, position),
-    topic = COALESCE($4, topic)
+    topic = COALESCE($4, topic),
+    post_policy = COALESCE($5, post_policy)
 WHERE id = $1
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy
 `
 
 type UpdateChannelParams struct {
-	ID       string
-	Name     *string
-	Position *int32
-	Topic    *string
+	ID         string
+	Name       *string
+	Position   *int32
+	Topic      *string
+	PostPolicy *string
 }
 
 func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (Channel, error) {
@@ -234,6 +239,7 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		arg.Name,
 		arg.Position,
 		arg.Topic,
+		arg.PostPolicy,
 	)
 	var i Channel
 	err := row.Scan(
@@ -246,6 +252,7 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		&i.LastMessageID,
 		&i.DmKey,
 		&i.Topic,
+		&i.PostPolicy,
 	)
 	return i, err
 }
