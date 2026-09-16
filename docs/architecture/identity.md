@@ -149,6 +149,20 @@ change, deactivation, an admin reset — also clears the matching rows in the
 legacy `sessions` table until a contract migration drops it, so rolling back
 to the previous release can't revive a revoked session.
 
+**A session lasts a fixed time from sign-in**: `session_lifetime_days`
+(1-365), else `STOOP_SESSION_LIFETIME_DAYS`, else 30. It is read when the
+session is made, through auth's `SessionPolicy` port, so changing it
+applies to sign-ins from then on and never extends or cuts short one that
+exists. Use doesn't extend it.
+
+**A person manages their own.** `ListSessions` shows each session's
+sign-in time, last use (recorded at most once a minute, like a token's),
+expiry and the User-Agent it signed in with (`credentials.user_agent`,
+kept to 512 bytes). `RevokeSession` ends one, and ending the calling one
+is signing out; `RevokeOtherSessions` ends every other. All three need
+`account.security`, so only a session can call them, and each revocation
+is announced so the gateway closes that session's sockets.
+
 ## Personal tokens
 
 A person can make a token for a script from **Profile → Security**. It

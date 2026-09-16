@@ -89,6 +89,7 @@ setting once or acts as its fallback, depending on the setting — see
 | `storage_quota_bytes` | Total upload storage; 0 is unlimited. |
 | `password_sign_in` | `everyone` / `admins` / `off`. See [identity.md](identity.md). |
 | `personal_tokens` | `everyone` (default) / `admins` / `off`. Checked at every use. See [identity.md](identity.md#personal-tokens). |
+| `session_lifetime_days` | How long a sign-in lasts, 1-365; unset falls back to `STOOP_SESSION_LIFETIME_DAYS` (30). See [identity.md](identity.md#sessions). |
 | `webhooks_incoming`, `webhooks_outgoing` | Each direction on (default) or off; `STOOP_WEBHOOKS=false` overrides both. See [integrations.md](integrations.md#switches). |
 | `webhooks_allow_private_targets` | Whether outgoing webhooks may reach LAN, loopback and CGNAT addresses (default off). |
 | `login_providers` | The OIDC provider list, replaced whole. |

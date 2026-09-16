@@ -152,6 +152,8 @@ message GetInstanceStatusResponse {
   // Whether a person may delete their own account; on unless the operator
   // turned it off.
   bool self_deletion = 15;
+  // How long a sign-in lasts, in days. Applies to sign-ins from now on.
+  int32 session_lifetime_days = 16;
 }
 
 message UpdateSettingsRequest {
@@ -175,6 +177,9 @@ message UpdateSettingsRequest {
   // Link-local is never reachable.
   optional bool webhooks_allow_private_targets = 10;
   optional bool self_deletion = 11;
+  // 1-365. 0 clears the saved value, falling back to
+  // STOOP_SESSION_LIFETIME_DAYS.
+  optional int32 session_lifetime_days = 12;
 }
 
 message UpdateSettingsResponse {

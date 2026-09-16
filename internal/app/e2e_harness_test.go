@@ -64,6 +64,7 @@ func newHarness(t *testing.T, env ...string) *harness {
 // reply is what a request came back with.
 type reply struct {
 	status int
+	header http.Header
 	body   map[string]any
 	raw    string
 }
@@ -154,7 +155,7 @@ func (h *harness) do(r *http.Request) reply {
 	}
 	defer func() { _ = res.Body.Close() }()
 	raw, _ := io.ReadAll(res.Body)
-	out := reply{status: res.StatusCode, raw: string(raw)}
+	out := reply{status: res.StatusCode, header: res.Header, raw: string(raw)}
 	if json.Unmarshal(raw, &out.body) != nil {
 		out.body = map[string]any{}
 	}

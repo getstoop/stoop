@@ -27,8 +27,27 @@ import (
 
 const (
 	SessionCookieName = "stoop_session"
-	sessionTTL        = 30 * 24 * time.Hour
+	// defaultSessionLifetime applies without a SessionPolicy.
+	defaultSessionLifetime = 30 * 24 * time.Hour
+	// maxUserAgent bounds what is kept of a sign-in's User-Agent.
+	maxUserAgent = 512
 )
+
+// SessionPolicy is auth's port for how long a sign-in lasts; backed by
+// instance.
+type SessionPolicy interface {
+	SessionLifetime(ctx context.Context) (time.Duration, error)
+}
+
+// UseSessionPolicy wires the port.
+func (s *Service) UseSessionPolicy(p SessionPolicy) { s.sessions = p }
+
+func (s *Service) sessionLifetime(ctx context.Context) (time.Duration, error) {
+	if s.sessions == nil {
+		return defaultSessionLifetime, nil
+	}
+	return s.sessions.SessionLifetime(ctx)
+}
 
 func (s *Service) Login(ctx context.Context, req *connect.Request[authv1.LoginRequest]) (*connect.Response[authv1.LoginResponse], error) {
 	// The guard is keyed on the handle as typed, normalized the way
@@ -75,13 +94,13 @@ func (s *Service) Login(ctx context.Context, req *connect.Request[authv1.LoginRe
 		return nil, err
 	}
 
-	token, err := s.createSession(ctx, user.ID)
+	token, ttl, err := s.createSession(ctx, user.ID, req.Header().Get("User-Agent"))
 	if err != nil {
 		return nil, err
 	}
 
 	resp := connect.NewResponse(&authv1.LoginResponse{User: toProtoUser(user), Token: token})
-	resp.Header().Add("Set-Cookie", s.sessionCookie(ctx, token, sessionTTL).String())
+	resp.Header().Add("Set-Cookie", s.sessionCookie(ctx, token, ttl).String())
 	return resp, nil
 }
 
@@ -146,8 +165,8 @@ func (s *Service) verify(ctx context.Context, token string, allowHook bool) (aut
 			return authctx.Identity{}, errors.New(reason)
 		}
 	}
-	// At most once a minute, so a busy script doesn't make every read a write.
-	if id.Credential.Kind != authctx.CredentialSession && (c.LastUsedAt == nil || time.Since(*c.LastUsedAt) > time.Minute) {
+	// At most once a minute, so a busy client doesn't make every read a write.
+	if c.LastUsedAt == nil || time.Since(*c.LastUsedAt) > time.Minute {
 		if err := s.q.TouchCredential(ctx, c.ID); err != nil {
 			slog.Default().Warn("record credential use", "err", err)
 		}
@@ -167,31 +186,41 @@ func toActions(grants []string) []authctx.Action {
 	return out
 }
 
-func (s *Service) createSession(ctx context.Context, userID string) (string, error) {
+// createSession mints a session for the lifetime in force now, and returns
+// that lifetime for the cookie.
+func (s *Service) createSession(ctx context.Context, userID, userAgent string) (string, time.Duration, error) {
+	ttl, err := s.sessionLifetime(ctx)
+	if err != nil {
+		return "", 0, err
+	}
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
-		return "", err
+		return "", 0, err
 	}
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	hash := sha256.Sum256([]byte(token))
 
 	id, err := uuid.NewV7()
 	if err != nil {
-		return "", err
+		return "", 0, err
+	}
+	if len(userAgent) > maxUserAgent {
+		userAgent = strings.ToValidUTF8(userAgent[:maxUserAgent], "")
 	}
 	_, err = s.q.CreateSession(ctx, dbgen.CreateSessionParams{
 		ID:        id.String(),
 		HolderID:  userID,
 		TokenHash: hash[:],
-		ExpiresAt: time.Now().Add(sessionTTL),
+		ExpiresAt: time.Now().Add(ttl),
+		UserAgent: userAgent,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", errors.New("only a person can have a session")
+		return "", 0, errors.New("only a person can have a session")
 	}
 	if err != nil {
-		return "", fmt.Errorf("create session: %w", err)
+		return "", 0, fmt.Errorf("create session: %w", err)
 	}
-	return token, nil
+	return token, ttl, nil
 }
 
 // sessionCookie is Secure when the deployment says so or when this

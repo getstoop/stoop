@@ -503,6 +503,7 @@ the server. Three are pinned by the compose file itself and ignore what
 | `STOOP_OIDC_CLIENT_SECRET` | (empty)                     | The provider's client secret |
 | `STOOP_OIDC_NAME`          | `Continue with single sign-on` | The sign-in button's entire text |
 | `STOOP_OIDC_ID`            | `sso`                       | The provider's stable id; part of the callback URL, and identities link under it |
+| `STOOP_SESSION_LIFETIME_DAYS` | `30`                    | How long a sign-in lasts, 1-365 days. The admin page's saved value overrides it; a change applies to sign-ins from then on |
 | `STOOP_PASSWORD_SIGN_IN`   | `everyone`                  | Who may use the username/password form: `everyone`, `admins`, or `off` (sign in through login providers instead). The admin page's saved value overrides it; admins are always honoured as a fallback |
 
 ## File storage
