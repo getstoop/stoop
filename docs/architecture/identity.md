@@ -45,7 +45,9 @@ owners got its longest-serving active admin (migration 00039).
 
 Through the API nobody — the owner included — demotes, deactivates or
 deletes the owner, and no admin resets the owner's password; the owner
-changes it on their profile page. Ownership moves only by
+changes it on their profile page. Renaming the owner or clearing their
+profile is refused too, and only the owner renames or clears another
+admin (see Profiles). Ownership moves only by
 `InstanceService.TransferOwnership`, which only the owner may call and
 only to an active person admin, under the admin roster lock. Afterwards
 the old owner is an ordinary admin.
@@ -112,6 +114,11 @@ Moderation is **clearing only** (`instance.ClearUserProfile`, admins). An
 admin sometimes needs to take down a slur; nobody needs an admin authoring
 someone else's self-description, so there is no admin path that *writes*
 either field.
+
+Clearing a profile and renaming an account (`RenameUser`) go **down the
+ranks only**: the owner over admins, admins over members. Admins can't do
+it to each other, nobody can do it to the owner, and your own is the
+profile page's.
 
 ## Passwords
 

@@ -364,6 +364,46 @@ func TestClearUserProfile(t *testing.T) {
 	}
 }
 
+// Renaming and clearing go down the ranks only: the owner over admins,
+// admins over members, nobody over the owner or themselves.
+func TestProfileModerationFollowsRank(t *testing.T) {
+	users := newFakeUsers(
+		instance.UserSummary{ID: "o1", Username: "casey", Role: authctx.RoleAdmin, IsOwner: true, Bio: "owner"},
+		instance.UserSummary{ID: "a1", Username: "ada", Role: authctx.RoleAdmin, Bio: "admin"},
+		instance.UserSummary{ID: "a2", Username: "bea", Role: authctx.RoleAdmin, Bio: "admin"},
+		instance.UserSummary{ID: "m1", Username: "robin", Role: authctx.RoleMember, Bio: "member"},
+	)
+	svc := instance.New(dbtest.New(t), users)
+	owner, admin := as("o1", authctx.RoleAdmin), as("a1", authctx.RoleAdmin)
+	clear := func(ctx context.Context, id string) error {
+		_, err := svc.ClearUserProfile(ctx, connect.NewRequest(&instancev1.ClearUserProfileRequest{UserId: id, Bio: true}))
+		return err
+	}
+	name := "renamed"
+	rename := func(ctx context.Context, id string) error {
+		_, err := svc.RenameUser(ctx, connect.NewRequest(&instancev1.RenameUserRequest{UserId: id, DisplayName: &name}))
+		return err
+	}
+	for _, c := range []struct {
+		what string
+		err  error
+		want connect.Code
+	}{
+		{"admin clears the owner", clear(admin, "o1"), connect.CodePermissionDenied},
+		{"admin renames the owner", rename(admin, "o1"), connect.CodePermissionDenied},
+		{"admin clears another admin", clear(admin, "a2"), connect.CodePermissionDenied},
+		{"admin renames another admin", rename(admin, "a2"), connect.CodePermissionDenied},
+		{"owner clears their own here", clear(owner, "o1"), connect.CodeInvalidArgument},
+		{"admin clears a member", clear(admin, "m1"), 0},
+		{"owner clears an admin", clear(owner, "a2"), 0},
+		{"owner renames an admin", rename(owner, "a1"), 0},
+	} {
+		if got := code(c.err); got != c.want {
+			t.Errorf("%s: want %v, got %v", c.what, c.want, c.err)
+		}
+	}
+}
+
 func TestSetUsernameFrozen(t *testing.T) {
 	users := newFakeUsers(
 		instance.UserSummary{ID: "a1", Username: "ada", Role: authctx.RoleAdmin},

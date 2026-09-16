@@ -31,6 +31,12 @@ func TestE2EServerOwner(t *testing.T) {
 	h.rpc(ada, users+"SetUserActive", map[string]any{"userId": caseyID, "active": false}).expect(t, "failed_precondition", "server owner")
 	h.rpc(ada, users+"ResetUserPassword", map[string]any{"userId": caseyID}).expect(t, "permission_denied", "only the server owner")
 
+	// Renaming and clearing profiles go down the ranks only.
+	h.rpc(ada, users+"RenameUser", map[string]any{"userId": caseyID, "displayName": "not casey"}).expect(t, "permission_denied", "owner's profile")
+	h.rpc(ada, users+"ClearUserProfile", map[string]any{"userId": caseyID, "bio": true}).expect(t, "permission_denied", "owner's profile")
+	h.rpc(ada, users+"RenameUser", map[string]any{"userId": beaID, "displayName": "Bea"}).expect(t, "ok")
+	h.rpc(casey, users+"RenameUser", map[string]any{"userId": adaID, "displayName": "Ada"}).expect(t, "ok")
+
 	// Only the owner hands it on, and only to an active admin.
 	h.rpc(ada, users+"TransferOwnership", map[string]any{"userId": adaID}).expect(t, "permission_denied", "only the server owner")
 	h.rpc(bea, users+"TransferOwnership", map[string]any{"userId": beaID}).expect(t, "permission_denied")
@@ -44,5 +50,7 @@ func TestE2EServerOwner(t *testing.T) {
 	// casey is an ordinary admin now; ada is the one out of reach.
 	h.rpc(casey, users+"TransferOwnership", map[string]any{"userId": caseyID}).expect(t, "permission_denied", "only the server owner")
 	h.rpc(casey, users+"SetUserRole", map[string]any{"userId": adaID, "role": "INSTANCE_ROLE_MEMBER"}).expect(t, "failed_precondition", "server owner")
+	h.rpc(casey, users+"ClearUserProfile", map[string]any{"userId": adaID, "bio": true}).expect(t, "permission_denied", "owner's profile")
+	h.rpc(ada, users+"RenameUser", map[string]any{"userId": caseyID, "displayName": "Casey"}).expect(t, "ok")
 	h.rpc(ada, users+"SetUserRole", map[string]any{"userId": caseyID, "role": "INSTANCE_ROLE_MEMBER"}).expect(t, "ok")
 }
