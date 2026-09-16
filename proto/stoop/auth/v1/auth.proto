@@ -46,9 +46,6 @@ service AuthService {
   // ListSessions lists where the caller is signed in, most recently used
   // first. Needs a session: a token can't see or end sessions.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {}
-  // RevokeSession signs out one of the caller's sessions. Revoking the
-  // calling session signs this browser out, as Logout does.
-  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse) {}
   // RevokeOtherSessions signs the caller out everywhere but here.
   rpc RevokeOtherSessions(RevokeOtherSessionsRequest) returns (RevokeOtherSessionsResponse) {}
   // CreatePersonalToken makes a token that acts as the caller with only the
@@ -260,12 +257,6 @@ message ListSessionsRequest {}
 message ListSessionsResponse {
   repeated Session sessions = 1;
 }
-
-message RevokeSessionRequest {
-  string session_id = 1;
-}
-
-message RevokeSessionResponse {}
 
 message RevokeOtherSessionsRequest {}
 
