@@ -16,6 +16,7 @@ func TestResetPassword(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{})
 	bg := context.Background()
+	casey, _ := signIn(t, svc, "casey", "correct horse battery") // the owner
 	ctx, token := signIn(t, svc, "ada", "correct horse battery")
 	_, other := signIn(t, svc, "ada", "correct horse battery")
 
@@ -45,5 +46,13 @@ func TestResetPassword(t *testing.T) {
 	}
 	if _, _, err := svc.ResetPasswordByUsername(bg, "nobody"); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Errorf("unknown user: want not_found, got %v", err)
+	}
+	// The owner's password: never through the admin path, always through
+	// the CLI.
+	if _, _, err := svc.ResetPassword(bg, authctx.UserID(casey)); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("admin reset of the owner: want permission_denied, got %v", err)
+	}
+	if _, _, err := svc.ResetPasswordByUsername(bg, "casey"); err != nil {
+		t.Errorf("CLI reset of the owner: %v", err)
 	}
 }

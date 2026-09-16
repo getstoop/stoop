@@ -51,7 +51,9 @@ type InstanceUser struct {
 	Kind v11.IdentityKind `protobuf:"varint,12,opt,name=kind,proto3,enum=stoop.access.v1.IdentityKind" json:"kind,omitempty"`
 	// Set when the person deleted their own account. It stays deactivated
 	// and cannot be brought back.
-	DeletedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	DeletedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	// The server owner: an admin nobody can demote, deactivate or reset.
+	Owner         bool `protobuf:"varint,14,opt,name=owner,proto3" json:"owner,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -177,11 +179,18 @@ func (x *InstanceUser) GetDeletedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *InstanceUser) GetOwner() bool {
+	if x != nil {
+		return x.Owner
+	}
+	return false
+}
+
 var File_stoop_instance_v1_user_proto protoreflect.FileDescriptor
 
 const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x1cstoop/instance/v1/user.proto\x12\x11stoop.instance.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x18stoop/auth/v1/auth.proto\"\xa6\x04\n" +
+	"\x1cstoop/instance/v1/user.proto\x12\x11stoop.instance.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x18stoop/auth/v1/auth.proto\"\xbc\x04\n" +
 	"\fInstanceUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -198,7 +207,8 @@ const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\x14personal_token_count\x18\v \x01(\x05R\x12personalTokenCount\x121\n" +
 	"\x04kind\x18\f \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kind\x129\n" +
 	"\n" +
-	"deleted_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAtB\xc4\x01\n" +
+	"deleted_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12\x14\n" +
+	"\x05owner\x18\x0e \x01(\bR\x05ownerB\xc4\x01\n" +
 	"\x15com.stoop.instance.v1B\tUserProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (

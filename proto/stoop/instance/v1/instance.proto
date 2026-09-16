@@ -18,14 +18,17 @@ service InstanceService {
   // ListUsers lists every account. Instance admins only.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {}
   // SetUserRole promotes or demotes an account's instance role. You can't
-  // change your own role, and the last active admin can't be demoted.
+  // change your own role, and neither the owner nor the last active admin
+  // can be demoted.
   rpc SetUserRole(SetUserRoleRequest) returns (SetUserRoleResponse) {}
   // SetUserActive deactivates (revoking all sessions) or reactivates an
-  // account. You can't deactivate yourself or the last active admin.
+  // account. You can't deactivate yourself, the owner or the last active
+  // admin.
   rpc SetUserActive(SetUserActiveRequest) returns (SetUserActiveResponse) {}
   // ResetUserPassword sets a generated temporary password on another
   // account and signs it out everywhere; the password is returned once.
-  // Instance admins only. Admins reset their own on the profile page.
+  // Instance admins only. Admins reset their own on the profile page; the
+  // owner's is theirs alone, or `stoop admin reset-password` on the host.
   rpc ResetUserPassword(ResetUserPasswordRequest) returns (ResetUserPasswordResponse) {}
   // RenameUser changes another account's username and/or display name —
   // e.g. cleaning up a handle derived from a login provider's claims.
@@ -40,6 +43,10 @@ service InstanceService {
   // needs an admin authoring someone's self-description. Instance admins
   // only. Unrecorded, like RenameUser beside it — see STOOP-121.
   rpc ClearUserProfile(ClearUserProfileRequest) returns (ClearUserProfileResponse) {}
+  // TransferOwnership makes another active admin the server owner. Only
+  // the owner may; the host operator also can with
+  // `stoop admin transfer-owner`.
+  rpc TransferOwnership(TransferOwnershipRequest) returns (TransferOwnershipResponse) {}
   // GetReachability reports how people reach this server: the public
   // address, voice relay (TURN) settings, and the built-in Tailscale
   // listener's state. Instance admins only.
@@ -249,6 +256,15 @@ message ClearUserProfileRequest {
 }
 
 message ClearUserProfileResponse {
+  InstanceUser user = 1;
+}
+
+message TransferOwnershipRequest {
+  string user_id = 1;
+}
+
+message TransferOwnershipResponse {
+  // The new owner.
   InstanceUser user = 1;
 }
 

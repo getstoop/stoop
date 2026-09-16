@@ -60,6 +60,9 @@ const (
 	// InstanceServiceClearUserProfileProcedure is the fully-qualified name of the InstanceService's
 	// ClearUserProfile RPC.
 	InstanceServiceClearUserProfileProcedure = "/stoop.instance.v1.InstanceService/ClearUserProfile"
+	// InstanceServiceTransferOwnershipProcedure is the fully-qualified name of the InstanceService's
+	// TransferOwnership RPC.
+	InstanceServiceTransferOwnershipProcedure = "/stoop.instance.v1.InstanceService/TransferOwnership"
 	// InstanceServiceGetReachabilityProcedure is the fully-qualified name of the InstanceService's
 	// GetReachability RPC.
 	InstanceServiceGetReachabilityProcedure = "/stoop.instance.v1.InstanceService/GetReachability"
@@ -93,14 +96,17 @@ type InstanceServiceClient interface {
 	// ListUsers lists every account. Instance admins only.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// SetUserRole promotes or demotes an account's instance role. You can't
-	// change your own role, and the last active admin can't be demoted.
+	// change your own role, and neither the owner nor the last active admin
+	// can be demoted.
 	SetUserRole(context.Context, *connect.Request[v1.SetUserRoleRequest]) (*connect.Response[v1.SetUserRoleResponse], error)
 	// SetUserActive deactivates (revoking all sessions) or reactivates an
-	// account. You can't deactivate yourself or the last active admin.
+	// account. You can't deactivate yourself, the owner or the last active
+	// admin.
 	SetUserActive(context.Context, *connect.Request[v1.SetUserActiveRequest]) (*connect.Response[v1.SetUserActiveResponse], error)
 	// ResetUserPassword sets a generated temporary password on another
 	// account and signs it out everywhere; the password is returned once.
-	// Instance admins only. Admins reset their own on the profile page.
+	// Instance admins only. Admins reset their own on the profile page; the
+	// owner's is theirs alone, or `stoop admin reset-password` on the host.
 	ResetUserPassword(context.Context, *connect.Request[v1.ResetUserPasswordRequest]) (*connect.Response[v1.ResetUserPasswordResponse], error)
 	// RenameUser changes another account's username and/or display name —
 	// e.g. cleaning up a handle derived from a login provider's claims.
@@ -115,6 +121,10 @@ type InstanceServiceClient interface {
 	// needs an admin authoring someone's self-description. Instance admins
 	// only. Unrecorded, like RenameUser beside it — see STOOP-121.
 	ClearUserProfile(context.Context, *connect.Request[v1.ClearUserProfileRequest]) (*connect.Response[v1.ClearUserProfileResponse], error)
+	// TransferOwnership makes another active admin the server owner. Only
+	// the owner may; the host operator also can with
+	// `stoop admin transfer-owner`.
+	TransferOwnership(context.Context, *connect.Request[v1.TransferOwnershipRequest]) (*connect.Response[v1.TransferOwnershipResponse], error)
 	// GetReachability reports how people reach this server: the public
 	// address, voice relay (TURN) settings, and the built-in Tailscale
 	// listener's state. Instance admins only.
@@ -206,6 +216,12 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(instanceServiceMethods.ByName("ClearUserProfile")),
 			connect.WithClientOptions(opts...),
 		),
+		transferOwnership: connect.NewClient[v1.TransferOwnershipRequest, v1.TransferOwnershipResponse](
+			httpClient,
+			baseURL+InstanceServiceTransferOwnershipProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("TransferOwnership")),
+			connect.WithClientOptions(opts...),
+		),
 		getReachability: connect.NewClient[v1.GetReachabilityRequest, v1.GetReachabilityResponse](
 			httpClient,
 			baseURL+InstanceServiceGetReachabilityProcedure,
@@ -262,6 +278,7 @@ type instanceServiceClient struct {
 	renameUser           *connect.Client[v1.RenameUserRequest, v1.RenameUserResponse]
 	setUsernameFrozen    *connect.Client[v1.SetUsernameFrozenRequest, v1.SetUsernameFrozenResponse]
 	clearUserProfile     *connect.Client[v1.ClearUserProfileRequest, v1.ClearUserProfileResponse]
+	transferOwnership    *connect.Client[v1.TransferOwnershipRequest, v1.TransferOwnershipResponse]
 	getReachability      *connect.Client[v1.GetReachabilityRequest, v1.GetReachabilityResponse]
 	updateReachability   *connect.Client[v1.UpdateReachabilityRequest, v1.UpdateReachabilityResponse]
 	getLoginProviders    *connect.Client[v1.GetLoginProvidersRequest, v1.GetLoginProvidersResponse]
@@ -316,6 +333,11 @@ func (c *instanceServiceClient) ClearUserProfile(ctx context.Context, req *conne
 	return c.clearUserProfile.CallUnary(ctx, req)
 }
 
+// TransferOwnership calls stoop.instance.v1.InstanceService.TransferOwnership.
+func (c *instanceServiceClient) TransferOwnership(ctx context.Context, req *connect.Request[v1.TransferOwnershipRequest]) (*connect.Response[v1.TransferOwnershipResponse], error) {
+	return c.transferOwnership.CallUnary(ctx, req)
+}
+
 // GetReachability calls stoop.instance.v1.InstanceService.GetReachability.
 func (c *instanceServiceClient) GetReachability(ctx context.Context, req *connect.Request[v1.GetReachabilityRequest]) (*connect.Response[v1.GetReachabilityResponse], error) {
 	return c.getReachability.CallUnary(ctx, req)
@@ -361,14 +383,17 @@ type InstanceServiceHandler interface {
 	// ListUsers lists every account. Instance admins only.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// SetUserRole promotes or demotes an account's instance role. You can't
-	// change your own role, and the last active admin can't be demoted.
+	// change your own role, and neither the owner nor the last active admin
+	// can be demoted.
 	SetUserRole(context.Context, *connect.Request[v1.SetUserRoleRequest]) (*connect.Response[v1.SetUserRoleResponse], error)
 	// SetUserActive deactivates (revoking all sessions) or reactivates an
-	// account. You can't deactivate yourself or the last active admin.
+	// account. You can't deactivate yourself, the owner or the last active
+	// admin.
 	SetUserActive(context.Context, *connect.Request[v1.SetUserActiveRequest]) (*connect.Response[v1.SetUserActiveResponse], error)
 	// ResetUserPassword sets a generated temporary password on another
 	// account and signs it out everywhere; the password is returned once.
-	// Instance admins only. Admins reset their own on the profile page.
+	// Instance admins only. Admins reset their own on the profile page; the
+	// owner's is theirs alone, or `stoop admin reset-password` on the host.
 	ResetUserPassword(context.Context, *connect.Request[v1.ResetUserPasswordRequest]) (*connect.Response[v1.ResetUserPasswordResponse], error)
 	// RenameUser changes another account's username and/or display name —
 	// e.g. cleaning up a handle derived from a login provider's claims.
@@ -383,6 +408,10 @@ type InstanceServiceHandler interface {
 	// needs an admin authoring someone's self-description. Instance admins
 	// only. Unrecorded, like RenameUser beside it — see STOOP-121.
 	ClearUserProfile(context.Context, *connect.Request[v1.ClearUserProfileRequest]) (*connect.Response[v1.ClearUserProfileResponse], error)
+	// TransferOwnership makes another active admin the server owner. Only
+	// the owner may; the host operator also can with
+	// `stoop admin transfer-owner`.
+	TransferOwnership(context.Context, *connect.Request[v1.TransferOwnershipRequest]) (*connect.Response[v1.TransferOwnershipResponse], error)
 	// GetReachability reports how people reach this server: the public
 	// address, voice relay (TURN) settings, and the built-in Tailscale
 	// listener's state. Instance admins only.
@@ -470,6 +499,12 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(instanceServiceMethods.ByName("ClearUserProfile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	instanceServiceTransferOwnershipHandler := connect.NewUnaryHandler(
+		InstanceServiceTransferOwnershipProcedure,
+		svc.TransferOwnership,
+		connect.WithSchema(instanceServiceMethods.ByName("TransferOwnership")),
+		connect.WithHandlerOptions(opts...),
+	)
 	instanceServiceGetReachabilityHandler := connect.NewUnaryHandler(
 		InstanceServiceGetReachabilityProcedure,
 		svc.GetReachability,
@@ -532,6 +567,8 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 			instanceServiceSetUsernameFrozenHandler.ServeHTTP(w, r)
 		case InstanceServiceClearUserProfileProcedure:
 			instanceServiceClearUserProfileHandler.ServeHTTP(w, r)
+		case InstanceServiceTransferOwnershipProcedure:
+			instanceServiceTransferOwnershipHandler.ServeHTTP(w, r)
 		case InstanceServiceGetReachabilityProcedure:
 			instanceServiceGetReachabilityHandler.ServeHTTP(w, r)
 		case InstanceServiceUpdateReachabilityProcedure:
@@ -589,6 +626,10 @@ func (UnimplementedInstanceServiceHandler) SetUsernameFrozen(context.Context, *c
 
 func (UnimplementedInstanceServiceHandler) ClearUserProfile(context.Context, *connect.Request[v1.ClearUserProfileRequest]) (*connect.Response[v1.ClearUserProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.ClearUserProfile is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) TransferOwnership(context.Context, *connect.Request[v1.TransferOwnershipRequest]) (*connect.Response[v1.TransferOwnershipResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.TransferOwnership is not implemented"))
 }
 
 func (UnimplementedInstanceServiceHandler) GetReachability(context.Context, *connect.Request[v1.GetReachabilityRequest]) (*connect.Response[v1.GetReachabilityResponse], error) {

@@ -251,6 +251,7 @@ type User struct {
 	Dnd             bool
 	DndUntil        *time.Time
 	DeletedAt       *time.Time
+	IsOwner         bool
 }
 
 type UserBlock struct {

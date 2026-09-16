@@ -74,6 +74,14 @@ the count and the write share one transaction under a roster lock, so two
 admins demoting each other at once leave one. `stoop admin promote
 <username>` is the recovery path.
 
+**The owner:** the first user also owns the server (`users.is_owner`). No
+admin can demote, deactivate or reset the owner through the API, so two
+admins can't lock each other out; only the owner hands ownership to another
+active admin (`TransferOwnership`), or the host operator does with `stoop
+admin transfer-owner`. A check constraint keeps the owner an active person
+admin whatever writes the row, and a unique index allows one. See
+[identity.md](identity.md#the-server-owner).
+
 ## Instance settings (`instance`: `instance_settings`)
 
 Settings an admin changes at runtime live in the database, edited through

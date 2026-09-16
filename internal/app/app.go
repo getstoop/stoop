@@ -534,6 +534,10 @@ func (a userAdmin) ResetUserPassword(ctx context.Context, userID string) (string
 	temp, u, err := a.auth.ResetPassword(ctx, userID)
 	return temp, toUserSummary(u), err
 }
+func (a userAdmin) TransferOwnership(ctx context.Context, fromID, toID string) (instance.UserSummary, error) {
+	u, err := a.auth.TransferOwnership(ctx, fromID, toID)
+	return toUserSummary(u), err
+}
 func (a userAdmin) ListUserTokens(ctx context.Context, userID string) ([]*authv1.PersonalToken, error) {
 	return a.auth.ListTokensOf(ctx, userID)
 }
@@ -545,7 +549,7 @@ func toUserSummary(u auth.AccountSummary) instance.UserSummary {
 	return instance.UserSummary{
 		ID: u.ID, Username: u.Username, DisplayName: u.DisplayName,
 		Role: u.Role, Kind: u.Kind, CreatedAt: u.CreatedAt, DeactivatedAt: u.DeactivatedAt,
-		DeletedAt:      u.DeletedAt,
+		DeletedAt: u.DeletedAt, IsOwner: u.IsOwner,
 		UsernameFrozen: u.UsernameFrozen, HasPassword: u.HasPassword,
 		Pronouns: u.Pronouns, Bio: u.Bio, PersonalTokens: u.PersonalTokens,
 	}

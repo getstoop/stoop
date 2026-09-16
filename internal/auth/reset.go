@@ -3,9 +3,11 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 
+	"connectrpc.com/connect"
 	"github.com/alexedwards/argon2id"
 
 	"github.com/getstoop/stoop/internal/dbgen"
@@ -36,12 +38,22 @@ func generateTempPassword() (string, error) {
 }
 
 // ResetPassword sets a fresh temporary password on the account and signs
-// it out everywhere. Exposed for the instance module's user-admin port.
+// it out everywhere. Exposed for the instance module's user-admin port,
+// which never resets the owner: only the owner changes that password, or
+// the host operator through the CLI.
 func (s *Service) ResetPassword(ctx context.Context, userID string) (temporary string, summary AccountSummary, err error) {
 	u, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
 		return "", AccountSummary{}, notFoundOr(err, "user")
 	}
+	if u.IsOwner {
+		return "", AccountSummary{}, connect.NewError(connect.CodePermissionDenied,
+			errors.New("only the server owner can change their password; on the host, stoop admin reset-password can"))
+	}
+	return s.resetPassword(ctx, u)
+}
+
+func (s *Service) resetPassword(ctx context.Context, u dbgen.User) (temporary string, summary AccountSummary, err error) {
 	if err := refuseBotTarget(u, "a bot has no password; it acts through its tokens and webhooks"); err != nil {
 		return "", AccountSummary{}, err
 	}
@@ -62,11 +74,12 @@ func (s *Service) ResetPassword(ctx context.Context, userID string) (temporary s
 	return temporary, toSummary(u), nil
 }
 
-// ResetPasswordByUsername is ResetPassword for the CLI.
+// ResetPasswordByUsername is ResetPassword for the CLI, where the owner's
+// password can be reset too: whoever runs it holds the host.
 func (s *Service) ResetPasswordByUsername(ctx context.Context, username string) (temporary string, summary AccountSummary, err error) {
 	u, err := s.q.GetUserByUsername(ctx, username)
 	if err != nil {
 		return "", AccountSummary{}, notFoundOr(err, "user")
 	}
-	return s.ResetPassword(ctx, u.ID)
+	return s.resetPassword(ctx, u)
 }

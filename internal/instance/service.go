@@ -30,6 +30,7 @@ type UserSummary struct {
 	CreatedAt      time.Time
 	DeactivatedAt  *time.Time
 	DeletedAt      *time.Time
+	IsOwner        bool
 	UsernameFrozen bool
 	HasPassword    bool
 	Pronouns       string
@@ -60,6 +61,9 @@ type UserAdmin interface {
 	ListUserTokens(ctx context.Context, userID string) ([]*authv1.PersonalToken, error)
 	// RevokeUserToken revokes one of an account's personal tokens.
 	RevokeUserToken(ctx context.Context, userID, tokenID string) error
+	// TransferOwnership hands the server to another active admin; fromID
+	// must be the owner.
+	TransferOwnership(ctx context.Context, fromID, toID string) (UserSummary, error)
 }
 
 type Service struct {

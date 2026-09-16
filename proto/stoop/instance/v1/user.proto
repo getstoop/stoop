@@ -33,4 +33,6 @@ message InstanceUser {
   // Set when the person deleted their own account. It stays deactivated
   // and cannot be brought back.
   google.protobuf.Timestamp deleted_at = 13;
+  // The server owner: an admin nobody can demote, deactivate or reset.
+  bool owner = 14;
 }

@@ -51,6 +51,7 @@ var procedures = map[string]authctx.Rule{
 	instancev1connect.InstanceServiceUpdateReachabilityProcedure:   needs(authctx.InstanceSettingsManage),
 	instancev1connect.InstanceServiceUpdateLoginProvidersProcedure: needs(authctx.InstanceSettingsManage),
 	instancev1connect.InstanceServiceSetUserRoleProcedure:          needs(authctx.InstanceUsersManage),
+	instancev1connect.InstanceServiceTransferOwnershipProcedure:    needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceSetUserActiveProcedure:        needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceResetUserPasswordProcedure:    needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceRenameUserProcedure:           needs(authctx.InstanceUsersManage),

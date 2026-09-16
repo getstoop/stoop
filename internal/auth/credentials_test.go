@@ -95,9 +95,9 @@ func TestBotsNeverGetASession(t *testing.T) {
 	if _, err := svc.Register(ctx, connect.NewRequest(creds)); err != nil {
 		t.Fatal(err)
 	}
-	// The first account is admin; a bot can't be, so it steps down as it
-	// changes kind.
-	if _, err := pool.Exec(ctx, `UPDATE users SET kind = 'bot', role = 'member' WHERE username = 'uptime'`); err != nil {
+	// The first account is admin and owner; a bot can be neither, so it
+	// steps down as it changes kind.
+	if _, err := pool.Exec(ctx, `UPDATE users SET kind = 'bot', role = 'member', is_owner = false WHERE username = 'uptime'`); err != nil {
 		t.Fatal(err)
 	}
 	res, err := svc.Login(ctx, connect.NewRequest(&authv1.LoginRequest{Username: creds.Username, Password: creds.Password}))

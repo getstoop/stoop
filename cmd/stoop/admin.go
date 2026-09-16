@@ -22,7 +22,9 @@ const adminUsage = `usage: stoop admin <command>
   demote <username>    make an instance admin a regular member
   reset-password <username>
                        set a temporary password (printed once) and sign
-                       the account out everywhere
+                       the account out everywhere; works on the owner too
+  transfer-owner <username>
+                       make an active admin the server owner
   password-login <everyone|admins|off>
                        who may use the username/password form; "everyone"
                        is the break-glass when the login provider is down
@@ -76,11 +78,15 @@ func runAdmin(ctx context.Context, args []string, out io.Writer) int {
 		w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 		_, _ = fmt.Fprintln(w, "USERNAME\tROLE\tSTATUS\tCREATED")
 		for _, a := range accounts {
+			role := string(a.Role)
+			if a.IsOwner {
+				role = "owner"
+			}
 			status := "active"
 			if a.DeactivatedAt != nil {
 				status = "deactivated"
 			}
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", a.Username, a.Role, status, a.CreatedAt.Format("2006-01-02"))
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", a.Username, role, status, a.CreatedAt.Format("2006-01-02"))
 		}
 		return flush(w)
 	case "promote", "demote":
@@ -110,6 +116,18 @@ func runAdmin(ctx context.Context, args []string, out io.Writer) int {
 			return 1
 		}
 		_, _ = fmt.Fprintf(out, "%s's temporary password: %s\n(every session was signed out; they should change it on their profile page)\n", a.Username, temp)
+		return 0
+	case "transfer-owner":
+		if len(args) != 2 {
+			fmt.Fprintln(os.Stderr, "usage: stoop admin transfer-owner <username>")
+			return 2
+		}
+		a, err := svc.TransferOwnershipByUsername(ctx, strings.ToLower(args[1]))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		_, _ = fmt.Fprintf(out, "%s now owns this server\n", a.Username)
 		return 0
 	default:
 		fmt.Fprintf(os.Stderr, "unknown admin command %q\n\n%s", args[0], adminUsage)

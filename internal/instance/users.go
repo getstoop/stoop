@@ -85,6 +85,17 @@ func (s *Service) ResetUserPassword(ctx context.Context, req *connect.Request[in
 	return connect.NewResponse(&instancev1.ResetUserPasswordResponse{User: toProtoUser(u), TemporaryPassword: temp}), nil
 }
 
+func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[instancev1.TransferOwnershipRequest]) (*connect.Response[instancev1.TransferOwnershipResponse], error) {
+	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+		return nil, err
+	}
+	u, err := s.users.TransferOwnership(ctx, authctx.UserID(ctx), req.Msg.UserId)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&instancev1.TransferOwnershipResponse{User: toProtoUser(u)}), nil
+}
+
 func (s *Service) RenameUser(ctx context.Context, req *connect.Request[instancev1.RenameUserRequest]) (*connect.Response[instancev1.RenameUserResponse], error) {
 	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
@@ -94,6 +105,9 @@ func (s *Service) RenameUser(ctx context.Context, req *connect.Request[instancev
 	}
 	if req.Msg.Username == nil && req.Msg.DisplayName == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("nothing to change"))
+	}
+	if err := s.requireOutranks(ctx, req.Msg.UserId); err != nil {
+		return nil, err
 	}
 	u, err := s.users.RenameUser(ctx, req.Msg.UserId, req.Msg.Username, req.Msg.DisplayName)
 	if err != nil {
@@ -114,6 +128,9 @@ func (s *Service) ClearUserProfile(ctx context.Context, req *connect.Request[ins
 	}
 	if !req.Msg.Pronouns && !req.Msg.Bio {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("nothing to clear"))
+	}
+	if err := s.requireOutranks(ctx, req.Msg.UserId); err != nil {
+		return nil, err
 	}
 	u, err := s.users.ClearUserProfile(ctx, req.Msg.UserId, req.Msg.Pronouns, req.Msg.Bio)
 	if err != nil {
@@ -150,6 +167,53 @@ func (s *Service) SetUsernameFrozen(ctx context.Context, req *connect.Request[in
 	return connect.NewResponse(&instancev1.SetUsernameFrozenResponse{User: toProtoUser(u)}), nil
 }
 
+// rank orders who may change whose profile: the owner above admins, admins
+// above everyone else.
+func rank(u UserSummary) int {
+	switch {
+	case u.IsOwner:
+		return 2
+	case u.Role == authctx.RoleAdmin:
+		return 1
+	}
+	return 0
+}
+
+// requireOutranks lets the caller rename or clear the profile of an
+// account only when they rank above it: the owner over admins, admins
+// over members. Admins can't do it to each other, nobody can to the
+// owner, and your own is the profile page's.
+func (s *Service) requireOutranks(ctx context.Context, targetID string) error {
+	if targetID == authctx.UserID(ctx) {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("change your own on your profile page"))
+	}
+	users, err := s.users.ListUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("list users: %w", err)
+	}
+	var me, target *UserSummary
+	for i := range users {
+		switch users[i].ID {
+		case authctx.UserID(ctx):
+			me = &users[i]
+		case targetID:
+			target = &users[i]
+		}
+	}
+	if target == nil {
+		return connect.NewError(connect.CodeNotFound, errors.New("user not found"))
+	}
+	if me == nil || rank(*me) <= rank(*target) {
+		if target.IsOwner {
+			return connect.NewError(connect.CodePermissionDenied,
+				errors.New("only the server owner can change the owner's profile"))
+		}
+		return connect.NewError(connect.CodePermissionDenied,
+			errors.New("only the server owner can change another admin's profile"))
+	}
+	return nil
+}
+
 func toProtoUser(u UserSummary) *instancev1.InstanceUser {
 	out := &instancev1.InstanceUser{
 		Id: u.ID, Username: u.Username, DisplayName: u.DisplayName,
@@ -167,6 +231,7 @@ func toProtoUser(u UserSummary) *instancev1.InstanceUser {
 	if u.DeletedAt != nil {
 		out.DeletedAt = timestamppb.New(*u.DeletedAt)
 	}
+	out.Owner = u.IsOwner
 	out.UsernameFrozen = u.UsernameFrozen
 	out.HasPassword = u.HasPassword
 	out.Pronouns = u.Pronouns

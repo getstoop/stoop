@@ -74,9 +74,13 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 	if err := s.confirmIdentity(ctx, user, id.Credential.ID, req.Msg.Password); err != nil {
 		return nil, err
 	}
-	// The same refusal the locked write below makes, made early: the
+	// The same refusals the locked write below makes, made early: the
 	// departure is not undone, so it must not run for an account that
 	// then cannot go.
+	if user.IsOwner {
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			errors.New("you own this server; hand ownership to another admin first"))
+	}
 	if authctx.Role(user.Role) == authctx.RoleAdmin {
 		n, err := s.q.CountAdmins(ctx)
 		if err != nil {
