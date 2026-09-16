@@ -24,16 +24,63 @@ func (loopback) ListenPacket(network, addr string) (net.PacketConn, error) {
 	return net.ListenPacket(network, addr)
 }
 
-// freePort returns a port nothing is listening on, for both udp and tcp.
-func freePort(t *testing.T) int {
+// nodePorts is loopback with sockets bound up front on :0 and handed to
+// the forwarder when it asks for their address. Probing for a free port
+// and closing it let a parallel test take the port before the forwarder
+// listened, and the forwarder only logs a port it can't open.
+type nodePorts struct {
+	loopback
+	tcp map[string]net.Listener
+	udp map[string]net.PacketConn
+}
+
+func newNodePorts(t *testing.T) *nodePorts {
+	n := &nodePorts{tcp: map[string]net.Listener{}, udp: map[string]net.PacketConn{}}
+	t.Cleanup(func() {
+		for _, l := range n.tcp {
+			_ = l.Close()
+		}
+		for _, pc := range n.udp {
+			_ = pc.Close()
+		}
+	})
+	return n
+}
+
+func (n *nodePorts) tcpPort(t *testing.T) int {
+	t.Helper()
+	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.tcp[l.Addr().String()] = l
+	return l.Addr().(*net.TCPAddr).Port
+}
+
+func (n *nodePorts) udpPort(t *testing.T) int {
 	t.Helper()
 	pc, err := net.ListenPacket("udp4", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("probe udp: %v", err)
+		t.Fatal(err)
 	}
-	port := pc.LocalAddr().(*net.UDPAddr).Port
-	_ = pc.Close()
-	return port
+	n.udp[pc.LocalAddr().String()] = pc
+	return pc.LocalAddr().(*net.UDPAddr).Port
+}
+
+func (n *nodePorts) Listen(network, addr string) (net.Listener, error) {
+	if l, ok := n.tcp[addr]; ok {
+		delete(n.tcp, addr)
+		return l, nil
+	}
+	return n.loopback.Listen(network, addr)
+}
+
+func (n *nodePorts) ListenPacket(network, addr string) (net.PacketConn, error) {
+	if pc, ok := n.udp[addr]; ok {
+		delete(n.udp, addr)
+		return pc, nil
+	}
+	return n.loopback.ListenPacket(network, addr)
 }
 
 func quietLogger() *slog.Logger {
@@ -58,9 +105,9 @@ func (d *dialLog) counts() (tcp, udp int) {
 	return len(d.tcp), len(d.udp)
 }
 
-func newTestForwarder(t *testing.T, media Media, d *dialLog) *forwarder {
+func newTestForwarder(t *testing.T, media Media, ports *nodePorts, d *dialLog) *forwarder {
 	t.Helper()
-	f := newForwarder(media, netip.MustParseAddr("127.0.0.1"), loopback{}, quietLogger())
+	f := newForwarder(media, netip.MustParseAddr("127.0.0.1"), ports, quietLogger())
 	f.dialTCP = func(ctx context.Context, addr string) (net.Conn, error) {
 		d.mu.Lock()
 		d.tcp = append(d.tcp, addr)
@@ -136,10 +183,11 @@ func TestForwarderCarriesUDPBothWays(t *testing.T) {
 		}
 	}()
 
-	udpPort := freePort(t)
-	media := Media{Host: "10.0.0.9", TCPPort: freePort(t), UDPStart: udpPort, UDPEnd: udpPort}
+	ports := newNodePorts(t)
+	udpPort := ports.udpPort(t)
+	media := Media{Host: "10.0.0.9", TCPPort: ports.tcpPort(t), UDPStart: udpPort, UDPEnd: udpPort}
 	d := &dialLog{udpTo: live.LocalAddr().String(), tcpTo: "127.0.0.1:1"}
-	f := newTestForwarder(t, media, d)
+	f := newTestForwarder(t, media, ports, d)
 	runForwarder(t, f)
 
 	node := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), uint16(udpPort)).String()
@@ -217,11 +265,12 @@ func TestForwarderCarriesTCP(t *testing.T) {
 		}
 	}()
 
-	tcpPort := freePort(t)
-	udpPort := freePort(t)
+	ports := newNodePorts(t)
+	tcpPort := ports.tcpPort(t)
+	udpPort := ports.udpPort(t)
 	media := Media{Host: "10.0.0.9", TCPPort: tcpPort, UDPStart: udpPort, UDPEnd: udpPort}
 	d := &dialLog{udpTo: "127.0.0.1:1", tcpTo: live.Addr().String()}
-	f := newTestForwarder(t, media, d)
+	f := newTestForwarder(t, media, ports, d)
 	runForwarder(t, f)
 
 	peer, err := net.Dial("tcp", netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), uint16(tcpPort)).String())
@@ -325,15 +374,16 @@ func TestForwarderSurvivesAPortItCannotOpen(t *testing.T) {
 	}
 	defer func() { _ = taken.Close() }()
 	blocked := taken.LocalAddr().(*net.UDPAddr).Port
-	free := freePort(t)
+	ports := newNodePorts(t)
+	free := ports.udpPort(t)
 
 	lo, hi := blocked, free
 	if lo > hi {
 		lo, hi = hi, lo
 	}
-	media := Media{Host: "10.0.0.9", TCPPort: freePort(t), UDPStart: lo, UDPEnd: hi}
+	media := Media{Host: "10.0.0.9", TCPPort: ports.tcpPort(t), UDPStart: lo, UDPEnd: hi}
 	d := &dialLog{udpTo: "127.0.0.1:1", tcpTo: "127.0.0.1:1"}
-	f := newTestForwarder(t, media, d)
+	f := newTestForwarder(t, media, ports, d)
 	runForwarder(t, f)
 
 	if open := f.open.Load(); open == 0 || open >= int64(media.Ports()) {
