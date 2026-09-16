@@ -23,9 +23,12 @@ type DeletionPolicy interface {
 
 // AccountDeparture is auth's port onto chat for what a deleted person
 // leaves behind: the spaces they own go to someone else, and they leave
-// every space. fallbackOwnerID takes a space no space admin can.
+// every space. fallbackOwnerID takes a space no space admin can. The
+// announcement is a second call, made once the account reads as
+// deleted, so what clients fetch on hearing it carries the mark.
 type AccountDeparture interface {
-	RemovePerson(ctx context.Context, userID, fallbackOwnerID string) error
+	RemovePerson(ctx context.Context, userID, fallbackOwnerID string) (spaceIDs []string, err error)
+	AnnounceDeparture(ctx context.Context, userID string, spaceIDs []string)
 }
 
 // UseDeletionPorts wires both. Set once at startup.
@@ -83,12 +86,13 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 			return nil, errLastAdmin
 		}
 	}
+	var left []string
 	if s.departure != nil {
 		fallback, err := s.q.OldestOtherAdmin(ctx, id.UserID)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("find an admin: %w", err)
 		}
-		if err := s.departure.RemovePerson(ctx, id.UserID, fallback); err != nil {
+		if left, err = s.departure.RemovePerson(ctx, id.UserID, fallback); err != nil {
 			return nil, err
 		}
 	}
@@ -102,6 +106,9 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 	}
 	if err := s.revokeAll(ctx, id.UserID); err != nil {
 		return nil, err
+	}
+	if s.departure != nil {
+		s.departure.AnnounceDeparture(ctx, id.UserID, left)
 	}
 	return connect.NewResponse(&authv1.DeleteAccountResponse{}), nil
 }

@@ -13,39 +13,48 @@ import (
 // RemovePerson is auth's port for an account being deleted. Every space
 // they own goes to its longest-serving admin, or to fallbackOwnerID
 // (the longest-serving instance admin) when it has none; then they leave
-// every space. Conversations are left as they are: a deleted person's
-// messages stay, and so does the other side's view of them.
-func (s *Service) RemovePerson(ctx context.Context, userID, fallbackOwnerID string) error {
+// every space, and the spaces left are returned for AnnounceDeparture.
+// Conversations are left as they are: a deleted person's messages stay,
+// and so does the other side's view of them.
+func (s *Service) RemovePerson(ctx context.Context, userID, fallbackOwnerID string) ([]string, error) {
 	owned, err := s.q.ListOwnedSpaceIDs(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("list owned spaces: %w", err)
+		return nil, fmt.Errorf("list owned spaces: %w", err)
 	}
 	for _, spaceID := range owned {
 		heir, err := s.q.LongestServingAdmin(ctx, spaceID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			heir = fallbackOwnerID
 		} else if err != nil {
-			return fmt.Errorf("find an heir: %w", err)
+			return nil, fmt.Errorf("find an heir: %w", err)
 		}
 		if heir == "" {
-			return errors.New("no admin to take over a space you own")
+			return nil, errors.New("no admin to take over a space you own")
 		}
 		if err := s.handOver(ctx, spaceID, userID, heir); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	spaces, err := s.q.ListSpaceIDsByUser(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("list spaces: %w", err)
+		return nil, fmt.Errorf("list spaces: %w", err)
 	}
 	for _, spaceID := range spaces {
 		if err := s.removeMember(ctx, spaceID, userID); err != nil {
-			return fmt.Errorf("leave space: %w", err)
+			return nil, fmt.Errorf("leave space: %w", err)
 		}
+	}
+	return spaces, nil
+}
+
+// AnnounceDeparture tells each space the person has gone, once the
+// account reads as deleted: clients refetch their messages on the event,
+// and what they fetch has to carry the deleted author.
+func (s *Service) AnnounceDeparture(ctx context.Context, userID string, spaceIDs []string) {
+	for _, spaceID := range spaceIDs {
 		s.publishMemberRemoved(spaceID, userID, false)
 		s.evictFromSpaceVoice(ctx, spaceID, userID)
 	}
-	return nil
 }
 
 // handOver makes heir the owner of a space, joining them to it first when
