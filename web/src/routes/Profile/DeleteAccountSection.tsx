@@ -88,6 +88,7 @@ export function DeleteAccountSection({
           <div className="form-actions">
             <button
               type="button"
+              className="chip"
               onClick={() => {
                 setOpen(false);
                 setPassword("");
