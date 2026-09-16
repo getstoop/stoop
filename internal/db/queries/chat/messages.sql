@@ -54,3 +54,20 @@ DELETE FROM messages WHERE id = $1;
 UPDATE channels c
 SET last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id ORDER BY m.id DESC LIMIT 1)
 WHERE c.id = $1;
+
+-- Message retention: messages older than the cutoff id (UUIDv7, so id
+-- order is time order), less pinned ones, oldest first.
+-- name: ListExpiredMessages :many
+SELECT m.id, m.channel_id FROM messages m
+WHERE m.id < sqlc.arg(cutoff)::uuid
+  AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id)
+ORDER BY m.id
+LIMIT sqlc.arg('limit');
+
+-- name: CountExpiredMessages :one
+SELECT count(*)::bigint FROM messages m
+WHERE m.id < sqlc.arg(cutoff)::uuid
+  AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id);
+
+-- name: DeleteMessagesByIDs :exec
+DELETE FROM messages WHERE id = ANY(sqlc.arg(ids)::uuid[]);

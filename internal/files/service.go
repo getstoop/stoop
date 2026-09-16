@@ -7,6 +7,7 @@ package files
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -78,6 +79,9 @@ type Spaces interface {
 	// attachment on a message, a preview image, a space icon). For the
 	// sweep.
 	ReferencedFiles(ctx context.Context, ids []string) ([]string, error)
+	// PinnedFileIDs lists the files on pinned messages, which attachment
+	// retention keeps.
+	PinnedFileIDs(ctx context.Context) ([]string, error)
 }
 
 // Info is what other modules (chat, through its port) learn about a file.
@@ -89,6 +93,8 @@ type Info struct {
 	Name        string
 	ContentType string
 	Size        int64
+	// Expired: deleted by attachment retention; no bytes and no name.
+	Expired bool
 }
 
 // SessionVerifier authenticates the download handler's plain HTTP requests
@@ -125,7 +131,7 @@ func storageKey(kind Kind, id string) string { return string(kind) + "/" + id }
 func toInfo(f dbgen.File) Info {
 	info := Info{
 		ID: f.ID, Kind: Kind(f.Kind), OwnerID: f.OwnerID, Name: f.Name,
-		ContentType: f.ContentType, Size: f.Size,
+		ContentType: f.ContentType, Size: f.Size, Expired: f.ExpiredAt != nil,
 	}
 	if f.SpaceID != nil {
 		info.SpaceID = *f.SpaceID
@@ -162,7 +168,7 @@ func (s *Service) DeleteFiles(ctx context.Context, ids []string) error {
 		return fmt.Errorf("delete files: %w", err)
 	}
 	for _, f := range rows {
-		if err := s.store.Delete(ctx, f.StorageKey); err != nil {
+		if err := s.store.Delete(ctx, f.StorageKey); err != nil && !errors.Is(err, blob.ErrNotFound) {
 			s.log.Warn("could not delete blob", "key", f.StorageKey, "err", err)
 		}
 	}

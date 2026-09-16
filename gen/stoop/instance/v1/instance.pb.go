@@ -323,8 +323,14 @@ type GetInstanceStatusResponse struct {
 	SelfDeletion bool `protobuf:"varint,15,opt,name=self_deletion,json=selfDeletion,proto3" json:"self_deletion,omitempty"`
 	// How long a sign-in lasts, in days. Applies to sign-ins from now on.
 	SessionLifetimeDays int32 `protobuf:"varint,16,opt,name=session_lifetime_days,json=sessionLifetimeDays,proto3" json:"session_lifetime_days,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Messages older than this many days are deleted, pinned ones excepted;
+	// 0 keeps them forever. Public, so a client can explain the gap.
+	MessageRetentionDays int32 `protobuf:"varint,17,opt,name=message_retention_days,json=messageRetentionDays,proto3" json:"message_retention_days,omitempty"`
+	// Attachments older than this many days are deleted and shown as
+	// expired, pinned messages' files excepted; 0 keeps them forever.
+	AttachmentRetentionDays int32 `protobuf:"varint,18,opt,name=attachment_retention_days,json=attachmentRetentionDays,proto3" json:"attachment_retention_days,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *GetInstanceStatusResponse) Reset() {
@@ -469,6 +475,20 @@ func (x *GetInstanceStatusResponse) GetSessionLifetimeDays() int32 {
 	return 0
 }
 
+func (x *GetInstanceStatusResponse) GetMessageRetentionDays() int32 {
+	if x != nil {
+		return x.MessageRetentionDays
+	}
+	return 0
+}
+
+func (x *GetInstanceStatusResponse) GetAttachmentRetentionDays() int32 {
+	if x != nil {
+		return x.AttachmentRetentionDays
+	}
+	return 0
+}
+
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset fields are left unchanged.
@@ -494,8 +514,11 @@ type UpdateSettingsRequest struct {
 	// 1-365. 0 clears the saved value, falling back to
 	// STOOP_SESSION_LIFETIME_DAYS.
 	SessionLifetimeDays *int32 `protobuf:"varint,12,opt,name=session_lifetime_days,json=sessionLifetimeDays,proto3,oneof" json:"session_lifetime_days,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// 1-3650, or 0 to keep forever.
+	MessageRetentionDays    *int32 `protobuf:"varint,13,opt,name=message_retention_days,json=messageRetentionDays,proto3,oneof" json:"message_retention_days,omitempty"`
+	AttachmentRetentionDays *int32 `protobuf:"varint,14,opt,name=attachment_retention_days,json=attachmentRetentionDays,proto3,oneof" json:"attachment_retention_days,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -612,6 +635,134 @@ func (x *UpdateSettingsRequest) GetSessionLifetimeDays() int32 {
 	return 0
 }
 
+func (x *UpdateSettingsRequest) GetMessageRetentionDays() int32 {
+	if x != nil && x.MessageRetentionDays != nil {
+		return *x.MessageRetentionDays
+	}
+	return 0
+}
+
+func (x *UpdateSettingsRequest) GetAttachmentRetentionDays() int32 {
+	if x != nil && x.AttachmentRetentionDays != nil {
+		return *x.AttachmentRetentionDays
+	}
+	return 0
+}
+
+type PreviewRetentionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The values being considered; 0 means that setting deletes nothing.
+	MessageRetentionDays    int32 `protobuf:"varint,1,opt,name=message_retention_days,json=messageRetentionDays,proto3" json:"message_retention_days,omitempty"`
+	AttachmentRetentionDays int32 `protobuf:"varint,2,opt,name=attachment_retention_days,json=attachmentRetentionDays,proto3" json:"attachment_retention_days,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *PreviewRetentionRequest) Reset() {
+	*x = PreviewRetentionRequest{}
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewRetentionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewRetentionRequest) ProtoMessage() {}
+
+func (x *PreviewRetentionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewRetentionRequest.ProtoReflect.Descriptor instead.
+func (*PreviewRetentionRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *PreviewRetentionRequest) GetMessageRetentionDays() int32 {
+	if x != nil {
+		return x.MessageRetentionDays
+	}
+	return 0
+}
+
+func (x *PreviewRetentionRequest) GetAttachmentRetentionDays() int32 {
+	if x != nil {
+		return x.AttachmentRetentionDays
+	}
+	return 0
+}
+
+type PreviewRetentionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What a sweep with these values would delete right now.
+	Messages        int64 `protobuf:"varint,1,opt,name=messages,proto3" json:"messages,omitempty"`
+	Attachments     int64 `protobuf:"varint,2,opt,name=attachments,proto3" json:"attachments,omitempty"`
+	AttachmentBytes int64 `protobuf:"varint,3,opt,name=attachment_bytes,json=attachmentBytes,proto3" json:"attachment_bytes,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PreviewRetentionResponse) Reset() {
+	*x = PreviewRetentionResponse{}
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewRetentionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewRetentionResponse) ProtoMessage() {}
+
+func (x *PreviewRetentionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewRetentionResponse.ProtoReflect.Descriptor instead.
+func (*PreviewRetentionResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PreviewRetentionResponse) GetMessages() int64 {
+	if x != nil {
+		return x.Messages
+	}
+	return 0
+}
+
+func (x *PreviewRetentionResponse) GetAttachments() int64 {
+	if x != nil {
+		return x.Attachments
+	}
+	return 0
+}
+
+func (x *PreviewRetentionResponse) GetAttachmentBytes() int64 {
+	if x != nil {
+		return x.AttachmentBytes
+	}
+	return 0
+}
+
 type UpdateSettingsResponse struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Status        *GetInstanceStatusResponse `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
@@ -621,7 +772,7 @@ type UpdateSettingsResponse struct {
 
 func (x *UpdateSettingsResponse) Reset() {
 	*x = UpdateSettingsResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[3]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -633,7 +784,7 @@ func (x *UpdateSettingsResponse) String() string {
 func (*UpdateSettingsResponse) ProtoMessage() {}
 
 func (x *UpdateSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[3]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -646,7 +797,7 @@ func (x *UpdateSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSettingsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{3}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateSettingsResponse) GetStatus() *GetInstanceStatusResponse {
@@ -664,7 +815,7 @@ type ListUsersRequest struct {
 
 func (x *ListUsersRequest) Reset() {
 	*x = ListUsersRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[4]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -676,7 +827,7 @@ func (x *ListUsersRequest) String() string {
 func (*ListUsersRequest) ProtoMessage() {}
 
 func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[4]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -689,7 +840,7 @@ func (x *ListUsersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUsersRequest.ProtoReflect.Descriptor instead.
 func (*ListUsersRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{4}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{6}
 }
 
 type ListUsersResponse struct {
@@ -701,7 +852,7 @@ type ListUsersResponse struct {
 
 func (x *ListUsersResponse) Reset() {
 	*x = ListUsersResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[5]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -713,7 +864,7 @@ func (x *ListUsersResponse) String() string {
 func (*ListUsersResponse) ProtoMessage() {}
 
 func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[5]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -726,7 +877,7 @@ func (x *ListUsersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUsersResponse.ProtoReflect.Descriptor instead.
 func (*ListUsersResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{5}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListUsersResponse) GetUsers() []*InstanceUser {
@@ -746,7 +897,7 @@ type SetUserRoleRequest struct {
 
 func (x *SetUserRoleRequest) Reset() {
 	*x = SetUserRoleRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[6]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +909,7 @@ func (x *SetUserRoleRequest) String() string {
 func (*SetUserRoleRequest) ProtoMessage() {}
 
 func (x *SetUserRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[6]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +922,7 @@ func (x *SetUserRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserRoleRequest.ProtoReflect.Descriptor instead.
 func (*SetUserRoleRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{6}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SetUserRoleRequest) GetUserId() string {
@@ -797,7 +948,7 @@ type SetUserRoleResponse struct {
 
 func (x *SetUserRoleResponse) Reset() {
 	*x = SetUserRoleResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[7]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -809,7 +960,7 @@ func (x *SetUserRoleResponse) String() string {
 func (*SetUserRoleResponse) ProtoMessage() {}
 
 func (x *SetUserRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[7]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -822,7 +973,7 @@ func (x *SetUserRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserRoleResponse.ProtoReflect.Descriptor instead.
 func (*SetUserRoleResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{7}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SetUserRoleResponse) GetUser() *InstanceUser {
@@ -842,7 +993,7 @@ type SetUserActiveRequest struct {
 
 func (x *SetUserActiveRequest) Reset() {
 	*x = SetUserActiveRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[8]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +1005,7 @@ func (x *SetUserActiveRequest) String() string {
 func (*SetUserActiveRequest) ProtoMessage() {}
 
 func (x *SetUserActiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[8]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +1018,7 @@ func (x *SetUserActiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserActiveRequest.ProtoReflect.Descriptor instead.
 func (*SetUserActiveRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{8}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SetUserActiveRequest) GetUserId() string {
@@ -893,7 +1044,7 @@ type SetUserActiveResponse struct {
 
 func (x *SetUserActiveResponse) Reset() {
 	*x = SetUserActiveResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[9]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -905,7 +1056,7 @@ func (x *SetUserActiveResponse) String() string {
 func (*SetUserActiveResponse) ProtoMessage() {}
 
 func (x *SetUserActiveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[9]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -918,7 +1069,7 @@ func (x *SetUserActiveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserActiveResponse.ProtoReflect.Descriptor instead.
 func (*SetUserActiveResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{9}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SetUserActiveResponse) GetUser() *InstanceUser {
@@ -937,7 +1088,7 @@ type ResetUserPasswordRequest struct {
 
 func (x *ResetUserPasswordRequest) Reset() {
 	*x = ResetUserPasswordRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[10]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -949,7 +1100,7 @@ func (x *ResetUserPasswordRequest) String() string {
 func (*ResetUserPasswordRequest) ProtoMessage() {}
 
 func (x *ResetUserPasswordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[10]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -962,7 +1113,7 @@ func (x *ResetUserPasswordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetUserPasswordRequest.ProtoReflect.Descriptor instead.
 func (*ResetUserPasswordRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{10}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ResetUserPasswordRequest) GetUserId() string {
@@ -983,7 +1134,7 @@ type ResetUserPasswordResponse struct {
 
 func (x *ResetUserPasswordResponse) Reset() {
 	*x = ResetUserPasswordResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[11]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -995,7 +1146,7 @@ func (x *ResetUserPasswordResponse) String() string {
 func (*ResetUserPasswordResponse) ProtoMessage() {}
 
 func (x *ResetUserPasswordResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[11]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1008,7 +1159,7 @@ func (x *ResetUserPasswordResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetUserPasswordResponse.ProtoReflect.Descriptor instead.
 func (*ResetUserPasswordResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{11}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ResetUserPasswordResponse) GetUser() *InstanceUser {
@@ -1038,7 +1189,7 @@ type RenameUserRequest struct {
 
 func (x *RenameUserRequest) Reset() {
 	*x = RenameUserRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[12]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1050,7 +1201,7 @@ func (x *RenameUserRequest) String() string {
 func (*RenameUserRequest) ProtoMessage() {}
 
 func (x *RenameUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[12]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1063,7 +1214,7 @@ func (x *RenameUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameUserRequest.ProtoReflect.Descriptor instead.
 func (*RenameUserRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{12}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RenameUserRequest) GetUserId() string {
@@ -1096,7 +1247,7 @@ type RenameUserResponse struct {
 
 func (x *RenameUserResponse) Reset() {
 	*x = RenameUserResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[13]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1108,7 +1259,7 @@ func (x *RenameUserResponse) String() string {
 func (*RenameUserResponse) ProtoMessage() {}
 
 func (x *RenameUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[13]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1121,7 +1272,7 @@ func (x *RenameUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameUserResponse.ProtoReflect.Descriptor instead.
 func (*RenameUserResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{13}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RenameUserResponse) GetUser() *InstanceUser {
@@ -1141,7 +1292,7 @@ type SetUsernameFrozenRequest struct {
 
 func (x *SetUsernameFrozenRequest) Reset() {
 	*x = SetUsernameFrozenRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[14]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1153,7 +1304,7 @@ func (x *SetUsernameFrozenRequest) String() string {
 func (*SetUsernameFrozenRequest) ProtoMessage() {}
 
 func (x *SetUsernameFrozenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[14]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1166,7 +1317,7 @@ func (x *SetUsernameFrozenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUsernameFrozenRequest.ProtoReflect.Descriptor instead.
 func (*SetUsernameFrozenRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{14}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SetUsernameFrozenRequest) GetUserId() string {
@@ -1192,7 +1343,7 @@ type SetUsernameFrozenResponse struct {
 
 func (x *SetUsernameFrozenResponse) Reset() {
 	*x = SetUsernameFrozenResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[15]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1204,7 +1355,7 @@ func (x *SetUsernameFrozenResponse) String() string {
 func (*SetUsernameFrozenResponse) ProtoMessage() {}
 
 func (x *SetUsernameFrozenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[15]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1217,7 +1368,7 @@ func (x *SetUsernameFrozenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUsernameFrozenResponse.ProtoReflect.Descriptor instead.
 func (*SetUsernameFrozenResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{15}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SetUsernameFrozenResponse) GetUser() *InstanceUser {
@@ -1239,7 +1390,7 @@ type ClearUserProfileRequest struct {
 
 func (x *ClearUserProfileRequest) Reset() {
 	*x = ClearUserProfileRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[16]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1251,7 +1402,7 @@ func (x *ClearUserProfileRequest) String() string {
 func (*ClearUserProfileRequest) ProtoMessage() {}
 
 func (x *ClearUserProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[16]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1264,7 +1415,7 @@ func (x *ClearUserProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearUserProfileRequest.ProtoReflect.Descriptor instead.
 func (*ClearUserProfileRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{16}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ClearUserProfileRequest) GetUserId() string {
@@ -1297,7 +1448,7 @@ type ClearUserProfileResponse struct {
 
 func (x *ClearUserProfileResponse) Reset() {
 	*x = ClearUserProfileResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[17]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1309,7 +1460,7 @@ func (x *ClearUserProfileResponse) String() string {
 func (*ClearUserProfileResponse) ProtoMessage() {}
 
 func (x *ClearUserProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[17]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1322,7 +1473,7 @@ func (x *ClearUserProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearUserProfileResponse.ProtoReflect.Descriptor instead.
 func (*ClearUserProfileResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{17}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ClearUserProfileResponse) GetUser() *InstanceUser {
@@ -1341,7 +1492,7 @@ type TransferOwnershipRequest struct {
 
 func (x *TransferOwnershipRequest) Reset() {
 	*x = TransferOwnershipRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[18]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1353,7 +1504,7 @@ func (x *TransferOwnershipRequest) String() string {
 func (*TransferOwnershipRequest) ProtoMessage() {}
 
 func (x *TransferOwnershipRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[18]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1366,7 +1517,7 @@ func (x *TransferOwnershipRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferOwnershipRequest.ProtoReflect.Descriptor instead.
 func (*TransferOwnershipRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{18}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TransferOwnershipRequest) GetUserId() string {
@@ -1386,7 +1537,7 @@ type TransferOwnershipResponse struct {
 
 func (x *TransferOwnershipResponse) Reset() {
 	*x = TransferOwnershipResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[19]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1398,7 +1549,7 @@ func (x *TransferOwnershipResponse) String() string {
 func (*TransferOwnershipResponse) ProtoMessage() {}
 
 func (x *TransferOwnershipResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[19]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1411,7 +1562,7 @@ func (x *TransferOwnershipResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferOwnershipResponse.ProtoReflect.Descriptor instead.
 func (*TransferOwnershipResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{19}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *TransferOwnershipResponse) GetUser() *InstanceUser {
@@ -1429,7 +1580,7 @@ type GetReachabilityRequest struct {
 
 func (x *GetReachabilityRequest) Reset() {
 	*x = GetReachabilityRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[20]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1441,7 +1592,7 @@ func (x *GetReachabilityRequest) String() string {
 func (*GetReachabilityRequest) ProtoMessage() {}
 
 func (x *GetReachabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[20]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1454,7 +1605,7 @@ func (x *GetReachabilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReachabilityRequest.ProtoReflect.Descriptor instead.
 func (*GetReachabilityRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{20}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{22}
 }
 
 type GetReachabilityResponse struct {
@@ -1476,7 +1627,7 @@ type GetReachabilityResponse struct {
 
 func (x *GetReachabilityResponse) Reset() {
 	*x = GetReachabilityResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[21]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1488,7 +1639,7 @@ func (x *GetReachabilityResponse) String() string {
 func (*GetReachabilityResponse) ProtoMessage() {}
 
 func (x *GetReachabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[21]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1501,7 +1652,7 @@ func (x *GetReachabilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReachabilityResponse.ProtoReflect.Descriptor instead.
 func (*GetReachabilityResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{21}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetReachabilityResponse) GetReachability() *Reachability {
@@ -1560,7 +1711,7 @@ type UpdateReachabilityRequest struct {
 
 func (x *UpdateReachabilityRequest) Reset() {
 	*x = UpdateReachabilityRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[22]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1723,7 @@ func (x *UpdateReachabilityRequest) String() string {
 func (*UpdateReachabilityRequest) ProtoMessage() {}
 
 func (x *UpdateReachabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[22]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1736,7 @@ func (x *UpdateReachabilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateReachabilityRequest.ProtoReflect.Descriptor instead.
 func (*UpdateReachabilityRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{22}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *UpdateReachabilityRequest) GetPublicUrl() string {
@@ -1632,7 +1783,7 @@ type UpdateReachabilityResponse struct {
 
 func (x *UpdateReachabilityResponse) Reset() {
 	*x = UpdateReachabilityResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[23]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1644,7 +1795,7 @@ func (x *UpdateReachabilityResponse) String() string {
 func (*UpdateReachabilityResponse) ProtoMessage() {}
 
 func (x *UpdateReachabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[23]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1657,7 +1808,7 @@ func (x *UpdateReachabilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateReachabilityResponse.ProtoReflect.Descriptor instead.
 func (*UpdateReachabilityResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{23}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UpdateReachabilityResponse) GetReachability() *GetReachabilityResponse {
@@ -1675,7 +1826,7 @@ type GetBuildInfoRequest struct {
 
 func (x *GetBuildInfoRequest) Reset() {
 	*x = GetBuildInfoRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[24]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1687,7 +1838,7 @@ func (x *GetBuildInfoRequest) String() string {
 func (*GetBuildInfoRequest) ProtoMessage() {}
 
 func (x *GetBuildInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[24]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1700,7 +1851,7 @@ func (x *GetBuildInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBuildInfoRequest.ProtoReflect.Descriptor instead.
 func (*GetBuildInfoRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{24}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{26}
 }
 
 type GetBuildInfoResponse struct {
@@ -1719,7 +1870,7 @@ type GetBuildInfoResponse struct {
 
 func (x *GetBuildInfoResponse) Reset() {
 	*x = GetBuildInfoResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[25]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1731,7 +1882,7 @@ func (x *GetBuildInfoResponse) String() string {
 func (*GetBuildInfoResponse) ProtoMessage() {}
 
 func (x *GetBuildInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[25]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1744,7 +1895,7 @@ func (x *GetBuildInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBuildInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetBuildInfoResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{25}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetBuildInfoResponse) GetVersion() string {
@@ -1784,7 +1935,7 @@ type ListUserTokensRequest struct {
 
 func (x *ListUserTokensRequest) Reset() {
 	*x = ListUserTokensRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[26]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1796,7 +1947,7 @@ func (x *ListUserTokensRequest) String() string {
 func (*ListUserTokensRequest) ProtoMessage() {}
 
 func (x *ListUserTokensRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[26]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1809,7 +1960,7 @@ func (x *ListUserTokensRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserTokensRequest.ProtoReflect.Descriptor instead.
 func (*ListUserTokensRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{26}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListUserTokensRequest) GetUserId() string {
@@ -1828,7 +1979,7 @@ type ListUserTokensResponse struct {
 
 func (x *ListUserTokensResponse) Reset() {
 	*x = ListUserTokensResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[27]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1840,7 +1991,7 @@ func (x *ListUserTokensResponse) String() string {
 func (*ListUserTokensResponse) ProtoMessage() {}
 
 func (x *ListUserTokensResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[27]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1853,7 +2004,7 @@ func (x *ListUserTokensResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserTokensResponse.ProtoReflect.Descriptor instead.
 func (*ListUserTokensResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{27}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListUserTokensResponse) GetTokens() []*v1.PersonalToken {
@@ -1873,7 +2024,7 @@ type RevokeUserTokenRequest struct {
 
 func (x *RevokeUserTokenRequest) Reset() {
 	*x = RevokeUserTokenRequest{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[28]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1885,7 +2036,7 @@ func (x *RevokeUserTokenRequest) String() string {
 func (*RevokeUserTokenRequest) ProtoMessage() {}
 
 func (x *RevokeUserTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[28]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1898,7 +2049,7 @@ func (x *RevokeUserTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeUserTokenRequest.ProtoReflect.Descriptor instead.
 func (*RevokeUserTokenRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{28}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RevokeUserTokenRequest) GetUserId() string {
@@ -1923,7 +2074,7 @@ type RevokeUserTokenResponse struct {
 
 func (x *RevokeUserTokenResponse) Reset() {
 	*x = RevokeUserTokenResponse{}
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[29]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1935,7 +2086,7 @@ func (x *RevokeUserTokenResponse) String() string {
 func (*RevokeUserTokenResponse) ProtoMessage() {}
 
 func (x *RevokeUserTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_instance_proto_msgTypes[29]
+	mi := &file_stoop_instance_v1_instance_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1948,7 +2099,7 @@ func (x *RevokeUserTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeUserTokenResponse.ProtoReflect.Descriptor instead.
 func (*RevokeUserTokenResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{29}
+	return file_stoop_instance_v1_instance_proto_rawDescGZIP(), []int{31}
 }
 
 var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
@@ -1956,7 +2107,7 @@ var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
 const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\n" +
 	" stoop/instance/v1/instance.proto\x12\x11stoop.instance.v1\x1a\x18stoop/auth/v1/auth.proto\x1a!stoop/instance/v1/providers.proto\x1a$stoop/instance/v1/reachability.proto\x1a\x1cstoop/instance/v1/user.proto\"\x1a\n" +
-	"\x18GetInstanceStatusRequest\"\x93\a\n" +
+	"\x18GetInstanceStatusRequest\"\x85\b\n" +
 	"\x19GetInstanceStatusResponse\x12\x1f\n" +
 	"\vneeds_setup\x18\x01 \x01(\bR\n" +
 	"needsSetup\x12V\n" +
@@ -1976,7 +2127,9 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x11webhooks_outgoing\x18\r \x01(\bR\x10webhooksOutgoing\x12C\n" +
 	"\x1ewebhooks_allow_private_targets\x18\x0e \x01(\bR\x1bwebhooksAllowPrivateTargets\x12#\n" +
 	"\rself_deletion\x18\x0f \x01(\bR\fselfDeletion\x122\n" +
-	"\x15session_lifetime_days\x18\x10 \x01(\x05R\x13sessionLifetimeDays\"\x98\b\n" +
+	"\x15session_lifetime_days\x18\x10 \x01(\x05R\x13sessionLifetimeDays\x124\n" +
+	"\x16message_retention_days\x18\x11 \x01(\x05R\x14messageRetentionDays\x12:\n" +
+	"\x19attachment_retention_days\x18\x12 \x01(\x05R\x17attachmentRetentionDays\"\xcd\t\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
 	"\x0espace_creation\x18\x02 \x01(\x0e2&.stoop.instance.v1.SpaceCreationPolicyH\x01R\rspaceCreation\x88\x01\x01\x123\n" +
@@ -1991,7 +2144,9 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	" \x01(\bH\tR\x1bwebhooksAllowPrivateTargets\x88\x01\x01\x12(\n" +
 	"\rself_deletion\x18\v \x01(\bH\n" +
 	"R\fselfDeletion\x88\x01\x01\x127\n" +
-	"\x15session_lifetime_days\x18\f \x01(\x05H\vR\x13sessionLifetimeDays\x88\x01\x01B\x16\n" +
+	"\x15session_lifetime_days\x18\f \x01(\x05H\vR\x13sessionLifetimeDays\x88\x01\x01\x129\n" +
+	"\x16message_retention_days\x18\r \x01(\x05H\fR\x14messageRetentionDays\x88\x01\x01\x12?\n" +
+	"\x19attachment_retention_days\x18\x0e \x01(\x05H\rR\x17attachmentRetentionDays\x88\x01\x01B\x16\n" +
 	"\x14_registration_policyB\x11\n" +
 	"\x0f_space_creationB\x16\n" +
 	"\x14_storage_quota_bytesB\x13\n" +
@@ -2003,7 +2158,16 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x12_webhooks_outgoingB!\n" +
 	"\x1f_webhooks_allow_private_targetsB\x10\n" +
 	"\x0e_self_deletionB\x18\n" +
-	"\x16_session_lifetime_days\"^\n" +
+	"\x16_session_lifetime_daysB\x19\n" +
+	"\x17_message_retention_daysB\x1c\n" +
+	"\x1a_attachment_retention_days\"\x8b\x01\n" +
+	"\x17PreviewRetentionRequest\x124\n" +
+	"\x16message_retention_days\x18\x01 \x01(\x05R\x14messageRetentionDays\x12:\n" +
+	"\x19attachment_retention_days\x18\x02 \x01(\x05R\x17attachmentRetentionDays\"\x83\x01\n" +
+	"\x18PreviewRetentionResponse\x12\x1a\n" +
+	"\bmessages\x18\x01 \x01(\x03R\bmessages\x12 \n" +
+	"\vattachments\x18\x02 \x01(\x03R\vattachments\x12)\n" +
+	"\x10attachment_bytes\x18\x03 \x01(\x03R\x0fattachmentBytes\"^\n" +
 	"\x16UpdateSettingsResponse\x12D\n" +
 	"\x06status\x18\x01 \x01(\v2,.stoop.instance.v1.GetInstanceStatusResponseR\x06status\"\x12\n" +
 	"\x10ListUsersRequest\"J\n" +
@@ -2104,10 +2268,11 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x13SpaceCreationPolicy\x12%\n" +
 	"!SPACE_CREATION_POLICY_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cSPACE_CREATION_POLICY_ADMINS\x10\x01\x12\"\n" +
-	"\x1eSPACE_CREATION_POLICY_EVERYONE\x10\x022\xb4\x0e\n" +
+	"\x1eSPACE_CREATION_POLICY_EVERYONE\x10\x022\xa3\x0f\n" +
 	"\x0fInstanceService\x12p\n" +
 	"\x11GetInstanceStatus\x12+.stoop.instance.v1.GetInstanceStatusRequest\x1a,.stoop.instance.v1.GetInstanceStatusResponse\"\x00\x12g\n" +
-	"\x0eUpdateSettings\x12(.stoop.instance.v1.UpdateSettingsRequest\x1a).stoop.instance.v1.UpdateSettingsResponse\"\x00\x12X\n" +
+	"\x0eUpdateSettings\x12(.stoop.instance.v1.UpdateSettingsRequest\x1a).stoop.instance.v1.UpdateSettingsResponse\"\x00\x12m\n" +
+	"\x10PreviewRetention\x12*.stoop.instance.v1.PreviewRetentionRequest\x1a+.stoop.instance.v1.PreviewRetentionResponse\"\x00\x12X\n" +
 	"\tListUsers\x12#.stoop.instance.v1.ListUsersRequest\x1a$.stoop.instance.v1.ListUsersResponse\"\x00\x12^\n" +
 	"\vSetUserRole\x12%.stoop.instance.v1.SetUserRoleRequest\x1a&.stoop.instance.v1.SetUserRoleResponse\"\x00\x12d\n" +
 	"\rSetUserActive\x12'.stoop.instance.v1.SetUserActiveRequest\x1a(.stoop.instance.v1.SetUserActiveResponse\"\x00\x12p\n" +
@@ -2139,7 +2304,7 @@ func file_stoop_instance_v1_instance_proto_rawDescGZIP() []byte {
 }
 
 var file_stoop_instance_v1_instance_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_stoop_instance_v1_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_stoop_instance_v1_instance_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_stoop_instance_v1_instance_proto_goTypes = []any{
 	(RegistrationPolicy)(0),              // 0: stoop.instance.v1.RegistrationPolicy
 	(PasswordSignIn)(0),                  // 1: stoop.instance.v1.PasswordSignIn
@@ -2148,53 +2313,55 @@ var file_stoop_instance_v1_instance_proto_goTypes = []any{
 	(*GetInstanceStatusRequest)(nil),     // 4: stoop.instance.v1.GetInstanceStatusRequest
 	(*GetInstanceStatusResponse)(nil),    // 5: stoop.instance.v1.GetInstanceStatusResponse
 	(*UpdateSettingsRequest)(nil),        // 6: stoop.instance.v1.UpdateSettingsRequest
-	(*UpdateSettingsResponse)(nil),       // 7: stoop.instance.v1.UpdateSettingsResponse
-	(*ListUsersRequest)(nil),             // 8: stoop.instance.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),            // 9: stoop.instance.v1.ListUsersResponse
-	(*SetUserRoleRequest)(nil),           // 10: stoop.instance.v1.SetUserRoleRequest
-	(*SetUserRoleResponse)(nil),          // 11: stoop.instance.v1.SetUserRoleResponse
-	(*SetUserActiveRequest)(nil),         // 12: stoop.instance.v1.SetUserActiveRequest
-	(*SetUserActiveResponse)(nil),        // 13: stoop.instance.v1.SetUserActiveResponse
-	(*ResetUserPasswordRequest)(nil),     // 14: stoop.instance.v1.ResetUserPasswordRequest
-	(*ResetUserPasswordResponse)(nil),    // 15: stoop.instance.v1.ResetUserPasswordResponse
-	(*RenameUserRequest)(nil),            // 16: stoop.instance.v1.RenameUserRequest
-	(*RenameUserResponse)(nil),           // 17: stoop.instance.v1.RenameUserResponse
-	(*SetUsernameFrozenRequest)(nil),     // 18: stoop.instance.v1.SetUsernameFrozenRequest
-	(*SetUsernameFrozenResponse)(nil),    // 19: stoop.instance.v1.SetUsernameFrozenResponse
-	(*ClearUserProfileRequest)(nil),      // 20: stoop.instance.v1.ClearUserProfileRequest
-	(*ClearUserProfileResponse)(nil),     // 21: stoop.instance.v1.ClearUserProfileResponse
-	(*TransferOwnershipRequest)(nil),     // 22: stoop.instance.v1.TransferOwnershipRequest
-	(*TransferOwnershipResponse)(nil),    // 23: stoop.instance.v1.TransferOwnershipResponse
-	(*GetReachabilityRequest)(nil),       // 24: stoop.instance.v1.GetReachabilityRequest
-	(*GetReachabilityResponse)(nil),      // 25: stoop.instance.v1.GetReachabilityResponse
-	(*UpdateReachabilityRequest)(nil),    // 26: stoop.instance.v1.UpdateReachabilityRequest
-	(*UpdateReachabilityResponse)(nil),   // 27: stoop.instance.v1.UpdateReachabilityResponse
-	(*GetBuildInfoRequest)(nil),          // 28: stoop.instance.v1.GetBuildInfoRequest
-	(*GetBuildInfoResponse)(nil),         // 29: stoop.instance.v1.GetBuildInfoResponse
-	(*ListUserTokensRequest)(nil),        // 30: stoop.instance.v1.ListUserTokensRequest
-	(*ListUserTokensResponse)(nil),       // 31: stoop.instance.v1.ListUserTokensResponse
-	(*RevokeUserTokenRequest)(nil),       // 32: stoop.instance.v1.RevokeUserTokenRequest
-	(*RevokeUserTokenResponse)(nil),      // 33: stoop.instance.v1.RevokeUserTokenResponse
-	(*LoginProviderSummary)(nil),         // 34: stoop.instance.v1.LoginProviderSummary
-	(*InstanceUser)(nil),                 // 35: stoop.instance.v1.InstanceUser
-	(v1.InstanceRole)(0),                 // 36: stoop.auth.v1.InstanceRole
-	(*Reachability)(nil),                 // 37: stoop.instance.v1.Reachability
-	(*TailscaleStatus)(nil),              // 38: stoop.instance.v1.TailscaleStatus
-	(*LiveKitStatus)(nil),                // 39: stoop.instance.v1.LiveKitStatus
-	(*TurnRelay)(nil),                    // 40: stoop.instance.v1.TurnRelay
-	(*CloudflareTurn)(nil),               // 41: stoop.instance.v1.CloudflareTurn
-	(*TailscaleSettings)(nil),            // 42: stoop.instance.v1.TailscaleSettings
-	(*TrustedProxies)(nil),               // 43: stoop.instance.v1.TrustedProxies
-	(*v1.PersonalToken)(nil),             // 44: stoop.auth.v1.PersonalToken
-	(*GetLoginProvidersRequest)(nil),     // 45: stoop.instance.v1.GetLoginProvidersRequest
-	(*UpdateLoginProvidersRequest)(nil),  // 46: stoop.instance.v1.UpdateLoginProvidersRequest
-	(*GetLoginProvidersResponse)(nil),    // 47: stoop.instance.v1.GetLoginProvidersResponse
-	(*UpdateLoginProvidersResponse)(nil), // 48: stoop.instance.v1.UpdateLoginProvidersResponse
+	(*PreviewRetentionRequest)(nil),      // 7: stoop.instance.v1.PreviewRetentionRequest
+	(*PreviewRetentionResponse)(nil),     // 8: stoop.instance.v1.PreviewRetentionResponse
+	(*UpdateSettingsResponse)(nil),       // 9: stoop.instance.v1.UpdateSettingsResponse
+	(*ListUsersRequest)(nil),             // 10: stoop.instance.v1.ListUsersRequest
+	(*ListUsersResponse)(nil),            // 11: stoop.instance.v1.ListUsersResponse
+	(*SetUserRoleRequest)(nil),           // 12: stoop.instance.v1.SetUserRoleRequest
+	(*SetUserRoleResponse)(nil),          // 13: stoop.instance.v1.SetUserRoleResponse
+	(*SetUserActiveRequest)(nil),         // 14: stoop.instance.v1.SetUserActiveRequest
+	(*SetUserActiveResponse)(nil),        // 15: stoop.instance.v1.SetUserActiveResponse
+	(*ResetUserPasswordRequest)(nil),     // 16: stoop.instance.v1.ResetUserPasswordRequest
+	(*ResetUserPasswordResponse)(nil),    // 17: stoop.instance.v1.ResetUserPasswordResponse
+	(*RenameUserRequest)(nil),            // 18: stoop.instance.v1.RenameUserRequest
+	(*RenameUserResponse)(nil),           // 19: stoop.instance.v1.RenameUserResponse
+	(*SetUsernameFrozenRequest)(nil),     // 20: stoop.instance.v1.SetUsernameFrozenRequest
+	(*SetUsernameFrozenResponse)(nil),    // 21: stoop.instance.v1.SetUsernameFrozenResponse
+	(*ClearUserProfileRequest)(nil),      // 22: stoop.instance.v1.ClearUserProfileRequest
+	(*ClearUserProfileResponse)(nil),     // 23: stoop.instance.v1.ClearUserProfileResponse
+	(*TransferOwnershipRequest)(nil),     // 24: stoop.instance.v1.TransferOwnershipRequest
+	(*TransferOwnershipResponse)(nil),    // 25: stoop.instance.v1.TransferOwnershipResponse
+	(*GetReachabilityRequest)(nil),       // 26: stoop.instance.v1.GetReachabilityRequest
+	(*GetReachabilityResponse)(nil),      // 27: stoop.instance.v1.GetReachabilityResponse
+	(*UpdateReachabilityRequest)(nil),    // 28: stoop.instance.v1.UpdateReachabilityRequest
+	(*UpdateReachabilityResponse)(nil),   // 29: stoop.instance.v1.UpdateReachabilityResponse
+	(*GetBuildInfoRequest)(nil),          // 30: stoop.instance.v1.GetBuildInfoRequest
+	(*GetBuildInfoResponse)(nil),         // 31: stoop.instance.v1.GetBuildInfoResponse
+	(*ListUserTokensRequest)(nil),        // 32: stoop.instance.v1.ListUserTokensRequest
+	(*ListUserTokensResponse)(nil),       // 33: stoop.instance.v1.ListUserTokensResponse
+	(*RevokeUserTokenRequest)(nil),       // 34: stoop.instance.v1.RevokeUserTokenRequest
+	(*RevokeUserTokenResponse)(nil),      // 35: stoop.instance.v1.RevokeUserTokenResponse
+	(*LoginProviderSummary)(nil),         // 36: stoop.instance.v1.LoginProviderSummary
+	(*InstanceUser)(nil),                 // 37: stoop.instance.v1.InstanceUser
+	(v1.InstanceRole)(0),                 // 38: stoop.auth.v1.InstanceRole
+	(*Reachability)(nil),                 // 39: stoop.instance.v1.Reachability
+	(*TailscaleStatus)(nil),              // 40: stoop.instance.v1.TailscaleStatus
+	(*LiveKitStatus)(nil),                // 41: stoop.instance.v1.LiveKitStatus
+	(*TurnRelay)(nil),                    // 42: stoop.instance.v1.TurnRelay
+	(*CloudflareTurn)(nil),               // 43: stoop.instance.v1.CloudflareTurn
+	(*TailscaleSettings)(nil),            // 44: stoop.instance.v1.TailscaleSettings
+	(*TrustedProxies)(nil),               // 45: stoop.instance.v1.TrustedProxies
+	(*v1.PersonalToken)(nil),             // 46: stoop.auth.v1.PersonalToken
+	(*GetLoginProvidersRequest)(nil),     // 47: stoop.instance.v1.GetLoginProvidersRequest
+	(*UpdateLoginProvidersRequest)(nil),  // 48: stoop.instance.v1.UpdateLoginProvidersRequest
+	(*GetLoginProvidersResponse)(nil),    // 49: stoop.instance.v1.GetLoginProvidersResponse
+	(*UpdateLoginProvidersResponse)(nil), // 50: stoop.instance.v1.UpdateLoginProvidersResponse
 }
 var file_stoop_instance_v1_instance_proto_depIdxs = []int32{
 	0,  // 0: stoop.instance.v1.GetInstanceStatusResponse.registration_policy:type_name -> stoop.instance.v1.RegistrationPolicy
 	3,  // 1: stoop.instance.v1.GetInstanceStatusResponse.space_creation:type_name -> stoop.instance.v1.SpaceCreationPolicy
-	34, // 2: stoop.instance.v1.GetInstanceStatusResponse.login_providers:type_name -> stoop.instance.v1.LoginProviderSummary
+	36, // 2: stoop.instance.v1.GetInstanceStatusResponse.login_providers:type_name -> stoop.instance.v1.LoginProviderSummary
 	1,  // 3: stoop.instance.v1.GetInstanceStatusResponse.password_sign_in:type_name -> stoop.instance.v1.PasswordSignIn
 	2,  // 4: stoop.instance.v1.GetInstanceStatusResponse.personal_tokens:type_name -> stoop.instance.v1.PersonalTokens
 	0,  // 5: stoop.instance.v1.UpdateSettingsRequest.registration_policy:type_name -> stoop.instance.v1.RegistrationPolicy
@@ -2202,60 +2369,62 @@ var file_stoop_instance_v1_instance_proto_depIdxs = []int32{
 	1,  // 7: stoop.instance.v1.UpdateSettingsRequest.password_sign_in:type_name -> stoop.instance.v1.PasswordSignIn
 	2,  // 8: stoop.instance.v1.UpdateSettingsRequest.personal_tokens:type_name -> stoop.instance.v1.PersonalTokens
 	5,  // 9: stoop.instance.v1.UpdateSettingsResponse.status:type_name -> stoop.instance.v1.GetInstanceStatusResponse
-	35, // 10: stoop.instance.v1.ListUsersResponse.users:type_name -> stoop.instance.v1.InstanceUser
-	36, // 11: stoop.instance.v1.SetUserRoleRequest.role:type_name -> stoop.auth.v1.InstanceRole
-	35, // 12: stoop.instance.v1.SetUserRoleResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	35, // 13: stoop.instance.v1.SetUserActiveResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	35, // 14: stoop.instance.v1.ResetUserPasswordResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	35, // 15: stoop.instance.v1.RenameUserResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	35, // 16: stoop.instance.v1.SetUsernameFrozenResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	35, // 17: stoop.instance.v1.ClearUserProfileResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	35, // 18: stoop.instance.v1.TransferOwnershipResponse.user:type_name -> stoop.instance.v1.InstanceUser
-	37, // 19: stoop.instance.v1.GetReachabilityResponse.reachability:type_name -> stoop.instance.v1.Reachability
-	38, // 20: stoop.instance.v1.GetReachabilityResponse.tailscale:type_name -> stoop.instance.v1.TailscaleStatus
-	39, // 21: stoop.instance.v1.GetReachabilityResponse.livekit:type_name -> stoop.instance.v1.LiveKitStatus
-	40, // 22: stoop.instance.v1.UpdateReachabilityRequest.turn:type_name -> stoop.instance.v1.TurnRelay
-	41, // 23: stoop.instance.v1.UpdateReachabilityRequest.cloudflare:type_name -> stoop.instance.v1.CloudflareTurn
-	42, // 24: stoop.instance.v1.UpdateReachabilityRequest.tailscale:type_name -> stoop.instance.v1.TailscaleSettings
-	43, // 25: stoop.instance.v1.UpdateReachabilityRequest.trusted_proxies:type_name -> stoop.instance.v1.TrustedProxies
-	25, // 26: stoop.instance.v1.UpdateReachabilityResponse.reachability:type_name -> stoop.instance.v1.GetReachabilityResponse
-	44, // 27: stoop.instance.v1.ListUserTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
+	37, // 10: stoop.instance.v1.ListUsersResponse.users:type_name -> stoop.instance.v1.InstanceUser
+	38, // 11: stoop.instance.v1.SetUserRoleRequest.role:type_name -> stoop.auth.v1.InstanceRole
+	37, // 12: stoop.instance.v1.SetUserRoleResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	37, // 13: stoop.instance.v1.SetUserActiveResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	37, // 14: stoop.instance.v1.ResetUserPasswordResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	37, // 15: stoop.instance.v1.RenameUserResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	37, // 16: stoop.instance.v1.SetUsernameFrozenResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	37, // 17: stoop.instance.v1.ClearUserProfileResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	37, // 18: stoop.instance.v1.TransferOwnershipResponse.user:type_name -> stoop.instance.v1.InstanceUser
+	39, // 19: stoop.instance.v1.GetReachabilityResponse.reachability:type_name -> stoop.instance.v1.Reachability
+	40, // 20: stoop.instance.v1.GetReachabilityResponse.tailscale:type_name -> stoop.instance.v1.TailscaleStatus
+	41, // 21: stoop.instance.v1.GetReachabilityResponse.livekit:type_name -> stoop.instance.v1.LiveKitStatus
+	42, // 22: stoop.instance.v1.UpdateReachabilityRequest.turn:type_name -> stoop.instance.v1.TurnRelay
+	43, // 23: stoop.instance.v1.UpdateReachabilityRequest.cloudflare:type_name -> stoop.instance.v1.CloudflareTurn
+	44, // 24: stoop.instance.v1.UpdateReachabilityRequest.tailscale:type_name -> stoop.instance.v1.TailscaleSettings
+	45, // 25: stoop.instance.v1.UpdateReachabilityRequest.trusted_proxies:type_name -> stoop.instance.v1.TrustedProxies
+	27, // 26: stoop.instance.v1.UpdateReachabilityResponse.reachability:type_name -> stoop.instance.v1.GetReachabilityResponse
+	46, // 27: stoop.instance.v1.ListUserTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
 	4,  // 28: stoop.instance.v1.InstanceService.GetInstanceStatus:input_type -> stoop.instance.v1.GetInstanceStatusRequest
 	6,  // 29: stoop.instance.v1.InstanceService.UpdateSettings:input_type -> stoop.instance.v1.UpdateSettingsRequest
-	8,  // 30: stoop.instance.v1.InstanceService.ListUsers:input_type -> stoop.instance.v1.ListUsersRequest
-	10, // 31: stoop.instance.v1.InstanceService.SetUserRole:input_type -> stoop.instance.v1.SetUserRoleRequest
-	12, // 32: stoop.instance.v1.InstanceService.SetUserActive:input_type -> stoop.instance.v1.SetUserActiveRequest
-	14, // 33: stoop.instance.v1.InstanceService.ResetUserPassword:input_type -> stoop.instance.v1.ResetUserPasswordRequest
-	16, // 34: stoop.instance.v1.InstanceService.RenameUser:input_type -> stoop.instance.v1.RenameUserRequest
-	18, // 35: stoop.instance.v1.InstanceService.SetUsernameFrozen:input_type -> stoop.instance.v1.SetUsernameFrozenRequest
-	20, // 36: stoop.instance.v1.InstanceService.ClearUserProfile:input_type -> stoop.instance.v1.ClearUserProfileRequest
-	22, // 37: stoop.instance.v1.InstanceService.TransferOwnership:input_type -> stoop.instance.v1.TransferOwnershipRequest
-	24, // 38: stoop.instance.v1.InstanceService.GetReachability:input_type -> stoop.instance.v1.GetReachabilityRequest
-	26, // 39: stoop.instance.v1.InstanceService.UpdateReachability:input_type -> stoop.instance.v1.UpdateReachabilityRequest
-	45, // 40: stoop.instance.v1.InstanceService.GetLoginProviders:input_type -> stoop.instance.v1.GetLoginProvidersRequest
-	46, // 41: stoop.instance.v1.InstanceService.UpdateLoginProviders:input_type -> stoop.instance.v1.UpdateLoginProvidersRequest
-	28, // 42: stoop.instance.v1.InstanceService.GetBuildInfo:input_type -> stoop.instance.v1.GetBuildInfoRequest
-	30, // 43: stoop.instance.v1.InstanceService.ListUserTokens:input_type -> stoop.instance.v1.ListUserTokensRequest
-	32, // 44: stoop.instance.v1.InstanceService.RevokeUserToken:input_type -> stoop.instance.v1.RevokeUserTokenRequest
-	5,  // 45: stoop.instance.v1.InstanceService.GetInstanceStatus:output_type -> stoop.instance.v1.GetInstanceStatusResponse
-	7,  // 46: stoop.instance.v1.InstanceService.UpdateSettings:output_type -> stoop.instance.v1.UpdateSettingsResponse
-	9,  // 47: stoop.instance.v1.InstanceService.ListUsers:output_type -> stoop.instance.v1.ListUsersResponse
-	11, // 48: stoop.instance.v1.InstanceService.SetUserRole:output_type -> stoop.instance.v1.SetUserRoleResponse
-	13, // 49: stoop.instance.v1.InstanceService.SetUserActive:output_type -> stoop.instance.v1.SetUserActiveResponse
-	15, // 50: stoop.instance.v1.InstanceService.ResetUserPassword:output_type -> stoop.instance.v1.ResetUserPasswordResponse
-	17, // 51: stoop.instance.v1.InstanceService.RenameUser:output_type -> stoop.instance.v1.RenameUserResponse
-	19, // 52: stoop.instance.v1.InstanceService.SetUsernameFrozen:output_type -> stoop.instance.v1.SetUsernameFrozenResponse
-	21, // 53: stoop.instance.v1.InstanceService.ClearUserProfile:output_type -> stoop.instance.v1.ClearUserProfileResponse
-	23, // 54: stoop.instance.v1.InstanceService.TransferOwnership:output_type -> stoop.instance.v1.TransferOwnershipResponse
-	25, // 55: stoop.instance.v1.InstanceService.GetReachability:output_type -> stoop.instance.v1.GetReachabilityResponse
-	27, // 56: stoop.instance.v1.InstanceService.UpdateReachability:output_type -> stoop.instance.v1.UpdateReachabilityResponse
-	47, // 57: stoop.instance.v1.InstanceService.GetLoginProviders:output_type -> stoop.instance.v1.GetLoginProvidersResponse
-	48, // 58: stoop.instance.v1.InstanceService.UpdateLoginProviders:output_type -> stoop.instance.v1.UpdateLoginProvidersResponse
-	29, // 59: stoop.instance.v1.InstanceService.GetBuildInfo:output_type -> stoop.instance.v1.GetBuildInfoResponse
-	31, // 60: stoop.instance.v1.InstanceService.ListUserTokens:output_type -> stoop.instance.v1.ListUserTokensResponse
-	33, // 61: stoop.instance.v1.InstanceService.RevokeUserToken:output_type -> stoop.instance.v1.RevokeUserTokenResponse
-	45, // [45:62] is the sub-list for method output_type
-	28, // [28:45] is the sub-list for method input_type
+	7,  // 30: stoop.instance.v1.InstanceService.PreviewRetention:input_type -> stoop.instance.v1.PreviewRetentionRequest
+	10, // 31: stoop.instance.v1.InstanceService.ListUsers:input_type -> stoop.instance.v1.ListUsersRequest
+	12, // 32: stoop.instance.v1.InstanceService.SetUserRole:input_type -> stoop.instance.v1.SetUserRoleRequest
+	14, // 33: stoop.instance.v1.InstanceService.SetUserActive:input_type -> stoop.instance.v1.SetUserActiveRequest
+	16, // 34: stoop.instance.v1.InstanceService.ResetUserPassword:input_type -> stoop.instance.v1.ResetUserPasswordRequest
+	18, // 35: stoop.instance.v1.InstanceService.RenameUser:input_type -> stoop.instance.v1.RenameUserRequest
+	20, // 36: stoop.instance.v1.InstanceService.SetUsernameFrozen:input_type -> stoop.instance.v1.SetUsernameFrozenRequest
+	22, // 37: stoop.instance.v1.InstanceService.ClearUserProfile:input_type -> stoop.instance.v1.ClearUserProfileRequest
+	24, // 38: stoop.instance.v1.InstanceService.TransferOwnership:input_type -> stoop.instance.v1.TransferOwnershipRequest
+	26, // 39: stoop.instance.v1.InstanceService.GetReachability:input_type -> stoop.instance.v1.GetReachabilityRequest
+	28, // 40: stoop.instance.v1.InstanceService.UpdateReachability:input_type -> stoop.instance.v1.UpdateReachabilityRequest
+	47, // 41: stoop.instance.v1.InstanceService.GetLoginProviders:input_type -> stoop.instance.v1.GetLoginProvidersRequest
+	48, // 42: stoop.instance.v1.InstanceService.UpdateLoginProviders:input_type -> stoop.instance.v1.UpdateLoginProvidersRequest
+	30, // 43: stoop.instance.v1.InstanceService.GetBuildInfo:input_type -> stoop.instance.v1.GetBuildInfoRequest
+	32, // 44: stoop.instance.v1.InstanceService.ListUserTokens:input_type -> stoop.instance.v1.ListUserTokensRequest
+	34, // 45: stoop.instance.v1.InstanceService.RevokeUserToken:input_type -> stoop.instance.v1.RevokeUserTokenRequest
+	5,  // 46: stoop.instance.v1.InstanceService.GetInstanceStatus:output_type -> stoop.instance.v1.GetInstanceStatusResponse
+	9,  // 47: stoop.instance.v1.InstanceService.UpdateSettings:output_type -> stoop.instance.v1.UpdateSettingsResponse
+	8,  // 48: stoop.instance.v1.InstanceService.PreviewRetention:output_type -> stoop.instance.v1.PreviewRetentionResponse
+	11, // 49: stoop.instance.v1.InstanceService.ListUsers:output_type -> stoop.instance.v1.ListUsersResponse
+	13, // 50: stoop.instance.v1.InstanceService.SetUserRole:output_type -> stoop.instance.v1.SetUserRoleResponse
+	15, // 51: stoop.instance.v1.InstanceService.SetUserActive:output_type -> stoop.instance.v1.SetUserActiveResponse
+	17, // 52: stoop.instance.v1.InstanceService.ResetUserPassword:output_type -> stoop.instance.v1.ResetUserPasswordResponse
+	19, // 53: stoop.instance.v1.InstanceService.RenameUser:output_type -> stoop.instance.v1.RenameUserResponse
+	21, // 54: stoop.instance.v1.InstanceService.SetUsernameFrozen:output_type -> stoop.instance.v1.SetUsernameFrozenResponse
+	23, // 55: stoop.instance.v1.InstanceService.ClearUserProfile:output_type -> stoop.instance.v1.ClearUserProfileResponse
+	25, // 56: stoop.instance.v1.InstanceService.TransferOwnership:output_type -> stoop.instance.v1.TransferOwnershipResponse
+	27, // 57: stoop.instance.v1.InstanceService.GetReachability:output_type -> stoop.instance.v1.GetReachabilityResponse
+	29, // 58: stoop.instance.v1.InstanceService.UpdateReachability:output_type -> stoop.instance.v1.UpdateReachabilityResponse
+	49, // 59: stoop.instance.v1.InstanceService.GetLoginProviders:output_type -> stoop.instance.v1.GetLoginProvidersResponse
+	50, // 60: stoop.instance.v1.InstanceService.UpdateLoginProviders:output_type -> stoop.instance.v1.UpdateLoginProvidersResponse
+	31, // 61: stoop.instance.v1.InstanceService.GetBuildInfo:output_type -> stoop.instance.v1.GetBuildInfoResponse
+	33, // 62: stoop.instance.v1.InstanceService.ListUserTokens:output_type -> stoop.instance.v1.ListUserTokensResponse
+	35, // 63: stoop.instance.v1.InstanceService.RevokeUserToken:output_type -> stoop.instance.v1.RevokeUserTokenResponse
+	46, // [46:64] is the sub-list for method output_type
+	28, // [28:46] is the sub-list for method input_type
 	28, // [28:28] is the sub-list for extension type_name
 	28, // [28:28] is the sub-list for extension extendee
 	0,  // [0:28] is the sub-list for field type_name
@@ -2270,15 +2439,15 @@ func file_stoop_instance_v1_instance_proto_init() {
 	file_stoop_instance_v1_reachability_proto_init()
 	file_stoop_instance_v1_user_proto_init()
 	file_stoop_instance_v1_instance_proto_msgTypes[2].OneofWrappers = []any{}
-	file_stoop_instance_v1_instance_proto_msgTypes[12].OneofWrappers = []any{}
-	file_stoop_instance_v1_instance_proto_msgTypes[22].OneofWrappers = []any{}
+	file_stoop_instance_v1_instance_proto_msgTypes[14].OneofWrappers = []any{}
+	file_stoop_instance_v1_instance_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_instance_v1_instance_proto_rawDesc), len(file_stoop_instance_v1_instance_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   30,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

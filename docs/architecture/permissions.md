@@ -97,6 +97,7 @@ setting once or acts as its fallback, depending on the setting — see
 | `storage_quota_bytes` | Total upload storage; 0 is unlimited. |
 | `password_sign_in` | `everyone` / `admins` / `off`. See [identity.md](identity.md). |
 | `personal_tokens` | `everyone` (default) / `admins` / `off`. Checked at every use. See [identity.md](identity.md#personal-tokens). |
+| `message_retention_days`, `attachment_retention_days` | Delete messages, or attachments' files, older than this many days, 1-3650; 0 keeps forever. Pinned messages and their files are kept. See [messaging.md](messaging.md#message-retention) and [files.md](files.md#retention). |
 | `session_lifetime_days` | How long a sign-in lasts, 1-365; unset falls back to `STOOP_SESSION_LIFETIME_DAYS` (30). See [identity.md](identity.md#sessions). |
 | `webhooks_incoming`, `webhooks_outgoing` | Each direction on (default) or off; `STOOP_WEBHOOKS=false` overrides both. See [integrations.md](integrations.md#switches). |
 | `webhooks_allow_private_targets` | Whether outgoing webhooks may reach LAN, loopback and CGNAT addresses (default off). |

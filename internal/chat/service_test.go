@@ -357,6 +357,7 @@ func TestGetMember(t *testing.T) {
 type fixedPolicy bool
 
 func (p fixedPolicy) MembersMayCreateSpaces(context.Context) (bool, error) { return bool(p), nil }
+func (p fixedPolicy) MessageRetentionDays(context.Context) (int, error)    { return 0, nil }
 
 func TestSpaceCreationPolicy(t *testing.T) {
 	pool := dbtest.New(t)

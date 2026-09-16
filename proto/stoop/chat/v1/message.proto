@@ -41,6 +41,9 @@ message Attachment {
   // Decided by sniffing the bytes at upload, never by the client.
   string content_type = 3;
   int64 size = 4;
+  // Deleted by the server's attachment retention setting: no bytes, and
+  // name is empty. The content type and size stay for the placeholder.
+  bool expired = 5;
 }
 
 message Message {

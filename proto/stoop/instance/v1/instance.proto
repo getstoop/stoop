@@ -15,6 +15,9 @@ service InstanceService {
   rpc GetInstanceStatus(GetInstanceStatusRequest) returns (GetInstanceStatusResponse) {}
   // UpdateSettings changes runtime settings. Instance admins only.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse) {}
+  // PreviewRetention counts what the retention settings would delete now,
+  // for the confirm before saving. Instance admins only.
+  rpc PreviewRetention(PreviewRetentionRequest) returns (PreviewRetentionResponse) {}
   // ListUsers lists every account. Instance admins only.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {}
   // SetUserRole promotes or demotes an account's instance role. You can't
@@ -161,6 +164,12 @@ message GetInstanceStatusResponse {
   bool self_deletion = 15;
   // How long a sign-in lasts, in days. Applies to sign-ins from now on.
   int32 session_lifetime_days = 16;
+  // Messages older than this many days are deleted, pinned ones excepted;
+  // 0 keeps them forever. Public, so a client can explain the gap.
+  int32 message_retention_days = 17;
+  // Attachments older than this many days are deleted and shown as
+  // expired, pinned messages' files excepted; 0 keeps them forever.
+  int32 attachment_retention_days = 18;
 }
 
 message UpdateSettingsRequest {
@@ -187,6 +196,22 @@ message UpdateSettingsRequest {
   // 1-365. 0 clears the saved value, falling back to
   // STOOP_SESSION_LIFETIME_DAYS.
   optional int32 session_lifetime_days = 12;
+  // 1-3650, or 0 to keep forever.
+  optional int32 message_retention_days = 13;
+  optional int32 attachment_retention_days = 14;
+}
+
+message PreviewRetentionRequest {
+  // The values being considered; 0 means that setting deletes nothing.
+  int32 message_retention_days = 1;
+  int32 attachment_retention_days = 2;
+}
+
+message PreviewRetentionResponse {
+  // What a sweep with these values would delete right now.
+  int64 messages = 1;
+  int64 attachments = 2;
+  int64 attachment_bytes = 3;
 }
 
 message UpdateSettingsResponse {

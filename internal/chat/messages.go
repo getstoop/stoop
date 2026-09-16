@@ -317,7 +317,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			if r.ReplyAuthorID != nil {
 				author = authors[*r.ReplyAuthorID]
 			}
-			m.ReplyTo = replyRef(*r.Message.ReplyToMessageID, author, r.ReplyContent, replyFiles[r.ReplyFirstFileID].Name)
+			m.ReplyTo = replyRef(*r.Message.ReplyToMessageID, author, r.ReplyContent, replyFiles[r.ReplyFirstFileID].label())
 		}
 		messages[len(rows)-1-i] = m
 	}
@@ -444,7 +444,7 @@ func (s *Service) firstAttachmentName(ctx context.Context, messageID string) str
 	if err != nil {
 		return ""
 	}
-	return records[ids[0]].Name
+	return records[ids[0]].label()
 }
 
 func toProtoMessage(m dbgen.Message, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {

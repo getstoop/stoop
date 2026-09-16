@@ -130,6 +130,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	instanceSvc.UseUploadCeiling(files.MaxAttachmentBytes)
 	filesSvc.UseSweepGrace(cfg.FileSweepGrace)
 	chatSvc.UseFiles(fileDirectory{filesSvc})
+	instanceSvc.UseRetentionCounter(retentionCounter{chatSvc, filesSvc})
 	integrationsSvc := integrations.New(pool, bus, log)
 	integrationsSvc.UsePolicy(instanceSvc)
 	integrationsSvc.UseQueue(integrations.NewPostgresQueue(pool))
@@ -421,6 +422,10 @@ func (a *App) StartBackground(ctx context.Context) {
 	go a.files.RunSweeper(ctx, a.sweep)
 	// Read activity items older than STOOP_ACTIVITY_RETENTION go too.
 	go a.chat.RunActivitySweeper(ctx, a.sweep, a.keep)
+	// The retention settings, hourly; each does nothing while its setting
+	// keeps forever.
+	go a.chat.RunMessageSweeper(ctx)
+	go a.files.RunAttachmentSweeper(ctx)
 	// Expired sessions, and personal tokens a month past expiry.
 	go a.auth.RunCredentialSweeper(ctx, a.sweep)
 	// Hook credentials whose channel or space was deleted, and old
@@ -556,6 +561,21 @@ func toUserSummary(u auth.AccountSummary) instance.UserSummary {
 }
 
 // fileDirectory adapts the files module onto chat's attachment port.
+// retentionCounter answers instance's PreviewRetention from the two
+// modules that own what retention deletes.
+type retentionCounter struct {
+	chat  *chat.Service
+	files *files.Service
+}
+
+func (c retentionCounter) CountExpiredMessages(ctx context.Context, now time.Time, days int) (int64, error) {
+	return c.chat.CountExpiredMessages(ctx, now, days)
+}
+
+func (c retentionCounter) CountExpiringAttachments(ctx context.Context, now time.Time, days int) (int64, int64, error) {
+	return c.files.CountExpiringAttachments(ctx, now, days)
+}
+
 type fileDirectory struct{ files *files.Service }
 
 func (d fileDirectory) GetFiles(ctx context.Context, ids []string) ([]chat.FileRecord, error) {
@@ -567,7 +587,7 @@ func (d fileDirectory) GetFiles(ctx context.Context, ids []string) ([]chat.FileR
 	for i, f := range infos {
 		out[i] = chat.FileRecord{
 			ID: f.ID, Kind: string(f.Kind), OwnerID: f.OwnerID, SpaceID: f.SpaceID,
-			Name: f.Name, ContentType: f.ContentType, Size: f.Size,
+			Name: f.Name, ContentType: f.ContentType, Size: f.Size, Expired: f.Expired,
 		}
 	}
 	return out, nil

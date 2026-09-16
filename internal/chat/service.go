@@ -48,6 +48,8 @@ type UserDirectory interface {
 // "everyone may create spaces".
 type InstancePolicy interface {
 	MembersMayCreateSpaces(ctx context.Context) (bool, error)
+	// MessageRetentionDays is how long messages are kept; 0 is forever.
+	MessageRetentionDays(ctx context.Context) (int, error)
 }
 
 // PresenceLister is chat's port onto the realtime gateway: which of these
@@ -65,6 +67,16 @@ type FileRecord struct {
 	Name        string
 	ContentType string
 	Size        int64
+	// Expired: deleted by attachment retention, with its name.
+	Expired bool
+}
+
+// label is how a preview names the file.
+func (r FileRecord) label() string {
+	if r.Expired {
+		return "Expired attachment"
+	}
+	return r.Name
 }
 
 // FileDirectory is chat's port onto the files module: verify attachment
