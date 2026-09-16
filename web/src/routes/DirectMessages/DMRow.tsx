@@ -7,6 +7,7 @@ import { useMe } from "../../api/queries";
 import { badgeCount, isAlerting } from "../../api/unreads";
 import { AvatarStack } from "../../components/AvatarStack";
 import { ChannelMenu } from "../../components/ChannelMenu";
+import { DeletedMark } from "../../components/DeletedMark";
 import type { DirectMessage } from "../../gen/stoop/chat/v1/chat_pb";
 import { useConnectionStore } from "../../stores/connection";
 
@@ -45,6 +46,7 @@ export function DMRow({ dm }: { dm: DirectMessage }) {
           )}
         </AvatarStack>
         <span className="channel-name">{title}</span>
+        {other && <DeletedMark deleted={other.deleted} />}
         {channel.unreadCount > 0 && !channel.muted && (
           <span className="channel-badge">
             {badgeCount(channel.unreadCount)}

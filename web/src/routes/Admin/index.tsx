@@ -10,6 +10,7 @@ import { LoginProvidersSection } from "./LoginProvidersSection";
 import { PasswordSignInSection } from "./PasswordSignInSection";
 import { PersonalTokensSetting } from "./PersonalTokensSetting";
 import { ReachabilitySection } from "./ReachabilitySection";
+import { SelfDeletionSetting } from "./SelfDeletionSetting";
 import { ServerSection } from "./ServerSection";
 import { StorageSection } from "./StorageSection";
 import { UsersSection } from "./UsersSection";
@@ -81,6 +82,7 @@ export function AdminPage() {
       {active === "accounts" && (
         <>
           <PersonalTokensSetting />
+          <SelfDeletionSetting />
           <UsersSection meId={me.id} />
         </>
       )}

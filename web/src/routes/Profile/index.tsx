@@ -8,6 +8,7 @@ import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { PasswordSignIn } from "../../gen/stoop/instance/v1/instance_pb";
 import { AppearanceSection } from "./AppearanceSection";
 import { BlockedSection } from "./BlockedSection";
+import { DeleteAccountSection } from "./DeleteAccountSection";
 import { DoNotDisturbSection } from "./DoNotDisturbSection";
 import { LinkedAccountsSection } from "./LinkedAccountsSection";
 import { LogoutButton } from "./LogoutButton";
@@ -120,6 +121,7 @@ export function ProfilePage() {
           <LinkedAccountsSection />
           <PersonalTokensSection />
           <BlockedSection />
+          <DeleteAccountSection hasPassword={me.hasPassword} />
         </>
       )}
     </SettingsFrame>

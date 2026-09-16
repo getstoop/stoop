@@ -306,3 +306,15 @@
   width: max-content;
   min-width: 0;
 }
+
+/* The two answers under the delete-account password, apart and level. */
+.delete-account .form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.delete-account .warning {
+  color: var(--danger);
+}

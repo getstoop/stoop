@@ -271,7 +271,11 @@ export function UsersSection({ meId }: { meId: string }) {
                     @{u.username}
                     {bot && <> · bot</>}
                     {u.pronouns && <> · {u.pronouns}</>}
-                    {inactive && <span className="badge">deactivated</span>}
+                    {u.deletedAt ? (
+                      <span className="badge">deleted</span>
+                    ) : (
+                      inactive && <span className="badge">deactivated</span>
+                    )}
                     {u.usernameFrozen && (
                       <span className="badge">name frozen</span>
                     )}

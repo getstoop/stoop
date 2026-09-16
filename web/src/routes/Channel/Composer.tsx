@@ -36,6 +36,7 @@ import {
 import { messagePreview } from "../../components/Attachments";
 import { BotMark } from "../../components/BotMark";
 import { ComposerOverlay } from "../../components/ComposerOverlay";
+import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { MentionPicker } from "../../components/MentionPicker";
@@ -339,6 +340,7 @@ export function Composer({
             <strong>
               {replyTo.author?.displayName || replyTo.author?.username}
               <BotMark kind={replyTo.author?.kind} />
+              <DeletedMark deleted={replyTo.author?.deleted} />
             </strong>
             <span className="muted">
               {" "}
