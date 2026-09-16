@@ -1,12 +1,17 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { defaultChannelChoices, editChannelTopic } from "../../api/channels";
+import {
+  defaultChannelChoices,
+  editChannelTopic,
+  isAnnouncement,
+  setAnnouncement,
+} from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useChannels } from "../../api/queries";
 import { ListHead } from "../../components/ListHead";
 import { SettingRow } from "../../components/SettingRow";
-import type { Channel } from "../../gen/stoop/chat/v1/channel_pb";
+import { type Channel, ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { confirm } from "../../stores/dialogs";
 
@@ -62,7 +67,7 @@ export function ChannelsSection({ space }: { space: Space }) {
     <section className="card">
       <h3>Channels</h3>
       <ul className="user-list table channels">
-        <ListHead columns={["Channel", "Topic", ""]} />
+        <ListHead columns={["Channel", "Topic", "Announcement", ""]} />
         {channels?.map((c, i) => (
           <li key={c.id} className="user-row">
             <div className="user-row-main">
@@ -85,6 +90,19 @@ export function ChannelsSection({ space }: { space: Space }) {
               )}
             </div>
             <span className="user-cell">{c.topic || "No topic"}</span>
+            <span className="user-cell">
+              {c.kind === ChannelKind.TEXT && (
+                <input
+                  type="checkbox"
+                  name={`announcement-${c.id}`}
+                  checked={isAnnouncement(c)}
+                  onChange={(e) =>
+                    setAnnouncement(c, e.target.checked, queryClient)
+                  }
+                  aria-label={`#${c.name} is an announcement channel`}
+                />
+              )}
+            </span>
             <div className="user-row-actions">
               <button
                 type="button"

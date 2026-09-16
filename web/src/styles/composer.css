@@ -130,3 +130,38 @@
   color: var(--accent);
   text-decoration: underline;
 }
+
+/* ---- Announcement channels ---- */
+
+.composer-hint {
+  margin: 6px 4px 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* In place of the composer for someone who can't post. */
+.posting-closed {
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+}
+
+.posting-closed svg {
+  flex: 0 0 auto;
+  font-size: var(--text-body);
+}
+
+.posting-closed p {
+  margin: 0;
+}
+
+.posting-closed strong {
+  color: var(--text);
+  font-weight: 600;
+}

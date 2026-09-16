@@ -1,6 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { editChannelTopic } from "../api/channels";
+import {
+  editChannelTopic,
+  isAnnouncement,
+  setAnnouncement,
+} from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { canManageChannels } from "../api/permissions";
@@ -11,7 +15,7 @@ import {
   shareUrl,
 } from "../api/shareLinks";
 import { patchChannel, recomputeSpaceUnread } from "../api/unreads";
-import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice, prompt } from "../stores/dialogs";
 import { ChannelAbout } from "./ChannelAbout";
@@ -119,8 +123,15 @@ export function ChannelMenu({
         label: channel.topic ? "Edit topic" : "Add a topic",
         onSelect: () => editChannelTopic(channel, queryClient),
       },
-      { label: "Delete channel", onSelect: remove, danger: true },
     );
+    if (channel.kind === ChannelKind.TEXT) {
+      const on = isAnnouncement(channel);
+      items.push({
+        label: on ? "Let everyone post" : "Make announcement channel",
+        onSelect: () => setAnnouncement(channel, !on, queryClient, true),
+      });
+    }
+    items.push({ label: "Delete channel", onSelect: remove, danger: true });
   }
 
   return (

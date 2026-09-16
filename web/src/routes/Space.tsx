@@ -22,6 +22,7 @@ import {
 } from "../api/shareLinks";
 import { badgeCount, isAlerting } from "../api/unreads";
 import { welcomeSeen } from "../api/welcome";
+import { ChannelGlyph } from "../components/ChannelGlyph";
 import { ChannelGroupHeading } from "../components/ChannelGroupHeading";
 import { ChannelMenu } from "../components/ChannelMenu";
 import { DotsMenu, type MenuItem } from "../components/DotsMenu";
@@ -242,7 +243,7 @@ export function SpaceLayout() {
                     className: `channel-link active ${isAlerting(queryClient, spaceId, channel) ? "unread" : ""} ${isMuted(queryClient, spaceId, channel.id) ? "muted" : ""}`,
                   }}
                 >
-                  <span className="channel-hash">#</span>
+                  <ChannelGlyph channel={channel} />
                   <span className="channel-name">{channel.name}</span>
                   {(unreadByChannel.get(channel.id) ?? 0) > 0 && (
                     <span className="channel-badge" title="Unread mentions">

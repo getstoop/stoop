@@ -1,5 +1,6 @@
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { isAnnouncement } from "../../api/channels";
 import {
   dmIsGroup,
   dmTitle,
@@ -7,8 +8,10 @@ import {
   useDirectMessages,
   usePeople,
 } from "../../api/dms";
+import { canPost } from "../../api/permissions";
 import { useMe, useMessages, useSpaces } from "../../api/queries";
 import { joinVoice } from "../../api/voice";
+import { ChannelGlyph } from "../../components/ChannelGlyph";
 import { ChannelTopic } from "../../components/ChannelTopic";
 import { MenuButton } from "../../components/MenuButton";
 import { PinnedMessages } from "../../components/PinnedMessages";
@@ -24,6 +27,7 @@ import { useVoiceStore } from "../../stores/voice";
 import { DMTitle } from "../DirectMessages/DMTitle";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
+import { PostingClosed } from "./PostingClosed";
 
 const CHAT_HIDDEN_KEY = "stoop.voiceChatHidden";
 
@@ -119,9 +123,13 @@ export function ChannelView() {
           <DMTitle channelId={channelId} />
         ) : (
           <>
-            <span className="channel-hash">
-              {channel?.kind === ChannelKind.VOICE ? <SpeakerIcon /> : "#"}
-            </span>
+            {channel?.kind === ChannelKind.VOICE ? (
+              <span className="channel-hash">
+                <SpeakerIcon />
+              </span>
+            ) : (
+              <ChannelGlyph channel={channel} />
+            )}
             <span className="channel-title">{channel?.name ?? "…"}</span>
           </>
         )}
@@ -157,15 +165,20 @@ export function ChannelView() {
             onReply={setReplyTo}
           />
           <TypingIndicator channelId={channelId} spaceId={spaceId} />
-          <Composer
-            channelId={channelId}
-            channelName={title}
-            dm={isDM}
-            group={isGroup}
-            spaceId={spaceId}
-            replyTo={replyTo}
-            onCancelReply={() => setReplyTo(null)}
-          />
+          {canPost(space, channel) ? (
+            <Composer
+              channelId={channelId}
+              channelName={title}
+              dm={isDM}
+              group={isGroup}
+              announcement={isAnnouncement(channel)}
+              spaceId={spaceId}
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+            />
+          ) : (
+            <PostingClosed channelName={title} />
+          )}
         </>
       )}
     </main>

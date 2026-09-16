@@ -238,7 +238,13 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.setQueryData<Channel[]>(["channels", c.spaceId], (old) =>
         old?.map((x) =>
           x.id === c.id
-            ? { ...x, name: c.name, position: c.position, topic: c.topic }
+            ? {
+                ...x,
+                name: c.name,
+                position: c.position,
+                topic: c.topic,
+                postPolicy: c.postPolicy,
+              }
             : x,
         ),
       );
