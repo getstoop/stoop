@@ -177,7 +177,11 @@ export function patchDirectMessage(
 export function dmUnreadTotal(dms: DirectMessage[] | undefined): number {
   let total = 0;
   for (const dm of dms ?? []) {
-    if (dm.channel && !dm.channel.muted) total += dm.channel.unreadCount;
+    // A closed conversation has no row to open, so it counts for nothing
+    // until a message brings it back.
+    if (dm.channel && !dm.channel.muted && !dm.closed) {
+      total += dm.channel.unreadCount;
+    }
   }
   return total;
 }

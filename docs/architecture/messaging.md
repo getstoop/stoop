@@ -464,6 +464,16 @@ pointing at a conversation that is no longer in the list — a count with
 nothing to open and no way to clear it. Unblocking restores the
 conversation and all its messages; it does not bring the alerts back.
 
+**Closing is list grooming, nothing more** (STOOP-249). `SetDirectMessageClosed`
+sets `closed_at` on the caller's own `dm_members` row, and only theirs: the
+list hides it, the badge stops counting it, and a link to it still
+resolves. Nobody else's list changes, because membership never does. The
+next message in the conversation clears the flag for everyone who had
+closed it (`reopenDM`) and tells them the way a new conversation is told,
+with `ChannelCreated` on their topic, muted or not. Opening the same set of
+people again also puts it back for the caller. Mute keeps its own meaning:
+whether an arrival is noisy, not whether it appears.
+
 **The rail's DM pill counts messages, not conversations.** It sums
 `channel.unreadCount` over the list (`dmUnreadTotal`), using the same
 predicate a row uses, so the pill is always the sum of the badges beside

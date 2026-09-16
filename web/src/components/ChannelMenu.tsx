@@ -90,6 +90,21 @@ export function ChannelMenu({
     ? [{ label: "Muted by space", onSelect: () => {}, disabled: true }]
     : [{ label: channel.muted ? "Unmute" : "Mute", onSelect: toggleMute }];
   items.push({ label: "Copy link", onSelect: copyLink });
+  // A conversation can be taken off the list without any judgement about
+  // the people in it; the next message puts it back.
+  if (!spaceId) {
+    items.push({
+      label: "Close conversation",
+      onSelect: () =>
+        run(async () => {
+          await chatClient.setDirectMessageClosed({
+            channelId: channel.id,
+            closed: true,
+          });
+          await queryClient.invalidateQueries({ queryKey: ["dms"] });
+        }),
+    });
+  }
   // The one way to read a topic on a phone, where the header hides it.
   if (channel.topic) {
     items.push({

@@ -118,7 +118,7 @@ function SpaceRail() {
   // messages the rows count (api/dms.ts → dmUnreadTotal).
   const { data: dms } = useDirectMessages();
   const dmUnread = dms?.some(
-    (d) => d.channel && isAlerting(queryClient, "", d.channel),
+    (d) => d.channel && !d.closed && isAlerting(queryClient, "", d.channel),
   );
   const dmAlerts = dmUnreadTotal(dms);
   const { data: instanceStatus } = useInstanceStatus();

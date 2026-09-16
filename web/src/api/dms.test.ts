@@ -211,6 +211,17 @@ describe("dmUnreadTotal", () => {
     ).toBe(6);
   });
 
+  // A closed conversation has no row, so a count for it would point at
+  // nothing that can be opened.
+  it("skips a closed conversation until a message brings it back", () => {
+    expect(
+      dmUnreadTotal([
+        { ...dm(unreadChannel("a", 4), [casey, ada]), closed: true },
+        dm(unreadChannel("b", 2), [casey, bea]),
+      ]),
+    ).toBe(2);
+  });
+
   it("skips a muted conversation, as its row skips the badge", () => {
     expect(
       dmUnreadTotal([
