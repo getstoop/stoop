@@ -43,6 +43,11 @@ export function UsersSection({ meId }: { meId: string }) {
     }
   };
   const iOwn = users?.some((u) => u.id === meId && u.owner) ?? false;
+  // Who may rename or clear whom: the owner over admins, admins over
+  // members. The server holds the same rule.
+  const rank = (u: InstanceUser) =>
+    u.owner ? 2 : u.role === InstanceRole.ADMIN ? 1 : 0;
+  const myRank = iOwn ? 2 : 1;
   const makeOwner = async (u: InstanceUser) => {
     const ok = await confirm({
       title: `Make @${u.username} the server owner?`,
@@ -177,6 +182,15 @@ export function UsersSection({ meId }: { meId: string }) {
     const ownerOnly = u.owner
       ? { disabled: true, title: "The server owner; only they can hand it on" }
       : {};
+    const outranked =
+      rank(u) >= myRank
+        ? {
+            disabled: true,
+            title: u.owner
+              ? "Only the server owner changes their own profile"
+              : "Only the server owner can change another admin's profile",
+          }
+        : {};
     if (bot) {
       items.push({
         label: "Manage integrations",
@@ -210,10 +224,12 @@ export function UsersSection({ meId }: { meId: string }) {
         label: "Change username",
         onSelect: () => renameHandle(u),
         title: "Change their @username",
+        ...outranked,
       },
       {
         label: "Change display name",
         onSelect: () => renameDisplay(u),
+        ...outranked,
       },
     );
     if (u.pronouns) {
@@ -221,6 +237,7 @@ export function UsersSection({ meId }: { meId: string }) {
         label: "Clear pronouns",
         onSelect: () => clearProfile(u, "pronouns", u.pronouns),
         title: "Remove their pronouns",
+        ...outranked,
       });
     }
     if (u.bio) {
@@ -228,6 +245,7 @@ export function UsersSection({ meId }: { meId: string }) {
         label: "Clear bio",
         onSelect: () => clearProfile(u, "bio", u.bio),
         title: "Remove their bio",
+        ...outranked,
       });
     }
     if (!admin && !bot) {
