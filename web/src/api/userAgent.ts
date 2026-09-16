@@ -29,3 +29,14 @@ export function describeUserAgent(ua: string): string {
   // A script or an unfamiliar client: its own first word says most.
   return ua.split(/[\s/]/)[0] || "Unknown device";
 }
+
+export type SessionKind = "desktop" | "mobile" | "web" | "unknown";
+
+// Which kind of client a session is, for the count on Profile → Security.
+// The desktop app first: it says Chrome too.
+export function sessionKind(ua: string): SessionKind {
+  if (/Stoop-Desktop\//.test(ua)) return "desktop";
+  if (/iPhone|iPad|iPod|Android/.test(ua)) return "mobile";
+  if (BROWSERS.some(([re]) => re.test(ua))) return "web";
+  return "unknown";
+}

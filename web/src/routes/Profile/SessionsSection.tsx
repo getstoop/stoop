@@ -1,31 +1,49 @@
-import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { authClient } from "../../api/clients";
-import { shortDateTime } from "../../api/dates";
 import { errorText } from "../../api/errors";
 import { useSessions } from "../../api/queries";
-import { expiryOf, lastUsedText } from "../../api/tokenOptions";
-import { describeUserAgent } from "../../api/userAgent";
+import {
+  describeUserAgent,
+  type SessionKind,
+  sessionKind,
+} from "../../api/userAgent";
 import { ListHead } from "../../components/ListHead";
-import type { Session } from "../../gen/stoop/auth/v1/auth_pb";
 import { confirm } from "../../stores/dialogs";
 
-// Security → Where you're signed in: every browser and app holding a
-// session, and signing any of the others out. This one leaves through
-// Log out in the nav.
+const KINDS: { kind: SessionKind; label: string }[] = [
+  { kind: "desktop", label: "Desktop app" },
+  { kind: "web", label: "Web browser" },
+  { kind: "mobile", label: "Mobile" },
+  { kind: "unknown", label: "Unknown" },
+];
+
+// Security → Where you're signed in: how many sessions of each kind, and
+// signing out all but this one. A count rather than a row per session:
+// the rows were long and told a person little they could act on.
 export function SessionsSection() {
   const queryClient = useQueryClient();
   const { data: sessions } = useSessions();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const others = sessions?.filter((s) => !s.current) ?? [];
+  const current = sessions?.find((s) => s.current);
+  const others = (sessions?.length ?? 0) - (current ? 1 : 0);
 
-  const run = async (work: () => Promise<unknown>) => {
+  const signOutOthers = async () => {
+    if (
+      !(await confirm({
+        title: "Sign out everywhere else?",
+        body: `${others === 1 ? "1 other session" : `${others} other sessions`} will need to sign in again. You stay signed in here.`,
+        action: "Sign out",
+        danger: true,
+      }))
+    ) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      await work();
+      await authClient.revokeOtherSessions({});
       await queryClient.invalidateQueries({ queryKey: ["sessions"] });
     } catch (err) {
       setError(errorText(err));
@@ -34,84 +52,41 @@ export function SessionsSection() {
     }
   };
 
-  const signOut = async (s: Session) => {
-    if (
-      await confirm({
-        title: `Sign out ${describeUserAgent(s.userAgent)}?`,
-        body: "It will need to sign in again.",
-        action: "Sign out",
-        danger: true,
-      })
-    ) {
-      await run(() => authClient.revokeSession({ sessionId: s.id }));
-    }
-  };
-
-  const signOutOthers = async () => {
-    if (
-      await confirm({
-        title: "Sign out everywhere else?",
-        body: `${others.length === 1 ? "1 other session" : `${others.length} other sessions`} will need to sign in again. You stay signed in here.`,
-        action: "Sign out",
-        danger: true,
-      })
-    ) {
-      await run(() => authClient.revokeOtherSessions({}));
-    }
-  };
-
   return (
     <section className="card sessions-section">
       <h3>Where you're signed in</h3>
-      <p className="hint">
-        If you don't recognise one, sign it out and change your password.
-      </p>
+      {current && (
+        <p className="hint">
+          This device: {describeUserAgent(current.userAgent)}. If you don't
+          recognise the rest, sign them out and change your password.
+        </p>
+      )}
       {sessions && (
-        <ul className="user-list table five">
-          <ListHead
-            columns={["Device", "Signed in", "Last active", "Expires", ""]}
-          />
-          {sessions.map((s) => (
-            <li key={s.id} className="user-row" data-session={s.id}>
-              <div className="user-row-main">
-                <strong title={s.userAgent}>
-                  {describeUserAgent(s.userAgent)}
-                </strong>
-                {s.current && <span className="badge">this device</span>}
-              </div>
+        <ul className="user-list table two">
+          <ListHead columns={["Kind", "Sessions"]} />
+          {KINDS.map(({ kind, label }) => (
+            <li key={kind} className="user-row" data-kind={kind}>
+              <strong>{label}</strong>
               <span className="user-cell">
-                {s.createdAt && shortDateTime(timestampDate(s.createdAt))}
+                {
+                  sessions.filter((s) => sessionKind(s.userAgent) === kind)
+                    .length
+                }
               </span>
-              <span className="user-cell">
-                {s.current
-                  ? "Now"
-                  : lastUsedText(s.lastUsedAt && timestampDate(s.lastUsedAt))}
-              </span>
-              <span className="user-cell">
-                {expiryOf(s.expiresAt && timestampDate(s.expiresAt)).text}
-              </span>
-              <div className="user-row-actions">
-                {!s.current && (
-                  <button
-                    type="button"
-                    className="chip danger"
-                    disabled={busy}
-                    onClick={() => signOut(s)}
-                  >
-                    Sign out
-                  </button>
-                )}
-              </div>
             </li>
           ))}
         </ul>
       )}
+      <p className="muted small">
+        Unknown is a sign-in from a script, or from before Stoop recorded
+        devices.
+      </p>
       {error && <p className="error">{error}</p>}
       <div className="setting-actions">
         <button
           type="button"
           className="chip danger"
-          disabled={busy || others.length === 0}
+          disabled={busy || others === 0}
           onClick={signOutOthers}
         >
           Sign out everywhere else
