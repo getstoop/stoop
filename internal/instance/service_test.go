@@ -466,6 +466,9 @@ func (f *fakeUsers) ListUserTokens(context.Context, string) ([]*authv1.PersonalT
 }
 
 func (f *fakeUsers) RevokeUserToken(context.Context, string, string) error { return nil }
+func (f *fakeUsers) TransferOwnership(context.Context, string, string) (instance.UserSummary, error) {
+	return instance.UserSummary{}, nil
+}
 
 func TestWebhookSwitches(t *testing.T) {
 	pool := dbtest.New(t)

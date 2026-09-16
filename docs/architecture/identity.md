@@ -37,6 +37,26 @@ a provider claim that its owner hasn't confirmed, so the client can nudge
 them once. `username_frozen` is an admin lock on self-service renames,
 for after an offensive handle has been cleaned up; admin renames bypass it.
 
+### The server owner
+
+One account owns the server: `users.is_owner`, set on the first account in
+the same transaction that makes it the first admin. A server from before
+owners got its longest-serving active admin (migration 00039).
+
+Through the API nobody — the owner included — demotes, deactivates or
+deletes the owner, and no admin resets the owner's password; the owner
+changes it on their profile page. Ownership moves only by
+`InstanceService.TransferOwnership`, which only the owner may call and
+only to an active person admin, under the admin roster lock. Afterwards
+the old owner is an ordinary admin.
+
+The host operator is above all of this: `stoop admin transfer-owner` and
+`stoop admin reset-password` work on any account, the owner's included.
+
+The database holds the rule too: a check constraint keeps the owner an
+active person admin, and a partial unique index allows one at most, so a
+code path that forgets the guard fails rather than orphaning the server.
+
 ### Deleting your account
 
 `AuthService.DeleteAccount` is a person deleting their own account, and
@@ -57,8 +77,8 @@ leaves an account that still works and can be deleted again.
 
 The call takes the password again, or for an account that has none, a
 session started within the last ten minutes; it comes only from a
-session, never a token; the last active admin is refused, under the same
-lock as a demotion; and the operator can turn it off with the
+session, never a token; the owner and the last active admin are refused,
+under the same lock as a demotion; and the operator can turn it off with the
 `self_deletion` setting, on by default.
 
 ### Profiles
@@ -569,9 +589,9 @@ avatar.
 
 There is no "forgot password" email, because there is no email.
 
-- An instance admin can reset any account's password from the admin page;
-  the temporary password is shown once.
+- An instance admin can reset any account's password from the admin page,
+  except the owner's; the temporary password is shown once.
 - `stoop admin` talks to `STOOP_DATABASE_URL` directly, with the server
   still running: `list`, `promote`, `demote`, `reset-password`,
-  `password-login`. This is the path back in when the admin page itself is
+  `transfer-owner`, `password-login`. This is the path back in when the admin page itself is
   what you have locked yourself out of.

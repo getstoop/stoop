@@ -860,9 +860,13 @@ stoop admin list
 stoop admin promote <username>
 stoop admin demote <username>
 stoop admin reset-password <username>
+stoop admin transfer-owner <username>
 ```
 
-It refuses to demote the last active admin. With the bare binary, run it
+The first account owns the server: no admin can demote, deactivate or
+reset it from the admin page. `reset-password` and `transfer-owner` work
+on the owner from here. It refuses to demote the owner or the last active
+admin. With the bare binary, run it
 by path (`./stoop admin list`) or put it on your `PATH`. In Docker the
 image installs it at `/usr/local/bin/stoop`, so:
 `docker compose exec stoop stoop admin promote <username>` (the first

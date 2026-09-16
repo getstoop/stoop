@@ -243,9 +243,9 @@ func TestSetRoleByUsername(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// founder is the only admin: demotion refused.
+	// founder is the only admin, and the owner: demotion refused.
 	if _, err := svc.SetRoleByUsername(ctx, "founder", authctx.RoleMember); err == nil {
-		t.Error("demoting the last admin should be refused")
+		t.Error("demoting the owner should be refused")
 	}
 	if _, err := svc.SetRoleByUsername(ctx, "nobody", authctx.RoleAdmin); codeOf(err) != connect.CodeNotFound {
 		t.Errorf("unknown user: want not_found, got %v", err)
@@ -254,9 +254,15 @@ func TestSetRoleByUsername(t *testing.T) {
 	if err != nil || a.Role != authctx.RoleAdmin {
 		t.Fatalf("promote friend: %v %v", a, err)
 	}
+	if _, err := svc.SetRoleByUsername(ctx, "founder", authctx.RoleMember); err == nil {
+		t.Error("another admin present, but founder still owns the server: demotion should be refused")
+	}
+	if _, err := svc.TransferOwnershipByUsername(ctx, "friend"); err != nil {
+		t.Fatal(err)
+	}
 	a, err = svc.SetRoleByUsername(ctx, "founder", authctx.RoleMember)
 	if err != nil || a.Role != authctx.RoleMember {
-		t.Errorf("demote founder with another admin present: %v %v", a, err)
+		t.Errorf("demote founder once friend owns the server: %v %v", a, err)
 	}
 }
 

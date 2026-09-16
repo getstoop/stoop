@@ -228,6 +228,8 @@ func (s *Service) createAccount(ctx context.Context, p createAccountParams) (dbg
 		PasswordHash:    p.PasswordHash,
 		Role:            string(role),
 		UsernamePending: p.UsernamePending,
+		// The first account, the server's first admin, owns it.
+		IsOwner: underLock == 0,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError

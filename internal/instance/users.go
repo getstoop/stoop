@@ -85,6 +85,17 @@ func (s *Service) ResetUserPassword(ctx context.Context, req *connect.Request[in
 	return connect.NewResponse(&instancev1.ResetUserPasswordResponse{User: toProtoUser(u), TemporaryPassword: temp}), nil
 }
 
+func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[instancev1.TransferOwnershipRequest]) (*connect.Response[instancev1.TransferOwnershipResponse], error) {
+	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+		return nil, err
+	}
+	u, err := s.users.TransferOwnership(ctx, authctx.UserID(ctx), req.Msg.UserId)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&instancev1.TransferOwnershipResponse{User: toProtoUser(u)}), nil
+}
+
 func (s *Service) RenameUser(ctx context.Context, req *connect.Request[instancev1.RenameUserRequest]) (*connect.Response[instancev1.RenameUserResponse], error) {
 	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
@@ -167,6 +178,7 @@ func toProtoUser(u UserSummary) *instancev1.InstanceUser {
 	if u.DeletedAt != nil {
 		out.DeletedAt = timestamppb.New(*u.DeletedAt)
 	}
+	out.Owner = u.IsOwner
 	out.UsernameFrozen = u.UsernameFrozen
 	out.HasPassword = u.HasPassword
 	out.Pronouns = u.Pronouns

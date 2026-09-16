@@ -2,8 +2,8 @@
 -- Only internal/auth may use these queries.
 
 -- name: CreateUser :one
-INSERT INTO users (id, username, display_name, password_hash, role, username_pending)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO users (id, username, display_name, password_hash, role, username_pending, is_owner)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: UsernameTaken :one
@@ -127,6 +127,14 @@ UPDATE users
 SET deactivated_at = CASE WHEN sqlc.arg(deactivated)::boolean THEN now() ELSE NULL END
 WHERE id = $1
 RETURNING *;
+
+-- ClearOwner and SetOwner hand ownership on, in that order inside one
+-- transaction: the unique index allows no moment with two owners.
+-- name: ClearOwner :exec
+UPDATE users SET is_owner = false WHERE is_owner;
+
+-- name: SetOwner :one
+UPDATE users SET is_owner = true WHERE id = $1 RETURNING *;
 
 -- name: SetUserRoleByUsername :one
 UPDATE users SET role = $2 WHERE username = $1 RETURNING *;

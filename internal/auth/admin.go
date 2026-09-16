@@ -37,6 +37,9 @@ type AccountSummary struct {
 	Bio      string
 	// PersonalTokens counts the account's personal tokens, expired ones included.
 	PersonalTokens int
+	// IsOwner: the server owner, whom no admin can demote, deactivate or
+	// reset.
+	IsOwner bool
 }
 
 // CountActiveAdmins reports how many non-deactivated instance admins exist.
@@ -64,6 +67,11 @@ func (s *Service) ListAccounts(ctx context.Context) ([]AccountSummary, error) {
 	}
 	return out, nil
 }
+
+// errOwner is the refusal that keeps the owner in charge whoever else is
+// an admin.
+var errOwner = connect.NewError(connect.CodeFailedPrecondition,
+	errors.New("that's the server owner; they have to hand ownership to another admin first"))
 
 // errLastAdmin is the refusal that keeps a server administrable.
 var errLastAdmin = connect.NewError(connect.CodeFailedPrecondition,
@@ -143,6 +151,9 @@ func (s *Service) underAdminGuard(ctx context.Context, targetID string, write fu
 	target, err := qtx.GetUserByID(ctx, targetID)
 	if err != nil {
 		return dbgen.User{}, notFoundOr(err, "user")
+	}
+	if target.IsOwner {
+		return dbgen.User{}, errOwner
 	}
 	if authctx.Role(target.Role) == authctx.RoleAdmin && target.DeactivatedAt == nil {
 		n, err := qtx.CountAdmins(ctx)
@@ -253,6 +264,7 @@ func toSummary(u dbgen.User) AccountSummary {
 		HasPassword:    u.PasswordHash != nil,
 		Pronouns:       u.Pronouns,
 		Bio:            u.Bio,
+		IsOwner:        u.IsOwner,
 	}
 }
 

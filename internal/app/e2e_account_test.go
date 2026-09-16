@@ -33,8 +33,8 @@ func TestE2EDeleteAccount(t *testing.T) {
 	h.rpc(ada, "stoop.auth.v1.AuthService/DeleteAccount", map[string]any{"password": password}).expect(t, "permission_denied", "ask an admin")
 	h.rpc(casey, "stoop.instance.v1.InstanceService/UpdateSettings", map[string]any{"selfDeletion": true}).expect(t, "ok")
 
-	// The last admin can't go.
-	h.rpc(casey, "stoop.auth.v1.AuthService/DeleteAccount", map[string]any{"password": password}).expect(t, "failed_precondition", "last active admin")
+	// The owner can't go until they hand the server on.
+	h.rpc(casey, "stoop.auth.v1.AuthService/DeleteAccount", map[string]any{"password": password}).expect(t, "failed_precondition", "own this server")
 
 	h.rpc(ada, "stoop.auth.v1.AuthService/DeleteAccount", map[string]any{"password": password}).expect(t, "ok")
 

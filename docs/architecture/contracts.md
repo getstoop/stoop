@@ -85,7 +85,8 @@ people who joined.
 | --------- | ----- |
 | `GetInstanceStatus` | **Public.** What the setup and login screens need before anyone has an account: `needs_setup`, the registration and space-creation policies, the public URL invite links are built from, the login-provider summaries, whether the password form is offered, and the effective upload caps (so a client refuses an oversized file before sending it). |
 | `UpdateSettings` | Admins. Registration policy, space-creation policy, upload limit, storage quota, password sign-in, personal tokens, session lifetime. |
-| `ListUsers`, `SetUserRole`, `SetUserActive`, `ResetUserPassword`, `RenameUser`, `SetUsernameFrozen`, `ClearUserProfile` | Admins. The user administration tab; each is backed by the `UserAdmin` port into auth. Each user carries its `kind`; a password reset or a username freeze on a bot is refused. |
+| `ListUsers`, `SetUserRole`, `SetUserActive`, `ResetUserPassword`, `RenameUser`, `SetUsernameFrozen`, `ClearUserProfile` | Admins. The user administration tab; each is backed by the `UserAdmin` port into auth. Each user carries its `kind` and whether it is the `owner`; a password reset or a username freeze on a bot is refused, and demoting, deactivating or resetting the owner is refused. |
+| `TransferOwnership` | The owner only, to an active admin. See [identity.md](identity.md#the-server-owner). |
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
 | `GetLoginProviders` / `UpdateLoginProviders` | Admins. The OIDC provider list, replaced whole. |
 | `GetBuildInfo` | Admins. Version, commit, build time, Go version — admin-only because an exact version tells a stranger which bugs to try. |

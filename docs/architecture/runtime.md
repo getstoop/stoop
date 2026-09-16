@@ -276,6 +276,7 @@ list                              every account and its instance role
 promote <username>                make an account an instance admin
 demote <username>
 reset-password <username>         temporary password, printed once, sessions revoked
+transfer-owner <username>         make an active admin the server owner
 password-login <everyone|admins|off>
 ```
 

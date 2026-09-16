@@ -79,7 +79,7 @@ func (q *Queries) DeleteUserIdentity(ctx context.Context, arg DeleteUserIdentity
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
 
-SELECT u.id, u.username, u.display_name, u.password_hash, u.created_at, u.role, u.deactivated_at, u.avatar_file_id, u.username_pending, u.username_frozen, u.pronouns, u.bio, u.kind, u.dnd, u.dnd_until, u.deleted_at FROM users u
+SELECT u.id, u.username, u.display_name, u.password_hash, u.created_at, u.role, u.deactivated_at, u.avatar_file_id, u.username_pending, u.username_frozen, u.pronouns, u.bio, u.kind, u.dnd, u.dnd_until, u.deleted_at, u.is_owner FROM users u
 JOIN user_identities i ON i.user_id = u.id
 WHERE i.provider = $1 AND i.subject = $2
 `
@@ -111,6 +111,7 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.Dnd,
 		&i.DndUntil,
 		&i.DeletedAt,
+		&i.IsOwner,
 	)
 	return i, err
 }
