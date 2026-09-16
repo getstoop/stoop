@@ -11,7 +11,7 @@ services:
   stoop:
     # Pinned to the release this file shipped with; each release PR bumps
     # it. Rolling back one release is editing this line and `up -d`.
-    image: ghcr.io/getstoop/stoop:0.1.0
+    image: ghcr.io/getstoop/stoop:0.2.0
     restart: unless-stopped
     depends_on:
       postgres:
