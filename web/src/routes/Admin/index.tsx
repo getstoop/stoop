@@ -12,6 +12,7 @@ import { PersonalTokensSetting } from "./PersonalTokensSetting";
 import { ReachabilitySection } from "./ReachabilitySection";
 import { SelfDeletionSetting } from "./SelfDeletionSetting";
 import { ServerSection } from "./ServerSection";
+import { SessionLifetimeSetting } from "./SessionLifetimeSetting";
 import { StorageSection } from "./StorageSection";
 import { UsersSection } from "./UsersSection";
 
@@ -90,6 +91,7 @@ export function AdminPage() {
       {active === "login" && (
         <>
           <PasswordSignInSection />
+          <SessionLifetimeSetting />
           <LoginProvidersSection />
         </>
       )}

@@ -18,6 +18,7 @@ import { PasswordForm } from "./PasswordForm";
 import { PersonalTokensSection } from "./PersonalTokensSection";
 import { ProfileForm } from "./ProfileForm";
 import { ProfileHeader } from "./ProfileHeader";
+import { SessionsSection } from "./SessionsSection";
 
 // Your account, in five sections under one header: who other people see
 // (Profile), how Stoop looks to you (Appearance), what is allowed to
@@ -119,6 +120,7 @@ export function ProfilePage() {
         <>
           {passwordsAllowed && <PasswordForm hasPassword={me.hasPassword} />}
           <LinkedAccountsSection />
+          <SessionsSection />
           <PersonalTokensSection />
           <BlockedSection />
           <DeleteAccountSection hasPassword={me.hasPassword} />
