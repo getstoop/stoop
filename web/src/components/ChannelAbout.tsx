@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
-import { editChannelTopic } from "../api/channels";
+import { editChannelTopic, isAnnouncement } from "../api/channels";
 import { canManageChannels } from "../api/permissions";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
@@ -20,7 +20,11 @@ export function ChannelAbout({
   const queryClient = useQueryClient();
   const manage = !!space && canManageChannels(space);
   const kind =
-    channel.kind === ChannelKind.VOICE ? "Voice channel" : "Text channel";
+    channel.kind === ChannelKind.VOICE
+      ? "Voice channel"
+      : isAnnouncement(channel)
+        ? "Announcement channel"
+        : "Text channel";
   return (
     <Modal title={`About #${channel.name}`} onClose={onClose}>
       <div className="channel-about">

@@ -138,6 +138,12 @@
   opacity: 0.7;
 }
 
+/* An icon in place of #, centred on the name like the voice speaker. */
+.channel-hash.icon {
+  display: inline-flex;
+  font-size: var(--text-body);
+}
+
 /* The name yields to the ⋮ rather than wrapping. */
 .sidebar-header .space-name {
   min-width: 0;

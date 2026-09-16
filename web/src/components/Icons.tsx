@@ -339,3 +339,27 @@ export function BotIcon() {
     </svg>
   );
 }
+
+// An announcement channel, where # would be; sized like the glyph.
+// Tilted up so it can't be read as the voice channels' speaker, and
+// moved so the tilted shape sits centred in the box.
+export function MegaphoneIcon() {
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <g transform="translate(11.06 13.16) rotate(-28) translate(-12 -12.5)">
+        <path d="m3 11 18-5v12L3 14v-3z" />
+        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+      </g>
+    </svg>
+  );
+}

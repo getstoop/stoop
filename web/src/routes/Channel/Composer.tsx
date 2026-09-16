@@ -50,6 +50,7 @@ export function Composer({
   channelName,
   dm = false,
   group = false,
+  announcement = false,
   spaceId,
   replyTo,
   onCancelReply,
@@ -59,6 +60,8 @@ export function Composer({
   dm?: boolean;
   // A group conversation: its title is a list of names, not a handle.
   group?: boolean;
+  // An announcement channel the caller may post in: say so.
+  announcement?: boolean;
   spaceId: string;
   replyTo: Message | null;
   onCancelReply: () => void;
@@ -412,13 +415,20 @@ export function Composer({
                 ? group
                   ? `Message ${channelName}`
                   : `Message @${channelName}`
-                : `Message #${channelName}`
+                : announcement
+                  ? `Announce in #${channelName}`
+                  : `Message #${channelName}`
               : "Message"
           }
           maxLength={4000}
           autoComplete="off"
         />
       </div>
+      {announcement && (
+        <p className="composer-hint">
+          Announcement channel: members read and react, only admins post.
+        </p>
+      )}
     </form>
   );
 }

@@ -1,4 +1,8 @@
 import { Permission } from "../gen/stoop/access/v1/access_pb";
+import {
+  type Channel,
+  ChannelPostPolicy,
+} from "../gen/stoop/chat/v1/channel_pb";
 import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 
 // What the caller may do is the server's answer, not a table kept here:
@@ -29,6 +33,16 @@ export const canDeleteAnyMessage = (space: Space) =>
 
 export const canDeleteSpace = (space: Space) =>
   can(space, Permission.SPACE_DELETE);
+
+// Posting in a channel: anyone who can read it, except an announcement
+// channel, where it takes manage_channels (bots don't use this app).
+export function canPost(
+  space: Space | undefined,
+  channel: Channel | undefined,
+): boolean {
+  if (channel?.postPolicy !== ChannelPostPolicy.ADMINS) return true;
+  return can(space, Permission.CHANNELS_MANAGE);
+}
 
 const rank: Record<SpaceRole, number> = {
   [SpaceRole.UNSPECIFIED]: 0,

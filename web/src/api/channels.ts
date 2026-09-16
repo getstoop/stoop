@@ -1,7 +1,11 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
+import {
+  type Channel,
+  ChannelKind,
+  ChannelPostPolicy,
+} from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
-import { notice, prompt } from "../stores/dialogs";
+import { confirm, notice, prompt } from "../stores/dialogs";
 import { chatClient } from "./clients";
 import { errorText } from "./errors";
 
@@ -70,5 +74,39 @@ export async function editChannelTopic(
     });
   } catch (err) {
     notice({ title: "Couldn't save the topic", body: errorText(err) });
+  }
+}
+
+// Only admins, the owner and bots post in an announcement channel.
+export const isAnnouncement = (channel: Channel | undefined) =>
+  channel?.postPolicy === ChannelPostPolicy.ADMINS;
+
+// Make a channel an announcement channel or let everyone post again.
+// Shared by the channel's ⋮ and space settings; only the ⋮ asks first
+// (ask), since turning it on stops people mid-conversation.
+export async function setAnnouncement(
+  channel: Channel,
+  on: boolean,
+  queryClient: QueryClient,
+  ask = false,
+): Promise<void> {
+  if (on && ask) {
+    const ok = await confirm({
+      title: `Make #${channel.name} an announcement channel?`,
+      body: "Members will still read and react, but they won't be able to send, reply or edit their earlier messages here. Bots in the space can still post.",
+      action: "Make announcement channel",
+    });
+    if (!ok) return;
+  }
+  try {
+    await chatClient.updateChannel({
+      channelId: channel.id,
+      postPolicy: on ? ChannelPostPolicy.ADMINS : ChannelPostPolicy.EVERYONE,
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ["channels", channel.spaceId],
+    });
+  } catch (err) {
+    notice({ title: "Couldn't update the channel", body: errorText(err) });
   }
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
+import {
+  type Channel,
+  ChannelPostPolicy,
+} from "../gen/stoop/chat/v1/channel_pb";
 import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 import {
   atLeast,
@@ -11,6 +15,7 @@ import {
   canManageChannels,
   canManageMembers,
   canMentionEveryone,
+  canPost,
   grantableRoles,
   roleLabel,
 } from "./permissions";
@@ -171,5 +176,29 @@ describe("canActOn", () => {
 
   it("lets an instance admin act on a fellow admin", () => {
     expect(canActOn(ada, true, SpaceRole.ADMIN)).toBe(true);
+  });
+});
+
+describe("canPost", () => {
+  const channel = (postPolicy: ChannelPostPolicy): Channel =>
+    ({ postPolicy }) as unknown as Channel;
+  const member = space(SpaceRole.MEMBER, [Permission.MESSAGES_POST]);
+  const admin = space(SpaceRole.ADMIN, [
+    Permission.MESSAGES_POST,
+    Permission.CHANNELS_MANAGE,
+  ]);
+
+  it("lets anyone post where everyone posts", () => {
+    expect(canPost(member, channel(ChannelPostPolicy.EVERYONE))).toBe(true);
+  });
+
+  it("takes manage_channels in an announcement channel", () => {
+    expect(canPost(member, channel(ChannelPostPolicy.ADMINS))).toBe(false);
+    expect(canPost(admin, channel(ChannelPostPolicy.ADMINS))).toBe(true);
+  });
+
+  it("leaves a direct message and a loading channel alone", () => {
+    expect(canPost(undefined, channel(ChannelPostPolicy.EVERYONE))).toBe(true);
+    expect(canPost(member, undefined)).toBe(true);
   });
 });
