@@ -80,6 +80,30 @@ func (q *Queries) ListAttachmentFileIDsForMessage(ctx context.Context, messageID
 	return items, nil
 }
 
+const listAttachmentFileIDsForMessages = `-- name: ListAttachmentFileIDsForMessages :many
+SELECT file_id FROM message_attachments WHERE message_id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListAttachmentFileIDsForMessages(ctx context.Context, ids []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listAttachmentFileIDsForMessages, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var file_id string
+		if err := rows.Scan(&file_id); err != nil {
+			return nil, err
+		}
+		items = append(items, file_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAttachmentsForMessages = `-- name: ListAttachmentsForMessages :many
 SELECT message_id, file_id, position FROM message_attachments
 WHERE message_id = ANY($1::uuid[])
@@ -99,6 +123,34 @@ func (q *Queries) ListAttachmentsForMessages(ctx context.Context, dollar_1 []str
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pinnedAttachmentFileIDs = `-- name: PinnedAttachmentFileIDs :many
+SELECT a.file_id FROM message_attachments a
+JOIN channel_pins p ON p.message_id = a.message_id
+`
+
+// PinnedAttachmentFileIDs: files attached to pinned messages, which
+// attachment retention keeps. Pins are capped per channel, so the list
+// stays small.
+func (q *Queries) PinnedAttachmentFileIDs(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, pinnedAttachmentFileIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var file_id string
+		if err := rows.Scan(&file_id); err != nil {
+			return nil, err
+		}
+		items = append(items, file_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

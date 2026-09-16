@@ -14,6 +14,16 @@ ORDER BY message_id, position;
 -- name: ListAttachmentFileIDsForMessage :many
 SELECT file_id FROM message_attachments WHERE message_id = $1 ORDER BY position;
 
+-- name: ListAttachmentFileIDsForMessages :many
+SELECT file_id FROM message_attachments WHERE message_id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- PinnedAttachmentFileIDs: files attached to pinned messages, which
+-- attachment retention keeps. Pins are capped per channel, so the list
+-- stays small.
+-- name: PinnedAttachmentFileIDs :many
+SELECT a.file_id FROM message_attachments a
+JOIN channel_pins p ON p.message_id = a.message_id;
+
 -- IsAttachmentReadable: the file is attached to a message in a channel
 -- the user can read (space member or DM participant). Files' download
 -- rule for attachments that have no space.

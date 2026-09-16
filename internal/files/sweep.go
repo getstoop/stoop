@@ -41,6 +41,9 @@ type Policy interface {
 	// MaxUploadBytes is the cap on one uploaded file; 0 means the operator
 	// set none and MaxAttachmentBytes applies.
 	MaxUploadBytes(ctx context.Context) (int64, error)
+	// AttachmentRetentionDays is how long attachments are kept; 0 is
+	// forever (retention.go).
+	AttachmentRetentionDays(ctx context.Context) (int, error)
 }
 
 // UsePolicy wires the quota port. Without one, uploads are unlimited.

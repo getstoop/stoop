@@ -10,11 +10,35 @@ import (
 	"time"
 )
 
+const countExpiringAttachments = `-- name: CountExpiringAttachments :one
+SELECT count(*)::bigint AS files, COALESCE(SUM(size), 0)::bigint AS bytes FROM files
+WHERE kind = 'attachment' AND expired_at IS NULL
+  AND created_at < $1
+  AND NOT (id = ANY($2::uuid[]))
+`
+
+type CountExpiringAttachmentsParams struct {
+	Before time.Time
+	Keep   []string
+}
+
+type CountExpiringAttachmentsRow struct {
+	Files int64
+	Bytes int64
+}
+
+func (q *Queries) CountExpiringAttachments(ctx context.Context, arg CountExpiringAttachmentsParams) (CountExpiringAttachmentsRow, error) {
+	row := q.db.QueryRow(ctx, countExpiringAttachments, arg.Before, arg.Keep)
+	var i CountExpiringAttachmentsRow
+	err := row.Scan(&i.Files, &i.Bytes)
+	return i, err
+}
+
 const createFile = `-- name: CreateFile :one
 
 INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at
 `
 
 type CreateFileParams struct {
@@ -55,12 +79,13 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		&i.StorageKey,
 		&i.CreatedAt,
 		&i.Name,
+		&i.ExpiredAt,
 	)
 	return i, err
 }
 
 const deleteFile = `-- name: DeleteFile :one
-DELETE FROM files WHERE id = $1 RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name
+DELETE FROM files WHERE id = $1 RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at
 `
 
 func (q *Queries) DeleteFile(ctx context.Context, id string) (File, error) {
@@ -77,12 +102,13 @@ func (q *Queries) DeleteFile(ctx context.Context, id string) (File, error) {
 		&i.StorageKey,
 		&i.CreatedAt,
 		&i.Name,
+		&i.ExpiredAt,
 	)
 	return i, err
 }
 
 const deleteFilesByIDs = `-- name: DeleteFilesByIDs :many
-DELETE FROM files WHERE id = ANY($1::uuid[]) RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name
+DELETE FROM files WHERE id = ANY($1::uuid[]) RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at
 `
 
 func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]File, error) {
@@ -105,6 +131,7 @@ func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]Fi
 			&i.StorageKey,
 			&i.CreatedAt,
 			&i.Name,
+			&i.ExpiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -116,8 +143,19 @@ func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]Fi
 	return items, nil
 }
 
+const expireFiles = `-- name: ExpireFiles :exec
+UPDATE files SET expired_at = now(), name = '' WHERE id = ANY($1::uuid[])
+`
+
+// ExpireFiles marks files expired and drops their names; the blobs are
+// already gone.
+func (q *Queries) ExpireFiles(ctx context.Context, ids []string) error {
+	_, err := q.db.Exec(ctx, expireFiles, ids)
+	return err
+}
+
 const getFile = `-- name: GetFile :one
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name FROM files WHERE id = $1
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at FROM files WHERE id = $1
 `
 
 func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
@@ -134,12 +172,13 @@ func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
 		&i.StorageKey,
 		&i.CreatedAt,
 		&i.Name,
+		&i.ExpiredAt,
 	)
 	return i, err
 }
 
 const getFilesByIDs = `-- name: GetFilesByIDs :many
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name FROM files WHERE id = ANY($1::uuid[])
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at FROM files WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File, error) {
@@ -162,6 +201,7 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File,
 			&i.StorageKey,
 			&i.CreatedAt,
 			&i.Name,
+			&i.ExpiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -173,8 +213,51 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File,
 	return items, nil
 }
 
+const listExpiringAttachments = `-- name: ListExpiringAttachments :many
+SELECT id, storage_key FROM files
+WHERE kind = 'attachment' AND expired_at IS NULL
+  AND created_at < $1
+  AND NOT (id = ANY($2::uuid[]))
+ORDER BY created_at
+LIMIT $3
+`
+
+type ListExpiringAttachmentsParams struct {
+	Before time.Time
+	Keep   []string
+	Limit  int32
+}
+
+type ListExpiringAttachmentsRow struct {
+	ID         string
+	StorageKey string
+}
+
+// Attachment retention: attachments uploaded before the cutoff that
+// haven't expired, less the ones kept (pinned messages' files), oldest
+// first.
+func (q *Queries) ListExpiringAttachments(ctx context.Context, arg ListExpiringAttachmentsParams) ([]ListExpiringAttachmentsRow, error) {
+	rows, err := q.db.Query(ctx, listExpiringAttachments, arg.Before, arg.Keep, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExpiringAttachmentsRow
+	for rows.Next() {
+		var i ListExpiringAttachmentsRow
+		if err := rows.Scan(&i.ID, &i.StorageKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listFilesOlderThan = `-- name: ListFilesOlderThan :many
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name FROM files
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at FROM files
 WHERE created_at < $1 AND id > $2
 ORDER BY id
 LIMIT $3
@@ -207,6 +290,7 @@ func (q *Queries) ListFilesOlderThan(ctx context.Context, arg ListFilesOlderThan
 			&i.StorageKey,
 			&i.CreatedAt,
 			&i.Name,
+			&i.ExpiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -255,6 +339,7 @@ func (q *Queries) LockStorageQuota(ctx context.Context) error {
 
 const storageUsage = `-- name: StorageUsage :one
 SELECT COALESCE(SUM(size), 0)::bigint AS bytes, count(*)::bigint AS files FROM files
+WHERE expired_at IS NULL
 `
 
 type StorageUsageRow struct {

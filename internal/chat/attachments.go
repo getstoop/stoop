@@ -50,7 +50,7 @@ func (s *Service) claimAttachments(ctx context.Context, userID, spaceID string, 
 	out := make([]FileRecord, len(ids))
 	for i, id := range ids {
 		r, ok := byID[id]
-		if !ok || r.Kind != fileKindAttach || r.OwnerID != userID || r.SpaceID != spaceID {
+		if !ok || r.Kind != fileKindAttach || r.OwnerID != userID || r.SpaceID != spaceID || r.Expired {
 			// One message for every failure mode: a forged id must not be
 			// distinguishable from an unknown one.
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown attachment"))
@@ -126,7 +126,7 @@ func (s *Service) fileRecords(ctx context.Context, ids []string) (map[string]Fil
 }
 
 func toProtoAttachment(r FileRecord) *chatv1.Attachment {
-	return &chatv1.Attachment{FileId: r.ID, Name: r.Name, ContentType: r.ContentType, Size: r.Size}
+	return &chatv1.Attachment{FileId: r.ID, Name: r.Name, ContentType: r.ContentType, Size: r.Size, Expired: r.Expired}
 }
 
 func toProtoAttachments(records []FileRecord) []*chatv1.Attachment {
@@ -157,6 +157,12 @@ func (s *Service) deleteMessageFiles(ctx context.Context, fileIDs []string) {
 	if err := s.files.DeleteFiles(ctx, fileIDs); err != nil {
 		slog.Warn("could not delete a deleted message's attachments", "err", err)
 	}
+}
+
+// PinnedFileIDs implements the files module's retention port: files on
+// pinned messages, which attachment retention keeps.
+func (s *Service) PinnedFileIDs(ctx context.Context) ([]string, error) {
+	return s.q.PinnedAttachmentFileIDs(ctx)
 }
 
 // ReferencedFiles implements the files module's sweep port: which of

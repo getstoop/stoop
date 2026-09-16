@@ -39,6 +39,9 @@ const (
 	// InstanceServiceUpdateSettingsProcedure is the fully-qualified name of the InstanceService's
 	// UpdateSettings RPC.
 	InstanceServiceUpdateSettingsProcedure = "/stoop.instance.v1.InstanceService/UpdateSettings"
+	// InstanceServicePreviewRetentionProcedure is the fully-qualified name of the InstanceService's
+	// PreviewRetention RPC.
+	InstanceServicePreviewRetentionProcedure = "/stoop.instance.v1.InstanceService/PreviewRetention"
 	// InstanceServiceListUsersProcedure is the fully-qualified name of the InstanceService's ListUsers
 	// RPC.
 	InstanceServiceListUsersProcedure = "/stoop.instance.v1.InstanceService/ListUsers"
@@ -93,6 +96,9 @@ type InstanceServiceClient interface {
 	GetInstanceStatus(context.Context, *connect.Request[v1.GetInstanceStatusRequest]) (*connect.Response[v1.GetInstanceStatusResponse], error)
 	// UpdateSettings changes runtime settings. Instance admins only.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
+	// PreviewRetention counts what the retention settings would delete now,
+	// for the confirm before saving. Instance admins only.
+	PreviewRetention(context.Context, *connect.Request[v1.PreviewRetentionRequest]) (*connect.Response[v1.PreviewRetentionResponse], error)
 	// ListUsers lists every account. Instance admins only.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// SetUserRole promotes or demotes an account's instance role. You can't
@@ -172,6 +178,12 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+InstanceServiceUpdateSettingsProcedure,
 			connect.WithSchema(instanceServiceMethods.ByName("UpdateSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		previewRetention: connect.NewClient[v1.PreviewRetentionRequest, v1.PreviewRetentionResponse](
+			httpClient,
+			baseURL+InstanceServicePreviewRetentionProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("PreviewRetention")),
 			connect.WithClientOptions(opts...),
 		),
 		listUsers: connect.NewClient[v1.ListUsersRequest, v1.ListUsersResponse](
@@ -271,6 +283,7 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type instanceServiceClient struct {
 	getInstanceStatus    *connect.Client[v1.GetInstanceStatusRequest, v1.GetInstanceStatusResponse]
 	updateSettings       *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
+	previewRetention     *connect.Client[v1.PreviewRetentionRequest, v1.PreviewRetentionResponse]
 	listUsers            *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
 	setUserRole          *connect.Client[v1.SetUserRoleRequest, v1.SetUserRoleResponse]
 	setUserActive        *connect.Client[v1.SetUserActiveRequest, v1.SetUserActiveResponse]
@@ -296,6 +309,11 @@ func (c *instanceServiceClient) GetInstanceStatus(ctx context.Context, req *conn
 // UpdateSettings calls stoop.instance.v1.InstanceService.UpdateSettings.
 func (c *instanceServiceClient) UpdateSettings(ctx context.Context, req *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
 	return c.updateSettings.CallUnary(ctx, req)
+}
+
+// PreviewRetention calls stoop.instance.v1.InstanceService.PreviewRetention.
+func (c *instanceServiceClient) PreviewRetention(ctx context.Context, req *connect.Request[v1.PreviewRetentionRequest]) (*connect.Response[v1.PreviewRetentionResponse], error) {
+	return c.previewRetention.CallUnary(ctx, req)
 }
 
 // ListUsers calls stoop.instance.v1.InstanceService.ListUsers.
@@ -380,6 +398,9 @@ type InstanceServiceHandler interface {
 	GetInstanceStatus(context.Context, *connect.Request[v1.GetInstanceStatusRequest]) (*connect.Response[v1.GetInstanceStatusResponse], error)
 	// UpdateSettings changes runtime settings. Instance admins only.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
+	// PreviewRetention counts what the retention settings would delete now,
+	// for the confirm before saving. Instance admins only.
+	PreviewRetention(context.Context, *connect.Request[v1.PreviewRetentionRequest]) (*connect.Response[v1.PreviewRetentionResponse], error)
 	// ListUsers lists every account. Instance admins only.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// SetUserRole promotes or demotes an account's instance role. You can't
@@ -455,6 +476,12 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 		InstanceServiceUpdateSettingsProcedure,
 		svc.UpdateSettings,
 		connect.WithSchema(instanceServiceMethods.ByName("UpdateSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServicePreviewRetentionHandler := connect.NewUnaryHandler(
+		InstanceServicePreviewRetentionProcedure,
+		svc.PreviewRetention,
+		connect.WithSchema(instanceServiceMethods.ByName("PreviewRetention")),
 		connect.WithHandlerOptions(opts...),
 	)
 	instanceServiceListUsersHandler := connect.NewUnaryHandler(
@@ -553,6 +580,8 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 			instanceServiceGetInstanceStatusHandler.ServeHTTP(w, r)
 		case InstanceServiceUpdateSettingsProcedure:
 			instanceServiceUpdateSettingsHandler.ServeHTTP(w, r)
+		case InstanceServicePreviewRetentionProcedure:
+			instanceServicePreviewRetentionHandler.ServeHTTP(w, r)
 		case InstanceServiceListUsersProcedure:
 			instanceServiceListUsersHandler.ServeHTTP(w, r)
 		case InstanceServiceSetUserRoleProcedure:
@@ -598,6 +627,10 @@ func (UnimplementedInstanceServiceHandler) GetInstanceStatus(context.Context, *c
 
 func (UnimplementedInstanceServiceHandler) UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.UpdateSettings is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) PreviewRetention(context.Context, *connect.Request[v1.PreviewRetentionRequest]) (*connect.Response[v1.PreviewRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.PreviewRetention is not implemented"))
 }
 
 func (UnimplementedInstanceServiceHandler) ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error) {

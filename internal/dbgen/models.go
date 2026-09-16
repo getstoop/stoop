@@ -92,6 +92,7 @@ type File struct {
 	StorageKey  string
 	CreatedAt   time.Time
 	Name        string
+	ExpiredAt   *time.Time
 }
 
 type IncomingWebhook struct {

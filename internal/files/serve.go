@@ -58,6 +58,10 @@ func (s *Service) Handler() http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
+		if f.ExpiredAt != nil {
+			http.Error(w, "this attachment has expired", http.StatusGone)
+			return
+		}
 
 		s.serveBlob(w, r, f)
 	})

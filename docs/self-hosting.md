@@ -630,6 +630,22 @@ items that have been read for longer than `STOOP_ACTIVITY_RETENTION`
 (default `720h`, thirty days; `0` keeps them forever) are removed. Unread
 ones are never touched.
 
+## Retention: deleting old messages and files
+
+Both settings are off until you set them, on the admin page's Storage
+tab, under **Retention**. Leave a field blank to keep things forever.
+
+- **Delete messages after** (1-3650 days): older messages are deleted
+  everywhere, direct messages included, with their reactions and files.
+- **Delete attachments after** (1-3650 days): older files are deleted
+  with their names. The message stays and shows "Expired attachment" and
+  the size. Expired files stop counting towards the storage limit.
+
+Pinned messages and their files are kept, and so are avatars, icons and
+link preview images. Both run hourly. Saving a shorter period first shows
+how many messages and files it would delete now. Deleted data can't be
+brought back except from a [backup](#backups).
+
 ## Webhooks
 
 **To post into a channel from another tool**, open the space's settings →

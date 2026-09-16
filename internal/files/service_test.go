@@ -64,7 +64,10 @@ type fakeSpaces struct {
 	spaceID    string
 	channelID  string
 	referenced map[string]bool // file ids chat "still points at" (sweep)
+	pinned     []string        // files on pinned messages (retention)
 }
+
+func (f *fakeSpaces) PinnedFileIDs(context.Context) ([]string, error) { return f.pinned, nil }
 
 func (f *fakeSpaces) ReferencedFiles(_ context.Context, ids []string) ([]string, error) {
 	var out []string
@@ -79,12 +82,16 @@ func (f *fakeSpaces) ReferencedFiles(_ context.Context, ids []string) ([]string,
 // fakePolicy is the quota port with fixed caps: quota is the total,
 // maxUpload the per-file limit (0 = none, so the module's ceiling wins).
 type fakePolicy struct {
-	quota     int64
-	maxUpload int64
+	quota         int64
+	maxUpload     int64
+	retentionDays int
 }
 
 func (p fakePolicy) StorageQuotaBytes(context.Context) (int64, error) { return p.quota, nil }
 func (p fakePolicy) MaxUploadBytes(context.Context) (int64, error)    { return p.maxUpload, nil }
+func (p fakePolicy) AttachmentRetentionDays(context.Context) (int, error) {
+	return p.retentionDays, nil
+}
 
 func (f *fakeSpaces) RequireManageSpace(ctx context.Context, _ string) error {
 	if !f.managers[authctx.UserID(ctx)] {

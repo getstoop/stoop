@@ -322,6 +322,28 @@ doesn't exist, so an id can't be probed for existence.
 The client's side of this — the single flat window, the 300-row cap, the
 liveness rule — is in [realtime.md](realtime.md#history-windows).
 
+## Message retention
+
+`message_retention_days` is an instance setting (0 = forever), read
+through chat's `InstancePolicy`. `internal/chat/retention_sweep.go` runs
+hourly and deletes messages older than the period, pinned ones excepted,
+DMs included. Message ids are UUIDv7, so "older than" is a primary-key
+range below the smallest id for the cutoff instant (`cutoffID`), with no
+extra index.
+
+Each batch of 1000 lists the messages' attachment files, deletes the
+messages, recomputes `last_message_id` for the channels touched, and
+deletes the files through the port. Foreign keys do the rest: mentions,
+reactions, attachment links, link rows, pins and activity items cascade,
+and a reply's `reply_to_message_id` goes `NULL`. Read markers have no
+foreign key and compare by id, so unread counts stay right with the
+marker's message gone.
+
+No events are published. A swept message is old enough to be off almost
+every screen, and it is gone on the next load. The history head says
+"messages older than N days are deleted" when the setting is on, since
+the status carrying it is public.
+
 ## Search
 
 `SearchMessages` finds messages by their words within one space the

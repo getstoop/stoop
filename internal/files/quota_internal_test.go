@@ -14,8 +14,9 @@ import (
 
 type quotaOnly int64
 
-func (q quotaOnly) StorageQuotaBytes(context.Context) (int64, error) { return int64(q), nil }
-func (q quotaOnly) MaxUploadBytes(context.Context) (int64, error)    { return 0, nil }
+func (q quotaOnly) StorageQuotaBytes(context.Context) (int64, error)     { return int64(q), nil }
+func (q quotaOnly) MaxUploadBytes(context.Context) (int64, error)        { return 0, nil }
+func (q quotaOnly) AttachmentRetentionDays(context.Context) (int, error) { return 0, nil }
 
 // Six inserts that would each fit on their own race for a quota with room
 // for one. recordFile sums usage under the lock, so exactly one lands.

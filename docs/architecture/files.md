@@ -219,6 +219,30 @@ is also the better one: a batched question with a bounded answer, where a
 future module that starts holding file pointers only has to implement the
 same method.
 
+## Retention
+
+`attachment_retention_days` is an instance setting (0 = forever), read
+through `files.Policy`. `internal/files/retention.go` runs hourly and
+takes attachments older than the period, in batches of 500, less the
+files on pinned messages (asked of chat through `Spaces.PinnedFileIDs`).
+For each it deletes the blob first, then sets `files.expired_at` and
+blanks `files.name`. The blob goes first because a row already marked
+expired is never looked at again, so its blob would leak.
+
+The row stays so the message still says a file was there: deleting it
+would cascade `message_attachments` away and leave a message that was
+only a photo empty. An expired file:
+
+- carries `Attachment.expired` with no name, for the "Expired attachment"
+  placeholder;
+- answers `410 Gone` on download, after the usual authorisation, so a
+  non-member learns nothing;
+- can't be claimed by a new message;
+- doesn't count towards `StorageUsage`.
+
+Avatars, icons and link preview images are never expired; the sweep
+above removes those once nothing points at them.
+
 ## The quota
 
 `storage_quota_bytes` is an instance setting (0 = unlimited), read through

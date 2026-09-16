@@ -186,8 +186,11 @@ type Attachment struct {
 	// The uploader's filename, sanitised (basename, no control characters).
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Decided by sniffing the bytes at upload, never by the client.
-	ContentType   string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	Size          int64  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	ContentType string `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	Size        int64  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	// Deleted by the server's attachment retention setting: no bytes, and
+	// name is empty. The content type and size stay for the placeholder.
+	Expired       bool `protobuf:"varint,5,opt,name=expired,proto3" json:"expired,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -248,6 +251,13 @@ func (x *Attachment) GetSize() int64 {
 		return x.Size
 	}
 	return 0
+}
+
+func (x *Attachment) GetExpired() bool {
+	if x != nil {
+		return x.Expired
+	}
+	return false
 }
 
 type Message struct {
@@ -534,13 +544,14 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x124\n" +
 	"\x06author\x18\x02 \x01(\v2\x1c.stoop.chat.v1.MessageAuthorR\x06author\x12\x18\n" +
-	"\apreview\x18\x03 \x01(\tR\apreview\"p\n" +
+	"\apreview\x18\x03 \x01(\tR\apreview\"\x8a\x01\n" +
 	"\n" +
 	"Attachment\x12\x17\n" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
-	"\x04size\x18\x04 \x01(\x03R\x04size\"\x94\x05\n" +
+	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x18\n" +
+	"\aexpired\x18\x05 \x01(\bR\aexpired\"\x94\x05\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +

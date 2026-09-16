@@ -305,6 +305,14 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 	if err != nil {
 		return nil, err
 	}
+	messageDays, err := s.MessageRetentionDays(ctx)
+	if err != nil {
+		return nil, err
+	}
+	attachmentDays, err := s.AttachmentRetentionDays(ctx)
+	if err != nil {
+		return nil, err
+	}
 	summaries := make([]*instancev1.LoginProviderSummary, len(providers))
 	for i, lp := range providers {
 		summaries[i] = &instancev1.LoginProviderSummary{
@@ -319,7 +327,8 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		PersonalTokens:    toProtoPersonalTokens(TokenSetting(tokens)),
 		WebhooksAvailable: s.webhooksEnv, WebhooksIncoming: incoming, WebhooksOutgoing: outgoing,
 		WebhooksAllowPrivateTargets: private, SelfDeletion: selfDeletion,
-		SessionLifetimeDays: int32(sessionDays),
+		SessionLifetimeDays:  int32(sessionDays),
+		MessageRetentionDays: int32(messageDays), AttachmentRetentionDays: int32(attachmentDays),
 	}, nil
 }
 
@@ -353,6 +362,9 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	if d := req.Msg.SessionLifetimeDays; d != nil && (*d < 0 || *d > MaxSessionLifetimeDays) {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("session_lifetime_days must be 1-365, or 0 to use the server's default"))
+	}
+	if !validRetention(req.Msg.MessageRetentionDays) || !validRetention(req.Msg.AttachmentRetentionDays) {
+		return nil, errRetentionRange()
 	}
 	if req.Msg.InstanceName != nil {
 		name := strings.TrimSpace(*req.Msg.InstanceName)
@@ -455,6 +467,15 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	if req.Msg.SessionLifetimeDays != nil {
 		if err := s.writeJSON(ctx, keySessionLifetime, *req.Msg.SessionLifetimeDays); err != nil {
 			return nil, err
+		}
+	}
+	for key, v := range map[string]*int32{
+		keyMessageRetention: req.Msg.MessageRetentionDays, keyAttachmentRetention: req.Msg.AttachmentRetentionDays,
+	} {
+		if v != nil {
+			if err := s.writeJSON(ctx, key, *v); err != nil {
+				return nil, err
+			}
 		}
 	}
 	for key, v := range map[string]*bool{

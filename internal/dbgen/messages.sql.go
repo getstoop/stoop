@@ -9,6 +9,19 @@ import (
 	"context"
 )
 
+const countExpiredMessages = `-- name: CountExpiredMessages :one
+SELECT count(*)::bigint FROM messages m
+WHERE m.id < $1::uuid
+  AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id)
+`
+
+func (q *Queries) CountExpiredMessages(ctx context.Context, cutoff string) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredMessages, cutoff)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createMessage = `-- name: CreateMessage :one
 
 INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id)
@@ -63,6 +76,15 @@ func (q *Queries) DeleteMessage(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteMessagesByIDs = `-- name: DeleteMessagesByIDs :exec
+DELETE FROM messages WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) DeleteMessagesByIDs(ctx context.Context, ids []string) error {
+	_, err := q.db.Exec(ctx, deleteMessagesByIDs, ids)
+	return err
+}
+
 const getMessage = `-- name: GetMessage :one
 SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, search FROM messages WHERE id = $1
 `
@@ -99,6 +121,46 @@ type InsertMessageMentionParams struct {
 func (q *Queries) InsertMessageMention(ctx context.Context, arg InsertMessageMentionParams) error {
 	_, err := q.db.Exec(ctx, insertMessageMention, arg.MessageID, arg.UserID)
 	return err
+}
+
+const listExpiredMessages = `-- name: ListExpiredMessages :many
+SELECT m.id, m.channel_id FROM messages m
+WHERE m.id < $1::uuid
+  AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id)
+ORDER BY m.id
+LIMIT $2
+`
+
+type ListExpiredMessagesParams struct {
+	Cutoff string
+	Limit  int32
+}
+
+type ListExpiredMessagesRow struct {
+	ID        string
+	ChannelID string
+}
+
+// Message retention: messages older than the cutoff id (UUIDv7, so id
+// order is time order), less pinned ones, oldest first.
+func (q *Queries) ListExpiredMessages(ctx context.Context, arg ListExpiredMessagesParams) ([]ListExpiredMessagesRow, error) {
+	rows, err := q.db.Query(ctx, listExpiredMessages, arg.Cutoff, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExpiredMessagesRow
+	for rows.Next() {
+		var i ListExpiredMessagesRow
+		if err := rows.Scan(&i.ID, &i.ChannelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listMentionsForMessages = `-- name: ListMentionsForMessages :many
