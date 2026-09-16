@@ -89,7 +89,7 @@ export function ChannelMenu({
   const items: MenuItem[] = space?.muted
     ? [{ label: "Muted by space", onSelect: () => {}, disabled: true }]
     : [{ label: channel.muted ? "Unmute" : "Mute", onSelect: toggleMute }];
-  items.push({ label: "Copy link", onSelect: copyLink });
+  items.push({ label: "Copy link", onSelect: copyLink, done: "Copied!" });
   // A conversation can be taken off the list without any judgement about
   // the people in it; the next message puts it back.
   if (!spaceId) {

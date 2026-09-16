@@ -112,6 +112,7 @@ export function SpaceLayout() {
       label: "Copy link",
       onSelect: () =>
         copyShareLink(shareUrl(spacePath(spaceId), shareOrigin(queryClient))),
+      done: "Copied!",
     });
     if (canCreateInvites(space)) {
       spaceActions.push({

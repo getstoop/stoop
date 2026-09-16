@@ -4,7 +4,12 @@ import { DotsIcon } from "./Icons";
 
 export type MenuItem = {
   label: string;
-  onSelect: () => void;
+  // May return a promise; see done.
+  onSelect: () => unknown;
+  // Shown in place of the label for a moment before the menu closes, once
+  // onSelect resolves to anything but false: "Copied!" for an action with
+  // nothing else on screen to show it worked.
+  done?: string;
   danger?: boolean;
   title?: string;
   // Shown, greyed, and inert: an item that says why it can't be picked.
@@ -13,6 +18,7 @@ export type MenuItem = {
 
 const MENU_WIDTH = 180;
 const ITEM_HEIGHT = 34;
+const DONE_MS = 900;
 
 // Fixed coordinates for the menu: right-aligned under the button, or
 // above it when the bottom of the window is too close, and never past
@@ -45,10 +51,21 @@ export function DotsMenu({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // The item showing its done label, while the menu waits to close.
+  const [doneLabel, setDoneLabel] = useState<string | null>(null);
   // Where the button was when the menu opened.
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!doneLabel) return;
+    const id = setTimeout(() => {
+      setOpen(false);
+      setDoneLabel(null);
+    }, DONE_MS);
+    return () => clearTimeout(id);
+  }, [doneLabel]);
 
   useEffect(() => {
     if (!open) return;
@@ -88,7 +105,10 @@ export function DotsMenu({
           e.preventDefault();
           e.stopPropagation();
           setAnchor(buttonRef.current?.getBoundingClientRect() ?? null);
-          setOpen((o) => !o);
+          // During a done label the menu is on its way out: a click
+          // brings it back fresh rather than finishing the close.
+          setOpen((o) => !o || doneLabel !== null);
+          setDoneLabel(null);
         }}
       >
         <DotsIcon />
@@ -107,13 +127,18 @@ export function DotsMenu({
               className={item.danger ? "danger" : undefined}
               title={item.title}
               aria-disabled={item.disabled || undefined}
-              onClick={() => {
-                if (item.disabled) return;
-                setOpen(false);
-                item.onSelect();
+              onClick={async () => {
+                if (item.disabled || doneLabel) return;
+                if (!item.done) {
+                  setOpen(false);
+                  item.onSelect();
+                  return;
+                }
+                if ((await item.onSelect()) === false) setOpen(false);
+                else setDoneLabel(item.label);
               }}
             >
-              {item.label}
+              {doneLabel === item.label ? item.done : item.label}
             </button>
           ))}
         </div>
