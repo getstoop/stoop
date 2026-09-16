@@ -320,9 +320,11 @@ type GetInstanceStatusResponse struct {
 	WebhooksAllowPrivateTargets bool `protobuf:"varint,14,opt,name=webhooks_allow_private_targets,json=webhooksAllowPrivateTargets,proto3" json:"webhooks_allow_private_targets,omitempty"`
 	// Whether a person may delete their own account; on unless the operator
 	// turned it off.
-	SelfDeletion  bool `protobuf:"varint,15,opt,name=self_deletion,json=selfDeletion,proto3" json:"self_deletion,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SelfDeletion bool `protobuf:"varint,15,opt,name=self_deletion,json=selfDeletion,proto3" json:"self_deletion,omitempty"`
+	// How long a sign-in lasts, in days. Applies to sign-ins from now on.
+	SessionLifetimeDays int32 `protobuf:"varint,16,opt,name=session_lifetime_days,json=sessionLifetimeDays,proto3" json:"session_lifetime_days,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetInstanceStatusResponse) Reset() {
@@ -460,6 +462,13 @@ func (x *GetInstanceStatusResponse) GetSelfDeletion() bool {
 	return false
 }
 
+func (x *GetInstanceStatusResponse) GetSessionLifetimeDays() int32 {
+	if x != nil {
+		return x.SessionLifetimeDays
+	}
+	return 0
+}
+
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset fields are left unchanged.
@@ -482,8 +491,11 @@ type UpdateSettingsRequest struct {
 	// Link-local is never reachable.
 	WebhooksAllowPrivateTargets *bool `protobuf:"varint,10,opt,name=webhooks_allow_private_targets,json=webhooksAllowPrivateTargets,proto3,oneof" json:"webhooks_allow_private_targets,omitempty"`
 	SelfDeletion                *bool `protobuf:"varint,11,opt,name=self_deletion,json=selfDeletion,proto3,oneof" json:"self_deletion,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// 1-365. 0 clears the saved value, falling back to
+	// STOOP_SESSION_LIFETIME_DAYS.
+	SessionLifetimeDays *int32 `protobuf:"varint,12,opt,name=session_lifetime_days,json=sessionLifetimeDays,proto3,oneof" json:"session_lifetime_days,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -591,6 +603,13 @@ func (x *UpdateSettingsRequest) GetSelfDeletion() bool {
 		return *x.SelfDeletion
 	}
 	return false
+}
+
+func (x *UpdateSettingsRequest) GetSessionLifetimeDays() int32 {
+	if x != nil && x.SessionLifetimeDays != nil {
+		return *x.SessionLifetimeDays
+	}
+	return 0
 }
 
 type UpdateSettingsResponse struct {
@@ -1848,7 +1867,7 @@ var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
 const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\n" +
 	" stoop/instance/v1/instance.proto\x12\x11stoop.instance.v1\x1a\x18stoop/auth/v1/auth.proto\x1a!stoop/instance/v1/providers.proto\x1a$stoop/instance/v1/reachability.proto\x1a\x1cstoop/instance/v1/user.proto\"\x1a\n" +
-	"\x18GetInstanceStatusRequest\"\xdf\x06\n" +
+	"\x18GetInstanceStatusRequest\"\x93\a\n" +
 	"\x19GetInstanceStatusResponse\x12\x1f\n" +
 	"\vneeds_setup\x18\x01 \x01(\bR\n" +
 	"needsSetup\x12V\n" +
@@ -1867,7 +1886,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x11webhooks_incoming\x18\f \x01(\bR\x10webhooksIncoming\x12+\n" +
 	"\x11webhooks_outgoing\x18\r \x01(\bR\x10webhooksOutgoing\x12C\n" +
 	"\x1ewebhooks_allow_private_targets\x18\x0e \x01(\bR\x1bwebhooksAllowPrivateTargets\x12#\n" +
-	"\rself_deletion\x18\x0f \x01(\bR\fselfDeletion\"\xc5\a\n" +
+	"\rself_deletion\x18\x0f \x01(\bR\fselfDeletion\x122\n" +
+	"\x15session_lifetime_days\x18\x10 \x01(\x05R\x13sessionLifetimeDays\"\x98\b\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
 	"\x0espace_creation\x18\x02 \x01(\x0e2&.stoop.instance.v1.SpaceCreationPolicyH\x01R\rspaceCreation\x88\x01\x01\x123\n" +
@@ -1881,7 +1901,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x1ewebhooks_allow_private_targets\x18\n" +
 	" \x01(\bH\tR\x1bwebhooksAllowPrivateTargets\x88\x01\x01\x12(\n" +
 	"\rself_deletion\x18\v \x01(\bH\n" +
-	"R\fselfDeletion\x88\x01\x01B\x16\n" +
+	"R\fselfDeletion\x88\x01\x01\x127\n" +
+	"\x15session_lifetime_days\x18\f \x01(\x05H\vR\x13sessionLifetimeDays\x88\x01\x01B\x16\n" +
 	"\x14_registration_policyB\x11\n" +
 	"\x0f_space_creationB\x16\n" +
 	"\x14_storage_quota_bytesB\x13\n" +
@@ -1892,7 +1913,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x12_webhooks_incomingB\x14\n" +
 	"\x12_webhooks_outgoingB!\n" +
 	"\x1f_webhooks_allow_private_targetsB\x10\n" +
-	"\x0e_self_deletion\"^\n" +
+	"\x0e_self_deletionB\x18\n" +
+	"\x16_session_lifetime_days\"^\n" +
 	"\x16UpdateSettingsResponse\x12D\n" +
 	"\x06status\x18\x01 \x01(\v2,.stoop.instance.v1.GetInstanceStatusResponseR\x06status\"\x12\n" +
 	"\x10ListUsersRequest\"J\n" +

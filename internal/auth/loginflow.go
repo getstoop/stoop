@@ -223,13 +223,13 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	// A link kept the existing session; a login or registration mints one.
 	if res.userID != "" {
-		token, err := s.createSession(ctx, res.userID)
+		token, ttl, err := s.createSession(ctx, res.userID, r.UserAgent())
 		if err != nil {
 			slog.Error("create session after provider login", "err", err)
 			loginError(w, r, "provider_error")
 			return
 		}
-		http.SetCookie(w, s.sessionCookie(ctx, token, sessionTTL))
+		http.SetCookie(w, s.sessionCookie(ctx, token, ttl))
 	}
 	http.Redirect(w, r, res.target, http.StatusFound)
 }

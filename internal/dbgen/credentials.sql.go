@@ -59,7 +59,7 @@ INSERT INTO credentials (id, holder_id, kind, token_hash, name, grants, bounded,
 VALUES ($1::uuid, $2::uuid, 'personal_token', $3::bytea,
         $4::text, $5::text[], $6::boolean, $2::uuid,
         $7::timestamptz, $8::text)
-RETURNING id, holder_id, kind, token_hash, name, grants, bounded, created_by, created_at, expires_at, last_used_at, hint
+RETURNING id, holder_id, kind, token_hash, name, grants, bounded, created_by, created_at, expires_at, last_used_at, hint, user_agent
 `
 
 type CreatePersonalTokenParams struct {
@@ -98,16 +98,18 @@ func (q *Queries) CreatePersonalToken(ctx context.Context, arg CreatePersonalTok
 		&i.ExpiresAt,
 		&i.LastUsedAt,
 		&i.Hint,
+		&i.UserAgent,
 	)
 	return i, err
 }
 
 const createSession = `-- name: CreateSession :one
 
-INSERT INTO credentials (id, holder_id, kind, token_hash, expires_at)
-SELECT $1::uuid, u.id, 'session', $2::bytea, $3::timestamptz
+INSERT INTO credentials (id, holder_id, kind, token_hash, expires_at, user_agent)
+SELECT $1::uuid, u.id, 'session', $2::bytea, $3::timestamptz,
+       $4::text
 FROM users u
-WHERE u.id = $4::uuid AND u.kind = 'person'
+WHERE u.id = $5::uuid AND u.kind = 'person'
 RETURNING id
 `
 
@@ -115,6 +117,7 @@ type CreateSessionParams struct {
 	ID        string
 	TokenHash []byte
 	ExpiresAt time.Time
+	UserAgent string
 	HolderID  string
 }
 
@@ -132,6 +135,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (s
 		arg.ID,
 		arg.TokenHash,
 		arg.ExpiresAt,
+		arg.UserAgent,
 		arg.HolderID,
 	)
 	var id string
@@ -234,6 +238,44 @@ func (q *Queries) DeletePersonalToken(ctx context.Context, arg DeletePersonalTok
 	var items []DeletePersonalTokenRow
 	for rows.Next() {
 		var i DeletePersonalTokenRow
+		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteSession = `-- name: DeleteSession :many
+WITH legacy AS (DELETE FROM sessions WHERE sessions.id = $1::uuid AND user_id = $2::uuid)
+DELETE FROM credentials
+WHERE credentials.id = $1::uuid AND holder_id = $2::uuid AND kind = 'session'
+RETURNING id, holder_id
+`
+
+type DeleteSessionParams struct {
+	ID       string
+	HolderID string
+}
+
+type DeleteSessionRow struct {
+	ID       string
+	HolderID string
+}
+
+// DeleteSession revokes one of a person's own sessions.
+func (q *Queries) DeleteSession(ctx context.Context, arg DeleteSessionParams) ([]DeleteSessionRow, error) {
+	rows, err := q.db.Query(ctx, deleteSession, arg.ID, arg.HolderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteSessionRow
+	for rows.Next() {
+		var i DeleteSessionRow
 		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
 			return nil, err
 		}
@@ -408,6 +450,48 @@ func (q *Queries) ListPersonalTokens(ctx context.Context, holderID string) ([]Li
 			&i.ExpiresAt,
 			&i.Hint,
 			&i.BoundSpaces,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSessions = `-- name: ListSessions :many
+SELECT id, created_at, last_used_at, expires_at, user_agent
+FROM credentials
+WHERE holder_id = $1 AND kind = 'session' AND expires_at > now()
+ORDER BY coalesce(last_used_at, created_at) DESC
+`
+
+type ListSessionsRow struct {
+	ID         string
+	CreatedAt  time.Time
+	LastUsedAt *time.Time
+	ExpiresAt  *time.Time
+	UserAgent  string
+}
+
+// ListSessions is one person's live sessions, most recently used first.
+func (q *Queries) ListSessions(ctx context.Context, holderID string) ([]ListSessionsRow, error) {
+	rows, err := q.db.Query(ctx, listSessions, holderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSessionsRow
+	for rows.Next() {
+		var i ListSessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+			&i.ExpiresAt,
+			&i.UserAgent,
 		); err != nil {
 			return nil, err
 		}

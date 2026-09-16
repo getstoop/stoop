@@ -47,6 +47,7 @@ type Service struct {
 	providers ProviderSource
 	passwords PasswordPolicy
 	tokens    TokenPolicy
+	sessions  SessionPolicy
 	deletion  DeletionPolicy
 	departure AccountDeparture
 	// bus carries CredentialRevoked to the gateway (revocation.go).

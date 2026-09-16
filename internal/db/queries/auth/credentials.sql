@@ -9,8 +9,9 @@
 -- CreateSession mints a session for a person. A bot never gets one: the
 -- insert finds no holder and returns no row.
 -- name: CreateSession :one
-INSERT INTO credentials (id, holder_id, kind, token_hash, expires_at)
-SELECT sqlc.arg(id)::uuid, u.id, 'session', sqlc.arg(token_hash)::bytea, sqlc.arg(expires_at)::timestamptz
+INSERT INTO credentials (id, holder_id, kind, token_hash, expires_at, user_agent)
+SELECT sqlc.arg(id)::uuid, u.id, 'session', sqlc.arg(token_hash)::bytea, sqlc.arg(expires_at)::timestamptz,
+       sqlc.arg(user_agent)::text
 FROM users u
 WHERE u.id = sqlc.arg(holder_id)::uuid AND u.kind = 'person'
 RETURNING id;
@@ -41,6 +42,20 @@ RETURNING id, holder_id;
 WITH legacy AS (DELETE FROM sessions WHERE user_id = sqlc.arg(holder_id) AND sessions.id <> sqlc.arg(id))
 DELETE FROM credentials
 WHERE holder_id = sqlc.arg(holder_id) AND kind = 'session' AND credentials.id <> sqlc.arg(id)
+RETURNING id, holder_id;
+
+-- ListSessions is one person's live sessions, most recently used first.
+-- name: ListSessions :many
+SELECT id, created_at, last_used_at, expires_at, user_agent
+FROM credentials
+WHERE holder_id = $1 AND kind = 'session' AND expires_at > now()
+ORDER BY coalesce(last_used_at, created_at) DESC;
+
+-- DeleteSession revokes one of a person's own sessions.
+-- name: DeleteSession :many
+WITH legacy AS (DELETE FROM sessions WHERE sessions.id = sqlc.arg(id)::uuid AND user_id = sqlc.arg(holder_id)::uuid)
+DELETE FROM credentials
+WHERE credentials.id = sqlc.arg(id)::uuid AND holder_id = sqlc.arg(holder_id)::uuid AND kind = 'session'
 RETURNING id, holder_id;
 
 -- DeleteUserCredentials revokes everything an account holds, on

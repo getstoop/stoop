@@ -43,6 +43,14 @@ service AuthService {
   // within the last few minutes when the account has none. Refused when
   // the operator has turned self-deletion off, and for the last admin.
   rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse) {}
+  // ListSessions lists where the caller is signed in, most recently used
+  // first. Needs a session: a token can't see or end sessions.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {}
+  // RevokeSession signs out one of the caller's sessions. Revoking the
+  // calling session signs this browser out, as Logout does.
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse) {}
+  // RevokeOtherSessions signs the caller out everywhere but here.
+  rpc RevokeOtherSessions(RevokeOtherSessionsRequest) returns (RevokeOtherSessionsResponse) {}
   // CreatePersonalToken makes a token that acts as the caller with only the
   // permissions granted. The secret is in
   // this response and nowhere else. Needs a session: no token can make
@@ -233,6 +241,38 @@ message DeleteAccountRequest {
 }
 
 message DeleteAccountResponse {}
+
+// Session is one place a person is signed in. Never the token.
+message Session {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  // Unset until first used after sign-in. Recorded at most once a minute.
+  google.protobuf.Timestamp last_used_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  // The User-Agent it signed in with, as sent; empty when unknown.
+  string user_agent = 5;
+  // The session making this call.
+  bool current = 6;
+}
+
+message ListSessionsRequest {}
+
+message ListSessionsResponse {
+  repeated Session sessions = 1;
+}
+
+message RevokeSessionRequest {
+  string session_id = 1;
+}
+
+message RevokeSessionResponse {}
+
+message RevokeOtherSessionsRequest {}
+
+message RevokeOtherSessionsResponse {
+  // How many sessions were signed out.
+  int32 revoked = 1;
+}
 
 // PersonalToken is one of a person's tokens, as its holder or an admin sees
 // it: never the secret, which isn't stored.

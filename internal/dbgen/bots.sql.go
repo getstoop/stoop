@@ -82,7 +82,7 @@ SELECT $1::uuid, u.id, $2::text, $3::bytea,
        $7::uuid, $8::text
 FROM users u
 WHERE u.id = $9::uuid AND u.kind = 'bot' AND u.deactivated_at IS NULL
-RETURNING id, holder_id, kind, token_hash, name, grants, bounded, created_by, created_at, expires_at, last_used_at, hint
+RETURNING id, holder_id, kind, token_hash, name, grants, bounded, created_by, created_at, expires_at, last_used_at, hint, user_agent
 `
 
 type CreateBotCredentialParams struct {
@@ -125,6 +125,7 @@ func (q *Queries) CreateBotCredential(ctx context.Context, arg CreateBotCredenti
 		&i.ExpiresAt,
 		&i.LastUsedAt,
 		&i.Hint,
+		&i.UserAgent,
 	)
 	return i, err
 }

@@ -1449,6 +1449,335 @@ func (*DeleteAccountResponse) Descriptor() ([]byte, []int) {
 	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{24}
 }
 
+// Session is one place a person is signed in. Never the token.
+type Session struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Unset until first used after sign-in. Recorded at most once a minute.
+	LastUsedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	ExpiresAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// The User-Agent it signed in with, as sent; empty when unknown.
+	UserAgent string `protobuf:"bytes,5,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	// The session making this call.
+	Current       bool `protobuf:"varint,6,opt,name=current,proto3" json:"current,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Session) Reset() {
+	*x = Session{}
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Session) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Session) ProtoMessage() {}
+
+func (x *Session) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Session.ProtoReflect.Descriptor instead.
+func (*Session) Descriptor() ([]byte, []int) {
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *Session) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Session) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Session) GetLastUsedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastUsedAt
+	}
+	return nil
+}
+
+func (x *Session) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *Session) GetUserAgent() string {
+	if x != nil {
+		return x.UserAgent
+	}
+	return ""
+}
+
+func (x *Session) GetCurrent() bool {
+	if x != nil {
+		return x.Current
+	}
+	return false
+}
+
+type ListSessionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSessionsRequest) Reset() {
+	*x = ListSessionsRequest{}
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSessionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSessionsRequest) ProtoMessage() {}
+
+func (x *ListSessionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSessionsRequest.ProtoReflect.Descriptor instead.
+func (*ListSessionsRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{26}
+}
+
+type ListSessionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sessions      []*Session             `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSessionsResponse) Reset() {
+	*x = ListSessionsResponse{}
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSessionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSessionsResponse) ProtoMessage() {}
+
+func (x *ListSessionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSessionsResponse.ProtoReflect.Descriptor instead.
+func (*ListSessionsResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ListSessionsResponse) GetSessions() []*Session {
+	if x != nil {
+		return x.Sessions
+	}
+	return nil
+}
+
+type RevokeSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeSessionRequest) Reset() {
+	*x = RevokeSessionRequest{}
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeSessionRequest) ProtoMessage() {}
+
+func (x *RevokeSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeSessionRequest.ProtoReflect.Descriptor instead.
+func (*RevokeSessionRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RevokeSessionRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type RevokeSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeSessionResponse) Reset() {
+	*x = RevokeSessionResponse{}
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeSessionResponse) ProtoMessage() {}
+
+func (x *RevokeSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeSessionResponse.ProtoReflect.Descriptor instead.
+func (*RevokeSessionResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{29}
+}
+
+type RevokeOtherSessionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeOtherSessionsRequest) Reset() {
+	*x = RevokeOtherSessionsRequest{}
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeOtherSessionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeOtherSessionsRequest) ProtoMessage() {}
+
+func (x *RevokeOtherSessionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeOtherSessionsRequest.ProtoReflect.Descriptor instead.
+func (*RevokeOtherSessionsRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{30}
+}
+
+type RevokeOtherSessionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How many sessions were signed out.
+	Revoked       int32 `protobuf:"varint,1,opt,name=revoked,proto3" json:"revoked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeOtherSessionsResponse) Reset() {
+	*x = RevokeOtherSessionsResponse{}
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeOtherSessionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeOtherSessionsResponse) ProtoMessage() {}
+
+func (x *RevokeOtherSessionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeOtherSessionsResponse.ProtoReflect.Descriptor instead.
+func (*RevokeOtherSessionsResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *RevokeOtherSessionsResponse) GetRevoked() int32 {
+	if x != nil {
+		return x.Revoked
+	}
+	return 0
+}
+
 // PersonalToken is one of a person's tokens, as its holder or an admin sees
 // it: never the secret, which isn't stored.
 type PersonalToken struct {
@@ -1471,7 +1800,7 @@ type PersonalToken struct {
 
 func (x *PersonalToken) Reset() {
 	*x = PersonalToken{}
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[25]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1483,7 +1812,7 @@ func (x *PersonalToken) String() string {
 func (*PersonalToken) ProtoMessage() {}
 
 func (x *PersonalToken) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[25]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1496,7 +1825,7 @@ func (x *PersonalToken) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PersonalToken.ProtoReflect.Descriptor instead.
 func (*PersonalToken) Descriptor() ([]byte, []int) {
-	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{25}
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *PersonalToken) GetId() string {
@@ -1570,7 +1899,7 @@ type CreatePersonalTokenRequest struct {
 
 func (x *CreatePersonalTokenRequest) Reset() {
 	*x = CreatePersonalTokenRequest{}
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[26]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1582,7 +1911,7 @@ func (x *CreatePersonalTokenRequest) String() string {
 func (*CreatePersonalTokenRequest) ProtoMessage() {}
 
 func (x *CreatePersonalTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[26]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1595,7 +1924,7 @@ func (x *CreatePersonalTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePersonalTokenRequest.ProtoReflect.Descriptor instead.
 func (*CreatePersonalTokenRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{26}
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CreatePersonalTokenRequest) GetName() string {
@@ -1630,7 +1959,7 @@ type CreatePersonalTokenResponse struct {
 
 func (x *CreatePersonalTokenResponse) Reset() {
 	*x = CreatePersonalTokenResponse{}
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[27]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1642,7 +1971,7 @@ func (x *CreatePersonalTokenResponse) String() string {
 func (*CreatePersonalTokenResponse) ProtoMessage() {}
 
 func (x *CreatePersonalTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[27]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1655,7 +1984,7 @@ func (x *CreatePersonalTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePersonalTokenResponse.ProtoReflect.Descriptor instead.
 func (*CreatePersonalTokenResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{27}
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CreatePersonalTokenResponse) GetToken() *PersonalToken {
@@ -1680,7 +2009,7 @@ type ListPersonalTokensRequest struct {
 
 func (x *ListPersonalTokensRequest) Reset() {
 	*x = ListPersonalTokensRequest{}
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[28]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1692,7 +2021,7 @@ func (x *ListPersonalTokensRequest) String() string {
 func (*ListPersonalTokensRequest) ProtoMessage() {}
 
 func (x *ListPersonalTokensRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[28]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1705,7 +2034,7 @@ func (x *ListPersonalTokensRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPersonalTokensRequest.ProtoReflect.Descriptor instead.
 func (*ListPersonalTokensRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{28}
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{35}
 }
 
 type ListPersonalTokensResponse struct {
@@ -1717,7 +2046,7 @@ type ListPersonalTokensResponse struct {
 
 func (x *ListPersonalTokensResponse) Reset() {
 	*x = ListPersonalTokensResponse{}
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[29]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1729,7 +2058,7 @@ func (x *ListPersonalTokensResponse) String() string {
 func (*ListPersonalTokensResponse) ProtoMessage() {}
 
 func (x *ListPersonalTokensResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[29]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1742,7 +2071,7 @@ func (x *ListPersonalTokensResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPersonalTokensResponse.ProtoReflect.Descriptor instead.
 func (*ListPersonalTokensResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{29}
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ListPersonalTokensResponse) GetTokens() []*PersonalToken {
@@ -1761,7 +2090,7 @@ type RevokePersonalTokenRequest struct {
 
 func (x *RevokePersonalTokenRequest) Reset() {
 	*x = RevokePersonalTokenRequest{}
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[30]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1773,7 +2102,7 @@ func (x *RevokePersonalTokenRequest) String() string {
 func (*RevokePersonalTokenRequest) ProtoMessage() {}
 
 func (x *RevokePersonalTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[30]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1786,7 +2115,7 @@ func (x *RevokePersonalTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokePersonalTokenRequest.ProtoReflect.Descriptor instead.
 func (*RevokePersonalTokenRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{30}
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *RevokePersonalTokenRequest) GetTokenId() string {
@@ -1804,7 +2133,7 @@ type RevokePersonalTokenResponse struct {
 
 func (x *RevokePersonalTokenResponse) Reset() {
 	*x = RevokePersonalTokenResponse{}
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[31]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1816,7 +2145,7 @@ func (x *RevokePersonalTokenResponse) String() string {
 func (*RevokePersonalTokenResponse) ProtoMessage() {}
 
 func (x *RevokePersonalTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_auth_v1_auth_proto_msgTypes[31]
+	mi := &file_stoop_auth_v1_auth_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1829,7 +2158,7 @@ func (x *RevokePersonalTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokePersonalTokenResponse.ProtoReflect.Descriptor instead.
 func (*RevokePersonalTokenResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{31}
+	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{38}
 }
 
 var File_stoop_auth_v1_auth_proto protoreflect.FileDescriptor
@@ -1923,7 +2252,28 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\x16UnlinkIdentityResponse\"2\n" +
 	"\x14DeleteAccountRequest\x12\x1a\n" +
 	"\bpassword\x18\x01 \x01(\tR\bpassword\"\x17\n" +
-	"\x15DeleteAccountResponse\"\xf4\x02\n" +
+	"\x15DeleteAccountResponse\"\x86\x02\n" +
+	"\aSession\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\flast_used_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastUsedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1d\n" +
+	"\n" +
+	"user_agent\x18\x05 \x01(\tR\tuserAgent\x12\x18\n" +
+	"\acurrent\x18\x06 \x01(\bR\acurrent\"\x15\n" +
+	"\x13ListSessionsRequest\"J\n" +
+	"\x14ListSessionsResponse\x122\n" +
+	"\bsessions\x18\x01 \x03(\v2\x16.stoop.auth.v1.SessionR\bsessions\"5\n" +
+	"\x14RevokeSessionRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"\x17\n" +
+	"\x15RevokeSessionResponse\"\x1c\n" +
+	"\x1aRevokeOtherSessionsRequest\"7\n" +
+	"\x1bRevokeOtherSessionsResponse\x12\x18\n" +
+	"\arevoked\x18\x01 \x01(\x05R\arevoked\"\xf4\x02\n" +
 	"\rPersonalToken\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12=\n" +
@@ -1953,8 +2303,7 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\fInstanceRole\x12\x1d\n" +
 	"\x19INSTANCE_ROLE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14INSTANCE_ROLE_MEMBER\x10\x01\x12\x17\n" +
-	"\x13INSTANCE_ROLE_ADMIN\x10\x022\xa2\n" +
-	"\n" +
+	"\x13INSTANCE_ROLE_ADMIN\x10\x022\xcb\f\n" +
 	"\vAuthService\x12M\n" +
 	"\bRegister\x12\x1e.stoop.auth.v1.RegisterRequest\x1a\x1f.stoop.auth.v1.RegisterResponse\"\x00\x12D\n" +
 	"\x05Login\x12\x1b.stoop.auth.v1.LoginRequest\x1a\x1c.stoop.auth.v1.LoginResponse\"\x00\x12G\n" +
@@ -1966,7 +2315,10 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\x0eChangePassword\x12$.stoop.auth.v1.ChangePasswordRequest\x1a%.stoop.auth.v1.ChangePasswordResponse\"\x00\x12_\n" +
 	"\x0eListIdentities\x12$.stoop.auth.v1.ListIdentitiesRequest\x1a%.stoop.auth.v1.ListIdentitiesResponse\"\x00\x12_\n" +
 	"\x0eUnlinkIdentity\x12$.stoop.auth.v1.UnlinkIdentityRequest\x1a%.stoop.auth.v1.UnlinkIdentityResponse\"\x00\x12\\\n" +
-	"\rDeleteAccount\x12#.stoop.auth.v1.DeleteAccountRequest\x1a$.stoop.auth.v1.DeleteAccountResponse\"\x00\x12n\n" +
+	"\rDeleteAccount\x12#.stoop.auth.v1.DeleteAccountRequest\x1a$.stoop.auth.v1.DeleteAccountResponse\"\x00\x12Y\n" +
+	"\fListSessions\x12\".stoop.auth.v1.ListSessionsRequest\x1a#.stoop.auth.v1.ListSessionsResponse\"\x00\x12\\\n" +
+	"\rRevokeSession\x12#.stoop.auth.v1.RevokeSessionRequest\x1a$.stoop.auth.v1.RevokeSessionResponse\"\x00\x12n\n" +
+	"\x13RevokeOtherSessions\x12).stoop.auth.v1.RevokeOtherSessionsRequest\x1a*.stoop.auth.v1.RevokeOtherSessionsResponse\"\x00\x12n\n" +
 	"\x13CreatePersonalToken\x12).stoop.auth.v1.CreatePersonalTokenRequest\x1a*.stoop.auth.v1.CreatePersonalTokenResponse\"\x00\x12k\n" +
 	"\x12ListPersonalTokens\x12(.stoop.auth.v1.ListPersonalTokensRequest\x1a).stoop.auth.v1.ListPersonalTokensResponse\"\x00\x12n\n" +
 	"\x13RevokePersonalToken\x12).stoop.auth.v1.RevokePersonalTokenRequest\x1a*.stoop.auth.v1.RevokePersonalTokenResponse\"\x00B\xa8\x01\n" +
@@ -1985,7 +2337,7 @@ func file_stoop_auth_v1_auth_proto_rawDescGZIP() []byte {
 }
 
 var file_stoop_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_stoop_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_stoop_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_stoop_auth_v1_auth_proto_goTypes = []any{
 	(InstanceRole)(0),                   // 0: stoop.auth.v1.InstanceRole
 	(*User)(nil),                        // 1: stoop.auth.v1.User
@@ -2013,73 +2365,90 @@ var file_stoop_auth_v1_auth_proto_goTypes = []any{
 	(*UnlinkIdentityResponse)(nil),      // 23: stoop.auth.v1.UnlinkIdentityResponse
 	(*DeleteAccountRequest)(nil),        // 24: stoop.auth.v1.DeleteAccountRequest
 	(*DeleteAccountResponse)(nil),       // 25: stoop.auth.v1.DeleteAccountResponse
-	(*PersonalToken)(nil),               // 26: stoop.auth.v1.PersonalToken
-	(*CreatePersonalTokenRequest)(nil),  // 27: stoop.auth.v1.CreatePersonalTokenRequest
-	(*CreatePersonalTokenResponse)(nil), // 28: stoop.auth.v1.CreatePersonalTokenResponse
-	(*ListPersonalTokensRequest)(nil),   // 29: stoop.auth.v1.ListPersonalTokensRequest
-	(*ListPersonalTokensResponse)(nil),  // 30: stoop.auth.v1.ListPersonalTokensResponse
-	(*RevokePersonalTokenRequest)(nil),  // 31: stoop.auth.v1.RevokePersonalTokenRequest
-	(*RevokePersonalTokenResponse)(nil), // 32: stoop.auth.v1.RevokePersonalTokenResponse
-	(*timestamppb.Timestamp)(nil),       // 33: google.protobuf.Timestamp
-	(v1.IdentityKind)(0),                // 34: stoop.access.v1.IdentityKind
-	(v1.Permission)(0),                  // 35: stoop.access.v1.Permission
+	(*Session)(nil),                     // 26: stoop.auth.v1.Session
+	(*ListSessionsRequest)(nil),         // 27: stoop.auth.v1.ListSessionsRequest
+	(*ListSessionsResponse)(nil),        // 28: stoop.auth.v1.ListSessionsResponse
+	(*RevokeSessionRequest)(nil),        // 29: stoop.auth.v1.RevokeSessionRequest
+	(*RevokeSessionResponse)(nil),       // 30: stoop.auth.v1.RevokeSessionResponse
+	(*RevokeOtherSessionsRequest)(nil),  // 31: stoop.auth.v1.RevokeOtherSessionsRequest
+	(*RevokeOtherSessionsResponse)(nil), // 32: stoop.auth.v1.RevokeOtherSessionsResponse
+	(*PersonalToken)(nil),               // 33: stoop.auth.v1.PersonalToken
+	(*CreatePersonalTokenRequest)(nil),  // 34: stoop.auth.v1.CreatePersonalTokenRequest
+	(*CreatePersonalTokenResponse)(nil), // 35: stoop.auth.v1.CreatePersonalTokenResponse
+	(*ListPersonalTokensRequest)(nil),   // 36: stoop.auth.v1.ListPersonalTokensRequest
+	(*ListPersonalTokensResponse)(nil),  // 37: stoop.auth.v1.ListPersonalTokensResponse
+	(*RevokePersonalTokenRequest)(nil),  // 38: stoop.auth.v1.RevokePersonalTokenRequest
+	(*RevokePersonalTokenResponse)(nil), // 39: stoop.auth.v1.RevokePersonalTokenResponse
+	(*timestamppb.Timestamp)(nil),       // 40: google.protobuf.Timestamp
+	(v1.IdentityKind)(0),                // 41: stoop.access.v1.IdentityKind
+	(v1.Permission)(0),                  // 42: stoop.access.v1.Permission
 }
 var file_stoop_auth_v1_auth_proto_depIdxs = []int32{
-	33, // 0: stoop.auth.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	40, // 0: stoop.auth.v1.User.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: stoop.auth.v1.User.role:type_name -> stoop.auth.v1.InstanceRole
-	34, // 2: stoop.auth.v1.User.kind:type_name -> stoop.access.v1.IdentityKind
-	33, // 3: stoop.auth.v1.User.dnd_until:type_name -> google.protobuf.Timestamp
+	41, // 2: stoop.auth.v1.User.kind:type_name -> stoop.access.v1.IdentityKind
+	40, // 3: stoop.auth.v1.User.dnd_until:type_name -> google.protobuf.Timestamp
 	1,  // 4: stoop.auth.v1.RegisterResponse.user:type_name -> stoop.auth.v1.User
 	1,  // 5: stoop.auth.v1.LoginResponse.user:type_name -> stoop.auth.v1.User
 	1,  // 6: stoop.auth.v1.GetMeResponse.user:type_name -> stoop.auth.v1.User
-	35, // 7: stoop.auth.v1.GetMeResponse.permissions:type_name -> stoop.access.v1.Permission
+	42, // 7: stoop.auth.v1.GetMeResponse.permissions:type_name -> stoop.access.v1.Permission
 	1,  // 8: stoop.auth.v1.UpdateProfileResponse.user:type_name -> stoop.auth.v1.User
-	33, // 9: stoop.auth.v1.SetDoNotDisturbRequest.until:type_name -> google.protobuf.Timestamp
+	40, // 9: stoop.auth.v1.SetDoNotDisturbRequest.until:type_name -> google.protobuf.Timestamp
 	1,  // 10: stoop.auth.v1.SetDoNotDisturbResponse.user:type_name -> stoop.auth.v1.User
-	34, // 11: stoop.auth.v1.PublicProfile.kind:type_name -> stoop.access.v1.IdentityKind
+	41, // 11: stoop.auth.v1.PublicProfile.kind:type_name -> stoop.access.v1.IdentityKind
 	14, // 12: stoop.auth.v1.GetUserProfileResponse.profile:type_name -> stoop.auth.v1.PublicProfile
-	33, // 13: stoop.auth.v1.Identity.created_at:type_name -> google.protobuf.Timestamp
+	40, // 13: stoop.auth.v1.Identity.created_at:type_name -> google.protobuf.Timestamp
 	19, // 14: stoop.auth.v1.ListIdentitiesResponse.identities:type_name -> stoop.auth.v1.Identity
-	35, // 15: stoop.auth.v1.PersonalToken.permissions:type_name -> stoop.access.v1.Permission
-	33, // 16: stoop.auth.v1.PersonalToken.created_at:type_name -> google.protobuf.Timestamp
-	33, // 17: stoop.auth.v1.PersonalToken.last_used_at:type_name -> google.protobuf.Timestamp
-	33, // 18: stoop.auth.v1.PersonalToken.expires_at:type_name -> google.protobuf.Timestamp
-	35, // 19: stoop.auth.v1.CreatePersonalTokenRequest.permissions:type_name -> stoop.access.v1.Permission
-	26, // 20: stoop.auth.v1.CreatePersonalTokenResponse.token:type_name -> stoop.auth.v1.PersonalToken
-	26, // 21: stoop.auth.v1.ListPersonalTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
-	2,  // 22: stoop.auth.v1.AuthService.Register:input_type -> stoop.auth.v1.RegisterRequest
-	4,  // 23: stoop.auth.v1.AuthService.Login:input_type -> stoop.auth.v1.LoginRequest
-	6,  // 24: stoop.auth.v1.AuthService.Logout:input_type -> stoop.auth.v1.LogoutRequest
-	8,  // 25: stoop.auth.v1.AuthService.GetMe:input_type -> stoop.auth.v1.GetMeRequest
-	10, // 26: stoop.auth.v1.AuthService.UpdateProfile:input_type -> stoop.auth.v1.UpdateProfileRequest
-	12, // 27: stoop.auth.v1.AuthService.SetDoNotDisturb:input_type -> stoop.auth.v1.SetDoNotDisturbRequest
-	15, // 28: stoop.auth.v1.AuthService.GetUserProfile:input_type -> stoop.auth.v1.GetUserProfileRequest
-	17, // 29: stoop.auth.v1.AuthService.ChangePassword:input_type -> stoop.auth.v1.ChangePasswordRequest
-	20, // 30: stoop.auth.v1.AuthService.ListIdentities:input_type -> stoop.auth.v1.ListIdentitiesRequest
-	22, // 31: stoop.auth.v1.AuthService.UnlinkIdentity:input_type -> stoop.auth.v1.UnlinkIdentityRequest
-	24, // 32: stoop.auth.v1.AuthService.DeleteAccount:input_type -> stoop.auth.v1.DeleteAccountRequest
-	27, // 33: stoop.auth.v1.AuthService.CreatePersonalToken:input_type -> stoop.auth.v1.CreatePersonalTokenRequest
-	29, // 34: stoop.auth.v1.AuthService.ListPersonalTokens:input_type -> stoop.auth.v1.ListPersonalTokensRequest
-	31, // 35: stoop.auth.v1.AuthService.RevokePersonalToken:input_type -> stoop.auth.v1.RevokePersonalTokenRequest
-	3,  // 36: stoop.auth.v1.AuthService.Register:output_type -> stoop.auth.v1.RegisterResponse
-	5,  // 37: stoop.auth.v1.AuthService.Login:output_type -> stoop.auth.v1.LoginResponse
-	7,  // 38: stoop.auth.v1.AuthService.Logout:output_type -> stoop.auth.v1.LogoutResponse
-	9,  // 39: stoop.auth.v1.AuthService.GetMe:output_type -> stoop.auth.v1.GetMeResponse
-	11, // 40: stoop.auth.v1.AuthService.UpdateProfile:output_type -> stoop.auth.v1.UpdateProfileResponse
-	13, // 41: stoop.auth.v1.AuthService.SetDoNotDisturb:output_type -> stoop.auth.v1.SetDoNotDisturbResponse
-	16, // 42: stoop.auth.v1.AuthService.GetUserProfile:output_type -> stoop.auth.v1.GetUserProfileResponse
-	18, // 43: stoop.auth.v1.AuthService.ChangePassword:output_type -> stoop.auth.v1.ChangePasswordResponse
-	21, // 44: stoop.auth.v1.AuthService.ListIdentities:output_type -> stoop.auth.v1.ListIdentitiesResponse
-	23, // 45: stoop.auth.v1.AuthService.UnlinkIdentity:output_type -> stoop.auth.v1.UnlinkIdentityResponse
-	25, // 46: stoop.auth.v1.AuthService.DeleteAccount:output_type -> stoop.auth.v1.DeleteAccountResponse
-	28, // 47: stoop.auth.v1.AuthService.CreatePersonalToken:output_type -> stoop.auth.v1.CreatePersonalTokenResponse
-	30, // 48: stoop.auth.v1.AuthService.ListPersonalTokens:output_type -> stoop.auth.v1.ListPersonalTokensResponse
-	32, // 49: stoop.auth.v1.AuthService.RevokePersonalToken:output_type -> stoop.auth.v1.RevokePersonalTokenResponse
-	36, // [36:50] is the sub-list for method output_type
-	22, // [22:36] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	40, // 15: stoop.auth.v1.Session.created_at:type_name -> google.protobuf.Timestamp
+	40, // 16: stoop.auth.v1.Session.last_used_at:type_name -> google.protobuf.Timestamp
+	40, // 17: stoop.auth.v1.Session.expires_at:type_name -> google.protobuf.Timestamp
+	26, // 18: stoop.auth.v1.ListSessionsResponse.sessions:type_name -> stoop.auth.v1.Session
+	42, // 19: stoop.auth.v1.PersonalToken.permissions:type_name -> stoop.access.v1.Permission
+	40, // 20: stoop.auth.v1.PersonalToken.created_at:type_name -> google.protobuf.Timestamp
+	40, // 21: stoop.auth.v1.PersonalToken.last_used_at:type_name -> google.protobuf.Timestamp
+	40, // 22: stoop.auth.v1.PersonalToken.expires_at:type_name -> google.protobuf.Timestamp
+	42, // 23: stoop.auth.v1.CreatePersonalTokenRequest.permissions:type_name -> stoop.access.v1.Permission
+	33, // 24: stoop.auth.v1.CreatePersonalTokenResponse.token:type_name -> stoop.auth.v1.PersonalToken
+	33, // 25: stoop.auth.v1.ListPersonalTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
+	2,  // 26: stoop.auth.v1.AuthService.Register:input_type -> stoop.auth.v1.RegisterRequest
+	4,  // 27: stoop.auth.v1.AuthService.Login:input_type -> stoop.auth.v1.LoginRequest
+	6,  // 28: stoop.auth.v1.AuthService.Logout:input_type -> stoop.auth.v1.LogoutRequest
+	8,  // 29: stoop.auth.v1.AuthService.GetMe:input_type -> stoop.auth.v1.GetMeRequest
+	10, // 30: stoop.auth.v1.AuthService.UpdateProfile:input_type -> stoop.auth.v1.UpdateProfileRequest
+	12, // 31: stoop.auth.v1.AuthService.SetDoNotDisturb:input_type -> stoop.auth.v1.SetDoNotDisturbRequest
+	15, // 32: stoop.auth.v1.AuthService.GetUserProfile:input_type -> stoop.auth.v1.GetUserProfileRequest
+	17, // 33: stoop.auth.v1.AuthService.ChangePassword:input_type -> stoop.auth.v1.ChangePasswordRequest
+	20, // 34: stoop.auth.v1.AuthService.ListIdentities:input_type -> stoop.auth.v1.ListIdentitiesRequest
+	22, // 35: stoop.auth.v1.AuthService.UnlinkIdentity:input_type -> stoop.auth.v1.UnlinkIdentityRequest
+	24, // 36: stoop.auth.v1.AuthService.DeleteAccount:input_type -> stoop.auth.v1.DeleteAccountRequest
+	27, // 37: stoop.auth.v1.AuthService.ListSessions:input_type -> stoop.auth.v1.ListSessionsRequest
+	29, // 38: stoop.auth.v1.AuthService.RevokeSession:input_type -> stoop.auth.v1.RevokeSessionRequest
+	31, // 39: stoop.auth.v1.AuthService.RevokeOtherSessions:input_type -> stoop.auth.v1.RevokeOtherSessionsRequest
+	34, // 40: stoop.auth.v1.AuthService.CreatePersonalToken:input_type -> stoop.auth.v1.CreatePersonalTokenRequest
+	36, // 41: stoop.auth.v1.AuthService.ListPersonalTokens:input_type -> stoop.auth.v1.ListPersonalTokensRequest
+	38, // 42: stoop.auth.v1.AuthService.RevokePersonalToken:input_type -> stoop.auth.v1.RevokePersonalTokenRequest
+	3,  // 43: stoop.auth.v1.AuthService.Register:output_type -> stoop.auth.v1.RegisterResponse
+	5,  // 44: stoop.auth.v1.AuthService.Login:output_type -> stoop.auth.v1.LoginResponse
+	7,  // 45: stoop.auth.v1.AuthService.Logout:output_type -> stoop.auth.v1.LogoutResponse
+	9,  // 46: stoop.auth.v1.AuthService.GetMe:output_type -> stoop.auth.v1.GetMeResponse
+	11, // 47: stoop.auth.v1.AuthService.UpdateProfile:output_type -> stoop.auth.v1.UpdateProfileResponse
+	13, // 48: stoop.auth.v1.AuthService.SetDoNotDisturb:output_type -> stoop.auth.v1.SetDoNotDisturbResponse
+	16, // 49: stoop.auth.v1.AuthService.GetUserProfile:output_type -> stoop.auth.v1.GetUserProfileResponse
+	18, // 50: stoop.auth.v1.AuthService.ChangePassword:output_type -> stoop.auth.v1.ChangePasswordResponse
+	21, // 51: stoop.auth.v1.AuthService.ListIdentities:output_type -> stoop.auth.v1.ListIdentitiesResponse
+	23, // 52: stoop.auth.v1.AuthService.UnlinkIdentity:output_type -> stoop.auth.v1.UnlinkIdentityResponse
+	25, // 53: stoop.auth.v1.AuthService.DeleteAccount:output_type -> stoop.auth.v1.DeleteAccountResponse
+	28, // 54: stoop.auth.v1.AuthService.ListSessions:output_type -> stoop.auth.v1.ListSessionsResponse
+	30, // 55: stoop.auth.v1.AuthService.RevokeSession:output_type -> stoop.auth.v1.RevokeSessionResponse
+	32, // 56: stoop.auth.v1.AuthService.RevokeOtherSessions:output_type -> stoop.auth.v1.RevokeOtherSessionsResponse
+	35, // 57: stoop.auth.v1.AuthService.CreatePersonalToken:output_type -> stoop.auth.v1.CreatePersonalTokenResponse
+	37, // 58: stoop.auth.v1.AuthService.ListPersonalTokens:output_type -> stoop.auth.v1.ListPersonalTokensResponse
+	39, // 59: stoop.auth.v1.AuthService.RevokePersonalToken:output_type -> stoop.auth.v1.RevokePersonalTokenResponse
+	43, // [43:60] is the sub-list for method output_type
+	26, // [26:43] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_stoop_auth_v1_auth_proto_init() }
@@ -2094,7 +2463,7 @@ func file_stoop_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_auth_v1_auth_proto_rawDesc), len(file_stoop_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   32,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

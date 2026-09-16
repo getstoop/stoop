@@ -49,6 +49,7 @@ listed as public below.
 | `GetUserProfile` | One account's public profile card, with its `kind` (person or bot). Visible to any signed-in user. |
 | `ChangePassword` | Current password required, except for a provider-created account setting its first one. |
 | `ListIdentities` / `UnlinkIdentity` | Linked OIDC accounts. |
+| `ListSessions` / `RevokeSession` / `RevokeOtherSessions` | Where the caller is signed in, and signing one or every other session out. Need a session (`account.security`); only the caller's own. |
 | `CreatePersonalToken` / `ListPersonalTokens` / `RevokePersonalToken` | The caller's personal tokens. Need a session (`account.security`); the token is returned once, by `CreatePersonalToken`. |
 
 ### `stoop.chat.v1.ChatService`
@@ -83,7 +84,7 @@ people who joined.
 | Procedure | Notes |
 | --------- | ----- |
 | `GetInstanceStatus` | **Public.** What the setup and login screens need before anyone has an account: `needs_setup`, the registration and space-creation policies, the public URL invite links are built from, the login-provider summaries, whether the password form is offered, and the effective upload caps (so a client refuses an oversized file before sending it). |
-| `UpdateSettings` | Admins. Registration policy, space-creation policy, upload limit, storage quota, password sign-in, personal tokens. |
+| `UpdateSettings` | Admins. Registration policy, space-creation policy, upload limit, storage quota, password sign-in, personal tokens, session lifetime. |
 | `ListUsers`, `SetUserRole`, `SetUserActive`, `ResetUserPassword`, `RenameUser`, `SetUsernameFrozen`, `ClearUserProfile` | Admins. The user administration tab; each is backed by the `UserAdmin` port into auth. Each user carries its `kind`; a password reset or a username freeze on a bot is refused. |
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
 | `GetLoginProviders` / `UpdateLoginProviders` | Admins. The OIDC provider list, replaced whole. |

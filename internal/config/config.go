@@ -161,6 +161,9 @@ type Config struct {
 	// OIDCID is the provider's stable id; it appears in the callback URL
 	// (/auth/callback/<id>) and identities link under it.
 	OIDCID string
+	// SessionLifetimeDays is how long a sign-in lasts. The admin page's
+	// saved value overrides it.
+	SessionLifetimeDays int
 	// PasswordSignIn is who may use the username/password form: everyone
 	// (default), admins, or off. The admin page's saved value overrides it.
 	PasswordSignIn string
@@ -326,6 +329,12 @@ func Load() (Config, error) {
 		}
 	} else if cfg.OIDCClientID != "" || cfg.OIDCClientSecret != "" {
 		return Config{}, fmt.Errorf("STOOP_OIDC_CLIENT_ID and STOOP_OIDC_CLIENT_SECRET need STOOP_OIDC_ISSUER")
+	}
+	if cfg.SessionLifetimeDays, err = parseNonNegativeInt("STOOP_SESSION_LIFETIME_DAYS", 30); err != nil {
+		return Config{}, err
+	}
+	if cfg.SessionLifetimeDays < 1 || cfg.SessionLifetimeDays > 365 {
+		return Config{}, fmt.Errorf("STOOP_SESSION_LIFETIME_DAYS must be 1-365 (got %d)", cfg.SessionLifetimeDays)
 	}
 	cfg.PasswordSignIn = getenv("STOOP_PASSWORD_SIGN_IN", "everyone")
 	switch cfg.PasswordSignIn {

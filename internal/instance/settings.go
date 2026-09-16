@@ -301,6 +301,10 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 	if err != nil {
 		return nil, err
 	}
+	sessionDays, err := s.SessionLifetimeDays(ctx)
+	if err != nil {
+		return nil, err
+	}
 	summaries := make([]*instancev1.LoginProviderSummary, len(providers))
 	for i, lp := range providers {
 		summaries[i] = &instancev1.LoginProviderSummary{
@@ -315,6 +319,7 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		PersonalTokens:    toProtoPersonalTokens(TokenSetting(tokens)),
 		WebhooksAvailable: s.webhooksEnv, WebhooksIncoming: incoming, WebhooksOutgoing: outgoing,
 		WebhooksAllowPrivateTargets: private, SelfDeletion: selfDeletion,
+		SessionLifetimeDays: int32(sessionDays),
 	}, nil
 }
 
@@ -343,6 +348,12 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	// fail on the value alone, and the Server form sends it together with
 	// the two policies below. Refusing it before any of them is written
 	// keeps a rejected save from half-applying.
+	// Also judged on the value alone, so it is refused before anything is
+	// written too.
+	if d := req.Msg.SessionLifetimeDays; d != nil && (*d < 0 || *d > MaxSessionLifetimeDays) {
+		return nil, connect.NewError(connect.CodeInvalidArgument,
+			errors.New("session_lifetime_days must be 1-365, or 0 to use the server's default"))
+	}
 	if req.Msg.InstanceName != nil {
 		name := strings.TrimSpace(*req.Msg.InstanceName)
 		if name == "" {
@@ -438,6 +449,11 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	}
 	if req.Msg.PersonalTokens != nil {
 		if err := s.setPersonalTokens(ctx, *req.Msg.PersonalTokens); err != nil {
+			return nil, err
+		}
+	}
+	if req.Msg.SessionLifetimeDays != nil {
+		if err := s.writeJSON(ctx, keySessionLifetime, *req.Msg.SessionLifetimeDays); err != nil {
 			return nil, err
 		}
 	}

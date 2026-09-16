@@ -114,6 +114,23 @@ func TestLoad_TrustedProxies(t *testing.T) {
 	}
 }
 
+func TestLoad_SessionLifetime(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SessionLifetimeDays != 30 {
+		t.Errorf("default = %d days, want 30", cfg.SessionLifetimeDays)
+	}
+	for _, bad := range []string{"0", "366", "30d"} {
+		t.Setenv("STOOP_SESSION_LIFETIME_DAYS", bad)
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_SESSION_LIFETIME_DAYS") {
+			t.Errorf("%q should be rejected, got %v", bad, err)
+		}
+	}
+}
+
 func TestLoad_RateLimits(t *testing.T) {
 	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
 	cfg, err := Load()

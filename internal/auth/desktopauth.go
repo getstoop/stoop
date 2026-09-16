@@ -339,13 +339,13 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 		s.desktopLink(w, r, c, req.Confirm)
 		return
 	}
-	token, err := s.createSession(r.Context(), c.userID)
+	token, ttl, err := s.createSession(r.Context(), c.userID, r.UserAgent())
 	if err != nil {
 		slog.Error("create session after desktop sign-in", "err", err)
 		desktopError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
-	http.SetCookie(w, s.sessionCookie(r.Context(), token, sessionTTL))
+	http.SetCookie(w, s.sessionCookie(r.Context(), token, ttl))
 	writeDesktopJSON(w, http.StatusOK, map[string]string{
 		"token": token, "target": c.target,
 	})
