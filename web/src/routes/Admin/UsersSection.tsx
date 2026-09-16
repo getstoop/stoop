@@ -42,6 +42,22 @@ export function UsersSection({ meId }: { meId: string }) {
       setError(errorText(err));
     }
   };
+  const iOwn = users?.some((u) => u.id === meId && u.owner) ?? false;
+  // Who may rename or clear whom: the owner over admins, admins over
+  // members. The server holds the same rule.
+  const rank = (u: InstanceUser) =>
+    u.owner ? 2 : u.role === InstanceRole.ADMIN ? 1 : 0;
+  const myRank = iOwn ? 2 : 1;
+  const makeOwner = async (u: InstanceUser) => {
+    const ok = await confirm({
+      title: `Make @${u.username} the server owner?`,
+      body: "Nobody can remove the owner as an admin. You'll be an ordinary admin, and only they can hand it back.",
+      action: "Make owner",
+      danger: true,
+    });
+    if (!ok) return;
+    act(() => instanceClient.transferOwnership({ userId: u.id }));
+  };
   const toggleRole = (u: InstanceUser) =>
     act(() =>
       instanceClient.setUserRole({
@@ -161,6 +177,20 @@ export function UsersSection({ meId }: { meId: string }) {
     const admin = u.role === InstanceRole.ADMIN;
     const bot = isBot(u.kind);
     const items: MenuItem[] = [];
+    // The owner can't be removed as an admin, reset or deactivated by
+    // anyone; the items stay, greyed, to say why.
+    const ownerOnly = u.owner
+      ? { disabled: true, title: "The server owner; only they can hand it on" }
+      : {};
+    const outranked =
+      rank(u) >= myRank
+        ? {
+            disabled: true,
+            title: u.owner
+              ? "Only the server owner changes their own profile"
+              : "Only the server owner can change another admin's profile",
+          }
+        : {};
     if (bot) {
       items.push({
         label: "Manage integrations",
@@ -179,6 +209,14 @@ export function UsersSection({ meId }: { meId: string }) {
       items.push({
         label: admin ? "Remove admin" : "Make admin",
         onSelect: () => toggleRole(u),
+        ...ownerOnly,
+      });
+    }
+    if (iOwn && admin && !bot) {
+      items.push({
+        label: "Make owner",
+        onSelect: () => makeOwner(u),
+        title: "Hand them the server; you stay an admin",
       });
     }
     items.push(
@@ -186,10 +224,12 @@ export function UsersSection({ meId }: { meId: string }) {
         label: "Change username",
         onSelect: () => renameHandle(u),
         title: "Change their @username",
+        ...outranked,
       },
       {
         label: "Change display name",
         onSelect: () => renameDisplay(u),
+        ...outranked,
       },
     );
     if (u.pronouns) {
@@ -197,6 +237,7 @@ export function UsersSection({ meId }: { meId: string }) {
         label: "Clear pronouns",
         onSelect: () => clearProfile(u, "pronouns", u.pronouns),
         title: "Remove their pronouns",
+        ...outranked,
       });
     }
     if (u.bio) {
@@ -204,6 +245,7 @@ export function UsersSection({ meId }: { meId: string }) {
         label: "Clear bio",
         onSelect: () => clearProfile(u, "bio", u.bio),
         title: "Remove their bio",
+        ...outranked,
       });
     }
     if (!admin && !bot) {
@@ -218,12 +260,14 @@ export function UsersSection({ meId }: { meId: string }) {
         label: "Reset password",
         onSelect: () => resetPassword(u),
         title: "Set a temporary password and sign them out everywhere",
+        ...ownerOnly,
       });
     }
     items.push({
       label: "Deactivate",
       onSelect: () => toggleActive(u),
       danger: true,
+      ...ownerOnly,
     });
     return items;
   };
@@ -283,7 +327,11 @@ export function UsersSection({ meId }: { meId: string }) {
                   </span>
                 </div>
                 <span className="user-cell">
-                  {u.role === InstanceRole.ADMIN ? (
+                  {u.owner ? (
+                    <span className="badge" title="Owns this server">
+                      owner
+                    </span>
+                  ) : u.role === InstanceRole.ADMIN ? (
                     <span className="badge">admin</span>
                   ) : (
                     "Member"
