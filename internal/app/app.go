@@ -274,10 +274,13 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		}})
 	}
 	// STOOP_TRUST_PROXY=true is the blunt older form: believe every peer.
-	// Naming addresses on the admin page replaces it.
-	if cfg.TrustProxy {
+	// Named addresses, from the environment or the admin page, replace it.
+	if cfg.TrustProxy || !cfg.TrustedProxies.Empty() {
 		env := instanceSvc.ReachabilityEnvValue()
-		env.TrustedProxies = trustedproxy.All()
+		env.TrustedProxies = cfg.TrustedProxies
+		if cfg.TrustProxy {
+			env.TrustedProxies = trustedproxy.All()
+		}
 		instanceSvc.UseReachabilityEnv(env)
 	}
 	if err := instanceSvc.LoadTrustedProxies(ctx); err != nil {
