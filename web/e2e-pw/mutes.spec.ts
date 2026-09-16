@@ -109,12 +109,13 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   await row(A).locator(".dots-menu-button").click();
   await expect(
     A.locator(".dots-menu button"),
-    "owner's channel menu: Mute, Copy link, Edit name, Add a topic, Delete",
+    "owner's channel menu: Mute, Copy link, Edit name, Add a topic, Make announcement channel, Delete",
   ).toHaveText([
     "Mute",
     "Copy link",
     "Edit name",
     "Add a topic",
+    "Make announcement channel",
     "Delete channel",
   ]);
   await A.keyboard.press("Escape");
