@@ -2,16 +2,20 @@ import { describe, expect, it } from "vitest";
 import { changesFrom, EMPTY, NO_SECRETS, withTunnelProxy } from "./fields";
 
 describe("withTunnelProxy", () => {
-  it("adds the connector's address once", () => {
-    expect(withTunnelProxy("", true)).toBe("127.0.0.1");
-    expect(withTunnelProxy("10.0.0.0/8", true)).toBe("10.0.0.0/8, 127.0.0.1");
-    expect(withTunnelProxy("127.0.0.1, 10.0.0.0/8", true)).toBe(
-      "10.0.0.0/8, 127.0.0.1",
+  it("adds both loopback addresses once", () => {
+    expect(withTunnelProxy("", true)).toBe("127.0.0.1, ::1");
+    expect(withTunnelProxy("10.0.0.0/8", true)).toBe(
+      "10.0.0.0/8, 127.0.0.1, ::1",
+    );
+    expect(withTunnelProxy("::1, 10.0.0.0/8, 127.0.0.1", true)).toBe(
+      "10.0.0.0/8, 127.0.0.1, ::1",
     );
   });
 
-  it("takes it back out and leaves the rest", () => {
-    expect(withTunnelProxy("10.0.0.0/8, 127.0.0.1", false)).toBe("10.0.0.0/8");
+  it("takes them back out and leaves the rest", () => {
+    expect(withTunnelProxy("10.0.0.0/8, 127.0.0.1, ::1", false)).toBe(
+      "10.0.0.0/8",
+    );
     expect(withTunnelProxy("127.0.0.1", false)).toBe("");
   });
 });

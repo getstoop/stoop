@@ -105,15 +105,16 @@ export function fieldsFrom(r: Reachability): Fields {
   };
 }
 
-// Where cloudflared, as Stoop's child process, calls from.
-export const TUNNEL_PROXY = "127.0.0.1";
+// Where cloudflared, as Stoop's child process, calls from: localhost
+// resolves to either.
+export const TUNNEL_PROXIES = ["127.0.0.1", "::1"];
 
 // Ticking the tunnel names its connector under Trusted proxies and
 // unticking takes it back out, so the list on screen is all the trust
 // there is.
 export function withTunnelProxy(proxies: string, on: boolean): string {
-  const rest = list(proxies).filter((p) => p !== TUNNEL_PROXY);
-  return (on ? [...rest, TUNNEL_PROXY] : rest).join(", ");
+  const rest = list(proxies).filter((p) => !TUNNEL_PROXIES.includes(p));
+  return (on ? [...rest, ...TUNNEL_PROXIES] : rest).join(", ");
 }
 
 export type Update = Parameters<typeof instanceClient.updateReachability>[0];
