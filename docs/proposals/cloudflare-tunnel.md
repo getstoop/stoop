@@ -44,9 +44,9 @@ token on Server admin → Hosting (or wizard step 3), ticks a box and saves.
 - **Loopback is the connector's address** because cloudflared is Stoop's
   child, so the usual service is `http://localhost:<port>`. The page never
   says so: Stoop can't see what sits between cloudflared and itself (a
-  proxy, a listener bound elsewhere), so the status only asks the operator
-  to check the tunnel points at the correct backend, and the docs carry the
-  address for the compose setup.
+  proxy, a listener bound elsewhere), and someone running a homelab knows
+  where their tunnel points. The status reports the connector and nothing
+  else; the docs carry the address for the compose setup.
 
 ## Build
 
