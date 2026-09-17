@@ -16,10 +16,10 @@ token on Server admin → Hosting (or wizard step 3), ticks a box and saves.
 | Tunnel kind | Remotely managed: a token. The hostname and its service are set in Cloudflare's dashboard. Locally managed tunnels and quick tunnels are out. |
 | The token | Write-only, like the Tailscale auth key. The field also takes the whole install command Cloudflare shows and keeps the token from it. It reaches cloudflared through the environment, never the command line. |
 | Public address | Derived, never saved: saved value, then `STOOP_PUBLIC_URL`, then the tunnel's hostname, then the tailnet address. The hostname is the rule pointed at `localhost` on Stoop's port, else the only one; among several with no match, none. |
-| Trusted proxies | Nothing derived. Ticking the box adds `127.0.0.1` to the Trusted proxies field, unticking removes it, and it saves with everything else. The list stays the one source of trust. |
+| Trusted proxies | Nothing derived. Ticking the box adds `127.0.0.1` and `::1` to the Trusted proxies field (localhost resolves to either), unticking removes them, and it saves with everything else. The list stays the one source of trust. |
 | Status | `stopped`, `missing` (no cloudflared), `starting`, `running` (with the hostname), `error`. Read from cloudflared's own metrics endpoint on loopback. |
 | Voice | One standing line in the section's description. The voice summary above Save gets a tunnel case. No relay fields repeated. |
-| Environment | `STOOP_CLOUDFLARE_TUNNEL`, `STOOP_CLOUDFLARE_TUNNEL_TOKEN`, `STOOP_CLOUDFLARED_PATH`. With the environment alone, the operator names `127.0.0.1` in `STOOP_TRUSTED_PROXIES` too. |
+| Environment | `STOOP_CLOUDFLARE_TUNNEL`, `STOOP_CLOUDFLARE_TUNNEL_TOKEN`, `STOOP_CLOUDFLARED_PATH`. With the environment alone, the operator names `127.0.0.1, ::1` in `STOOP_TRUSTED_PROXIES` too. |
 
 ## Placement
 
@@ -40,7 +40,8 @@ token on Server admin → Hosting (or wizard step 3), ticks a box and saves.
   over the Docker socket would give Stoop root on the host.
 - **Trust written into the list, not derived.** Derived trust would be a
   second source the list doesn't show, and an operator who adds `127.0.0.1`
-  anyway would keep it after the tunnel is gone without knowing why.
+  anyway would keep it after the tunnel is gone without knowing why. Both
+  loopback addresses go in because `localhost` resolves to either.
 - **Loopback is the connector's address** because cloudflared is Stoop's
   child, so the usual service is `http://localhost:<port>`. The page never
   says so: Stoop can't see what sits between cloudflared and itself (a
