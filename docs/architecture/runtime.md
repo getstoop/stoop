@@ -206,8 +206,8 @@ value and `STOOP_PUBLIC_URL`, and ahead of the tailnet address. It is
 derived on every read and never saved, so it goes when the tunnel does.
 
 cloudflared calls the plain listener over loopback. **Nothing trusts it
-implicitly:** the web form writes `127.0.0.1` into the Trusted proxies
-field when the box is ticked, and the list stays the one source of trust.
+implicitly:** the web form writes `127.0.0.1` and `::1` into the Trusted
+proxies field when the box is ticked (`localhost` may resolve to either), and the list stays the one source of trust.
 The reasoning is in
 [the proposal](../proposals/cloudflare-tunnel.md).
 

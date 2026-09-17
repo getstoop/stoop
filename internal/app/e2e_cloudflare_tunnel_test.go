@@ -28,7 +28,7 @@ func TestE2ECloudflareTunnel(t *testing.T) {
 	h := newHarness(t, "STOOP_CLOUDFLARED_PATH", path, "STOOP_LISTEN_ADDR", ":8080")
 	casey := h.person("casey")
 	ada := h.person("ada")
-	token := base64.StdEncoding.EncodeToString([]byte(`{"a":"account","t":"tunnel","s":"secret"}`))
+	token := base64.StdEncoding.EncodeToString([]byte(`{"a":"0123456789abcdef0123456789abcdef","t":"11111111-2222-3333-4444-555555555555","s":"c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0"}`))
 	on := func(v any) map[string]any { return map[string]any{"cloudflareTunnel": v} }
 
 	r := h.rpc(casey, reachability+"GetReachability", map[string]any{}).expect(t, "ok")

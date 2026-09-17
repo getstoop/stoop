@@ -221,7 +221,8 @@ includes it.
    tunnel and copy its token, or the whole install command it shows.
 2. In the setup wizard or **Server admin → Hosting → Cloudflare Tunnel**,
    tick "Run a Cloudflare Tunnel", paste the token and save. This also adds
-   `127.0.0.1` to Trusted proxies, which is where the connector calls from.
+   `127.0.0.1` and `::1` to Trusted proxies, which is where the connector
+   calls from.
 3. Back in Cloudflare, give the tunnel a public hostname whose service is
    Stoop as `cloudflared` reaches it. With the compose file that is
    `http://localhost:8080`, because `cloudflared` runs inside the Stoop
@@ -236,7 +237,7 @@ use that hostname while Public address is blank. A tunnel that carries
 several hostnames, none of them pointed straight at Stoop, reads just
 "Running": fill in Public address yourself. In `.env` the same
 settings are `STOOP_CLOUDFLARE_TUNNEL=true` and
-`STOOP_CLOUDFLARE_TUNNEL_TOKEN`; name `127.0.0.1` in
+`STOOP_CLOUDFLARE_TUNNEL_TOKEN`; name `127.0.0.1, ::1` in
 `STOOP_TRUSTED_PROXIES` yourself there.
 
 Running the bare binary, install `cloudflared` so it is on `PATH`, or set
