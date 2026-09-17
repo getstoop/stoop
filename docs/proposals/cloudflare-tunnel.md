@@ -15,7 +15,7 @@ token on Server admin → Hosting (or wizard step 3), ticks a box and saves.
 | How cloudflared runs | A child process Stoop starts, restarts and stops. The Docker image ships a pinned `cloudflared`; a bare binary finds it on `PATH` or at `STOOP_CLOUDFLARED_PATH`. No new compose service. |
 | Tunnel kind | Remotely managed: a token. The hostname and its service are set in Cloudflare's dashboard. Locally managed tunnels and quick tunnels are out. |
 | The token | Write-only, like the Tailscale auth key. The field also takes the whole install command Cloudflare shows and keeps the token from it. It reaches cloudflared through the environment, never the command line. |
-| Public address | Derived, never saved: saved value, then `STOOP_PUBLIC_URL`, then the tunnel's hostname, then the tailnet address. |
+| Public address | Derived, never saved: saved value, then `STOOP_PUBLIC_URL`, then the tunnel's hostname, then the tailnet address. The hostname is the rule pointed at `localhost` on Stoop's port, else the only one; among several with no match, none. |
 | Trusted proxies | Nothing derived. Ticking the box adds `127.0.0.1` to the Trusted proxies field, unticking removes it, and it saves with everything else. The list stays the one source of trust. |
 | Status | `stopped`, `missing` (no cloudflared), `starting`, `running` (with the hostname), `error`. Read from cloudflared's own metrics endpoint on loopback. |
 | Voice | One standing line in the section's description. The voice summary above Save gets a tunnel case. No relay fields repeated. |
@@ -42,8 +42,11 @@ token on Server admin → Hosting (or wizard step 3), ticks a box and saves.
   second source the list doesn't show, and an operator who adds `127.0.0.1`
   anyway would keep it after the tunnel is gone without knowing why.
 - **Loopback is the connector's address** because cloudflared is Stoop's
-  child: the tunnel's service is `http://localhost:<port>`, which the
-  section shows.
+  child, so the usual service is `http://localhost:<port>`. The page never
+  says so: Stoop can't see what sits between cloudflared and itself (a
+  proxy, a listener bound elsewhere), so the status only asks the operator
+  to check the tunnel points at the correct backend, and the docs carry the
+  address for the compose setup.
 
 ## Build
 
