@@ -1,5 +1,4 @@
 import type { CloudflareTunnelStatus } from "../../gen/stoop/instance/v1/reachability_pb";
-import { CopyButton } from "../CopyButton";
 
 // What the connector is doing right now, as the server reports it, and
 // the one thing only the operator can check: where the tunnel points.
@@ -22,9 +21,7 @@ export function CloudflareTunnelStatusBlock({
           Running at <code>{status.url}</code>.
         </p>
       )}
-      {status.state === "running" && !status.url && (
-        <p>Connected. The tunnel has no public hostname yet.</p>
-      )}
+      {status.state === "running" && !status.url && <p>Running.</p>}
       {status.enabled && status.state === "error" && (
         <>
           <p className="error">{status.error}</p>
@@ -33,9 +30,8 @@ export function CloudflareTunnelStatusBlock({
           </p>
         </>
       )}
-      <p className="hint reach-tunnel-origin">
-        Please make sure your tunnel is pointed at <code>{status.origin}</code>
-        <CopyButton text={status.origin} />
+      <p className="hint">
+        Please make sure your tunnel is pointed at the correct backend.
       </p>
     </div>
   );
