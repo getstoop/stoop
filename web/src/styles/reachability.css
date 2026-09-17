@@ -85,13 +85,19 @@
   margin: 3px 0 0;
 }
 
-.reach-ts-status p {
+.reach-ts-status p,
+.reach-tunnel-status p {
   margin: 4px 0 0;
+}
+
+.reach-tunnel-origin .chip {
+  margin-left: 6px;
 }
 
 /* Reads as a field label, because that's what it is — the field just
    happens to be reported rather than edited. */
-.reach-ts-label {
+.reach-ts-label,
+.reach-status-label {
   font-size: var(--text-ui);
   color: var(--text-muted);
   margin-bottom: 6px;

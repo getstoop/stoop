@@ -22,13 +22,24 @@ export type Fields = {
   tsHostname: string;
   tsFunnel: boolean;
   tsControlUrl: string;
+  tunnelEnabled: boolean;
 };
 
 // Secrets are write-only: the server never sends them back, so there's
 // nothing to compare them against. A non-empty box is the change.
-export type Secrets = { cfToken: string; turnCred: string; tsAuthKey: string };
+export type Secrets = {
+  cfToken: string;
+  turnCred: string;
+  tsAuthKey: string;
+  tunnelToken: string;
+};
 
-export const NO_SECRETS: Secrets = { cfToken: "", turnCred: "", tsAuthKey: "" };
+export const NO_SECRETS: Secrets = {
+  cfToken: "",
+  turnCred: "",
+  tsAuthKey: "",
+  tunnelToken: "",
+};
 
 export const EMPTY: Fields = {
   publicUrl: "",
@@ -42,6 +53,7 @@ export const EMPTY: Fields = {
   tsHostname: "",
   tsFunnel: false,
   tsControlUrl: "",
+  tunnelEnabled: false,
 };
 
 // What a section gets to edit with: one field at a time, or the secrets.
@@ -89,7 +101,19 @@ export function fieldsFrom(r: Reachability): Fields {
     tsHostname: r.tailscale?.hostname ?? "",
     tsFunnel: r.tailscale?.funnel ?? false,
     tsControlUrl: r.tailscale?.controlUrl ?? "",
+    tunnelEnabled: r.cloudflareTunnel?.enabled ?? false,
   };
+}
+
+// Where cloudflared, as Stoop's child process, calls from.
+export const TUNNEL_PROXY = "127.0.0.1";
+
+// Ticking the tunnel names its connector under Trusted proxies and
+// unticking takes it back out, so the list on screen is all the trust
+// there is.
+export function withTunnelProxy(proxies: string, on: boolean): string {
+  const rest = list(proxies).filter((p) => p !== TUNNEL_PROXY);
+  return (on ? [...rest, TUNNEL_PROXY] : rest).join(", ");
 }
 
 export type Update = Parameters<typeof instanceClient.updateReachability>[0];
@@ -140,6 +164,12 @@ export function changesFrom(
       funnel,
       authKey: secrets.tsAuthKey,
       controlUrl: now.tsControlUrl.trim(),
+    };
+  }
+  if (now.tunnelEnabled !== base.tunnelEnabled || secrets.tunnelToken !== "") {
+    req.cloudflareTunnel = {
+      enabled: now.tunnelEnabled,
+      token: secrets.tunnelToken.trim(),
     };
   }
   return req;

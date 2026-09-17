@@ -16,6 +16,9 @@ export function voiceStatus(r: GetReachabilityResponse | undefined): string {
   if (hasRelay) {
     return "Voice works from anywhere; a relay is configured, so browsers that can't reach the media ports go through it.";
   }
+  if (r.cloudflareTunnel?.state === "running") {
+    return "Voice is silent for people coming through the tunnel. Add a relay above.";
+  }
   if (r.tailscale?.state === "running" && r.tailscale.carriesVoice) {
     return "Voice works for tailnet devices: this node carries LiveKit's media ports, so audio and video ride the tailnet.";
   }

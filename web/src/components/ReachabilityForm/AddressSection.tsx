@@ -7,12 +7,16 @@ export function AddressSection({
   fields,
   set,
   trustAll,
+  tunnelUrl,
 }: {
   fields: Fields;
   set: SetField;
   // Whether the server is currently trusting every caller's forwarded
   // headers (STOOP_TRUST_PROXY=true), which naming proxies replaces.
   trustAll: boolean;
+  // A running Cloudflare Tunnel's address, which a blank field falls
+  // back to.
+  tunnelUrl: string;
 }) {
   return (
     <>
@@ -29,6 +33,11 @@ export function AddressSection({
           placeholder="https://chat.example.com"
           inputMode="url"
         />
+        {tunnelUrl && fields.publicUrl.trim() === "" && (
+          <p className="hint reach-derived">
+            Blank, so invite links use {tunnelUrl}.
+          </p>
+        )}
       </SettingRow>
 
       <SettingRow
