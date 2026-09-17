@@ -1,7 +1,6 @@
 import type { CloudflareTunnelStatus } from "../../gen/stoop/instance/v1/reachability_pb";
 
-// What the connector is doing right now, as the server reports it, and
-// the one thing only the operator can check: where the tunnel points.
+// What the connector is doing right now, as the server reports it.
 export function CloudflareTunnelStatusBlock({
   status,
 }: {
@@ -30,9 +29,6 @@ export function CloudflareTunnelStatusBlock({
           </p>
         </>
       )}
-      <p className="hint">
-        Please make sure your tunnel is pointed at the correct backend.
-      </p>
     </div>
   );
 }
