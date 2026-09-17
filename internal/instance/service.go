@@ -72,6 +72,7 @@ type Service struct {
 	publicURL func() string
 	env       ReachabilityEnv
 	tailscale TailscaleController
+	tunnel    CloudflareTunnelController
 	livekit   LiveKitReporter
 	// loginEnv is the STOOP_OIDC_* fallback for login providers; a saved
 	// list overrides it (providers.go).

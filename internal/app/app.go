@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/buildinfo"
+	"github.com/getstoop/stoop/internal/cftunnel"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db"
@@ -45,6 +47,7 @@ import (
 type App struct {
 	server  *http.Server
 	tailnet *tailnet.Manager
+	tunnel  *cftunnel.Manager
 	nodeIP  *nodeIPWriter
 	auth    *auth.Service
 	files   *files.Service
@@ -250,8 +253,11 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		a.tailnet.UseAddressHook(a.nodeIP.set)
 	}
 
-	// Reachability: saved settings override these environment values; the
-	// tailnet address is the last-resort public URL.
+	a.tunnel = cftunnel.NewManager(cfg.CloudflaredPath, listenPort(cfg.ListenAddr), log)
+
+	// Reachability: saved settings override these environment values; a
+	// running tunnel's hostname, then the tailnet address, are the
+	// last-resort public URL.
 	instanceSvc.UseReachabilityEnv(instance.ReachabilityEnv{
 		Reachability: instance.Reachability{
 			PublicURL: cfg.PublicURL,
@@ -263,6 +269,9 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			Tailscale: instance.TailscaleSettings{
 				Enabled: cfg.Tailscale, Hostname: cfg.TailscaleHostname, Funnel: cfg.TailscaleFunnel,
 				AuthKey: cfg.TailscaleAuthKey, ControlURL: cfg.TailscaleControlURL,
+			},
+			CloudflareTunnel: instance.CloudflareTunnelSettings{
+				Enabled: cfg.CloudflareTunnel, Token: cfg.CloudflareTunnelToken,
 			},
 		},
 		VoiceConfigured: voiceSvc.Enabled(),
@@ -291,11 +300,21 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		return nil, err
 	}
 	voiceSvc.UseRelayProvider(relayProvider{instanceSvc})
-	instanceSvc.UsePublicURL(a.tailnet.PublicURL)
+	instanceSvc.UsePublicURL(func() string {
+		if u := a.tunnel.PublicURL(); u != "" {
+			return u
+		}
+		return a.tailnet.PublicURL()
+	})
 	// What the Hosting page can say about the voice sidecar: whether it
 	// is configured, whether it answers, and what Stoop has handed it.
 	instanceSvc.UseLiveKit(newLiveKitReporter(cfg, voiceOpts))
 	if err := instanceSvc.UseTailscale(ctx, tailscaleController{a.tailnet}); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	tunnel := tunnelController{m: a.tunnel, origin: "http://localhost:" + listenPort(cfg.ListenAddr)}
+	if err := instanceSvc.UseCloudflareTunnel(ctx, tunnel); err != nil {
 		pool.Close()
 		return nil, err
 	}
@@ -387,6 +406,32 @@ func (c tailscaleController) Status(ctx context.Context) instance.TailscaleStatu
 	}
 }
 
+// tunnelController adapts cftunnel.Manager to the instance module's port.
+type tunnelController struct {
+	m      *cftunnel.Manager
+	origin string
+}
+
+func (c tunnelController) Apply(s instance.CloudflareTunnelSettings) {
+	c.m.Apply(cftunnel.Settings{Enabled: s.Enabled, Token: s.Token})
+}
+
+func (c tunnelController) Status() instance.CloudflareTunnelStatus {
+	st, on := c.m.Status()
+	return instance.CloudflareTunnelStatus{
+		Enabled: on, State: st.State, URL: st.URL, Error: st.Error, Origin: c.origin,
+	}
+}
+
+// listenPort is the port of a listen address like ":8080".
+func listenPort(addr string) string {
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "8080"
+	}
+	return port
+}
+
 // relayProvider adapts the instance module's reachability settings to
 // voice's port.
 type relayProvider struct{ instance *instance.Service }
@@ -433,6 +478,8 @@ func (a *App) StartBackground(ctx context.Context) {
 	go a.hooks.RunSweeper(ctx, a.sweep, a.deliveries)
 	go a.hooks.RunSubscriber(ctx)
 	go a.hooks.RunWorker(ctx)
+	// cloudflared starts, stops, and restarts as its settings change.
+	go a.tunnel.Run(ctx)
 }
 
 func (a *App) Run(ctx context.Context) error {

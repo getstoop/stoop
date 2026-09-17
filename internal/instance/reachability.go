@@ -68,6 +68,8 @@ type Reachability struct {
 	TURN       TURNRelay
 	Cloudflare CloudflareTURN
 	Tailscale  TailscaleSettings
+	// CloudflareTunnel is the connector; Cloudflare above is the TURN relay.
+	CloudflareTunnel CloudflareTunnelSettings
 	// TrustedProxies is deliberately not tied to any of the above: an
 	// internal proxy can sit in front of a tunnel, a tailnet, or nothing.
 	TrustedProxies trustedproxy.Set
@@ -222,6 +224,12 @@ func (s *Service) Reachability(ctx context.Context) (Reachability, error) {
 	} else if ok {
 		r.Tailscale = ts
 	}
+	var ct CloudflareTunnelSettings
+	if ok, err := s.readJSON(ctx, keyCloudflareTunnel, &ct); err != nil {
+		return r, err
+	} else if ok {
+		r.CloudflareTunnel = ct
+	}
 	tp, err := s.trustedProxies(ctx)
 	if err != nil {
 		return r, err
@@ -276,8 +284,8 @@ func (s *Service) TrustsPeer(remoteAddr string) bool {
 	return set.Trusted(remoteAddr)
 }
 
-// PublicURL is the effective public address: saved, else environment or
-// the built-in Tailscale listener's address (via UsePublicURL).
+// PublicURL is the effective public address: saved, else environment,
+// else a running tunnel's or tailnet node's address (via UsePublicURL).
 func (s *Service) PublicURL(ctx context.Context) (string, error) {
 	var pu string
 	ok, err := s.readJSON(ctx, keyPublicURL, &pu)
@@ -420,6 +428,11 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 			s.tailscale.Apply(ts)
 		}
 	}
+	if in := req.Msg.CloudflareTunnel; in != nil {
+		if err := s.updateCloudflareTunnel(ctx, in.Enabled, in.Token); err != nil {
+			return nil, err
+		}
+	}
 	if req.Msg.TrustedProxies != nil {
 		cidrs := trimAll(req.Msg.TrustedProxies.Cidrs)
 		if len(cidrs) > maxTrustedProxies {
@@ -483,11 +496,21 @@ func (s *Service) reachabilityResponse(ctx context.Context) (*instancev1.GetReac
 				Cidrs:    r.TrustedProxies.Strings(),
 				TrustAll: r.TrustedProxies.TrustsEveryone(),
 			},
+			CloudflareTunnel: &instancev1.CloudflareTunnelSettings{
+				Enabled: r.CloudflareTunnel.Enabled, HasToken: r.CloudflareTunnel.Token != "",
+			},
 		},
-		Tailscale:       &instancev1.TailscaleStatus{},
-		VoiceConfigured: s.env.VoiceConfigured,
-		HostTailscale:   hostHasTailscale(),
-		Livekit:         &instancev1.LiveKitStatus{},
+		Tailscale:        &instancev1.TailscaleStatus{},
+		VoiceConfigured:  s.env.VoiceConfigured,
+		HostTailscale:    hostHasTailscale(),
+		Livekit:          &instancev1.LiveKitStatus{},
+		CloudflareTunnel: &instancev1.CloudflareTunnelStatus{},
+	}
+	if s.tunnel != nil {
+		ct := s.tunnel.Status()
+		resp.CloudflareTunnel = &instancev1.CloudflareTunnelStatus{
+			Enabled: ct.Enabled, State: ct.State, Url: ct.URL, Error: ct.Error, Origin: ct.Origin,
+		}
 	}
 	if s.livekit != nil {
 		lk := s.livekit.LiveKitStatus(ctx)

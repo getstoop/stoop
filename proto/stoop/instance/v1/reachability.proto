@@ -37,6 +37,17 @@ message TailscaleSettings {
   string control_url = 6;
 }
 
+// CloudflareTunnelSettings control the Cloudflare Tunnel connector
+// (cloudflared) that Stoop runs as a child process.
+message CloudflareTunnelSettings {
+  bool enabled = 1;
+  // Write-only: the remotely managed tunnel's token, or the whole install
+  // command Cloudflare shows, which is cut down to the token. has_token
+  // reports whether one is saved.
+  string token = 2;
+  bool has_token = 3;
+}
+
 // TrustedProxies names the machines allowed to speak for their callers:
 // only a request whose TCP peer matches one of these has its
 // X-Forwarded-For and X-Forwarded-Proto believed. Independent of how
@@ -58,6 +69,7 @@ message Reachability {
   CloudflareTurn cloudflare = 3;
   TailscaleSettings tailscale = 4;
   TrustedProxies trusted_proxies = 5;
+  CloudflareTunnelSettings cloudflare_tunnel = 6;
 }
 
 // TailscaleStatus is the built-in Tailscale listener's live state.
@@ -80,6 +92,21 @@ message TailscaleStatus {
   bool carries_voice = 8;
 
   reserved 9, 10; // restart notes; LiveKit restarts itself now
+}
+
+// CloudflareTunnelStatus is the connector's live state.
+message CloudflareTunnelStatus {
+  bool enabled = 1;
+  // "stopped", "missing" (no cloudflared on this machine), "starting",
+  // "running", or "error".
+  string state = 2;
+  // https:// and the tunnel's public hostname, once running and routed.
+  // The public address falls back to it.
+  string url = 3;
+  string error = 4;
+  // What the tunnel's public hostname should point at: this server as
+  // cloudflared reaches it.
+  string origin = 5;
 }
 
 // LiveKitStatus is whether the voice sidecar is up.

@@ -128,6 +128,13 @@ type Config struct {
 	// are kept for the log; 0 keeps them forever.
 	WebhookDeliveryRetention time.Duration
 
+	// CloudflareTunnel runs cloudflared as a child process with
+	// CloudflareTunnelToken, a remotely managed tunnel's token.
+	CloudflareTunnel      bool
+	CloudflareTunnelToken string
+	// CloudflaredPath is where cloudflared is; empty looks on PATH.
+	CloudflaredPath string
+
 	// Tailscale embeds a tailnet node in the binary (tsnet) and serves the
 	// app over HTTPS on its tailnet address, in addition to ListenAddr.
 	Tailscale bool
@@ -262,6 +269,15 @@ func Load() (Config, error) {
 	if cfg.WebhookDeliveryRetention, err = parseDuration("STOOP_WEBHOOK_DELIVERY_RETENTION", "168h"); err != nil {
 		return Config{}, err
 	}
+
+	if cfg.CloudflareTunnel, err = parseBool("STOOP_CLOUDFLARE_TUNNEL", false); err != nil {
+		return Config{}, err
+	}
+	cfg.CloudflareTunnelToken = os.Getenv("STOOP_CLOUDFLARE_TUNNEL_TOKEN")
+	if cfg.CloudflareTunnel && cfg.CloudflareTunnelToken == "" {
+		return Config{}, fmt.Errorf("STOOP_CLOUDFLARE_TUNNEL needs STOOP_CLOUDFLARE_TUNNEL_TOKEN")
+	}
+	cfg.CloudflaredPath = os.Getenv("STOOP_CLOUDFLARED_PATH")
 
 	if cfg.Tailscale, err = parseBool("STOOP_TAILSCALE", false); err != nil {
 		return Config{}, err

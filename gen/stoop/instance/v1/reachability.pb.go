@@ -253,6 +253,71 @@ func (x *TailscaleSettings) GetControlUrl() string {
 	return ""
 }
 
+// CloudflareTunnelSettings control the Cloudflare Tunnel connector
+// (cloudflared) that Stoop runs as a child process.
+type CloudflareTunnelSettings struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Enabled bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// Write-only: the remotely managed tunnel's token, or the whole install
+	// command Cloudflare shows, which is cut down to the token. has_token
+	// reports whether one is saved.
+	Token         string `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	HasToken      bool   `protobuf:"varint,3,opt,name=has_token,json=hasToken,proto3" json:"has_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloudflareTunnelSettings) Reset() {
+	*x = CloudflareTunnelSettings{}
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloudflareTunnelSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloudflareTunnelSettings) ProtoMessage() {}
+
+func (x *CloudflareTunnelSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloudflareTunnelSettings.ProtoReflect.Descriptor instead.
+func (*CloudflareTunnelSettings) Descriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CloudflareTunnelSettings) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *CloudflareTunnelSettings) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *CloudflareTunnelSettings) GetHasToken() bool {
+	if x != nil {
+		return x.HasToken
+	}
+	return false
+}
+
 // TrustedProxies names the machines allowed to speak for their callers:
 // only a request whose TCP peer matches one of these has its
 // X-Forwarded-For and X-Forwarded-Proto believed. Independent of how
@@ -271,7 +336,7 @@ type TrustedProxies struct {
 
 func (x *TrustedProxies) Reset() {
 	*x = TrustedProxies{}
-	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[3]
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -283,7 +348,7 @@ func (x *TrustedProxies) String() string {
 func (*TrustedProxies) ProtoMessage() {}
 
 func (x *TrustedProxies) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[3]
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -296,7 +361,7 @@ func (x *TrustedProxies) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrustedProxies.ProtoReflect.Descriptor instead.
 func (*TrustedProxies) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{3}
+	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TrustedProxies) GetCidrs() []string {
@@ -316,19 +381,20 @@ func (x *TrustedProxies) GetTrustAll() bool {
 // Reachability is the effective configuration: a saved value where one
 // exists, otherwise the server's environment.
 type Reachability struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	PublicUrl      string                 `protobuf:"bytes,1,opt,name=public_url,json=publicUrl,proto3" json:"public_url,omitempty"`
-	Turn           *TurnRelay             `protobuf:"bytes,2,opt,name=turn,proto3" json:"turn,omitempty"`
-	Cloudflare     *CloudflareTurn        `protobuf:"bytes,3,opt,name=cloudflare,proto3" json:"cloudflare,omitempty"`
-	Tailscale      *TailscaleSettings     `protobuf:"bytes,4,opt,name=tailscale,proto3" json:"tailscale,omitempty"`
-	TrustedProxies *TrustedProxies        `protobuf:"bytes,5,opt,name=trusted_proxies,json=trustedProxies,proto3" json:"trusted_proxies,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state            protoimpl.MessageState    `protogen:"open.v1"`
+	PublicUrl        string                    `protobuf:"bytes,1,opt,name=public_url,json=publicUrl,proto3" json:"public_url,omitempty"`
+	Turn             *TurnRelay                `protobuf:"bytes,2,opt,name=turn,proto3" json:"turn,omitempty"`
+	Cloudflare       *CloudflareTurn           `protobuf:"bytes,3,opt,name=cloudflare,proto3" json:"cloudflare,omitempty"`
+	Tailscale        *TailscaleSettings        `protobuf:"bytes,4,opt,name=tailscale,proto3" json:"tailscale,omitempty"`
+	TrustedProxies   *TrustedProxies           `protobuf:"bytes,5,opt,name=trusted_proxies,json=trustedProxies,proto3" json:"trusted_proxies,omitempty"`
+	CloudflareTunnel *CloudflareTunnelSettings `protobuf:"bytes,6,opt,name=cloudflare_tunnel,json=cloudflareTunnel,proto3" json:"cloudflare_tunnel,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Reachability) Reset() {
 	*x = Reachability{}
-	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[4]
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -340,7 +406,7 @@ func (x *Reachability) String() string {
 func (*Reachability) ProtoMessage() {}
 
 func (x *Reachability) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[4]
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -353,7 +419,7 @@ func (x *Reachability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Reachability.ProtoReflect.Descriptor instead.
 func (*Reachability) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{4}
+	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Reachability) GetPublicUrl() string {
@@ -391,6 +457,13 @@ func (x *Reachability) GetTrustedProxies() *TrustedProxies {
 	return nil
 }
 
+func (x *Reachability) GetCloudflareTunnel() *CloudflareTunnelSettings {
+	if x != nil {
+		return x.CloudflareTunnel
+	}
+	return nil
+}
+
 // TailscaleStatus is the built-in Tailscale listener's live state.
 type TailscaleStatus struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -416,7 +489,7 @@ type TailscaleStatus struct {
 
 func (x *TailscaleStatus) Reset() {
 	*x = TailscaleStatus{}
-	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[5]
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -428,7 +501,7 @@ func (x *TailscaleStatus) String() string {
 func (*TailscaleStatus) ProtoMessage() {}
 
 func (x *TailscaleStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[5]
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -441,7 +514,7 @@ func (x *TailscaleStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleStatus.ProtoReflect.Descriptor instead.
 func (*TailscaleStatus) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{5}
+	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *TailscaleStatus) GetEnabled() bool {
@@ -500,6 +573,89 @@ func (x *TailscaleStatus) GetCarriesVoice() bool {
 	return false
 }
 
+// CloudflareTunnelStatus is the connector's live state.
+type CloudflareTunnelStatus struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Enabled bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// "stopped", "missing" (no cloudflared on this machine), "starting",
+	// "running", or "error".
+	State string `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	// https:// and the tunnel's public hostname, once running and routed.
+	// The public address falls back to it.
+	Url   string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	Error string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	// What the tunnel's public hostname should point at: this server as
+	// cloudflared reaches it.
+	Origin        string `protobuf:"bytes,5,opt,name=origin,proto3" json:"origin,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloudflareTunnelStatus) Reset() {
+	*x = CloudflareTunnelStatus{}
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloudflareTunnelStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloudflareTunnelStatus) ProtoMessage() {}
+
+func (x *CloudflareTunnelStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloudflareTunnelStatus.ProtoReflect.Descriptor instead.
+func (*CloudflareTunnelStatus) Descriptor() ([]byte, []int) {
+	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CloudflareTunnelStatus) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *CloudflareTunnelStatus) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *CloudflareTunnelStatus) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *CloudflareTunnelStatus) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *CloudflareTunnelStatus) GetOrigin() string {
+	if x != nil {
+		return x.Origin
+	}
+	return ""
+}
+
 // LiveKitStatus is whether the voice sidecar is up.
 type LiveKitStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -513,7 +669,7 @@ type LiveKitStatus struct {
 
 func (x *LiveKitStatus) Reset() {
 	*x = LiveKitStatus{}
-	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[6]
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -525,7 +681,7 @@ func (x *LiveKitStatus) String() string {
 func (*LiveKitStatus) ProtoMessage() {}
 
 func (x *LiveKitStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[6]
+	mi := &file_stoop_instance_v1_reachability_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -538,7 +694,7 @@ func (x *LiveKitStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LiveKitStatus.ProtoReflect.Descriptor instead.
 func (*LiveKitStatus) Descriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{6}
+	return file_stoop_instance_v1_reachability_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *LiveKitStatus) GetRunning() bool {
@@ -580,10 +736,14 @@ const file_stoop_instance_v1_reachability_proto_rawDesc = "" +
 	"\fhas_auth_key\x18\x05 \x01(\bR\n" +
 	"hasAuthKey\x12\x1f\n" +
 	"\vcontrol_url\x18\x06 \x01(\tR\n" +
-	"controlUrl\"C\n" +
+	"controlUrl\"g\n" +
+	"\x18CloudflareTunnelSettings\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\x12\x1b\n" +
+	"\thas_token\x18\x03 \x01(\bR\bhasToken\"C\n" +
 	"\x0eTrustedProxies\x12\x14\n" +
 	"\x05cidrs\x18\x01 \x03(\tR\x05cidrs\x12\x1b\n" +
-	"\ttrust_all\x18\x02 \x01(\bR\btrustAll\"\xb2\x02\n" +
+	"\ttrust_all\x18\x02 \x01(\bR\btrustAll\"\x8c\x03\n" +
 	"\fReachability\x12\x1d\n" +
 	"\n" +
 	"public_url\x18\x01 \x01(\tR\tpublicUrl\x120\n" +
@@ -592,7 +752,8 @@ const file_stoop_instance_v1_reachability_proto_rawDesc = "" +
 	"cloudflare\x18\x03 \x01(\v2!.stoop.instance.v1.CloudflareTurnR\n" +
 	"cloudflare\x12B\n" +
 	"\ttailscale\x18\x04 \x01(\v2$.stoop.instance.v1.TailscaleSettingsR\ttailscale\x12J\n" +
-	"\x0ftrusted_proxies\x18\x05 \x01(\v2!.stoop.instance.v1.TrustedProxiesR\x0etrustedProxies\"\xee\x01\n" +
+	"\x0ftrusted_proxies\x18\x05 \x01(\v2!.stoop.instance.v1.TrustedProxiesR\x0etrustedProxies\x12X\n" +
+	"\x11cloudflare_tunnel\x18\x06 \x01(\v2+.stoop.instance.v1.CloudflareTunnelSettingsR\x10cloudflareTunnel\"\xee\x01\n" +
 	"\x0fTailscaleStatus\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1b\n" +
@@ -604,7 +765,13 @@ const file_stoop_instance_v1_reachability_proto_rawDesc = "" +
 	"tailnet_ip\x18\a \x01(\tR\ttailnetIp\x12#\n" +
 	"\rcarries_voice\x18\b \x01(\bR\fcarriesVoiceJ\x04\b\t\x10\n" +
 	"J\x04\b\n" +
-	"\x10\v\";\n" +
+	"\x10\v\"\x88\x01\n" +
+	"\x16CloudflareTunnelStatus\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x16\n" +
+	"\x06origin\x18\x05 \x01(\tR\x06origin\";\n" +
 	"\rLiveKitStatus\x12\x18\n" +
 	"\arunning\x18\x01 \x01(\bR\arunning\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03urlB\xcc\x01\n" +
@@ -622,26 +789,29 @@ func file_stoop_instance_v1_reachability_proto_rawDescGZIP() []byte {
 	return file_stoop_instance_v1_reachability_proto_rawDescData
 }
 
-var file_stoop_instance_v1_reachability_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_stoop_instance_v1_reachability_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_stoop_instance_v1_reachability_proto_goTypes = []any{
-	(*TurnRelay)(nil),         // 0: stoop.instance.v1.TurnRelay
-	(*CloudflareTurn)(nil),    // 1: stoop.instance.v1.CloudflareTurn
-	(*TailscaleSettings)(nil), // 2: stoop.instance.v1.TailscaleSettings
-	(*TrustedProxies)(nil),    // 3: stoop.instance.v1.TrustedProxies
-	(*Reachability)(nil),      // 4: stoop.instance.v1.Reachability
-	(*TailscaleStatus)(nil),   // 5: stoop.instance.v1.TailscaleStatus
-	(*LiveKitStatus)(nil),     // 6: stoop.instance.v1.LiveKitStatus
+	(*TurnRelay)(nil),                // 0: stoop.instance.v1.TurnRelay
+	(*CloudflareTurn)(nil),           // 1: stoop.instance.v1.CloudflareTurn
+	(*TailscaleSettings)(nil),        // 2: stoop.instance.v1.TailscaleSettings
+	(*CloudflareTunnelSettings)(nil), // 3: stoop.instance.v1.CloudflareTunnelSettings
+	(*TrustedProxies)(nil),           // 4: stoop.instance.v1.TrustedProxies
+	(*Reachability)(nil),             // 5: stoop.instance.v1.Reachability
+	(*TailscaleStatus)(nil),          // 6: stoop.instance.v1.TailscaleStatus
+	(*CloudflareTunnelStatus)(nil),   // 7: stoop.instance.v1.CloudflareTunnelStatus
+	(*LiveKitStatus)(nil),            // 8: stoop.instance.v1.LiveKitStatus
 }
 var file_stoop_instance_v1_reachability_proto_depIdxs = []int32{
 	0, // 0: stoop.instance.v1.Reachability.turn:type_name -> stoop.instance.v1.TurnRelay
 	1, // 1: stoop.instance.v1.Reachability.cloudflare:type_name -> stoop.instance.v1.CloudflareTurn
 	2, // 2: stoop.instance.v1.Reachability.tailscale:type_name -> stoop.instance.v1.TailscaleSettings
-	3, // 3: stoop.instance.v1.Reachability.trusted_proxies:type_name -> stoop.instance.v1.TrustedProxies
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 3: stoop.instance.v1.Reachability.trusted_proxies:type_name -> stoop.instance.v1.TrustedProxies
+	3, // 4: stoop.instance.v1.Reachability.cloudflare_tunnel:type_name -> stoop.instance.v1.CloudflareTunnelSettings
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_stoop_instance_v1_reachability_proto_init() }
@@ -655,7 +825,7 @@ func file_stoop_instance_v1_reachability_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_instance_v1_reachability_proto_rawDesc), len(file_stoop_instance_v1_reachability_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
