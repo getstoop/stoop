@@ -24,8 +24,6 @@ type CloudflareTunnelStatus struct {
 	State   string
 	URL     string
 	Error   string
-	// Origin is what the tunnel's public hostname should point at.
-	Origin string
 }
 
 // CloudflareTunnelController is the instance module's port to the

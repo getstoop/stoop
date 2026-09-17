@@ -212,16 +212,16 @@ type configBody struct {
 }
 
 // publicURL picks this server's hostname out of the tunnel's rules: the
-// one whose service is this machine on originPort, else the first one.
+// one whose service is this machine on originPort, else the only one.
+// Several hostnames and no match means Stoop can't tell which is its own
+// (the tunnel may reach it through a proxy), and it doesn't guess.
 func (b configBody) publicURL(originPort string) string {
-	first := ""
+	var hostnames []string
 	for _, r := range b.Config.Ingress {
 		if r.Hostname == "" || strings.Contains(r.Hostname, "*") {
 			continue
 		}
-		if first == "" {
-			first = r.Hostname
-		}
+		hostnames = append(hostnames, r.Hostname)
 		service, _ := r.Service.(string)
 		for _, host := range []string{"localhost", "127.0.0.1", "[::1]"} {
 			if strings.TrimSuffix(service, "/") == "http://"+host+":"+originPort {
@@ -229,10 +229,10 @@ func (b configBody) publicURL(originPort string) string {
 			}
 		}
 	}
-	if first == "" {
+	if len(hostnames) != 1 {
 		return ""
 	}
-	return "https://" + first
+	return "https://" + hostnames[0]
 }
 
 // Loopback only, so never through a proxy from the environment.

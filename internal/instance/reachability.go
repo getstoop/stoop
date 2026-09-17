@@ -509,7 +509,7 @@ func (s *Service) reachabilityResponse(ctx context.Context) (*instancev1.GetReac
 	if s.tunnel != nil {
 		ct := s.tunnel.Status()
 		resp.CloudflareTunnel = &instancev1.CloudflareTunnelStatus{
-			Enabled: ct.Enabled, State: ct.State, Url: ct.URL, Error: ct.Error, Origin: ct.Origin,
+			Enabled: ct.Enabled, State: ct.State, Url: ct.URL, Error: ct.Error,
 		}
 	}
 	if s.livekit != nil {

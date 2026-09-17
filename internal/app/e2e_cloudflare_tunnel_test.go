@@ -32,7 +32,7 @@ func TestE2ECloudflareTunnel(t *testing.T) {
 	on := func(v any) map[string]any { return map[string]any{"cloudflareTunnel": v} }
 
 	r := h.rpc(casey, reachability+"GetReachability", map[string]any{}).expect(t, "ok")
-	if r.str("cloudflareTunnel.state") != "stopped" || r.str("cloudflareTunnel.origin") != "http://localhost:8080" {
+	if r.str("cloudflareTunnel.state") != "stopped" {
 		t.Errorf("before: %s", r.raw)
 	}
 

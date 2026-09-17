@@ -223,14 +223,18 @@ includes it.
    tick "Run a Cloudflare Tunnel", paste the token and save. This also adds
    `127.0.0.1` to Trusted proxies, which is where the connector calls from.
 3. Back in Cloudflare, give the tunnel a public hostname whose service is
-   the address the section shows (`http://localhost:8080` with the compose
-   file).
+   Stoop as `cloudflared` reaches it. With the compose file that is
+   `http://localhost:8080`, because `cloudflared` runs inside the Stoop
+   container. If you route it through a proxy of your own instead, name
+   that proxy under Trusted proxies and fill in Public address.
 4. Set up a [voice relay](#turn-when-media-ports-cant-be-reached):
    **voice audio does not go through the tunnel.** Cloudflare's own TURN
    service is the closest one and needs nothing forwarded.
 
 The status reads "Running at https://…" once connected, and invite links
-use that hostname while Public address is blank. In `.env` the same
+use that hostname while Public address is blank. A tunnel that carries
+several hostnames, none of them pointed straight at Stoop, reads just
+"Running": fill in Public address yourself. In `.env` the same
 settings are `STOOP_CLOUDFLARE_TUNNEL=true` and
 `STOOP_CLOUDFLARE_TUNNEL_TOKEN`; name `127.0.0.1` in
 `STOOP_TRUSTED_PROXIES` yourself there.

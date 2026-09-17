@@ -55,7 +55,7 @@ type instance struct {
 
 // NewManager takes where cloudflared is ("" looks on PATH) and the port
 // the plain listener is on, which is how it tells this server's hostname
-// from any other the tunnel carries.
+// from any other the tunnel carries, when it can.
 func NewManager(path, originPort string, log *slog.Logger) *Manager {
 	return &Manager{
 		path: path, originPort: originPort, log: log,

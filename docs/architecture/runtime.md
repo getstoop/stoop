@@ -199,8 +199,9 @@ cloudflared through its environment, never its arguments.
 State comes from cloudflared's own metrics endpoint, which Stoop binds to a
 free loopback port: `/ready` says whether the tunnel is connected, and
 `/config` carries the tunnel's routing, from which Stoop takes the public
-hostname — the rule whose service is `localhost` on Stoop's own port, else
-the first. That hostname is the **public address fallback** after a saved
+hostname: the rule whose service is `localhost` on Stoop's own port, else
+the only one. With several hostnames and no match it takes none, because
+it cannot see what sits between cloudflared and itself. That hostname is the **public address fallback** after a saved
 value and `STOOP_PUBLIC_URL`, and ahead of the tailnet address. It is
 derived on every read and never saved, so it goes when the tunnel does.
 

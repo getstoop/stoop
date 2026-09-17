@@ -313,8 +313,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		pool.Close()
 		return nil, err
 	}
-	tunnel := tunnelController{m: a.tunnel, origin: "http://localhost:" + listenPort(cfg.ListenAddr)}
-	if err := instanceSvc.UseCloudflareTunnel(ctx, tunnel); err != nil {
+	if err := instanceSvc.UseCloudflareTunnel(ctx, tunnelController{a.tunnel}); err != nil {
 		pool.Close()
 		return nil, err
 	}
@@ -407,10 +406,7 @@ func (c tailscaleController) Status(ctx context.Context) instance.TailscaleStatu
 }
 
 // tunnelController adapts cftunnel.Manager to the instance module's port.
-type tunnelController struct {
-	m      *cftunnel.Manager
-	origin string
-}
+type tunnelController struct{ m *cftunnel.Manager }
 
 func (c tunnelController) Apply(s instance.CloudflareTunnelSettings) {
 	c.m.Apply(cftunnel.Settings{Enabled: s.Enabled, Token: s.Token})
@@ -418,9 +414,7 @@ func (c tunnelController) Apply(s instance.CloudflareTunnelSettings) {
 
 func (c tunnelController) Status() instance.CloudflareTunnelStatus {
 	st, on := c.m.Status()
-	return instance.CloudflareTunnelStatus{
-		Enabled: on, State: st.State, URL: st.URL, Error: st.Error, Origin: c.origin,
-	}
+	return instance.CloudflareTunnelStatus{Enabled: on, State: st.State, URL: st.URL, Error: st.Error}
 }
 
 // listenPort is the port of a listen address like ":8080".
