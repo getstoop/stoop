@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 )
 
 const keyCloudflareTunnel = "cloudflare_tunnel"
@@ -50,24 +51,28 @@ func (s *Service) UseCloudflareTunnel(ctx context.Context, c CloudflareTunnelCon
 
 // ParseTunnelToken takes what was pasted (the token, or the whole
 // `cloudflared … <token>` command Cloudflare shows) and returns the token.
+// It decodes the way cloudflared does, so what saves here is what the
+// connector will accept: padded base64 of JSON with an account tag, a
+// tunnel id that is a UUID, and a secret that is itself base64.
 func ParseTunnelToken(pasted string) (string, error) {
 	fields := strings.Fields(pasted)
 	if len(fields) == 0 {
 		return "", nil
 	}
 	token := fields[len(fields)-1]
+	bad := connect.NewError(connect.CodeInvalidArgument,
+		errors.New("that isn't a tunnel token; copy it from the tunnel's page in Cloudflare"))
 	raw, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
-		raw, err = base64.RawStdEncoding.DecodeString(token)
+		return "", bad
 	}
 	var parts struct {
-		Account string `json:"a"`
-		Tunnel  string `json:"t"`
-		Secret  string `json:"s"`
+		Account string    `json:"a"`
+		Tunnel  uuid.UUID `json:"t"`
+		Secret  []byte    `json:"s"`
 	}
-	if err != nil || json.Unmarshal(raw, &parts) != nil || parts.Account == "" || parts.Tunnel == "" || parts.Secret == "" {
-		return "", connect.NewError(connect.CodeInvalidArgument,
-			errors.New("that isn't a tunnel token; copy it from the tunnel's page in Cloudflare"))
+	if json.Unmarshal(raw, &parts) != nil || parts.Account == "" || parts.Tunnel == uuid.Nil || len(parts.Secret) == 0 {
+		return "", bad
 	}
 	return token, nil
 }

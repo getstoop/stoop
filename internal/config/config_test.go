@@ -215,3 +215,35 @@ func TestLoad_LiveKitMedia(t *testing.T) {
 		t.Fatalf("port 0 should be refused, got %v", err)
 	}
 }
+
+func TestLoad_CloudflareTunnel(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.CloudflareTunnel || cfg.CloudflareTunnelToken != "" || cfg.CloudflaredPath != "" {
+		t.Errorf("defaults = %+v", cfg)
+	}
+
+	t.Setenv("STOOP_CLOUDFLARE_TUNNEL", "true")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_CLOUDFLARE_TUNNEL_TOKEN") {
+		t.Errorf("enabled without a token should be rejected, got %v", err)
+	}
+
+	t.Setenv("STOOP_CLOUDFLARE_TUNNEL_TOKEN", "eyJh")
+	t.Setenv("STOOP_CLOUDFLARED_PATH", "/opt/cloudflared")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.CloudflareTunnel || cfg.CloudflareTunnelToken != "eyJh" || cfg.CloudflaredPath != "/opt/cloudflared" {
+		t.Errorf("cfg = %+v", cfg)
+	}
+
+	t.Setenv("STOOP_CLOUDFLARE_TUNNEL", "maybe")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_CLOUDFLARE_TUNNEL") {
+		t.Errorf("bad bool should be rejected, got %v", err)
+	}
+}
