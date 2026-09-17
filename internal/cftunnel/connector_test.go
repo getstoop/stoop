@@ -75,7 +75,8 @@ func TestConnector_Missing(t *testing.T) {
 func TestPublicURL(t *testing.T) {
 	cases := []struct{ name, ingress, want string }{
 		{"by origin", `[{"hostname":"a.example.com","service":"http://localhost:3000"},{"hostname":"b.example.com","service":"http://127.0.0.1:8080/"}]`, "https://b.example.com"},
-		{"first when none match", `[{"hostname":"a.example.com","service":"http://stoop:8080"},{"hostname":"b.example.com","service":"http://x:1"}]`, "https://a.example.com"},
+		{"the only one, through a proxy", `[{"hostname":"a.example.com","service":"http://caddy:80"},{"hostname":"","service":"http_status:404"}]`, "https://a.example.com"},
+		{"no guess among several", `[{"hostname":"a.example.com","service":"http://caddy:80"},{"hostname":"b.example.com","service":"http://x:1"}]`, ""},
 		{"skips wildcards and the catch-all", `[{"hostname":"*.example.com","service":"http://localhost:8080"},{"hostname":"","service":"http_status:404"}]`, ""},
 	}
 	for _, tc := range cases {
