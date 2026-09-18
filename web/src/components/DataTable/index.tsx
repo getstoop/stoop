@@ -8,6 +8,8 @@ import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Footer } from "./Footer";
 import { alignClass, features, type TableColumn } from "./features";
 import { HeaderCell } from "./HeaderCell";
+import { Sortable } from "./Sortable";
+import { SortableRow } from "./SortableRow";
 import { Toolbar } from "./Toolbar";
 
 export type { TableColumn } from "./features";
@@ -33,6 +35,7 @@ export function DataTable<T extends RowData>({
   rowProps,
   detail,
   ordered = false,
+  reorder,
   hidden,
 }: {
   // undefined while loading.
@@ -48,6 +51,14 @@ export function DataTable<T extends RowData>({
   pageSize?: number;
   // The rows' order is the data (Channels): no sorting, no paging.
   ordered?: boolean;
+  // Rows carry a drag handle in a leading column and can be reordered.
+  // Needs `ordered` and no `search`, so every row is on the page and the
+  // ids handed back are the whole list.
+  reorder?: {
+    // The handle's accessible name, e.g. "Reorder #general".
+    label: (row: T) => string;
+    onReorder: (ids: string[]) => void;
+  };
   // Dead rows (deactivated bots) stay out of the way behind a counted
   // switch in the toolbar. A search still finds them. `when` must be
   // stable (module scope), like the columns.
@@ -148,6 +159,8 @@ export function DataTable<T extends RowData>({
   const labelOf = (header: unknown) =>
     typeof header === "string" ? header : "";
   const pageRows = table.getRowModel().rows;
+  const rowIds = pageRows.map((r) => r.id);
+  const leading = (reorder ? 1 : 0) + (detail ? 1 : 0);
   const from = pageIndex * pageSize;
 
   return (
@@ -189,60 +202,64 @@ export function DataTable<T extends RowData>({
         />
       )}
       <div className="dt-box">
-        <table className={`dt ${detail ? "expandable" : ""}`} aria-busy={!rows}>
-          <colgroup>
-            {detail && <col className="dt-expand-col" />}
-            {headers.map((h) => (
-              <col
-                key={h.id}
-                style={{ width: h.column.columnDef.meta?.width }}
-              />
-            ))}
-          </colgroup>
-          <thead>
-            <tr>
-              {detail && <th />}
+        <Sortable ids={rowIds} onReorder={reorder?.onReorder}>
+          <table
+            className={`dt ${detail ? "expandable" : ""}`}
+            aria-busy={!rows}
+          >
+            <colgroup>
+              {reorder && <col className="dt-drag-col" />}
+              {detail && <col className="dt-expand-col" />}
               {headers.map((h) => (
-                <HeaderCell
+                <col
                   key={h.id}
-                  label={labelOf(h.column.columnDef.header)}
-                  meta={h.column.columnDef.meta}
-                  sorted={h.column.getIsSorted()}
-                  onSort={
-                    h.column.getCanSort()
-                      ? () => {
-                          h.column.toggleSorting();
-                          table.setPageIndex(0);
-                        }
-                      : undefined
-                  }
+                  style={{ width: h.column.columnDef.meta?.width }}
                 />
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {!rows &&
-              SKELETON_ROWS.map((i) => (
-                <tr key={i} className="dt-skeleton-row">
-                  {detail && <td />}
-                  {headers.map((h) => (
-                    <td key={h.id}>
-                      {!h.column.columnDef.meta?.actions && (
-                        <span className="dt-skeleton" />
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            {pageRows.map((row) => {
-              const error = rowError?.(row.original);
-              const open = detail && row.getIsExpanded();
-              return (
-                <Fragment key={row.id}>
-                  <tr
-                    className={`dt-row ${rowInactive?.(row.original) ? "inactive" : ""}`}
-                    {...rowProps?.(row.original)}
-                  >
+            </colgroup>
+            <thead>
+              <tr>
+                {reorder && <th />}
+                {detail && <th />}
+                {headers.map((h) => (
+                  <HeaderCell
+                    key={h.id}
+                    label={labelOf(h.column.columnDef.header)}
+                    meta={h.column.columnDef.meta}
+                    sorted={h.column.getIsSorted()}
+                    onSort={
+                      h.column.getCanSort()
+                        ? () => {
+                            h.column.toggleSorting();
+                            table.setPageIndex(0);
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {!rows &&
+                SKELETON_ROWS.map((i) => (
+                  <tr key={i} className="dt-skeleton-row">
+                    {reorder && <td />}
+                    {detail && <td />}
+                    {headers.map((h) => (
+                      <td key={h.id}>
+                        {!h.column.columnDef.meta?.actions && (
+                          <span className="dt-skeleton" />
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              {pageRows.map((row) => {
+                const error = rowError?.(row.original);
+                const open = detail && row.getIsExpanded();
+                const className = `dt-row ${rowInactive?.(row.original) ? "inactive" : ""}`;
+                const cells = (
+                  <>
                     {detail && (
                       <td className="dt-expand">
                         {row.getCanExpand() && (
@@ -275,19 +292,37 @@ export function DataTable<T extends RowData>({
                         </td>
                       );
                     })}
-                  </tr>
-                  {open && (
-                    <tr className="dt-detail">
-                      <td colSpan={headers.length + 1}>
-                        {detail.render(row.original)}
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                  </>
+                );
+                return (
+                  <Fragment key={row.id}>
+                    {reorder ? (
+                      <SortableRow
+                        id={row.id}
+                        label={reorder.label(row.original)}
+                        className={className}
+                        rowProps={rowProps?.(row.original)}
+                      >
+                        {cells}
+                      </SortableRow>
+                    ) : (
+                      <tr className={className} {...rowProps?.(row.original)}>
+                        {cells}
+                      </tr>
+                    )}
+                    {open && (
+                      <tr className="dt-detail">
+                        <td colSpan={headers.length + leading}>
+                          {detail.render(row.original)}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </Sortable>
         {rows && matched === 0 && !searching && (
           <p className="dt-message">{empty}</p>
         )}

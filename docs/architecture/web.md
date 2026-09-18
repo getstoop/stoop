@@ -296,7 +296,7 @@ Every list with columns on the settings pages is a
 - `columns` must be stable between renders (module scope or `useMemo`):
   a cell is mounted as a component, so a new cell function remounts it
   and an input inside loses focus. Cells that need this render's state
-  read it through a ref (`ChannelsSection`).
+  read it through a ref (`ChannelTable`).
 - A sortable column needs an `accessorFn` that returns the value to sort
   by: a rank or a timestamp, not the printed text. Columns sort unless
   they say `enableSorting: false`. A list whose order is the data
@@ -305,6 +305,14 @@ Every list with columns on the settings pages is a
   the pager shows only past one page.
 - A row takes at most two inline actions; more go in a `DotsMenu` in a
   column marked `meta.actions`. Members puts every action in the menu.
+- An ordered table whose order is editable passes `reorder`: each row
+  gains a drag handle in a leading column and rows are dragged with
+  [dnd-kit](https://dndkit.com) (`DataTable/Sortable.tsx`), which also
+  moves a row from the keyboard — focus the handle, Space to pick it up,
+  the arrows to move it, Space to drop. `reorder` needs `ordered` and no
+  `search`, so the ids it hands back are the whole list. The section owns
+  the save: Channels reorders the query's rows first so the drop holds,
+  and refetches if the call fails.
 - A row that owns a list (an account's tokens) opens it in a full-width
   row underneath: pass `detail`, and rows that can open get a chevron.
   The list inside is a `table.dt-sub`, so its columns line up from one

@@ -16,7 +16,10 @@ space.
   invited stranger), a welcome (Markdown, shown to people who joined), an
   icon, members with roles, and an ordered list of channels.
 - A **channel** is `kind` 1 (text), 2 (voice), or 3 (direct message), with
-  a position, a topic, and a `last_message_id`.
+  a position, a topic, and a `last_message_id`. Position is one sequence
+  per space, but the sidebar shows text and voice in separate groups, so
+  `ReorderChannels` is written as every text channel and then every voice
+  one — space settings drags them in two tables and sends both lists.
 - A **message** is content, an author, a channel, and optional replies,
   attachments, reactions, mentions and links.
 

@@ -67,9 +67,16 @@ test("space settings, roles and deletion", async ({ browser }) => {
     .poll(() => menuItems(B), { message: "invite toggle reaches B live" })
     .toContain("Invite people");
 
-  // Channels: reorder, edit, delete.
+  // Channels: reorder, edit, delete. Rows are dragged by the handle in
+  // their first cell; the keyboard sensor picks one up on Space and moves
+  // it a row per arrow.
   await A.locator('.settings-tab[data-tab="channels"]').click();
-  await channelRow("random").getByTitle("Move up").click();
+  const grip = channelRow("random").getByRole("button", {
+    name: "Reorder #random",
+  });
+  await grip.press(" ");
+  await grip.press("ArrowUp");
+  await grip.press(" ");
   await expect(channelNames(B), "B sees reordered channels").toHaveText([
     "random",
     "general",
