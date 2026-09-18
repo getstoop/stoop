@@ -16,6 +16,8 @@ stoop
 ├── HTTP listener on STOOP_LISTEN_ADDR          always
 ├── HTTPS listener on the tailnet (tsnet)       when Tailscale is enabled
 ├── goroutine: tailnet manager                  reconciles the node with saved settings
+├── goroutine: tunnel manager                   reconciles cloudflared with saved settings
+│   └── child process: cloudflared              when a Cloudflare Tunnel is enabled
 ├── goroutine: file sweep                       STOOP_FILE_SWEEP_INTERVAL
 └── goroutine: activity sweep                   same timer
 ```
@@ -132,7 +134,7 @@ existing reverse proxy already has.
 | Option | Carries the app | Carries voice media |
 | ------ | :-------------: | :-----------------: |
 | A reverse proxy you already run (Caddy, nginx, Traefik) | yes | only if LiveKit's media ports are also reachable |
-| Cloudflare Tunnel | yes | **no** — needs TURN |
+| Cloudflare Tunnel, built in or your own `cloudflared` | yes | **no** — needs TURN |
 | Tailscale, built in | yes | yes, when `STOOP_TAILSCALE_VOICE` is on |
 | Tailscale Funnel | yes | **no** — needs TURN |
 | A LAN without HTTPS | yes | yes |
@@ -184,6 +186,30 @@ browsers, and it reads that only at startup, so Stoop writes the address to
 Because a TLS listener and a plain one then coexist in one process, **the
 session cookie's `Secure` flag is decided per request** rather than per
 deployment — see [identity.md](identity.md#sessions).
+
+### The Cloudflare Tunnel connector
+
+`internal/cftunnel` runs `cloudflared` as a **child process**, for a
+remotely managed tunnel whose token the operator pastes on the Hosting
+page. `cftunnel.Manager` reconciles like `tailnet.Manager`: start, stop,
+restart on a new token. The connector restarts a process that exits, with
+backoff up to 30 seconds, and stops it with `SIGTERM` and a one-second
+grace period (cloudflared's default is 30 seconds, and it holds every
+client's WebSocket open for that long). The token reaches cloudflared
+through its environment, never its arguments.
+
+State comes from cloudflared's own metrics endpoint, which Stoop binds to a
+free loopback port: `/ready` says whether the tunnel is connected. Which
+public hostname the tunnel serves is **not** read from it: cloudflared's
+`/config` would say, but it is a debugging dump with no promised shape,
+and which of its rules is this server is a guess from inside the process.
+The operator fills in Public address, as with any other proxy.
+
+cloudflared calls the plain listener over loopback. **Nothing trusts it
+implicitly:** the web form writes `127.0.0.1` and `::1` into the Trusted
+proxies field when the box is ticked (`localhost` may resolve to either),
+and the list stays the one source of trust. The reasoning is in
+[the proposal](../proposals/cloudflare-tunnel.md).
 
 ## Security headers
 

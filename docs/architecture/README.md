@@ -77,7 +77,8 @@ Support packages, which are not modules and own no domain: `internal/events`
 `internal/config`, `internal/authctx` (the shared identity contract),
 `internal/blob` (the storage port and its backends), `internal/unfurl`
 (the link fetcher), `internal/ratelimit`, `internal/trustedproxy`,
-`internal/tailnet` (the optional embedded Tailscale node), `internal/webui`
+`internal/tailnet` (the optional embedded Tailscale node),
+`internal/cftunnel` (the optional Cloudflare Tunnel connector), `internal/webui`
 (the embedded SPA), `internal/app` (the composition root), and `cmd/stoop`.
 
 ## The five rules

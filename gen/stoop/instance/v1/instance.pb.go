@@ -1620,9 +1620,10 @@ type GetReachabilityResponse struct {
 	// TURN relay.
 	HostTailscale bool `protobuf:"varint,4,opt,name=host_tailscale,json=hostTailscale,proto3" json:"host_tailscale,omitempty"`
 	// The voice sidecar's own state.
-	Livekit       *LiveKitStatus `protobuf:"bytes,5,opt,name=livekit,proto3" json:"livekit,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Livekit          *LiveKitStatus          `protobuf:"bytes,5,opt,name=livekit,proto3" json:"livekit,omitempty"`
+	CloudflareTunnel *CloudflareTunnelStatus `protobuf:"bytes,6,opt,name=cloudflare_tunnel,json=cloudflareTunnel,proto3" json:"cloudflare_tunnel,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetReachabilityResponse) Reset() {
@@ -1690,6 +1691,13 @@ func (x *GetReachabilityResponse) GetLivekit() *LiveKitStatus {
 	return nil
 }
 
+func (x *GetReachabilityResponse) GetCloudflareTunnel() *CloudflareTunnelStatus {
+	if x != nil {
+		return x.CloudflareTunnel
+	}
+	return nil
+}
+
 type UpdateReachabilityRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset fields are left unchanged. A set-but-empty public_url, a turn
@@ -1705,8 +1713,10 @@ type UpdateReachabilityRequest struct {
 	// ignored here: naming addresses is the only way to add trust from the
 	// API.
 	TrustedProxies *TrustedProxies `protobuf:"bytes,5,opt,name=trusted_proxies,json=trustedProxies,proto3,oneof" json:"trusted_proxies,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Applied immediately: cloudflared starts, stops, or restarts.
+	CloudflareTunnel *CloudflareTunnelSettings `protobuf:"bytes,6,opt,name=cloudflare_tunnel,json=cloudflareTunnel,proto3,oneof" json:"cloudflare_tunnel,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateReachabilityRequest) Reset() {
@@ -1770,6 +1780,13 @@ func (x *UpdateReachabilityRequest) GetTailscale() *TailscaleSettings {
 func (x *UpdateReachabilityRequest) GetTrustedProxies() *TrustedProxies {
 	if x != nil {
 		return x.TrustedProxies
+	}
+	return nil
+}
+
+func (x *UpdateReachabilityRequest) GetCloudflareTunnel() *CloudflareTunnelSettings {
+	if x != nil {
+		return x.CloudflareTunnel
 	}
 	return nil
 }
@@ -2211,13 +2228,14 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"P\n" +
 	"\x19TransferOwnershipResponse\x123\n" +
 	"\x04user\x18\x01 \x01(\v2\x1f.stoop.instance.v1.InstanceUserR\x04user\"\x18\n" +
-	"\x16GetReachabilityRequest\"\xae\x02\n" +
+	"\x16GetReachabilityRequest\"\x86\x03\n" +
 	"\x17GetReachabilityResponse\x12C\n" +
 	"\freachability\x18\x01 \x01(\v2\x1f.stoop.instance.v1.ReachabilityR\freachability\x12@\n" +
 	"\ttailscale\x18\x02 \x01(\v2\".stoop.instance.v1.TailscaleStatusR\ttailscale\x12)\n" +
 	"\x10voice_configured\x18\x03 \x01(\bR\x0fvoiceConfigured\x12%\n" +
 	"\x0ehost_tailscale\x18\x04 \x01(\bR\rhostTailscale\x12:\n" +
-	"\alivekit\x18\x05 \x01(\v2 .stoop.instance.v1.LiveKitStatusR\alivekit\"\xa1\x03\n" +
+	"\alivekit\x18\x05 \x01(\v2 .stoop.instance.v1.LiveKitStatusR\alivekit\x12V\n" +
+	"\x11cloudflare_tunnel\x18\x06 \x01(\v2).stoop.instance.v1.CloudflareTunnelStatusR\x10cloudflareTunnel\"\x96\x04\n" +
 	"\x19UpdateReachabilityRequest\x12\"\n" +
 	"\n" +
 	"public_url\x18\x01 \x01(\tH\x00R\tpublicUrl\x88\x01\x01\x125\n" +
@@ -2226,13 +2244,15 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"cloudflare\x18\x03 \x01(\v2!.stoop.instance.v1.CloudflareTurnH\x02R\n" +
 	"cloudflare\x88\x01\x01\x12G\n" +
 	"\ttailscale\x18\x04 \x01(\v2$.stoop.instance.v1.TailscaleSettingsH\x03R\ttailscale\x88\x01\x01\x12O\n" +
-	"\x0ftrusted_proxies\x18\x05 \x01(\v2!.stoop.instance.v1.TrustedProxiesH\x04R\x0etrustedProxies\x88\x01\x01B\r\n" +
+	"\x0ftrusted_proxies\x18\x05 \x01(\v2!.stoop.instance.v1.TrustedProxiesH\x04R\x0etrustedProxies\x88\x01\x01\x12]\n" +
+	"\x11cloudflare_tunnel\x18\x06 \x01(\v2+.stoop.instance.v1.CloudflareTunnelSettingsH\x05R\x10cloudflareTunnel\x88\x01\x01B\r\n" +
 	"\v_public_urlB\a\n" +
 	"\x05_turnB\r\n" +
 	"\v_cloudflareB\f\n" +
 	"\n" +
 	"_tailscaleB\x12\n" +
-	"\x10_trusted_proxies\"l\n" +
+	"\x10_trusted_proxiesB\x14\n" +
+	"\x12_cloudflare_tunnel\"l\n" +
 	"\x1aUpdateReachabilityResponse\x12N\n" +
 	"\freachability\x18\x01 \x01(\v2*.stoop.instance.v1.GetReachabilityResponseR\freachability\"\x15\n" +
 	"\x13GetBuildInfoRequest\"\x82\x01\n" +
@@ -2348,15 +2368,17 @@ var file_stoop_instance_v1_instance_proto_goTypes = []any{
 	(*Reachability)(nil),                 // 39: stoop.instance.v1.Reachability
 	(*TailscaleStatus)(nil),              // 40: stoop.instance.v1.TailscaleStatus
 	(*LiveKitStatus)(nil),                // 41: stoop.instance.v1.LiveKitStatus
-	(*TurnRelay)(nil),                    // 42: stoop.instance.v1.TurnRelay
-	(*CloudflareTurn)(nil),               // 43: stoop.instance.v1.CloudflareTurn
-	(*TailscaleSettings)(nil),            // 44: stoop.instance.v1.TailscaleSettings
-	(*TrustedProxies)(nil),               // 45: stoop.instance.v1.TrustedProxies
-	(*v1.PersonalToken)(nil),             // 46: stoop.auth.v1.PersonalToken
-	(*GetLoginProvidersRequest)(nil),     // 47: stoop.instance.v1.GetLoginProvidersRequest
-	(*UpdateLoginProvidersRequest)(nil),  // 48: stoop.instance.v1.UpdateLoginProvidersRequest
-	(*GetLoginProvidersResponse)(nil),    // 49: stoop.instance.v1.GetLoginProvidersResponse
-	(*UpdateLoginProvidersResponse)(nil), // 50: stoop.instance.v1.UpdateLoginProvidersResponse
+	(*CloudflareTunnelStatus)(nil),       // 42: stoop.instance.v1.CloudflareTunnelStatus
+	(*TurnRelay)(nil),                    // 43: stoop.instance.v1.TurnRelay
+	(*CloudflareTurn)(nil),               // 44: stoop.instance.v1.CloudflareTurn
+	(*TailscaleSettings)(nil),            // 45: stoop.instance.v1.TailscaleSettings
+	(*TrustedProxies)(nil),               // 46: stoop.instance.v1.TrustedProxies
+	(*CloudflareTunnelSettings)(nil),     // 47: stoop.instance.v1.CloudflareTunnelSettings
+	(*v1.PersonalToken)(nil),             // 48: stoop.auth.v1.PersonalToken
+	(*GetLoginProvidersRequest)(nil),     // 49: stoop.instance.v1.GetLoginProvidersRequest
+	(*UpdateLoginProvidersRequest)(nil),  // 50: stoop.instance.v1.UpdateLoginProvidersRequest
+	(*GetLoginProvidersResponse)(nil),    // 51: stoop.instance.v1.GetLoginProvidersResponse
+	(*UpdateLoginProvidersResponse)(nil), // 52: stoop.instance.v1.UpdateLoginProvidersResponse
 }
 var file_stoop_instance_v1_instance_proto_depIdxs = []int32{
 	0,  // 0: stoop.instance.v1.GetInstanceStatusResponse.registration_policy:type_name -> stoop.instance.v1.RegistrationPolicy
@@ -2381,53 +2403,55 @@ var file_stoop_instance_v1_instance_proto_depIdxs = []int32{
 	39, // 19: stoop.instance.v1.GetReachabilityResponse.reachability:type_name -> stoop.instance.v1.Reachability
 	40, // 20: stoop.instance.v1.GetReachabilityResponse.tailscale:type_name -> stoop.instance.v1.TailscaleStatus
 	41, // 21: stoop.instance.v1.GetReachabilityResponse.livekit:type_name -> stoop.instance.v1.LiveKitStatus
-	42, // 22: stoop.instance.v1.UpdateReachabilityRequest.turn:type_name -> stoop.instance.v1.TurnRelay
-	43, // 23: stoop.instance.v1.UpdateReachabilityRequest.cloudflare:type_name -> stoop.instance.v1.CloudflareTurn
-	44, // 24: stoop.instance.v1.UpdateReachabilityRequest.tailscale:type_name -> stoop.instance.v1.TailscaleSettings
-	45, // 25: stoop.instance.v1.UpdateReachabilityRequest.trusted_proxies:type_name -> stoop.instance.v1.TrustedProxies
-	27, // 26: stoop.instance.v1.UpdateReachabilityResponse.reachability:type_name -> stoop.instance.v1.GetReachabilityResponse
-	46, // 27: stoop.instance.v1.ListUserTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
-	4,  // 28: stoop.instance.v1.InstanceService.GetInstanceStatus:input_type -> stoop.instance.v1.GetInstanceStatusRequest
-	6,  // 29: stoop.instance.v1.InstanceService.UpdateSettings:input_type -> stoop.instance.v1.UpdateSettingsRequest
-	7,  // 30: stoop.instance.v1.InstanceService.PreviewRetention:input_type -> stoop.instance.v1.PreviewRetentionRequest
-	10, // 31: stoop.instance.v1.InstanceService.ListUsers:input_type -> stoop.instance.v1.ListUsersRequest
-	12, // 32: stoop.instance.v1.InstanceService.SetUserRole:input_type -> stoop.instance.v1.SetUserRoleRequest
-	14, // 33: stoop.instance.v1.InstanceService.SetUserActive:input_type -> stoop.instance.v1.SetUserActiveRequest
-	16, // 34: stoop.instance.v1.InstanceService.ResetUserPassword:input_type -> stoop.instance.v1.ResetUserPasswordRequest
-	18, // 35: stoop.instance.v1.InstanceService.RenameUser:input_type -> stoop.instance.v1.RenameUserRequest
-	20, // 36: stoop.instance.v1.InstanceService.SetUsernameFrozen:input_type -> stoop.instance.v1.SetUsernameFrozenRequest
-	22, // 37: stoop.instance.v1.InstanceService.ClearUserProfile:input_type -> stoop.instance.v1.ClearUserProfileRequest
-	24, // 38: stoop.instance.v1.InstanceService.TransferOwnership:input_type -> stoop.instance.v1.TransferOwnershipRequest
-	26, // 39: stoop.instance.v1.InstanceService.GetReachability:input_type -> stoop.instance.v1.GetReachabilityRequest
-	28, // 40: stoop.instance.v1.InstanceService.UpdateReachability:input_type -> stoop.instance.v1.UpdateReachabilityRequest
-	47, // 41: stoop.instance.v1.InstanceService.GetLoginProviders:input_type -> stoop.instance.v1.GetLoginProvidersRequest
-	48, // 42: stoop.instance.v1.InstanceService.UpdateLoginProviders:input_type -> stoop.instance.v1.UpdateLoginProvidersRequest
-	30, // 43: stoop.instance.v1.InstanceService.GetBuildInfo:input_type -> stoop.instance.v1.GetBuildInfoRequest
-	32, // 44: stoop.instance.v1.InstanceService.ListUserTokens:input_type -> stoop.instance.v1.ListUserTokensRequest
-	34, // 45: stoop.instance.v1.InstanceService.RevokeUserToken:input_type -> stoop.instance.v1.RevokeUserTokenRequest
-	5,  // 46: stoop.instance.v1.InstanceService.GetInstanceStatus:output_type -> stoop.instance.v1.GetInstanceStatusResponse
-	9,  // 47: stoop.instance.v1.InstanceService.UpdateSettings:output_type -> stoop.instance.v1.UpdateSettingsResponse
-	8,  // 48: stoop.instance.v1.InstanceService.PreviewRetention:output_type -> stoop.instance.v1.PreviewRetentionResponse
-	11, // 49: stoop.instance.v1.InstanceService.ListUsers:output_type -> stoop.instance.v1.ListUsersResponse
-	13, // 50: stoop.instance.v1.InstanceService.SetUserRole:output_type -> stoop.instance.v1.SetUserRoleResponse
-	15, // 51: stoop.instance.v1.InstanceService.SetUserActive:output_type -> stoop.instance.v1.SetUserActiveResponse
-	17, // 52: stoop.instance.v1.InstanceService.ResetUserPassword:output_type -> stoop.instance.v1.ResetUserPasswordResponse
-	19, // 53: stoop.instance.v1.InstanceService.RenameUser:output_type -> stoop.instance.v1.RenameUserResponse
-	21, // 54: stoop.instance.v1.InstanceService.SetUsernameFrozen:output_type -> stoop.instance.v1.SetUsernameFrozenResponse
-	23, // 55: stoop.instance.v1.InstanceService.ClearUserProfile:output_type -> stoop.instance.v1.ClearUserProfileResponse
-	25, // 56: stoop.instance.v1.InstanceService.TransferOwnership:output_type -> stoop.instance.v1.TransferOwnershipResponse
-	27, // 57: stoop.instance.v1.InstanceService.GetReachability:output_type -> stoop.instance.v1.GetReachabilityResponse
-	29, // 58: stoop.instance.v1.InstanceService.UpdateReachability:output_type -> stoop.instance.v1.UpdateReachabilityResponse
-	49, // 59: stoop.instance.v1.InstanceService.GetLoginProviders:output_type -> stoop.instance.v1.GetLoginProvidersResponse
-	50, // 60: stoop.instance.v1.InstanceService.UpdateLoginProviders:output_type -> stoop.instance.v1.UpdateLoginProvidersResponse
-	31, // 61: stoop.instance.v1.InstanceService.GetBuildInfo:output_type -> stoop.instance.v1.GetBuildInfoResponse
-	33, // 62: stoop.instance.v1.InstanceService.ListUserTokens:output_type -> stoop.instance.v1.ListUserTokensResponse
-	35, // 63: stoop.instance.v1.InstanceService.RevokeUserToken:output_type -> stoop.instance.v1.RevokeUserTokenResponse
-	46, // [46:64] is the sub-list for method output_type
-	28, // [28:46] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	42, // 22: stoop.instance.v1.GetReachabilityResponse.cloudflare_tunnel:type_name -> stoop.instance.v1.CloudflareTunnelStatus
+	43, // 23: stoop.instance.v1.UpdateReachabilityRequest.turn:type_name -> stoop.instance.v1.TurnRelay
+	44, // 24: stoop.instance.v1.UpdateReachabilityRequest.cloudflare:type_name -> stoop.instance.v1.CloudflareTurn
+	45, // 25: stoop.instance.v1.UpdateReachabilityRequest.tailscale:type_name -> stoop.instance.v1.TailscaleSettings
+	46, // 26: stoop.instance.v1.UpdateReachabilityRequest.trusted_proxies:type_name -> stoop.instance.v1.TrustedProxies
+	47, // 27: stoop.instance.v1.UpdateReachabilityRequest.cloudflare_tunnel:type_name -> stoop.instance.v1.CloudflareTunnelSettings
+	27, // 28: stoop.instance.v1.UpdateReachabilityResponse.reachability:type_name -> stoop.instance.v1.GetReachabilityResponse
+	48, // 29: stoop.instance.v1.ListUserTokensResponse.tokens:type_name -> stoop.auth.v1.PersonalToken
+	4,  // 30: stoop.instance.v1.InstanceService.GetInstanceStatus:input_type -> stoop.instance.v1.GetInstanceStatusRequest
+	6,  // 31: stoop.instance.v1.InstanceService.UpdateSettings:input_type -> stoop.instance.v1.UpdateSettingsRequest
+	7,  // 32: stoop.instance.v1.InstanceService.PreviewRetention:input_type -> stoop.instance.v1.PreviewRetentionRequest
+	10, // 33: stoop.instance.v1.InstanceService.ListUsers:input_type -> stoop.instance.v1.ListUsersRequest
+	12, // 34: stoop.instance.v1.InstanceService.SetUserRole:input_type -> stoop.instance.v1.SetUserRoleRequest
+	14, // 35: stoop.instance.v1.InstanceService.SetUserActive:input_type -> stoop.instance.v1.SetUserActiveRequest
+	16, // 36: stoop.instance.v1.InstanceService.ResetUserPassword:input_type -> stoop.instance.v1.ResetUserPasswordRequest
+	18, // 37: stoop.instance.v1.InstanceService.RenameUser:input_type -> stoop.instance.v1.RenameUserRequest
+	20, // 38: stoop.instance.v1.InstanceService.SetUsernameFrozen:input_type -> stoop.instance.v1.SetUsernameFrozenRequest
+	22, // 39: stoop.instance.v1.InstanceService.ClearUserProfile:input_type -> stoop.instance.v1.ClearUserProfileRequest
+	24, // 40: stoop.instance.v1.InstanceService.TransferOwnership:input_type -> stoop.instance.v1.TransferOwnershipRequest
+	26, // 41: stoop.instance.v1.InstanceService.GetReachability:input_type -> stoop.instance.v1.GetReachabilityRequest
+	28, // 42: stoop.instance.v1.InstanceService.UpdateReachability:input_type -> stoop.instance.v1.UpdateReachabilityRequest
+	49, // 43: stoop.instance.v1.InstanceService.GetLoginProviders:input_type -> stoop.instance.v1.GetLoginProvidersRequest
+	50, // 44: stoop.instance.v1.InstanceService.UpdateLoginProviders:input_type -> stoop.instance.v1.UpdateLoginProvidersRequest
+	30, // 45: stoop.instance.v1.InstanceService.GetBuildInfo:input_type -> stoop.instance.v1.GetBuildInfoRequest
+	32, // 46: stoop.instance.v1.InstanceService.ListUserTokens:input_type -> stoop.instance.v1.ListUserTokensRequest
+	34, // 47: stoop.instance.v1.InstanceService.RevokeUserToken:input_type -> stoop.instance.v1.RevokeUserTokenRequest
+	5,  // 48: stoop.instance.v1.InstanceService.GetInstanceStatus:output_type -> stoop.instance.v1.GetInstanceStatusResponse
+	9,  // 49: stoop.instance.v1.InstanceService.UpdateSettings:output_type -> stoop.instance.v1.UpdateSettingsResponse
+	8,  // 50: stoop.instance.v1.InstanceService.PreviewRetention:output_type -> stoop.instance.v1.PreviewRetentionResponse
+	11, // 51: stoop.instance.v1.InstanceService.ListUsers:output_type -> stoop.instance.v1.ListUsersResponse
+	13, // 52: stoop.instance.v1.InstanceService.SetUserRole:output_type -> stoop.instance.v1.SetUserRoleResponse
+	15, // 53: stoop.instance.v1.InstanceService.SetUserActive:output_type -> stoop.instance.v1.SetUserActiveResponse
+	17, // 54: stoop.instance.v1.InstanceService.ResetUserPassword:output_type -> stoop.instance.v1.ResetUserPasswordResponse
+	19, // 55: stoop.instance.v1.InstanceService.RenameUser:output_type -> stoop.instance.v1.RenameUserResponse
+	21, // 56: stoop.instance.v1.InstanceService.SetUsernameFrozen:output_type -> stoop.instance.v1.SetUsernameFrozenResponse
+	23, // 57: stoop.instance.v1.InstanceService.ClearUserProfile:output_type -> stoop.instance.v1.ClearUserProfileResponse
+	25, // 58: stoop.instance.v1.InstanceService.TransferOwnership:output_type -> stoop.instance.v1.TransferOwnershipResponse
+	27, // 59: stoop.instance.v1.InstanceService.GetReachability:output_type -> stoop.instance.v1.GetReachabilityResponse
+	29, // 60: stoop.instance.v1.InstanceService.UpdateReachability:output_type -> stoop.instance.v1.UpdateReachabilityResponse
+	51, // 61: stoop.instance.v1.InstanceService.GetLoginProviders:output_type -> stoop.instance.v1.GetLoginProvidersResponse
+	52, // 62: stoop.instance.v1.InstanceService.UpdateLoginProviders:output_type -> stoop.instance.v1.UpdateLoginProvidersResponse
+	31, // 63: stoop.instance.v1.InstanceService.GetBuildInfo:output_type -> stoop.instance.v1.GetBuildInfoResponse
+	33, // 64: stoop.instance.v1.InstanceService.ListUserTokens:output_type -> stoop.instance.v1.ListUserTokensResponse
+	35, // 65: stoop.instance.v1.InstanceService.RevokeUserToken:output_type -> stoop.instance.v1.RevokeUserTokenResponse
+	48, // [48:66] is the sub-list for method output_type
+	30, // [30:48] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_stoop_instance_v1_instance_proto_init() }

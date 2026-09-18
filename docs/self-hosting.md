@@ -214,23 +214,49 @@ your proxy should not add or strip any of them.
 
 ### Cloudflare Tunnel
 
-`cloudflared` works for chat exactly like any other proxy — an ingress
-rule `hostname: chat.example.com`, `service: http://stoop:8080` — with
-WebSockets on by default; set `STOOP_PUBLIC_URL` and name `cloudflared`'s
-address under Trusted proxies as above. **Voice audio does not go through the tunnel**:
-Cloudflare's public hostnames carry HTTP and WebSocket traffic only, and
-WebRTC media is neither. Signaling works, but the join fails after ~15 s
-with "Couldn't establish an audio connection", unless browsers are
-offered a relay. The closest one to reach for is
-**Cloudflare's own TURN service**, which lives outside the tunnel at
-`turn.cloudflare.com` (including TURN over TLS on 443, so it works from
-strict networks) and needs no port forwarding on your side, so it also
-works behind CGNAT. See Cloudflare's site for current pricing; voice audio is ~50 kbps
-per stream, so a friend group stays well inside the free tier. (The
-"free with the SFU" clause on Cloudflare's pricing page refers to using
-their SFU in place of LiveKit, which isn't this setup.) Create a TURN key
-in the Cloudflare dashboard (Realtime → TURN) and put its id and token in
-`.env`. See [TURN](#turn-when-media-ports-cant-be-reached).
+Stoop runs Cloudflare's connector (`cloudflared`) itself; the Docker image
+includes it.
+
+1. In Cloudflare's dashboard (Zero Trust → Networks → Tunnels), create a
+   tunnel and copy its token (the `eyJ…` string at the end of the install
+   command it shows).
+2. In the setup wizard or **Server admin → Hosting → Cloudflare Tunnel**,
+   tick "Run a Cloudflare Tunnel", paste the token and save. This also adds
+   `127.0.0.1` and `::1` to Trusted proxies, which is where the connector
+   calls from.
+3. Back in Cloudflare, give the tunnel a public hostname whose service is
+   Stoop as `cloudflared` reaches it. With the compose file that is
+   `http://localhost:8080`, because `cloudflared` runs inside the Stoop
+   container. If you route it through a proxy of your own instead, name
+   that proxy under Trusted proxies too.
+4. Put that hostname, as `https://chat.example.com`, in **Public address**
+   on the same page. Invite links and sign-in callbacks use it; Stoop does
+   not learn it from the tunnel.
+5. Set up a [voice relay](#turn-when-media-ports-cant-be-reached):
+   **voice audio does not go through the tunnel.** Cloudflare's own TURN
+   service is the closest one and needs nothing forwarded.
+
+The status reads "Running" once connected. In `.env` the same settings are
+`STOOP_CLOUDFLARE_TUNNEL=true`, `STOOP_CLOUDFLARE_TUNNEL_TOKEN` and
+`STOOP_PUBLIC_URL`; name `127.0.0.1, ::1` in `STOOP_TRUSTED_PROXIES`
+yourself there.
+
+Running the bare binary, install `cloudflared` so it is on `PATH`, or set
+`STOOP_CLOUDFLARED_PATH`.
+
+Running `cloudflared` yourself works like any other proxy: an ingress rule
+for `http://stoop:8080`, `STOOP_PUBLIC_URL`, and its address under Trusted
+proxies.
+
+Why voice needs a relay: Cloudflare's public hostnames carry HTTP and
+WebSocket traffic only, and WebRTC media is neither. Signaling works, but
+the join fails after ~15 s with "Couldn't establish an audio connection".
+Cloudflare's TURN service lives outside the tunnel at `turn.cloudflare.com`
+(including TURN over TLS on 443, so it works from strict networks and
+behind CGNAT). See Cloudflare's site for current pricing; voice audio is
+~50 kbps per stream, so a friend group stays well inside the free tier.
+(The "free with the SFU" clause on Cloudflare's pricing page refers to
+using their SFU in place of LiveKit, which isn't this setup.)
 
 ### Tailscale, built in
 
@@ -486,6 +512,9 @@ the server. Three are pinned by the compose file itself and ignore what
 | `STOOP_TURN_USERNAME`      | (empty)                     | Credentials for `STOOP_TURN_URLS` |
 | `STOOP_TURN_CREDENTIAL`    | (empty)                     | |
 | `STOOP_STUN_URLS`          | (empty)                     | STUN URLs offered alongside your relay |
+| `STOOP_CLOUDFLARE_TUNNEL`  | `false`                     | Run `cloudflared` as a child process; needs the token. Also on Server admin → Hosting |
+| `STOOP_CLOUDFLARE_TUNNEL_TOKEN` | (empty)                | The remotely managed tunnel's token |
+| `STOOP_CLOUDFLARED_PATH`   | (empty)                     | Where `cloudflared` is; empty looks on `PATH`. The Docker image includes it |
 | `STOOP_CLOUDFLARE_TURN_KEY_ID` | (empty)                 | Cloudflare TURN key id; Stoop mints credentials per join (voice through HTTP-only tunnels / CGNAT) |
 | `STOOP_CLOUDFLARE_TURN_API_TOKEN` | (empty)              | Its API token; set together with the key id |
 | `STOOP_TAILSCALE`          | `false`                     | Join a tailnet from inside the binary and serve HTTPS on the tailnet address (see Tailscale, built in). Settings saved on the admin page override these |

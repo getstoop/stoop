@@ -307,6 +307,7 @@ message GetReachabilityResponse {
   bool host_tailscale = 4;
   // The voice sidecar's own state.
   LiveKitStatus livekit = 5;
+  CloudflareTunnelStatus cloudflare_tunnel = 6;
 }
 
 message UpdateReachabilityRequest {
@@ -323,6 +324,8 @@ message UpdateReachabilityRequest {
   // ignored here: naming addresses is the only way to add trust from the
   // API.
   optional TrustedProxies trusted_proxies = 5;
+  // Applied immediately: cloudflared starts, stops, or restarts.
+  optional CloudflareTunnelSettings cloudflare_tunnel = 6;
 }
 
 message UpdateReachabilityResponse {

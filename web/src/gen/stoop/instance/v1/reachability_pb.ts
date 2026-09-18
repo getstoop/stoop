@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/instance/v1/reachability.proto.
  */
 export const file_stoop_instance_v1_reachability: GenFile = /*@__PURE__*/
-  fileDesc("CiRzdG9vcC9pbnN0YW5jZS92MS9yZWFjaGFiaWxpdHkucHJvdG8SEXN0b29wLmluc3RhbmNlLnYxImoKCVR1cm5SZWxheRIMCgR1cmxzGAEgAygJEhAKCHVzZXJuYW1lGAIgASgJEhIKCmNyZWRlbnRpYWwYAyABKAkSFgoOaGFzX2NyZWRlbnRpYWwYBCABKAgSEQoJc3R1bl91cmxzGAUgAygJIkoKDkNsb3VkZmxhcmVUdXJuEg4KBmtleV9pZBgBIAEoCRIRCglhcGlfdG9rZW4YAiABKAkSFQoNaGFzX2FwaV90b2tlbhgDIAEoCCKDAQoRVGFpbHNjYWxlU2V0dGluZ3MSDwoHZW5hYmxlZBgBIAEoCBIQCghob3N0bmFtZRgCIAEoCRIOCgZmdW5uZWwYAyABKAgSEAoIYXV0aF9rZXkYBCABKAkSFAoMaGFzX2F1dGhfa2V5GAUgASgIEhMKC2NvbnRyb2xfdXJsGAYgASgJIjIKDlRydXN0ZWRQcm94aWVzEg0KBWNpZHJzGAEgAygJEhEKCXRydXN0X2FsbBgCIAEoCCL6AQoMUmVhY2hhYmlsaXR5EhIKCnB1YmxpY191cmwYASABKAkSKgoEdHVybhgCIAEoCzIcLnN0b29wLmluc3RhbmNlLnYxLlR1cm5SZWxheRI1CgpjbG91ZGZsYXJlGAMgASgLMiEuc3Rvb3AuaW5zdGFuY2UudjEuQ2xvdWRmbGFyZVR1cm4SNwoJdGFpbHNjYWxlGAQgASgLMiQuc3Rvb3AuaW5zdGFuY2UudjEuVGFpbHNjYWxlU2V0dGluZ3MSOgoPdHJ1c3RlZF9wcm94aWVzGAUgASgLMiEuc3Rvb3AuaW5zdGFuY2UudjEuVHJ1c3RlZFByb3hpZXMipwEKD1RhaWxzY2FsZVN0YXR1cxIPCgdlbmFibGVkGAEgASgIEg0KBXN0YXRlGAIgASgJEhEKCWxvZ2luX3VybBgDIAEoCRILCgN1cmwYBCABKAkSDgoGZnVubmVsGAUgASgIEg0KBWVycm9yGAYgASgJEhIKCnRhaWxuZXRfaXAYByABKAkSFQoNY2Fycmllc192b2ljZRgIIAEoCEoECAkQCkoECAoQCyItCg1MaXZlS2l0U3RhdHVzEg8KB3J1bm5pbmcYASABKAgSCwoDdXJsGAIgASgJQswBChVjb20uc3Rvb3AuaW5zdGFuY2UudjFCEVJlYWNoYWJpbGl0eVByb3RvUAFaOmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2luc3RhbmNlL3YxO2luc3RhbmNldjGiAgNTSViqAhFTdG9vcC5JbnN0YW5jZS5WMcoCEVN0b29wXEluc3RhbmNlXFYx4gIdU3Rvb3BcSW5zdGFuY2VcVjFcR1BCTWV0YWRhdGHqAhNTdG9vcDo6SW5zdGFuY2U6OlYxYgZwcm90bzM");
+  fileDesc("CiRzdG9vcC9pbnN0YW5jZS92MS9yZWFjaGFiaWxpdHkucHJvdG8SEXN0b29wLmluc3RhbmNlLnYxImoKCVR1cm5SZWxheRIMCgR1cmxzGAEgAygJEhAKCHVzZXJuYW1lGAIgASgJEhIKCmNyZWRlbnRpYWwYAyABKAkSFgoOaGFzX2NyZWRlbnRpYWwYBCABKAgSEQoJc3R1bl91cmxzGAUgAygJIkoKDkNsb3VkZmxhcmVUdXJuEg4KBmtleV9pZBgBIAEoCRIRCglhcGlfdG9rZW4YAiABKAkSFQoNaGFzX2FwaV90b2tlbhgDIAEoCCKDAQoRVGFpbHNjYWxlU2V0dGluZ3MSDwoHZW5hYmxlZBgBIAEoCBIQCghob3N0bmFtZRgCIAEoCRIOCgZmdW5uZWwYAyABKAgSEAoIYXV0aF9rZXkYBCABKAkSFAoMaGFzX2F1dGhfa2V5GAUgASgIEhMKC2NvbnRyb2xfdXJsGAYgASgJIk0KGENsb3VkZmxhcmVUdW5uZWxTZXR0aW5ncxIPCgdlbmFibGVkGAEgASgIEg0KBXRva2VuGAIgASgJEhEKCWhhc190b2tlbhgDIAEoCCIyCg5UcnVzdGVkUHJveGllcxINCgVjaWRycxgBIAMoCRIRCgl0cnVzdF9hbGwYAiABKAgiwgIKDFJlYWNoYWJpbGl0eRISCgpwdWJsaWNfdXJsGAEgASgJEioKBHR1cm4YAiABKAsyHC5zdG9vcC5pbnN0YW5jZS52MS5UdXJuUmVsYXkSNQoKY2xvdWRmbGFyZRgDIAEoCzIhLnN0b29wLmluc3RhbmNlLnYxLkNsb3VkZmxhcmVUdXJuEjcKCXRhaWxzY2FsZRgEIAEoCzIkLnN0b29wLmluc3RhbmNlLnYxLlRhaWxzY2FsZVNldHRpbmdzEjoKD3RydXN0ZWRfcHJveGllcxgFIAEoCzIhLnN0b29wLmluc3RhbmNlLnYxLlRydXN0ZWRQcm94aWVzEkYKEWNsb3VkZmxhcmVfdHVubmVsGAYgASgLMisuc3Rvb3AuaW5zdGFuY2UudjEuQ2xvdWRmbGFyZVR1bm5lbFNldHRpbmdzIqcBCg9UYWlsc2NhbGVTdGF0dXMSDwoHZW5hYmxlZBgBIAEoCBINCgVzdGF0ZRgCIAEoCRIRCglsb2dpbl91cmwYAyABKAkSCwoDdXJsGAQgASgJEg4KBmZ1bm5lbBgFIAEoCBINCgVlcnJvchgGIAEoCRISCgp0YWlsbmV0X2lwGAcgASgJEhUKDWNhcnJpZXNfdm9pY2UYCCABKAhKBAgJEApKBAgKEAsiRwoWQ2xvdWRmbGFyZVR1bm5lbFN0YXR1cxIPCgdlbmFibGVkGAEgASgIEg0KBXN0YXRlGAIgASgJEg0KBWVycm9yGAMgASgJIi0KDUxpdmVLaXRTdGF0dXMSDwoHcnVubmluZxgBIAEoCBILCgN1cmwYAiABKAlCzAEKFWNvbS5zdG9vcC5pbnN0YW5jZS52MUIRUmVhY2hhYmlsaXR5UHJvdG9QAVo6Z2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvaW5zdGFuY2UvdjE7aW5zdGFuY2V2MaICA1NJWKoCEVN0b29wLkluc3RhbmNlLlYxygIRU3Rvb3BcSW5zdGFuY2VcVjHiAh1TdG9vcFxJbnN0YW5jZVxWMVxHUEJNZXRhZGF0YeoCE1N0b29wOjpJbnN0YW5jZTo6VjFiBnByb3RvMw");
 
 /**
  * TurnRelay is a TURN server with fixed credentials, offered to browsers
@@ -140,6 +140,39 @@ export const TailscaleSettingsSchema: GenMessage<TailscaleSettings> = /*@__PURE_
   messageDesc(file_stoop_instance_v1_reachability, 2);
 
 /**
+ * CloudflareTunnelSettings control the Cloudflare Tunnel connector
+ * (cloudflared) that Stoop runs as a child process.
+ *
+ * @generated from message stoop.instance.v1.CloudflareTunnelSettings
+ */
+export type CloudflareTunnelSettings = Message<"stoop.instance.v1.CloudflareTunnelSettings"> & {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * Write-only: the remotely managed tunnel's token. has_token reports
+   * whether one is saved.
+   *
+   * @generated from field: string token = 2;
+   */
+  token: string;
+
+  /**
+   * @generated from field: bool has_token = 3;
+   */
+  hasToken: boolean;
+};
+
+/**
+ * Describes the message stoop.instance.v1.CloudflareTunnelSettings.
+ * Use `create(CloudflareTunnelSettingsSchema)` to create a new message.
+ */
+export const CloudflareTunnelSettingsSchema: GenMessage<CloudflareTunnelSettings> = /*@__PURE__*/
+  messageDesc(file_stoop_instance_v1_reachability, 3);
+
+/**
  * TrustedProxies names the machines allowed to speak for their callers:
  * only a request whose TCP peer matches one of these has its
  * X-Forwarded-For and X-Forwarded-Proto believed. Independent of how
@@ -170,7 +203,7 @@ export type TrustedProxies = Message<"stoop.instance.v1.TrustedProxies"> & {
  * Use `create(TrustedProxiesSchema)` to create a new message.
  */
 export const TrustedProxiesSchema: GenMessage<TrustedProxies> = /*@__PURE__*/
-  messageDesc(file_stoop_instance_v1_reachability, 3);
+  messageDesc(file_stoop_instance_v1_reachability, 4);
 
 /**
  * Reachability is the effective configuration: a saved value where one
@@ -203,6 +236,11 @@ export type Reachability = Message<"stoop.instance.v1.Reachability"> & {
    * @generated from field: stoop.instance.v1.TrustedProxies trusted_proxies = 5;
    */
   trustedProxies?: TrustedProxies | undefined;
+
+  /**
+   * @generated from field: stoop.instance.v1.CloudflareTunnelSettings cloudflare_tunnel = 6;
+   */
+  cloudflareTunnel?: CloudflareTunnelSettings | undefined;
 };
 
 /**
@@ -210,7 +248,7 @@ export type Reachability = Message<"stoop.instance.v1.Reachability"> & {
  * Use `create(ReachabilitySchema)` to create a new message.
  */
 export const ReachabilitySchema: GenMessage<Reachability> = /*@__PURE__*/
-  messageDesc(file_stoop_instance_v1_reachability, 4);
+  messageDesc(file_stoop_instance_v1_reachability, 5);
 
 /**
  * TailscaleStatus is the built-in Tailscale listener's live state.
@@ -277,7 +315,39 @@ export type TailscaleStatus = Message<"stoop.instance.v1.TailscaleStatus"> & {
  * Use `create(TailscaleStatusSchema)` to create a new message.
  */
 export const TailscaleStatusSchema: GenMessage<TailscaleStatus> = /*@__PURE__*/
-  messageDesc(file_stoop_instance_v1_reachability, 5);
+  messageDesc(file_stoop_instance_v1_reachability, 6);
+
+/**
+ * CloudflareTunnelStatus is the connector's live state.
+ *
+ * @generated from message stoop.instance.v1.CloudflareTunnelStatus
+ */
+export type CloudflareTunnelStatus = Message<"stoop.instance.v1.CloudflareTunnelStatus"> & {
+  /**
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * "stopped", "missing" (no cloudflared on this machine), "starting",
+   * "running", or "error".
+   *
+   * @generated from field: string state = 2;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string error = 3;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message stoop.instance.v1.CloudflareTunnelStatus.
+ * Use `create(CloudflareTunnelStatusSchema)` to create a new message.
+ */
+export const CloudflareTunnelStatusSchema: GenMessage<CloudflareTunnelStatus> = /*@__PURE__*/
+  messageDesc(file_stoop_instance_v1_reachability, 7);
 
 /**
  * LiveKitStatus is whether the voice sidecar is up.
@@ -305,5 +375,5 @@ export type LiveKitStatus = Message<"stoop.instance.v1.LiveKitStatus"> & {
  * Use `create(LiveKitStatusSchema)` to create a new message.
  */
 export const LiveKitStatusSchema: GenMessage<LiveKitStatus> = /*@__PURE__*/
-  messageDesc(file_stoop_instance_v1_reachability, 6);
+  messageDesc(file_stoop_instance_v1_reachability, 8);
 

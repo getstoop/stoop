@@ -33,7 +33,7 @@ in, and usually exposes a Connect service. There are seven: `auth`,
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
 `authctx`, `accesswire`, `blob`, `unfurl`, `netguard`, `ratelimit`,
-`trustedproxy`, `tailnet`, `webui`.
+`trustedproxy`, `tailnet`, `cftunnel`, `webui`.
 
 `internal/app` is neither. It is the composition root, and it is allowed to
 know everything.
@@ -93,6 +93,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `auth` | `PasswordPolicy` | instance | Whether the password form is open to this account. |
 | `instance` | `UserAdmin` | auth | List, promote, deactivate, rename, reset — the admin page's user tab. |
 | `instance` | `TailscaleController` | `internal/tailnet` | Apply saved settings to the embedded node; report its status. |
+| `instance` | `CloudflareTunnelController` | `internal/cftunnel` | Apply saved settings to the cloudflared child process; report its status. |
 | `instance` | `LiveKitReporter` | `internal/app` | What the Hosting page can say about the voice sidecar. |
 | `realtime` | `SessionVerifier` | auth | Authenticate the WebSocket upgrade: the identity and the credential it presents. |
 | `realtime` | `MembershipLister` | chat | Which space topics this connection subscribes to. |
