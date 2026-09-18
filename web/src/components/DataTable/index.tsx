@@ -59,7 +59,9 @@ export function DataTable<T extends RowData>({
     data: rows ?? (EMPTY as T[]),
     getRowId: rowId,
     initialState: { pagination: { pageIndex: 0, pageSize } },
-    // A refetch after an action must not throw the reader back to page 1.
+    // A refetch after an action must not throw the reader back to page 1
+    // or close the detail row they were working in.
+    autoResetAll: false,
     autoResetPageIndex: false,
     sortDescFirst: false,
     getRowCanExpand: (row) => detail?.canExpand(row.original) ?? false,
