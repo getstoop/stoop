@@ -42,7 +42,7 @@ docker compose up -d          # open http://localhost:8080
 Prereqs: Go ≥ 1.27, Node ≥ 20 + pnpm, Docker, and for codegen
 [buf](https://buf.build) + [sqlc](https://sqlc.dev). On macOS:
 `brew install go buf sqlc golangci-lint air livekit` (LiveKit runs
-natively in dev — see docs/self-hosting.md → Voice in development for why).
+natively in dev — see docs/architecture/voice.md → Development for why).
 
 ```sh
 make dev        # Postgres in Docker + LiveKit on the host, Go server with hot reload, Vite dev server
