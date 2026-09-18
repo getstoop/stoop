@@ -25,14 +25,16 @@ extracted, and nothing needs to be.
                     │                   stoop (one process)                 │
                     │                                                       │
   browser ─ HTTPS ─►│  :8080  Connect RPC   auth · chat · instance · files  │
-                    │         plain HTTP    /auth /files /healthz /version  │
+                    │                       voice · integrations            │
+                    │         plain HTTP    /auth /files /hooks /healthz    │
+                    │                       /version                        │
                     │         WebSocket     /ws  ──►  realtime gateway      │
                     │         WebSocket     /livekit ─► signaling proxy ──┐ │
                     │         static        embedded web app (go:embed)   │ │
                     │                                                     │ │
-                    │  chat ──► events bus ──► gateway ──► connected tabs  │ │
-                    │  background: file sweep · activity sweep         │ │
-                    │  optional:  tsnet listener (HTTPS on the tailnet)    │ │
+                    │  chat ──► events bus ──► gateway ──► connected tabs │ │
+                    │  background: sweeps · webhook delivery              │ │
+                    │  optional:  tsnet listener (HTTPS on the tailnet)   │ │
                     └───────┬─────────────────────────────────────────────┼─┘
                             │                                             │
                      ┌──────▼──────┐                          ┌───────────▼──────────┐
@@ -64,10 +66,10 @@ this plainly.
 
 | Package             | Owns |
 | ------------------- | ---- |
-| `internal/auth`     | users (incl. instance role and kind), credentials (sessions today), password hashing, OIDC sign-in and account linking, self-service profiles, the auth interceptor |
+| `internal/auth`     | users (incl. instance role and kind), credentials (sessions, personal tokens, bot and hook tokens), password hashing, OIDC sign-in and account linking, self-service profiles, the auth interceptor |
 | `internal/chat`     | spaces, members (incl. space role), channels + read markers + mutes, messages (replies, edits, reactions, attachments), mentions, activity, invites, bans, blocks, direct messages, link records |
 | `internal/instance` | instance status, runtime settings (registration policy, quotas, reachability, login providers), user administration |
-| `internal/realtime` | the WebSocket gateway; in-memory presence, status, typing and voice state (no database access at all) |
+| `internal/realtime` | the WebSocket gateway; in-memory presence, typing and voice state (no database access at all) |
 | `internal/voice`    | LiveKit token minting, the `/livekit` signaling proxy, ICE/TURN sources |
 | `internal/files`    | uploaded files: the `files` table, upload RPCs, `GET /files/{id}`, the sweep, the quota |
 | `internal/integrations` | incoming and outgoing webhooks, the delivery queue, and the admin surface for bots and their credentials |
@@ -76,7 +78,8 @@ Support packages, which are not modules and own no domain: `internal/events`
 (the bus), `internal/db` (pool + migrations), `internal/dbgen` (sqlc output),
 `internal/config`, `internal/authctx` (the shared identity contract),
 `internal/blob` (the storage port and its backends), `internal/unfurl`
-(the link fetcher), `internal/ratelimit`, `internal/trustedproxy`,
+(the link fetcher), `internal/ratelimit`, `internal/trustedproxy`, `internal/netguard`,
+`internal/accesswire`, `internal/buildinfo`,
 `internal/tailnet` (the optional embedded Tailscale node),
 `internal/cftunnel` (the optional Cloudflare Tunnel connector), `internal/webui`
 (the embedded SPA), `internal/app` (the composition root), and `cmd/stoop`.

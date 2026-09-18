@@ -31,8 +31,7 @@ places**, and nowhere else:
 
 Everything else that hangs off `channel_id` — messages, read markers,
 reactions, replies, attachments, link previews, history windows — works on
-a DM unchanged, because it never asks which kind it has. That is the whole
-reason DMs were cheap to add.
+a DM unchanged, because it never asks which kind it has.
 
 ## Sending a message
 
@@ -250,10 +249,10 @@ addressed to me": the mention still reaches the person through activity,
 which nothing they configure filters.
 
 The controls sit where the thing is — the channel row's menu, the space
-menu in the sidebar header — and Profile → Notifications lists every mute
-with an Unmute beside it, so a room silenced months ago is still findable.
-That tab also holds the desktop banner permission; the activity page is
-only the feed. Inside a muted space the channel menu's mute item reads
+menu in the sidebar header — and Profile → Muted lists every mute with an
+Unmute beside it, so a room silenced months ago is still findable.
+Profile → Notifications holds the desktop banner permission; the activity
+page is only the feed. Inside a muted space the channel menu's mute item reads
 "Muted by space" and is disabled, and the space name carries a red muted
 bell, so the dimmed rows explain themselves.
 
@@ -282,11 +281,9 @@ The stamp is a snapshot, so the web app refetches the feed when a mute
 changes. The feed itself is never filtered by it.
 
 `ChannelMuted` and `SpaceMuted` go to the personal topic, like the read
-marker, so the setting follows the person across devices. They are the
-presence-ish preferences that are persisted, precisely because they are
-about a room rather than about a connection.
+marker, so the setting follows the person across devices.
 
-Two states, muted or not, is a deliberate floor. What the two presence
+Two states, muted or not, is a deliberate floor. What the two mute
 tables leave room for, none of it started:
 
 - **Levels.** A `level` column with a default on both tables — all,
@@ -434,7 +431,7 @@ anyone from.
   `MessageUpdated`. The same event carries link previews when they arrive,
   so clients need one update path rather than two.
 - **Deletions** remove the row and, through the `FileDirectory` port, its
-  attachments' files. `delete_any_message` covers other people's; your own
+  attachments' files. `messages.moderate` covers other people's; your own
   are always yours.
 - **Reactions** are `(message_id, user_id, emoji)`. `ToggleReaction` is
   idempotent by construction — the primary key decides whether it is an
@@ -498,14 +495,12 @@ a group says "these people" or "this conversation" instead.
 
 Blocking also **deletes the blocker's existing alerts** from that person
 and from every conversation they are in (`DeleteActivityForBlocked`), not
-just stopping new ones. The rail's DM badge counts unread activity items
-rather than the conversation list, so an item left behind would be a badge
-pointing at a conversation that is no longer in the list — a count with
+just stopping new ones. An item left behind would be a feed entry, and a dot on the
+activity pill, pointing at a conversation that is no longer in the list —
 nothing to open and no way to clear it. Unblocking restores the
 conversation and all its messages; it does not bring the alerts back.
 
-**Closing is list grooming, nothing more** (STOOP-249). `SetDirectMessageClosed`
-sets `closed_at` on the caller's own `dm_members` row, and only theirs: the
+**Closing is list grooming, nothing more.** `SetDirectMessageClosed` sets `closed_at` on the caller's own `dm_members` row, and only theirs: the
 list hides it, the badge stops counting it, and a link to it still
 resolves. Nobody else's list changes, because membership never does. The
 next message in the conversation clears the flag for everyone who had
@@ -523,19 +518,11 @@ arrive — `recordDM` refreshes it rather than adding rows — so the feed
 counts conversations, and two identical-looking pills would disagree in
 plain sight.
 
-**What is missing** is a way to take a conversation off your list without
-blocking anyone. Closing is list grooming, not leaving: it would come back
-on the next message, and mute decides whether that arrival is noisy. It
-applies to the 1:1s that already exist as much as to groups, so it is its
-own change — STOOP-249.
-
 On the web, `spaceId === ""` is the DM signal. `ChannelView` renders a DM
 from `/dm/$channelId` with an empty space; `api/dms.ts` holds the `["dms"]`
 list and `usePeople`, which hands the timeline, composer and reaction
 tooltips a DM's participants *in the shape of members*, so those components
 never learn there are two kinds of channel either. A group has no name, so
-`dmTitle` makes one from the people in it ("ada, bea and 2 others") and
-`AvatarStack` makes a face from the first two. A group has no name, so
 `dmTitle` makes one from the people in it ("ada, bea and 2 others") and
 `AvatarStack` makes a face from the first two.
 

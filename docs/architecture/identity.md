@@ -40,8 +40,7 @@ for after an offensive handle has been cleaned up; admin renames bypass it.
 ### The server owner
 
 One account owns the server: `users.is_owner`, set on the first account in
-the same transaction that makes it the first admin. A server from before
-owners got its longest-serving active admin (migration 00039).
+the same transaction that makes it the first admin.
 
 Through the API nobody — the owner included — demotes, deactivates or
 deletes the owner, and no admin resets the owner's password; the owner
@@ -70,8 +69,8 @@ becomes the username and the avatar, bio, pronouns, do-not-disturb state
 and password go, as do every session, token and provider link. The
 account is deactivated for good: an admin cannot bring it back.
 
-Before any of that, the spaces they own are handed on through chat's
-`RemovePerson` port: to the space's longest-serving admin, or with none,
+Before any of that, the spaces they own are handed on through auth's
+`AccountDeparture` port, which chat implements: to the space's longest-serving admin, or with none,
 to the longest-serving instance admin, who is joined to the space as its
 owner. Then they leave every space. Conversations are left as they are.
 The hand-over runs first because it is not undone: a failure after it
@@ -168,8 +167,27 @@ A database dump therefore does not contain live credentials, and revocation
 is a `DELETE` — instant, no key rotation, no "the JWT is still valid for
 another nine minutes".
 
+No JWTs anywhere in the session path. Statelessness buys nothing here: this
+is a single process that already has a database open.
+
+Delivery is both:
+
+- An `HttpOnly`, `SameSite=Lax` cookie (`stoop_session`, lasting as long
+  as the session) — which is what browsers use, and what the WebSocket upgrade carries.
+- The token in the `Login` response body, for bearer clients.
+  `TokenFromHeader` prefers `Authorization: Bearer …` and falls back to the
+  cookie, so both work everywhere without a second code path.
+
+**The `Secure` flag is decided per request**, not per deployment
+(`authctx.SecureTransport`, set by the `secureTransport` middleware). It is
+set when the request arrived over TLS — the Tailscale listener does — or
+carried `X-Forwarded-Proto: https` from a peer in the trusted-proxy set, or
+always when `STOOP_SECURE_COOKIES` is on. This matters because a plain
+listener and a TLS listener can coexist in the same process, so "is this
+connection secure?" genuinely varies per request.
+
 **A session is one kind of credential.** It is a row in `credentials`, the
-table personal tokens, bot tokens and hook URLs will share (see
+table personal tokens, bot tokens and hook URLs share (see
 [Personal tokens](#personal-tokens)), and only a person can
 hold one: the insert refuses a bot. Every revocation — logout, a password
 change, deactivation, an admin reset — also clears the matching rows in the
@@ -207,9 +225,8 @@ in, and expires after 30, 90 or 365 days, or never.
 - **No token can make, list or revoke tokens**, change a password or link
   a provider: those need `account.security`, which only a session carries.
 - **There is no space limit.** "This token can do what you can, wherever
-  you are" is the whole story; narrowing by space was withdrawn in
-  STOOP-287 once a bot's reach became its membership. Only a hook is
-  bounded, to its one channel.
+  you are" is the whole story. Only a hook is bounded, to its one
+  channel.
 - **Some grants need company.** Reading activity is refused without
   reading messages and direct messages beside it, since every activity
   item is a preview of a message from one or the other
@@ -265,29 +282,10 @@ takes the unknown-handle path, so the answer and its timing match one),
 `UploadAvatar` under a bot token. A bot's name, face and bio are an
 instance admin's to set, from Integrations.
 
-No JWTs anywhere in the session path. Statelessness buys nothing here: this
-is a single process that already has a database open.
-
-Delivery is both:
-
-- An `HttpOnly`, `SameSite=Lax` cookie (`stoop_session`, 30-day TTL) —
-  which is what browsers use, and what the WebSocket upgrade carries.
-- The token in the `Login` response body, for future bearer clients.
-  `TokenFromHeader` prefers `Authorization: Bearer …` and falls back to the
-  cookie, so both work everywhere without a second code path.
-
-**The `Secure` flag is decided per request**, not per deployment
-(`authctx.SecureTransport`, set by the `secureTransport` middleware). It is
-set when the request arrived over TLS — the Tailscale listener does — or
-carried `X-Forwarded-Proto: https` from a peer in the trusted-proxy set, or
-always when `STOOP_SECURE_COOKIES` is on. This matters because a plain
-listener and a TLS listener can coexist in the same process, so "is this
-connection secure?" genuinely varies per request.
-
 ## Enforcement
 
 One Connect interceptor, built by `auth.NewInterceptor`, validates the
-token and deposits an `authctx.Identity{UserID, SessionID, Role, Credential}`
+token and deposits an `authctx.Identity{UserID, SessionID, Role, Kind, Credential}`
 into the request context. Every other module reads identity from the
 context and therefore never imports auth — `internal/authctx` is a small
 package that imports nothing outside the standard library and may be
@@ -300,8 +298,8 @@ interceptor checks the credential against that rule before the handler
 runs; whether the *identity* holds the action stays with the module that
 owns the data (see [permissions.md](permissions.md)). A test walks every
 service Stoop declares and fails on a procedure with no rule. A session
-covers every action, so today the rule only ever refuses an unknown
-procedure; it is the seam personal and bot tokens use.
+covers every action; a token is refused here when its grants don't cover
+the rule.
 
 **Public procedures** are `Register`, `Login`, `GetInstanceStatus` (the
 setup and login screens need it before anyone has an account) and
@@ -320,7 +318,7 @@ the code grants — never its welcome text, which is for people who joined.
 The WebSocket upgrade and the file download handler both authenticate
 through the same `VerifyRequest` path rather than through the interceptor,
 because neither is a Connect call. There is one implementation of "is this
-a valid session".
+a valid credential".
 
 ## Provider sign-in (OIDC)
 

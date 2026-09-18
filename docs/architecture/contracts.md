@@ -19,9 +19,10 @@ the Go and SQL trees follow (`docs/conventions.md`).
 proto/stoop/
   access/v1/access.proto      the Permission and IdentityKind enums, shared by every service
   auth/v1/auth.proto
-  chat/v1/{chat,space,channel,message,member,reaction,invite,activity}.proto
+  chat/v1/{chat,space,channel,message,member,reaction,invite,activity,pin}.proto
   files/v1/files.proto
   instance/v1/{instance,providers,reachability,user}.proto
+  integrations/v1/{integrations,webhook,bot}.proto
   realtime/v1/realtime.proto
   voice/v1/voice.proto
 ```
@@ -33,8 +34,8 @@ and puts `Message`'s fields next to the code that owns messages.
 
 ## The RPC surface
 
-Five Connect services. Every procedure requires a session unless it is
-listed as public below.
+Six Connect services. Every procedure requires a credential — a session
+or a token — unless it is listed as public below.
 
 ### `stoop.auth.v1.AuthService`
 
@@ -49,6 +50,7 @@ listed as public below.
 | `GetUserProfile` | One account's public profile card, with its `kind` (person or bot). Visible to any signed-in user. |
 | `ChangePassword` | Current password required, except for a provider-created account setting its first one. |
 | `ListIdentities` / `UnlinkIdentity` | Linked OIDC accounts. |
+| `DeleteAccount` | The caller's own account, when the server allows it. See [identity.md](identity.md#deleting-your-account). |
 | `ListSessions` / `RevokeOtherSessions` | Where the caller is signed in, and signing every other session out. Need a session (`account.security`); only the caller's own. |
 | `CreatePersonalToken` / `ListPersonalTokens` / `RevokePersonalToken` | The caller's personal tokens. Need a session (`account.security`); the token is returned once, by `CreatePersonalToken`. |
 
@@ -69,9 +71,11 @@ Grouped by what they touch rather than declaration order:
   `LookupInvite` (**public**)
 - **Channels** — `CreateChannel`, `ListChannels`, `UpdateChannel`,
   `DeleteChannel`, `ReorderChannels`, `SetChannelMuted`, `SetSpaceMuted`
-- **Messages** — `SendMessage`, `ListMessages`, `EditMessage`,
-  `DeleteMessage`, `ToggleReaction`
-- **Direct messages** — `OpenDirectMessage`, `ListDirectMessages`
+- **Messages** — `SendMessage`, `ListMessages`, `SearchMessages`,
+  `EditMessage`, `DeleteMessage`, `ToggleReaction`, `SetMessagePinned`,
+  `ListPinnedMessages`
+- **Direct messages** — `OpenDirectMessage`, `ListDirectMessages`,
+  `ListDirectMessageCandidates`, `SetDirectMessageClosed`
 - **Attention** — `MarkChannelRead`, `ListActivity`,
   `MarkActivityRead`
 
@@ -86,7 +90,8 @@ people who joined.
 | Procedure | Notes |
 | --------- | ----- |
 | `GetInstanceStatus` | **Public.** What the setup and login screens need before anyone has an account: `needs_setup`, the registration and space-creation policies, the public URL invite links are built from, the login-provider summaries, whether the password form is offered, and the effective upload caps (so a client refuses an oversized file before sending it). |
-| `UpdateSettings` | Admins. Registration policy, space-creation policy, upload limit, storage quota, password sign-in, personal tokens, session lifetime. |
+| `UpdateSettings` | Admins. Registration policy, space-creation policy, upload limit, storage quota, password sign-in, personal tokens, session lifetime, instance name, self-deletion, message and attachment retention, the webhook switches. |
+| `PreviewRetention` | Admins. How many messages or attachments a retention setting would delete, before it is saved. |
 | `ListUsers`, `SetUserRole`, `SetUserActive`, `ResetUserPassword`, `RenameUser`, `SetUsernameFrozen`, `ClearUserProfile` | Admins. The user administration tab; each is backed by the `UserAdmin` port into auth. Each user carries its `kind` and whether it is the `owner`; a password reset or a username freeze on a bot is refused, and demoting, deactivating or resetting the owner is refused. `RenameUser` and `ClearUserProfile` need the caller to outrank the account: the owner over admins, admins over members. |
 | `TransferOwnership` | The owner only, to an active admin. See [identity.md](identity.md#the-server-owner). |
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
@@ -107,11 +112,12 @@ signaling URL, and any ICE servers the browser should use.
 
 ### `stoop.integrations.v1.IntegrationService`
 
-Webhooks and bots (STOOP-256, [integrations.md](integrations.md)):
+Webhooks and bots ([integrations.md](integrations.md)):
 `ListWebhooks` (members, per space; the server-wide list is admins only),
 `CreateIncoming`, `CreateOutgoing`, `UpdateIncoming`, `UpdateOutgoing`,
 `DeleteWebhook`, `RotateSecret`, `TestWebhook`, `ListDeliveries`,
-`RedeliverDelivery`, `ListBots`, `CreateBot`, `UpdateBot`, `DeactivateBot`,
+`RedeliverDelivery`, `ListBots`, `CreateBot`, `UpdateBot`, `AddBotToSpace`,
+`RemoveBotFromSpace`, `DeactivateBot`,
 `CreateBotToken`, `RevokeBotToken` — all behind
 `instance.integrations.manage`, except `ListWebhooks` per space, which
 any member may call and which never carries a token, a secret or more of
@@ -128,8 +134,10 @@ Some things are not RPCs, each for a specific reason.
 | `POST /hooks/{token}` | Its callers are appliances with a URL field, not generated clients: the token rides in the path and the body is whatever the vendor sends (see [integrations.md](integrations.md#incoming)). |
 | `GET|HEAD /files/{id}` | Plain HTTP so the browser's `<img>`, `<video>` and download machinery work, including `Range` requests — which is what lets a video seek, and what iOS Safari requires before it will play at all. |
 | `GET /auth/oidc/{id}/start`, `GET /auth/callback/{id}` | Browser redirects to and from an identity provider. |
+| `POST /auth/desktop/start`, `POST /auth/desktop/complete` | The desktop app's sign-in hand-off. See [identity.md](identity.md#sign-in-from-the-desktop-app). |
 | `/livekit/…` | A reverse proxy for LiveKit's own signaling WebSocket, so the whole app lives on one origin. |
 | `GET /healthz` | For container health checks and the E2E harness's readiness loop. |
+| `GET /version` | Public and unauthenticated, so the desktop shell can ask before anyone signs in. See [desktop.md](desktop.md). |
 | `GET /` and everything unmatched | The embedded SPA, with unknown paths falling through to `index.html` so client-side routes survive a refresh. |
 
 ## The realtime wire format
@@ -205,7 +213,7 @@ Handlers return `connect.Error`s, and the code is part of the contract:
 | Code | Used for |
 | ---- | -------- |
 | `InvalidArgument` | Malformed or contradictory input — a message over 4000 characters, `before_id` and `around_id` together, a reply pointing at another channel's message. |
-| `Unauthenticated` | No valid session on a non-public procedure. |
+| `Unauthenticated` | No valid credential on a non-public procedure. |
 | `PermissionDenied` | A valid session that lacks the permission — see [permissions.md](permissions.md). |
 | `NotFound` | Missing, *or* present but invisible to the caller. The two are deliberately not distinguished: an id lookup that answered "exists, but not for you" would be an enumeration oracle. |
 | `ResourceExhausted` | Rate limit (with `Retry-After`) or storage quota. |

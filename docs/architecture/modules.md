@@ -33,7 +33,7 @@ in, and usually exposes a Connect service. There are seven: `auth`,
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
 `authctx`, `accesswire`, `blob`, `unfurl`, `netguard`, `ratelimit`,
-`trustedproxy`, `tailnet`, `cftunnel`, `webui`.
+`trustedproxy`, `tailnet`, `cftunnel`, `buildinfo`, `webui`.
 
 `internal/app` is neither. It is the composition root, and it is allowed to
 know everything.
@@ -87,17 +87,24 @@ rather than by what the provider happens to expose, and it stays small.
 | `chat` | `FileDirectory` | files | Verify an attachment claim; delete a deleted message's files. |
 | `chat` | `Unfurler` | `internal/unfurl` | Fetch a URL's Open Graph metadata, through `internal/netguard`. |
 | `chat` | `PreviewImages` | files | Store a fetched preview image as a file. |
+| `chat` | `VoiceRooms` | voice | Clear a voice room when its channel or space goes, or a member is removed. |
 | `auth` | `RegistrationPolicy` | instance | May this registration proceed? |
 | `auth` | `InviteRedeemer` | chat | Validate a code before creating an account; redeem it after. |
 | `auth` | `ProviderSource` | instance | The effective OIDC provider config and its exact callback URL. |
 | `auth` | `PasswordPolicy` | instance | Whether the password form is open to this account. |
+| `auth` | `TokenPolicy` | instance | Who may use personal tokens. |
+| `auth` | `SessionPolicy` | instance | How long a sign-in lasts. |
+| `auth` | `DeletionPolicy` | instance | Whether people may delete their own accounts. |
+| `auth` | `AccountDeparture` | chat | Hand on the spaces a deleted account owns, and take it out of every space. |
 | `instance` | `UserAdmin` | auth | List, promote, deactivate, rename, reset — the admin page's user tab. |
 | `instance` | `TailscaleController` | `internal/tailnet` | Apply saved settings to the embedded node; report its status. |
 | `instance` | `CloudflareTunnelController` | `internal/cftunnel` | Apply saved settings to the cloudflared child process; report its status. |
 | `instance` | `LiveKitReporter` | `internal/app` | What the Hosting page can say about the voice sidecar. |
+| `instance` | `RetentionCounter` | chat, files | What a retention period would delete now, for `PreviewRetention`. |
 | `realtime` | `SessionVerifier` | auth | Authenticate the WebSocket upgrade: the identity and the credential it presents. |
 | `realtime` | `MembershipLister` | chat | Which space topics this connection subscribes to. |
 | `realtime` | `ChannelLookup` | chat | Resolve a voice channel's space; list a DM's participants. |
+| `realtime` | `DoNotDisturbLookup` | auth | Whether a person is on do not disturb, and until when. |
 | `voice` | `ChannelDirectory` | chat | Is the caller a member of this channel, and is it a voice channel? |
 | `voice` | `UserDirectory` | auth | The display name other participants see. |
 | `voice` | `RelayProvider` | instance | The TURN relay in force, read per join. |
@@ -141,6 +148,7 @@ chatSvc := chat.New(pool, bus, userDirectory{authSvc})
 authSvc.UseRegistrationPorts(instSvc, chatSvc)       // auth ← instance, chat
 authSvc.UseProviders(providerSource{instSvc})
 authSvc.UsePasswordPolicy(instSvc)
+// ...and the same for the token, session and deletion policies
 ```
 
 Every port wired this way has a documented nil behaviour, so a module works
@@ -156,7 +164,7 @@ module's tests construct it alone.
 | Module | Tables |
 | ------ | ------ |
 | `auth` | `users`, `credentials`, `credential_bounds`, `user_identities`, and the legacy `sessions` until its contract migration |
-| `chat` | `spaces`, `space_members`, `space_bans`, `user_blocks`, `channels`, `channel_reads`, `channel_mutes`, `dm_members`, `messages`, `message_mentions`, `message_reactions`, `message_attachments`, `message_links`, `link_previews`, `activity_items`, `invites` |
+| `chat` | `spaces`, `space_members`, `space_bans`, `user_blocks`, `channels`, `channel_reads`, `channel_mutes`, `space_mutes`, `channel_pins`, `dm_members`, `messages`, `message_mentions`, `message_reactions`, `message_attachments`, `message_links`, `link_previews`, `activity_items`, `invites` |
 | `instance` | `instance_settings` |
 | `files` | `files` |
 | `integrations` | `incoming_webhooks`, `outgoing_webhooks`, `webhook_deliveries` |
@@ -209,9 +217,9 @@ the recovery model.
    message, then the rate-limit interceptor — which must run *before* auth,
    since its whole job is protecting unauthenticated procedures — then the
    auth interceptor.
-7. **Mount one mux**: five Connect handlers, the multipart upload endpoint,
-   the file download handler, `/ws`, `/auth/` for the OIDC redirects,
-   `/livekit/` for the signaling proxy, `/healthz`, and the embedded SPA at
+7. **Mount one mux**: six Connect handlers, the multipart upload endpoint,
+   the file download handler, `/hooks/`, `/ws`, `/auth/` for the OIDC redirects,
+   `/livekit/` for the signaling proxy, `/healthz`, `/version`, and the embedded SPA at
    `/` as the fallback.
 8. **Wrap the mux**: `securityHeaders` inside, `secureTransport` outside.
    The order is load-bearing — the headers read the TLS verdict that
@@ -221,12 +229,12 @@ the recovery model.
    so that saved settings override the environment and clearing a setting
    falls back to it rather than to nothing.
 
-`cmd/stoop/main.go` stays about thirty lines: dispatch the `admin`
+`cmd/stoop/main.go` stays short: dispatch the `admin`
 subcommand, load config, install a signal-cancelled context, `app.New`,
 `app.Run`.
 
-`app.Run` starts the plain listener, the Tailscale manager, the file sweep
-and the activity sweep, then blocks. On cancellation it gives the HTTP
+`app.Run` starts the plain listener, the Tailscale manager and the
+background work ([runtime.md](runtime.md#background-work)), then blocks. On cancellation it gives the HTTP
 server ten seconds to drain and closes the pool. A failure on the Tailscale
 listener is logged, never fatal: the plain listener is the baseline and
 must not be taken down by an optional front door.

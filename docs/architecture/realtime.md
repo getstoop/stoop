@@ -78,8 +78,8 @@ scaling, and it costs nothing today.
 
 One goroutine group per connection, in `internal/realtime`. It holds no
 database handle — the linter forbids it from importing `dbgen` — so
-everything it knows comes from three ports: `SessionVerifier` (auth),
-`MembershipLister` and `ChannelLookup` (chat).
+everything it knows comes from four ports: `SessionVerifier` and
+`DoNotDisturbLookup` (auth), `MembershipLister` and `ChannelLookup` (chat).
 
 ### Connection lifecycle
 
@@ -99,8 +99,8 @@ everything it knows comes from three ports: `SessionVerifier` (auth),
    online to their spaces; the last one to close announces them offline.
    Intermediate connections change nothing, which is what makes several
    tabs behave like one person.
-5. **Send `Ready`** — the user's id, their space ids, who is online with
-   their status, and everyone currently in a voice channel. One frame that
+5. **Send `Ready`** — the user's id, their space ids, who is online, who
+   is on do not disturb, and everyone currently in a voice channel. One frame that
    seeds all the ephemeral state the client needs, so there is no
    "connected but don't know anything yet" gap.
 6. **Run two loops.** A read loop handles client events; the main loop
@@ -182,8 +182,8 @@ the server side.
 | 10 | `message_created` | space / user | A `stoop.chat.v1.Message`, the same type `ListMessages` returns. |
 | 11 | `message_deleted` | space / user | |
 | 23 | `message_updated` | space / user | Edits, and link previews arriving after the fact. |
-| 12 | `channel_created` | space | |
-| 24 | `channel_updated` | space | Rename, topic. |
+| 12 | `channel_created` | space / user | To each participant for a new or reopened DM. |
+| 24 | `channel_updated` | space | Rename, topic, post policy. |
 | 25 | `channel_deleted` | space | |
 | 26 | `channels_reordered` | space | |
 | 30 | `channel_muted` | user | Keeps a person's other devices in step. |
@@ -201,6 +201,7 @@ the server side.
 | 21 | `presence_changed` | space | Online, offline, or do not disturb turning on or off, including when it ends on its own. |
 | 22 | `user_typing` | space / user | |
 | 27 | `reactions_changed` | space / user | |
+| 32 | `message_pinned` | space | Ids, the flag, who and when; not the list. |
 | 29 | `voice_state_changed` | space | Join, leave, mute, camera, screen share. |
 
 ### ClientEvent
@@ -210,7 +211,7 @@ the server side.
 | 3 | `pong` | Reserved, alongside `ping` above. |
 | 10 | `typing` | Sent at most every couple of seconds while keys are pressed; the gateway rate-limits regardless. |
 | 11 | `voice_state` | Sent after the LiveKit connection is up, and again on every reconnect — the gateway forgot it when the socket closed. |
-| 12 | *(reserved)* | Was `set_status`. No client chooses a presence: do not disturb is set with `AuthService.SetDoNotDisturb`. |
+| 12 | *(reserved)* | Do not disturb is set with `AuthService.SetDoNotDisturb`, not over the socket. |
 
 The client's surface is deliberately tiny. Everything that changes durable
 state is a Connect RPC; the socket carries only things that are true of a
@@ -218,7 +219,8 @@ state is a Connect RPC; the socket carries only things that are true of a
 
 ## Ephemeral state
 
-Three kinds, all in gateway memory, none persisted.
+Three kinds, all in gateway memory. None is persisted except do not
+disturb, which lives on the account.
 
 ### Presence and do not disturb
 

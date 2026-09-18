@@ -167,7 +167,7 @@ type ChatServiceClient interface {
 	// space without consuming a use.
 	JoinSpace(context.Context, *connect.Request[v1.JoinSpaceRequest]) (*connect.Response[v1.JoinSpaceResponse], error)
 	// CreateInvite mints a shareable code for a space. Requires the
-	// create_invites permission: space admins and the owner always hold it;
+	// invites.create permission: space admins and the owner always hold it;
 	// members only when the space's members_can_invite setting is on.
 	CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error)
 	// ListInvites returns every invite for a space, newest first, including
@@ -186,7 +186,7 @@ type ChatServiceClient interface {
 	// ListMembers lists a space's members, owner first. Members only.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// SetMemberRole promotes or demotes a member (MEMBER or ADMIN; never
-	// OWNER — see TransferOwnership). Requires manage_members, and the target
+	// OWNER — see TransferOwnership). Requires members.manage, and the target
 	// must rank below the caller (the owner and instance admins may act on
 	// anyone but the owner).
 	SetMemberRole(context.Context, *connect.Request[v1.SetMemberRoleRequest]) (*connect.Response[v1.SetMemberRoleResponse], error)
@@ -194,12 +194,12 @@ type ChatServiceClient interface {
 	// LeaveSpace for yourself.
 	KickMember(context.Context, *connect.Request[v1.KickMemberRequest]) (*connect.Response[v1.KickMemberResponse], error)
 	// AddMember puts an existing account into the space directly, without
-	// an invite — the admin page's "Add to space". Requires manage_members;
+	// an invite — the admin page's "Add to space". Requires members.manage;
 	// refused for banned users; a no-op error if they're already in.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// BanMember removes someone from the space (if they're in it) and keeps
 	// them out: invites and JoinSpace refuse them until UnbanMember. Needs
-	// manage_members and the same hierarchy rule as KickMember; the owner
+	// members.manage and the same hierarchy rule as KickMember; the owner
 	// can't be banned.
 	BanMember(context.Context, *connect.Request[v1.BanMemberRequest]) (*connect.Response[v1.BanMemberResponse], error)
 	UnbanMember(context.Context, *connect.Request[v1.UnbanMemberRequest]) (*connect.Response[v1.UnbanMemberResponse], error)
@@ -879,7 +879,7 @@ type ChatServiceHandler interface {
 	// space without consuming a use.
 	JoinSpace(context.Context, *connect.Request[v1.JoinSpaceRequest]) (*connect.Response[v1.JoinSpaceResponse], error)
 	// CreateInvite mints a shareable code for a space. Requires the
-	// create_invites permission: space admins and the owner always hold it;
+	// invites.create permission: space admins and the owner always hold it;
 	// members only when the space's members_can_invite setting is on.
 	CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error)
 	// ListInvites returns every invite for a space, newest first, including
@@ -898,7 +898,7 @@ type ChatServiceHandler interface {
 	// ListMembers lists a space's members, owner first. Members only.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// SetMemberRole promotes or demotes a member (MEMBER or ADMIN; never
-	// OWNER — see TransferOwnership). Requires manage_members, and the target
+	// OWNER — see TransferOwnership). Requires members.manage, and the target
 	// must rank below the caller (the owner and instance admins may act on
 	// anyone but the owner).
 	SetMemberRole(context.Context, *connect.Request[v1.SetMemberRoleRequest]) (*connect.Response[v1.SetMemberRoleResponse], error)
@@ -906,12 +906,12 @@ type ChatServiceHandler interface {
 	// LeaveSpace for yourself.
 	KickMember(context.Context, *connect.Request[v1.KickMemberRequest]) (*connect.Response[v1.KickMemberResponse], error)
 	// AddMember puts an existing account into the space directly, without
-	// an invite — the admin page's "Add to space". Requires manage_members;
+	// an invite — the admin page's "Add to space". Requires members.manage;
 	// refused for banned users; a no-op error if they're already in.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// BanMember removes someone from the space (if they're in it) and keeps
 	// them out: invites and JoinSpace refuse them until UnbanMember. Needs
-	// manage_members and the same hierarchy rule as KickMember; the owner
+	// members.manage and the same hierarchy rule as KickMember; the owner
 	// can't be banned.
 	BanMember(context.Context, *connect.Request[v1.BanMemberRequest]) (*connect.Response[v1.BanMemberResponse], error)
 	UnbanMember(context.Context, *connect.Request[v1.UnbanMemberRequest]) (*connect.Response[v1.UnbanMemberResponse], error)

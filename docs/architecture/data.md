@@ -24,9 +24,8 @@ live in, and in the port a consumer has to use instead.
 ### auth
 
 **`users`** — one row per account, and the row is never deleted. A
-deactivated account keeps its row so that its old messages keep an author;
-"delete my account" would leave orphaned authorship or destroy other
-people's conversations, and neither is a good answer.
+deactivated or deleted account keeps its row so that its old messages keep
+an author ([identity.md](identity.md#deleting-your-account)).
 
 | Column | Notes |
 | ------ | ----- |
@@ -37,6 +36,9 @@ people's conversations, and neither is a good answer.
 | `role` | `admin` or `member`, checked by constraint. See [permissions.md](permissions.md). |
 | `kind` | `person` or `bot`. Only a person holds a session or counts toward the last-admin guard. |
 | `deactivated_at` | Set on deactivation; can't log in, every credential revoked. |
+| `deleted_at` | Set when a person deletes their own account; a deleted account is a deactivated one that never comes back. |
+| `is_owner` | The one server owner. See [identity.md](identity.md#the-server-owner). |
+| `dnd`, `dnd_until` | Do not disturb, and its optional end. See [realtime.md](realtime.md#presence-and-do-not-disturb). |
 | `avatar_file_id` | → `files(id) ON DELETE SET NULL`. A pointer, not a copy. |
 | `username_pending` | The handle was derived from a provider claim and hasn't been confirmed; the client nudges about it. |
 | `username_frozen` | An admin locked self-service renames on this account. Admin renames bypass it. |
@@ -49,8 +51,8 @@ dump does not hand over live credentials. `grants` is NULL only for a
 session, which covers every action. `bounded`, with rows in
 **`credential_bounds`** (one space or one channel each, cascading with it),
 limits where a credential reaches; bounded with no rows left reaches
-`hint` keeps the token's last four characters, for
-telling tokens apart in a list. nothing. See [identity.md](identity.md#personal-tokens).
+nothing. `hint` keeps the token's last four characters, for telling tokens
+apart in a list. See [identity.md](identity.md#personal-tokens).
 
 **`sessions`** — legacy. Read only by the previous release; its rows are
 copied into `credentials` by migration 00031 and the table is dropped by a
@@ -87,7 +89,8 @@ re-invite; every join path consults it.
 not a space power.
 
 **`channels`** — `name`, `kind` (1 text, 2 voice, 3 DM), `position`,
-`topic`, `last_message_id`, and the two columns that make direct messages
+`topic`, `last_message_id`, `post_policy` (who may post; see
+[messaging.md](messaging.md#announcement-channels)), and the two columns that make direct messages
 work:
 
 ```sql
@@ -109,15 +112,14 @@ list can answer "anything new?" without touching `messages`.
 
 **`dm_members`** — a participants *table* rather than two columns on the
 channel, which is what let group conversations arrive with no migration at
-all.
+all. `closed_at` is one person taking the conversation off their own list.
 
 **`channel_reads`** — `(user_id, channel_id) → last_read_message_id`, only
 ever moving forward. Because message ids are time-ordered, "unread" is an
 id comparison against `channels.last_message_id`, not a count.
 
-**`channel_mutes`** — `(user_id, channel_id)`. The one presence-ish
-preference that is persisted, because it is a decision about a channel
-rather than about a device.
+**`channel_mutes`** — `(user_id, channel_id)`. Persisted because it is a
+decision about a channel rather than about a device.
 
 **`space_mutes`** — `(user_id, space_id)`, its twin: muting a space
 silences every channel in it. Two tables and two raw flags on the wire;
@@ -197,7 +199,8 @@ keeps their `.env` live. See [runtime.md](runtime.md).
 
 **`files`** — `kind` (`avatar` | `space_icon` | `attachment` |
 `link_preview`), `owner_id`, optional `space_id`, `name`, `content_type`,
-`size`, `sha256`, `storage_key UNIQUE`. The bytes live in the blob store
+`size`, `sha256`, `storage_key UNIQUE`, `expired_at` (set by attachment
+retention). The bytes live in the blob store
 under `storage_key`; this table is the record of truth for everything
 *about* them, including the content type used to serve them. See
 [files.md](files.md).
@@ -309,7 +312,7 @@ as an out-of-order gap. A fix that needs the schema ships as a minor.
 ## Queries and sqlc
 
 Hand-written SQL, generated Go. `sqlc.yaml` points at
-`internal/db/migrations` for the schema and at four query directories, one
+`internal/db/migrations` for the schema and at five query directories, one
 per owning module, and emits `internal/dbgen`.
 
 Type overrides worth knowing: `uuid` maps to `string` (ids cross the
@@ -351,10 +354,6 @@ with a bounded working set is both simpler and fast enough.
 | Voice participation | Gateway memory, client-reported | LiveKit is the source of truth for media; this is a hint for the sidebar. |
 | The chosen theme | `localStorage` | A per-browser preference. Nothing a space or an admin sets should be able to recolour someone's client. |
 | Draft messages | Component state | Not worth a round trip. |
-
-Channel mute is the one member of that family that *is* persisted, because
-it is a decision about a channel that should follow the person to their
-other devices, not a property of a connection.
 
 ## Testing against Postgres
 

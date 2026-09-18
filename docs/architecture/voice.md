@@ -50,7 +50,7 @@ same tokens with a different grant, so they did not flip that trade.
   a join — a first-time browser's permission prompt, which a person can
   sit on for as long as they like — happens outside the token's life.
   Mint first and the TTL would have to be long enough for someone to go
-  and find the button, which is why it used to be ten minutes.
+  and find the button.
 - The grant permits publishing **any source**, which is why video and
   screen share need no separate token, no separate RPC, and no additional
   server-side concept.
@@ -316,8 +316,8 @@ TURN relay. An HTTP-only tunnel therefore gives a silent room unless a
 reachable TURN server is configured. This must be said plainly wherever
 setup guidance appears, including the setup wizard.
 
-Exposure is made easier by two complementary pieces, both shipped and
-described for operators in `docs/self-hosting.md`:
+Exposure is made easier by two complementary pieces, described
+for operators in `docs/self-hosting.md`:
 
 - **TURN support in Stoop** — static credentials, or Cloudflare TURN
   credentials minted per join and returned from `JoinVoiceChannel` — so

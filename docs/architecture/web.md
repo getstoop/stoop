@@ -69,19 +69,22 @@ loop, nesting the redirect parameter each time.
 ```
 /login                          public
 /setup                          public, first-run
+/auth/desktop/complete          public, the desktop sign-in hand-off
+/auth/desktop/return            public, back to the desktop app
 /kit                            dev builds only
 └── app (AppShell — auth guard)
     /                           home
-    /admin           ?tab=accounts|hosting|login|storage
+    /admin           ?tab=accounts|spaces|hosting|login|storage|integrations
     /activity
-    /profile         ?tab=appearance|notifications|security
+    /profile         ?tab=appearance|notifications|muted|security
     /join/$code      ?space=<name>
     /dm
       /                         conversation list
       /$channelId    ?m=<id>    ChannelView with an empty space
-    /s/$spaceId/settings   ?tab=about|channels|members|banned|owner
+    /s/$spaceId/settings   ?tab=about|channels|members|banned|integrations|owner
     /s/$spaceId
       /                         space index
+      /search        ?q=<words>  message search
       /c/$channelId  ?m=<id>    ChannelView
 ```
 
@@ -126,9 +129,9 @@ The stores, and what each is for:
 
 | Store | Holds |
 | ----- | ----- |
-| `connection` | Socket status, our user id, the channel currently on screen, who is online and their status, our own status, and typing hints with expiry. |
+| `connection` | Socket status, our user id, the channel currently on screen, who is online, who is on do not disturb, and typing hints with expiry. |
 | `voice` | The LiveKit room, the track registry keyed by participant and source, participants from the gateway, mute/deafen/camera/screen flags. |
-| `history` | Per-channel window metadata: `hasOlder`, `hasNewer`, `loading`, `pendingNewer`, and where to land after a jump. |
+| `history` (in `api/history.ts`) | Per-channel window metadata: `hasOlder`, `hasNewer`, `loading`, `pendingNewer`, and where to land after a jump. |
 | `layout` | `drawerOpen`. That is the entire mobile navigation state. |
 | `dialogs` | The promise-shaped `confirm` / `prompt` / `notice` queue. |
 
@@ -196,9 +199,7 @@ generally), and is managed by `api/theme.ts` afterwards. "Follow system" is
 a preference over a dark/light pair, resolved by `prefers-color-scheme` and
 followed live.
 
-Nothing a space or an admin sets can recolour someone's client — decided
-2026-08-27, and worth restating because it is the kind of feature that gets
-requested.
+Nothing a space or an admin sets can recolour someone's client.
 
 `[data-theme]` blocks are plain attribute selectors, so the Appearance
 picker's cards can scope a theme to their own subtree and preview it with
@@ -208,8 +209,7 @@ Twenty-seven themes ship, in three tiers. Light: Daylight (the light
 default), Newsprint, Subway Tile, Pigeon, Laundromat, Boardwalk, Whiteout,
 Library, Ginkgo. Dim, grounds a step lighter than any dark, for a lit
 room, one per hue family: Rooftop, Water Tower, Scaffolding, Sidewalk
-Chalk. Dark: Brownstone (the default, and the
-original look), Dusk, Bodega, Blackout, Fire Escape, Nightcap, Night Bus,
+Chalk. Dark: Brownstone (the default), Dusk, Bodega, Blackout, Fire Escape, Nightcap, Night Bus,
 Mailbox, Streetlight, Neon, Ferry, Bike Lane, Crosswalk, Concrete.
 
 The picker shows one filter at a time rather than the whole wall: the
@@ -257,12 +257,10 @@ a kit change is checked in every theme before it ships.
 ## The settings frame
 
 Profile, space settings and server admin share one frame
-(`styles/settings.css`). Decided 2026-09-02: a
+(`styles/settings.css`): a
 settings nav column in the channel sidebar's slot (it replaces the
 channel sidebar on `/s/:id/settings`), a content column up to 960px,
-and inside it flat groups built from setting rows (title and
-description left, control right) and list grids with columns (Accounts,
-Members, Banned, Channels). Below 768px the nav is a scrolling chip
+and inside it flat groups built from setting rows and `DataTable`s. Below 768px the nav is a scrolling chip
 strip under the header, rows stack, and tables fold to a labelled stack,
 all from `mobile.css`. `components/SettingsFrame.tsx` is the frame;
 each page passes it a header, its section links and the section on

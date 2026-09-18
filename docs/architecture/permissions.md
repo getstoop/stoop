@@ -23,9 +23,6 @@ a matrix somebody has to administer. The fixed table is also a preset we
 could build custom roles on top of later without changing what the existing
 roles mean.
 
-Status: implemented end to end — roles, enforcement, member management,
-instance settings, registration policy, and user administration.
-
 ## Instance user type (`auth`: `users.role`)
 
 `admin` or `member`, checked by a database constraint.
@@ -38,7 +35,7 @@ deactivate, promote, rename, reset a password, clear a profile).
 
 **2. Inherited `admin` on every space on the instance**, whether or not
 they are a member — the full space-admin permission set below, plus
-`delete_space`, plus the ability to join any space without an invite.
+`space.delete`, plus the ability to join any space without an invite.
 
 They do **not** inherit `owner`. Ownership only moves by transfer.
 
@@ -98,18 +95,20 @@ setting once or acts as its fallback, depending on the setting — see
 
 | Key | Meaning |
 | --- | ------- |
+| `instance_name` | The server's name: the browser tab and the Server admin page. |
 | `registration_policy` | `invite` (default), `open`, or `closed`. |
 | `space_creation` | Whether members may create spaces, or only admins. |
 | `max_upload_bytes` | Per-file cap, bounded above by the built-in 100 MB. |
 | `storage_quota_bytes` | Total upload storage; 0 is unlimited. |
 | `password_sign_in` | `everyone` / `admins` / `off`. See [identity.md](identity.md). |
 | `personal_tokens` | `everyone` (default) / `admins` / `off`. Checked at every use. See [identity.md](identity.md#personal-tokens). |
+| `self_deletion` | Whether a person may delete their own account; on by default. See [identity.md](identity.md#deleting-your-account). |
 | `message_retention_days`, `attachment_retention_days` | Delete messages, or attachments' files, older than this many days, 1-3650; 0 keeps forever. Pinned messages and their files are kept. See [messaging.md](messaging.md#message-retention) and [files.md](files.md#retention). |
 | `session_lifetime_days` | How long a sign-in lasts, 1-365; unset falls back to `STOOP_SESSION_LIFETIME_DAYS` (30). See [identity.md](identity.md#sessions). |
 | `webhooks_incoming`, `webhooks_outgoing` | Each direction on (default) or off; `STOOP_WEBHOOKS=false` overrides both. See [integrations.md](integrations.md#switches). |
 | `webhooks_allow_private_targets` | Whether outgoing webhooks may reach LAN, loopback and CGNAT addresses (default off). |
 | `login_providers` | The OIDC provider list, replaced whole. |
-| reachability keys | Public URL, TURN, Cloudflare TURN, Tailscale, trusted proxies. See [runtime.md](runtime.md). |
+| reachability keys | Public URL, TURN, Cloudflare TURN, Tailscale, Cloudflare Tunnel, trusted proxies. See [runtime.md](runtime.md). |
 | `livekit` | The minted API key pair. See [voice.md](voice.md). |
 
 ### The registration policy
@@ -224,13 +223,13 @@ Validity is evaluated at join time — not revoked, not past `expires_at`
 no sweeper and a revocation takes effect immediately.
 
 Anyone may revoke an invite they created. **Listing a space's invites needs
-`create_invites`**, because seeing live codes is as good as minting them.
+`invites.create`**, because seeing live codes is as good as minting them.
 
 ## Bans
 
 `space_bans` — kicks that survive re-invite.
 
-`BanMember` needs `manage_members`, follows the same hierarchy as a kick
+`BanMember` needs `members.manage`, follows the same hierarchy as a kick
 when the target is still a member (the owner cannot be banned), and may
 name someone who has already left. **Every join path consults it**: an
 invite redemption, and `JoinSpace` by id for an instance admin.
@@ -276,5 +275,5 @@ hover card where a misclick is cheap.
 ## Deliberately deferred
 
 Per-channel permissions and private channels. Deleting other people's
-messages is already covered by `delete_any_message`, which is the case
+messages is already covered by `messages.moderate`, which is the case
 those features are usually reached for first.
