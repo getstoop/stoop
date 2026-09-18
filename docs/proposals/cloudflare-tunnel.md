@@ -1,8 +1,9 @@
 # Cloudflare Tunnel from the app
 
-Status: decided 2026-09-17 (STOOP-300). Every decision below was settled
-with the maintainer before the build; the renderings live in a design page
-beside it.
+Status: decided 2026-09-17 (STOOP-300); the public address decision was
+reversed 2026-09-18, during review of the build. Every decision below was
+settled with the maintainer; the renderings live in a design page beside
+it.
 
 Stoop runs Cloudflare's connector itself, the way it already runs a
 Tailscale node. The operator creates a tunnel in Cloudflare, pastes its
@@ -14,10 +15,10 @@ token on Server admin → Hosting (or wizard step 3), ticks a box and saves.
 | --- | --- |
 | How cloudflared runs | A child process Stoop starts, restarts and stops. The Docker image ships a pinned `cloudflared`; a bare binary finds it on `PATH` or at `STOOP_CLOUDFLARED_PATH`. No new compose service. |
 | Tunnel kind | Remotely managed: a token. The hostname and its service are set in Cloudflare's dashboard. Locally managed tunnels and quick tunnels are out. |
-| The token | Write-only, like the Tailscale auth key. The field takes the token and nothing else; checked the way cloudflared decodes it, so a bad paste is refused at save. It reaches cloudflared through the environment, never the command line. |
-| Public address | Derived, never saved: saved value, then `STOOP_PUBLIC_URL`, then the tunnel's hostname, then the tailnet address. The hostname is the rule pointed at `localhost` on Stoop's port, else the only one; among several with no match, none. |
+| The token | Write-only, like the Tailscale auth key. The field takes the token and nothing else; checked the way cloudflared decodes it, so a bad paste is refused at save. It reaches cloudflared through the environment, never the command line. A token from `.env` stays there: saving the switch with the field blank never copies it into the database. |
+| Public address | The operator's to fill in, as with any other proxy. Not read from the tunnel. While the tunnel runs and the field is blank, one hint asks for it. |
 | Trusted proxies | Nothing derived. Ticking the box adds `127.0.0.1` and `::1` to the Trusted proxies field (localhost resolves to either), unticking removes them, and it saves with everything else. The list stays the one source of trust. |
-| Status | `stopped`, `missing` (no cloudflared), `starting`, `running` (with the hostname), `error`. Read from cloudflared's own metrics endpoint on loopback. |
+| Status | `stopped`, `missing` (no cloudflared), `starting`, `running`, `error`. Read from cloudflared's `/ready` on loopback. |
 | Voice | One standing line in the section's description. The voice summary above Save gets a tunnel case. No relay fields repeated. |
 | Environment | `STOOP_CLOUDFLARE_TUNNEL`, `STOOP_CLOUDFLARE_TUNNEL_TOKEN`, `STOOP_CLOUDFLARED_PATH`. With the environment alone, the operator names `127.0.0.1, ::1` in `STOOP_TRUSTED_PROXIES` too. |
 
@@ -26,8 +27,6 @@ token on Server admin → Hosting (or wizard step 3), ticks a box and saves.
 - **Admin → Hosting:** a Cloudflare Tunnel section directly above
   Tailscale, in Tailscale's shape: checkbox, token, status. LiveKit moves
   down beside Voice relay, so the page reads address, ways in, voice.
-- **Public address row:** one muted line naming the derived address while
-  the field is blank and the tunnel runs.
 - **Wizard step 3:** the same form, so the section appears there unchanged.
 - Nowhere else: no new tab, no indicator outside the admin page.
 
@@ -48,12 +47,19 @@ token on Server admin → Hosting (or wizard step 3), ticks a box and saves.
   proxy, a listener bound elsewhere), and someone running a homelab knows
   where their tunnel points. The status reports the connector and nothing
   else; the docs carry the address for the compose setup.
+- **The hostname is not read from the tunnel.** The first build took it
+  from cloudflared's `/config`: the rule pointed at `localhost` on Stoop's
+  port, else the only one. That endpoint is a debugging dump with no
+  promised shape, which rule is this server is a guess from inside the
+  process, and the answer fed invite links and the OIDC `redirect_uri`
+  and changed on every read. Reversed in review; if operators miss it, a
+  suggestion the operator confirms into Public address is the easy add.
 
 ## Build
 
 - `internal/cftunnel`: `Manager` reconciles like `tailnet.Manager`; the
-  connector supervises the process with backoff and polls `/ready` and
-  `/config` for the state and the hostname.
+  connector supervises the process with backoff and polls `/ready` for
+  the state.
 - `internal/instance/cloudflare_tunnel.go`: the setting
   (`cloudflare_tunnel`), the controller port, the token check.
 - `reachability.proto`: `CloudflareTunnelSettings`,
