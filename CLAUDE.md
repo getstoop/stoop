@@ -19,3 +19,6 @@ with a React web app in `web/`.
 - **Releases and patch releases:** `docs/releasing.md` — a minor is a tag
   on `main`; a patch is a tag on a `release/X.Y` branch off the previous
   tag and carries no migrations.
+- **Build Iteratively:** Build stable simple solutions before building nice 
+  to have features or clever solutions. The operator has the final say in
+  what you build.
