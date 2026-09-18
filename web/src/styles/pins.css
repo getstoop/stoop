@@ -1,5 +1,5 @@
 /* ---- Pinned messages: the pin in the channel header and the panel it
-   opens. docs/proposals/pinned-messages.md. The panel follows the ⋮
+   opens. docs/architecture/messaging.md. The panel follows the ⋮
    menu's recipe (--panel, --border, --shadow, --z-popover) but is
    absolute to the header rather than fixed: the header never scrolls, so
    there are no coordinates to compute. ---- */

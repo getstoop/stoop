@@ -18,7 +18,7 @@ import (
 
 // maxChannelPins bounds a channel's pin list, which is what lets the list
 // be one query with no paging. At the cap a pin is refused rather than
-// evicting the oldest. See docs/proposals/pinned-messages.md.
+// evicting the oldest. See docs/architecture/messaging.md.
 const maxChannelPins = 50
 
 // SetMessagePinned pins or unpins a message in a space channel. Setting

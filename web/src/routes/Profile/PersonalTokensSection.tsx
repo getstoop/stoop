@@ -23,7 +23,7 @@ const isExpired = (t: PersonalToken) =>
   expiryOf(t.expiresAt && timestampDate(t.expiresAt)).state === "expired";
 
 // Security → Personal tokens: a person's own tokens for scripts, each with
-// only the permissions it was given (docs/proposals/access-model.md).
+// only the permissions it was given (docs/architecture/identity.md).
 export function PersonalTokensSection() {
   const queryClient = useQueryClient();
   const { data: tokens } = usePersonalTokens();

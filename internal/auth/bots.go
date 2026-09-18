@@ -21,7 +21,7 @@ import (
 
 // Bots: accounts of kind bot and the credentials they hold. Exposed to the
 // integrations module through its BotIdentities port; authorisation is the
-// caller's job. See docs/proposals/webhooks.md.
+// caller's job. See docs/architecture/integrations.md.
 
 const (
 	botTokenPrefix  = "stp_bot_"

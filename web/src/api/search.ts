@@ -1,7 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { errorText } from "./errors";
 
-// Message search (docs/proposals/message-search.md). The server parses
+// Message search (docs/architecture/messaging.md). The server parses
 // the query; this side only needs to know which words to highlight and
 // how to word the errors the server sends back.
 

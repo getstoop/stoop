@@ -89,7 +89,7 @@ WHERE (blocker_id = sqlc.arg(user_id) AND blocked_id = ANY(sqlc.arg(ids)::uuid[]
 
 -- ListDMCandidates: everyone the caller may start a conversation with —
 -- the people they share a space with, minus blocks in either direction.
--- Bots are left out: see docs/proposals/webhooks.md.
+-- Bots are left out: see docs/architecture/integrations.md.
 -- name: ListDMCandidates :many
 SELECT DISTINCT o.user_id FROM space_members me
 JOIN space_members o ON o.space_id = me.space_id AND o.user_id <> me.user_id

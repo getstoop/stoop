@@ -1,5 +1,5 @@
 /* ---- Message search: the header launcher and the results page. ----
-   docs/proposals/message-search.md. The page borrows the activity page's
+   docs/architecture/messaging.md. The page borrows the activity page's
    shape (header bar, scrolling list, rows that open a channel). */
 
 /* The launcher at the right end of a channel header: a compact field on

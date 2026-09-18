@@ -2,7 +2,7 @@
 -- Owned by the integrations module; only internal/integrations may use
 -- these queries. The clock is always the caller's, never now(), so one
 -- clock decides due-ness and leases.
--- See docs/proposals/webhooks.md → The queue contract.
+-- See docs/architecture/integrations.md → The queue.
 
 -- name: EnqueueDelivery :exec
 INSERT INTO webhook_deliveries (id, lane, event_type, sequence, body, not_before, created_at)

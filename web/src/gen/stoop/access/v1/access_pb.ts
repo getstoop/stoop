@@ -46,7 +46,7 @@ export const IdentityKindSchema: GenEnum<IdentityKind> = /*@__PURE__*/
  * Permission is one action from the closed vocabulary a role holds and a
  * credential is granted (internal/authctx/actions.go). A value's name is
  * its action with dots as underscores: channels.manage is
- * PERMISSION_CHANNELS_MANAGE. See docs/proposals/access-model.md.
+ * PERMISSION_CHANNELS_MANAGE. See docs/architecture/permissions.md.
  *
  * @generated from enum stoop.access.v1.Permission
  */

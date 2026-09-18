@@ -23,7 +23,7 @@ const (
 )
 
 // PinnedMessage is one message a channel keeps, with the decision that
-// kept it. See docs/proposals/pinned-messages.md.
+// kept it. See docs/architecture/messaging.md.
 type PinnedMessage struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Message *Message               `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`

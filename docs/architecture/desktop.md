@@ -7,10 +7,6 @@ version to keep in step with the server, and the whole contract between
 the two is what this page lists. Every item here is something the shell
 relies on. Change one and bump the bridge level.
 
-The design and the reasoning are in
-[../proposals/desktop-client.md](../proposals/desktop-client.md). This is
-the contract.
-
 ## `GET /version`
 
 Unauthenticated JSON, served by `internal/app` beside `/healthz`:
@@ -125,7 +121,7 @@ a browser too.
 Presence is online or offline, and do not disturb is the one choice a
 person makes. It is stored on the account on each server, so the page reads
 it from its server and never from the shell
-([../proposals/presence-and-dnd.md](../proposals/presence-and-dnd.md)).
+([realtime.md](realtime.md#presence-and-do-not-disturb)).
 That is why bridge 3 has no `status` or `onStatus`.
 
 **The desktop app keeps one switch for every server it holds**, handed over

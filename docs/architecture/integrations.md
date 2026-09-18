@@ -4,9 +4,8 @@
 (a URL the server hosts that posts into one channel), outgoing webhooks
 (a URL somebody else hosts that the server POSTs signed events to), the
 delivery queue between the bus and those POSTs, and the admin surface for
-bots and the credentials that authenticate as them. The reasoning behind
-every choice here is in [the proposal](../proposals/webhooks.md); this
-page is what the code does.
+bots and the credentials that authenticate as them. This page is
+what the code does.
 
 ## The shape
 

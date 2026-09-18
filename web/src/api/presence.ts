@@ -11,7 +11,7 @@ import { authClient } from "./clients";
 // Presence is online or offline, and do not disturb is the one thing a
 // person chooses. It is stored on their account, so every device follows
 // it; our own lives on the signed-in user in the "me" query, with no
-// second copy to drift. docs/proposals/presence-and-dnd.md.
+// second copy to drift. docs/architecture/realtime.md.
 
 // Whether do not disturb is on at now: set, and not past its end.
 export function dndActive(

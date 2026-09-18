@@ -2262,7 +2262,7 @@ export const ChatService: GenService<{
   },
   /**
    * SearchMessages finds messages by their words within one space the
-   * caller belongs to, newest first. See docs/proposals/message-search.md.
+   * caller belongs to, newest first. See docs/architecture/messaging.md.
    *
    * @generated from rpc stoop.chat.v1.ChatService.SearchMessages
    */
@@ -2276,7 +2276,7 @@ export const ChatService: GenService<{
    * channel keeps it. Requires manage_channels in the channel's space;
    * every member reads the list. Setting the state it already has is a
    * no-op. Pinning into a channel that already holds the maximum is
-   * refused. See docs/proposals/pinned-messages.md.
+   * refused. See docs/architecture/messaging.md.
    *
    * @generated from rpc stoop.chat.v1.ChatService.SetMessagePinned
    */

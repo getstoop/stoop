@@ -813,7 +813,7 @@ export const RevokeBotTokenResponseSchema: GenMessage<RevokeBotTokenResponse> = 
 /**
  * IntegrationService configures what the server talks to: incoming and
  * outgoing webhooks, and the bots they authenticate as. Every mutation
- * needs instance.integrations.manage. See docs/proposals/webhooks.md.
+ * needs instance.integrations.manage. See docs/architecture/integrations.md.
  *
  * @generated from service stoop.integrations.v1.IntegrationService
  */

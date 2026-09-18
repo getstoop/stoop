@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 // The frame the profile, space settings and server admin pages share
-// (docs/proposals/settings-layout.md): a nav column in the channel
+// (docs/architecture/web.md): a nav column in the channel
 // sidebar's slot — the page's identity, then one link per section and
 // whatever `foot` adds under them — and a content column beside it
 // headed by the section's name. On a phone the nav sits above the

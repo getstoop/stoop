@@ -8,7 +8,7 @@ import (
 )
 
 // A connection is opened with a credential, and what it hears is what the
-// credential covers (docs/proposals/access-model.md). Space topics are
+// credential covers (docs/architecture/realtime.md). Space topics are
 // subscribed only where messages.read covers the space; the user topic is
 // always subscribed, since it is the control plane (joins, revocation),
 // and admits filters what it delivers.

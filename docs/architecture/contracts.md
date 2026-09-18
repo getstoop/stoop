@@ -105,7 +105,7 @@ signaling URL, and any ICE servers the browser should use.
 
 ### `stoop.integrations.v1.IntegrationService`
 
-Webhooks and bots (STOOP-256, [the proposal](../proposals/webhooks.md)):
+Webhooks and bots (STOOP-256, [integrations.md](integrations.md)):
 `ListWebhooks` (members, per space; the server-wide list is admins only),
 `CreateIncoming`, `CreateOutgoing`, `UpdateIncoming`, `UpdateOutgoing`,
 `DeleteWebhook`, `RotateSecret`, `TestWebhook`, `ListDeliveries`,
@@ -123,7 +123,7 @@ Some things are not RPCs, each for a specific reason.
 | -------- | --------------- |
 | `GET /ws` | The realtime protocol is a long-lived bidirectional stream of binary frames, not a request/response. See [realtime.md](realtime.md). |
 | `POST /files/upload` | Multipart, up to 100 MB. Base64 inside a JSON Connect body would inflate it by a third and buffer it entirely in memory. |
-| `POST /hooks/{token}` | Its callers are appliances with a URL field, not generated clients: the token rides in the path and the body is whatever the vendor sends (see [the webhooks proposal](../proposals/webhooks.md)). |
+| `POST /hooks/{token}` | Its callers are appliances with a URL field, not generated clients: the token rides in the path and the body is whatever the vendor sends (see [integrations.md](integrations.md#incoming)). |
 | `GET|HEAD /files/{id}` | Plain HTTP so the browser's `<img>`, `<video>` and download machinery work, including `Range` requests — which is what lets a video seek, and what iOS Safari requires before it will play at all. |
 | `GET /auth/oidc/{id}/start`, `GET /auth/callback/{id}` | Browser redirects to and from an identity provider. |
 | `/livekit/…` | A reverse proxy for LiveKit's own signaling WebSocket, so the whole app lives on one origin. |

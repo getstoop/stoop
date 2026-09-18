@@ -3,7 +3,7 @@ package authctx
 import "slices"
 
 // Action is one entry in the closed vocabulary that roles hold and
-// credentials are granted. See docs/proposals/access-model.md.
+// credentials are granted. See docs/architecture/permissions.md.
 type Action string
 
 // Actions on the instance, held by instance admins. Members also hold

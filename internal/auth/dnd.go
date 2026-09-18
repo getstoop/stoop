@@ -17,7 +17,7 @@ import (
 )
 
 // Do not disturb: the one presence choice a person makes, kept on their
-// account so every device follows it. docs/proposals/presence-and-dnd.md.
+// account so every device follows it. docs/architecture/realtime.md.
 
 // dndState is whether do not disturb is on at now, and when it ends (nil
 // for no end). A row past its end reads as off.

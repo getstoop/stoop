@@ -97,7 +97,7 @@ type ListDMCandidatesParams struct {
 
 // ListDMCandidates: everyone the caller may start a conversation with —
 // the people they share a space with, minus blocks in either direction.
-// Bots are left out: see docs/proposals/webhooks.md.
+// Bots are left out: see docs/architecture/integrations.md.
 func (q *Queries) ListDMCandidates(ctx context.Context, arg ListDMCandidatesParams) ([]string, error) {
 	rows, err := q.db.Query(ctx, listDMCandidates, arg.UserID, arg.Lim)
 	if err != nil {

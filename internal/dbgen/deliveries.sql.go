@@ -80,7 +80,7 @@ type EnqueueDeliveryParams struct {
 // Owned by the integrations module; only internal/integrations may use
 // these queries. The clock is always the caller's, never now(), so one
 // clock decides due-ness and leases.
-// See docs/proposals/webhooks.md → The queue contract.
+// See docs/architecture/integrations.md → The queue.
 func (q *Queries) EnqueueDelivery(ctx context.Context, arg EnqueueDeliveryParams) error {
 	_, err := q.db.Exec(ctx, enqueueDelivery,
 		arg.ID,

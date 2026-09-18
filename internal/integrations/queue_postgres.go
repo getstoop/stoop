@@ -13,7 +13,7 @@ import (
 )
 
 // PostgresQueue is the v1 Queue: webhook_deliveries with leases and
-// SKIP LOCKED. See docs/proposals/webhooks.md → The queue contract.
+// SKIP LOCKED. See docs/architecture/integrations.md → The queue.
 type PostgresQueue struct {
 	q   *dbgen.Queries
 	now func() time.Time

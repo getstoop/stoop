@@ -1,7 +1,7 @@
 // Package integrations owns what the server talks to: incoming and
 // outgoing webhooks, the delivery queue, and the admin surface for bots
 // and the credentials that authenticate as them. Design and reasoning:
-// docs/proposals/webhooks.md.
+// docs/architecture/integrations.md.
 package integrations
 
 import (

@@ -38,8 +38,8 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "integrations", label: "Integrations" },
 ];
 
-// Every member may read Integrations (docs/proposals/webhooks.md → Who
-// may, and who can see); the rest of the page needs channels.manage.
+// Every member may read Integrations (docs/architecture/integrations.md →
+// Who sees what); the rest of the page needs channels.manage.
 const MEMBER_TABS = TABS.filter((t) => t.key === "integrations");
 
 export function SpaceSettingsPage() {

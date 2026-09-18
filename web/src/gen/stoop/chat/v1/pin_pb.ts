@@ -18,7 +18,7 @@ export const file_stoop_chat_v1_pin: GenFile = /*@__PURE__*/
 
 /**
  * PinnedMessage is one message a channel keeps, with the decision that
- * kept it. See docs/proposals/pinned-messages.md.
+ * kept it. See docs/architecture/messaging.md.
  *
  * @generated from message stoop.chat.v1.PinnedMessage
  */

@@ -43,7 +43,7 @@ request, invite links — comes from `api/origin.ts`, which today returns the pa
 development Vite proxies `/stoop.*`, `/files`, `/ws` and `/livekit` to the
 Go server on `:8091`; in production the Go binary serves both the SPA and
 the API. A client hosted somewhere other than the server would change
-that one file (`docs/proposals/desktop-client.md`).
+that one file.
 
 Connect RPC routes live under `/<proto package>.<Service>/<Method>`, which
 is why one `"/stoop."` prefix covers every service in the dev proxy.
@@ -257,8 +257,7 @@ a kit change is checked in every theme before it ships.
 ## The settings frame
 
 Profile, space settings and server admin share one frame
-(`styles/settings.css`). Decided 2026-09-02, reasoning and mockups in
-[../proposals/settings-layout.md](../proposals/settings-layout.md): a
+(`styles/settings.css`). Decided 2026-09-02: a
 settings nav column in the channel sidebar's slot (it replaces the
 channel sidebar on `/s/:id/settings`), a content column up to 960px,
 and inside it flat groups built from setting rows (title and
@@ -283,8 +282,7 @@ because the two columns belong to `.settings-content`.
 
 Every list with columns on the settings pages is a
 `components/DataTable` (styles in `data-table.css`, the phone fold in
-`mobile.css`). Design and renderings:
-[../proposals/data-table.md](../proposals/data-table.md).
+`mobile.css`).
 
 - A section declares `columns` and hands over `rows`. `rows` undefined
   means loading; an empty array shows the section's `empty` line.

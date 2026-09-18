@@ -8,8 +8,8 @@ import (
 	"unicode/utf8"
 )
 
-// The query syntax: docs/proposals/message-search.md → What the index
-// matches. Filters come out here; the words go to websearch_to_tsquery.
+// The query syntax: docs/architecture/messaging.md → Search.
+// Filters come out here; the words go to websearch_to_tsquery.
 const (
 	maxSearchQueryLen = 200
 	searchPrefixMin   = 3
