@@ -91,7 +91,10 @@ var procedures = map[string]authctx.Rule{
 
 	chatv1connect.ChatServiceCreateSpaceProcedure: needs(authctx.SpacesCreate),
 	chatv1connect.ChatServiceListSpacesProcedure:  anyCaller,
-	chatv1connect.ChatServiceGetSpaceProcedure:    needs(authctx.SpaceRead),
+	// The server admin's Spaces page: every space, including ones the
+	// caller isn't in.
+	chatv1connect.ChatServiceListAllSpacesProcedure: needs(authctx.InstanceRead),
+	chatv1connect.ChatServiceGetSpaceProcedure:      needs(authctx.SpaceRead),
 	// By invite for anyone; by space id only with spaces.join_any, which
 	// the handler checks.
 	chatv1connect.ChatServiceJoinSpaceProcedure:         anyCaller,

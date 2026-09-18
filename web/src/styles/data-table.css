@@ -203,6 +203,36 @@ th[aria-sort] .dt-sort-arrow {
   min-width: 0;
 }
 
+/* The identity cell of the spaces table: the icon in its box, the name
+   and its badges, a muted line under them. */
+.dt-space {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dt-space > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dt-space-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  overflow: hidden;
+}
+
 .dt-channel svg {
   vertical-align: -2px;
 }

@@ -134,15 +134,23 @@ const adminRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/admin",
   component: AdminPage,
-  // ?tab=accounts (the account list) / ?tab=hosting (how people reach the
-  // server) / ?tab=login (sign-in providers) / ?tab=storage (uploads).
+  // ?tab=accounts (the account list) / ?tab=spaces (every space on the
+  // server) / ?tab=hosting (how people reach the server) / ?tab=login
+  // (sign-in providers) / ?tab=storage (uploads).
   validateSearch: (
     search: Record<string, unknown>,
   ): {
-    tab?: "accounts" | "hosting" | "login" | "storage" | "integrations";
+    tab?:
+      | "accounts"
+      | "spaces"
+      | "hosting"
+      | "login"
+      | "storage"
+      | "integrations";
   } => ({
     tab:
       search.tab === "accounts" ||
+      search.tab === "spaces" ||
       search.tab === "hosting" ||
       search.tab === "login" ||
       search.tab === "storage" ||

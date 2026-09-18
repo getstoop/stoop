@@ -242,6 +242,139 @@ func (x *Space) GetMyPermissions() []v1.Permission {
 	return nil
 }
 
+// SpaceSummary is one row of the server admin's Spaces list: a space the
+// caller may not be in. It carries nothing membership-only — no role, no
+// unread, no permissions — because there may be no membership.
+type SpaceSummary struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// The space icon's file id (GET /files/{id}); empty for initials.
+	IconFileId string `protobuf:"bytes,3,opt,name=icon_file_id,json=iconFileId,proto3" json:"icon_file_id,omitempty"`
+	// The one plain-text line under the name; may be empty.
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	OwnerId     string `protobuf:"bytes,5,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	// Resolved through the user directory. display_name may be empty, and
+	// owner_deleted marks an account whose username is all that is left.
+	OwnerUsername    string                 `protobuf:"bytes,6,opt,name=owner_username,json=ownerUsername,proto3" json:"owner_username,omitempty"`
+	OwnerDisplayName string                 `protobuf:"bytes,7,opt,name=owner_display_name,json=ownerDisplayName,proto3" json:"owner_display_name,omitempty"`
+	OwnerDeleted     bool                   `protobuf:"varint,8,opt,name=owner_deleted,json=ownerDeleted,proto3" json:"owner_deleted,omitempty"`
+	MemberCount      uint32                 `protobuf:"varint,9,opt,name=member_count,json=memberCount,proto3" json:"member_count,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Whether the caller holds a membership row here. Instance admins
+	// inherit admin without one, so this is not derivable from a role.
+	ViewerIsMember bool `protobuf:"varint,11,opt,name=viewer_is_member,json=viewerIsMember,proto3" json:"viewer_is_member,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SpaceSummary) Reset() {
+	*x = SpaceSummary{}
+	mi := &file_stoop_chat_v1_space_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpaceSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpaceSummary) ProtoMessage() {}
+
+func (x *SpaceSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_space_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpaceSummary.ProtoReflect.Descriptor instead.
+func (*SpaceSummary) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_space_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SpaceSummary) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SpaceSummary) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SpaceSummary) GetIconFileId() string {
+	if x != nil {
+		return x.IconFileId
+	}
+	return ""
+}
+
+func (x *SpaceSummary) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *SpaceSummary) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *SpaceSummary) GetOwnerUsername() string {
+	if x != nil {
+		return x.OwnerUsername
+	}
+	return ""
+}
+
+func (x *SpaceSummary) GetOwnerDisplayName() string {
+	if x != nil {
+		return x.OwnerDisplayName
+	}
+	return ""
+}
+
+func (x *SpaceSummary) GetOwnerDeleted() bool {
+	if x != nil {
+		return x.OwnerDeleted
+	}
+	return false
+}
+
+func (x *SpaceSummary) GetMemberCount() uint32 {
+	if x != nil {
+		return x.MemberCount
+	}
+	return 0
+}
+
+func (x *SpaceSummary) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *SpaceSummary) GetViewerIsMember() bool {
+	if x != nil {
+		return x.ViewerIsMember
+	}
+	return false
+}
+
 var File_stoop_chat_v1_space_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_space_proto_rawDesc = "" +
@@ -264,7 +397,22 @@ const file_stoop_chat_v1_space_proto_rawDesc = "" +
 	" \x01(\tR\awelcome\x12,\n" +
 	"\x12default_channel_id\x18\v \x01(\tR\x10defaultChannelId\x12\x14\n" +
 	"\x05muted\x18\f \x01(\bR\x05muted\x12B\n" +
-	"\x0emy_permissions\x18\r \x03(\x0e2\x1b.stoop.access.v1.PermissionR\rmyPermissions*j\n" +
+	"\x0emy_permissions\x18\r \x03(\x0e2\x1b.stoop.access.v1.PermissionR\rmyPermissions\"\x93\x03\n" +
+	"\fSpaceSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\ficon_file_id\x18\x03 \x01(\tR\n" +
+	"iconFileId\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x19\n" +
+	"\bowner_id\x18\x05 \x01(\tR\aownerId\x12%\n" +
+	"\x0eowner_username\x18\x06 \x01(\tR\rownerUsername\x12,\n" +
+	"\x12owner_display_name\x18\a \x01(\tR\x10ownerDisplayName\x12#\n" +
+	"\rowner_deleted\x18\b \x01(\bR\fownerDeleted\x12!\n" +
+	"\fmember_count\x18\t \x01(\rR\vmemberCount\x129\n" +
+	"\n" +
+	"created_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12(\n" +
+	"\x10viewer_is_member\x18\v \x01(\bR\x0eviewerIsMember*j\n" +
 	"\tSpaceRole\x12\x1a\n" +
 	"\x16SPACE_ROLE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SPACE_ROLE_MEMBER\x10\x01\x12\x14\n" +
@@ -286,22 +434,24 @@ func file_stoop_chat_v1_space_proto_rawDescGZIP() []byte {
 }
 
 var file_stoop_chat_v1_space_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_stoop_chat_v1_space_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_stoop_chat_v1_space_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_stoop_chat_v1_space_proto_goTypes = []any{
 	(SpaceRole)(0),                // 0: stoop.chat.v1.SpaceRole
 	(*Space)(nil),                 // 1: stoop.chat.v1.Space
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
-	(v1.Permission)(0),            // 3: stoop.access.v1.Permission
+	(*SpaceSummary)(nil),          // 2: stoop.chat.v1.SpaceSummary
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(v1.Permission)(0),            // 4: stoop.access.v1.Permission
 }
 var file_stoop_chat_v1_space_proto_depIdxs = []int32{
-	2, // 0: stoop.chat.v1.Space.created_at:type_name -> google.protobuf.Timestamp
+	3, // 0: stoop.chat.v1.Space.created_at:type_name -> google.protobuf.Timestamp
 	0, // 1: stoop.chat.v1.Space.my_role:type_name -> stoop.chat.v1.SpaceRole
-	3, // 2: stoop.chat.v1.Space.my_permissions:type_name -> stoop.access.v1.Permission
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 2: stoop.chat.v1.Space.my_permissions:type_name -> stoop.access.v1.Permission
+	3, // 3: stoop.chat.v1.SpaceSummary.created_at:type_name -> google.protobuf.Timestamp
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_space_proto_init() }
@@ -315,7 +465,7 @@ func file_stoop_chat_v1_space_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_chat_v1_space_proto_rawDesc), len(file_stoop_chat_v1_space_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

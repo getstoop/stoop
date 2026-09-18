@@ -26,7 +26,9 @@ func (noDirectory) GetUsers(context.Context, []string) ([]chat.UserRecord, error
 type dbDirectory struct{ pool *pgxpool.Pool }
 
 func (d dbDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserRecord, error) {
-	rows, err := d.pool.Query(ctx, `SELECT id, username, role FROM users WHERE id = ANY($1::uuid[])`, ids)
+	rows, err := d.pool.Query(ctx,
+		`SELECT id, username, COALESCE(display_name, ''), role, deleted_at IS NOT NULL
+		 FROM users WHERE id = ANY($1::uuid[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +37,7 @@ func (d dbDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserRec
 	for rows.Next() {
 		var r chat.UserRecord
 		var role string
-		if err := rows.Scan(&r.ID, &r.Username, &role); err != nil {
+		if err := rows.Scan(&r.ID, &r.Username, &r.DisplayName, &role, &r.Deleted); err != nil {
 			return nil, err
 		}
 		r.InstanceAdmin = role == "admin"

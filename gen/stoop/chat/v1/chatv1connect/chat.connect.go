@@ -37,6 +37,9 @@ const (
 	ChatServiceCreateSpaceProcedure = "/stoop.chat.v1.ChatService/CreateSpace"
 	// ChatServiceListSpacesProcedure is the fully-qualified name of the ChatService's ListSpaces RPC.
 	ChatServiceListSpacesProcedure = "/stoop.chat.v1.ChatService/ListSpaces"
+	// ChatServiceListAllSpacesProcedure is the fully-qualified name of the ChatService's ListAllSpaces
+	// RPC.
+	ChatServiceListAllSpacesProcedure = "/stoop.chat.v1.ChatService/ListAllSpaces"
 	// ChatServiceGetSpaceProcedure is the fully-qualified name of the ChatService's GetSpace RPC.
 	ChatServiceGetSpaceProcedure = "/stoop.chat.v1.ChatService/GetSpace"
 	// ChatServiceJoinSpaceProcedure is the fully-qualified name of the ChatService's JoinSpace RPC.
@@ -155,6 +158,10 @@ const (
 type ChatServiceClient interface {
 	CreateSpace(context.Context, *connect.Request[v1.CreateSpaceRequest]) (*connect.Response[v1.CreateSpaceResponse], error)
 	ListSpaces(context.Context, *connect.Request[v1.ListSpacesRequest]) (*connect.Response[v1.ListSpacesResponse], error)
+	// ListAllSpaces is every space on the server for a server admin, with
+	// the counts their Spaces page shows. Needs instance.read. Listing a
+	// space is not membership and subscribes the caller to nothing.
+	ListAllSpaces(context.Context, *connect.Request[v1.ListAllSpacesRequest]) (*connect.Response[v1.ListAllSpacesResponse], error)
 	GetSpace(context.Context, *connect.Request[v1.GetSpaceRequest]) (*connect.Response[v1.GetSpaceResponse], error)
 	// JoinSpace redeems an invite code. Already-members are returned the
 	// space without consuming a use.
@@ -310,6 +317,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+ChatServiceListSpacesProcedure,
 			connect.WithSchema(chatServiceMethods.ByName("ListSpaces")),
+			connect.WithClientOptions(opts...),
+		),
+		listAllSpaces: connect.NewClient[v1.ListAllSpacesRequest, v1.ListAllSpacesResponse](
+			httpClient,
+			baseURL+ChatServiceListAllSpacesProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListAllSpaces")),
 			connect.WithClientOptions(opts...),
 		),
 		getSpace: connect.NewClient[v1.GetSpaceRequest, v1.GetSpaceResponse](
@@ -577,6 +590,7 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 type chatServiceClient struct {
 	createSpace                 *connect.Client[v1.CreateSpaceRequest, v1.CreateSpaceResponse]
 	listSpaces                  *connect.Client[v1.ListSpacesRequest, v1.ListSpacesResponse]
+	listAllSpaces               *connect.Client[v1.ListAllSpacesRequest, v1.ListAllSpacesResponse]
 	getSpace                    *connect.Client[v1.GetSpaceRequest, v1.GetSpaceResponse]
 	joinSpace                   *connect.Client[v1.JoinSpaceRequest, v1.JoinSpaceResponse]
 	createInvite                *connect.Client[v1.CreateInviteRequest, v1.CreateInviteResponse]
@@ -630,6 +644,11 @@ func (c *chatServiceClient) CreateSpace(ctx context.Context, req *connect.Reques
 // ListSpaces calls stoop.chat.v1.ChatService.ListSpaces.
 func (c *chatServiceClient) ListSpaces(ctx context.Context, req *connect.Request[v1.ListSpacesRequest]) (*connect.Response[v1.ListSpacesResponse], error) {
 	return c.listSpaces.CallUnary(ctx, req)
+}
+
+// ListAllSpaces calls stoop.chat.v1.ChatService.ListAllSpaces.
+func (c *chatServiceClient) ListAllSpaces(ctx context.Context, req *connect.Request[v1.ListAllSpacesRequest]) (*connect.Response[v1.ListAllSpacesResponse], error) {
+	return c.listAllSpaces.CallUnary(ctx, req)
 }
 
 // GetSpace calls stoop.chat.v1.ChatService.GetSpace.
@@ -851,6 +870,10 @@ func (c *chatServiceClient) MarkActivityRead(ctx context.Context, req *connect.R
 type ChatServiceHandler interface {
 	CreateSpace(context.Context, *connect.Request[v1.CreateSpaceRequest]) (*connect.Response[v1.CreateSpaceResponse], error)
 	ListSpaces(context.Context, *connect.Request[v1.ListSpacesRequest]) (*connect.Response[v1.ListSpacesResponse], error)
+	// ListAllSpaces is every space on the server for a server admin, with
+	// the counts their Spaces page shows. Needs instance.read. Listing a
+	// space is not membership and subscribes the caller to nothing.
+	ListAllSpaces(context.Context, *connect.Request[v1.ListAllSpacesRequest]) (*connect.Response[v1.ListAllSpacesResponse], error)
 	GetSpace(context.Context, *connect.Request[v1.GetSpaceRequest]) (*connect.Response[v1.GetSpaceResponse], error)
 	// JoinSpace redeems an invite code. Already-members are returned the
 	// space without consuming a use.
@@ -1002,6 +1025,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		ChatServiceListSpacesProcedure,
 		svc.ListSpaces,
 		connect.WithSchema(chatServiceMethods.ByName("ListSpaces")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceListAllSpacesHandler := connect.NewUnaryHandler(
+		ChatServiceListAllSpacesProcedure,
+		svc.ListAllSpaces,
+		connect.WithSchema(chatServiceMethods.ByName("ListAllSpaces")),
 		connect.WithHandlerOptions(opts...),
 	)
 	chatServiceGetSpaceHandler := connect.NewUnaryHandler(
@@ -1268,6 +1297,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceCreateSpaceHandler.ServeHTTP(w, r)
 		case ChatServiceListSpacesProcedure:
 			chatServiceListSpacesHandler.ServeHTTP(w, r)
+		case ChatServiceListAllSpacesProcedure:
+			chatServiceListAllSpacesHandler.ServeHTTP(w, r)
 		case ChatServiceGetSpaceProcedure:
 			chatServiceGetSpaceHandler.ServeHTTP(w, r)
 		case ChatServiceJoinSpaceProcedure:
@@ -1369,6 +1400,10 @@ func (UnimplementedChatServiceHandler) CreateSpace(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) ListSpaces(context.Context, *connect.Request[v1.ListSpacesRequest]) (*connect.Response[v1.ListSpacesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListSpaces is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListAllSpaces(context.Context, *connect.Request[v1.ListAllSpacesRequest]) (*connect.Response[v1.ListAllSpacesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListAllSpaces is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) GetSpace(context.Context, *connect.Request[v1.GetSpaceRequest]) (*connect.Response[v1.GetSpaceResponse], error) {

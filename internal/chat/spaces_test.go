@@ -1,10 +1,12 @@
 package chat_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -296,5 +298,134 @@ func TestDeletingTheDefaultChannelClearsIt(t *testing.T) {
 	}
 	if got := list.Msg.Spaces[0].DefaultChannelId; got != general {
 		t.Errorf("default = %q, want #general untouched", got)
+	}
+}
+
+// The server admin's Spaces page: every space on the server, the numbers
+// it prints, and — the reason the RPC exists — membership reported apart
+// from the admin role that is inherited without it.
+func TestListAllSpacesForAdmin(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	casey := newUser(t, pool, "casey", authctx.RoleMember)
+	ada := newUser(t, pool, "ada", authctx.RoleMember)
+	admin := newUser(t, pool, "operator", authctx.RoleAdmin)
+
+	// Two spaces the admin is not in, one they are. "Bodega" sorts first.
+	stoop, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Stoop"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodega, err := svc.CreateSpace(ada, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Bodega"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "The Landing"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.JoinSpace(admin, connect.NewRequest(&chatv1.JoinSpaceRequest{SpaceId: joined.Msg.Space.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AddMember(casey, connect.NewRequest(&chatv1.AddMemberRequest{
+		SpaceId: stoop.Msg.Space.Id, UserId: authctx.UserID(ada),
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := svc.ListAllSpaces(admin, connect.NewRequest(&chatv1.ListAllSpacesRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]*chatv1.SpaceSummary{}
+	names := make([]string, len(res.Msg.Spaces))
+	for i, sp := range res.Msg.Spaces {
+		got[sp.Name] = sp
+		names[i] = sp.Name
+	}
+	if len(got) != 3 {
+		t.Fatalf("spaces = %v, want all three", names)
+	}
+	if names[0] != "Bodega" {
+		t.Errorf("spaces came back %v, want them sorted by name", names)
+	}
+
+	// Members are counted, owners are resolved through the directory.
+	if n := got["Stoop"].MemberCount; n != 2 {
+		t.Errorf("Stoop member count = %d, want 2", n)
+	}
+	if n := got["Bodega"].MemberCount; n != 1 {
+		t.Errorf("Bodega member count = %d, want 1", n)
+	}
+	if u := got["Bodega"].OwnerUsername; u != "ada" {
+		t.Errorf("Bodega owner = %q, want ada", u)
+	}
+	if got["Bodega"].OwnerId != authctx.UserID(ada) {
+		t.Errorf("Bodega owner id does not match ada")
+	}
+	if got["Stoop"].CreatedAt == nil {
+		t.Error("Stoop has no created date")
+	}
+
+	// The point of the field: an instance admin holds admin in every
+	// space, and is a member of exactly one of these.
+	if got["The Landing"].ViewerIsMember != true {
+		t.Error("the space the admin joined is not reported as joined")
+	}
+	if got["Stoop"].ViewerIsMember || got["Bodega"].ViewerIsMember {
+		t.Error("inherited admin was reported as membership")
+	}
+	if got["Bodega"].Id != bodega.Msg.Space.Id {
+		t.Errorf("Bodega id does not match the space that was created")
+	}
+
+	// instance.read, and nothing weaker. A member of one of these spaces
+	// still cannot list the server.
+	if _, err := svc.ListAllSpaces(casey, connect.NewRequest(&chatv1.ListAllSpacesRequest{})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a member listed every space: %v", err)
+	}
+	// A space-scoped credential reaches no instance action at all, so it
+	// is refused outright rather than shown the space it is bound to.
+	scoped := authctx.WithIdentity(context.Background(), authctx.Identity{
+		UserID: authctx.UserID(admin), Role: authctx.RoleAdmin,
+		Credential: authctx.Credential{
+			ID: uuid.NewString(), Kind: authctx.CredentialPersonalToken,
+			Bounded: true, Spaces: []string{joined.Msg.Space.Id},
+		},
+	})
+	if _, err := svc.ListAllSpaces(scoped, connect.NewRequest(&chatv1.ListAllSpacesRequest{})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a space-scoped token listed every space: %v", err)
+	}
+}
+
+// A space whose owner deleted their account still lists: the page needs
+// the row more than it needs the name.
+func TestListAllSpacesWithDeletedOwner(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	casey := newUser(t, pool, "casey", authctx.RoleMember)
+	admin := newUser(t, pool, "operator", authctx.RoleAdmin)
+
+	if _, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Bodega"})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(context.Background(),
+		`UPDATE users SET deactivated_at = now(), deleted_at = now() WHERE id = $1`, authctx.UserID(casey)); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := svc.ListAllSpaces(admin, connect.NewRequest(&chatv1.ListAllSpacesRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Msg.Spaces) != 1 {
+		t.Fatalf("spaces = %d, want 1", len(res.Msg.Spaces))
+	}
+	sp := res.Msg.Spaces[0]
+	if !sp.OwnerDeleted {
+		t.Error("the owner's deleted account was not marked")
+	}
+	if sp.OwnerUsername != "casey" {
+		t.Errorf("owner username = %q, want the username that is left", sp.OwnerUsername)
 	}
 }

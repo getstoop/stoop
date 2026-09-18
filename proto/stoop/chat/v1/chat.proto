@@ -19,6 +19,10 @@ import "stoop/chat/v1/space.proto";
 service ChatService {
   rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
   rpc ListSpaces(ListSpacesRequest) returns (ListSpacesResponse) {}
+  // ListAllSpaces is every space on the server for a server admin, with
+  // the counts their Spaces page shows. Needs instance.read. Listing a
+  // space is not membership and subscribes the caller to nothing.
+  rpc ListAllSpaces(ListAllSpacesRequest) returns (ListAllSpacesResponse) {}
   rpc GetSpace(GetSpaceRequest) returns (GetSpaceResponse) {}
   // JoinSpace redeems an invite code. Already-members are returned the
   // space without consuming a use.
@@ -172,6 +176,12 @@ message ListSpacesRequest {
 
 message ListSpacesResponse {
   repeated Space spaces = 1;
+}
+
+message ListAllSpacesRequest {}
+
+message ListAllSpacesResponse {
+  repeated SpaceSummary spaces = 1;
 }
 
 message GetSpaceRequest {

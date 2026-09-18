@@ -53,6 +53,13 @@ in the roster, and does not receive its realtime events. This distinction
 is what stops "the operator can fix things" from becoming "the operator is
 silently in every room".
 
+It also means the rail can't show them a space they never joined, so the
+way in is **Server admin → Spaces** (`ListAllSpaces`, `instance.read`):
+every space on the server, from which they can join one without an invite
+(`spaces.join_any`, entering as a plain member) or delete it
+(`space.delete`). Listing a space there is not membership and subscribes
+them to nothing — the gateway follows the membership rows.
+
 The trust story is that the operator is one of the group — the friend who
 runs the box — not a third party. `vision.md`'s concern is platforms, not
 hosts. Where that trust has limits, they are stated where they bite: an

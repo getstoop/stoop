@@ -57,9 +57,11 @@ listed as public below.
 Grouped by what they touch rather than declaration order:
 
 - **Spaces** — `CreateSpace`, `ListSpaces` (`all` lists every space on
-  the server, for holders of `spaces.join_any`), `GetSpace`,
-  `UpdateSpace`, `DeleteSpace`, `JoinSpace`, `LeaveSpace`,
-  `TransferOwnership`
+  the server, for holders of `spaces.join_any`), `ListAllSpaces` (the
+  server admin's Spaces page: every space as a `SpaceSummary`, with its
+  owner, member count and whether the caller is a member; needs
+  `instance.read`), `GetSpace`, `UpdateSpace`, `DeleteSpace`,
+  `JoinSpace`, `LeaveSpace`, `TransferOwnership`
 - **Members** — `ListMembers`, `GetMember`, `AddMember`, `SetMemberRole`,
   `KickMember`, `BanMember`, `UnbanMember`, `ListBans`
 - **Blocks** — `BlockUser`, `UnblockUser`, `ListBlockedUsers`

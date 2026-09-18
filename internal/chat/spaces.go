@@ -120,6 +120,58 @@ func (s *Service) listAllSpaces(ctx context.Context) (*connect.Response[chatv1.L
 	return connect.NewResponse(&chatv1.ListSpacesResponse{Spaces: spaces}), nil
 }
 
+// ListAllSpaces is the server admin's Spaces page: every space with the
+// numbers it shows, whether or not the caller is in it. It reports
+// membership rather than a role, because an instance admin's inherited
+// admin would otherwise read as membership they don't have — and it
+// subscribes them to nothing, since the gateway follows the membership
+// rows. There is no per-space bound to apply: instance.read is an
+// instance action, so a bounded credential fails the check below rather
+// than listing the spaces it reaches.
+func (s *Service) ListAllSpaces(ctx context.Context, _ *connect.Request[chatv1.ListAllSpacesRequest]) (*connect.Response[chatv1.ListAllSpacesResponse], error) {
+	if !authctx.Allows(ctx, authctx.InstanceRead) {
+		return nil, connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(authctx.InstanceRead))
+	}
+	rows, err := s.q.ListAllSpacesForAdmin(ctx, authctx.UserID(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("list spaces: %w", err)
+	}
+	ownerIDs := make([]string, len(rows))
+	for i, r := range rows {
+		ownerIDs[i] = r.Space.OwnerID
+	}
+	owners, err := s.users.GetUsers(ctx, ownerIDs)
+	if err != nil {
+		return nil, fmt.Errorf("resolve owners: %w", err)
+	}
+	byID := make(map[string]UserRecord, len(owners))
+	for _, o := range owners {
+		byID[o.ID] = o
+	}
+	spaces := make([]*chatv1.SpaceSummary, len(rows))
+	for i, r := range rows {
+		spaces[i] = toProtoSpaceSummary(r, byID[r.Space.OwnerID])
+	}
+	return connect.NewResponse(&chatv1.ListAllSpacesResponse{Spaces: spaces}), nil
+}
+
+// toProtoSpaceSummary renders one admin row. An owner the directory does
+// not know about leaves the names empty rather than failing the list.
+func toProtoSpaceSummary(r dbgen.ListAllSpacesForAdminRow, owner UserRecord) *chatv1.SpaceSummary {
+	summary := &chatv1.SpaceSummary{
+		Id: r.Space.ID, Name: r.Space.Name, Description: r.Space.Description,
+		OwnerId: r.Space.OwnerID, OwnerUsername: owner.Username,
+		OwnerDisplayName: owner.DisplayName, OwnerDeleted: owner.Deleted,
+		MemberCount:    uint32(r.MemberCount), //nolint:gosec // a count of rows
+		CreatedAt:      timestamppb.New(r.Space.CreatedAt),
+		ViewerIsMember: r.ViewerIsMember,
+	}
+	if r.Space.IconFileID != nil {
+		summary.IconFileId = *r.Space.IconFileID
+	}
+	return summary
+}
+
 func (s *Service) GetSpace(ctx context.Context, req *connect.Request[chatv1.GetSpaceRequest]) (*connect.Response[chatv1.GetSpaceResponse], error) {
 	if err := s.requireSpaceMember(ctx, req.Msg.SpaceId); err != nil {
 		return nil, err

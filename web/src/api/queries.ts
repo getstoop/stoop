@@ -87,6 +87,17 @@ export function useAllSpaces(enabled: boolean) {
   });
 }
 
+// Every space with the counts the admin page shows. The key sits under
+// ["spaces"] so a join or a delete refreshes it, while useSpaces reads
+// the exact key — these rows are not the caller's spaces and must never
+// reach the rail.
+export function useAdminSpaces() {
+  return useQuery({
+    queryKey: ["spaces", "admin"],
+    queryFn: async () => (await chatClient.listAllSpaces({})).spaces,
+  });
+}
+
 // Split out so a caller with several spaces in hand can ask for all of
 // their channel lists at once (`useQueries`) instead of a hook per space.
 export function channelsQuery(spaceId: string) {
