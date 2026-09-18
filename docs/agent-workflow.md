@@ -2,8 +2,8 @@
 
 How work gets handed to a coding agent, whichever harness runs it, and
 the traps this codebase has that an agent will fall into unless told.
-Everything below was paid for on real sessions; keep it current when a
-new one bites. "The maintainer" below is whoever is directing the agent.
+Keep it current when a new one bites. "The maintainer" below is whoever is
+directing the agent.
 
 ## The brief
 
@@ -22,8 +22,9 @@ sections, in this order:
    new dependencies, Biome rules that bite (`aria-hidden` on SVGs, no ARIA
    roles on divs, index keys need a `biome-ignore`), no `console.log`.
 4. **Tests** — the browser spec to write (`web/e2e-pw/<name>.spec.ts`,
-   modelled on an existing spec) and what it must check. Say what the spec *cannot* see (pixel alignment, scroll
-   position) and demand a direct measurement for those.
+   modelled on an existing spec) and what it must check. Say what the
+   spec *cannot* see (pixel alignment, scroll position) and demand a
+   direct measurement for those.
 5. **How to build, run, and verify** — copy the block below verbatim.
 6. **Housekeeping** — work on a branch and open a pull request (see "How
    a change lands" below; `main` refuses direct pushes), commit via
@@ -53,18 +54,12 @@ sections, in this order:
   ```
 - Run everything from the repo root: `make lint`, `make test`, `make build`.
   There is no Makefile inside `web/`.
-- Go tests need Postgres (`STOOP_TEST_DATABASE_URL`, set by `.env`; the dev
-  value is `postgres://stoop:stoop@localhost:5440/stoop?sslmode=disable`).
+- Go tests need Postgres (`STOOP_TEST_DATABASE_URL`, set by `.env`).
   Dev services (Postgres on host port **5440**, LiveKit natively on 7880 via
   `scripts/dev-livekit.sh`): `make dev-services`. When starting `bin/stoop`
   by hand, voice needs `STOOP_LIVEKIT_URL` from the tracked `.env.dev`
-  (`source .env.dev` after `.env`) in its environment — there is no key
-  pair to pass. The server mints one on
-  first boot and writes `data/livekit/keys.yaml`, which the dev
-  `livekit-server` is started against with `--key-file`; it waits for that
-  file when the checkout is fresh. A database wipe drops the saved pair,
-  and the next boot adopts the one in the file rather than minting a new
-  one the running LiveKit would reject.
+  (`source .env.dev` after `.env`); there is no key pair to pass
+  ([architecture/voice.md](architecture/voice.md#development)).
 - To test in a browser do **not** use `air` or `pnpm dev`. `make build`, then
   start the binary with an absolute path as a background process (the
   `.env` already provides `STOOP_DATABASE_URL`, `STOOP_LISTEN_ADDR=:8091` and
@@ -77,9 +72,8 @@ sections, in this order:
   port you need is taken, pick another.
 - **Pure logic gets a unit test, not a browser.** `cd web && pnpm test`
   runs Vitest over `web/src/**/*.test.ts` in a node environment — no
-  browser, no server, no approval needed, milliseconds per case. Run it
-  as often as you like; it is also part of `make test` and the CI Web
-  job.
+  browser, no server, milliseconds per case. Run it as often as you
+  like; it is also part of `make test` and the CI Web job.
 
 - **Access rules get an end-to-end test over HTTP, not a browser.**
   `go test ./internal/app -run TestE2E` boots the whole binary in-process
@@ -94,8 +88,7 @@ sections, in this order:
   Anything that is input-in, output-out belongs there rather than in a
   browser spec: the Markdown parser, shortcodes, member grouping. A
   parser case exercised through Chrome, a login and a composer is a slow
-  and flaky way to catch what a named test case catches directly — and
-  it is why the browser suite grew to 10k lines.
+  and flaky way to catch what a named test case catches directly.
 
   `web/src/api/markdown.ts` mirrors `plainText` in
   `internal/chat/markdown.go`; they generate the same previews on
@@ -103,22 +96,14 @@ sections, in this order:
   other.
 
 - **The browser suite is Playwright** (`web/e2e-pw/*.spec.ts`,
-  `npx playwright test`). The puppeteer suite it replaced is gone
-  (STOOP-238); all that survives of `web/e2e/` is `seed.mjs`, which builds
-  an instance over RPC, and the `seed.d.mts` that types it. Both the specs
-  and that directory are typechecked (`tsconfig.e2e.json`) and linted.
+  `npx playwright test`). `web/e2e/seed.mjs` builds an instance over RPC
+  (`seed()`, `joinSpace()`), typed by `seed.d.mts`. Both the specs and
+  that directory are typechecked (`tsconfig.e2e.json`) and linted.
 
-  Seeding is shared. `web/e2e/seed.mjs` holds `seed()` and `joinSpace()`
-  for both suites, so the two can never drift on what a seeded world
-  looks like; only signing a page in differs, and that lives in each
-  harness.
-
-  Two things learned porting the first spec. `fill()` is not always a
-  substitute for `type()` — it sets a value in one event where typing
-  simulates keystrokes, so anything whose subject is typing (an
-  autocomplete opening per keystroke, the composer's overlay tracking
-  the caret) needs `pressSequentially`. And `reload(page)` from the
-  Playwright lib, never `page.reload()`: a channel URL meets the
+  `fill()` sets a value in one event; anything whose subject is typing
+  (an autocomplete opening per keystroke, the composer's overlay tracking
+  the caret) needs `pressSequentially`. And `reload(page)` from
+  `web/e2e-pw/lib.ts`, never `page.reload()`: a channel URL meets the
   desktop-app gate on reload and a plain reload walks into it.
 
 - **Reading only counts while a page has attention.** Both
@@ -128,18 +113,16 @@ sections, in this order:
   product behaviour, and it makes every "…clears the badge", "…is read
   immediately" assertion depend on *which page is at the front*.
 
-  A spec with two or three pages has only one at the front, so bring the
-  page to the front before asserting that something it viewed became
-  read:
+  A spec with two or three pages has only one at the front, so give the
+  page focus (`focus(page)` from `web/e2e-pw/lib.ts`) before asserting
+  that something it viewed became read:
 
-  ```js
-  await B.bringToFront();
-  check(await waitFor(async () => (await B.$(".pill-badge")) === null), …);
+  ```ts
+  await focus(B);
+  await expect(B.locator(".pill-badge")).toHaveCount(0);
   ```
 
-  This was behind the long-standing `dms` flake ("reading the DM clears
-  B's alert"), which was misdiagnosed for weeks as a timeout too short
-  under load. It is not: 20s did not help, because focus never arrived.
+  A longer timeout never fixes a failure here: focus never arrives.
 
 - **A page's socket subscribes after its first queries land.** The
   channel list, the messages and the DM list are fetched as the page
@@ -152,17 +135,14 @@ sections, in this order:
   deduped onto it rather than restarting it), and
   `signIn()`/`reload()` in `web/e2e-pw/lib.ts` wait for the rail's status
   icon to read connected before returning, so a spec never talks to a
-  page that cannot hear yet. The 2026-09-13 flakes in `dms` ("counts both
-  messages" read 1), `pins` and `group-dms` (a row or message that never
-  arrived) fit this shape: a second page missing exactly what was sent
-  right after it landed.
+  page that cannot hear yet. The symptom is a second page missing exactly
+  what was sent right after it landed.
 
 - **Wait for a navigation the app starts on its own.** Message on a
   member's card opens the conversation only once the server has
   answered; a `.composer textarea` reached before that is still the
   channel's, and the text typed into it is gone when the route changes.
-  `await expect(page).toHaveURL(/\/dm\//)` first. The `mutes` spec's
-  "sends nothing" workaround was this.
+  `await expect(page).toHaveURL(/\/dm\//)` first.
 
 - **The server admits three uploads per account at a time**
   (`files.MaxInflightUploads`); the client queues the rest
@@ -173,63 +153,49 @@ sections, in this order:
 - **Assertions poll; they never sleep a fixed time.** Playwright's
   `expect(locator)` assertions retry on their own; `expect.poll(fn)` wraps
   anything else, and `page.waitForFunction` waits on an in-page predicate
-  that no locator covers. A fixed wait is only right for proving something
-  did *not* happen, which cannot be polled for:
-
-  ```js
-  check(
-    await waitFor(async () => !(await isBold(A, "general"))),
-    "A: opening the channel clears bold",
-  );
-  ```
-
-  A fixed `sleep` before a `check` is a coin flip weighted by machine
-  load, and nothing retries, so a missed deadline fails the whole run.
-  That is why `main` went red about half the time before 2026-09-11: four
-  of eight consecutive runs failed on a *different* shard each time, each
-  after passing on the branch. Sleeps that merely settle between two
-  actions are fine and remain.
+  that no locator covers. A fixed sleep before an assertion is a coin
+  flip weighted by machine load.
 
   One exception, and it matters: an assertion that something has **not**
-  happened, or has stayed unchanged, must not be wrapped — polling
+  happened, or has stayed unchanged, must not be polled — polling
   returns the instant it is true, which is immediately, so the assertion
   stops meaning anything. Those keep their sleep.
 
-- **Do not run any browser spec — `make e2e` or `scripts/e2e-scratch.sh`
-  — until the maintainer has reviewed the change
-  on their running dev instance and said so.** Iterate with `make lint`, `make test`,
+- **The browser suite runs in CI, on the pull request.** Don't run it
+  locally before a push. Iterate with `make lint`, `make test`,
   `make build`, a restarted `bin/stoop`, and (for UI work) your own
-  screenshots; then present the change set and wait. Once
-  approved, `make e2e` builds, then runs every spec (~7 minutes) on a
-  throwaway instance: `scripts/e2e-scratch.sh` recreates the `stoop_e2e`
-  database on the dev Postgres, starts a second `bin/stoop` on :8092 with
-  its own storage under `tmp/e2e-storage`, points the runner at both and
-  stops the server when done. The dev server on :8091 and its data are
-  untouched. `make e2e specs="replies edits"` runs a subset; the server
-  log is `tmp/e2e-server.log`. Only `make dev-reset` wipes the dev
-  database (it needs the server running — the wipe is `psql`, the seed
-  goes through the API) to get back to the seeded cast: eight named
-  accounts plus eighteen extras in The Stoop, password `password1`,
+  screenshots; the maintainer reviews the change on their dev instance.
+  To debug a spec CI failed, `make e2e specs="replies edits"` builds, then
+  runs those specs on a throwaway instance: `scripts/e2e-scratch.sh`
+  recreates the `stoop_e2e` database on the dev Postgres, starts a second
+  `bin/stoop` on :8092 with its own storage under `tmp/e2e-storage`, and
+  stops it when done. The dev server on :8091 and its data are untouched;
+  the server log is `tmp/e2e-server.log`. Without `specs=` it runs every
+  spec (~7 minutes).
+- **`make dev-reset` wipes the dev database** and seeds the cast: eight
+  named accounts plus eighteen extras in The Stoop, password `password1`,
   `casey` the server admin, in "The Stoop" and "Basement Arcade". It
-  prints who they are. `node scripts/dev-reset.mjs --append` only adds
+  prints who they are. The server must be up on `STOOP_URL` (the seed goes
+  through the API); it checks first and refuses before wiping anything.
+  The maintainer often tries a change live on that instance, so say so
+  before running it. `node scripts/dev-reset.mjs --append` only adds
   missing extras to a running instance that still has the cast.
   `make dev-flood count=20000` fills The Stoop with generated messages
   straight into Postgres (authors are its members, spread over the last
   60 days) for trying search and history at size; reload the tab to see
   them.
-- Iterate on `make lint` until clean: it runs golangci-lint, Biome and tsc.
+- Iterate on `make lint` until clean: it runs golangci-lint, Biome, tsc
+  and the theme and stylesheet checks.
 
 ## How a change lands
 
 `main` is protected by a repository ruleset: no direct pushes, no
 force-pushes, and a pull request can only merge once every CI job is green
-(Protobuf, Go, Web, Browser E2E, and both cross-compiles). This is deliberate
-— it replaced committing straight to `main` on 2026-09-01, when the project
-got big enough that a red `main` cost more than the round-trip saves.
+(Protobuf, Go, Web, Browser E2E, and both cross-compiles).
 
 - Branch from an up-to-date `main`: `git switch -c <short-name> main`.
-  One ticket per branch. Branch **in the checkout the maintainer runs**
-  (`~/Projects/stoop`, `~/Projects/stoop-desktop`), not a worktree: their
+  One ticket per branch. Branch **in the checkout the maintainer runs**,
+  not a worktree: their
   `make dev` rebuilds live, so they review the change as it is made, and
   the running instance is never quietly on another branch. A branch that
   adds a migration lives there too: the dev database runs a migration
@@ -238,7 +204,7 @@ got big enough that a red `main` cost more than the round-trip saves.
   holds the checkout. After the merge, `git switch main && git pull` in
   that checkout; `make dev` prints what it runs and warns when
   `origin/main` is ahead.
-- Commit as before (`git commit -F <file>` with the trailer), push with
+- Commit with `git commit -F <file>` and the trailer, push with
   `git push -u origin HEAD`, then `gh pr create` with a body that follows
   `.github/pull_request_template.md` (What changed and why / How it was
   verified / Checklist, ticked truthfully) — not `--fill`, which copies the
@@ -247,8 +213,7 @@ got big enough that a red `main` cost more than the round-trip saves.
 - CI runs the same jobs it runs on `main`, including the browser suite —
   on its own throwaway Postgres, so it never touches the dev database.
   Local `make lint` / `make test` / `make build` before pushing keep the
-  round-trips short; the E2E rule above (wait for the user) still applies
-  locally, but the CI run needs no permission.
+  round-trips short.
 - To land it: `gh pr merge --squash --auto` queues the merge for when the
   checks pass; `--merge` keeps the branch's commits when they tell a story.
   The branch is deleted on merge. Never `--admin`, and never push to `main`
@@ -257,7 +222,7 @@ got big enough that a red `main` cost more than the round-trip saves.
 - A red check on the PR is the work not being done yet. Fix it on the
   branch and push; don't ask for the check to be skipped.
 
-## Traps (each of these has cost a real session time)
+## Traps
 
 - **The binary embeds `web/dist` at `make build`.** After any change under
   `web/`, `make build` and restart `bin/stoop` before running a browser spec,
@@ -266,22 +231,19 @@ got big enough that a red `main` cost more than the round-trip saves.
 - **Enter sends.** A newline in the composer is Shift+Enter. A script that
   types `"…\n…"` posts a message per line (as the seeded user) instead of
   building a multi-line draft.
-- **The e2e suite needs the maintainer's go-ahead.** Don't run it per-iteration;
-  rebuild, restart, and let a human look. Run it once, as the gate before
-  commit, after the change has been approved. `make e2e` no longer touches
-  the dev database, but `npx playwright test` on its own still wipes
-  whatever `STOOP_E2E_DATABASE_URL` names, and `.env` names the dev one.
+- **`npx playwright test` on its own wipes whatever
+  `STOOP_E2E_DATABASE_URL` names, and `.env` names the dev database.**
+  `make e2e` uses its own.
 - **A tab opened before a rebuild keeps the old JavaScript until it
   navigates.** `index.html` is served `Cache-Control: no-cache` with an
-  ETag (since 2026-08-27), so any reload picks up a new build — but a tab
+  ETag, so any reload picks up a new build — but a tab
   that just sits there doesn't reload itself. If a UI fix "doesn't show"
   for a human while your own fresh-context screenshot shows it, ask for a
   reload before touching the code again.
-- **Profile-page specs reach cards by content, not position.** They used
-  to take the password form as `$$(".card")[1]`, which broke the day a card
-  was inserted above it (About you, 2026-08-31); it is now
-  `.card:has(input[autocomplete="current-password"])`. Keep it that way —
-  a card added to `/profile` should not be able to break an unrelated spec.
+- **Profile-page specs reach cards by content, not position**:
+  `.card:has(input[autocomplete="current-password"])`, never the second
+  `.card`. A card added to `/profile` should not be able to break an
+  unrelated spec.
   The display-name form is still `.card input`, i.e. the first card, so
   nothing goes *above* Name.
 - **`setQueryData` bumps `dataUpdatedAt`.** An effect keyed on a query's
@@ -330,38 +292,25 @@ got big enough that a red `main` cost more than the round-trip saves.
 - **pnpm/corepack re-adds `"packageManager"` to `web/package.json`** on every
   run (build, e2e). Revert it as the last step before committing:
   `git checkout -- web/package.json`.
-- **`make dev-reset` needs the server up** on `STOOP_URL` (default :8091):
-  the seed goes through the API. It checks first and refuses before
-  wiping anything, so start the server, then reset.
-- **Run specs through `scripts/e2e-scratch.sh <spec>` to keep the dev
-  data.** It is what `make e2e` runs, minus the build: a second server on
-  :8092 against a freshly recreated `stoop_e2e` database, with
-  `STOOP_STORAGE_DIR` set for both the server and the runner (the
-  `uploads` and `attachments` specs stat blobs on disk themselves) and
-  `STOOP_UNFURL_ALLOW_PRIVATE` on the server (`unfurl` serves its fixture
-  site on 127.0.0.1). It also hands the server the dev LiveKit's key pair
-  when one is running, which is what lets the `voice` spec run rather than
-  skip. Pointing Playwright at a hand-made scratch database
-  instead needs all of that by hand, and a scratch database that outlives
-  a branch can carry goose rows for migration numbers another branch used
-  for something else — the specs then fail in their preamble while the
-  server log says `relation … does not exist`. Recreate it; the script
-  does so on every run.
+- **Run specs through `make e2e` or `scripts/e2e-scratch.sh <spec>`**
+  (the same thing minus the build), never a hand-made scratch database.
+  The script sets `STOOP_STORAGE_DIR` for both the server and the runner
+  (the `uploads` and `attachments` specs stat blobs on disk themselves)
+  and hands the server the dev LiveKit's key pair when one is running,
+  which is what lets the `voice` spec run rather than skip. A scratch
+  database that outlives a branch can carry goose rows for migration
+  numbers another branch used for something else — the specs then fail in
+  their preamble while the server log says `relation … does not exist`.
+  The script recreates it on every run.
 - **CI runs the suite in one job**, against a single server, database and
-  LiveKit. It ran as four shards until the Playwright migration emptied
-  three of them and they started costing a billed minute each to run
-  nothing. Playwright has `--shard N/M` of its own, so shard again when
-  there is enough work to need it. The branch ruleset requires only the
-  roll-up job named "Browser E2E" — change what runs under it freely.
+  LiveKit. The branch ruleset requires only the roll-up job named
+  "Browser E2E", so what runs under it can change freely; Playwright has
+  `--shard N/M` when there is enough work to need it.
 - **The voice spec runs with the rest.** CI starts LiveKit on the host
   network beside the server and hands both the same key pair, so voice is
   covered on every PR rather than opted into. Without a LiveKit the spec
   skips itself, which is what happens on a machine that has not run
   `make dev-services`.
-- **`make dev-reset` wipes whatever the maintainer typed on the dev
-  instance.** They often try a change live; say so before running, and expect the
-  seeded cast ("The Stoop" and "Basement Arcade") afterwards — their test
-  messages and channels are gone. `make e2e` does not do this any more.
 - **Adding a theme is four touches plus the prose that counts them.**
   A block in `web/src/themes.css`, an entry in `THEMES` in
   `src/api/theme.ts` (biome formats it one field per line — edit it, don't
@@ -372,14 +321,13 @@ got big enough that a red `main` cost more than the round-trip saves.
   accessible ones take `tags` and `why`.
   `pnpm check:themes` (part of `make lint`) must pass; the checker's
   regex allows hyphenated ids. Then the places that name the count:
-  `README.md`, `docs/conventions.md`, `docs/self-hosting.md` and the
-  spec's own check message all still said "eight" when Night Bus made
-  nine (2026-08-31). Grep the current number word across the repo before
-  you call it done — and again if you remove one.
+  `docs/vision.md`, `docs/architecture/web.md` and the spec's own check
+  message. Grep the current number word across the repo before you call
+  it done — and again if you remove one.
 - **Run the browser suite against a server without `STOOP_TAILSCALE`.**
   With the built-in Tailscale listener on, the public URL defaults to the
-  tailnet address and invite links use it — `setup.mjs` and `invites.mjs`
-  then fail on the link origin. That is the feature working, not a bug;
+  tailnet address and invite links use it — the `setup` and `invites`
+  specs then fail on the link origin. That is the feature working, not a bug;
   start the E2E server the way CI and `scripts/e2e-scratch.sh` do (no
   Tailscale, no trust-proxy).
 - **Leave 8091 free when you're done.** `make dev` refuses to start
@@ -411,15 +359,14 @@ got big enough that a red `main` cost more than the round-trip saves.
   `scripts/dev-livekit.sh` together.
 - **To reproduce "voice ports unreachable" locally**, run `livekit-server`
   with a config that sets `rtc.node_ip` to an unroutable address *and*
-  `rtc.ips.excludes` covering every real range (see the join-error work
-  on 2026-08-27) — `node_ip` alone isn't enough, pion still offers the
+  `rtc.ips.excludes` covering every real range — `node_ip` alone isn't enough, pion still offers the
   host's own interfaces. The join must fail with the media-path message
   within ~16 s, never hang on "Connecting…".
 - **A styled overlay must not change glyph metrics.** Real bold and a bare
   `<code>` (browser default monospace) are wider than the textarea's text —
   measured +7 px and +29 px — so the caret drifts. Emphasis in the composer
-  overlay is paint-only; see the comment in `web/src/styles/composer.css` and the width
-  checks in `web/e2e-pw/composer-styling.spec.ts`.
+  overlay is paint-only; see the comment in `web/src/styles/composer.css`
+  and the width checks in `web/e2e-pw/composer-styling.spec.ts`.
 
 ### Harness traps
 
@@ -435,5 +382,5 @@ got big enough that a red `main` cost more than the round-trip saves.
 - **Long commands die at the harness's foreground timeout.** `make e2e`
   takes ~7 min; run it in the background with completion notification, or
   raise the timeout, rather than letting the harness kill the suite
-  (`make: *** [e2e] Terminated: 15` is what that looks like). `nohup`/`setsid` wrappers may be
-  rejected by the harness.
+  (`make: *** [e2e] Terminated: 15` is what that looks like).
+  `nohup`/`setsid` wrappers may be rejected by the harness.
