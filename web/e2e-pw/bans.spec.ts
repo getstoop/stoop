@@ -90,8 +90,9 @@ test("blocking a person, banning them from a space", async ({ browser }) => {
   await spaceMenu(A, "Space settings");
   await A.locator('.settings-tab[data-tab="members"]').click();
   const memberRow = (p: Page, name: string) =>
-    p.locator(".user-row", { hasText: name });
-  await memberRow(A, cName).locator(".ban-button").click();
+    p.locator(".dt-row", { hasText: name });
+  await memberRow(A, cName).locator(".dots-menu-button").click();
+  await A.locator(".dots-menu button", { hasText: "Ban" }).click();
   await acceptDialog(A);
   await expect(
     memberRow(A, cName),

@@ -1,11 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { canActOn, canManageMembers, roleLabel } from "../../api/permissions";
 import { useMe, useMembers } from "../../api/queries";
-import { Avatar } from "../../components/Avatar";
-import { ListHead } from "../../components/ListHead";
+import {
+  DataTable,
+  PersonCell,
+  type TableColumn,
+} from "../../components/DataTable";
+import { DotsMenu, type MenuItem } from "../../components/DotsMenu";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { type Space, SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
@@ -15,54 +19,121 @@ export function MembersSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
   const { data: members } = useMembers(space.id);
   const { data: me } = useMe();
-  const [error, setError] = useState<string | null>(null);
+  // The last failed action, shown on the row it was for.
+  const [failed, setFailed] = useState<{ userId: string; text: string } | null>(
+    null,
+  );
   const viewerIsInstanceAdmin = me?.role === InstanceRole.ADMIN;
-  // Same filter + scroll cap as the server admin's Accounts card.
-  const [query, setQuery] = useState("");
-  const needle = query.trim().toLowerCase();
-  const shown = needle
-    ? members?.filter(
-        (m) =>
-          m.username.toLowerCase().includes(needle) ||
-          m.displayName.toLowerCase().includes(needle),
-      )
-    : members;
+  const myId = me?.id;
 
-  const act = async (fn: () => Promise<unknown>) => {
-    setError(null);
-    try {
-      await fn();
-      await queryClient.invalidateQueries({ queryKey: ["members", space.id] });
-    } catch (err) {
-      setError(errorText(err));
-    }
-  };
-  const setRole = (m: Member, role: SpaceRole) =>
-    act(() =>
-      chatClient.setMemberRole({ spaceId: space.id, userId: m.userId, role }),
-    );
-  const kick = async (m: Member) => {
-    const ok = await confirm({
-      title: `Remove ${m.displayName || m.username} from ${space.name}?`,
-      action: "Remove",
-      danger: true,
-    });
-    if (!ok) return;
-    act(() => chatClient.kickMember({ spaceId: space.id, userId: m.userId }));
-  };
-  const ban = async (m: Member) => {
-    const ok = await confirm({
-      title: `Ban ${m.displayName || m.username} from ${space.name}?`,
-      body: "They'll be removed and can't come back until unbanned.",
-      action: "Ban",
-      danger: true,
-    });
-    if (!ok) return;
-    act(async () => {
-      await chatClient.banMember({ spaceId: space.id, userId: m.userId });
-      await queryClient.invalidateQueries({ queryKey: ["bans", space.id] });
-    });
-  };
+  const act = useCallback(
+    async (m: Member, fn: () => Promise<unknown>) => {
+      setFailed(null);
+      try {
+        await fn();
+        await queryClient.invalidateQueries({
+          queryKey: ["members", space.id],
+        });
+      } catch (err) {
+        setFailed({ userId: m.userId, text: errorText(err) });
+      }
+    },
+    [queryClient, space.id],
+  );
+
+  const columns = useMemo<TableColumn<Member>[]>(() => {
+    const setRole = (m: Member, role: SpaceRole) =>
+      act(m, () =>
+        chatClient.setMemberRole({ spaceId: space.id, userId: m.userId, role }),
+      );
+    const kick = async (m: Member) => {
+      const ok = await confirm({
+        title: `Remove ${m.displayName || m.username} from ${space.name}?`,
+        action: "Remove",
+        danger: true,
+      });
+      if (!ok) return;
+      act(m, () =>
+        chatClient.kickMember({ spaceId: space.id, userId: m.userId }),
+      );
+    };
+    const ban = async (m: Member) => {
+      const ok = await confirm({
+        title: `Ban ${m.displayName || m.username} from ${space.name}?`,
+        body: "They'll be removed and can't come back until unbanned.",
+        action: "Ban",
+        danger: true,
+      });
+      if (!ok) return;
+      act(m, async () => {
+        await chatClient.banMember({ spaceId: space.id, userId: m.userId });
+        await queryClient.invalidateQueries({ queryKey: ["bans", space.id] });
+      });
+    };
+    const actionsFor = (m: Member): MenuItem[] => [
+      m.role === SpaceRole.MEMBER
+        ? { label: "Make admin", onSelect: () => setRole(m, SpaceRole.ADMIN) }
+        : {
+            label: "Remove admin",
+            onSelect: () => setRole(m, SpaceRole.MEMBER),
+          },
+      {
+        label: "Kick",
+        title: "Remove now; they can come back with any invite link",
+        danger: true,
+        onSelect: () => kick(m),
+      },
+      {
+        label: "Ban",
+        title: "Remove and refuse every invite link until unbanned",
+        danger: true,
+        onSelect: () => ban(m),
+      },
+    ];
+    return [
+      {
+        id: "person",
+        header: "Person",
+        accessorFn: (m) => m.displayName || m.username,
+        cell: ({ row: { original: m } }) => (
+          <PersonCell
+            name={m.displayName}
+            username={m.username}
+            avatarFileId={m.avatarFileId}
+            kind={m.kind}
+            badges={m.userId === myId && <span className="badge">you</span>}
+          />
+        ),
+      },
+      {
+        id: "role",
+        header: "Role",
+        // Owner first: sorted by rank, not by the word.
+        accessorFn: (m) => -m.role,
+        meta: { width: "30%" },
+        cell: ({ row: { original: m } }) => (
+          <>
+            {capitalize(roleLabel(m.role))}
+            {m.instanceAdmin && <span className="badge">server admin</span>}
+          </>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        meta: { width: 64, actions: true },
+        cell: ({ row: { original: m } }) =>
+          m.userId !== myId &&
+          canActOn(space, viewerIsInstanceAdmin, m.role) && (
+            <DotsMenu
+              label={`Actions for @${m.username}`}
+              items={actionsFor(m)}
+            />
+          ),
+      },
+    ];
+  }, [act, queryClient, space, myId, viewerIsInstanceAdmin]);
 
   if (!canManageMembers(space)) {
     return (
@@ -87,94 +158,20 @@ export function MembersSection({ space }: { space: Space }) {
         - <strong>Ban</strong> removes them and keeps them out until you unban
         them below.
       </p>
-
-      {members && members.length > 0 && (
-        <div className="user-filter">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by name or @username"
-            aria-label="Filter members"
-          />
-          <span className="muted small">
-            {shown?.length === members.length
-              ? `${members.length} member${members.length === 1 ? "" : "s"}`
-              : `${shown?.length ?? 0} of ${members.length}`}
-          </span>
-        </div>
-      )}
-      {shown && shown.length === 0 && needle && (
-        <p className="muted small">No members match “{query.trim()}”.</p>
-      )}
-      <ul className="user-list table">
-        <ListHead columns={["Person", "Role", ""]} />
-        {shown?.map((m) => {
-          const self = m.userId === me?.id;
-          const actionable =
-            !self && canActOn(space, viewerIsInstanceAdmin, m.role);
-          return (
-            <li key={m.userId} className="user-row">
-              <div className="user-row-main">
-                <strong className="user-row-name">
-                  <Avatar
-                    name={m.displayName || m.username}
-                    fileId={m.avatarFileId}
-                    kind={m.kind}
-                    size="small"
-                  />
-                  {m.displayName || m.username}
-                </strong>
-                <span className="muted small">@{m.username}</span>
-              </div>
-              <span className="user-cell">
-                {capitalize(roleLabel(m.role))}
-                {m.instanceAdmin && <span className="badge">server admin</span>}
-              </span>
-              {actionable ? (
-                <div className="user-row-actions">
-                  {m.role === SpaceRole.MEMBER ? (
-                    <button
-                      type="button"
-                      className="chip"
-                      onClick={() => setRole(m, SpaceRole.ADMIN)}
-                    >
-                      Make admin
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="chip"
-                      onClick={() => setRole(m, SpaceRole.MEMBER)}
-                    >
-                      Remove admin
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="chip danger"
-                    title="Remove now; they can come back with any invite link"
-                    onClick={() => kick(m)}
-                  >
-                    Kick
-                  </button>
-                  <button
-                    type="button"
-                    className="chip danger ban-button"
-                    title="Remove and refuse every invite link until unbanned"
-                    onClick={() => ban(m)}
-                  >
-                    Ban
-                  </button>
-                </div>
-              ) : (
-                <span className="muted small">{self ? "you" : ""}</span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {error && <p className="error">{error}</p>}
+      <DataTable
+        rows={members}
+        columns={columns}
+        rowId={(m) => m.userId}
+        search={{
+          placeholder: "Filter by name or @username",
+          label: "Filter members",
+          text: (m) => `${m.displayName} @${m.username}`,
+        }}
+        noun={["member", "members"]}
+        empty="No members yet."
+        rowError={(m) => (failed?.userId === m.userId ? failed.text : null)}
+        rowProps={(m) => ({ "data-member": m.username })}
+      />
     </section>
   );
 }

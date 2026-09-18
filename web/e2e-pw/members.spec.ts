@@ -30,13 +30,15 @@ test("the member list, roles, kicking and leaving", async ({ browser }) => {
   const openMembersTab = async (p: Page) => {
     await pickMenu(p, "Space settings");
     await p.locator('.settings-tab[data-tab="members"]').click();
-    await expect(p.locator(".user-row").first()).toBeVisible();
+    await expect(p.locator(".dt-row").first()).toBeVisible();
   };
-  const rowChip = (p: Page, name: string, label: string) =>
-    p
-      .locator(".user-row")
-      .filter({ hasText: name })
-      .locator(".chip", { hasText: label });
+  const memberRow = (p: Page, name: string) =>
+    p.locator(".dt-row").filter({ hasText: name });
+  // Row actions live in the row's ⋮ menu.
+  const rowAction = async (p: Page, name: string, label: string) => {
+    await memberRow(p, name).locator(".dots-menu-button").click();
+    return p.locator(".dots-menu button", { hasText: label });
+  };
 
   // A owns the seeded space; B and C are members. Each says something, so
   // the timeline has an author to click.
@@ -95,7 +97,7 @@ test("the member list, roles, kicking and leaving", async ({ browser }) => {
 
   // Roles live in Space settings → Members. A promotes B there.
   await openMembersTab(A);
-  await rowChip(A, `bea${suffix}`, "Make admin").click();
+  await (await rowAction(A, `bea${suffix}`, "Make admin")).click();
   await expect
     .poll(() => menuItems(B), {
       message: "B is offered Invite live after promotion",
@@ -104,20 +106,16 @@ test("the member list, roles, kicking and leaving", async ({ browser }) => {
 
   // B (now admin) in settings: the owner is untouchable, a member is not.
   await openMembersTab(B);
-  await expect(B.locator(".user-row"), "all three are listed").toHaveCount(3);
+  await expect(B.locator(".dt-row"), "all three are listed").toHaveCount(3);
   await expect(
-    B.locator(".user-row")
-      .filter({ hasText: `ada${suffix}` })
-      .locator(".chip"),
+    memberRow(B, `ada${suffix}`).locator(".dots-menu-button"),
     "admin B gets no actions on the owner's row",
   ).toHaveCount(0);
-  await expect(
-    rowChip(B, `cal${suffix}`, "Kick"),
-    "admin B can act on member C's row",
-  ).toBeVisible();
+  const kick = await rowAction(B, `cal${suffix}`, "Kick");
+  await expect(kick, "admin B can act on member C's row").toBeVisible();
 
   // B kicks C from settings; C is bounced home.
-  await rowChip(B, `cal${suffix}`, "Kick").click();
+  await kick.click();
   await acceptDialog(B);
   await expect(C, "kicked C bounced to /").toHaveURL("/");
   await expect(C.locator("#root"), "C sees the no-spaces home").toContainText(

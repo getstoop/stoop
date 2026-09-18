@@ -1,0 +1,226 @@
+import { type RowData, useTable } from "@tanstack/react-table";
+import { type ReactNode, useEffect, useState } from "react";
+import { Footer } from "./Footer";
+import { alignClass, features, type TableColumn } from "./features";
+import { HeaderCell } from "./HeaderCell";
+import { Toolbar } from "./Toolbar";
+
+export type { TableColumn } from "./features";
+export { PersonCell } from "./PersonCell";
+
+const SKELETON_ROWS = [0, 1, 2];
+
+// The table every settings list is built from (styles/data-table.css;
+// docs/architecture/web.md → Tables). Sections declare columns and hand
+// over rows; search, sort and paging are TanStack Table's, kept inside.
+// Columns must be stable between renders: module scope or useMemo.
+export function DataTable<T extends RowData>({
+  rows,
+  columns,
+  rowId,
+  search,
+  noun,
+  empty,
+  pageSize = 25,
+  rowInactive,
+  rowError,
+  rowProps,
+}: {
+  // undefined while loading.
+  rows: T[] | undefined;
+  columns: TableColumn<T>[];
+  rowId: (row: T) => string;
+  // Present on a list that can grow long: a filter box over the table.
+  search?: { placeholder: string; label: string; text: (row: T) => string };
+  // Singular and plural, for the count: ["member", "members"].
+  noun: [string, string];
+  // Said in place of the table when there are no rows at all.
+  empty: string;
+  pageSize?: number;
+  rowInactive?: (row: T) => boolean;
+  // A failed action's message, shown on the row it was for.
+  rowError?: (row: T) => string | null | undefined;
+  // Extra attributes for the <tr>, e.g. data-* hooks.
+  rowProps?: (row: T) => Record<string, string>;
+}) {
+  const [query, setQuery] = useState("");
+  const table = useTable({
+    features,
+    columns,
+    data: rows ?? (EMPTY as T[]),
+    getRowId: rowId,
+    initialState: { pagination: { pageIndex: 0, pageSize } },
+    // A refetch after an action must not throw the reader back to page 1.
+    autoResetPageIndex: false,
+    sortDescFirst: false,
+    getColumnCanGlobalFilter: () => true,
+    globalFilterFn: (row, _columnId, needle: string) =>
+      search ? search.text(row.original).toLowerCase().includes(needle) : true,
+  });
+
+  const total = rows?.length ?? 0;
+  const matched = table.getFilteredRowModel().rows.length;
+  const { pageIndex } = table.state.pagination;
+  const pageCount = table.getPageCount();
+  // Rows can leave the last page (a kick, a narrower search).
+  useEffect(() => {
+    if (pageIndex > 0 && pageIndex >= pageCount)
+      table.setPageIndex(Math.max(0, pageCount - 1));
+  }, [pageIndex, pageCount, table]);
+
+  if (rows && total === 0) {
+    return (
+      <div className="dt-box">
+        <p className="dt-message">{empty}</p>
+      </div>
+    );
+  }
+
+  const onQuery = (q: string) => {
+    setQuery(q);
+    table.setGlobalFilter(q.trim().toLowerCase());
+    table.setPageIndex(0);
+  };
+  const sorting = table.state.sorting[0];
+  const onSort = (value: string) => {
+    const [id, dir] = value.split(":");
+    table.setSorting(id ? [{ id, desc: dir === "desc" }] : []);
+    table.setPageIndex(0);
+  };
+  const headers = table.getHeaderGroups()[0]?.headers ?? [];
+  const labelOf = (header: unknown) =>
+    typeof header === "string" ? header : "";
+  const pageRows = table.getRowModel().rows;
+  const from = pageIndex * pageSize;
+
+  return (
+    <div className="dt-wrap">
+      {search && (
+        <Toolbar
+          query={query}
+          onQuery={onQuery}
+          placeholder={search.placeholder}
+          label={search.label}
+          count={
+            matched === total
+              ? `${total} ${total === 1 ? noun[0] : noun[1]}`
+              : `${matched} of ${total}`
+          }
+          sortChoices={headers
+            .filter((h) => h.column.getCanSort())
+            .map((h) => ({
+              id: h.column.id,
+              label: labelOf(h.column.columnDef.header),
+            }))}
+          sortValue={
+            sorting ? `${sorting.id}:${sorting.desc ? "desc" : "asc"}` : ""
+          }
+          onSort={onSort}
+        />
+      )}
+      <div className="dt-box">
+        <table className="dt" aria-busy={!rows}>
+          <colgroup>
+            {headers.map((h) => (
+              <col
+                key={h.id}
+                style={{ width: h.column.columnDef.meta?.width }}
+              />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              {headers.map((h) => (
+                <HeaderCell
+                  key={h.id}
+                  label={labelOf(h.column.columnDef.header)}
+                  meta={h.column.columnDef.meta}
+                  sorted={h.column.getIsSorted()}
+                  onSort={
+                    h.column.getCanSort()
+                      ? () => {
+                          h.column.toggleSorting();
+                          table.setPageIndex(0);
+                        }
+                      : undefined
+                  }
+                />
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {!rows &&
+              SKELETON_ROWS.map((i) => (
+                <tr key={i} className="dt-row">
+                  {headers.map((h) => (
+                    <td key={h.id}>
+                      {!h.column.columnDef.meta?.actions && (
+                        <span className="dt-skeleton" />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            {pageRows.map((row) => {
+              const error = rowError?.(row.original);
+              return (
+                <tr
+                  key={row.id}
+                  className={`dt-row ${rowInactive?.(row.original) ? "inactive" : ""}`}
+                  {...rowProps?.(row.original)}
+                >
+                  {row.getAllCells().map((cell, i) => {
+                    const def = cell.column.columnDef;
+                    return (
+                      <td
+                        key={cell.id}
+                        className={
+                          i === 0 ? "dt-primary" : alignClass(def.meta)
+                        }
+                        data-label={
+                          i > 0 ? labelOf(def.header) || undefined : undefined
+                        }
+                      >
+                        <table.FlexRender cell={cell} />
+                        {i === 0 && error && <CellError>{error}</CellError>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {rows && matched === 0 && (
+          <p className="dt-message">
+            No {noun[1]} match “{query.trim()}”.{" "}
+            <button type="button" className="chip" onClick={() => onQuery("")}>
+              Clear
+            </button>
+          </p>
+        )}
+        {matched > pageSize && (
+          <Footer
+            from={from + 1}
+            to={from + pageRows.length}
+            total={matched}
+            canPrev={table.getCanPreviousPage()}
+            canNext={table.getCanNextPage()}
+            onPrev={() => table.previousPage()}
+            onNext={() => table.nextPage()}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+const EMPTY: unknown[] = [];
+
+function CellError({ children }: { children: ReactNode }) {
+  return (
+    <span className="dt-row-error error small" role="alert">
+      {children}
+    </span>
+  );
+}
