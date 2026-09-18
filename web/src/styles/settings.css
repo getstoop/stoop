@@ -318,3 +318,10 @@
 .delete-account .warning {
   color: var(--danger);
 }
+
+/* The channel Edit dialog: two fields with room between them, and a
+   breath before the actions. */
+.channel-edit-form {
+  gap: 16px;
+  padding-bottom: 8px;
+}

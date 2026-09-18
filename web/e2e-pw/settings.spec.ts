@@ -30,7 +30,7 @@ test("space settings, roles and deletion", async ({ browser }) => {
     p.locator(".channel-link:not(.add) .channel-name");
   const channelRow = (name: string) =>
     A.locator(".dt-row", { hasText: `# ${name}` });
-  // Rename, topic and delete live in the row's ⋮ menu.
+  // Edit and delete live in the row's ⋮ menu.
   const channelAction = async (name: string, label: string) => {
     await channelRow(name).locator(".dots-menu-button").click();
     return A.getByRole("menuitem", { name: label });
@@ -67,17 +67,22 @@ test("space settings, roles and deletion", async ({ browser }) => {
     .poll(() => menuItems(B), { message: "invite toggle reaches B live" })
     .toContain("Invite people");
 
-  // Channels: reorder, rename, delete.
+  // Channels: reorder, edit, delete.
   await A.locator('.settings-tab[data-tab="channels"]').click();
   await channelRow("random").getByTitle("Move up").click();
   await expect(channelNames(B), "B sees reordered channels").toHaveText([
     "random",
     "general",
   ]);
-  await (await channelAction("general", "Rename")).click();
-  const channelName = A.locator('input[aria-label="Channel name"]');
-  await channelName.fill("lounge");
-  await channelName.press("Enter");
+  // One dialog holds the name and the topic, saved together.
+  await (await channelAction("general", "Edit")).click();
+  await A.locator('input[name="channel-name"]').fill("lounge");
+  await A.locator('input[name="channel-topic"]').fill("Feet up.");
+  await A.locator('input[name="channel-topic"]').press("Enter");
+  await expect(
+    channelRow("lounge"),
+    "the row shows the new name and topic",
+  ).toContainText("Feet up.");
   await expect(
     channelLink(B, "lounge"),
     "B sees the renamed channel live",

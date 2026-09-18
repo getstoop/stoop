@@ -17,6 +17,8 @@ import { useAccountActions } from "./useAccountActions";
 const rank = (u: InstanceUser) =>
   u.owner ? 2 : u.role === InstanceRole.ADMIN ? 1 : 0;
 
+const isDeleted = (u: InstanceUser) => !!u.deletedAt;
+
 export function UsersSection({ meId }: { meId: string }) {
   const { data: users } = useInstanceUsers(true);
   const actions = useAccountActions(users, meId);
@@ -106,6 +108,7 @@ export function UsersSection({ meId }: { meId: string }) {
         noun={["account", "accounts"]}
         empty="No accounts yet."
         rowInactive={(u) => !!u.deactivatedAt}
+        hidden={{ label: "Show deleted", when: isDeleted }}
         rowError={(u) =>
           actions.failed && actions.failed.userId === u.id
             ? actions.failed.text
