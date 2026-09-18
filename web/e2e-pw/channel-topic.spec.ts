@@ -112,8 +112,8 @@ test("a channel's topic", async ({ browser }) => {
   const spaceId = new URL(A.url()).pathname.split("/")[2];
   await A.goto(`/s/${spaceId}/settings?tab=channels`);
   await expect(
-    A.locator(".user-row"),
-    "the settings row shows the topic under the channel name",
+    A.locator(".dt-row"),
+    "the settings row shows the topic beside the channel name",
   ).toContainText("Borrow anything on the shelf");
   await A.goBack();
   await pastGate(A);

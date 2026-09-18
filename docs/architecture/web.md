@@ -285,8 +285,8 @@ because the two columns belong to `.settings-content`.
 ## Tables
 
 The settings lists are moving to `components/DataTable` (styles in
-`data-table.css`, the phone fold in `mobile.css`). Members, Banned and
-Accounts use it; the rest are still `ul.user-list.table` and move over one page
+`data-table.css`, the phone fold in `mobile.css`). Members, Banned,
+Accounts and Channels use it; the rest are still `ul.user-list.table` and move over one page
 at a time.
 
 - A section declares `columns` and hands over `rows`. `rows` undefined
@@ -298,10 +298,14 @@ at a time.
 - The markup is a real `<table>` with `table-layout: fixed`, so every
   row shares the header's columns. The first column takes what is left;
   the others give a width in `meta.width`.
-- `columns` must be stable between renders (module scope or `useMemo`).
+- `columns` must be stable between renders (module scope or `useMemo`):
+  a cell is mounted as a component, so a new cell function remounts it
+  and an input inside loses focus. Cells that need this render's state
+  read it through a ref (`ChannelsSection`).
 - A sortable column needs an `accessorFn` that returns the value to sort
   by: a rank or a timestamp, not the printed text. Columns sort unless
-  they say `enableSorting: false`. Ordered lists (Channels) never sort.
+  they say `enableSorting: false`. A list whose order is the data
+  (Channels) passes `ordered`: no sorting, no paging.
 - `search` adds the filter box and count. `pageSize` defaults to 25 and
   the pager shows only past one page.
 - A row takes at most two inline actions; more go in a `DotsMenu` in a
