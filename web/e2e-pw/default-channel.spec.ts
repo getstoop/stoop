@@ -102,9 +102,10 @@ test("the channel a space opens in", async ({ browser }) => {
   // ---- Delete the chosen channel. The space must not be left pointing at
   // something that is gone.
   await settings(A);
-  await A.locator(".user-row", { hasText: "# tools" })
-    .locator(".chip.danger")
+  await A.locator(".dt-row", { hasText: "# tools" })
+    .locator(".dots-menu-button")
     .click();
+  await A.getByRole("menuitem", { name: "Delete" }).click();
   await acceptDialog(A);
   await expect(
     chosen(A),

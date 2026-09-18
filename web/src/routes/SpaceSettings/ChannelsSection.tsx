@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   defaultChannelChoices,
   editChannelTopic,
@@ -9,8 +9,10 @@ import {
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useChannels } from "../../api/queries";
-import { ListHead } from "../../components/ListHead";
+import { DataTable, type TableColumn } from "../../components/DataTable";
+import { DotsMenu } from "../../components/DotsMenu";
 import { SettingRow } from "../../components/SettingRow";
+import { SpeakerIcon } from "../../components/VoiceIcons";
 import { type Channel, ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { confirm } from "../../stores/dialogs";
@@ -19,30 +21,31 @@ export function ChannelsSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
   const { data: channels } = useChannels(space.id);
   const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState<{ id: string; text: string } | null>(
+    null,
+  );
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(
     null,
   );
 
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["channels", space.id] });
-  const act = async (fn: () => Promise<unknown>) => {
-    setError(null);
+  const act = async (c: Channel, fn: () => Promise<unknown>) => {
+    setFailed(null);
     try {
       await fn();
-      await refresh();
+      await queryClient.invalidateQueries({ queryKey: ["channels", space.id] });
     } catch (err) {
-      setError(errorText(err));
+      setFailed({ id: c.id, text: errorText(err) });
     }
   };
-  const move = (list: Channel[], index: number, dir: -1 | 1) => {
-    const next = [...list];
+  const move = (c: Channel, index: number, dir: -1 | 1) => {
+    const next = [...(channels ?? [])];
     const j = index + dir;
     if (j < 0 || j >= next.length) return;
     [next[index], next[j]] = [next[j], next[index]];
-    act(() =>
+    act(c, () =>
       chatClient.reorderChannels({
         spaceId: space.id,
-        channelIds: next.map((c) => c.id),
+        channelIds: next.map((n) => n.id),
       }),
     );
   };
@@ -53,62 +56,89 @@ export function ChannelsSection({ space }: { space: Space }) {
       action: "Delete",
       danger: true,
     });
-    if (ok) act(() => chatClient.deleteChannel({ channelId: c.id }));
+    if (ok) act(c, () => chatClient.deleteChannel({ channelId: c.id }));
   };
-  const saveRename = () => {
+  const saveRename = (c: Channel) => {
     if (!renaming) return;
     const name = renaming.name.trim();
-    const id = renaming.id;
     setRenaming(null);
-    if (name) act(() => chatClient.updateChannel({ channelId: id, name }));
+    if (name) act(c, () => chatClient.updateChannel({ channelId: c.id, name }));
   };
 
-  return (
-    <section className="card">
-      <h3>Channels</h3>
-      <ul className="user-list table channels">
-        <ListHead columns={["Channel", "Topic", "Announcement", ""]} />
-        {channels?.map((c, i) => (
-          <li key={c.id} className="user-row">
-            <div className="user-row-main">
-              {renaming?.id === c.id ? (
-                <input
-                  value={renaming.name}
-                  onChange={(e) =>
-                    setRenaming({ id: c.id, name: e.target.value })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveRename();
-                    if (e.key === "Escape") setRenaming(null);
-                  }}
-                  onBlur={saveRename}
-                  maxLength={100}
-                  aria-label="Channel name"
-                />
-              ) : (
-                <strong># {c.name}</strong>
-              )}
-            </div>
-            <span className="user-cell">{c.topic || "No topic"}</span>
-            <span className="user-cell">
-              {c.kind === ChannelKind.TEXT && (
-                <input
-                  type="checkbox"
-                  name={`announcement-${c.id}`}
-                  checked={isAnnouncement(c)}
-                  onChange={(e) =>
-                    setAnnouncement(c, e.target.checked, queryClient)
-                  }
-                  aria-label={`#${c.name} is an announcement channel`}
-                />
-              )}
+  // The cells read this render's state and handlers through a ref, so
+  // the columns stay stable and the rename input keeps its focus.
+  const view = { channels, renaming, setRenaming, saveRename, move, remove };
+  const latest = useRef(view);
+  latest.current = view;
+
+  const columns = useMemo<TableColumn<Channel>[]>(
+    () => [
+      {
+        id: "channel",
+        header: "Channel",
+        meta: { width: "24%" },
+        cell: ({ row: { original: c } }) => {
+          const v = latest.current;
+          if (v.renaming?.id !== c.id) return <ChannelName channel={c} />;
+          return (
+            <input
+              // biome-ignore lint/a11y/noAutofocus: opened by choosing Rename
+              autoFocus
+              value={v.renaming.name}
+              onChange={(e) =>
+                v.setRenaming({ id: c.id, name: e.target.value })
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") v.saveRename(c);
+                if (e.key === "Escape") v.setRenaming(null);
+              }}
+              onBlur={() => v.saveRename(c)}
+              maxLength={100}
+              aria-label="Channel name"
+            />
+          );
+        },
+      },
+      {
+        id: "topic",
+        header: "Topic",
+        cell: ({ row: { original: c } }) => c.topic || "No topic",
+      },
+      {
+        id: "announcement",
+        header: "Announcement",
+        meta: { width: 130, align: "center" },
+        cell: ({ row: { original: c } }) =>
+          c.kind === ChannelKind.TEXT ? (
+            <input
+              type="checkbox"
+              name={`announcement-${c.id}`}
+              checked={isAnnouncement(c)}
+              onChange={(e) =>
+                setAnnouncement(c, e.target.checked, queryClient)
+              }
+              aria-label={`#${c.name} is an announcement channel`}
+            />
+          ) : (
+            <span title="Only text channels can be announcement channels">
+              —
             </span>
-            <div className="user-row-actions">
+          ),
+      },
+      {
+        id: "actions",
+        header: "",
+        meta: { width: 150, actions: true },
+        cell: ({ row: { original: c, index } }) => {
+          const v = latest.current;
+          const count = v.channels?.length ?? 0;
+          return (
+            <>
               <button
                 type="button"
                 className="chip"
-                onClick={() => move(channels, i, -1)}
-                disabled={i === 0}
+                onClick={() => v.move(c, index, -1)}
+                disabled={index === 0}
                 title="Move up"
               >
                 ↑
@@ -116,43 +146,55 @@ export function ChannelsSection({ space }: { space: Space }) {
               <button
                 type="button"
                 className="chip"
-                onClick={() => move(channels, i, 1)}
-                disabled={i === channels.length - 1}
+                onClick={() => v.move(c, index, 1)}
+                disabled={index === count - 1}
                 title="Move down"
               >
                 ↓
               </button>
-              <button
-                type="button"
-                className="chip"
-                onClick={() => setRenaming({ id: c.id, name: c.name })}
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                className="chip"
-                onClick={() => editChannelTopic(c, queryClient)}
-              >
-                Topic
-              </button>
-              <button
-                type="button"
-                className="chip danger"
-                onClick={() => remove(c)}
-                disabled={channels.length <= 1}
-                title={
-                  channels.length <= 1
-                    ? "A space needs at least one channel"
-                    : "Delete channel"
-                }
-              >
-                Delete
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+              <DotsMenu
+                label={`Actions for #${c.name}`}
+                items={[
+                  {
+                    label: "Rename",
+                    onSelect: () => v.setRenaming({ id: c.id, name: c.name }),
+                  },
+                  {
+                    label: "Edit topic",
+                    onSelect: () => editChannelTopic(c, queryClient),
+                  },
+                  {
+                    label: "Delete",
+                    danger: true,
+                    disabled: count <= 1,
+                    title:
+                      count <= 1
+                        ? "A space needs at least one channel"
+                        : "Delete channel",
+                    onSelect: () => v.remove(c),
+                  },
+                ]}
+              />
+            </>
+          );
+        },
+      },
+    ],
+    [queryClient],
+  );
+
+  return (
+    <section className="card">
+      <h3>Channels</h3>
+      <DataTable
+        rows={channels}
+        columns={columns}
+        rowId={(c) => c.id}
+        noun={["channel", "channels"]}
+        empty="No channels yet."
+        ordered
+        rowError={(c) => (failed && failed.id === c.id ? failed.text : null)}
+      />
       {channels && (
         <DefaultChannelRow
           space={space}
@@ -162,6 +204,14 @@ export function ChannelsSection({ space }: { space: Space }) {
       )}
       {error && <p className="error">{error}</p>}
     </section>
+  );
+}
+
+function ChannelName({ channel: c }: { channel: Channel }) {
+  return (
+    <strong className="dt-channel">
+      {c.kind === ChannelKind.VOICE ? <SpeakerIcon /> : "#"} {c.name}
+    </strong>
   );
 }
 

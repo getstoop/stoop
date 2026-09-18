@@ -29,7 +29,12 @@ test("space settings, roles and deletion", async ({ browser }) => {
   const channelNames = (p: Page) =>
     p.locator(".channel-link:not(.add) .channel-name");
   const channelRow = (name: string) =>
-    A.locator(".user-row", { hasText: `# ${name}` });
+    A.locator(".dt-row", { hasText: `# ${name}` });
+  // Rename, topic and delete live in the row's ⋮ menu.
+  const channelAction = async (name: string, label: string) => {
+    await channelRow(name).locator(".dots-menu-button").click();
+    return A.getByRole("menuitem", { name: label });
+  };
 
   // A owns "Stoop HQ" (+ #random), B is a member.
   await signIn(A, tokens.ada);
@@ -69,7 +74,7 @@ test("space settings, roles and deletion", async ({ browser }) => {
     "random",
     "general",
   ]);
-  await channelRow("general").getByRole("button", { name: "Rename" }).click();
+  await (await channelAction("general", "Rename")).click();
   const channelName = A.locator('input[aria-label="Channel name"]');
   await channelName.fill("lounge");
   await channelName.press("Enter");
@@ -80,21 +85,20 @@ test("space settings, roles and deletion", async ({ browser }) => {
 
   // B is in #random when it goes.
   await channelLink(B, "random").click();
-  await channelRow("random").getByRole("button", { name: "Delete" }).click();
+  await (await channelAction("random", "Delete")).click();
   await acceptDialog(A);
   await expect(
     channelLink(B, "random"),
     "the deleted channel leaves B's sidebar",
   ).toHaveCount(0);
   await expect(B, "B is bounced into another channel").toHaveURL(/\/c\//);
-  const lastDelete = channelRow("lounge").getByRole("button", {
-    name: "Delete",
-  });
+  const lastDelete = await channelAction("lounge", "Delete");
   await expect(
     lastDelete,
     "the last channel still offers Delete",
   ).toBeVisible();
   await expect(lastDelete, "last channel can't be deleted").toBeDisabled();
+  await A.keyboard.press("Escape");
 
   // Members tab: promote B from settings; B's gear appears.
   await A.locator('.settings-tab[data-tab="members"]').click();

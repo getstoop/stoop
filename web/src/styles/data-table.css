@@ -190,6 +190,14 @@ th[aria-sort] .dt-sort-arrow {
   min-width: 0;
 }
 
+.dt-channel svg {
+  vertical-align: -2px;
+}
+
+.dt-actions > .chip {
+  margin-right: 4px;
+}
+
 .dt-subline {
   display: block;
 }

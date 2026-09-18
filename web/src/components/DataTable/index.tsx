@@ -26,6 +26,7 @@ export function DataTable<T extends RowData>({
   rowError,
   rowProps,
   detail,
+  ordered = false,
 }: {
   // undefined while loading.
   rows: T[] | undefined;
@@ -38,6 +39,8 @@ export function DataTable<T extends RowData>({
   // Said in place of the table when there are no rows at all.
   empty: string;
   pageSize?: number;
+  // The rows' order is the data (Channels): no sorting, no paging.
+  ordered?: boolean;
   rowInactive?: (row: T) => boolean;
   // A failed action's message, shown on the row it was for.
   rowError?: (row: T) => string | null | undefined;
@@ -58,7 +61,13 @@ export function DataTable<T extends RowData>({
     columns,
     data: rows ?? (EMPTY as T[]),
     getRowId: rowId,
-    initialState: { pagination: { pageIndex: 0, pageSize } },
+    initialState: {
+      pagination: {
+        pageIndex: 0,
+        pageSize: ordered ? Number.MAX_SAFE_INTEGER : pageSize,
+      },
+    },
+    enableSorting: !ordered,
     // A refetch after an action must not throw the reader back to page 1.
     autoResetPageIndex: false,
     sortDescFirst: false,
