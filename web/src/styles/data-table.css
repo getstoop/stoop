@@ -20,7 +20,20 @@
   min-width: 0;
 }
 
+.dt-hidden-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.dt-toolbar .dt-hidden-toggle input {
+  flex: none;
+}
+
 .dt-count {
+  margin-left: auto;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }

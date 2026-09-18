@@ -240,13 +240,8 @@
   }
 
   .token-form-row,
-  .bot-credential-row,
   .delivery-row {
     grid-template-columns: 1fr;
-  }
-
-  .user-list.table .bot-credentials {
-    padding-left: 12px;
   }
 
   .user-list.table .user-row-actions {

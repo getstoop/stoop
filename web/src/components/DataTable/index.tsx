@@ -4,7 +4,7 @@ import {
   type RowData,
   useTable,
 } from "@tanstack/react-table";
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Footer } from "./Footer";
 import { alignClass, features, type TableColumn } from "./features";
 import { HeaderCell } from "./HeaderCell";
@@ -33,6 +33,7 @@ export function DataTable<T extends RowData>({
   rowProps,
   detail,
   ordered = false,
+  hidden,
 }: {
   // undefined while loading.
   rows: T[] | undefined;
@@ -47,6 +48,10 @@ export function DataTable<T extends RowData>({
   pageSize?: number;
   // The rows' order is the data (Channels): no sorting, no paging.
   ordered?: boolean;
+  // Dead rows (deactivated bots) stay out of the way behind a counted
+  // switch in the toolbar. A search still finds them. `when` must be
+  // stable (module scope), like the columns.
+  hidden?: { label: string; when: (row: T) => boolean };
   rowInactive?: (row: T) => boolean;
   // A failed action's message, shown on the row it was for.
   rowError?: (row: T) => string | null | undefined;
@@ -66,10 +71,24 @@ export function DataTable<T extends RowData>({
   };
 }) {
   const [query, setQuery] = useState("");
+  const [showHidden, setShowHidden] = useState(false);
+  const hiddenWhen = hidden?.when;
+  const searching = query.trim() !== "";
+  const data = useMemo(
+    () =>
+      rows && hiddenWhen && !showHidden && !searching
+        ? rows.filter((r) => !hiddenWhen(r))
+        : rows,
+    [rows, hiddenWhen, showHidden, searching],
+  );
+  const hiddenCount = useMemo(
+    () => (rows && hiddenWhen ? rows.filter(hiddenWhen).length : 0),
+    [rows, hiddenWhen],
+  );
   const table = useTable({
     features,
     columns,
-    data: rows ?? (EMPTY as T[]),
+    data: data ?? (EMPTY as T[]),
     getRowId: rowId,
     initialState: {
       pagination: {
@@ -96,7 +115,7 @@ export function DataTable<T extends RowData>({
       search ? search.text(row.original).toLowerCase().includes(needle) : true,
   });
 
-  const total = rows?.length ?? 0;
+  const total = data?.length ?? 0;
   const matched = table.getFilteredRowModel().rows.length;
   const { pageIndex } = table.state.pagination;
   const pageCount = table.getPageCount();
@@ -106,7 +125,7 @@ export function DataTable<T extends RowData>({
       table.setPageIndex(Math.max(0, pageCount - 1));
   }, [pageIndex, pageCount, table]);
 
-  if (rows && total === 0) {
+  if (rows && rows.length === 0) {
     return (
       <div className="dt-box">
         <p className="dt-message">{empty}</p>
@@ -133,12 +152,25 @@ export function DataTable<T extends RowData>({
 
   return (
     <div className="dt-wrap">
-      {search && (
+      {(search || hiddenCount > 0) && (
         <Toolbar
-          query={query}
-          onQuery={onQuery}
-          placeholder={search.placeholder}
-          label={search.label}
+          search={
+            search && {
+              query,
+              onQuery,
+              placeholder: search.placeholder,
+              label: search.label,
+            }
+          }
+          hidden={
+            hidden && hiddenCount > 0
+              ? {
+                  label: `${hidden.label} (${hiddenCount})`,
+                  shown: showHidden,
+                  onToggle: setShowHidden,
+                }
+              : undefined
+          }
           count={
             matched === total
               ? `${total} ${total === 1 ? noun[0] : noun[1]}`
@@ -256,7 +288,10 @@ export function DataTable<T extends RowData>({
             })}
           </tbody>
         </table>
-        {rows && matched === 0 && (
+        {rows && matched === 0 && !searching && (
+          <p className="dt-message">{empty}</p>
+        )}
+        {rows && matched === 0 && searching && (
           <p className="dt-message">
             No {noun[1]} match “{query.trim()}”.{" "}
             <button type="button" className="chip" onClick={() => onQuery("")}>
