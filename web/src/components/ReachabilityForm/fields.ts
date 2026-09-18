@@ -167,11 +167,11 @@ export function changesFrom(
       controlUrl: now.tsControlUrl.trim(),
     };
   }
-  if (now.tunnelEnabled !== base.tunnelEnabled || secrets.tunnelToken !== "") {
-    req.cloudflareTunnel = {
-      enabled: now.tunnelEnabled,
-      token: secrets.tunnelToken.trim(),
-    };
+  // A token typed and then hidden by unticking goes nowhere: the server
+  // would refuse a bad one before it read "off".
+  const tunnelToken = now.tunnelEnabled ? secrets.tunnelToken.trim() : "";
+  if (now.tunnelEnabled !== base.tunnelEnabled || tunnelToken !== "") {
+    req.cloudflareTunnel = { enabled: now.tunnelEnabled, token: tunnelToken };
   }
   return req;
 }

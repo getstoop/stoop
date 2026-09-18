@@ -31,6 +31,16 @@ describe("changesFrom", () => {
     ).toEqual({ cloudflareTunnel: { enabled: true, token: "eyJh" } });
   });
 
+  it("drops a token hidden by unticking", () => {
+    const on = { ...EMPTY, tunnelEnabled: true };
+    expect(
+      changesFrom(EMPTY, on, { ...NO_SECRETS, tunnelToken: "bad" }),
+    ).toEqual({ cloudflareTunnel: { enabled: false, token: "" } });
+    expect(
+      changesFrom(EMPTY, EMPTY, { ...NO_SECRETS, tunnelToken: "bad" }),
+    ).toEqual({});
+  });
+
   it("sends a new token on its own", () => {
     const on = { ...EMPTY, tunnelEnabled: true };
     expect(changesFrom(on, on, { ...NO_SECRETS, tunnelToken: "eyJh" })).toEqual(

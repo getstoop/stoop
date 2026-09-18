@@ -26,8 +26,12 @@ export function CloudflareTunnelSection({
 }) {
   const status = data?.cloudflareTunnel;
   // A server that trusts every caller already trusts the connector, and
-  // naming one address would replace that with a shorter list.
-  const trustAll = data?.reachability?.trustedProxies?.trustAll ?? false;
+  // naming one address would replace that with a shorter list. Once the
+  // operator names addresses of their own, the connector goes in with
+  // them.
+  const trustAll =
+    (data?.reachability?.trustedProxies?.trustAll ?? false) &&
+    fields.proxies.trim() === "";
   return (
     <SettingRow
       className="reach-group reach-tunnel"
