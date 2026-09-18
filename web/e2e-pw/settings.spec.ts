@@ -108,9 +108,10 @@ test("space settings, roles and deletion", async ({ browser }) => {
     "banned tab shows the empty ban list",
   ).toContainText("Nobody is banned");
   await A.locator('.settings-tab[data-tab="members"]').click();
-  await A.locator(".user-row", { hasText: `bea${suffix}` })
-    .getByRole("button", { name: "Make admin" })
+  await A.locator(".dt-row", { hasText: `bea${suffix}` })
+    .locator(".dots-menu-button")
     .click();
+  await A.locator(".dots-menu button", { hasText: "Make admin" }).click();
   await expect
     .poll(() => menuItems(B), {
       message: "a promoted member is offered Space settings live",

@@ -1,0 +1,191 @@
+/* ---- DataTable (components/DataTable): the settings lists. A toolbar,
+   then one box holding a real <table> with fixed columns, a message
+   when there is nothing to show, and a pager. On a phone each row folds
+   into a labelled stack (mobile.css). ---- */
+
+.dt-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dt-toolbar input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dt-count {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headers do the sorting wherever there are headers. */
+.dt-sort-select {
+  display: none;
+}
+
+.dt-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.dt {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-ui);
+}
+
+.dt th {
+  padding: 6px 12px;
+  background: var(--raised);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.dt th[aria-sort] {
+  color: var(--text);
+}
+
+.dt-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.dt-sort:hover {
+  color: var(--text);
+}
+
+.dt-sort-arrow {
+  opacity: 0.35;
+}
+
+th[aria-sort] .dt-sort-arrow {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.dt td {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.dt td.dt-primary {
+  color: var(--text);
+}
+
+.dt .dt-center {
+  text-align: center;
+}
+
+.dt .dt-end {
+  text-align: right;
+}
+
+.dt .dt-actions {
+  text-align: right;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.dt-actions .dots-menu-anchor {
+  display: inline-block;
+}
+
+/* Dim what the row says, never the controls that can bring it back. */
+.dt-row.inactive > td:not(.dt-actions) {
+  opacity: 0.6;
+}
+
+.dt-row-error {
+  display: block;
+  margin-top: 4px;
+}
+
+/* The identity cell: avatar, name and badges, a muted line under them. */
+.dt-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dt-person > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dt-person .badge:first-of-type {
+  margin-left: 6px;
+}
+
+.dt-message {
+  margin: 0;
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+}
+
+.dt + .dt-message {
+  border-top: 1px solid var(--border);
+}
+
+.dt-skeleton {
+  display: block;
+  width: 60%;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+}
+
+.dt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-pager {
+  display: flex;
+  gap: 6px;
+}
+
+.dt-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

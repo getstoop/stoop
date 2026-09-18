@@ -256,6 +256,66 @@
     margin-left: auto;
   }
 
+  /* DataTable rows fold into a stack: identity and actions on the first
+     line, then each cell under its column's label. */
+  .dt,
+  .dt tbody {
+    display: block;
+  }
+
+  .dt thead,
+  .dt colgroup {
+    display: none;
+  }
+
+  .dt-sort-select {
+    display: block;
+    flex: 0 1 auto;
+  }
+
+  .dt-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .dt-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 12px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .dt-row:first-child {
+    border-top: none;
+  }
+
+  .dt .dt-row > td {
+    display: block;
+    grid-column: 1 / -1;
+    padding: 0;
+    border: none;
+    text-align: left;
+  }
+
+  .dt .dt-row > td.dt-primary {
+    grid-column: 1;
+  }
+
+  .dt .dt-row > td.dt-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dt-row > td[data-label]::before {
+    content: attr(data-label);
+    display: inline-block;
+    /* off-scale: one label gutter so the values line up down the stack */
+    min-width: 72px;
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+  }
+
   .setting-control > input {
     max-width: none;
   }

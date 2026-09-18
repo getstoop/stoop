@@ -273,13 +273,41 @@ which is how its nav takes the sidebar's place. A single setting is a
 the left, control on the right, stacked on a phone; a page groups rows
 in one `section.card`; a page with several fields is one form with one
 "Save changes", disabled until something differs from the server. A list
-of people, channels or providers is a
+of people, channels or providers is a `DataTable` ([Tables](#tables)) or,
+where not yet moved, a
 `ul.user-list.table` (`styles/lists.css`): a header row from
 `components/ListHead.tsx`, then a grid row per item with `.user-cell`
 columns, folding back into a plain row on a phone. The Hosting form is
 the same rows with `stack` for the groups that hold several controls;
 it also serves the setup wizard, where the rows fall to one column
 because the two columns belong to `.settings-content`.
+
+## Tables
+
+The settings lists are moving to `components/DataTable` (styles in
+`data-table.css`, the phone fold in `mobile.css`). Members and Banned
+use it; the rest are still `ul.user-list.table` and move over one page
+at a time.
+
+- A section declares `columns` and hands over `rows`. `rows` undefined
+  means loading; an empty array shows the section's `empty` line.
+- Search, sort and paging are
+  [TanStack Table](https://tanstack.com/table) v9, registered once in
+  `DataTable/features.ts` and kept inside the component. Everything is
+  client-side: each list is already fully loaded.
+- The markup is a real `<table>` with `table-layout: fixed`, so every
+  row shares the header's columns. The first column takes what is left;
+  the others give a width in `meta.width`.
+- `columns` must be stable between renders (module scope or `useMemo`).
+- A sortable column needs an `accessorFn` that returns the value to sort
+  by: a rank or a timestamp, not the printed text. Columns sort unless
+  they say `enableSorting: false`. Ordered lists (Channels) never sort.
+- `search` adds the filter box and count. `pageSize` defaults to 25 and
+  the pager shows only past one page.
+- A row takes at most two inline actions; more go in a `DotsMenu` in a
+  column marked `meta.actions`. Members puts every action in the menu.
+- A failed action is reported on its row through `rowError`.
+- An inactive row dims its cells but not its actions.
 
 ## Layout on small screens
 
