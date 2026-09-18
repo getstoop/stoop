@@ -18,11 +18,14 @@ stoop
 ├── goroutine: tailnet manager                  reconciles the node with saved settings
 ├── goroutine: tunnel manager                   reconciles cloudflared with saved settings
 │   └── child process: cloudflared              when a Cloudflare Tunnel is enabled
-├── goroutine: file sweep                       STOOP_FILE_SWEEP_INTERVAL
-└── goroutine: activity sweep                   same timer
+├── goroutines: file, activity, credential      STOOP_FILE_SWEEP_INTERVAL
+│   and hook sweeps
+├── goroutines: message and attachment          hourly
+│   retention sweeps
+└── goroutines: webhook subscriber and worker   bus events in, POSTs out
 ```
 
-`cmd/stoop/main.go` is about thirty lines: dispatch the `admin` subcommand,
+`cmd/stoop/main.go` is short: dispatch the `admin` subcommand,
 load config, install a signal-cancelled context (`SIGINT`, `SIGTERM`),
 build the app, run it. Everything else is `internal/app`
 ([modules.md](modules.md#rule-5--internalapp-is-the-only-all-knowing-package)).
@@ -44,7 +47,7 @@ schema.
 
 `GET /healthz` answers `200 ok` for container health checks and for the E2E
 harness's readiness loop. `GET /version` answers
-`{"name":"stoop","version":"0.4.0","bridge":1}` to anyone, so a client can
+`{"name":"stoop","version":"0.4.0","bridge":2}` to anyone, so a client can
 tell what it is talking to before logging in — the desktop shell refuses a
 server older than it supports and reads the `window.stoop` level the
 served web app speaks ([desktop.md](desktop.md)). Logging is `log/slog` to stderr, structured, with
@@ -97,27 +100,7 @@ disturbing a relay.
 ### The environment surface
 
 The full reference with defaults is in
-[../self-hosting.md](../self-hosting.md#configuration-reference). Grouped by
-what they are for:
-
-- **Core** — `STOOP_DATABASE_URL` (required), `STOOP_LISTEN_ADDR`,
-  `STOOP_PUBLIC_URL`, `STOOP_STORAGE`, `STOOP_STORAGE_DIR`.
-- **Trust and TLS** — `STOOP_TRUST_PROXY`, `STOOP_SECURE_COOKIES`,
-  `STOOP_ALLOWED_WS_ORIGINS`.
-- **Abuse** — `STOOP_AUTH_RATE_LIMIT`, `STOOP_SIGNALING_RATE_LIMIT`.
-- **Policy** — `STOOP_REGISTRATION` (seeded once), `STOOP_PASSWORD_SIGN_IN`
-  (fallback), `STOOP_INSTANCE_NAME` (fallback; random when unset).
-- **Voice** — `STOOP_LIVEKIT_URL`, `STOOP_LIVEKIT_API_KEY` / `_SECRET`,
-  `STOOP_LIVEKIT_KEY_FILE`, `STOOP_LIVEKIT_NODE_IP_FILE`,
-  `STOOP_LIVEKIT_MEDIA_HOST`, `STOOP_LIVEKIT_TCP_PORT`,
-  `STOOP_LIVEKIT_UDP_PORTS`.
-- **Relays** — `STOOP_TURN_URLS` / `_USERNAME` / `_CREDENTIAL`,
-  `STOOP_STUN_URLS`, `STOOP_CLOUDFLARE_TURN_KEY_ID` / `_API_TOKEN`.
-- **Tailscale** — `STOOP_TAILSCALE`, `_HOSTNAME`, `_AUTHKEY`,
-  `_CONTROL_URL`, `_FUNNEL`, `_VOICE`.
-- **Housekeeping** — `STOOP_FILE_SWEEP_INTERVAL`, `STOOP_FILE_SWEEP_GRACE`,
-  `STOOP_ACTIVITY_RETENTION`, `STOOP_LINK_PREVIEWS`,
-  `STOOP_UNFURL_ALLOW_PRIVATE`.
+[../self-hosting.md](../self-hosting.md#configuration-reference).
 
 Two are dangerous enough to be logged loudly at startup:
 `STOOP_UNFURL_ALLOW_PRIVATE` (which turns the server into a probe of the
@@ -265,9 +248,8 @@ reason:
 
 ## Background work
 
-Two sweepers, both on `STOOP_FILE_SWEEP_INTERVAL` (default 6 h; 0 disables
-the timer), both running once shortly after boot — one minute for files,
-two for activity — rather than at boot, so a restart loop never turns
+Four sweepers run on `STOOP_FILE_SWEEP_INTERVAL` (default 6 h; 0 disables
+the timer), each running once shortly after boot rather than at boot, so a restart loop never turns
 into a scan loop:
 
 - **The file sweep** removes uploads nothing points at, and blobs no row
@@ -275,12 +257,15 @@ into a scan loop:
 - **The activity sweep** removes *read* activity items older than
   `STOOP_ACTIVITY_RETENTION` (default 30 days). Unread ones stay
   however old: nothing someone hasn't seen is taken from them.
-
 - **The credential sweep** deletes expired sessions at once and expired
   personal tokens a month after expiry.
 - **The hook sweep** revokes hook credentials whose hook row a channel or
   space delete cascaded away, retires bots left with nothing, and removes
   finished deliveries older than `STOOP_WEBHOOK_DELIVERY_RETENTION`.
+
+Two more run hourly and do nothing while their setting keeps forever: the
+**message retention sweep** ([messaging.md](messaging.md#message-retention))
+and the **attachment retention sweep** ([files.md](files.md#retention)).
 
 None is required for correctness. A server that never sweeps works; it
 just accumulates.
@@ -371,6 +356,6 @@ make dev   Postgres in Docker + LiveKit on the host network
 instance shows old code.
 
 `make dev-reset` wipes the dev database and seeds a fixed cast across two
-spaces. `make e2e` no longer touches the dev database (it starts its own
-server against a scratch one), but a spec run pointed at the dev database
-by hand still does; `dev-reset` afterwards puts the cast back.
+spaces. `make e2e` runs on its own scratch database; a spec run pointed at
+the dev database by hand wipes it, and `dev-reset` afterwards puts the cast
+back.

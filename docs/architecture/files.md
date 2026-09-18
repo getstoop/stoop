@@ -168,8 +168,8 @@ new one, never a partial write.
 
 An object-storage backend, if someone asks for one, would be a second
 `blob.Store` selected by that same knob. `app.New` is the only place a
-store is constructed, so nothing in `internal/files` would change. It is
-not built and not scheduled (STOOP-221).
+store is constructed, so nothing in `internal/files` would change. None
+is built.
 
 `blob` may not import `dbgen`: it is bytes by key, and the metadata that
 gives them meaning belongs to the files table.
@@ -253,7 +253,3 @@ usage.
 
 `max_upload_bytes` caps a single file, bounded above by the built-in
 `MaxAttachmentBytes` of 100 MB.
-
-Bytes are stored as uploaded, with no re-encoding, so only the sniffed
-content type decides how they are served: raster images inline, with a
-hover bar to download the original; everything else as a download card.

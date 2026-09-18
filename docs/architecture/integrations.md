@@ -37,8 +37,8 @@ author and profile on the wire says which kind it is. Membership is set
 on the bot and nowhere else: chat's `AddMember` refuses a bot, an
 incoming hook for an existing bot is refused unless the bot is already in
 the channel's space, and a bot's own token can't redeem an invite, leave
-a space, create one, or open a direct message, whatever it was granted. A hook made with a new bot creates that bot as a
-member of that one space. It acts only through the credentials it holds
+a space, create one, or open a direct message, whatever it was granted. A
+hook made with a new bot creates that bot as a member of that one space. It acts only through the credentials it holds
 ([identity.md](identity.md#bots-and-their-credentials)):
 
 | Credential | Kind | Grant | Bound to | Presented as |
@@ -49,7 +49,7 @@ member of that one space. It acts only through the credentials it holds
 The grant gates the credential and the bot's role gates the identity;
 both must pass, checked by the same gates every request goes through. A
 hook token is refused as a bearer token everywhere, and a bot token is
-refused in the hook path. Bot tokens are refused on `/ws` in v1.
+refused in the hook path. Bot tokens are refused on `/ws`.
 
 Only instance admins create or change any of this
 (`instance.integrations.manage`), including the bot's names, its avatar
@@ -160,7 +160,7 @@ type Queue interface {
 }
 ```
 
-`PostgresQueue` is the v1 implementation over `webhook_deliveries`:
+`PostgresQueue` is the implementation over `webhook_deliveries`:
 leases are a `leased_until` column claimed with `SKIP LOCKED`, and a
 lane's head is its lowest unfinished sequence. The queue takes the
 caller's clock for due-ness and leases rather than `now()`, so one clock

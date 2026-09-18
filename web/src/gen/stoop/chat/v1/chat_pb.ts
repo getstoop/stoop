@@ -2013,7 +2013,7 @@ export const ChatService: GenService<{
   },
   /**
    * CreateInvite mints a shareable code for a space. Requires the
-   * create_invites permission: space admins and the owner always hold it;
+   * invites.create permission: space admins and the owner always hold it;
    * members only when the space's members_can_invite setting is on.
    *
    * @generated from rpc stoop.chat.v1.ChatService.CreateInvite
@@ -2080,7 +2080,7 @@ export const ChatService: GenService<{
   },
   /**
    * SetMemberRole promotes or demotes a member (MEMBER or ADMIN; never
-   * OWNER — see TransferOwnership). Requires manage_members, and the target
+   * OWNER — see TransferOwnership). Requires members.manage, and the target
    * must rank below the caller (the owner and instance admins may act on
    * anyone but the owner).
    *
@@ -2104,7 +2104,7 @@ export const ChatService: GenService<{
   },
   /**
    * AddMember puts an existing account into the space directly, without
-   * an invite — the admin page's "Add to space". Requires manage_members;
+   * an invite — the admin page's "Add to space". Requires members.manage;
    * refused for banned users; a no-op error if they're already in.
    *
    * @generated from rpc stoop.chat.v1.ChatService.AddMember
@@ -2117,7 +2117,7 @@ export const ChatService: GenService<{
   /**
    * BanMember removes someone from the space (if they're in it) and keeps
    * them out: invites and JoinSpace refuse them until UnbanMember. Needs
-   * manage_members and the same hierarchy rule as KickMember; the owner
+   * members.manage and the same hierarchy rule as KickMember; the owner
    * can't be banned.
    *
    * @generated from rpc stoop.chat.v1.ChatService.BanMember

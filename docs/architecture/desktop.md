@@ -12,7 +12,7 @@ relies on. Change one and bump the bridge level.
 Unauthenticated JSON, served by `internal/app` beside `/healthz`:
 
 ```json
-{ "name": "stoop", "version": "0.4.0", "bridge": 1 }
+{ "name": "stoop", "version": "0.4.0", "bridge": 2 }
 ```
 
 | Field | Source | What the shell does with it |
@@ -30,11 +30,12 @@ with every release anyway (`docs/self-hosting.md` → Security headers).
 The shell's preload script exposes one object through `contextBridge`.
 The web app's side is `web/src/api/platform.ts`, which feature-detects the
 object and never reads the user agent: absent bridge means a browser or an
-installed PWA, and every wrapper there is a no-op. Version 2:
+installed PWA, and every wrapper there is a no-op. The members; one
+marked with a bridge level needs a shell at that level:
 
 | Member | Type | Purpose |
 | --- | --- | --- |
-| `bridge` | `1` | The contract level this shell implements. At 4 or above the shell's Voice menu holds Cmd/Ctrl+Shift+M and Cmd/Ctrl+Shift+D, so they reach the call from any server; the page leaves those two keys unbound (`shellOwnsVoiceKeys`, [web.md](web.md) → Keyboard shortcuts). |
+| `bridge` | `number` | The contract level this shell implements. At 4 or above the shell's Voice menu holds Cmd/Ctrl+Shift+M and Cmd/Ctrl+Shift+D, so they reach the call from any server; the page leaves those two keys unbound (`shellOwnsVoiceKeys`, [web.md](web.md) → Keyboard shortcuts). |
 | `version` | string | The shell's own version, for the profile page and bug reports. |
 | `platform` | `"darwin" \| "win32" \| "linux"` | Keyboard hints, title-bar padding. |
 | `setBadge(count)` | `(n: number) => void` | The unread total for this server. `routes/Root.tsx` sends `alertingCount` off the activity cache; the shell sums across servers for the dock and tray. |
@@ -122,7 +123,6 @@ Presence is online or offline, and do not disturb is the one choice a
 person makes. It is stored on the account on each server, so the page reads
 it from its server and never from the shell
 ([realtime.md](realtime.md#presence-and-do-not-disturb)).
-That is why bridge 3 has no `status` or `onStatus`.
 
 **The desktop app keeps one switch for every server it holds**, handed over
 as `dnd` and `onDnd`. Each page applies it to its own server: on whenever the
