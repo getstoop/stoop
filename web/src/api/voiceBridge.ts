@@ -13,6 +13,7 @@ import { channelsQuery } from "./queries";
 import {
   leaveVoice,
   toggleCamera,
+  toggleDeafen,
   toggleMute,
   toggleScreenShare,
 } from "./voice";
@@ -37,7 +38,12 @@ export function startVoiceBridge(
     const channel = queryClient
       .getQueryData<Channel[]>(channelsQuery(spaceId).queryKey)
       ?.find((c) => c.id === voice.connection?.channelId);
-    const next = voiceReport(captureState(voice), channel?.name, space?.name);
+    const next = voiceReport(
+      captureState(voice),
+      channel?.name,
+      space?.name,
+      voice.deafened,
+    );
     // Moving channels is not leaving voice: keep the strip as it is until
     // the new call reports, so it neither exits nor arrives again.
     if (next === null && voice.switching) return;
@@ -79,6 +85,12 @@ function act(
       break;
     case "unmute":
       if (voice.muted) void toggleMute();
+      break;
+    case "deafen":
+      if (!voice.deafened) void toggleDeafen();
+      break;
+    case "undeafen":
+      if (voice.deafened) void toggleDeafen();
       break;
     case "camera-on":
       if (!voice.cameraOn) void toggleCamera();

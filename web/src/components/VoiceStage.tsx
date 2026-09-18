@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMembers } from "../api/queries";
 import { joinVoice } from "../api/voice";
+import { useShortcut } from "../hooks/useShortcut";
 import { useSpeaking } from "../hooks/useSpeaking";
 import { useTileFlip } from "../hooks/useTileFlip";
 import {
@@ -272,6 +273,7 @@ export function VoiceStage({
     if (document.fullscreenElement) document.exitFullscreen();
     else el.requestFullscreen?.();
   };
+  useShortcut("stageFullscreen", fullscreen);
 
   return (
     <section

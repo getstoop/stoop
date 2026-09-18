@@ -18,6 +18,8 @@ export interface VoiceReport {
   mic: boolean;
   camera: boolean;
   screen: boolean;
+  // Bridge 4. For the shell's Voice menu.
+  deafened: boolean;
   channel: string;
   space: string;
 }
@@ -30,6 +32,9 @@ export type VoiceAction =
   | "show"
   | "mute"
   | "unmute"
+  // Bridge 4.
+  | "deafen"
+  | "undeafen"
   | "camera-on"
   | "camera-off"
   | "stop-screen"
@@ -151,6 +156,12 @@ export function shellNotifications(): boolean {
 // not — a browser, an older shell — the page keeps its rail pill.
 export function shellDrawsVoice(): boolean {
   return typeof bridge()?.setVoice === "function";
+}
+
+// Bridge 4. The shell's Voice menu holds the mute and deafen keys, so
+// they work from any server it has open; the page gives them up.
+export function shellOwnsVoiceKeys(): boolean {
+  return (bridge()?.bridge ?? 0) >= 4;
 }
 
 export function reportVoice(report: VoiceReport | null) {

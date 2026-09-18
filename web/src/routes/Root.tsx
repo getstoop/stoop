@@ -3,11 +3,13 @@ import { Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { type ActivityData, alertingCount } from "../api/activity";
 import { captureState, isCapturing, tabTitle } from "../api/capture";
-import { setBadge } from "../api/platform";
+import { setBadge, shellOwnsVoiceKeys } from "../api/platform";
 import { useInstanceStatus } from "../api/queries";
+import { toggleDeafen, toggleMute } from "../api/voice";
 import { DialogHost } from "../components/DialogHost";
 import { LinkGate } from "../components/LinkGate";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
+import { useShortcut, useShortcutListener } from "../hooks/useShortcut";
 import { useVoiceStore } from "../stores/voice";
 
 // The outermost frame: whatever page is routed, plus the one place the
@@ -16,6 +18,12 @@ export function Root() {
   // Fetches the status; the title itself is read off the cache below.
   useInstanceStatus();
   const queryClient = useQueryClient();
+  useShortcutListener();
+  // Held here, not in VoiceBar: a call follows the user to pages that
+  // have no sidebar.
+  const inVoice = useVoiceStore((s) => !!s.connection) && !shellOwnsVoiceKeys();
+  useShortcut("toggleMute", toggleMute, inVoice);
+  useShortcut("toggleDeafen", toggleDeafen, inVoice);
   // index.html's static <title>Stoop</title> is the pre-paint fallback;
   // this takes over once the instance status has loaded, everywhere in
   // the app. It watches the cache rather than useInstanceStatus's data:
