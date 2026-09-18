@@ -9,13 +9,26 @@ RETURNING *;
 -- name: GetSpace :one
 SELECT * FROM spaces WHERE id = $1;
 
+-- name: ListAllSpaces :many
+SELECT * FROM spaces ORDER BY name, id;
+
+-- Every space with the numbers the server admin's list shows, and whether
+-- the caller holds a membership row: instance admins inherit admin
+-- without one, so their role cannot answer it.
+-- name: ListAllSpacesForAdmin :many
+SELECT sqlc.embed(s),
+    (SELECT count(*) FROM space_members m WHERE m.space_id = s.id) AS member_count,
+    EXISTS (
+        SELECT 1 FROM space_members m
+        WHERE m.space_id = s.id AND m.user_id = $1
+    ) AS viewer_is_member
+FROM spaces s
+ORDER BY s.name, s.id;
+
 -- ListSpacesByUser also returns the caller's role in each space, whether
 -- any channel there has messages newer than their read marker, and their
 -- own mute for the space. has_unread does not know about space mutes; the
 -- client derives the effective state from both flags.
--- name: ListAllSpaces :many
-SELECT * FROM spaces ORDER BY name, id;
-
 -- name: ListSpacesByUser :many
 SELECT sqlc.embed(s), m.role AS my_role,
     EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.space_id = s.id AND sm.user_id = m.user_id) AS muted,

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/space.proto.
  */
 export const file_stoop_chat_v1_space: GenFile = /*@__PURE__*/
-  fileDesc("ChlzdG9vcC9jaGF0L3YxL3NwYWNlLnByb3RvEg1zdG9vcC5jaGF0LnYxItoCCgVTcGFjZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCG93bmVyX2lkGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKB215X3JvbGUYBSABKA4yGC5zdG9vcC5jaGF0LnYxLlNwYWNlUm9sZRIaChJtZW1iZXJzX2Nhbl9pbnZpdGUYBiABKAgSEgoKaGFzX3VucmVhZBgHIAEoCBIUCgxpY29uX2ZpbGVfaWQYCCABKAkSEwoLZGVzY3JpcHRpb24YCSABKAkSDwoHd2VsY29tZRgKIAEoCRIaChJkZWZhdWx0X2NoYW5uZWxfaWQYCyABKAkSDQoFbXV0ZWQYDCABKAgSMwoObXlfcGVybWlzc2lvbnMYDSADKA4yGy5zdG9vcC5hY2Nlc3MudjEuUGVybWlzc2lvbipqCglTcGFjZVJvbGUSGgoWU1BBQ0VfUk9MRV9VTlNQRUNJRklFRBAAEhUKEVNQQUNFX1JPTEVfTUVNQkVSEAESFAoQU1BBQ0VfUk9MRV9BRE1JThACEhQKEFNQQUNFX1JPTEVfT1dORVIQA0KpAQoRY29tLnN0b29wLmNoYXQudjFCClNwYWNlUHJvdG9QAVoyZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvY2hhdC92MTtjaGF0djGiAgNTQ1iqAg1TdG9vcC5DaGF0LlYxygINU3Rvb3BcQ2hhdFxWMeICGVN0b29wXENoYXRcVjFcR1BCTWV0YWRhdGHqAg9TdG9vcDo6Q2hhdDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
+  fileDesc("ChlzdG9vcC9jaGF0L3YxL3NwYWNlLnByb3RvEg1zdG9vcC5jaGF0LnYxItoCCgVTcGFjZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCG93bmVyX2lkGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKB215X3JvbGUYBSABKA4yGC5zdG9vcC5jaGF0LnYxLlNwYWNlUm9sZRIaChJtZW1iZXJzX2Nhbl9pbnZpdGUYBiABKAgSEgoKaGFzX3VucmVhZBgHIAEoCBIUCgxpY29uX2ZpbGVfaWQYCCABKAkSEwoLZGVzY3JpcHRpb24YCSABKAkSDwoHd2VsY29tZRgKIAEoCRIaChJkZWZhdWx0X2NoYW5uZWxfaWQYCyABKAkSDQoFbXV0ZWQYDCABKAgSMwoObXlfcGVybWlzc2lvbnMYDSADKA4yGy5zdG9vcC5hY2Nlc3MudjEuUGVybWlzc2lvbiKQAgoMU3BhY2VTdW1tYXJ5EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMaWNvbl9maWxlX2lkGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhAKCG93bmVyX2lkGAUgASgJEhYKDm93bmVyX3VzZXJuYW1lGAYgASgJEhoKEm93bmVyX2Rpc3BsYXlfbmFtZRgHIAEoCRIVCg1vd25lcl9kZWxldGVkGAggASgIEhQKDG1lbWJlcl9jb3VudBgJIAEoDRIuCgpjcmVhdGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChB2aWV3ZXJfaXNfbWVtYmVyGAsgASgIKmoKCVNwYWNlUm9sZRIaChZTUEFDRV9ST0xFX1VOU1BFQ0lGSUVEEAASFQoRU1BBQ0VfUk9MRV9NRU1CRVIQARIUChBTUEFDRV9ST0xFX0FETUlOEAISFAoQU1BBQ0VfUk9MRV9PV05FUhADQqkBChFjb20uc3Rvb3AuY2hhdC52MUIKU3BhY2VQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
 
 /**
  * @generated from message stoop.chat.v1.Space
@@ -125,6 +125,87 @@ export type Space = Message<"stoop.chat.v1.Space"> & {
  */
 export const SpaceSchema: GenMessage<Space> = /*@__PURE__*/
   messageDesc(file_stoop_chat_v1_space, 0);
+
+/**
+ * SpaceSummary is one row of the server admin's Spaces list: a space the
+ * caller may not be in. It carries nothing membership-only — no role, no
+ * unread, no permissions — because there may be no membership.
+ *
+ * @generated from message stoop.chat.v1.SpaceSummary
+ */
+export type SpaceSummary = Message<"stoop.chat.v1.SpaceSummary"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * The space icon's file id (GET /files/{id}); empty for initials.
+   *
+   * @generated from field: string icon_file_id = 3;
+   */
+  iconFileId: string;
+
+  /**
+   * The one plain-text line under the name; may be empty.
+   *
+   * @generated from field: string description = 4;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string owner_id = 5;
+   */
+  ownerId: string;
+
+  /**
+   * Resolved through the user directory. display_name may be empty, and
+   * owner_deleted marks an account whose username is all that is left.
+   *
+   * @generated from field: string owner_username = 6;
+   */
+  ownerUsername: string;
+
+  /**
+   * @generated from field: string owner_display_name = 7;
+   */
+  ownerDisplayName: string;
+
+  /**
+   * @generated from field: bool owner_deleted = 8;
+   */
+  ownerDeleted: boolean;
+
+  /**
+   * @generated from field: uint32 member_count = 9;
+   */
+  memberCount: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 10;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * Whether the caller holds a membership row here. Instance admins
+   * inherit admin without one, so this is not derivable from a role.
+   *
+   * @generated from field: bool viewer_is_member = 11;
+   */
+  viewerIsMember: boolean;
+};
+
+/**
+ * Describes the message stoop.chat.v1.SpaceSummary.
+ * Use `create(SpaceSummarySchema)` to create a new message.
+ */
+export const SpaceSummarySchema: GenMessage<SpaceSummary> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_space, 1);
 
 /**
  * SpaceRole is a member's role within one space: owner > admin > member.

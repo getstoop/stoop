@@ -124,6 +124,7 @@ th[aria-sort] .dt-sort-arrow {
 
 .dt-actions .dots-menu-anchor {
   display: inline-block;
+  vertical-align: middle;
 }
 
 /* A parent row's chevron, and the full-width row it opens. */
@@ -198,11 +199,46 @@ th[aria-sort] .dt-sort-arrow {
   min-width: 0;
 }
 
+/* The identity cell of the spaces table: the icon in its box, the name,
+   and the space's description under it. */
+.dt-space {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dt-space > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dt-space-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow: hidden;
+}
+
 .dt-channel svg {
   vertical-align: -2px;
 }
 
+/* A chip here may be a link (Spaces' Open) as well as a button: an <a>
+   is inline unless it is told otherwise, and would sit a few pixels
+   below the row menu it stands beside. */
 .dt-actions > .chip {
+  display: inline-block;
+  vertical-align: middle;
   margin-right: 4px;
 }
 

@@ -14,17 +14,19 @@ import { RetentionSection } from "./RetentionSection";
 import { SelfDeletionSetting } from "./SelfDeletionSetting";
 import { ServerSection } from "./ServerSection";
 import { SessionLifetimeSetting } from "./SessionLifetimeSetting";
+import { SpacesSection } from "./SpacesSection";
 import { StorageSection } from "./StorageSection";
 import { UsersSection } from "./UsersSection";
 
 // Server administration: who may create accounts and spaces, which build
-// this is, the account list, how people reach the server, sign-in, and
-// the upload disk.
+// this is, the account list, every space on the server, how people reach
+// the server, sign-in, and the upload disk.
 // Instance admins only; everyone else is sent home.
 
 type Tab =
   | "server"
   | "accounts"
+  | "spaces"
   | "hosting"
   | "login"
   | "storage"
@@ -33,6 +35,7 @@ type Tab =
 const TABS: { key: Tab; label: string }[] = [
   { key: "server", label: "Server" },
   { key: "accounts", label: "Accounts" },
+  { key: "spaces", label: "Spaces" },
   { key: "hosting", label: "Hosting" },
   { key: "login", label: "Login" },
   { key: "storage", label: "Storage" },
@@ -88,6 +91,7 @@ export function AdminPage() {
           <UsersSection meId={me.id} />
         </>
       )}
+      {active === "spaces" && <SpacesSection />}
       {active === "hosting" && <ReachabilitySection />}
       {active === "login" && (
         <>

@@ -54,3 +54,26 @@ message Space {
   // listed; the server still enforces. Empty on broadcast events.
   repeated stoop.access.v1.Permission my_permissions = 13;
 }
+
+// SpaceSummary is one row of the server admin's Spaces list: a space the
+// caller may not be in. It carries nothing membership-only — no role, no
+// unread, no permissions — because there may be no membership.
+message SpaceSummary {
+  string id = 1;
+  string name = 2;
+  // The space icon's file id (GET /files/{id}); empty for initials.
+  string icon_file_id = 3;
+  // The one plain-text line under the name; may be empty.
+  string description = 4;
+  string owner_id = 5;
+  // Resolved through the user directory. display_name may be empty, and
+  // owner_deleted marks an account whose username is all that is left.
+  string owner_username = 6;
+  string owner_display_name = 7;
+  bool owner_deleted = 8;
+  uint32 member_count = 9;
+  google.protobuf.Timestamp created_at = 10;
+  // Whether the caller holds a membership row here. Instance admins
+  // inherit admin without one, so this is not derivable from a role.
+  bool viewer_is_member = 11;
+}

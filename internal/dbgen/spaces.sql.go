@@ -123,10 +123,6 @@ const listAllSpaces = `-- name: ListAllSpaces :many
 SELECT id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id FROM spaces ORDER BY name, id
 `
 
-// ListSpacesByUser also returns the caller's role in each space, whether
-// any channel there has messages newer than their read marker, and their
-// own mute for the space. has_unread does not know about space mutes; the
-// client derives the effective state from both flags.
 func (q *Queries) ListAllSpaces(ctx context.Context) ([]Space, error) {
 	rows, err := q.db.Query(ctx, listAllSpaces)
 	if err != nil {
@@ -146,6 +142,58 @@ func (q *Queries) ListAllSpaces(ctx context.Context) ([]Space, error) {
 			&i.Description,
 			&i.Welcome,
 			&i.DefaultChannelID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllSpacesForAdmin = `-- name: ListAllSpacesForAdmin :many
+SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file_id, s.description, s.welcome, s.default_channel_id,
+    (SELECT count(*) FROM space_members m WHERE m.space_id = s.id) AS member_count,
+    EXISTS (
+        SELECT 1 FROM space_members m
+        WHERE m.space_id = s.id AND m.user_id = $1
+    ) AS viewer_is_member
+FROM spaces s
+ORDER BY s.name, s.id
+`
+
+type ListAllSpacesForAdminRow struct {
+	Space          Space
+	MemberCount    int64
+	ViewerIsMember bool
+}
+
+// Every space with the numbers the server admin's list shows, and whether
+// the caller holds a membership row: instance admins inherit admin
+// without one, so their role cannot answer it.
+func (q *Queries) ListAllSpacesForAdmin(ctx context.Context, userID string) ([]ListAllSpacesForAdminRow, error) {
+	rows, err := q.db.Query(ctx, listAllSpacesForAdmin, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAllSpacesForAdminRow
+	for rows.Next() {
+		var i ListAllSpacesForAdminRow
+		if err := rows.Scan(
+			&i.Space.ID,
+			&i.Space.Name,
+			&i.Space.OwnerID,
+			&i.Space.CreatedAt,
+			&i.Space.MembersCanInvite,
+			&i.Space.IconFileID,
+			&i.Space.Description,
+			&i.Space.Welcome,
+			&i.Space.DefaultChannelID,
+			&i.MemberCount,
+			&i.ViewerIsMember,
 		); err != nil {
 			return nil, err
 		}
@@ -181,6 +229,10 @@ type ListSpacesByUserRow struct {
 	HasUnread bool
 }
 
+// ListSpacesByUser also returns the caller's role in each space, whether
+// any channel there has messages newer than their read marker, and their
+// own mute for the space. has_unread does not know about space mutes; the
+// client derives the effective state from both flags.
 func (q *Queries) ListSpacesByUser(ctx context.Context, userID string) ([]ListSpacesByUserRow, error) {
 	rows, err := q.db.Query(ctx, listSpacesByUser, userID)
 	if err != nil {
