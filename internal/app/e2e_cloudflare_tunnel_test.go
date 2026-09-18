@@ -81,6 +81,30 @@ func TestE2ECloudflareTunnel(t *testing.T) {
 	h.waitTunnel(casey, "running")
 }
 
+// A token from .env is shown as present, and switching the tunnel on from
+// the API without retyping it uses it.
+func TestE2ECloudflareTunnelEnvToken(t *testing.T) {
+	path := cftunneltest.Use(t, "ok", "8080")
+	token := base64.StdEncoding.EncodeToString([]byte(`{"a":"0123456789abcdef0123456789abcdef","t":"11111111-2222-3333-4444-555555555555","s":"c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0"}`))
+	h := newHarness(t, "STOOP_CLOUDFLARED_PATH", path, "STOOP_LISTEN_ADDR", ":8080",
+		"STOOP_CLOUDFLARE_TUNNEL_TOKEN", token)
+	casey := h.person("casey")
+
+	r := h.rpc(casey, reachability+"GetReachability", map[string]any{}).expect(t, "ok")
+	if !strings.Contains(r.raw, `"hasToken":true`) || r.str("cloudflareTunnel.state") != "stopped" {
+		t.Errorf("before: %s", r.raw)
+	}
+	h.rpc(casey, reachability+"UpdateReachability",
+		map[string]any{"cloudflareTunnel": map[string]any{"enabled": true}}).expect(t, "ok")
+	h.waitTunnel(casey, "running")
+	h.rpc(casey, reachability+"UpdateReachability",
+		map[string]any{"cloudflareTunnel": map[string]any{"enabled": false}}).expect(t, "ok")
+	r = h.waitTunnel(casey, "stopped")
+	if !strings.Contains(r.raw, `"hasToken":true`) {
+		t.Errorf("after off: %s", r.raw)
+	}
+}
+
 func TestE2ECloudflareTunnelMissing(t *testing.T) {
 	h := newHarness(t, "STOOP_CLOUDFLARED_PATH", "/nonexistent/cloudflared")
 	casey := h.person("casey")

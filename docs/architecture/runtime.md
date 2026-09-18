@@ -193,8 +193,10 @@ deployment — see [identity.md](identity.md#sessions).
 remotely managed tunnel whose token the operator pastes on the Hosting
 page. `cftunnel.Manager` reconciles like `tailnet.Manager`: start, stop,
 restart on a new token. The connector restarts a process that exits, with
-backoff up to 30 seconds, and stops it with `SIGTERM`. The token reaches
-cloudflared through its environment, never its arguments.
+backoff up to 30 seconds, and stops it with `SIGTERM` and a one-second
+grace period (cloudflared's default is 30 seconds, and it holds every
+client's WebSocket open for that long). The token reaches cloudflared
+through its environment, never its arguments.
 
 State comes from cloudflared's own metrics endpoint, which Stoop binds to a
 free loopback port: `/ready` says whether the tunnel is connected, and

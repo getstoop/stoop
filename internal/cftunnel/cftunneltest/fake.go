@@ -16,7 +16,7 @@ import (
 
 const (
 	// Env selects the behaviour: "ok" connects, "reject" fails the way a
-	// bad token does.
+	// bad token does, "crash" exits without a word.
 	Env = "STOOP_FAKE_CLOUDFLARED"
 	// OriginEnv is the port the fake's tunnel points at.
 	OriginEnv = "STOOP_FAKE_CLOUDFLARED_ORIGIN"
@@ -36,6 +36,9 @@ func Use(t *testing.T, mode, originPort string) string {
 func Main() {
 	fail := func(msg string) {
 		_ = json.NewEncoder(os.Stderr).Encode(map[string]string{"level": "error", "message": msg})
+		os.Exit(1)
+	}
+	if os.Getenv(Env) == "crash" {
 		os.Exit(1)
 	}
 	if os.Getenv(Env) == "reject" || os.Getenv("TUNNEL_TOKEN") == "" {

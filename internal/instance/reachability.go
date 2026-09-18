@@ -228,6 +228,11 @@ func (s *Service) Reachability(ctx context.Context) (Reachability, error) {
 	if ok, err := s.readJSON(ctx, keyCloudflareTunnel, &ct); err != nil {
 		return r, err
 	} else if ok {
+		// A saved blank token falls back to the environment's, so the
+		// switch can be saved without copying the secret out of .env.
+		if ct.Token == "" {
+			ct.Token = r.CloudflareTunnel.Token
+		}
 		r.CloudflareTunnel = ct
 	}
 	tp, err := s.trustedProxies(ctx)

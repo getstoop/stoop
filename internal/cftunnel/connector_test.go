@@ -6,6 +6,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -61,6 +63,32 @@ func TestConnector_RejectedToken(t *testing.T) {
 	go c.Run(ctx)
 	if st := waitState(t, c, "error"); st.Error != "Cloudflare rejected the token." {
 		t.Errorf("error = %q", st.Error)
+	}
+}
+
+func TestConnector_ExitsSilently(t *testing.T) {
+	path := cftunneltest.Use(t, "crash", "8080")
+	c := New(Options{Path: path, Token: "secret", OriginPort: "8080"}, quiet)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go c.Run(ctx)
+	if st := waitState(t, c, "error"); !strings.Contains(st.Error, "exit status 1") {
+		t.Errorf("error = %q", st.Error)
+	}
+}
+
+func TestConnector_WontStart(t *testing.T) {
+	// Executable, but not a program.
+	path := filepath.Join(t.TempDir(), "cloudflared")
+	if err := os.WriteFile(path, []byte("not a program\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	c := New(Options{Path: path, Token: "secret", OriginPort: "8080"}, quiet)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go c.Run(ctx)
+	if st := waitState(t, c, "error"); st.Error == "" {
+		t.Errorf("status = %+v", st)
 	}
 }
 

@@ -72,12 +72,22 @@ func (m *Manager) Run(ctx context.Context) {
 	m.mu.Unlock()
 	<-ctx.Done()
 	m.mu.Lock()
-	m.stopLocked()
+	cur := m.stopLocked()
 	m.mu.Unlock()
+	if cur == nil {
+		return
+	}
+	select {
+	case <-cur.done:
+	case <-time.After(15 * time.Second):
+		m.log.Warn("cloudflare tunnel: connector did not stop in time")
+	}
 }
 
 // Apply records the settings in force and reconciles the connector with
-// them (once Run has started).
+// them (once Run has started). It returns as soon as the change is under
+// way: a connector on its way out winds down on its own, and nothing
+// waits on it, so a status read never blocks on cloudflared's exit.
 func (m *Manager) Apply(s Settings) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -111,17 +121,15 @@ func (m *Manager) reconcileLocked() {
 	}()
 }
 
-func (m *Manager) stopLocked() {
-	if m.cur == nil {
-		return
+// stopLocked tells the current connector to stop and forgets it; the
+// caller may wait on the returned instance's done.
+func (m *Manager) stopLocked() *instance {
+	cur := m.cur
+	if cur != nil {
+		cur.cancel()
+		m.cur = nil
 	}
-	m.cur.cancel()
-	select {
-	case <-m.cur.done:
-	case <-time.After(15 * time.Second):
-		m.log.Warn("cloudflare tunnel: connector did not stop in time")
-	}
-	m.cur = nil
+	return cur
 }
 
 // PublicURL is the running tunnel's https address, or "".
