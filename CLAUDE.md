@@ -19,3 +19,7 @@ with a React web app in `web/`.
 - **Releases and patch releases:** `docs/releasing.md` — a minor is a tag
   on `main`; a patch is a tag on a `release/X.Y` branch off the previous
   tag and carries no migrations.
+- **Working with the maintainer:** don't assume things that change
+  feature behaviour. If mid-implementation you find yourself shoehorning
+  in features to make something work, stop and ask; that's fine. A
+  question gets an answer, not a change. Use your best judgement.
