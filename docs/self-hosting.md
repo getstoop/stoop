@@ -218,7 +218,8 @@ Stoop runs Cloudflare's connector (`cloudflared`) itself; the Docker image
 includes it.
 
 1. In Cloudflare's dashboard (Zero Trust → Networks → Tunnels), create a
-   tunnel and copy its token, or the whole install command it shows.
+   tunnel and copy its token (the `eyJ…` string at the end of the install
+   command it shows).
 2. In the setup wizard or **Server admin → Hosting → Cloudflare Tunnel**,
    tick "Run a Cloudflare Tunnel", paste the token and save. This also adds
    `127.0.0.1` and `::1` to Trusted proxies, which is where the connector

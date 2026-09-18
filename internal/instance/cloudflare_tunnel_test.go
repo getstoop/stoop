@@ -13,13 +13,13 @@ func TestParseTunnelToken(t *testing.T) {
 	// Padded to a length base64 must pad, so the unpadded form differs.
 	padded := body + strings.Repeat(" ", (4-len(body)%3)%3+1)
 	cases := []struct {
-		name, pasted, want string
-		bad                bool
+		name, in, want string
+		bad            bool
 	}{
 		{"blank keeps the saved one", "  ", "", false},
 		{"the token", token, token, false},
-		{"the install command", "sudo cloudflared service install " + token + "\n", token, false},
-		{"the run command", "cloudflared tunnel run --token " + token, token, false},
+		{"trimmed", " " + token + "\n", token, false},
+		{"the whole command", "cloudflared tunnel run --token " + token, "", true},
 		{"not base64", "hunter2", "", true},
 		{"unpadded", base64.RawStdEncoding.EncodeToString([]byte(padded)), "", true},
 		{"missing fields", base64.StdEncoding.EncodeToString([]byte(`{"a":"account"}`)), "", true},
@@ -27,7 +27,7 @@ func TestParseTunnelToken(t *testing.T) {
 		{"secret not base64", base64.StdEncoding.EncodeToString([]byte(`{"a":"account","t":"11111111-2222-3333-4444-555555555555","s":"secret!"}`)), "", true},
 	}
 	for _, tc := range cases {
-		got, err := ParseTunnelToken(tc.pasted)
+		got, err := ParseTunnelToken(tc.in)
 		if got != tc.want || (err != nil) != tc.bad {
 			t.Errorf("%s: got %q, %v", tc.name, got, err)
 		}

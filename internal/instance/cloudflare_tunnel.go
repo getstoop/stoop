@@ -49,17 +49,15 @@ func (s *Service) UseCloudflareTunnel(ctx context.Context, c CloudflareTunnelCon
 	return nil
 }
 
-// ParseTunnelToken takes what was pasted (the token, or the whole
-// `cloudflared … <token>` command Cloudflare shows) and returns the token.
-// It decodes the way cloudflared does, so what saves here is what the
-// connector will accept: padded base64 of JSON with an account tag, a
-// tunnel id that is a UUID, and a secret that is itself base64.
-func ParseTunnelToken(pasted string) (string, error) {
-	fields := strings.Fields(pasted)
-	if len(fields) == 0 {
+// ParseTunnelToken checks a token decodes the way cloudflared decodes it:
+// padded base64 of JSON with an account tag, a tunnel id that is a UUID,
+// and a secret that is itself base64. That way what saves here is what
+// the connector will accept.
+func ParseTunnelToken(token string) (string, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
 		return "", nil
 	}
-	token := fields[len(fields)-1]
 	bad := connect.NewError(connect.CodeInvalidArgument,
 		errors.New("that isn't a tunnel token; copy it from the tunnel's page in Cloudflare"))
 	raw, err := base64.StdEncoding.DecodeString(token)
@@ -79,8 +77,8 @@ func ParseTunnelToken(pasted string) (string, error) {
 
 // updateCloudflareTunnel saves and applies; a blank token keeps the
 // saved one.
-func (s *Service) updateCloudflareTunnel(ctx context.Context, enabled bool, pasted string) error {
-	token, err := ParseTunnelToken(pasted)
+func (s *Service) updateCloudflareTunnel(ctx context.Context, enabled bool, token string) error {
+	token, err := ParseTunnelToken(token)
 	if err != nil {
 		return err
 	}
