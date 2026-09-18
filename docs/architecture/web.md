@@ -315,8 +315,8 @@ Every list with columns on the settings pages is a
   `expanded` and `onExpandedChange` and owns that state.
 - On or off is a `StateCell`: a dot, the word, and the reason beside it.
   Identifiers (URLs, key hints) take `.dt-truncate`; prose wraps.
-- Dead rows (deactivated bots) hide behind a counted switch in the
-  toolbar: pass `hidden`. A search still finds them.
+- Dead rows (deactivated bots, deleted accounts) hide behind a counted
+  switch in the toolbar: pass `hidden`. A search still finds them.
 - A failed action is reported on its row through `rowError`.
 - An inactive row dims its cells but not its actions.
 

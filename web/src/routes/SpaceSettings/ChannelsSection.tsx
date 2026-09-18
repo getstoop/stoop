@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import {
   defaultChannelChoices,
-  editChannelTopic,
   isAnnouncement,
   setAnnouncement,
 } from "../../api/channels";
@@ -16,6 +15,7 @@ import { SpeakerIcon } from "../../components/VoiceIcons";
 import { type Channel, ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { confirm } from "../../stores/dialogs";
+import { EditChannelModal } from "./EditChannelModal";
 
 export function ChannelsSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
@@ -24,9 +24,7 @@ export function ChannelsSection({ space }: { space: Space }) {
   const [failed, setFailed] = useState<{ id: string; text: string } | null>(
     null,
   );
-  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(
-    null,
-  );
+  const [editing, setEditing] = useState<Channel | null>(null);
 
   const act = async (c: Channel, fn: () => Promise<unknown>) => {
     setFailed(null);
@@ -58,16 +56,10 @@ export function ChannelsSection({ space }: { space: Space }) {
     });
     if (ok) act(c, () => chatClient.deleteChannel({ channelId: c.id }));
   };
-  const saveRename = (c: Channel) => {
-    if (!renaming) return;
-    const name = renaming.name.trim();
-    setRenaming(null);
-    if (name) act(c, () => chatClient.updateChannel({ channelId: c.id, name }));
-  };
 
   // The cells read this render's state and handlers through a ref, so
-  // the columns stay stable and the rename input keeps its focus.
-  const view = { channels, renaming, setRenaming, saveRename, move, remove };
+  // the columns stay stable.
+  const view = { channels, setEditing, move, remove };
   const latest = useRef(view);
   latest.current = view;
 
@@ -77,27 +69,7 @@ export function ChannelsSection({ space }: { space: Space }) {
         id: "channel",
         header: "Channel",
         meta: { width: "24%" },
-        cell: ({ row: { original: c } }) => {
-          const v = latest.current;
-          if (v.renaming?.id !== c.id) return <ChannelName channel={c} />;
-          return (
-            <input
-              // biome-ignore lint/a11y/noAutofocus: opened by choosing Rename
-              autoFocus
-              value={v.renaming.name}
-              onChange={(e) =>
-                v.setRenaming({ id: c.id, name: e.target.value })
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter") v.saveRename(c);
-                if (e.key === "Escape") v.setRenaming(null);
-              }}
-              onBlur={() => v.saveRename(c)}
-              maxLength={100}
-              aria-label="Channel name"
-            />
-          );
-        },
+        cell: ({ row: { original: c } }) => <ChannelName channel={c} />,
       },
       {
         id: "topic",
@@ -155,14 +127,7 @@ export function ChannelsSection({ space }: { space: Space }) {
               <DotsMenu
                 label={`Actions for #${c.name}`}
                 items={[
-                  {
-                    label: "Rename",
-                    onSelect: () => v.setRenaming({ id: c.id, name: c.name }),
-                  },
-                  {
-                    label: "Edit topic",
-                    onSelect: () => editChannelTopic(c, queryClient),
-                  },
+                  { label: "Edit", onSelect: () => v.setEditing(c) },
                   {
                     label: "Delete",
                     danger: true,
@@ -203,6 +168,9 @@ export function ChannelsSection({ space }: { space: Space }) {
         />
       )}
       {error && <p className="error">{error}</p>}
+      {editing && (
+        <EditChannelModal channel={editing} onClose={() => setEditing(null)} />
+      )}
     </section>
   );
 }
