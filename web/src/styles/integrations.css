@@ -20,14 +20,6 @@
   grid-template-columns: minmax(160px, 1.4fr) minmax(160px, 2fr) 1fr auto;
 }
 
-.user-list.table.outgoing .user-row,
-.user-list.table.outgoing .user-list-head {
-  grid-template-columns: minmax(140px, 1.2fr) minmax(160px, 2fr) minmax(
-      120px,
-      1.4fr
-    ) auto;
-}
-
 /* A bot's hooks and tokens sit under its row, indented like an account's
    tokens in Accounts. */
 .user-list.table .bot-credentials {
@@ -60,10 +52,8 @@
   color: var(--warn);
 }
 
-/* The delivery log under an outgoing row. */
+/* The delivery log in an outgoing row's detail row. */
 .delivery-log {
-  padding: 8px 12px 12px 32px;
-  border-top: 1px dashed var(--border);
   display: flex;
   flex-direction: column;
   gap: 4px;

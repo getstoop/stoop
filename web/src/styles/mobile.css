@@ -245,8 +245,7 @@
     grid-template-columns: 1fr;
   }
 
-  .user-list.table .bot-credentials,
-  .delivery-log {
+  .user-list.table .bot-credentials {
     padding-left: 12px;
   }
 

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { isBot } from "../../api/identity";
-import { canNotifyEveryone } from "../../api/integrations";
 import {
   useChannels,
   useInstanceStatus,
@@ -8,23 +7,20 @@ import {
   useMyPermissions,
   useWebhooks,
 } from "../../api/queries";
-import { BotRow } from "../../components/Integrations/BotRow";
-import { IncomingRow } from "../../components/Integrations/IncomingRow";
 import { NewIncomingModal } from "../../components/Integrations/NewIncomingModal";
 import { OutgoingHookModal } from "../../components/Integrations/OutgoingHookModal";
-import { OutgoingRow } from "../../components/Integrations/OutgoingRow";
 import {
   type Secret,
   SecretModal,
 } from "../../components/Integrations/SecretModal";
-import { ListHead } from "../../components/ListHead";
 import { Permission } from "../../gen/stoop/access/v1/access_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
-import { SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
 import type { OutgoingWebhook } from "../../gen/stoop/integrations/v1/webhook_pb";
+import { IncomingTable } from "./IncomingTable";
+import { OutgoingTable } from "./OutgoingTable";
 
-// Space settings → Integrations: what posts into this space, grouped by
-// the bot it posts as, and where the space's events go. Every member
+// Space settings → Integrations: what posts into this space, a row per
+// webhook, and where the space's events go. Every member
 // reads it; instance admins change it (docs/proposals/webhooks.md).
 export function IntegrationsSection({ space }: { space: Space }) {
   const { data: hooks } = useWebhooks(space.id);
@@ -41,15 +37,6 @@ export function IntegrationsSection({ space }: { space: Space }) {
 
   const channelName = (id: string) =>
     channels?.find((c) => c.id === id)?.name ?? "a channel";
-  const bots = new Map<
-    string,
-    typeof members extends (infer M)[] | undefined ? M : never
-  >();
-  for (const m of members ?? []) bots.set(m.userId, m);
-  const byBot = new Map<string, NonNullable<typeof hooks>["incoming"]>();
-  for (const h of hooks?.incoming ?? []) {
-    byBot.set(h.botUserId, [...(byBot.get(h.botUserId) ?? []), h]);
-  }
   const available = status?.webhooksAvailable ?? true;
 
   return (
@@ -81,46 +68,13 @@ export function IntegrationsSection({ space }: { space: Space }) {
             Incoming webhooks are turned off on this server.
           </p>
         )}
-        {hooks && byBot.size === 0 && (
-          <p className="muted small">Nothing posts into this space yet.</p>
-        )}
-        {byBot.size > 0 && (
-          <ul className="user-list table bots">
-            <ListHead columns={["Bot", "Standing", "", ""]} />
-            {[...byBot.entries()].map(([botId, list]) => {
-              const m = bots.get(botId);
-              const notifies = list.some(canNotifyEveryone);
-              const standing =
-                m?.role === SpaceRole.ADMIN
-                  ? notifies
-                    ? "admin, so it can notify everyone"
-                    : "admin"
-                  : m
-                    ? "member"
-                    : "not in this space";
-              return (
-                <BotRow
-                  key={botId}
-                  username={m?.username ?? "bot"}
-                  displayName={m?.displayName ?? list[0].name}
-                  avatarFileId={m?.avatarFileId}
-                  standing={standing}
-                  inactive={!m}
-                >
-                  {list.map((h) => (
-                    <IncomingRow
-                      key={h.id}
-                      hook={h}
-                      channelName={channelName(h.channelId)}
-                      manage={manage}
-                      onSecret={setSecret}
-                    />
-                  ))}
-                </BotRow>
-              );
-            })}
-          </ul>
-        )}
+        <IncomingTable
+          hooks={hooks?.incoming}
+          members={members}
+          channelName={channelName}
+          manage={manage}
+          onSecret={setSecret}
+        />
       </section>
 
       <section className="card" data-section="outgoing">
@@ -145,24 +99,13 @@ export function IntegrationsSection({ space }: { space: Space }) {
             Outgoing webhooks are turned off on this server.
           </p>
         )}
-        {hooks && hooks.outgoing.length === 0 && (
-          <p className="muted small">Nothing is sent out of this space.</p>
-        )}
-        {hooks && hooks.outgoing.length > 0 && (
-          <ul className="user-list table outgoing">
-            <ListHead columns={["Webhook", "Sends", "State", ""]} />
-            {hooks.outgoing.map((h) => (
-              <OutgoingRow
-                key={h.id}
-                hook={h}
-                channelName={h.channelId ? channelName(h.channelId) : undefined}
-                manage={manage}
-                onEdit={(existing) => setOutgoing({ existing })}
-                onSecret={setSecret}
-              />
-            ))}
-          </ul>
-        )}
+        <OutgoingTable
+          hooks={hooks?.outgoing}
+          channelName={channelName}
+          manage={manage}
+          onEdit={(existing) => setOutgoing({ existing })}
+          onSecret={setSecret}
+        />
       </section>
 
       {newIncoming && (

@@ -30,7 +30,7 @@ export function DeliveryLog({ webhookId }: { webhookId: string }) {
   };
 
   return (
-    <li className="delivery-log" data-deliveries-of={webhookId}>
+    <div className="delivery-log" data-deliveries-of={webhookId}>
       {isLoading && <p className="muted small">Loading…</p>}
       {deliveries?.length === 0 && (
         <p className="muted small">Nothing sent yet.</p>
@@ -71,6 +71,6 @@ export function DeliveryLog({ webhookId }: { webhookId: string }) {
         );
       })}
       {error && <p className="error">{error}</p>}
-    </li>
+    </div>
   );
 }

@@ -198,6 +198,38 @@ th[aria-sort] .dt-sort-arrow {
   margin-right: 4px;
 }
 
+.dt-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.dt-state::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--ok);
+}
+
+.dt-state.off::before {
+  background: var(--warn);
+}
+
+.dt-state-reason {
+  color: var(--warn);
+  font-size: var(--text-sm);
+}
+
+/* An identifier (a URL, a key hint): one line, the rest on hover. */
+.dt-truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .dt-subline {
   display: block;
 }
