@@ -191,7 +191,7 @@ export function DataTable<T extends RowData>({
           <tbody>
             {!rows &&
               SKELETON_ROWS.map((i) => (
-                <tr key={i} className="dt-row">
+                <tr key={i} className="dt-skeleton-row">
                   {detail && <td />}
                   {headers.map((h) => (
                     <td key={h.id}>
