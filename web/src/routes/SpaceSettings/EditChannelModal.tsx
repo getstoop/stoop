@@ -67,7 +67,11 @@ export function EditChannelModal({
         </>
       }
     >
-      <form id={formId} className="modal-body" onSubmit={save}>
+      <form
+        id={formId}
+        className="modal-form channel-edit-form"
+        onSubmit={save}
+      >
         <label className="field">
           Name
           <input
