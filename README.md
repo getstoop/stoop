@@ -42,7 +42,7 @@ docker compose up -d          # open http://localhost:8080
 Prereqs: Go ≥ 1.27, Node ≥ 20 + pnpm, Docker, and for codegen
 [buf](https://buf.build) + [sqlc](https://sqlc.dev). On macOS:
 `brew install go buf sqlc golangci-lint air livekit` (LiveKit runs
-natively in dev — see docs/self-hosting.md → Voice in development for why).
+natively in dev — see docs/architecture/voice.md → Development for why).
 
 ```sh
 make dev        # Postgres in Docker + LiveKit on the host, Go server with hot reload, Vite dev server
@@ -51,8 +51,8 @@ make dev        # Postgres in Docker + LiveKit on the host, Go server with hot r
 
 make generate   # regenerate protobuf + sqlc code (output is committed)
 node scripts/gen-emoji.mjs   # refresh the reaction picker's emoji list from Unicode (output is committed)
-make lint       # golangci-lint (incl. module-boundary rules) + biome + tsc + theme contrast check
-make test       # go test ./...
+make lint       # golangci-lint (incl. module-boundary rules) + biome + tsc + theme and stylesheet checks
+make test       # go test ./... and the web unit tests (Vitest)
 make build      # single self-contained binary at bin/stoop (web UI embedded)
 ```
 
@@ -73,33 +73,22 @@ coding agent? The brief template and this environment's traps are in
 
 ## Testing
 
-- `make test` — Go unit tests. Tests that need Postgres (most of `internal/`)
-  create a throwaway database per test when `STOOP_TEST_DATABASE_URL` is
-  set and skip otherwise: `STOOP_TEST_DATABASE_URL=postgres://stoop:stoop@localhost:5440/stoop?sslmode=disable make test`.
-- `make dev-reset` — wipe the dev database and seed a fixed cast against the
-  running server: eight named accounts (`casey` is the server admin) plus
-  eighteen extra neighbours in The Stoop so its member list scrolls, all
-  with password `password1` and profiles filled in unevenly on purpose (two have
-  no bio, two no pronouns, so the empty states have somewhere to show),
-  across two spaces — "The Stoop" (a neighbourhood) and
-  "Basement Arcade" (a gaming guild), each with a description, welcome text and
-  channels with topics, and a few people in both. It prints the accounts and
-  their roles when it finishes.
-- `make e2e` — browser end-to-end suite (`web/e2e-pw/*.spec.ts`, Playwright
-  driving Chromium). It builds, then `scripts/e2e-scratch.sh` recreates a
-  `stoop_e2e` database on the dev Postgres, starts a second server on :8092
-  with its own storage directory and the dev LiveKit's key pair, runs every
-  spec against it and stops it; the dev server and its data are left alone.
-  `make e2e specs="setup members"` runs a subset. The runner itself
-  (`cd web && npx playwright test`) works against any server named by
-  `STOOP_E2E_BASE_URL`, wiping the database in `STOOP_E2E_DATABASE_URL`
-  before each spec; a hand-started server needs
-  `STOOP_UNFURL_ALLOW_PRIVATE=true STOOP_AUTH_RATE_LIMIT=0` (the suite signs
-  in far more than 20 times a minute from one address). The voice spec runs
-  with the rest when the server was started against a LiveKit (`make dev`
-  and the scratch script both do that) and skips itself otherwise.
+- `make test` — Go tests and the web unit tests (Vitest). Go tests that
+  need Postgres (most of `internal/`) create a throwaway database per test
+  when `STOOP_TEST_DATABASE_URL` is set and skip otherwise:
+  `STOOP_TEST_DATABASE_URL=postgres://stoop:stoop@localhost:5440/stoop?sslmode=disable make test`.
+- `make dev-reset` — wipe the dev database and seed a fixed cast against
+  the running server: two spaces, eight named accounts (`casey` is the
+  server admin) and eighteen extras, all with password `password1`. It
+  prints the accounts and their roles when it finishes.
+- `make e2e` — the browser suite (`web/e2e-pw/*.spec.ts`, Playwright
+  driving Chromium) on a throwaway server and database; the dev server and
+  its data are left alone. `make e2e specs="setup members"` runs a subset.
+  CI runs it on every pull request, so you don't need to run it locally.
 
-CI runs lint, codegen drift checks, the Go tests, and the browser suite.
+CI runs lint, codegen drift checks, the Go and web tests, and the browser
+suite. More on all of these in
+[docs/agent-workflow.md](docs/agent-workflow.md).
 
 ## Contributing and security
 

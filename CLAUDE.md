@@ -11,9 +11,9 @@ with a React web app in `web/`.
 - **Environment traps, build/run/verify steps, E2E rules:**
   `docs/agent-workflow.md`. In short: `make lint`, `make test`,
   `make build` from the repo root; the binary embeds `web/dist`, so
-  rebuild after web changes; `make e2e` runs the browser suite on its own
-  throwaway server and database, but still needs the maintainer's
-  go-ahead — they review the change on their dev instance first. Changes land by
+  rebuild after web changes; the browser suite runs in CI on the pull
+  request, so don't run `make e2e` locally before a push (it is there for
+  debugging a spec CI failed). Changes land by
   pull request: `main` refuses direct pushes and merges only with green
   CI (`docs/agent-workflow.md` → How a change lands).
 - **Releases and patch releases:** `docs/releasing.md` — a minor is a tag

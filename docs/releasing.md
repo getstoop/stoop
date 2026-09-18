@@ -40,7 +40,7 @@ release before it, and it can be rolled back one release
    linux amd64, linux arm64 and darwin arm64 archives with `checksums.txt`;
    images pushed to `ghcr.io/getstoop/stoop` as `0.2.0`, `0.2` and
    `latest`; the compose bundle (`docker-compose.yml`, `livekit.yaml`,
-   `livekit-entrypoint.sh`, `.env.example`) attached to the GitHub
+   `livekit-entrypoint.sh`, `env.example`) attached to the GitHub
    Release so `releases/latest/download/<file>` serves it.
 5. **Verify against what was published.** Cold install from the quick
    start on a clean machine. Upgrade an instance of the previous release

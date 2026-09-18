@@ -1,11 +1,9 @@
 # Instance branding: where the name, icon and blurb go
 
-Status: proposed 2026-09-03. Decided the same day to go incrementally:
-`instance_name` shipped first on its own (browser tab title, Server admin
-tab, random two-word default so instances aren't all "Stoop"), with the
-icon, blurb and their placement on the pre-login pages — the options below —
-still open. This file is the text of a design page with live mockups that lives in
-the maintainer's private tooling; the reasoning is all here.
+Status: open. `instance_name` is built (browser tab title, Server admin
+tab, random two-word default so instances aren't all "Stoop"); the icon,
+the blurb and their placement on the pre-login pages — the options below —
+are undecided.
 
 ## The problem
 

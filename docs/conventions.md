@@ -1,8 +1,7 @@
 # Coding conventions
 
 How the code is laid out, so that a file stays something a person can hold
-in their head. Add to this when a new rule earns its place; every rule
-here was written after a file got too big to work in.
+in their head. Add to this when a new rule earns its place.
 
 ## Web: one component per file
 
@@ -26,11 +25,9 @@ here was written after a file got too big to work in.
 - **Icon collections are the exception.** `Icons.tsx` and
   `VoiceIcons.tsx` are many tiny SVG components in one file, and that is
   the readable form for them.
-- **Known debt** (component counts on 2026-08-31): `routes/Setup.tsx`
-  (5). Split it when it is next touched; do not add components to it.
-  `routes/Admin/` and `routes/Profile/` (2026-08-30),
-  `routes/SpaceSettings/` and `routes/Channel/` (2026-08-31) were split
-  this way and are the model for the rest.
+- **Known debt:** `routes/Setup.tsx` holds five components. Split it when
+  it is next touched; do not add components to it. `routes/Admin/` and
+  `routes/Profile/` are the model.
 
 ## Web: one stylesheet per feature
 
