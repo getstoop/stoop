@@ -97,7 +97,9 @@ export function DataTable<T extends RowData>({
       },
     },
     enableSorting: !ordered,
-    // A refetch after an action must not throw the reader back to page 1.
+    // A refetch after an action must not throw the reader back to page 1
+    // or close the detail row they were working in.
+    autoResetAll: false,
     autoResetPageIndex: false,
     sortDescFirst: false,
     ...(detail?.expanded && {
