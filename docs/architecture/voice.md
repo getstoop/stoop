@@ -290,25 +290,14 @@ than when the server noticed it, is tracked as STOOP-122.
 
 ## Presence in a voice channel
 
-Who is in which voice channel is **client-reported**: after connecting to
-LiveKit the client sends `ClientEvent.VoiceState` over the gateway
-WebSocket, the gateway keeps it in memory beside presence, and broadcasts
-`VoiceStateChanged` to the space. It is dropped when that WebSocket closes,
-and re-reported on every reconnect.
-
-Each entry records the connection that owns it, so a second tab closing
-does not evict a voice session the first tab established.
-
-LiveKit webhooks are a possible later reconciler, not a dependency. The
-cost of being wrong is a stale name in a sidebar until the next reconnect,
-which is the right amount of wrong for a hint — and nothing that enforces a
-kick reads it, precisely because it is one.
+Who is in which voice channel is **client-reported** over the gateway
+socket and kept in gateway memory
+([realtime.md](realtime.md#voice-state)). The cost of being wrong is a
+stale name in a sidebar until the next reconnect, which is the right
+amount of wrong for a hint — and nothing that enforces a kick reads it,
+precisely because it is one.
 
 ## Front doors, and the one thing they all share
-
-Stoop serves one plain HTTP listener and stays agnostic about what sits in
-front of it — a reverse proxy, a Cloudflare Tunnel, Tailscale Serve. See
-[runtime.md](runtime.md).
 
 **Every front door carries chat and voice *signaling*, and none of them
 carries voice *audio*.** Audio is WebRTC to LiveKit's media ports, or to a
@@ -316,21 +305,11 @@ TURN relay. An HTTP-only tunnel therefore gives a silent room unless a
 reachable TURN server is configured. This must be said plainly wherever
 setup guidance appears, including the setup wizard.
 
-Exposure is made easier by two complementary pieces, described
-for operators in `docs/self-hosting.md`:
-
-- **TURN support in Stoop** — static credentials, or Cloudflare TURN
-  credentials minted per join and returned from `JoinVoiceChannel` — so
-  that an HTTP-only tunnel (Cloudflare Tunnel in particular, which many
-  self-hosters are pushed into by CGNAT) still gets voice with nothing
-  installed on friends' devices.
-- **The embedded Tailscale listener** (`internal/tailnet`), for private
-  access with real certificates and no third party in the path. It carries
-  LiveKit's media ports as well as HTTPS, so voice rides the tailnet with
-  nothing extra installed on the server.
-
-Both stay optional. The plain HTTP listener behind whatever proxy the
-operator already runs remains the baseline.
+Which front door carries what is in
+[runtime.md](runtime.md#front-doors). Two pieces get voice
+through the ones that can't: TURN credentials returned from
+`JoinVoiceChannel` ([ICE and TURN](#ice-and-turn)), and the embedded
+Tailscale node, which carries LiveKit's media ports as well as HTTPS.
 
 ## Development
 

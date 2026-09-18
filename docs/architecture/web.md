@@ -265,13 +265,17 @@ strip under the header, rows stack, and tables fold to a labelled stack,
 all from `mobile.css`. `components/SettingsFrame.tsx` is the frame;
 each page passes it a header, its section links and the section on
 show. Space settings is routed beside the space layout, not inside it,
-which is how its nav takes the sidebar's place. A single setting is a
-`SettingRow` (`components/SettingRow.tsx`): title and description on
-the left, control on the right, stacked on a phone; a page groups rows
-in one `section.card`; a page with several fields is one form with one
-"Save changes", disabled until something differs from the server. A list
-of people, channels or webhooks is a `DataTable` ([Tables](#tables)),
-folding into a labelled stack on a phone. The Hosting form is
+which is how its nav takes the sidebar's place.
+
+- A single setting is a `SettingRow` (`components/SettingRow.tsx`): title
+  and description on the left, control on the right.
+- A page groups rows in one `section.card`; a page with several fields is
+  one form with one "Save changes", disabled until something differs from
+  the server.
+- A list of people, channels or webhooks is a `DataTable`
+  ([Tables](#tables)).
+
+The Hosting form is
 the same rows with `stack` for the groups that hold several controls;
 it also serves the setup wizard, where the rows fall to one column
 because the two columns belong to `.settings-content`.
