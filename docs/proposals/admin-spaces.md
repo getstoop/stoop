@@ -27,7 +27,7 @@ configuration. One `DataTable` fills it.
 
 | Column | Width | Cell | Sorts by |
 | --- | --- | --- | --- |
-| Space | what's left | Icon, name, a `joined` badge; the description beneath | name |
+| Space | what's left | The icon, the name, and the description beneath | name |
 | Owner | 22% | Display name, falling back to the username; a deleted account takes `DeletedMark` | the same text |
 | Members | 13%, `align: end` | The count | the count |
 | Created | 15% | `toLocaleDateString()`, as Accounts prints Joined | the timestamp |
@@ -41,7 +41,12 @@ configuration. One `DataTable` fills it.
   available. Delete lives in the row menu — a destructive chip on every
   row of a list of other people's spaces is a misclick waiting to happen.
 - **Open is a link to `/s/{id}`**, not an RPC: membership already exists,
-  so it is the same navigation the rail does.
+  so it is the same navigation the rail does. A chip in an actions cell
+  is told to be `inline-block`, because a chip on a link is otherwise
+  plain inline and sits below the row menu beside it.
+- **No "joined" badge.** The row's Open or Join already says whether the
+  admin is in the space; a badge saying it again was the first thing that
+  read as clutter.
 - **Join** confirms, then calls `JoinSpace` by id — the path
   `joinAsInstanceAdmin` already serves, which enters as a plain member,
   not as an admin. **Delete** is the exact dialog the space's own Owner

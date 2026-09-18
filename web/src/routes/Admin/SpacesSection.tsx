@@ -170,10 +170,8 @@ function SpaceCell({ space }: { space: SpaceSummary }) {
         <SpaceIcon name={space.name} fileId={space.iconFileId} />
       </span>
       <div>
-        <strong>
-          {space.name}
-          {space.viewerIsMember && <span className="badge">joined</span>}
-        </strong>
+        {/* No "joined" badge: the row's Open or Join already says it. */}
+        <strong>{space.name}</strong>
         <span className="dt-subline muted small">
           {space.description || "—"}
         </span>
