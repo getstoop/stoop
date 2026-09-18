@@ -1,4 +1,9 @@
-import { type RowData, useTable } from "@tanstack/react-table";
+import {
+  type ExpandedState,
+  functionalUpdate,
+  type RowData,
+  useTable,
+} from "@tanstack/react-table";
 import { Fragment, type ReactNode, useEffect, useState } from "react";
 import { Footer } from "./Footer";
 import { alignClass, features, type TableColumn } from "./features";
@@ -7,6 +12,7 @@ import { Toolbar } from "./Toolbar";
 
 export type { TableColumn } from "./features";
 export { PersonCell } from "./PersonCell";
+export { StateCell } from "./StateCell";
 
 const SKELETON_ROWS = [0, 1, 2];
 
@@ -53,6 +59,10 @@ export function DataTable<T extends RowData>({
     // Accessible name for the chevron: "Tokens of @casey".
     label: (row: T) => string;
     render: (row: T) => ReactNode;
+    // Both or neither: a section that opens rows itself (Test opens the
+    // delivery log) owns the state, keyed by row id.
+    expanded?: Record<string, boolean>;
+    onExpandedChange?: (next: Record<string, boolean>) => void;
   };
 }) {
   const [query, setQuery] = useState("");
@@ -73,6 +83,13 @@ export function DataTable<T extends RowData>({
     autoResetAll: false,
     autoResetPageIndex: false,
     sortDescFirst: false,
+    ...(detail?.expanded && {
+      state: { expanded: detail.expanded as ExpandedState },
+      onExpandedChange: (updater) => {
+        const next = functionalUpdate(updater, detail.expanded ?? {});
+        detail.onExpandedChange?.(next === true ? {} : next);
+      },
+    }),
     getRowCanExpand: (row) => detail?.canExpand(row.original) ?? false,
     getColumnCanGlobalFilter: () => true,
     globalFilterFn: (row, _columnId, needle: string) =>

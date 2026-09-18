@@ -286,7 +286,7 @@ because the two columns belong to `.settings-content`.
 
 The settings lists are moving to `components/DataTable` (styles in
 `data-table.css`, the phone fold in `mobile.css`). Members, Banned,
-Accounts and Channels use it; the rest are still `ul.user-list.table` and move over one page
+Accounts, Channels and the space's Integrations use it; the rest are still `ul.user-list.table` and move over one page
 at a time.
 
 - A section declares `columns` and hands over `rows`. `rows` undefined
@@ -313,7 +313,11 @@ at a time.
 - A row that owns a list (an account's tokens) opens it in a full-width
   row underneath: pass `detail`, and rows that can open get a chevron.
   The list inside is a `table.dt-sub`, so its columns line up from one
-  parent to the next. One level deep, never nested twice.
+  parent to the next. One level deep, never nested twice. A section
+  that opens rows itself (Test opens the delivery log) passes
+  `expanded` and `onExpandedChange` and owns that state.
+- On or off is a `StateCell`: a dot, the word, and the reason beside it.
+  Identifiers (URLs, key hints) take `.dt-truncate`; prose wraps.
 - A failed action is reported on its row through `rowError`.
 - An inactive row dims its cells but not its actions.
 
