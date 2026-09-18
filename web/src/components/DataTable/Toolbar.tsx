@@ -38,7 +38,7 @@ export function Toolbar({
         />
       )}
       {hidden && (
-        <label className="dt-hidden-toggle small">
+        <label className="toggle-row dt-hidden-toggle">
           <input
             type="checkbox"
             checked={hidden.shown}
