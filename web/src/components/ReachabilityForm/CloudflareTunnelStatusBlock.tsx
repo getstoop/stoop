@@ -15,12 +15,7 @@ export function CloudflareTunnelStatusBlock({
       {status.enabled && status.state === "starting" && (
         <p className="hint">Connecting to Cloudflare…</p>
       )}
-      {status.state === "running" && status.url && (
-        <p>
-          Running at <code>{status.url}</code>.
-        </p>
-      )}
-      {status.state === "running" && !status.url && <p>Running.</p>}
+      {status.state === "running" && <p>Running.</p>}
       {status.enabled && status.state === "error" && (
         <>
           <p className="error">{status.error}</p>

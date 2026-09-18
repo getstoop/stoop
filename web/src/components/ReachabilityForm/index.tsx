@@ -95,7 +95,6 @@ export function ReachabilityForm({
         fields={fields}
         set={set}
         trustAll={data?.reachability?.trustedProxies?.trustAll ?? false}
-        tunnelUrl={data?.cloudflareTunnel?.url ?? ""}
       />
 
       <CloudflareTunnelSection

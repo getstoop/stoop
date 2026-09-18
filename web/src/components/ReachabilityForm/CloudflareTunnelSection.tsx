@@ -73,6 +73,12 @@ export function CloudflareTunnelSection({
             />
           </label>
           {status && <CloudflareTunnelStatusBlock status={status} />}
+          {status?.state === "running" && fields.publicUrl.trim() === "" && (
+            <p className="hint">
+              Put the tunnel's hostname in Public address, so invite links use
+              it.
+            </p>
+          )}
         </>
       )}
     </SettingRow>
