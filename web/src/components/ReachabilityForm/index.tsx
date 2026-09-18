@@ -4,6 +4,7 @@ import { instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useReachability } from "../../api/queries";
 import { AddressSection } from "./AddressSection";
+import { CloudflareTunnelSection } from "./CloudflareTunnelSection";
 import {
   changesFrom,
   EMPTY,
@@ -96,7 +97,13 @@ export function ReachabilityForm({
         trustAll={data?.reachability?.trustedProxies?.trustAll ?? false}
       />
 
-      <LiveKitSection lk={data?.livekit} />
+      <CloudflareTunnelSection
+        fields={fields}
+        set={set}
+        secrets={secrets}
+        setSecrets={setSecrets}
+        data={data}
+      />
 
       <TailscaleSection
         fields={fields}
@@ -107,6 +114,8 @@ export function ReachabilityForm({
         setCustomControl={setCustomControl}
         data={data}
       />
+
+      <LiveKitSection lk={data?.livekit} />
 
       <VoiceRelaySection
         fields={fields}
