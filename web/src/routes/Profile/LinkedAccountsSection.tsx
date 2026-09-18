@@ -1,18 +1,19 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
-import { type MouseEvent, useState } from "react";
+import { type MouseEvent, useMemo, useRef, useState } from "react";
 import { authClient } from "../../api/clients";
 import { beginDesktopAuth } from "../../api/desktopAuth";
 import { errorText } from "../../api/errors";
 import { linkErrorText } from "../../api/loginErrors";
 import { isDesktop } from "../../api/platform";
 import { useIdentities, useInstanceStatus } from "../../api/queries";
-import { ListHead } from "../../components/ListHead";
+import { DataTable, type TableColumn } from "../../components/DataTable";
 import {
   ProviderIcon,
   providerShortName,
   startURL,
 } from "../../components/LoginProviders";
+import type { Identity } from "../../gen/stoop/auth/v1/auth_pb";
 
 // The login providers attached to this account: sign in with any of
 // them, link more, or unlink. Hidden when the server has no providers
@@ -27,6 +28,50 @@ export function LinkedAccountsSection() {
   };
   const [error, setError] = useState<string | null>(
     search.error ? linkErrorText(search.error) : null,
+  );
+
+  const latest = useRef<{
+    nameOf: (id: string) => string;
+    iconOf: (id: string) => string;
+    unlink: (provider: string) => void;
+  } | null>(null);
+  const columns = useMemo<TableColumn<Identity>[]>(
+    () => [
+      {
+        id: "provider",
+        header: "Provider",
+        enableSorting: false,
+        cell: ({ row: { original: i } }) => (
+          <strong className="user-row-name">
+            <ProviderIcon icon={latest.current?.iconOf(i.provider) ?? ""} />
+            {latest.current?.nameOf(i.provider)}
+          </strong>
+        ),
+      },
+      {
+        id: "account",
+        header: "Account",
+        enableSorting: false,
+        meta: { width: "45%" },
+        cell: ({ row: { original: i } }) => i.email,
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        meta: { width: 110, actions: true },
+        cell: ({ row: { original: i } }) => (
+          <button
+            type="button"
+            className="chip"
+            onClick={() => latest.current?.unlink(i.provider)}
+          >
+            Unlink
+          </button>
+        ),
+      },
+    ],
+    [],
   );
 
   const providers = status?.loginProviders ?? [];
@@ -70,6 +115,8 @@ export function LinkedAccountsSection() {
     }
   };
 
+  latest.current = { nameOf, iconOf, unlink };
+
   return (
     <section className="card linked-accounts">
       <h3>Linked accounts</h3>
@@ -81,29 +128,13 @@ export function LinkedAccountsSection() {
         <p className="muted small">Linked {nameOf(search.linked)}.</p>
       )}
       {linked.length > 0 && (
-        <ul className="user-list table">
-          <ListHead columns={["Provider", "Account", ""]} />
-          {linked.map((i) => (
-            <li key={i.provider} className="user-row">
-              <div className="user-row-main">
-                <strong className="user-row-name">
-                  <ProviderIcon icon={iconOf(i.provider)} />
-                  {nameOf(i.provider)}
-                </strong>
-              </div>
-              <span className="user-cell">{i.email}</span>
-              <div className="user-row-actions">
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={() => unlink(i.provider)}
-                >
-                  Unlink
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <DataTable
+          rows={linked}
+          columns={columns}
+          rowId={(i) => i.provider}
+          noun={["account", "accounts"]}
+          empty=""
+        />
       )}
       {unlinked.length > 0 && (
         <div className="provider-add">

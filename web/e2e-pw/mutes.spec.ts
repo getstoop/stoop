@@ -430,11 +430,11 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
 
   // A row's label and its note ("direct message"), which sit in two
   // columns of the list.
-  const muteRows = A.locator(".mute-list .mute-row");
+  const muteRows = A.locator(".mutes-section .dt-row");
   const muteLabels = () =>
     muteRows.evaluateAll((rows) =>
       rows.map((r) =>
-        [r.querySelector(".mute-label"), r.querySelector(".user-cell")]
+        [r.querySelector(".mute-label"), r.querySelector(".mute-note")]
           .map((e) => (e as HTMLElement | null)?.innerText.trim() ?? "")
           .join(" ")
           .trim(),
@@ -506,7 +506,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   await unmuteRow("Book club", "Unmute the other space's channel");
   await unmuteRow(bName, "Unmute the conversation");
   await expect(
-    A.locator(".mute-list"),
+    A.locator(".mutes-section .dt-row"),
     "with nothing muted the card says so",
   ).toHaveCount(0);
   await expect(A.locator(".mutes-section"), "…in so many words").toContainText(

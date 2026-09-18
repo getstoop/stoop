@@ -1,11 +1,6 @@
 /* ---- Personal tokens: the list on Profile → Security, the new-token
    form and the shown-once panel. Phone layout is in mobile.css. ---- */
 
-.user-list.table.tokens .user-row,
-.user-list.table.tokens .user-list-head {
-  grid-template-columns: minmax(140px, 1.3fr) minmax(200px, 2.4fr) 1fr 1fr auto;
-}
-
 .badge.token-soon {
   color: var(--warn);
 }

@@ -1,17 +1,63 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { chatClient } from "../../api/clients";
 import { dmTitle, useDirectMessages } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import { channelsQuery, useMe, useSpaces } from "../../api/queries";
 import { patchChannel, recomputeSpaceUnread } from "../../api/unreads";
-import { ListHead } from "../../components/ListHead";
+import { DataTable, type TableColumn } from "../../components/DataTable";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { notice } from "../../stores/dialogs";
 
 // Everything you've turned off, in one list. Mute controls live where the
 // thing is; this is the only place that can show you what you muted in a
 // space you haven't opened in a month.
+type MuteRow = {
+  id: string;
+  label: string;
+  note: string;
+  // Names the thing for the button: "Unmute #general".
+  what: string;
+  onUnmute: () => void;
+};
+
+const columns: TableColumn<MuteRow>[] = [
+  {
+    id: "muted",
+    header: "Muted",
+    accessorFn: (r) => r.label,
+    cell: ({ row: { original: r } }) => (
+      <strong className="mute-label">{r.label}</strong>
+    ),
+  },
+  {
+    id: "note",
+    header: "",
+    enableSorting: false,
+    meta: { width: "30%" },
+    cell: ({ row: { original: r } }) => (
+      <span className="mute-note">{r.note}</span>
+    ),
+  },
+  {
+    id: "actions",
+    header: "",
+    enableSorting: false,
+    meta: { width: 110, actions: true },
+    cell: ({ row: { original: r } }) => (
+      <button
+        type="button"
+        className="chip"
+        aria-label={`Unmute ${r.what}`}
+        onClick={r.onUnmute}
+      >
+        Unmute
+      </button>
+    ),
+  },
+];
+
 export function MutesSection() {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
@@ -45,33 +91,33 @@ export function MutesSection() {
     }
   };
 
-  const rows = [
-    ...mutedSpaces.map((s) => (
-      <MuteRow
-        key={s.id}
-        label={s.name}
-        what={`the space ${s.name}`}
-        onUnmute={() => unmuteSpace(s)}
-      />
-    )),
-    ...mutedChannels.map(({ space, channel }) => (
-      <MuteRow
-        key={channel.id}
-        label={`${space.name} › # ${channel.name}`}
-        what={`#${channel.name}`}
-        onUnmute={() => unmuteChannel(queryClient, space.id, channel.id)}
-      />
-    )),
-    ...mutedDms.map((d) => (
-      <MuteRow
-        key={d.channel?.id}
-        label={dmTitle(d, me?.id)}
-        note="direct message"
-        what={`the conversation with ${dmTitle(d, me?.id)}`}
-        onUnmute={() => unmuteChannel(queryClient, "", d.channel?.id ?? "")}
-      />
-    )),
+  const rows: MuteRow[] = [
+    ...mutedSpaces.map((s) => ({
+      id: s.id,
+      label: s.name,
+      note: "",
+      what: `the space ${s.name}`,
+      onUnmute: () => unmuteSpace(s),
+    })),
+    ...mutedChannels.map(({ space, channel }) => ({
+      id: channel.id,
+      label: `${space.name} › # ${channel.name}`,
+      note: "",
+      what: `#${channel.name}`,
+      onUnmute: () => unmuteChannel(queryClient, space.id, channel.id),
+    })),
+    ...mutedDms.map((d) => ({
+      id: d.channel?.id ?? "",
+      label: dmTitle(d, me?.id),
+      note: "direct message",
+      what: `the conversation with ${dmTitle(d, me?.id)}`,
+      onUnmute: () => unmuteChannel(queryClient, "", d.channel?.id ?? ""),
+    })),
   ];
+  // The table wants the same array until what is muted changes.
+  const key = rows.map((r) => `${r.id}:${r.label}`).join("|");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: key stands in for rows
+  const stableRows = useMemo(() => rows, [key]);
 
   return (
     <section className="card mutes-section">
@@ -79,46 +125,14 @@ export function MutesSection() {
       <p className="hint">
         Nothing here interrupts you. Mentions still reach your activity.
       </p>
-      {rows.length === 0 ? (
-        <p className="muted small">You haven't muted anything.</p>
-      ) : (
-        <ul className="user-list table mute-list">
-          <ListHead columns={["Muted", "", ""]} />
-          {rows}
-        </ul>
-      )}
+      <DataTable
+        rows={stableRows}
+        columns={columns}
+        rowId={(r) => r.id}
+        noun={["mute", "mutes"]}
+        empty="You haven't muted anything."
+      />
     </section>
-  );
-}
-
-function MuteRow({
-  label,
-  note,
-  what,
-  onUnmute,
-}: {
-  label: string;
-  note?: string;
-  what: string;
-  onUnmute: () => void;
-}) {
-  return (
-    <li className="user-row mute-row">
-      <div className="user-row-main">
-        <strong className="mute-label">{label}</strong>
-      </div>
-      <span className="user-cell">{note}</span>
-      <div className="user-row-actions">
-        <button
-          type="button"
-          className="chip"
-          aria-label={`Unmute ${what}`}
-          onClick={onUnmute}
-        >
-          Unmute
-        </button>
-      </div>
-    </li>
   );
 }
 
