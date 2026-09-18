@@ -132,12 +132,8 @@ code path with its own bugs.
 ## Space role (`chat`: `space_members.role`)
 
 `owner` > `admin` > `member`. Exactly one owner per space, enforced by a
-partial unique index rather than by application code:
-
-```sql
-CREATE UNIQUE INDEX space_members_one_owner_idx
-  ON space_members (space_id) WHERE role = 'owner';
-```
+partial unique index rather than by application code
+([data.md](data.md#chat)).
 
 Ownership is transferable, and the owner cannot leave without transferring
 — a space with no owner has no one who can delete it.

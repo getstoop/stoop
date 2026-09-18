@@ -255,8 +255,8 @@ into a scan loop:
 - **The file sweep** removes uploads nothing points at, and blobs no row
   names. See [files.md](files.md#the-sweep).
 - **The activity sweep** removes *read* activity items older than
-  `STOOP_ACTIVITY_RETENTION` (default 30 days). Unread ones stay
-  however old: nothing someone hasn't seen is taken from them.
+  `STOOP_ACTIVITY_RETENTION` (default 30 days), never unread ones. See
+  [messaging.md](messaging.md#retention).
 - **The credential sweep** deletes expired sessions at once and expired
   personal tokens a month after expiry.
 - **The hook sweep** revokes hook credentials whose hook row a channel or
@@ -310,9 +310,8 @@ and linux/arm64 are what make "a Pi is a first-class host" true, and what
 make the release artefact a single file with no runtime dependencies.
 
 **Rebuild after any web change** — the binary embeds `web/dist`, so a
-Go-only rebuild ships the previous front end. This has cost real sessions
-real time and is listed among the traps in
-[../agent-workflow.md](../agent-workflow.md).
+Go-only rebuild ships the previous front end
+([../agent-workflow.md](../agent-workflow.md) → Traps).
 
 ### CI
 

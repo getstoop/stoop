@@ -287,14 +287,9 @@ A close with code 4001 (credential revoked) is the one close it does not
 reconnect from: it invalidates the `me` query instead, which fails, and the
 shell goes to the login page.
 
-**Events are applied directly to the TanStack Query cache.** There is no
-parallel event store and no reducer layer. A `message_created` is spliced
-into `["messages", channelId]`; a `member_updated` invalidates that member;
-a `presence_changed` updates the connection store. Rendered state has one
-source of truth, and a component that reads the cache cannot disagree with
-one that listened to the socket, because there is only the cache.
-
-This is why `ServerEvent.message_created` carries `stoop.chat.v1.Message`
+**Events are applied directly to the TanStack Query cache**
+([web.md](web.md#state-one-source-of-truth)); there is no parallel
+event store. This is why `ServerEvent.message_created` carries `stoop.chat.v1.Message`
 rather than a realtime-specific shape: the object that arrives on the
 socket is the object the cache already holds.
 
@@ -308,14 +303,10 @@ A channel's messages are **one flat, oldest-first array** at
 pages, not a map of ranges: one array, so every feature that reads the
 cache sees one timeline regardless of how it got filled.
 
-`ListMessages` fills it three ways, and they are mutually exclusive:
-
-| Parameter | Direction | Used by |
-| --------- | --------- | ------- |
-| *(none)* | The newest page | Opening a channel. |
-| `before_id` | Older | Scrolling up. |
-| `after_id` | Newer | Scrolling down after a jump. |
-| `around_id` | A page centred on one message | Reply quotes, activity, `?m=<id>` links — in one round trip. |
+`ListMessages` fills it ([messaging.md](messaging.md#history)): the newest
+page on opening a channel, `before_id` on scrolling up, `after_id` on
+scrolling down after a jump, and `around_id` for reply quotes, activity
+rows and `?m=<id>` links.
 
 The response reports `has_older` and `has_newer`, so the client knows where
 the window's edges are without guessing from page sizes.
