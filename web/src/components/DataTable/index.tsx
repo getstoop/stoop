@@ -1,5 +1,5 @@
 import { type RowData, useTable } from "@tanstack/react-table";
-import { type ReactNode, useEffect, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useState } from "react";
 import { Footer } from "./Footer";
 import { alignClass, features, type TableColumn } from "./features";
 import { HeaderCell } from "./HeaderCell";
@@ -25,6 +25,7 @@ export function DataTable<T extends RowData>({
   rowInactive,
   rowError,
   rowProps,
+  detail,
 }: {
   // undefined while loading.
   rows: T[] | undefined;
@@ -42,6 +43,14 @@ export function DataTable<T extends RowData>({
   rowError?: (row: T) => string | null | undefined;
   // Extra attributes for the <tr>, e.g. data-* hooks.
   rowProps?: (row: T) => Record<string, string>;
+  // A full-width row under a parent that owns a list (an account's
+  // tokens). Rows that can open get a chevron in a leading column.
+  detail?: {
+    canExpand: (row: T) => boolean;
+    // Accessible name for the chevron: "Tokens of @casey".
+    label: (row: T) => string;
+    render: (row: T) => ReactNode;
+  };
 }) {
   const [query, setQuery] = useState("");
   const table = useTable({
@@ -53,6 +62,7 @@ export function DataTable<T extends RowData>({
     // A refetch after an action must not throw the reader back to page 1.
     autoResetPageIndex: false,
     sortDescFirst: false,
+    getRowCanExpand: (row) => detail?.canExpand(row.original) ?? false,
     getColumnCanGlobalFilter: () => true,
     globalFilterFn: (row, _columnId, needle: string) =>
       search ? search.text(row.original).toLowerCase().includes(needle) : true,
@@ -119,8 +129,9 @@ export function DataTable<T extends RowData>({
         />
       )}
       <div className="dt-box">
-        <table className="dt" aria-busy={!rows}>
+        <table className={`dt ${detail ? "expandable" : ""}`} aria-busy={!rows}>
           <colgroup>
+            {detail && <col className="dt-expand-col" />}
             {headers.map((h) => (
               <col
                 key={h.id}
@@ -130,6 +141,7 @@ export function DataTable<T extends RowData>({
           </colgroup>
           <thead>
             <tr>
+              {detail && <th />}
               {headers.map((h) => (
                 <HeaderCell
                   key={h.id}
@@ -152,6 +164,7 @@ export function DataTable<T extends RowData>({
             {!rows &&
               SKELETON_ROWS.map((i) => (
                 <tr key={i} className="dt-row">
+                  {detail && <td />}
                   {headers.map((h) => (
                     <td key={h.id}>
                       {!h.column.columnDef.meta?.actions && (
@@ -163,30 +176,54 @@ export function DataTable<T extends RowData>({
               ))}
             {pageRows.map((row) => {
               const error = rowError?.(row.original);
+              const open = detail && row.getIsExpanded();
               return (
-                <tr
-                  key={row.id}
-                  className={`dt-row ${rowInactive?.(row.original) ? "inactive" : ""}`}
-                  {...rowProps?.(row.original)}
-                >
-                  {row.getAllCells().map((cell, i) => {
-                    const def = cell.column.columnDef;
-                    return (
-                      <td
-                        key={cell.id}
-                        className={
-                          i === 0 ? "dt-primary" : alignClass(def.meta)
-                        }
-                        data-label={
-                          i > 0 ? labelOf(def.header) || undefined : undefined
-                        }
-                      >
-                        <table.FlexRender cell={cell} />
-                        {i === 0 && error && <CellError>{error}</CellError>}
+                <Fragment key={row.id}>
+                  <tr
+                    className={`dt-row ${rowInactive?.(row.original) ? "inactive" : ""}`}
+                    {...rowProps?.(row.original)}
+                  >
+                    {detail && (
+                      <td className="dt-expand">
+                        {row.getCanExpand() && (
+                          <button
+                            type="button"
+                            className="icon-button dt-expander"
+                            aria-expanded={row.getIsExpanded()}
+                            aria-label={detail.label(row.original)}
+                            onClick={() => row.toggleExpanded()}
+                          >
+                            <span aria-hidden="true">▶</span>
+                          </button>
+                        )}
                       </td>
-                    );
-                  })}
-                </tr>
+                    )}
+                    {row.getAllCells().map((cell, i) => {
+                      const def = cell.column.columnDef;
+                      return (
+                        <td
+                          key={cell.id}
+                          className={
+                            i === 0 ? "dt-primary" : alignClass(def.meta)
+                          }
+                          data-label={
+                            i > 0 ? labelOf(def.header) || undefined : undefined
+                          }
+                        >
+                          <table.FlexRender cell={cell} />
+                          {i === 0 && error && <CellError>{error}</CellError>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  {open && (
+                    <tr className="dt-detail">
+                      <td colSpan={headers.length + 1}>
+                        {detail.render(row.original)}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>

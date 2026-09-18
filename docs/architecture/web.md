@@ -285,8 +285,8 @@ because the two columns belong to `.settings-content`.
 ## Tables
 
 The settings lists are moving to `components/DataTable` (styles in
-`data-table.css`, the phone fold in `mobile.css`). Members and Banned
-use it; the rest are still `ul.user-list.table` and move over one page
+`data-table.css`, the phone fold in `mobile.css`). Members, Banned and
+Accounts use it; the rest are still `ul.user-list.table` and move over one page
 at a time.
 
 - A section declares `columns` and hands over `rows`. `rows` undefined
@@ -306,6 +306,10 @@ at a time.
   the pager shows only past one page.
 - A row takes at most two inline actions; more go in a `DotsMenu` in a
   column marked `meta.actions`. Members puts every action in the menu.
+- A row that owns a list (an account's tokens) opens it in a full-width
+  row underneath: pass `detail`, and rows that can open get a chevron.
+  The list inside is a `table.dt-sub`, so its columns line up from one
+  parent to the next. One level deep, never nested twice.
 - A failed action is reported on its row through `rowError`.
 - An inactive row dims its cells but not its actions.
 

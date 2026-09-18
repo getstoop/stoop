@@ -118,6 +118,54 @@ th[aria-sort] .dt-sort-arrow {
   display: inline-block;
 }
 
+/* A parent row's chevron, and the full-width row it opens. */
+.dt-expand-col {
+  /* off-scale: the 28px icon button plus the cell's side padding */
+  width: 44px;
+}
+
+.dt td.dt-expand {
+  padding-right: 0;
+}
+
+.dt-expander {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.dt-expander[aria-expanded="true"] {
+  transform: rotate(90deg);
+}
+
+.dt tr.dt-detail > td {
+  /* off-scale: lines the detail up under the parent's first column */
+  padding: 4px 12px 12px 44px;
+  border-top: 1px dashed var(--border);
+  background: var(--surface);
+}
+
+/* A list inside a detail row: its own columns, lined up across parents. */
+.dt-sub {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-sm);
+}
+
+.dt .dt-sub th {
+  padding: 4px 8px;
+  background: none;
+}
+
+.dt .dt-sub td {
+  padding: 6px 8px;
+}
+
+.dt .dt-sub tbody tr:first-child td {
+  border-top: none;
+}
+
 /* Dim what the row says, never the controls that can bring it back. */
 .dt-row.inactive > td:not(.dt-actions) {
   opacity: 0.6;
@@ -140,6 +188,10 @@ th[aria-sort] .dt-sort-arrow {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.dt-subline {
+  display: block;
 }
 
 .dt-person .badge:first-of-type {

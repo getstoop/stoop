@@ -42,32 +42,58 @@ export function UserTokens({ user }: { user: InstanceUser }) {
   };
 
   return (
-    <li className="user-tokens" data-tokens-of={user.username}>
+    <div data-tokens-of={user.username}>
       {isLoading && <p className="muted small">Loading…</p>}
-      {tokens?.map((t) => {
-        const expiry = expiryOf(t.expiresAt && timestampDate(t.expiresAt));
-        return (
-          <div key={t.id} className="user-token-row">
-            <strong>{t.name}</strong>
-            <span>{describePermissions(t.permissions).join(", ")}</span>
-            <span className="muted">
-              {lastUsedText(t.lastUsedAt && timestampDate(t.lastUsedAt))}
-            </span>
-            <span className="muted">{t.blocked ? "blocked" : expiry.text}</span>
-            <button
-              type="button"
-              className="chip danger"
-              onClick={() => revoke(t)}
-            >
-              Revoke
-            </button>
-          </div>
-        );
-      })}
+      {tokens && tokens.length > 0 && (
+        <table className="dt-sub">
+          <colgroup>
+            <col style={{ width: "22%" }} />
+            <col />
+            <col style={{ width: "16%" }} />
+            <col style={{ width: "16%" }} />
+            <col style={{ width: 90 }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Can</th>
+              <th scope="col">Last used</th>
+              <th scope="col">Expires</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {tokens.map((t) => {
+              const expiry = expiryOf(
+                t.expiresAt && timestampDate(t.expiresAt),
+              );
+              return (
+                <tr key={t.id}>
+                  <td className="dt-primary">{t.name}</td>
+                  <td>{describePermissions(t.permissions).join(", ")}</td>
+                  <td>
+                    {lastUsedText(t.lastUsedAt && timestampDate(t.lastUsedAt))}
+                  </td>
+                  <td>{t.blocked ? "blocked" : expiry.text}</td>
+                  <td className="dt-actions">
+                    <button
+                      type="button"
+                      className="chip danger"
+                      onClick={() => revoke(t)}
+                    >
+                      Revoke
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
       {tokens && tokens.length === 0 && (
         <p className="muted small">No tokens.</p>
       )}
       {error && <p className="error">{error}</p>}
-    </li>
+    </div>
   );
 }

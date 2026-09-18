@@ -1,6 +1,5 @@
 /* ---- Personal tokens: the list on Profile → Security, the new-token
-   form, the shown-once panel, and an account's tokens under its row in
-   Server admin → Accounts. Phone layout is in mobile.css. ---- */
+   form and the shown-once panel. Phone layout is in mobile.css. ---- */
 
 .user-list.table.tokens .user-row,
 .user-list.table.tokens .user-list-head {
@@ -153,20 +152,4 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
   overflow-x: auto;
-}
-
-.user-list.table .user-tokens {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 12px 12px 32px;
-  border-top: 1px dashed var(--border);
-}
-
-.user-token-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(160px, 2fr) auto auto auto;
-  align-items: center;
-  gap: 12px;
-  font-size: var(--text-sm);
 }

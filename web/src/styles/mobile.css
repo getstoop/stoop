@@ -239,7 +239,6 @@
     gap: 4px 12px;
   }
 
-  .user-token-row,
   .token-form-row,
   .bot-credential-row,
   .delivery-row {
@@ -304,6 +303,50 @@
   .dt .dt-row > td.dt-actions {
     grid-column: 2;
     grid-row: 1;
+  }
+
+  .dt.expandable .dt-row {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .dt.expandable .dt-row > td.dt-expand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dt.expandable .dt-row > td.dt-primary {
+    grid-column: 2;
+  }
+
+  .dt.expandable .dt-row > td.dt-actions {
+    grid-column: 3;
+  }
+
+  .dt tr.dt-detail,
+  .dt tr.dt-detail > td {
+    display: block;
+  }
+
+  .dt tr.dt-detail > td {
+    padding: 8px 12px;
+  }
+
+  .dt-sub thead {
+    display: none;
+  }
+
+  .dt-sub,
+  .dt-sub tbody,
+  .dt-sub tr,
+  .dt .dt-sub td {
+    display: block;
+    padding: 0;
+    border: none;
+  }
+
+  .dt .dt-sub tr {
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
   }
 
   .dt-row > td[data-label]::before {
