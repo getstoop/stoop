@@ -13,7 +13,7 @@ import (
 
 // The webhook settings, read by the integrations module through its
 // Policy port. STOOP_WEBHOOKS=false is the floor under all three. See
-// docs/proposals/webhooks.md → Instance policy.
+// docs/architecture/integrations.md → Switches.
 
 const (
 	keyWebhooksIncoming            = "webhooks_incoming"

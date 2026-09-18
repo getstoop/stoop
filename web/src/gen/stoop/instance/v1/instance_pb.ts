@@ -113,7 +113,7 @@ export type GetInstanceStatusResponse = Message<"stoop.instance.v1.GetInstanceSt
   personalTokens: PersonalTokens;
 
   /**
-   * The webhook switches (docs/proposals/webhooks.md). webhooks_available
+   * The webhook switches (docs/architecture/integrations.md). webhooks_available
    * is false when the operator turned the feature off in the environment,
    * which overrides the three settings.
    *

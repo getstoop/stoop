@@ -129,8 +129,7 @@ control channel. The event stream is its own control plane.
 ### Credentials
 
 A connection is opened with a credential — a session, or a personal token
-— and hears only what that credential covers
-([the access model](../proposals/access-model.md)). A session covers
+— and hears only what that credential covers. A session covers
 everything, so the web app sees no difference. For a token,
 `internal/realtime/credential.go` applies three rules:
 

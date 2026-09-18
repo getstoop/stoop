@@ -348,9 +348,7 @@ the status carrying it is public.
 
 `SearchMessages` finds messages by their words within one space the
 caller belongs to, newest first, 25 per page (max 50) with a `before_id`
-cursor. The design and the cost reasoning are in
-[proposals/message-search.md](../proposals/message-search.md); what the
-code does:
+cursor. What the code does:
 
 - **Storage.** `messages.search` is a stored generated column,
   `to_tsvector('simple', content)`, with a GIN index (migration 00029).
@@ -375,9 +373,8 @@ code does:
 
 ## Pins
 
-A channel keeps up to 50 messages, most recently pinned first. The design
-is in [proposals/pinned-messages.md](../proposals/pinned-messages.md);
-what the code does:
+A channel keeps up to 50 messages, most recently pinned first. What
+the code does:
 
 - **Storage.** `channel_pins` (migration 00030) is `message_id` (the key),
   `channel_id`, `pinned_by` and `pinned_at`. Cascades do the cleanup:
@@ -420,8 +417,7 @@ It stays out of `writableChannel` because reactions go through that too.
 An incoming webhook posts as its bot, so one pointed at an announcement
 channel just works.
 
-Voice channels and DMs are always `everyone`. The reasoning is in
-[the proposal](../proposals/announcement-channels.md).
+Voice channels and DMs are always `everyone`.
 
 ## Edits, deletions, reactions, replies
 

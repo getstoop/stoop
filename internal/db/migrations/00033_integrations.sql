@@ -1,5 +1,5 @@
 -- +goose Up
--- Owned by the integrations module. See docs/proposals/webhooks.md.
+-- Owned by the integrations module. See docs/architecture/integrations.md.
 
 -- A URL we host. The token is a credentials row; NULL means disabled.
 CREATE TABLE incoming_webhooks (

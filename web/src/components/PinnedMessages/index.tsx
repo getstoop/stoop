@@ -9,7 +9,7 @@ import { PinRow } from "./PinRow";
 
 // The pin in a channel header, and the panel it opens: what this channel
 // keeps. Every member reads it; whoever manages channels pins and unpins.
-// docs/proposals/pinned-messages.md.
+// docs/architecture/messaging.md.
 export function PinnedMessages({
   spaceId,
   channelId,

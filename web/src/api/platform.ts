@@ -69,7 +69,7 @@ export interface StoopBridge {
   notificationsAllowed?(): boolean;
   // Bridge 3. The shell draws the live indicator in its strip and tray,
   // so the page reports what it captures (null once out of voice) and
-  // hides its own rail pill. docs/proposals/live-indicator.md.
+  // hides its own rail pill.
   setVoice?(report: VoiceReport | null): void;
   onVoiceAction?(handler: (action: VoiceAction) => void): () => void;
 }

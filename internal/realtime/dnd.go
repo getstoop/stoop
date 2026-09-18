@@ -9,7 +9,7 @@ import (
 
 // Do not disturb as the gateway holds it: read through a port on connect,
 // followed from DoNotDisturbChanged, and ended by a timer only where it has
-// an end. docs/proposals/presence-and-dnd.md.
+// an end. docs/architecture/realtime.md.
 
 type dndSetting struct {
 	on    bool

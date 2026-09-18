@@ -19,7 +19,7 @@ import (
 )
 
 // The worker: lease, POST, ack. Two steps that never share a goroutine
-// with the subscriber. See docs/proposals/webhooks.md → Attempts.
+// with the subscriber. See docs/architecture/integrations.md → Outgoing.
 
 const (
 	leaseFor        = 30 * time.Second

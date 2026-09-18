@@ -3,7 +3,6 @@ import type { VoiceReport } from "./platform";
 
 // What Stoop is capturing right now, as one state every surface draws:
 // the rail and header pills, the tab and the desktop strip.
-// docs/proposals/live-indicator.md.
 
 export type CaptureKind =
   | "none"

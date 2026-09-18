@@ -14,7 +14,7 @@ import (
 
 // The retention settings: how many days messages and attachments are kept.
 // 0, or nothing saved, keeps them forever. Chat and files read them through
-// their policy ports and sweep hourly. See docs/proposals/retention.md.
+// their policy ports and sweep hourly. See docs/architecture/messaging.md.
 
 const (
 	keyMessageRetention    = "message_retention_days"

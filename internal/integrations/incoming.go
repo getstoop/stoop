@@ -17,7 +17,7 @@ import (
 )
 
 // Incoming hooks: a credential in a URL that posts into one channel as
-// its bot. See docs/proposals/webhooks.md → Incoming.
+// its bot. See docs/architecture/integrations.md → Incoming.
 
 const (
 	maxHooksPerSpace = 20

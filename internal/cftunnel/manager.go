@@ -2,7 +2,7 @@
 // process, so a Cloudflare Tunnel can be switched on from the admin page.
 // It is one optional front door among several, like internal/tailnet: the
 // plain listener always runs, and cloudflared forwards to it over
-// loopback. See docs/proposals/cloudflare-tunnel.md.
+// loopback. See docs/architecture/runtime.md.
 package cftunnel
 
 import (

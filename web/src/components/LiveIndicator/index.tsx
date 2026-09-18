@@ -28,7 +28,7 @@ interface Live {
 
 // Says what is live — mic, camera, screen — on every page: a pill at the
 // top of the rail, and beside the menu button on a phone, where the rail
-// is inside the drawer. docs/proposals/live-indicator.md.
+// is inside the drawer.
 export function LiveIndicator({ placement }: { placement: Placement }) {
   const connection = useVoiceStore((s) => s.connection);
   const muted = useVoiceStore((s) => s.muted);

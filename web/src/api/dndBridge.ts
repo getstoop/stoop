@@ -7,7 +7,7 @@ import { setDoNotDisturb } from "./presence";
 // applies an "on": a switch that is off says nothing about this server, and
 // pushing off would clear do not disturb set from another device. Turning
 // the switch off does turn this server off. An end passing is left to the
-// server, which ends it on its own. docs/proposals/presence-and-dnd.md.
+// server, which ends it on its own. docs/architecture/realtime.md.
 // Returns the stop.
 export function startDndBridge(queryClient: QueryClient): () => void {
   const apply = ({ on, until }: ShellDnd) => {

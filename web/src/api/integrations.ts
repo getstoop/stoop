@@ -5,7 +5,7 @@ import type {
   IncomingWebhook,
 } from "../gen/stoop/integrations/v1/webhook_pb";
 
-// Pure helpers for the Integrations sections (docs/proposals/webhooks.md).
+// Pure helpers for the Integrations sections (docs/architecture/integrations.md).
 
 export const EVENT_TYPES: { key: string; label: string }[] = [
   { key: "message.created", label: "A message is posted" },

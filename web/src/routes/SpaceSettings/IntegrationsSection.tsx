@@ -21,7 +21,7 @@ import { OutgoingTable } from "./OutgoingTable";
 
 // Space settings → Integrations: what posts into this space, a row per
 // webhook, and where the space's events go. Every member
-// reads it; instance admins change it (docs/proposals/webhooks.md).
+// reads it; instance admins change it (docs/architecture/integrations.md).
 export function IntegrationsSection({ space }: { space: Space }) {
   const { data: hooks } = useWebhooks(space.id);
   const { data: members } = useMembers(space.id);

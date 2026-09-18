@@ -1,7 +1,7 @@
 import type { PreviewRetentionResponse } from "../gen/stoop/instance/v1/instance_pb";
 
 // The retention settings' words, kept out of the components so they can be
-// tested. 0 days keeps forever. See docs/proposals/retention.md.
+// tested. 0 days keeps forever. See docs/architecture/messaging.md.
 
 const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
 

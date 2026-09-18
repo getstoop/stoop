@@ -5,7 +5,7 @@ and the credential it was made with covers that action**. This page is the
 identity half. Actions come from one closed vocabulary in
 `internal/authctx/actions.go`; credentials, and why a session covers
 everything while a token covers a list, are in
-[the access model proposal](../proposals/access-model.md).
+[identity.md](identity.md#personal-tokens).
 
 Identity has two independent axes, each owned by the module that owns its
 table:

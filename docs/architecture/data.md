@@ -50,7 +50,7 @@ session, which covers every action. `bounded`, with rows in
 **`credential_bounds`** (one space or one channel each, cascading with it),
 limits where a credential reaches; bounded with no rows left reaches
 `hint` keeps the token's last four characters, for
-telling tokens apart in a list. nothing. See [the access model](../proposals/access-model.md).
+telling tokens apart in a list. nothing. See [identity.md](identity.md#personal-tokens).
 
 **`sessions`** — legacy. Read only by the previous release; its rows are
 copied into `credentials` by migration 00031 and the table is dropped by a
@@ -221,7 +221,7 @@ queued row is work, a finished row is the delivery log. `lane` is the hook,
 `not_before` and `leased_until` are the claim, `body` is cleared on success.
 Two partial/ordered indexes: due items for the worker, and `(lane,
 created_at DESC)` for the settings page. See
-[the webhooks proposal](../proposals/webhooks.md).
+[integrations.md](integrations.md#the-queue).
 
 ## Identifiers
 

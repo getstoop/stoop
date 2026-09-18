@@ -1,5 +1,5 @@
 /* ---- Profile, space settings and server admin share the settings frame
-   (components/SettingsFrame.tsx, docs/proposals/settings-layout.md): a
+   (components/SettingsFrame.tsx, docs/architecture/web.md): a
    nav column in the channel sidebar's slot — the page's header, then one
    link per section — and a content column beside it, where sections are
    flat groups. The card, its rows and its fields are the kit's

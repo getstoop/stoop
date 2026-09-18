@@ -2,7 +2,7 @@
 -- Owned by the auth module. Every way of presenting yourself: sessions now;
 -- personal tokens, bot tokens and incoming hooks later. grants is NULL only
 -- for a session, which covers every action. See
--- docs/proposals/access-model.md.
+-- docs/architecture/data.md.
 CREATE TABLE credentials (
     id           uuid PRIMARY KEY,
     holder_id    uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,

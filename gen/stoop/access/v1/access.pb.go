@@ -77,7 +77,7 @@ func (IdentityKind) EnumDescriptor() ([]byte, []int) {
 // Permission is one action from the closed vocabulary a role holds and a
 // credential is granted (internal/authctx/actions.go). A value's name is
 // its action with dots as underscores: channels.manage is
-// PERMISSION_CHANNELS_MANAGE. See docs/proposals/access-model.md.
+// PERMISSION_CHANNELS_MANAGE. See docs/architecture/permissions.md.
 type Permission int32
 
 const (

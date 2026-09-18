@@ -1,6 +1,6 @@
 -- +goose Up
 -- Messages a channel keeps: who pinned each and when. Owned by the chat
--- module. See docs/proposals/pinned-messages.md. Expand-only, and nothing
+-- module. See docs/architecture/messaging.md. Expand-only, and nothing
 -- backfills — the previous release ignores the table.
 --
 -- message_id is the key, not (channel_id, message_id): a message belongs

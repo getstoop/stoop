@@ -24,7 +24,7 @@ import (
 )
 
 // Personal tokens: a person's own credentials for scripts, carrying only
-// the permissions they were given (docs/proposals/access-model.md).
+// the permissions they were given (docs/architecture/identity.md).
 // Making, listing and revoking one needs account.security, which only a
 // session holds, so no token can make another.
 

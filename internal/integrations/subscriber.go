@@ -15,8 +15,8 @@ import (
 )
 
 // The subscriber: bus events in, queue items out. No HTTP here, so a slow
-// receiver can never hold the bus's buffer. See docs/proposals/webhooks.md
-// → Outgoing.
+// receiver can never hold the bus's buffer. See
+// docs/architecture/integrations.md → Outgoing.
 
 // Event types, v1.
 const (

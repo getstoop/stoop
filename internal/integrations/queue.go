@@ -34,7 +34,7 @@ type Attempt struct {
 
 // Queue is the delivery queue port. Postgres implements it today; any
 // backend with a lease, an ack and a delayed nack can. See
-// docs/proposals/webhooks.md → The queue contract.
+// docs/architecture/integrations.md → The queue.
 type Queue interface {
 	Enqueue(ctx context.Context, it Item) error
 	// Lease hands out up to n due items, invisible to other workers until

@@ -8,7 +8,7 @@ import (
 )
 
 // Vendor adapters: each sender's body shape, coerced to the text that is
-// posted. See docs/proposals/webhooks.md → Adapters.
+// posted. See docs/architecture/integrations.md → Incoming.
 
 // maxPostRunes is chat's message limit (internal/chat/messages.go).
 const maxPostRunes = 4000

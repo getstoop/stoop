@@ -311,7 +311,7 @@ type GetInstanceStatusResponse struct {
 	InstanceName string `protobuf:"bytes,9,opt,name=instance_name,json=instanceName,proto3" json:"instance_name,omitempty"`
 	// Who may make and use personal tokens.
 	PersonalTokens PersonalTokens `protobuf:"varint,10,opt,name=personal_tokens,json=personalTokens,proto3,enum=stoop.instance.v1.PersonalTokens" json:"personal_tokens,omitempty"`
-	// The webhook switches (docs/proposals/webhooks.md). webhooks_available
+	// The webhook switches (docs/architecture/integrations.md). webhooks_available
 	// is false when the operator turned the feature off in the environment,
 	// which overrides the three settings.
 	WebhooksAvailable           bool `protobuf:"varint,11,opt,name=webhooks_available,json=webhooksAvailable,proto3" json:"webhooks_available,omitempty"`

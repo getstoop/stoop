@@ -152,7 +152,7 @@ message GetInstanceStatusResponse {
   string instance_name = 9;
   // Who may make and use personal tokens.
   PersonalTokens personal_tokens = 10;
-  // The webhook switches (docs/proposals/webhooks.md). webhooks_available
+  // The webhook switches (docs/architecture/integrations.md). webhooks_available
   // is false when the operator turned the feature off in the environment,
   // which overrides the three settings.
   bool webhooks_available = 11;

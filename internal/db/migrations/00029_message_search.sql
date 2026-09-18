@@ -1,4 +1,4 @@
--- Owned by the chat module. See docs/proposals/message-search.md.
+-- Owned by the chat module. See docs/architecture/messaging.md.
 -- Expand-only: the previous release ignores both objects. Adding the
 -- stored column rewrites the table once, so this migration takes time
 -- proportional to the number of messages.

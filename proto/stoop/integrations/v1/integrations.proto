@@ -8,7 +8,7 @@ import "stoop/integrations/v1/webhook.proto";
 
 // IntegrationService configures what the server talks to: incoming and
 // outgoing webhooks, and the bots they authenticate as. Every mutation
-// needs instance.integrations.manage. See docs/proposals/webhooks.md.
+// needs instance.integrations.manage. See docs/architecture/integrations.md.
 service IntegrationService {
   // ListWebhooks lists both kinds for one space, readable by any member
   // of it. Without a space_id it lists the whole server, instance admins

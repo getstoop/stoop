@@ -19,7 +19,7 @@ import (
 )
 
 // Outgoing hooks: a URL they host, a signing secret, a set of event types
-// and an optional channel filter. See docs/proposals/webhooks.md → Outgoing.
+// and an optional channel filter. See docs/architecture/integrations.md → Outgoing.
 
 const secretPrefix = "stp_whsec_"
 

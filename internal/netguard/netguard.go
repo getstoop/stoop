@@ -1,7 +1,7 @@
 // Package netguard is the one egress guard for server-side requests to
 // URLs somebody else chose: link previews and outgoing webhooks. It
 // resolves a name, checks every address against the policy, and dials
-// the address it checked. See docs/proposals/webhooks.md → The sharp edge.
+// the address it checked. See docs/architecture/integrations.md → Egress.
 package netguard
 
 import (
