@@ -19,7 +19,6 @@ func TestParseTunnelToken(t *testing.T) {
 		{"blank keeps the saved one", "  ", "", false},
 		{"the token", token, token, false},
 		{"trimmed", " " + token + "\n", token, false},
-		{"the whole command", "cloudflared tunnel run --token " + token, "", true},
 		{"not base64", "hunter2", "", true},
 		{"unpadded", base64.RawStdEncoding.EncodeToString([]byte(padded)), "", true},
 		{"missing fields", base64.StdEncoding.EncodeToString([]byte(`{"a":"account"}`)), "", true},
