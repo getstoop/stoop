@@ -108,27 +108,39 @@ describe("voiceReport", () => {
   // null is what tells the shell to clear the strip.
   it("is null outside voice", () => {
     expect(
-      voiceReport(captureState(input({ connection: null })), "standup", "Work"),
+      voiceReport(
+        captureState(input({ connection: null })),
+        "standup",
+        "Work",
+        false,
+      ),
     ).toBeNull();
   });
 
   it("carries the state and the names", () => {
     expect(
-      voiceReport(captureState(input({ cameraOn: true })), "standup", "Work"),
+      voiceReport(
+        captureState(input({ cameraOn: true })),
+        "standup",
+        "Work",
+        false,
+      ),
     ).toEqual({
       kind: "camera",
       mic: true,
       camera: true,
       screen: false,
+      deafened: false,
       channel: "standup",
       space: "Work",
     });
   });
 
   it("stands in an ellipsis for a name still loading", () => {
-    const r = voiceReport(captureState(input()), undefined, "");
+    const r = voiceReport(captureState(input()), undefined, "", true);
     expect(r?.channel).toBe("…");
     expect(r?.space).toBe("…");
+    expect(r?.deafened).toBe(true);
   });
 });
 

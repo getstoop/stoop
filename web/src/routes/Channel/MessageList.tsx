@@ -45,6 +45,8 @@ export function MessageList({
   group = false,
   newAfterId,
   jumpTarget,
+  editingId,
+  onEdit,
   onReply,
 }: {
   messages: Message[];
@@ -61,6 +63,9 @@ export function MessageList({
   newAfterId: string | null;
   // A message to scroll to and flash once it's in the window (deep link).
   jumpTarget?: string;
+  // The message open in the inline editor, if any.
+  editingId: string | null;
+  onEdit: (id: string | null) => void;
   onReply: (m: Message) => void;
 }) {
   const queryClient = useQueryClient();
@@ -73,7 +78,6 @@ export function MessageList({
     instanceStatus?.messageRetentionDays ?? 0,
   );
   const linkOrigin = instanceStatus?.publicUrl;
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   const remove = async (m: Message) => {
     const ok = await confirm({
@@ -476,7 +480,7 @@ export function MessageList({
                   }
                   canPin={!!spaceForPerms && canManageChannels(spaceForPerms)}
                   onReply={() => onReply(message)}
-                  onEdit={() => setEditingId(message.id)}
+                  onEdit={() => onEdit(message.id)}
                   onDelete={() => remove(message)}
                   onReact={(anchor) => setPicker({ message, anchor })}
                   onTogglePin={() =>
@@ -485,10 +489,7 @@ export function MessageList({
                 />
               </div>
               {editingId === message.id ? (
-                <MessageEditor
-                  message={message}
-                  onDone={() => setEditingId(null)}
-                />
+                <MessageEditor message={message} onDone={() => onEdit(null)} />
               ) : null}
               <div
                 className="message-content"

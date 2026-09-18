@@ -327,6 +327,38 @@ to look for what changes below 768px.
 - Reduced motion drops `--dur` and `--dur-fast` in `base.css`, which turns
   off the voice-stage tile animation and every transition at once.
 
+## Keyboard shortcuts
+
+App-wide bindings are declared in one table, `api/shortcuts.ts`, and
+dispatched by one `keydown` listener (`useShortcutListener`, mounted in
+`routes/Root.tsx`).
+
+| Key | Does | Held by |
+| --- | --- | --- |
+| Cmd/Ctrl+Shift+M | Mute or unmute | `Root`, while in a call |
+| Cmd/Ctrl+Shift+D | Deafen or undeafen | `Root`, while in a call |
+| F | Full screen the stage | `VoiceStage`, while it is on screen |
+
+- **The table owns the key; the component owns the action.** A component
+  calls `useShortcut(id, handler)` while it is mounted. A binding nobody
+  holds does nothing and the key passes through, so "not in a call" and
+  "no stage" need no checks of their own.
+- **`isTypingTarget` is the one answer to "is the user typing?"** A
+  binding without a modifier never fires from a field; one with a
+  modifier says so with `whileTyping`.
+- **Keys a field owns stay with the field.** The composer's formatting
+  keys, Enter, and Up arrow in an empty composer (edit your last message)
+  depend on the field's own state and are handled in its `onKeyDown`.
+- **The desktop shell holds the mute and deafen keys** once it speaks
+  bridge 4: its Voice menu binds them so they reach the call from any
+  server it has open, and the page leaves them unbound
+  ([desktop.md](desktop.md)).
+- **A browser tab cannot have** Cmd/Ctrl+N, T, W, L, R, 1–9, or
+  Cmd/Ctrl+Shift+N, T, P, I, J. Do not bind them.
+- There is no "only if nothing else took the key" rule yet: Escape
+  handlers across the app do not mark the event as handled. Build that
+  when a binding needs it.
+
 ## The platform seam
 
 `api/platform.ts` is the only place the app knows about what is hosting

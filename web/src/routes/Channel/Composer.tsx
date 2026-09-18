@@ -54,6 +54,7 @@ export function Composer({
   spaceId,
   replyTo,
   onCancelReply,
+  onEditLast,
 }: {
   channelId: string;
   channelName?: string;
@@ -65,6 +66,8 @@ export function Composer({
   spaceId: string;
   replyTo: Message | null;
   onCancelReply: () => void;
+  // Up arrow in an empty box: edit the caller's last message here.
+  onEditLast: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [mention, setMention] = useState<{
@@ -253,7 +256,13 @@ export function Composer({
       send();
       return;
     }
-    if (count === 0) return;
+    if (count === 0) {
+      if (e.key === "ArrowUp" && draft === "") {
+        e.preventDefault();
+        onEditLast();
+      }
+      return;
+    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelected((s) => (s + 1) % count);

@@ -63,13 +63,9 @@ export function ChannelView() {
   const isDM = spaceId === "";
   // What to call the conversation: the channel's name, or the other person.
   const { data: dms } = useDirectMessages(isDM);
-  const { data: meForTitle } = useMe();
+  const { data: me } = useMe();
   const dm = isDM ? dms?.find((d) => d.channel?.id === channelId) : undefined;
-  const title = isDM
-    ? dm
-      ? dmTitle(dm, meForTitle?.id)
-      : ""
-    : (channel?.name ?? "");
+  const title = isDM ? (dm ? dmTitle(dm, me?.id) : "") : (channel?.name ?? "");
   const isGroup = !!dm && dmIsGroup(dm);
   // ?m=<messageId>: open the window around that message rather than the
   // newest page (activity, shared links).
@@ -112,8 +108,17 @@ export function ChannelView() {
   const hideChat = stage && chatHidden;
   // The message being replied to, if any; cleared on send or Esc.
   const [replyTo, setReplyTo] = useState<Message | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: drop a pending reply when switching channels
-  useEffect(() => setReplyTo(null), [channelId]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: drop a pending reply or edit when switching channels
+  useEffect(() => {
+    setReplyTo(null);
+    setEditingId(null);
+  }, [channelId]);
+  const editLast = () => {
+    const mine = messages?.filter((m) => m.author?.id === me?.id) ?? [];
+    const last = mine[mine.length - 1];
+    if (last) setEditingId(last.id);
+  };
 
   return (
     <main className="channel-view">
@@ -162,6 +167,8 @@ export function ChannelView() {
               divider?.channelId === channelId ? divider.afterId : null
             }
             jumpTarget={jumpTarget}
+            editingId={editingId}
+            onEdit={setEditingId}
             onReply={setReplyTo}
           />
           <TypingIndicator channelId={channelId} spaceId={spaceId} />
@@ -175,6 +182,7 @@ export function ChannelView() {
               spaceId={spaceId}
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}
+              onEditLast={editLast}
             />
           ) : (
             <PostingClosed channelName={title} />

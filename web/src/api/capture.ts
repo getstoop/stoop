@@ -81,6 +81,7 @@ export function voiceReport(
   c: Capture,
   channel: string | undefined,
   space: string | undefined,
+  deafened: boolean,
 ): VoiceReport | null {
   if (c.kind === "none") return null;
   return {
@@ -88,6 +89,7 @@ export function voiceReport(
     mic: c.mic,
     camera: c.camera,
     screen: c.screen,
+    deafened,
     channel: channel || "…",
     space: space || "…",
   };
