@@ -116,6 +116,10 @@
   background: none;
   color: var(--text);
   font-size: var(--text-ui);
+  /* The menu widens to its longest label; only a narrow window clips one. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dots-menu button:hover {
