@@ -2,22 +2,24 @@ import { Fragment } from "react";
 
 export type SortChoice = { id: string; label: string };
 
-// Search, the row count, and (phones only, where there is no header to
-// tap) a sort select.
+// Search, a switch for rows hidden by default, the row count, and
+// (phones only, where there is no header to tap) a sort select.
 export function Toolbar({
-  query,
-  onQuery,
-  placeholder,
-  label,
+  search,
+  hidden,
   count,
   sortChoices,
   sortValue,
   onSort,
 }: {
-  query: string;
-  onQuery: (q: string) => void;
-  placeholder: string;
-  label: string;
+  search?: {
+    query: string;
+    onQuery: (q: string) => void;
+    placeholder: string;
+    label: string;
+  };
+  // "Show deactivated (3)": the count says nothing is secretly missing.
+  hidden?: { label: string; shown: boolean; onToggle: (on: boolean) => void };
   count: string;
   sortChoices: SortChoice[];
   // "" for the default order, else "<column id>:asc" or "<column id>:desc".
@@ -26,13 +28,25 @@ export function Toolbar({
 }) {
   return (
     <div className="dt-toolbar">
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => onQuery(e.target.value)}
-        placeholder={placeholder}
-        aria-label={label}
-      />
+      {search && (
+        <input
+          type="search"
+          value={search.query}
+          onChange={(e) => search.onQuery(e.target.value)}
+          placeholder={search.placeholder}
+          aria-label={search.label}
+        />
+      )}
+      {hidden && (
+        <label className="dt-hidden-toggle small">
+          <input
+            type="checkbox"
+            checked={hidden.shown}
+            onChange={(e) => hidden.onToggle(e.target.checked)}
+          />
+          {hidden.label}
+        </label>
+      )}
       {sortChoices.length > 0 && (
         <select
           className="dt-sort-select"

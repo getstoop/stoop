@@ -1,21 +1,13 @@
-import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { instanceClient, integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { eventLabel, hookCanText } from "../../api/integrations";
 import {
   useAllSpaces,
   useBots,
   useInstanceStatus,
   useWebhooks,
 } from "../../api/queries";
-import {
-  BOT_TOKEN_OPTIONS,
-  describePermissions,
-  lastUsedText,
-} from "../../api/tokenOptions";
-import { BotRow } from "../../components/Integrations/BotRow";
 import { EditBotModal } from "../../components/Integrations/EditBotModal";
 import { NewBotModal } from "../../components/Integrations/NewBotModal";
 import { NewBotTokenModal } from "../../components/Integrations/NewBotTokenModal";
@@ -23,10 +15,11 @@ import {
   type Secret,
   SecretModal,
 } from "../../components/Integrations/SecretModal";
-import { ListHead } from "../../components/ListHead";
 import { SettingRow } from "../../components/SettingRow";
 import type { Bot, BotToken } from "../../gen/stoop/integrations/v1/bot_pb";
 import { confirm } from "../../stores/dialogs";
+import { BotsTable } from "./BotsTable";
+import { SpaceWebhooksTable } from "./SpaceWebhooksTable";
 
 // Server admin → Integrations: the three switches, every bot with its
 // tokens, and every webhook on the server grouped by space — the one
@@ -65,6 +58,18 @@ export function IntegrationsSection() {
     value: boolean,
   ) => act(() => instanceClient.updateSettings({ [key]: value }));
 
+  const [failed, setFailed] = useState<{ id: string; text: string } | null>(
+    null,
+  );
+  const actOn = async (b: Bot, fn: () => Promise<unknown>) => {
+    setFailed(null);
+    try {
+      await fn();
+      await refresh();
+    } catch (err) {
+      setFailed({ id: b.id, text: errorText(err) });
+    }
+  };
   const deactivate = async (b: Bot) => {
     const ok = await confirm({
       title: `Deactivate ${b.displayName || b.username}?`,
@@ -72,43 +77,19 @@ export function IntegrationsSection() {
       action: "Deactivate",
       danger: true,
     });
-    if (ok) act(() => integrationsClient.deactivateBot({ id: b.id }));
+    if (ok) actOn(b, () => integrationsClient.deactivateBot({ id: b.id }));
   };
-  const revoke = async (t: BotToken) => {
+  const revoke = async (b: Bot, t: BotToken) => {
     const ok = await confirm({
       title: `Revoke “${t.name}”?`,
       body: "Anything using it stops working straight away.",
       action: "Revoke",
       danger: true,
     });
-    if (ok) act(() => integrationsClient.revokeBotToken({ tokenId: t.id }));
+    if (ok)
+      actOn(b, () => integrationsClient.revokeBotToken({ tokenId: t.id }));
   };
   const nameOf = (id: string) => spaces?.find((s) => s.id === id)?.name;
-  const hooksOf = (botId: string) =>
-    hooks?.incoming.filter((h) => h.botUserId === botId) ?? [];
-
-  const bySpace = new Map<
-    string,
-    { name: string; incoming: number; outgoing: number }
-  >();
-  for (const h of hooks?.incoming ?? []) {
-    const e = bySpace.get(h.spaceId) ?? {
-      name: h.spaceName,
-      incoming: 0,
-      outgoing: 0,
-    };
-    e.incoming++;
-    bySpace.set(h.spaceId, e);
-  }
-  for (const h of hooks?.outgoing ?? []) {
-    const e = bySpace.get(h.spaceId) ?? {
-      name: h.spaceName,
-      incoming: 0,
-      outgoing: 0,
-    };
-    e.outgoing++;
-    bySpace.set(h.spaceId, e);
-  }
 
   return (
     <>
@@ -180,122 +161,16 @@ export function IntegrationsSection() {
           tokens and webhook URLs it's given. A bot with none left is
           deactivated.
         </p>
-        {bots && bots.length === 0 && (
-          <p className="muted small">No bots yet.</p>
-        )}
-        {bots && bots.length > 0 && (
-          <ul className="user-list table bots">
-            <ListHead columns={["Bot", "Standing", "", ""]} />
-            {bots.map((b) => {
-              const own = hooksOf(b.id);
-              const where =
-                b.spaceIds.length === 0
-                  ? "in no spaces yet"
-                  : `in ${b.spaceIds.map((id) => nameOf(id) ?? "a space").join(", ")}`;
-              const standing = b.deactivatedAt
-                ? "deactivated"
-                : `${own.length} webhook${own.length === 1 ? "" : "s"}, ${b.tokens.length} token${b.tokens.length === 1 ? "" : "s"} · ${where}`;
-              return (
-                <BotRow
-                  key={b.id}
-                  username={b.username}
-                  displayName={b.displayName}
-                  avatarFileId={b.avatarFileId}
-                  standing={standing}
-                  inactive={!!b.deactivatedAt}
-                  actions={
-                    !b.deactivatedAt && (
-                      <>
-                        <button
-                          type="button"
-                          className="chip"
-                          onClick={() => setTokenFor(b)}
-                        >
-                          New token
-                        </button>
-                        <button
-                          type="button"
-                          className="chip"
-                          onClick={() => setEditing(b)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="chip danger"
-                          onClick={() => deactivate(b)}
-                        >
-                          Deactivate
-                        </button>
-                      </>
-                    )
-                  }
-                >
-                  {(b.tokens.length > 0 || own.length > 0) && (
-                    <>
-                      {b.tokens.map((t) => (
-                        <div
-                          key={t.id}
-                          className="bot-credential-row"
-                          data-token={t.name}
-                        >
-                          <strong>{t.name}</strong>
-                          <span>
-                            token ·{" "}
-                            {describePermissions(
-                              t.permissions,
-                              BOT_TOKEN_OPTIONS,
-                            ).join(", ")}
-                            {" · "}…{t.hint}
-                          </span>
-                          <span className="muted">
-                            {lastUsedText(
-                              t.lastUsedAt && timestampDate(t.lastUsedAt),
-                            )}
-                          </span>
-                          <div className="user-row-actions">
-                            <button
-                              type="button"
-                              className="chip danger"
-                              onClick={() => revoke(t)}
-                            >
-                              Revoke
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {own.map((h) => (
-                        <div
-                          key={h.id}
-                          className="bot-credential-row"
-                          data-hook={h.name}
-                        >
-                          <strong>{h.name}</strong>
-                          <span>
-                            webhook into {h.spaceName} · {hookCanText(h)} · …
-                            {h.hint}
-                            {!h.enabled && (
-                              <span className="hook-disabled">
-                                {" "}
-                                · off: {h.disabledReason}
-                              </span>
-                            )}
-                          </span>
-                          <span className="muted">
-                            {lastUsedText(
-                              h.lastUsedAt && timestampDate(h.lastUsedAt),
-                            )}
-                          </span>
-                          <span />
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </BotRow>
-              );
-            })}
-          </ul>
-        )}
+        <BotsTable
+          bots={bots}
+          hooks={hooks?.incoming}
+          spaceName={nameOf}
+          failed={failed}
+          onNewToken={setTokenFor}
+          onEdit={setEditing}
+          onDeactivate={deactivate}
+          onRevoke={revoke}
+        />
       </section>
 
       <section className="card" data-section="all-webhooks">
@@ -303,34 +178,10 @@ export function IntegrationsSection() {
         <p className="hint">
           Every webhook, by space. Change them from the space's own settings.
         </p>
-        {hooks && bySpace.size === 0 && (
-          <p className="muted small">No webhooks anywhere.</p>
-        )}
-        {bySpace.size > 0 && (
-          <ul className="user-list table">
-            <ListHead columns={["Space", "Webhooks", ""]} />
-            {[...bySpace.entries()].map(([id, e]) => (
-              <li key={id} className="user-row" data-space={e.name}>
-                <div className="user-row-main">
-                  <strong>{e.name || id}</strong>
-                </div>
-                <span className="user-cell">
-                  {e.incoming} in, {e.outgoing} out
-                  {hooks?.outgoing
-                    .filter((h) => h.spaceId === id)
-                    .map((h) => (
-                      <span key={h.id} className="small">
-                        <br />
-                        {h.name} → {h.url} (
-                        {h.eventTypes.map(eventLabel).join(", ")})
-                      </span>
-                    ))}
-                </span>
-                <span />
-              </li>
-            ))}
-          </ul>
-        )}
+        <SpaceWebhooksTable
+          incoming={hooks?.incoming}
+          outgoing={hooks?.outgoing}
+        />
       </section>
 
       {newBot && <NewBotModal onClose={() => setNewBot(false)} />}

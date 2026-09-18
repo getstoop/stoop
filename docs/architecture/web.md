@@ -285,9 +285,9 @@ because the two columns belong to `.settings-content`.
 ## Tables
 
 The settings lists are moving to `components/DataTable` (styles in
-`data-table.css`, the phone fold in `mobile.css`). Members, Banned,
-Accounts, Channels and the space's Integrations use it; the rest are still `ul.user-list.table` and move over one page
-at a time.
+`data-table.css`, the phone fold in `mobile.css`). Every table
+in space settings and server admin uses it; Profile's five are still
+`ul.user-list.table` and move over next.
 
 - A section declares `columns` and hands over `rows`. `rows` undefined
   means loading; an empty array shows the section's `empty` line.
@@ -318,6 +318,8 @@ at a time.
   `expanded` and `onExpandedChange` and owns that state.
 - On or off is a `StateCell`: a dot, the word, and the reason beside it.
   Identifiers (URLs, key hints) take `.dt-truncate`; prose wraps.
+- Dead rows (deactivated bots) hide behind a counted switch in the
+  toolbar: pass `hidden`. A search still finds them.
 - A failed action is reported on its row through `rowError`.
 - An inactive row dims its cells but not its actions.
 

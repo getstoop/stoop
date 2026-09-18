@@ -1,7 +1,6 @@
 /* ---- Integrations: Space settings → Integrations and Server admin →
-   Integrations. Bots with their hooks and tokens underneath, the
-   outgoing list with its delivery log, and the shown-once panels, which
-   reuse personal-tokens.css. Phone layout is in mobile.css. ---- */
+   Integrations. The section headings, the delivery log, and the
+   shown-once panels, which reuse personal-tokens.css. Phone layout is in mobile.css. ---- */
 
 .integrations-head {
   display: flex;
@@ -13,43 +12,6 @@
 
 .integrations-head h3 {
   margin: 0;
-}
-
-.user-list.table.bots .user-row,
-.user-list.table.bots .user-list-head {
-  grid-template-columns: minmax(160px, 1.4fr) minmax(160px, 2fr) 1fr auto;
-}
-
-/* A bot's hooks and tokens sit under its row, indented like an account's
-   tokens in Accounts. */
-.user-list.table .bot-credentials {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 12px 12px 32px;
-  border-top: 1px dashed var(--border);
-}
-
-.bot-credential-row {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(160px, 2fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  font-size: var(--text-sm);
-}
-
-.bot-credential-row .user-row-actions {
-  margin-left: 0;
-}
-
-.bot-credential-row .toggle-row {
-  display: inline-flex;
-  margin: 0;
-  font-size: var(--text-sm);
-}
-
-.hook-disabled {
-  color: var(--warn);
 }
 
 /* The delivery log in an outgoing row's detail row. */
