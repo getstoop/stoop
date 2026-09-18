@@ -340,6 +340,10 @@ inside a Docker bridge can resolve those, so a containerised LiveKit never
 gets a media connection from a browser on the same machine even with every
 port published. `make dev-services` runs it natively on macOS and as a
 `network_mode: host` container on Linux.
+Testing from a second device on the LAN needs HTTPS
+([../self-hosting.md](../self-hosting.md#a-lan-without-https)); for a quick
+check, Chrome's `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
+with `http://<lan-ip>:8091` does the job on that one device.
 
 Development also runs the same key path a self-hoster gets: `.env.dev` sets
 `STOOP_LIVEKIT_URL` and no key pair, so the server mints one on first boot

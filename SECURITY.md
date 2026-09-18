@@ -39,7 +39,7 @@ over plain HTTP to the internet.
 ## What Stoop's trust model is
 
 The operator runs the box and can read everything on it; that is by
-design (docs/self-hosting.md → Privacy). Reports that amount to "the
+design (docs/self-hosting.md → Who can read your traffic). Reports that amount to "the
 admin can see the data" are not vulnerabilities. Reports that a *member*
 can do something the permission model says they can't are exactly what
 this policy is for.
