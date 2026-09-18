@@ -310,9 +310,11 @@ Every list with columns on the settings pages is a
   [dnd-kit](https://dndkit.com) (`DataTable/Sortable.tsx`), which also
   moves a row from the keyboard — focus the handle, Space to pick it up,
   the arrows to move it, Space to drop. `reorder` needs `ordered` and no
-  `search`, so the ids it hands back are the whole list. The section owns
-  the save: Channels reorders the query's rows first so the drop holds,
-  and refetches if the call fails.
+  `search`, so the ids it hands back are the whole list — given either,
+  the handles do not appear rather than hand back part of an order. The
+  section owns the save: Channels reorders the query's rows first so the
+  drop holds, refetches if the call fails, and chains one save after the
+  next, since two overlapping reorders can commit in either order.
 - A row that owns a list (an account's tokens) opens it in a full-width
   row underneath: pass `detail`, and rows that can open get a chevron.
   The list inside is a `table.dt-sub`, so its columns line up from one

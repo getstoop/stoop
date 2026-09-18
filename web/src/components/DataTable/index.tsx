@@ -53,7 +53,8 @@ export function DataTable<T extends RowData>({
   ordered?: boolean;
   // Rows carry a drag handle in a leading column and can be reordered.
   // Needs `ordered` and no `search`, so every row is on the page and the
-  // ids handed back are the whole list.
+  // ids handed back are the whole list; given either, the handles do not
+  // appear rather than hand back part of an order to save.
   reorder?: {
     // The handle's accessible name, e.g. "Reorder #general".
     label: (row: T) => string;
@@ -81,6 +82,9 @@ export function DataTable<T extends RowData>({
     onExpandedChange?: (next: Record<string, boolean>) => void;
   };
 }) {
+  // See `reorder`: a table that sorts, pages or filters cannot say what
+  // the whole order is.
+  const sortable = ordered && !search ? reorder : undefined;
   const [query, setQuery] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const hiddenWhen = hidden?.when;
@@ -160,7 +164,7 @@ export function DataTable<T extends RowData>({
     typeof header === "string" ? header : "";
   const pageRows = table.getRowModel().rows;
   const rowIds = pageRows.map((r) => r.id);
-  const leading = (reorder ? 1 : 0) + (detail ? 1 : 0);
+  const leading = (sortable ? 1 : 0) + (detail ? 1 : 0);
   const from = pageIndex * pageSize;
 
   return (
@@ -202,13 +206,13 @@ export function DataTable<T extends RowData>({
         />
       )}
       <div className="dt-box">
-        <Sortable ids={rowIds} onReorder={reorder?.onReorder}>
+        <Sortable ids={rowIds} onReorder={sortable?.onReorder}>
           <table
             className={`dt ${detail ? "expandable" : ""}`}
             aria-busy={!rows}
           >
             <colgroup>
-              {reorder && <col className="dt-drag-col" />}
+              {sortable && <col className="dt-drag-col" />}
               {detail && <col className="dt-expand-col" />}
               {headers.map((h) => (
                 <col
@@ -219,7 +223,7 @@ export function DataTable<T extends RowData>({
             </colgroup>
             <thead>
               <tr>
-                {reorder && <th />}
+                {sortable && <th />}
                 {detail && <th />}
                 {headers.map((h) => (
                   <HeaderCell
@@ -243,7 +247,7 @@ export function DataTable<T extends RowData>({
               {!rows &&
                 SKELETON_ROWS.map((i) => (
                   <tr key={i} className="dt-skeleton-row">
-                    {reorder && <td />}
+                    {sortable && <td />}
                     {detail && <td />}
                     {headers.map((h) => (
                       <td key={h.id}>
@@ -296,10 +300,10 @@ export function DataTable<T extends RowData>({
                 );
                 return (
                   <Fragment key={row.id}>
-                    {reorder ? (
+                    {sortable ? (
                       <SortableRow
                         id={row.id}
-                        label={reorder.label(row.original)}
+                        label={sortable.label(row.original)}
                         className={className}
                         rowProps={rowProps?.(row.original)}
                       >

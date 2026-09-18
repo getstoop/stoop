@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useChannels } from "../../api/queries";
@@ -49,11 +49,17 @@ export function ChannelsSection({ space }: { space: Space }) {
     if (ok) act(c, () => chatClient.deleteChannel({ channelId: c.id }));
   };
 
+  // A drop can land while the one before it is still in flight, and the
+  // server writes each request in its own transaction — so two overlapping
+  // saves can commit in either order and the earlier drag can win. Each
+  // save waits for the one before it.
+  const saving = useRef<Promise<void>>(Promise.resolve());
+
   // The sidebar keeps voice channels in their own group below the text
   // ones, so a space's saved order is every text channel and then every
   // voice one. A drag in either table writes the whole sequence back that
   // way, which also settles a space whose positions still interleave.
-  const saveOrder = async (textIds: string[], voiceIds: string[]) => {
+  const saveOrder = (textIds: string[], voiceIds: string[]) => {
     const channelIds = [...textIds, ...voiceIds];
     setError(null);
     const rank = new Map(channelIds.map((id, i) => [id, i]));
@@ -63,12 +69,17 @@ export function ChannelsSection({ space }: { space: Space }) {
         old &&
         [...old].sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)),
     );
-    try {
-      await chatClient.reorderChannels({ spaceId: space.id, channelIds });
-    } catch (err) {
-      setError(errorText(err));
-      await queryClient.invalidateQueries({ queryKey: ["channels", space.id] });
-    }
+    saving.current = saving.current
+      .then(() => chatClient.reorderChannels({ spaceId: space.id, channelIds }))
+      .then(
+        () => {},
+        async (err) => {
+          setError(errorText(err));
+          await queryClient.invalidateQueries({
+            queryKey: ["channels", space.id],
+          });
+        },
+      );
   };
   const ids = (list: Channel[] | undefined) => (list ?? []).map((c) => c.id);
 
