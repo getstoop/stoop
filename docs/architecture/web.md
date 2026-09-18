@@ -320,10 +320,10 @@ Every list with columns on the settings pages is a
   that opens rows itself (Test opens the delivery log) passes
   `expanded` and `onExpandedChange` and owns that state.
 - On or off is a `StateCell`: a dot, the word, and the reason beside it.
-  A plain fact about a row (Channels' Announcement) is a tick (`.dt-yes`)
-  or a dash, both named for a screen reader; what changes it is an item
-  in the row's menu.
   Identifiers (URLs, key hints) take `.dt-truncate`; prose wraps.
+- A plain yes or no about a row (Channels' Announcements only) is a tick
+  (`.dt-yes`) or a dash, both named for a screen reader. The column says
+  what is true; the row's menu is what changes it.
 - Dead rows (deactivated bots, deleted accounts) hide behind a counted
   switch in the toolbar: pass `hidden`. A search still finds them.
 - A failed action is reported on its row through `rowError`.

@@ -42,8 +42,8 @@ export function ChannelTable({
     // menu is what changes one.
     const announcement: TableColumn<Channel> = {
       id: "announcement",
-      header: "Announcement",
-      meta: { width: 130, align: "center" },
+      header: "Announcements only",
+      meta: { width: 170, align: "center" },
       cell: ({ row: { original: c } }) =>
         isAnnouncement(c) ? (
           <span className="dt-yes" role="img" aria-label="Yes">
