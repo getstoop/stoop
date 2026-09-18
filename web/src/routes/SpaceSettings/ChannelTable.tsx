@@ -37,19 +37,14 @@ export function ChannelTable({
   latest.current = { total, onEdit, onDelete };
 
   const columns = useMemo<TableColumn<Channel>[]>(() => {
+    // The column says which channels are announcement channels; the row's
+    // menu is what changes one.
     const announcement: TableColumn<Channel> = {
       id: "announcement",
       header: "Announcement",
       meta: { width: 130, align: "center" },
-      cell: ({ row: { original: c } }) => (
-        <input
-          type="checkbox"
-          name={`announcement-${c.id}`}
-          checked={isAnnouncement(c)}
-          onChange={(e) => setAnnouncement(c, e.target.checked, queryClient)}
-          aria-label={`#${c.name} is an announcement channel`}
-        />
-      ),
+      cell: ({ row: { original: c } }) =>
+        isAnnouncement(c) ? <span className="dt-yes">Yes</span> : "No",
     };
     return [
       {
@@ -79,6 +74,22 @@ export function ChannelTable({
               label={`Actions for #${c.name}`}
               items={[
                 { label: "Edit", onSelect: () => v.onEdit(c) },
+                ...(voice
+                  ? []
+                  : [
+                      {
+                        label: isAnnouncement(c)
+                          ? "Make open chat channel"
+                          : "Make announcement channel",
+                        onSelect: () =>
+                          setAnnouncement(
+                            c,
+                            !isAnnouncement(c),
+                            queryClient,
+                            true,
+                          ),
+                      },
+                    ]),
                 {
                   label: "Delete",
                   danger: true,

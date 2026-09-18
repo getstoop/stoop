@@ -290,6 +290,12 @@ th[aria-sort] .dt-sort-arrow {
   background: var(--warn);
 }
 
+/* A yes/no fact in a cell: "no" stays in the cell's muted colour. */
+.dt-yes {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .dt-state-reason {
   color: var(--warn);
   font-size: var(--text-sm);
