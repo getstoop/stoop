@@ -308,6 +308,7 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   // Log out is the last entry of the account nav; the rail pill still
   // lands on Profile.
   await A.locator(".logout-link").click();
+  await acceptDialog(A);
   await expect(A, "logout → /login with no redirect").toHaveURL(/\/login$/);
   await credentials(A, `webA${suffix}`);
   await expect(A, "existing-account login lands in a space").toHaveURL(/\/s\//);

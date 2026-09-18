@@ -1,4 +1,4 @@
-import { expect, reload, seed, signIn, test } from "./lib";
+import { acceptDialog, expect, reload, seed, signIn, test } from "./lib";
 
 // The account page: who you are, the tabs it is split into, changing
 // your password (which revokes every other session), and logging out and
@@ -116,6 +116,7 @@ test("the account page, password change and log out", async ({ browser }) => {
 
   // Log out and back in with the new password.
   await P.locator(".logout-link").click();
+  await acceptDialog(P);
   await expect(P, "log out from profile").toHaveURL(/\/login/);
   await P.locator('input[autocomplete="username"]').fill(user);
   await P.locator('input[type="password"]').fill(newPass);
