@@ -67,7 +67,7 @@ export function CloudflareTunnelSection({
               placeholder={
                 data?.reachability?.cloudflareTunnel?.hasToken
                   ? "(saved — leave blank to keep)"
-                  : "eyJ… — or the whole install command"
+                  : "eyJ…"
               }
               autoComplete="off"
             />
