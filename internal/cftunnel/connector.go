@@ -24,9 +24,8 @@ const (
 )
 
 type Options struct {
-	Path       string
-	Token      string
-	OriginPort string
+	Path  string
+	Token string
 }
 
 // Connector supervises one cloudflared process: starts it, restarts it
@@ -59,13 +58,21 @@ func (c *Connector) set(fn func(*Status)) {
 // Run keeps cloudflared running until ctx is done.
 func (c *Connector) Run(ctx context.Context) {
 	backoff := time.Second
+	lastErr := ""
 	for ctx.Err() == nil {
 		started := time.Now()
 		err := c.runOnce(ctx)
 		if ctx.Err() != nil {
 			return
 		}
-		c.log.Warn("cloudflare tunnel: cloudflared stopped; retrying", "err", err, "in", backoff)
+		// The same failure every retry is said once.
+		level := slog.LevelWarn
+		if st := c.Status(); st.State == "error" && st.Error == lastErr {
+			level = slog.LevelDebug
+		} else {
+			lastErr = st.Error
+		}
+		c.log.Log(ctx, level, "cloudflare tunnel: cloudflared stopped; retrying", "err", err, "in", backoff)
 		if time.Since(started) > time.Minute {
 			backoff = time.Second
 		}
@@ -90,7 +97,10 @@ func (c *Connector) runOnce(ctx context.Context) error {
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, "tunnel", "--no-autoupdate", "--metrics", metrics, "run")
+	// On SIGTERM cloudflared waits for in-flight requests, and every
+	// connected client holds a WebSocket through it; a stop is meant to
+	// cut those, so the wait is short.
+	cmd := exec.CommandContext(ctx, bin, "tunnel", "--no-autoupdate", "--metrics", metrics, "--grace-period", "1s", "run")
 	// The token goes in the environment, where `ps` doesn't show it.
 	cmd.Env = append(os.Environ(), "TUNNEL_TOKEN="+c.opts.Token, "TUNNEL_LOG_OUTPUT=json")
 	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
@@ -100,6 +110,7 @@ func (c *Connector) runOnce(ctx context.Context) error {
 		return err
 	}
 	if err := cmd.Start(); err != nil {
+		c.set(func(s *Status) { *s = Status{State: "error", Error: friendly(err.Error())} })
 		return err
 	}
 	c.set(func(s *Status) {
@@ -111,9 +122,15 @@ func (c *Connector) runOnce(ctx context.Context) error {
 	c.readLog(stderr)
 	err = cmd.Wait()
 	c.set(func(s *Status) {
-		s.URL = ""
-		if s.State == "running" {
-			s.State = "starting"
+		switch {
+		case ctx.Err() != nil || err == nil:
+			if s.State == "running" {
+				s.State = "starting"
+			}
+		case s.State != "error":
+			// It died without saying why in the log; the exit is all
+			// there is to show.
+			*s = Status{State: "error", Error: friendly(err.Error())}
 		}
 	})
 	return err
@@ -158,6 +175,9 @@ func (c *Connector) readLog(r io.Reader) {
 		})
 		c.log.Log(context.Background(), level, "cloudflared", "msg", msg)
 	}
+	// A line the scanner won't take must not leave the pipe full, or
+	// cloudflared blocks on its next write.
+	_, _ = io.Copy(io.Discard, r)
 }
 
 func friendly(msg string) string {
@@ -170,8 +190,11 @@ func friendly(msg string) string {
 	return msg
 }
 
-// poll reads /ready (is the tunnel connected) and /config (which
-// hostname it carries) until ctx is done.
+// poll reads /ready (is the tunnel connected) until ctx is done. Which
+// hostname the tunnel carries is the operator's to say, in Public
+// address; cloudflared's /config would tell, but it is a debugging dump
+// with no promised shape, and guessing which of its rules is this server
+// is more than Stoop can see from here.
 func (c *Connector) poll(ctx context.Context, metrics string) {
 	t := time.NewTicker(pollEvery)
 	defer t.Stop()
@@ -180,12 +203,7 @@ func (c *Connector) poll(ctx context.Context, metrics string) {
 			ReadyConnections int `json:"readyConnections"`
 		}
 		if getJSON(ctx, "http://"+metrics+"/ready", &ready) == nil && ready.ReadyConnections > 0 {
-			var cfg configBody
-			url := ""
-			if getJSON(ctx, "http://"+metrics+"/config", &cfg) == nil {
-				url = cfg.publicURL(c.opts.OriginPort)
-			}
-			c.set(func(s *Status) { *s = Status{State: "running", URL: url} })
+			c.set(func(s *Status) { *s = Status{State: "running"} })
 		} else {
 			c.set(func(s *Status) {
 				if s.State == "running" {
@@ -199,40 +217,6 @@ func (c *Connector) poll(ctx context.Context, metrics string) {
 		case <-t.C:
 		}
 	}
-}
-
-// configBody is the part of cloudflared's /config this package reads.
-type configBody struct {
-	Config struct {
-		Ingress []struct {
-			Hostname string `json:"hostname"`
-			Service  any    `json:"service"`
-		} `json:"ingress"`
-	} `json:"config"`
-}
-
-// publicURL picks this server's hostname out of the tunnel's rules: the
-// one whose service is this machine on originPort, else the only one.
-// Several hostnames and no match means Stoop can't tell which is its own
-// (the tunnel may reach it through a proxy), and it doesn't guess.
-func (b configBody) publicURL(originPort string) string {
-	var hostnames []string
-	for _, r := range b.Config.Ingress {
-		if r.Hostname == "" || strings.Contains(r.Hostname, "*") {
-			continue
-		}
-		hostnames = append(hostnames, r.Hostname)
-		service, _ := r.Service.(string)
-		for _, host := range []string{"localhost", "127.0.0.1", "[::1]"} {
-			if strings.TrimSuffix(service, "/") == "http://"+host+":"+originPort {
-				return "https://" + r.Hostname
-			}
-		}
-	}
-	if len(hostnames) != 1 {
-		return ""
-	}
-	return "https://" + hostnames[0]
 }
 
 // Loopback only, so never through a proxy from the environment.

@@ -578,12 +578,8 @@ type CloudflareTunnelStatus struct {
 	Enabled bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// "stopped", "missing" (no cloudflared on this machine), "starting",
 	// "running", or "error".
-	State string `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
-	// https:// and the tunnel's public hostname, once running and only when
-	// Stoop can tell which hostname is its own. The public address falls
-	// back to it.
-	Url           string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
-	Error         string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	State         string `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Error         string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -628,13 +624,6 @@ func (x *CloudflareTunnelStatus) GetEnabled() bool {
 func (x *CloudflareTunnelStatus) GetState() string {
 	if x != nil {
 		return x.State
-	}
-	return ""
-}
-
-func (x *CloudflareTunnelStatus) GetUrl() string {
-	if x != nil {
-		return x.Url
 	}
 	return ""
 }
@@ -755,12 +744,11 @@ const file_stoop_instance_v1_reachability_proto_rawDesc = "" +
 	"tailnet_ip\x18\a \x01(\tR\ttailnetIp\x12#\n" +
 	"\rcarries_voice\x18\b \x01(\bR\fcarriesVoiceJ\x04\b\t\x10\n" +
 	"J\x04\b\n" +
-	"\x10\v\"p\n" +
+	"\x10\v\"^\n" +
 	"\x16CloudflareTunnelStatus\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\x12\x10\n" +
-	"\x03url\x18\x03 \x01(\tR\x03url\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error\";\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\";\n" +
 	"\rLiveKitStatus\x12\x18\n" +
 	"\arunning\x18\x01 \x01(\bR\arunning\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03urlB\xcc\x01\n" +

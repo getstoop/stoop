@@ -99,11 +99,7 @@ message CloudflareTunnelStatus {
   // "stopped", "missing" (no cloudflared on this machine), "starting",
   // "running", or "error".
   string state = 2;
-  // https:// and the tunnel's public hostname, once running and only when
-  // Stoop can tell which hostname is its own. The public address falls
-  // back to it.
-  string url = 3;
-  string error = 4;
+  string error = 3;
 }
 
 // LiveKitStatus is whether the voice sidecar is up.

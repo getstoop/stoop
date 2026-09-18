@@ -228,18 +228,18 @@ includes it.
    Stoop as `cloudflared` reaches it. With the compose file that is
    `http://localhost:8080`, because `cloudflared` runs inside the Stoop
    container. If you route it through a proxy of your own instead, name
-   that proxy under Trusted proxies and fill in Public address.
-4. Set up a [voice relay](#turn-when-media-ports-cant-be-reached):
+   that proxy under Trusted proxies too.
+4. Put that hostname, as `https://chat.example.com`, in **Public address**
+   on the same page. Invite links and sign-in callbacks use it; Stoop does
+   not learn it from the tunnel.
+5. Set up a [voice relay](#turn-when-media-ports-cant-be-reached):
    **voice audio does not go through the tunnel.** Cloudflare's own TURN
    service is the closest one and needs nothing forwarded.
 
-The status reads "Running at https://…" once connected, and invite links
-use that hostname while Public address is blank. A tunnel that carries
-several hostnames, none of them pointed straight at Stoop, reads just
-"Running": fill in Public address yourself. In `.env` the same
-settings are `STOOP_CLOUDFLARE_TUNNEL=true` and
-`STOOP_CLOUDFLARE_TUNNEL_TOKEN`; name `127.0.0.1, ::1` in
-`STOOP_TRUSTED_PROXIES` yourself there.
+The status reads "Running" once connected. In `.env` the same settings are
+`STOOP_CLOUDFLARE_TUNNEL=true`, `STOOP_CLOUDFLARE_TUNNEL_TOKEN` and
+`STOOP_PUBLIC_URL`; name `127.0.0.1, ::1` in `STOOP_TRUSTED_PROXIES`
+yourself there.
 
 Running the bare binary, install `cloudflared` so it is on `PATH`, or set
 `STOOP_CLOUDFLARED_PATH`.

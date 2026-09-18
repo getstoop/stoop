@@ -16,19 +16,14 @@ import (
 
 const (
 	// Env selects the behaviour: "ok" connects, "reject" fails the way a
-	// bad token does.
+	// bad token does, "crash" exits without a word.
 	Env = "STOOP_FAKE_CLOUDFLARED"
-	// OriginEnv is the port the fake's tunnel points at.
-	OriginEnv = "STOOP_FAKE_CLOUDFLARED_ORIGIN"
-	// Hostname is the public hostname the fake's tunnel carries.
-	Hostname = "chat.example.com"
 )
 
 // Use makes this test binary the fake and returns its path.
-func Use(t *testing.T, mode, originPort string) string {
+func Use(t *testing.T, mode string) string {
 	t.Helper()
 	t.Setenv(Env, mode)
-	t.Setenv(OriginEnv, originPort)
 	return os.Args[0]
 }
 
@@ -36,6 +31,9 @@ func Use(t *testing.T, mode, originPort string) string {
 func Main() {
 	fail := func(msg string) {
 		_ = json.NewEncoder(os.Stderr).Encode(map[string]string{"level": "error", "message": msg})
+		os.Exit(1)
+	}
+	if os.Getenv(Env) == "crash" {
 		os.Exit(1)
 	}
 	if os.Getenv(Env) == "reject" || os.Getenv("TUNNEL_TOKEN") == "" {
@@ -54,13 +52,6 @@ func Main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ready", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, `{"status":200,"readyConnections":4}`)
-	})
-	mux.HandleFunc("/config", func(w http.ResponseWriter, _ *http.Request) {
-		// Another service first, so picking by origin is exercised.
-		_, _ = fmt.Fprintf(w, `{"version":1,"config":{"ingress":[
-			{"hostname":"photos.example.com","service":"http://localhost:2342"},
-			{"hostname":%q,"service":"http://localhost:%s"},
-			{"hostname":"","service":"http_status:404"}]}}`, Hostname, os.Getenv(OriginEnv))
 	})
 	go func() { _ = http.Serve(l, mux) }()
 	stop := make(chan os.Signal, 1)

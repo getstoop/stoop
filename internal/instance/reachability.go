@@ -228,6 +228,11 @@ func (s *Service) Reachability(ctx context.Context) (Reachability, error) {
 	if ok, err := s.readJSON(ctx, keyCloudflareTunnel, &ct); err != nil {
 		return r, err
 	} else if ok {
+		// A saved blank token falls back to the environment's, so the
+		// switch can be saved without copying the secret out of .env.
+		if ct.Token == "" {
+			ct.Token = r.CloudflareTunnel.Token
+		}
 		r.CloudflareTunnel = ct
 	}
 	tp, err := s.trustedProxies(ctx)
@@ -284,8 +289,8 @@ func (s *Service) TrustsPeer(remoteAddr string) bool {
 	return set.Trusted(remoteAddr)
 }
 
-// PublicURL is the effective public address: saved, else environment,
-// else a running tunnel's or tailnet node's address (via UsePublicURL).
+// PublicURL is the effective public address: saved, else environment or
+// the built-in Tailscale listener's address (via UsePublicURL).
 func (s *Service) PublicURL(ctx context.Context) (string, error) {
 	var pu string
 	ok, err := s.readJSON(ctx, keyPublicURL, &pu)
@@ -509,7 +514,7 @@ func (s *Service) reachabilityResponse(ctx context.Context) (*instancev1.GetReac
 	if s.tunnel != nil {
 		ct := s.tunnel.Status()
 		resp.CloudflareTunnel = &instancev1.CloudflareTunnelStatus{
-			Enabled: ct.Enabled, State: ct.State, Url: ct.URL, Error: ct.Error,
+			Enabled: ct.Enabled, State: ct.State, Error: ct.Error,
 		}
 	}
 	if s.livekit != nil {

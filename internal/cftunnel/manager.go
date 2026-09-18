@@ -22,7 +22,6 @@ type Settings struct {
 // Status is what the setup wizard and admin page show.
 type Status struct {
 	State string // stopped, missing, starting, running, error
-	URL   string // https://<the tunnel's public hostname>, once known
 	Error string
 }
 
@@ -35,10 +34,9 @@ type runner interface {
 // Manager owns at most one running connector and reconciles it with the
 // settings in force, the way tailnet.Manager does its node.
 type Manager struct {
-	path       string
-	originPort string
-	log        *slog.Logger
-	newRun     func(Options, *slog.Logger) runner
+	path   string
+	log    *slog.Logger
+	newRun func(Options, *slog.Logger) runner
 
 	mu      sync.Mutex
 	base    context.Context // set by Run
@@ -53,12 +51,10 @@ type instance struct {
 	done     chan struct{}
 }
 
-// NewManager takes where cloudflared is ("" looks on PATH) and the port
-// the plain listener is on, which is how it tells this server's hostname
-// from any other the tunnel carries, when it can.
-func NewManager(path, originPort string, log *slog.Logger) *Manager {
+// NewManager takes where cloudflared is ("" looks on PATH).
+func NewManager(path string, log *slog.Logger) *Manager {
 	return &Manager{
-		path: path, originPort: originPort, log: log,
+		path: path, log: log,
 		newRun: func(o Options, l *slog.Logger) runner { return New(o, l) },
 	}
 }
@@ -72,12 +68,22 @@ func (m *Manager) Run(ctx context.Context) {
 	m.mu.Unlock()
 	<-ctx.Done()
 	m.mu.Lock()
-	m.stopLocked()
+	cur := m.stopLocked()
 	m.mu.Unlock()
+	if cur == nil {
+		return
+	}
+	select {
+	case <-cur.done:
+	case <-time.After(15 * time.Second):
+		m.log.Warn("cloudflare tunnel: connector did not stop in time")
+	}
 }
 
 // Apply records the settings in force and reconciles the connector with
-// them (once Run has started).
+// them (once Run has started). It returns as soon as the change is under
+// way: a connector on its way out winds down on its own, and nothing
+// waits on it, so a status read never blocks on cloudflared's exit.
 func (m *Manager) Apply(s Settings) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -102,7 +108,7 @@ func (m *Manager) reconcileLocked() {
 		return
 	}
 	ctx, cancel := context.WithCancel(m.base)
-	run := m.newRun(Options{Path: m.path, Token: want.Token, OriginPort: m.originPort}, m.log)
+	run := m.newRun(Options{Path: m.path, Token: want.Token}, m.log)
 	inst := &instance{settings: want, run: run, cancel: cancel, done: make(chan struct{})}
 	m.cur = inst
 	go func() {
@@ -111,23 +117,15 @@ func (m *Manager) reconcileLocked() {
 	}()
 }
 
-func (m *Manager) stopLocked() {
-	if m.cur == nil {
-		return
+// stopLocked tells the current connector to stop and forgets it; the
+// caller may wait on the returned instance's done.
+func (m *Manager) stopLocked() *instance {
+	cur := m.cur
+	if cur != nil {
+		cur.cancel()
+		m.cur = nil
 	}
-	m.cur.cancel()
-	select {
-	case <-m.cur.done:
-	case <-time.After(15 * time.Second):
-		m.log.Warn("cloudflare tunnel: connector did not stop in time")
-	}
-	m.cur = nil
-}
-
-// PublicURL is the running tunnel's https address, or "".
-func (m *Manager) PublicURL() string {
-	st, _ := m.Status()
-	return st.URL
+	return cur
 }
 
 // Status reports the connector's state; the bool is false when nothing
