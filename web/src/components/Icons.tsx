@@ -382,3 +382,21 @@ export function GripIcon() {
     </svg>
   );
 }
+
+export function CheckIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m4 12 5.5 5.5L20 7" />
+    </svg>
+  );
+}

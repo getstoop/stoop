@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import { isAnnouncement, setAnnouncement } from "../../api/channels";
 import { DataTable, type TableColumn } from "../../components/DataTable";
 import { DotsMenu } from "../../components/DotsMenu";
+import { CheckIcon } from "../../components/Icons";
 import { SpeakerIcon } from "../../components/VoiceIcons";
 import { type Channel, ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 
@@ -44,7 +45,15 @@ export function ChannelTable({
       header: "Announcement",
       meta: { width: 130, align: "center" },
       cell: ({ row: { original: c } }) =>
-        isAnnouncement(c) ? <span className="dt-yes">Yes</span> : "No",
+        isAnnouncement(c) ? (
+          <span className="dt-yes" role="img" aria-label="Yes">
+            <CheckIcon />
+          </span>
+        ) : (
+          <span role="img" aria-label="No">
+            —
+          </span>
+        ),
     };
     return [
       {

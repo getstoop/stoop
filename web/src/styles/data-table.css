@@ -290,10 +290,10 @@ th[aria-sort] .dt-sort-arrow {
   background: var(--warn);
 }
 
-/* A yes/no fact in a cell: "no" stays in the cell's muted colour. */
+/* A yes/no fact in a cell: a tick, or the cell's muted dash for no. */
 .dt-yes {
-  color: var(--text);
-  font-weight: 600;
+  display: inline-flex;
+  color: var(--ok);
 }
 
 .dt-state-reason {
