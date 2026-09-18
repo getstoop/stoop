@@ -23,7 +23,6 @@ type CloudflareTunnelSettings struct {
 type CloudflareTunnelStatus struct {
 	Enabled bool
 	State   string
-	URL     string
 	Error   string
 }
 

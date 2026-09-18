@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -253,11 +252,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		a.tailnet.UseAddressHook(a.nodeIP.set)
 	}
 
-	a.tunnel = cftunnel.NewManager(cfg.CloudflaredPath, listenPort(cfg.ListenAddr), log)
+	a.tunnel = cftunnel.NewManager(cfg.CloudflaredPath, log)
 
-	// Reachability: saved settings override these environment values; a
-	// running tunnel's hostname, then the tailnet address, are the
-	// last-resort public URL.
+	// Reachability: saved settings override these environment values; the
+	// tailnet address is the last-resort public URL.
 	instanceSvc.UseReachabilityEnv(instance.ReachabilityEnv{
 		Reachability: instance.Reachability{
 			PublicURL: cfg.PublicURL,
@@ -300,12 +298,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		return nil, err
 	}
 	voiceSvc.UseRelayProvider(relayProvider{instanceSvc})
-	instanceSvc.UsePublicURL(func() string {
-		if u := a.tunnel.PublicURL(); u != "" {
-			return u
-		}
-		return a.tailnet.PublicURL()
-	})
+	instanceSvc.UsePublicURL(a.tailnet.PublicURL)
 	// What the Hosting page can say about the voice sidecar: whether it
 	// is configured, whether it answers, and what Stoop has handed it.
 	instanceSvc.UseLiveKit(newLiveKitReporter(cfg, voiceOpts))
@@ -414,16 +407,7 @@ func (c tunnelController) Apply(s instance.CloudflareTunnelSettings) {
 
 func (c tunnelController) Status() instance.CloudflareTunnelStatus {
 	st, on := c.m.Status()
-	return instance.CloudflareTunnelStatus{Enabled: on, State: st.State, URL: st.URL, Error: st.Error}
-}
-
-// listenPort is the port of a listen address like ":8080".
-func listenPort(addr string) string {
-	_, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return "8080"
-	}
-	return port
+	return instance.CloudflareTunnelStatus{Enabled: on, State: st.State, Error: st.Error}
 }
 
 // relayProvider adapts the instance module's reachability settings to

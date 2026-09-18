@@ -289,8 +289,8 @@ func (s *Service) TrustsPeer(remoteAddr string) bool {
 	return set.Trusted(remoteAddr)
 }
 
-// PublicURL is the effective public address: saved, else environment,
-// else a running tunnel's or tailnet node's address (via UsePublicURL).
+// PublicURL is the effective public address: saved, else environment or
+// the built-in Tailscale listener's address (via UsePublicURL).
 func (s *Service) PublicURL(ctx context.Context) (string, error) {
 	var pu string
 	ok, err := s.readJSON(ctx, keyPublicURL, &pu)
@@ -514,7 +514,7 @@ func (s *Service) reachabilityResponse(ctx context.Context) (*instancev1.GetReac
 	if s.tunnel != nil {
 		ct := s.tunnel.Status()
 		resp.CloudflareTunnel = &instancev1.CloudflareTunnelStatus{
-			Enabled: ct.Enabled, State: ct.State, Url: ct.URL, Error: ct.Error,
+			Enabled: ct.Enabled, State: ct.State, Error: ct.Error,
 		}
 	}
 	if s.livekit != nil {

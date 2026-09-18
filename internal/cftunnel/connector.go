@@ -24,9 +24,8 @@ const (
 )
 
 type Options struct {
-	Path       string
-	Token      string
-	OriginPort string
+	Path  string
+	Token string
 }
 
 // Connector supervises one cloudflared process: starts it, restarts it
@@ -123,7 +122,6 @@ func (c *Connector) runOnce(ctx context.Context) error {
 	c.readLog(stderr)
 	err = cmd.Wait()
 	c.set(func(s *Status) {
-		s.URL = ""
 		switch {
 		case ctx.Err() != nil || err == nil:
 			if s.State == "running" {
@@ -192,8 +190,11 @@ func friendly(msg string) string {
 	return msg
 }
 
-// poll reads /ready (is the tunnel connected) and /config (which
-// hostname it carries) until ctx is done.
+// poll reads /ready (is the tunnel connected) until ctx is done. Which
+// hostname the tunnel carries is the operator's to say, in Public
+// address; cloudflared's /config would tell, but it is a debugging dump
+// with no promised shape, and guessing which of its rules is this server
+// is more than Stoop can see from here.
 func (c *Connector) poll(ctx context.Context, metrics string) {
 	t := time.NewTicker(pollEvery)
 	defer t.Stop()
@@ -202,12 +203,7 @@ func (c *Connector) poll(ctx context.Context, metrics string) {
 			ReadyConnections int `json:"readyConnections"`
 		}
 		if getJSON(ctx, "http://"+metrics+"/ready", &ready) == nil && ready.ReadyConnections > 0 {
-			var cfg configBody
-			url := ""
-			if getJSON(ctx, "http://"+metrics+"/config", &cfg) == nil {
-				url = cfg.publicURL(c.opts.OriginPort)
-			}
-			c.set(func(s *Status) { *s = Status{State: "running", URL: url} })
+			c.set(func(s *Status) { *s = Status{State: "running"} })
 		} else {
 			c.set(func(s *Status) {
 				if s.State == "running" {
@@ -221,40 +217,6 @@ func (c *Connector) poll(ctx context.Context, metrics string) {
 		case <-t.C:
 		}
 	}
-}
-
-// configBody is the part of cloudflared's /config this package reads.
-type configBody struct {
-	Config struct {
-		Ingress []struct {
-			Hostname string `json:"hostname"`
-			Service  any    `json:"service"`
-		} `json:"ingress"`
-	} `json:"config"`
-}
-
-// publicURL picks this server's hostname out of the tunnel's rules: the
-// one whose service is this machine on originPort, else the only one.
-// Several hostnames and no match means Stoop can't tell which is its own
-// (the tunnel may reach it through a proxy), and it doesn't guess.
-func (b configBody) publicURL(originPort string) string {
-	var hostnames []string
-	for _, r := range b.Config.Ingress {
-		if r.Hostname == "" || strings.Contains(r.Hostname, "*") {
-			continue
-		}
-		hostnames = append(hostnames, r.Hostname)
-		service, _ := r.Service.(string)
-		for _, host := range []string{"localhost", "127.0.0.1", "[::1]"} {
-			if strings.TrimSuffix(service, "/") == "http://"+host+":"+originPort {
-				return "https://" + r.Hostname
-			}
-		}
-	}
-	if len(hostnames) != 1 {
-		return ""
-	}
-	return "https://" + hostnames[0]
 }
 
 // Loopback only, so never through a proxy from the environment.

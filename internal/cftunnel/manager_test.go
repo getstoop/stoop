@@ -19,13 +19,13 @@ func (f *fakeRun) Run(ctx context.Context) {
 	close(f.stopped)
 }
 func (f *fakeRun) Status() Status {
-	return Status{State: "running", URL: "https://chat.example.com"}
+	return Status{State: "running"}
 }
 
 func TestManager_Reconciles(t *testing.T) {
 	var mu sync.Mutex
 	var started []*fakeRun
-	m := NewManager(os.Args[0], "8080", quiet)
+	m := NewManager(os.Args[0], quiet)
 	m.newRun = func(o Options, _ *slog.Logger) runner {
 		mu.Lock()
 		defer mu.Unlock()
@@ -45,11 +45,11 @@ func TestManager_Reconciles(t *testing.T) {
 	done := make(chan struct{})
 	go func() { m.Run(ctx); close(done) }()
 	time.Sleep(50 * time.Millisecond)
-	if count() != 1 || last().opts.Token != "one" || last().opts.OriginPort != "8080" {
+	if count() != 1 || last().opts.Token != "one" {
 		t.Fatalf("started = %d", count())
 	}
-	if m.PublicURL() != "https://chat.example.com" {
-		t.Errorf("PublicURL = %q", m.PublicURL())
+	if st, on := m.Status(); !on || st.State != "running" {
+		t.Errorf("status = %+v on=%v", st, on)
 	}
 
 	// Same settings: no restart. New token: restart. Disabled: stop.
@@ -74,7 +74,7 @@ func TestManager_Reconciles(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("connector not stopped when disabled")
 	}
-	if st, on := m.Status(); on || st.State != "stopped" || m.PublicURL() != "" {
+	if st, on := m.Status(); on || st.State != "stopped" {
 		t.Errorf("status = %+v on=%v", st, on)
 	}
 
@@ -88,7 +88,7 @@ func TestManager_Reconciles(t *testing.T) {
 }
 
 func TestManager_MissingBinary(t *testing.T) {
-	m := NewManager("/nonexistent/cloudflared", "8080", quiet)
+	m := NewManager("/nonexistent/cloudflared", quiet)
 	if st, on := m.Status(); on || st.State != "missing" {
 		t.Errorf("status = %+v on=%v", st, on)
 	}

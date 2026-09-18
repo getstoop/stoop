@@ -199,18 +199,16 @@ client's WebSocket open for that long). The token reaches cloudflared
 through its environment, never its arguments.
 
 State comes from cloudflared's own metrics endpoint, which Stoop binds to a
-free loopback port: `/ready` says whether the tunnel is connected, and
-`/config` carries the tunnel's routing, from which Stoop takes the public
-hostname: the rule whose service is `localhost` on Stoop's own port, else
-the only one. With several hostnames and no match it takes none, because
-it cannot see what sits between cloudflared and itself. That hostname is the **public address fallback** after a saved
-value and `STOOP_PUBLIC_URL`, and ahead of the tailnet address. It is
-derived on every read and never saved, so it goes when the tunnel does.
+free loopback port: `/ready` says whether the tunnel is connected. Which
+public hostname the tunnel serves is **not** read from it: cloudflared's
+`/config` would say, but it is a debugging dump with no promised shape,
+and which of its rules is this server is a guess from inside the process.
+The operator fills in Public address, as with any other proxy.
 
 cloudflared calls the plain listener over loopback. **Nothing trusts it
 implicitly:** the web form writes `127.0.0.1` and `::1` into the Trusted
-proxies field when the box is ticked (`localhost` may resolve to either), and the list stays the one source of trust.
-The reasoning is in
+proxies field when the box is ticked (`localhost` may resolve to either),
+and the list stays the one source of trust. The reasoning is in
 [the proposal](../proposals/cloudflare-tunnel.md).
 
 ## Security headers

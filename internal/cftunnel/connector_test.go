@@ -2,7 +2,6 @@ package cftunnel
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"log/slog"
 	"os"
@@ -37,14 +36,14 @@ func waitState(t *testing.T, c *Connector, want string) Status {
 }
 
 func TestConnector_RunsAndStops(t *testing.T) {
-	path := cftunneltest.Use(t, "ok", "8080")
-	c := New(Options{Path: path, Token: "secret", OriginPort: "8080"}, quiet)
+	path := cftunneltest.Use(t, "ok")
+	c := New(Options{Path: path, Token: "secret"}, quiet)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { c.Run(ctx); close(done) }()
 
 	st := waitState(t, c, "running")
-	if st.URL != "https://"+cftunneltest.Hostname || st.Error != "" {
+	if st.Error != "" {
 		t.Errorf("status = %+v", st)
 	}
 	cancel()
@@ -56,8 +55,8 @@ func TestConnector_RunsAndStops(t *testing.T) {
 }
 
 func TestConnector_RejectedToken(t *testing.T) {
-	path := cftunneltest.Use(t, "reject", "8080")
-	c := New(Options{Path: path, Token: "secret", OriginPort: "8080"}, quiet)
+	path := cftunneltest.Use(t, "reject")
+	c := New(Options{Path: path, Token: "secret"}, quiet)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go c.Run(ctx)
@@ -67,8 +66,8 @@ func TestConnector_RejectedToken(t *testing.T) {
 }
 
 func TestConnector_ExitsSilently(t *testing.T) {
-	path := cftunneltest.Use(t, "crash", "8080")
-	c := New(Options{Path: path, Token: "secret", OriginPort: "8080"}, quiet)
+	path := cftunneltest.Use(t, "crash")
+	c := New(Options{Path: path, Token: "secret"}, quiet)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go c.Run(ctx)
@@ -83,7 +82,7 @@ func TestConnector_WontStart(t *testing.T) {
 	if err := os.WriteFile(path, []byte("not a program\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	c := New(Options{Path: path, Token: "secret", OriginPort: "8080"}, quiet)
+	c := New(Options{Path: path, Token: "secret"}, quiet)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go c.Run(ctx)
@@ -98,22 +97,4 @@ func TestConnector_Missing(t *testing.T) {
 	defer cancel()
 	go c.Run(ctx)
 	waitState(t, c, "missing")
-}
-
-func TestPublicURL(t *testing.T) {
-	cases := []struct{ name, ingress, want string }{
-		{"by origin", `[{"hostname":"a.example.com","service":"http://localhost:3000"},{"hostname":"b.example.com","service":"http://127.0.0.1:8080/"}]`, "https://b.example.com"},
-		{"the only one, through a proxy", `[{"hostname":"a.example.com","service":"http://caddy:80"},{"hostname":"","service":"http_status:404"}]`, "https://a.example.com"},
-		{"no guess among several", `[{"hostname":"a.example.com","service":"http://caddy:80"},{"hostname":"b.example.com","service":"http://x:1"}]`, ""},
-		{"skips wildcards and the catch-all", `[{"hostname":"*.example.com","service":"http://localhost:8080"},{"hostname":"","service":"http_status:404"}]`, ""},
-	}
-	for _, tc := range cases {
-		var b configBody
-		if err := json.Unmarshal([]byte(`{"config":{"ingress":`+tc.ingress+`}}`), &b); err != nil {
-			t.Fatal(err)
-		}
-		if got := b.publicURL("8080"); got != tc.want {
-			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
-		}
-	}
 }
