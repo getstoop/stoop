@@ -228,25 +228,9 @@
     grid-template-columns: 1fr;
   }
 
-  /* Lists fold back into the plain row: name, then the cells, actions
-     on the right or on their own line. */
-  .user-list-head {
-    display: none;
-  }
-
-  .user-list.table .user-row {
-    display: flex;
-    gap: 4px 12px;
-  }
-
   .token-form-row,
   .delivery-row {
     grid-template-columns: 1fr;
-  }
-
-  .user-list.table .user-row-actions {
-    flex-wrap: wrap;
-    margin-left: auto;
   }
 
   /* DataTable rows fold into a stack: identity and actions on the first

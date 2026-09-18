@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { authClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useInstanceStatus, useMe, usePersonalTokens } from "../../api/queries";
@@ -9,7 +9,7 @@ import {
   expiryOf,
   lastUsedText,
 } from "../../api/tokenOptions";
-import { ListHead } from "../../components/ListHead";
+import { DataTable, type TableColumn } from "../../components/DataTable";
 import {
   InstanceRole,
   type PersonalToken,
@@ -18,6 +18,9 @@ import { PersonalTokens } from "../../gen/stoop/instance/v1/instance_pb";
 import { confirm } from "../../stores/dialogs";
 import { NewTokenModal } from "./NewTokenModal";
 import { TokenCreatedModal } from "./TokenCreatedModal";
+
+const isExpired = (t: PersonalToken) =>
+  expiryOf(t.expiresAt && timestampDate(t.expiresAt)).state === "expired";
 
 // Security → Personal tokens: a person's own tokens for scripts, each with
 // only the permissions it was given (docs/proposals/access-model.md).
@@ -61,6 +64,78 @@ export function PersonalTokensSection() {
     }
   };
 
+  const latest = useRef(revoke);
+  latest.current = revoke;
+  const columns = useMemo<TableColumn<PersonalToken>[]>(
+    () => [
+      {
+        id: "name",
+        header: "Name",
+        accessorFn: (t) => t.name,
+        cell: ({ row: { original: t } }) => (
+          <>
+            <strong>{t.name}</strong>
+            <span className="dt-subline muted small">
+              <code>…{t.hint}</code>
+            </span>
+          </>
+        ),
+      },
+      {
+        id: "can",
+        header: "Can",
+        enableSorting: false,
+        meta: { width: "32%" },
+        cell: ({ row: { original: t } }) =>
+          describePermissions(t.permissions).join(", "),
+      },
+      {
+        id: "used",
+        header: "Last used",
+        accessorFn: (t) =>
+          t.lastUsedAt ? timestampDate(t.lastUsedAt).getTime() : 0,
+        meta: { width: "14%" },
+        cell: ({ row: { original: t } }) =>
+          lastUsedText(t.lastUsedAt && timestampDate(t.lastUsedAt)),
+      },
+      {
+        id: "expires",
+        header: "Expires",
+        // Never expires sorts last.
+        accessorFn: (t) =>
+          t.expiresAt
+            ? timestampDate(t.expiresAt).getTime()
+            : Number.MAX_SAFE_INTEGER,
+        meta: { width: "14%" },
+        cell: ({ row: { original: t } }) => {
+          const expiry = expiryOf(t.expiresAt && timestampDate(t.expiresAt));
+          if (t.blocked) return <span className="badge">blocked</span>;
+          if (expiry.state === "expired")
+            return <span className="badge">expired</span>;
+          if (expiry.state === "soon")
+            return <span className="badge token-soon">{expiry.text}</span>;
+          return expiry.text;
+        },
+      },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        meta: { width: 110, actions: true },
+        cell: ({ row: { original: t } }) => (
+          <button
+            type="button"
+            className="chip danger"
+            onClick={() => latest.current(t)}
+          >
+            {isExpired(t) ? "Remove" : "Revoke"}
+          </button>
+        ),
+      },
+    ],
+    [],
+  );
+
   const hasTokens = (tokens?.length ?? 0) > 0;
   if (!allowed && !hasTokens) {
     return (
@@ -90,58 +165,15 @@ export function PersonalTokensSection() {
             : "Only server admins can use personal tokens on this server, so these don't work right now."}
         </p>
       )}
-      {tokens && tokens.length === 0 && (
-        <p className="muted small">No tokens yet.</p>
-      )}
-      {hasTokens && (
-        <ul className="user-list table tokens">
-          <ListHead columns={["Name", "Can", "Last used", "Expires", ""]} />
-          {tokens?.map((t) => {
-            const expiry = expiryOf(t.expiresAt && timestampDate(t.expiresAt));
-            const expired = expiry.state === "expired";
-            return (
-              <li
-                key={t.id}
-                className={`user-row ${expired ? "inactive" : ""}`}
-                data-token={t.name}
-              >
-                <div className="user-row-main">
-                  <strong>{t.name}</strong>
-                  <span className="muted small">
-                    <code>…{t.hint}</code>
-                  </span>
-                </div>
-                <span className="user-cell">
-                  {describePermissions(t.permissions).join(", ")}
-                </span>
-                <span className="user-cell">
-                  {lastUsedText(t.lastUsedAt && timestampDate(t.lastUsedAt))}
-                </span>
-                <span className="user-cell">
-                  {t.blocked ? (
-                    <span className="badge">blocked</span>
-                  ) : expired ? (
-                    <span className="badge">expired</span>
-                  ) : expiry.state === "soon" ? (
-                    <span className="badge token-soon">{expiry.text}</span>
-                  ) : (
-                    expiry.text
-                  )}
-                </span>
-                <div className="user-row-actions">
-                  <button
-                    type="button"
-                    className="chip danger"
-                    onClick={() => revoke(t)}
-                  >
-                    {expired ? "Remove" : "Revoke"}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <DataTable
+        rows={tokens}
+        columns={columns}
+        rowId={(t) => t.id}
+        noun={["token", "tokens"]}
+        empty="No tokens yet."
+        rowInactive={isExpired}
+        rowProps={(t) => ({ "data-token": t.name })}
+      />
       {error && <p className="error">{error}</p>}
       {allowed && (
         <div className="setting-actions">

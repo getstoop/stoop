@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { authClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useSessions } from "../../api/queries";
@@ -8,7 +8,7 @@ import {
   type SessionKind,
   sessionKind,
 } from "../../api/userAgent";
-import { ListHead } from "../../components/ListHead";
+import { DataTable, type TableColumn } from "../../components/DataTable";
 import { confirm } from "../../stores/dialogs";
 
 const KINDS: { kind: SessionKind; label: string }[] = [
@@ -21,6 +21,22 @@ const KINDS: { kind: SessionKind; label: string }[] = [
 // Security → Where you're signed in: how many sessions of each kind, and
 // signing out all but this one. A count rather than a row per session:
 // the rows were long and told a person little they could act on.
+type KindRow = { kind: string; label: string; count: number };
+
+const columns: TableColumn<KindRow>[] = [
+  {
+    id: "kind",
+    header: "Kind",
+    cell: ({ row: { original: r } }) => <strong>{r.label}</strong>,
+  },
+  {
+    id: "sessions",
+    header: "Sessions",
+    meta: { width: 110, align: "end" },
+    cell: ({ row: { original: r } }) => r.count,
+  },
+];
+
 export function SessionsSection() {
   const queryClient = useQueryClient();
   const { data: sessions } = useSessions();
@@ -28,6 +44,16 @@ export function SessionsSection() {
   const [error, setError] = useState<string | null>(null);
   const current = sessions?.find((s) => s.current);
   const others = (sessions?.length ?? 0) - (current ? 1 : 0);
+  const rows = useMemo(
+    () =>
+      sessions &&
+      KINDS.map(({ kind, label }) => ({
+        kind,
+        label,
+        count: sessions.filter((s) => sessionKind(s.userAgent) === kind).length,
+      })),
+    [sessions],
+  );
 
   const signOutOthers = async () => {
     if (
@@ -61,22 +87,15 @@ export function SessionsSection() {
           recognise the rest, sign them out and change your password.
         </p>
       )}
-      {sessions && (
-        <ul className="user-list table two">
-          <ListHead columns={["Kind", "Sessions"]} />
-          {KINDS.map(({ kind, label }) => (
-            <li key={kind} className="user-row" data-kind={kind}>
-              <strong>{label}</strong>
-              <span className="user-cell">
-                {
-                  sessions.filter((s) => sessionKind(s.userAgent) === kind)
-                    .length
-                }
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <DataTable
+        rows={rows}
+        columns={columns}
+        rowId={(r) => r.kind}
+        noun={["kind", "kinds"]}
+        empty=""
+        ordered
+        rowProps={(r) => ({ "data-kind": r.kind })}
+      />
       <p className="muted small">
         Unknown is a sign-in from a script, or from before Stoop recorded
         devices.

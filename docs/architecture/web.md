@@ -264,7 +264,7 @@ channel sidebar on `/s/:id/settings`), a content column up to 960px,
 and inside it flat groups built from setting rows (title and
 description left, control right) and list grids with columns (Accounts,
 Members, Banned, Channels). Below 768px the nav is a scrolling chip
-strip under the header, rows stack, and lists fold to a two-line row,
+strip under the header, rows stack, and tables fold to a labelled stack,
 all from `mobile.css`. `components/SettingsFrame.tsx` is the frame;
 each page passes it a header, its section links and the section on
 show. Space settings is routed beside the space layout, not inside it,
@@ -273,21 +273,18 @@ which is how its nav takes the sidebar's place. A single setting is a
 the left, control on the right, stacked on a phone; a page groups rows
 in one `section.card`; a page with several fields is one form with one
 "Save changes", disabled until something differs from the server. A list
-of people, channels or providers is a `DataTable` ([Tables](#tables)) or,
-where not yet moved, a
-`ul.user-list.table` (`styles/lists.css`): a header row from
-`components/ListHead.tsx`, then a grid row per item with `.user-cell`
-columns, folding back into a plain row on a phone. The Hosting form is
+of people, channels or webhooks is a `DataTable` ([Tables](#tables)),
+folding into a labelled stack on a phone. The Hosting form is
 the same rows with `stack` for the groups that hold several controls;
 it also serves the setup wizard, where the rows fall to one column
 because the two columns belong to `.settings-content`.
 
 ## Tables
 
-The settings lists are moving to `components/DataTable` (styles in
-`data-table.css`, the phone fold in `mobile.css`). Every table
-in space settings and server admin uses it; Profile's five are still
-`ul.user-list.table` and move over next.
+Every list with columns on the settings pages is a
+`components/DataTable` (styles in `data-table.css`, the phone fold in
+`mobile.css`). Design and renderings:
+[../proposals/data-table.md](../proposals/data-table.md).
 
 - A section declares `columns` and hands over `rows`. `rows` undefined
   means loading; an empty array shows the section's `empty` line.
