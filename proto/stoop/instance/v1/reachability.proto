@@ -41,9 +41,8 @@ message TailscaleSettings {
 // (cloudflared) that Stoop runs as a child process.
 message CloudflareTunnelSettings {
   bool enabled = 1;
-  // Write-only: the remotely managed tunnel's token, or the whole install
-  // command Cloudflare shows, which is cut down to the token. has_token
-  // reports whether one is saved.
+  // Write-only: the remotely managed tunnel's token. has_token reports
+  // whether one is saved.
   string token = 2;
   bool has_token = 3;
 }

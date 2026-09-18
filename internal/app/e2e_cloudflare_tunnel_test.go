@@ -43,9 +43,9 @@ func TestE2ECloudflareTunnel(t *testing.T) {
 	h.rpc(casey, reachability+"UpdateReachability", on(map[string]any{"enabled": true, "token": "not-a-token"})).
 		expect(t, "invalid_argument", "isn't a tunnel token")
 
-	// The whole pasted command is accepted, and the token never comes back.
+	// Saved, and the token never comes back.
 	r = h.rpc(casey, reachability+"UpdateReachability",
-		on(map[string]any{"enabled": true, "token": "sudo cloudflared service install " + token})).expect(t, "ok")
+		on(map[string]any{"enabled": true, "token": token})).expect(t, "ok")
 	if !strings.Contains(r.raw, `"hasToken":true`) {
 		t.Errorf("after save: %s", r.raw)
 	}

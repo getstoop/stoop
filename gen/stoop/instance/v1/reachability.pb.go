@@ -258,9 +258,8 @@ func (x *TailscaleSettings) GetControlUrl() string {
 type CloudflareTunnelSettings struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Enabled bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	// Write-only: the remotely managed tunnel's token, or the whole install
-	// command Cloudflare shows, which is cut down to the token. has_token
-	// reports whether one is saved.
+	// Write-only: the remotely managed tunnel's token. has_token reports
+	// whether one is saved.
 	Token         string `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
 	HasToken      bool   `protobuf:"varint,3,opt,name=has_token,json=hasToken,proto3" json:"has_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
