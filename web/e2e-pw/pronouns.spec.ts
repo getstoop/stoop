@@ -136,8 +136,8 @@ test("pronouns and bio, on the card and nowhere else", async ({ browser }) => {
 
   // An admin takes the pronouns down. A (the setup user) is the server admin.
   await A.goto("/admin?tab=accounts");
-  const theirs = A.locator(".user-row", { hasText: `@robin${suffix}` });
-  const mine = A.locator(".user-row", { hasText: `@casey${suffix}` });
+  const theirs = A.locator(".dt-row", { hasText: `@robin${suffix}` });
+  const mine = A.locator(".dt-row", { hasText: `@casey${suffix}` });
   await expect(
     theirs,
     "the accounts row carries pronouns on its meta line",

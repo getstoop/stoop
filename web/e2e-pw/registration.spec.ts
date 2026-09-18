@@ -81,7 +81,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   await A.locator('a[title="Server admin"]').click();
   await atPath(A, "/admin", "gear opens /admin");
   await A.locator('.settings-tab[data-tab="accounts"]').click();
-  const users = A.locator(".user-list");
+  const users = A.locator(".accounts-section .dt");
   await expect(users, "the admin is listed").toContainText(`@ada${suffix}`);
   await expect(users, "the invited account is listed").toContainText(
     `@bea${suffix}`,
@@ -158,7 +158,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   // Deactivate cal: C's session dies; reactivate: can log in again.
   await A.locator('.settings-tab[data-tab="accounts"]').click();
   const calMenu = A.locator(`button[aria-label="Actions for @cal${suffix}"]`);
-  const calRow = A.locator(".user-row", { hasText: `@cal${suffix}` });
+  const calRow = A.locator(".dt-row", { hasText: `@cal${suffix}` });
   // The menu closes on any scroll, so scroll before the click rather than
   // with it.
   await calMenu.scrollIntoViewIfNeeded();
@@ -189,7 +189,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
 
   // An admin's own row offers no actions.
   await expect(
-    A.locator(".user-list"),
-    "own row shows 'you' instead of actions",
+    A.locator(".accounts-section .dt"),
+    "own row is marked 'you'",
   ).toContainText("you");
 });
