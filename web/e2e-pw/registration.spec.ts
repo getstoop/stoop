@@ -81,7 +81,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   await A.locator('a[title="Server admin"]').click();
   await atPath(A, "/admin", "gear opens /admin");
   await A.locator('.settings-tab[data-tab="accounts"]').click();
-  const users = A.locator(".user-list");
+  const users = A.locator(".accounts-section .dt");
   await expect(users, "the admin is listed").toContainText(`@ada${suffix}`);
   await expect(users, "the invited account is listed").toContainText(
     `@bea${suffix}`,
