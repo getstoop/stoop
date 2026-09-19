@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -45,8 +46,52 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 	}
 
 	// The panels that are not built yet say so, but only to an admin.
-	for _, proc := range []string{"GetLiveStats", "GetDatabaseStats", "GetRequestStats", "ListJobs"} {
+	for _, proc := range []string{"GetRequestStats", "ListJobs"} {
 		h.rpc(ada, diagnostics+proc, map[string]any{}).expect(t, "permission_denied")
 		h.rpc(casey, diagnostics+proc, map[string]any{}).expect(t, "unimplemented")
 	}
+}
+
+// Right now and Database: the gauges the app registers, with the sampler's
+// step, and the pool and catalog facts of the harness's own database.
+func TestE2EDiagnosticsLiveAndDatabase(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	ada := h.person("ada")
+
+	h.rpc(ada, diagnostics+"GetLiveStats", map[string]any{}).expect(t, "permission_denied")
+	live := h.rpc(casey, diagnostics+"GetLiveStats", map[string]any{}).expect(t, "ok")
+	if live.str("at") == "" || liveNumber(live, "stepSeconds") != 10 {
+		t.Errorf("live stats header: %s", live.raw)
+	}
+	gauges := map[string]bool{}
+	for _, g := range live.list("gauges") {
+		m, _ := g.(map[string]any)
+		name, _ := m["name"].(string)
+		gauges[name] = true
+	}
+	for _, want := range []string{"connections", "online_users", "voice_participants", "voice_rooms", "bus_dropped_total"} {
+		if !gauges[want] {
+			t.Errorf("no %s gauge in %v", want, gauges)
+		}
+	}
+
+	h.rpc(ada, diagnostics+"GetDatabaseStats", map[string]any{}).expect(t, "permission_denied")
+	dbs := h.rpc(casey, diagnostics+"GetDatabaseStats", map[string]any{}).expect(t, "ok")
+	if liveNumber(dbs, "poolMax") <= 0 || liveNumber(dbs, "pingUs") <= 0 || dbs.str("serverVersion") == "" {
+		t.Errorf("database stats: %s", dbs.raw)
+	}
+	// Connect's JSON writes int64 as a string.
+	if v, _ := strconv.Atoi(dbs.str("schemaVersion")); v <= 0 {
+		t.Errorf("schemaVersion = %q, want > 0: %s", dbs.str("schemaVersion"), dbs.raw)
+	}
+	if v, _ := strconv.Atoi(dbs.str("databaseBytes")); v <= 0 {
+		t.Errorf("databaseBytes = %q, want > 0", dbs.str("databaseBytes"))
+	}
+}
+
+// liveNumber reads a JSON number at a top-level key, 0 when absent.
+func liveNumber(r reply, key string) float64 {
+	v, _ := r.body[key].(float64)
+	return v
 }

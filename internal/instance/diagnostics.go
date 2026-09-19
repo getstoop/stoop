@@ -11,8 +11,10 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
-// The Diagnostics tab's RPCs (docs/proposals/diagnostics.md). Health is
-// built; the rest answer Unimplemented until their panel lands.
+// The Diagnostics tab's RPCs (docs/proposals/diagnostics.md). Health,
+// Right now and Database are built (the latter two in
+// diagnostics_live.go); the rest answer Unimplemented until their panel
+// lands.
 
 func (s *Service) GetHealth(ctx context.Context, _ *connect.Request[instancev1.GetHealthRequest]) (*connect.Response[instancev1.GetHealthResponse], error) {
 	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
@@ -47,20 +49,6 @@ func toProtoCheckState(st CheckState) instancev1.CheckState {
 }
 
 var errNotBuilt = errors.New("this panel is not built yet")
-
-func (s *Service) GetLiveStats(ctx context.Context, _ *connect.Request[instancev1.GetLiveStatsRequest]) (*connect.Response[instancev1.GetLiveStatsResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
-		return nil, err
-	}
-	return nil, connect.NewError(connect.CodeUnimplemented, errNotBuilt)
-}
-
-func (s *Service) GetDatabaseStats(ctx context.Context, _ *connect.Request[instancev1.GetDatabaseStatsRequest]) (*connect.Response[instancev1.GetDatabaseStatsResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
-		return nil, err
-	}
-	return nil, connect.NewError(connect.CodeUnimplemented, errNotBuilt)
-}
 
 func (s *Service) GetRequestStats(ctx context.Context, _ *connect.Request[instancev1.GetRequestStatsRequest]) (*connect.Response[instancev1.GetRequestStatsResponse], error) {
 	if err := requireAction(ctx, authctx.InstanceRead); err != nil {

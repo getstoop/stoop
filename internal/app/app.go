@@ -30,6 +30,7 @@ import (
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db"
+	"github.com/getstoop/stoop/internal/diag"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/files"
 	"github.com/getstoop/stoop/internal/instance"
@@ -127,6 +128,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	gateway := realtime.NewGateway(bus, identityVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
 	gateway.UseDoNotDisturb(authSvc)
 	chatSvc.UsePresence(gateway)
+	registerGauges(gateway)
 	filesSvc := files.New(pool, store, bus, authSvc, chatSvc, identityVerifier{authSvc}, log)
 	filesSvc.UsePolicy(instanceSvc)
 	instanceSvc.UseUploadCeiling(files.MaxAttachmentBytes)
@@ -467,6 +469,8 @@ func (a *App) StartBackground(ctx context.Context) {
 	go a.hooks.RunWorker(ctx)
 	// cloudflared starts, stops, and restarts as its settings change.
 	go a.tunnel.Run(ctx)
+	// The Diagnostics tab's gauge ring and per-minute request windows.
+	go diag.RunSampler(ctx, diag.Default, diag.RPC)
 }
 
 func (a *App) Run(ctx context.Context) error {

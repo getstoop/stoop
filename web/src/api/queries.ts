@@ -291,3 +291,21 @@ export function useDiagHealth() {
     refetchIntervalInBackground: false,
   });
 }
+
+export function useDiagLiveStats() {
+  return useQuery({
+    queryKey: ["diag", "live"],
+    queryFn: async () => instanceClient.getLiveStats({}),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useDiagDatabase() {
+  return useQuery({
+    queryKey: ["diag", "database"],
+    queryFn: async () => instanceClient.getDatabaseStats({}),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}

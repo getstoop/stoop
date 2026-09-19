@@ -67,7 +67,10 @@ type UserAdmin interface {
 }
 
 type Service struct {
-	q         *dbgen.Queries
+	q *dbgen.Queries
+	// pool is for the Database panel's pool stats and ping; every query
+	// goes through q.
+	pool      *pgxpool.Pool
 	users     UserAdmin
 	publicURL func() string
 	env       ReachabilityEnv
@@ -103,7 +106,7 @@ type Service struct {
 }
 
 func New(pool *pgxpool.Pool, users UserAdmin) *Service {
-	return &Service{q: dbgen.New(pool), users: users, publicURL: func() string { return "" }}
+	return &Service{q: dbgen.New(pool), pool: pool, users: users, publicURL: func() string { return "" }}
 }
 
 // UsePublicURL supplies the address reported in the instance status. A

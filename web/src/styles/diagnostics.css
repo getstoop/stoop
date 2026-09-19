@@ -74,3 +74,100 @@
   font-size: var(--text-sm);
   white-space: nowrap;
 }
+
+/* ---- A panel's head: the title with its one-line source beside it ---- */
+
+.diag-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.card .diag-head .hint {
+  margin: 0;
+}
+
+/* ---- Right now: a grid of tiles ---- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 8px; /* off-scale: 10px keeps the tile's height even with its 12px sides */
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+}
+
+.tile-title {
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
+.tile-value {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.tile-sub {
+  font-size: var(--text-sm);
+}
+
+/* The line is the muted ink; the newest sample wears the accent. Strokes
+   keep their width while the box stretches. */
+.sparkline {
+  display: block;
+  width: 100%;
+  height: 24px;
+  overflow: visible;
+}
+
+.sparkline-line {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.sparkline-end {
+  stroke: var(--accent);
+  stroke-width: 6px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---- Database: a grid of label / value pairs ---- */
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 16px;
+  font-size: var(--text-ui);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fact-label {
+  font-size: var(--text-sm);
+}
+
+.fact-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
