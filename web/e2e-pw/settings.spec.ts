@@ -74,15 +74,17 @@ test("space settings, roles and deletion", async ({ browser }) => {
   const grip = channelRow("random").getByRole("button", {
     name: "Reorder #random",
   });
-  // The sensor starts hearing arrows a tick after the pickup, so each key
-  // waits for the one before it to show.
+  // A drop only reorders once the row is over another one, which settles
+  // after the row is seen to move; the drag's own announcement says when.
   await grip.press(" ");
   await expect(channelRow("random"), "row picked up").toHaveClass(/dragging/);
   await grip.press("ArrowUp");
-  await expect(channelRow("random"), "row moved up").toHaveAttribute(
-    "style",
-    /translate3d\(0px, -\d/,
-  );
+  await expect(
+    A.locator('[id^="DndLiveRegion"]').filter({
+      hasText: /Draggable item (\S+) was moved over droppable area (?!\1)\S+/,
+    }),
+    "row is over another row",
+  ).toBeAttached();
   await grip.press(" ");
   await expect(channelNames(B), "B sees reordered channels").toHaveText([
     "random",
