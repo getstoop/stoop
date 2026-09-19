@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -45,8 +46,59 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 	}
 
 	// The panels that are not built yet say so, but only to an admin.
-	for _, proc := range []string{"GetLiveStats", "GetDatabaseStats", "GetRequestStats", "ListJobs"} {
+	for _, proc := range []string{"GetLiveStats", "GetDatabaseStats", "ListJobs"} {
 		h.rpc(ada, diagnostics+proc, map[string]any{}).expect(t, "permission_denied")
 		h.rpc(casey, diagnostics+proc, map[string]any{}).expect(t, "unimplemented")
 	}
+}
+
+// The Requests panel counts every unary call, refused ones included:
+// after the admin has read health twice and a member was turned away,
+// GetHealth shows up in both windows with its calls, an error and timings.
+func TestE2EDiagnosticsRequests(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	ada := h.person("ada")
+
+	h.rpc(ada, diagnostics+"GetRequestStats", map[string]any{}).expect(t, "permission_denied")
+	h.rpc(casey, diagnostics+"GetHealth", map[string]any{}).expect(t, "ok")
+	h.rpc(casey, diagnostics+"GetHealth", map[string]any{}).expect(t, "ok")
+	h.rpc(ada, diagnostics+"GetHealth", map[string]any{}).expect(t, "permission_denied")
+
+	for _, window := range []string{"STATS_WINDOW_SINCE_START", "STATS_WINDOW_LAST_5_MINUTES"} {
+		r := h.rpc(casey, diagnostics+"GetRequestStats", map[string]any{"window": window}).expect(t, "ok")
+		var health map[string]any
+		for _, p := range r.list("procedures") {
+			m, _ := p.(map[string]any)
+			if m["procedure"] == "InstanceService.GetHealth" {
+				health = m
+			}
+		}
+		if health == nil {
+			t.Errorf("%s: no InstanceService.GetHealth row: %s", window, r.raw)
+			continue
+		}
+		if calls := jsonInt(health["calls"]); calls < 3 {
+			t.Errorf("%s: calls = %d, want >= 3", window, calls)
+		}
+		if errs := jsonInt(health["errors"]); errs < 1 {
+			t.Errorf("%s: errors = %d, want >= 1", window, errs)
+		}
+		if p95 := jsonInt(health["p95Us"]); p95 <= 0 {
+			t.Errorf("%s: p95Us = %d, want > 0", window, p95)
+		}
+	}
+}
+
+// jsonInt reads a proto integer, which comes as a number for int32 and
+// as a string for int64.
+func jsonInt(v any) int64 {
+	switch n := v.(type) {
+	case float64:
+		return int64(n)
+	case string:
+		i, _ := strconv.ParseInt(n, 10, 64)
+		return i
+	}
+	return 0
 }

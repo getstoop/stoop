@@ -30,6 +30,7 @@ import (
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db"
+	"github.com/getstoop/stoop/internal/diag"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/files"
 	"github.com/getstoop/stoop/internal/instance"
@@ -164,6 +165,8 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	interceptors := connect.WithHandlerOptions(
 		connect.WithReadMaxBytes(maxRequestBytes),
 		connect.WithInterceptors(
+			// Outermost, so a call refused by auth or the limiter is timed too.
+			diag.Interceptor(),
 			ratelimit.Interceptor(authLimiter, instanceSvc.TrustsPeer,
 				authv1connect.AuthServiceLoginProcedure,
 				authv1connect.AuthServiceRegisterProcedure,
