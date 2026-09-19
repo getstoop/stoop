@@ -1,23 +1,14 @@
-import { useState } from "react";
 import { useDiagRequests } from "../../../api/queries";
 import { DataTable, type TableColumn } from "../../../components/DataTable";
-import {
-  type ProcedureStats,
-  StatsWindow,
-} from "../../../gen/stoop/instance/v1/diagnostics_pb";
+import type { ProcedureStats } from "../../../gen/stoop/instance/v1/diagnostics_pb";
 import { formatDuration } from "./format";
 
-// One row per procedure called in the window, slowest p95 first as the
-// server orders them. The timings are the interceptor's, so they cover
+// One row per procedure called in the last five minutes, slowest p95
+// first as the server orders them. The timings are the interceptor's, so they cover
 // the handler and every interceptor inside it, not the network.
 
 // A p95 at or above this is drawn hot.
 const HOT_US = 200_000;
-
-const WINDOWS: { window: StatsWindow; label: string }[] = [
-  { window: StatsWindow.LAST_5_MINUTES, label: "Last 5 min" },
-  { window: StatsWindow.SINCE_START, label: "Since start" },
-];
 
 const duration = (us: number) => (
   <span title={`${us} µs`}>{formatDuration(us)}</span>
@@ -74,14 +65,13 @@ const columns: TableColumn<ProcedureStats>[] = [
 ];
 
 export function RequestsTable() {
-  const [window, setWindow] = useState(StatsWindow.LAST_5_MINUTES);
-  const { data, error } = useDiagRequests(window);
+  const { data, error } = useDiagRequests();
   const count = data?.procedures.length;
   return (
     <section className="card" data-testid="requests-section">
       <h3>Requests</h3>
       <p className="hint">
-        Slowest first. Times are server-side, from the interceptor.
+        The last five minutes, slowest first. Times are server-side.
       </p>
       {error ? (
         <p className="error" role="alert">
@@ -89,30 +79,17 @@ export function RequestsTable() {
         </p>
       ) : (
         <>
-          <div className="diag-toolbar">
-            {WINDOWS.map((w) => (
-              <button
-                key={w.window}
-                type="button"
-                className={`chip ${w.window === window ? "active" : ""}`}
-                aria-pressed={w.window === window}
-                onClick={() => setWindow(w.window)}
-              >
-                {w.label}
-              </button>
-            ))}
-            {count !== undefined && (
-              <span className="dt-count muted small">
-                {count} {count === 1 ? "procedure" : "procedures"}
-              </span>
-            )}
-          </div>
+          {count !== undefined && (
+            <p className="dt-count muted small">
+              {count} {count === 1 ? "procedure" : "procedures"}
+            </p>
+          )}
           <DataTable
             rows={data?.procedures}
             columns={columns}
             rowId={(p) => p.procedure}
             noun={["procedure", "procedures"]}
-            empty="No requests in this window yet."
+            empty="No requests in the last five minutes."
             pageSize={10}
             rowProps={(p) => ({ "data-procedure": p.procedure })}
           />

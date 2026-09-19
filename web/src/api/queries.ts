@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
-import type { StatsWindow } from "../gen/stoop/instance/v1/diagnostics_pb";
 import {
   authClient,
   chatClient,
@@ -322,11 +321,11 @@ export function useDiagDatabase() {
   });
 }
 
-// Instance admins only: the Requests panel, one window at a time.
-export function useDiagRequests(window: StatsWindow) {
+// Instance admins only: the Requests panel, the last five minutes.
+export function useDiagRequests() {
   return useQuery({
-    queryKey: ["diag", "requests", window],
-    queryFn: async () => instanceClient.getRequestStats({ window }),
+    queryKey: ["diag", "requests"],
+    queryFn: async () => instanceClient.getRequestStats({}),
     refetchInterval: 5000,
     refetchIntervalInBackground: false,
   });
