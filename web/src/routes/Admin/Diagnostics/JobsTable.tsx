@@ -61,7 +61,8 @@ function toRow(
   let result = "";
   if (job.name === "webhook_worker" && webhooks) {
     result = queueSentence(webhooks);
-    if (webhooks.dead > 0n && job.lastOutcome !== JobOutcome.FAILED)
+    // Warn on what is recent; the sentence carries the all-time count.
+    if (webhooks.deadLastHour > 0n && job.lastOutcome !== JobOutcome.FAILED)
       badge = WARN;
   } else if (job.lastOutcome === JobOutcome.FAILED) {
     result = job.lastError;
