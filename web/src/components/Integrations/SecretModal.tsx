@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { serverOrigin } from "../../api/origin";
+import { CopyButton } from "../CopyButton";
 import { Modal } from "../Modal";
 
 export type Secret =
@@ -16,15 +16,8 @@ export function SecretModal({
   secret: Secret;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
   const origin = serverOrigin() || window.location.origin;
   const value = secret.kind === "hook" ? secret.url : secret.secret;
-
-  const copy = async () => {
-    await navigator.clipboard?.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  };
 
   const example =
     secret.kind === "hook"
@@ -56,15 +49,13 @@ export function SecretModal({
       }
     >
       <div className="modal-body token-form">
-        <p className="token-callout">
+        <p className="callout warn">
           Copy it now. This is the only time it will be shown.
         </p>
         <p className="hint">{what}</p>
         <div className="token-secret">
           <code data-secret>{value}</code>
-          <button type="button" className="chip" onClick={copy}>
-            {copied ? "Copied" : "Copy"}
-          </button>
+          <CopyButton text={value} />
         </div>
         <div className="field">
           {secret.kind === "signing" ? "Verifying it" : "Try it"}

@@ -147,7 +147,11 @@ export function NewIncomingModal({
             </span>
           </span>
         </label>
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </Modal>
   );

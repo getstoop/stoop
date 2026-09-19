@@ -110,7 +110,11 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
           </span>
         </label>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="setting-actions">
         <button type="submit" className="primary" disabled={state === "busy"}>
           {state === "saved"

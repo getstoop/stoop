@@ -27,6 +27,13 @@ export function Surfaces() {
           </div>
         </div>
       </div>
+      <div className="callout">
+        <strong>Set this server's public URL first.</strong> Login providers
+        need it to build their callback URL.
+      </div>
+      <p className="callout warn">
+        Copy it now. This is the only time it will be shown.
+      </p>
       <div className="modal">
         <div className="modal-header">
           <h2>Invite people</h2>

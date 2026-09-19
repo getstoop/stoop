@@ -153,7 +153,11 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             change this later.
           </span>
         </fieldset>
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </Modal>
   );

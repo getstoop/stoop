@@ -3,10 +3,6 @@
 
 .temp-password {
   margin-top: 10px;
-  padding: 12px 16px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-md);
-  background: var(--accent-soft);
 }
 
 .temp-password p {

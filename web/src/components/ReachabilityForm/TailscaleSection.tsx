@@ -171,7 +171,9 @@ function TailscaleStatusBlock({
         )}
       {status.enabled && status.error && (
         <>
-          <p className="error">{status.error}</p>
+          <p className="error" role="alert">
+            {status.error}
+          </p>
           <p className="hint">
             {tailscaleFix(status.error).hint}{" "}
             <a

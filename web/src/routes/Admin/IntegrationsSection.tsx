@@ -142,7 +142,11 @@ export function IntegrationsSection() {
             }
           />
         </SettingRow>
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </section>
 
       <section className="card" data-section="bots">

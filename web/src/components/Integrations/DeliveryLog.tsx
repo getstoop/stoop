@@ -70,7 +70,11 @@ export function DeliveryLog({ webhookId }: { webhookId: string }) {
           </div>
         );
       })}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -88,10 +88,14 @@ export function PasswordSignInSection() {
             </option>
           ))}
         </select>
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </SettingRow>
       {restricted && users && !adminWithPassword && (
-        <div className="provider-warning" role="alert">
+        <div className="callout provider-warning" role="alert">
           <strong>No admin has a password.</strong> If your login provider goes
           down, the way back in is the CLI on the server:{" "}
           <code>stoop admin password-login everyone</code>, or{" "}

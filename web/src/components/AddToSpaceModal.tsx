@@ -82,7 +82,11 @@ export function AddToSpaceModal({
         They join as a member right away, no invite link needed. Only spaces you
         belong to are listed.
       </p>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </Modal>
   );
 }

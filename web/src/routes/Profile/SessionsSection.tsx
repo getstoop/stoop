@@ -100,7 +100,11 @@ export function SessionsSection() {
         Unknown is a sign-in from a script, or from before Stoop recorded
         devices.
       </p>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="setting-actions">
         <button
           type="button"

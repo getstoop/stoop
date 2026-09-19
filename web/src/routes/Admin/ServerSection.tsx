@@ -161,7 +161,11 @@ export function ServerSection() {
           ))}
         </select>
       </SettingRow>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="setting-actions">
         <button type="submit" className="primary" disabled={busy || !changed}>
           Save changes

@@ -97,7 +97,11 @@ export function NewBotTokenModal({
           selected={keys}
           onChange={setKeys}
         />
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </Modal>
   );

@@ -174,7 +174,11 @@ export function PersonalTokensSection() {
         rowInactive={isExpired}
         rowProps={(t) => ({ "data-token": t.name })}
       />
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       {allowed && (
         <div className="setting-actions">
           <button

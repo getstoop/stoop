@@ -93,7 +93,11 @@ export function UserTokens({ user }: { user: InstanceUser }) {
       {tokens && tokens.length === 0 && (
         <p className="muted small">No tokens.</p>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

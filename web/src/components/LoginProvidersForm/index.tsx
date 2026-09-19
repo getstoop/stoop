@@ -69,7 +69,7 @@ export function LoginProvidersForm() {
   return (
     <div className="providers-form">
       {noPublicUrl && (
-        <div className="provider-warning" role="alert">
+        <div className="callout provider-warning" role="alert">
           <strong>Set this server's public URL first.</strong> Login providers
           need it: the callback URL you register with a provider is built from
           it, and sign-in refuses to start without one. Set it under{" "}
@@ -143,7 +143,11 @@ export function LoginProvidersForm() {
           ))}
         </ul>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       {editing !== null && (
         <ProviderModal
           initial={editing === "new" ? null : editing}

@@ -1,5 +1,5 @@
 /* ---- Panels with a border: the card a settings page is built from, the
-   modal, and .popover — the floating panel the ⋮ menu, the tooltip, the
+   callout, the modal, and .popover — the floating panel the ⋮ menu, the tooltip, the
    pickers and the user card all wear. An adopter keeps its own position,
    z-index and padding. ---- */
 
@@ -31,6 +31,22 @@
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+/* A standing message in a box: a warning about a setting, a secret shown
+   once. */
+.callout {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  font-size: var(--text-ui);
+}
+
+.callout.warn {
+  border-color: var(--warn);
+  background: var(--warn-soft);
 }
 
 .modal-backdrop {

@@ -138,7 +138,11 @@ export function RetentionSection() {
         />
         <span className="muted small">days</span>
       </SettingRow>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="setting-actions">
         <button type="submit" className="primary" disabled={busy || !changed}>
           Save changes
