@@ -73,13 +73,9 @@ every theme scope makes each card derive its own.
 
 ## Type, spacing, shape, motion, stacking
 
-**Type.** `--text-body` (15px) is the default, set on `body`. `--text-ui`
-is labels, hints, chips and menus; `--text-sm` is meta such as times and
-sizes; `--text-xs` is eyebrows and badges, always 600 and uppercase with
-`--tracking-caps`. `--text-lg`, `--text-xl` and `--text-display` are
-headings. Weights are 400, 600 and 700. Leading has three steps:
-`--leading-tight` for headings and large glyphs, `--leading-ui` for fields
-and short copy, `--leading-body` for everything else.
+**Type and shape.** The size, leading, weight and radius steps, and what
+each is for, are in the comments of `tokens.css`; they are not repeated
+here. Weights are 400, 600 and 700.
 
 **Themes never touch type.** The composer draws its Markdown highlighting
 in an overlay laid exactly over the textarea
@@ -90,11 +86,6 @@ of `tokens.css`, which no theme can reach.
 **Spacing is literal px on the scale 2 4 6 8 12 16 20 24 32.** There are no
 spacing tokens: `gap: 8px` reads better than a variable, and the scale is
 small enough to hold in the head. The lint keeps `gap` and `padding` on it.
-
-**Shape.** `--radius-sm` for inline marks (mentions, code); `--radius` for
-rows, menu items and small buttons; `--radius-md` for buttons, fields and
-popovers; `--radius-lg` for cards, modals and the composer; `--radius-pill`
-for chips and badges. Circles are `50%`.
 
 **Motion.** `--dur-fast` for colour, opacity and hover washes; `--dur` for
 anything that moves or resizes; one `--ease`. Because every transition
