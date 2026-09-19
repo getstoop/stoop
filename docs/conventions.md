@@ -135,7 +135,7 @@ in their head. Add to this when a new rule earns its place.
   carries an `off-scale:` comment on the line before. Only object literals
   are judged: `style={position}` passes. `scripts/check-tsx-styles.mjs`
   enforces it in `make lint`.
-- **`scripts/check-styles.mjs` enforces all of the above** in `make lint`.
+- **`scripts/check-styles.mjs` enforces all of the above** in `make lint` and in CI's Web job.
   **`/kit` (dev builds only, `routes/Kit/`) renders every shared part**, with
   a theme switch, so a kit change is checked in every theme before it
   ships. `styles/kit.css` is loaded by that route, not `index.css`, so it is
