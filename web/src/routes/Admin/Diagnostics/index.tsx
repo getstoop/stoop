@@ -6,6 +6,7 @@ import {
 } from "../../../api/queries";
 import { ago, formatUptime } from "./format";
 import { HealthChecks } from "./HealthChecks";
+import { JobsTable } from "./JobsTable";
 import { useNow } from "./useNow";
 
 // The Diagnostics tab: what the server is doing across its dependencies,
@@ -38,6 +39,7 @@ export function Diagnostics() {
         </p>
       </div>
       <HealthChecks now={now} />
+      <JobsTable now={now} />
     </>
   );
 }

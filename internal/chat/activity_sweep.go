@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/getstoop/stoop/internal/diag"
 )
 
 // Activity retention. Mention, reply and DM items are rows that nobody
@@ -34,16 +36,23 @@ func (s *Service) SweepActivity(ctx context.Context, retention time.Duration) (i
 	return n, nil
 }
 
+var activityRetention = diag.NewJob("activity_retention")
+
 // RunActivitySweeper sweeps on a timer until ctx ends: once shortly
 // after start, then every interval. interval or retention <= 0 disables.
 func (s *Service) RunActivitySweeper(ctx context.Context, interval, retention time.Duration) {
 	if interval <= 0 || retention <= 0 {
 		return
 	}
+	activityRetention.Every(interval)
 	run := func() {
-		if _, err := s.SweepActivity(ctx, retention); err != nil && ctx.Err() == nil {
-			slog.Default().Warn("activity sweep failed", "err", err)
-		}
+		activityRetention.Run(func() (diag.Counters, error) {
+			n, err := s.SweepActivity(ctx, retention)
+			if err != nil && ctx.Err() == nil {
+				slog.Default().Warn("activity sweep failed", "err", err)
+			}
+			return diag.Counters{"rows_trimmed": n}, err
+		})
 	}
 	select {
 	case <-ctx.Done():

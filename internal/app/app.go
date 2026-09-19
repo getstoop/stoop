@@ -303,13 +303,20 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	// is configured, whether it answers, and what Stoop has handed it.
 	livekit := newLiveKitReporter(cfg, voiceOpts)
 	instanceSvc.UseLiveKit(livekit)
-	// The Diagnostics tab's Health panel, in the order it lists them.
-	instanceSvc.UseStartedAt(time.Now())
+	// The Diagnostics tab: the outgoing queue's gauges and port, then the
+	// Health panel in the order it lists them.
+	queue := webhookQueue(integrationsSvc)
+	queue.registerGauges()
+	instanceSvc.UseWebhookQueue(queue.stats)
+	started := time.Now()
+	instanceSvc.UseStartedAt(started)
 	instanceSvc.UseHealthChecks(
 		newPostgresCheck(pool),
 		newLiveKitCheck(voiceOpts, livekit),
 		newStorageCheck(store.Root(), filesSvc),
 		instanceSvc.PublicAddressCheck(),
+		newWebhooksCheck(queue, started),
+		newJobsCheck(),
 	)
 	if err := instanceSvc.UseTailscale(ctx, tailscaleController{a.tailnet}); err != nil {
 		pool.Close()

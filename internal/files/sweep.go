@@ -12,6 +12,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/diag"
 )
 
 // Storage hygiene: the sweep and the quota. A self-hosted disk fills
@@ -297,16 +298,26 @@ func (s *Service) referenced(ctx context.Context, ids []string) (map[string]bool
 	return out, nil
 }
 
+var fileSweep = diag.NewJob("file_sweep")
+
 // RunSweeper sweeps on a timer until ctx ends: once shortly after start,
 // then every interval. interval <= 0 disables it.
 func (s *Service) RunSweeper(ctx context.Context, interval time.Duration) {
 	if interval <= 0 {
 		return
 	}
+	fileSweep.Every(interval)
 	run := func() {
-		if _, err := s.Sweep(ctx); err != nil && ctx.Err() == nil {
-			s.log.Warn("files sweep failed", "err", err)
-		}
+		fileSweep.Run(func() (diag.Counters, error) {
+			rep, err := s.Sweep(ctx)
+			if err != nil && ctx.Err() == nil {
+				s.log.Warn("files sweep failed", "err", err)
+			}
+			return diag.Counters{
+				"files_removed": int64(rep.Files), "bytes_freed": rep.Bytes,
+				"stray_blobs_removed": int64(rep.StrayBlobs),
+			}, err
+		})
 	}
 	select {
 	case <-ctx.Done():

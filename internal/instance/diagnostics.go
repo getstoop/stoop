@@ -11,8 +11,9 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
-// The Diagnostics tab's RPCs (docs/proposals/diagnostics.md). Health is
-// built; the rest answer Unimplemented until their panel lands.
+// The Diagnostics tab's RPCs (docs/proposals/diagnostics.md). Health and
+// ListJobs are built; the rest answer Unimplemented until their panel
+// lands.
 
 func (s *Service) GetHealth(ctx context.Context, _ *connect.Request[instancev1.GetHealthRequest]) (*connect.Response[instancev1.GetHealthResponse], error) {
 	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
@@ -73,5 +74,5 @@ func (s *Service) ListJobs(ctx context.Context, _ *connect.Request[instancev1.Li
 	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
-	return nil, connect.NewError(connect.CodeUnimplemented, errNotBuilt)
+	return connect.NewResponse(s.listJobs(ctx)), nil
 }
