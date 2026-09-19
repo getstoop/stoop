@@ -315,7 +315,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	started := time.Now()
 	instanceSvc.UseStartedAt(started)
 	instanceSvc.UseHealthChecks(
-		newPostgresCheck(pool),
+		newPostgresCheck(pool, started),
 		newLiveKitCheck(voiceOpts, livekit),
 		newStorageCheck(store.Root(), filesSvc),
 		instanceSvc.PublicAddressCheck(),
