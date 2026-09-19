@@ -115,10 +115,6 @@
   opacity: var(--disabled);
 }
 
-.avatar {
-  position: relative;
-}
-
 .typing-indicator {
   min-height: 18px;
   padding: 0 20px 4px;

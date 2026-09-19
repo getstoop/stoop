@@ -88,13 +88,21 @@ in their head. Add to this when a new rule earns its place.
   the same marker excuses the one colour literal (the video letterbox).
 - **The kit — `controls.css`, `fields.css`, `surfaces.css` — owns the
   parts every feature reaches for:** `button.primary`, `.chip`,
-  `.icon-button`, `.badge`, `.eyebrow` (the small uppercase heading, in
-  `base.css`); text inputs, selects and textareas (styled at
+  `.icon-button`, `.badge`, `.avatar`, `.eyebrow` (the small uppercase
+  heading, in `base.css`); text inputs, selects and textareas (styled at
   zero specificity with `:where()`, so any feature rule wins), the
   words-above-field label and `label.toggle-row`; `.card`, `.card-row`,
   `.modal`, `.popover`, `.dots-menu`, `.tooltip`. A feature sheet styles layout and the feature's own parts; it
   never declares an input or a button from scratch, and a control the
   second feature wants moves to the kit before the second feature uses it.
+- **A user avatar is `<Avatar>`, sized by `size`.** `.avatar` in
+  `controls.css` owns the circle, the fill, the initials and the bot face;
+  `.small`, `.medium` and `.large` set `--avatar-size` to 24, 40 and 64px
+  with each size's font size, and no modifier is 40px at the inherited
+  size. A feature sheet places the avatar (a grid row, a ring, a cut-out
+  border) and overrides `--avatar-size` when it must; it never redeclares
+  the circle. The phone's 36px `medium` is one such override, in
+  `mobile.css`.
 - **No `text-transform: uppercase` outside `base.css` and `controls.css`.**
   Put `eyebrow` on the element and keep only layout, or a differing
   colour or weight, in the feature rule.

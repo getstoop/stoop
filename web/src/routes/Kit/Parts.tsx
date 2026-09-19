@@ -1,3 +1,6 @@
+import { Avatar } from "../../components/Avatar";
+import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
+
 export function Parts() {
   return (
     <section className="kit-section">
@@ -23,9 +26,11 @@ export function Parts() {
       <div className="day-divider eyebrow">Today</div>
       <div className="new-divider eyebrow">New</div>
       <div className="kit-row">
-        <span className="avatar small">A</span>
-        <span className="avatar medium">JH</span>
-        <span className="avatar large">R</span>
+        <Avatar name="Ada" size="small" />
+        <Avatar name="Bea Casey" size="medium" />
+        <Avatar name="Casey" size="large" />
+        <Avatar name="Casey" />
+        <Avatar name="Relay" kind={IdentityKind.BOT} size="medium" />
         <span>
           Hey <span className="mention">@alice</span>, the deploy is up.
         </span>

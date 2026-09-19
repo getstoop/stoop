@@ -14,13 +14,12 @@
   padding: 0;
 }
 
+/* The rail's own avatar fills its pill and wears the pill's colours. */
 .space-pill.avatar .avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  --avatar-size: 100%;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
 }
 
 .space-pill.static {
