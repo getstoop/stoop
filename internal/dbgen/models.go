@@ -6,8 +6,6 @@ package dbgen
 
 import (
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ActivityItem struct {
@@ -95,13 +93,6 @@ type File struct {
 	CreatedAt   time.Time
 	Name        string
 	ExpiredAt   *time.Time
-}
-
-type GooseDbVersion struct {
-	ID        int32
-	VersionID int64
-	IsApplied bool
-	Tstamp    pgtype.Timestamp
 }
 
 type IncomingWebhook struct {

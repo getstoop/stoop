@@ -3,8 +3,6 @@ sql:
   - engine: "postgresql"
     schema:
       - "internal/db/migrations"
-      # goose's own table, for the one query that reads it.
-      - "internal/db/sqlc"
     # One directory per module (ownership is auditable from the path), one
     # file per entity; sqlc emits a matching <entity>.sql.go for each.
     queries:

@@ -21,7 +21,6 @@ SELECT
     FROM pg_catalog.pg_stat_activity
     WHERE datname = current_database() AND state = 'active'), 0)::bigint AS oldest_transaction_ms,
   current_setting('server_version')::text AS server_version,
-  (SELECT coalesce(max(version_id), 0) FROM goose_db_version)::bigint AS schema_version,
   (SELECT coalesce(min(min_migration), 0) FROM schema_floor)::bigint AS schema_floor
 `
 
@@ -31,7 +30,6 @@ type GetDatabaseFactsRow struct {
 	BackendsIdle        int32
 	OldestTransactionMs int64
 	ServerVersion       string
-	SchemaVersion       int64
 	SchemaFloor         int64
 }
 
@@ -46,7 +44,6 @@ func (q *Queries) GetDatabaseFacts(ctx context.Context) (GetDatabaseFactsRow, er
 		&i.BackendsIdle,
 		&i.OldestTransactionMs,
 		&i.ServerVersion,
-		&i.SchemaVersion,
 		&i.SchemaFloor,
 	)
 	return i, err

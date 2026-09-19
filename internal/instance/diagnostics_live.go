@@ -45,6 +45,11 @@ func (s *Service) GetDatabaseStats(ctx context.Context, _ *connect.Request[insta
 	if err != nil {
 		return nil, err
 	}
+	// goose owns its table, so no migration declares it for sqlc.
+	var schema int64
+	if err := s.pool.QueryRow(ctx, "SELECT coalesce(max(version_id), 0) FROM goose_db_version").Scan(&schema); err != nil {
+		return nil, err
+	}
 	st := s.pool.Stat()
 	return connect.NewResponse(&instancev1.GetDatabaseStatsResponse{
 		PoolMax:             st.MaxConns(),
@@ -58,7 +63,7 @@ func (s *Service) GetDatabaseStats(ctx context.Context, _ *connect.Request[insta
 		BackendsIdle:        facts.BackendsIdle,
 		OldestTransactionMs: int32(facts.OldestTransactionMs),
 		ServerVersion:       facts.ServerVersion,
-		SchemaVersion:       facts.SchemaVersion,
+		SchemaVersion:       schema,
 		SchemaFloor:         facts.SchemaFloor,
 	}), nil
 }
