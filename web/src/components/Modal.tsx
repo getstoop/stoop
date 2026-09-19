@@ -1,5 +1,8 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
+// Open modals, in the order they opened.
+const openModals: symbol[] = [];
+
 // The modal frame: a scrim, a panel, a titled header with a close button,
 // and an optional footer of actions. Escape and a click on the scrim
 // close it; focus moves inside on open and back to where it was on
@@ -24,13 +27,22 @@ export function Modal({
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
 
+  // Escape closes the topmost modal only: a notice over a dialog that
+  // shows a secret once must not take that dialog with it.
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
+    const id = Symbol();
+    openModals.push(id);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && openModals.at(-1) === id) close.current();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      openModals.splice(openModals.indexOf(id), 1);
+    };
+  }, []);
 
   // Focus moves inside on open — to whatever the content marked
   // autoFocus, else the first field or button — and back to the opener
