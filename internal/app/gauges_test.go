@@ -16,17 +16,22 @@ func TestPerMinute(t *testing.T) {
 	if got := read(); got != 30 {
 		t.Errorf("5 calls in 10 s = %v/min, want 30", got)
 	}
-	total, now = 5, now.Add(10*time.Second)
-	if got := read(); got != 0 {
-		t.Errorf("no calls = %v/min, want 0", got)
+	// A second reader at the same instant sees the same rate.
+	if got := read(); got != 30 {
+		t.Errorf("read again = %v/min, want 30", got)
 	}
-	total, now = 8, now.Add(time.Minute)
-	if got := read(); got != 3 {
-		t.Errorf("3 calls in 1 min = %v/min, want 3", got)
+	total, now = 65, now.Add(60*time.Second)
+	if got := read(); got != 65*60/70.0 {
+		t.Errorf("65 calls in 70 s = %v/min, want %v", got, 65*60/70.0)
 	}
-	// A read with no time passed cannot divide by zero.
-	total = 9
+	// A minute later with no calls, the old growth has left the window.
+	now = now.Add(60 * time.Second)
 	if got := read(); got != 0 {
-		t.Errorf("same instant = %v, want 0", got)
+		t.Errorf("quiet minute = %v/min, want 0", got)
+	}
+	// A restart of the counter reads as 0 rather than a negative rate.
+	total, now = 1, now.Add(10*time.Second)
+	if got := read(); got != 0 {
+		t.Errorf("counter went backwards = %v, want 0", got)
 	}
 }
