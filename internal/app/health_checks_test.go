@@ -68,10 +68,14 @@ func TestPostgresState(t *testing.T) {
 // The first sample is a baseline, growth warns for a minute, and a flat
 // counter clears it.
 func TestPostgresWaitsGrew(t *testing.T) {
-	c := &postgresCheck{}
-	now := time.Now()
+	boot := time.Now()
+	c := &postgresCheck{started: boot}
+	if c.waitsGrew(3, boot.Add(5*time.Second)) || c.waitsGrew(5, boot.Add(20*time.Second)) {
+		t.Error("the boot burst warned")
+	}
+	now := boot.Add(2 * time.Minute)
 	if c.waitsGrew(5, now) {
-		t.Error("the baseline sample warned")
+		t.Error("a steady counter warned")
 	}
 	if !c.waitsGrew(6, now.Add(10*time.Second)) {
 		t.Error("growth did not warn")
