@@ -19,28 +19,44 @@ func registerGauges(gateway *realtime.Gateway) {
 	diag.NewGauge("request_errors_per_minute", "Failed unary RPCs per minute.", perMinute(diag.RPC.ErrorsTotal, time.Now))
 }
 
-// perMinute turns a monotonic counter into a rate: each read is the growth
-// since the previous read, scaled to a minute. The first read is 0.
+// perMinute turns a monotonic counter into a rate over the last minute.
+// A read records a sample at most every rateStep and measures against the
+// oldest sample still inside rateWindow, so the answer is the same
+// whoever reads it: the sampler, a scrape and the tab agree.
+const (
+	rateStep   = 5 * time.Second
+	rateWindow = time.Minute
+)
+
 func perMinute(total func() int64, now func() time.Time) func() float64 {
 	r := &rate{}
 	return func() float64 { return r.next(total(), now()) }
 }
 
+type sample struct {
+	v  int64
+	at time.Time
+}
+
 type rate struct {
 	mu      sync.Mutex
-	sampled bool
-	last    int64
-	at      time.Time
+	samples []sample // oldest first
 }
 
 func (r *rate) next(v int64, now time.Time) float64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	prev, at, sampled := r.last, r.at, r.sampled
-	r.last, r.at, r.sampled = v, now, true
-	elapsed := now.Sub(at)
-	if !sampled || elapsed <= 0 || v < prev {
+	if n := len(r.samples); n == 0 || now.Sub(r.samples[n-1].at) >= rateStep {
+		r.samples = append(r.samples, sample{v, now})
+	}
+	// Keep the sample at the window's edge so the span stays a full minute.
+	for len(r.samples) > 1 && now.Sub(r.samples[1].at) >= rateWindow {
+		r.samples = r.samples[1:]
+	}
+	first := r.samples[0]
+	elapsed := now.Sub(first.at)
+	if elapsed <= 0 || v < first.v {
 		return 0
 	}
-	return float64(v-prev) * float64(time.Minute) / float64(elapsed)
+	return float64(v-first.v) * float64(time.Minute) / float64(elapsed)
 }
