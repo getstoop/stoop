@@ -88,7 +88,11 @@ export function PasswordSignInSection() {
             </option>
           ))}
         </select>
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </SettingRow>
       {restricted && users && !adminWithPassword && (
         <div className="callout provider-warning" role="alert">

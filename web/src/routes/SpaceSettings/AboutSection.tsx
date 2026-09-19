@@ -118,7 +118,11 @@ export function AboutSection({ space }: { space: Space }) {
         </button>
         {saved && <span className="hint">Saved.</span>}
       </div>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </section>
   );
 }

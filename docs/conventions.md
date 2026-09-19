@@ -107,6 +107,10 @@ in their head. Add to this when a new rule earns its place.
   setting, a secret shown once; `.callout.warn` when it is a caution. A
   feature keeps only its margin and inner parts. An error from a submit is
   not a callout: it stays a `.error` line.
+- **An error line that appears carries `role="alert"`:**
+  `{error && <p className="error" role="alert">…}`. It is the conditional
+  render that makes a screen reader say it. A static `.error` (a field's
+  standing note) takes no role.
 - **A "Copy" chip is `<CopyButton text>`** (`components/CopyButton.tsx`):
   it says "Copied!" for a moment and raises a `notice` when the clipboard
   refuses. Don't call `navigator.clipboard` beside a hand-made chip;

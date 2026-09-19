@@ -52,7 +52,11 @@ export function CleanupSection() {
         Clean now
       </button>
       {note && <p className="muted small">{note}</p>}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </SettingRow>
   );
 }

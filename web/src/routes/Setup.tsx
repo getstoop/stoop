@@ -122,7 +122,11 @@ function AccountStep({ onDone }: { onDone: () => void }) {
           required
         />
       </label>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <button type="submit" className="primary" disabled={busy}>
         Create admin account
       </button>
@@ -181,7 +185,11 @@ function SpaceStep({ onDone }: { onDone: () => void }) {
           required
         />
       </label>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <button type="submit" className="primary" disabled={busy}>
         Create space
       </button>
@@ -256,7 +264,9 @@ function InviteStep() {
           <CopyButton text={link} />
         </div>
       ) : error ? (
-        <p className="error">{error}</p>
+        <p className="error" role="alert">
+          {error}
+        </p>
       ) : (
         <p className="muted">Creating your invite…</p>
       )}

@@ -134,7 +134,11 @@ export function ProfileForm({ me }: { me: User }) {
           {bio.length} / {BIO_MAX}
         </span>
       </SettingRow>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="setting-actions">
         <button
           type="submit"

@@ -132,7 +132,7 @@ export function UserCard({
     >
       {isLoading && <p className="muted">Loading…</p>}
       {error && (
-        <p className="error">
+        <p className="error" role="alert">
           {error instanceof ConnectError ? error.rawMessage : String(error)}
         </p>
       )}

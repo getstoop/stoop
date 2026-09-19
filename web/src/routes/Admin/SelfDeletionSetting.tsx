@@ -40,7 +40,11 @@ export function SelfDeletionSetting() {
           disabled={busy || !status}
           onChange={(e) => set(e.target.checked)}
         />
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </SettingRow>
     </section>
   );

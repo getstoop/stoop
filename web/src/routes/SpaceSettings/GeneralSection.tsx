@@ -68,7 +68,11 @@ export function GeneralSection({ space }: { space: Space }) {
           </span>
         </span>
       </label>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </section>
   );
 }

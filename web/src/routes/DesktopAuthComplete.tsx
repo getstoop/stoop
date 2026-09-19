@@ -109,7 +109,9 @@ export function DesktopAuthCompletePage() {
             <h1>Stoop</h1>
             {error ? (
               <>
-                <p className="error">{error}</p>
+                <p className="error" role="alert">
+                  {error}
+                </p>
                 {linking ? (
                   <Link className="link" to="/profile">
                     Back to your profile

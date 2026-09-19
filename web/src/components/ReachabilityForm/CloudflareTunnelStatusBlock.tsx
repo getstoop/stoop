@@ -18,7 +18,9 @@ export function CloudflareTunnelStatusBlock({
       {status.state === "running" && <p>Running.</p>}
       {status.enabled && status.state === "error" && (
         <>
-          <p className="error">{status.error}</p>
+          <p className="error" role="alert">
+            {status.error}
+          </p>
           <p className="hint">
             Retrying. If it persists, copy the token again from Cloudflare.
           </p>

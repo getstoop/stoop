@@ -145,7 +145,9 @@ export function LoginPage() {
         </p>
         {invited &&
           (inviteError ? (
-            <p className="error">{errorText(inviteError)}</p>
+            <p className="error" role="alert">
+              {errorText(inviteError)}
+            </p>
           ) : (
             preview && <InviteHero preview={preview} />
           ))}
@@ -163,7 +165,11 @@ export function LoginPage() {
         />
         {!showPasswordForm && (
           <>
-            {error && <p className="error">{error}</p>}
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
             {passwordSignIn === PasswordSignIn.ADMINS && (
               <Link
                 className="link"
@@ -239,7 +245,11 @@ export function LoginPage() {
                 />
               </label>
             )}
-            {error && <p className="error">{error}</p>}
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
             <button type="submit" className="primary" disabled={busy}>
               {effectiveMode === "login"
                 ? invited

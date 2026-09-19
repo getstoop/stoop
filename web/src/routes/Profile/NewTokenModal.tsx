@@ -124,7 +124,11 @@ export function NewTokenModal({
           only what you tick here.
         </p>
 
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </Modal>
   );

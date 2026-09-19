@@ -118,7 +118,11 @@ export function ChannelsSection({ space }: { space: Space }) {
           onReorder={(voiceIds) => saveOrder(ids(text), voiceIds)}
         />
       </section>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       {editing && (
         <EditChannelModal channel={editing} onClose={() => setEditing(null)} />
       )}

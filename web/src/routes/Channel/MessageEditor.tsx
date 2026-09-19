@@ -84,7 +84,11 @@ export function MessageEditor({
       <span className="muted small">
         Enter to save · Shift+Enter for a new line · Esc to cancel
       </span>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

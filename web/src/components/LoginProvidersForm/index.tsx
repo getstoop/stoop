@@ -143,7 +143,11 @@ export function LoginProvidersForm() {
           ))}
         </ul>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       {editing !== null && (
         <ProviderModal
           initial={editing === "new" ? null : editing}

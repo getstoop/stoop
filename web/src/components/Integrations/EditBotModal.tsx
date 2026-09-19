@@ -173,7 +173,11 @@ export function EditBotModal({
             out of a space removes it as a kick would.
           </span>
         </fieldset>
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     </Modal>
   );

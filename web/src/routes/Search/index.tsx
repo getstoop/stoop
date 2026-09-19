@@ -168,7 +168,9 @@ export function SearchPage() {
 
       <div className="search-scroll">
         {error && (
-          <p className="error search-error">{searchErrorText(error)}</p>
+          <p className="error search-error" role="alert">
+            {searchErrorText(error)}
+          </p>
         )}
         {!q && (
           <p className="muted empty-state">

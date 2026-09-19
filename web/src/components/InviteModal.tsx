@@ -135,7 +135,11 @@ export function InviteModal({
           Create invite
         </button>
       </form>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
 
       <ul className="invite-list">
         {isLoading && <li className="muted">Loading…</li>}

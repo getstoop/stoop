@@ -61,7 +61,11 @@ export function LoginProviders({
           );
         })}
       </div>
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       {divider && (
         <div className="login-divider" aria-hidden="true">
           <span>or</span>

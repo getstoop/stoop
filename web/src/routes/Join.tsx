@@ -50,7 +50,9 @@ export function JoinPage() {
       <div className="centered">
         <div className="empty-state">
           <h2>Couldn't join</h2>
-          <p className="error">{error}</p>
+          <p className="error" role="alert">
+            {error}
+          </p>
           <p className="muted">
             Ask whoever invited you for a fresh code, or{" "}
             <Link to="/">go home</Link>.

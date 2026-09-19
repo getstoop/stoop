@@ -133,7 +133,11 @@ export function ReachabilityForm({
         {voiceStatus(data)}
       </p>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
       {saved && !dirty && <p className="hint reach-saved">Saved.</p>}
       <div className="reach-actions">
         <button
