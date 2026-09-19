@@ -136,7 +136,8 @@ const adminRoute = createRoute({
   component: AdminPage,
   // ?tab=accounts (the account list) / ?tab=spaces (every space on the
   // server) / ?tab=hosting (how people reach the server) / ?tab=login
-  // (sign-in providers) / ?tab=storage (uploads).
+  // (sign-in providers) / ?tab=storage (uploads) / ?tab=diagnostics
+  // (health and load).
   validateSearch: (
     search: Record<string, unknown>,
   ): {
@@ -146,7 +147,8 @@ const adminRoute = createRoute({
       | "hosting"
       | "login"
       | "storage"
-      | "integrations";
+      | "integrations"
+      | "diagnostics";
   } => ({
     tab:
       search.tab === "accounts" ||
@@ -154,7 +156,8 @@ const adminRoute = createRoute({
       search.tab === "hosting" ||
       search.tab === "login" ||
       search.tab === "storage" ||
-      search.tab === "integrations"
+      search.tab === "integrations" ||
+      search.tab === "diagnostics"
         ? search.tab
         : undefined,
   }),

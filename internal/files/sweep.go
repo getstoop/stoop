@@ -337,25 +337,6 @@ func requireAction(ctx context.Context, a authctx.Action) error {
 	return nil
 }
 
-func (s *Service) GetStorageUsage(ctx context.Context, _ *connect.Request[filesv1.GetStorageUsageRequest]) (*connect.Response[filesv1.GetStorageUsageResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
-		return nil, err
-	}
-	u, err := s.q.StorageUsage(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("storage usage: %w", err)
-	}
-	var quota int64
-	if s.policy != nil {
-		if quota, err = s.policy.StorageQuotaBytes(ctx); err != nil {
-			return nil, fmt.Errorf("read quota: %w", err)
-		}
-	}
-	return connect.NewResponse(&filesv1.GetStorageUsageResponse{
-		UsedBytes: u.Bytes, FileCount: u.Files, QuotaBytes: quota,
-	}), nil
-}
-
 func (s *Service) SweepFiles(ctx context.Context, _ *connect.Request[filesv1.SweepFilesRequest]) (*connect.Response[filesv1.SweepFilesResponse], error) {
 	if err := requireAction(ctx, authctx.InstanceFilesManage); err != nil {
 		return nil, err

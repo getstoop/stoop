@@ -97,6 +97,7 @@ people who joined.
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
 | `GetLoginProviders` / `UpdateLoginProviders` | Admins. The OIDC provider list, replaced whole. |
 | `GetBuildInfo` | Admins. Version, commit, build time, Go version — admin-only because an exact version tells a stranger which bugs to try. |
+| `GetHealth` / `GetLiveStats` / `GetDatabaseStats` / `GetRequestStats` / `ListJobs` | Admins. The Diagnostics tab, read-only; only `GetHealth` is built so far (`docs/proposals/diagnostics.md`). |
 | `ListUserTokens` / `RevokeUserToken` | Admins. Another account's personal tokens, never the token itself. |
 
 ### `stoop.files.v1.FileService`

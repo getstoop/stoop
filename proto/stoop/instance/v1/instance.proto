@@ -3,6 +3,7 @@ syntax = "proto3";
 package stoop.instance.v1;
 
 import "stoop/auth/v1/auth.proto";
+import "stoop/instance/v1/diagnostics.proto";
 import "stoop/instance/v1/providers.proto";
 import "stoop/instance/v1/reachability.proto";
 import "stoop/instance/v1/user.proto";
@@ -74,6 +75,18 @@ service InstanceService {
   // RevokeUserToken revokes one of another account's personal tokens.
   // Instance admins only.
   rpc RevokeUserToken(RevokeUserTokenRequest) returns (RevokeUserTokenResponse) {}
+  // The Diagnostics tab (docs/proposals/diagnostics.md). All read-only,
+  // instance.read.
+  // GetHealth runs every registered health check.
+  rpc GetHealth(GetHealthRequest) returns (GetHealthResponse) {}
+  // GetLiveStats reads the gauges and their last fifteen minutes.
+  rpc GetLiveStats(GetLiveStatsRequest) returns (GetLiveStatsResponse) {}
+  // GetDatabaseStats reports the pool and the database behind it.
+  rpc GetDatabaseStats(GetDatabaseStatsRequest) returns (GetDatabaseStatsResponse) {}
+  // GetRequestStats reports per-procedure call counts and latencies.
+  rpc GetRequestStats(GetRequestStatsRequest) returns (GetRequestStatsResponse) {}
+  // ListJobs reports the background loops and the webhook queue.
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse) {}
 }
 
 // RegistrationPolicy controls who may create an account.
