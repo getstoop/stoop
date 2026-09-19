@@ -279,3 +279,15 @@ export function useReachability(enabled: boolean) {
     refetchInterval: 5000,
   });
 }
+
+// Instance admins only: the Diagnostics tab's Health panel. Polled while
+// the tab is open and the page is in front; each panel has its own key
+// so one failing does not blank the others.
+export function useDiagHealth() {
+  return useQuery({
+    queryKey: ["diag", "health"],
+    queryFn: async () => instanceClient.getHealth({}),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}

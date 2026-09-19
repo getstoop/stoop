@@ -59,6 +59,12 @@ var procedures = map[string]authctx.Rule{
 	instancev1connect.InstanceServiceClearUserProfileProcedure:     needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceListUserTokensProcedure:       needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceRevokeUserTokenProcedure:      needs(authctx.InstanceUsersManage),
+	// The Diagnostics tab: read-only.
+	instancev1connect.InstanceServiceGetHealthProcedure:        needs(authctx.InstanceRead),
+	instancev1connect.InstanceServiceGetLiveStatsProcedure:     needs(authctx.InstanceRead),
+	instancev1connect.InstanceServiceGetDatabaseStatsProcedure: needs(authctx.InstanceRead),
+	instancev1connect.InstanceServiceGetRequestStatsProcedure:  needs(authctx.InstanceRead),
+	instancev1connect.InstanceServiceListJobsProcedure:         needs(authctx.InstanceRead),
 
 	// Members read a space's hooks; the handler requires
 	// instance.integrations.manage for the server-wide list.

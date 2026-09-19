@@ -87,6 +87,21 @@ const (
 	// InstanceServiceRevokeUserTokenProcedure is the fully-qualified name of the InstanceService's
 	// RevokeUserToken RPC.
 	InstanceServiceRevokeUserTokenProcedure = "/stoop.instance.v1.InstanceService/RevokeUserToken"
+	// InstanceServiceGetHealthProcedure is the fully-qualified name of the InstanceService's GetHealth
+	// RPC.
+	InstanceServiceGetHealthProcedure = "/stoop.instance.v1.InstanceService/GetHealth"
+	// InstanceServiceGetLiveStatsProcedure is the fully-qualified name of the InstanceService's
+	// GetLiveStats RPC.
+	InstanceServiceGetLiveStatsProcedure = "/stoop.instance.v1.InstanceService/GetLiveStats"
+	// InstanceServiceGetDatabaseStatsProcedure is the fully-qualified name of the InstanceService's
+	// GetDatabaseStats RPC.
+	InstanceServiceGetDatabaseStatsProcedure = "/stoop.instance.v1.InstanceService/GetDatabaseStats"
+	// InstanceServiceGetRequestStatsProcedure is the fully-qualified name of the InstanceService's
+	// GetRequestStats RPC.
+	InstanceServiceGetRequestStatsProcedure = "/stoop.instance.v1.InstanceService/GetRequestStats"
+	// InstanceServiceListJobsProcedure is the fully-qualified name of the InstanceService's ListJobs
+	// RPC.
+	InstanceServiceListJobsProcedure = "/stoop.instance.v1.InstanceService/ListJobs"
 )
 
 // InstanceServiceClient is a client for the stoop.instance.v1.InstanceService service.
@@ -155,6 +170,18 @@ type InstanceServiceClient interface {
 	// RevokeUserToken revokes one of another account's personal tokens.
 	// Instance admins only.
 	RevokeUserToken(context.Context, *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error)
+	// The Diagnostics tab (docs/proposals/diagnostics.md). All read-only,
+	// instance.read.
+	// GetHealth runs every registered health check.
+	GetHealth(context.Context, *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error)
+	// GetLiveStats reads the gauges and their last fifteen minutes.
+	GetLiveStats(context.Context, *connect.Request[v1.GetLiveStatsRequest]) (*connect.Response[v1.GetLiveStatsResponse], error)
+	// GetDatabaseStats reports the pool and the database behind it.
+	GetDatabaseStats(context.Context, *connect.Request[v1.GetDatabaseStatsRequest]) (*connect.Response[v1.GetDatabaseStatsResponse], error)
+	// GetRequestStats reports per-procedure call counts and latencies.
+	GetRequestStats(context.Context, *connect.Request[v1.GetRequestStatsRequest]) (*connect.Response[v1.GetRequestStatsResponse], error)
+	// ListJobs reports the background loops and the webhook queue.
+	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
 }
 
 // NewInstanceServiceClient constructs a client for the stoop.instance.v1.InstanceService service.
@@ -276,6 +303,36 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(instanceServiceMethods.ByName("RevokeUserToken")),
 			connect.WithClientOptions(opts...),
 		),
+		getHealth: connect.NewClient[v1.GetHealthRequest, v1.GetHealthResponse](
+			httpClient,
+			baseURL+InstanceServiceGetHealthProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("GetHealth")),
+			connect.WithClientOptions(opts...),
+		),
+		getLiveStats: connect.NewClient[v1.GetLiveStatsRequest, v1.GetLiveStatsResponse](
+			httpClient,
+			baseURL+InstanceServiceGetLiveStatsProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("GetLiveStats")),
+			connect.WithClientOptions(opts...),
+		),
+		getDatabaseStats: connect.NewClient[v1.GetDatabaseStatsRequest, v1.GetDatabaseStatsResponse](
+			httpClient,
+			baseURL+InstanceServiceGetDatabaseStatsProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("GetDatabaseStats")),
+			connect.WithClientOptions(opts...),
+		),
+		getRequestStats: connect.NewClient[v1.GetRequestStatsRequest, v1.GetRequestStatsResponse](
+			httpClient,
+			baseURL+InstanceServiceGetRequestStatsProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("GetRequestStats")),
+			connect.WithClientOptions(opts...),
+		),
+		listJobs: connect.NewClient[v1.ListJobsRequest, v1.ListJobsResponse](
+			httpClient,
+			baseURL+InstanceServiceListJobsProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("ListJobs")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -299,6 +356,11 @@ type instanceServiceClient struct {
 	getBuildInfo         *connect.Client[v1.GetBuildInfoRequest, v1.GetBuildInfoResponse]
 	listUserTokens       *connect.Client[v1.ListUserTokensRequest, v1.ListUserTokensResponse]
 	revokeUserToken      *connect.Client[v1.RevokeUserTokenRequest, v1.RevokeUserTokenResponse]
+	getHealth            *connect.Client[v1.GetHealthRequest, v1.GetHealthResponse]
+	getLiveStats         *connect.Client[v1.GetLiveStatsRequest, v1.GetLiveStatsResponse]
+	getDatabaseStats     *connect.Client[v1.GetDatabaseStatsRequest, v1.GetDatabaseStatsResponse]
+	getRequestStats      *connect.Client[v1.GetRequestStatsRequest, v1.GetRequestStatsResponse]
+	listJobs             *connect.Client[v1.ListJobsRequest, v1.ListJobsResponse]
 }
 
 // GetInstanceStatus calls stoop.instance.v1.InstanceService.GetInstanceStatus.
@@ -391,6 +453,31 @@ func (c *instanceServiceClient) RevokeUserToken(ctx context.Context, req *connec
 	return c.revokeUserToken.CallUnary(ctx, req)
 }
 
+// GetHealth calls stoop.instance.v1.InstanceService.GetHealth.
+func (c *instanceServiceClient) GetHealth(ctx context.Context, req *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error) {
+	return c.getHealth.CallUnary(ctx, req)
+}
+
+// GetLiveStats calls stoop.instance.v1.InstanceService.GetLiveStats.
+func (c *instanceServiceClient) GetLiveStats(ctx context.Context, req *connect.Request[v1.GetLiveStatsRequest]) (*connect.Response[v1.GetLiveStatsResponse], error) {
+	return c.getLiveStats.CallUnary(ctx, req)
+}
+
+// GetDatabaseStats calls stoop.instance.v1.InstanceService.GetDatabaseStats.
+func (c *instanceServiceClient) GetDatabaseStats(ctx context.Context, req *connect.Request[v1.GetDatabaseStatsRequest]) (*connect.Response[v1.GetDatabaseStatsResponse], error) {
+	return c.getDatabaseStats.CallUnary(ctx, req)
+}
+
+// GetRequestStats calls stoop.instance.v1.InstanceService.GetRequestStats.
+func (c *instanceServiceClient) GetRequestStats(ctx context.Context, req *connect.Request[v1.GetRequestStatsRequest]) (*connect.Response[v1.GetRequestStatsResponse], error) {
+	return c.getRequestStats.CallUnary(ctx, req)
+}
+
+// ListJobs calls stoop.instance.v1.InstanceService.ListJobs.
+func (c *instanceServiceClient) ListJobs(ctx context.Context, req *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error) {
+	return c.listJobs.CallUnary(ctx, req)
+}
+
 // InstanceServiceHandler is an implementation of the stoop.instance.v1.InstanceService service.
 type InstanceServiceHandler interface {
 	// GetInstanceStatus is public (no session required): the web app calls it
@@ -457,6 +544,18 @@ type InstanceServiceHandler interface {
 	// RevokeUserToken revokes one of another account's personal tokens.
 	// Instance admins only.
 	RevokeUserToken(context.Context, *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error)
+	// The Diagnostics tab (docs/proposals/diagnostics.md). All read-only,
+	// instance.read.
+	// GetHealth runs every registered health check.
+	GetHealth(context.Context, *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error)
+	// GetLiveStats reads the gauges and their last fifteen minutes.
+	GetLiveStats(context.Context, *connect.Request[v1.GetLiveStatsRequest]) (*connect.Response[v1.GetLiveStatsResponse], error)
+	// GetDatabaseStats reports the pool and the database behind it.
+	GetDatabaseStats(context.Context, *connect.Request[v1.GetDatabaseStatsRequest]) (*connect.Response[v1.GetDatabaseStatsResponse], error)
+	// GetRequestStats reports per-procedure call counts and latencies.
+	GetRequestStats(context.Context, *connect.Request[v1.GetRequestStatsRequest]) (*connect.Response[v1.GetRequestStatsResponse], error)
+	// ListJobs reports the background loops and the webhook queue.
+	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
 }
 
 // NewInstanceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -574,6 +673,36 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(instanceServiceMethods.ByName("RevokeUserToken")),
 		connect.WithHandlerOptions(opts...),
 	)
+	instanceServiceGetHealthHandler := connect.NewUnaryHandler(
+		InstanceServiceGetHealthProcedure,
+		svc.GetHealth,
+		connect.WithSchema(instanceServiceMethods.ByName("GetHealth")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServiceGetLiveStatsHandler := connect.NewUnaryHandler(
+		InstanceServiceGetLiveStatsProcedure,
+		svc.GetLiveStats,
+		connect.WithSchema(instanceServiceMethods.ByName("GetLiveStats")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServiceGetDatabaseStatsHandler := connect.NewUnaryHandler(
+		InstanceServiceGetDatabaseStatsProcedure,
+		svc.GetDatabaseStats,
+		connect.WithSchema(instanceServiceMethods.ByName("GetDatabaseStats")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServiceGetRequestStatsHandler := connect.NewUnaryHandler(
+		InstanceServiceGetRequestStatsProcedure,
+		svc.GetRequestStats,
+		connect.WithSchema(instanceServiceMethods.ByName("GetRequestStats")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServiceListJobsHandler := connect.NewUnaryHandler(
+		InstanceServiceListJobsProcedure,
+		svc.ListJobs,
+		connect.WithSchema(instanceServiceMethods.ByName("ListJobs")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/stoop.instance.v1.InstanceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InstanceServiceGetInstanceStatusProcedure:
@@ -612,6 +741,16 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 			instanceServiceListUserTokensHandler.ServeHTTP(w, r)
 		case InstanceServiceRevokeUserTokenProcedure:
 			instanceServiceRevokeUserTokenHandler.ServeHTTP(w, r)
+		case InstanceServiceGetHealthProcedure:
+			instanceServiceGetHealthHandler.ServeHTTP(w, r)
+		case InstanceServiceGetLiveStatsProcedure:
+			instanceServiceGetLiveStatsHandler.ServeHTTP(w, r)
+		case InstanceServiceGetDatabaseStatsProcedure:
+			instanceServiceGetDatabaseStatsHandler.ServeHTTP(w, r)
+		case InstanceServiceGetRequestStatsProcedure:
+			instanceServiceGetRequestStatsHandler.ServeHTTP(w, r)
+		case InstanceServiceListJobsProcedure:
+			instanceServiceListJobsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -691,4 +830,24 @@ func (UnimplementedInstanceServiceHandler) ListUserTokens(context.Context, *conn
 
 func (UnimplementedInstanceServiceHandler) RevokeUserToken(context.Context, *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.RevokeUserToken is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) GetHealth(context.Context, *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.GetHealth is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) GetLiveStats(context.Context, *connect.Request[v1.GetLiveStatsRequest]) (*connect.Response[v1.GetLiveStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.GetLiveStats is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) GetDatabaseStats(context.Context, *connect.Request[v1.GetDatabaseStatsRequest]) (*connect.Response[v1.GetDatabaseStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.GetDatabaseStats is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) GetRequestStats(context.Context, *connect.Request[v1.GetRequestStatsRequest]) (*connect.Response[v1.GetRequestStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.GetRequestStats is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.ListJobs is not implemented"))
 }
