@@ -16,23 +16,26 @@ export type MenuItem = {
   disabled?: boolean;
 };
 
-const MENU_WIDTH = 180;
+const MIN_WIDTH = 180;
 const ITEM_HEIGHT = 34;
 const DONE_MS = 900;
 
 // Fixed coordinates for the menu: right-aligned under the button, or
-// above it when the bottom of the window is too close, and never past
-// the window's right edge.
+// above it when the bottom of the window is too close. It is pinned by
+// its right edge and grows leftwards, so a label wider than MIN_WIDTH
+// widens the menu instead of running out of it.
 function menuPosition(anchor: DOMRect, items: number): CSSProperties {
   const height = items * ITEM_HEIGHT + 8;
-  const left = Math.max(
-    8,
-    Math.min(anchor.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - 8),
-  );
+  const right = Math.max(8, window.innerWidth - anchor.right);
   const below = anchor.bottom + 4;
   const top =
     below + height > window.innerHeight - 8 ? anchor.top - height - 4 : below;
-  return { top, left, width: MENU_WIDTH };
+  return {
+    top,
+    right,
+    minWidth: MIN_WIDTH,
+    maxWidth: window.innerWidth - right - 8,
+  };
 }
 
 // A ⋮ button that opens a list of actions (the kit's popover menu; styles

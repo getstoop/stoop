@@ -283,6 +283,23 @@
     grid-row: 1;
   }
 
+  .dt .dt-row > td.dt-drag {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dt:has(.dt-drag) .dt-row {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .dt:has(.dt-drag) .dt-row > td.dt-primary {
+    grid-column: 2;
+  }
+
+  .dt:has(.dt-drag) .dt-row > td.dt-actions {
+    grid-column: 3;
+  }
+
   .dt.expandable .dt-row {
     grid-template-columns: auto 1fr auto;
   }

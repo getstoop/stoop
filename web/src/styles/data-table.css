@@ -127,6 +127,35 @@ th[aria-sort] .dt-sort-arrow {
   vertical-align: middle;
 }
 
+/* The handle that drags a row of an ordered table (Channels). */
+.dt-drag-col {
+  /* off-scale: the 28px icon button plus the cell's side padding */
+  width: 40px;
+}
+
+.dt td.dt-drag {
+  padding-right: 0;
+}
+
+.dt-grip {
+  color: var(--text-muted);
+  cursor: grab;
+  /* the pointer sensor needs the gesture, so the page must not scroll */
+  touch-action: none;
+}
+
+.dt-row.dragging {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.dt-row.dragging .dt-grip {
+  cursor: grabbing;
+  color: var(--text);
+}
+
 /* A parent row's chevron, and the full-width row it opens. */
 .dt-expand-col {
   /* off-scale: the 28px icon button plus the cell's side padding */
@@ -259,6 +288,12 @@ th[aria-sort] .dt-sort-arrow {
 
 .dt-state.off::before {
   background: var(--warn);
+}
+
+/* A yes/no fact in a cell: a tick, or the cell's muted dash for no. */
+.dt-yes {
+  display: inline-flex;
+  color: var(--ok);
 }
 
 .dt-state-reason {
