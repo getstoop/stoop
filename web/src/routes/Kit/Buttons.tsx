@@ -16,21 +16,6 @@ export function Buttons() {
           Saving…
         </button>
       </div>
-      <span className="eyebrow">Quiet</span>
-      <div className="kit-row">
-        <button type="button" className="primary">
-          Save
-        </button>
-        <button type="button" className="quiet">
-          Not now
-        </button>
-        <button type="button" className="quiet danger">
-          Discard draft
-        </button>
-        <button type="button" className="quiet" disabled>
-          Undo
-        </button>
-      </div>
       <span className="eyebrow">Chip</span>
       <div className="kit-row">
         <button type="button" className="chip">

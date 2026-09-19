@@ -87,8 +87,8 @@ in their head. Add to this when a new rule earns its place.
   comment on the line before it containing `off-scale:` and the reason;
   the same marker excuses the one colour literal (the video letterbox).
 - **The kit — `controls.css`, `fields.css`, `surfaces.css` — owns the
-  parts every feature reaches for:** `button.primary`, `button.quiet`,
-  `.chip`, `button.link`, `.option`, `.icon-button`, `.badge`, `.avatar`,
+  parts every feature reaches for:** `button.primary`, `.chip`,
+  `button.link`, `.option`, `.icon-button`, `.badge`, `.avatar`,
   `.eyebrow` (the small uppercase heading, in `base.css`); text inputs,
   selects and textareas (styled at zero specificity with `:where()`, so any
   feature rule wins), the words-above-field label and `label.toggle-row`;
@@ -97,8 +97,8 @@ in their head. Add to this when a new rule earns its place.
   declares an input or a button from scratch, and a control the second
   feature wants moves to the kit before the second feature uses it.
 - **Which button:** `button.primary` is the view's one main action;
-  `button.quiet` is its low-emphasis partner, or a minor action on its own;
-  `.chip` is for repeated row actions and choose-one sets; `button.link`
+  `.chip` is its partner (Cancel), a repeated row action, or one of a
+  choose-one set; `button.link`
   leaves the flow; `.option` is a row that is a button (a menu item, a
   picker option, a list member), with `.selected` for the row the keyboard
   is on, `.danger`, and `aria-disabled="true"`. A feature adds the class

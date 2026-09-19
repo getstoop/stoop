@@ -1,6 +1,6 @@
-/* ---- Buttons shared across pages: the filled primary action, its quiet
-   partner, the chip (the outlined secondary action), the link button, the
-   option row, the icon button, and the badge. ---- */
+/* ---- Buttons shared across pages: the filled primary action, the chip
+   (the outlined secondary action), the link button, the option row, the
+   icon button, and the badge. ---- */
 
 button.primary {
   padding: 8px 16px;
@@ -23,30 +23,6 @@ button.primary:disabled {
 
 button.primary.danger {
   background: var(--danger);
-}
-
-/* The low-emphasis partner of a primary, or a minor action on its own. */
-button.quiet {
-  padding: 8px 12px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: none;
-  color: var(--text);
-  font-weight: 600;
-  transition: background var(--dur-fast) var(--ease);
-}
-
-button.quiet:hover {
-  background: var(--raised);
-}
-
-button.quiet:disabled {
-  opacity: var(--disabled);
-  cursor: default;
-}
-
-button.quiet.danger {
-  color: var(--danger);
 }
 
 /* A button that reads as a link: it leaves the flow. */
