@@ -88,13 +88,21 @@ in their head. Add to this when a new rule earns its place.
   the same marker excuses the one colour literal (the video letterbox).
 - **The kit — `controls.css`, `fields.css`, `surfaces.css` — owns the
   parts every feature reaches for:** `button.primary`, `.chip`,
-  `.icon-button`, `.badge`, `.avatar`, `.eyebrow` (the small uppercase
-  heading, in `base.css`); text inputs, selects and textareas (styled at
-  zero specificity with `:where()`, so any feature rule wins), the
-  words-above-field label and `label.toggle-row`; `.card`, `.card-row`,
-  `.modal`, `.popover`, `.dots-menu`, `.tooltip`. A feature sheet styles layout and the feature's own parts; it
-  never declares an input or a button from scratch, and a control the
-  second feature wants moves to the kit before the second feature uses it.
+  `button.link`, `.option`, `.icon-button`, `.badge`, `.avatar`,
+  `.eyebrow` (the small uppercase heading, in `base.css`); text inputs,
+  selects and textareas (styled at zero specificity with `:where()`, so any
+  feature rule wins), the words-above-field label and `label.toggle-row`;
+  `.card`, `.card-row`, `.modal`, `.popover`, `.dots-menu`, `.tooltip`. A
+  feature sheet styles layout and the feature's own parts; it never
+  declares an input or a button from scratch, and a control the second
+  feature wants moves to the kit before the second feature uses it.
+- **Which button:** `button.primary` is the view's one main action;
+  `.chip` is its partner (Cancel), a repeated row action, or one of a
+  choose-one set; `button.link`
+  leaves the flow; `.option` is a row that is a button (a menu item, a
+  picker option, a list member), with `.selected` for the row the keyboard
+  is on, `.danger`, and `aria-disabled="true"`. A feature adds the class
+  and keeps only what differs: a denser padding, a muted colour.
 - **A user avatar is `<Avatar>`, sized by `size`.** `.avatar` in
   `controls.css` owns the circle, the fill, the initials and the bot face;
   `.small`, `.medium` and `.large` set `--avatar-size` to 24, 40 and 64px
@@ -119,6 +127,14 @@ in their head. Add to this when a new rule earns its place.
 - **Focus is global** (`:focus-visible` in `base.css`); fields swap the ring
   for an accent border. A feature overrides it only for a stated reason
   (the composer's overlay border is one).
+- **An inline `style` in a `.tsx` file carries computed geometry only:**
+  `left`, `top`, `right`, `bottom`, `width`, `height`, `min`/`max` of
+  both, `transform`, `transition`, and CSS custom properties (`"--name"`).
+  Anything else is a class in the feature's sheet. A value only the
+  component knows reaches the sheet as a custom property; one that can't
+  carries an `off-scale:` comment on the line before. Only object literals
+  are judged: `style={position}` passes. `scripts/check-tsx-styles.mjs`
+  enforces it in `make lint`.
 - **`scripts/check-styles.mjs` enforces all of the above** in `make lint`.
   **`/kit` (dev builds only, `routes/Kit/`) renders every shared part**, with
   a theme switch, so a kit change is checked in every theme before it

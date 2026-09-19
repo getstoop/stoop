@@ -28,6 +28,29 @@ export function Buttons() {
           Revoked
         </button>
       </div>
+      <span className="eyebrow">Link</span>
+      <div className="kit-row">
+        <button type="button" className="link">
+          Continue in this browser
+        </button>
+      </div>
+      <span className="eyebrow">Option</span>
+      <div className="kit-row">
+        <div className="popover kit-menu">
+          <button type="button" className="option">
+            Mute channel
+          </button>
+          <button type="button" className="option selected">
+            Selected by the keyboard
+          </button>
+          <button type="button" className="option danger">
+            Leave space
+          </button>
+          <button type="button" className="option" aria-disabled="true">
+            Owners can't leave
+          </button>
+        </div>
+      </div>
       <span className="eyebrow">Icon button</span>
       <div className="kit-row">
         <button type="button" className="icon-button" aria-label="Settings">

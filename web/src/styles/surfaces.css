@@ -111,35 +111,13 @@
   padding: 4px;
 }
 
+/* An .option as a block, so a label a narrow window clips gets its dots. */
 .dots-menu button {
-  text-align: left;
-  padding: 6px 12px;
-  border: none;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text);
+  display: block;
   font-size: var(--text-ui);
-  /* The menu widens to its longest label; only a narrow window clips one. */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.dots-menu button:hover {
-  background: var(--raised);
-}
-
-.dots-menu button.danger {
-  color: var(--danger);
-}
-
-.dots-menu button[aria-disabled="true"] {
-  color: var(--text-muted);
-  cursor: default;
-}
-
-.dots-menu button[aria-disabled="true"]:hover {
-  background: none;
 }
 
 /* The tooltip (components/Tooltip.tsx): a small panel fixed to the
@@ -160,7 +138,11 @@
   pointer-events: none;
 }
 
-.tooltip .tooltip-detail {
+.tooltip .tooltip.unplaced {
+  visibility: hidden;
+}
+
+.tooltip-detail {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }

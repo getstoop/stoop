@@ -89,7 +89,7 @@ build: build-web
 
 lint:
 	golangci-lint run
-	cd web && pnpm lint && pnpm typecheck && pnpm check:themes && pnpm check:styles
+	cd web && pnpm lint && pnpm typecheck && pnpm check:themes && pnpm check:styles && pnpm check:tsx-styles
 
 test:
 	go test ./...

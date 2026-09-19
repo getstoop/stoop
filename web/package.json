@@ -11,6 +11,7 @@
     "lint": "biome check src e2e-pw e2e",
     "check:themes": "node ../scripts/check-themes.mjs",
     "check:styles": "node ../scripts/check-styles.mjs",
+    "check:tsx-styles": "node ../scripts/check-tsx-styles.mjs",
     "format": "biome format --write src e2e-pw e2e"
   },
   "dependencies": {

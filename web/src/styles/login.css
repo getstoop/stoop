@@ -23,6 +23,12 @@
   border-radius: var(--radius-lg);
 }
 
+/* A step inside another card (setup): the layout without the frame. */
+.login-card.bare {
+  padding: 0;
+  border: none;
+}
+
 /* At the display size the body's leading leaves ~6px of empty line box
    above the caps, so the card's even padding reads as a looser top edge
    than bottom. Hug the caps and let the card's gap do the spacing. */
@@ -43,9 +49,8 @@
   color: var(--text);
 }
 
+/* The way out under the card's main action, an anchor or a button.link. */
 .login-card .link {
-  background: none;
-  border: none;
   color: var(--text-muted);
   font-size: var(--text-ui);
   text-decoration: underline;
@@ -64,12 +69,4 @@
 
 .open-in-app p {
   margin: 0;
-}
-
-.open-in-app .link {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: var(--text-ui);
-  text-decoration: underline;
 }

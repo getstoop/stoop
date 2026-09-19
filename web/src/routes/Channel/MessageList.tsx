@@ -493,9 +493,7 @@ export function MessageList({
               ) : null}
               <div
                 className="message-content"
-                style={
-                  editingId === message.id ? { display: "none" } : undefined
-                }
+                hidden={editingId === message.id}
               >
                 <MessageBody
                   content={message.content}

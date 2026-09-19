@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 const RADII = ["sm", "", "md", "lg", "pill"] as const;
 const SIZES = ["xs", "sm", "ui", "body", "lg", "xl", "display"] as const;
 const SWATCHES = [
@@ -20,14 +22,10 @@ export function Foundations() {
         {RADII.map((r) => {
           const name = r ? `--radius-${r}` : "--radius";
           return (
-            <div
-              key={name}
-              className="kit-type"
-              style={{ gridTemplateColumns: "56px 1fr" }}
-            >
+            <div key={name} className="kit-type swatch">
               <div
                 className="kit-swatch"
-                style={{ borderRadius: `var(${name})` }}
+                style={{ "--kit-radius": `var(${name})` } as CSSProperties}
               />
               <code>{name}</code>
             </div>
@@ -38,26 +36,23 @@ export function Foundations() {
       {SIZES.map((s) => (
         <div key={s} className="kit-type">
           <code>--text-{s}</code>
-          <span style={{ fontSize: `var(--text-${s})` }}>
+          <span style={{ "--kit-size": `var(--text-${s})` } as CSSProperties}>
             The quick brown fox
           </span>
         </div>
       ))}
       <div className="kit-type">
         <code>--font-mono</code>
-        <span style={{ fontFamily: "var(--font-mono)" }}>
-          The quick brown fox
-        </span>
+        <span className="kit-mono">The quick brown fox</span>
       </div>
       <span className="eyebrow">Surfaces and status tints</span>
       <div className="kit-row">
         {SWATCHES.map((s) => (
-          <div
-            key={s}
-            className="kit-type"
-            style={{ gridTemplateColumns: "56px 1fr" }}
-          >
-            <div className="kit-swatch" style={{ background: `var(--${s})` }} />
+          <div key={s} className="kit-type swatch">
+            <div
+              className="kit-swatch"
+              style={{ "--kit-fill": `var(--${s})` } as CSSProperties}
+            />
             <code>--{s}</code>
           </div>
         ))}

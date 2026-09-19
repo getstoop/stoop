@@ -282,6 +282,7 @@ export function VoiceStage({
       data-channel-id={channelId}
       // With the chat hidden the stage takes the whole pane, so the
       // dragged height steps aside and comes back when chat does.
+      // off-scale: the dragged height is the flex basis too
       style={height && !chatHidden ? { height, flexBasis: height } : undefined}
     >
       {status === "connecting" && (

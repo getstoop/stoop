@@ -86,6 +86,7 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
         <div className="bot-edit-avatar">
           <span
             className="avatar medium"
+            // off-scale: the picked image, before it is uploaded
             style={
               preview
                 ? {

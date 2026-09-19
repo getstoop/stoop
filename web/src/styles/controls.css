@@ -1,5 +1,6 @@
 /* ---- Buttons shared across pages: the filled primary action, the chip
-   (the outlined secondary action), the quiet icon button, and the badge. ---- */
+   (the outlined secondary action), the link button, the option row, the
+   icon button, and the badge. ---- */
 
 button.primary {
   padding: 8px 16px;
@@ -22,6 +23,15 @@ button.primary:disabled {
 
 button.primary.danger {
   background: var(--danger);
+}
+
+/* A button that reads as a link: it leaves the flow. */
+button.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .chip {
@@ -56,6 +66,40 @@ button.primary.danger {
 
 .chip.danger:hover {
   border-color: var(--danger);
+}
+
+/* A row that is a button: a menu item, a picker option, a list member.
+   .selected is the row the keyboard is on. */
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.option:hover,
+.option.selected {
+  background: var(--raised);
+}
+
+.option.danger {
+  color: var(--danger);
+}
+
+.option[aria-disabled="true"] {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.option[aria-disabled="true"]:hover {
+  background: none;
 }
 
 /* A square hit target around a glyph. Features add size and state

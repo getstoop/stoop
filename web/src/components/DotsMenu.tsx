@@ -127,7 +127,7 @@ export function DotsMenu({
               key={item.label}
               type="button"
               role="menuitem"
-              className={item.danger ? "danger" : undefined}
+              className={item.danger ? "option danger" : "option"}
               title={item.title}
               aria-disabled={item.disabled || undefined}
               onClick={async () => {
