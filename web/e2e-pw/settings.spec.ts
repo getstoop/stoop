@@ -74,8 +74,15 @@ test("space settings, roles and deletion", async ({ browser }) => {
   const grip = channelRow("random").getByRole("button", {
     name: "Reorder #random",
   });
+  // The sensor starts hearing arrows a tick after the pickup, so each key
+  // waits for the one before it to show.
   await grip.press(" ");
+  await expect(channelRow("random"), "row picked up").toHaveClass(/dragging/);
   await grip.press("ArrowUp");
+  await expect(channelRow("random"), "row moved up").toHaveAttribute(
+    "style",
+    /translate3d\(0px, -\d/,
+  );
   await grip.press(" ");
   await expect(channelNames(B), "B sees reordered channels").toHaveText([
     "random",
