@@ -1,7 +1,7 @@
 /* ---- Channel sidebar ---- */
 
 .channel-sidebar {
-  width: 244px;
+  width: var(--sidebar-w);
   background: var(--panel);
   display: flex;
   flex-direction: column;
@@ -96,6 +96,7 @@
   flex: 1;
   height: 1px;
   background: var(--danger);
+  /* off-scale: a softer rule beside the label */
   opacity: 0.6;
 }
 
@@ -135,6 +136,7 @@
 }
 
 .channel-hash {
+  /* off-scale: the glyph sits back from the channel name */
   opacity: 0.7;
 }
 

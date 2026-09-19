@@ -87,6 +87,7 @@ label.dt-hidden-toggle {
 }
 
 .dt-sort-arrow {
+  /* off-scale: a faint hint until the column is sorted */
   opacity: 0.35;
 }
 
@@ -206,7 +207,7 @@ th[aria-sort] .dt-sort-arrow {
 
 /* Dim what the row says, never the controls that can bring it back. */
 .dt-row.inactive > td:not(.dt-actions) {
-  opacity: 0.6;
+  opacity: var(--disabled);
 }
 
 .dt-row-error {

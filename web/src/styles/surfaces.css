@@ -23,7 +23,7 @@
 }
 
 .card.danger-zone {
-  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-color: var(--danger-border);
 }
 
 /* A row of controls inside a card. */

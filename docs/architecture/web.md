@@ -189,7 +189,10 @@ tokens. So **a new theme is a forty-line block that works with every
 feature**, including features written after it.
 
 Everything that is not colour — radius, type, motion, focus, stacking — is
-one block in `web/src/tokens.css`, shared by every theme.
+one block in `web/src/tokens.css`, shared by every theme. A second block
+there derives the four status tints (`--ok-soft`, `--warn-soft`,
+`--danger-soft`, `--danger-border`) from the theme's colours, on every
+theme scope.
 
 **The choice is per client and never the server's business.** It lives in
 `localStorage` under `stoop.theme`, is stamped on `<html data-theme>` by an

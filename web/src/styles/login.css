@@ -29,6 +29,7 @@
 .login-card h1 {
   margin: 0;
   font-size: var(--text-display);
+  /* off-scale: hugs the caps at the display size */
   line-height: 1.1;
   letter-spacing: 0.02em;
 }

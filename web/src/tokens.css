@@ -1,8 +1,9 @@
-/* Tokens that are not colour: shape, type, motion, focus and stacking.
-   Colour lives in themes.css, one block per theme; this is one block for
-   every theme, because a theme must never move a glyph (the composer
-   overlay depends on metrics staying put). Spacing is deliberately not
-   here — gap and padding are written in px on the scale
+/* Tokens that are not a theme's to set: shape, type, motion, focus,
+   stacking and layout, plus the status tints derived from theme colours
+   (second block). Colour lives in themes.css, one block per theme; the
+   first block here is for every theme, because a theme must never move a
+   glyph (the composer overlay depends on metrics staying put). Spacing is
+   deliberately not here — gap and padding are written in px on the scale
    2 4 6 8 12 16 20 24 32, which scripts/check-styles.mjs enforces. */
 
 :root {
@@ -26,6 +27,21 @@
   --text-xl: 22px;
   --text-display: 28px;
   --tracking-caps: 0.06em;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Leading. tight: large glyphs and headings. ui: fields and short
+     copy. body: the default, set on body. */
+  --leading-tight: 1.2;
+  --leading-ui: 1.4;
+  --leading-body: 1.45;
+
+  /* The one opacity for anything disabled or inactive. */
+  --disabled: 0.5;
+
+  /* Layout. rail: the space rail. sidebar: the channel sidebar and the
+     settings nav. */
+  --rail-w: 68px;
+  --sidebar-w: 244px;
 
   /* Motion. fast: hover washes, colour, opacity. base: anything that
      moves or resizes. base.css turns both off under reduced motion. */
@@ -46,4 +62,15 @@
   --z-modal: 40;
   /* A dropdown opened from inside a modal. */
   --z-modal-popover: 50;
+}
+
+/* Status tints, derived from the theme's colours. A custom property
+   resolves its var() where it is declared, so these repeat on every theme
+   scope (the theme picker's preview cards), not only the root. */
+:root,
+[data-theme] {
+  --ok-soft: color-mix(in srgb, var(--ok) 18%, transparent);
+  --warn-soft: color-mix(in srgb, var(--warn) 20%, transparent);
+  --danger-soft: color-mix(in srgb, var(--danger) 18%, transparent);
+  --danger-border: color-mix(in srgb, var(--danger) 45%, var(--border));
 }

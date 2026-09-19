@@ -44,8 +44,8 @@
   }
 
   .channel-sidebar {
-    left: 68px;
-    width: min(280px, calc(100vw - 68px));
+    left: var(--rail-w);
+    width: min(280px, calc(100vw - var(--rail-w)));
     box-shadow: var(--shadow);
     border-top-left-radius: 0;
   }

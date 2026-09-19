@@ -41,7 +41,7 @@
 }
 
 .token-permissions fieldset:disabled {
-  opacity: 0.5;
+  opacity: var(--disabled);
 }
 
 .token-permissions legend,

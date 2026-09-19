@@ -39,7 +39,7 @@
 }
 
 .invite-row.inactive {
-  opacity: 0.55;
+  opacity: var(--disabled);
 }
 
 .invite-main {
@@ -50,7 +50,7 @@
 }
 
 .invite-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-body);
   letter-spacing: 1px;
 }

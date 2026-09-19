@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Every sheet under web/src/styles must build on the tokens: no literal
-// radius, font size, weight, z-index, duration or colour, and every gap
-// and padding on the spacing scale (docs/conventions.md → Design tokens).
+// radius, font family, size, weight, line height, opacity, z-index,
+// duration or colour, and every gap and padding on the spacing scale
+// (docs/conventions.md → Design tokens).
 // A declaration that has to break a rule carries a comment on the line
 // before it (or the same line) containing "off-scale:" and the reason.
 // Run by `make lint`, beside check-themes.mjs.
@@ -12,6 +13,9 @@ import { fileURLToPath } from "node:url";
 const dir = join(dirname(fileURLToPath(import.meta.url)), "../web/src/styles");
 const SCALE = new Set([0, 2, 4, 6, 8, 12, 16, 20, 24, 32]);
 const WEIGHTS = new Set(["400", "600", "700", "inherit"]);
+const FONTS = new Set(["var(--font-ui)", "var(--font-mono)", "inherit"]);
+const LEADING = new Set(["1", "normal", "inherit"]);
+const OPACITY = new Set(["0", "1", "var(--disabled)"]);
 const ESCAPE = /off-scale:/;
 
 const isVar = (v) => /^var\(--[a-z-]+\)$/.test(v);
@@ -20,11 +24,17 @@ const checks = {
     v.split(/\s+/).every((t) => isVar(t) || t === "0" || t === "50%" || t === "inherit")
       ? null
       : "border-radius must be a --radius token, 0, 50% or inherit",
+  "font-family": (v) => (FONTS.has(v) ? null : "font-family must be --font-ui, --font-mono or inherit"),
   "font-size": (v, file) =>
     isVar(v) || /^[\d.]+(em|%)$/.test(v) || v === "inherit" || (file === "mobile.css" && v === "16px")
       ? null
       : "font-size must be a --text token (or em/%; 16px only in mobile.css)",
   "font-weight": (v) => (WEIGHTS.has(v) ? null : "font-weight must be 400, 600 or 700"),
+  "line-height": (v) =>
+    /^var\(--leading-[a-z]+\)$/.test(v) || LEADING.has(v)
+      ? null
+      : "line-height must be a --leading token, 1, normal or inherit",
+  opacity: (v) => (OPACITY.has(v) ? null : "opacity must be 0, 1 or var(--disabled)"),
   "z-index": (v) =>
     isVar(v) || v === "1" || v === "2" || v === "auto"
       ? null

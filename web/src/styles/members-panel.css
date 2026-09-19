@@ -122,7 +122,7 @@
 }
 
 .member-row.offline {
-  opacity: 0.55;
+  opacity: var(--disabled);
 }
 
 .avatar {

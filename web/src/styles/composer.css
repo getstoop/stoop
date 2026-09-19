@@ -23,7 +23,7 @@
   color: transparent;
   caret-color: var(--text);
   font: inherit;
-  line-height: 1.4;
+  line-height: var(--leading-ui);
   resize: none;
   overflow-y: auto;
 }
@@ -67,7 +67,7 @@
   border: 1px solid transparent;
   padding: 12px 16px;
   font: inherit;
-  line-height: 1.4;
+  line-height: var(--leading-ui);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: var(--text);
@@ -86,6 +86,7 @@
 
 .md-marker {
   color: var(--text-muted);
+  /* off-scale: Markdown markers recede behind the text they wrap */
   opacity: 0.55;
 }
 

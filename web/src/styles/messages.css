@@ -87,7 +87,7 @@
   color: transparent;
   caret-color: var(--text);
   font: inherit;
-  line-height: 1.4;
+  line-height: var(--leading-ui);
   resize: none;
   overflow-y: auto;
 }
