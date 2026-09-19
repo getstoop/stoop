@@ -15,7 +15,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/diag"
 )
+
+var droppedSubscribers = diag.NewCounter("bus_dropped_total", "Subscribers dropped for falling behind.")
 
 // Topic naming: "space:<id>" for space-wide events, "user:<id>" for events
 // addressed to one user (across all their connections).
@@ -96,6 +99,7 @@ func (b *InProcBus) Publish(topic string, ev *realtimev1.ServerEvent) {
 		default:
 			// Slow consumer: drop it rather than block every publisher.
 			b.removeLocked(sub)
+			droppedSubscribers.Inc()
 		}
 	}
 }

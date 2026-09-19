@@ -4,8 +4,10 @@ import {
   useDiagHealth,
   useInstanceStatus,
 } from "../../../api/queries";
+import { DatabasePanel } from "./DatabasePanel";
 import { ago, formatUptime } from "./format";
 import { HealthChecks } from "./HealthChecks";
+import { LiveTiles } from "./LiveTiles";
 import { RequestsTable } from "./RequestsTable";
 import { useNow } from "./useNow";
 
@@ -39,6 +41,8 @@ export function Diagnostics() {
         </p>
       </div>
       <HealthChecks now={now} />
+      <LiveTiles />
+      <DatabasePanel />
       <RequestsTable />
     </>
   );
