@@ -111,7 +111,8 @@ one its reasoning, its enforcement, and what it costs.
 | [messaging.md](messaging.md) | Messages and their Markdown, mentions and activity, unreads, history windows, direct messages, and link previews. |
 | [files.md](files.md) | Uploads, image normalisation, the blob port, the download handler, the sweep, and the quota. |
 | [voice.md](voice.md) | LiveKit tokens, the signaling proxy, ICE and TURN, the stage, and why media never touches Stoop. |
-| [web.md](web.md) | The React client: routing, the query cache as the single source of truth, stores, themes, and the design system. |
+| [web.md](web.md) | The React client: routing, the query cache as the single source of truth, stores, themes, the settings frame and tables. |
+| [design-system.md](design-system.md) | The web kit as built: grounds and the colour contract, the non-colour tokens, which shared part to reach for, how a part earns its place, and the lint that holds it. |
 | [runtime.md](runtime.md) | Process model, configuration precedence, front doors, security headers, background work, and how a build is produced. |
 | [desktop.md](desktop.md) | The contract the desktop shell relies on: `GET /version`, `window.stoop`, deep links, sessions, and what lives in which repository. |
 | [integrations.md](integrations.md) | Bots and their credentials, incoming webhooks and their adapters, outgoing webhooks, the delivery queue and its contract, egress, and the switches. |

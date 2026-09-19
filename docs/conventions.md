@@ -58,6 +58,10 @@ in their head. Add to this when a new rule earns its place.
 
 ## Web: design tokens and the kit
 
+The model behind these rules — what sits on what, which part to reach
+for, and why — is in
+[architecture/design-system.md](architecture/design-system.md).
+
 - **Non-colour tokens live in `web/src/tokens.css`** — radius (`--radius-sm`
   … `--radius-pill`), type (`--text-xs` … `--text-display`, `--tracking-caps`,
   `--font-ui`, `--font-mono`, `--leading-tight`, `--leading-ui`,
