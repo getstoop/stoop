@@ -80,55 +80,6 @@ func (CheckState) EnumDescriptor() ([]byte, []int) {
 	return file_stoop_instance_v1_diagnostics_proto_rawDescGZIP(), []int{0}
 }
 
-type StatsWindow int32
-
-const (
-	StatsWindow_STATS_WINDOW_UNSPECIFIED    StatsWindow = 0
-	StatsWindow_STATS_WINDOW_LAST_5_MINUTES StatsWindow = 1
-	StatsWindow_STATS_WINDOW_SINCE_START    StatsWindow = 2
-)
-
-// Enum value maps for StatsWindow.
-var (
-	StatsWindow_name = map[int32]string{
-		0: "STATS_WINDOW_UNSPECIFIED",
-		1: "STATS_WINDOW_LAST_5_MINUTES",
-		2: "STATS_WINDOW_SINCE_START",
-	}
-	StatsWindow_value = map[string]int32{
-		"STATS_WINDOW_UNSPECIFIED":    0,
-		"STATS_WINDOW_LAST_5_MINUTES": 1,
-		"STATS_WINDOW_SINCE_START":    2,
-	}
-)
-
-func (x StatsWindow) Enum() *StatsWindow {
-	p := new(StatsWindow)
-	*p = x
-	return p
-}
-
-func (x StatsWindow) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (StatsWindow) Descriptor() protoreflect.EnumDescriptor {
-	return file_stoop_instance_v1_diagnostics_proto_enumTypes[1].Descriptor()
-}
-
-func (StatsWindow) Type() protoreflect.EnumType {
-	return &file_stoop_instance_v1_diagnostics_proto_enumTypes[1]
-}
-
-func (x StatsWindow) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use StatsWindow.Descriptor instead.
-func (StatsWindow) EnumDescriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_diagnostics_proto_rawDescGZIP(), []int{1}
-}
-
 type JobOutcome int32
 
 const (
@@ -168,11 +119,11 @@ func (x JobOutcome) String() string {
 }
 
 func (JobOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_stoop_instance_v1_diagnostics_proto_enumTypes[2].Descriptor()
+	return file_stoop_instance_v1_diagnostics_proto_enumTypes[1].Descriptor()
 }
 
 func (JobOutcome) Type() protoreflect.EnumType {
-	return &file_stoop_instance_v1_diagnostics_proto_enumTypes[2]
+	return &file_stoop_instance_v1_diagnostics_proto_enumTypes[1]
 }
 
 func (x JobOutcome) Number() protoreflect.EnumNumber {
@@ -181,7 +132,7 @@ func (x JobOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use JobOutcome.Descriptor instead.
 func (JobOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_stoop_instance_v1_diagnostics_proto_rawDescGZIP(), []int{2}
+	return file_stoop_instance_v1_diagnostics_proto_rawDescGZIP(), []int{1}
 }
 
 type HealthCheck struct {
@@ -698,9 +649,9 @@ func (x *GetDatabaseStatsResponse) GetSchemaFloor() int64 {
 	return 0
 }
 
+// The last five minutes; the metrics endpoint carries since-start.
 type GetRequestStatsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Window        StatsWindow            `protobuf:"varint,1,opt,name=window,proto3,enum=stoop.instance.v1.StatsWindow" json:"window,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -733,13 +684,6 @@ func (x *GetRequestStatsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetRequestStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetRequestStatsRequest) Descriptor() ([]byte, []int) {
 	return file_stoop_instance_v1_diagnostics_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *GetRequestStatsRequest) GetWindow() StatsWindow {
-	if x != nil {
-		return x.Window
-	}
-	return StatsWindow_STATS_WINDOW_UNSPECIFIED
 }
 
 type ProcedureStats struct {
@@ -1171,9 +1115,8 @@ const file_stoop_instance_v1_diagnostics_proto_rawDesc = "" +
 	" \x01(\x05R\x13oldestTransactionMs\x12%\n" +
 	"\x0eserver_version\x18\v \x01(\tR\rserverVersion\x12%\n" +
 	"\x0eschema_version\x18\f \x01(\x03R\rschemaVersion\x12!\n" +
-	"\fschema_floor\x18\r \x01(\x03R\vschemaFloor\"P\n" +
-	"\x16GetRequestStatsRequest\x126\n" +
-	"\x06window\x18\x01 \x01(\x0e2\x1e.stoop.instance.v1.StatsWindowR\x06window\"\xa1\x01\n" +
+	"\fschema_floor\x18\r \x01(\x03R\vschemaFloor\"\x18\n" +
+	"\x16GetRequestStatsRequest\"\xa1\x01\n" +
 	"\x0eProcedureStats\x12\x1c\n" +
 	"\tprocedure\x18\x01 \x01(\tR\tprocedure\x12\x14\n" +
 	"\x05calls\x18\x02 \x01(\x03R\x05calls\x12\x16\n" +
@@ -1214,11 +1157,7 @@ const file_stoop_instance_v1_diagnostics_proto_rawDesc = "" +
 	"\x0eCHECK_STATE_OK\x10\x01\x12\x14\n" +
 	"\x10CHECK_STATE_WARN\x10\x02\x12\x16\n" +
 	"\x12CHECK_STATE_DANGER\x10\x03\x12\x13\n" +
-	"\x0fCHECK_STATE_OFF\x10\x04*j\n" +
-	"\vStatsWindow\x12\x1c\n" +
-	"\x18STATS_WINDOW_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bSTATS_WINDOW_LAST_5_MINUTES\x10\x01\x12\x1c\n" +
-	"\x18STATS_WINDOW_SINCE_START\x10\x02*\x90\x01\n" +
+	"\x0fCHECK_STATE_OFF\x10\x04*\x90\x01\n" +
 	"\n" +
 	"JobOutcome\x12\x1b\n" +
 	"\x17JOB_OUTCOME_UNSPECIFIED\x10\x00\x12\x19\n" +
@@ -1240,52 +1179,50 @@ func file_stoop_instance_v1_diagnostics_proto_rawDescGZIP() []byte {
 	return file_stoop_instance_v1_diagnostics_proto_rawDescData
 }
 
-var file_stoop_instance_v1_diagnostics_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_stoop_instance_v1_diagnostics_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_stoop_instance_v1_diagnostics_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_stoop_instance_v1_diagnostics_proto_goTypes = []any{
 	(CheckState)(0),                  // 0: stoop.instance.v1.CheckState
-	(StatsWindow)(0),                 // 1: stoop.instance.v1.StatsWindow
-	(JobOutcome)(0),                  // 2: stoop.instance.v1.JobOutcome
-	(*HealthCheck)(nil),              // 3: stoop.instance.v1.HealthCheck
-	(*GetHealthRequest)(nil),         // 4: stoop.instance.v1.GetHealthRequest
-	(*GetHealthResponse)(nil),        // 5: stoop.instance.v1.GetHealthResponse
-	(*Gauge)(nil),                    // 6: stoop.instance.v1.Gauge
-	(*GetLiveStatsRequest)(nil),      // 7: stoop.instance.v1.GetLiveStatsRequest
-	(*GetLiveStatsResponse)(nil),     // 8: stoop.instance.v1.GetLiveStatsResponse
-	(*GetDatabaseStatsRequest)(nil),  // 9: stoop.instance.v1.GetDatabaseStatsRequest
-	(*GetDatabaseStatsResponse)(nil), // 10: stoop.instance.v1.GetDatabaseStatsResponse
-	(*GetRequestStatsRequest)(nil),   // 11: stoop.instance.v1.GetRequestStatsRequest
-	(*ProcedureStats)(nil),           // 12: stoop.instance.v1.ProcedureStats
-	(*GetRequestStatsResponse)(nil),  // 13: stoop.instance.v1.GetRequestStatsResponse
-	(*Job)(nil),                      // 14: stoop.instance.v1.Job
-	(*QueueStats)(nil),               // 15: stoop.instance.v1.QueueStats
-	(*ListJobsRequest)(nil),          // 16: stoop.instance.v1.ListJobsRequest
-	(*ListJobsResponse)(nil),         // 17: stoop.instance.v1.ListJobsResponse
-	nil,                              // 18: stoop.instance.v1.Job.CountersEntry
-	(*timestamppb.Timestamp)(nil),    // 19: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),      // 20: google.protobuf.Duration
+	(JobOutcome)(0),                  // 1: stoop.instance.v1.JobOutcome
+	(*HealthCheck)(nil),              // 2: stoop.instance.v1.HealthCheck
+	(*GetHealthRequest)(nil),         // 3: stoop.instance.v1.GetHealthRequest
+	(*GetHealthResponse)(nil),        // 4: stoop.instance.v1.GetHealthResponse
+	(*Gauge)(nil),                    // 5: stoop.instance.v1.Gauge
+	(*GetLiveStatsRequest)(nil),      // 6: stoop.instance.v1.GetLiveStatsRequest
+	(*GetLiveStatsResponse)(nil),     // 7: stoop.instance.v1.GetLiveStatsResponse
+	(*GetDatabaseStatsRequest)(nil),  // 8: stoop.instance.v1.GetDatabaseStatsRequest
+	(*GetDatabaseStatsResponse)(nil), // 9: stoop.instance.v1.GetDatabaseStatsResponse
+	(*GetRequestStatsRequest)(nil),   // 10: stoop.instance.v1.GetRequestStatsRequest
+	(*ProcedureStats)(nil),           // 11: stoop.instance.v1.ProcedureStats
+	(*GetRequestStatsResponse)(nil),  // 12: stoop.instance.v1.GetRequestStatsResponse
+	(*Job)(nil),                      // 13: stoop.instance.v1.Job
+	(*QueueStats)(nil),               // 14: stoop.instance.v1.QueueStats
+	(*ListJobsRequest)(nil),          // 15: stoop.instance.v1.ListJobsRequest
+	(*ListJobsResponse)(nil),         // 16: stoop.instance.v1.ListJobsResponse
+	nil,                              // 17: stoop.instance.v1.Job.CountersEntry
+	(*timestamppb.Timestamp)(nil),    // 18: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),      // 19: google.protobuf.Duration
 }
 var file_stoop_instance_v1_diagnostics_proto_depIdxs = []int32{
 	0,  // 0: stoop.instance.v1.HealthCheck.state:type_name -> stoop.instance.v1.CheckState
-	19, // 1: stoop.instance.v1.HealthCheck.checked_at:type_name -> google.protobuf.Timestamp
-	3,  // 2: stoop.instance.v1.GetHealthResponse.checks:type_name -> stoop.instance.v1.HealthCheck
-	19, // 3: stoop.instance.v1.GetHealthResponse.server_started_at:type_name -> google.protobuf.Timestamp
-	6,  // 4: stoop.instance.v1.GetLiveStatsResponse.gauges:type_name -> stoop.instance.v1.Gauge
-	19, // 5: stoop.instance.v1.GetLiveStatsResponse.at:type_name -> google.protobuf.Timestamp
-	1,  // 6: stoop.instance.v1.GetRequestStatsRequest.window:type_name -> stoop.instance.v1.StatsWindow
-	12, // 7: stoop.instance.v1.GetRequestStatsResponse.procedures:type_name -> stoop.instance.v1.ProcedureStats
-	20, // 8: stoop.instance.v1.Job.interval:type_name -> google.protobuf.Duration
-	19, // 9: stoop.instance.v1.Job.last_started:type_name -> google.protobuf.Timestamp
-	2,  // 10: stoop.instance.v1.Job.last_outcome:type_name -> stoop.instance.v1.JobOutcome
-	18, // 11: stoop.instance.v1.Job.counters:type_name -> stoop.instance.v1.Job.CountersEntry
-	19, // 12: stoop.instance.v1.Job.next_due:type_name -> google.protobuf.Timestamp
-	14, // 13: stoop.instance.v1.ListJobsResponse.jobs:type_name -> stoop.instance.v1.Job
-	15, // 14: stoop.instance.v1.ListJobsResponse.webhooks:type_name -> stoop.instance.v1.QueueStats
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	18, // 1: stoop.instance.v1.HealthCheck.checked_at:type_name -> google.protobuf.Timestamp
+	2,  // 2: stoop.instance.v1.GetHealthResponse.checks:type_name -> stoop.instance.v1.HealthCheck
+	18, // 3: stoop.instance.v1.GetHealthResponse.server_started_at:type_name -> google.protobuf.Timestamp
+	5,  // 4: stoop.instance.v1.GetLiveStatsResponse.gauges:type_name -> stoop.instance.v1.Gauge
+	18, // 5: stoop.instance.v1.GetLiveStatsResponse.at:type_name -> google.protobuf.Timestamp
+	11, // 6: stoop.instance.v1.GetRequestStatsResponse.procedures:type_name -> stoop.instance.v1.ProcedureStats
+	19, // 7: stoop.instance.v1.Job.interval:type_name -> google.protobuf.Duration
+	18, // 8: stoop.instance.v1.Job.last_started:type_name -> google.protobuf.Timestamp
+	1,  // 9: stoop.instance.v1.Job.last_outcome:type_name -> stoop.instance.v1.JobOutcome
+	17, // 10: stoop.instance.v1.Job.counters:type_name -> stoop.instance.v1.Job.CountersEntry
+	18, // 11: stoop.instance.v1.Job.next_due:type_name -> google.protobuf.Timestamp
+	13, // 12: stoop.instance.v1.ListJobsResponse.jobs:type_name -> stoop.instance.v1.Job
+	14, // 13: stoop.instance.v1.ListJobsResponse.webhooks:type_name -> stoop.instance.v1.QueueStats
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_stoop_instance_v1_diagnostics_proto_init() }
@@ -1298,7 +1235,7 @@ func file_stoop_instance_v1_diagnostics_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_instance_v1_diagnostics_proto_rawDesc), len(file_stoop_instance_v1_diagnostics_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      2,
 			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
