@@ -16,7 +16,7 @@ button.primary:hover {
 }
 
 button.primary:disabled {
-  opacity: 0.6;
+  opacity: var(--disabled);
   cursor: default;
 }
 
@@ -46,7 +46,7 @@ button.primary.danger {
 }
 
 .chip:disabled {
-  opacity: 0.5;
+  opacity: var(--disabled);
   cursor: default;
 }
 
@@ -80,7 +80,7 @@ button.primary.danger {
 }
 
 .icon-button:disabled {
-  opacity: 0.4;
+  opacity: var(--disabled);
   cursor: default;
 }
 
@@ -110,15 +110,15 @@ button.primary.danger {
 }
 
 .badge.ok {
-  background: color-mix(in srgb, var(--ok) 18%, transparent);
+  background: var(--ok-soft);
 }
 
 .badge.warn {
-  background: color-mix(in srgb, var(--warn) 20%, transparent);
+  background: var(--warn-soft);
 }
 
 .badge.danger {
-  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  background: var(--danger-soft);
 }
 
 /* The bot glyph after a name (BotMark): the size of the text it follows,

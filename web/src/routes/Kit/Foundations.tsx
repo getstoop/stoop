@@ -1,5 +1,15 @@
 const RADII = ["sm", "", "md", "lg", "pill"] as const;
 const SIZES = ["xs", "sm", "ui", "body", "lg", "xl", "display"] as const;
+const SWATCHES = [
+  "canvas",
+  "surface",
+  "panel",
+  "raised",
+  "ok-soft",
+  "warn-soft",
+  "danger-soft",
+  "danger-border",
+] as const;
 
 export function Foundations() {
   return (
@@ -33,9 +43,15 @@ export function Foundations() {
           </span>
         </div>
       ))}
-      <span className="kit-label">Surfaces</span>
+      <div className="kit-type">
+        <code>--font-mono</code>
+        <span style={{ fontFamily: "var(--font-mono)" }}>
+          The quick brown fox
+        </span>
+      </div>
+      <span className="kit-label">Surfaces and status tints</span>
       <div className="kit-row">
-        {["canvas", "surface", "panel", "raised"].map((s) => (
+        {SWATCHES.map((s) => (
           <div
             key={s}
             className="kit-type"

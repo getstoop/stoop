@@ -59,13 +59,27 @@ in their head. Add to this when a new rule earns its place.
 ## Web: design tokens and the kit
 
 - **Non-colour tokens live in `web/src/tokens.css`** — radius (`--radius-sm`
-  … `--radius-pill`), type (`--text-xs` … `--text-display`, `--tracking-caps`),
-  motion (`--dur-fast`, `--dur`, `--ease`), focus (`--focus-ring`) and
-  stacking (`--z-sticky` … `--z-modal`). Themes stay colour-only.
-- **No bare radius, font size, weight, z-index or duration in a feature
-  sheet.** Use the token; if none fits, add one and say why in its comment.
-  Weights are 400, 600 and 700. A component's own stacking (a toolbar over
-  its row) may use `z-index: 1` or `2`; anything fixed uses the ladder.
+  … `--radius-pill`), type (`--text-xs` … `--text-display`, `--tracking-caps`,
+  `--font-ui`, `--font-mono`, `--leading-tight`, `--leading-ui`,
+  `--leading-body`), motion (`--dur-fast`, `--dur`, `--ease`), focus
+  (`--focus-ring`), stacking (`--z-sticky` … `--z-modal`), the disabled
+  opacity (`--disabled`) and layout widths (`--rail-w`, `--sidebar-w`).
+  Themes stay colour-only.
+- **Status tints are derived there too** — `--ok-soft`, `--warn-soft`,
+  `--danger-soft`, `--danger-border`, mixed from the theme's colours in a
+  second block on `:root, [data-theme]`. Use them instead of an inline
+  `color-mix()` of a status colour.
+- **No bare radius, font family, font size, weight, line height, z-index
+  or duration in a feature sheet.** Use the token; if none fits, add one
+  and say why in its comment. Weights are 400, 600 and 700. `font-family`
+  is `--font-ui`, `--font-mono` or `inherit`; `line-height` is a
+  `--leading-*` token, `1`, `normal` or `inherit`. A component's own
+  stacking (a toolbar over its row) may use `z-index: 1` or `2`; anything
+  fixed uses the ladder.
+- **Opacity is `0`, `1` or `var(--disabled)`.** Anything disabled or
+  inactive uses `--disabled`; an opacity that means something else (a
+  keyframe step, a decorative dim) keeps its value with an `off-scale:`
+  comment.
 - **Spacing is written in px on the scale 2 4 6 8 12 16 20 24 32.** There
   are no spacing tokens — `gap: 8px` reads better than a variable. Padding
   pairs use two values from the scale. A value that must break the scale

@@ -61,6 +61,7 @@
 .user-card-bio {
   color: var(--text);
   font-size: var(--text-sm);
+  /* off-scale: looser lines for a paragraph at the small size */
   line-height: 1.5;
   /* A pasted URL has no spaces to break at and would widen the card. */
   overflow-wrap: anywhere;

@@ -4,7 +4,7 @@
   padding: 0 4px;
   border-radius: var(--radius-sm);
   background: var(--raised);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.9em;
 }
 
@@ -16,7 +16,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--raised);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.9em;
   overflow-x: auto;
   white-space: pre;

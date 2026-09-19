@@ -12,7 +12,7 @@
 }
 
 .channel-link.muted {
-  opacity: 0.6;
+  opacity: var(--disabled);
 }
 
 .channel-menu-anchor {

@@ -26,7 +26,7 @@
 }
 
 .settings-nav {
-  width: 244px;
+  width: var(--sidebar-w);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -88,7 +88,7 @@
 
 .settings-content > .card.danger-zone {
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius-lg);
   background: var(--panel);
 }

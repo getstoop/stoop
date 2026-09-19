@@ -154,6 +154,7 @@
 
 @keyframes live-ping {
   from {
+    /* off-scale: where the ping's fade starts */
     opacity: 0.7;
     transform: scale(1);
   }
