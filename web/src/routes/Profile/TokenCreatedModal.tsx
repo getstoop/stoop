@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { serverOrigin } from "../../api/origin";
+import { CopyButton } from "../../components/CopyButton";
 import { Modal } from "../../components/Modal";
 
 // The only time a personal token is shown: Stoop keeps its hash and last
@@ -13,14 +13,7 @@ export function TokenCreatedModal({
   secret: string;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
   const origin = serverOrigin() || window.location.origin;
-
-  const copy = async () => {
-    await navigator.clipboard?.writeText(secret);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  };
 
   return (
     <Modal
@@ -38,9 +31,7 @@ export function TokenCreatedModal({
         </p>
         <div className="token-secret">
           <code data-token-secret>{secret}</code>
-          <button type="button" className="chip" onClick={copy}>
-            {copied ? "Copied" : "Copy"}
-          </button>
+          <CopyButton text={secret} />
         </div>
         <div className="field">
           Try it

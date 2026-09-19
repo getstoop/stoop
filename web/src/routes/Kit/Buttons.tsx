@@ -1,3 +1,4 @@
+import { CopyButton } from "../../components/CopyButton";
 import { GearIcon } from "../../components/Icons";
 
 export function Buttons() {
@@ -27,6 +28,7 @@ export function Buttons() {
         <button type="button" className="chip" disabled>
           Revoked
         </button>
+        <CopyButton text="https://stoop.example/join/4fQ9xK2mBz" />
       </div>
       <span className="eyebrow">Link</span>
       <div className="kit-row">

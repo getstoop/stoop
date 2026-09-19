@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 import { authClient, chatClient } from "../api/clients";
 import { inviteLink } from "../api/invites";
 import { useInstanceStatus } from "../api/queries";
+import { CopyButton } from "../components/CopyButton";
 import { LoginProviders } from "../components/LoginProviders";
 import { ReachabilityForm } from "../components/ReachabilityForm";
 
@@ -210,7 +211,6 @@ function InviteStep() {
   const { data: instanceStatus } = useInstanceStatus();
   const [link, setLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const space = createdSpace;
 
   if (!space) {
@@ -233,14 +233,6 @@ function InviteStep() {
       .catch((err) => setError(errorText(err)));
   }
 
-  const copy = () => {
-    if (!link) return;
-    navigator.clipboard.writeText(link).then(
-      () => setCopied(true),
-      () => setError("Couldn't copy to the clipboard"),
-    );
-  };
-
   const go = () =>
     navigate({
       to: "/s/$spaceId/c/$channelId",
@@ -261,9 +253,7 @@ function InviteStep() {
       {link ? (
         <div className="link-box">
           <code title={link}>{link}</code>
-          <button type="button" className="chip" onClick={copy}>
-            {copied ? "Copied!" : "Copy"}
-          </button>
+          <CopyButton text={link} />
         </div>
       ) : error ? (
         <p className="error">{error}</p>

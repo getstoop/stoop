@@ -107,6 +107,11 @@ in their head. Add to this when a new rule earns its place.
   setting, a secret shown once; `.callout.warn` when it is a caution. A
   feature keeps only its margin and inner parts. An error from a submit is
   not a callout: it stays a `.error` line.
+- **A "Copy" chip is `<CopyButton text>`** (`components/CopyButton.tsx`):
+  it says "Copied!" for a moment and raises a `notice` when the clipboard
+  refuses. Don't call `navigator.clipboard` beside a hand-made chip;
+  `InviteModal`, which also copies a new invite's code on create, is the
+  one that still does.
 - **A user avatar is `<Avatar>`, sized by `size`.** `.avatar` in
   `controls.css` owns the circle, the fill, the initials and the bot face;
   `.small`, `.medium` and `.large` set `--avatar-size` to 24, 40 and 64px
