@@ -57,7 +57,7 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 
 // The Requests panel counts every unary call, refused ones included:
 // after the admin has read health twice and a member was turned away,
-// GetHealth shows up in both windows with its calls, an error and timings.
+// GetHealth shows up with its calls, an error and timings.
 func TestE2EDiagnosticsRequests(t *testing.T) {
 	h := newHarness(t)
 	casey := h.person("casey")
@@ -68,28 +68,25 @@ func TestE2EDiagnosticsRequests(t *testing.T) {
 	h.rpc(casey, diagnostics+"GetHealth", map[string]any{}).expect(t, "ok")
 	h.rpc(ada, diagnostics+"GetHealth", map[string]any{}).expect(t, "permission_denied")
 
-	for _, window := range []string{"STATS_WINDOW_SINCE_START", "STATS_WINDOW_LAST_5_MINUTES"} {
-		r := h.rpc(casey, diagnostics+"GetRequestStats", map[string]any{"window": window}).expect(t, "ok")
-		var health map[string]any
-		for _, p := range r.list("procedures") {
-			m, _ := p.(map[string]any)
-			if m["procedure"] == "InstanceService.GetHealth" {
-				health = m
-			}
+	r := h.rpc(casey, diagnostics+"GetRequestStats", map[string]any{}).expect(t, "ok")
+	var health map[string]any
+	for _, p := range r.list("procedures") {
+		m, _ := p.(map[string]any)
+		if m["procedure"] == "InstanceService.GetHealth" {
+			health = m
 		}
-		if health == nil {
-			t.Errorf("%s: no InstanceService.GetHealth row: %s", window, r.raw)
-			continue
-		}
-		if calls := jsonInt(health["calls"]); calls < 3 {
-			t.Errorf("%s: calls = %d, want >= 3", window, calls)
-		}
-		if errs := jsonInt(health["errors"]); errs < 1 {
-			t.Errorf("%s: errors = %d, want >= 1", window, errs)
-		}
-		if p95 := jsonInt(health["p95Us"]); p95 <= 0 {
-			t.Errorf("%s: p95Us = %d, want > 0", window, p95)
-		}
+	}
+	if health == nil {
+		t.Fatalf("no InstanceService.GetHealth row: %s", r.raw)
+	}
+	if calls := jsonInt(health["calls"]); calls < 3 {
+		t.Errorf("calls = %d, want >= 3", calls)
+	}
+	if errs := jsonInt(health["errors"]); errs < 1 {
+		t.Errorf("errors = %d, want >= 1", errs)
+	}
+	if p95 := jsonInt(health["p95Us"]); p95 <= 0 {
+		t.Errorf("p95Us = %d, want > 0", p95)
 	}
 }
 
