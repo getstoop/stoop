@@ -22,7 +22,8 @@ export function imageStyle(fileId: string): CSSProperties {
 }
 
 // A user's avatar: one .avatar span in every context, showing the
-// uploaded image or the initials when there is none. The image is
+// uploaded image or the initials when there is none. The kit's .avatar
+// rule draws it; size picks 24, 40 or 64px, and none is 40px. The image is
 // decorative — the name is always rendered beside it. data-file-id lets
 // specs find image avatars.
 export function Avatar({

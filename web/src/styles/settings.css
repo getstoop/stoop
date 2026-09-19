@@ -203,20 +203,6 @@
   margin: 2px 0 0;
 }
 
-.avatar.large {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 700;
-  font-size: var(--text-xl);
-  flex-shrink: 0;
-}
-
 /* The section links. A row on their own (the kit page); a column in
    the settings nav. */
 .settings-tabs {

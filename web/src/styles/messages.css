@@ -120,19 +120,6 @@
   cursor: pointer;
 }
 
-.avatar.medium {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-body);
-  font-weight: 700;
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
 .message.continued .message-meta {
   display: none;
 }

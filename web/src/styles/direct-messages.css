@@ -12,10 +12,6 @@
   padding: 4px 12px;
 }
 
-.dm-link .avatar {
-  flex-shrink: 0;
-}
-
 .dm-empty {
   padding: 6px 12px;
   line-height: var(--leading-ui);
