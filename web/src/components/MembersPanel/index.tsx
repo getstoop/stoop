@@ -59,7 +59,7 @@ export function MembersPanel({ spaceId }: { spaceId: string }) {
       ref={panel}
       style={lockedHeight === null ? undefined : { height: lockedHeight }}
     >
-      <h4 className="members-heading">
+      <h4 className="members-heading eyebrow">
         Members
         {members &&
           ` · ${headingText(searching ? all.length : people.length, onlineCount, shownCount, searching)}`}

@@ -8,6 +8,7 @@ export function Parts() {
         <span className="badge warn">Reconnecting</span>
         <span className="badge danger">Expired</span>
       </div>
+      <span className="eyebrow">Eyebrow: the heading over a group</span>
       <nav className="settings-tabs">
         <a className="settings-tab" href="/kit">
           Overview
@@ -19,8 +20,8 @@ export function Parts() {
           Invites
         </a>
       </nav>
-      <div className="day-divider">Today</div>
-      <div className="new-divider">New</div>
+      <div className="day-divider eyebrow">Today</div>
+      <div className="new-divider eyebrow">New</div>
       <div className="kit-row">
         <span className="avatar small">A</span>
         <span className="avatar medium">JH</span>

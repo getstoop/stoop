@@ -115,7 +115,7 @@ export function SpacePicker({
           id={listId}
           role="listbox"
           aria-label="Spaces"
-          className="space-picker-options"
+          className="space-picker-options popover"
           style={listPosition(anchor)}
         >
           {matches.length === 0 && (

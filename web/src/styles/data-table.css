@@ -58,6 +58,7 @@ label.dt-hidden-toggle {
   text-align: left;
   font-size: var(--text-xs);
   font-weight: 600;
+  /* off-scale: .eyebrow by element, so a sub-table's bare th gets it too */
   text-transform: uppercase;
   letter-spacing: var(--tracking-caps);
   color: var(--text-muted);
@@ -149,6 +150,7 @@ th[aria-sort] .dt-sort-arrow {
   position: relative;
   z-index: 1;
   background: var(--surface);
+  /* off-scale: a lifted row, not a popover */
   box-shadow: var(--shadow);
 }
 

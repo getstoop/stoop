@@ -68,11 +68,6 @@
 .integration-form .event-types legend {
   padding: 0;
   margin-bottom: 8px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--text-muted);
 }
 
 .integration-switches .setting-control input[type="checkbox"] {

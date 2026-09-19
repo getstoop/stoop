@@ -347,12 +347,12 @@ export function MessageList({
         {messages.map((message, i) => (
           <Fragment key={message.id}>
             {message.createdAt && startsDay(message, messages[i - 1]) && (
-              <div className="day-divider">
+              <div className="day-divider eyebrow">
                 <span>{dayLabel(timestampDate(message.createdAt))}</span>
               </div>
             )}
             {message.id === firstNewId && (
-              <div ref={dividerRef} className="new-divider">
+              <div ref={dividerRef} className="new-divider eyebrow">
                 <span>New messages</span>
               </div>
             )}
@@ -364,7 +364,7 @@ export function MessageList({
               className={`message ${continues(message, messages[i - 1]) ? "continued" : ""}`}
             >
               {message.pinned && (
-                <div className="pinned-marker">
+                <div className="pinned-marker eyebrow">
                   <PinIcon size={11} />
                   Pinned
                 </div>

@@ -72,7 +72,7 @@ export function ActivityPage() {
           {all.map((item, i) => (
             <Fragment key={item.id}>
               {item.createdAt && startsDay(item, all[i - 1]) && (
-                <li className="day-divider">
+                <li className="day-divider eyebrow">
                   <span>{dayLabel(timestampDate(item.createdAt))}</span>
                 </li>
               )}

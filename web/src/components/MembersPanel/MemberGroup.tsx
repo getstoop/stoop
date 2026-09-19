@@ -20,7 +20,7 @@ export function MemberGroup({
     <li className="member-group">
       <button
         type="button"
-        className={`member-group-heading ${open ? "open" : ""}`}
+        className={`member-group-heading eyebrow ${open ? "open" : ""}`}
         onClick={onToggle}
         aria-expanded={open}
       >

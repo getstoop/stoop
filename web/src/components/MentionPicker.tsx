@@ -16,7 +16,7 @@ export function MentionPicker({
 }) {
   if (candidates.length === 0) return null;
   return (
-    <ul className="mention-picker" aria-label="Mention a member">
+    <ul className="mention-picker popover" aria-label="Mention a member">
       {candidates.map((m, i) => (
         <li key={m.userId}>
           <button

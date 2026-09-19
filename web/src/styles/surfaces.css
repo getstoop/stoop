@@ -1,7 +1,7 @@
 /* ---- Panels with a border: the card a settings page is built from, the
-   modal, the ⋮ menu and the tooltip. Other popovers (pickers, the user
-   card) follow the menu's recipe — --panel, --border, --shadow,
-   --z-popover — in their own sheets. ---- */
+   modal, and .popover — the floating panel the ⋮ menu, the tooltip, the
+   pickers and the user card all wear. An adopter keeps its own position,
+   z-index and padding. ---- */
 
 .card {
   display: flex;
@@ -88,6 +88,13 @@
   gap: 8px;
 }
 
+.popover {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
 /* The ⋮ menu (components/DotsMenu.tsx): a button in a wrapper, and a
    list of actions fixed to the viewport so a scrolling parent can't clip
    it. The component computes top/left/width. */
@@ -102,10 +109,6 @@
   display: flex;
   flex-direction: column;
   padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--panel);
-  box-shadow: var(--shadow);
 }
 
 .dots-menu button {
@@ -152,10 +155,6 @@
   flex-direction: column;
   gap: 2px;
   padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--panel);
-  box-shadow: var(--shadow);
   color: var(--text);
   font-size: var(--text-ui);
   pointer-events: none;

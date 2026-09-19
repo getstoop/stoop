@@ -35,7 +35,7 @@ export function LivePopover({
   const style: CSSProperties = { ...at, width: POPOVER_WIDTH };
 
   return (
-    <div className="live-popover" style={style}>
+    <div className="live-popover popover" style={style}>
       <div className="live-popover-head">
         <strong>{channel?.name ?? "…"}</strong>
         <span>{space?.name ?? "…"}</span>

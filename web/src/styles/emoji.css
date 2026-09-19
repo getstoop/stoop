@@ -8,9 +8,6 @@
   gap: 8px;
   padding: 8px;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  background: var(--panel);
-  box-shadow: var(--shadow);
 }
 
 .emoji-picker input {
@@ -23,10 +20,7 @@
 }
 
 .emoji-section {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--text-muted);
+  font-weight: inherit;
 }
 
 .emoji-body {

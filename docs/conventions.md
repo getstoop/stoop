@@ -43,7 +43,7 @@ in their head. Add to this when a new rule earns its place.
   `index.css` before `mobile.css`.
 - **Shared controls go in the kit** — `controls.css`, `fields.css`,
   `surfaces.css` (next section); page furniture and utilities (`.muted`,
-  `.small`, `.hint`, `.error`, `.empty-state`) in `base.css`. A class the
+  `.small`, `.hint`, `.eyebrow`, `.error`, `.empty-state`) in `base.css`. A class the
   second feature wants to reuse moves there.
 - **Order is the cascade.** `index.css` runs general → specific: `tokens`,
   `base`, the kit, then pages and features, then `mobile.css` last. Ties on
@@ -88,12 +88,20 @@ in their head. Add to this when a new rule earns its place.
   the same marker excuses the one colour literal (the video letterbox).
 - **The kit — `controls.css`, `fields.css`, `surfaces.css` — owns the
   parts every feature reaches for:** `button.primary`, `.chip`,
-  `.icon-button`, `.badge`; text inputs, selects and textareas (styled at
+  `.icon-button`, `.badge`, `.eyebrow` (the small uppercase heading, in
+  `base.css`); text inputs, selects and textareas (styled at
   zero specificity with `:where()`, so any feature rule wins), the
   words-above-field label and `label.toggle-row`; `.card`, `.card-row`,
-  `.modal`, `.dots-menu`, `.tooltip`. A feature sheet styles layout and the feature's own parts; it
+  `.modal`, `.popover`, `.dots-menu`, `.tooltip`. A feature sheet styles layout and the feature's own parts; it
   never declares an input or a button from scratch, and a control the
   second feature wants moves to the kit before the second feature uses it.
+- **No `text-transform: uppercase` outside `base.css` and `controls.css`.**
+  Put `eyebrow` on the element and keep only layout, or a differing
+  colour or weight, in the feature rule.
+- **No `box-shadow: var(--shadow)` outside `surfaces.css`.** A floating
+  panel takes `popover` and keeps its own position, `z-index`, padding and,
+  where it differs, radius. Either rule gives way to an `off-scale:`
+  comment with the reason (a pseudo-element, a lifted row).
 - **No browser dialogs.** `window.confirm`, `prompt` and `alert` are
   replaced by `confirm`, `prompt` and `notice` from `stores/dialogs.ts` —
   the same promise shape, rendered by `components/DialogHost.tsx` at the

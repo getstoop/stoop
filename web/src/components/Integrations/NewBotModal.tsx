@@ -141,7 +141,7 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
           </span>
         </label>
         <fieldset className="token-scope">
-          <legend>In these spaces</legend>
+          <legend className="eyebrow">In these spaces</legend>
           <SpacePicker
             spaces={spaces ?? []}
             selected={spaceIds}

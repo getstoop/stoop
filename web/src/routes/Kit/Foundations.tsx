@@ -15,7 +15,7 @@ export function Foundations() {
   return (
     <section className="kit-section">
       <h2>Foundations</h2>
-      <span className="kit-label">Radius</span>
+      <span className="eyebrow">Radius</span>
       <div className="kit-row">
         {RADII.map((r) => {
           const name = r ? `--radius-${r}` : "--radius";
@@ -34,7 +34,7 @@ export function Foundations() {
           );
         })}
       </div>
-      <span className="kit-label">Type</span>
+      <span className="eyebrow">Type</span>
       {SIZES.map((s) => (
         <div key={s} className="kit-type">
           <code>--text-{s}</code>
@@ -49,7 +49,7 @@ export function Foundations() {
           The quick brown fox
         </span>
       </div>
-      <span className="kit-label">Surfaces and status tints</span>
+      <span className="eyebrow">Surfaces and status tints</span>
       <div className="kit-row">
         {SWATCHES.map((s) => (
           <div

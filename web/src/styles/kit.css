@@ -42,14 +42,6 @@
   flex: 1 1 240px;
 }
 
-.kit-label {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--text-muted);
-}
-
 .kit-swatch {
   width: 56px;
   height: 56px;

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Every sheet under web/src/styles must build on the tokens: no literal
 // radius, font family, size, weight, line height, opacity, z-index,
-// duration or colour, and every gap and padding on the spacing scale
-// (docs/conventions.md → Design tokens).
+// duration or colour, every gap and padding on the spacing scale, and no
+// copy of .eyebrow or .popover (docs/conventions.md → Design tokens).
 // A declaration that has to break a rule carries a comment on the line
 // before it (or the same line) containing "off-scale:" and the reason.
 // Run by `make lint`, beside check-themes.mjs.
@@ -17,6 +17,9 @@ const FONTS = new Set(["var(--font-ui)", "var(--font-mono)", "inherit"]);
 const LEADING = new Set(["1", "normal", "inherit"]);
 const OPACITY = new Set(["0", "1", "var(--disabled)"]);
 const ESCAPE = /off-scale:/;
+// Recipes the kit owns: .eyebrow and .badge, and .popover.
+const CAPS_SHEETS = new Set(["base.css", "controls.css"]);
+const SHADOW_SHEETS = new Set(["surfaces.css"]);
 
 const isVar = (v) => /^var\(--[a-z-]+\)$/.test(v);
 const checks = {
@@ -40,6 +43,10 @@ const checks = {
       ? null
       : "z-index must be a --z token (1 or 2 for stacking inside a component)",
   transition: (v) => (/\b\d+(\.\d+)?m?s\b/.test(v) ? "transition must use --dur / --dur-fast" : null),
+  "text-transform": (v, file) =>
+    v === "uppercase" && !CAPS_SHEETS.has(file) ? "uppercase belongs to .eyebrow or .badge; use the class" : null,
+  "box-shadow": (v, file) =>
+    v === "var(--shadow)" && !SHADOW_SHEETS.has(file) ? "--shadow belongs to .popover; use the class" : null,
 };
 const spacing = (v) => {
   for (const t of v.split(/\s+/)) {
