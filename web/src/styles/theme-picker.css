@@ -17,11 +17,6 @@
 .theme-filters legend {
   padding: 0;
   margin-bottom: 8px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--text-muted);
 }
 
 .theme-cards {
@@ -64,14 +59,6 @@
   justify-content: space-between;
   padding: 0 12px;
   font-weight: 600;
-}
-
-.theme-card-kind {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-  color: var(--text-muted);
 }
 
 .theme-card-blurb {

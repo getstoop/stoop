@@ -91,6 +91,15 @@ input {
   color: var(--text-muted);
 }
 
+/* A small uppercase heading over a group: a list section, a legend. */
+.eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+}
+
 .centered {
   flex: 1;
   display: flex;

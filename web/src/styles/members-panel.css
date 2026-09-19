@@ -12,11 +12,6 @@
 
 .members-heading {
   margin: 0 0 6px 10px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--text-muted);
 }
 
 .members-search {
@@ -66,11 +61,6 @@
   border-radius: var(--radius);
   background: none;
   text-align: left;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--text-muted);
 }
 
 .member-group-heading:hover {

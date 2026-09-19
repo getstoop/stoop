@@ -125,7 +125,7 @@ export function UserCard({
   return (
     <div
       ref={ref}
-      className="user-card"
+      className="user-card popover"
       role="dialog"
       aria-label="Member profile"
       style={{ left, top, width }}

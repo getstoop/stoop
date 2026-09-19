@@ -37,6 +37,11 @@ export function Surfaces() {
         <p className="muted">A modal is the same panel, floated.</p>
       </div>
       <div className="kit-row">
+        <div className="popover" style={{ padding: 8 }}>
+          A popover: the panel every menu, picker and tooltip floats on
+        </div>
+      </div>
+      <div className="kit-row">
         <span className="muted">
           A ⋮ menu: the row's actions, out of the way
         </span>

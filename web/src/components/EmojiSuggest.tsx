@@ -12,7 +12,10 @@ export function EmojiSuggest({
 }) {
   if (candidates.length === 0) return null;
   return (
-    <ul className="mention-picker emoji-suggest" aria-label="Insert an emoji">
+    <ul
+      className="mention-picker emoji-suggest popover"
+      aria-label="Insert an emoji"
+    >
       {candidates.map((s, i) => (
         <li key={s.code}>
           <button

@@ -12,10 +12,6 @@
   margin: 0;
   padding: 6px;
   list-style: none;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow);
   max-height: 260px;
   overflow-y: auto;
 }

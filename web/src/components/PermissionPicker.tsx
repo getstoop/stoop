@@ -34,7 +34,7 @@ export function PermissionPicker({
         if (inGroup.length === 0) return null;
         return (
           <fieldset key={group}>
-            <legend>{groupLabels[group]}</legend>
+            <legend className="eyebrow">{groupLabels[group]}</legend>
             {inGroup.map((o) => (
               <label key={o.key} className="toggle-row">
                 <input

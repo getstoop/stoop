@@ -46,6 +46,7 @@
   .channel-sidebar {
     left: var(--rail-w);
     width: min(280px, calc(100vw - var(--rail-w)));
+    /* off-scale: the drawer floats over the page */
     box-shadow: var(--shadow);
     border-top-left-radius: 0;
   }
@@ -350,6 +351,7 @@
     /* off-scale: one label gutter so the values line up down the stack */
     min-width: 72px;
     font-size: var(--text-xs);
+    /* off-scale: a pseudo-element cannot take .eyebrow */
     text-transform: uppercase;
     letter-spacing: var(--tracking-caps);
   }

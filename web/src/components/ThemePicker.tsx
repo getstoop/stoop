@@ -42,7 +42,7 @@ export function ThemePicker() {
         In use: {current?.name} ({current?.tier}).
       </p>
       <fieldset className="theme-filters">
-        <legend>Show</legend>
+        <legend className="eyebrow">Show</legend>
         {THEME_FILTERS.map((f) => (
           <button
             key={f.id}
@@ -100,7 +100,7 @@ export function ThemePicker() {
             </span>
             <span className="theme-card-name">
               {t.name}
-              <span className="theme-card-kind">{t.tier}</span>
+              <span className="theme-card-kind eyebrow">{t.tier}</span>
             </span>
             <span className="theme-card-blurb">{t.blurb}</span>
             {filter === "accessible" && t.why && (

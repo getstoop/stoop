@@ -140,7 +140,7 @@ export function OutgoingHookModal({
           </select>
         </label>
         <fieldset className="event-types">
-          <legend>Send when</legend>
+          <legend className="eyebrow">Send when</legend>
           {EVENT_TYPES.map((e) => (
             <label key={e.key} className="toggle-row">
               <input

@@ -71,7 +71,7 @@ export function PinnedMessages({
         <PinIcon />
       </button>
       {open && (
-        <div className="pins-panel" role="menu">
+        <div className="pins-panel popover" role="menu">
           <div className="pins-head">
             <span className="pins-title">Pinned messages</span>
             {!!pins?.length && (

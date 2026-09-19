@@ -118,7 +118,7 @@ export function DotsMenu({
       </button>
       {open && anchor && (
         <div
-          className="dots-menu"
+          className="dots-menu popover"
           role="menu"
           style={menuPosition(anchor, items.length)}
         >

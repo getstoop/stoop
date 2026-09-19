@@ -74,6 +74,7 @@
   color: var(--text);
   font-size: var(--text-ui);
   font-weight: 600;
+  /* off-scale: a floating pill, not a popover */
   box-shadow: var(--shadow);
   z-index: 2;
 }

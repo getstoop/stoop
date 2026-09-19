@@ -17,7 +17,7 @@ export function ChannelGroupHeading({
 }) {
   return (
     <div className={`channel-group-heading ${divided ? "divided" : ""}`}>
-      <h4>{label}</h4>
+      <h4 className="eyebrow">{label}</h4>
       {add && (
         <button
           type="button"

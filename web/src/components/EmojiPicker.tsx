@@ -78,7 +78,7 @@ export function EmojiPicker({
   return (
     <div
       ref={ref}
-      className="emoji-picker"
+      className="emoji-picker popover"
       role="dialog"
       aria-label="Add reaction"
       style={{ left, top, width }}
@@ -111,15 +111,15 @@ export function EmojiPicker({
           <>
             {recent.length > 0 && (
               <>
-                <div className="emoji-section">Recent</div>
+                <div className="emoji-section eyebrow">Recent</div>
                 {grid("emoji-recent", recent)}
               </>
             )}
-            <div className="emoji-section">Common</div>
+            <div className="emoji-section eyebrow">Common</div>
             {grid("emoji-common", COMMON_EMOJI)}
             {EMOJI_GROUPS.map(([name, entries]) => (
               <div key={name} className="emoji-group">
-                <div className="emoji-section">{name}</div>
+                <div className="emoji-section eyebrow">{name}</div>
                 {grid(
                   "emoji-all",
                   entries.map(([e]) => e),
