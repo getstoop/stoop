@@ -308,9 +308,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	livekit := newLiveKitReporter(cfg, voiceOpts)
 	instanceSvc.UseLiveKit(livekit)
 	// The Diagnostics tab's Health panel, in the order it lists them.
-	instanceSvc.UseStartedAt(time.Now())
+	started := time.Now()
+	instanceSvc.UseStartedAt(started)
 	instanceSvc.UseHealthChecks(
-		newPostgresCheck(pool),
+		newPostgresCheck(pool, started),
 		newLiveKitCheck(voiceOpts, livekit),
 		newStorageCheck(store.Root(), filesSvc),
 		instanceSvc.PublicAddressCheck(),

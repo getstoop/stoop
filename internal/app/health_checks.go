@@ -29,7 +29,8 @@ const (
 // ---- postgres ----
 
 type postgresCheck struct {
-	pool *pgxpool.Pool
+	pool    *pgxpool.Pool
+	started time.Time
 
 	mu         sync.Mutex
 	lastWaits  int64
@@ -37,8 +38,8 @@ type postgresCheck struct {
 	lastGrowth time.Time
 }
 
-func newPostgresCheck(pool *pgxpool.Pool) instance.HealthCheck {
-	c := &postgresCheck{pool: pool}
+func newPostgresCheck(pool *pgxpool.Pool, started time.Time) instance.HealthCheck {
+	c := &postgresCheck{pool: pool, started: started}
 	return instance.HealthCheck{Name: "postgres", Run: c.run}
 }
 
@@ -55,11 +56,12 @@ func (c *postgresCheck) run(ctx context.Context) (instance.CheckState, string) {
 
 // waitsGrew reports whether the pool ran empty within the last minute.
 // The counter is cumulative since start, so the first sample only sets
-// the baseline.
+// the baseline, and the first minute is ignored: every loop opens a
+// connection at boot, and that burst is not a saturated pool.
 func (c *postgresCheck) waitsGrew(waits int64, now time.Time) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.sampled && waits > c.lastWaits {
+	if c.sampled && waits > c.lastWaits && now.Sub(c.started) >= waitsWindow {
 		c.lastGrowth = now
 	}
 	c.lastWaits, c.sampled = waits, true
