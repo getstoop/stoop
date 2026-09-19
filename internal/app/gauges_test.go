@@ -20,9 +20,10 @@ func TestPerMinute(t *testing.T) {
 	if got := read(); got != 30 {
 		t.Errorf("read again = %v/min, want 30", got)
 	}
+	// The sample from a minute ago is the window's edge: 60 calls in 60 s.
 	total, now = 65, now.Add(60*time.Second)
-	if got := read(); got != 65*60/70.0 {
-		t.Errorf("65 calls in 70 s = %v/min, want %v", got, 65*60/70.0)
+	if got := read(); got != 60 {
+		t.Errorf("60 calls in the last minute = %v/min, want 60", got)
 	}
 	// A minute later with no calls, the old growth has left the window.
 	now = now.Add(60 * time.Second)
