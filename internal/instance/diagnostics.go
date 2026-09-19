@@ -52,15 +52,11 @@ func toProtoCheckState(st CheckState) instancev1.CheckState {
 
 var errNotBuilt = errors.New("this panel is not built yet")
 
-func (s *Service) GetRequestStats(ctx context.Context, req *connect.Request[instancev1.GetRequestStatsRequest]) (*connect.Response[instancev1.GetRequestStatsResponse], error) {
+func (s *Service) GetRequestStats(ctx context.Context, _ *connect.Request[instancev1.GetRequestStatsRequest]) (*connect.Response[instancev1.GetRequestStatsResponse], error) {
 	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
-	window := diag.Last5Minutes
-	if req.Msg.Window == instancev1.StatsWindow_STATS_WINDOW_SINCE_START {
-		window = diag.SinceStart
-	}
-	procs := diag.RPC.Procedures(window)
+	procs := diag.RPC.Procedures(diag.Last5Minutes)
 	resp := &instancev1.GetRequestStatsResponse{Procedures: make([]*instancev1.ProcedureStats, len(procs))}
 	for i, p := range procs {
 		resp.Procedures[i] = &instancev1.ProcedureStats{
