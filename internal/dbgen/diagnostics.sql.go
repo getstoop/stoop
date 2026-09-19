@@ -7,51 +7,44 @@ package dbgen
 
 import (
 	"context"
-	"time"
 )
 
-const queueStats = `-- name: QueueStats :one
+const getDatabaseFacts = `-- name: GetDatabaseFacts :one
 
 SELECT
-    count(*) FILTER (WHERE finished_at IS NULL
-        AND (leased_until IS NULL OR leased_until < $1::timestamptz))::bigint AS queued,
-    count(*) FILTER (WHERE finished_at IS NULL
-        AND leased_until >= $1::timestamptz)::bigint AS leased,
-    count(*) FILTER (WHERE finished_at IS NOT NULL
-        AND (status_code IS NULL OR status_code NOT BETWEEN 200 AND 299))::bigint AS dead,
-    count(*) FILTER (WHERE finished_at IS NOT NULL
-        AND (status_code IS NULL OR status_code NOT BETWEEN 200 AND 299)
-        AND finished_at >= $2::timestamptz)::bigint AS dead_last_hour,
-    (SELECT count(*) FROM outgoing_webhooks)::bigint AS hooks
-FROM webhook_deliveries
+  pg_database_size(current_database())::bigint AS database_bytes,
+  (SELECT count(*) FROM pg_catalog.pg_stat_activity
+    WHERE datname = current_database() AND state = 'active')::int AS backends_active,
+  (SELECT count(*) FROM pg_catalog.pg_stat_activity
+    WHERE datname = current_database() AND state LIKE 'idle%')::int AS backends_idle,
+  coalesce((SELECT (extract(epoch FROM max(now() - xact_start)) * 1000)::bigint
+    FROM pg_catalog.pg_stat_activity
+    WHERE datname = current_database() AND state = 'active'), 0)::bigint AS oldest_transaction_ms,
+  current_setting('server_version')::text AS server_version,
+  (SELECT coalesce(min(min_migration), 0) FROM schema_floor)::bigint AS schema_floor
 `
 
-type QueueStatsParams struct {
-	Now   time.Time
-	Since time.Time
+type GetDatabaseFactsRow struct {
+	DatabaseBytes       int64
+	BackendsActive      int32
+	BackendsIdle        int32
+	OldestTransactionMs int64
+	ServerVersion       string
+	SchemaFloor         int64
 }
 
-type QueueStatsRow struct {
-	Queued       int64
-	Leased       int64
-	Dead         int64
-	DeadLastHour int64
-	Hooks        int64
-}
-
-// The Background work panel's view of the queue, in one pass over
-// webhook_deliveries. A finished delivery is dead unless its status was
-// 2xx, the reading settleDead makes. The hook count is for the OFF state.
-// See docs/proposals/diagnostics.md.
-func (q *Queries) QueueStats(ctx context.Context, arg QueueStatsParams) (QueueStatsRow, error) {
-	row := q.db.QueryRow(ctx, queueStats, arg.Now, arg.Since)
-	var i QueueStatsRow
+// The Diagnostics tab's Database panel: one round trip, this database
+// only. Owned by the instance module.
+func (q *Queries) GetDatabaseFacts(ctx context.Context) (GetDatabaseFactsRow, error) {
+	row := q.db.QueryRow(ctx, getDatabaseFacts)
+	var i GetDatabaseFactsRow
 	err := row.Scan(
-		&i.Queued,
-		&i.Leased,
-		&i.Dead,
-		&i.DeadLastHour,
-		&i.Hooks,
+		&i.DatabaseBytes,
+		&i.BackendsActive,
+		&i.BackendsIdle,
+		&i.OldestTransactionMs,
+		&i.ServerVersion,
+		&i.SchemaFloor,
 	)
 	return i, err
 }

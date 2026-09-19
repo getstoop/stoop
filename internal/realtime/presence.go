@@ -200,3 +200,22 @@ func (g *Gateway) OnlineUserIDs(_ context.Context, ids []string) ([]string, erro
 	}
 	return out, nil
 }
+
+// ConnectionCount is how many WebSocket sessions are open, and
+// OnlineUserCount how many people hold at least one. Both feed the
+// Diagnostics tab's gauges.
+func (g *Gateway) ConnectionCount() int {
+	g.presence.mu.Lock()
+	defer g.presence.mu.Unlock()
+	n := 0
+	for _, e := range g.presence.users {
+		n += e.conns
+	}
+	return n
+}
+
+func (g *Gateway) OnlineUserCount() int {
+	g.presence.mu.Lock()
+	defer g.presence.mu.Unlock()
+	return len(g.presence.users)
+}

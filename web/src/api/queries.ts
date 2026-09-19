@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
+import type { StatsWindow } from "../gen/stoop/instance/v1/diagnostics_pb";
 import {
   authClient,
   chatClient,
@@ -287,6 +288,34 @@ export function useDiagHealth() {
   return useQuery({
     queryKey: ["diag", "health"],
     queryFn: async () => instanceClient.getHealth({}),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useDiagLiveStats() {
+  return useQuery({
+    queryKey: ["diag", "live"],
+    queryFn: async () => instanceClient.getLiveStats({}),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useDiagDatabase() {
+  return useQuery({
+    queryKey: ["diag", "database"],
+    queryFn: async () => instanceClient.getDatabaseStats({}),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+// Instance admins only: the Requests panel, one window at a time.
+export function useDiagRequests(window: StatsWindow) {
+  return useQuery({
+    queryKey: ["diag", "requests", window],
+    queryFn: async () => instanceClient.getRequestStats({ window }),
     refetchInterval: 5000,
     refetchIntervalInBackground: false,
   });
