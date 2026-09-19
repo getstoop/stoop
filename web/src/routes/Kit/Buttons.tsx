@@ -16,6 +16,21 @@ export function Buttons() {
           Saving…
         </button>
       </div>
+      <span className="eyebrow">Quiet</span>
+      <div className="kit-row">
+        <button type="button" className="primary">
+          Save
+        </button>
+        <button type="button" className="quiet">
+          Not now
+        </button>
+        <button type="button" className="quiet danger">
+          Discard draft
+        </button>
+        <button type="button" className="quiet" disabled>
+          Undo
+        </button>
+      </div>
       <span className="eyebrow">Chip</span>
       <div className="kit-row">
         <button type="button" className="chip">
@@ -27,6 +42,29 @@ export function Buttons() {
         <button type="button" className="chip" disabled>
           Revoked
         </button>
+      </div>
+      <span className="eyebrow">Link</span>
+      <div className="kit-row">
+        <button type="button" className="link">
+          Continue in this browser
+        </button>
+      </div>
+      <span className="eyebrow">Option</span>
+      <div className="kit-row">
+        <div className="popover kit-menu">
+          <button type="button" className="option">
+            Mute channel
+          </button>
+          <button type="button" className="option selected">
+            Selected by the keyboard
+          </button>
+          <button type="button" className="option danger">
+            Leave space
+          </button>
+          <button type="button" className="option" aria-disabled="true">
+            Owners can't leave
+          </button>
+        </div>
       </div>
       <span className="eyebrow">Icon button</span>
       <div className="kit-row">

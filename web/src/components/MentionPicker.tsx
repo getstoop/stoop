@@ -21,7 +21,7 @@ export function MentionPicker({
         <li key={m.userId}>
           <button
             type="button"
-            className={`mention-option ${i === selected ? "selected" : ""}`}
+            className={`option mention-option ${i === selected ? "selected" : ""}`}
             aria-pressed={i === selected}
             onMouseDown={(e) => {
               e.preventDefault(); // keep the input focused

@@ -24,7 +24,7 @@ export function MemberRow({
     <li>
       <button
         type="button"
-        className={`member-row ${bot ? "bot" : online ? "online" : "offline"}`}
+        className={`option member-row ${bot ? "bot" : online ? "online" : "offline"}`}
         onClick={(e) => onOpen(e.currentTarget.getBoundingClientRect())}
       >
         <Avatar

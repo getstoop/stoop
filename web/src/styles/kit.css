@@ -42,6 +42,11 @@
   flex: 1 1 240px;
 }
 
+.kit-menu {
+  min-width: 220px;
+  padding: 4px;
+}
+
 .kit-swatch {
   width: 56px;
   height: 56px;
