@@ -93,6 +93,10 @@ type Service struct {
 	// internal/app. It bounds the max_upload_bytes setting (settings.go).
 	uploadCeiling int64
 	build         BuildInfo
+	// health is the Diagnostics tab's check list (health.go); startedAt
+	// is for its uptime line.
+	health    []*cachedCheck
+	startedAt time.Time
 	// trusted is read on every HTTP request (TrustsPeer), so it is kept
 	// in memory and swapped on save rather than read from the database.
 	trusted atomic.Pointer[trustedproxy.Set]
