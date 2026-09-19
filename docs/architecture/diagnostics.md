@@ -63,13 +63,19 @@ RPCs are timed; the procedure name is the package prefix trimmed
 every gauge every `SampleStep` (10 s) into its ring and rotates the RPC
 minute histograms on each minute boundary.
 
-**The gauges** are registered in `internal/app` (`gauges.go`,
-`gauges_webhooks.go`), the only package that sees the gateway and the
-queue: `connections`, `online_users`, `voice_rooms`, `voice_participants`,
-`requests_per_minute` and `request_errors_per_minute` (a counter turned
-into a rate at each sample), and `webhooks_queued` / `webhooks_leased` /
-`webhooks_dead`, the three of which share one grouped `SELECT` on
-`webhook_deliveries` cached for a sampler step.
+**The gauges** are registered in `internal/app` (`gauges.go`), the only
+package that sees the gateway: `connections`, `online_users`,
+`voice_rooms`, `voice_participants`, `requests_per_minute` and
+`request_errors_per_minute` (a counter turned into a rate over the last
+minute of samples). Every gauge is read from memory; nothing the sampler
+does touches Postgres.
+
+**The webhook queue is not a gauge.** Its counts (one grouped `SELECT` on
+`webhook_deliveries`, `webhook_queue.go`) are taken only when something
+asks: the Health row, the Background work panel, the sixth tile and a
+metrics scrape share a 10 s cache, so a tab polling every 5 s costs one
+count per TTL and an idle server runs none. The tile therefore has no
+sparkline.
 
 ## The health-check port
 
@@ -102,7 +108,7 @@ under query keys `["diag", "<panel>"]`
 | Health | `GetHealth` | the checks above, plus when the process started |
 | Right now | `GetLiveStats` | every gauge with its ring, and every counter, from the registry snapshot |
 | Database | `GetDatabaseStats` | `pgxpool.Stat()` (max, acquired, idle, empty-acquire count and wait time), a timed `Ping`, and one query for `pg_database_size`, `pg_stat_activity` counts, the oldest transaction, `server_version`; the goose version from `goose_db_version` |
-| Requests | `GetRequestStats` | `RPCStats` for one window: calls, errors (any code but Canceled), p50, p95, max |
+| Requests | `GetRequestStats` | `RPCStats` over the last five minutes: calls, errors (any code but Canceled), p50, p95, max. Since-start is on the metrics endpoint only |
 | Background work | `ListJobs` | every `Job` record (interval, last start, duration, outcome, error, counters, next due) and the queue port's counts |
 
 The sixth tile, Webhooks queued, and the two queue rows on Background work

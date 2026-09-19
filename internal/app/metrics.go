@@ -19,7 +19,7 @@ import (
 // and the same gate as the Connect procedures behind the Diagnostics tab.
 // The health rows and the build come from this package, which is the only
 // one that knows both; internal/diag stays a plain registry.
-func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service) http.Handler {
+func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service, queue *queueStats) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		identity, err := authSvc.VerifyToken(r.Context(), token)
@@ -39,6 +39,9 @@ func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service) http.H
 			return
 		}
 		writeHealth(w, instanceSvc.HealthSnapshot(ctx))
+		if q, err := queue.stats(ctx); err == nil {
+			writeQueue(w, q)
+		}
 		writeBuildInfo(w, buildinfo.Get())
 	})
 }
@@ -49,6 +52,21 @@ func writeHealth(w io.Writer, checks []instance.Check) {
 	_, _ = io.WriteString(w, "# HELP stoop_health Health check state: 0 ok, 1 warn, 2 danger, 3 off.\n# TYPE stoop_health gauge\n")
 	for _, c := range checks {
 		_, _ = fmt.Fprintf(w, "stoop_health{check=%s} %d\n", strconv.Quote(c.Name), int(c.State))
+	}
+}
+
+// writeQueue is the webhook queue, counted for this scrape rather than
+// sampled: nothing runs the query while no one is asking.
+func writeQueue(w io.Writer, q instance.QueueStats) {
+	for _, g := range []struct {
+		name, help string
+		v          int64
+	}{
+		{"stoop_webhooks_queued", "Outgoing webhook deliveries waiting for the worker.", q.Queued},
+		{"stoop_webhooks_leased", "Outgoing webhook deliveries in flight.", q.Leased},
+		{"stoop_webhooks_dead", "Outgoing webhook deliveries dead-lettered.", q.Dead},
+	} {
+		_, _ = fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s gauge\n%s %d\n", g.name, g.help, g.name, g.name, g.v)
 	}
 }
 

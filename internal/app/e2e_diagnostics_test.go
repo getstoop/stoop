@@ -211,6 +211,7 @@ func TestE2EDiagnosticsMetrics(t *testing.T) {
 		"stoop_rpc_calls_total{procedure=\"InstanceService.GetHealth\"}",
 		"stoop_health{check=\"postgres\"} 0\n",
 		"stoop_health{check=\"livekit\"} 3\n",
+		"stoop_webhooks_queued 0\n",
 		"stoop_build_info{version=",
 	} {
 		if !strings.Contains(r.raw, want) {

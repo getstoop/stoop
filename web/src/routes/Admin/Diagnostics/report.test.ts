@@ -36,7 +36,7 @@ describe("buildReport", () => {
         poolMax: 8,
         databaseBytes: 9_007_199_254_740_993n,
       }),
-      requestsLast5Minutes: create(GetRequestStatsResponseSchema, {
+      requests: create(GetRequestStatsResponseSchema, {
         procedures: [
           { procedure: "ChatService.ListMessages", calls: 40n, p95Us: 1200 },
         ],
@@ -64,11 +64,9 @@ describe("buildReport", () => {
       databaseBytes: "9007199254740993",
     });
     expect(report.requests).toEqual({
-      last5Minutes: {
-        procedures: [
-          { procedure: "ChatService.ListMessages", calls: "40", p95Us: 1200 },
-        ],
-      },
+      procedures: [
+        { procedure: "ChatService.ListMessages", calls: "40", p95Us: 1200 },
+      ],
     });
     expect(report.jobs).toEqual({
       jobs: [{ name: "file_sweep", counters: { files_removed: "3" } }],

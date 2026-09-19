@@ -1,10 +1,14 @@
-import { useDiagLiveStats } from "../../../api/queries";
-import type { Gauge } from "../../../gen/stoop/instance/v1/diagnostics_pb";
+import { useDiagJobs, useDiagLiveStats } from "../../../api/queries";
+import type {
+  Gauge,
+  QueueStats,
+} from "../../../gen/stoop/instance/v1/diagnostics_pb";
 import { Sparkline } from "./Sparkline";
 
 // Right now: one tile per gauge, each a value, its last fifteen minutes
 // and one line of context. Names are the server's
-// (docs/architecture/diagnostics.md).
+// (docs/architecture/diagnostics.md). The webhook queue is counted only
+// when asked, so its tile comes from the jobs query and has no history.
 
 type Tile = {
   name: string;
@@ -38,12 +42,6 @@ const TILES: Tile[] = [
     label: "Slow consumers dropped",
     sub: () => "event bus, since start",
   },
-  {
-    name: "webhooks_queued",
-    label: "Webhooks queued",
-    sub: (g) =>
-      `${formatValue(value(g, "webhooks_leased"))} in flight · ${formatValue(value(g, "webhooks_dead"))} dead`,
-  },
 ];
 
 function value(g: Map<string, Gauge>, name: string): number {
@@ -61,6 +59,7 @@ function formatValue(n: number): string {
 
 export function LiveTiles() {
   const { data, error, isPending } = useDiagLiveStats();
+  const queue = useDiagJobs().data?.webhooks;
   return (
     <section className="card" data-testid="live-section">
       <div className="diag-head">
@@ -74,13 +73,22 @@ export function LiveTiles() {
       ) : isPending ? (
         <div className="centered muted">Loading…</div>
       ) : (
-        <Tiles gauges={new Map(data.gauges.map((g) => [g.name, g]))} />
+        <Tiles
+          gauges={new Map(data.gauges.map((g) => [g.name, g]))}
+          queue={queue}
+        />
       )}
     </section>
   );
 }
 
-function Tiles({ gauges }: { gauges: Map<string, Gauge> }) {
+function Tiles({
+  gauges,
+  queue,
+}: {
+  gauges: Map<string, Gauge>;
+  queue?: QueueStats;
+}) {
   return (
     <div className="tiles">
       {TILES.map((t) => {
@@ -94,6 +102,14 @@ function Tiles({ gauges }: { gauges: Map<string, Gauge> }) {
           </div>
         );
       })}
+      <div className="tile" data-gauge="webhooks_queued">
+        <span className="tile-title">Webhooks queued</span>
+        <span className="tile-value">{String(queue?.queued ?? 0)}</span>
+        <span className="tile-sub muted">
+          {String(queue?.leased ?? 0)} in flight · {String(queue?.dead ?? 0)}{" "}
+          dead
+        </span>
+      </div>
     </div>
   );
 }

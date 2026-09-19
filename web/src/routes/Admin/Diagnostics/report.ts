@@ -11,7 +11,6 @@ import {
   GetRequestStatsResponseSchema,
   type ListJobsResponse,
   ListJobsResponseSchema,
-  StatsWindow,
 } from "../../../gen/stoop/instance/v1/diagnostics_pb";
 import {
   type GetBuildInfoResponse,
@@ -29,8 +28,7 @@ export type ReportSources = {
   health?: GetHealthResponse;
   live?: GetLiveStatsResponse;
   database?: GetDatabaseStatsResponse;
-  requestsLast5Minutes?: GetRequestStatsResponse;
-  requestsSinceStart?: GetRequestStatsResponse;
+  requests?: GetRequestStatsResponse;
   jobs?: ListJobsResponse;
 };
 
@@ -41,7 +39,7 @@ export type Report = {
   health?: JsonValue;
   live?: JsonValue;
   database?: JsonValue;
-  requests: { last5Minutes?: JsonValue; sinceStart?: JsonValue };
+  requests?: JsonValue;
   jobs?: JsonValue;
 };
 
@@ -53,14 +51,7 @@ export function buildReport(s: ReportSources): Report {
     health: s.health && toJson(GetHealthResponseSchema, s.health),
     live: s.live && toJson(GetLiveStatsResponseSchema, s.live),
     database: s.database && toJson(GetDatabaseStatsResponseSchema, s.database),
-    requests: {
-      last5Minutes:
-        s.requestsLast5Minutes &&
-        toJson(GetRequestStatsResponseSchema, s.requestsLast5Minutes),
-      sinceStart:
-        s.requestsSinceStart &&
-        toJson(GetRequestStatsResponseSchema, s.requestsSinceStart),
-    },
+    requests: s.requests && toJson(GetRequestStatsResponseSchema, s.requests),
     jobs: s.jobs && toJson(ListJobsResponseSchema, s.jobs),
   };
 }
@@ -76,16 +67,7 @@ export function reportText(
     health: client.getQueryData(["diag", "health"]),
     live: client.getQueryData(["diag", "live"]),
     database: client.getQueryData(["diag", "database"]),
-    requestsLast5Minutes: client.getQueryData([
-      "diag",
-      "requests",
-      StatsWindow.LAST_5_MINUTES,
-    ]),
-    requestsSinceStart: client.getQueryData([
-      "diag",
-      "requests",
-      StatsWindow.SINCE_START,
-    ]),
+    requests: client.getQueryData(["diag", "requests"]),
     jobs: client.getQueryData(["diag", "jobs"]),
   });
   return JSON.stringify(report, null, 2);

@@ -623,9 +623,9 @@ entry means a health row is at warn or danger.
 | Panel | Answers |
 | --- | --- |
 | Health | Is each dependency up: Postgres, LiveKit, file storage, the public address, the webhook worker, the sweeps. An *off* row is something you have not configured, not a fault. Each row links to the tab that fixes it. |
-| Right now | Connections, people online, people in voice, requests per minute, slow consumers dropped, webhooks queued, each with its last fifteen minutes. |
+| Right now | Connections, people online, people in voice, requests per minute, slow consumers dropped, each with its last fifteen minutes, and the webhook queue as it is now. |
 | Database | The connection pool, ping, database size, backends, the oldest open transaction, and the Postgres and schema versions. |
-| Requests | Calls, errors and p50 / p95 / max per procedure, over the last 5 minutes or since start. |
+| Requests | Calls, errors and p50 / p95 / max per procedure over the last 5 minutes. Since-start totals are on the metrics endpoint. |
 | Background work | Every sweep and the webhook worker: when it last ran, how long it took, what it removed, when it is due. |
 
 Reading it:
