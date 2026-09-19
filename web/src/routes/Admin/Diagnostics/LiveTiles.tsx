@@ -35,8 +35,8 @@ const TILES: Tile[] = [
   },
   {
     name: "bus_dropped_total",
-    label: "Slow consumers dropped",
-    sub: () => "event bus, since start",
+    label: "Slow consumers",
+    sub: () => "dropped from the event bus, since start",
   },
 ];
 
@@ -81,7 +81,9 @@ function Tiles({ gauges }: { gauges: Map<string, Gauge> }) {
         const g = gauges.get(t.name);
         return (
           <div className="tile" key={t.name} data-gauge={t.name}>
-            <span className="tile-title">{t.label}</span>
+            <span className="tile-title" title={t.label}>
+              {t.label}
+            </span>
             <span className="tile-value">{formatValue(g?.value ?? 0)}</span>
             <Sparkline series={g?.series ?? []} />
             <span className="tile-sub muted">{t.sub(gauges)}</span>
