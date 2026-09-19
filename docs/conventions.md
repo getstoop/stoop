@@ -127,6 +127,14 @@ in their head. Add to this when a new rule earns its place.
 - **Focus is global** (`:focus-visible` in `base.css`); fields swap the ring
   for an accent border. A feature overrides it only for a stated reason
   (the composer's overlay border is one).
+- **An inline `style` in a `.tsx` file carries computed geometry only:**
+  `left`, `top`, `right`, `bottom`, `width`, `height`, `min`/`max` of
+  both, `transform`, `transition`, and CSS custom properties (`"--name"`).
+  Anything else is a class in the feature's sheet. A value only the
+  component knows reaches the sheet as a custom property; one that can't
+  carries an `off-scale:` comment on the line before. Only object literals
+  are judged: `style={position}` passes. `scripts/check-tsx-styles.mjs`
+  enforces it in `make lint`.
 - **`scripts/check-styles.mjs` enforces all of the above** in `make lint`.
   **`/kit` (dev builds only, `routes/Kit/`) renders every shared part**, with
   a theme switch, so a kit change is checked in every theme before it

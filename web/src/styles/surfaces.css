@@ -138,7 +138,11 @@
   pointer-events: none;
 }
 
-.tooltip .tooltip-detail {
+.tooltip .tooltip.unplaced {
+  visibility: hidden;
+}
+
+.tooltip-detail {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }

@@ -27,7 +27,7 @@ export function Surfaces() {
           </div>
         </div>
       </div>
-      <div className="modal" style={{ width: "auto" }}>
+      <div className="modal">
         <div className="modal-header">
           <h2>Invite people</h2>
           <button type="button" className="icon-button" aria-label="Close">
@@ -37,7 +37,7 @@ export function Surfaces() {
         <p className="muted">A modal is the same panel, floated.</p>
       </div>
       <div className="kit-row">
-        <div className="popover" style={{ padding: 8 }}>
+        <div className="popover kit-panel">
           A popover: the panel every menu, picker and tooltip floats on
         </div>
       </div>

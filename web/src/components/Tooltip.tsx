@@ -181,9 +181,9 @@ export function Tooltip({
           ref={tipRef}
           id={id}
           role="tooltip"
-          className="tooltip popover"
           // Rendered before it can be measured, so hidden for that frame.
-          style={at ?? { visibility: "hidden" }}
+          className={at ? "tooltip popover" : "tooltip popover unplaced"}
+          style={at ?? undefined}
         >
           <span>{text}</span>
           {detail && <span className="tooltip-detail">{detail}</span>}

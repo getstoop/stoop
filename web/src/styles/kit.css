@@ -47,11 +47,21 @@
   padding: 4px;
 }
 
+.kit-panel {
+  padding: 8px;
+}
+
+.kit-page .modal {
+  width: auto;
+}
+
+/* The token on show arrives as a custom property. */
 .kit-swatch {
   width: 56px;
   height: 56px;
   border: 1px solid var(--border);
-  background: var(--panel);
+  border-radius: var(--kit-radius);
+  background: var(--kit-fill, var(--panel));
 }
 
 .kit-type {
@@ -59,6 +69,18 @@
   grid-template-columns: 140px 1fr;
   gap: 16px;
   align-items: baseline;
+}
+
+.kit-type.swatch {
+  grid-template-columns: 56px 1fr;
+}
+
+.kit-type span {
+  font-size: var(--kit-size);
+}
+
+.kit-mono {
+  font-family: var(--font-mono);
 }
 
 .kit-type code {

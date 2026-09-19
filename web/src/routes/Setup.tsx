@@ -92,11 +92,7 @@ function AccountStep({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <form
-      className="login-card"
-      style={{ padding: 0, border: 0 }}
-      onSubmit={submit}
-    >
+    <form className="login-card bare" onSubmit={submit}>
       <p>
         <strong>Welcome to your new Stoop.</strong>
       </p>
@@ -166,11 +162,7 @@ function SpaceStep({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <form
-      className="login-card"
-      style={{ padding: 0, border: 0 }}
-      onSubmit={submit}
-    >
+    <form className="login-card bare" onSubmit={submit}>
       <p>
         <strong>Create your first space.</strong>
       </p>
@@ -198,7 +190,7 @@ function SpaceStep({ onDone }: { onDone: () => void }) {
 
 function ReachStep({ onDone }: { onDone: () => void }) {
   return (
-    <div className="login-card" style={{ padding: 0, border: 0 }}>
+    <div className="login-card bare">
       <p>
         <strong>How will people reach this server?</strong>
       </p>
@@ -257,7 +249,7 @@ function InviteStep() {
     });
 
   return (
-    <div className="login-card" style={{ padding: 0, border: 0 }}>
+    <div className="login-card bare">
       <p>
         <strong>Invite your people to {space.name}.</strong>
       </p>
