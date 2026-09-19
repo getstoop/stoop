@@ -4,7 +4,7 @@ import { Sparkline } from "./Sparkline";
 
 // Right now: one tile per gauge, each a value, its last fifteen minutes
 // and one line of context. Names are the server's
-// (docs/proposals/diagnostics.md).
+// (docs/architecture/diagnostics.md).
 
 type Tile = {
   name: string;
@@ -37,6 +37,12 @@ const TILES: Tile[] = [
     name: "bus_dropped_total",
     label: "Slow consumers dropped",
     sub: () => "event bus, since start",
+  },
+  {
+    name: "webhooks_queued",
+    label: "Webhooks queued",
+    sub: (g) =>
+      `${formatValue(value(g, "webhooks_leased"))} in flight · ${formatValue(value(g, "webhooks_dead"))} dead`,
   },
 ];
 

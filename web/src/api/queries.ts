@@ -293,6 +293,17 @@ export function useDiagHealth() {
   });
 }
 
+// The admin nav's dot: the same health, read once a minute at most and
+// never polled, so the shell does not run the checks from every tab.
+export function useDiagHealthOnce(enabled: boolean) {
+  return useQuery({
+    queryKey: ["diag", "health"],
+    queryFn: async () => instanceClient.getHealth({}),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 export function useDiagLiveStats() {
   return useQuery({
     queryKey: ["diag", "live"],

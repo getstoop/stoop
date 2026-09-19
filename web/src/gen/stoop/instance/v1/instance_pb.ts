@@ -1293,7 +1293,7 @@ export const InstanceService: GenService<{
     output: typeof RevokeUserTokenResponseSchema;
   },
   /**
-   * The Diagnostics tab (docs/proposals/diagnostics.md). All read-only,
+   * The Diagnostics tab (docs/architecture/diagnostics.md). All read-only,
    * instance.read.
    * GetHealth runs every registered health check.
    *

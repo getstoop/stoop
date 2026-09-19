@@ -170,7 +170,7 @@ type InstanceServiceClient interface {
 	// RevokeUserToken revokes one of another account's personal tokens.
 	// Instance admins only.
 	RevokeUserToken(context.Context, *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error)
-	// The Diagnostics tab (docs/proposals/diagnostics.md). All read-only,
+	// The Diagnostics tab (docs/architecture/diagnostics.md). All read-only,
 	// instance.read.
 	// GetHealth runs every registered health check.
 	GetHealth(context.Context, *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error)
@@ -544,7 +544,7 @@ type InstanceServiceHandler interface {
 	// RevokeUserToken revokes one of another account's personal tokens.
 	// Instance admins only.
 	RevokeUserToken(context.Context, *connect.Request[v1.RevokeUserTokenRequest]) (*connect.Response[v1.RevokeUserTokenResponse], error)
-	// The Diagnostics tab (docs/proposals/diagnostics.md). All read-only,
+	// The Diagnostics tab (docs/architecture/diagnostics.md). All read-only,
 	// instance.read.
 	// GetHealth runs every registered health check.
 	GetHealth(context.Context, *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error)

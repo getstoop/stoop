@@ -75,7 +75,7 @@ service InstanceService {
   // RevokeUserToken revokes one of another account's personal tokens.
   // Instance admins only.
   rpc RevokeUserToken(RevokeUserTokenRequest) returns (RevokeUserTokenResponse) {}
-  // The Diagnostics tab (docs/proposals/diagnostics.md). All read-only,
+  // The Diagnostics tab (docs/architecture/diagnostics.md). All read-only,
   // instance.read.
   // GetHealth runs every registered health check.
   rpc GetHealth(GetHealthRequest) returns (GetHealthResponse) {}

@@ -203,3 +203,30 @@
 .jobs-result .badge {
   margin: 0;
 }
+
+/* ---- The head line with Copy report at its end ---- */
+
+.diag-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- The admin nav: a dot on Diagnostics while a check is warn or
+   danger ---- */
+
+.settings-tab:has(.tab-dot) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab-dot {
+  flex-shrink: 0;
+  width: 7px; /* off-scale: a dot, not a spacing */
+  height: 7px; /* off-scale: a dot, not a spacing */
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--warn);
+}

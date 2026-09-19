@@ -13,7 +13,7 @@ import (
 	"github.com/getstoop/stoop/internal/diag"
 )
 
-// The Diagnostics tab's RPCs (docs/proposals/diagnostics.md): Health here,
+// The Diagnostics tab's RPCs (docs/architecture/diagnostics.md): Health here,
 // Right now and Database in diagnostics_live.go, Requests here, and
 // Background work in diagnostics_jobs.go.
 

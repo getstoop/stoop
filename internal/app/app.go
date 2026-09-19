@@ -200,6 +200,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle("GET /version", versionHandler())
+	mux.Handle("GET /metrics", metricsHandler(authSvc, instanceSvc))
 	web, scripts := webui.Handler(), webui.ScriptHashes()
 	if cfg.DevWebURL != "" {
 		if web, err = webui.DevProxy(cfg.DevWebURL); err != nil {

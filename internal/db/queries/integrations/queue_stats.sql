@@ -1,7 +1,7 @@
 -- The Background work panel's view of the queue, in one pass over
 -- webhook_deliveries. A finished delivery is dead unless its status was
 -- 2xx, the reading settleDead makes. The hook count is for the OFF state.
--- See docs/proposals/diagnostics.md.
+-- See docs/architecture/diagnostics.md.
 
 -- name: QueueStats :one
 SELECT
