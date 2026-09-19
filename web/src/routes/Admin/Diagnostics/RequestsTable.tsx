@@ -66,7 +66,6 @@ const columns: TableColumn<ProcedureStats>[] = [
 
 export function RequestsTable() {
   const { data, error } = useDiagRequests();
-  const count = data?.procedures.length;
   return (
     <section className="card" data-testid="requests-section">
       <h3>Requests</h3>
@@ -79,11 +78,6 @@ export function RequestsTable() {
         </p>
       ) : (
         <>
-          {count !== undefined && (
-            <p className="dt-count muted small">
-              {count} {count === 1 ? "procedure" : "procedures"}
-            </p>
-          )}
           <DataTable
             rows={data?.procedures}
             columns={columns}

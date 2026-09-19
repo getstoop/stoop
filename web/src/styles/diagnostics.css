@@ -96,9 +96,12 @@
   gap: 8px;
 }
 
+/* Four fixed rows, so the values and sublines line up across tiles: a
+   one-line title, the value, the sparkline's height, the subline. */
 .tile {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto auto 24px auto;
+  align-content: start;
   gap: 4px;
   padding: 10px 12px 8px; /* off-scale: 10px keeps the tile's height even with its 12px sides */
   border: 1px solid var(--border);
@@ -109,6 +112,9 @@
 .tile-title {
   font-size: var(--text-ui);
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tile-value {
@@ -172,7 +178,7 @@
   gap: 4px;
 }
 
-/* ---- Requests: the count over the table ---- */
+/* ---- Requests ---- */
 
 .diag-mono {
   font-family: var(--font-mono);
