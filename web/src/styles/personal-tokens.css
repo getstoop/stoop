@@ -103,14 +103,6 @@
   gap: 6px;
 }
 
-.token-callout {
-  margin: 0;
-  padding: 8px 12px;
-  border: 1px solid var(--warn);
-  border-radius: var(--radius-md);
-  font-size: var(--text-ui);
-}
-
 .token-secret {
   display: flex;
   align-items: center;

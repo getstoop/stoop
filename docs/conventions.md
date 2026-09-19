@@ -92,8 +92,8 @@ in their head. Add to this when a new rule earns its place.
   `.eyebrow` (the small uppercase heading, in `base.css`); text inputs,
   selects and textareas (styled at zero specificity with `:where()`, so any
   feature rule wins), the words-above-field label and `label.toggle-row`;
-  `.card`, `.card-row`, `.modal`, `.popover`, `.dots-menu`, `.tooltip`. A
-  feature sheet styles layout and the feature's own parts; it never
+  `.card`, `.card-row`, `.callout`, `.modal`, `.popover`, `.dots-menu`,
+  `.tooltip`. A feature sheet styles layout and the feature's own parts; it never
   declares an input or a button from scratch, and a control the second
   feature wants moves to the kit before the second feature uses it.
 - **Which button:** `button.primary` is the view's one main action;
@@ -103,6 +103,10 @@ in their head. Add to this when a new rule earns its place.
   picker option, a list member), with `.selected` for the row the keyboard
   is on, `.danger`, and `aria-disabled="true"`. A feature adds the class
   and keeps only what differs: a denser padding, a muted colour.
+- **A standing message in a box is `.callout`** — a warning about a
+  setting, a secret shown once; `.callout.warn` when it is a caution. A
+  feature keeps only its margin and inner parts. An error from a submit is
+  not a callout: it stays a `.error` line.
 - **A user avatar is `<Avatar>`, sized by `size`.** `.avatar` in
   `controls.css` owns the circle, the fill, the initials and the bot face;
   `.small`, `.medium` and `.large` set `--avatar-size` to 24, 40 and 64px

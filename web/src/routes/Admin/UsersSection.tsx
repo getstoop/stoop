@@ -122,7 +122,7 @@ export function UsersSection({ meId }: { meId: string }) {
         }}
       />
       {actions.tempPassword && (
-        <div className="temp-password" role="status">
+        <div className="callout temp-password" role="status">
           <p>
             Temporary password for{" "}
             <strong>@{actions.tempPassword.username}</strong> — pass it on now;

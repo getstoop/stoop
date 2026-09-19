@@ -56,7 +56,7 @@ export function SecretModal({
       }
     >
       <div className="modal-body token-form">
-        <p className="token-callout">
+        <p className="callout warn">
           Copy it now. This is the only time it will be shown.
         </p>
         <p className="hint">{what}</p>
