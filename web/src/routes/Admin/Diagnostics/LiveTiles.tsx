@@ -106,11 +106,12 @@ function Tiles({
       })}
       <div className="tile" data-gauge="webhooks_queued">
         <span className="tile-title">Webhooks queued</span>
-        <span className="tile-value">{String(queue?.queued ?? 0)}</span>
+        <span className="tile-value">{queue ? String(queue.queued) : "—"}</span>
         <span aria-hidden="true" />
         <span className="tile-sub muted">
-          {String(queue?.leased ?? 0)} in flight · {String(queue?.dead ?? 0)}{" "}
-          dead
+          {queue
+            ? `${queue.leased} in flight · ${queue.dead} dead`
+            : "queue not read yet"}
         </span>
       </div>
     </div>

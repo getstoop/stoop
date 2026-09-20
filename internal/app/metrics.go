@@ -39,9 +39,8 @@ func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service, queue 
 			return
 		}
 		writeHealth(w, instanceSvc.HealthSnapshot(ctx))
-		if q, err := queue.stats(ctx); err == nil {
-			writeQueue(w, q)
-		}
+		q, qerr := queue.stats(ctx)
+		writeQueue(w, q, qerr)
 		writeBuildInfo(w, buildinfo.Get())
 	})
 }
@@ -56,8 +55,18 @@ func writeHealth(w io.Writer, checks []instance.Check) {
 }
 
 // writeQueue is the webhook queue, counted for this scrape rather than
-// sampled: nothing runs the query while no one is asking.
-func writeQueue(w io.Writer, q instance.QueueStats) {
+// sampled: nothing runs the query while no one is asking. A failed count
+// is said, not hidden: stoop_webhooks_queue_up 0 and no families, so an
+// alert on the families sees them go absent while a scrape still succeeds.
+func writeQueue(w io.Writer, q instance.QueueStats, err error) {
+	up := 1
+	if err != nil {
+		up = 0
+	}
+	_, _ = fmt.Fprintf(w, "# HELP stoop_webhooks_queue_up Whether the queue count succeeded on this scrape.\n# TYPE stoop_webhooks_queue_up gauge\nstoop_webhooks_queue_up %d\n", up)
+	if err != nil {
+		return
+	}
 	for _, g := range []struct {
 		name, help string
 		v          int64

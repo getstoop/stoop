@@ -300,6 +300,8 @@ export function useDiagHealthOnce(enabled: boolean) {
     queryFn: async () => instanceClient.getHealth({}),
     enabled,
     staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
 }
 
