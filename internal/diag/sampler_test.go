@@ -59,3 +59,32 @@ func TestSamplerRotatesForEachSkippedMinute(t *testing.T) {
 		t.Error("an hour's gap should clear the window")
 	}
 }
+
+func TestSamplerIgnoresClockStepBack(t *testing.T) {
+	r := NewRegistry()
+	s := newSampler(r, nil)
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	s.tick(now)
+	r.RPC().Observe("/stoop.a.v1.A/Old", time.Millisecond, nil)
+	inWindow := func() bool { return len(r.RPC().Procedures(Last5Minutes)) == 1 }
+
+	s.tick(now.Add(-time.Hour))
+	if !inWindow() {
+		t.Fatal("a clock step back should not rotate")
+	}
+	s.tick(now.Add(59 * time.Second))
+	if !inWindow() {
+		t.Fatal("59 s elapsed should not rotate")
+	}
+	// Each 61 s tick is one rotation: five keep the observation, the sixth evicts it.
+	for m := 1; m <= 5; m++ {
+		s.tick(now.Add(time.Duration(m) * 61 * time.Second))
+	}
+	if !inWindow() {
+		t.Fatal("five single rotations should keep the observation")
+	}
+	s.tick(now.Add(6 * 61 * time.Second))
+	if inWindow() {
+		t.Fatal("the sixth rotation should evict the observation")
+	}
+}

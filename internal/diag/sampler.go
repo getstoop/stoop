@@ -23,9 +23,9 @@ func RunSampler(ctx context.Context, r *Registry, rpc *RPCStats) {
 }
 
 type sampler struct {
-	r      *Registry
-	rpc    *RPCStats
-	minute time.Time
+	r    *Registry
+	rpc  *RPCStats
+	last time.Time // last rotation; compared monotonically, so a clock step cannot rewind it
 }
 
 func newSampler(r *Registry, rpc *RPCStats) *sampler {
@@ -35,20 +35,22 @@ func newSampler(r *Registry, rpc *RPCStats) *sampler {
 	return &sampler{r: r, rpc: rpc}
 }
 
-// tick takes one sample of every gauge and rotates once for each minute
-// boundary crossed since the last tick, at most a full ring.
+// tick takes one sample of every gauge and rotates once for each full
+// minute elapsed since the last rotation, at most a full ring.
 func (s *sampler) tick(now time.Time) {
 	for _, g := range s.r.gaugeList() {
 		g.sample()
 	}
-	m := now.Truncate(time.Minute)
-	if s.minute.IsZero() {
-		s.minute = m
+	if s.last.IsZero() {
+		s.last = now
 		return
 	}
-	for i := 0; i < minuteRing && s.minute.Before(m); i++ {
-		s.minute = s.minute.Add(time.Minute)
+	full := int(now.Sub(s.last) / time.Minute)
+	if full <= 0 {
+		return
+	}
+	for range min(full, minuteRing) {
 		s.rpc.Rotate()
 	}
-	s.minute = m
+	s.last = s.last.Add(time.Duration(full) * time.Minute)
 }
