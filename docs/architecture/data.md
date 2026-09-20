@@ -173,8 +173,9 @@ too, so a dead link isn't refetched once per message that mentions it.
 
 **`activity_items`** — `kind` (`mention` | `reply` | `dm`, by constraint),
 pointers at space/channel/message, `actor_id`, `read_at`. `space_id` is
-nullable because a DM has no space. Two indexes: `(user_id, id DESC)` for
-the feed, and a partial index on unread rows for the badge.
+nullable because a DM has no space. Three indexes: `(user_id, id DESC)`
+for the feed, a partial index on unread rows for the badge, and
+`message_id` for the foreign key ([below](#foreign-keys)).
 
 **`invites`** — `code UNIQUE`, `expires_at` (NULL = never), `max_uses`
 (NULL = unlimited), `use_count`, `revoked_at`, and the `role` the code
@@ -247,6 +248,38 @@ chronologically. That single property buys a surprising amount:
 The cost is that ids leak an approximate creation time. For a chat service
 where every message already carries a visible timestamp, that is not a
 disclosure.
+
+## Foreign keys
+
+Postgres indexes the referenced side of a foreign key and not the
+referencing side. Deleting a parent row runs a trigger per foreign key
+that looks for children, and without an index on the referencing column
+that lookup scans the child table, once per deleted row.
+
+The rule: **a foreign key gets an index on its column when the parent is
+deleted in bulk and the child table grows with use.** Messages are the
+parent that qualifies, since the retention sweep deletes them a thousand
+at a time and deleting a channel cascades through all of its messages.
+Every table that grows and references `messages` leads an index with
+that column. Most do through their primary key; the two nullable columns
+use partial indexes:
+
+```sql
+CREATE INDEX messages_reply_to_idx ON messages (reply_to_message_id)
+    WHERE reply_to_message_id IS NOT NULL;
+CREATE INDEX activity_items_message_idx ON activity_items (message_id)
+    WHERE message_id IS NOT NULL;
+```
+
+At a million messages, deleting a batch of 1000 took about 65 s before
+these indexes and 18 ms after.
+
+Foreign keys left unindexed on purpose: those whose parent is a user,
+space or channel (one parent row deleted at a time, so one scan per
+child table), and those whose child table is small (`channels`,
+`spaces`, `users`). `link_previews.image_file_id` is the nearest to the
+line: files are deleted in bulk, and the scan cost 1.4 ms per file at
+50,000 cached previews.
 
 ## Migrations
 
