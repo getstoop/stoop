@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package stoop.instance.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// The Diagnostics tab: read-only, instance.read, polled every 5 s while
+// the tab is open. See docs/proposals/diagnostics.md.
+
+// CheckState is a health check's verdict. OFF is a dependency that is not
+// configured: drawn muted, never a warning.
+enum CheckState {
+  CHECK_STATE_UNSPECIFIED = 0;
+  CHECK_STATE_OK = 1;
+  CHECK_STATE_WARN = 2;
+  CHECK_STATE_DANGER = 3;
+  CHECK_STATE_OFF = 4;
+}
+
+message HealthCheck {
+  // postgres · livekit · storage · public_address · webhooks · jobs
+  string name = 1;
+  CheckState state = 2;
+  // The one line on the row, written by the check.
+  string detail = 3;
+  // "hosting", "storage", "integrations" or empty.
+  string fix_tab = 4;
+  google.protobuf.Timestamp checked_at = 5;
+}
+
+message GetHealthRequest {}
+
+message GetHealthResponse {
+  repeated HealthCheck checks = 1;
+  google.protobuf.Timestamp server_started_at = 2;
+}
+
+message Gauge {
+  // connections · online_users · voice_participants · voice_rooms ·
+  // requests_per_minute · request_errors_per_minute · bus_dropped_total ·
+  // webhooks_queued · webhooks_leased · webhooks_dead
+  string name = 1;
+  double value = 2;
+  // Oldest first, up to 90 points; empty for a counter.
+  repeated double series = 3;
+}
+
+message GetLiveStatsRequest {}
+
+message GetLiveStatsResponse {
+  repeated Gauge gauges = 1;
+  // 10
+  int32 step_seconds = 2;
+  google.protobuf.Timestamp at = 3;
+}
+
+message GetDatabaseStatsRequest {}
+
+message GetDatabaseStatsResponse {
+  // pgxpool.Stat().MaxConns()
+  int32 pool_max = 1;
+  // AcquiredConns()
+  int32 pool_acquired = 2;
+  // IdleConns()
+  int32 pool_idle = 3;
+  // EmptyAcquireCount(), since start
+  int64 acquire_waits = 4;
+  // AcquireDuration(), since start
+  int64 acquire_wait_ms = 5;
+  int32 ping_us = 6;
+  // pg_database_size(current_database())
+  int64 database_bytes = 7;
+  // pg_stat_activity where datname = current
+  int32 backends_active = 8;
+  int32 backends_idle = 9;
+  int32 oldest_transaction_ms = 10;
+  // SHOW server_version
+  string server_version = 11;
+  // goose_db_version, max version_id
+  int64 schema_version = 12;
+  // the floor checkSchemaFloor reads
+  int64 schema_floor = 13;
+}
+
+// The last five minutes; the metrics endpoint carries since-start.
+message GetRequestStatsRequest {}
+
+message ProcedureStats {
+  // "ChatService.ListMessages", package prefix trimmed
+  string procedure = 1;
+  int64 calls = 2;
+  // any connect code except Canceled
+  int64 errors = 3;
+  int32 p50_us = 4;
+  int32 p95_us = 5;
+  int32 max_us = 6;
+}
+
+message GetRequestStatsResponse {
+  repeated ProcedureStats procedures = 1;
+}
+
+enum JobOutcome {
+  JOB_OUTCOME_UNSPECIFIED = 0;
+  JOB_OUTCOME_NEVER_RAN = 1;
+  JOB_OUTCOME_SUCCEEDED = 2;
+  JOB_OUTCOME_FAILED = 3;
+  JOB_OUTCOME_RUNNING = 4;
+}
+
+message Job {
+  // "file_sweep" …
+  string name = 1;
+  // zero for the continuous worker
+  google.protobuf.Duration interval = 2;
+  google.protobuf.Timestamp last_started = 3;
+  int32 last_duration_ms = 4;
+  JobOutcome last_outcome = 5;
+  string last_error = 6;
+  // files_removed, bytes_freed, rows_trimmed …
+  map<string, int64> counters = 7;
+  google.protobuf.Timestamp next_due = 8;
+}
+
+message QueueStats {
+  int64 queued = 1;
+  int64 leased = 2;
+  int64 dead = 3;
+  int64 dead_last_hour = 4;
+}
+
+message ListJobsRequest {}
+
+message ListJobsResponse {
+  repeated Job jobs = 1;
+  QueueStats webhooks = 2;
+}

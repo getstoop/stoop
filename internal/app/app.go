@@ -301,7 +301,17 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	instanceSvc.UsePublicURL(a.tailnet.PublicURL)
 	// What the Hosting page can say about the voice sidecar: whether it
 	// is configured, whether it answers, and what Stoop has handed it.
-	instanceSvc.UseLiveKit(newLiveKitReporter(cfg, voiceOpts))
+	livekit := newLiveKitReporter(cfg, voiceOpts)
+	instanceSvc.UseLiveKit(livekit)
+	// The Diagnostics tab's Health panel, in the order it lists them.
+	started := time.Now()
+	instanceSvc.UseStartedAt(started)
+	instanceSvc.UseHealthChecks(
+		newPostgresCheck(pool, started),
+		newLiveKitCheck(voiceOpts, livekit),
+		newStorageCheck(store.Root(), filesSvc),
+		instanceSvc.PublicAddressCheck(),
+	)
 	if err := instanceSvc.UseTailscale(ctx, tailscaleController{a.tailnet}); err != nil {
 		pool.Close()
 		return nil, err

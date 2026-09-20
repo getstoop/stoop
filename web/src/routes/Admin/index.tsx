@@ -5,6 +5,7 @@ import { SettingsFrame } from "../../components/SettingsFrame";
 import { Permission } from "../../gen/stoop/access/v1/access_pb";
 import { AboutSection } from "./AboutSection";
 import { CleanupSection } from "./CleanupSection";
+import { Diagnostics } from "./Diagnostics";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { LoginProvidersSection } from "./LoginProvidersSection";
 import { PasswordSignInSection } from "./PasswordSignInSection";
@@ -20,7 +21,7 @@ import { UsersSection } from "./UsersSection";
 
 // Server administration: who may create accounts and spaces, which build
 // this is, the account list, every space on the server, how people reach
-// the server, sign-in, and the upload disk.
+// the server, sign-in, the upload disk, and how the server is doing.
 // Instance admins only; everyone else is sent home.
 
 type Tab =
@@ -30,7 +31,8 @@ type Tab =
   | "hosting"
   | "login"
   | "storage"
-  | "integrations";
+  | "integrations"
+  | "diagnostics";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "server", label: "Server" },
@@ -40,6 +42,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "login", label: "Login" },
   { key: "storage", label: "Storage" },
   { key: "integrations", label: "Integrations" },
+  { key: "diagnostics", label: "Diagnostics" },
 ];
 
 export function AdminPage() {
@@ -101,6 +104,7 @@ export function AdminPage() {
         </>
       )}
       {active === "integrations" && <IntegrationsSection />}
+      {active === "diagnostics" && <Diagnostics />}
       {active === "storage" && (
         <>
           <section className="card">

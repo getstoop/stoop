@@ -1,0 +1,76 @@
+/* ---- Server admin: the Diagnostics tab (routes/Admin/Diagnostics/).
+   The two lines under the title, then one section per panel. ---- */
+
+/* The frame's head owns the title; these sit under it at the head's own
+   spacing rather than a section apart. */
+.diag-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: -20px;
+}
+
+.diag-meta + .card {
+  padding-top: 0;
+  border-top: none;
+}
+
+/* ---- Health: a box of rows ---- */
+
+.health-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  font-size: var(--text-ui);
+}
+
+.health-row {
+  display: grid;
+  grid-template-columns: 150px 92px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.health-row + .health-row {
+  border-top: 1px solid var(--border);
+}
+
+.health-name {
+  font-weight: 600;
+}
+
+.health-row .badge {
+  margin: 0;
+  justify-self: start;
+}
+
+/* Not configured: a quiet mark, never a warning. */
+.badge.off {
+  background: var(--raised);
+  color: var(--text-muted);
+}
+
+/* The check's line, cut with an ellipsis; the way to the fix stays. */
+.health-detail {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.health-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-detail a {
+  flex-shrink: 0;
+}
+
+.health-age {
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}

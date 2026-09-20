@@ -233,6 +233,17 @@
     grid-template-columns: 1fr;
   }
 
+  /* A health row stacks: name and badge on the first line, the detail
+     and its age under them. */
+  .health-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .health-row .health-detail,
+  .health-row .health-age {
+    grid-column: 1 / -1;
+  }
+
   /* DataTable rows fold into a stack: identity and actions on the first
      line, then each cell under its column's label. */
   .dt,
