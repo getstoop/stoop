@@ -55,6 +55,7 @@ func toProtoJob(r diag.JobRecord) *instancev1.Job {
 		LastOutcome:    toProtoOutcome(r.Outcome),
 		LastError:      r.LastError,
 		Counters:       r.Counters,
+		Continuous:     r.Continuous,
 	}
 	if !r.Continuous && r.Interval > 0 {
 		j.Interval = durationpb.New(r.Interval)

@@ -2,6 +2,7 @@ package instance
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"connectrpc.com/connect"
@@ -61,9 +62,20 @@ func (s *Service) GetDatabaseStats(ctx context.Context, _ *connect.Request[insta
 		DatabaseBytes:       facts.DatabaseBytes,
 		BackendsActive:      facts.BackendsActive,
 		BackendsIdle:        facts.BackendsIdle,
-		OldestTransactionMs: int32(facts.OldestTransactionMs),
+		OldestTransactionMs: clampInt32(facts.OldestTransactionMs),
 		ServerVersion:       facts.ServerVersion,
 		SchemaVersion:       schema,
 		SchemaFloor:         facts.SchemaFloor,
 	}), nil
+}
+
+// clampInt32 caps a millisecond count at MaxInt32 instead of wrapping.
+func clampInt32(v int64) int32 {
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if v < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(v)
 }

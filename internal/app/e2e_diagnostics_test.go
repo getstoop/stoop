@@ -58,37 +58,47 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 
 // The Requests panel counts every unary call, refused ones included:
 // after the admin has read health twice and a member was turned away,
-// GetHealth shows up with its calls, an error and timings.
+// GetHealth's row has grown by those calls, the one error, and shows
+// timings. The stats are process-wide, so the test reads a delta rather
+// than a total: every harness in this package records into them.
 func TestE2EDiagnosticsRequests(t *testing.T) {
 	h := newHarness(t)
 	casey := h.person("casey")
 	ada := h.person("ada")
 
 	h.rpc(ada, diagnostics+"GetRequestStats", map[string]any{}).expect(t, "permission_denied")
+	before := procedureRow(h.rpc(casey, diagnostics+"GetRequestStats", map[string]any{}).expect(t, "ok"), "InstanceService.GetHealth")
+
 	h.rpc(casey, diagnostics+"GetHealth", map[string]any{}).expect(t, "ok")
 	h.rpc(casey, diagnostics+"GetHealth", map[string]any{}).expect(t, "ok")
 	h.rpc(ada, diagnostics+"GetHealth", map[string]any{}).expect(t, "permission_denied")
 
 	r := h.rpc(casey, diagnostics+"GetRequestStats", map[string]any{}).expect(t, "ok")
-	var health map[string]any
-	for _, p := range r.list("procedures") {
-		m, _ := p.(map[string]any)
-		if m["procedure"] == "InstanceService.GetHealth" {
-			health = m
-		}
-	}
-	if health == nil {
+	after := procedureRow(r, "InstanceService.GetHealth")
+	if after == nil {
 		t.Fatalf("no InstanceService.GetHealth row: %s", r.raw)
 	}
-	if calls := jsonInt(health["calls"]); calls < 3 {
-		t.Errorf("calls = %d, want >= 3", calls)
+	if grew := jsonInt(after["calls"]) - jsonInt(before["calls"]); grew < 3 {
+		t.Errorf("calls grew by %d, want >= 3", grew)
 	}
-	if errs := jsonInt(health["errors"]); errs < 1 {
-		t.Errorf("errors = %d, want >= 1", errs)
+	if grew := jsonInt(after["errors"]) - jsonInt(before["errors"]); grew < 1 {
+		t.Errorf("errors grew by %d, want >= 1", grew)
 	}
-	if p95 := jsonInt(health["p95Us"]); p95 <= 0 {
+	if p95 := jsonInt(after["p95Us"]); p95 <= 0 {
 		t.Errorf("p95Us = %d, want > 0", p95)
 	}
+}
+
+// procedureRow finds one procedure's row in a GetRequestStats reply, or
+// nil when it has not been called yet; jsonInt reads nil as 0.
+func procedureRow(r reply, procedure string) map[string]any {
+	for _, p := range r.list("procedures") {
+		m, _ := p.(map[string]any)
+		if m["procedure"] == procedure {
+			return m
+		}
+	}
+	return nil
 }
 
 // jsonInt reads a proto integer, which comes as a number for int32 and

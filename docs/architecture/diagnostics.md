@@ -93,8 +93,8 @@ state it is given.
 | `livekit` | the Hosting page's reachability probe | — | configured and unreachable |
 | `storage` | `statfs` on the upload directory, a create-and-delete probe, the quota | volume 85 % full, or quota 90 % used | volume 95 % full, or the probe fails |
 | `public_address` | the reachability state `GetReachability` computes | a tunnel or tailnet is configured but reconnecting | configured and down for over a minute |
-| `webhooks` | the queue port | any delivery dead-lettered in the last hour | the worker has not run for 5 min with items queued |
-| `jobs` | the job records | a pass failed, or a job is one interval overdue | three intervals overdue |
+| `webhooks` | the queue port | any delivery dead-lettered in the last hour | the worker has had no successful pass for 5 min with items queued |
+| `jobs` | the job records; a sweeper switched off by its interval (no interval, never ran, not continuous) is counted apart as "off" | a pass failed, or a job is one interval overdue | three intervals overdue |
 
 ## The panels and what they read
 
@@ -109,7 +109,7 @@ under query keys `["diag", "<panel>"]`
 | Right now | `GetLiveStats` | every gauge with its ring, and every counter, from the registry snapshot |
 | Database | `GetDatabaseStats` | `pgxpool.Stat()` (max, acquired, idle, empty-acquire count and wait time), a timed `Ping`, and one query for `pg_database_size`, `pg_stat_activity` counts, the oldest transaction, `server_version`; the goose version from `goose_db_version` |
 | Requests | `GetRequestStats` | `RPCStats` over the last five minutes: calls, errors (any code but Canceled), p50, p95, max. Since-start is on the metrics endpoint only |
-| Background work | `ListJobs` | every `Job` record (interval, last start, duration, outcome, error, counters, next due) and the queue port's counts |
+| Background work | `ListJobs` | every `Job` record (interval or `continuous`, last start, duration, outcome, error, counters, next due; a sweeper that is switched off shows "off") and the queue port's counts |
 
 The sixth tile, Webhooks queued, and the two queue rows on Background work
 read the same cached queue count.
@@ -129,9 +129,10 @@ adds the build, the instance name and an `at` timestamp. A panel the tab
 has not loaded is left out.
 
 **The nav dot** on the Diagnostics entry reads health through
-`useDiagHealthOnce`: the same query key, a minute's `staleTime` and no
-interval, so the shell shares the tab's cache without polling from every
-admin tab. It shows for WARN or DANGER, never OFF.
+`useDiagHealthOnce`: the same query key, a minute's `staleTime` and a
+one-minute refetch while an admin tab is open, so the shell shares the
+tab's cache and asks once a minute at most. It shows for WARN or DANGER,
+never OFF.
 
 ## `GET /metrics`
 

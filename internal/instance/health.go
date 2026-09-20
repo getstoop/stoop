@@ -47,15 +47,16 @@ const (
 )
 
 type cachedCheck struct {
-	check HealthCheck
-	mu    sync.Mutex
-	last  Check
+	check   HealthCheck
+	timeout time.Duration
+	mu      sync.Mutex
+	last    Check
 }
 
 // UseHealthChecks registers the checks, in the order the panel lists them.
 func (s *Service) UseHealthChecks(checks ...HealthCheck) {
 	for _, c := range checks {
-		s.health = append(s.health, &cachedCheck{check: c})
+		s.health = append(s.health, &cachedCheck{check: c, timeout: healthTimeout})
 	}
 }
 
@@ -88,32 +89,46 @@ func (c *cachedCheck) result(ctx context.Context) Check {
 	if time.Since(c.last.CheckedAt) < healthTTL {
 		return c.last
 	}
-	state, detail := c.run(ctx)
-	c.last = Check{
+	state, detail, settled := c.run(ctx)
+	got := Check{
 		Name: c.check.Name, State: state, Detail: detail,
 		FixTab: c.check.FixTab, CheckedAt: time.Now(),
 	}
-	return c.last
+	if settled {
+		c.last = got
+	}
+	return got
 }
 
-// run bounds the probe: the deadline is on the context, and a probe that
-// does not honour it is abandoned rather than waited for.
-func (c *cachedCheck) run(ctx context.Context) (CheckState, string) {
-	ctx, cancel := context.WithTimeout(ctx, healthTimeout)
-	defer cancel()
+// run bounds the probe: the deadline is on the probe's context, and a
+// probe that does not honour it is abandoned rather than waited for. The
+// caller leaving (a closed tab) does not cut the probe short, and its
+// answer is not settled, so a false failure is never cached.
+func (c *cachedCheck) run(ctx context.Context) (state CheckState, detail string, settled bool) {
+	probe, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.timeout)
 	type answer struct {
 		state  CheckState
 		detail string
 	}
 	done := make(chan answer, 1)
 	go func() {
-		st, d := c.check.Run(ctx)
+		st, d := c.check.Run(probe)
 		done <- answer{st, d}
+		cancel()
 	}()
 	select {
 	case a := <-done:
-		return a.state, a.detail
+		return a.state, a.detail, true
+	case <-probe.Done():
+		// The answer is sent before cancel, so an empty channel here is
+		// the deadline, not a finished probe.
+		select {
+		case a := <-done:
+			return a.state, a.detail, true
+		default:
+			return CheckDanger, "no answer in " + c.timeout.String(), true
+		}
 	case <-ctx.Done():
-		return CheckDanger, "no answer in " + healthTimeout.String()
+		return CheckDanger, "request ended before the check answered", false
 	}
 }

@@ -83,15 +83,8 @@ message GetDatabaseStatsResponse {
   int64 schema_floor = 13;
 }
 
-enum StatsWindow {
-  STATS_WINDOW_UNSPECIFIED = 0;
-  STATS_WINDOW_LAST_5_MINUTES = 1;
-  STATS_WINDOW_SINCE_START = 2;
-}
-
-message GetRequestStatsRequest {
-  StatsWindow window = 1;
-}
+// The last five minutes; the metrics endpoint carries since-start.
+message GetRequestStatsRequest {}
 
 message ProcedureStats {
   // "ChatService.ListMessages", package prefix trimmed
@@ -119,7 +112,7 @@ enum JobOutcome {
 message Job {
   // "file_sweep" …
   string name = 1;
-  // zero for the continuous worker
+  // unset for the continuous worker and for a sweeper that is switched off
   google.protobuf.Duration interval = 2;
   google.protobuf.Timestamp last_started = 3;
   int32 last_duration_ms = 4;
@@ -128,6 +121,8 @@ message Job {
   // files_removed, bytes_freed, rows_trimmed …
   map<string, int64> counters = 7;
   google.protobuf.Timestamp next_due = 8;
+  // a worker that never stops, as against a sweeper on a timer
+  bool continuous = 9;
 }
 
 message QueueStats {

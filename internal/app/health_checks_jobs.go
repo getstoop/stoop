@@ -21,23 +21,29 @@ const (
 
 // ---- webhooks ----
 
-// newWebhooksCheck reads the queue through the shared cache; started is
-// when the process came up, which stands in for a worker that has not
-// run yet.
+// newWebhooksCheck reads the queue through the shared cache. Freshness
+// is the worker's last pass that leased without error, not its last
+// attempt, which Run stamps even when the lease fails; started is when
+// the process came up, for a worker that has not succeeded yet.
 func newWebhooksCheck(q *queueStats, started time.Time) instance.HealthCheck {
 	return instance.HealthCheck{Name: "webhooks", FixTab: "integrations", Run: func(ctx context.Context) (instance.CheckState, string) {
 		stats, err := q.stats(ctx)
 		if err != nil {
 			return instance.CheckDanger, err.Error()
 		}
-		last := started
-		for _, j := range diag.Default.Jobs() {
-			if j.Name == workerJob && !j.LastStarted.IsZero() {
-				last = j.LastStarted
-			}
-		}
-		return webhooksState(stats, last, time.Now())
+		return webhooksState(stats, workerLast(diag.Default.Jobs(), started), time.Now())
 	}}
+}
+
+// workerLast is when the worker last leased without error; started when
+// it has not yet.
+func workerLast(jobs []diag.JobRecord, started time.Time) time.Time {
+	for _, j := range jobs {
+		if j.Name == workerJob && !j.LastSuccess.IsZero() {
+			return j.LastSuccess
+		}
+	}
+	return started
 }
 
 func webhooksState(q instance.QueueStats, workerLast, now time.Time) (instance.CheckState, string) {
@@ -62,7 +68,8 @@ func newJobsCheck() instance.HealthCheck {
 }
 
 // jobsState looks over the scheduled jobs: the worst finding wins, and a
-// job that has not run yet is on schedule (the process just started).
+// job that has not run yet is on schedule (the process just started). A
+// job that is off is counted apart.
 func jobsState(jobs []diag.JobRecord, now time.Time) (instance.CheckState, string) {
 	state, detail := instance.CheckOK, ""
 	worse := func(st instance.CheckState, d string) {
@@ -70,10 +77,14 @@ func jobsState(jobs []diag.JobRecord, now time.Time) (instance.CheckState, strin
 			state, detail = st, d
 		}
 	}
-	n := 0
+	n, off := 0, 0
 	var lastRan time.Time
 	for _, j := range jobs {
 		if j.Continuous {
+			continue
+		}
+		if jobOff(j) {
+			off++
 			continue
 		}
 		n++
@@ -97,10 +108,20 @@ func jobsState(jobs []diag.JobRecord, now time.Time) (instance.CheckState, strin
 	if state != instance.CheckOK {
 		return state, detail
 	}
-	if lastRan.IsZero() {
-		return instance.CheckOK, fmt.Sprintf("%d jobs on schedule · none run yet", n)
+	detail = fmt.Sprintf("%d jobs on schedule", n)
+	if off > 0 {
+		detail += fmt.Sprintf(" · %d off", off)
 	}
-	return instance.CheckOK, fmt.Sprintf("%d jobs on schedule · last ran %s ago", n, sinceWords(now.Sub(lastRan)))
+	if lastRan.IsZero() {
+		return instance.CheckOK, detail + " · none run yet"
+	}
+	return instance.CheckOK, detail + " · last ran " + sinceWords(now.Sub(lastRan)) + " ago"
+}
+
+// jobOff is a sweeper that was switched off: its loop returned before
+// Every, so the record has no interval and never ran.
+func jobOff(j diag.JobRecord) bool {
+	return !j.Continuous && j.Interval <= 0 && j.LastStarted.IsZero()
 }
 
 // sinceWords is a duration the way the row says it: "3 min", "2 h", "1 d".

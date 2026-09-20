@@ -62,8 +62,13 @@ function trim(n: number): string {
   return Number.isInteger(one) ? String(one) : one.toFixed(1);
 }
 
-export function formatEvery(ms: number | undefined): string {
-  return ms === undefined ? "continuous" : span(ms);
+// No interval is the worker that never stops, or a sweeper switched off.
+export function formatEvery(
+  ms: number | undefined,
+  continuous: boolean,
+): string {
+  if (ms !== undefined) return span(ms);
+  return continuous ? "continuous" : "off";
 }
 
 export function agoWords(ms: number): string {
