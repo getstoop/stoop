@@ -158,3 +158,15 @@ func TestMetricName(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteTextEscapesHelp(t *testing.T) {
+	var sb strings.Builder
+	snap := Snapshot{Counters: []CounterSample{{Name: "odd", Help: "back\\slash\nnext line", Value: 1}}}
+	if err := WriteText(&sb, snap); err != nil {
+		t.Fatal(err)
+	}
+	want := "# HELP stoop_odd_total back\\\\slash\\nnext line\n"
+	if !strings.HasPrefix(sb.String(), want) {
+		t.Errorf("got %q, want prefix %q", sb.String(), want)
+	}
+}

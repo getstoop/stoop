@@ -77,11 +77,14 @@ type Gauge struct {
 }
 
 // Gauge returns the gauge registered under name, creating it on first use.
-// The read function of the first registration wins.
+// Registering again replaces the read function (last wins) and keeps the ring.
 func (r *Registry) Gauge(name, help string, read func() float64) *Gauge {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if g, ok := r.gauges[name]; ok {
+		g.mu.Lock()
+		g.read = read
+		g.mu.Unlock()
 		return g
 	}
 	g := &Gauge{name: name, help: help, read: read}
@@ -90,7 +93,13 @@ func (r *Registry) Gauge(name, help string, read func() float64) *Gauge {
 }
 
 // Value reads the gauge now.
-func (g *Gauge) Value() float64 { return g.read() }
+func (g *Gauge) Value() float64 { return g.reader()() }
+
+func (g *Gauge) reader() func() float64 {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.read
+}
 
 // Series returns the sampled values, oldest first.
 func (g *Gauge) Series() []float64 {
@@ -105,7 +114,7 @@ func (g *Gauge) Series() []float64 {
 }
 
 func (g *Gauge) sample() {
-	v := g.read()
+	v := g.Value()
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.ring[g.head] = v
