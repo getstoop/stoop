@@ -56,9 +56,13 @@ func TestCloseStopsDelivery(t *testing.T) {
 func TestSlowConsumerIsDropped(t *testing.T) {
 	bus := NewInProcBus()
 	sub := bus.Subscribe("space:a")
+	dropped := droppedSubscribers.Value()
 
 	for range subscriptionBuffer + 1 {
 		bus.Publish("space:a", ping())
+	}
+	if got := droppedSubscribers.Value() - dropped; got != 1 {
+		t.Errorf("bus_dropped_total grew by %d, want 1", got)
 	}
 
 	// Drain: after subscriptionBuffer events the channel must be closed.

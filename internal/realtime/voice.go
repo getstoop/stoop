@@ -164,3 +164,22 @@ func (g *Gateway) publishVoice(userID string, e *voiceEntry, joined bool) {
 		},
 	}))
 }
+
+// VoiceParticipantCount is how many people are in a voice channel, and
+// VoiceRoomCount how many channels have someone in them. Both feed the
+// Diagnostics tab's gauges.
+func (g *Gateway) VoiceParticipantCount() int {
+	g.voice.mu.Lock()
+	defer g.voice.mu.Unlock()
+	return len(g.voice.users)
+}
+
+func (g *Gateway) VoiceRoomCount() int {
+	g.voice.mu.Lock()
+	defer g.voice.mu.Unlock()
+	rooms := map[string]struct{}{}
+	for _, e := range g.voice.users {
+		rooms[e.channel] = struct{}{}
+	}
+	return len(rooms)
+}
