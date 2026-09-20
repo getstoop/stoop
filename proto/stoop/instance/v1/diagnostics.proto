@@ -119,7 +119,7 @@ enum JobOutcome {
 message Job {
   // "file_sweep" …
   string name = 1;
-  // zero for the continuous worker
+  // unset for the continuous worker and for a sweeper that is switched off
   google.protobuf.Duration interval = 2;
   google.protobuf.Timestamp last_started = 3;
   int32 last_duration_ms = 4;
@@ -128,6 +128,8 @@ message Job {
   // files_removed, bytes_freed, rows_trimmed …
   map<string, int64> counters = 7;
   google.protobuf.Timestamp next_due = 8;
+  // a worker that never stops, as against a sweeper on a timer
+  bool continuous = 9;
 }
 
 message QueueStats {

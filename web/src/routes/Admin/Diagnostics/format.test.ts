@@ -23,12 +23,13 @@ describe("jobLabel", () => {
 
 describe("spans", () => {
   it("says an interval in its largest unit", () => {
-    expect(formatEvery(6 * HOUR)).toBe("6 h");
-    expect(formatEvery(HOUR)).toBe("1 h");
-    expect(formatEvery(90 * MIN)).toBe("1.5 h");
-    expect(formatEvery(5 * MIN)).toBe("5 min");
-    expect(formatEvery(30_000)).toBe("30 s");
-    expect(formatEvery(undefined)).toBe("continuous");
+    expect(formatEvery(6 * HOUR, false)).toBe("6 h");
+    expect(formatEvery(HOUR, false)).toBe("1 h");
+    expect(formatEvery(90 * MIN, false)).toBe("1.5 h");
+    expect(formatEvery(5 * MIN, false)).toBe("5 min");
+    expect(formatEvery(30_000, false)).toBe("30 s");
+    expect(formatEvery(undefined, true)).toBe("continuous");
+    expect(formatEvery(undefined, false)).toBe("off");
   });
   it("counts back and forward", () => {
     expect(agoWords(12 * MIN)).toBe("12 min ago");
