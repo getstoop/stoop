@@ -44,6 +44,20 @@ SET name = COALESCE(sqlc.narg('name'), name),
 WHERE id = $1
 RETURNING *;
 
+-- LockSpaceChannelNames serialises channel creates and renames in a space,
+-- so two of them can't both find a name free. NO KEY leaves joins alone.
+-- name: LockSpaceChannelNames :one
+SELECT id FROM spaces WHERE id = sqlc.arg(space_id)::uuid FOR NO KEY UPDATE;
+
+-- Names from before the rule may carry capitals, so compare folded.
+-- name: ChannelNameTaken :one
+SELECT EXISTS (
+    SELECT 1 FROM channels
+    WHERE space_id = sqlc.arg(space_id)::uuid
+      AND lower(name) = lower(sqlc.arg(name))
+      AND id <> sqlc.arg(except_id)
+);
+
 -- name: DeleteChannel :exec
 DELETE FROM channels WHERE id = $1;
 

@@ -23,6 +23,29 @@ space.
 - A **message** is content, an author, a channel, and optional replies,
   attachments, reactions, mentions and links.
 
+### Channel names
+
+A space channel's name is an identifier, because search addresses a
+channel by it (`in:#garden`). `validChannelName` in `chat/channels.go`:
+
+- lowercase ASCII letters, digits, `-` and `_`;
+- starts with a letter or a digit;
+- 32 characters at most;
+- unique within the space, compared case-folded.
+
+The rule is checked in the chat module when a channel is created or
+renamed, and there is no database constraint behind it. A name that was
+saved before the rule stays as it is until someone renames the channel,
+so a database can hold `General`, `off topic`, or two channels of one
+name. Creates and renames take the space's row lock (`FOR NO KEY
+UPDATE`) before looking for a clash, so two of them cannot both find a
+name free.
+
+A refused name comes back as `InvalidArgument` with the rule in one
+line, a clash as `AlreadyExists`. The web app shows the rule beside the
+field and the server's message on refusal; it does not rewrite what was
+typed.
+
 The chat module tells a space channel and a DM apart in exactly **two
 places**, and nowhere else:
 
@@ -367,7 +390,9 @@ cursor. What the code does:
   syntax — words, `"phrases"`, `-excluded`, `OR`. The last bare word of
   three or more characters becomes a prefix match, so `restart` finds
   `restarted`. A query with no words left is `InvalidArgument`; a
-  channel or handle that is not in the space is `NotFound`.
+  channel or handle that is not in the space is `NotFound`. `in:`
+  matches a name case-folded, preferring an exact match and then the
+  first by position, which covers names from before the naming rule.
 - **The query** (`queries/chat/search.sql`) filters by the space's
   channels first, then the text match, then the date and cursor bounds,
   and stops after the page. No ranking: recency is the order. Rows carry
