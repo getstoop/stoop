@@ -9,10 +9,11 @@ import { ago } from "./format";
 
 // One row per dependency: what it is, how it is, the one line the check
 // wrote, and how fresh that is. The state is drawn as given; the
-// thresholds are the server's (docs/proposals/diagnostics.md).
+// thresholds are the server's (docs/proposals/diagnostics.md). A state
+// this build does not know (a newer server) draws as unknown.
 
 const BADGE: Record<CheckState, { className: string; label: string }> = {
-  [CheckState.UNSPECIFIED]: { className: "badge", label: "?" },
+  [CheckState.UNSPECIFIED]: { className: "badge off", label: "unknown" },
   [CheckState.OK]: { className: "badge ok", label: "ok" },
   [CheckState.WARN]: { className: "badge warn", label: "warn" },
   [CheckState.DANGER]: { className: "badge danger", label: "danger" },
@@ -51,7 +52,7 @@ export function HealthChecks({ now }: { now: number }) {
 }
 
 function HealthRow({ check, now }: { check: HealthCheck; now: number }) {
-  const badge = BADGE[check.state];
+  const badge = BADGE[check.state] ?? BADGE[CheckState.UNSPECIFIED];
   const fix = FIX_TABS[check.fixTab];
   const checked = check.checkedAt
     ? ago(now - timestampDate(check.checkedAt).getTime())
