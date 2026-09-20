@@ -309,3 +309,13 @@ export function useDiagDatabase() {
     refetchIntervalInBackground: false,
   });
 }
+
+// Instance admins only: the Requests panel, the last five minutes.
+export function useDiagRequests() {
+  return useQuery({
+    queryKey: ["diag", "requests"],
+    queryFn: async () => instanceClient.getRequestStats({}),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}

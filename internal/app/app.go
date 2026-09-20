@@ -166,6 +166,8 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	interceptors := connect.WithHandlerOptions(
 		connect.WithReadMaxBytes(maxRequestBytes),
 		connect.WithInterceptors(
+			// Outermost, so a call refused by auth or the limiter is timed too.
+			diag.Interceptor(),
 			ratelimit.Interceptor(authLimiter, instanceSvc.TrustsPeer,
 				authv1connect.AuthServiceLoginProcedure,
 				authv1connect.AuthServiceRegisterProcedure,

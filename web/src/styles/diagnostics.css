@@ -177,3 +177,16 @@
   align-items: center;
   gap: 4px;
 }
+
+/* ---- Requests ---- */
+
+.diag-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* A p95 at or above 200 ms. */
+.dt .hot {
+  color: var(--warn);
+  font-weight: 600;
+}

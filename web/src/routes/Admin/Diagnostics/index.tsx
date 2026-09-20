@@ -8,6 +8,7 @@ import { DatabasePanel } from "./DatabasePanel";
 import { ago, formatUptime } from "./format";
 import { HealthChecks } from "./HealthChecks";
 import { LiveTiles } from "./LiveTiles";
+import { RequestsTable } from "./RequestsTable";
 import { useNow } from "./useNow";
 
 // The Diagnostics tab: what the server is doing across its dependencies,
@@ -42,6 +43,7 @@ export function Diagnostics() {
       <HealthChecks now={now} />
       <LiveTiles />
       <DatabasePanel />
+      <RequestsTable />
     </>
   );
 }
