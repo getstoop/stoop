@@ -51,7 +51,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 
 	// A reply must point at a message in this channel.
 	var replyTo *string
-	var parent *dbgen.Message
+	var parent *messageRow
 	if id := req.Msg.ReplyToMessageId; id != "" {
 		p, err := s.q.GetMessage(ctx, id)
 		if err != nil {
@@ -72,13 +72,14 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
 	qtx := s.q.WithTx(tx)
-	row, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
+	created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 		ID: newID(), ChannelID: channel.ID, AuthorID: userID, Content: content,
 		MentionsEveryone: res.everyone, MentionsHere: res.here, ReplyToMessageID: replyTo,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create message: %w", err)
 	}
+	row := messageRow(created)
 	if err := insertAttachments(ctx, qtx, row.ID, attachments); err != nil {
 		return nil, err
 	}
@@ -251,13 +252,27 @@ func newestFirst(asc []dbgen.ListMessagesAfterRow) []dbgen.ListMessagesBeforeRow
 	return out
 }
 
+// messageRow is a messages row without its search vector, which the
+// queries leave out (queries/chat/messages.sql). The other queries' row
+// types convert to it.
+type messageRow = dbgen.GetMessageRow
+
+// listedMessage is the message in a list row, without the reply columns.
+func listedMessage(r dbgen.ListMessagesBeforeRow) messageRow {
+	return messageRow{
+		ID: r.ID, ChannelID: r.ChannelID, AuthorID: r.AuthorID, Content: r.Content,
+		CreatedAt: r.CreatedAt, MentionsEveryone: r.MentionsEveryone,
+		ReplyToMessageID: r.ReplyToMessageID, MentionsHere: r.MentionsHere, EditedAt: r.EditedAt,
+	}
+}
+
 // hydrateMessages turns newest-first rows into oldest-first protos with
 // authors, mentions, reactions, attachments, link previews and reply quotes.
 func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.ListMessagesBeforeRow) ([]*chatv1.Message, error) {
 	authorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}
 	for _, r := range rows {
-		for _, id := range []*string{&r.Message.AuthorID, r.ReplyAuthorID} {
+		for _, id := range []*string{&r.AuthorID, r.ReplyAuthorID} {
 			if id != nil && *id != "" && !seen[*id] {
 				seen[*id] = true
 				authorIDs = append(authorIDs, *id)
@@ -270,7 +285,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	}
 	messageIDs := make([]string, len(rows))
 	for i, r := range rows {
-		messageIDs[i] = r.Message.ID
+		messageIDs[i] = r.ID
 	}
 	mentions, err := s.mentionsByMessage(ctx, messageIDs)
 	if err != nil {
@@ -307,17 +322,17 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	// Rows come newest-first; return oldest-first for rendering.
 	messages := make([]*chatv1.Message, len(rows))
 	for i, r := range rows {
-		m := toProtoMessage(r.Message, authors, mentions[r.Message.ID], spaceID)
-		m.Reactions = reactions[r.Message.ID]
-		m.Attachments = attachments[r.Message.ID]
-		m.LinkPreviews = previews[r.Message.ID]
-		m.Pinned = pinned[r.Message.ID]
-		if r.Message.ReplyToMessageID != nil {
+		m := toProtoMessage(listedMessage(r), authors, mentions[r.ID], spaceID)
+		m.Reactions = reactions[r.ID]
+		m.Attachments = attachments[r.ID]
+		m.LinkPreviews = previews[r.ID]
+		m.Pinned = pinned[r.ID]
+		if r.ReplyToMessageID != nil {
 			var author *chatv1.MessageAuthor
 			if r.ReplyAuthorID != nil {
 				author = authors[*r.ReplyAuthorID]
 			}
-			m.ReplyTo = replyRef(*r.Message.ReplyToMessageID, author, r.ReplyContent, replyFiles[r.ReplyFirstFileID].label())
+			m.ReplyTo = replyRef(*r.ReplyToMessageID, author, r.ReplyContent, replyFiles[r.ReplyFirstFileID].label())
 		}
 		messages[len(rows)-1-i] = m
 	}
@@ -350,10 +365,11 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return nil, err
 	}
-	row, err := s.q.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content})
+	edited, err := s.q.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content})
 	if err != nil {
 		return nil, fmt.Errorf("edit message: %w", err)
 	}
+	row := messageRow(edited)
 	// Mentions are not re-resolved on edit: no new activity, and the
 	// original recipients stay recorded. Links are: the previews follow
 	// the text.
@@ -447,7 +463,7 @@ func (s *Service) firstAttachmentName(ctx context.Context, messageID string) str
 	return records[ids[0]].label()
 }
 
-func toProtoMessage(m dbgen.Message, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
+func toProtoMessage(m messageRow, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
 	author := authors[m.AuthorID]
 	if author == nil {
 		author = &chatv1.MessageAuthor{Id: m.AuthorID, Username: "unknown"}

@@ -44,7 +44,8 @@ func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInS
 
 const searchMessages = `-- name: SearchMessages :many
 
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.search, p.author_id AS reply_author_id, p.content AS reply_content,
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
+    p.author_id AS reply_author_id, p.content AS reply_content,
     COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
@@ -76,7 +77,15 @@ type SearchMessagesParams struct {
 }
 
 type SearchMessagesRow struct {
-	Message          Message
+	ID               string
+	ChannelID        string
+	AuthorID         string
+	Content          string
+	CreatedAt        time.Time
+	MentionsEveryone bool
+	ReplyToMessageID *string
+	MentionsHere     bool
+	EditedAt         *time.Time
 	ReplyAuthorID    *string
 	ReplyContent     *string
 	ReplyFirstFileID string
@@ -109,16 +118,15 @@ func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) 
 	for rows.Next() {
 		var i SearchMessagesRow
 		if err := rows.Scan(
-			&i.Message.ID,
-			&i.Message.ChannelID,
-			&i.Message.AuthorID,
-			&i.Message.Content,
-			&i.Message.CreatedAt,
-			&i.Message.MentionsEveryone,
-			&i.Message.ReplyToMessageID,
-			&i.Message.MentionsHere,
-			&i.Message.EditedAt,
-			&i.Message.Search,
+			&i.ID,
+			&i.ChannelID,
+			&i.AuthorID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.MentionsEveryone,
+			&i.ReplyToMessageID,
+			&i.MentionsHere,
+			&i.EditedAt,
 			&i.ReplyAuthorID,
 			&i.ReplyContent,
 			&i.ReplyFirstFileID,

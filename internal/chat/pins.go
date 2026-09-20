@@ -45,7 +45,7 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 	return s.unpin(ctx, msg, channel)
 }
 
-func (s *Service) pin(ctx context.Context, msg dbgen.Message, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
+func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
 	row, err := s.q.PinMessage(ctx, dbgen.PinMessageParams{
 		MessageID: msg.ID, ChannelID: channel.ID,
 		PinnedBy: authctx.UserID(ctx), Cap: maxChannelPins,
@@ -75,7 +75,7 @@ func (s *Service) pin(ctx context.Context, msg dbgen.Message, channel dbgen.Chan
 	return connect.NewResponse(&chatv1.SetMessagePinnedResponse{Pin: pin}), nil
 }
 
-func (s *Service) unpin(ctx context.Context, msg dbgen.Message, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
+func (s *Service) unpin(ctx context.Context, msg messageRow, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
 	removed, err := s.q.UnpinMessage(ctx, msg.ID)
 	if err != nil {
 		return nil, fmt.Errorf("unpin message: %w", err)
@@ -112,7 +112,9 @@ func (s *Service) ListPinnedMessages(ctx context.Context, req *connect.Request[c
 	pinnerIDs := make([]string, len(rows))
 	for i, r := range rows {
 		msgRows[i] = dbgen.ListMessagesBeforeRow{
-			Message:          r.Message,
+			ID: r.ID, ChannelID: r.ChannelID, AuthorID: r.AuthorID, Content: r.Content,
+			CreatedAt: r.CreatedAt, MentionsEveryone: r.MentionsEveryone,
+			ReplyToMessageID: r.ReplyToMessageID, MentionsHere: r.MentionsHere, EditedAt: r.EditedAt,
 			ReplyAuthorID:    r.ReplyAuthorID,
 			ReplyContent:     r.ReplyContent,
 			ReplyFirstFileID: r.ReplyFirstFileID,
@@ -157,7 +159,7 @@ func (s *Service) pinnedByMessage(ctx context.Context, messageIDs []string) (map
 }
 
 // pinProto renders one pin for the RPC that made it.
-func (s *Service) pinProto(ctx context.Context, msg dbgen.Message, channel dbgen.Channel, row dbgen.ChannelPin) (*chatv1.PinnedMessage, error) {
+func (s *Service) pinProto(ctx context.Context, msg messageRow, channel dbgen.Channel, row dbgen.ChannelPin) (*chatv1.PinnedMessage, error) {
 	out, err := s.loadMessage(ctx, msg, spaceOf(channel))
 	if err != nil {
 		return nil, err

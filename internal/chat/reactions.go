@@ -104,7 +104,7 @@ func (s *Service) reactionsByMessage(ctx context.Context, messageIDs []string) (
 // loadMessage renders one stored message in full — author, mentions,
 // reply quote, reactions — for RPCs that return a message they didn't
 // just build (edit, toggle reaction).
-func (s *Service) loadMessage(ctx context.Context, row dbgen.Message, spaceID string) (*chatv1.Message, error) {
+func (s *Service) loadMessage(ctx context.Context, row messageRow, spaceID string) (*chatv1.Message, error) {
 	mentions, err := s.mentionsByMessage(ctx, []string{row.ID})
 	if err != nil {
 		return nil, err

@@ -26,7 +26,7 @@ const (
 
 // recordMentions writes an activity item for each mentioned member and
 // delivers it live. Called after the message is committed.
-func (s *Service) recordMentions(ctx context.Context, msg dbgen.Message, spaceID *string, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
+func (s *Service) recordMentions(ctx context.Context, msg messageRow, spaceID *string, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
 	mentioned, err := s.withoutBlockers(ctx, msg.AuthorID, mentioned)
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func (s *Service) recordMentions(ctx context.Context, msg dbgen.Message, spaceID
 
 // recordReply tells the replied-to author, unless they're the replier or
 // were already @mentioned in the same message (one alert is enough).
-func (s *Service) recordReply(ctx context.Context, msg dbgen.Message, spaceID *string, parentAuthorID string, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
+func (s *Service) recordReply(ctx context.Context, msg messageRow, spaceID *string, parentAuthorID string, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
 	if parentAuthorID == msg.AuthorID {
 		return nil
 	}
@@ -98,7 +98,7 @@ func (s *Service) recordReply(ctx context.Context, msg dbgen.Message, spaceID *s
 // (newest preview and time) rather than add rows; once read, the next
 // message starts a new one. The event goes out either way, so a desktop
 // banner still fires per message.
-func (s *Service) recordDM(ctx context.Context, msg dbgen.Message, channel dbgen.Channel, parent *dbgen.Message, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
+func (s *Service) recordDM(ctx context.Context, msg messageRow, channel dbgen.Channel, parent *messageRow, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
 	ids, err := s.q.ListDMMembers(ctx, channel.ID)
 	if err != nil {
 		return fmt.Errorf("list participants: %w", err)
