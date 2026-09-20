@@ -50,7 +50,9 @@ harness's readiness loop. `GET /version` answers
 `{"name":"stoop","version":"0.4.0","bridge":2}` to anyone, so a client can
 tell what it is talking to before logging in — the desktop shell refuses a
 server older than it supports and reads the `window.stoop` level the
-served web app speaks ([desktop.md](desktop.md)). Logging is `log/slog` to stderr, structured, with
+served web app speaks ([desktop.md](desktop.md)). `GET /metrics` is the
+Prometheus view of the same instruments the Diagnostics tab reads, behind a
+personal token ([diagnostics.md](diagnostics.md)). Logging is `log/slog` to stderr, structured, with
 no log file to rotate — the supervisor that runs the process already has
 one.
 

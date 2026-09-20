@@ -136,6 +136,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	chatSvc.UseFiles(fileDirectory{filesSvc})
 	instanceSvc.UseRetentionCounter(retentionCounter{chatSvc, filesSvc})
 	integrationsSvc := integrations.New(pool, bus, log)
+	// The outgoing queue as the Diagnostics tab and a metrics scrape read
+	// it, counted only when asked.
+	queue := webhookQueue(integrationsSvc)
+	instanceSvc.UseWebhookQueue(queue.stats)
 	integrationsSvc.UsePolicy(instanceSvc)
 	integrationsSvc.UseQueue(integrations.NewPostgresQueue(pool))
 	integrationsSvc.UsePoster(hookPoster{chatSvc})
@@ -200,6 +204,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle("GET /version", versionHandler())
+	mux.Handle("GET /metrics", metricsHandler(authSvc, instanceSvc, queue))
 	web, scripts := webui.Handler(), webui.ScriptHashes()
 	if cfg.DevWebURL != "" {
 		if web, err = webui.DevProxy(cfg.DevWebURL); err != nil {
@@ -307,10 +312,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	// is configured, whether it answers, and what Stoop has handed it.
 	livekit := newLiveKitReporter(cfg, voiceOpts)
 	instanceSvc.UseLiveKit(livekit)
-	// The Diagnostics tab: the outgoing queue's port, then the Health
-	// panel in the order it lists them.
-	queue := webhookQueue(integrationsSvc)
-	instanceSvc.UseWebhookQueue(queue.stats)
+	// The Diagnostics tab's Health panel, in the order it lists them.
 	started := time.Now()
 	instanceSvc.UseStartedAt(started)
 	instanceSvc.UseHealthChecks(

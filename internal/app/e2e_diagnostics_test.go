@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 	"testing"
@@ -188,4 +189,57 @@ func TestE2EDiagnosticsJobs(t *testing.T) {
 	if !strings.Contains(r.raw, `"webhooks"`) {
 		t.Errorf("no webhooks in %s", r.raw)
 	}
+}
+
+// GET /metrics is the registry for a bearer token that holds
+// instance.read: no token is 401 with the challenge, a token whose holder
+// or grant lacks the action is 403, and the admin's reads text with the
+// gauges, the procedure counters, the health rows and the build.
+func TestE2EDiagnosticsMetrics(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	ada := h.person("ada")
+	h.rpc(casey, diagnostics+"GetHealth", map[string]any{}).expect(t, "ok")
+
+	none := h.metrics("").expectStatus(t, http.StatusUnauthorized)
+	if none.header.Get("WWW-Authenticate") != "Bearer" {
+		t.Errorf("no challenge: %v", none.header)
+	}
+	h.metrics("not-a-token").expectStatus(t, http.StatusUnauthorized)
+	h.metrics(h.pat(ada, "instance.read")).expectStatus(t, http.StatusForbidden)
+	h.metrics(h.pat(casey, "messages.read")).expectStatus(t, http.StatusForbidden)
+
+	r := h.metrics(h.pat(casey, "instance.read")).expectStatus(t, http.StatusOK)
+	if ct := r.header.Get("Content-Type"); !strings.HasPrefix(ct, "text/plain") {
+		t.Errorf("Content-Type = %q", ct)
+	}
+	if r.header.Get("Cache-Control") != "no-store" {
+		t.Errorf("Cache-Control = %q", r.header.Get("Cache-Control"))
+	}
+	for _, want := range []string{
+		"# TYPE stoop_connections gauge\nstoop_connections 0\n",
+		"stoop_rpc_calls_total{procedure=\"InstanceService.GetHealth\"}",
+		"stoop_health{check=\"postgres\"} 0\n",
+		"stoop_health{check=\"livekit\"} 3\n",
+		"stoop_webhooks_queue_up 1\n",
+		"stoop_webhooks_queued 0\n",
+		"stoop_build_info{version=",
+	} {
+		if !strings.Contains(r.raw, want) {
+			t.Errorf("no %q in:\n%s", want, r.raw)
+		}
+	}
+}
+
+// metrics reads GET /metrics with a bearer token, or none.
+func (h *harness) metrics(token string) reply {
+	h.t.Helper()
+	r, err := http.NewRequest(http.MethodGet, h.srv.URL+"/metrics", nil)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	if token != "" {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
+	return h.do(r)
 }

@@ -9,7 +9,7 @@ import (
 )
 
 // The Right now panel's gauges. Each is a read function the sampler calls
-// every diag.SampleStep (docs/proposals/diagnostics.md).
+// every diag.SampleStep (docs/architecture/diagnostics.md).
 func registerGauges(gateway *realtime.Gateway) {
 	diag.NewGauge("connections", "Open WebSocket sessions.", func() float64 { return float64(gateway.ConnectionCount()) })
 	diag.NewGauge("online_users", "Accounts with at least one connection.", func() float64 { return float64(gateway.OnlineUserCount()) })

@@ -219,7 +219,7 @@ the recovery model.
    auth interceptor.
 7. **Mount one mux**: six Connect handlers, the multipart upload endpoint,
    the file download handler, `/hooks/`, `/ws`, `/auth/` for the OIDC redirects,
-   `/livekit/` for the signaling proxy, `/healthz`, `/version`, and the embedded SPA at
+   `/livekit/` for the signaling proxy, `/healthz`, `/version`, `/metrics`, and the embedded SPA at
    `/` as the fallback.
 8. **Wrap the mux**: `securityHeaders` inside, `secureTransport` outside.
    The order is load-bearing — the headers read the TLS verdict that

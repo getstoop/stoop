@@ -13,7 +13,7 @@ import (
 
 // The Background work panel: every job the modules record into
 // internal/diag, plus the webhook queue through a port on integrations.
-// See docs/proposals/diagnostics.md.
+// See docs/architecture/diagnostics.md.
 
 // QueueStats is the webhook queue by state; Hooks is how many outgoing
 // webhooks exist, so the health check can say "off" rather than "empty".

@@ -97,7 +97,7 @@ people who joined.
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
 | `GetLoginProviders` / `UpdateLoginProviders` | Admins. The OIDC provider list, replaced whole. |
 | `GetBuildInfo` | Admins. Version, commit, build time, Go version — admin-only because an exact version tells a stranger which bugs to try. |
-| `GetHealth` / `GetLiveStats` / `GetDatabaseStats` / `GetRequestStats` / `ListJobs` | Admins. The Diagnostics tab, read-only; only `GetHealth` is built so far (`docs/proposals/diagnostics.md`). |
+| `GetHealth` / `GetLiveStats` / `GetDatabaseStats` / `GetRequestStats` / `ListJobs` | Admins. The Diagnostics tab, read-only, polled every 5 s while it is open. See [diagnostics.md](diagnostics.md). |
 | `ListUserTokens` / `RevokeUserToken` | Admins. Another account's personal tokens, never the token itself. |
 
 ### `stoop.files.v1.FileService`
@@ -139,6 +139,7 @@ Some things are not RPCs, each for a specific reason.
 | `/livekit/…` | A reverse proxy for LiveKit's own signaling WebSocket, so the whole app lives on one origin. |
 | `GET /healthz` | For container health checks and the E2E harness's readiness loop. |
 | `GET /version` | Public and unauthenticated, so the desktop shell can ask before anyone signs in. See [desktop.md](desktop.md). |
+| `GET /metrics` | The instruments in Prometheus text format, for a scraper: a bearer token holding `instance.read`, 401 with a challenge without one. See [diagnostics.md](diagnostics.md#get-metrics). |
 | `GET /` and everything unmatched | The embedded SPA, with unknown paths falling through to `index.html` so client-side routes survive a refresh. |
 
 ## The realtime wire format

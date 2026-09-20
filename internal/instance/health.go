@@ -9,7 +9,7 @@ import (
 // The Health panel's port. A check is registered from internal/app, the
 // only package that sees every dependency, and answers with a state and
 // one line. Thresholds live in the check; the client draws the state it
-// is given. See docs/proposals/diagnostics.md.
+// is given. See docs/architecture/diagnostics.md.
 
 type CheckState int
 
@@ -62,6 +62,10 @@ func (s *Service) UseHealthChecks(checks ...HealthCheck) {
 
 // UseStartedAt records when the process came up, for the uptime line.
 func (s *Service) UseStartedAt(t time.Time) { s.startedAt = t }
+
+// HealthSnapshot is the checks as GetHealth would report them, for
+// GET /metrics; it shares the same cache.
+func (s *Service) HealthSnapshot(ctx context.Context) []Check { return s.runHealthChecks(ctx) }
 
 // runHealthChecks evaluates every check concurrently, each answer cached
 // for healthTTL so a polling page does not hammer a dependency.

@@ -3,7 +3,13 @@ import { notice } from "../stores/dialogs";
 
 // A "Copy" chip that says "Copied!" for a moment once the text is on the
 // clipboard, and raises a notice when it can't get there.
-export function CopyButton({ text }: { text: string }) {
+export function CopyButton({
+  text,
+  label = "Copy",
+}: {
+  text: string;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -23,7 +29,7 @@ export function CopyButton({ text }: { text: string }) {
 
   return (
     <button type="button" className="chip" onClick={copy}>
-      {copied ? "Copied!" : "Copy"}
+      {copied ? "Copied!" : label}
     </button>
   );
 }

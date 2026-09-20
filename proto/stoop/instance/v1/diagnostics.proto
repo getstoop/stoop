@@ -6,7 +6,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 // The Diagnostics tab: read-only, instance.read, polled every 5 s while
-// the tab is open. See docs/proposals/diagnostics.md.
+// the tab is open. See docs/architecture/diagnostics.md.
 
 // CheckState is a health check's verdict. OFF is a dependency that is not
 // configured: drawn muted, never a warning.

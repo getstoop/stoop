@@ -15,7 +15,7 @@ import (
 )
 
 // The Health panel's checks that need more than one module to answer.
-// Thresholds are the table in docs/proposals/diagnostics.md.
+// Thresholds are the table in docs/architecture/diagnostics.md.
 
 const (
 	pingDanger    = 2 * time.Second

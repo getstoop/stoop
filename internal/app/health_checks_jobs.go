@@ -10,7 +10,7 @@ import (
 )
 
 // The Health panel's last two rows, from the job recorder and the queue
-// port. Thresholds are the table in docs/proposals/diagnostics.md.
+// port. Thresholds are the table in docs/architecture/diagnostics.md.
 
 const (
 	workerStale   = 5 * time.Minute

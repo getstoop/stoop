@@ -9,7 +9,7 @@ import { ago } from "./format";
 
 // One row per dependency: what it is, how it is, the one line the check
 // wrote, and how fresh that is. The state is drawn as given; the
-// thresholds are the server's (docs/proposals/diagnostics.md). A state
+// thresholds are the server's (docs/architecture/diagnostics.md). A state
 // this build does not know (a newer server) draws as unknown.
 
 const BADGE: Record<CheckState, { className: string; label: string }> = {

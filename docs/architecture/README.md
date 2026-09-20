@@ -27,7 +27,7 @@ extracted, and nothing needs to be.
   browser ─ HTTPS ─►│  :8080  Connect RPC   auth · chat · instance · files  │
                     │                       voice · integrations            │
                     │         plain HTTP    /auth /files /hooks /healthz    │
-                    │                       /version                        │
+                    │                       /version /metrics               │
                     │         WebSocket     /ws  ──►  realtime gateway      │
                     │         WebSocket     /livekit ─► signaling proxy ──┐ │
                     │         static        embedded web app (go:embed)   │ │
@@ -79,7 +79,8 @@ Support packages, which are not modules and own no domain: `internal/events`
 `internal/config`, `internal/authctx` (the shared identity contract),
 `internal/blob` (the storage port and its backends), `internal/unfurl`
 (the link fetcher), `internal/ratelimit`, `internal/trustedproxy`, `internal/netguard`,
-`internal/accesswire`, `internal/buildinfo`,
+`internal/accesswire`, `internal/buildinfo`, `internal/diag` (the
+in-memory instruments behind the Diagnostics tab and `/metrics`),
 `internal/tailnet` (the optional embedded Tailscale node),
 `internal/cftunnel` (the optional Cloudflare Tunnel connector), `internal/webui`
 (the embedded SPA), `internal/app` (the composition root), and `cmd/stoop`.
@@ -114,6 +115,7 @@ one its reasoning, its enforcement, and what it costs.
 | [web.md](web.md) | The React client: routing, the query cache as the single source of truth, stores, themes, the settings frame and tables. |
 | [design-system.md](design-system.md) | The web kit as built: grounds and the colour contract, the non-colour tokens, which shared part to reach for, how a part earns its place, and the lint that holds it. |
 | [runtime.md](runtime.md) | Process model, configuration precedence, front doors, security headers, background work, and how a build is produced. |
+| [diagnostics.md](diagnostics.md) | The Diagnostics tab and its panels, the `internal/diag` instruments, the health-check port, the sampler, and `GET /metrics`. |
 | [desktop.md](desktop.md) | The contract the desktop shell relies on: `GET /version`, `window.stoop`, deep links, sessions, and what lives in which repository. |
 | [integrations.md](integrations.md) | Bots and their credentials, incoming webhooks and their adapters, outgoing webhooks, the delivery queue and its contract, egress, and the switches. |
 

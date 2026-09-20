@@ -1,7 +1,7 @@
 // Package diag holds the in-memory instruments behind the Diagnostics tab
 // and GET /metrics: counters, sampled gauges, per-procedure timings and
 // job records. Modules record into it the way they log into slog. The
-// reasoning is in docs/proposals/diagnostics.md.
+// reasoning is in docs/architecture/diagnostics.md.
 package diag
 
 import (

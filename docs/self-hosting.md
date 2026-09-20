@@ -614,6 +614,59 @@ token can read everything its bot can.
 anything; the two direction switches on the admin page do the same per
 direction.
 
+## Diagnostics
+
+**When something feels slow or broken**, open Server admin → Diagnostics.
+It is read-only and refreshes every 5 s while it is open; a dot on the nav
+entry means a health row is at warn or danger.
+
+| Panel | Answers |
+| --- | --- |
+| Health | Is each dependency up: Postgres, LiveKit, file storage, the public address, the webhook worker, the sweeps. An *off* row is something you have not configured, not a fault. Each row links to the tab that fixes it. |
+| Right now | Connections, people online, people in voice, requests per minute, slow consumers dropped, each with its last fifteen minutes, and the webhook queue as it is now. |
+| Database | The connection pool, ping, database size, backends, the oldest open transaction, and the Postgres and schema versions. |
+| Requests | Calls, errors and p50 / p95 / max per procedure over the last 5 minutes. Since-start totals are on the metrics endpoint. |
+| Background work | Every sweep and the webhook worker: when it last ran, how long it took, what it removed, when it is due. |
+
+Reading it:
+
+| They say | Look at | What it tells you |
+| --- | --- | --- |
+| "Voice is choppy" | Health: LiveKit, then Hosting | Unreachable means the sidecar. Reachable with people in rooms means media, not Stoop: TURN, the network, or the host itself. |
+| "Messages take ages to load" | Requests, then Database | A high p95 on `ListMessages` with pool waits means Postgres is saturated. A high p95 with an idle pool means the query itself, or the disk. |
+| "My webhook stopped firing" | Background work, then Integrations | Dead-lettered with a 5xx is the receiving end. Queued and never leased is the worker. |
+| "People keep dropping" | Right now: Connections, Slow consumers dropped | A sawtooth in connections with drops climbing means the server is falling behind on fan-out. Flat drops with a sawtooth means their network or the proxy in front. |
+| "Uploads fail" | Health: File storage | Volume full, quota reached, or the directory is not writable after a restore. |
+| "It was fine yesterday" | Copy report | Paste it into an issue. |
+
+**Copy report**, at the top of the tab, puts everything on the page into
+one JSON document. It is what to paste into a bug report; it holds no
+message content and no secrets.
+
+**To scrape it with Prometheus**, make a personal token on your Profile →
+Security page with *View server administration* ticked, then:
+
+```sh
+curl -H 'Authorization: Bearer stp_pat_…' https://chat.example.net/metrics
+```
+
+```yaml
+scrape_configs:
+  - job_name: stoop
+    scheme: https
+    static_configs:
+      - targets: ["chat.example.net"]
+    authorization:
+      credentials: stp_pat_…
+```
+
+`stoop_health{check="…"}` is 0 ok, 1 warn, 2 danger, 3 off, so an alert
+on `stoop_health >= 2` is the whole rule. Everything else on the endpoint
+is what the tab shows: the gauges, `stoop_rpc_*` per procedure, and the
+jobs. A request without a token gets 401; one whose account is not an
+admin gets 403. Numbers live in memory and start over with the process;
+history is the scraper's job.
+
 ## Privacy of direct messages
 
 Direct messages are private *in the app*: nothing lets a server admin

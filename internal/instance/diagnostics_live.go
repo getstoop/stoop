@@ -13,7 +13,7 @@ import (
 	"github.com/getstoop/stoop/internal/diag"
 )
 
-// The Right now and Database panels (docs/proposals/diagnostics.md).
+// The Right now and Database panels (docs/architecture/diagnostics.md).
 
 func (s *Service) GetLiveStats(ctx context.Context, _ *connect.Request[instancev1.GetLiveStatsRequest]) (*connect.Response[instancev1.GetLiveStatsResponse], error) {
 	if err := requireAction(ctx, authctx.InstanceRead); err != nil {

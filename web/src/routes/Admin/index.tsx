@@ -1,8 +1,9 @@
 import { Link, Navigate, useSearch } from "@tanstack/react-router";
-import { useMe, useMyPermissions } from "../../api/queries";
+import { useDiagHealthOnce, useMe, useMyPermissions } from "../../api/queries";
 import { MenuButton } from "../../components/MenuButton";
 import { SettingsFrame } from "../../components/SettingsFrame";
 import { Permission } from "../../gen/stoop/access/v1/access_pb";
+import { CheckState } from "../../gen/stoop/instance/v1/diagnostics_pb";
 import { AboutSection } from "./AboutSection";
 import { CleanupSection } from "./CleanupSection";
 import { Diagnostics } from "./Diagnostics";
@@ -52,9 +53,10 @@ export function AdminPage() {
     tab?: Exclude<Tab, "server">;
   };
   const active: Tab = tab ?? "server";
+  const admin = permissions?.includes(Permission.INSTANCE_READ) ?? false;
+  const attention = useNeedsAttention(admin);
   if (!me) return <div className="centered muted">Loading…</div>;
-  if (!permissions?.includes(Permission.INSTANCE_READ))
-    return <Navigate to="/" replace />;
+  if (!admin) return <Navigate to="/" replace />;
   return (
     <SettingsFrame
       label="Server admin sections"
@@ -78,6 +80,9 @@ export function AdminPage() {
           data-tab={t.key}
         >
           {t.label}
+          {t.key === "diagnostics" && attention && (
+            <span className="tab-dot" role="img" aria-label="needs attention" />
+          )}
         </Link>
       ))}
     >
@@ -119,5 +124,16 @@ export function AdminPage() {
         </>
       )}
     </SettingsFrame>
+  );
+}
+
+// Whether any health check is warn or danger, for the Diagnostics entry's
+// dot. Off is a dependency not configured, never a warning.
+function useNeedsAttention(enabled: boolean): boolean {
+  const { data } = useDiagHealthOnce(enabled);
+  return (
+    data?.checks.some(
+      (c) => c.state === CheckState.WARN || c.state === CheckState.DANGER,
+    ) ?? false
   );
 }
