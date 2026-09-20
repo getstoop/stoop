@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/diag"
 )
 
 // Message retention: messages older than the instance's
@@ -100,12 +101,19 @@ func (s *Service) SweepMessages(ctx context.Context, now time.Time) (int64, erro
 	return removed, nil
 }
 
+var messageRetention = diag.NewJob("message_retention")
+
 // RunMessageSweeper runs SweepMessages hourly until ctx ends.
 func (s *Service) RunMessageSweeper(ctx context.Context) {
+	messageRetention.Every(RetentionInterval)
 	run := func() {
-		if _, err := s.SweepMessages(ctx, time.Now()); err != nil && ctx.Err() == nil {
-			slog.Default().Warn("message retention sweep failed", "err", err)
-		}
+		messageRetention.Run(func() (diag.Counters, error) {
+			n, err := s.SweepMessages(ctx, time.Now())
+			if err != nil && ctx.Err() == nil {
+				slog.Default().Warn("message retention sweep failed", "err", err)
+			}
+			return diag.Counters{"messages_removed": n}, err
+		})
 	}
 	select {
 	case <-ctx.Done():

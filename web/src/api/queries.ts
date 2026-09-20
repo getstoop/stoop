@@ -319,3 +319,12 @@ export function useDiagRequests() {
     refetchIntervalInBackground: false,
   });
 }
+
+export function useDiagJobs() {
+  return useQuery({
+    queryKey: ["diag", "jobs"],
+    queryFn: async () => instanceClient.listJobs({}),
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}

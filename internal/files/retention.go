@@ -8,6 +8,7 @@ import (
 
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/diag"
 )
 
 // Attachment retention: attachments older than the instance's
@@ -102,12 +103,19 @@ func (s *Service) SweepAttachments(ctx context.Context, now time.Time) (int64, e
 	return expired, nil
 }
 
+var attachmentRetention = diag.NewJob("attachment_retention")
+
 // RunAttachmentSweeper runs SweepAttachments hourly until ctx ends.
 func (s *Service) RunAttachmentSweeper(ctx context.Context) {
+	attachmentRetention.Every(RetentionInterval)
 	run := func() {
-		if _, err := s.SweepAttachments(ctx, time.Now()); err != nil && ctx.Err() == nil {
-			s.log.Warn("attachment retention sweep failed", "err", err)
-		}
+		attachmentRetention.Run(func() (diag.Counters, error) {
+			n, err := s.SweepAttachments(ctx, time.Now())
+			if err != nil && ctx.Err() == nil {
+				s.log.Warn("attachment retention sweep failed", "err", err)
+			}
+			return diag.Counters{"attachments_removed": n}, err
+		})
 	}
 	select {
 	case <-ctx.Done():

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/diag"
 	"github.com/getstoop/stoop/internal/netguard"
 )
 
@@ -48,6 +49,8 @@ func sign(secret []byte, t time.Time, body []byte) string {
 	return "t=" + ts + "," + signatureScheme + "=" + hex.EncodeToString(mac.Sum(nil))
 }
 
+var webhookWorker = diag.NewJob("webhook_worker").Continuous()
+
 // RunWorker delivers leased items until ctx ends, woken by enqueue and by
 // a backstop ticker.
 func (s *Service) RunWorker(ctx context.Context) {
@@ -64,7 +67,14 @@ func (s *Service) RunWorker(ctx context.Context) {
 		case <-t.C:
 		}
 		for {
-			n, err := s.deliverOnce(ctx)
+			var n int
+			var err error
+			webhookWorker.Run(func() (diag.Counters, error) {
+				var delivered, failed int
+				delivered, failed, err = s.deliverOnce(ctx)
+				n = delivered + failed
+				return diag.Counters{"delivered": int64(delivered), "failed": int64(failed)}, err
+			})
 			if err != nil && ctx.Err() == nil {
 				s.log.Error("deliver hooks", "err", err)
 			}
@@ -83,50 +93,57 @@ func (s *Service) wakeWorker() {
 }
 
 // deliverOnce leases a batch and delivers each item; it reports how many
-// it leased. With outgoing off, queued items wait.
-func (s *Service) deliverOnce(ctx context.Context) (int, error) {
+// of the leased items were delivered and how many were not. With
+// outgoing off, queued items wait.
+func (s *Service) deliverOnce(ctx context.Context) (delivered, failed int, err error) {
 	if on, err := s.outgoingEnabled(ctx); err != nil || !on {
-		return 0, err
+		return 0, 0, err
 	}
 	items, err := s.queue.Lease(ctx, leaseBatch, leaseFor)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	for _, it := range items {
-		if err := s.deliver(ctx, it); err != nil && ctx.Err() == nil {
+		ok, err := s.deliver(ctx, it)
+		if err != nil && ctx.Err() == nil {
 			s.log.Error("deliver hook item", "delivery", it.ID, "err", err)
 		}
+		if ok {
+			delivered++
+		} else {
+			failed++
+		}
 	}
-	return len(items), nil
+	return delivered, failed, nil
 }
 
-// deliver makes one attempt and settles the item.
-func (s *Service) deliver(ctx context.Context, it Leased) error {
+// deliver makes one attempt and settles the item; true is an ack.
+func (s *Service) deliver(ctx context.Context, it Leased) (bool, error) {
 	hook, err := s.q.GetOutgoingWebhook(ctx, it.Lane)
 	if err != nil {
-		return s.queue.Dead(ctx, it.ID, Attempt{Error: "webhook is gone"})
+		return false, s.queue.Dead(ctx, it.ID, Attempt{Error: "webhook is gone"})
 	}
 	if hook.DisabledAt != nil {
-		return s.queue.Dead(ctx, it.ID, Attempt{Error: "webhook is disabled"})
+		return false, s.queue.Dead(ctx, it.ID, Attempt{Error: "webhook is disabled"})
 	}
 	if it.Attempt > maxAttempts {
-		return s.settleDead(ctx, hook, it, Attempt{Error: "lease expired on the last attempt"})
+		return false, s.settleDead(ctx, hook, it, Attempt{Error: "lease expired on the last attempt"})
 	}
 	res := s.attempt(ctx, hook, it)
 	switch {
 	case res.StatusCode >= 200 && res.StatusCode < 300:
-		return s.queue.Ack(ctx, it.ID, res.Attempt)
+		return true, s.queue.Ack(ctx, it.ID, res.Attempt)
 	case res.StatusCode == http.StatusGone:
 		if err := s.disableOutgoing(ctx, hook.ID, "the receiver answered 410 Gone"); err != nil {
-			return err
+			return false, err
 		}
-		return s.queue.Dead(ctx, it.ID, res.Attempt)
+		return false, s.queue.Dead(ctx, it.ID, res.Attempt)
 	case res.StatusCode == http.StatusTooManyRequests && res.retryAfter > 0 && it.Attempt < maxAttempts:
-		return s.queue.Nack(ctx, it.ID, min(res.retryAfter, s.ladderRemaining(it.Attempt)), res.Attempt)
+		return false, s.queue.Nack(ctx, it.ID, min(res.retryAfter, s.ladderRemaining(it.Attempt)), res.Attempt)
 	case it.Attempt < maxAttempts:
-		return s.queue.Nack(ctx, it.ID, s.backoff(it.Attempt), res.Attempt)
+		return false, s.queue.Nack(ctx, it.ID, s.backoff(it.Attempt), res.Attempt)
 	default:
-		return s.settleDead(ctx, hook, it, res.Attempt)
+		return false, s.settleDead(ctx, hook, it, res.Attempt)
 	}
 }
 

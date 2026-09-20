@@ -820,15 +820,17 @@ type Job struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// "file_sweep" …
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// zero for the continuous worker
+	// unset for the continuous worker and for a sweeper that is switched off
 	Interval       *durationpb.Duration   `protobuf:"bytes,2,opt,name=interval,proto3" json:"interval,omitempty"`
 	LastStarted    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=last_started,json=lastStarted,proto3" json:"last_started,omitempty"`
 	LastDurationMs int32                  `protobuf:"varint,4,opt,name=last_duration_ms,json=lastDurationMs,proto3" json:"last_duration_ms,omitempty"`
 	LastOutcome    JobOutcome             `protobuf:"varint,5,opt,name=last_outcome,json=lastOutcome,proto3,enum=stoop.instance.v1.JobOutcome" json:"last_outcome,omitempty"`
 	LastError      string                 `protobuf:"bytes,6,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
 	// files_removed, bytes_freed, rows_trimmed …
-	Counters      map[string]int64       `protobuf:"bytes,7,rep,name=counters,proto3" json:"counters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	NextDue       *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=next_due,json=nextDue,proto3" json:"next_due,omitempty"`
+	Counters map[string]int64       `protobuf:"bytes,7,rep,name=counters,proto3" json:"counters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	NextDue  *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=next_due,json=nextDue,proto3" json:"next_due,omitempty"`
+	// a worker that never stops, as against a sweeper on a timer
+	Continuous    bool `protobuf:"varint,9,opt,name=continuous,proto3" json:"continuous,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -917,6 +919,13 @@ func (x *Job) GetNextDue() *timestamppb.Timestamp {
 		return x.NextDue
 	}
 	return nil
+}
+
+func (x *Job) GetContinuous() bool {
+	if x != nil {
+		return x.Continuous
+	}
+	return false
 }
 
 type QueueStats struct {
@@ -1127,7 +1136,7 @@ const file_stoop_instance_v1_diagnostics_proto_rawDesc = "" +
 	"\x17GetRequestStatsResponse\x12A\n" +
 	"\n" +
 	"procedures\x18\x01 \x03(\v2!.stoop.instance.v1.ProcedureStatsR\n" +
-	"procedures\"\xd0\x03\n" +
+	"procedures\"\xf0\x03\n" +
 	"\x03Job\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x125\n" +
 	"\binterval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\binterval\x12=\n" +
@@ -1137,7 +1146,10 @@ const file_stoop_instance_v1_diagnostics_proto_rawDesc = "" +
 	"\n" +
 	"last_error\x18\x06 \x01(\tR\tlastError\x12@\n" +
 	"\bcounters\x18\a \x03(\v2$.stoop.instance.v1.Job.CountersEntryR\bcounters\x125\n" +
-	"\bnext_due\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\anextDue\x1a;\n" +
+	"\bnext_due\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\anextDue\x12\x1e\n" +
+	"\n" +
+	"continuous\x18\t \x01(\bR\n" +
+	"continuous\x1a;\n" +
 	"\rCountersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01\"v\n" +

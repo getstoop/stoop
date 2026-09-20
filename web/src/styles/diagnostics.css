@@ -190,3 +190,15 @@
   color: var(--warn);
   font-weight: 600;
 }
+
+/* ---- Background work: the outcome badge before the pass's sentence ---- */
+
+.jobs-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jobs-result .badge {
+  margin: 0;
+}

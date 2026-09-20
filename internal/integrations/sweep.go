@@ -7,6 +7,7 @@ import (
 
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/diag"
 )
 
 // A deleted channel or space cascades its hook rows but not their
@@ -103,26 +104,37 @@ func (s *Service) SweepDeliveries(ctx context.Context, retention time.Duration) 
 	return n, nil
 }
 
+var deliveryLogSweep = diag.NewJob("delivery_log_sweep")
+
 // RunSweeper sweeps orphaned hook credentials and old deliveries shortly
 // after start and then every interval; 0 disables the timer.
 func (s *Service) RunSweeper(ctx context.Context, interval, retention time.Duration) {
 	if interval <= 0 {
 		return
 	}
+	deliveryLogSweep.Every(interval)
 	run := func() {
-		if n, err := s.SweepOrphanHooks(ctx); err != nil && ctx.Err() == nil {
-			s.log.Warn("hook sweep failed", "err", err)
-		} else if n > 0 {
-			s.log.Info("revoked orphaned hook credentials", "count", n)
-		}
-		if n, err := s.SweepRemovedBotHooks(ctx); err != nil && ctx.Err() == nil {
-			s.log.Warn("removed-bot hook sweep failed", "err", err)
-		} else if n > 0 {
-			s.log.Info("turned off hooks of bots removed from their space", "count", n)
-		}
-		if _, err := s.SweepDeliveries(ctx, retention); err != nil && ctx.Err() == nil {
-			s.log.Warn("delivery sweep failed", "err", err)
-		}
+		deliveryLogSweep.Run(func() (diag.Counters, error) {
+			var failed error
+			if n, err := s.SweepOrphanHooks(ctx); err != nil && ctx.Err() == nil {
+				s.log.Warn("hook sweep failed", "err", err)
+				failed = err
+			} else if n > 0 {
+				s.log.Info("revoked orphaned hook credentials", "count", n)
+			}
+			if n, err := s.SweepRemovedBotHooks(ctx); err != nil && ctx.Err() == nil {
+				s.log.Warn("removed-bot hook sweep failed", "err", err)
+				failed = err
+			} else if n > 0 {
+				s.log.Info("turned off hooks of bots removed from their space", "count", n)
+			}
+			n, err := s.SweepDeliveries(ctx, retention)
+			if err != nil && ctx.Err() == nil {
+				s.log.Warn("delivery sweep failed", "err", err)
+				failed = err
+			}
+			return diag.Counters{"deliveries_removed": n}, failed
+		})
 	}
 	select {
 	case <-ctx.Done():

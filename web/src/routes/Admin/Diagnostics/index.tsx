@@ -7,6 +7,7 @@ import {
 import { DatabasePanel } from "./DatabasePanel";
 import { ago, formatUptime } from "./format";
 import { HealthChecks } from "./HealthChecks";
+import { JobsTable } from "./JobsTable";
 import { LiveTiles } from "./LiveTiles";
 import { RequestsTable } from "./RequestsTable";
 import { useNow } from "./useNow";
@@ -44,6 +45,7 @@ export function Diagnostics() {
       <LiveTiles />
       <DatabasePanel />
       <RequestsTable />
+      <JobsTable now={now} />
     </>
   );
 }

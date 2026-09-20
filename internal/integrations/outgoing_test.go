@@ -101,11 +101,11 @@ func (f *fixture) enqueue(t *testing.T, ev outgoingEvent) {
 func (f *fixture) drain(t *testing.T) {
 	t.Helper()
 	for range 20 {
-		n, err := f.svc.deliverOnce(context.Background())
+		delivered, failed, err := f.svc.deliverOnce(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		if n == 0 {
+		if delivered+failed == 0 {
 			return
 		}
 	}
@@ -288,10 +288,10 @@ func TestOutgoingRetriesAndDeadLetters(t *testing.T) {
 	r.status = []int{429, 200}
 	out, _ = f.svc.translate(context.Background(), message(f.channel, f.space, "throttled"))
 	f.enqueue(t, out)
-	if n, _ := f.svc.deliverOnce(context.Background()); n != 1 {
+	if _, failed, _ := f.svc.deliverOnce(context.Background()); failed != 1 {
 		t.Fatal("nothing leased")
 	}
-	if n, _ := f.svc.deliverOnce(context.Background()); n != 0 {
+	if d, failed, _ := f.svc.deliverOnce(context.Background()); d+failed != 0 {
 		t.Error("a 429 with Retry-After was retried immediately")
 	}
 	f.svc.ladder = []time.Duration{0, 0, 0}

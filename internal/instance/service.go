@@ -100,6 +100,9 @@ type Service struct {
 	// is for its uptime line.
 	health    []*cachedCheck
 	startedAt time.Time
+	// webhookQueue is the Background work panel's view of the outgoing
+	// queue (diagnostics_jobs.go).
+	webhookQueue func(ctx context.Context) (QueueStats, error)
 	// trusted is read on every HTTP request (TrustsPeer), so it is kept
 	// in memory and swapped on save rather than read from the database.
 	trusted atomic.Pointer[trustedproxy.Set]

@@ -149,13 +149,14 @@ sorted slowest first, with a two-chip window selector.
 enum JobOutcome { NEVER_RAN = 0; SUCCEEDED = 1; FAILED = 2; RUNNING = 3; }
 message Job {
   string name = 1;                       // "file_sweep" …
-  google.protobuf.Duration interval = 2;  // zero for the continuous worker
+  google.protobuf.Duration interval = 2;  // unset for the worker and for a sweeper switched off
   google.protobuf.Timestamp last_started = 3;
   int32 last_duration_ms = 4;
   JobOutcome last_outcome = 5;
   string last_error = 6;
   map<string, int64> counters = 7;      // files_removed, bytes_freed, rows_trimmed …
   google.protobuf.Timestamp next_due = 8;
+  bool continuous = 9;
 }
 message QueueStats { int64 queued = 1; int64 leased = 2; int64 dead = 3; int64 dead_last_hour = 4; }
 message ListJobsResponse { repeated Job jobs = 1; QueueStats webhooks = 2; }
@@ -165,9 +166,11 @@ The sweepers keep their loops. Each module declares its job as a
 package-level var (`var fileSweep = diag.Job("file_sweep")`), calls
 `fileSweep.Every(interval)` once when the loop starts, and wraps each pass
 in `fileSweep.Run(func() (diag.Counters, error))`. "Next due" is the last
-start plus the interval. The webhook worker calls `Continuous()`; its queue
-counts come from one grouped `SELECT` on `webhook_deliveries` through a
-port.
+start plus the interval. A sweeper that is switched off returns before
+`Every`, so its record has no interval and no run: the table says "off" and
+the health check leaves it out of the scheduled count. The webhook worker
+calls `Continuous()`; its queue counts come from one grouped `SELECT` on
+`webhook_deliveries` through a port.
 
 ### 6. Metrics endpoint and the report
 
