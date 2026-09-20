@@ -83,15 +83,8 @@ message GetDatabaseStatsResponse {
   int64 schema_floor = 13;
 }
 
-enum StatsWindow {
-  STATS_WINDOW_UNSPECIFIED = 0;
-  STATS_WINDOW_LAST_5_MINUTES = 1;
-  STATS_WINDOW_SINCE_START = 2;
-}
-
-message GetRequestStatsRequest {
-  StatsWindow window = 1;
-}
+// The last five minutes; the metrics endpoint carries since-start.
+message GetRequestStatsRequest {}
 
 message ProcedureStats {
   // "ChatService.ListMessages", package prefix trimmed

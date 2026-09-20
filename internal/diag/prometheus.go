@@ -78,7 +78,7 @@ func writeJobs(b *text, jobs []JobRecord) {
 
 func family(b *text, name, help, typ string) {
 	if help != "" {
-		b.printf("# HELP %s %s\n", name, help)
+		b.printf("# HELP %s %s\n", name, helpEscaper.Replace(help))
 	}
 	b.printf("# TYPE %s %s\n", name, typ)
 }
@@ -97,6 +97,9 @@ func metricName(name string) string {
 	}
 	return sb.String()
 }
+
+// helpEscaper is the 0.0.4 HELP escaping; label values use strconv.Quote.
+var helpEscaper = strings.NewReplacer(`\`, `\\`, "\n", `\n`)
 
 func label(v string) string { return strconv.Quote(v) }
 
