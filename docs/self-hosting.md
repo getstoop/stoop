@@ -114,6 +114,44 @@ Then `docker compose up -d`. The bundled Postgres no longer starts, and
   lines there run against your server instead of `docker compose exec
   postgres`. The `stoop-data` volume still holds the uploads.
 
+### Where the data lives
+
+To keep uploads and the database on a disk you already back up, set the
+paths in `.env` and run Stoop as the user that owns the uploads path:
+
+```sh
+STOOP_DATA_PATH=/mnt/tank/stoop/data
+POSTGRES_DATA_PATH=/mnt/tank/stoop/postgres
+PUID=1000    # id -u
+PGID=1000    # id -g
+```
+
+```sh
+mkdir -p /mnt/tank/stoop/data /mnt/tank/stoop/postgres
+chown 1000:1000 /mnt/tank/stoop/data
+docker compose up -d
+```
+
+- A path starts with `/` or `./`; anything else is read as a volume name.
+- Postgres owns its path itself. Give it a directory nothing else uses.
+- `PUID` and `PGID` go with `STOOP_DATA_PATH`. On the default `stoop-data`
+  volume, leave them unset.
+- If the owner is wrong, uploads fail and Server admin → Diagnostics →
+  File storage says the directory is not writable.
+- [Backups](#backups) and the restore runbook then mean those two paths,
+  in place of the `stoop-data` and `postgres-data` volumes.
+
+To move an existing install, stop the stack and copy each volume out
+before setting the path:
+
+```sh
+docker compose stop
+docker run --rm --volumes-from "$(docker compose ps -aq stoop)" -v /mnt/tank/stoop/data:/to busybox cp -a /data/. /to
+```
+
+The database copies the same way, from the `postgres` container's
+`/var/lib/postgresql/data`.
+
 ### Tuning the bundled Postgres
 
 Put `postgres -c` flags in `POSTGRES_ARGS` in `.env`, then
@@ -494,6 +532,9 @@ the Docker Compose install only.
 | `COMPOSE_PROFILES` | `bundled-postgres` | Which bundled services run. Empty to [use your own Postgres](#using-your-own-postgres) |
 | `STOOP_PORT` | `8080` | The port the web app is published on |
 | `TZ` | `UTC` | Time zone of the timestamps in `docker compose logs` |
+| `STOOP_DATA_PATH` | `stoop-data` volume | Where uploads and the Tailscale node identity live; see [Where the data lives](#where-the-data-lives) |
+| `POSTGRES_DATA_PATH` | `postgres-data` volume | Where the bundled Postgres keeps its data |
+| `PUID`, `PGID` | `65532` | The user and group Stoop runs as; match the owner of `STOOP_DATA_PATH` |
 | `POSTGRES_PASSWORD` | (none) | Password of the bundled Postgres |
 | `POSTGRES_ARGS` | (empty) | `postgres -c name=value` flags for the bundled Postgres; see [Tuning the bundled Postgres](#tuning-the-bundled-postgres) |
 | `NODE_IP` | (empty) | The address LiveKit offers browsers for media; see [Voice](#voice) |
