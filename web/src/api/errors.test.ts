@@ -50,4 +50,10 @@ describe("errorText", () => {
   it("drops the code prefix", () => {
     expect(errorText(refusal("username"))).toBe("username is taken");
   });
+
+  it("is an Error's own message, without its name", () => {
+    expect(errorText(new Error("That isn't an invite code."))).toBe(
+      "That isn't an invite code.",
+    );
+  });
 });

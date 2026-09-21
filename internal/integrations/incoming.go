@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -347,10 +348,12 @@ func hookGrants(notifyEveryone bool) []authctx.Action {
 	return []authctx.Action{authctx.MessagesPost}
 }
 
+// hookName is the rule for an incoming or outgoing hook's name; every
+// request that carries one calls the field "name".
 func hookName(raw string) (string, error) {
 	name := strings.TrimSpace(raw)
 	if name == "" || utf8.RuneCountInString(name) > maxHookNameRunes {
-		return "", connect.NewError(connect.CodeInvalidArgument,
+		return "", apierr.Field(connect.CodeInvalidArgument, "name",
 			fmt.Errorf("a webhook's name must be 1-%d characters", maxHookNameRunes))
 	}
 	return name, nil

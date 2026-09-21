@@ -15,15 +15,18 @@ export function useIncomingActions(onSecret: (secret: Secret) => void) {
   const [failed, setFailed] = useState<{ id: string; text: string } | null>(
     null,
   );
+  const refresh = async (hook: IncomingWebhook) => {
+    await queryClient.invalidateQueries({ queryKey: ["webhooks"] });
+    await queryClient.invalidateQueries({ queryKey: ["bots"] });
+    await queryClient.invalidateQueries({
+      queryKey: ["members", hook.spaceId],
+    });
+  };
   const act = async (hook: IncomingWebhook, fn: () => Promise<unknown>) => {
     setFailed(null);
     try {
       await fn();
-      await queryClient.invalidateQueries({ queryKey: ["webhooks"] });
-      await queryClient.invalidateQueries({ queryKey: ["bots"] });
-      await queryClient.invalidateQueries({
-        queryKey: ["members", hook.spaceId],
-      });
+      await refresh(hook);
     } catch (err) {
       setFailed({ id: hook.id, text: errorText(err) });
     }
@@ -40,19 +43,18 @@ export function useIncomingActions(onSecret: (secret: Secret) => void) {
         enabled: !hook.enabled,
       }),
     );
-  const rename = async (hook: IncomingWebhook) => {
-    const next = await prompt({
+  const rename = (hook: IncomingWebhook) =>
+    prompt({
       title: "Rename this webhook",
       label: "Name",
       initial: hook.name,
       action: "Rename",
+      submit: async (name) => {
+        if (name === hook.name) return;
+        await integrationsClient.updateIncoming({ id: hook.id, name });
+        await refresh(hook);
+      },
     });
-    if (next && next.trim() !== hook.name) {
-      act(hook, () =>
-        integrationsClient.updateIncoming({ id: hook.id, name: next.trim() }),
-      );
-    }
-  };
   const rotate = async (hook: IncomingWebhook) => {
     const ok = await confirm({
       title: `Rotate the URL for “${hook.name}”?`,
