@@ -14,11 +14,9 @@ import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 export function DefaultChannelRow({
   space,
   channels,
-  onError,
 }: {
   space: Space;
   channels: Channel[];
-  onError: (message: string | null) => void;
 }) {
   const queryClient = useQueryClient();
   const choices = defaultChannelChoices(channels);
@@ -33,9 +31,10 @@ export function DefaultChannelRow({
   // Holding it also closes the control while one save is in flight, so
   // two quick picks can't finish out of order.
   const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const choose = async (channelId: string) => {
-    onError(null);
+    setError(null);
     setPending(channelId);
     try {
       await chatClient.updateSpace({
@@ -44,7 +43,7 @@ export function DefaultChannelRow({
       });
       await queryClient.invalidateQueries({ queryKey: ["spaces"] });
     } catch (err) {
-      onError(errorText(err));
+      setError(errorText(err));
     } finally {
       setPending(null);
     }
@@ -55,6 +54,7 @@ export function DefaultChannelRow({
       id="default-channel"
       title="New members start in"
       description="Where an invite lands someone, and where the space opens when no channel is chosen."
+      error={error}
     >
       <select
         id="default-channel"

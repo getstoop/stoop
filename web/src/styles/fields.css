@@ -45,12 +45,11 @@
   accent-color: var(--accent);
 }
 
-/* Words above the field. Login, the settings cards and the invite form
-   all lay their labels out this way. */
+/* Words above the field, for the hand-built labels that have not moved to
+   <Field> yet. */
 .field,
 .login-card label,
-.card label,
-.invite-form label {
+.card label {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -89,6 +88,12 @@ label.toggle-row input[type="checkbox"] {
 /* ---- Field: a label row, the control, its error, its hint. ---- */
 .field-label-row > label {
   color: inherit;
+}
+
+.field-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .field-error {

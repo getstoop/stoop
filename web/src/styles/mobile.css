@@ -229,6 +229,7 @@
   }
 
   .field-pair,
+  .invite-fields,
   .delivery-row {
     grid-template-columns: 1fr;
   }

@@ -168,7 +168,7 @@ overrides the one property that differs. `aria-invalid="true"` turns the
 border to `--danger`.
 
 **`<Field>`** is words above a control: a label row with an optional
-`counter` on its right, the control, then its `error` and its `hint`. The
+`counter` on its right (a count, and at most one small action beside it), the control, then its `error` and its `hint`. The
 control is the child. `Field` gives it its id, points its
 `aria-describedby` at the error and the hint, and sets `aria-invalid` when
 there is an error, so a screen reader hears which input a refusal is about.
