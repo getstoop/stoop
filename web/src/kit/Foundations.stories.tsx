@@ -1,3 +1,4 @@
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { CSSProperties } from "react";
 
 const RADII = ["sm", "", "md", "lg", "pill"] as const;
@@ -13,11 +14,12 @@ const SWATCHES = [
   "danger-border",
 ] as const;
 
-export function Foundations() {
-  return (
-    <section className="kit-section">
-      <h2>Foundations</h2>
-      <span className="eyebrow">Radius</span>
+const meta: Meta = { title: "Kit/Foundations" };
+export default meta;
+
+export const Radius: StoryObj = {
+  render: () => (
+    <div className="kit-section">
       <div className="kit-row">
         {RADII.map((r) => {
           const name = r ? `--radius-${r}` : "--radius";
@@ -32,7 +34,13 @@ export function Foundations() {
           );
         })}
       </div>
-      <span className="eyebrow">Type</span>
+    </div>
+  ),
+};
+
+export const Type: StoryObj = {
+  render: () => (
+    <div className="kit-section">
       {SIZES.map((s) => (
         <div key={s} className="kit-type">
           <code>--text-{s}</code>
@@ -45,7 +53,13 @@ export function Foundations() {
         <code>--font-mono</code>
         <span className="kit-mono">The quick brown fox</span>
       </div>
-      <span className="eyebrow">Surfaces and status tints</span>
+    </div>
+  ),
+};
+
+export const Grounds: StoryObj = {
+  render: () => (
+    <div className="kit-section">
       <div className="kit-row">
         {SWATCHES.map((s) => (
           <div key={s} className="kit-type swatch">
@@ -57,6 +71,6 @@ export function Foundations() {
           </div>
         ))}
       </div>
-    </section>
-  );
-}
+    </div>
+  ),
+};

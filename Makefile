@@ -1,4 +1,4 @@
-.PHONY: dev dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web lint test e2e migrate-new docker clean
+.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web lint test e2e migrate-new docker clean
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -19,6 +19,11 @@ dev: dev-git-check dev-port-check dev-services
 	STOOP_DEV_WEB_URL=http://localhost:5173 $(AIR) & \
 	(cd web && pnpm dev) & \
 	wait
+
+## storybook: the kit workspace on http://localhost:6006 (dev only; needs no
+## server). docs/architecture/design-system.md → What holds it.
+storybook:
+	cd web && pnpm storybook
 
 ## dev-git-check: name what is about to run, and warn when origin/main has
 ## commits this checkout lacks — work lands by PR, so a checkout left on an

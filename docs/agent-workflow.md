@@ -75,6 +75,11 @@ sections, in this order:
   browser, no server, milliseconds per case. Run it as often as you
   like; it is also part of `make test` and the CI Web job.
 
+- **A kit part is built in Storybook, not in the app.** `make storybook`
+  serves the stories on :6006 with no server or database; switch theme and
+  ground from its toolbar. `cd web && pnpm build-storybook` is what CI
+  runs. See [architecture/design-system.md](architecture/design-system.md#what-holds-it).
+
 - **Access rules get an end-to-end test over HTTP, not a browser.**
   `go test ./internal/app -run TestE2E` boots the whole binary in-process
   against a throwaway database and drives it the way curl would: mint an

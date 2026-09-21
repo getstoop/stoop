@@ -293,6 +293,7 @@ jobs:
       - run: pnpm check:tsx-styles
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm build-storybook
 
   # Skipped per step rather than per job: a matrix job skipped at job
   # level never expands its matrix, so the required checks named

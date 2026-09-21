@@ -8,11 +8,13 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b && tsc --noEmit -p tsconfig.e2e.json",
     "test": "vitest run",
-    "lint": "biome check src e2e-pw e2e",
+    "lint": "biome check src e2e-pw e2e .storybook",
     "check:themes": "node ../scripts/check-themes.mjs",
     "check:styles": "node ../scripts/check-styles.mjs",
     "check:tsx-styles": "node ../scripts/check-tsx-styles.mjs",
-    "format": "biome format --write src e2e-pw e2e"
+    "format": "biome format --write src e2e-pw e2e .storybook",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "build-storybook": "storybook build -o tmp/storybook --quiet"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.14.1",
@@ -33,12 +35,15 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",
     "@playwright/test": "^1.63.0",
+    "@storybook/addon-a11y": "^10.6.0",
+    "@storybook/react-vite": "^10.6.0",
     "@types/node": "^22.20.2",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^5.2.0",
     "pg": "^8.23.0",
+    "storybook": "^10.6.0",
     "typescript": "^7.0.2",
     "vite": "^6.3.0",
     "vitest": "^5.0.0"

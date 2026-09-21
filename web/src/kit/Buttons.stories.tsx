@@ -1,11 +1,12 @@
-import { CopyButton } from "../../components/CopyButton";
-import { GearIcon } from "../../components/Icons";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { GearIcon } from "../components/Icons";
 
-export function Buttons() {
-  return (
-    <section className="kit-section">
-      <h2>Buttons</h2>
-      <span className="eyebrow">Primary</span>
+const meta: Meta = { title: "Kit/Buttons" };
+export default meta;
+
+export const Primary: StoryObj = {
+  render: () => (
+    <div className="kit-section">
       <div className="kit-row">
         <button type="button" className="primary">
           Send invite
@@ -17,7 +18,13 @@ export function Buttons() {
           Saving…
         </button>
       </div>
-      <span className="eyebrow">Chip</span>
+    </div>
+  ),
+};
+
+export const Chip: StoryObj = {
+  render: () => (
+    <div className="kit-section">
       <div className="kit-row">
         <button type="button" className="chip">
           Copy link
@@ -28,15 +35,26 @@ export function Buttons() {
         <button type="button" className="chip" disabled>
           Revoked
         </button>
-        <CopyButton text="https://stoop.example/join/4fQ9xK2mBz" />
       </div>
-      <span className="eyebrow">Link</span>
+    </div>
+  ),
+};
+
+export const Link: StoryObj = {
+  render: () => (
+    <div className="kit-section">
       <div className="kit-row">
         <button type="button" className="link">
           Continue in this browser
         </button>
       </div>
-      <span className="eyebrow">Option</span>
+    </div>
+  ),
+};
+
+export const Option: StoryObj = {
+  render: () => (
+    <div className="kit-section">
       <div className="kit-row">
         <div className="popover kit-menu">
           <button type="button" className="option">
@@ -53,7 +71,13 @@ export function Buttons() {
           </button>
         </div>
       </div>
-      <span className="eyebrow">Icon button</span>
+    </div>
+  ),
+};
+
+export const IconButton: StoryObj = {
+  render: () => (
+    <div className="kit-section">
       <div className="kit-row">
         <button type="button" className="icon-button" aria-label="Settings">
           <GearIcon />
@@ -74,6 +98,6 @@ export function Buttons() {
           <GearIcon />
         </button>
       </div>
-    </section>
-  );
-}
+    </div>
+  ),
+};
