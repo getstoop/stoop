@@ -21,7 +21,7 @@ shapes hardcode "Stoop" and share one card:
 | First-run setup | `/setup` | "Stoop", a 4-step tracker, then the current step's card — can already read `instance_name` via its env fallback before anyone has logged in |
 
 All four are one `.login-card` shell (`web/src/routes/Login.tsx`,
-`web/src/routes/Setup.tsx`, `web/src/styles/login.css`), which is why one
+`web/src/routes/Setup/`, `web/src/styles/login.css`), which is why one
 placement decision covers all four — the real question is what replaces the
 `<h1>Stoop</h1>` slot, and whether every shape wants all three fields.
 

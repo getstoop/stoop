@@ -248,9 +248,14 @@ return nil, apierr.Field(connect.CodeInvalidArgument, "topic",
   refusal that involves two fields names the one to change.
 - **A validator shared by several requests takes the field name as a
   parameter** rather than guessing it.
-- **Never on `NotFound`, `PermissionDenied` or `Unauthenticated`.** A field
-  name on a `NotFound` would say which id was the wrong one, and wrong
-  sign-in credentials must not say which of the two was wrong.
+- **Only where the field says no more than the sentence does.** Never on
+  a lookup by id that answers `NotFound`: naming the field would say which
+  id was the wrong one. Never on wrong sign-in credentials, which must not
+  say which of the two was wrong. A code the person typed is different:
+  "invite not found" is already about the invite code, so `Register` names
+  `invite_code` whatever the code of the refusal.
+- **A refusal that came back through a port** is named by the handler that
+  knows the request, with `apierr.WithField(err, field)`.
 
 The web client reads it with `fieldError(err)`, which returns the field as
 the generated request type spells it (`newPassword`), and a form places it

@@ -30,3 +30,19 @@ func TestFieldKeepsTheSentenceAndNamesTheField(t *testing.T) {
 		t.Fatalf("detail = %v", msg)
 	}
 }
+
+func TestWithFieldNamesAPortsRefusalAndLeavesOtherErrorsAlone(t *testing.T) {
+	refusal := connect.NewError(connect.CodeNotFound, errors.New("invite not found"))
+	got := WithField(refusal, "invite_code")
+	var cerr *connect.Error
+	if !errors.As(got, &cerr) || len(cerr.Details()) != 1 || cerr.Message() != "invite not found" {
+		t.Fatalf("got %v with %d details", got, len(cerr.Details()))
+	}
+	plain := errors.New("connection reset")
+	if WithField(plain, "invite_code") != plain {
+		t.Fatal("a plain error was changed")
+	}
+	if WithField(nil, "invite_code") != nil {
+		t.Fatal("nil became an error")
+	}
+}
