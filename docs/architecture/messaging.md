@@ -39,7 +39,9 @@ saved before the rule stays as it is until someone renames the channel,
 so a database can hold `General`, `off topic`, or two channels of one
 name. Creates and renames take the space's row lock (`FOR NO KEY
 UPDATE`) before looking for a clash, so two of them cannot both find a
-name free.
+name free. A rename that repeats the channel's current name writes no
+name at all, so a request built from a stale read cannot put an old name
+back.
 
 A refused name comes back as `InvalidArgument` with the rule in one
 line, a clash as `AlreadyExists`. The web app shows the rule beside the

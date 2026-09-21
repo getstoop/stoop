@@ -21,7 +21,7 @@ import (
 const maxChannelName = 32
 
 var errChannelName = fmt.Errorf(
-	"a channel name takes lowercase letters, numbers, - and _, starts with a letter or number, and is at most %d characters",
+	"a channel name takes lowercase letters a-z, numbers, - and _, starts with a letter or number, and is at most %d characters",
 	maxChannelName)
 
 // validChannelName is the rule for a new name or a rename; see
@@ -163,6 +163,12 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 	if renamed && !validChannelName(*req.Msg.Name) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errChannelName)
 	}
+	// An unchanged name is not written: the channel may have been renamed
+	// since it was read, and only a claimed name goes in.
+	name := req.Msg.Name
+	if !renamed {
+		name = nil
+	}
 	// An empty topic clears it; an absent one leaves it alone.
 	var topic *string
 	if req.Msg.Topic != nil {
@@ -193,12 +199,12 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 	qtx := s.q.WithTx(tx)
 
 	if renamed {
-		if err := claimChannelName(ctx, qtx, spaceOf(channel), *req.Msg.Name, channel.ID); err != nil {
+		if err := claimChannelName(ctx, qtx, spaceOf(channel), *name, channel.ID); err != nil {
 			return nil, err
 		}
 	}
 	row, err := qtx.UpdateChannel(ctx, dbgen.UpdateChannelParams{
-		ID: channel.ID, Name: req.Msg.Name, Topic: topic, PostPolicy: policy,
+		ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update channel: %w", err)

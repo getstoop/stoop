@@ -48,8 +48,7 @@ export function landingChannel(
 export const MAX_CHANNEL_TOPIC = 250;
 // Mirrors validChannelName on the server, which has the last word.
 export const MAX_CHANNEL_NAME = 32;
-export const CHANNEL_NAME_HINT =
-  "Lowercase letters, numbers, - and _. Starts with a letter or number.";
+export const CHANNEL_NAME_HINT = `Lowercase a-z, numbers, - and _. Starts with a letter or number. ${MAX_CHANNEL_NAME} characters at most.`;
 
 // Ask for a channel's topic and save it. Shared by the three places that
 // offer the edit — the header, the channel's ⋮ and space settings — so

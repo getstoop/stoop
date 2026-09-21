@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -285,6 +286,37 @@ func TestChannelNames(t *testing.T) {
 	other, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Yard"}))
 	if _, err := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: other.Msg.Space.Id, Name: "garden"})); err != nil {
 		t.Errorf("same name in another space: %v", err)
+	}
+
+	// A create waits for the space's name lock, and checks for a clash
+	// only once it has it.
+	bg := context.Background()
+	tx, err := pool.Begin(bg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(bg) //nolint:errcheck // rollback after commit is a no-op
+	if _, err := tx.Exec(bg, `SELECT id FROM spaces WHERE id = $1 FOR NO KEY UPDATE`, spaceID); err != nil {
+		t.Fatal(err)
+	}
+	waited := make(chan error, 1)
+	go func() {
+		_, err := create("raced")
+		waited <- err
+	}()
+	select {
+	case err := <-waited:
+		t.Fatalf("create did not wait for the name lock: %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if _, err := tx.Exec(bg, `INSERT INTO channels (id, space_id, name, kind, position) VALUES (gen_random_uuid(), $1, 'raced', 1, 99)`, spaceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(bg); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-waited; connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Errorf("create behind the lock: code = %v, want AlreadyExists", connect.CodeOf(err))
 	}
 
 	// A name from before the rule stays, blocks its folded twin, and is
