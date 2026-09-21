@@ -2,19 +2,25 @@
 
 .invite-form {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.invite-form label {
+/* Three across; each grows on its own when it is refused. */
+.invite-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: start;
+}
+
+.invite-fields :where(select) {
+  width: 100%;
+}
+
+.invite-actions {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: var(--text-ui);
-  color: var(--text-muted);
-  flex: 1;
-  min-width: 120px;
+  justify-content: flex-end;
 }
 
 .invite-list {

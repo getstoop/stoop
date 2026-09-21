@@ -293,7 +293,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 	}
 	if req.Msg.Name != nil {
 		if n := *req.Msg.Name; n == "" || utf8.RuneCountInString(n) > 100 {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, "name",
 				errors.New("space name must be 1-100 characters"))
 		}
 	}
@@ -303,7 +303,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 	if req.Msg.Description != nil {
 		d := oneLine(*req.Msg.Description)
 		if utf8.RuneCountInString(d) > maxSpaceDescription {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, "description",
 				fmt.Errorf("description must be %d characters or fewer", maxSpaceDescription))
 		}
 		patch.Description = &d
@@ -311,7 +311,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 	if req.Msg.Welcome != nil {
 		w := strings.TrimSpace(*req.Msg.Welcome)
 		if utf8.RuneCountInString(w) > maxSpaceWelcome {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, "welcome",
 				fmt.Errorf("welcome text must be %d characters or fewer", maxSpaceWelcome))
 		}
 		patch.Welcome = &w
@@ -329,11 +329,11 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 			// they may not be able to read; a voice channel would drop
 			// them into a call they never asked to join.
 			if spaceOf(channel) != req.Msg.SpaceId {
-				return nil, connect.NewError(connect.CodeInvalidArgument,
+				return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
 					errors.New("that channel is not in this space"))
 			}
 			if channel.Kind != int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT) {
-				return nil, connect.NewError(connect.CodeInvalidArgument,
+				return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
 					errors.New("only a text channel can be the default"))
 			}
 			patch.DefaultChannelID = &id

@@ -2,10 +2,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { chatClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { canDeleteSpace } from "../../api/permissions";
 import { useMe, useMembers } from "../../api/queries";
+import { Field } from "../../components/Field";
+import { controlAttrs } from "../../components/fieldControl";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { confirm, prompt } from "../../stores/dialogs";
 
 export function DangerSection({ space }: { space: Space }) {
@@ -14,7 +16,7 @@ export function DangerSection({ space }: { space: Space }) {
   const { data: members } = useMembers(space.id);
   const { data: me } = useMe();
   const [target, setTarget] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["userId"]);
   const others = (members ?? []).filter((m) => m.userId !== me?.id);
 
   const transfer = async () => {
@@ -26,7 +28,7 @@ export function DangerSection({ space }: { space: Space }) {
       action: "Transfer ownership",
     });
     if (!ok) return;
-    setError(null);
+    form.begin();
     try {
       await chatClient.transferOwnership({
         spaceId: space.id,
@@ -36,7 +38,7 @@ export function DangerSection({ space }: { space: Space }) {
       await queryClient.invalidateQueries({ queryKey: ["members", space.id] });
       setTarget("");
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
     }
   };
 
@@ -46,34 +48,33 @@ export function DangerSection({ space }: { space: Space }) {
       <p className="hint">
         Transfer ownership to another member. You'll stay on as an admin.
       </p>
-      <div className="card-row">
-        <select
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-          aria-label="New owner"
-        >
-          <option value="">Choose a member…</option>
-          {others.map((m) => (
-            <option key={m.userId} value={m.userId}>
-              {m.displayName || m.username} (@{m.username})
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="chip"
-          onClick={transfer}
-          disabled={!target}
-        >
-          Transfer ownership
-        </button>
-      </div>
+      <Field label="New owner" error={form.errors.userId}>
+        {(control) => (
+          <div className="card-row">
+            <select
+              {...controlAttrs(control)}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+            >
+              <option value="">Choose a member…</option>
+              {others.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.displayName || m.username} (@{m.username})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="chip"
+              onClick={transfer}
+              disabled={!target}
+            >
+              Transfer ownership
+            </button>
+          </div>
+        )}
+      </Field>
       <DeleteSpace space={space} onDeleted={() => navigate({ to: "/" })} />
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
     </section>
   );
 }

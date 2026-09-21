@@ -1,14 +1,17 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { chatClient } from "../api/clients";
+import { errorText } from "../api/errors";
 import { inviteLink } from "../api/invites";
 import { grantableRoles, roleLabel } from "../api/permissions";
 import { useInstanceStatus, useInvites, useMe } from "../api/queries";
 import type { Invite } from "../gen/stoop/chat/v1/invite_pb";
 import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
+import { useFieldErrors } from "../hooks/useFieldErrors";
+import { Field } from "./Field";
 import { Modal } from "./Modal";
+import { NumberInput } from "./NumberInput";
 
 // Expiry presets, in seconds. 0 = never.
 const EXPIRY_OPTIONS: { label: string; seconds: number }[] = [
@@ -34,6 +37,8 @@ export function InviteModal({
   const [maxUses, setMaxUses] = useState("");
   const [role, setRole] = useState<SpaceRole>(SpaceRole.MEMBER);
   const roles = grantableRoles(space);
+  const form = useFieldErrors(["expiresIn", "maxUses", "role"]);
+  // Revoking and copying have no field to carry a failure.
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -43,13 +48,18 @@ export function InviteModal({
 
   const createInvite = async (e: FormEvent) => {
     e.preventDefault();
-    setBusy(true);
     setError(null);
+    form.begin();
+    const uses = maxUses.trim() === "" ? undefined : Number(maxUses);
+    if (uses !== undefined && (!Number.isInteger(uses) || uses < 1)) {
+      form.set(
+        "maxUses",
+        "A whole number of at least 1, or blank for unlimited.",
+      );
+      return;
+    }
+    setBusy(true);
     try {
-      const uses = maxUses.trim() === "" ? undefined : Number(maxUses);
-      if (uses !== undefined && (!Number.isInteger(uses) || uses < 1)) {
-        throw new Error("Max uses must be a whole number of at least 1");
-      }
       const res = await chatClient.createInvite({
         spaceId: space.id,
         expiresIn: expiry > 0 ? { seconds: BigInt(expiry) } : undefined,
@@ -59,7 +69,7 @@ export function InviteModal({
       await refresh();
       if (res.invite) copy(res.invite.code, res.invite.id);
     } catch (err) {
-      setError(err instanceof ConnectError ? err.rawMessage : String(err));
+      form.fail(err);
     } finally {
       setBusy(false);
     }
@@ -71,7 +81,7 @@ export function InviteModal({
       await chatClient.revokeInvite({ inviteId: invite.id });
       await refresh();
     } catch (err) {
-      setError(err instanceof ConnectError ? err.rawMessage : String(err));
+      setError(errorText(err));
     }
   };
 
@@ -87,53 +97,61 @@ export function InviteModal({
 
   return (
     <Modal title={`Invite people to ${space.name}`} onClose={onClose}>
-      <form className="invite-form" onSubmit={createInvite}>
-        <label>
-          Expires after
-          <select
-            value={expiry}
-            onChange={(e) => setExpiry(Number(e.target.value))}
-          >
-            {EXPIRY_OPTIONS.map((o) => (
-              <option key={o.seconds} value={o.seconds}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Max uses
-          <input
-            type="number"
-            min={1}
-            step={1}
-            placeholder="Unlimited"
-            value={maxUses}
-            onChange={(e) => setMaxUses(e.target.value)}
-          />
-        </label>
-        <label>
-          Joins as
-          <select
-            value={role}
-            onChange={(e) => setRole(Number(e.target.value) as SpaceRole)}
-            disabled={roles.length < 2}
-            title={
+      <form className="invite-form" ref={form.formRef} onSubmit={createInvite}>
+        <div className="invite-fields">
+          <Field label="Expires after" error={form.errors.expiresIn}>
+            <select
+              value={expiry}
+              onChange={(e) => setExpiry(Number(e.target.value))}
+            >
+              {EXPIRY_OPTIONS.map((o) => (
+                <option key={o.seconds} value={o.seconds}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Max uses" error={form.errors.maxUses}>
+            <NumberInput
+              min={1}
+              step={1}
+              placeholder="Unlimited"
+              value={maxUses}
+              onChange={(e) => setMaxUses(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Joins as"
+            hint={
               roles.length < 2
-                ? "You can only invite people at your own role"
+                ? "You can only invite people at your own role."
                 : undefined
             }
+            error={form.errors.role}
           >
-            {roles.map((r) => (
-              <option key={r} value={r}>
-                {roleLabel(r)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit" className="primary" disabled={busy}>
-          Create invite
-        </button>
+            <select
+              value={role}
+              onChange={(e) => setRole(Number(e.target.value) as SpaceRole)}
+              disabled={roles.length < 2}
+            >
+              {roles.map((r) => (
+                <option key={r} value={r}>
+                  {roleLabel(r)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        {form.formError && (
+          <p className="error" role="alert">
+            {form.formError}
+          </p>
+        )}
+        <div className="invite-actions">
+          <button type="submit" className="primary" disabled={busy}>
+            Create invite
+          </button>
+        </div>
       </form>
       {error && (
         <p className="error" role="alert">

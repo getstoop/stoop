@@ -51,7 +51,7 @@ test("space settings, roles and deletion", async ({ browser }) => {
   await expect(A, "owner opens settings").toHaveURL(/\/settings$/);
 
   // Rename the space: sidebar and B's pill update live.
-  const spaceName = A.locator('input[aria-label="Space name"]');
+  const spaceName = A.getByLabel("Space name");
   await spaceName.fill("The Porch");
   await spaceName.press("Enter");
   await expect(A.locator(".profile-header h2"), "space renamed").toHaveText(
@@ -145,7 +145,7 @@ test("space settings, roles and deletion", async ({ browser }) => {
 
   // Transfer ownership to B; A becomes admin and loses the Owner section.
   await A.locator('.settings-tab[data-tab="owner"]').click();
-  const newOwner = A.locator('select[aria-label="New owner"]');
+  const newOwner = A.getByLabel("New owner");
   await newOwner.selectOption({ index: 1 });
   await A.getByRole("button", { name: "Transfer ownership" }).click();
   await acceptDialog(A);
@@ -159,7 +159,7 @@ test("space settings, roles and deletion", async ({ browser }) => {
   await spaceMenu(B, "Space settings");
   await B.locator('.settings-tab[data-tab="owner"]').click();
   await expect(
-    B.locator('select[aria-label="New owner"]'),
+    B.getByLabel("New owner"),
     "B (new owner) sees the owner section",
   ).toBeVisible();
 

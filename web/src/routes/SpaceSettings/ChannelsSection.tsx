@@ -101,13 +101,7 @@ export function ChannelsSection({ space }: { space: Space }) {
           channels={text}
           onReorder={(textIds) => saveOrder(textIds, ids(voice))}
         />
-        {channels && (
-          <DefaultChannelRow
-            space={space}
-            channels={channels}
-            onError={setError}
-          />
-        )}
+        {channels && <DefaultChannelRow space={space} channels={channels} />}
       </section>
       <section className="card">
         <h3>Voice channels</h3>

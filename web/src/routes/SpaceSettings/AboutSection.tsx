@@ -1,9 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { chatClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
+import { Field } from "../../components/Field";
+import { controlAttrs } from "../../components/fieldControl";
 import { WelcomeText } from "../../components/WelcomeText";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // The server's own limits, mirrored so the fields can count down rather
 // than let a save fail (internal/chat/spaces.go).
@@ -19,7 +21,7 @@ export function AboutSection({ space }: { space: Space }) {
   const [description, setDescription] = useState(space.description);
   const [welcome, setWelcome] = useState(space.welcome);
   const [preview, setPreview] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["description", "welcome"]);
   const [saved, setSaved] = useState(false);
   // Another admin's edit arrives as SpaceUpdated; adopt it while this
   // card is untouched.
@@ -28,8 +30,10 @@ export function AboutSection({ space }: { space: Space }) {
 
   const changed =
     description !== space.description || welcome !== space.welcome;
-  const save = async () => {
-    setError(null);
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!changed) return;
+    form.begin();
     try {
       await chatClient.updateSpace({
         spaceId: space.id,
@@ -41,20 +45,19 @@ export function AboutSection({ space }: { space: Space }) {
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
     }
   };
 
   return (
-    <section className="card about-section">
+    <form className="card about-section" ref={form.formRef} onSubmit={save}>
       <h3>About</h3>
-      <label>
-        <span className="about-label">
-          Description
-          <span className="muted small">
-            {description.length} / {DESCRIPTION_MAX}
-          </span>
-        </span>
+      <Field
+        label="Description"
+        counter={`${description.length} / ${DESCRIPTION_MAX}`}
+        hint="One line, shown under the space name and to anyone holding an invite link. Plain text."
+        error={form.errors.description}
+      >
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -62,19 +65,12 @@ export function AboutSection({ space }: { space: Space }) {
           rows={2}
           placeholder="Neighbours between 4th and 7th."
         />
-      </label>
-      <p className="hint">
-        One line, shown under the space name and to anyone holding an invite
-        link. Plain text.
-      </p>
-
-      <label>
-        <span className="about-label">
-          Welcome
-          <span className="about-label-actions">
-            <span className="muted small">
-              {welcome.length} / {WELCOME_MAX}
-            </span>
+      </Field>
+      <Field
+        label="Welcome"
+        counter={
+          <>
+            {welcome.length} / {WELCOME_MAX}
             <button
               type="button"
               className="chip"
@@ -83,46 +79,41 @@ export function AboutSection({ space }: { space: Space }) {
             >
               {preview ? "Write" : "Preview"}
             </button>
-          </span>
-        </span>
-        {preview ? (
-          <div className="about-preview">
-            <WelcomeText text={welcome} />
-          </div>
-        ) : (
-          <textarea
-            value={welcome}
-            onChange={(e) => setWelcome(e.target.value)}
-            maxLength={WELCOME_MAX}
-            rows={8}
-            placeholder={
-              "**#tools** is the lending library.\n- Say hi in #general"
-            }
-          />
-        )}
-      </label>
-      <p className="hint">
-        Members see this when they first arrive, and any time after that from
-        About this space. Takes the same Markdown a message does — bold,
-        italics, lists, quotes and code, but no headings.
-      </p>
-
+          </>
+        }
+        hint="Members see this when they first arrive, and any time after that from About this space. Takes the same Markdown a message does — bold, italics, lists, quotes and code, but no headings."
+        error={form.errors.welcome}
+      >
+        {(control) =>
+          preview ? (
+            <div className="about-preview">
+              <WelcomeText text={welcome} />
+            </div>
+          ) : (
+            <textarea
+              {...controlAttrs(control)}
+              value={welcome}
+              onChange={(e) => setWelcome(e.target.value)}
+              maxLength={WELCOME_MAX}
+              rows={8}
+              placeholder={
+                "**#tools** is the lending library.\n- Say hi in #general"
+              }
+            />
+          )
+        }
+      </Field>
+      {form.formError && (
+        <p className="error" role="alert">
+          {form.formError}
+        </p>
+      )}
       <div className="setting-actions">
-        <button
-          type="button"
-          className="primary"
-          onClick={save}
-          disabled={!changed}
-        >
+        <button type="submit" className="primary" disabled={!changed}>
           Save changes
         </button>
         {saved && <span className="hint">Saved.</span>}
       </div>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-    </section>
+    </form>
   );
 }

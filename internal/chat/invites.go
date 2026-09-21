@@ -40,19 +40,19 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 	var expiresAt *time.Time
 	if d := req.Msg.ExpiresIn; d != nil {
 		if err := d.CheckValid(); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("expires_in: %w", err))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "expires_in", fmt.Errorf("an invite's lifetime: %w", err))
 		}
 		lifetime := d.AsDuration()
 		if lifetime <= 0 || lifetime > maxInviteLifetime {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
-				errors.New("expires_in must be between 1 second and 365 days"))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "expires_in",
+				errors.New("an invite lasts between 1 second and 365 days"))
 		}
 		t := time.Now().Add(lifetime)
 		expiresAt = &t
 	}
 	if req.Msg.MaxUses != nil && *req.Msg.MaxUses < 1 {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			errors.New("max_uses must be at least 1"))
+		return nil, apierr.Field(connect.CodeInvalidArgument, "max_uses",
+			errors.New("max uses must be at least 1"))
 	}
 	grant := roleFromProto(req.Msg.Role)
 	creator, err := s.actorFor(ctx, req.Msg.SpaceId)
@@ -60,7 +60,7 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 		return nil, err
 	}
 	if err := grantableRole(creator, grant); err != nil {
-		return nil, err
+		return nil, apierr.WithField(err, "role")
 	}
 
 	var invite dbgen.Invite

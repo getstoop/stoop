@@ -20,7 +20,8 @@ export function Field({
   children,
 }: {
   label: string;
-  counter?: string;
+  // Right of the label: a count, and at most a small action beside it.
+  counter?: ReactNode;
   hint?: ReactNode;
   error?: string | null;
   children:
@@ -35,7 +36,9 @@ export function Field({
     <div className="field">
       <div className="field-label-row">
         <label htmlFor={id}>{label}</label>
-        {counter && <span className="muted small">{counter}</span>}
+        {counter && (
+          <span className="field-counter muted small">{counter}</span>
+        )}
       </div>
       {typeof children === "function"
         ? children(control)

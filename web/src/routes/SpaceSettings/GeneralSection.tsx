@@ -3,12 +3,17 @@ import { type FormEvent, useEffect, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { filesClient } from "../../api/files";
+import { Field } from "../../components/Field";
+import { controlAttrs } from "../../components/fieldControl";
 import { ImagePicker } from "../../components/ImagePicker";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 export function GeneralSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(space.name);
+  const form = useFieldErrors(["name"]);
+  // The invite toggle has no field to carry a refusal.
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => setName(space.name), [space.name]);
@@ -18,13 +23,15 @@ export function GeneralSection({ space }: { space: Space }) {
     membersCanInvite?: boolean;
   }) => {
     setError(null);
+    form.begin();
     try {
       await chatClient.updateSpace({ spaceId: space.id, ...patch });
       await queryClient.invalidateQueries({ queryKey: ["spaces"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch (err) {
-      setError(errorText(err));
+      if (patch.name !== undefined) form.fail(err);
+      else setError(errorText(err));
     }
   };
   const rename = (e: FormEvent) => {
@@ -36,21 +43,27 @@ export function GeneralSection({ space }: { space: Space }) {
   return (
     <section className="card">
       <h3>General</h3>
-      <form className="card-row" onSubmit={rename}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={100}
-          required
-          aria-label="Space name"
-        />
-        <button
-          type="submit"
-          className="primary"
-          disabled={name.trim() === space.name}
-        >
-          {saved ? "Saved" : "Rename"}
-        </button>
+      <form ref={form.formRef} onSubmit={rename}>
+        <Field label="Space name" error={form.errors.name}>
+          {(control) => (
+            <div className="card-row">
+              <input
+                {...controlAttrs(control)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={100}
+                required
+              />
+              <button
+                type="submit"
+                className="primary"
+                disabled={name.trim() === space.name}
+              >
+                {saved ? "Saved" : "Rename"}
+              </button>
+            </div>
+          )}
+        </Field>
       </form>
       <IconRow space={space} />
       <label className="toggle-row">
