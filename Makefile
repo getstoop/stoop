@@ -94,6 +94,7 @@ build: build-web
 
 lint:
 	golangci-lint run
+	scripts/compose-check.sh
 	cd web && pnpm lint && pnpm typecheck && pnpm check:themes && pnpm check:styles && pnpm check:tsx-styles && pnpm check:fields
 
 test:
