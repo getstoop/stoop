@@ -68,3 +68,29 @@ func TestE2ERegistrationFieldViolation(t *testing.T) {
 		t.Errorf("wrong password: field = %q, want none", got)
 	}
 }
+
+// Space settings and the invite form name the field they refuse.
+func TestE2ESpaceSettingsFieldViolation(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	stoop, _ := h.space(casey, "The Stoop")
+	const update = "stoop.chat.v1.ChatService/UpdateSpace"
+	const invite = "stoop.chat.v1.ChatService/CreateInvite"
+	for _, c := range []struct {
+		name, procedure string
+		req             map[string]any
+		field           string
+	}{
+		{"long name", update, map[string]any{"spaceId": stoop, "name": strings.Repeat("x", 101)}, "name"},
+		{"long description", update, map[string]any{"spaceId": stoop, "description": strings.Repeat("x", 300)}, "description"},
+		{"long welcome", update, map[string]any{"spaceId": stoop, "welcome": strings.Repeat("x", 5000)}, "welcome"},
+		{"no uses", invite, map[string]any{"spaceId": stoop, "maxUses": 0}, "max_uses"},
+		{"too long a life", invite, map[string]any{"spaceId": stoop, "expiresIn": "99999999s"}, "expires_in"},
+		{"owner by invite", invite, map[string]any{"spaceId": stoop, "role": "SPACE_ROLE_OWNER"}, "role"},
+	} {
+		r := h.rpc(casey, c.procedure, c.req).expect(t, "invalid_argument")
+		if got := r.field(); got != c.field {
+			t.Errorf("%s: field = %q, want %q (%s)", c.name, got, c.field, r.message())
+		}
+	}
+}
