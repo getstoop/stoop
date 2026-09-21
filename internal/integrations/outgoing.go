@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/netguard"
@@ -278,7 +279,7 @@ func (s *Service) outgoingEnabled(ctx context.Context) (bool, error) {
 func (s *Service) checkTarget(ctx context.Context, raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil || netguard.CheckURL(u) != nil {
-		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("url must be an http or https address"))
+		return "", apierr.Field(connect.CodeInvalidArgument, "url", errors.New("the URL must be an http or https address"))
 	}
 	allow := false
 	if s.policy != nil {
@@ -288,10 +289,10 @@ func (s *Service) checkTarget(ctx context.Context, raw string) (string, error) {
 	}
 	if err := (netguard.Policy{AllowPrivate: allow}).CheckHost(ctx, u); err != nil {
 		if errors.Is(err, netguard.ErrNotPublic) {
-			return "", connect.NewError(connect.CodeFailedPrecondition,
+			return "", apierr.Field(connect.CodeFailedPrecondition, "url",
 				errors.New("that address is not allowed by this server's egress policy"))
 		}
-		return "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("url: %w", err))
+		return "", apierr.Field(connect.CodeInvalidArgument, "url", fmt.Errorf("the URL: %w", err))
 	}
 	return u.String(), nil
 }
@@ -306,7 +307,7 @@ func (s *Service) filterChannel(ctx context.Context, spaceID, channelID string) 
 		return nil, err
 	}
 	if got != spaceID {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("that channel is in another space"))
+		return nil, apierr.Field(connect.CodeInvalidArgument, "channel_id", errors.New("that channel is in another space"))
 	}
 	return &channelID, nil
 }

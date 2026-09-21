@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { chatClient } from "../api/clients";
-import { errorText } from "../api/errors";
 import { useSpaces } from "../api/queries";
+import { useFieldErrors } from "../hooks/useFieldErrors";
+import { Field } from "./Field";
 import { Modal } from "./Modal";
 
 // Admin page → Accounts → "Add to space": drop an existing account into
@@ -19,13 +20,17 @@ export function AddToSpaceModal({
   const { data: spaces } = useSpaces();
   const [spaceId, setSpaceId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // One field, so every refusal is about it: "already a member" is about
+  // the space that was picked.
+  const form = useFieldErrors(["spaceId"]);
+  const formId = useId();
   const chosen = spaceId || spaces?.[0]?.id || "";
 
-  const add = async () => {
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
     if (!chosen) return;
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       const res = await chatClient.addMember({
         spaceId: chosen,
@@ -33,7 +38,7 @@ export function AddToSpaceModal({
       });
       onAdded(res.space?.name ?? "the space");
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -49,9 +54,9 @@ export function AddToSpaceModal({
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="primary"
-            onClick={add}
             disabled={busy || !chosen}
           >
             Add
@@ -59,34 +64,35 @@ export function AddToSpaceModal({
         </>
       }
     >
-      {spaces && spaces.length === 0 ? (
-        <p className="muted">You're not in any spaces to add them to.</p>
-      ) : (
-        <label>
-          Space
-          <select
-            value={chosen}
-            onChange={(e) => setSpaceId(e.target.value)}
-            // biome-ignore lint/a11y/noAutofocus: the one field in a small dialog
-            autoFocus
+      <form
+        id={formId}
+        ref={form.formRef}
+        className="modal-form"
+        onSubmit={add}
+      >
+        {spaces && spaces.length === 0 ? (
+          <p className="muted">You're not in any spaces to add them to.</p>
+        ) : (
+          <Field
+            label="Space"
+            hint="They join as a member right away, no invite link needed. Only spaces you belong to are listed."
+            error={form.errors.spaceId}
           >
-            {spaces?.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <p className="hint">
-        They join as a member right away, no invite link needed. Only spaces you
-        belong to are listed.
-      </p>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
+            <select
+              value={chosen}
+              onChange={(e) => setSpaceId(e.target.value)}
+              // biome-ignore lint/a11y/noAutofocus: the one field in a small dialog
+              autoFocus
+            >
+              {spaces?.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+      </form>
     </Modal>
   );
 }

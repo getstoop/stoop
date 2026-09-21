@@ -1,5 +1,5 @@
 /* ---- Form fields: one declaration for text inputs, selects and textareas,
-   and the two label patterns (words above the field; box beside the words).
+   <Field> (words above the control) and the toggle row (box beside the words).
    A field is a hole in the panel (--surface), a chip sits on it (--raised). ---- */
 
 /* :where() keeps this at zero specificity, so any feature rule wins. */
@@ -45,11 +45,9 @@
   accent-color: var(--accent);
 }
 
-/* Words above the field, for the hand-built labels that have not moved to
-   <Field> yet. */
-.field,
-.login-card label,
-.card label {
+/* Words above the control: <Field> renders this, and nothing else may
+   (scripts/check-fields.mjs). */
+.field {
   display: flex;
   flex-direction: column;
   gap: 6px;

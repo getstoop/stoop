@@ -1,12 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { integrationsClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { EVENT_TYPES } from "../../api/integrations";
 import { useChannels } from "../../api/queries";
 import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import type { OutgoingWebhook } from "../../gen/stoop/integrations/v1/webhook_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { Field } from "../Field";
 import { Modal } from "../Modal";
 import type { Secret } from "./SecretModal";
 
@@ -33,7 +34,8 @@ export function OutgoingHookModal({
     existing?.eventTypes ?? ["message.created"],
   );
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["name", "url", "channelId"]);
+  const formId = useId();
   const ready = name.trim() !== "" && url.trim() !== "" && types.length > 0;
 
   const toggle = (key: string) =>
@@ -41,10 +43,11 @@ export function OutgoingHookModal({
       types.includes(key) ? types.filter((t) => t !== key) : [...types, key],
     );
 
-  const save = async () => {
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
     if (!ready) return;
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       if (existing) {
         await integrationsClient.updateOutgoing({
@@ -73,7 +76,7 @@ export function OutgoingHookModal({
         secret: res.secret,
       });
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -88,9 +91,9 @@ export function OutgoingHookModal({
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="primary"
-            onClick={save}
             disabled={busy || !ready}
           >
             {existing ? "Save" : "Create webhook"}
@@ -98,13 +101,17 @@ export function OutgoingHookModal({
         </>
       }
     >
-      <div className="modal-body integration-form">
+      <form
+        id={formId}
+        ref={form.formRef}
+        className="modal-body integration-form"
+        onSubmit={save}
+      >
         <p className="hint">
           Stoop POSTs a signed JSON event to this URL when something happens in
           the space. Deliveries retry four times over two and a half minutes.
         </p>
-        <label className="field">
-          Name
+        <Field label="Name" error={form.errors.name}>
           <input
             name="outgoing-name"
             value={name}
@@ -114,18 +121,16 @@ export function OutgoingHookModal({
             // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
             autoFocus
           />
-        </label>
-        <label className="field">
-          URL
+        </Field>
+        <Field label="URL" error={form.errors.url}>
           <input
             name="outgoing-url"
             value={url}
             placeholder="https://"
             onChange={(e) => setUrl(e.target.value)}
           />
-        </label>
-        <label className="field">
-          From
+        </Field>
+        <Field label="From" error={form.errors.channelId}>
           <select
             name="outgoing-channel"
             value={channelId}
@@ -138,7 +143,7 @@ export function OutgoingHookModal({
               </option>
             ))}
           </select>
-        </label>
+        </Field>
         <fieldset className="event-types">
           <legend className="eyebrow">Send when</legend>
           {EVENT_TYPES.map((e) => (
@@ -152,13 +157,16 @@ export function OutgoingHookModal({
               <span>{e.label}</span>
             </label>
           ))}
+          {types.length === 0 && (
+            <span className="hint">Choose at least one.</span>
+          )}
         </fieldset>
-        {error && (
+        {form.formError && (
           <p className="error" role="alert">
-            {error}
+            {form.formError}
           </p>
         )}
-      </div>
+      </form>
     </Modal>
   );
 }

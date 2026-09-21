@@ -57,7 +57,7 @@ export function SecretModal({
           <code data-secret>{value}</code>
           <CopyButton text={value} />
         </div>
-        <div className="field">
+        <div className="readout">
           {secret.kind === "signing" ? "Verifying it" : "Try it"}
           <pre className="token-example">{example}</pre>
         </div>

@@ -1,12 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { integrationsClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { absoluteHookUrl } from "../../api/integrations";
 import { serverOrigin } from "../../api/origin";
 import { useChannels } from "../../api/queries";
 import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { Field } from "../Field";
 import { Modal } from "../Modal";
 import type { Secret } from "./SecretModal";
 
@@ -32,14 +33,16 @@ export function NewIncomingModal({
   const [botUserId, setBotUserId] = useState("");
   const [notify, setNotify] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["name", "channelId", "botUserId"]);
+  const formId = useId();
   const chosenChannel = channelId || text[0]?.id || "";
   const ready = name.trim() !== "" && chosenChannel !== "";
 
-  const create = async () => {
+  const create = async (e: FormEvent) => {
+    e.preventDefault();
     if (!ready) return;
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       const res = await integrationsClient.createIncoming({
         channelId: chosenChannel,
@@ -56,7 +59,7 @@ export function NewIncomingModal({
         url: absoluteHookUrl(res.url, serverOrigin() || window.location.origin),
       });
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -71,9 +74,9 @@ export function NewIncomingModal({
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="primary"
-            onClick={create}
             disabled={busy || !ready}
           >
             Create webhook
@@ -81,13 +84,17 @@ export function NewIncomingModal({
         </>
       }
     >
-      <div className="modal-body integration-form">
+      <form
+        id={formId}
+        ref={form.formRef}
+        className="modal-body integration-form"
+        onSubmit={create}
+      >
         <p className="hint">
           A URL that posts into one channel. Paste it into anything with a
           webhook URL field, from an uptime monitor to a CI runner, or curl it.
         </p>
-        <label className="field">
-          Name
+        <Field label="Name" error={form.errors.name}>
           <input
             name="hook-name"
             value={name}
@@ -97,9 +104,8 @@ export function NewIncomingModal({
             // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
             autoFocus
           />
-        </label>
-        <label className="field">
-          Posts into
+        </Field>
+        <Field label="Posts into" error={form.errors.channelId}>
           <select
             name="hook-channel"
             value={chosenChannel}
@@ -111,9 +117,17 @@ export function NewIncomingModal({
               </option>
             ))}
           </select>
-        </label>
-        <label className="field">
-          Posts as
+        </Field>
+        <Field
+          label="Posts as"
+          hint={
+            <>
+              Only bots already in this space are listed; add one from Server
+              admin → Integrations first.
+            </>
+          }
+          error={form.errors.botUserId}
+        >
           <select
             name="hook-bot"
             value={botUserId}
@@ -126,11 +140,7 @@ export function NewIncomingModal({
               </option>
             ))}
           </select>
-          <span className="hint">
-            Only bots already in this space are listed; add one from Server
-            admin → Integrations first.
-          </span>
-        </label>
+        </Field>
         <label className="toggle-row">
           <input
             type="checkbox"
@@ -147,12 +157,12 @@ export function NewIncomingModal({
             </span>
           </span>
         </label>
-        {error && (
+        {form.formError && (
           <p className="error" role="alert">
-            {error}
+            {form.formError}
           </p>
         )}
-      </div>
+      </form>
     </Modal>
   );
 }

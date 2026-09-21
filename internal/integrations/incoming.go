@@ -65,14 +65,14 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 			return nil, err
 		}
 		if bot.DeactivatedAt != nil {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("that bot is deactivated"))
+			return nil, apierr.Field(connect.CodeFailedPrecondition, "bot_user_id", errors.New("that bot is deactivated"))
 		}
 		member, err := s.spaces.IsSpaceMember(ctx, bot.ID, spaceID)
 		if err != nil {
 			return nil, err
 		}
 		if !member {
-			return nil, connect.NewError(connect.CodeFailedPrecondition,
+			return nil, apierr.Field(connect.CodeFailedPrecondition, "bot_user_id",
 				errors.New("that bot isn't in this space; add it from Server admin → Integrations first"))
 		}
 	} else {
@@ -314,7 +314,7 @@ func (s *Service) newBotNamed(ctx context.Context, name string) (Bot, error) {
 		}
 		return bot, err
 	}
-	return Bot{}, connect.NewError(connect.CodeAlreadyExists, errors.New("pick a different name; every username like it is taken"))
+	return Bot{}, apierr.Field(connect.CodeAlreadyExists, "name", errors.New("pick a different name; every username like it is taken"))
 }
 
 // botUsername derives a handle from a hook's name.

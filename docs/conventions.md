@@ -155,6 +155,11 @@ for, and why — is in
   carries an `off-scale:` comment on the line before. Only object literals
   are judged: `style={position}` passes. `scripts/check-tsx-styles.mjs`
   enforces it in `make lint`.
+- **A form field is a `<Field>` or a `<SettingRow>`**, never a hand-built
+  `label` round a control, so its label, hint and error reach the control.
+  A refused submit lands on the field it is about; see
+  `docs/architecture/design-system.md` → Fields and Feedback.
+  `scripts/check-fields.mjs` enforces it in `make lint`.
 - **`scripts/check-styles.mjs` enforces all of the above** in `make lint` and in CI's Web job.
   **Storybook (`make storybook`, dev only) renders every shared part**, with
   a theme switch, so a kit change is checked in every theme before it
