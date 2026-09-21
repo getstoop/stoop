@@ -199,7 +199,9 @@ of the tab order because the arrow keys already step.
 A form holds its refusals with `useFieldErrors` (`hooks/`): `errors` by
 field name, `formError` for what belongs to no field, `begin()` at the top
 of a submit, `fail(err)` for a refused one, `set(field, message)` for a
-client-side check. Errors clear at the next submit, and after a refusal
+client-side check. `fail` puts the sentence on the field the server named
+([contracts.md](contracts.md#a-refusal-that-is-about-one-field)) when the
+form has that field, and on `formError` otherwise. Errors clear at the next submit, and after a refusal
 focus goes to the first invalid control.
 
 Most forms still hand-build `label.field` and show one form-level line;

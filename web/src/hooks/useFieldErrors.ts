@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { errorText } from "../api/errors";
+import { errorText, fieldError } from "../api/errors";
 
 // A form's refusals, held by the field they are about. Anything that
 // belongs to no field is formError, the line above the buttons. See
@@ -34,10 +34,17 @@ export function useFieldErrors<F extends string>(fields: readonly F[]) {
     },
     // A client-side check that names its field.
     set,
-    // A refused submit. A form with one field owns every refusal.
+    // A refused submit. It goes on the field the server named when this
+    // form has it; a form with one field owns every refusal.
     fail(err: unknown) {
-      const only = fields.length === 1 ? fields[0] : undefined;
-      if (only) set(only, errorText(err));
+      const named = fieldError(err)?.field as F | undefined;
+      const field =
+        named && fields.includes(named)
+          ? named
+          : fields.length === 1
+            ? fields[0]
+            : undefined;
+      if (field) set(field, errorText(err));
       else setFormError(errorText(err));
     },
   };
