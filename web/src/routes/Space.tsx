@@ -8,7 +8,11 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { unreadCounts } from "../api/activity";
-import { landingChannel } from "../api/channels";
+import {
+  CHANNEL_NAME_HINT,
+  landingChannel,
+  MAX_CHANNEL_NAME,
+} from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { isMuted } from "../api/mutes";
@@ -162,10 +166,14 @@ export function SpaceLayout() {
     const name = await prompt({
       title: voice ? "New voice channel" : "New channel",
       label: voice ? "Voice channel name" : "Channel name",
+      body: CHANNEL_NAME_HINT,
+      maxLength: MAX_CHANNEL_NAME,
       action: "Create",
+      submit: async (name) => {
+        await chatClient.createChannel({ spaceId, name, kind });
+      },
     });
     if (!name) return;
-    await chatClient.createChannel({ spaceId, name, kind });
     await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
   };
 

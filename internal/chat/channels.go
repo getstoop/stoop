@@ -18,14 +18,56 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 )
 
+const maxChannelName = 32
+
+var errChannelName = fmt.Errorf(
+	"a channel name takes lowercase letters a-z, numbers, - and _, starts with a letter or number, and is at most %d characters",
+	maxChannelName)
+
+// validChannelName is the rule for a new name or a rename; see
+// docs/architecture/messaging.md → Channel names.
+func validChannelName(name string) bool {
+	if name == "" || len(name) > maxChannelName {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= '0' && c <= '9':
+		case (c == '-' || c == '_') && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// claimChannelName holds the space's name lock for the transaction and
+// refuses a name another channel in the space already has.
+func claimChannelName(ctx context.Context, qtx *dbgen.Queries, spaceID, name, channelID string) error {
+	if _, err := qtx.LockSpaceChannelNames(ctx, spaceID); err != nil {
+		return fmt.Errorf("lock channel names: %w", err)
+	}
+	taken, err := qtx.ChannelNameTaken(ctx, dbgen.ChannelNameTakenParams{
+		SpaceID: spaceID, Name: name, ExceptID: channelID,
+	})
+	if err != nil {
+		return fmt.Errorf("check channel name: %w", err)
+	}
+	if taken {
+		return connect.NewError(connect.CodeAlreadyExists,
+			errors.New("this space already has a channel with that name"))
+	}
+	return nil
+}
+
 func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1.CreateChannelRequest]) (*connect.Response[chatv1.CreateChannelResponse], error) {
 	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.ChannelsManage); err != nil {
 		return nil, err
 	}
 	name := req.Msg.Name
-	if name == "" || utf8.RuneCountInString(name) > 100 {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			errors.New("channel name must be 1-100 characters"))
+	if !validChannelName(name) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errChannelName)
 	}
 	kind := req.Msg.Kind
 	if kind == chatv1.ChannelKind_CHANNEL_KIND_UNSPECIFIED {
@@ -36,11 +78,25 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("direct messages are opened with OpenDirectMessage"))
 	}
-	channel, err := s.q.CreateChannel(ctx, dbgen.CreateChannelParams{
-		ID: newID(), SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind),
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
+	qtx := s.q.WithTx(tx)
+
+	id := newID()
+	if err := claimChannelName(ctx, qtx, req.Msg.SpaceId, name, id); err != nil {
+		return nil, err
+	}
+	channel, err := qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
+		ID: id, SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create channel: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
 	}
 
 	s.bus.Publish("space:"+req.Msg.SpaceId, events.Stamp(&realtimev1.ServerEvent{
@@ -102,11 +158,16 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, err
 	}
-	if req.Msg.Name != nil {
-		if n := *req.Msg.Name; n == "" || utf8.RuneCountInString(n) > 100 {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
-				errors.New("channel name must be 1-100 characters"))
-		}
+	// A name from before the rule stays until it is changed.
+	renamed := req.Msg.Name != nil && *req.Msg.Name != channel.Name
+	if renamed && !validChannelName(*req.Msg.Name) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errChannelName)
+	}
+	// An unchanged name is not written: the channel may have been renamed
+	// since it was read, and only a claimed name goes in.
+	name := req.Msg.Name
+	if !renamed {
+		name = nil
 	}
 	// An empty topic clears it; an absent one leaves it alone.
 	var topic *string
@@ -130,11 +191,26 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 		}
 		policy = &p
 	}
-	row, err := s.q.UpdateChannel(ctx, dbgen.UpdateChannelParams{
-		ID: channel.ID, Name: req.Msg.Name, Topic: topic, PostPolicy: policy,
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
+	qtx := s.q.WithTx(tx)
+
+	if renamed {
+		if err := claimChannelName(ctx, qtx, spaceOf(channel), *name, channel.ID); err != nil {
+			return nil, err
+		}
+	}
+	row, err := qtx.UpdateChannel(ctx, dbgen.UpdateChannelParams{
+		ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update channel: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
 	}
 	out := toProtoChannel(row)
 	s.bus.Publish("space:"+spaceOf(channel), events.Stamp(&realtimev1.ServerEvent{

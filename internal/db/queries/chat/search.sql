@@ -26,10 +26,11 @@ WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(s
 ORDER BY m.id DESC
 LIMIT sqlc.arg(lim);
 
--- GetChannelInSpaceByName resolves an in:#name filter. Names are not
--- unique within a space; the first by position wins, as in the sidebar.
+-- GetChannelInSpaceByName resolves an in:#name filter. Names from before
+-- the naming rule may repeat or carry capitals: an exact match wins, then
+-- the first by position, as in the sidebar.
 -- name: GetChannelInSpaceByName :one
 SELECT * FROM channels
-WHERE space_id = sqlc.arg(space_id)::uuid AND name = sqlc.arg(name)
-ORDER BY position, created_at
+WHERE space_id = sqlc.arg(space_id)::uuid AND lower(name) = lower(sqlc.arg(name))
+ORDER BY (name = sqlc.arg(name)) DESC, position, created_at
 LIMIT 1;

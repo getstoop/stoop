@@ -12,8 +12,8 @@ import (
 
 const getChannelInSpaceByName = `-- name: GetChannelInSpaceByName :one
 SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy FROM channels
-WHERE space_id = $1::uuid AND name = $2
-ORDER BY position, created_at
+WHERE space_id = $1::uuid AND lower(name) = lower($2)
+ORDER BY (name = $2) DESC, position, created_at
 LIMIT 1
 `
 
@@ -22,8 +22,9 @@ type GetChannelInSpaceByNameParams struct {
 	Name    string
 }
 
-// GetChannelInSpaceByName resolves an in:#name filter. Names are not
-// unique within a space; the first by position wins, as in the sidebar.
+// GetChannelInSpaceByName resolves an in:#name filter. Names from before
+// the naming rule may repeat or carry capitals: an exact match wins, then
+// the first by position, as in the sidebar.
 func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInSpaceByNameParams) (Channel, error) {
 	row := q.db.QueryRow(ctx, getChannelInSpaceByName, arg.SpaceID, arg.Name)
 	var i Channel

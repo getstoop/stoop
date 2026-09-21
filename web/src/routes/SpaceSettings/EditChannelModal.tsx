@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
-import { MAX_CHANNEL_TOPIC } from "../../api/channels";
+import { CHANNEL_NAME_HINT, MAX_CHANNEL_TOPIC } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { Modal } from "../../components/Modal";
@@ -82,6 +82,7 @@ export function EditChannelModal({
             // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
             autoFocus
           />
+          <span className="hint">{CHANNEL_NAME_HINT}</span>
         </label>
         <label className="field">
           Topic

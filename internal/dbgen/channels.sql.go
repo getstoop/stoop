@@ -9,6 +9,29 @@ import (
 	"context"
 )
 
+const channelNameTaken = `-- name: ChannelNameTaken :one
+SELECT EXISTS (
+    SELECT 1 FROM channels
+    WHERE space_id = $1::uuid
+      AND lower(name) = lower($2)
+      AND id <> $3
+)
+`
+
+type ChannelNameTakenParams struct {
+	SpaceID  string
+	Name     string
+	ExceptID string
+}
+
+// Names from before the rule may carry capitals, so compare folded.
+func (q *Queries) ChannelNameTaken(ctx context.Context, arg ChannelNameTakenParams) (bool, error) {
+	row := q.db.QueryRow(ctx, channelNameTaken, arg.SpaceID, arg.Name, arg.ExceptID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const countChannelsInSpace = `-- name: CountChannelsInSpace :one
 SELECT count(*) FROM channels WHERE space_id = $1::uuid
 `
@@ -184,6 +207,19 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockSpaceChannelNames = `-- name: LockSpaceChannelNames :one
+SELECT id FROM spaces WHERE id = $1::uuid FOR NO KEY UPDATE
+`
+
+// LockSpaceChannelNames serialises channel creates and renames in a space,
+// so two of them can't both find a name free. NO KEY leaves joins alone.
+func (q *Queries) LockSpaceChannelNames(ctx context.Context, spaceID string) (string, error) {
+	row := q.db.QueryRow(ctx, lockSpaceChannelNames, spaceID)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const setChannelLastMessage = `-- name: SetChannelLastMessage :exec
