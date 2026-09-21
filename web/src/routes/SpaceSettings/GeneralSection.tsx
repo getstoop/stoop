@@ -3,6 +3,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { filesClient } from "../../api/files";
+import { MAX_SPACE_NAME } from "../../api/spaces";
 import { Field } from "../../components/Field";
 import { controlAttrs } from "../../components/fieldControl";
 import { ImagePicker } from "../../components/ImagePicker";
@@ -51,7 +52,7 @@ export function GeneralSection({ space }: { space: Space }) {
                 {...controlAttrs(control)}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                maxLength={100}
+                maxLength={MAX_SPACE_NAME}
                 required
               />
               <button
