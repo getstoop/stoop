@@ -2,8 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { useInstanceStatus } from "../../api/queries";
+import { Field } from "../../components/Field";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // The last card under Security. It says plainly what stays and what
 // goes before asking for the password, because "delete" sets an
@@ -19,7 +20,8 @@ export function DeleteAccountSection({
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Without a password there is no field for a refusal to land on.
+  const form = useFieldErrors(hasPassword ? ["password"] : []);
 
   if (status && !status.selfDeletion) {
     return (
@@ -36,13 +38,13 @@ export function DeleteAccountSection({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       await authClient.deleteAccount({ password });
       queryClient.clear();
       navigate({ to: "/login" });
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -69,10 +71,12 @@ export function DeleteAccountSection({
           Delete my account…
         </button>
       ) : (
-        <form onSubmit={submit}>
+        <form ref={form.formRef} onSubmit={submit}>
           {hasPassword ? (
-            <label>
-              Your password, to confirm
+            <Field
+              label="Your password, to confirm"
+              error={form.errors.password}
+            >
               <input
                 type="password"
                 value={password}
@@ -80,16 +84,16 @@ export function DeleteAccountSection({
                 autoComplete="current-password"
                 required
               />
-            </label>
+            </Field>
           ) : (
             <p className="hint">
               Your account has no password, so this only works within ten
               minutes of signing in.
             </p>
           )}
-          {error && (
+          {form.formError && (
             <p className="error" role="alert">
-              {error}
+              {form.formError}
             </p>
           )}
           <div className="form-actions">
@@ -99,7 +103,7 @@ export function DeleteAccountSection({
               onClick={() => {
                 setOpen(false);
                 setPassword("");
-                setError(null);
+                form.begin();
               }}
               disabled={busy}
             >

@@ -228,7 +228,7 @@
     grid-template-columns: 1fr;
   }
 
-  .token-form-row,
+  .field-pair,
   .delivery-row {
     grid-template-columns: 1fr;
   }

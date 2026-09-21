@@ -11,12 +11,6 @@
   gap: 16px;
 }
 
-.token-form-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 12px;
-}
-
 .token-warning {
   margin: 0;
   font-size: var(--text-sm);

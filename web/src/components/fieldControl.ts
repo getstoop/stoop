@@ -9,15 +9,19 @@ export type FieldControl = {
 
 // The DOM's names for a FieldControl, to spread on the control:
 // <input {...controlAttrs(c)} />.
-export function controlAttrs(c: FieldControl) {
-  return {
-    id: c.id,
-    "aria-describedby": c.describedBy,
-    "aria-invalid": c.invalid,
-  };
+// Only what is set, so a control keeps an attribute of its own.
+export function controlAttrs(c: FieldControl): ControlAttrs {
+  const attrs: ControlAttrs = { id: c.id };
+  if (c.describedBy) attrs["aria-describedby"] = c.describedBy;
+  if (c.invalid) attrs["aria-invalid"] = true;
+  return attrs;
 }
 
-export type ControlAttrs = ReturnType<typeof controlAttrs>;
+export type ControlAttrs = {
+  id: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
+};
 
 export function fieldControl(
   id: string,

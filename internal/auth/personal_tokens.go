@@ -19,6 +19,7 @@ import (
 	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -98,7 +99,7 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 
 	name := strings.TrimSpace(req.Msg.Name)
 	if name == "" || utf8.RuneCountInString(name) > maxTokenNameRunes {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
+		return nil, apierr.Field(connect.CodeInvalidArgument, "name",
 			fmt.Errorf("a token's name must be 1-%d characters", maxTokenNameRunes))
 	}
 	grants, err := tokenGrants(req.Msg.Permissions)
@@ -107,8 +108,8 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 	}
 	days := req.Msg.ExpiresInDays
 	if days < 0 || days > maxTokenLifetimeDays {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			fmt.Errorf("expires_in_days must be 0 (never) or 1-%d", maxTokenLifetimeDays))
+		return nil, apierr.Field(connect.CodeInvalidArgument, "expires_in_days",
+			fmt.Errorf("a token expires in 1-%d days, or never", maxTokenLifetimeDays))
 	}
 	var expires *time.Time
 	if days > 0 {

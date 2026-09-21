@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, type ReactNode } from "react";
 import {
   type ControlAttrs,
   controlAttrs,
@@ -13,7 +13,7 @@ import {
 // the title becomes its label; `heading` makes it a subheading for a row
 // that holds several controls, which `stack` lays out top to bottom.
 // `error` is a refusal about this row's control, drawn under it; the control
-// is wired to it and to the description when it is the child carrying `id`,
+// is wired to it and to the description when it is a child carrying `id`,
 // or when the child is a function, which receives the wiring.
 // The two columns exist inside the settings frame; anywhere else (the
 // setup wizard) and below the phone breakpoint the row is one column.
@@ -42,8 +42,6 @@ export function SettingRow({
     error: !!error && !!id,
     hint: !!description && !!id,
   });
-  const isControl =
-    isValidElement<Partial<ControlAttrs>>(children) && children.props.id === id;
   return (
     <div
       className={`setting-row ${stack ? "stack" : ""} ${className ?? ""}`}
@@ -66,9 +64,13 @@ export function SettingRow({
       <div className="setting-control">
         {typeof children === "function"
           ? children(control)
-          : id && isControl
-            ? cloneElement(children, controlAttrs(control))
-            : children}
+          : Children.map(children, (child) =>
+              id &&
+              isValidElement<Partial<ControlAttrs>>(child) &&
+              child.props.id === id
+                ? cloneElement(child, controlAttrs(control))
+                : child,
+            )}
         {error && (
           <p className="error field-error" id={id && errorId(id)} role="alert">
             {error}

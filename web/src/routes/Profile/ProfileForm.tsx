@@ -1,11 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { authClient, filesClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { Avatar } from "../../components/Avatar";
 import { ImagePicker } from "../../components/ImagePicker";
 import { SettingRow } from "../../components/SettingRow";
 import type { User } from "../../gen/stoop/auth/v1/auth_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // The server's own caps, mirrored so the fields count down rather than
 // let a save fail (internal/auth/profile.go).
@@ -22,7 +22,7 @@ export function ProfileForm({ me }: { me: User }) {
   const [pronouns, setPronouns] = useState(me.pronouns);
   const [bio, setBio] = useState(me.bio);
   const [state, setState] = useState<"idle" | "busy" | "saved">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["displayName", "username", "pronouns", "bio"]);
 
   // An admin can rename us or clear a field from under us; adopt what
   // the server says for that field.
@@ -40,7 +40,7 @@ export function ProfileForm({ me }: { me: User }) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setState("busy");
-    setError(null);
+    form.begin();
     try {
       await authClient.updateProfile({
         displayName: name.trim(),
@@ -52,13 +52,13 @@ export function ProfileForm({ me }: { me: User }) {
       setState("saved");
       setTimeout(() => setState("idle"), 1500);
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setState("idle");
     }
   };
 
   return (
-    <form className="card profile-form" onSubmit={submit}>
+    <form className="card profile-form" ref={form.formRef} onSubmit={submit}>
       <SettingRow
         title="Avatar"
         description="Beside your messages and on your profile card. PNG, JPEG, GIF or WebP up to 2 MB, cropped to a square."
@@ -70,6 +70,7 @@ export function ProfileForm({ me }: { me: User }) {
         id="display-name"
         title="Display name"
         description="How you appear in messages."
+        error={form.errors.displayName}
       >
         <input
           id="display-name"
@@ -89,13 +90,12 @@ export function ProfileForm({ me }: { me: User }) {
               ? "How people mention you. This one came from your login provider — make it yours."
               : "How people mention you. 3 to 32 letters, numbers or underscores."
         }
+        error={form.errors.username}
       >
         <input
           id="username"
           value={handle}
           onChange={(e) => setHandle(e.target.value)}
-          pattern="[a-zA-Z0-9_]{3,32}"
-          title="3-32 letters, numbers, or _"
           autoComplete="username"
           disabled={me.usernameFrozen}
           required
@@ -105,6 +105,7 @@ export function ProfileForm({ me }: { me: User }) {
         id="pronouns"
         title="Pronouns"
         description="Shown next to your name on your profile card, which people open by clicking your name. Leave it blank and nothing shows."
+        error={form.errors.pronouns}
       >
         <input
           id="pronouns"
@@ -121,6 +122,7 @@ export function ProfileForm({ me }: { me: User }) {
         id="bio"
         title="Bio"
         description="A line or two people see on that same card. Plain text."
+        error={form.errors.bio}
       >
         <textarea
           id="bio"
@@ -134,9 +136,9 @@ export function ProfileForm({ me }: { me: User }) {
           {bio.length} / {BIO_MAX}
         </span>
       </SettingRow>
-      {error && (
+      {form.formError && (
         <p className="error" role="alert">
-          {error}
+          {form.formError}
         </p>
       )}
       <div className="setting-actions">

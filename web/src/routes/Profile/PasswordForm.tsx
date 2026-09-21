@@ -1,8 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { usePersonalTokens } from "../../api/queries";
+import { Field } from "../../components/Field";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // Change password — or set the first one, for an account created via a
 // login provider (then there is no current password to ask for). The
@@ -13,7 +14,7 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "saved">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["currentPassword", "newPassword", "confirm"]);
   const { data: tokens } = usePersonalTokens();
   const tokenCount = tokens?.length ?? 0;
   // Pre-ticked: whoever had the session long enough to change the password
@@ -22,9 +23,9 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
+    form.begin();
     if (next !== confirm) {
-      setError("The two new passwords don't match.");
+      form.set("confirm", "The two new passwords don't match.");
       return;
     }
     setState("busy");
@@ -47,13 +48,13 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
       setState("saved");
       setTimeout(() => setState("idle"), 2500);
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setState("idle");
     }
   };
 
   return (
-    <form className="card" onSubmit={submit}>
+    <form className="card" ref={form.formRef} onSubmit={submit}>
       <h3>{hasPassword ? "Change password" : "Set a password"}</h3>
       <p className="hint">
         {hasPassword
@@ -61,8 +62,7 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
           : "So you can sign in with your username even if the login provider goes away."}
       </p>
       {hasPassword && (
-        <label>
-          Current password
+        <Field label="Current password" error={form.errors.currentPassword}>
           <input
             type="password"
             value={current}
@@ -70,10 +70,9 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
             autoComplete="current-password"
             required
           />
-        </label>
+        </Field>
       )}
-      <label>
-        New password
+      <Field label="New password" error={form.errors.newPassword}>
         <input
           type="password"
           value={next}
@@ -82,9 +81,8 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
           minLength={8}
           required
         />
-      </label>
-      <label>
-        Confirm new password
+      </Field>
+      <Field label="Confirm new password" error={form.errors.confirm}>
         <input
           type="password"
           value={confirm}
@@ -94,7 +92,7 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
           required
           aria-invalid={confirm !== "" && confirm !== next ? true : undefined}
         />
-      </label>
+      </Field>
       {tokenCount > 0 && (
         <label className="toggle-row">
           <input
@@ -110,9 +108,9 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
           </span>
         </label>
       )}
-      {error && (
+      {form.formError && (
         <p className="error" role="alert">
-          {error}
+          {form.formError}
         </p>
       )}
       <div className="setting-actions">
