@@ -20,8 +20,8 @@ rtc:
 # node's address to the shared volume, and livekit-entrypoint.sh starts
 # this server with it and restarts on a change, so there is nothing to
 # set here.
-# Keep the ports above and STOOP_LIVEKIT_TCP_PORT / STOOP_LIVEKIT_UDP_PORTS
-# in step.
+# Under compose the media ports come from STOOP_LIVEKIT_TCP_PORT and
+# STOOP_LIVEKIT_UDP_PORTS in .env, which win over the values above.
 #
 # Behind an HTTP-only tunnel (Cloudflare Tunnel, Tailscale Funnel) browsers
 # can't reach those ports and voice is silent unless you offer a TURN relay

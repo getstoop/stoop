@@ -4,19 +4,52 @@
 # Put a TLS-terminating reverse proxy (Caddy, Traefik, nginx) in front of
 # stoop:8080 and name it under Server admin → Hosting → Trusted proxies;
 # Secure cookies follow from that. LiveKit's signaling is
-# proxied by Stoop at /livekit; only its media ports (7881/tcp and the UDP
-# range in livekit.yaml) need to be reachable directly.
+# proxied by Stoop at /livekit; only its media ports (7881/tcp and
+# 50000-50100/udp unless .env says otherwise) need to be reachable directly.
+
+# Container logs are capped at 30 MB a service. For more, override
+# `logging:` in a docker-compose.override.yml.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
+  # Runs once, before stoop: hands the key volume to the user stoop runs
+  # as, which a PUID other than the image's own could not write to. It
+  # touches nothing else; the uploads path is yours to own.
+  keys-owner:
+    image: busybox:1.37
+    user: "0:0"
+    command: chown -R ${PUID:-65532}:${PGID:-65532} /livekit-keys
+    volumes:
+      - livekit-keys:/livekit-keys
+    restart: "no"
+    logging: *logging
+
   stoop:
     # Pinned to the release this file shipped with; each release PR bumps
     # it. Rolling back one release is editing this line and `up -d`.
     image: ghcr.io/getstoop/stoop:0.2.0
     restart: unless-stopped
+    # The user that owns STOOP_DATA_PATH; the image's own when unset.
+    user: "${PUID:-65532}:${PGID:-65532}"
+    logging: *logging
+    # The image has no shell, so the binary checks its own /healthz.
+    # start_period covers migrations on a first boot.
+    healthcheck:
+      test: ["CMD", "stoop", "health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
     # The bundled Postgres is a profile (COMPOSE_PROFILES in .env). With it
     # off, this service starts without it and STOOP_DATABASE_URL names
     # the Postgres to use: docs/self-hosting.md → Using your own Postgres.
     depends_on:
+      keys-owner:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
         required: false
@@ -27,6 +60,7 @@ services:
     # `environment:` takes precedence over `env_file:`.
     env_file: .env
     environment:
+      TZ: ${TZ:-UTC}
       STOOP_DATABASE_URL: ${STOOP_DATABASE_URL:-postgres://stoop:${POSTGRES_PASSWORD:-}@postgres:5432/stoop?sslmode=disable}
       STOOP_PUBLIC_URL: ${STOOP_PUBLIC_URL:-}
       STOOP_TRUST_PROXY: ${STOOP_TRUST_PROXY:-false}
@@ -55,19 +89,21 @@ services:
       STOOP_TAILSCALE_FUNNEL: ${STOOP_TAILSCALE_FUNNEL:-false}
       # The built-in Tailscale node carries LiveKit's media ports too, so
       # voice rides the tailnet. It needs to know where LiveKit is: the
-      # sidecar's name on this network, and the ports set in livekit.yaml.
+      # sidecar's name on this network, and the same two port settings the
+      # livekit service below takes.
       STOOP_TAILSCALE_VOICE: ${STOOP_TAILSCALE_VOICE:-true}
       STOOP_LIVEKIT_MEDIA_HOST: ${STOOP_LIVEKIT_MEDIA_HOST:-livekit}
       STOOP_LIVEKIT_TCP_PORT: ${STOOP_LIVEKIT_TCP_PORT:-7881}
       STOOP_LIVEKIT_UDP_PORTS: ${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}
     volumes:
-      # Uploaded files and the Tailscale node identity. Back this up with Postgres.
-      - stoop-data:/data
+      # Uploaded files and the Tailscale node identity. Back this up with
+      # Postgres. STOOP_DATA_PATH puts it on a path of yours instead.
+      - ${STOOP_DATA_PATH:-stoop-data}:/data
       # Just the LiveKit key pair: its own volume so the sidecar gets a
       # view of the credentials it needs and nothing else.
       - livekit-keys:/livekit-keys
     ports:
-      - "8080:8080"
+      - "${STOOP_PORT:-8080}:8080"
 
   postgres:
     image: postgres:16-alpine
@@ -75,12 +111,14 @@ services:
     restart: unless-stopped
     # Server settings from .env, e.g. POSTGRES_ARGS=-c shared_buffers=256MB
     command: postgres ${POSTGRES_ARGS:-}
+    logging: *logging
     environment:
+      TZ: ${TZ:-UTC}
       POSTGRES_USER: stoop
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: stoop
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_PATH:-postgres-data}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U stoop"]
       interval: 5s
@@ -90,9 +128,9 @@ services:
   livekit:
     image: livekit/livekit-server:v1.13.6
     restart: unless-stopped
-    # The key pair comes from the file Stoop writes, not from livekit.yaml.
-    # On a first start this server may exit once or twice before Stoop has
-    # written it; the restart policy covers that.
+    logging: *logging
+    # The key pair comes from the file Stoop writes, not from livekit.yaml;
+    # waiting for Stoop to be healthy means it is there.
     # NODE_IP is the address LiveKit offers browsers as a media candidate,
     # and it is read once at startup. Stoop writes the built-in Tailscale
     # node's address into the shared volume, and the entrypoint script
@@ -104,23 +142,29 @@ services:
     command: --config /etc/livekit.yaml --key-file /keys/keys.yaml
     environment:
       NODE_IP: ${NODE_IP:-}
+      # The media ports, set once in .env. LiveKit reads the first itself;
+      # the entrypoint splits the range into LiveKit's start and end.
+      LIVEKIT_RTC_TCP_PORT: ${STOOP_LIVEKIT_TCP_PORT:-7881}
+      STOOP_LIVEKIT_UDP_PORTS: ${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}
     depends_on:
-      - stoop
+      stoop:
+        condition: service_healthy
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
       - ./livekit-entrypoint.sh:/etc/livekit-entrypoint.sh:ro
       # Read-only, and LiveKit runs as root so the 0600 file Stoop writes
-      # is readable. Don't add a `user:` here without giving that user
-      # access to the file.
+      # is readable whatever PUID stoop runs as. Don't add a `user:` here
+      # without giving that user access to the file.
       - livekit-keys:/keys:ro
     # Media ports only. Signaling (7880) is reached through Stoop's /livekit
     # proxy on the compose network and is deliberately not published.
     # Publishing these is what lets browsers reach LiveKit directly; the
     # built-in Tailscale node carries the same ports over the tailnet, so
     # a tailnet-only server needs nothing forwarded to it from a router.
+    # The same number on both sides: LiveKit advertises the container's port.
     ports:
-      - "7881:7881"
-      - "50000-50100:50000-50100/udp"
+      - "${STOOP_LIVEKIT_TCP_PORT:-7881}:${STOOP_LIVEKIT_TCP_PORT:-7881}"
+      - "${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}:${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}/udp"
 
 volumes:
   postgres-data:
