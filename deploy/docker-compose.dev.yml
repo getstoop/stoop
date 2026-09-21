@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: stoop
       POSTGRES_PASSWORD: stoop
       POSTGRES_DB: stoop
+    command: postgres ${POSTGRES_ARGS:-}
     ports:
       # Host port 5440 to stay clear of any local Postgres on 5432.
       - "5440:5432"
