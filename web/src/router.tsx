@@ -2,7 +2,6 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  lazyRouteComponent,
 } from "@tanstack/react-router";
 import { ActivityPage } from "./routes/Activity";
 import { AdminPage } from "./routes/Admin";
@@ -294,24 +293,11 @@ const channelRoute = createRoute({
   }),
 });
 
-// The kit page (every shared control in every theme) exists in dev
-// builds only; the import is dead code in production, so Vite drops it.
-const kitRoutes = import.meta.env.DEV
-  ? [
-      createRoute({
-        getParentRoute: () => rootRoute,
-        path: "/kit",
-        component: lazyRouteComponent(() => import("./routes/Kit"), "KitPage"),
-      }),
-    ]
-  : [];
-
 const routeTree = rootRoute.addChildren([
   loginRoute,
   setupRoute,
   desktopAuthRoute,
   desktopReturnRoute,
-  ...kitRoutes,
   appRoute.addChildren([
     homeRoute,
     adminRoute,

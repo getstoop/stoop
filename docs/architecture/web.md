@@ -71,7 +71,6 @@ loop, nesting the redirect parameter each time.
 /setup                          public, first-run
 /auth/desktop/complete          public, the desktop sign-in hand-off
 /auth/desktop/return            public, back to the desktop app
-/kit                            dev builds only
 └── app (AppShell — auth guard)
     /                           home
     /admin           ?tab=accounts|spaces|hosting|login|storage|integrations
@@ -104,10 +103,10 @@ would leave someone stuck on the form after a successful sign-in.
 or a reply quote opens the channel *around* that message in one round trip
 — see [messaging.md](messaging.md#history).
 
-**The kit route is dev-only** by construction: `import.meta.env.DEV` gates
-the route array, so the import is dead code in production and Vite drops
-it. `styles/kit.css` is loaded by that route rather than by `index.css`, so
-it is never in the binary.
+**The kit workspace is not a route.** Storybook (`make storybook`) is its
+own dev server over the same Vite config; no app module imports a story,
+so nothing of it reaches the binary
+([design-system.md](design-system.md#what-holds-it)).
 
 ## State: one source of truth
 
@@ -254,8 +253,8 @@ frame every other modal uses. E2E specs answer them with `acceptDialog` /
 `dismissDialog`, which is only possible because they are real DOM.
 
 `scripts/check-styles.mjs` enforces the token rules in `make lint`, and
-`/kit` (dev builds only) renders every shared part with a theme switch, so
-a kit change is checked in every theme before it ships.
+Storybook (`make storybook`, dev only) renders every shared part with a
+theme switch, so a kit change is checked in every theme before it ships.
 
 ## The settings frame
 

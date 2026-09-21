@@ -15,6 +15,8 @@ The web client's look is four things, each in one place:
   `SettingRow`, `SettingsFrame` (all in `web/src/components/`).
 - **The lint that holds it.** Three scripts under `scripts/`, run by
   `make lint` and CI.
+- **The workspace.** Storybook (`make storybook`), where a part is built
+  and looked at on its own, in every theme.
 
 The rules themselves are a terse list in
 [../conventions.md](../conventions.md) (Web: design tokens and the kit).
@@ -250,11 +252,20 @@ opacity, the black behind video, a pseudo-element that cannot take a
 class. It is not for "this looked better at 10px". The reason is read in
 review.
 
-**`/kit`** (`routes/Kit/`, dev builds only) renders the foundations,
-buttons, fields, surfaces and small parts on one page with a theme switch.
+**Storybook** (`make storybook`, http://localhost:6006, dev only) is where
+a kit part is built and reviewed in isolation. Its toolbar has two
+switches: the theme, stamped on the root element as the app does it, and
+the ground (`--surface`, `--panel`, `--canvas`), because a part is judged
+on what it sits on. The accessibility panel runs axe on the story in view.
 A change to a kit sheet is checked there, in several themes of each tier,
-before it ships. Its sheet, `styles/kit.css`, is imported by the route and
-never reaches the binary.
+before it ships.
+
+Stories sit beside their component (`components/Avatar.stories.tsx`); a
+part that is only a class has its stories under `src/kit/`. The config is
+`web/.storybook/`; its layout sheet, `styles/kit.css`, is imported by the
+preview and never reaches the binary, and neither does a story, since no
+app module imports one. CI's Web job runs `pnpm build-storybook`, so a
+story that stops compiling fails the pull request. Nothing is hosted.
 
 Two rules live in the docs only, because a line-based script cannot check
 them honestly: a feature sheet must not redeclare the avatar's circle, and

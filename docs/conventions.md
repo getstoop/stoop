@@ -25,6 +25,10 @@ in their head. Add to this when a new rule earns its place.
 - **Icon collections are the exception.** `Icons.tsx` and
   `VoiceIcons.tsx` are many tiny SVG components in one file, and that is
   the readable form for them.
+- **A shared component's stories sit beside it**, one stories file per
+  component: `components/Avatar.stories.tsx`. A kit part that is only a
+  class (`.chip`, `.card`) has its stories under `src/kit/`. Feature
+  components get stories only when they are worked on in isolation.
 - **Known debt:** `routes/Setup.tsx` holds five components. Split it when
   it is next touched; do not add components to it. `routes/Admin/` and
   `routes/Profile/` are the model.
@@ -153,10 +157,10 @@ for, and why — is in
   are judged: `style={position}` passes. `scripts/check-tsx-styles.mjs`
   enforces it in `make lint`.
 - **`scripts/check-styles.mjs` enforces all of the above** in `make lint` and in CI's Web job.
-  **`/kit` (dev builds only, `routes/Kit/`) renders every shared part**, with
+  **Storybook (`make storybook`, dev only) renders every shared part**, with
   a theme switch, so a kit change is checked in every theme before it
-  ships. `styles/kit.css` is loaded by that route, not `index.css`, so it is
-  never in the binary.
+  ships. `styles/kit.css` is loaded by `.storybook/preview.tsx`, not
+  `index.css`, so it is never in the binary.
 
 ## Go: one file per entity or concern
 

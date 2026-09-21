@@ -5,6 +5,7 @@
       "src/**",
       "e2e/**",
       "e2e-pw/**",
+      ".storybook/**",
       "!src/gen/**"
     ]
   },
