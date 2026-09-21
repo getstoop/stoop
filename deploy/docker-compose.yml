@@ -16,11 +16,25 @@ x-logging: &logging
     max-file: "3"
 
 services:
+  # Runs once, before stoop: hands the key volume to the user stoop runs
+  # as, which a PUID other than the image's own could not write to. It
+  # touches nothing else; the uploads path is yours to own.
+  keys-owner:
+    image: busybox:1.37
+    user: "0:0"
+    command: chown -R ${PUID:-65532}:${PGID:-65532} /livekit-keys
+    volumes:
+      - livekit-keys:/livekit-keys
+    restart: "no"
+    logging: *logging
+
   stoop:
     # Pinned to the release this file shipped with; each release PR bumps
     # it. Rolling back one release is editing this line and `up -d`.
     image: ghcr.io/getstoop/stoop:0.2.0
     restart: unless-stopped
+    # The user that owns STOOP_DATA_PATH; the image's own when unset.
+    user: "${PUID:-65532}:${PGID:-65532}"
     logging: *logging
     # The image has no shell, so the binary checks its own /healthz.
     # start_period covers migrations on a first boot.
@@ -34,6 +48,8 @@ services:
     # off, this service starts without it and STOOP_DATABASE_URL names
     # the Postgres to use: docs/self-hosting.md → Using your own Postgres.
     depends_on:
+      keys-owner:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
         required: false
@@ -80,8 +96,9 @@ services:
       STOOP_LIVEKIT_TCP_PORT: ${STOOP_LIVEKIT_TCP_PORT:-7881}
       STOOP_LIVEKIT_UDP_PORTS: ${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}
     volumes:
-      # Uploaded files and the Tailscale node identity. Back this up with Postgres.
-      - stoop-data:/data
+      # Uploaded files and the Tailscale node identity. Back this up with
+      # Postgres. STOOP_DATA_PATH puts it on a path of yours instead.
+      - ${STOOP_DATA_PATH:-stoop-data}:/data
       # Just the LiveKit key pair: its own volume so the sidecar gets a
       # view of the credentials it needs and nothing else.
       - livekit-keys:/livekit-keys
@@ -101,7 +118,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: stoop
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_PATH:-postgres-data}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U stoop"]
       interval: 5s
@@ -136,8 +153,8 @@ services:
       - ./livekit.yaml:/etc/livekit.yaml:ro
       - ./livekit-entrypoint.sh:/etc/livekit-entrypoint.sh:ro
       # Read-only, and LiveKit runs as root so the 0600 file Stoop writes
-      # is readable. Don't add a `user:` here without giving that user
-      # access to the file.
+      # is readable whatever PUID stoop runs as. Don't add a `user:` here
+      # without giving that user access to the file.
       - livekit-keys:/keys:ro
     # Media ports only. Signaling (7880) is reached through Stoop's /livekit
     # proxy on the compose network and is deliberately not published.
