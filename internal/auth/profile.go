@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -32,15 +33,16 @@ func oneLine(s string) string {
 }
 
 // profileText normalises one optional free-text profile field. A nil
-// argument leaves the column alone; empty clears it.
-func profileText(v *string, label string, max int) (*string, error) {
+// argument leaves the column alone; empty clears it. field is the request
+// field, which is also the word for it in the sentence.
+func profileText(v *string, field string, max int) (*string, error) {
 	if v == nil {
 		return nil, nil
 	}
 	text := oneLine(*v)
 	if utf8.RuneCountInString(text) > max {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			fmt.Errorf("%s must be %d characters or fewer", label, max))
+		return nil, apierr.Field(connect.CodeInvalidArgument, field,
+			fmt.Errorf("%s must be %d characters or fewer", field, max))
 	}
 	return &text, nil
 }
@@ -51,7 +53,7 @@ func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1
 	}
 	name := strings.TrimSpace(req.Msg.DisplayName)
 	if name == "" || utf8.RuneCountInString(name) > maxDisplayNameLen {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
+		return nil, apierr.Field(connect.CodeInvalidArgument, "display_name",
 			fmt.Errorf("display name must be 1-%d characters", maxDisplayNameLen))
 	}
 	// Usernames are freely changeable: everything durable binds to the
@@ -59,11 +61,11 @@ func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1
 	if req.Msg.Username != nil {
 		username := strings.ToLower(strings.TrimSpace(*req.Msg.Username))
 		if !usernameRE.MatchString(username) {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, "username",
 				errors.New("username must be 3-32 letters, numbers, or _"))
 		}
 		if reservedUsernames[username] {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, "username",
 				fmt.Errorf("%q is reserved; pick another username", username))
 		}
 		if _, err := s.q.SetUsername(ctx, dbgen.SetUsernameParams{
@@ -73,10 +75,10 @@ func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1
 			switch {
 			case errors.Is(err, pgx.ErrNoRows):
 				// The only way the row doesn't match: an admin froze it.
-				return nil, connect.NewError(connect.CodeFailedPrecondition,
+				return nil, apierr.Field(connect.CodeFailedPrecondition, "username",
 					errors.New("an admin has locked your username"))
 			case errors.As(err, &pgErr) && pgErr.Code == "23505":
-				return nil, connect.NewError(connect.CodeAlreadyExists,
+				return nil, apierr.Field(connect.CodeAlreadyExists, "username",
 					errors.New("username is taken"))
 			default:
 				return nil, fmt.Errorf("set username: %w", err)
@@ -106,7 +108,7 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not logged in"))
 	}
 	if len(req.Msg.NewPassword) < minPasswordLen {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
+		return nil, apierr.Field(connect.CodeInvalidArgument, "new_password",
 			fmt.Errorf("new password must be at least %d characters", minPasswordLen))
 	}
 
@@ -122,7 +124,7 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 			return nil, fmt.Errorf("verify password: %w", err)
 		}
 		if !match {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("current password is incorrect"))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "current_password", errors.New("current password is incorrect"))
 		}
 	}
 

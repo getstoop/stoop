@@ -1,7 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { authClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { useMyPermissions, useSpaces } from "../../api/queries";
 import {
   canCreate,
@@ -12,8 +11,10 @@ import {
   withDependencies,
   withoutOrphans,
 } from "../../api/tokenOptions";
+import { Field } from "../../components/Field";
 import { Modal } from "../../components/Modal";
 import { PermissionPicker } from "../../components/PermissionPicker";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // Security → Personal tokens → New token. It starts as narrow as it can:
 // nothing ticked. It works everywhere its holder does; the only dial is
@@ -32,7 +33,8 @@ export function NewTokenModal({
   const [days, setDays] = useState(DEFAULT_EXPIRY_DAYS);
   const [keys, setKeys] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["name", "expiresInDays"]);
+  const formId = useId();
 
   const options = heldOptions([
     ...(mine ?? []),
@@ -40,10 +42,11 @@ export function NewTokenModal({
   ]);
   const ready = canCreate({ name, keys });
 
-  const create = async () => {
+  const create = async (e: FormEvent) => {
+    e.preventDefault();
     if (!ready) return;
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       const res = await authClient.createPersonalToken({
         name: name.trim(),
@@ -53,7 +56,7 @@ export function NewTokenModal({
       await queryClient.invalidateQueries({ queryKey: ["personal-tokens"] });
       onCreated(res.token?.name ?? name.trim(), res.secret);
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -68,9 +71,9 @@ export function NewTokenModal({
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="primary"
-            onClick={create}
             disabled={busy || !ready}
           >
             Create token
@@ -78,10 +81,14 @@ export function NewTokenModal({
         </>
       }
     >
-      <div className="modal-body token-form">
-        <div className="token-form-row">
-          <label className="field">
-            Name
+      <form
+        id={formId}
+        ref={form.formRef}
+        className="modal-body token-form"
+        onSubmit={create}
+      >
+        <div className="field-pair">
+          <Field label="Name" error={form.errors.name}>
             <input
               name="token-name"
               value={name}
@@ -91,9 +98,8 @@ export function NewTokenModal({
               // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
               autoFocus
             />
-          </label>
-          <label className="field">
-            Expires
+          </Field>
+          <Field label="Expires" error={form.errors.expiresInDays}>
             <select
               name="token-expiry"
               value={days}
@@ -105,7 +111,7 @@ export function NewTokenModal({
                 </option>
               ))}
             </select>
-          </label>
+          </Field>
         </div>
         {days === 0 && (
           <p className="token-warning">
@@ -124,12 +130,12 @@ export function NewTokenModal({
           only what you tick here.
         </p>
 
-        {error && (
+        {form.formError && (
           <p className="error" role="alert">
-            {error}
+            {form.formError}
           </p>
         )}
-      </div>
+      </form>
     </Modal>
   );
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -127,7 +128,7 @@ func (s *Service) confirmIdentity(ctx context.Context, user dbgen.User, credenti
 			return fmt.Errorf("verify password: %w", err)
 		}
 		if !match {
-			return connect.NewError(connect.CodeInvalidArgument, errors.New("password is incorrect"))
+			return apierr.Field(connect.CodeInvalidArgument, "password", errors.New("password is incorrect"))
 		}
 		return nil
 	}
