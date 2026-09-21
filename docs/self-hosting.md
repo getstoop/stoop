@@ -111,6 +111,19 @@ Then `docker compose up -d`. The bundled Postgres no longer starts, and
   lines there run against your server instead of `docker compose exec
   postgres`. The `stoop-data` volume still holds the uploads.
 
+### Tuning the bundled Postgres
+
+Put `postgres -c` flags in `POSTGRES_ARGS` in `.env`, then
+`docker compose up -d`:
+
+```sh
+POSTGRES_ARGS=-c shared_buffers=256MB -c max_connections=50
+```
+
+Postgres's defaults are right for a chat database of this size, so most
+installs leave this unset. A misspelt setting stops the container, and
+`docker compose logs postgres` names it.
+
 ## Reaching your server
 
 Stoop listens on one plain HTTP port (`8080` in the compose file). Put
@@ -467,6 +480,18 @@ the server. Two are pinned by the compose file itself and ignore what
 | `STOOP_OIDC_ID`            | `sso`                       | The provider's stable id; part of the callback URL, and identities link under it |
 | `STOOP_SESSION_LIFETIME_DAYS` | `30`                    | How long a sign-in lasts, 1-365 days. The admin page's saved value overrides it; a change applies to sign-ins from then on |
 | `STOOP_PASSWORD_SIGN_IN`   | `everyone`                  | Who may use the username/password form: `everyone`, `admins`, or `off` (sign in through login providers instead). The admin page's saved value overrides it; admins are always honoured as a fallback |
+
+### Compose settings
+
+These are read by the compose file, not by the server, so they apply to
+the Docker Compose install only.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `COMPOSE_PROFILES` | `bundled-postgres` | Which bundled services run. Empty to [use your own Postgres](#using-your-own-postgres) |
+| `POSTGRES_PASSWORD` | (none) | Password of the bundled Postgres |
+| `POSTGRES_ARGS` | (empty) | `postgres -c name=value` flags for the bundled Postgres; see [Tuning the bundled Postgres](#tuning-the-bundled-postgres) |
+| `NODE_IP` | (empty) | The address LiveKit offers browsers for media; see [Voice](#voice) |
 
 ## File storage
 

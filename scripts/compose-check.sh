@@ -21,6 +21,13 @@ cp "$deploy/.env.example" "$env_file"
 render | grep -q 'STOOP_DATABASE_URL: postgres://stoop:change-me@postgres:5432/stoop' ||
 	fail "default: STOOP_DATABASE_URL is not the bundled Postgres"
 
+# POSTGRES_ARGS reaches the server as separate arguments.
+render | tr -d ' \n' | grep -q -- 'command:-postgresenvironment:' ||
+	fail "default: postgres command is not the image's own"
+echo 'POSTGRES_ARGS=-c shared_buffers=256MB -c max_connections=50' >>"$env_file"
+render | tr -d ' \n' | grep -q -- 'command:-postgres--c-shared_buffers=256MB--c-max_connections=50' ||
+	fail "POSTGRES_ARGS: flags did not reach the postgres command"
+
 # Own Postgres: profile off, URL set.
 printf 'COMPOSE_PROFILES=\nSTOOP_DATABASE_URL=postgres://me@db.lan/stoop\n' >"$env_file"
 [ "$(services)" = "livekit stoop " ] || fail "own postgres: got services: $(services)"

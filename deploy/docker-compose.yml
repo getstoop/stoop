@@ -73,6 +73,8 @@ services:
     image: postgres:16-alpine
     profiles: ["bundled-postgres"]
     restart: unless-stopped
+    # Server settings from .env, e.g. POSTGRES_ARGS=-c shared_buffers=256MB
+    command: postgres ${POSTGRES_ARGS:-}
     environment:
       POSTGRES_USER: stoop
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
