@@ -180,7 +180,7 @@ columns and cells; it does not style a `<table>`.
 
 | Situation | Pattern |
 | --------- | ------- |
-| A submit failed | A `.error` line in the form, rendered conditionally with `role="alert"` so it is announced. |
+| A submit failed | A `.error` line in the form, beside the fields it is about, rendered conditionally with `role="alert"` so it is announced. The form stays open with what was typed still in it; a failed submit is never reported by closing the form and raising a `notice`. A `prompt` does this through its `submit` option. |
 | A field's standing note in danger colour | A static `.error`, no role. |
 | Something the user should keep in mind while here | `.callout` / `.callout.warn`. |
 | A question, or an error with no form to carry it | `confirm`, `prompt` or `notice` from `stores/dialogs.ts`. They return promises, queue, and render through `DialogHost` on the `Modal` frame. A destructive `confirm` focuses Cancel. |

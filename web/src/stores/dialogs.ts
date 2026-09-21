@@ -33,6 +33,9 @@ export interface PromptOptions {
   // Lets a blank answer through, so clearing the field means "remove it"
   // rather than "cancel". Never combined with match.
   allowEmpty?: boolean;
+  // Runs with the answer while the dialog stays open. If it throws, the
+  // message shows under the field and the answer stays to be fixed.
+  submit?: (value: string) => Promise<void>;
 }
 
 export interface NoticeOptions {

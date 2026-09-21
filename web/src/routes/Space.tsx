@@ -169,14 +169,11 @@ export function SpaceLayout() {
       body: CHANNEL_NAME_HINT,
       maxLength: MAX_CHANNEL_NAME,
       action: "Create",
+      submit: async (name) => {
+        await chatClient.createChannel({ spaceId, name, kind });
+      },
     });
     if (!name) return;
-    try {
-      await chatClient.createChannel({ spaceId, name, kind });
-    } catch (err) {
-      await notice({ title: "Channel not created", body: errorText(err) });
-      return;
-    }
     await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
   };
 

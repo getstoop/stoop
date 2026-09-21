@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
+  CHANNEL_NAME_HINT,
   editChannelTopic,
   isAnnouncement,
   setAnnouncement,
@@ -65,14 +66,17 @@ export function ChannelMenu({
 
   const rename = () =>
     run(async () => {
-      const name = await prompt({
+      await prompt({
         title: "Rename channel",
         label: "Channel name",
+        body: CHANNEL_NAME_HINT,
         initial: channel.name,
         action: "Rename",
+        submit: async (name) => {
+          if (name === channel.name) return;
+          await chatClient.updateChannel({ channelId: channel.id, name });
+        },
       });
-      if (!name || name === channel.name) return;
-      await chatClient.updateChannel({ channelId: channel.id, name });
     });
 
   const remove = () =>

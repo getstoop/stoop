@@ -1,4 +1,5 @@
 import { type FormEvent, useId, useState } from "react";
+import { errorText } from "../api/errors";
 import {
   type ConfirmOptions,
   type NoticeOptions,
@@ -108,9 +109,25 @@ function PromptDialog({
     opts.match !== undefined
       ? trimmed === opts.match
       : opts.allowEmpty || trimmed !== "";
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const answer = async () => {
+    if (!ready || busy) return;
+    if (!opts.submit) return onDone(trimmed);
+    setBusy(true);
+    setError(null);
+    try {
+      await opts.submit(trimmed);
+      onDone(trimmed);
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+      document.getElementById(fieldId)?.focus();
+    }
+  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (ready) onDone(trimmed);
+    void answer();
   };
   return (
     <Modal
@@ -127,7 +144,7 @@ function PromptDialog({
             type="submit"
             form="prompt-dialog"
             className={`primary ${opts.danger ? "danger" : ""}`}
-            disabled={!ready}
+            disabled={!ready || busy}
           >
             {opts.action ?? "OK"}
           </button>
@@ -158,7 +175,7 @@ function PromptDialog({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  if (ready) onDone(trimmed);
+                  void answer();
                 }
               }}
             />
@@ -174,6 +191,11 @@ function PromptDialog({
             />
           )}
         </label>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
       </form>
     </Modal>
   );
