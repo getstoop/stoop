@@ -11,6 +11,7 @@ import {
   toggleInChannel,
 } from "../../api/search";
 import { SearchIcon } from "../../components/Icons";
+import { Input } from "../../components/Input";
 import { MenuButton } from "../../components/MenuButton";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { ResultRow } from "./ResultRow";
@@ -119,22 +120,21 @@ export function SearchPage() {
             setQuery(draft);
           }}
         >
-          <label className="members-search search-field">
-            <SearchIcon />
-            <input
-              ref={input}
-              type="search"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Escape") return;
-                if (draft) setDraft("");
-                else close();
-              }}
-              placeholder="Words, “a phrase”, from:@name, in:#channel"
-              aria-label="Search messages"
-            />
-          </label>
+          <Input
+            className="members-search search-field"
+            start={<SearchIcon />}
+            ref={input}
+            type="search"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Escape") return;
+              if (draft) setDraft("");
+              else close();
+            }}
+            placeholder="Words, “a phrase”, from:@name, in:#channel"
+            aria-label="Search messages"
+          />
         </form>
         <span className="muted search-count">{count}</span>
         <button type="button" className="chip" onClick={close}>

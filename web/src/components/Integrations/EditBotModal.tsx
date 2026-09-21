@@ -1,11 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { filesClient, integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useAllSpaces, useBots } from "../../api/queries";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Bot } from "../../gen/stoop/integrations/v1/bot_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { Avatar } from "../Avatar";
+import { Field } from "../Field";
 import { ImagePicker } from "../ImagePicker";
 import { Modal } from "../Modal";
 import { SpacePicker } from "../SpacePicker";
@@ -37,7 +39,8 @@ export function EditBotModal({
   const [bio, setBio] = useState(bot.bio);
   const [spaceIds, setSpaceIds] = useState<string[]>(bot.spaceIds);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["displayName", "username", "bio"]);
+  const formId = useId();
 
   const nameChanged = displayName.trim() !== bot.displayName;
   const handleChanged = username.trim() !== bot.username;
@@ -56,10 +59,11 @@ export function EditBotModal({
     await filesClient.uploadBotAvatar({ userId: bot.id, data: bytes });
     await refresh();
   };
-  const save = async () => {
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
     if (!ready || !changed) return;
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       if (nameChanged || handleChanged || bioChanged) {
         await integrationsClient.updateBot({
@@ -69,26 +73,33 @@ export function EditBotModal({
           bio: bioChanged ? bio : undefined,
         });
       }
-      for (const spaceId of spaceIds) {
-        if (!bot.spaceIds.includes(spaceId)) {
-          await integrationsClient.addBotToSpace({
-            botUserId: bot.id,
-            spaceId,
-          });
+      // The details are saved by now, so a failure past here says which
+      // step it was rather than reading as the whole save refused.
+      try {
+        for (const spaceId of spaceIds) {
+          if (!bot.spaceIds.includes(spaceId)) {
+            await integrationsClient.addBotToSpace({
+              botUserId: bot.id,
+              spaceId,
+            });
+          }
         }
-      }
-      for (const spaceId of bot.spaceIds) {
-        if (!spaceIds.includes(spaceId)) {
-          await integrationsClient.removeBotFromSpace({
-            botUserId: bot.id,
-            spaceId,
-          });
+        for (const spaceId of bot.spaceIds) {
+          if (!spaceIds.includes(spaceId)) {
+            await integrationsClient.removeBotFromSpace({
+              botUserId: bot.id,
+              spaceId,
+            });
+          }
         }
+      } catch (err) {
+        await refresh();
+        throw new Error(`Changing its spaces failed: ${errorText(err)}`);
       }
       await refresh();
       onClose();
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -104,9 +115,9 @@ export function EditBotModal({
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="primary"
-            onClick={save}
             disabled={busy || !ready || !changed}
           >
             Save
@@ -114,7 +125,12 @@ export function EditBotModal({
         </>
       }
     >
-      <div className="modal-body integration-form">
+      <form
+        id={formId}
+        ref={form.formRef}
+        className="modal-body integration-form"
+        onSubmit={save}
+      >
         <div className="bot-edit-avatar">
           <Avatar
             name={bot.displayName || bot.username}
@@ -127,8 +143,7 @@ export function EditBotModal({
             onPick={uploadAvatar}
           />
         </div>
-        <label className="field">
-          Display name
+        <Field label="Display name" error={form.errors.displayName}>
           <input
             name="bot-display-name"
             value={displayName}
@@ -137,18 +152,23 @@ export function EditBotModal({
             // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
             autoFocus
           />
-        </label>
-        <label className="field">
-          Username
+        </Field>
+        <Field label="Username" error={form.errors.username}>
           <input
             name="bot-username"
             value={username}
             maxLength={32}
             onChange={(e) => setUsername(e.target.value)}
           />
-        </label>
-        <label className="field">
-          About this bot
+        </Field>
+        <Field
+          label="About this bot"
+          counter={`${bio.length} / ${BIO_MAX}`}
+          hint={
+            <>Shown on its profile card, so people can tell what it does.</>
+          }
+          error={form.errors.bio}
+        >
           <textarea
             name="bot-bio"
             value={bio}
@@ -156,11 +176,7 @@ export function EditBotModal({
             rows={3}
             onChange={(e) => setBio(e.target.value)}
           />
-          <span className="hint">
-            Shown on its profile card, so people can tell what it does.{" "}
-            {bio.length}/{BIO_MAX}
-          </span>
-        </label>
+        </Field>
         <fieldset className="token-scope">
           <legend className="eyebrow">In these spaces</legend>
           <SpacePicker
@@ -173,12 +189,12 @@ export function EditBotModal({
             out of a space removes it as a kick would.
           </span>
         </fieldset>
-        {error && (
+        {form.formError && (
           <p className="error" role="alert">
-            {error}
+            {form.formError}
           </p>
         )}
-      </div>
+      </form>
     </Modal>
   );
 }

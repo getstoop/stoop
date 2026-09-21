@@ -3,6 +3,7 @@ import { isBot } from "../../api/identity";
 import { useMembers } from "../../api/queries";
 import { useConnectionStore } from "../../stores/connection";
 import { SearchIcon } from "../Icons";
+import { Input } from "../Input";
 import { UserCard } from "../UserCard";
 import { COLLAPSE_OFFLINE_ABOVE, headingText, splitMembers } from "./groups";
 import { MemberGroup } from "./MemberGroup";
@@ -64,19 +65,18 @@ export function MembersPanel({ spaceId }: { spaceId: string }) {
         {members &&
           ` · ${headingText(searching ? all.length : people.length, onlineCount, shownCount, searching)}`}
       </h4>
-      <label className="members-search">
-        <SearchIcon />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => search(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") search("");
-          }}
-          placeholder="Find a member"
-          aria-label="Find a member"
-        />
-      </label>
+      <Input
+        className="members-search"
+        start={<SearchIcon />}
+        type="search"
+        value={query}
+        onChange={(e) => search(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") search("");
+        }}
+        placeholder="Find a member"
+        aria-label="Find a member"
+      />
       <ul className="members-list">
         <MemberGroup
           label="Online"

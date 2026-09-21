@@ -1,8 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useId, useState } from "react";
 import { filesClient, integrationsClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useAllSpaces } from "../../api/queries";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { notice } from "../../stores/dialogs";
+import { Field } from "../Field";
 import { BotIcon } from "../Icons";
 import { ImagePicker } from "../ImagePicker";
 import { Modal } from "../Modal";
@@ -25,7 +28,8 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
   const [avatar, setAvatar] = useState<Uint8Array | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["username", "displayName", "bio"]);
+  const formId = useId();
   const ready = username.trim() !== "" && displayName.trim() !== "";
 
   useEffect(() => {
@@ -35,10 +39,11 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
     return () => URL.revokeObjectURL(url);
   }, [avatar]);
 
-  const create = async () => {
+  const create = async (e: FormEvent) => {
+    e.preventDefault();
     if (!ready) return;
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       const res = await integrationsClient.createBot({
         username: username.trim(),
@@ -46,17 +51,31 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
         bio,
       });
       const id = res.bot?.id ?? "";
-      for (const spaceId of spaceIds) {
-        await integrationsClient.addBotToSpace({ botUserId: id, spaceId });
+      // The bot exists now, so this form has nothing left to retry: a
+      // failure past here closes it and says which step to finish by hand.
+      let unfinished: string | null = null;
+      try {
+        for (const spaceId of spaceIds) {
+          await integrationsClient.addBotToSpace({ botUserId: id, spaceId });
+        }
+      } catch (err) {
+        unfinished = `It wasn't added to every space: ${errorText(err)}`;
       }
-      if (avatar && id) {
-        await filesClient.uploadBotAvatar({ userId: id, data: avatar });
+      try {
+        if (avatar && id) {
+          await filesClient.uploadBotAvatar({ userId: id, data: avatar });
+        }
+      } catch (err) {
+        unfinished ??= `Its avatar wasn't saved: ${errorText(err)}`;
       }
       await queryClient.invalidateQueries({ queryKey: ["bots"] });
       await queryClient.invalidateQueries({ queryKey: ["members"] });
       onClose();
+      if (unfinished) {
+        notice({ title: "The bot was created", body: unfinished });
+      }
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -72,9 +91,9 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="primary"
-            onClick={create}
             disabled={busy || !ready}
           >
             Create bot
@@ -82,7 +101,12 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <div className="modal-body integration-form">
+      <form
+        id={formId}
+        ref={form.formRef}
+        className="modal-body integration-form"
+        onSubmit={create}
+      >
         <div className="bot-edit-avatar">
           <span
             className="avatar medium"
@@ -105,8 +129,7 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             onPick={async (bytes) => setAvatar(bytes)}
           />
         </div>
-        <label className="field">
-          Username
+        <Field label="Username" error={form.errors.username}>
           <input
             name="bot-username"
             value={username}
@@ -116,9 +139,8 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
             autoFocus
           />
-        </label>
-        <label className="field">
-          Display name
+        </Field>
+        <Field label="Display name" error={form.errors.displayName}>
           <input
             name="bot-display-name"
             value={displayName}
@@ -126,9 +148,15 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             placeholder="e.g. Home Assistant"
             onChange={(e) => setDisplayName(e.target.value)}
           />
-        </label>
-        <label className="field">
-          About this bot
+        </Field>
+        <Field
+          label="About this bot"
+          counter={`${bio.length} / ${BIO_MAX}`}
+          hint={
+            <>Shown on its profile card, so people can tell what it does.</>
+          }
+          error={form.errors.bio}
+        >
           <textarea
             name="bot-bio"
             value={bio}
@@ -136,11 +164,7 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             rows={3}
             onChange={(e) => setBio(e.target.value)}
           />
-          <span className="hint">
-            Shown on its profile card, so people can tell what it does.{" "}
-            {bio.length}/{BIO_MAX}
-          </span>
-        </label>
+        </Field>
         <fieldset className="token-scope">
           <legend className="eyebrow">In these spaces</legend>
           <SpacePicker
@@ -153,12 +177,12 @@ export function NewBotModal({ onClose }: { onClose: () => void }) {
             change this later.
           </span>
         </fieldset>
-        {error && (
+        {form.formError && (
           <p className="error" role="alert">
-            {error}
+            {form.formError}
           </p>
         )}
-      </div>
+      </form>
     </Modal>
   );
 }

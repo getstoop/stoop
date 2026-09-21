@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { SearchIcon } from "./Icons";
+import { Input } from "./Input";
 
 // The way into message search from a channel header: a compact field on
 // a desktop, an icon on a phone (mobile.css swaps them). Either opens
@@ -30,19 +31,18 @@ export function SearchLauncher({
           setQuery("");
         }}
       >
-        <label className="members-search search-field">
-          <SearchIcon />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setQuery("");
-            }}
-            placeholder="Search"
-            aria-label="Search messages"
-          />
-        </label>
+        <Input
+          className="members-search search-field"
+          start={<SearchIcon />}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setQuery("");
+          }}
+          placeholder="Search"
+          aria-label="Search messages"
+        />
       </form>
       <button
         type="button"

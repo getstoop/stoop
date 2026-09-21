@@ -11,6 +11,15 @@
   gap: 16px;
 }
 
+/* Words over something to read and copy, not to edit. */
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
 .token-warning {
   margin: 0;
   font-size: var(--text-sm);

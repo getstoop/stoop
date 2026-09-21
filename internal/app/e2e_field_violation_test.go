@@ -152,3 +152,26 @@ func TestE2ESettingsFieldViolation(t *testing.T) {
 		}
 	}
 }
+
+// Bots and webhooks name the field they refuse.
+func TestE2EIntegrationsFieldViolation(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	stoop, _ := h.space(casey, "The Stoop")
+	const svc = "stoop.integrations.v1.IntegrationService/"
+	for _, c := range []struct {
+		name, procedure string
+		req             map[string]any
+		field           string
+	}{
+		{"a one-letter bot", "CreateBot", map[string]any{"username": "x", "displayName": "X"}, "username"},
+		{"a bot with no display name", "CreateBot", map[string]any{"username": "uptime", "displayName": ""}, "display_name"},
+		{"a hook to an ftp address", "CreateOutgoing", map[string]any{"spaceId": stoop, "name": "Backups", "url": "ftp://backups.example.net", "eventTypes": []string{"message.created"}}, "url"},
+		{"a hook with no name", "CreateOutgoing", map[string]any{"spaceId": stoop, "name": " ", "url": "https://backups.example.net", "eventTypes": []string{"message.created"}}, "name"},
+	} {
+		r := h.rpc(casey, svc+c.procedure, c.req).expect(t, "invalid_argument")
+		if got := r.field(); got != c.field {
+			t.Errorf("%s: field = %q, want %q (%s)", c.name, got, c.field, r.message())
+		}
+	}
+}

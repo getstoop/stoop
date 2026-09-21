@@ -1,46 +1,51 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-const meta: Meta = { title: "Kit/Fields" };
+// The bare controls fields.css styles. A control with a label is a
+// <Field> (Components/Field); these are what goes inside one.
+const meta: Meta = {
+  title: "Kit/Fields",
+  decorators: [
+    (Story) => (
+      <div className="card">
+        <Story />
+      </div>
+    ),
+  ],
+};
 export default meta;
 
-// Words above the field; the card stretches it.
-export const InACard: StoryObj = {
+export const Controls: StoryObj = {
   render: () => (
-    <div className="card">
-      <h3>Profile</h3>
-      <label>
-        Display name
-        <input type="text" defaultValue="casey" />
-      </label>
-      <label>
-        Invite code
-        <input type="text" defaultValue="STP-4X9" aria-invalid="true" />
-        <span className="error">That code has expired. Ask for a new one.</span>
-      </label>
-      <label>
-        Who can register
-        <select defaultValue="invite">
-          <option value="invite">Invite only</option>
-          <option value="open">Anyone with the link</option>
-          <option value="closed">Closed</option>
-        </select>
-      </label>
-      <label>
-        Description
-        <textarea rows={2} placeholder="What is this place for?" />
-      </label>
-      <label className="toggle-row">
-        <input type="checkbox" defaultChecked />
-        <span>Play a sound when I am mentioned</span>
-      </label>
-      <div className="card-row">
-        <button type="button" className="primary">
-          Save
-        </button>
-        <button type="button" className="chip">
-          Cancel
-        </button>
-      </div>
+    <div className="kit-section">
+      <input type="text" defaultValue="casey" aria-label="Text" />
+      <input
+        type="text"
+        defaultValue="STP-4X9"
+        aria-invalid="true"
+        aria-label="Invalid text"
+      />
+      <input type="text" placeholder="A placeholder" aria-label="Empty" />
+      <select defaultValue="invite" aria-label="Select">
+        <option value="invite">Invite only</option>
+        <option value="open">Anyone with the link</option>
+        <option value="closed">Closed</option>
+      </select>
+      <textarea
+        rows={2}
+        placeholder="What is this place for?"
+        aria-label="Textarea"
+      />
+      <input type="text" defaultValue="Disabled" disabled aria-label="Off" />
     </div>
+  ),
+};
+
+// A checkbox beside its words; not a Field.
+export const ToggleRow: StoryObj = {
+  render: () => (
+    <label className="toggle-row">
+      <input type="checkbox" defaultChecked />
+      <span>Play a sound when I am mentioned</span>
+    </label>
   ),
 };

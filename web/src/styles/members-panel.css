@@ -14,24 +14,15 @@
   margin: 0 0 6px 10px;
 }
 
+/* An <Input> with the search glyph at its start, a little denser than
+   a form field. */
 .members-search {
-  position: relative;
-  display: block;
   margin: 0 2px 6px;
-  color: var(--text-muted);
+  padding: 0 8px;
 }
 
-.members-search svg {
-  position: absolute;
-  top: 50%;
-  left: 12px;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.members-search input {
-  width: 100%;
-  padding: 4px 8px 4px 32px;
+.members-search > input {
+  padding: 4px 0;
   font-size: var(--text-ui);
 }
 

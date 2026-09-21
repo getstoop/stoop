@@ -291,6 +291,7 @@ jobs:
       - run: pnpm check:themes
       - run: pnpm check:styles
       - run: pnpm check:tsx-styles
+      - run: pnpm check:fields
       - run: pnpm test
       - run: pnpm build
       - run: pnpm build-storybook

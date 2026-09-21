@@ -1,7 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { integrationsClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import {
   BOT_GROUP_LABELS,
   BOT_TOKEN_OPTIONS,
@@ -9,6 +8,8 @@ import {
   permissionsFor,
 } from "../../api/tokenOptions";
 import type { Bot } from "../../gen/stoop/integrations/v1/bot_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { Field } from "../Field";
 import { Modal } from "../Modal";
 import { PermissionPicker } from "../PermissionPicker";
 import type { Secret } from "./SecretModal";
@@ -29,13 +30,15 @@ export function NewBotTokenModal({
   const [name, setName] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["name"]);
+  const formId = useId();
   const ready = canCreate({ name, keys });
 
-  const create = async () => {
+  const create = async (e: FormEvent) => {
+    e.preventDefault();
     if (!ready) return;
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       const res = await integrationsClient.createBotToken({
         botUserId: bot.id,
@@ -49,7 +52,7 @@ export function NewBotTokenModal({
         secret: res.secret,
       });
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -64,9 +67,9 @@ export function NewBotTokenModal({
             Cancel
           </button>
           <button
-            type="button"
+            type="submit"
+            form={formId}
             className="primary"
-            onClick={create}
             disabled={busy || !ready}
           >
             Create token
@@ -74,13 +77,17 @@ export function NewBotTokenModal({
         </>
       }
     >
-      <div className="modal-body token-form">
+      <form
+        id={formId}
+        ref={form.formRef}
+        className="modal-body token-form"
+        onSubmit={create}
+      >
         <p className="hint">
           The token works in every space the bot is in, and only what you tick
           here. It doesn't expire; revoke it when it's done.
         </p>
-        <label className="field">
-          Name
+        <Field label="Name" error={form.errors.name}>
           <input
             name="bot-token-name"
             value={name}
@@ -90,19 +97,19 @@ export function NewBotTokenModal({
             // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
             autoFocus
           />
-        </label>
+        </Field>
         <PermissionPicker
           options={BOT_TOKEN_OPTIONS}
           groupLabels={BOT_GROUP_LABELS}
           selected={keys}
           onChange={setKeys}
         />
-        {error && (
+        {form.formError && (
           <p className="error" role="alert">
-            {error}
+            {form.formError}
           </p>
         )}
-      </div>
+      </form>
     </Modal>
   );
 }

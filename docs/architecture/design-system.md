@@ -14,7 +14,7 @@ The web client's look is four things, each in one place:
   `DialogHost`, `DotsMenu`, `Tooltip`, `CopyButton`, `Avatar`, `DataTable`,
   `SettingRow`, `SettingsFrame`, `Field`, `Input`, `NumberInput` (all in
   `web/src/components/`).
-- **The lint that holds it.** Three scripts under `scripts/`, run by
+- **The lint that holds it.** Four scripts under `scripts/`, run by
   `make lint` and CI.
 - **The workspace.** Storybook (`make storybook`), where a part is built
   and looked at on its own, in every theme.
@@ -205,8 +205,10 @@ client-side check. `fail` puts the sentence on the field the server named
 form has that field, and on `formError` otherwise. Errors clear at the next submit, and after a refusal
 focus goes to the first invalid control.
 
-Most forms still hand-build `label.field` and show one form-level line;
-they move to `Field` area by area.
+Every form field in the app is one of these two, and
+`scripts/check-fields.mjs` refuses a hand-built one. What is not a field
+stays as it is: a toggle row, a picker (image, permissions, spaces), and a
+search box, which is an `Input` with no label.
 
 ### Tables
 
@@ -267,8 +269,8 @@ So, before adding a part:
 
 ## What holds it
 
-Three scripts, all line-based and run by `make lint` and by CI's Web job
-(`pnpm check:themes`, `check:styles`, `check:tsx-styles`):
+Four scripts, all line-based and run by `make lint` and by CI's Web job
+(`pnpm check:themes`, `check:styles`, `check:tsx-styles`, `check:fields`):
 
 - **`scripts/check-themes.mjs`** — every theme block passes WCAG contrast
   for text, muted text and accent on `--surface` and `--panel`, and for
@@ -280,6 +282,9 @@ Three scripts, all line-based and run by `make lint` and by CI's Web job
   `controls.css`; no `box-shadow: var(--shadow)` outside `surfaces.css`.
 - **`scripts/check-tsx-styles.mjs`** — an inline `style` object in a
   `.tsx` file sets computed geometry and custom properties only.
+- **`scripts/check-fields.mjs`** — a form field is a `<Field>` or a
+  `<SettingRow>`: no `className="field"` outside `Field.tsx`, and no
+  `<label>` without `htmlFor` or a class of its own.
 
 **The escape is a comment containing `off-scale:` and the reason**, on the
 line before the declaration or on it. It is legitimate when the value is

@@ -33,7 +33,7 @@ export function TokenCreatedModal({
           <code data-token-secret>{secret}</code>
           <CopyButton text={secret} />
         </div>
-        <div className="field">
+        <div className="readout">
           Try it
           <pre className="token-example">
             {`curl -X POST ${origin}/stoop.chat.v1.ChatService/ListSpaces \\\n  -H "Authorization: Bearer $STOOP_TOKEN" \\\n  -H "Content-Type: application/json" -d '{}'`}

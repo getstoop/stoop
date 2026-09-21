@@ -19,11 +19,6 @@
   margin-left: auto;
 }
 
-/* The field is the members panel's, so the two read as one control. */
-.search-field input {
-  padding-right: 8px;
-}
-
 .search-page {
   flex: 1;
   min-width: 0;

@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -68,16 +69,16 @@ type MintBotCredential struct {
 func (s *Service) CreateBot(ctx context.Context, username, displayName string) (Bot, error) {
 	username = strings.ToLower(strings.TrimSpace(username))
 	if !usernameRE.MatchString(username) {
-		return Bot{}, connect.NewError(connect.CodeInvalidArgument,
+		return Bot{}, apierr.Field(connect.CodeInvalidArgument, "username",
 			errors.New("username must be 3-32 letters, numbers, or _"))
 	}
 	if reservedUsernames[username] {
-		return Bot{}, connect.NewError(connect.CodeInvalidArgument,
+		return Bot{}, apierr.Field(connect.CodeInvalidArgument, "username",
 			fmt.Errorf("%q is reserved; pick another username", username))
 	}
 	displayName = strings.TrimSpace(displayName)
 	if displayName == "" || utf8.RuneCountInString(displayName) > maxDisplayNameLen {
-		return Bot{}, connect.NewError(connect.CodeInvalidArgument,
+		return Bot{}, apierr.Field(connect.CodeInvalidArgument, "display_name",
 			fmt.Errorf("display name must be 1-%d characters", maxDisplayNameLen))
 	}
 	id, err := uuid.NewV7()
@@ -88,7 +89,7 @@ func (s *Service) CreateBot(ctx context.Context, username, displayName string) (
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return Bot{}, connect.NewError(connect.CodeAlreadyExists, errors.New("username is taken"))
+			return Bot{}, apierr.Field(connect.CodeAlreadyExists, "username", errors.New("username is taken"))
 		}
 		return Bot{}, fmt.Errorf("create bot: %w", err)
 	}
@@ -179,7 +180,7 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 	}
 	name := strings.TrimSpace(m.Name)
 	if name == "" || utf8.RuneCountInString(name) > maxTokenNameRunes {
-		return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument,
+		return BotCredential{}, "", apierr.Field(connect.CodeInvalidArgument, "name",
 			fmt.Errorf("a credential's name must be 1-%d characters", maxTokenNameRunes))
 	}
 	if len(m.Grants) == 0 {
