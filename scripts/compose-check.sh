@@ -22,6 +22,11 @@ render | grep -q 'STOOP_DATABASE_URL: postgres://stoop:change-me@postgres:5432/s
 	fail "default: STOOP_DATABASE_URL is not the bundled Postgres"
 
 render | tr -d ' \n"' | grep -q 'published:8080' || fail "default: app is not published on 8080"
+# Every service rotates its logs; stoop has a healthcheck livekit waits on.
+[ "$(render | grep -c '^    logging:')" = 3 ] || fail "default: not every service caps its logs"
+render | tr -d ' \n"' | grep -q 'test:-CMD-stoop-health' || fail "default: stoop has no healthcheck"
+render | tr -d ' \n"' | grep -q 'stoop:condition:service_healthy' || fail "default: livekit does not wait for a healthy stoop"
+
 # Compose renders a range as one entry per port.
 out=$(render | tr -d ' \n"')
 for want in published:50000protocol:udp published:50100protocol:udp; do

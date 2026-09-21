@@ -19,6 +19,8 @@ func main() {
 		switch os.Args[1] {
 		case "admin":
 			os.Exit(runAdmin(context.Background(), os.Args[2:], os.Stdout))
+		case "health":
+			os.Exit(runHealth(os.Stdout))
 		case "version", "--version", "-v":
 			fmt.Println("stoop", buildinfo.String())
 			return

@@ -27,6 +27,9 @@ the admin account (the first account operates the server), create your first
 space, and copy an invite link for your people. Later, the Invite button in a
 space's header makes more.
 
+`docker compose ps` shows `stoop` as healthy once it has migrated the
+database and is answering. Container logs are capped at 30 MB a service.
+
 To let people in from outside the machine, see
 [Reaching your server](#reaching-your-server). Voice works once its media
 has a reachable path: see [Voice](#voice).
@@ -490,6 +493,7 @@ the Docker Compose install only.
 | --- | --- | --- |
 | `COMPOSE_PROFILES` | `bundled-postgres` | Which bundled services run. Empty to [use your own Postgres](#using-your-own-postgres) |
 | `STOOP_PORT` | `8080` | The port the web app is published on |
+| `TZ` | `UTC` | Time zone of the timestamps in `docker compose logs` |
 | `POSTGRES_PASSWORD` | (none) | Password of the bundled Postgres |
 | `POSTGRES_ARGS` | (empty) | `postgres -c name=value` flags for the bundled Postgres; see [Tuning the bundled Postgres](#tuning-the-bundled-postgres) |
 | `NODE_IP` | (empty) | The address LiveKit offers browsers for media; see [Voice](#voice) |
