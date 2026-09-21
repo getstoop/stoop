@@ -14,6 +14,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 )
@@ -55,7 +56,7 @@ func claimChannelName(ctx context.Context, qtx *dbgen.Queries, spaceID, name, ch
 		return fmt.Errorf("check channel name: %w", err)
 	}
 	if taken {
-		return connect.NewError(connect.CodeAlreadyExists,
+		return apierr.Field(connect.CodeAlreadyExists, "name",
 			errors.New("this space already has a channel with that name"))
 	}
 	return nil
@@ -67,7 +68,7 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 	}
 	name := req.Msg.Name
 	if !validChannelName(name) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errChannelName)
+		return nil, apierr.Field(connect.CodeInvalidArgument, "name", errChannelName)
 	}
 	kind := req.Msg.Kind
 	if kind == chatv1.ChannelKind_CHANNEL_KIND_UNSPECIFIED {
@@ -161,7 +162,7 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 	// A name from before the rule stays until it is changed.
 	renamed := req.Msg.Name != nil && *req.Msg.Name != channel.Name
 	if renamed && !validChannelName(*req.Msg.Name) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errChannelName)
+		return nil, apierr.Field(connect.CodeInvalidArgument, "name", errChannelName)
 	}
 	// An unchanged name is not written: the channel may have been renamed
 	// since it was read, and only a claimed name goes in.
@@ -174,7 +175,7 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 	if req.Msg.Topic != nil {
 		t := oneLine(*req.Msg.Topic)
 		if utf8.RuneCountInString(t) > maxChannelTopic {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, "topic",
 				fmt.Errorf("topic must be %d characters or fewer", maxChannelTopic))
 		}
 		topic = &t
@@ -183,10 +184,10 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 	if req.Msg.PostPolicy != nil {
 		p, ok := postPolicies[*req.Msg.PostPolicy]
 		if !ok {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown post policy"))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "post_policy", errors.New("unknown post policy"))
 		}
 		if channel.Kind != int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT) {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, "post_policy",
 				errors.New("only a text channel can be an announcement channel"))
 		}
 		policy = &p

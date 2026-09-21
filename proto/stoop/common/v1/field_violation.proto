@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package stoop.common.v1;
+
+// FieldViolation is attached, as a Connect error detail, to a refusal that
+// is about one request field, so a client can show the error's sentence
+// beside that field. See docs/architecture/contracts.md → Errors.
+message FieldViolation {
+  // The field as the request spells it: "name", "turn.urls",
+  // "providers[2].client_id".
+  string field = 1;
+}

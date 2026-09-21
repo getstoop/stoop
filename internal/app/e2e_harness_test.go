@@ -3,6 +3,7 @@ package app_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,9 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
+	commonv1 "github.com/getstoop/stoop/gen/stoop/common/v1"
 	"github.com/getstoop/stoop/internal/app"
 	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -94,6 +98,28 @@ func (r reply) str(path string) string {
 	}
 	s, _ := cur.(string)
 	return s
+}
+
+// field is the request field a refusal names, from its FieldViolation
+// detail (docs/architecture/contracts.md → Errors); "" when it names none.
+func (r reply) field() string {
+	for _, d := range r.list("details") {
+		m, _ := d.(map[string]any)
+		if m["type"] != "stoop.common.v1.FieldViolation" {
+			continue
+		}
+		raw, _ := m["value"].(string)
+		bin, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(raw, "="))
+		if err != nil {
+			return ""
+		}
+		var v commonv1.FieldViolation
+		if proto.Unmarshal(bin, &v) != nil {
+			return ""
+		}
+		return v.Field
+	}
+	return ""
 }
 
 // list reads an array at a dotted path in the body.

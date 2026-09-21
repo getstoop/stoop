@@ -20,6 +20,7 @@ proto/stoop/
   access/v1/access.proto      the Permission and IdentityKind enums, shared by every service
   auth/v1/auth.proto
   chat/v1/{chat,space,channel,message,member,reaction,invite,activity,pin}.proto
+  common/v1/field_violation.proto   an error detail, attached by any service (see Errors)
   files/v1/files.proto
   instance/v1/{instance,providers,reachability,user}.proto
   integrations/v1/{integrations,webhook,bot}.proto
@@ -221,6 +222,39 @@ Handlers return `connect.Error`s, and the code is part of the contract:
 | `ResourceExhausted` | Rate limit (with `Retry-After`) or storage quota. |
 | `Unavailable` | A feature the operator hasn't configured — `JoinVoiceChannel` with no LiveKit. |
 
-The web client maps codes to human sentences in `web/src/api/errors.ts` and
-`loginErrors.ts` rather than showing the raw message, so a server-side
-string is never load-bearing for the UI.
+The sentence is part of the contract too: it is written for the person
+who made the request, and clients show it as it is (`errorText` in
+`web/src/api/errors.ts`; the `stoop admin` CLI prints it). Only the
+provider sign-in redirect maps codes to sentences on the client
+(`loginErrors.ts`), because its error arrives in a URL.
+
+### A refusal that is about one field
+
+An `InvalidArgument`, `AlreadyExists` or `FailedPrecondition` about one
+request field carries a `stoop.common.v1.FieldViolation` error detail
+naming it, built with `apierr.Field(code, field, err)`:
+
+```go
+return nil, apierr.Field(connect.CodeInvalidArgument, "topic",
+	fmt.Errorf("topic must be %d characters or fewer", maxChannelTopic))
+```
+
+- **`field` is the proto field name**, as the request spells it: `name`,
+  `new_password`. A nested field is a dotted path and a repeated one takes
+  an index: `turn.urls`, `providers[2].client_id`.
+- **The sentence stands alone.** The detail adds where to show it, never
+  what it says, so a client that ignores details loses nothing.
+- **One violation per error.** A handler stops at its first refusal. A
+  refusal that involves two fields names the one to change.
+- **A validator shared by several requests takes the field name as a
+  parameter** rather than guessing it.
+- **Never on `NotFound`, `PermissionDenied` or `Unauthenticated`.** A field
+  name on a `NotFound` would say which id was the wrong one, and wrong
+  sign-in credentials must not say which of the two was wrong.
+
+The web client reads it with `fieldError(err)`, which returns the field as
+the generated request type spells it (`newPassword`), and a form places it
+with `useFieldErrors`
+([design-system.md](design-system.md#fields)). Validation sites move to
+`apierr.Field` with the forms in front of them; one without it still shows
+its sentence, on the form's own line.

@@ -32,7 +32,7 @@ in, and usually exposes a Connect service. There are seven: `auth`,
 
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
-`authctx`, `accesswire`, `blob`, `unfurl`, `netguard`, `ratelimit`,
+`authctx`, `accesswire`, `apierr`, `blob`, `unfurl`, `netguard`, `ratelimit`,
 `trustedproxy`, `tailnet`, `cftunnel`, `buildinfo`, `webui`.
 
 `internal/app` is neither. It is the composition root, and it is allowed to
