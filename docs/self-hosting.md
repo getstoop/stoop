@@ -414,6 +414,7 @@ the server. Two are pinned by the compose file itself and ignore what
 | Variable                   | Default                     | Purpose                          |
 | -------------------------- | --------------------------- | -------------------------------- |
 | `STOOP_DATABASE_URL`       | (required)                  | Postgres connection string       |
+| `STOOP_DATABASE_POOL_MAX`  | `0`                         | Most connections Stoop opens to Postgres. `0` is the larger of 4 and the CPU count; otherwise at least 2. Keep it under Postgres `max_connections`, less what backups and `psql` need. Wins over `pool_max_conns` in the URL |
 | `STOOP_LISTEN_ADDR`        | `:8080`                     | HTTP bind address                |
 | `STOOP_PUBLIC_URL`         | (empty)                     | The address people use to reach the server; invite links use it, its host is an allowed WS origin. Defaults to the tailnet address with the built-in Tailscale listener |
 | `STOOP_TRUST_PROXY`        | `false`                     | Believe `X-Forwarded-For` / `X-Forwarded-Proto` from **every** caller, taking the header's rightmost address as the client. Blunt, and spoofable unless the proxy sets or appends the header itself; prefer `STOOP_TRUSTED_PROXIES`. Can't be combined with it |
@@ -668,6 +669,9 @@ Reading it:
 | "People keep dropping" | Right now: Connections, Slow consumers dropped | A sawtooth in connections with drops climbing means the server is falling behind on fan-out. Flat drops with a sawtooth means their network or the proxy in front. |
 | "Uploads fail" | Health: File storage | Volume full, quota reached, or the directory is not writable after a restore. |
 | "It was fine yesterday" | Copy report | Paste it into an issue. |
+
+On the Database panel, *Pool in use N of M* is connections busy right
+now out of the most Stoop will open; M is `STOOP_DATABASE_POOL_MAX`.
 
 **Copy report**, at the top of the tab, puts everything on the page into
 one JSON document. It is what to paste into a bug report; it holds no

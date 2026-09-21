@@ -156,6 +156,30 @@ func TestLoad_RateLimits(t *testing.T) {
 	}
 }
 
+func TestLoad_DatabasePoolMax(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x?pool_max_conns=9")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DatabasePoolMax != 0 || cfg.DatabasePoolMaxShadowsURL {
+		t.Errorf("unset = %d, shadows %v; want 0, false", cfg.DatabasePoolMax, cfg.DatabasePoolMaxShadowsURL)
+	}
+	t.Setenv("STOOP_DATABASE_POOL_MAX", "8")
+	if cfg, err = Load(); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DatabasePoolMax != 8 || !cfg.DatabasePoolMaxShadowsURL {
+		t.Errorf("got %d, shadows %v; want 8, true", cfg.DatabasePoolMax, cfg.DatabasePoolMaxShadowsURL)
+	}
+	for _, bad := range []string{"1", "-4", "many"} {
+		t.Setenv("STOOP_DATABASE_POOL_MAX", bad)
+		if _, err := Load(); err == nil {
+			t.Errorf("STOOP_DATABASE_POOL_MAX=%q should be rejected", bad)
+		}
+	}
+}
+
 func TestLoad_LiveKitMedia(t *testing.T) {
 	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
 

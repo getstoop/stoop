@@ -63,9 +63,12 @@ type App struct {
 }
 
 func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error) {
-	pool, err := db.Connect(ctx, cfg.DatabaseURL)
+	pool, err := db.Connect(ctx, cfg.DatabaseURL, cfg.DatabasePoolMax)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.DatabasePoolMaxShadowsURL {
+		log.Info("STOOP_DATABASE_POOL_MAX overrides pool_max_conns in STOOP_DATABASE_URL", "pool_max", cfg.DatabasePoolMax)
 	}
 	if err := db.Migrate(ctx, pool); err != nil {
 		pool.Close()

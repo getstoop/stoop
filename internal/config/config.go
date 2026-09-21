@@ -21,6 +21,12 @@ type Config struct {
 	ListenAddr string
 	// DatabaseURL is a Postgres connection string. Required.
 	DatabaseURL string
+	// DatabasePoolMax caps the connection pool. 0 leaves pgx's default,
+	// max(4, CPUs).
+	DatabasePoolMax int
+	// DatabasePoolMaxShadowsURL is set when DatabaseURL carries
+	// pool_max_conns too; DatabasePoolMax wins.
+	DatabasePoolMaxShadowsURL bool
 	// PublicURL is the address people use to reach this server
 	// (https://chat.example.com). Invite links are built from it and its
 	// host is always an allowed WebSocket origin. Empty means "whatever
@@ -200,6 +206,14 @@ func Load() (Config, error) {
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("STOOP_DATABASE_URL is required")
 	}
+	var err error
+	if cfg.DatabasePoolMax, err = parseNonNegativeInt("STOOP_DATABASE_POOL_MAX", 0); err != nil {
+		return Config{}, err
+	}
+	if cfg.DatabasePoolMax == 1 {
+		return Config{}, fmt.Errorf("STOOP_DATABASE_POOL_MAX must be at least 2: a request needs a connection while a sweep holds one")
+	}
+	cfg.DatabasePoolMaxShadowsURL = cfg.DatabasePoolMax > 0 && strings.Contains(cfg.DatabaseURL, "pool_max_conns")
 
 	secure, err := parseBool("STOOP_SECURE_COOKIES", false)
 	if err != nil {
