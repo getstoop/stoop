@@ -17,6 +17,63 @@ import (
 
 func ptr[T any](v T) *T { return &v }
 
+func TestSpaceNames(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	create := func(name string) (*chatv1.Space, error) {
+		res, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: name}))
+		if err != nil {
+			return nil, err
+		}
+		return res.Msg.Space, nil
+	}
+
+	for in, want := range map[string]string{
+		"Maple Street":                      "Maple Street",
+		"  The   Workshop\n":                "The Workshop",
+		"🍁":                                 "🍁",
+		"👨\u200d👩\u200d👧 Family":            "👨\u200d👩\u200d👧 Family",
+		"...":                               "...",
+		strings.Repeat("é", 50):             strings.Repeat("é", 50),
+		" " + strings.Repeat("x", 50) + " ": strings.Repeat("x", 50),
+	} {
+		sp, err := create(in)
+		if err != nil {
+			t.Errorf("create %q: %v", in, err)
+		} else if sp.Name != want {
+			t.Errorf("create %q: name = %q, want %q", in, sp.Name, want)
+		}
+	}
+	for _, name := range []string{"", "   ", "\t\n", "\u200b", "\u200b \u2060", "Porch\x00", strings.Repeat("x", 51)} {
+		if _, err := create(name); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("create %q: code = %v, want InvalidArgument", name, connect.CodeOf(err))
+		}
+	}
+
+	// Two spaces may share a name.
+	if _, err := create("Maple Street"); err != nil {
+		t.Errorf("duplicate name: %v", err)
+	}
+
+	sp, _ := create("Porch")
+	rename := func(name string) (*chatv1.Space, error) {
+		res, err := svc.UpdateSpace(owner, connect.NewRequest(&chatv1.UpdateSpaceRequest{SpaceId: sp.Id, Name: &name}))
+		if err != nil {
+			return nil, err
+		}
+		return res.Msg.Space, nil
+	}
+	if got, err := rename("  Back   Porch "); err != nil || got.Name != "Back Porch" {
+		t.Errorf("rename: name = %v, err = %v, want Back Porch", got.GetName(), err)
+	}
+	for _, name := range []string{"", " ", "\u200b", strings.Repeat("x", 51)} {
+		if _, err := rename(name); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("rename %q: code = %v, want InvalidArgument", name, connect.CodeOf(err))
+		}
+	}
+}
+
 func TestSpaceDescriptionAndWelcome(t *testing.T) {
 	pool := dbtest.New(t)
 	bus := events.NewInProcBus()

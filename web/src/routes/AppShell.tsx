@@ -20,6 +20,7 @@ import {
   useMyPermissions,
   useSpaces,
 } from "../api/queries";
+import { MAX_SPACE_NAME } from "../api/spaces";
 import { badgeCount, isAlerting } from "../api/unreads";
 import { startVoiceBridge } from "../api/voiceBridge";
 import { startRealtime } from "../api/ws";
@@ -135,6 +136,7 @@ function SpaceRail() {
       title: "New space",
       label: "Space name",
       action: "Create",
+      maxLength: MAX_SPACE_NAME,
       submit: async (name) => {
         const res = await chatClient.createSpace({ name });
         await queryClient.invalidateQueries({ queryKey: ["spaces"] });

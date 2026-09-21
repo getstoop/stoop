@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { chatClient } from "../../api/clients";
+import { MAX_SPACE_NAME } from "../../api/spaces";
 import { Field } from "../../components/Field";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 
@@ -53,7 +54,7 @@ export function SpaceStep({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="The Porch"
-          maxLength={100}
+          maxLength={MAX_SPACE_NAME}
           required
         />
       </Field>

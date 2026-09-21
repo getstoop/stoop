@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -34,10 +35,9 @@ func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.C
 				errors.New("only server admins can create spaces on this instance"))
 		}
 	}
-	name := req.Msg.Name
-	if name == "" || utf8.RuneCountInString(name) > 100 {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "name",
-			errors.New("space name must be 1-100 characters"))
+	name, ok := cleanSpaceName(req.Msg.Name)
+	if !ok {
+		return nil, apierr.Field(connect.CodeInvalidArgument, "name", errSpaceName)
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -205,10 +205,34 @@ func (s *Service) publishSpaceJoined(userID string, space dbgen.Space, viewer ac
 }
 
 const (
+	maxSpaceName = 50
 	// A description has to survive a tooltip and a 244 px sidebar row.
 	maxSpaceDescription = 200
 	maxSpaceWelcome     = 4000
 )
+
+var errSpaceName = fmt.Errorf(
+	"a space name needs a letter, number or symbol, and is at most %d characters",
+	maxSpaceName)
+
+// cleanSpaceName is the rule for a new name or a rename; see
+// docs/architecture/messaging.md → Space names.
+func cleanSpaceName(name string) (string, bool) {
+	name = oneLine(name)
+	if utf8.RuneCountInString(name) > maxSpaceName {
+		return "", false
+	}
+	visible := false
+	for _, r := range name {
+		if unicode.IsControl(r) {
+			return "", false
+		}
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsPunct(r) || unicode.IsSymbol(r) {
+			visible = true
+		}
+	}
+	return name, visible
+}
 
 // oneLine collapses every run of whitespace, newlines included, to a
 // single space: a description is rendered where a line break would only
@@ -291,14 +315,15 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.SpaceManage); err != nil {
 		return nil, err
 	}
-	if req.Msg.Name != nil {
-		if n := *req.Msg.Name; n == "" || utf8.RuneCountInString(n) > 100 {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "name",
-				errors.New("space name must be 1-100 characters"))
-		}
-	}
 	patch := dbgen.UpdateSpaceSettingsParams{
-		ID: req.Msg.SpaceId, Name: req.Msg.Name, MembersCanInvite: req.Msg.MembersCanInvite,
+		ID: req.Msg.SpaceId, MembersCanInvite: req.Msg.MembersCanInvite,
+	}
+	if req.Msg.Name != nil {
+		n, ok := cleanSpaceName(*req.Msg.Name)
+		if !ok {
+			return nil, apierr.Field(connect.CodeInvalidArgument, "name", errSpaceName)
+		}
+		patch.Name = &n
 	}
 	if req.Msg.Description != nil {
 		d := oneLine(*req.Msg.Description)

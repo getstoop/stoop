@@ -48,6 +48,29 @@ line, a clash as `AlreadyExists`. The web app shows the rule beside the
 field and the server's message on refusal; it does not rewrite what was
 typed.
 
+### Space names
+
+A space's name is a community's name (`Maple Street`, `The Workshop`),
+not an identifier: nothing addresses a space by it, only by id. So it is
+free-form. `cleanSpaceName` in `chat/spaces.go`:
+
+- trims the name and collapses every run of whitespace to one space, and
+  saves that;
+- refuses a name with no letter, number, punctuation or symbol left, which
+  covers whitespace-only and zero-width names;
+- refuses control characters;
+- 50 characters at most.
+
+Two spaces may share a name. A uniqueness rule would tell a member that
+a space they cannot see exists, and free-form text has no good "same
+name" test (case, spacing, look-alike letters). The rule is checked when
+a space is created or renamed, and a name saved before it stays as it
+is.
+
+If a space ever becomes addressable by name (a URL slug, a search
+filter), add a unique handle with channel-style rules; the name stays
+free-form.
+
 The chat module tells a space channel and a DM apart in exactly **two
 places**, and nowhere else:
 
