@@ -6,6 +6,7 @@ import {
   type PromptOptions,
   useDialogStore,
 } from "../stores/dialogs";
+import { Field } from "./Field";
 import { Modal } from "./Modal";
 
 // Renders the head of the dialog queue (stores/dialogs.ts). Mounted once,
@@ -153,15 +154,15 @@ function PromptDialog({
     >
       <form id="prompt-dialog" className="modal-form" onSubmit={submit}>
         {opts.body && <p className="modal-body">{opts.body}</p>}
-        <label className="field" htmlFor={fieldId}>
-          <span className="field-label-row">
-            {opts.label ?? opts.title}
-            {opts.maxLength !== undefined && (
-              <span className="muted small">
-                {value.length} / {opts.maxLength}
-              </span>
-            )}
-          </span>
+        <Field
+          label={opts.label ?? opts.title}
+          counter={
+            opts.maxLength !== undefined
+              ? `${value.length} / ${opts.maxLength}`
+              : undefined
+          }
+          error={error}
+        >
           {opts.multiline ? (
             <textarea
               id={fieldId}
@@ -190,12 +191,7 @@ function PromptDialog({
               autoComplete="off"
             />
           )}
-        </label>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
+        </Field>
       </form>
     </Modal>
   );
