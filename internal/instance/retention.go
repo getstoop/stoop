@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -56,8 +57,9 @@ func validRetention(d *int32) bool {
 	return d == nil || (*d >= 0 && *d <= MaxRetentionDays)
 }
 
-func errRetentionRange() error {
-	return connect.NewError(connect.CodeInvalidArgument,
+// errRetentionRange refuses one of the two retention fields, by name.
+func errRetentionRange(field string) error {
+	return apierr.Field(connect.CodeInvalidArgument, field,
 		fmt.Errorf("retention must be 1-%d days, or 0 to keep forever", MaxRetentionDays))
 }
 
@@ -66,8 +68,11 @@ func (s *Service) PreviewRetention(ctx context.Context, req *connect.Request[ins
 		return nil, err
 	}
 	m, a := req.Msg.MessageRetentionDays, req.Msg.AttachmentRetentionDays
-	if !validRetention(&m) || !validRetention(&a) {
-		return nil, errRetentionRange()
+	if !validRetention(&m) {
+		return nil, errRetentionRange("message_retention_days")
+	}
+	if !validRetention(&a) {
+		return nil, errRetentionRange("attachment_retention_days")
 	}
 	if s.retention == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("retention is not available"))

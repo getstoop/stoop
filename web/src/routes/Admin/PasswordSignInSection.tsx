@@ -63,6 +63,7 @@ export function PasswordSignInSection() {
       <SettingRow
         id="password-sign-in"
         title="Password sign-in"
+        error={error}
         description={
           <>
             {chosen?.hint}
@@ -88,11 +89,6 @@ export function PasswordSignInSection() {
             </option>
           ))}
         </select>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
       </SettingRow>
       {restricted && users && !adminWithPassword && (
         <div className="callout provider-warning" role="alert">

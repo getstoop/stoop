@@ -53,6 +53,7 @@ export function PersonalTokensSetting() {
         id="personal-tokens"
         title="Personal tokens"
         description={OPTIONS.find((o) => o.value === current)?.hint}
+        error={error}
       >
         <select
           id="personal-tokens"
@@ -67,11 +68,6 @@ export function PersonalTokensSetting() {
             </option>
           ))}
         </select>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
       </SettingRow>
     </section>
   );

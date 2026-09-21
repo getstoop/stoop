@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -360,20 +361,23 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	// Also judged on the value alone, so it is refused before anything is
 	// written too.
 	if d := req.Msg.SessionLifetimeDays; d != nil && (*d < 0 || *d > MaxSessionLifetimeDays) {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			errors.New("session_lifetime_days must be 1-365, or 0 to use the server's default"))
+		return nil, apierr.Field(connect.CodeInvalidArgument, "session_lifetime_days",
+			errors.New("a sign-in lasts 1-365 days, or 0 to use the server's default"))
 	}
-	if !validRetention(req.Msg.MessageRetentionDays) || !validRetention(req.Msg.AttachmentRetentionDays) {
-		return nil, errRetentionRange()
+	if !validRetention(req.Msg.MessageRetentionDays) {
+		return nil, errRetentionRange("message_retention_days")
+	}
+	if !validRetention(req.Msg.AttachmentRetentionDays) {
+		return nil, errRetentionRange("attachment_retention_days")
 	}
 	if req.Msg.InstanceName != nil {
 		name := strings.TrimSpace(*req.Msg.InstanceName)
 		if name == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("instance_name must not be blank"))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "instance_name", errors.New("the server name must not be blank"))
 		}
 		if utf8.RuneCountInString(name) > MaxInstanceNameRunes {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
-				fmt.Errorf("instance_name must be %d characters or fewer", MaxInstanceNameRunes))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "instance_name",
+				fmt.Errorf("the server name must be %d characters or fewer", MaxInstanceNameRunes))
 		}
 		v, _ := json.Marshal(name)
 		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyInstanceName, Value: v}); err != nil {
@@ -407,7 +411,7 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	}
 	if req.Msg.StorageQuotaBytes != nil {
 		if *req.Msg.StorageQuotaBytes < 0 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("storage_quota_bytes must be 0 (unlimited) or more"))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "storage_quota_bytes", errors.New("the storage limit must be 0 (no limit) or more"))
 		}
 		v, _ := json.Marshal(*req.Msg.StorageQuotaBytes)
 		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyStorageQuota, Value: v}); err != nil {
@@ -417,11 +421,11 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	if req.Msg.MaxUploadBytes != nil {
 		n := *req.Msg.MaxUploadBytes
 		if n < 0 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("max_upload_bytes must be 0 (no limit) or more"))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes", errors.New("the size per file must be 0 (no limit) or more"))
 		}
 		if s.uploadCeiling > 0 && n > s.uploadCeiling {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
-				fmt.Errorf("max_upload_bytes must be %d MB or less", s.uploadCeiling>>20))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
+				fmt.Errorf("the size per file must be %d MB or less", s.uploadCeiling>>20))
 		}
 		// A per-file cap above the total storage limit is a limit that can
 		// never be reached. Read after the quota branch above, so setting
@@ -431,8 +435,8 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 			return nil, err
 		}
 		if quota > 0 && n > quota {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
-				fmt.Errorf("max_upload_bytes must not exceed the upload storage limit of %d MB", quota>>20))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
+				fmt.Errorf("the size per file is more than the upload storage limit of %d MB", quota>>20))
 		}
 		v, _ := json.Marshal(n)
 		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyMaxUpload, Value: v}); err != nil {
@@ -451,7 +455,7 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 				return nil, err
 			}
 			if len(providers) == 0 {
-				return nil, connect.NewError(connect.CodeFailedPrecondition,
+				return nil, apierr.Field(connect.CodeFailedPrecondition, "password_sign_in",
 					errors.New("add a login provider before restricting password sign-in"))
 			}
 		}

@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import { instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useInstanceStatus } from "../../api/queries";
+import { NumberInput } from "../../components/NumberInput";
 import { SettingRow } from "../../components/SettingRow";
 
 // How long a sign-in lasts. On the Login tab, beside the ways in.
@@ -43,10 +44,11 @@ export function SessionLifetimeSetting() {
         id="session-lifetime"
         title="Stay signed in for"
         description="How long a sign-in lasts before asking again, 1 to 365 days. Applies to sign-ins from now on; nobody is signed out by changing it."
+        error={error}
       >
-        <input
+        <NumberInput
           id="session-lifetime"
-          type="number"
+          unit="days"
           min="1"
           max="365"
           step="1"
@@ -54,13 +56,7 @@ export function SessionLifetimeSetting() {
           disabled={busy || !status}
           onChange={(e) => setDays(e.target.value)}
         />
-        <span className="muted small">days</span>
       </SettingRow>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
       <div className="setting-actions">
         <button
           type="submit"

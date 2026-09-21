@@ -32,6 +32,7 @@ export function SelfDeletionSetting() {
         id="self-deletion"
         title="People can delete their own accounts"
         description="Their messages stay under their name, marked deleted; everything else that was theirs goes. Off, the account page says to ask an admin."
+        error={error}
       >
         <input
           id="self-deletion"
@@ -40,11 +41,6 @@ export function SelfDeletionSetting() {
           disabled={busy || !status}
           onChange={(e) => set(e.target.checked)}
         />
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
       </SettingRow>
     </section>
   );

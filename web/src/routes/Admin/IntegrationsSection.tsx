@@ -34,29 +34,31 @@ export function IntegrationsSection() {
   const [editing, setEditing] = useState<Bot | null>(null);
   const [tokenFor, setTokenFor] = useState<Bot | null>(null);
   const [secret, setSecret] = useState<Secret | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["bots"] });
     await queryClient.invalidateQueries({ queryKey: ["webhooks"] });
     await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
   };
-  const act = async (fn: () => Promise<unknown>) => {
-    setError(null);
+  type Switch =
+    | "webhooksIncoming"
+    | "webhooksOutgoing"
+    | "webhooksAllowPrivateTargets";
+  // A refused switch says so on its own row.
+  const [refused, setRefused] = useState<{ key: Switch; text: string } | null>(
+    null,
+  );
+  const flip = async (key: Switch, value: boolean) => {
+    setRefused(null);
     try {
-      await fn();
+      await instanceClient.updateSettings({ [key]: value });
       await refresh();
     } catch (err) {
-      setError(errorText(err));
+      setRefused({ key, text: errorText(err) });
     }
   };
-  const flip = (
-    key:
-      | "webhooksIncoming"
-      | "webhooksOutgoing"
-      | "webhooksAllowPrivateTargets",
-    value: boolean,
-  ) => act(() => instanceClient.updateSettings({ [key]: value }));
+  const refusal = (key: Switch) =>
+    refused?.key === key ? refused.text : undefined;
 
   const [failed, setFailed] = useState<{ id: string; text: string } | null>(
     null,
@@ -103,6 +105,7 @@ export function IntegrationsSection() {
         )}
         <SettingRow
           id="webhooks-incoming"
+          error={refusal("webhooksIncoming")}
           title="Incoming webhooks"
           description="URLs that post into a channel. Off stops every one of them without deleting anything."
         >
@@ -116,6 +119,7 @@ export function IntegrationsSection() {
         </SettingRow>
         <SettingRow
           id="webhooks-outgoing"
+          error={refusal("webhooksOutgoing")}
           title="Outgoing webhooks"
           description="Signed events sent to URLs admins choose. Off stops every delivery."
         >
@@ -129,6 +133,7 @@ export function IntegrationsSection() {
         </SettingRow>
         <SettingRow
           id="webhooks-private"
+          error={refusal("webhooksAllowPrivateTargets")}
           title="Allow private targets"
           description="Let outgoing webhooks reach addresses on your LAN, loopback and Tailscale ranges. The cloud metadata address and link-local are never reachable."
         >
@@ -142,11 +147,6 @@ export function IntegrationsSection() {
             }
           />
         </SettingRow>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
       </section>
 
       <section className="card" data-section="bots">

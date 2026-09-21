@@ -21,13 +21,10 @@
 
 /* ---- Admin: storage ---- */
 
-/* Chrome sizes a number field from its max attribute; only one of these
-   has one, so the width is pinned rather than left to the basis. */
-.storage-quota input,
-.upload-limit input {
-  flex: 0 0 140px;
-  min-width: 0;
-  width: 140px;
+/* A number and its unit need little room; pinned so the two match. */
+.storage-quota .input,
+.upload-limit .input {
+  flex: 0 0 160px;
 }
 
 /* How full the upload disk is. Rendered only against a limit; the fill
