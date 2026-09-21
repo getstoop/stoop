@@ -1,12 +1,20 @@
 import type { GetReachabilityResponse } from "../../gen/stoop/instance/v1/instance_pb";
 import type { TailscaleStatus } from "../../gen/stoop/instance/v1/reachability_pb";
+import { Field } from "../Field";
 import { SettingRow } from "../SettingRow";
-import type { Fields, Secrets, SetField, SetSecrets } from "./fields";
+import type {
+  Fields,
+  ReachErrors,
+  Secrets,
+  SetField,
+  SetSecrets,
+} from "./fields";
 
 // The built-in Tailscale listener: join the tailnet, optionally publish
 // the node with Funnel, and read back how the node is doing.
 export function TailscaleSection({
   fields,
+  errors,
   set,
   secrets,
   setSecrets,
@@ -15,6 +23,7 @@ export function TailscaleSection({
   data,
 }: {
   fields: Fields;
+  errors: ReachErrors;
   set: SetField;
   secrets: Secrets;
   setSecrets: SetSecrets;
@@ -71,31 +80,33 @@ export function TailscaleSection({
           </label>
           {customControl && (
             <div className="reach-control-url">
-              <label>
-                Control URL
+              <Field label="Control URL" error={errors["tailscale.controlUrl"]}>
                 <input
                   value={fields.tsControlUrl}
                   onChange={(e) => set("tsControlUrl", e.target.value)}
                   placeholder="https://headscale.example.com"
                   inputMode="url"
                 />
-              </label>
+              </Field>
             </div>
           )}
-          <label>
-            Node name
+          <Field
+            label="Node name"
+            error={errors["tailscale.hostname"]}
+            hint={
+              <>
+                The address becomes https://&lt;name&gt;.&lt;tailnet&gt;.ts.net.
+              </>
+            }
+          >
             <input
               value={fields.tsHostname}
               onChange={(e) => set("tsHostname", e.target.value)}
               placeholder="stoop"
               autoComplete="off"
             />
-            <span className="hint">
-              The address becomes https://&lt;name&gt;.&lt;tailnet&gt;.ts.net.
-            </span>
-          </label>
-          <label>
-            Auth key
+          </Field>
+          <Field label="Auth key" error={errors["tailscale.authKey"]}>
             <input
               type="password"
               value={secrets.tsAuthKey}
@@ -109,7 +120,7 @@ export function TailscaleSection({
               }
               autoComplete="off"
             />
-          </label>
+          </Field>
           {data?.tailscale && (
             <TailscaleStatusBlock
               status={data.tailscale}

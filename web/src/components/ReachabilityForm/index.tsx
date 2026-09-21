@@ -1,8 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { instanceClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { useReachability } from "../../api/queries";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { AddressSection } from "./AddressSection";
 import { CloudflareTunnelSection } from "./CloudflareTunnelSection";
 import {
@@ -13,6 +13,7 @@ import {
   list,
   NO_SECRETS,
   normalize,
+  REACH_FIELDS,
   type Secrets,
   type SetField,
 } from "./fields";
@@ -36,7 +37,7 @@ export function ReachabilityForm({
   const [secrets, setSecrets] = useState<Secrets>(NO_SECRETS);
   const [showOwnRelay, setShowOwnRelay] = useState(false);
   const [customControl, setCustomControl] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(REACH_FIELDS);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   // Signature of the last settings taken from the server, so a poll that
@@ -69,7 +70,7 @@ export function ReachabilityForm({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setError(null);
+    form.begin();
     setSaved(false);
     try {
       await instanceClient.updateReachability(changes);
@@ -81,7 +82,7 @@ export function ReachabilityForm({
       setSaved(true);
       onSaved?.();
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
     } finally {
       setBusy(false);
     }
@@ -90,15 +91,17 @@ export function ReachabilityForm({
   if (isLoading) return <p className="muted">Loading…</p>;
 
   return (
-    <form className="reach-form" onSubmit={submit}>
+    <form className="reach-form" ref={form.formRef} onSubmit={submit}>
       <AddressSection
         fields={fields}
+        errors={form.errors}
         set={set}
         trustAll={data?.reachability?.trustedProxies?.trustAll ?? false}
       />
 
       <CloudflareTunnelSection
         fields={fields}
+        errors={form.errors}
         set={set}
         secrets={secrets}
         setSecrets={setSecrets}
@@ -107,6 +110,7 @@ export function ReachabilityForm({
 
       <TailscaleSection
         fields={fields}
+        errors={form.errors}
         set={set}
         secrets={secrets}
         setSecrets={setSecrets}
@@ -119,6 +123,7 @@ export function ReachabilityForm({
 
       <VoiceRelaySection
         fields={fields}
+        errors={form.errors}
         set={set}
         secrets={secrets}
         setSecrets={setSecrets}
@@ -133,9 +138,9 @@ export function ReachabilityForm({
         {voiceStatus(data)}
       </p>
 
-      {error && (
+      {form.formError && (
         <p className="error" role="alert">
-          {error}
+          {form.formError}
         </p>
       )}
       {saved && !dirty && <p className="hint reach-saved">Saved.</p>}

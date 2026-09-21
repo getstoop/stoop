@@ -1,8 +1,10 @@
 import type { GetReachabilityResponse } from "../../gen/stoop/instance/v1/instance_pb";
+import { Field } from "../Field";
 import { SettingRow } from "../SettingRow";
 import { CloudflareTunnelStatusBlock } from "./CloudflareTunnelStatusBlock";
 import {
   type Fields,
+  type ReachErrors,
   type Secrets,
   type SetField,
   type SetSecrets,
@@ -13,12 +15,14 @@ import {
 // tunnel's token, and read back how the connector is doing.
 export function CloudflareTunnelSection({
   fields,
+  errors,
   set,
   secrets,
   setSecrets,
   data,
 }: {
   fields: Fields;
+  errors: ReachErrors;
   set: SetField;
   secrets: Secrets;
   setSecrets: SetSecrets;
@@ -60,8 +64,7 @@ export function CloudflareTunnelSection({
       )}
       {fields.tunnelEnabled && (
         <>
-          <label>
-            Tunnel token
+          <Field label="Tunnel token" error={errors["cloudflareTunnel.token"]}>
             <input
               type="password"
               value={secrets.tunnelToken}
@@ -75,7 +78,7 @@ export function CloudflareTunnelSection({
               }
               autoComplete="off"
             />
-          </label>
+          </Field>
           {status && <CloudflareTunnelStatusBlock status={status} />}
           {status?.state === "running" && fields.publicUrl.trim() === "" && (
             <p className="hint">

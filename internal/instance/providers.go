@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -139,7 +140,7 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 		return nil, err
 	}
 	if len(req.Msg.Providers) > maxLoginProviders {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
+		return nil, apierr.Field(connect.CodeInvalidArgument, "providers",
 			fmt.Errorf("at most %d login providers", maxLoginProviders))
 	}
 	saved, _, err := s.savedLoginProviders(ctx)
@@ -153,13 +154,16 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 
 	next := make([]LoginProvider, 0, len(req.Msg.Providers))
 	seen := make(map[string]bool)
-	for _, in := range req.Msg.Providers {
-		p, err := validateLoginProvider(in)
+	for i, in := range req.Msg.Providers {
+		// A provider's field is named by its place in the list:
+		// providers[2].client_id.
+		at := func(field string) string { return fmt.Sprintf("providers[%d].%s", i, field) }
+		p, err := validateLoginProvider(in, at)
 		if err != nil {
 			return nil, err
 		}
 		if seen[p.ID] {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, at("id"),
 				fmt.Errorf("duplicate provider id %q", p.ID))
 		}
 		seen[p.ID] = true
@@ -170,7 +174,7 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 				p.ClientSecret = prev.ClientSecret
 			}
 			if p.ClientSecret == "" {
-				return nil, connect.NewError(connect.CodeInvalidArgument,
+				return nil, apierr.Field(connect.CodeInvalidArgument, at("client_secret"),
 					fmt.Errorf("provider %q needs a client secret", p.ID))
 			}
 		}
@@ -186,7 +190,7 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&instancev1.UpdateLoginProvidersResponse{Providers: resp}), nil
 }
 
-func validateLoginProvider(in *instancev1.LoginProvider) (LoginProvider, error) {
+func validateLoginProvider(in *instancev1.LoginProvider, at func(field string) string) (LoginProvider, error) {
 	p := LoginProvider{
 		ID:          strings.TrimSpace(in.Id),
 		Kind:        KindOIDC,
@@ -200,11 +204,11 @@ func validateLoginProvider(in *instancev1.LoginProvider) (LoginProvider, error) 
 	}
 	if in.Kind != instancev1.LoginProviderKind_LOGIN_PROVIDER_KIND_OIDC &&
 		in.Kind != instancev1.LoginProviderKind_LOGIN_PROVIDER_KIND_UNSPECIFIED {
-		return p, connect.NewError(connect.CodeInvalidArgument,
+		return p, apierr.Field(connect.CodeInvalidArgument, at("kind"),
 			errors.New("kind must be oidc"))
 	}
 	if !providerIDRE.MatchString(p.ID) {
-		return p, connect.NewError(connect.CodeInvalidArgument,
+		return p, apierr.Field(connect.CodeInvalidArgument, at("id"),
 			errors.New("provider id must be 2-32 of a-z, 0-9, -, _"))
 	}
 	if p.DisplayName == "" {
@@ -214,14 +218,14 @@ func validateLoginProvider(in *instancev1.LoginProvider) (LoginProvider, error) 
 		p.Icon = "key"
 	}
 	if !providerIcons[p.Icon] {
-		return p, connect.NewError(connect.CodeInvalidArgument,
+		return p, apierr.Field(connect.CodeInvalidArgument, at("icon"),
 			fmt.Errorf("icon %q is not one the client can draw", p.Icon))
 	}
 	if err := validateIssuer(p.Issuer); err != nil {
-		return p, err
+		return p, apierr.WithField(err, at("issuer"))
 	}
 	if p.ClientID == "" {
-		return p, connect.NewError(connect.CodeInvalidArgument,
+		return p, apierr.Field(connect.CodeInvalidArgument, at("client_id"),
 			fmt.Errorf("provider %q needs a client id", p.ID))
 	}
 	return p, nil

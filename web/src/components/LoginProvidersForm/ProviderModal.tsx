@@ -1,5 +1,7 @@
 import { type FormEvent, useState } from "react";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { CopyButton } from "../CopyButton";
+import { Field } from "../Field";
 import { Modal } from "../Modal";
 import type { ProviderRowState } from "./fields";
 import { PRESETS, type Preset } from "./presets";
@@ -47,7 +49,10 @@ export function ProviderModal({
   );
   const [presetHint, setPresetHint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(
+    ["displayName", "icon", "id", "issuer", "clientId", "clientSecret"],
+    { strip: /^providers\[\d+\]\./ },
+  );
   const set = (patch: Partial<ProviderRowState>) =>
     setRow((r) => ({ ...r, ...patch }));
 
@@ -67,16 +72,16 @@ export function ProviderModal({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    form.begin();
     if (idTaken) {
-      setError(`Provider id "${id}" is already used.`);
+      form.set("id", `Provider id "${id}" is already used.`);
       return;
     }
     setBusy(true);
-    setError(null);
     try {
       await onSave({ ...row, id });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -107,6 +112,7 @@ export function ProviderModal({
     >
       <form
         id="provider-form"
+        ref={form.formRef}
         className="modal-form provider-form"
         onSubmit={submit}
       >
@@ -126,18 +132,19 @@ export function ProviderModal({
           </div>
         )}
         {presetHint && <p className="hint">{presetHint}</p>}
-        <label className="field">
-          Button text
+        <Field
+          label="Button text"
+          hint="The whole button, exactly as people will see it."
+          error={form.errors.displayName}
+        >
           <input
             value={row.displayName}
             onChange={(e) => set({ displayName: e.target.value })}
             placeholder="Continue with Google"
             required
           />
-        </label>
-        <p className="hint">The whole button, exactly as people will see it.</p>
-        <label className="field">
-          Icon
+        </Field>
+        <Field label="Icon" error={form.errors.icon}>
           <select
             value={row.icon || "key"}
             onChange={(e) => set({ icon: e.target.value })}
@@ -148,24 +155,20 @@ export function ProviderModal({
               </option>
             ))}
           </select>
-        </label>
-        <label className="field">
-          Provider id
+        </Field>
+        <Field
+          label="Provider id"
+          hint="Part of the callback URL. Changing it later disconnects accounts that signed in under the old id."
+          error={form.errors.id}
+        >
           <input
             name="provider-id"
             value={row.id}
             onChange={(e) => set({ id: e.target.value })}
-            pattern="[a-z0-9_-]{2,32}"
-            title="2-32 of a-z, 0-9, -, _"
             required
           />
-        </label>
-        <p className="hint">
-          Part of the callback URL. Changing it later disconnects accounts that
-          signed in under the old id.
-        </p>
-        <label className="field">
-          Issuer URL
+        </Field>
+        <Field label="Issuer URL" error={form.errors.issuer}>
           <input
             name="provider-issuer"
             value={row.issuer}
@@ -173,9 +176,8 @@ export function ProviderModal({
             placeholder="https://auth.example.com"
             required
           />
-        </label>
-        <label className="field">
-          Client id
+        </Field>
+        <Field label="Client id" error={form.errors.clientId}>
           <input
             name="provider-client-id"
             value={row.clientId}
@@ -183,9 +185,8 @@ export function ProviderModal({
             autoComplete="off"
             required
           />
-        </label>
-        <label className="field">
-          Client secret
+        </Field>
+        <Field label="Client secret" error={form.errors.clientSecret}>
           <input
             type="password"
             name="provider-client-secret"
@@ -199,7 +200,7 @@ export function ProviderModal({
             autoComplete="off"
             required={!row.hasSecret}
           />
-        </label>
+        </Field>
         {callback ? (
           <div className="provider-callback">
             <span className="muted small">Callback URL for the console</span>
@@ -216,9 +217,9 @@ export function ProviderModal({
             </p>
           )
         )}
-        {error && (
+        {form.formError && (
           <p className="error" role="alert">
-            {error}
+            {form.formError}
           </p>
         )}
       </form>

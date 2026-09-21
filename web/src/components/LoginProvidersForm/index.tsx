@@ -40,11 +40,8 @@ export function LoginProvidersForm() {
     const next = originalId
       ? rows.map((r) => (r.id === originalId ? row : r))
       : [...rows, row];
-    try {
-      await persist(next);
-    } catch (err) {
-      throw new Error(errorText(err));
-    }
+    // A refusal goes back to the dialog as it is, field name and all.
+    await persist(next);
     setEditing(null);
   };
 
