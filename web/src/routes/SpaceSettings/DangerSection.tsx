@@ -68,11 +68,7 @@ export function DangerSection({ space }: { space: Space }) {
           Transfer ownership
         </button>
       </div>
-      <DeleteSpace
-        space={space}
-        onDeleted={() => navigate({ to: "/" })}
-        setError={setError}
-      />
+      <DeleteSpace space={space} onDeleted={() => navigate({ to: "/" })} />
       {error && (
         <p className="error" role="alert">
           {error}
@@ -85,21 +81,11 @@ export function DangerSection({ space }: { space: Space }) {
 // Instance admins may delete a space they don't own.
 export function InstanceAdminDelete({ space }: { space: Space }) {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
   if (!canDeleteSpace(space)) return null;
   return (
     <section className="card danger-zone">
       <h3>Server admin</h3>
-      <DeleteSpace
-        space={space}
-        onDeleted={() => navigate({ to: "/" })}
-        setError={setError}
-      />
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
+      <DeleteSpace space={space} onDeleted={() => navigate({ to: "/" })} />
     </section>
   );
 }
@@ -107,32 +93,25 @@ export function InstanceAdminDelete({ space }: { space: Space }) {
 function DeleteSpace({
   space,
   onDeleted,
-  setError,
 }: {
   space: Space;
   onDeleted: () => void;
-  setError: (e: string | null) => void;
 }) {
   const queryClient = useQueryClient();
-  const remove = async () => {
-    const typed = await prompt({
+  const remove = () =>
+    prompt({
       title: "Delete this space",
       body: `This deletes ${space.name} and everything in it. Type the space name to confirm.`,
       label: "Space name",
       match: space.name,
       action: "Delete space",
       danger: true,
+      submit: async () => {
+        await chatClient.deleteSpace({ spaceId: space.id });
+        await queryClient.invalidateQueries({ queryKey: ["spaces"] });
+        onDeleted();
+      },
     });
-    if (typed !== space.name) return;
-    setError(null);
-    try {
-      await chatClient.deleteSpace({ spaceId: space.id });
-      await queryClient.invalidateQueries({ queryKey: ["spaces"] });
-      onDeleted();
-    } catch (err) {
-      setError(errorText(err));
-    }
-  };
   return (
     <div className="card-row">
       <button type="button" className="chip danger" onClick={remove}>

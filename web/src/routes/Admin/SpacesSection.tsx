@@ -41,24 +41,19 @@ export function SpacesSection() {
     }
   };
 
-  const remove = async (space: SpaceSummary) => {
-    const typed = await prompt({
+  const remove = (space: SpaceSummary) =>
+    prompt({
       title: "Delete this space",
       body: `This deletes ${space.name} and everything in it. Type the space name to confirm.`,
       label: "Space name",
       match: space.name,
       action: "Delete space",
       danger: true,
+      submit: async () => {
+        await chatClient.deleteSpace({ spaceId: space.id });
+        await queryClient.invalidateQueries({ queryKey: ["spaces"] });
+      },
     });
-    if (typed !== space.name) return;
-    setFailed(null);
-    try {
-      await chatClient.deleteSpace({ spaceId: space.id });
-      await queryClient.invalidateQueries({ queryKey: ["spaces"] });
-    } catch (err) {
-      setFailed({ id: space.id, text: errorText(err) });
-    }
-  };
 
   // The columns are built once; the handlers they call reach this
   // render through a ref.

@@ -58,7 +58,7 @@ export async function editChannelTopic(
   channel: Channel,
   queryClient: QueryClient,
 ): Promise<void> {
-  const topic = await prompt({
+  await prompt({
     title: `Topic for #${channel.name}`,
     body: "One line, shown in the channel header. Plain text.",
     label: "Topic",
@@ -68,16 +68,14 @@ export async function editChannelTopic(
     multiline: true,
     maxLength: MAX_CHANNEL_TOPIC,
     allowEmpty: true,
+    submit: async (topic) => {
+      if (topic === channel.topic) return;
+      await chatClient.updateChannel({ channelId: channel.id, topic });
+      await queryClient.invalidateQueries({
+        queryKey: ["channels", channel.spaceId],
+      });
+    },
   });
-  if (topic === null || topic === channel.topic) return;
-  try {
-    await chatClient.updateChannel({ channelId: channel.id, topic });
-    await queryClient.invalidateQueries({
-      queryKey: ["channels", channel.spaceId],
-    });
-  } catch (err) {
-    notice({ title: "Couldn't save the topic", body: errorText(err) });
-  }
 }
 
 // Only admins, the owner and bots post in an announcement channel.

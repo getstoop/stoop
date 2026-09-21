@@ -4,7 +4,8 @@ import { FieldViolationSchema } from "../gen/stoop/common/v1/field_violation_pb"
 // The message worth showing a person: the server's own words for a
 // Connect error, and whatever the runtime said for anything else.
 export function errorText(err: unknown): string {
-  return err instanceof ConnectError ? err.rawMessage : String(err);
+  if (err instanceof ConnectError) return err.rawMessage;
+  return err instanceof Error ? err.message : String(err);
 }
 
 // The request field a refusal is about, when the server named one

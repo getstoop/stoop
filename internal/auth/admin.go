@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -184,18 +185,18 @@ func (s *Service) RenameAccount(ctx context.Context, userID string, username, di
 	if username != nil {
 		name := strings.ToLower(strings.TrimSpace(*username))
 		if !usernameRE.MatchString(name) {
-			return AccountSummary{}, connect.NewError(connect.CodeInvalidArgument,
+			return AccountSummary{}, apierr.Field(connect.CodeInvalidArgument, "username",
 				errors.New("username must be 3-32 letters, numbers, or _"))
 		}
 		if reservedUsernames[name] {
-			return AccountSummary{}, connect.NewError(connect.CodeInvalidArgument,
+			return AccountSummary{}, apierr.Field(connect.CodeInvalidArgument, "username",
 				fmt.Errorf("%q is reserved; pick another username", name))
 		}
 		u, err = s.q.AdminSetUsername(ctx, dbgen.AdminSetUsernameParams{ID: userID, Username: name})
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				return AccountSummary{}, connect.NewError(connect.CodeAlreadyExists,
+				return AccountSummary{}, apierr.Field(connect.CodeAlreadyExists, "username",
 					errors.New("username is taken"))
 			}
 			return AccountSummary{}, fmt.Errorf("update username: %w", err)
@@ -204,7 +205,7 @@ func (s *Service) RenameAccount(ctx context.Context, userID string, username, di
 	if displayName != nil {
 		name := strings.TrimSpace(*displayName)
 		if name == "" || utf8.RuneCountInString(name) > maxDisplayNameLen {
-			return AccountSummary{}, connect.NewError(connect.CodeInvalidArgument,
+			return AccountSummary{}, apierr.Field(connect.CodeInvalidArgument, "display_name",
 				fmt.Errorf("display name must be 1-%d characters", maxDisplayNameLen))
 		}
 		u, err = s.q.UpdateUserProfile(ctx, dbgen.UpdateUserProfileParams{ID: userID, DisplayName: &name})

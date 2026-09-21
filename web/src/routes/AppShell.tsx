@@ -11,7 +11,6 @@ import { unreadCounts } from "../api/activity";
 import { chatClient } from "../api/clients";
 import { dmUnreadTotal, useDirectMessages } from "../api/dms";
 import { startDndBridge } from "../api/dndBridge";
-import { errorText } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { presenceClass, presenceLabel, useDndActive } from "../api/presence";
 import {
@@ -39,7 +38,7 @@ import { Tooltip } from "../components/Tooltip";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { SpaceCreationPolicy } from "../gen/stoop/instance/v1/instance_pb";
 import { useConnectionStore } from "../stores/connection";
-import { notice, prompt } from "../stores/dialogs";
+import { prompt } from "../stores/dialogs";
 import { useLayoutStore } from "../stores/layout";
 
 // AppShell guards every authenticated route: it verifies the session, owns
@@ -131,42 +130,41 @@ function SpaceRail() {
   const connected = status === "connected";
   const navigate = useNavigate();
 
-  const createSpace = async () => {
-    const name = await prompt({
+  const createSpace = () =>
+    prompt({
       title: "New space",
       label: "Space name",
       action: "Create",
+      submit: async (name) => {
+        const res = await chatClient.createSpace({ name });
+        await queryClient.invalidateQueries({ queryKey: ["spaces"] });
+        if (res.space && res.defaultChannel) {
+          navigate({
+            to: "/s/$spaceId/c/$channelId",
+            params: {
+              spaceId: res.space.id,
+              channelId: res.defaultChannel.id,
+            },
+          });
+        }
+      },
     });
-    if (!name) return;
-    const res = await chatClient.createSpace({ name });
-    await queryClient.invalidateQueries({ queryKey: ["spaces"] });
-    if (res.space && res.defaultChannel) {
-      navigate({
-        to: "/s/$spaceId/c/$channelId",
-        params: { spaceId: res.space.id, channelId: res.defaultChannel.id },
-      });
-    }
-  };
 
-  const joinSpace = async () => {
-    const input = await prompt({
+  const joinSpace = () =>
+    prompt({
       title: "Join a space",
       label: "Invite code or link",
       action: "Join",
+      submit: async (input) => {
+        const code = parseInviteCode(input);
+        if (!code) throw new Error("That isn't an invite code or link.");
+        const res = await chatClient.joinSpace({ code });
+        await queryClient.invalidateQueries({ queryKey: ["spaces"] });
+        if (res.space) {
+          navigate({ to: "/s/$spaceId", params: { spaceId: res.space.id } });
+        }
+      },
     });
-    if (!input) return;
-    const code = parseInviteCode(input);
-    if (!code) return;
-    try {
-      const res = await chatClient.joinSpace({ code });
-      await queryClient.invalidateQueries({ queryKey: ["spaces"] });
-      if (res.space) {
-        navigate({ to: "/s/$spaceId", params: { spaceId: res.space.id } });
-      }
-    } catch (err) {
-      notice({ title: "Couldn't join", body: errorText(err) });
-    }
-  };
 
   return (
     <nav className="space-rail">

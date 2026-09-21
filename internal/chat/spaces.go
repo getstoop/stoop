@@ -13,6 +13,7 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -35,7 +36,7 @@ func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.C
 	}
 	name := req.Msg.Name
 	if name == "" || utf8.RuneCountInString(name) > 100 {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
+		return nil, apierr.Field(connect.CodeInvalidArgument, "name",
 			errors.New("space name must be 1-100 characters"))
 	}
 

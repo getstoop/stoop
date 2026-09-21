@@ -77,29 +77,31 @@ export function useAccountActions(
     });
   };
   const renameHandle = async (u: InstanceUser) => {
-    const next = await prompt({
+    await prompt({
       title: `Change @${u.username}'s username`,
       body: "3-32 of a-z, 0-9, _. Mentions of the old handle keep working by id, but people know them by this.",
       label: "Username",
       initial: u.username,
       action: "Rename",
+      submit: async (username) => {
+        if (username === u.username) return;
+        await instanceClient.renameUser({ userId: u.id, username });
+        await queryClient.invalidateQueries({ queryKey: ["instance-users"] });
+      },
     });
-    if (next === null || next.trim() === u.username) return;
-    act(u, () =>
-      instanceClient.renameUser({ userId: u.id, username: next.trim() }),
-    );
   };
   const renameDisplay = async (u: InstanceUser) => {
-    const next = await prompt({
+    await prompt({
       title: `Change ${u.displayName || u.username}'s display name`,
       label: "Display name",
       initial: u.displayName,
       action: "Save",
+      submit: async (displayName) => {
+        if (displayName === u.displayName) return;
+        await instanceClient.renameUser({ userId: u.id, displayName });
+        await queryClient.invalidateQueries({ queryKey: ["instance-users"] });
+      },
     });
-    if (next === null || next.trim() === u.displayName) return;
-    act(u, () =>
-      instanceClient.renameUser({ userId: u.id, displayName: next.trim() }),
-    );
   };
   // Clearing only: an admin takes down a slur, and nobody needs an admin
   // authoring someone's self-description. The confirm quotes the text

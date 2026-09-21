@@ -200,7 +200,7 @@ describe("searchErrorText", () => {
   });
 
   it("falls back to whatever a non-Connect failure said", () => {
-    expect(searchErrorText(new Error("offline"))).toBe("Error: offline");
+    expect(searchErrorText(new Error("offline"))).toBe("offline");
   });
 });
 

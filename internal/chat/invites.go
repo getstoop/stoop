@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -231,7 +232,7 @@ func (s *Service) RedeemInvite(ctx context.Context, code, userID string) (string
 func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbgen.Space, Role, error) {
 	code := strings.TrimSpace(rawCode)
 	if code == "" {
-		return dbgen.Space{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("invite code is required"))
+		return dbgen.Space{}, "", apierr.Field(connect.CodeInvalidArgument, "code", errors.New("invite code is required"))
 	}
 
 	invite, err := s.q.GetInviteByCode(ctx, code)

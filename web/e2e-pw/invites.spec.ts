@@ -275,12 +275,15 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
 
   await B.locator('button[title="Join a space with an invite code"]').click();
   await acceptDialog(B, "nope12345X");
-  const notice = B.locator('.modal[data-dialog="notice"]');
-  await expect(notice, "a bad code says it wasn't found").toContainText(
-    "invite not found",
-  );
+  // The prompt stays open with the answer in it and says why.
+  const joinPrompt = B.locator('.modal[data-dialog="prompt"]');
+  await expect(
+    joinPrompt.locator(".field-error"),
+    "a bad code says it wasn't found, under the field",
+  ).toContainText("invite not found");
+  await expect(joinPrompt.locator("input")).toHaveValue("nope12345X");
   await B.keyboard.press("Escape");
-  await expect(notice).toHaveCount(0);
+  await expect(joinPrompt).toHaveCount(0);
 
   // ---- A revokes; C visiting the link is refused
   await pickMenu(A, "Invite people");
