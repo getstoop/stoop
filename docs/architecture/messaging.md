@@ -354,7 +354,13 @@ cursor. What the code does:
   `to_tsvector('simple', content)`, with a GIN index (migration 00029).
   Postgres maintains it on every insert and update; deletes are hard, so
   nothing stale stays. `simple` means whole lowercased words, no
-  stemming, in any language.
+  stemming, in any language. The column is for this query's `WHERE`
+  and nothing reads it back: it runs larger than the content it indexes,
+  so every query that returns a message lists the other columns rather
+  than `*` or `sqlc.embed`. The lists are kept identical, because the
+  chat module converts between the generated row types (`messageRow` in
+  `chat/messages.go`) and that only compiles while they match. A new
+  `messages` column is added to each list.
 - **Parsing** (`search_query.go`). `from:@handle`, `in:#channel`,
   `before:YYYY-MM-DD` and `after:YYYY-MM-DD` come out as filters
   (quoted values allowed, `in:"front steps"`); the rest is websearch

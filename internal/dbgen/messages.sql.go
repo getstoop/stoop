@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"time"
 )
 
 const countExpiredMessages = `-- name: CountExpiredMessages :one
@@ -26,7 +27,7 @@ const createMessage = `-- name: CreateMessage :one
 
 INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, search
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
 `
 
 type CreateMessageParams struct {
@@ -39,9 +40,25 @@ type CreateMessageParams struct {
 	ReplyToMessageID *string
 }
 
+type CreateMessageRow struct {
+	ID               string
+	ChannelID        string
+	AuthorID         string
+	Content          string
+	CreatedAt        time.Time
+	MentionsEveryone bool
+	ReplyToMessageID *string
+	MentionsHere     bool
+	EditedAt         *time.Time
+}
+
 // Messages. Owned by the chat module.
 // Only internal/chat may use these queries.
-func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error) {
+//
+// A query that returns a message lists its columns, leaving out
+// messages.search. Keep the lists identical, here and in pins.sql and
+// search.sql; see docs/architecture/messaging.md → Search.
+func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (CreateMessageRow, error) {
 	row := q.db.QueryRow(ctx, createMessage,
 		arg.ID,
 		arg.ChannelID,
@@ -51,7 +68,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		arg.MentionsHere,
 		arg.ReplyToMessageID,
 	)
-	var i Message
+	var i CreateMessageRow
 	err := row.Scan(
 		&i.ID,
 		&i.ChannelID,
@@ -62,7 +79,6 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (M
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
-		&i.Search,
 	)
 	return i, err
 }
@@ -86,12 +102,25 @@ func (q *Queries) DeleteMessagesByIDs(ctx context.Context, ids []string) error {
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, search FROM messages WHERE id = $1
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
+FROM messages WHERE id = $1
 `
 
-func (q *Queries) GetMessage(ctx context.Context, id string) (Message, error) {
+type GetMessageRow struct {
+	ID               string
+	ChannelID        string
+	AuthorID         string
+	Content          string
+	CreatedAt        time.Time
+	MentionsEveryone bool
+	ReplyToMessageID *string
+	MentionsHere     bool
+	EditedAt         *time.Time
+}
+
+func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, error) {
 	row := q.db.QueryRow(ctx, getMessage, id)
-	var i Message
+	var i GetMessageRow
 	err := row.Scan(
 		&i.ID,
 		&i.ChannelID,
@@ -102,7 +131,6 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (Message, error) {
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
-		&i.Search,
 	)
 	return i, err
 }
@@ -189,7 +217,8 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 }
 
 const listMessagesAfter = `-- name: ListMessagesAfter :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.search, p.author_id AS reply_author_id, p.content AS reply_content,
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
+    p.author_id AS reply_author_id, p.content AS reply_content,
     COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
@@ -207,7 +236,15 @@ type ListMessagesAfterParams struct {
 }
 
 type ListMessagesAfterRow struct {
-	Message          Message
+	ID               string
+	ChannelID        string
+	AuthorID         string
+	Content          string
+	CreatedAt        time.Time
+	MentionsEveryone bool
+	ReplyToMessageID *string
+	MentionsHere     bool
+	EditedAt         *time.Time
 	ReplyAuthorID    *string
 	ReplyContent     *string
 	ReplyFirstFileID string
@@ -230,16 +267,15 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 	for rows.Next() {
 		var i ListMessagesAfterRow
 		if err := rows.Scan(
-			&i.Message.ID,
-			&i.Message.ChannelID,
-			&i.Message.AuthorID,
-			&i.Message.Content,
-			&i.Message.CreatedAt,
-			&i.Message.MentionsEveryone,
-			&i.Message.ReplyToMessageID,
-			&i.Message.MentionsHere,
-			&i.Message.EditedAt,
-			&i.Message.Search,
+			&i.ID,
+			&i.ChannelID,
+			&i.AuthorID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.MentionsEveryone,
+			&i.ReplyToMessageID,
+			&i.MentionsHere,
+			&i.EditedAt,
 			&i.ReplyAuthorID,
 			&i.ReplyContent,
 			&i.ReplyFirstFileID,
@@ -255,7 +291,8 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 }
 
 const listMessagesBefore = `-- name: ListMessagesBefore :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.search, p.author_id AS reply_author_id, p.content AS reply_content,
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
+    p.author_id AS reply_author_id, p.content AS reply_content,
     COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
@@ -272,7 +309,15 @@ type ListMessagesBeforeParams struct {
 }
 
 type ListMessagesBeforeRow struct {
-	Message          Message
+	ID               string
+	ChannelID        string
+	AuthorID         string
+	Content          string
+	CreatedAt        time.Time
+	MentionsEveryone bool
+	ReplyToMessageID *string
+	MentionsHere     bool
+	EditedAt         *time.Time
 	ReplyAuthorID    *string
 	ReplyContent     *string
 	ReplyFirstFileID string
@@ -290,16 +335,15 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 	for rows.Next() {
 		var i ListMessagesBeforeRow
 		if err := rows.Scan(
-			&i.Message.ID,
-			&i.Message.ChannelID,
-			&i.Message.AuthorID,
-			&i.Message.Content,
-			&i.Message.CreatedAt,
-			&i.Message.MentionsEveryone,
-			&i.Message.ReplyToMessageID,
-			&i.Message.MentionsHere,
-			&i.Message.EditedAt,
-			&i.Message.Search,
+			&i.ID,
+			&i.ChannelID,
+			&i.AuthorID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.MentionsEveryone,
+			&i.ReplyToMessageID,
+			&i.MentionsHere,
+			&i.EditedAt,
 			&i.ReplyAuthorID,
 			&i.ReplyContent,
 			&i.ReplyFirstFileID,
@@ -328,7 +372,8 @@ func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) er
 }
 
 const updateMessageContent = `-- name: UpdateMessageContent :one
-UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, search
+UPDATE messages SET content = $2, edited_at = now() WHERE id = $1
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
 `
 
 type UpdateMessageContentParams struct {
@@ -336,9 +381,21 @@ type UpdateMessageContentParams struct {
 	Content string
 }
 
-func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageContentParams) (Message, error) {
+type UpdateMessageContentRow struct {
+	ID               string
+	ChannelID        string
+	AuthorID         string
+	Content          string
+	CreatedAt        time.Time
+	MentionsEveryone bool
+	ReplyToMessageID *string
+	MentionsHere     bool
+	EditedAt         *time.Time
+}
+
+func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageContentParams) (UpdateMessageContentRow, error) {
 	row := q.db.QueryRow(ctx, updateMessageContent, arg.ID, arg.Content)
-	var i Message
+	var i UpdateMessageContentRow
 	err := row.Scan(
 		&i.ID,
 		&i.ChannelID,
@@ -349,7 +406,6 @@ func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageCon
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
-		&i.Search,
 	)
 	return i, err
 }

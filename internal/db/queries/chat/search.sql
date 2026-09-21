@@ -7,7 +7,8 @@
 -- internal/chat/search_query.go). Dates bound created_at; the cursor
 -- bounds id.
 -- name: SearchMessages :many
-SELECT sqlc.embed(m), p.author_id AS reply_author_id, p.content AS reply_content,
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
+    p.author_id AS reply_author_id, p.content AS reply_content,
     COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
