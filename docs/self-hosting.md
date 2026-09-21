@@ -19,7 +19,8 @@ docker compose up -d
 ```
 
 The four files come from the release itself, so they always match the
-image the compose file pins.
+image the compose file pins. The compose file needs Docker Compose 2.20 or
+newer (`docker compose version`).
 
 Open http://localhost:8080. A fresh instance walks you through setup: create
 the admin account (the first account operates the server), create your first
@@ -41,6 +42,10 @@ startup, so there is no separate step:
 curl -fLO https://github.com/getstoop/stoop/releases/latest/download/docker-compose.yml
 docker compose pull && docker compose up -d
 ```
+
+Coming from 0.2.0, add `COMPOSE_PROFILES=bundled-postgres` to `.env`
+first. Without it the bundled Postgres does not start, and the log says
+`lookup postgres: no such host`.
 
 Release notes say when the LiveKit or Postgres pin moves. An image tag of
 the form `0.2` follows patch releases of that minor; `latest` follows
@@ -81,6 +86,30 @@ the `stoop-data` volume with the uploads is untouched by all of this.
 LiveKit is pinned in the compose file to the exact version a Stoop
 release was tested against, and Stoop needs nothing newer than that pin.
 The pin moves only in a minor release and the notes say when.
+
+### Using your own Postgres
+
+In `.env`, take `bundled-postgres` out of `COMPOSE_PROFILES` and name your
+server:
+
+```sh
+COMPOSE_PROFILES=
+STOOP_DATABASE_URL=postgres://stoop:secret@192.168.1.20:5432/stoop?sslmode=require
+```
+
+Then `docker compose up -d`. The bundled Postgres no longer starts, and
+`POSTGRES_PASSWORD` is unused.
+
+- Create the database and its role first. Stoop creates tables, not
+  databases.
+- The bundled URL says `sslmode=disable` because it never leaves the
+  compose network. A remote server usually wants `require`.
+- A Postgres on the same machine is `host.docker.internal` on Docker
+  Desktop and the machine's LAN address on Linux; `localhost` is the
+  container itself.
+- [Backups](#backups) of that database are then yours: the `pg_dump`
+  lines there run against your server instead of `docker compose exec
+  postgres`. The `stoop-data` volume still holds the uploads.
 
 ## Reaching your server
 
@@ -377,9 +406,10 @@ Start Stoop first: LiveKit exits if the file isn't there yet.
 ## Configuration reference
 
 Set any of these in `.env`; the compose file passes that file through to
-the server. Three are pinned by the compose file itself and ignore what
-`.env` says: `STOOP_DATABASE_URL`, `STOOP_STORAGE_DIR` and
-`STOOP_LIVEKIT_KEY_FILE`.
+the server. Two are pinned by the compose file itself and ignore what
+`.env` says: `STOOP_STORAGE_DIR` and `STOOP_LIVEKIT_KEY_FILE`.
+`STOOP_DATABASE_URL` defaults to the bundled Postgres; set it only when
+[using your own](#using-your-own-postgres).
 
 | Variable                   | Default                     | Purpose                          |
 | -------------------------- | --------------------------- | -------------------------------- |

@@ -13,9 +13,13 @@ services:
     # it. Rolling back one release is editing this line and `up -d`.
     image: ghcr.io/getstoop/stoop:0.2.0
     restart: unless-stopped
+    # The bundled Postgres is a profile (COMPOSE_PROFILES in .env). With it
+    # off, this service starts without it and STOOP_DATABASE_URL names
+    # the Postgres to use: docs/self-hosting.md → Using your own Postgres.
     depends_on:
       postgres:
         condition: service_healthy
+        required: false
     # Everything in .env reaches the server, so any variable in
     # docs/self-hosting.md → Configuration reference can be set there. The
     # entries below are the ones this file computes, pins, or defaults
@@ -23,7 +27,7 @@ services:
     # `environment:` takes precedence over `env_file:`.
     env_file: .env
     environment:
-      STOOP_DATABASE_URL: postgres://stoop:${POSTGRES_PASSWORD}@postgres:5432/stoop?sslmode=disable
+      STOOP_DATABASE_URL: ${STOOP_DATABASE_URL:-postgres://stoop:${POSTGRES_PASSWORD:-}@postgres:5432/stoop?sslmode=disable}
       STOOP_PUBLIC_URL: ${STOOP_PUBLIC_URL:-}
       STOOP_TRUST_PROXY: ${STOOP_TRUST_PROXY:-false}
       STOOP_SECURE_COOKIES: ${STOOP_SECURE_COOKIES:-false}
@@ -67,10 +71,11 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    profiles: ["bundled-postgres"]
     restart: unless-stopped
     environment:
       POSTGRES_USER: stoop
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: stoop
     volumes:
       - postgres-data:/var/lib/postgresql/data
