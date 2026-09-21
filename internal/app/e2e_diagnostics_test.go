@@ -117,7 +117,7 @@ func jsonInt(v any) int64 {
 // Right now and Database: the gauges the app registers, with the sampler's
 // step, and the pool and catalog facts of the harness's own database.
 func TestE2EDiagnosticsLiveAndDatabase(t *testing.T) {
-	h := newHarness(t)
+	h := newHarness(t, "STOOP_DATABASE_POOL_MAX", "3")
 	casey := h.person("casey")
 	ada := h.person("ada")
 
@@ -140,7 +140,10 @@ func TestE2EDiagnosticsLiveAndDatabase(t *testing.T) {
 
 	h.rpc(ada, diagnostics+"GetDatabaseStats", map[string]any{}).expect(t, "permission_denied")
 	dbs := h.rpc(casey, diagnostics+"GetDatabaseStats", map[string]any{}).expect(t, "ok")
-	if liveNumber(dbs, "poolMax") <= 0 || liveNumber(dbs, "pingUs") <= 0 || dbs.str("serverVersion") == "" {
+	if liveNumber(dbs, "poolMax") != 3 {
+		t.Errorf("poolMax = %v, want STOOP_DATABASE_POOL_MAX's 3", liveNumber(dbs, "poolMax"))
+	}
+	if liveNumber(dbs, "pingUs") <= 0 || dbs.str("serverVersion") == "" {
 		t.Errorf("database stats: %s", dbs.raw)
 	}
 	// Connect's JSON writes int64 as a string.

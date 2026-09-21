@@ -17,8 +17,16 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+// Connect opens the pool. poolMax caps it; 0 keeps pgx's default.
+func Connect(ctx context.Context, databaseURL string, poolMax int) (*pgxpool.Pool, error) {
+	pc, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse database url: %w", err)
+	}
+	if poolMax > 0 {
+		pc.MaxConns = int32(poolMax)
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, pc)
 	if err != nil {
 		return nil, fmt.Errorf("create pool: %w", err)
 	}

@@ -44,7 +44,7 @@ func runAdmin(ctx context.Context, args []string, out io.Writer) int {
 		fmt.Fprintln(os.Stderr, "invalid configuration:", err)
 		return 1
 	}
-	pool, err := db.Connect(ctx, cfg.DatabaseURL)
+	pool, err := db.Connect(ctx, cfg.DatabaseURL, cfg.DatabasePoolMax)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1

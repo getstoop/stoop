@@ -25,7 +25,7 @@ func New(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	pool, err := db.Connect(ctx, NewURL(t))
+	pool, err := db.Connect(ctx, NewURL(t), 0)
 	if err != nil {
 		t.Fatalf("connect to test database: %v", err)
 	}
