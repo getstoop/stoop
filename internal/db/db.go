@@ -23,6 +23,9 @@ func Connect(ctx context.Context, databaseURL string, poolMax int) (*pgxpool.Poo
 	if err != nil {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
+	if poolMax > math.MaxInt32 {
+		return nil, fmt.Errorf("pool max %d is out of range", poolMax)
+	}
 	if poolMax > 0 {
 		pc.MaxConns = int32(poolMax)
 	}
