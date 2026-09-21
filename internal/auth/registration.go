@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -80,13 +81,13 @@ func (s *Service) checkRegistrationAllowed(ctx context.Context, inviteCode strin
 			errors.New("this server isn't accepting new accounts"))
 	default: // invite
 		if inviteCode == "" {
-			return false, connect.NewError(connect.CodePermissionDenied,
+			return false, apierr.Field(connect.CodePermissionDenied, "invite_code",
 				errors.New("an invite code is required to create an account on this server"))
 		}
 		if s.invites == nil {
 			return false, connect.NewError(connect.CodeFailedPrecondition, errors.New("invites are not configured"))
 		}
-		return true, s.invites.ValidateInvite(ctx, inviteCode)
+		return true, apierr.WithField(s.invites.ValidateInvite(ctx, inviteCode), "invite_code")
 	}
 }
 
@@ -108,7 +109,7 @@ func (s *Service) redeemInvite(ctx context.Context, user dbgen.User, code string
 	if derr := s.q.DeleteUser(ctx, user.ID); derr != nil {
 		slog.Error("undo registration after spent invite", "user_id", user.ID, "err", derr)
 	}
-	return "", err
+	return "", apierr.WithField(err, "invite_code")
 }
 
 func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
@@ -116,15 +117,15 @@ func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.Regi
 	// capitalization the user typed (e.g. "Ada" → handle "ada").
 	username := strings.ToLower(req.Msg.Username)
 	if !usernameRE.MatchString(username) {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
+		return nil, apierr.Field(connect.CodeInvalidArgument, "username",
 			errors.New("username must be 3-32 letters, numbers, or _"))
 	}
 	if reservedUsernames[username] {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
+		return nil, apierr.Field(connect.CodeInvalidArgument, "username",
 			fmt.Errorf("%q is reserved; pick another username", username))
 	}
 	if len(req.Msg.Password) < 8 {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
+		return nil, apierr.Field(connect.CodeInvalidArgument, "password",
 			errors.New("password must be at least 8 characters"))
 	}
 
@@ -234,7 +235,7 @@ func (s *Service) createAccount(ctx context.Context, p createAccountParams) (dbg
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return dbgen.User{}, connect.NewError(connect.CodeAlreadyExists,
+			return dbgen.User{}, apierr.Field(connect.CodeAlreadyExists, "username",
 				errors.New("username is taken"))
 		}
 		return dbgen.User{}, fmt.Errorf("create user: %w", err)

@@ -38,3 +38,33 @@ func TestE2EFieldViolation(t *testing.T) {
 		t.Errorf("permission denied: field = %q, want none", got)
 	}
 }
+
+// Registration names the field it refuses; a wrong password names neither.
+func TestE2ERegistrationFieldViolation(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	h.rpc(casey, "stoop.instance.v1.InstanceService/UpdateSettings",
+		map[string]any{"registrationPolicy": "REGISTRATION_POLICY_INVITE"}).expect(t, "ok")
+	const register = "stoop.auth.v1.AuthService/Register"
+	for _, c := range []struct {
+		name  string
+		req   map[string]any
+		code  string
+		field string
+	}{
+		{"short username", map[string]any{"username": "a", "password": password}, "invalid_argument", "username"},
+		{"short password", map[string]any{"username": "ada", "password": "short"}, "invalid_argument", "password"},
+		{"no invite", map[string]any{"username": "ada", "password": password}, "permission_denied", "invite_code"},
+		{"unknown invite", map[string]any{"username": "ada", "password": password, "inviteCode": "nope12345X"}, "not_found", "invite_code"},
+	} {
+		r := h.rpc("", register, c.req).expect(t, c.code)
+		if got := r.field(); got != c.field {
+			t.Errorf("%s: field = %q, want %q (%s: %s)", c.name, got, c.field, r.code(), r.message())
+		}
+	}
+	r := h.rpc("", "stoop.auth.v1.AuthService/Login", map[string]any{"username": "casey", "password": "wrong-password"}).
+		expect(t, "unauthenticated")
+	if got := r.field(); got != "" {
+		t.Errorf("wrong password: field = %q, want none", got)
+	}
+}

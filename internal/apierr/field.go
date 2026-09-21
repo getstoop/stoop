@@ -3,6 +3,8 @@
 package apierr
 
 import (
+	"errors"
+
 	"connectrpc.com/connect"
 
 	commonv1 "github.com/getstoop/stoop/gen/stoop/common/v1"
@@ -17,4 +19,18 @@ func Field(code connect.Code, field string, err error) *connect.Error {
 		cerr.AddDetail(detail)
 	}
 	return cerr
+}
+
+// WithField names the field on a refusal that was built elsewhere, such as
+// one that came back through a port. Anything that is not a Connect error
+// is returned as it is.
+func WithField(err error, field string) error {
+	var cerr *connect.Error
+	if !errors.As(err, &cerr) {
+		return err
+	}
+	if detail, derr := connect.NewErrorDetail(&commonv1.FieldViolation{Field: field}); derr == nil {
+		cerr.AddDetail(detail)
+	}
+	return err
 }

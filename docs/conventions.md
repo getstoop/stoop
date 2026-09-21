@@ -29,9 +29,8 @@ in their head. Add to this when a new rule earns its place.
   component: `components/Avatar.stories.tsx`. A kit part that is only a
   class (`.chip`, `.card`) has its stories under `src/kit/`. Feature
   components get stories only when they are worked on in isolation.
-- **Known debt:** `routes/Setup.tsx` holds five components. Split it when
-  it is next touched; do not add components to it. `routes/Admin/` and
-  `routes/Profile/` are the model.
+- **`routes/Admin/`, `routes/Profile/` and `routes/Setup/` are the model**
+  for a route with several parts.
 
 ## Web: one stylesheet per feature
 

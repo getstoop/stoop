@@ -1,4 +1,3 @@
-import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
@@ -8,6 +7,7 @@ import { parseInviteCode } from "../api/invites";
 import { loginErrorText } from "../api/loginErrors";
 import { roleLabel } from "../api/permissions";
 import { useInstanceStatus, useInvitePreview } from "../api/queries";
+import { Field } from "../components/Field";
 import { LoginProviders } from "../components/LoginProviders";
 import { SpaceIcon } from "../components/SpaceIcon";
 import type { InvitePreview } from "../gen/stoop/chat/v1/invite_pb";
@@ -15,6 +15,7 @@ import {
   PasswordSignIn,
   RegistrationPolicy,
 } from "../gen/stoop/instance/v1/instance_pb";
+import { useFieldErrors } from "../hooks/useFieldErrors";
 import { safeRedirect } from "../router";
 
 // Set once a login succeeds in this browser, so the next invite landing
@@ -54,10 +55,14 @@ export function LoginPage() {
   );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(
-    // A provider sign-in that failed lands back here with ?error=<code>.
+  // A provider sign-in that failed lands back here with ?error=<code>.
+  const [providerError, setProviderError] = useState<string | null>(
     errorCode ? loginErrorText(errorCode) : null,
   );
+  // Wrong credentials name no field, on purpose: saying which was wrong
+  // tells a stranger which accounts exist.
+  const form = useFieldErrors(["username", "password", "inviteCode"]);
+  const error = form.formError ?? providerError;
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -93,7 +98,8 @@ export function LoginPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setError(null);
+    setProviderError(null);
+    form.begin();
     try {
       let joinedSpaceId = "";
       if (effectiveMode === "register") {
@@ -123,7 +129,7 @@ export function LoginPage() {
       // back onto the login form.
       await navigate({ to: safeRedirect(redirect) ?? "/" });
     } catch (err) {
-      setError(err instanceof ConnectError ? err.rawMessage : String(err));
+      form.fail(err);
     } finally {
       setBusy(false);
     }
@@ -131,7 +137,7 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
-      <form className="login-card" onSubmit={submit}>
+      <form className="login-card" ref={form.formRef} onSubmit={submit}>
         <h1>Stoop</h1>
         {/* The card names the space, so the line above it only has to
             say what kind of thing this is; the next step goes under the
@@ -209,17 +215,15 @@ export function LoginPage() {
         )}
         {showPasswordForm && (
           <>
-            <label>
-              Username
+            <Field label="Username" error={form.errors.username}>
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
                 required
               />
-            </label>
-            <label>
-              Password
+            </Field>
+            <Field label="Password" error={form.errors.password}>
               <input
                 type="password"
                 value={password}
@@ -231,10 +235,9 @@ export function LoginPage() {
                 }
                 required
               />
-            </label>
+            </Field>
             {effectiveMode === "register" && (codeRequired || invited) && (
-              <label>
-                Invite code
+              <Field label="Invite code" error={form.errors.inviteCode}>
                 <input
                   value={inviteCode}
                   onChange={(e) => setTypedCode(e.target.value)}
@@ -243,7 +246,7 @@ export function LoginPage() {
                   required={codeRequired}
                   autoComplete="off"
                 />
-              </label>
+              </Field>
             )}
             {error && (
               <p className="error" role="alert">
