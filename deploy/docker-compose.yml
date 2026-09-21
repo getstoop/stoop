@@ -4,8 +4,8 @@
 # Put a TLS-terminating reverse proxy (Caddy, Traefik, nginx) in front of
 # stoop:8080 and name it under Server admin → Hosting → Trusted proxies;
 # Secure cookies follow from that. LiveKit's signaling is
-# proxied by Stoop at /livekit; only its media ports (7881/tcp and the UDP
-# range in livekit.yaml) need to be reachable directly.
+# proxied by Stoop at /livekit; only its media ports (7881/tcp and
+# 50000-50100/udp unless .env says otherwise) need to be reachable directly.
 
 services:
   stoop:
@@ -55,7 +55,8 @@ services:
       STOOP_TAILSCALE_FUNNEL: ${STOOP_TAILSCALE_FUNNEL:-false}
       # The built-in Tailscale node carries LiveKit's media ports too, so
       # voice rides the tailnet. It needs to know where LiveKit is: the
-      # sidecar's name on this network, and the ports set in livekit.yaml.
+      # sidecar's name on this network, and the same two port settings the
+      # livekit service below takes.
       STOOP_TAILSCALE_VOICE: ${STOOP_TAILSCALE_VOICE:-true}
       STOOP_LIVEKIT_MEDIA_HOST: ${STOOP_LIVEKIT_MEDIA_HOST:-livekit}
       STOOP_LIVEKIT_TCP_PORT: ${STOOP_LIVEKIT_TCP_PORT:-7881}
@@ -67,7 +68,7 @@ services:
       # view of the credentials it needs and nothing else.
       - livekit-keys:/livekit-keys
     ports:
-      - "8080:8080"
+      - "${STOOP_PORT:-8080}:8080"
 
   postgres:
     image: postgres:16-alpine
@@ -104,6 +105,10 @@ services:
     command: --config /etc/livekit.yaml --key-file /keys/keys.yaml
     environment:
       NODE_IP: ${NODE_IP:-}
+      # The media ports, set once in .env. LiveKit reads the first itself;
+      # the entrypoint splits the range into LiveKit's start and end.
+      LIVEKIT_RTC_TCP_PORT: ${STOOP_LIVEKIT_TCP_PORT:-7881}
+      STOOP_LIVEKIT_UDP_PORTS: ${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}
     depends_on:
       - stoop
     volumes:
@@ -118,9 +123,10 @@ services:
     # Publishing these is what lets browsers reach LiveKit directly; the
     # built-in Tailscale node carries the same ports over the tailnet, so
     # a tailnet-only server needs nothing forwarded to it from a router.
+    # The same number on both sides: LiveKit advertises the container's port.
     ports:
-      - "7881:7881"
-      - "50000-50100:50000-50100/udp"
+      - "${STOOP_LIVEKIT_TCP_PORT:-7881}:${STOOP_LIVEKIT_TCP_PORT:-7881}"
+      - "${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}:${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}/udp"
 
 volumes:
   postgres-data:

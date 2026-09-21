@@ -337,8 +337,9 @@ each browser and LiveKit. Voice needs three things:
    set `STOOP_LIVEKIT_URL` and that server's pair in
    `STOOP_LIVEKIT_API_KEY` / `STOOP_LIVEKIT_API_SECRET`.
 2. **Media ports reachable**, or a [TURN relay](#turn-when-media-ports-cant-be-reached).
-   Browsers must reach `7881/tcp` and `50000-50100/udp` (the range in
-   `livekit.yaml`) on the machine. LiveKit discovers the public address to
+   Browsers must reach `7881/tcp` and `50000-50100/udp` on the machine.
+   To move them, set `STOOP_LIVEKIT_TCP_PORT` and `STOOP_LIVEKIT_UDP_PORTS`
+   in `.env`; nothing else needs editing. LiveKit discovers the public address to
    advertise (`use_external_ip: true`); on a LAN-only install, set
    `NODE_IP` in `.env` to the machine's LAN address instead.
 3. **HTTPS**, as [above](#reaching-your-server).
@@ -469,8 +470,8 @@ the server. Two are pinned by the compose file itself and ignore what
 | `STOOP_TAILSCALE_FUNNEL`   | `false`                     | Also expose the tailnet address publicly via Funnel (HTTP only — voice needs TURN) |
 | `STOOP_TAILSCALE_VOICE`    | `true`                      | The built-in node also carries LiveKit's media ports, so voice rides the tailnet. `false` serves HTTPS over the tailnet only |
 | `STOOP_LIVEKIT_MEDIA_HOST` | `127.0.0.1` (`livekit` in compose) | Where the built-in node forwards media: LiveKit's host on this machine or network |
-| `STOOP_LIVEKIT_TCP_PORT`   | `7881`                      | LiveKit's TCP media port, as set in `livekit.yaml` |
-| `STOOP_LIVEKIT_UDP_PORTS`  | `50000-50100`               | LiveKit's UDP media range, as set in `livekit.yaml` |
+| `STOOP_LIVEKIT_TCP_PORT`   | `7881`                      | LiveKit's TCP media port. Under compose this one setting also configures and publishes it; with a bare binary, match it to `livekit.yaml` |
+| `STOOP_LIVEKIT_UDP_PORTS`  | `50000-50100`               | LiveKit's UDP media range, as `start-end`. Same as above |
 | `STOOP_LIVEKIT_NODE_IP_FILE` | (empty)                   | File Stoop writes the tailnet address to for the LiveKit sidecar's `NODE_IP`. Defaults to `node-ip` beside `STOOP_LIVEKIT_KEY_FILE`, which is what lands it on the shared volume under compose |
 | `STOOP_OIDC_ISSUER`        | (empty)                     | One OIDC login provider from the environment: the issuer URL exactly as its discovery document states it. The admin page's saved list overrides this |
 | `STOOP_OIDC_CLIENT_ID`     | (empty)                     | The provider's client id; set together with the secret and issuer |
@@ -488,6 +489,7 @@ the Docker Compose install only.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `COMPOSE_PROFILES` | `bundled-postgres` | Which bundled services run. Empty to [use your own Postgres](#using-your-own-postgres) |
+| `STOOP_PORT` | `8080` | The port the web app is published on |
 | `POSTGRES_PASSWORD` | (none) | Password of the bundled Postgres |
 | `POSTGRES_ARGS` | (empty) | `postgres -c name=value` flags for the bundled Postgres; see [Tuning the bundled Postgres](#tuning-the-bundled-postgres) |
 | `NODE_IP` | (empty) | The address LiveKit offers browsers for media; see [Voice](#voice) |

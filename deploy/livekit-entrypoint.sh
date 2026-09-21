@@ -11,6 +11,19 @@
 # is switched off, because there is then nothing for Stoop to change.
 set -u
 
+# The UDP media range comes from .env as start-end; LiveKit wants the two
+# halves. Its own environment variables win over livekit.yaml.
+if [ -n "${STOOP_LIVEKIT_UDP_PORTS:-}" ]; then
+	start=${STOOP_LIVEKIT_UDP_PORTS%-*}
+	end=${STOOP_LIVEKIT_UDP_PORTS#*-}
+	case "$start$end" in *[!0-9]* | "") start= ;; esac
+	if [ -z "$start" ] || [ "$start-$end" != "$STOOP_LIVEKIT_UDP_PORTS" ] || [ "$start" -gt "$end" ]; then
+		echo "livekit-entrypoint: STOOP_LIVEKIT_UDP_PORTS must look like 50000-50100 (got \"$STOOP_LIVEKIT_UDP_PORTS\")" >&2
+		exit 1
+	fi
+	export LIVEKIT_RTC_PORT_RANGE_START="$start" LIVEKIT_RTC_PORT_RANGE_END="$end"
+fi
+
 NODE_IP_FILE=${NODE_IP_FILE:-/keys/node-ip}
 
 read_node_ip() {

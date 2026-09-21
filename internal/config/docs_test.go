@@ -10,6 +10,7 @@ import (
 var (
 	envKeyRE   = regexp.MustCompile(`"(STOOP_[A-Z0-9_]+)"`)
 	tableKeyRE = regexp.MustCompile("(?m)^\\|\\s*`(STOOP_[A-Z0-9_]+)`")
+	composeRE  = regexp.MustCompile(`\$\{(STOOP_[A-Z0-9_]+)`)
 )
 
 // The Configuration reference in docs/self-hosting.md is what operators
@@ -25,9 +26,11 @@ func TestConfigReferenceDocumentsEveryVariable(t *testing.T) {
 			t.Errorf("%s is read by config.go but has no row in docs/self-hosting.md → Configuration reference", k)
 		}
 	}
+	// Some settings are read by the compose file and never by the server.
+	inCompose := keys(t, composeRE, "../../deploy/docker-compose.yml")
 	for k := range inDocs {
-		if !inCode[k] {
-			t.Errorf("%s has a row in docs/self-hosting.md → Configuration reference but config.go no longer reads it", k)
+		if !inCode[k] && !inCompose[k] {
+			t.Errorf("%s has a row in docs/self-hosting.md but neither config.go nor the compose file reads it", k)
 		}
 	}
 }

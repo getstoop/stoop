@@ -21,6 +21,24 @@ cp "$deploy/.env.example" "$env_file"
 render | grep -q 'STOOP_DATABASE_URL: postgres://stoop:change-me@postgres:5432/stoop' ||
 	fail "default: STOOP_DATABASE_URL is not the bundled Postgres"
 
+render | tr -d ' \n"' | grep -q 'published:8080' || fail "default: app is not published on 8080"
+# Compose renders a range as one entry per port.
+out=$(render | tr -d ' \n"')
+for want in published:50000protocol:udp published:50100protocol:udp; do
+	echo "$out" | grep -q "$want" || fail "default: $want missing from the render"
+done
+echo "$out" | grep -q 'published:50101' && fail "default: UDP media range runs past 50100"
+
+# Ports: one line each in .env moves the published port and LiveKit's own.
+printf 'STOOP_PORT=8090\nSTOOP_LIVEKIT_TCP_PORT=7891\nSTOOP_LIVEKIT_UDP_PORTS=51000-51050\n' >>"$env_file"
+out=$(render | tr -d ' \n"')
+for want in published:8090 published:7891 target:7891 LIVEKIT_RTC_TCP_PORT:7891 \
+	published:51000protocol:udp target:51050published:51050 STOOP_LIVEKIT_UDP_PORTS:51000-51050; do
+	echo "$out" | grep -q "$want" || fail "ports: $want missing from the render"
+done
+echo "$out" | grep -q 'published:50000' && fail "ports: the default UDP range is still published"
+cp "$deploy/.env.example" "$env_file"
+
 # POSTGRES_ARGS reaches the server as separate arguments.
 render | tr -d ' \n' | grep -q -- 'command:-postgresenvironment:' ||
 	fail "default: postgres command is not the image's own"
