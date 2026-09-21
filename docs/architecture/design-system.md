@@ -144,7 +144,8 @@ still declares a border, a fill and a radius, it has not adopted the part.
   irreversible actions.
 - **`.modal`** is only ever rendered by `<Modal>`, which supplies the
   scrim, the header, Escape, scrim-click and focus handling. `small` is
-  the one-question size.
+  the one-question size. Content taller than the panel scrolls between the
+  header and the actions, which stay in view.
 - **`.popover`** is the look of anything that floats: border, `--panel`,
   `--radius-md`, shadow. The adopter keeps its own position, `z-index` and
   padding. The pickers, the pins panel, the user card and the live popover
