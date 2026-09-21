@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/trustedproxy"
@@ -309,21 +310,30 @@ func (s *Service) PublicURL(ctx context.Context) (string, error) {
 func validatePublicURL(raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
-		return "", connect.NewError(connect.CodeInvalidArgument,
-			errors.New("public_url must look like https://chat.example.com"))
+		return "", apierr.Field(connect.CodeInvalidArgument, "public_url",
+			errors.New("the public address must look like https://chat.example.com"))
 	}
 	return strings.TrimSuffix(raw, "/"), nil
 }
 
 func validateTURN(t TURNRelay) error {
-	for _, u := range append(append([]string{}, t.URLs...), t.STUNURLs...) {
-		if !strings.HasPrefix(u, "turn:") && !strings.HasPrefix(u, "turns:") && !strings.HasPrefix(u, "stun:") && !strings.HasPrefix(u, "stuns:") {
-			return connect.NewError(connect.CodeInvalidArgument,
-				fmt.Errorf("%q is not a turn:, turns:, stun:, or stuns: URL", u))
+	for _, list := range []struct {
+		field string
+		urls  []string
+	}{{"turn.urls", t.URLs}, {"turn.stun_urls", t.STUNURLs}} {
+		for _, u := range list.urls {
+			if !strings.HasPrefix(u, "turn:") && !strings.HasPrefix(u, "turns:") && !strings.HasPrefix(u, "stun:") && !strings.HasPrefix(u, "stuns:") {
+				return apierr.Field(connect.CodeInvalidArgument, list.field,
+					fmt.Errorf("%q is not a turn:, turns:, stun:, or stuns: URL", u))
+			}
 		}
 	}
 	if len(t.URLs) > 0 && (t.Username == "" || t.Credential == "") {
-		return connect.NewError(connect.CodeInvalidArgument,
+		field := "turn.credential"
+		if t.Username == "" {
+			field = "turn.username"
+		}
+		return apierr.Field(connect.CodeInvalidArgument, field,
 			errors.New("a TURN relay needs a username and credential"))
 	}
 	return nil
@@ -394,7 +404,7 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 				cf.APIToken = prev.APIToken
 			}
 			if cf.APIToken == "" {
-				return nil, connect.NewError(connect.CodeInvalidArgument,
+				return nil, apierr.Field(connect.CodeInvalidArgument, "cloudflare.api_token",
 					errors.New("cloudflare TURN needs the key's API token"))
 			}
 		}
@@ -409,13 +419,13 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 			AuthKey: strings.TrimSpace(in.AuthKey), ControlURL: strings.TrimSpace(in.ControlUrl),
 		}
 		if ts.Hostname != "" && !validHostname(ts.Hostname) {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
-				errors.New("hostname must be letters, digits, and hyphens"))
+			return nil, apierr.Field(connect.CodeInvalidArgument, "tailscale.hostname",
+				errors.New("the node name must be letters, digits, and hyphens"))
 		}
 		if ts.ControlURL != "" {
 			if u, err := url.Parse(ts.ControlURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-				return nil, connect.NewError(connect.CodeInvalidArgument,
-					errors.New("control_url must be an http(s) URL"))
+				return nil, apierr.Field(connect.CodeInvalidArgument, "tailscale.control_url",
+					errors.New("the control URL must be an http(s) URL"))
 			}
 		}
 		if ts.AuthKey == "" {
@@ -441,11 +451,11 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 	if req.Msg.TrustedProxies != nil {
 		cidrs := trimAll(req.Msg.TrustedProxies.Cidrs)
 		if len(cidrs) > maxTrustedProxies {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
+			return nil, apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs",
 				fmt.Errorf("at most %d trusted proxy addresses", maxTrustedProxies))
 		}
 		if _, err := trustedproxy.Parse(cidrs); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+			return nil, apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs", err)
 		}
 		if err := s.writeJSON(ctx, keyTrustedProxies, cidrs); err != nil {
 			return nil, err

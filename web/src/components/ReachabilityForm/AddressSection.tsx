@@ -1,14 +1,16 @@
 import { SettingRow } from "../SettingRow";
-import type { Fields, SetField } from "./fields";
+import type { Fields, ReachErrors, SetField } from "./fields";
 
 // How requests arrive: the address people use, and whatever forwards
 // them here.
 export function AddressSection({
   fields,
+  errors,
   set,
   trustAll,
 }: {
   fields: Fields;
+  errors: ReachErrors;
   set: SetField;
   // Whether the server is currently trusting every caller's forwarded
   // headers (STOOP_TRUST_PROXY=true), which naming proxies replaces.
@@ -21,6 +23,7 @@ export function AddressSection({
         className="reach-group reach-address"
         title="Public address"
         description="The address people use to reach this Stoop server. Invite links are built from it. Leave it blank to use whatever address the person copying a link happens to be on."
+        error={errors.publicUrl}
       >
         <input
           id="reach-public-url"
@@ -43,6 +46,7 @@ export function AddressSection({
             sign-in rate limit. Changes apply immediately — no restart.
           </>
         }
+        error={errors["trustedProxies.cidrs"]}
       >
         <input
           id="reach-proxies"

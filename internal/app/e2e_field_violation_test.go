@@ -94,3 +94,34 @@ func TestE2ESpaceSettingsFieldViolation(t *testing.T) {
 		}
 	}
 }
+
+// Hosting and login providers name nested and listed fields by path.
+func TestE2EHostingFieldViolation(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	const reach = "stoop.instance.v1.InstanceService/UpdateReachability"
+	const providers = "stoop.instance.v1.InstanceService/UpdateLoginProviders"
+	google := map[string]any{"id": "google", "issuer": "https://accounts.google.com", "clientId": "c", "clientSecret": "s"}
+	for _, c := range []struct {
+		name, procedure string
+		req             map[string]any
+		field           string
+	}{
+		{"public address", reach, map[string]any{"publicUrl": "chat.example.com"}, "public_url"},
+		{"a hostname as a proxy", reach, map[string]any{"trustedProxies": map[string]any{"cidrs": []string{"proxy.example.com"}}}, "trusted_proxies.cidrs"},
+		{"a web URL as a relay", reach, map[string]any{"turn": map[string]any{"urls": []string{"https://turn.example.com"}}}, "turn.urls"},
+		{"a web URL as a STUN server", reach, map[string]any{"turn": map[string]any{"stunUrls": []string{"https://stun.example.com"}}}, "turn.stun_urls"},
+		{"a relay with no username", reach, map[string]any{"turn": map[string]any{"urls": []string{"turn:turn.example.com:3478"}}}, "turn.username"},
+		{"a node name with a dot", reach, map[string]any{"tailscale": map[string]any{"hostname": "my.node"}}, "tailscale.hostname"},
+		{"a control URL with no scheme", reach, map[string]any{"tailscale": map[string]any{"controlUrl": "headscale"}}, "tailscale.control_url"},
+		{"not a tunnel token", reach, map[string]any{"cloudflareTunnel": map[string]any{"enabled": true, "token": "nope"}}, "cloudflare_tunnel.token"},
+		{"second provider, no client id", providers, map[string]any{"providers": []any{google, map[string]any{"id": "authentik", "issuer": "https://auth.example.com", "clientSecret": "s"}}}, "providers[1].client_id"},
+		{"second provider, bad issuer", providers, map[string]any{"providers": []any{google, map[string]any{"id": "authentik", "issuer": "auth.example.com", "clientId": "c", "clientSecret": "s"}}}, "providers[1].issuer"},
+		{"a duplicate id", providers, map[string]any{"providers": []any{google, google}}, "providers[1].id"},
+	} {
+		r := h.rpc(casey, c.procedure, c.req).expect(t, "invalid_argument")
+		if got := r.field(); got != c.field {
+			t.Errorf("%s: field = %q, want %q (%s)", c.name, got, c.field, r.message())
+		}
+	}
+}

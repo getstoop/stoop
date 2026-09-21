@@ -1,13 +1,21 @@
 import type { Reachability } from "../../gen/stoop/instance/v1/reachability_pb";
+import { Field } from "../Field";
 import { LearnMore } from "../LearnMore";
 import { SettingRow } from "../SettingRow";
-import type { Fields, Secrets, SetField, SetSecrets } from "./fields";
+import type {
+  Fields,
+  ReachErrors,
+  Secrets,
+  SetField,
+  SetSecrets,
+} from "./fields";
 
 // Carries voice audio for browsers that can't reach LiveKit's media ports
 // directly. Two ways to answer the same question, so they share a
 // section: Cloudflare's relay, and one you run yourself. Both can be on.
 export function VoiceRelaySection({
   fields,
+  errors,
   set,
   secrets,
   setSecrets,
@@ -16,6 +24,7 @@ export function VoiceRelaySection({
   saved,
 }: {
   fields: Fields;
+  errors: ReachErrors;
   set: SetField;
   secrets: Secrets;
   setSecrets: SetSecrets;
@@ -36,6 +45,7 @@ export function VoiceRelaySection({
     >
       <CloudflareRelay
         fields={fields}
+        errors={errors}
         set={set}
         secrets={secrets}
         setSecrets={setSecrets}
@@ -43,6 +53,7 @@ export function VoiceRelaySection({
       />
       <OwnRelay
         fields={fields}
+        errors={errors}
         set={set}
         secrets={secrets}
         setSecrets={setSecrets}
@@ -56,12 +67,14 @@ export function VoiceRelaySection({
 
 function CloudflareRelay({
   fields,
+  errors,
   set,
   secrets,
   setSecrets,
   hasApiToken,
 }: {
   fields: Fields;
+  errors: ReachErrors;
   set: SetField;
   secrets: Secrets;
   setSecrets: SetSecrets;
@@ -89,16 +102,14 @@ function CloudflareRelay({
       {fields.cloudflareTurnEnabled && (
         <>
           <div className="reach-relay">
-            <label>
-              Key id
+            <Field label="Key id" error={errors["cloudflare.keyId"]}>
               <input
                 value={fields.cfKey}
                 onChange={(e) => set("cfKey", e.target.value)}
                 autoComplete="off"
               />
-            </label>
-            <label>
-              API token
+            </Field>
+            <Field label="API token" error={errors["cloudflare.apiToken"]}>
               <input
                 type="password"
                 value={secrets.cfToken}
@@ -108,7 +119,7 @@ function CloudflareRelay({
                 placeholder={hasApiToken ? "(saved — leave blank to keep)" : ""}
                 autoComplete="off"
               />
-            </label>
+            </Field>
           </div>
           <LearnMore>
             <p className="hint">
@@ -125,6 +136,7 @@ function CloudflareRelay({
 
 function OwnRelay({
   fields,
+  errors,
   set,
   secrets,
   setSecrets,
@@ -133,6 +145,7 @@ function OwnRelay({
   hasCredential,
 }: {
   fields: Fields;
+  errors: ReachErrors;
   set: SetField;
   secrets: Secrets;
   setSecrets: SetSecrets;
@@ -163,32 +176,31 @@ function OwnRelay({
       </label>
       {show && (
         <>
-          <label>
-            TURN URLs (comma-separated)
+          <Field
+            label="TURN URLs (comma-separated)"
+            error={errors["turn.urls"]}
+          >
             <input
               value={fields.turnUrls}
               onChange={(e) => set("turnUrls", e.target.value)}
               placeholder="turns:turn.example.com:5349, turn:turn.example.com:3478?transport=udp"
             />
-          </label>
-          <label>
-            STUN URLs
+          </Field>
+          <Field label="STUN URLs" error={errors["turn.stunUrls"]}>
             <input
               value={fields.stunUrls}
               onChange={(e) => set("stunUrls", e.target.value)}
               placeholder="stun:turn.example.com:3478"
             />
-          </label>
-          <label>
-            Username
+          </Field>
+          <Field label="Username" error={errors["turn.username"]}>
             <input
               value={fields.turnUser}
               onChange={(e) => set("turnUser", e.target.value)}
               autoComplete="off"
             />
-          </label>
-          <label>
-            Credential
+          </Field>
+          <Field label="Credential" error={errors["turn.credential"]}>
             <input
               type="password"
               value={secrets.turnCred}
@@ -198,7 +210,7 @@ function OwnRelay({
               placeholder={hasCredential ? "(saved — leave blank to keep)" : ""}
               autoComplete="off"
             />
-          </label>
+          </Field>
         </>
       )}
     </div>

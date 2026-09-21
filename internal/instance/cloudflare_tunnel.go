@@ -9,6 +9,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+
+	"github.com/getstoop/stoop/internal/apierr"
 )
 
 const keyCloudflareTunnel = "cloudflare_tunnel"
@@ -57,7 +59,7 @@ func ParseTunnelToken(token string) (string, error) {
 	if token == "" {
 		return "", nil
 	}
-	bad := connect.NewError(connect.CodeInvalidArgument,
+	bad := apierr.Field(connect.CodeInvalidArgument, "cloudflare_tunnel.token",
 		errors.New("that isn't a tunnel token; copy it from the tunnel's page in Cloudflare"))
 	raw, err := base64.StdEncoding.DecodeString(token)
 	if err != nil {
@@ -91,7 +93,7 @@ func (s *Service) updateCloudflareTunnel(ctx context.Context, enabled bool, toke
 		token = prev.Token
 	}
 	if enabled && token == "" && s.env.CloudflareTunnel.Token == "" {
-		return connect.NewError(connect.CodeInvalidArgument,
+		return apierr.Field(connect.CodeInvalidArgument, "cloudflare_tunnel.token",
 			errors.New("a Cloudflare Tunnel needs the tunnel's token"))
 	}
 	t := CloudflareTunnelSettings{Enabled: enabled, Token: token}

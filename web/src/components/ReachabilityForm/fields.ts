@@ -56,6 +56,26 @@ export const EMPTY: Fields = {
   tunnelEnabled: false,
 };
 
+// Where a refusal can land: the request's own field paths, as
+// fieldError() spells them.
+export const REACH_FIELDS = [
+  "publicUrl",
+  "trustedProxies.cidrs",
+  "cloudflareTunnel.token",
+  "tailscale.controlUrl",
+  "tailscale.hostname",
+  "tailscale.authKey",
+  "cloudflare.keyId",
+  "cloudflare.apiToken",
+  "turn.urls",
+  "turn.stunUrls",
+  "turn.username",
+  "turn.credential",
+] as const;
+export type ReachErrors = Partial<
+  Record<(typeof REACH_FIELDS)[number], string>
+>;
+
 // What a section gets to edit with: one field at a time, or the secrets.
 export type SetField = <K extends keyof Fields>(
   key: K,

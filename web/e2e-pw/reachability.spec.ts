@@ -188,7 +188,7 @@ test("reaching your server, in setup and on the admin page", async ({
   ).toHaveText("LiveKit");
 
   await section.locator(".reach-own-relay .reach-check input").check();
-  const own = section.locator(".reach-own-relay label:not(.reach-check) input");
+  const own = section.locator(".reach-own-relay .field input");
   await own.nth(0).fill("turns:turn.example.test:5349");
   await own.nth(1).fill("stun:turn.example.test:3478");
   await own.nth(2).fill("relay-user");
@@ -313,8 +313,8 @@ test("reaching your server, in setup and on the admin page", async ({
   await proxies.fill("proxy.example.com");
   await adminSave.click();
   await expect(
-    section.locator(".reach-form > .error"),
-    "a hostname is refused as a proxy address",
+    section.locator(".reach-proxies .field-error"),
+    "a hostname is refused as a proxy address, under that field",
   ).toContainText("not an IP address");
   await proxies.fill("10.0.0.0/8, 192.168.1.5");
   await adminSave.click();
