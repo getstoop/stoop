@@ -4,7 +4,9 @@ import { filesClient, instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { MAX_ATTACHMENT_BYTES } from "../../api/files";
 import { useInstanceStatus } from "../../api/queries";
+import { NumberInput } from "../../components/NumberInput";
 import { SettingRow } from "../../components/SettingRow";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { formatBytes, GB } from "./bytes";
 
 const MB = 1024 * 1024;
@@ -27,7 +29,7 @@ export function StorageSection() {
   const [limitMb, setLimitMb] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["storageQuotaBytes", "maxUploadBytes"]);
   const shownGb =
     limitGb ?? (usage ? String(Number(usage.quotaBytes) / GB) : "");
   const shownMb =
@@ -38,25 +40,32 @@ export function StorageSection() {
     e.preventDefault();
     const gb = Number(shownGb);
     const mb = Number(shownMb);
+    form.begin();
     if (!Number.isFinite(gb) || gb < 0) {
-      setError("Enter a storage limit in GB, or 0 for no limit.");
+      form.set(
+        "storageQuotaBytes",
+        "Enter a storage limit in GB, or 0 for no limit.",
+      );
       return;
     }
     if (!Number.isFinite(mb) || mb <= 0 || mb > CEILING_MB) {
-      setError(`Enter a size per file in MB, between 1 and ${CEILING_MB}.`);
+      form.set(
+        "maxUploadBytes",
+        `Enter a size per file in MB, between 1 and ${CEILING_MB}.`,
+      );
       return;
     }
     // A per-file cap above the whole disk allowance is a limit that can
     // never be reached. The server refuses it too; this only answers
     // before the round trip.
     if (gb > 0 && mb * MB > gb * GB) {
-      setError(
+      form.set(
+        "maxUploadBytes",
         "The size per file is more than the storage limit. Raise the limit, or pick a smaller size.",
       );
       return;
     }
     setBusy(true);
-    setError(null);
     setSaved(false);
     try {
       await instanceClient.updateSettings({
@@ -69,17 +78,18 @@ export function StorageSection() {
       await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
       setSaved(true);
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <form className="storage-section" onSubmit={save}>
+    <form className="storage-section" ref={form.formRef} onSubmit={save}>
       <SettingRow
         id="storage-quota"
         className="storage-quota"
+        error={form.errors.storageQuotaBytes}
         title="Upload storage limit"
         description={
           <>
@@ -103,20 +113,20 @@ export function StorageSection() {
         {usage && usage.quotaBytes > 0n && (
           <StorageBar used={usage.usedBytes} limit={usage.quotaBytes} />
         )}
-        <input
+        <NumberInput
+          unit="GB"
           id="storage-quota"
-          type="number"
           min="0"
           step="0.5"
           value={shownGb}
           disabled={busy || !usage}
           onChange={(e) => setLimitGb(e.target.value)}
         />
-        <span className="muted small">GB</span>
       </SettingRow>
       <SettingRow
         id="max-upload"
         className="upload-limit"
+        error={form.errors.maxUploadBytes}
         title="Maximum size per file"
         description={
           <>
@@ -129,9 +139,9 @@ export function StorageSection() {
           </>
         }
       >
-        <input
+        <NumberInput
+          unit="MB"
           id="max-upload"
-          type="number"
           min="1"
           max={CEILING_MB}
           step="1"
@@ -139,11 +149,10 @@ export function StorageSection() {
           disabled={busy || !status}
           onChange={(e) => setLimitMb(e.target.value)}
         />
-        <span className="muted small">MB</span>
       </SettingRow>
-      {error && (
+      {form.formError && (
         <p className="error" role="alert">
-          {error}
+          {form.formError}
         </p>
       )}
       <div className="setting-actions">

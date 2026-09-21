@@ -125,3 +125,30 @@ func TestE2EHostingFieldViolation(t *testing.T) {
 		}
 	}
 }
+
+// Server admin settings name the field they refuse, the two retention
+// fields apart.
+func TestE2ESettingsFieldViolation(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	const update = "stoop.instance.v1.InstanceService/UpdateSettings"
+	for _, c := range []struct {
+		name  string
+		req   map[string]any
+		code  string
+		field string
+	}{
+		{"blank server name", map[string]any{"instanceName": "  "}, "invalid_argument", "instance_name"},
+		{"two years signed in", map[string]any{"sessionLifetimeDays": 730}, "invalid_argument", "session_lifetime_days"},
+		{"messages kept too long", map[string]any{"messageRetentionDays": 99999}, "invalid_argument", "message_retention_days"},
+		{"attachments kept too long", map[string]any{"attachmentRetentionDays": 99999}, "invalid_argument", "attachment_retention_days"},
+		{"a negative storage limit", map[string]any{"storageQuotaBytes": "-1"}, "invalid_argument", "storage_quota_bytes"},
+		{"a file bigger than the disk", map[string]any{"storageQuotaBytes": "1048576", "maxUploadBytes": "2097152"}, "invalid_argument", "max_upload_bytes"},
+		{"passwords off with no provider", map[string]any{"passwordSignIn": "PASSWORD_SIGN_IN_OFF"}, "failed_precondition", "password_sign_in"},
+	} {
+		r := h.rpc(casey, update, c.req).expect(t, c.code)
+		if got := r.field(); got != c.field {
+			t.Errorf("%s: field = %q, want %q (%s)", c.name, got, c.field, r.message())
+		}
+	}
+}

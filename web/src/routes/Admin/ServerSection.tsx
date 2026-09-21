@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { instanceClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
 import { useInstanceStatus } from "../../api/queries";
 import { SettingRow } from "../../components/SettingRow";
 import {
   RegistrationPolicy,
   SpaceCreationPolicy,
 } from "../../gen/stoop/instance/v1/instance_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 const MAX_NAME_LENGTH = 100;
 
@@ -64,7 +64,11 @@ export function ServerSection() {
   );
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors([
+    "instanceName",
+    "registrationPolicy",
+    "spaceCreation",
+  ]);
 
   const shownName = nameDraft ?? status?.instanceName ?? "";
   const shownPolicy =
@@ -79,12 +83,12 @@ export function ServerSection() {
   const save = async (e: FormEvent) => {
     e.preventDefault();
     const name = shownName.trim();
+    form.begin();
     if (nameDraft !== null && !name) {
-      setError("Enter a server name.");
+      form.set("instanceName", "Enter a server name.");
       return;
     }
     setBusy(true);
-    setError(null);
     setSaved(false);
     try {
       await instanceClient.updateSettings({
@@ -98,18 +102,19 @@ export function ServerSection() {
       await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
       setSaved(true);
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <form className="card" onSubmit={save}>
+    <form className="card" ref={form.formRef} onSubmit={save}>
       <SettingRow
         id="instance-name"
         title="Server name"
         description="Shown in the browser tab. Starts out random so instances aren't all named the same."
+        error={form.errors.instanceName}
       >
         <input
           id="instance-name"
@@ -123,6 +128,7 @@ export function ServerSection() {
         id="registration-policy"
         title="Who can create an account"
         description={POLICIES.find((p) => p.value === shownPolicy)?.hint}
+        error={form.errors.registrationPolicy}
       >
         <select
           id="registration-policy"
@@ -144,6 +150,7 @@ export function ServerSection() {
         id="space-creation"
         title="Who can create spaces"
         description={SPACE_CREATION.find((p) => p.value === shownSpace)?.hint}
+        error={form.errors.spaceCreation}
       >
         <select
           id="space-creation"
@@ -161,9 +168,9 @@ export function ServerSection() {
           ))}
         </select>
       </SettingRow>
-      {error && (
+      {form.formError && (
         <p className="error" role="alert">
-          {error}
+          {form.formError}
         </p>
       )}
       <div className="setting-actions">
