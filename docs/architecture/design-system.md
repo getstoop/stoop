@@ -12,7 +12,8 @@ The web client's look is four things, each in one place:
   the utilities in `base.css`. A part is a CSS class first. It becomes a
   React component only where there is behaviour to share: `Modal`,
   `DialogHost`, `DotsMenu`, `Tooltip`, `CopyButton`, `Avatar`, `DataTable`,
-  `SettingRow`, `SettingsFrame` (all in `web/src/components/`).
+  `SettingRow`, `SettingsFrame`, `Field`, `Input`, `NumberInput` (all in
+  `web/src/components/`).
 - **The lint that holds it.** Three scripts under `scripts/`, run by
   `make lint` and CI.
 - **The workspace.** Storybook (`make storybook`), where a part is built
@@ -165,11 +166,44 @@ without a fight. A feature never declares an input from scratch; it
 overrides the one property that differs. `aria-invalid="true"` turns the
 border to `--danger`.
 
-`.field` is words above the field (with `.field-label-row` when a counter
-sits beside the words). `label.toggle-row` is a checkbox beside its words.
+**`<Field>`** is words above a control: a label row with an optional
+`counter` on its right, the control, then its `error` and its `hint`. The
+control is the child. `Field` gives it its id, points its
+`aria-describedby` at the error and the hint, and sets `aria-invalid` when
+there is an error, so a screen reader hears which input a refusal is about.
+A refused field keeps its hint; the error sits between the control and the
+hint, and the form grows by that one line. A child with something outside
+the control (an input and a button) is a function that receives the wiring
+as a `FieldControl` (`id`, `describedBy`, `invalid`) and spreads
+`controlAttrs(control)` on the control. Two fields on one line go in a
+`.field-pair`.
+
 On a settings page, a `<SettingRow>` inside a `.card` lays out title,
 description and control; `<SettingsFrame>` is the page around them
-([web.md](web.md#the-settings-frame)).
+([web.md](web.md#the-settings-frame)). It takes the same `error`, drawn
+under its control, and its description is the hint. `label.toggle-row` is a
+checkbox beside its words and is not a `Field`.
+
+**`<Input>`** is a text input with a `start` and an `end`: an icon, a unit,
+a button. The wrapper is the box and the input inside it is bare, so the
+focus halo and the danger border go round the slots. Use it when there is
+something to put in a slot; a plain `<input>` is still right otherwise.
+
+**`<NumberInput>`** is an `Input` for a number, with an optional `unit` and
+the kit's stepper, in place of the browser's spinner, which no theme can
+reach. A bare `<input type="number">` still shows the browser's; number
+inputs move to `NumberInput` with their forms. The stepper calls the input's own
+`stepUp()` and `stepDown()`, so `min`, `max` and `step` hold, and it is out
+of the tab order because the arrow keys already step.
+
+A form holds its refusals with `useFieldErrors` (`hooks/`): `errors` by
+field name, `formError` for what belongs to no field, `begin()` at the top
+of a submit, `fail(err)` for a refused one, `set(field, message)` for a
+client-side check. Errors clear at the next submit, and after a refusal
+focus goes to the first invalid control.
+
+Most forms still hand-build `label.field` and show one form-level line;
+they move to `Field` area by area.
 
 ### Tables
 
@@ -182,7 +216,7 @@ columns and cells; it does not style a `<table>`.
 
 | Situation | Pattern |
 | --------- | ------- |
-| A submit failed | A `.error` line in the form, beside the fields it is about, rendered conditionally with `role="alert"` so it is announced. The form stays open with what was typed still in it; a failed submit is never reported by closing the form and raising a `notice`. A `prompt` does this through its `submit` option. |
+| A submit failed | The `error` of the `Field` or `SettingRow` it is about. What belongs to no field (a rate limit, the network, a permission) is a `.error` line above the buttons. Both are rendered conditionally with `role="alert"` so they are announced. The form stays open with what was typed still in it; a failed submit is never reported by closing the form and raising a `notice`. A `prompt` does this through its `submit` option. |
 | A field's standing note in danger colour | A static `.error`, no role. |
 | Something the user should keep in mind while here | `.callout` / `.callout.warn`. |
 | A question, or an error with no form to carry it | `confirm`, `prompt` or `notice` from `stores/dialogs.ts`. They return promises, queue, and render through `DialogHost` on the `Modal` frame. A destructive `confirm` focuses Cancel. |

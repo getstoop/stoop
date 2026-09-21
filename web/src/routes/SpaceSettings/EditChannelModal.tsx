@@ -2,9 +2,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
 import { CHANNEL_NAME_HINT, MAX_CHANNEL_TOPIC } from "../../api/channels";
 import { chatClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
+import { Field } from "../../components/Field";
 import { Modal } from "../../components/Modal";
 import type { Channel } from "../../gen/stoop/chat/v1/channel_pb";
+import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // A channel's name and topic, from its row in Space settings → Channels.
 // Only what changed is sent; an emptied topic is cleared.
@@ -20,7 +21,7 @@ export function EditChannelModal({
   const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const form = useFieldErrors(["name", "topic"]);
 
   const nextName = name.trim();
   const nextTopic = topic.trim();
@@ -30,7 +31,7 @@ export function EditChannelModal({
     e.preventDefault();
     if (!changed || !nextName) return;
     setBusy(true);
-    setError(null);
+    form.begin();
     try {
       await chatClient.updateChannel({
         channelId: channel.id,
@@ -42,7 +43,7 @@ export function EditChannelModal({
       });
       onClose();
     } catch (err) {
-      setError(errorText(err));
+      form.fail(err);
       setBusy(false);
     }
   };
@@ -69,11 +70,11 @@ export function EditChannelModal({
     >
       <form
         id={formId}
+        ref={form.formRef}
         className="modal-form channel-edit-form"
         onSubmit={save}
       >
-        <label className="field">
-          Name
+        <Field label="Name" hint={CHANNEL_NAME_HINT} error={form.errors.name}>
           <input
             name="channel-name"
             value={name}
@@ -82,10 +83,8 @@ export function EditChannelModal({
             // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
             autoFocus
           />
-          <span className="hint">{CHANNEL_NAME_HINT}</span>
-        </label>
-        <label className="field">
-          Topic
+        </Field>
+        <Field label="Topic" error={form.errors.topic}>
           <input
             name="channel-topic"
             value={topic}
@@ -93,10 +92,10 @@ export function EditChannelModal({
             placeholder="One line, shown in the channel header."
             onChange={(e) => setTopic(e.target.value)}
           />
-        </label>
-        {error && (
+        </Field>
+        {form.formError && (
           <p className="error" role="alert">
-            {error}
+            {form.formError}
           </p>
         )}
       </form>

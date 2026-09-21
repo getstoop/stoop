@@ -143,6 +143,11 @@
   max-width: 420px;
 }
 
+.setting-control > .input {
+  flex: 1 1 160px;
+  max-width: 420px;
+}
+
 .setting-control > select {
   flex: 0 0 auto;
   width: max-content;

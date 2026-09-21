@@ -85,3 +85,123 @@ label.toggle-row input[type="checkbox"] {
   width: auto;
   margin: 4px 0 0;
 }
+
+/* ---- Field: a label row, the control, its error, its hint. ---- */
+.field-label-row > label {
+  color: inherit;
+}
+
+.field-error {
+  font-size: var(--text-ui);
+}
+
+/* A card pulls a hint up under its heading; under a control it stays put. */
+.field > p.hint {
+  margin-top: 0;
+}
+
+/* Two fields on one line; each grows on its own when it is refused. */
+.field-pair {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+/* ---- Input: the wrapper is the box, the input inside it is bare. ---- */
+.input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.input:hover {
+  border-color: color-mix(in srgb, var(--border) 50%, var(--text-muted));
+}
+
+.input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.input:has([aria-invalid="true"]) {
+  border-color: var(--danger);
+}
+
+.input > input,
+.input > input:focus-visible {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  padding: 8px 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.input-slot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+}
+
+/* ---- NumberInput: the browser's spinner cannot be themed, so it is
+   hidden and the kit draws the stepper. ---- */
+.input > input[type="number"] {
+  appearance: textfield;
+}
+
+.input > input[type="number"]::-webkit-inner-spin-button,
+.input > input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.stepper {
+  display: inline-flex;
+  flex-direction: column;
+  /* off-scale: pulls the arrows to the box's edge, inside its 12px padding */
+  margin-right: -6px;
+}
+
+.stepper button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.stepper button:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+/* ChevronIcon points right. */
+.stepper button:first-child svg {
+  transform: rotate(-90deg);
+}
+
+.stepper button:last-child svg {
+  transform: rotate(90deg);
+}
