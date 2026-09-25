@@ -20,6 +20,7 @@ import (
 type Cmd struct {
 	Name   string
 	Args   []string
+	Env    []string // added to the process environment, for a value that must not be an argument
 	Stdout io.Writer
 	Stderr io.Writer
 }
@@ -44,6 +45,9 @@ type ExecRunner struct {
 func (r ExecRunner) Run(ctx context.Context, c Cmd) Result {
 	cmd := exec.CommandContext(ctx, c.Name, c.Args...)
 	cmd.Dir = r.Dir
+	if len(c.Env) > 0 {
+		cmd.Env = append(os.Environ(), c.Env...)
+	}
 	var out, errBuf bytes.Buffer
 	if c.Stdout == nil {
 		cmd.Stdout = &out

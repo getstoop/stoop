@@ -19,6 +19,7 @@ import (
 type fakeRunner struct {
 	script []scripted
 	calls  []string
+	envs   []string
 }
 
 type scripted struct {
@@ -30,6 +31,7 @@ type scripted struct {
 func (f *fakeRunner) Run(_ context.Context, c Cmd) Result {
 	call := c.Name + " " + strings.Join(c.Args, " ")
 	f.calls = append(f.calls, call)
+	f.envs = append(f.envs, c.Env...)
 	for _, s := range f.script {
 		if strings.HasPrefix(call, s.prefix) {
 			if s.do != nil {
@@ -43,6 +45,16 @@ func (f *fakeRunner) Run(_ context.Context, c Cmd) Result {
 		}
 	}
 	return Result{Code: 127, Stderr: "unscripted: " + call}
+}
+
+func (f *fakeRunner) answer(prefix string, res Result) {
+	for i := range f.script {
+		if f.script[i].prefix == prefix {
+			f.script[i].res = res
+			return
+		}
+	}
+	panic("no scripted " + prefix)
 }
 
 func (f *fakeRunner) called(prefix string) bool {
@@ -89,6 +101,9 @@ func install(t *testing.T, runner *fakeRunner, fetch fakeFetcher) (*Upgrader, *b
 	if err := os.WriteFile(filepath.Join(dir, envFile), []byte(oldEnv), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(dir, "livekit.yaml"), []byte("old livekit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	var out bytes.Buffer
 	u := &Upgrader{
 		Options: Options{Dir: dir, Yes: true, Repo: "https://example.test/stoop", API: "https://api.test/latest", Wait: "600"},
@@ -106,6 +121,7 @@ func releaseFetcher() fakeFetcher {
 		"https://api.test/latest": []byte(`{"tag_name":"v0.3.0"}`),
 		"https://example.test/stoop/releases/download/v0.3.0/docker-compose.yml": []byte(newCompose),
 		"https://example.test/stoop/releases/download/v0.3.0/env.example":        []byte(newExample),
+		"https://example.test/stoop/releases/download/v0.3.0/livekit.yaml":       []byte("new livekit\n"),
 	}
 }
 
@@ -125,9 +141,27 @@ func happyRunner(t *testing.T, u **Upgrader, plan db.Plan, version string) *fake
 		{prefix: "docker compose up -d --remove-orphans --wait --wait-timeout 600", res: Result{}},
 		{prefix: "docker compose exec -T stoop stoop version", res: Result{Stdout: "stoop " + version + " (abc1234)\n"}},
 		{prefix: "docker compose logs --tail 40 stoop", res: Result{}},
-		{prefix: "docker compose run --rm --no-deps -T stoop migrate status --json", res: Result{Stdout: reportJSON(t, db.Plan{Applied: 42, Newest: 42})}},
+		{prefix: statusCmd, res: Result{Stdout: reportJSON(t, db.Plan{Applied: 42, Newest: 42})}},
 	}
 	return r
+}
+
+const statusCmd = "docker compose run --rm --no-deps -T stoop migrate status --json"
+
+// withRelease adds a tagged release to the table for one test, so a floor
+// raised past 0.2.0 has a release that can start against it.
+func withRelease(t *testing.T, version string, migration int64) {
+	t.Helper()
+	prev := db.Releases
+	db.Releases = append(append([]db.Release{}, prev...), db.Release{Version: version, Migration: migration})
+	t.Cleanup(func() { db.Releases = prev })
+}
+
+// floorPast020 is a status answer after a contract migration raised the
+// floor to 42: only 0.3.0 starts, so 0.2.0 needs the restore.
+func floorPast020(t *testing.T) Result {
+	t.Helper()
+	return Result{Stdout: reportJSON(t, db.Plan{Applied: 45, Newest: 45, Floor: 42, FloorAfter: 42})}
 }
 
 var pendingPlan = db.Plan{Applied: 37, Newest: 42, Pending: []db.Migration{{Version: 38, Name: "session_user_agent"}, {Version: 42, Name: "message_fk_indexes"}}}
@@ -162,9 +196,24 @@ func TestUpgrade(t *testing.T) {
 	if string(now) != newCompose || string(prev) != oldCompose {
 		t.Errorf("files after the switch: compose=%q prev=%q", now, prev)
 	}
-	dump, _ := os.ReadFile(filepath.Join(u.Dir, "backups", "20260925-180000-0.2.0-to-0.3.0", "stoop.dump"))
+	dumpPath := filepath.Join(u.Dir, "backups", "20260925-180000-0.2.0-to-0.3.0", "stoop.dump")
+	dump, _ := os.ReadFile(dumpPath)
 	if string(dump) != "PGDMP..." {
 		t.Errorf("dump = %q", dump)
+	}
+	if info, err := os.Stat(dumpPath); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("the dump should be owner-only, got %v", info.Mode())
+	}
+	if info, err := os.Stat(filepath.Dir(dumpPath)); err != nil || info.Mode().Perm() != 0o700 {
+		t.Errorf("the backup directory should be owner-only, got %v", info.Mode())
+	}
+	lk, _ := os.ReadFile(filepath.Join(u.Dir, "livekit.yaml"))
+	lkPrev, _ := os.ReadFile(filepath.Join(u.Dir, "livekit.yaml.prev"))
+	if string(lk) != "new livekit\n" || string(lkPrev) != "old livekit\n" {
+		t.Errorf("companion after the switch: livekit.yaml=%q prev=%q", lk, lkPrev)
+	}
+	if !r.called("docker compose -f docker-compose.yml.next run --rm") {
+		t.Errorf("plan should name only the next file when there is no override:\n%s", strings.Join(r.calls, "\n"))
 	}
 	for _, gone := range []string{nextFile, envNextFile} {
 		if _, err := os.Stat(filepath.Join(u.Dir, gone)); err == nil {
@@ -284,8 +333,12 @@ func TestUpgradeFailure(t *testing.T) {
 		t.Error("the previous file is not there for rollback")
 	}
 
-	contract := db.Plan{Applied: 37, Newest: 45, Floor: 0, FloorAfter: 37, Pending: []db.Migration{{Version: 45, Name: "drop_sessions"}}}
+	// A planned contract migration that did run: the floor moved, so the
+	// running image says only 0.3.0 starts, and the way back is the restore.
+	withRelease(t, "0.3.0", 42)
+	contract := db.Plan{Applied: 37, Newest: 45, Floor: 0, FloorAfter: 42, Pending: []db.Migration{{Version: 45, Name: "drop_sessions"}}}
 	r2 := happyRunner(t, &u, contract, "0.2.0")
+	r2.answer(statusCmd, floorPast020(t))
 	u, out = install(t, r2, releaseFetcher())
 	if err := u.Upgrade(context.Background()); !errors.Is(err, ErrFailed) {
 		t.Fatalf("want ErrFailed, got %v", err)
@@ -300,20 +353,72 @@ func TestUpgradeFailure(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, out.String())
 		}
 	}
+
+	// The same plan, but startup failed before the contract migration ran:
+	// the floor did not move, so 0.2.0 can start and rollback is the answer.
+	r3 := happyRunner(t, &u, contract, "0.2.0")
+	u, out = install(t, r3, releaseFetcher())
+	if err := u.Upgrade(context.Background()); !errors.Is(err, ErrFailed) {
+		t.Fatalf("want ErrFailed, got %v", err)
+	}
+	if !strings.Contains(out.String(), "Nothing it did stops 0.2.0 from starting") || strings.Contains(out.String(), "pg_restore") {
+		t.Errorf("a contract migration that never ran should not send the operator to the restore:\n%s", out.String())
+	}
+
+	// And with no answer from the image at all, the plan decides.
+	r4 := happyRunner(t, &u, contract, "0.2.0")
+	r4.answer(statusCmd, Result{Code: 1, Stderr: "no such image"})
+	u, out = install(t, r4, releaseFetcher())
+	if err := u.Upgrade(context.Background()); !errors.Is(err, ErrFailed) {
+		t.Fatalf("want ErrFailed, got %v", err)
+	}
+	if !strings.Contains(out.String(), "pg_restore") {
+		t.Errorf("with no answer, a planned contract migration should fall back to the restore:\n%s", out.String())
+	}
 }
 
 func TestUpgradeOwnPostgres(t *testing.T) {
 	var u *Upgrader
 	r := happyRunner(t, &u, pendingPlan, "0.3.0")
 	r.script[2] = scripted{prefix: "docker compose ps -q postgres", res: Result{}}
-	r.script = append(r.script, scripted{prefix: "docker run --rm --network host postgres:16-alpine pg_dump -Fc postgres://me@db.lan/stoop", res: Result{Stdout: "PGDMP..."}})
+	r.script = append(r.script, scripted{prefix: "docker run --rm --network host -e STOOP_DATABASE_URL postgres:16-alpine sh -c exec pg_dump", res: Result{Stdout: "PGDMP..."}})
 	u, out := install(t, r, releaseFetcher())
-	_ = os.WriteFile(filepath.Join(u.Dir, envFile), []byte("COMPOSE_PROFILES=\nSTOOP_DATABASE_URL=postgres://me@db.lan/stoop\n"), 0o644)
+	const url = "postgres://me:s3cret@db.lan/stoop"
+	_ = os.WriteFile(filepath.Join(u.Dir, envFile), []byte("COMPOSE_PROFILES=\nSTOOP_DATABASE_URL="+url+"\n"), 0o644)
 	if err := u.Upgrade(context.Background()); err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
-	if !r.called("docker run --rm --network host postgres:16-alpine pg_dump") {
+	if !r.called("docker run --rm --network host -e STOOP_DATABASE_URL postgres:16-alpine sh -c exec pg_dump") {
 		t.Errorf("own postgres should be dumped from a container:\n%s", strings.Join(r.calls, "\n"))
+	}
+	if strings.Contains(strings.Join(r.calls, "\n"), "s3cret") || !strings.Contains(strings.Join(r.envs, "\n"), "STOOP_DATABASE_URL="+url) {
+		t.Errorf("the password must reach pg_dump through the environment only:\ncalls %v\nenvs %v", r.calls, r.envs)
+	}
+
+	// A failure on such an install gets a restore it can actually run.
+	r2 := happyRunner(t, &u, pendingPlan, "0.2.0")
+	r2.script[2] = scripted{prefix: "docker compose ps -q postgres", res: Result{}}
+	r2.script = append(r2.script, scripted{prefix: "docker run --rm --network host -e STOOP_DATABASE_URL postgres:16-alpine sh -c exec pg_dump", res: Result{Stdout: "PGDMP..."}})
+	withRelease(t, "0.3.0", 42)
+	r2.answer(statusCmd, floorPast020(t))
+	u, out = install(t, r2, releaseFetcher())
+	_ = os.WriteFile(filepath.Join(u.Dir, envFile), []byte("COMPOSE_PROFILES=\nSTOOP_DATABASE_URL="+url+"\n"), 0o644)
+	if err := u.Upgrade(context.Background()); !errors.Is(err, ErrFailed) {
+		t.Fatalf("want ErrFailed, got %v", err)
+	}
+	if strings.Contains(out.String(), "docker compose exec -T postgres") || !strings.Contains(out.String(), "pg_restore --clean --if-exists --no-owner") {
+		t.Errorf("own postgres restore should not go through the bundled service:\n%s", out.String())
+	}
+}
+
+func TestUpgradeWithOverride(t *testing.T) {
+	var u *Upgrader
+	r := happyRunner(t, &u, pendingPlan, "0.3.0")
+	r.script[1].prefix = "docker compose -f docker-compose.yml.next -f docker-compose.override.yml run --rm --no-deps -T stoop migrate plan --json"
+	u, out := install(t, r, releaseFetcher())
+	_ = os.WriteFile(filepath.Join(u.Dir, "docker-compose.override.yml"), []byte("services: {}\n"), 0o644)
+	if err := u.Upgrade(context.Background()); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
 	}
 }
 
@@ -327,6 +432,8 @@ func TestRollback(t *testing.T) {
 
 	_ = os.WriteFile(filepath.Join(u.Dir, composeFile), []byte(newCompose), 0o644)
 	_ = os.WriteFile(filepath.Join(u.Dir, prevFile), []byte(oldCompose), 0o644)
+	_ = os.WriteFile(filepath.Join(u.Dir, "livekit.yaml"), []byte("new livekit\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(u.Dir, "livekit.yaml.prev"), []byte("old livekit\n"), 0o644)
 	if err := u.Rollback(context.Background()); err != nil {
 		t.Fatalf("rollback: %v\n%s", err, out.String())
 	}
@@ -335,11 +442,35 @@ func TestRollback(t *testing.T) {
 	if string(now) != oldCompose || string(kept) != newCompose {
 		t.Errorf("files after rollback: compose=%q next=%q", now, kept)
 	}
+	lk, _ := os.ReadFile(filepath.Join(u.Dir, "livekit.yaml"))
+	if string(lk) != "old livekit\n" {
+		t.Errorf("companion after rollback: %q", lk)
+	}
 	if !strings.Contains(out.String(), "== back on 0.2.0; the 0.3.0 file is kept as docker-compose.yml.next") {
 		t.Errorf("output:\n%s", out.String())
 	}
 	if r.called("docker compose -f docker-compose.yml.prev") {
 		t.Error("rollback ran the older image")
+	}
+}
+
+func TestRollbackFailsClosed(t *testing.T) {
+	var u *Upgrader
+	r := happyRunner(t, &u, pendingPlan, "0.3.0")
+	r.answer(statusCmd, Result{Code: 1, Stderr: "no such image"})
+	u, _ = install(t, r, releaseFetcher())
+	_ = os.WriteFile(filepath.Join(u.Dir, composeFile), []byte(newCompose), 0o644)
+	_ = os.WriteFile(filepath.Join(u.Dir, prevFile), []byte(oldCompose), 0o644)
+	err := u.Rollback(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "could not confirm that 0.2.0 can start") || !strings.Contains(err.Error(), "mv docker-compose.yml.prev docker-compose.yml") {
+		t.Errorf("no answer should refuse and name the by-hand step, got %v", err)
+	}
+	if r.called("docker compose up") {
+		t.Error("refused, but restarted anyway")
+	}
+	r.answer(statusCmd, Result{Stdout: "not json\n"})
+	if err := u.Rollback(context.Background()); err == nil || !strings.Contains(err.Error(), "could not confirm") {
+		t.Errorf("bad json should refuse, got %v", err)
 	}
 }
 

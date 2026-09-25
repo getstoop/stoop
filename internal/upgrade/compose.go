@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The files an install directory holds, and the two this tool adds.
+// The files an install directory holds, and the ones this tool adds.
 const (
 	composeFile = "docker-compose.yml"
 	envFile     = ".env"
@@ -13,6 +13,14 @@ const (
 	prevFile    = "docker-compose.yml.prev"
 	envNextFile = "env.example.next"
 )
+
+// companions are the rest of the release bundle, mounted by the compose
+// file, so a release that changes one has it in place before starting.
+var companions = []string{"livekit.yaml", "livekit-entrypoint.sh"}
+
+// overrideFiles are the override compose itself would load beside the
+// main file; a plan run with an explicit -f has to name them too.
+var overrideFiles = []string{"docker-compose.override.yml", "docker-compose.override.yaml"}
 
 var (
 	imageTag      = regexp.MustCompile(`(?m)^\s*image:\s*(?:\S*/)?stoop:(\S+)`)

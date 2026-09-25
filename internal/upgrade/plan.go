@@ -14,7 +14,7 @@ import (
 // shows the settings the new release expects that .env lacks.
 func (u *Upgrader) plan(ctx context.Context, target string) (db.Report, error) {
 	u.say("what %s will do to the database", target)
-	res := u.compose(ctx, "-f", nextFile, "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "plan", "--json")
+	res := u.compose(ctx, append(u.fileArgs(nextFile), "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "plan", "--json")...)
 	var report db.Report
 	line := strings.TrimSpace(res.Stdout)
 	if i := strings.LastIndex(line, "\n"); i >= 0 {

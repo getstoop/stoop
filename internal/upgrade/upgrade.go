@@ -3,6 +3,7 @@ package upgrade
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/getstoop/stoop/internal/db"
 )
 
 // Options is what the command line decides.
@@ -68,6 +71,21 @@ func (u *Upgrader) composeStreaming(ctx context.Context, args ...string) Result 
 func (u *Upgrader) cleanupNext() {
 	_ = os.Remove(u.path(nextFile))
 	_ = os.Remove(u.path(envNextFile))
+	for _, name := range companions {
+		_ = os.Remove(u.path(name + ".next"))
+	}
+}
+
+// fileArgs is -f for the given compose file plus any override compose
+// would load on its own, so an explicit file sees the same stack `up` will.
+func (u *Upgrader) fileArgs(compose string) []string {
+	args := []string{"-f", compose}
+	for _, name := range overrideFiles {
+		if _, err := os.Stat(u.path(name)); err == nil {
+			args = append(args, "-f", name)
+		}
+	}
+	return args
 }
 
 // Upgrade walks the install to the target release.
@@ -101,6 +119,24 @@ func (u *Upgrader) Upgrade(ctx context.Context) error {
 		return err
 	}
 	return u.switchTo(ctx, current, target, backup, report.Contract, fetched)
+}
+
+// startable asks the running image which release is the oldest that can
+// start against the database now. ok is false when it could not say.
+func (u *Upgrader) startable(ctx context.Context) (oldest string, ok bool) {
+	res := u.compose(ctx, "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "status", "--json")
+	if res.Code != 0 {
+		return "", false
+	}
+	line := strings.TrimSpace(res.Stdout)
+	if i := strings.LastIndex(line, "\n"); i >= 0 {
+		line = line[i+1:]
+	}
+	var report db.Report
+	if err := json.Unmarshal([]byte(line), &report); err != nil || report.Startable == "" {
+		return "", false
+	}
+	return report.Startable, true
 }
 
 func (u *Upgrader) preflight(ctx context.Context) (string, error) {
@@ -157,6 +193,16 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 		}
 		if err := os.WriteFile(u.path(envNextFile), example, 0o644); err != nil {
 			return "", false, false, err
+		}
+		// The rest of the bundle; a release from before a file existed has none.
+		for _, name := range companions {
+			data, err := u.Fetch.Fetch(ctx, base+"/"+name)
+			if err != nil {
+				continue
+			}
+			if err := os.WriteFile(u.path(name+".next"), data, 0o644); err != nil {
+				return "", false, false, err
+			}
 		}
 		fetched = true
 	}

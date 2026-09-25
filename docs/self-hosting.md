@@ -49,8 +49,11 @@ other builds.) It fetches the newest release's compose file, shows what
 that release's migrations will do to the database and which releases can
 still start against it afterwards, lists settings the release's
 `env.example` has that your `.env` does not, and asks. Then it backs up
-the database and the uploads into `backups/`, keeps the old compose file
-as `docker-compose.yml.prev`, puts the new one in place and starts it. If
+the database and the uploads into `backups/` (readable by your user
+only; the dump is the whole database), keeps the old bundle files as
+`.prev` (`docker-compose.yml`, `livekit.yaml`, `livekit-entrypoint.sh`),
+puts the new ones in place and starts. A `docker-compose.override.yml`
+beside the compose file is honoured, in the plan as well as the start. If
 the new release does not come up healthy it prints the log and the way
 back. `./stoop upgrade --plan` stops after showing; `--to 0.4.0` picks a
 release; `--yes` skips the question. The copy you fetched keeps working
@@ -692,6 +695,16 @@ To go back to the release the backup came from at the same time, put its
 compose file in place before the last line: `mv docker-compose.yml.prev
 docker-compose.yml`. Files uploaded after the backup stay in the volume
 with nothing pointing at them, and the sweep removes them.
+
+With [your own Postgres](#using-your-own-postgres) there is no container
+to exec into. The two database lines become one `pg_restore` that
+replaces the objects in place, run from a Postgres image with the URL
+from `.env` in its environment:
+
+```sh
+export STOOP_DATABASE_URL=postgres://stoop:secret@192.168.1.20:5432/stoop?sslmode=require
+docker run --rm -i --network host -e STOOP_DATABASE_URL postgres:16-alpine sh -c 'pg_restore --clean --if-exists --no-owner -d "$STOOP_DATABASE_URL"' < backups/<dir>/stoop.dump
+```
 
 ## Upload storage: the sweep and the quota
 
