@@ -40,15 +40,18 @@ release before it, and it can be rolled back one release
    ```
 
 4. **The workflow** builds the web app, embeds it, and runs GoReleaser:
-   linux amd64, linux arm64 and darwin arm64 archives with `checksums.txt`;
+   linux amd64, linux arm64 and darwin arm64 archives (named without the
+   version, so `releases/latest/download/stoop_linux_amd64.tar.gz` always
+   serves the newest) with `checksums.txt`;
    images pushed to `ghcr.io/getstoop/stoop` as `0.2.0`, `0.2` and
    `latest`; the compose bundle (`docker-compose.yml`, `livekit.yaml`,
    `livekit-entrypoint.sh`, `env.example`) attached to the GitHub
    Release so `releases/latest/download/<file>` serves it.
 5. **Verify against what was published.** Cold install from the quick
    start on a clean machine. Upgrade an instance of the previous release
-   with data. Roll it back one release by editing the image tag in the
-   compose file, then forward again. Anything wrong becomes a patch
+   with data using `stoop upgrade` from the published archive. Roll it
+   back one release with `stoop upgrade rollback`, then forward again.
+   Anything wrong becomes a patch
    release; the git tag is never moved. (For the very first release
    there is no previous one: the cold install is the whole check.)
 6. **Close.** Tracker items to Done with the version noted. Anything this

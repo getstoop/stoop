@@ -11,8 +11,8 @@ import (
 // Migration is one embedded migration file: its number and the name after
 // the underscore.
 type Migration struct {
-	Version int64
-	Name    string
+	Version int64  `json:"version"`
+	Name    string `json:"name"`
 }
 
 // Migrations lists the embedded migrations in order, read from the files

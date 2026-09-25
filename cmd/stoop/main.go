@@ -20,6 +20,8 @@ func main() {
 			os.Exit(runAdmin(context.Background(), os.Args[2:], os.Stdout))
 		case "migrate":
 			os.Exit(runMigrate(context.Background(), os.Args[2:], os.Stdout))
+		case "upgrade":
+			os.Exit(runUpgrade(context.Background(), os.Args[2:], os.Stdout))
 		case "health":
 			os.Exit(runHealth(os.Stdout))
 		case "version", "--version", "-v":

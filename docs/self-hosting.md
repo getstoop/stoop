@@ -36,41 +36,65 @@ has a reachable path: see [Voice](#voice).
 
 ### Upgrading
 
-The compose file pins the Stoop image to the release it shipped with, and
-LiveKit to the version that release was tested against. To upgrade, fetch
-the new release's compose file and restart; database migrations run at
+Fetch the `stoop` binary for the machine once, then run its `upgrade`
+verb from the install directory whenever a release is out:
+
+```sh
+curl -fsSL https://github.com/getstoop/stoop/releases/latest/download/stoop_linux_amd64.tar.gz | tar -xz stoop
+./stoop upgrade
+```
+
+(`stoop_linux_arm64.tar.gz` and `stoop_darwin_arm64.tar.gz` are the
+other builds.) It fetches the newest release's compose file, shows what
+that release's migrations will do to the database and which releases can
+still start against it afterwards, lists settings the release's
+`env.example` has that your `.env` does not, and asks. Then it backs up
+the database and the uploads into `backups/`, keeps the old compose file
+as `docker-compose.yml.prev`, puts the new one in place and starts it. If
+the new release does not come up healthy it prints the log and the way
+back. `./stoop upgrade --plan` stops after showing; `--to 0.4.0` picks a
+release; `--yes` skips the question. The copy you fetched keeps working
+for later releases: the judgment about the database comes from the new
+image, not from this binary.
+
+Release notes say when the LiveKit or Postgres pin moves. Moving to a new
+Postgres major is the one thing the tool refuses to do; see
+[Supported Postgres and LiveKit versions](#supported-postgres-and-livekit-versions).
+
+**Going back.** `./stoop upgrade rollback` puts the previous compose file
+back and restarts. Each release keeps its schema readable by the release
+before it, so this needs no restore, unless the upgrade ran a contract
+migration: the tool says so before it upgrades, and `rollback` refuses
+afterwards and points at the backup it took
+([Restoring in place](#restoring-in-place)). Stoop refuses to start
+against a database that a much newer release has reshaped, and says so
+plainly, rather than misbehaving.
+
+**By hand.** The tool only runs compose commands you can run yourself.
+Fetch the new release's compose file, ask the new image what it will do
+while the old one is still running, then restart on it; migrations run at
 startup, so there is no separate step:
 
 ```sh
 curl -fLO https://github.com/getstoop/stoop/releases/latest/download/docker-compose.yml
+docker compose run --rm --no-deps stoop migrate plan
 docker compose pull && docker compose up -d
 ```
+
+`migrate plan` lists the migrations that will run and says which
+releases can still start against the database afterwards, which is the
+rollback you will have. It changes nothing. Exit status 2 means there is
+something to run, 3 that the release is older than the database. Rolling
+back by hand is putting the previous image tag back in the compose file
+and `docker compose up -d` again.
 
 Coming from 0.2.0, add `COMPOSE_PROFILES=bundled-postgres` to `.env`
 first. Without it the bundled Postgres does not start, and the log says
 `lookup postgres: no such host`.
 
-To see what a release will do to the database before it starts, fetch
-its compose file and ask the new image, with the old one still running:
-
-```sh
-docker compose run --rm --no-deps stoop migrate plan
-```
-
-It lists the migrations that will run and says which releases can still
-start against the database afterwards, which is the rollback you will
-have. It changes nothing. Exit status 2 means there is something to run,
-3 that the release is older than the database.
-
-Release notes say when the LiveKit or Postgres pin moves. An image tag of
-the form `0.2` follows patch releases of that minor; `latest` follows
-everything. Both exist for people who prefer them to the pinned tag.
-
-If a release misbehaves, put the previous image tag back in the compose
-file and `docker compose up -d` again. Each release keeps its schema
-readable by the release before it, so a one-step rollback needs no
-restore. Stoop refuses to start against a database that a much newer
-release has reshaped, and says so plainly, rather than misbehaving.
+An image tag of the form `0.2` follows patch releases of that minor;
+`latest` follows everything. Both exist for people who prefer them to the
+pinned tag.
 
 ### Supported Postgres and LiveKit versions
 
@@ -448,7 +472,7 @@ available from phone browsers; cameras are.
 Release binaries are static with the web UI embedded — no runtime
 dependencies beyond Postgres (and a LiveKit server if you want voice).
 Each [release](https://github.com/getstoop/stoop/releases) carries
-`stoop_<version>_linux_amd64.tar.gz`, `linux_arm64` and `darwin_arm64`
+`stoop_linux_amd64.tar.gz`, `linux_arm64` and `darwin_arm64`
 archives and a `checksums.txt` to verify them against:
 
 ```sh
@@ -647,6 +671,27 @@ upload something.
 To restore as a **different** Tailscale machine rather than take over the
 old node's identity, delete `tailscale/` from the uploads directory before
 starting.
+
+### Restoring in place
+
+To put a backup back into a running install, say after an upgrade that
+went wrong past the point `rollback` can reach, stop the app, replace the
+database, unpack the files over the volume, and start again. `<dir>` is
+the backup directory (the upgrade tool names its
+`backups/<date>-<from>-to-<to>`):
+
+```sh
+docker compose stop stoop
+docker compose exec -T postgres psql -U stoop -d postgres -c 'DROP DATABASE stoop WITH (FORCE)' -c 'CREATE DATABASE stoop'
+docker compose exec -T postgres pg_restore -U stoop -d stoop --no-owner < backups/<dir>/stoop.dump
+docker run --rm --volumes-from "$(docker compose ps -aq stoop)" -v "$PWD/backups/<dir>":/backup alpine tar -C /data -xf /backup/stoop-data.tar
+docker compose up -d
+```
+
+To go back to the release the backup came from at the same time, put its
+compose file in place before the last line: `mv docker-compose.yml.prev
+docker-compose.yml`. Files uploaded after the backup stay in the volume
+with nothing pointing at them, and the sweep removes them.
 
 ## Upload storage: the sweep and the quota
 
