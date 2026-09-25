@@ -1,4 +1,4 @@
-.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web lint test e2e migrate-new docker clean
+.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -89,6 +89,11 @@ build-web:
 ## build: produce the single self-contained server binary
 build: build-web
 	CGO_ENABLED=0 go build -trimpath -o $(BINARY) ./cmd/stoop
+
+## brand: cut the web icon set and brand/dist from brand/masters
+## (docs/brand.md). Needs web/node_modules; the .icns step needs macOS.
+brand:
+	node brand/build.mjs
 
 # ---- Quality ---------------------------------------------------------------
 
