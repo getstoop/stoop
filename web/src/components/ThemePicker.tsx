@@ -7,6 +7,7 @@ import {
   type ThemeId,
   useThemeStore,
 } from "../api/theme";
+import { Switch } from "./Switch";
 
 // Profile → Appearance. Each card is a miniature of the app painted by the
 // real theme CSS (the card scopes data-theme to its own subtree), so what
@@ -110,8 +111,7 @@ export function ThemePicker() {
         ))}
       </div>
       <label className="theme-system">
-        <input
-          type="checkbox"
+        <Switch
           checked={pref.mode === "system"}
           onChange={(e) =>
             setPref({ ...pref, mode: e.target.checked ? "system" : "theme" })

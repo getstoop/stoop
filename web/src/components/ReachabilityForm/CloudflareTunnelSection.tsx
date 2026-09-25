@@ -1,6 +1,7 @@
 import type { GetReachabilityResponse } from "../../gen/stoop/instance/v1/instance_pb";
 import { Field } from "../Field";
 import { SettingRow } from "../SettingRow";
+import { Switch } from "../Switch";
 import { CloudflareTunnelStatusBlock } from "./CloudflareTunnelStatusBlock";
 import {
   type Fields,
@@ -45,8 +46,7 @@ export function CloudflareTunnelSection({
       description="A public hostname on your Cloudflare domain, with nothing forwarded from your router. Voice and video can't use the tunnel; they need a relay."
     >
       <label className="reach-check">
-        <input
-          type="checkbox"
+        <Switch
           checked={fields.tunnelEnabled}
           onChange={(e) => {
             set("tunnelEnabled", e.target.checked);

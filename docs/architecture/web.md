@@ -239,7 +239,8 @@ of step with `THEMES`.
 reaches for: `button.primary`, `.chip`, `.icon-button`, `.badge`; text
 inputs, selects and textareas (styled at zero specificity with `:where()`,
 so any feature rule wins without a specificity fight); the words-above-field
-label and `label.toggle-row`; `.card`, `.card-row`, `.modal`, `.dots-menu`,
+label, `label.toggle-row` and `input.switch` (`<Switch>`, an on/off
+setting); `.card`, `.card-row`, `.modal`, `.dots-menu`,
 `.tooltip`.
 
 A feature sheet styles layout and its own parts. It never declares an input

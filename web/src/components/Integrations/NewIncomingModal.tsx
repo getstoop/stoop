@@ -9,6 +9,7 @@ import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { Field } from "../Field";
 import { Modal } from "../Modal";
+import { Switch } from "../Switch";
 import type { Secret } from "./SecretModal";
 
 // New incoming webhook: a name, the channel it posts into, the bot it
@@ -142,8 +143,7 @@ export function NewIncomingModal({
           </select>
         </Field>
         <label className="toggle-row">
-          <input
-            type="checkbox"
+          <Switch
             name="hook-notify"
             checked={notify}
             onChange={(e) => setNotify(e.target.checked)}

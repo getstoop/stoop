@@ -11,6 +11,7 @@ import {
 import { DotsMenu } from "../../components/DotsMenu";
 import type { Secret } from "../../components/Integrations/SecretModal";
 import { useIncomingActions } from "../../components/Integrations/useIncomingActions";
+import { Switch } from "../../components/Switch";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
@@ -64,8 +65,7 @@ export function IncomingTable({
         meta: manage ? { width: 110, align: "center" } : { width: "18%" },
         cell: ({ row: { original: h } }) =>
           manage ? (
-            <input
-              type="checkbox"
+            <Switch
               name={`notify-${h.id}`}
               checked={canNotifyEveryone(h)}
               disabled={!h.enabled}

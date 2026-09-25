@@ -182,13 +182,12 @@
 .card .theme-system {
   display: flex;
   flex-direction: row;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 8px;
   font-size: var(--text-ui);
   color: var(--text);
 }
 
-.card .theme-system input {
-  width: auto;
+.card .theme-system .switch {
   margin: 0;
 }

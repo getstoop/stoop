@@ -7,6 +7,7 @@ import { MAX_SPACE_NAME } from "../../api/spaces";
 import { Field } from "../../components/Field";
 import { controlAttrs } from "../../components/fieldControl";
 import { ImagePicker } from "../../components/ImagePicker";
+import { Switch } from "../../components/Switch";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 
@@ -68,8 +69,7 @@ export function GeneralSection({ space }: { space: Space }) {
       </form>
       <IconRow space={space} />
       <label className="toggle-row">
-        <input
-          type="checkbox"
+        <Switch
           checked={space.membersCanInvite}
           onChange={(e) => update({ membersCanInvite: e.target.checked })}
         />

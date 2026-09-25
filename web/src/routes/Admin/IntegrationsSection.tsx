@@ -16,6 +16,7 @@ import {
   SecretModal,
 } from "../../components/Integrations/SecretModal";
 import { SettingRow } from "../../components/SettingRow";
+import { Switch } from "../../components/Switch";
 import type { Bot, BotToken } from "../../gen/stoop/integrations/v1/bot_pb";
 import { confirm } from "../../stores/dialogs";
 import { BotsTable } from "./BotsTable";
@@ -109,9 +110,8 @@ export function IntegrationsSection() {
           title="Incoming webhooks"
           description="URLs that post into a channel. Off stops every one of them without deleting anything."
         >
-          <input
+          <Switch
             id="webhooks-incoming"
-            type="checkbox"
             checked={status?.webhooksIncoming ?? true}
             disabled={!status}
             onChange={(e) => flip("webhooksIncoming", e.target.checked)}
@@ -123,9 +123,8 @@ export function IntegrationsSection() {
           title="Outgoing webhooks"
           description="Signed events sent to URLs admins choose. Off stops every delivery."
         >
-          <input
+          <Switch
             id="webhooks-outgoing"
-            type="checkbox"
             checked={status?.webhooksOutgoing ?? true}
             disabled={!status}
             onChange={(e) => flip("webhooksOutgoing", e.target.checked)}
@@ -137,9 +136,8 @@ export function IntegrationsSection() {
           title="Allow private targets"
           description="Let outgoing webhooks reach addresses on your LAN, loopback and Tailscale ranges. The cloud metadata address and link-local are never reachable."
         >
-          <input
+          <Switch
             id="webhooks-private"
-            type="checkbox"
             checked={status?.webhooksAllowPrivateTargets ?? false}
             disabled={!status}
             onChange={(e) =>

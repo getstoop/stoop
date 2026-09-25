@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Switch } from "../components/Switch";
 
 // The bare controls fields.css styles. A control with a label is a
 // <Field> (Components/Field); these are what goes inside one.
@@ -40,12 +41,20 @@ export const Controls: StoryObj = {
   ),
 };
 
-// A checkbox beside its words; not a Field.
+// A control beside its words; not a Field. A switch for an on/off
+// setting (Components/Switch); a checkbox for one of a choose-many set,
+// or a choice that rides on a submit.
 export const ToggleRow: StoryObj = {
   render: () => (
-    <label className="toggle-row">
-      <input type="checkbox" defaultChecked />
-      <span>Play a sound when I am mentioned</span>
-    </label>
+    <div className="kit-section">
+      <label className="toggle-row">
+        <Switch defaultChecked />
+        <span>Members can create invites</span>
+      </label>
+      <label className="toggle-row">
+        <input type="checkbox" defaultChecked />
+        <span>Also revoke my personal tokens</span>
+      </label>
+    </div>
   ),
 };

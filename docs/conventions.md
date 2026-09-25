@@ -98,7 +98,8 @@ for, and why — is in
   `button.link`, `.option`, `.icon-button`, `.badge`, `.avatar`,
   `.eyebrow` (the small uppercase heading, in `base.css`); text inputs,
   selects and textareas (styled at zero specificity with `:where()`, so any
-  feature rule wins), the words-above-field label and `label.toggle-row`;
+  feature rule wins), the words-above-field label, `label.toggle-row`
+  and `input.switch` (`<Switch>`, the control of every on/off setting);
   `.card`, `.card-row`, `.callout`, `.modal`, `.popover`, `.dots-menu`,
   `.tooltip`. A feature sheet styles layout and the feature's own parts; it never
   declares an input or a button from scratch, and a control the second

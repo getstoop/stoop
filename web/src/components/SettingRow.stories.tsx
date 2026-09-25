@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { NumberInput } from "./NumberInput";
 import { SettingRow } from "./SettingRow";
+import { Switch } from "./Switch";
 
 const meta: Meta<typeof SettingRow> = {
   title: "Components/SettingRow",
@@ -25,6 +26,19 @@ export const Plain: StoryObj = {
       description="Where people reach this server from outside."
     >
       <input id="row-url" defaultValue="https://chat.example.com" />
+    </SettingRow>
+  ),
+};
+
+// An on/off setting: the switch takes the control column.
+export const OnOff: StoryObj = {
+  render: () => (
+    <SettingRow
+      id="row-invites"
+      title="Members can create invites"
+      description="Otherwise only admins and the owner can."
+    >
+      <Switch id="row-invites" defaultChecked />
     </SettingRow>
   ),
 };
