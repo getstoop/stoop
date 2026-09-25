@@ -31,3 +31,14 @@ func TestMigrateRefusesSchemaAboveFloor(t *testing.T) {
 		t.Fatalf("want refusal naming the floor, got %v", err)
 	}
 }
+
+func TestFloorMatchesSchema(t *testing.T) {
+	pool := dbtest.New(t)
+	var floor int64
+	if err := pool.QueryRow(context.Background(), "SELECT min_migration FROM schema_floor").Scan(&floor); err != nil {
+		t.Fatal(err)
+	}
+	if floor != db.Floor {
+		t.Errorf("schema_floor after every migration = %d, db.Floor = %d: a contract migration must raise both", floor, db.Floor)
+	}
+}

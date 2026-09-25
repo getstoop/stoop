@@ -21,7 +21,10 @@ release before it, and it can be rolled back one release
    The changelog writes itself from PR titles, so title PRs for the notes.
 2. **The release PR.** Bump the image tag in `deploy/docker-compose.yml`
    to the version about to be cut (the image does not exist yet; it will
-   before anyone downloads this file from the release). Bump the
+   before anyone downloads this file from the release). Append the
+   version and its last migration to `db.Releases`
+   (`internal/db/releases.go`), which is how the binary names releases
+   when it talks about the schema. Bump the
    `cloudflared` pin in both Dockerfiles to Cloudflare's current release,
    tag and digest together. Rewrite
    `deploy/release-notes.md`: what changed for operators, any LiveKit or

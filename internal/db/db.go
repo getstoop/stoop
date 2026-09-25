@@ -73,16 +73,12 @@ func checkSchemaFloor(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := pool.QueryRow(ctx, "SELECT min_migration FROM schema_floor").Scan(&floor); err != nil {
 		return fmt.Errorf("read schema floor: %w", err)
 	}
-	known, err := goose.CollectMigrations("migrations", 0, math.MaxInt64)
-	if err != nil {
-		return fmt.Errorf("read embedded migrations: %w", err)
-	}
-	last, err := known.Last()
+	last, err := Newest()
 	if err != nil {
 		return err
 	}
-	if last.Version < floor {
-		return fmt.Errorf("database was changed by a newer Stoop that needs migration %d or later; this binary knows up to %d: run the newer version, or restore the backup taken before it", floor, last.Version)
+	if last < floor {
+		return fmt.Errorf("database was changed by a newer Stoop that needs migration %d or later; this binary knows up to %d: run the newer version, or restore the backup taken before it", floor, last)
 	}
 	return nil
 }

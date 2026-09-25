@@ -336,6 +336,31 @@ query. Expand-only releases never touch the floor, so rolling back across
 several of them still works. The fix for a refused start is the newer
 binary, or the backup taken before it ran.
 
+A contract migration raises the constant `db.Floor` in the same PR.
+`TestFloorMatchesSchema` migrates a fresh database and checks
+`schema_floor` equals the constant, so the two cannot drift, and a binary
+can say what an upgrade means for rollback with no database in front of
+it. `db.Releases` maps each tag to the last migration it shipped; the
+release PR appends a row ([releasing.md](../releasing.md)). Together they
+turn "the floor is 37" into "0.2.0 and later can start against this
+database", which is what an operator needs to hear.
+
+**A migration is self-contained.** It must be correct against a database
+that has had every earlier migration and *no code* from any release in
+between. That is why backfills live in the migration and never lazily in
+code, and it is what lets a forward upgrade jump any number of minors.
+What it forbids: a contract migration that assumes release N's code ran
+for a while and cleaned something up. If N+1 drops a column, the migration
+that drops it carries whatever copy N's code would have made.
+
+**A long migration resumes.** The compose health check gives startup
+twenty seconds, and a container killed in the middle of a migration comes
+back and runs it again. A migration that could take longer than that on a
+large install, a rewrite of `messages` or an index over all of it, goes
+in a `-- +goose NO TRANSACTION` file using `CONCURRENTLY` and `IF NOT
+EXISTS`, so the second run picks up where the first stopped. Small DDL
+stays transactional, which is what makes it atomic.
+
 A **patch release carries no migrations.** It is cut from a branch off the
 previous tag ([releasing.md](../releasing.md)), and goose applies files in
 numeric order: a migration numbered after `main`'s unreleased ones would be
