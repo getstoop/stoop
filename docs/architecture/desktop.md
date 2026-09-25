@@ -12,7 +12,7 @@ relies on. Change one and bump the bridge level.
 Unauthenticated JSON, served by `internal/app` beside `/healthz`:
 
 ```json
-{ "name": "stoop", "version": "0.4.0", "bridge": 2 }
+{ "name": "stoop", "version": "0.4.0", "bridge": 2, "migration": 42, "floor": 0 }
 ```
 
 | Field | Source | What the shell does with it |
@@ -20,6 +20,7 @@ Unauthenticated JSON, served by `internal/app` beside `/healthz`:
 | `name` | constant | Confirms a typed address is a Stoop server before showing a login page. Anything else is refused with the response it got. |
 | `version` | `buildinfo.Version` without the `v`; `dev` in a dev build | Compared with the shell's minimum. An older server gets a page that names both versions and says the operator needs to update. |
 | `bridge` | `webui.Bridge` | The `window.stoop` level the served web app speaks. Above what the shell knows, the app still works (it feature-detects) and the shell offers an update. |
+| `migration`, `floor` | `db.Newest()`, `db.Floor` | Nothing; they are for the upgrade tool ([data.md](data.md#upgrades-and-rollback)). |
 
 The shell asks on add, on every reconnect and on focus, not only once.
 Disclosing the version is deliberate; the web app's asset names change

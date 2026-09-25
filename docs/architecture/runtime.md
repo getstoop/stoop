@@ -47,10 +47,12 @@ schema.
 
 `GET /healthz` answers `200 ok` for container health checks and for the E2E
 harness's readiness loop. `GET /version` answers
-`{"name":"stoop","version":"0.4.0","bridge":2}` to anyone, so a client can
-tell what it is talking to before logging in — the desktop shell refuses a
-server older than it supports and reads the `window.stoop` level the
-served web app speaks ([desktop.md](desktop.md)). `GET /metrics` is the
+`{"name":"stoop","version":"0.4.0","bridge":2,"migration":42,"floor":0}`
+to anyone, so a client can tell what it is talking to before logging in —
+the desktop shell refuses a server older than it supports and reads the
+`window.stoop` level the served web app speaks ([desktop.md](desktop.md)),
+and the upgrade tool reads the newest migration and the floor this build
+carries ([data.md](data.md#upgrades-and-rollback)). `GET /metrics` is the
 Prometheus view of the same instruments the Diagnostics tab reads, behind a
 personal token ([diagnostics.md](diagnostics.md)). Logging is `log/slog` to stderr, structured, with
 no log file to rotate — the supervisor that runs the process already has
@@ -295,6 +297,23 @@ password-login <everyone|admins|off>
 This exists for exactly one situation: the admin page is what you cannot
 reach. `password-login everyone` is the break-glass when an identity
 provider is down.
+
+`stoop migrate` is the same binary looking at the schema, for the moment
+before an upgrade ([data.md](data.md#upgrades-and-rollback)):
+
+```
+status    what the database has, what this binary carries, what is pending
+plan      status, plus what up means for rolling back; exit 2 with
+          something to run, 3 when this binary is too old for the database
+up        apply the pending migrations and exit; what startup does
+```
+
+`status` and `plan` change nothing. `db.Inspect` builds the answer from
+`goose_db_version`, `schema_floor`, the embedded files, `db.Floor` and
+`db.Releases`, so `plan` run from the release about to be installed says
+whether the release that made the database can still start against it
+afterwards. `stoop version --json` reports the migration and floor a build
+carries with no database at all.
 
 ## Build and release
 

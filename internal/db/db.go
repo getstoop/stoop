@@ -62,16 +62,9 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 // last migration the previous release shipped, and a binary that does not
 // know that migration stops here instead of failing at some later query.
 func checkSchemaFloor(ctx context.Context, pool *pgxpool.Pool) error {
-	var exists bool
-	if err := pool.QueryRow(ctx, "SELECT to_regclass('public.schema_floor') IS NOT NULL").Scan(&exists); err != nil {
-		return fmt.Errorf("read schema floor: %w", err)
-	}
-	if !exists {
-		return nil
-	}
-	var floor int64
-	if err := pool.QueryRow(ctx, "SELECT min_migration FROM schema_floor").Scan(&floor); err != nil {
-		return fmt.Errorf("read schema floor: %w", err)
+	floor, err := readFloor(ctx, pool)
+	if err != nil {
+		return err
 	}
 	last, err := Newest()
 	if err != nil {
@@ -79,6 +72,37 @@ func checkSchemaFloor(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	if last < floor {
 		return fmt.Errorf("database was changed by a newer Stoop that needs migration %d or later; this binary knows up to %d: run the newer version, or restore the backup taken before it", floor, last)
+	}
+	return nil
+}
+
+// readFloor is schema_floor, or 0 on a database from before it existed.
+func readFloor(ctx context.Context, pool *pgxpool.Pool) (int64, error) {
+	var exists bool
+	if err := pool.QueryRow(ctx, "SELECT to_regclass('public.schema_floor') IS NOT NULL").Scan(&exists); err != nil {
+		return 0, fmt.Errorf("read schema floor: %w", err)
+	}
+	if !exists {
+		return 0, nil
+	}
+	var floor int64
+	if err := pool.QueryRow(ctx, "SELECT min_migration FROM schema_floor").Scan(&floor); err != nil {
+		return 0, fmt.Errorf("read schema floor: %w", err)
+	}
+	return floor, nil
+}
+
+// MigrateTo applies migrations up to and including version, for tests
+// that need a database shaped like an older release.
+func MigrateTo(ctx context.Context, pool *pgxpool.Pool, version int64) error {
+	goose.SetBaseFS(migrationsFS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
+	sqlDB := stdlib.OpenDBFromPool(pool)
+	defer func() { _ = sqlDB.Close() }()
+	if err := goose.UpToContext(ctx, sqlDB, "migrations", version); err != nil {
+		return fmt.Errorf("apply migrations to %d: %w", version, err)
 	}
 	return nil
 }

@@ -50,6 +50,18 @@ Coming from 0.2.0, add `COMPOSE_PROFILES=bundled-postgres` to `.env`
 first. Without it the bundled Postgres does not start, and the log says
 `lookup postgres: no such host`.
 
+To see what a release will do to the database before it starts, fetch
+its compose file and ask the new image, with the old one still running:
+
+```sh
+docker compose run --rm --no-deps stoop migrate plan
+```
+
+It lists the migrations that will run and says which releases can still
+start against the database afterwards, which is the rollback you will
+have. It changes nothing. Exit status 2 means there is something to run,
+3 that the release is older than the database.
+
 Release notes say when the LiveKit or Postgres pin moves. An image tag of
 the form `0.2` follows patch releases of that minor; `latest` follows
 everything. Both exist for people who prefer them to the pinned tag.

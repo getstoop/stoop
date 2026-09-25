@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -19,11 +18,12 @@ func main() {
 		switch os.Args[1] {
 		case "admin":
 			os.Exit(runAdmin(context.Background(), os.Args[2:], os.Stdout))
+		case "migrate":
+			os.Exit(runMigrate(context.Background(), os.Args[2:], os.Stdout))
 		case "health":
 			os.Exit(runHealth(os.Stdout))
 		case "version", "--version", "-v":
-			fmt.Println("stoop", buildinfo.String())
-			return
+			os.Exit(runVersion(os.Args[2:], os.Stdout))
 		}
 	}
 
