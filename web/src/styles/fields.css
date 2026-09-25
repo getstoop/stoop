@@ -45,6 +45,61 @@
   accent-color: var(--accent);
 }
 
+/* ---- Switch: an on/off setting (components/Switch.tsx). A checkbox with
+   role="switch", drawn as a track with a knob; the native box is kept
+   for the label, the form and the keyboard, and the global focus ring
+   applies. Off, it is a hole in the panel; on, it is the accent with
+   the surface as its knob. ---- */
+input.switch {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--raised);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+input.switch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition:
+    transform var(--dur) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+input.switch:hover {
+  border-color: color-mix(in srgb, var(--border) 50%, var(--text-muted));
+}
+
+input.switch:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+input.switch:checked::before {
+  transform: translateX(16px);
+  background: var(--surface);
+}
+
+input.switch:disabled {
+  opacity: var(--disabled);
+  cursor: default;
+}
+
 /* Words above the control: <Field> renders this, and nothing else may
    (scripts/check-fields.mjs). */
 .field {
@@ -68,7 +123,8 @@
   gap: 12px;
 }
 
-/* A checkbox row: box beside the words, not stacked above them. */
+/* A toggle row: a checkbox or a switch beside its words, not stacked
+   above them. */
 label.toggle-row {
   display: flex;
   flex-direction: row;
@@ -81,6 +137,12 @@ label.toggle-row {
 label.toggle-row input[type="checkbox"] {
   width: auto;
   margin: 4px 0 0;
+}
+
+/* Outweighs the checkbox rule above, which would size it to nothing. */
+label.toggle-row input.switch {
+  width: 36px;
+  margin: 0;
 }
 
 /* ---- Field: a label row, the control, its error, its hint. ---- */

@@ -2,6 +2,7 @@ import type { GetReachabilityResponse } from "../../gen/stoop/instance/v1/instan
 import type { TailscaleStatus } from "../../gen/stoop/instance/v1/reachability_pb";
 import { Field } from "../Field";
 import { SettingRow } from "../SettingRow";
+import { Switch } from "../Switch";
 import type {
   Fields,
   ReachErrors,
@@ -40,8 +41,7 @@ export function TailscaleSection({
       description="Stoop can join your tailnet itself. It will have a real certificate and no port forwarding, reachable only by devices on the tailnet."
     >
       <label className="reach-check">
-        <input
-          type="checkbox"
+        <Switch
           checked={fields.tsEnabled}
           onChange={(e) => set("tsEnabled", e.target.checked)}
         />
@@ -50,8 +50,7 @@ export function TailscaleSection({
       {fields.tsEnabled && (
         <>
           <label className="reach-check">
-            <input
-              type="checkbox"
+            <Switch
               checked={fields.tsFunnel}
               onChange={(e) => set("tsFunnel", e.target.checked)}
             />
@@ -65,8 +64,7 @@ export function TailscaleSection({
             </p>
           )}
           <label className="reach-check">
-            <input
-              type="checkbox"
+            <Switch
               checked={customControl}
               onChange={(e) => {
                 setCustomControl(e.target.checked);

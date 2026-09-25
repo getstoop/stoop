@@ -2,6 +2,7 @@ import type { Reachability } from "../../gen/stoop/instance/v1/reachability_pb";
 import { Field } from "../Field";
 import { LearnMore } from "../LearnMore";
 import { SettingRow } from "../SettingRow";
+import { Switch } from "../Switch";
 import type {
   Fields,
   ReachErrors,
@@ -83,8 +84,7 @@ function CloudflareRelay({
   return (
     <div className="reach-cloudflare">
       <label className="reach-check">
-        <input
-          type="checkbox"
+        <Switch
           checked={fields.cloudflareTurnEnabled}
           onChange={(e) => {
             set("cloudflareTurnEnabled", e.target.checked);
@@ -156,8 +156,7 @@ function OwnRelay({
   return (
     <div className="reach-own-relay">
       <label className="reach-check">
-        <input
-          type="checkbox"
+        <Switch
           checked={show}
           onChange={(e) => {
             setShow(e.target.checked);

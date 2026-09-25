@@ -35,7 +35,7 @@
   color: var(--text-muted);
 }
 
-/* Sub-blocks revealed by a checkbox; .reach-group already stacks the
+/* Sub-blocks revealed by a switch; .reach-group already stacks the
    sections themselves. */
 .reach-relay,
 .reach-control-url {
@@ -44,11 +44,11 @@
   gap: 8px;
 }
 
-/* A note belonging to the checkbox above it, lined up under its label. */
+/* A note belonging to the switch above it, lined up under its label. */
 .reach-check-hint {
   margin: -2px 0 0;
-  /* off-scale: lines up under the checkbox label */
-  padding-left: 22px;
+  /* off-scale: the switch's width plus the row's gap, under its label */
+  padding-left: 44px;
 }
 
 /* Two ways to answer the same question, so they share a section: a hair
@@ -79,10 +79,9 @@
   font-weight: 400;
 }
 
-.reach-form .reach-check input[type="checkbox"] {
-  display: inline-block;
-  width: auto;
-  margin: 3px 0 0;
+.reach-form .reach-check .switch {
+  /* off-scale: centres the switch on the label's first line */
+  margin: 1px 0 0;
 }
 
 .reach-ts-status p,

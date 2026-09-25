@@ -4,6 +4,7 @@ import { instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useInstanceStatus } from "../../api/queries";
 import { SettingRow } from "../../components/SettingRow";
+import { Switch } from "../../components/Switch";
 
 // Whether people may delete their own accounts. On the Accounts tab,
 // beside the token setting, above the list it applies to.
@@ -34,9 +35,8 @@ export function SelfDeletionSetting() {
         description="Their messages stay under their name, marked deleted; everything else that was theirs goes. Off, the account page says to ask an admin."
         error={error}
       >
-        <input
+        <Switch
           id="self-deletion"
-          type="checkbox"
           checked={status?.selfDeletion ?? true}
           disabled={busy || !status}
           onChange={(e) => set(e.target.checked)}

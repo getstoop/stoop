@@ -183,7 +183,18 @@ On a settings page, a `<SettingRow>` inside a `.card` lays out title,
 description and control; `<SettingsFrame>` is the page around them
 ([web.md](web.md#the-settings-frame)). It takes the same `error`, drawn
 under its control, and its description is the hint. `label.toggle-row` is a
-checkbox beside its words and is not a `Field`.
+switch or a checkbox beside its words and is not a `Field`.
+
+**`<Switch>`** is an on/off setting: a checkbox with `role="switch"` that
+`fields.css` draws as a track and a knob (`input.switch`), off as a hole in
+the panel and on in the accent. It stays a native checkbox, so `checked`,
+`onChange`, a wrapping label, a `SettingRow` and a form all work as they
+do for one, and a spec still calls `check()`. It is the control of every
+setting that is on or off: in a `SettingRow` it takes the control column;
+in a form it sits in a toggle row before its words. A plain checkbox is
+kept for what is not a switch: one of a choose-many set (a token's
+permissions, a webhook's events, the people in a new conversation) and a
+choice that rides on a submit ("Also revoke my tokens", "Show hidden").
 
 **`<Input>`** is a text input with a `start` and an `end`: an icon, a unit,
 a button. The wrapper is the box and the input inside it is bare, so the
@@ -207,8 +218,9 @@ focus goes to the first invalid control.
 
 Every form field in the app is one of these two, and
 `scripts/check-fields.mjs` refuses a hand-built one. What is not a field
-stays as it is: a toggle row, a picker (image, permissions, spaces), and a
-search box, which is an `Input` with no label.
+stays as it is: a toggle row (a `Switch` or a checkbox beside its words),
+a picker (image, permissions, spaces), and a search box, which is an
+`Input` with no label.
 
 ### Tables
 
