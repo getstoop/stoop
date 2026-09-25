@@ -67,6 +67,12 @@ export interface StoopBridge {
   // the bridge copies values across once, at load; it is asked at the
   // moment a banner would fire.
   notificationsAllowed?(): boolean;
+  // Bridge 5. Whether App settings is letting the voice join and leave
+  // cues play — one switch for every server the app holds. A function
+  // for the same reason as notificationsAllowed: it is asked at the
+  // moment a cue would play. Absent, the page keeps its own choice as a
+  // browser does (api/voiceCues.ts).
+  voiceCuesAllowed?(): boolean;
   // Bridge 3. The shell draws the live indicator in its strip and tray,
   // so the page reports what it captures (null once out of voice) and
   // hides its own rail pill.
@@ -150,6 +156,15 @@ export function onShellDnd(handler: (dnd: ShellDnd) => void): () => void {
 // saying no.
 export function shellNotifications(): boolean {
   return bridge()?.notificationsAllowed?.() ?? true;
+}
+
+// Where the shell's switch for the voice cues stands, or undefined
+// outside a shell that has one — a browser, or a shell too old to say.
+// Defined also means the switch, not this browser's storage, is where
+// the person sets it.
+export function shellVoiceCues(): boolean | undefined {
+  const allowed = bridge()?.voiceCuesAllowed;
+  return typeof allowed === "function" ? allowed() === true : undefined;
 }
 
 // Whether the shell draws the live indicator itself. Anywhere it does

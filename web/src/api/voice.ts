@@ -12,6 +12,7 @@ import type {
 import { trackKey, useVoiceStore } from "../stores/voice";
 import { voiceClient } from "./clients";
 import { socketUrl } from "./origin";
+import { cancelCues, cue } from "./voiceCues";
 import { stopLocalLevel, syncLocalLevel } from "./voiceLevel";
 import { sendClientEvent } from "./ws";
 
@@ -277,6 +278,14 @@ export async function joinVoice(spaceId: string, channelId: string) {
     .on(RoomEvent.LocalTrackUnpublished, onLocalUnpublished)
     .on(RoomEvent.TrackMuted, onTrackMuted)
     .on(RoomEvent.TrackUnmuted, onTrackUnmuted)
+    // The cues come from the room we are in, never from the sidebar's
+    // presence feed (docs/architecture/voice.md → Join and leave cues).
+    .on(RoomEvent.ParticipantConnected, () => {
+      if (room === r) cue("join");
+    })
+    .on(RoomEvent.ParticipantDisconnected, () => {
+      if (room === r) cue("leave");
+    })
     .on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) =>
       useVoiceStore.getState().setSpeaking(speakers.map((p) => p.identity)),
     )
@@ -291,6 +300,10 @@ export async function joinVoice(spaceId: string, channelId: string) {
       room = null;
       stopLocalLevel();
       detachAll();
+      // Everyone else's leave is still queued from the room emptying;
+      // one falling tone says the call ended, ours included.
+      cancelCues();
+      cue("leave", { connected: true });
       useVoiceStore.getState().setConnection(null);
       reportVoiceState();
     });
@@ -352,6 +365,9 @@ export async function joinVoice(spaceId: string, channelId: string) {
     });
     useVoiceStore.getState().setAudioBlocked(!r.canPlaybackAudio);
     reportVoiceState();
+    // The room got bigger: us. Whoever was already here is in the join
+    // response, not announced one by one, so this is the only cue.
+    cue("join");
   } catch (err) {
     mic?.stop();
     stopLocalLevel();
@@ -373,6 +389,14 @@ export async function leaveVoice() {
   room = null;
   stopLocalLevel();
   detachAll();
+  const { connection, switching } = useVoiceStore.getState();
+  // Our own leave, unless this is the first half of moving channels,
+  // which is one join at the other end and no leave. The connection is
+  // cleared before the cue's window closes, so it is told the call was
+  // up; anything queued for the room we are leaving is dropped.
+  cancelCues();
+  if (connection?.status === "connected" && !switching)
+    cue("leave", { connected: true });
   useVoiceStore.getState().setConnection(null);
   reportVoiceState();
   await r?.disconnect();
