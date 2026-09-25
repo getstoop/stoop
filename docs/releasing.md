@@ -39,7 +39,9 @@ release before it, and it can be rolled back one release
    git push origin v0.2.0
    ```
 
-4. **The workflow** builds the web app, embeds it, and runs GoReleaser:
+4. **The workflow** builds the web app, embeds it, assembles
+   `stoop-upgrade.sh` from `deploy/upgrade/` (`make upgrade-script`; the
+   result is gitignored), and runs GoReleaser:
    linux amd64, linux arm64 and darwin arm64 archives with `checksums.txt`;
    images pushed to `ghcr.io/getstoop/stoop` as `0.2.0`, `0.2` and
    `latest`; the compose bundle (`docker-compose.yml`, `livekit.yaml`,

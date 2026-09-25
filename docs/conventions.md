@@ -184,3 +184,17 @@ for, and why — is in
 - Large explanations and how-tos belong in documentation, not in code.
 - If a piece of code's outcome cannot be predicted by reading the code
   itself, consider changing the code to be more readable.
+
+## Shell: the upgrade script is assembled from parts
+
+- **`deploy/upgrade/*.sh` are the source**, numbered so `ls` shows the
+  order they run in: header and constants, helpers, arguments, preflight,
+  rollback, target, plan, backup, switch. One stage per file.
+- **`deploy/stoop-upgrade.sh` is generated** by `make upgrade-script`
+  (`make build` and `make lint` run it) and gitignored; the release
+  workflow assembles it before GoReleaser attaches it. Never edit the
+  assembled file.
+- **POSIX `sh`**, `set -eu`, tabs, the same shape as
+  `deploy/livekit-entrypoint.sh`. A helper used by more than one stage
+  lives in the helpers file; a stage that grows past a screen splits by
+  stage, not by helper.

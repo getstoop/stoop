@@ -31,6 +31,9 @@ jobs:
       # and GoReleaser refuses a dirty checkout.
       - name: Build web app for embedding
         run: make build-web
+      # Gitignored, so it does not dirty the checkout GoReleaser checks.
+      - name: Assemble the upgrade script
+        run: make upgrade-script
       - name: Log in to GHCR
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
