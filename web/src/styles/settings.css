@@ -112,6 +112,19 @@
   grid-template-columns: minmax(200px, 2fr) 3fr;
 }
 
+/* A row whose whole control is one checkbox: the box sits before its
+   words, not alone in the control column. */
+.setting-row.toggle,
+.settings-content .setting-row.toggle {
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+}
+
+.setting-row.toggle > input[type="checkbox"] {
+  width: auto;
+  margin: 4px 0 0;
+}
+
 .setting-text {
   display: flex;
   flex-direction: column;

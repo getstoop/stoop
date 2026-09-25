@@ -148,8 +148,3 @@ export function cancelCues() {
     delete pending[kind];
   }
 }
-
-// Plays one for the settings row, past every rule but the switch itself.
-export function previewCue(kind: Cue) {
-  synth(kind);
-}
