@@ -105,6 +105,7 @@ func writePlan(w io.Writer, p db.Plan, after bool) {
 		_, _ = fmt.Fprintf(w, "refused    %s\n", err)
 		return
 	}
+	_, _ = fmt.Fprintf(w, "startable  %s\n", startable(p.Floor))
 	if !after || len(p.Pending) == 0 {
 		return
 	}
@@ -112,12 +113,16 @@ func writePlan(w io.Writer, p db.Plan, after bool) {
 	if p.Contract() {
 		line = fmt.Sprintf("contract migration: floor rises from %d to %d", p.Floor, p.FloorAfter)
 	}
-	if r, ok := db.OldestStartable(p.FloorAfter); ok {
-		line += fmt.Sprintf("; %s and later can start against the database", r.Version)
-	} else {
-		line += "; no tagged release can start against the database"
+	_, _ = fmt.Fprintf(w, "after up   %s; %s\n", line, startable(p.FloorAfter))
+}
+
+// startable names the releases that can start against a database with
+// this floor; the upgrade script reads the version off the front.
+func startable(floor int64) string {
+	if r, ok := db.OldestStartable(floor); ok {
+		return r.Version + " and later can start against the database"
 	}
-	_, _ = fmt.Fprintf(w, "after up   %s\n", line)
+	return "no tagged release can start against the database"
 }
 
 // releaseAt names the release a migration number belongs to: " (0.2.0)"

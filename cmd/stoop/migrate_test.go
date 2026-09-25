@@ -22,6 +22,7 @@ func TestWritePlan(t *testing.T) {
 		"binary     0.3.0, migration 42, floor 0",
 		"pending    2",
 		"           00038_session_user_agent",
+		"startable  0.1.0 and later can start",
 		"after up   floor stays at 0; 0.1.0 and later can start",
 	} {
 		if !strings.Contains(out.String(), want) {
@@ -34,8 +35,8 @@ func TestWritePlan(t *testing.T) {
 
 	out.Reset()
 	writePlan(&out, pending, false)
-	if strings.Contains(out.String(), "after up") {
-		t.Errorf("status should not say what up means:\n%s", out.String())
+	if strings.Contains(out.String(), "after up") || !strings.Contains(out.String(), "startable  0.1.0") {
+		t.Errorf("status should say what starts now, not what up means:\n%s", out.String())
 	}
 
 	contract := db.Plan{Applied: 40, Newest: 45, Floor: 0, FloorAfter: 37, Pending: []db.Migration{{Version: 45, Name: "drop_sessions"}}}
@@ -43,6 +44,7 @@ func TestWritePlan(t *testing.T) {
 	writePlan(&out, contract, true)
 	for _, want := range []string{
 		"migration 40 (past 0.2.0)",
+		"startable  0.1.0 and later",
 		"contract migration: floor rises from 0 to 37; 0.2.0 and later can start",
 	} {
 		if !strings.Contains(out.String(), want) {
