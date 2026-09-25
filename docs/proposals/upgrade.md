@@ -92,51 +92,76 @@ All the judgment lives in the image, so the host side stays dumb.
 
 ## The host tool
 
-`stoop-upgrade.sh`, shipped in the compose bundle beside
-`docker-compose.yml`, fetched the same way. Compose installs only in the
-first version; the bare binary comes later.
+`stoop upgrade`: a verb of the server binary, run on the host from the
+install directory. The same archive GoReleaser already builds per
+architecture; nothing new to package. Compose installs only in the first
+version; the bare binary comes later, as the same verb with a different
+switch step.
 
 ```sh
-curl -fLO https://github.com/getstoop/stoop/releases/latest/download/stoop-upgrade.sh
-sh stoop-upgrade.sh            # to the latest release
-sh stoop-upgrade.sh --plan     # print what would happen and stop
-sh stoop-upgrade.sh --to 0.4.0
-sh stoop-upgrade.sh rollback   # the previous compose file, back in place
+curl -fsSL https://github.com/getstoop/stoop/releases/latest/download/stoop_linux_amd64.tar.gz | tar -xz stoop
+./stoop upgrade                 # to the latest release
+./stoop upgrade --plan          # print what would happen and stop
+./stoop upgrade --to 0.4.0
+./stoop upgrade --yes           # no confirmation prompt
+./stoop upgrade rollback        # the previous compose file, back in place
 ```
+
+The tool's own version does not limit what it can upgrade to: the
+judgment about the database comes from the target image through
+`migrate plan --json`, and the compose file comes from the target
+release. Download it once and keep it; it says when a newer copy of
+itself is worth fetching.
 
 What a run does, in order:
 
 1. **Preflight.** `docker compose` present; the directory holds
-   `docker-compose.yml` and `.env`; the running instance answers
-   `/version`. The current tag is read from the compose file.
+   `docker-compose.yml` and `.env`. The current tag is read from the
+   compose file.
 2. **Resolve the target.** The latest release from the GitHub API, or
-   `--to`. Fetch that release's `docker-compose.yml` to a temporary name.
+   `--to`, or `--file` for a compose file already on disk. Fetch that
+   release's `docker-compose.yml` and `env.example` to temporary names.
    Refuse a target older than current: going back is `rollback`. Refuse a
    Postgres major that differs from the running one and point at the
    Postgres section of self-hosting.md; that upgrade stays manual.
 3. **Plan.** `docker compose -f <new file> run --rm --no-deps stoop
-   migrate plan` against the running database. This pulls the new image
-   as a side effect. Print the plan, and the `.env` keys the new
-   `env.example` has that `.env` lacks (the `COMPOSE_PROFILES` lesson
+   migrate plan --json` against the running database. This pulls the new
+   image as a side effect. Print the plan, and the `.env` keys the new
+   `env.example` sets that `.env` lacks (the `COMPOSE_PROFILES` lesson
    from 0.2 → 0.3). `--plan` stops here.
 4. **Back up.** The runbook's two commands, into
-   `backups/<date>-<from>-<to>/`. With `bundled-postgres` off, `pg_dump`
-   runs from a `postgres:16-alpine` container against
-   `STOOP_DATABASE_URL`.
+   `backups/<date>-<from>-to-<to>/`. With `bundled-postgres` off,
+   `pg_dump` runs from a `postgres` container against
+   `STOOP_DATABASE_URL`. An empty dump or archive stops the upgrade.
 5. **Switch.** Keep the old file as `docker-compose.yml.prev`, move the
-   new one into place, `docker compose up -d --wait` with a long timeout,
-   then check `/version` reports the target.
+   new one into place, `docker compose up -d --remove-orphans --wait`
+   with a long timeout, then check the running binary reports the target.
 6. **On failure.** Print the tail of the `stoop` logs. If the plan said
    no contract migration: offer `rollback`, which is the previous file
    back and `up -d`. If it did: print the restore commands from the
    runbook with this backup's paths filled in. The first version prints
    them; a later one runs them.
 
-Why a script and not a second binary: every step on the host is
-`docker compose`, `curl` and `tar`. The only judgment, what the
-migrations will do, is answered by the image itself through `migrate
-plan`. A host binary adds a download, an architecture and a checksum to
-get wrong, for no logic the image does not already hold.
+`rollback` asks the running image's `migrate status --json` which
+releases can start against the database now (the floor and the release
+table), refuses when the previous release cannot, and otherwise swaps
+the files back and restarts. It never runs the older image's binary for
+that: releases up to 0.2.0 treat an unknown verb as "serve".
+
+Why a verb of the binary and not a script: a script cannot be unit
+tested, cannot run on a Windows host with Docker Desktop, parses JSON
+and compares versions with `sed` and `sort -V`, and the bare-binary path
+(archive download, checksum, atomic swap, service restart) is miserable
+in shell. The cost is fetching an archive for the host's architecture
+instead of one file. The script was built first (PR #216, closed
+unmerged) and drilled on a scratch stack; its sequence, plan output and
+failure messages are this verb's specification.
+
+Layout: `internal/upgrade` holds the steps behind a small interface for
+running `docker compose`, so the sequence is tested with a fake that
+records commands; `cmd/stoop/upgrade.go` parses arguments and wires it.
+A drill against a real scratch stack is a Go test gated by an
+environment variable, which is phase 3's CI job.
 
 ## Testing
 
@@ -159,12 +184,16 @@ get wrong, for no logic the image does not already hold.
 1. **Rules and verbs.** R1 to R5 into data.md; `stoop migrate
    status|plan|up`; `stoop version --json`; the floor constant and its
    test; the release table. Small PRs, no operator-visible change yet.
-2. **The script.** Forward, `--plan`, backup, one-step rollback. The
-   Upgrading section of self-hosting.md leads with it; the manual
-   commands stay below as "what it does".
-3. **Hardening.** Restore on a contract failure run by the script; the
-   upgrade CI job; fixture dumps.
-4. **Later.** The bare-binary path; the update notice shows the command;
+2. **The verb.** `migrate plan --json` and `status --json`; `stoop
+   upgrade` with forward, `--plan`, `--to`, `--file`, `--yes`, backup,
+   one-step rollback. The Upgrading section of self-hosting.md leads
+   with it; the manual commands stay below as "what it does", and
+   Backups gains "Restoring in place".
+3. **Hardening.** Restore on a contract failure run by the verb; the
+   drill as a CI job; fixture dumps.
+4. **Later.** The bare-binary path (the same verb, switching a binary
+   under a service instead of a compose file); a Windows build once a
+   Windows host can be checked; the update notice shows the command;
    migrating from the new image while the old one still serves, for
    shorter downtime.
 
@@ -172,7 +201,10 @@ get wrong, for no logic the image does not already hold.
 
 Settled 2026-09-25 by the operator:
 
-1. A script in the bundle, not a host binary.
+1. ~~A script in the bundle, not a host binary.~~ Revisited the same
+   day, after the script was built and drilled: a `stoop upgrade` verb
+   of the binary, run on the host, for Windows, tests and the
+   bare-binary path.
 2. The release table in code (R3), so messages speak in versions.
 3. Migrations keep running at startup, with the verbs beside them.
 4. Forward jumps of any distance under R1 and the fixture test; one
