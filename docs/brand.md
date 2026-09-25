@@ -35,7 +35,9 @@ Rules that keep it working:
 | Asphalt | `#1f1d1a` | the mark as plain ink |
 | Live | `#2f9e6b` | the capture dot only |
 
-The brand colours are deliberately the app's accent tokens in `web/src/themes.css`, so there is one red per theme, not a brand red and a UI red.
+The brand colours are deliberately the app's accent tokens in
+`web/src/themes.css`, so there is one red per theme, not a brand red and a
+UI red.
 
 ## Wordmark
 
@@ -51,65 +53,84 @@ SVG, not a webfont, and waits on the decision in
 replaces that same `<h1>` slot with the operator's own icon and name. The
 mark is the *default* identity there, not a fixed one.
 
-## Where every asset lives
+## Where it lives
 
-Served files and the masters are in this repo; the desktop repo carries only
-what electron-builder and the tray read.
+`brand/` in this repo is the home: the masters, the pipeline and the files
+other consumers copy out. It stays here while the consumers are this repo
+and the desktop shell; a third (a website) is the point to move it to its
+own repository, and the layout is meant to move as one directory.
 
-**`web/brand/` — masters, not served.**
+```
+brand/masters/   hand-drawn SVGs, the only files edited by hand
+brand/build.mjs  `make brand`: cuts everything below
+brand/dist/      committed outputs for other repos (desktop/, press/)
+web/public/      the web icon set, written directly, served from the root
+```
+
+**Masters.**
 
 | File | What it is |
 | --- | --- |
 | `mark.svg` | the bare path, no fill |
-| `icon-square.svg` | full-bleed brownstone tile, sandstone mark — the web icons and the Windows `.ico` |
+| `mark-ember.svg` | the path in ember with a title — the desktop shell's in-app mark |
+| `favicon.svg` | the mark in brownstone, ember under `prefers-color-scheme: dark` |
+| `favicon-live.svg` | the same with a transparent ring at the bubble's shoulder and the live dot |
+| `badge.svg` | the path in white — the notification badge (alpha only) |
+| `icon-square.svg` | full-bleed brownstone tile, sandstone mark |
 | `icon-maskable.svg` | same tile, mark inside the 66 % safe circle |
-| `icon-rounded.svg` | tile with transparent rounded corners (r 22.5 %) — the Linux icon |
+| `icon-rounded.svg` | tile with transparent rounded corners (r 22.5 %) |
 | `icon-macos.svg` | Apple's app-icon template: the tile on 824/1024 of the canvas, transparent margin |
 | `menubar-template.svg` | the path in black; macOS reads only its alpha |
 
-**`web/public/` — served as-is from the root** (`docs/architecture/web.md`).
+**`web/public/`** — served as-is from the root (`docs/architecture/web.md`).
 
-| File | Cut from | Size |
+| File | From | Read by |
 | --- | --- | --- |
-| `favicon.svg` | hand-written: the mark in brownstone, ember under `prefers-color-scheme: dark` | — |
-| `favicon-live.svg` | the same with a transparent ring at the bubble's shoulder and the live dot; `Root.tsx` swaps to it while the mic or screen is captured | — |
-| `apple-touch-icon.png` | `icon-square` | 180 |
-| `icon-192.png`, `icon-512.png` | `icon-square` | 192, 512 |
-| `icon-maskable-512.png` | `icon-maskable` | 512 |
+| `favicon.svg` | copied | `index.html`; `Root.tsx` swaps to `favicon-live.svg` while the mic or screen is captured |
+| `favicon.ico` | `favicon` at 16, 32, 48 | browsers without SVG favicons, and anything that fetches `/favicon.ico` unasked; no `<link>` needed |
+| `apple-touch-icon.png` | `icon-square` at 180 | iOS home screen, Safari |
+| `icon-192.png`, `icon-512.png` | `icon-square` | the manifest; `icon-192` is also the banner icon in `web/src/api/notifications.ts` |
+| `icon-maskable-512.png` | `icon-maskable` | the manifest, `purpose: maskable` |
+| `badge-96.png` | `badge` | `notifications.ts` `badge:` — the monochrome status-bar glyph on Android |
 
-`web/index.html` and `manifest.webmanifest` reference these by name and did
-not change.
+`manifest.webmanifest` lists the SVG (`sizes: any`), the two PNGs and the
+maskable one.
 
-**Desktop repo (`getstoop/desktop`).**
+**`brand/dist/desktop/`** — the desktop shell runs `make brand` to copy
+these in (`scripts/brand-sync.mjs` there; a sibling checkout by default).
 
-| File | Cut from | Read by |
+| File | From | Read by |
 | --- | --- | --- |
-| `resources/icon.icns` | `icon-macos`, ten sizes 16..1024 via `iconutil` | electron-builder, mac (found by name in `buildResources`) |
-| `resources/icon.ico` | `icon-square` at 16, 24, 32, 48, 64, 128, 256 | electron-builder, win |
-| `resources/icon.png` | `icon-rounded` | electron-builder, linux |
-| `resources/tray/trayTemplate.png`, `@2x` | `menubar-template`: the mark at 16 pt on the 22 pt canvas, 3 pt margins | `src/main/trayIcon.ts`, `setTemplateImage(true)` |
-| `src/renderer/mark.svg` | the bare mark in ember (the shell is dark-only) | `add/index.html`, `gate/index.html` at 40 × 40 beside the `<h1>` |
+| `icon.icns` | `icon-macos`, ten sizes 16..1024 via `iconutil` | electron-builder, mac (by name in `buildResources`) |
+| `icon.ico` | `icon-square` at 16..256 | electron-builder, win |
+| `icon.png`, `icons/NNxNN.png` | `icon-rounded` | electron-builder, linux (`linux.icon: icons`); `icons/256x256.png` also ships as the window icon |
+| `tray/trayTemplate.png`, `@2x` | `menubar-template`: the mark at 16 pt on the 22 pt canvas, 3 pt margins | `src/main/trayIcon.ts`, macOS, `setTemplateImage(true)` |
+| `tray/tray.ico`, `tray/tray.png` | the tile at 16..48 / at 32 | `trayIcon.ts`, Windows / Linux — those trays draw the image as-is, so a template glyph would be invisible on a dark tray |
+| `mark.svg` | `mark-ember` copied | `add/index.html`, `gate/index.html` at 40 × 40 beside the `<h1>` |
 
 The tray has no image-level state: unread is `setTitle` text and the dock
 badge, live capture is the tooltip and the renderer strip. A template image
 carries no colour, so a live tray dot would need a non-template image picked
 per `nativeTheme`. Not built.
 
+**`brand/dist/press/`** — the mark in each colour as SVG and the rounded
+icon at 256 and 1024, for a README, a site, a listing.
+
 ## Regenerating
 
 ```sh
-node scripts/brand-icons.mjs                     # web/public/*.png
-node scripts/brand-icons.mjs ../stoop-desktop    # + resources/icon.*, tray/*
+make brand                       # here: web/public and brand/dist
+cd ../stoop-desktop && make brand   # there: copies dist/desktop in
 ```
 
-Edit the master, run the script, commit the rasters. The `.icns` step needs
-macOS. `favicon.svg`, `favicon-live.svg` and the desktop `mark.svg` are
-hand-written from the path above; change them by hand.
+Edit a master, run both, commit the outputs in both repos. The `.icns`
+step needs macOS. Outputs are deterministic, so a clean run on an unchanged
+master leaves the tree clean.
 
 ## Not done, on purpose
 
 - The web login card shows no mark, only the `<h1>`. Adding one is part of
   the instance-branding decision, not the icon swap.
-- `web/src/api/notifications.ts` passes no `icon:`; browser banners use the
-  browser's default. Worth doing when notifications get attention.
-- No OG/social image. The repo has never had one.
+- No OG/social image. That is the website's, when there is one.
+- No DMG background or installer art; electron-builder's defaults carry
+  the app icon.

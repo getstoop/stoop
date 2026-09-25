@@ -85,6 +85,8 @@ function showDesktopNotification(
     body,
     tag,
     renotify: true,
+    icon: "/icon-192.png",
+    badge: "/badge-96.png",
   };
   const note = new Notification(title, options);
   note.onclick = () => {
