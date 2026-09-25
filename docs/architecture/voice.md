@@ -288,6 +288,49 @@ local mic with a Web Audio analyser. Metering subscribed *remote* audio the
 same way, so that a ring lights when the voice reaches the speakers rather
 than when the server noticed it, is tracked as STOOP-122.
 
+## Join and leave cues
+
+A soft two-note tone when the call you are in gets bigger or smaller:
+rising for a join, falling for a leave, yourself included, so the pair
+means one thing. `api/voiceCues.ts` synthesizes it with Web Audio rather
+than shipping files — nothing to load, nothing to license — and
+`api/voice.ts` asks for one at four points: our own connection landing,
+our own hang-up, a server-side drop, and LiveKit's `ParticipantConnected`
+and `ParticipantDisconnected` on the room we are in.
+
+**The source is the room, not the sidebar.** The gateway's
+`VoiceStateChanged` fires for every voice channel in every space you are
+a member of, is an upsert that also fires on a mute or camera toggle, and
+is dropped and re-reported across a WebSocket blip — a phantom leave and
+join for anyone whose socket stuttered. LiveKit's participant events fire
+only while we are connected and only for that room, which is exactly the
+cue's meaning.
+
+Four rules, read at the moment a cue would play:
+
+- **The switch is on.** A choice about this device's speakers, kept in
+  `localStorage` under `stoop.voiceCues` like the theme, and set from the
+  account page's Notifications tab. Inside the desktop app the switch is
+  the app's, one for every server it holds, asked through
+  `window.stoop.voiceCuesAllowed()` ([desktop.md](desktop.md)); the
+  browser's key is then ignored, and the row is not offered.
+- **We are connected to the call.** Our own leave is the one cue asked
+  for after the connection is already cleared, so it says so.
+- **Not deafened.** Deafened holds the cues the way it holds the voices.
+- **Audio is not blocked.** While the browser is still waiting on
+  "Enable audio", nothing is playing anyway.
+
+**Arrivals inside 150 ms share one cue.** A LiveKit reconnect can
+re-announce the whole room within a few milliseconds, and a drum roll is
+not what happened. The rules are read when the window closes, not when
+it opens, so a leave that arrives as the call is torn down finds the
+call gone and stays quiet; `leaveVoice` also drops anything still
+queued. Moving between channels is one join, not a leave and a join: the
+leave half runs while `switching` is set and asks for nothing.
+
+The truth table and the window are unit-tested (`api/voiceCues.test.ts`);
+the sound itself is checked by ear on the dev server.
+
 ## Presence in a voice channel
 
 Who is in which voice channel is **client-reported** over the gateway

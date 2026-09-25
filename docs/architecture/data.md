@@ -386,6 +386,7 @@ with a bounded working set is both simpler and fast enough.
 | Typing hints | Gateway memory, rate-limited | Worthless two seconds later. |
 | Voice participation | Gateway memory, client-reported | LiveKit is the source of truth for media; this is a hint for the sidebar. |
 | The chosen theme | `localStorage` | A per-browser preference. Nothing a space or an admin sets should be able to recolour someone's client. |
+| The voice cue switch | `localStorage` | A per-browser preference about this device's speakers; the desktop app keeps one for every server it holds. |
 | Draft messages | Component state | Not worth a round trip. |
 
 ## Testing against Postgres

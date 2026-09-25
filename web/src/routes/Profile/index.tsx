@@ -19,6 +19,7 @@ import { PersonalTokensSection } from "./PersonalTokensSection";
 import { ProfileForm } from "./ProfileForm";
 import { ProfileHeader } from "./ProfileHeader";
 import { SessionsSection } from "./SessionsSection";
+import { VoiceSoundsSection } from "./VoiceSoundsSection";
 
 // Your account, in five sections under one header: who other people see
 // (Profile), how Stoop looks to you (Appearance), what is allowed to
@@ -50,8 +51,9 @@ export function ProfilePage() {
     linked?: string;
     error?: string;
   };
-  // Inside a desktop app with its own do not disturb switch, both of the
-  // Notifications tab's rows are set in App settings.
+  // Inside a desktop app with its own do not disturb switch, every row of
+  // the Notifications tab — do not disturb, banners, the voice cues — is
+  // set in App settings.
   const shellOwnsNotifications = shellDnd() !== undefined;
   const tabs = TABS.filter(
     (t) =>
@@ -113,6 +115,7 @@ export function ProfilePage() {
         <section className="card">
           <DoNotDisturbSection />
           <NotificationsSection />
+          <VoiceSoundsSection />
         </section>
       )}
       {active === "muted" && <MutesSection />}

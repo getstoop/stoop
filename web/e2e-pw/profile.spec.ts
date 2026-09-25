@@ -76,6 +76,17 @@ test("the account page, password change and log out", async ({ browser }) => {
     P.locator(".dnd-section"),
     "and is where do not disturb is set from a browser",
   ).toHaveCount(1);
+  // The voice cue switch is a browser-side choice: it is on by default,
+  // and turning it off here is remembered by this browser.
+  const cues = P.locator("#voice-cues");
+  await expect(cues, "the voice cue switch is on by default").toBeChecked();
+  await cues.uncheck();
+  await reload(P);
+  await P.locator('.settings-tab[data-tab="notifications"]').click();
+  await expect(
+    P.locator("#voice-cues"),
+    "the choice survives a reload",
+  ).not.toBeChecked();
   await P.locator('.settings-tab[data-tab="muted"]').click();
   await expect(P, "the Muted tab is a URL you can link to").toHaveURL(
     /\?tab=muted$/,

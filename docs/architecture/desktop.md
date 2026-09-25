@@ -43,6 +43,7 @@ marked with a bridge level needs a shell at that level:
 | `theme` | `ShellTheme` | Bridge 2. The theme the shell wears now, whole: `{ scheme, tokens }`, tokens keyed by CSS name. Set before the page's first script runs, so `index.html` paints it with no flash. |
 | `onTheme(handler)` | `(h: (theme: ShellTheme) => void) => () => void` | Bridge 2. The shell changed theme. Returns the unsubscribe. |
 | `notificationsAllowed()` | `() => boolean` | Bridge 3. Whether App settings is letting desktop banners through, **asked at the moment one would fire**. A function rather than a value because `contextBridge` copies values across once, at load, and this one changes while the page is open. |
+| `voiceCuesAllowed()` | `() => boolean` | Bridge 5. Whether App settings is letting the voice join and leave cues play, **asked at the moment one would play**, for the same reason `notificationsAllowed` is a function. The page then ignores its own `localStorage` switch and offers no row for it ([voice.md](voice.md#join-and-leave-cues)). |
 | `dnd` | `{ on: boolean; until: number \| null }` | Bridge 3. Where the app's do not disturb switch stands as the page loads, and when it ends (epoch ms, or null for never), asked of the app at that moment, so a reloaded page is never stale. A switch past its end is handed over as off. The page sets its own server on, with the same end, when `on` is true, and never off on load (`api/dndBridge.ts`). Its presence also takes the Notifications tab out of account settings. |
 | `onDnd(handler)` | `(h: (dnd: { on: boolean; until: number \| null }) => void) => () => void` | Bridge 3. The switch moved; the page sets its own server to match, on (with its end) or off. The end passing sends nothing: each server ends it on its own. Returns the unsubscribe. |
 | `setVoice(report)` | `(r: VoiceReport \| null) => void` | Bridge 3. What this page captures — `{ kind, mic, camera, screen, channel, space }`, names resolved — sent on every change and `null` out of voice. Bridge 4 adds `deafened`, which the shell's Voice menu reads; a page that leaves it out reads as not deafened. The shell draws it centred in the strip and in the tray; the page hides its rail pill whenever this member exists. |
@@ -137,6 +138,17 @@ The app holds its banners itself while the switch is on:
 own server says do not disturb, so setting it from a phone silences that
 server in the app too. Inside such an app the Notifications tab leaves
 account settings, the way Appearance does.
+
+## Voice room sounds
+
+The join and leave cues ([voice.md](voice.md#join-and-leave-cues)) are a
+choice about this computer's speakers, so in a browser they are kept in
+`localStorage` and in the desktop app they are one App setting,
+Notifications → Voice room sounds, for every server the app holds. The
+app's Voice menu carries the same switch as a checkbox item, so it can be
+flipped mid-call. Nothing crosses to any server: the page asks
+`voiceCuesAllowed()` at the moment a cue would play, and a bridge that
+has no such member leaves the page to its own switch, as a browser is.
 
 ## What needs no bridge
 
