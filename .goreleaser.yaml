@@ -25,6 +25,9 @@ builds:
 
 archives:
   - formats: [tar.gz]
+    # No version in the name: `releases/latest/download/<name>` has to
+    # resolve for the upgrade tool's fetch line in docs/self-hosting.md.
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
 
 dockers:
   - image_templates: ["ghcr.io/getstoop/stoop:{{ .Version }}-amd64"]

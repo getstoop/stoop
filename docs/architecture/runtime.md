@@ -312,8 +312,21 @@ up        apply the pending migrations and exit; what startup does
 `goose_db_version`, `schema_floor`, the embedded files, `db.Floor` and
 `db.Releases`, so `plan` run from the release about to be installed says
 whether the release that made the database can still start against it
-afterwards. `stoop version --json` reports the migration and floor a build
-carries with no database at all.
+afterwards; `--json` emits the same `db.Report` for a program. `stoop
+version --json` reports the migration and floor a build carries with no
+database at all.
+
+`stoop upgrade` is the host side of that (`internal/upgrade`): run from
+a compose install directory, it fetches the target release's compose
+file, runs the new image's `migrate plan --json` against the live
+database, takes the runbook backup, swaps the compose file keeping the
+old one as `.prev`, starts with a wait, and checks the running version.
+`rollback` asks the running image's `migrate status --json` which
+releases can start against the database before putting the old file
+back; it never runs the older image's binary, since releases up to 0.2.0
+treat an unknown verb as "serve". Every host command goes through a
+`Runner` interface, so the sequence is tested with a fake that records
+commands ([self-hosting.md → Upgrading](../self-hosting.md#upgrading)).
 
 ## Build and release
 
