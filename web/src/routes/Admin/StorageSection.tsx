@@ -11,13 +11,13 @@ import { formatBytes, GB } from "./bytes";
 
 const MB = 1024 * 1024;
 // The server's own ceiling on one file; the setting can only come down
-// from it — see "File storage" in docs/self-hosting.md.
+// from it — see "File storage" in docs/self-hosting/storage.md.
 const CEILING_MB = MAX_ATTACHMENT_BYTES / MB;
 
 // The two limits on uploads, saved together: the cap on total storage
 // (past it uploads are refused; nothing is deleted — that is
 // CleanupSection) and the cap on one file, without which a single file
-// can take the whole quota. See "Upload storage" in docs/self-hosting.md.
+// can take the whole quota. See "Upload storage" in docs/self-hosting/storage.md.
 export function StorageSection() {
   const queryClient = useQueryClient();
   const { data: status, error: statusError } = useInstanceStatus();

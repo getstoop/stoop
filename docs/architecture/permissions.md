@@ -66,7 +66,7 @@ to its uploader and the participants, with no admin bypass. That is an
 *application* boundary, and it is honest about being one — DMs sit in
 Postgres in plaintext like every other message, readable by whoever holds
 the database. End-to-end encryption remains deferred, and
-`docs/self-hosting.md` says so to operators in as many words.
+`docs/self-hosting/accounts-and-security.md` says so to operators in as many words.
 
 **Bootstrap:** the first registered user becomes `admin`. Under the default
 registration policy only that first user can register without an invite, so

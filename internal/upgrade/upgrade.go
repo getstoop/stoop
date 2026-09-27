@@ -230,7 +230,7 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 	}
 	if now, then := PostgresMajor(string(old)), PostgresMajor(string(next)); now != "" && then != "" && now != then {
 		u.cleanupNext()
-		return "", false, false, fmt.Errorf("%s moves Postgres from %s to %s, which this tool does not do: docs/self-hosting.md → Supported Postgres and LiveKit versions", target, now, then)
+		return "", false, false, fmt.Errorf("%s moves Postgres from %s to %s, which this tool does not do: docs/self-hosting/install.md → Supported Postgres and LiveKit versions", target, now, then)
 	}
 	return target, fetched, false, nil
 }

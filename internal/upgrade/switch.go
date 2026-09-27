@@ -46,7 +46,7 @@ func (u *Upgrader) switchTo(ctx context.Context, current, target string, backup 
 		} else {
 			_, _ = fmt.Fprintf(u.Out, "It ran a contract migration, so %s cannot start against the database now.\n", current)
 			_, _ = fmt.Fprint(u.Out, "Restore the backup, then put the old files back:\n"+u.restoreCommands(backup)+
-				"docs/self-hosting.md → Restoring in place explains each line.\n")
+				"docs/self-hosting/backups.md → Restoring in place explains each line.\n")
 		}
 		return ErrFailed
 	}
@@ -55,7 +55,7 @@ func (u *Upgrader) switchTo(ctx context.Context, current, target string, backup 
 	}
 	u.say("upgraded %s -> %s; backup in %s", current, target, backup.Dir)
 	if plannedContract {
-		_, _ = fmt.Fprintf(u.Out, "Rolling back to %s now means restoring that backup (docs/self-hosting.md → Restoring in place).\n", current)
+		_, _ = fmt.Fprintf(u.Out, "Rolling back to %s now means restoring that backup (docs/self-hosting/backups.md → Restoring in place).\n", current)
 	} else {
 		_, _ = fmt.Fprintln(u.Out, "If something is wrong: stoop upgrade rollback")
 	}

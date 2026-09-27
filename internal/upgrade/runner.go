@@ -2,7 +2,7 @@
 // install to a newer release and back, running docker compose the way an
 // operator would by hand. The judgment about the database comes from the
 // target image through `migrate plan --json`, never from this binary.
-// See docs/self-hosting.md → Upgrading and docs/proposals/upgrade.md.
+// See docs/self-hosting/install.md → Upgrading and docs/proposals/upgrade.md.
 package upgrade
 
 import (

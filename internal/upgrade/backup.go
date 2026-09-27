@@ -16,7 +16,7 @@ type backupInfo struct {
 	Bundled bool   // the compose stack's own postgres service
 }
 
-// backup is the runbook's two commands (docs/self-hosting.md → Backups)
+// backup is the runbook's two commands (docs/self-hosting/backups.md)
 // into backups/<stamp>-<from>-to-<to>: the dump first, so a file
 // uploaded in between is an extra the sweep removes, never a row whose
 // file is missing. The directory and both files are readable by the

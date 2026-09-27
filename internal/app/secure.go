@@ -33,7 +33,7 @@ const hstsMaxAge = "max-age=31536000"
 // extra script-src sources index.html needs (webui.ScriptHashes).
 //
 // It sits inside secureTransport: HSTS is only promised when the request
-// arrived over HTTPS. docs/self-hosting.md → Security headers.
+// arrived over HTTPS. docs/self-hosting/accounts-and-security.md → Security headers.
 func securityHeaders(next http.Handler, scripts []string) http.Handler {
 	scriptSrc := strings.Join(append([]string{"'self'"}, scripts...), " ")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +53,7 @@ func securityHeaders(next http.Handler, scripts []string) http.Handler {
 
 // contentSecurityPolicy is the whole policy for one request. Everything
 // the app loads it serves itself; each exception is listed in
-// docs/self-hosting.md → Security headers.
+// docs/self-hosting/accounts-and-security.md → Security headers.
 func contentSecurityPolicy(scriptSrc, host string) string {
 	// The gateway and the signaling proxy are websockets on this origin.
 	// 'self' covers them in a current browser; older Safari needs the

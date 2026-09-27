@@ -121,7 +121,7 @@ one its reasoning, its enforcement, and what it costs.
 
 Related documents outside this directory: [../vision.md](../vision.md) for
 why Stoop exists, [../conventions.md](../conventions.md) for how files are
-laid out, [../self-hosting.md](../self-hosting.md) for the operator's view,
+laid out, [../self-hosting/](../self-hosting/README.md) for the operator's view,
 and [../agent-workflow.md](../agent-workflow.md) for how a change is built
 and lands.
 

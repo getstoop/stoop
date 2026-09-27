@@ -27,5 +27,5 @@ rtc:
 # can't reach those ports and voice is silent unless you offer a TURN relay
 # that is reachable outside the tunnel — either LiveKit's built-in one
 # (`turn:` block) or an external server (`rtc.turn_servers`). See
-# docs/self-hosting.md → Voice → TURN and
+# docs/self-hosting/voice.md → TURN and
 # https://docs.livekit.io/home/self-hosting/deployment/

@@ -3,7 +3,7 @@
 The Diagnostics tab answers "why is it slow?" from inside the app, without
 a debugger and without a metrics stack. This document is the model behind
 it; the operator's how-to is
-[../self-hosting.md](../self-hosting.md#diagnostics).
+[../self-hosting/webhooks-and-diagnostics.md](../self-hosting/webhooks-and-diagnostics.md#diagnostics).
 
 ```
   module code ──► internal/diag (counters · gauges · timings · jobs, in memory)

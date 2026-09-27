@@ -24,7 +24,7 @@ const migrateUsage = `usage: stoop migrate <command> [--json]
 Talks to the database in STOOP_DATABASE_URL directly. status and plan
 change nothing, and are meant to be run from the release you are about to
 upgrade to, before starting it; --json is what stoop upgrade reads.
-docs/self-hosting.md → Upgrading.
+docs/self-hosting/install.md → Upgrading.
 `
 
 // runMigrate implements `stoop migrate ...`. It returns the process exit code.
