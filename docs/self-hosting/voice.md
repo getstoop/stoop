@@ -15,7 +15,7 @@ each browser and LiveKit. Voice needs three things:
    in `.env`; nothing else needs editing. LiveKit discovers the public address to
    advertise (`use_external_ip: true`); on a LAN-only install, set
    `NODE_IP` in `.env` to the machine's LAN address instead.
-3. **HTTPS**, as [above](reaching-your-server.md).
+3. **HTTPS**, see [Reaching your server](reaching-your-server.md).
 
 ## TURN, when media ports can't be reached
 
