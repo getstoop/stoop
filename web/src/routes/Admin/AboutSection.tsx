@@ -28,7 +28,7 @@ export function AboutSection() {
       </SettingRow>
       {update?.available && (
         <SettingRow
-          title="Update"
+          title="Update Available"
           description={
             <>
               Run <code>./stoop upgrade</code> on the host.
