@@ -98,6 +98,7 @@ people who joined.
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
 | `GetLoginProviders` / `UpdateLoginProviders` | Admins. The OIDC provider list, replaced whole. |
 | `GetBuildInfo` | Admins. Version, commit, build time, Go version — admin-only because an exact version tells a stranger which bugs to try. |
+| `GetUpdate` | Admins. The newest release in the release index and whether it is newer than this server; empty when `STOOP_UPDATE_CHECK` is off. See [runtime.md](runtime.md#the-update-check). |
 | `GetHealth` / `GetLiveStats` / `GetDatabaseStats` / `GetRequestStats` / `ListJobs` | Admins. The Diagnostics tab, read-only, polled every 5 s while it is open. See [diagnostics.md](diagnostics.md). |
 | `ListUserTokens` / `RevokeUserToken` | Admins. Another account's personal tokens, never the token itself. |
 

@@ -81,6 +81,9 @@ const (
 	// InstanceServiceGetBuildInfoProcedure is the fully-qualified name of the InstanceService's
 	// GetBuildInfo RPC.
 	InstanceServiceGetBuildInfoProcedure = "/stoop.instance.v1.InstanceService/GetBuildInfo"
+	// InstanceServiceGetUpdateProcedure is the fully-qualified name of the InstanceService's GetUpdate
+	// RPC.
+	InstanceServiceGetUpdateProcedure = "/stoop.instance.v1.InstanceService/GetUpdate"
 	// InstanceServiceListUserTokensProcedure is the fully-qualified name of the InstanceService's
 	// ListUserTokens RPC.
 	InstanceServiceListUserTokensProcedure = "/stoop.instance.v1.InstanceService/ListUserTokens"
@@ -164,6 +167,9 @@ type InstanceServiceClient interface {
 	// GetBuildInfo reports which Stoop this is. Instance admins only: an
 	// exact version tells a stranger which bugs to try.
 	GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error)
+	// GetUpdate reports the newest release the release index lists and
+	// whether it is newer than this server. Instance admins only.
+	GetUpdate(context.Context, *connect.Request[v1.GetUpdateRequest]) (*connect.Response[v1.GetUpdateResponse], error)
 	// ListUserTokens lists another account's personal tokens, never their
 	// secrets. Instance admins only.
 	ListUserTokens(context.Context, *connect.Request[v1.ListUserTokensRequest]) (*connect.Response[v1.ListUserTokensResponse], error)
@@ -291,6 +297,12 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(instanceServiceMethods.ByName("GetBuildInfo")),
 			connect.WithClientOptions(opts...),
 		),
+		getUpdate: connect.NewClient[v1.GetUpdateRequest, v1.GetUpdateResponse](
+			httpClient,
+			baseURL+InstanceServiceGetUpdateProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("GetUpdate")),
+			connect.WithClientOptions(opts...),
+		),
 		listUserTokens: connect.NewClient[v1.ListUserTokensRequest, v1.ListUserTokensResponse](
 			httpClient,
 			baseURL+InstanceServiceListUserTokensProcedure,
@@ -354,6 +366,7 @@ type instanceServiceClient struct {
 	getLoginProviders    *connect.Client[v1.GetLoginProvidersRequest, v1.GetLoginProvidersResponse]
 	updateLoginProviders *connect.Client[v1.UpdateLoginProvidersRequest, v1.UpdateLoginProvidersResponse]
 	getBuildInfo         *connect.Client[v1.GetBuildInfoRequest, v1.GetBuildInfoResponse]
+	getUpdate            *connect.Client[v1.GetUpdateRequest, v1.GetUpdateResponse]
 	listUserTokens       *connect.Client[v1.ListUserTokensRequest, v1.ListUserTokensResponse]
 	revokeUserToken      *connect.Client[v1.RevokeUserTokenRequest, v1.RevokeUserTokenResponse]
 	getHealth            *connect.Client[v1.GetHealthRequest, v1.GetHealthResponse]
@@ -441,6 +454,11 @@ func (c *instanceServiceClient) UpdateLoginProviders(ctx context.Context, req *c
 // GetBuildInfo calls stoop.instance.v1.InstanceService.GetBuildInfo.
 func (c *instanceServiceClient) GetBuildInfo(ctx context.Context, req *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error) {
 	return c.getBuildInfo.CallUnary(ctx, req)
+}
+
+// GetUpdate calls stoop.instance.v1.InstanceService.GetUpdate.
+func (c *instanceServiceClient) GetUpdate(ctx context.Context, req *connect.Request[v1.GetUpdateRequest]) (*connect.Response[v1.GetUpdateResponse], error) {
+	return c.getUpdate.CallUnary(ctx, req)
 }
 
 // ListUserTokens calls stoop.instance.v1.InstanceService.ListUserTokens.
@@ -538,6 +556,9 @@ type InstanceServiceHandler interface {
 	// GetBuildInfo reports which Stoop this is. Instance admins only: an
 	// exact version tells a stranger which bugs to try.
 	GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error)
+	// GetUpdate reports the newest release the release index lists and
+	// whether it is newer than this server. Instance admins only.
+	GetUpdate(context.Context, *connect.Request[v1.GetUpdateRequest]) (*connect.Response[v1.GetUpdateResponse], error)
 	// ListUserTokens lists another account's personal tokens, never their
 	// secrets. Instance admins only.
 	ListUserTokens(context.Context, *connect.Request[v1.ListUserTokensRequest]) (*connect.Response[v1.ListUserTokensResponse], error)
@@ -661,6 +682,12 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(instanceServiceMethods.ByName("GetBuildInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
+	instanceServiceGetUpdateHandler := connect.NewUnaryHandler(
+		InstanceServiceGetUpdateProcedure,
+		svc.GetUpdate,
+		connect.WithSchema(instanceServiceMethods.ByName("GetUpdate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	instanceServiceListUserTokensHandler := connect.NewUnaryHandler(
 		InstanceServiceListUserTokensProcedure,
 		svc.ListUserTokens,
@@ -737,6 +764,8 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 			instanceServiceUpdateLoginProvidersHandler.ServeHTTP(w, r)
 		case InstanceServiceGetBuildInfoProcedure:
 			instanceServiceGetBuildInfoHandler.ServeHTTP(w, r)
+		case InstanceServiceGetUpdateProcedure:
+			instanceServiceGetUpdateHandler.ServeHTTP(w, r)
 		case InstanceServiceListUserTokensProcedure:
 			instanceServiceListUserTokensHandler.ServeHTTP(w, r)
 		case InstanceServiceRevokeUserTokenProcedure:
@@ -822,6 +851,10 @@ func (UnimplementedInstanceServiceHandler) UpdateLoginProviders(context.Context,
 
 func (UnimplementedInstanceServiceHandler) GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.GetBuildInfo is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) GetUpdate(context.Context, *connect.Request[v1.GetUpdateRequest]) (*connect.Response[v1.GetUpdateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.GetUpdate is not implemented"))
 }
 
 func (UnimplementedInstanceServiceHandler) ListUserTokens(context.Context, *connect.Request[v1.ListUserTokensRequest]) (*connect.Response[v1.ListUserTokensResponse], error) {

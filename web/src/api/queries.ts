@@ -267,6 +267,17 @@ export function useBuildInfo(enabled: boolean) {
   });
 }
 
+// Instance admins only: the newest release. The server caches the
+// answer for hours, so asking again sooner learns nothing.
+export function useUpdate(enabled: boolean) {
+  return useQuery({
+    queryKey: ["update"],
+    queryFn: async () => instanceClient.getUpdate({}),
+    enabled,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
 // Instance admins only: how people reach this server.
 export function useReachability(enabled: boolean) {
   return useQuery({

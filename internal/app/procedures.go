@@ -43,6 +43,7 @@ var procedures = map[string]authctx.Rule{
 	// The setup and login screens need it before anyone has an account.
 	instancev1connect.InstanceServiceGetInstanceStatusProcedure:    public,
 	instancev1connect.InstanceServiceGetBuildInfoProcedure:         needs(authctx.InstanceRead),
+	instancev1connect.InstanceServiceGetUpdateProcedure:            needs(authctx.InstanceRead),
 	instancev1connect.InstanceServiceListUsersProcedure:            needs(authctx.InstanceRead),
 	instancev1connect.InstanceServiceGetReachabilityProcedure:      needs(authctx.InstanceRead),
 	instancev1connect.InstanceServiceGetLoginProvidersProcedure:    needs(authctx.InstanceRead),

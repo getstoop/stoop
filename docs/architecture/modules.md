@@ -100,6 +100,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `instance` | `TailscaleController` | `internal/tailnet` | Apply saved settings to the embedded node; report its status. |
 | `instance` | `CloudflareTunnelController` | `internal/cftunnel` | Apply saved settings to the cloudflared child process; report its status. |
 | `instance` | `LiveKitReporter` | `internal/app` | What the Hosting page can say about the voice sidecar. |
+| `instance` | `UpdateChecker` | `internal/app` | The newest release in the release index, cached. |
 | `instance` | `RetentionCounter` | chat, files | What a retention period would delete now, for `PreviewRetention`. |
 | `realtime` | `SessionVerifier` | auth | Authenticate the WebSocket upgrade: the identity and the credential it presents. |
 | `realtime` | `MembershipLister` | chat | Which space topics this connection subscribes to. |

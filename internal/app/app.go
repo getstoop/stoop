@@ -113,6 +113,12 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	instanceSvc.UseWebhooksEnv(cfg.Webhooks)
 	bi := buildinfo.Get()
 	instanceSvc.UseBuildInfo(instance.BuildInfo{Version: bi.Version, Commit: bi.Commit, BuiltAt: bi.Date, GoVersion: bi.GoVersion})
+	if cfg.UpdateCheck {
+		// A nil pointer in the interface would not read as "off".
+		if checker := newUpdateChecker(bi.Version, log); checker != nil {
+			instanceSvc.UseUpdateChecker(checker)
+		}
+	}
 	chatSvc.UseInstancePolicy(instanceSvc)
 	chatSvc.UseSearchThrottle(ratelimit.New(cfg.SearchRateLimit, cfg.SearchRateLimit))
 	keys, err := livekitKeys(ctx, cfg, instanceSvc, log)

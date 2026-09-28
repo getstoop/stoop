@@ -96,6 +96,8 @@ type Service struct {
 	// internal/app. It bounds the max_upload_bytes setting (settings.go).
 	uploadCeiling int64
 	build         BuildInfo
+	// updates is the release index (update.go); nil when the check is off.
+	updates UpdateChecker
 	// health is the Diagnostics tab's check list (health.go); startedAt
 	// is for its uptime line.
 	health    []*cachedCheck

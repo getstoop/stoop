@@ -111,6 +111,9 @@ type Config struct {
 	// never contact the linked site; turn it off if you'd rather the server
 	// made no outbound requests on members' behalf.
 	LinkPreviews bool
+	// UpdateCheck has the server read the release index on getstoop.org
+	// so the admin page can say a newer release exists.
+	UpdateCheck bool
 	// FileSweepInterval is how often unreferenced uploads and stray blobs
 	// are removed (0 disables the timer; the admin page can still run
 	// one); FileSweepGrace is how old a file must be before it qualifies.
@@ -269,6 +272,9 @@ func Load() (Config, error) {
 	}
 
 	if cfg.LinkPreviews, err = parseBool("STOOP_LINK_PREVIEWS", true); err != nil {
+		return Config{}, err
+	}
+	if cfg.UpdateCheck, err = parseBool("STOOP_UPDATE_CHECK", true); err != nil {
 		return Config{}, err
 	}
 	if cfg.UnfurlAllowPrivate, err = parseBool("STOOP_UNFURL_ALLOW_PRIVATE", false); err != nil {
