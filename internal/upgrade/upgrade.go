@@ -22,8 +22,7 @@ type Options struct {
 	File     string // a compose file already on disk, in place of a download
 	PlanOnly bool
 	Yes      bool
-	Repo     string // release downloads: <Repo>/releases/download/v<version>/<file>
-	API      string // the releases/latest API endpoint
+	Index    string // the release index
 	Wait     string // seconds compose waits for the stack to be healthy
 }
 
@@ -45,11 +44,8 @@ var ErrStopped = errors.New("stopped; nothing was changed")
 var ErrFailed = errors.New("the upgrade did not come up healthy")
 
 func New(o Options) *Upgrader {
-	if o.Repo == "" {
-		o.Repo = "https://github.com/getstoop/stoop"
-	}
-	if o.API == "" {
-		o.API = "https://api.github.com/repos/getstoop/stoop/releases/latest"
+	if o.Index == "" {
+		o.Index = "https://getstoop.org/releases.json"
 	}
 	if o.Wait == "" {
 		o.Wait = "600"
@@ -171,20 +167,16 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 			return "", false, false, err
 		}
 	} else {
-		to := u.To
-		if to == "" {
-			if to, err = u.latestVersion(ctx); err != nil {
-				return "", false, false, err
-			}
-		}
-		to = strings.TrimPrefix(to, "v")
-		base := u.Repo + "/releases/download/v" + to
-		u.say("fetching the %s compose bundle", to)
-		compose, err := u.Fetch.Fetch(ctx, base+"/"+composeFile)
+		to, files, err := u.release(ctx, u.To)
 		if err != nil {
-			return "", false, false, fmt.Errorf("no release v%s at %s: %w", to, base, err)
+			return "", false, false, err
 		}
-		example, err := u.Fetch.Fetch(ctx, base+"/env.example")
+		u.say("fetching the %s compose bundle", to)
+		compose, err := u.fetchFile(ctx, files, composeFile)
+		if err != nil {
+			return "", false, false, fmt.Errorf("could not fetch %s for %s: %w", composeFile, to, err)
+		}
+		example, err := u.fetchFile(ctx, files, "env.example")
 		if err != nil {
 			return "", false, false, fmt.Errorf("could not fetch env.example for %s: %w", to, err)
 		}
@@ -196,7 +188,7 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 		}
 		// The rest of the bundle; a release from before a file existed has none.
 		for _, name := range companions {
-			data, err := u.Fetch.Fetch(ctx, base+"/"+name)
+			data, err := u.fetchFile(ctx, files, name)
 			if err != nil {
 				continue
 			}

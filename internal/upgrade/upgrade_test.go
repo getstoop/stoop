@@ -106,7 +106,7 @@ func install(t *testing.T, runner *fakeRunner, fetch fakeFetcher) (*Upgrader, *b
 	}
 	var out bytes.Buffer
 	u := &Upgrader{
-		Options: Options{Dir: dir, Yes: true, Repo: "https://example.test/stoop", API: "https://api.test/latest", Wait: "600"},
+		Options: Options{Dir: dir, Yes: true, Index: "https://example.test/releases.json", Wait: "600"},
 		Run:     runner,
 		Fetch:   fetch,
 		Out:     &out,
@@ -118,7 +118,11 @@ func install(t *testing.T, runner *fakeRunner, fetch fakeFetcher) (*Upgrader, *b
 
 func releaseFetcher() fakeFetcher {
 	return fakeFetcher{
-		"https://api.test/latest": []byte(`{"tag_name":"v0.3.0"}`),
+		"https://example.test/releases.json": []byte(`{"schema":1,"latest":"0.3.0","releases":[{"version":"0.3.0","files":{
+			"docker-compose.yml":"https://example.test/stoop/releases/download/v0.3.0/docker-compose.yml",
+			"env.example":"https://example.test/stoop/releases/download/v0.3.0/env.example",
+			"livekit.yaml":"https://example.test/stoop/releases/download/v0.3.0/livekit.yaml",
+			"livekit-entrypoint.sh":"https://example.test/stoop/releases/download/v0.3.0/livekit-entrypoint.sh"}}]}`),
 		"https://example.test/stoop/releases/download/v0.3.0/docker-compose.yml": []byte(newCompose),
 		"https://example.test/stoop/releases/download/v0.3.0/env.example":        []byte(newExample),
 		"https://example.test/stoop/releases/download/v0.3.0/livekit.yaml":       []byte("new livekit\n"),
@@ -529,5 +533,37 @@ func TestHelpers(t *testing.T) {
 	}
 	if got := envValue("A=1\nSTOOP_DATABASE_URL= postgres://x \n", "STOOP_DATABASE_URL"); got != "postgres://x" {
 		t.Errorf("envValue = %q", got)
+	}
+}
+
+func TestReleaseIndex(t *testing.T) {
+	r := &fakeRunner{script: []scripted{{prefix: "docker compose version", res: Result{}}}}
+	cases := []struct {
+		name, to, index, want string
+	}{
+		{"a release the index does not list", "0.9.0", "", "no release 0.9.0"},
+		{"no index", "", "missing", "could not read the release index"},
+		{"no latest", "", `{"releases":[]}`, "names no latest release"},
+		{"a file that is not https", "", `{"latest":"0.3.0","releases":[{"version":"0.3.0","files":{"docker-compose.yml":"http://example.test/c.yml"}}]}`, "not an https address"},
+		{"a release without a compose file", "", `{"latest":"0.3.0","releases":[{"version":"0.3.0","files":{}}]}`, "the release has no docker-compose.yml"},
+	}
+	for _, c := range cases {
+		fetch := releaseFetcher()
+		switch c.index {
+		case "":
+		case "missing":
+			delete(fetch, "https://example.test/releases.json")
+		default:
+			fetch["https://example.test/releases.json"] = []byte(c.index)
+		}
+		u, out := install(t, r, fetch)
+		u.To = c.to
+		err := u.Upgrade(context.Background())
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v\n%s", c.name, err, out.String())
+		}
+		if _, statErr := os.Stat(filepath.Join(u.Dir, nextFile)); statErr == nil {
+			t.Errorf("%s: left %s behind", c.name, nextFile)
+		}
 	}
 }
