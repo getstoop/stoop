@@ -37,6 +37,12 @@ curl -fL -o .env $R/env.example
 docker compose up -d          # open http://localhost:8080
 ```
 
+## Who is responsible
+
+The project hosts no servers and sees nothing that passes through one.
+Whoever runs a server answers for what happens on it, and whoever uses
+one answers for what they do there.
+
 ## Developing
 
 Prereqs: Go ≥ 1.27, Node ≥ 20 + pnpm, Docker, and for codegen
