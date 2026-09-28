@@ -33,12 +33,12 @@ func TestGetUpdate(t *testing.T) {
 		t.Errorf("with the check off: %+v", res.Msg)
 	}
 
-	svc.UseUpdateChecker(fixedUpdate{Latest: "0.3.0", Available: true})
+	svc.UseUpdateChecker(fixedUpdate{Latest: "0.3.0", Available: true, Outdated: true})
 	res, err = svc.GetUpdate(admin, req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Msg.Latest != "0.3.0" || !res.Msg.Available {
+	if res.Msg.Latest != "0.3.0" || !res.Msg.Available || !res.Msg.Outdated {
 		t.Errorf("update = %+v", res.Msg)
 	}
 }

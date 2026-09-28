@@ -65,8 +65,20 @@ func TestUpdateChecker(t *testing.T) {
 		t.Errorf("same release = %+v, %d requests", got, hits)
 	}
 
+	// Below the supported floor.
+	now = now.Add(updateTTL)
+	body = `{"latest":"0.4.0","supported":"0.3.0"}`
+	if got := c.LatestRelease(ctx); got != (instance.Update{Latest: "0.4.0", Available: true, Outdated: true}) {
+		t.Errorf("below the floor = %+v", got)
+	}
+	now = now.Add(updateTTL)
+	body = `{"latest":"0.2.0","supported":"0.2.0"}`
+	if got := c.LatestRelease(ctx); got != (instance.Update{Latest: "0.2.0"}) {
+		t.Errorf("on the floor = %+v", got)
+	}
+
 	// Anything that is not a version is a failed read.
-	for _, bad := range []string{`{"latest":"<script>"}`, `{"latest":""}`, `not json`} {
+	for _, bad := range []string{`{"latest":"<script>"}`, `{"latest":""}`, `not json`, `{"latest":"0.9.0","supported":"soon"}`} {
 		now = now.Add(updateTTL)
 		body = bad
 		if got := c.LatestRelease(ctx); got.Latest != "0.2.0" || got.Available {
