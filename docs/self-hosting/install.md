@@ -4,7 +4,7 @@
 
 ```sh
 mkdir stoop && cd stoop
-R=https://github.com/getstoop/stoop/releases/latest/download
+R=https://getstoop.org/releases/latest/download
 curl -fLO $R/docker-compose.yml
 curl -fLO $R/livekit.yaml
 curl -fLO $R/livekit-entrypoint.sh
@@ -36,7 +36,7 @@ verb from the install directory whenever a release is out (Server admin
 → About says when one is):
 
 ```sh
-curl -fsSL https://github.com/getstoop/stoop/releases/latest/download/stoop_linux_amd64.tar.gz | tar -xz stoop
+curl -fsSL https://getstoop.org/releases/latest/download/stoop_linux_amd64.tar.gz | tar -xz stoop
 ./stoop upgrade
 ```
 
@@ -75,7 +75,7 @@ while the old one is still running, then restart on it; migrations run at
 startup, so there is no separate step:
 
 ```sh
-curl -fLO https://github.com/getstoop/stoop/releases/latest/download/docker-compose.yml
+curl -fLO https://getstoop.org/releases/latest/download/docker-compose.yml
 docker compose run --rm --no-deps stoop migrate plan
 docker compose pull && docker compose up -d
 ```
