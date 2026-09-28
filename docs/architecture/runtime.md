@@ -282,22 +282,28 @@ flight is lost across a restart.
 
 ### The update check
 
-Server admin → About says when a newer release exists. `GetUpdate` reads
-`https://getstoop.org/releases.json` and compares its `latest` with the
-running version (`internal/app/update_check.go`).
+`GetUpdate` reads `https://getstoop.org/releases.json` and compares the
+running version with two values in it (`internal/app/update_check.go`):
 
-- **Asked, not scheduled.** The index is read when an admin opens About
+| Field | Meaning | What an admin sees |
+| --- | --- | --- |
+| `latest` | The newest release. | A row in Server admin → About when it is newer. |
+| `supported` | The oldest release still supported, set by hand on the website. | Below it: a warning at the top of Server admin and a dot on its entry in the rail. |
+
+- **Asked, not scheduled.** The index is read when an admin opens the app
   and the last answer is older than 6 hours; a failed read keeps the last
-  answer and is retried after 15 minutes. A server nobody administers
-  makes no request.
+  answer and is retried after 15 minutes. A server no admin opens makes
+  no request.
 - **Nothing is sent** but a `User-Agent` of `stoop`: no version, no
   address of the instance.
 - **Only a release checks.** A local build has no version to compare.
-- **`latest` must look like a version** (`1.2.3`) or the read counts as
-  failed; the page builds its link from that and nothing else in the file.
+- **Both values must look like a version** (`1.2.3`) or the read counts
+  as failed; the page builds its link from `latest` and nothing else in
+  the file. An index with no `supported` calls nothing outdated.
+- **Members see neither notice.**
 - `STOOP_UPDATE_CHECK=false` turns it off; `GetUpdate` then answers empty.
 
-The server never updates itself; the row names `stoop upgrade`.
+The server never updates itself; both notices name `stoop upgrade`.
 
 ## The admin CLI
 

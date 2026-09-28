@@ -267,8 +267,9 @@ export function useBuildInfo(enabled: boolean) {
   });
 }
 
-// Instance admins only: the newest release. The server caches the
-// answer for hours, so asking again sooner learns nothing.
+// Instance admins only: the newest release and whether this server is
+// outdated. The server caches the answer for hours, so asking again
+// sooner learns nothing.
 export function useUpdate(enabled: boolean) {
   return useQuery({
     queryKey: ["update"],

@@ -19,6 +19,7 @@ import {
   useMe,
   useMyPermissions,
   useSpaces,
+  useUpdate,
 } from "../api/queries";
 import { MAX_SPACE_NAME } from "../api/spaces";
 import { badgeCount, isAlerting } from "../api/unreads";
@@ -112,6 +113,9 @@ function SpaceRail() {
   const { data: spaces } = useSpaces();
   const { data: me } = useMe();
   const { data: permissions } = useMyPermissions();
+  const { data: update } = useUpdate(
+    permissions?.includes(Permission.INSTANCE_READ) ?? false,
+  );
   const { data: activity } = useActivity();
   const { bySpace: unreadBySpace } = unreadCounts(activity);
   // Direct messages: a dot for anything unread, a badge counting the
@@ -266,6 +270,13 @@ function SpaceRail() {
             title="Server admin"
           >
             <GearIcon />
+            {update?.outdated && (
+              <span
+                className="pill-dot warn"
+                role="img"
+                aria-label="This server is no longer supported"
+              />
+            )}
           </Link>
         )}
         <Link

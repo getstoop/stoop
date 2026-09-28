@@ -1,5 +1,11 @@
-/* ---- Server admin: temporary passwords and storage. The account list
-   is lists.css. ---- */
+/* ---- Server admin: the outdated notice, temporary passwords and
+   storage. The account list is lists.css. ---- */
+
+/* The section under the notice is still the first on the page. */
+.settings-content > .outdated-notice + .card {
+  padding-top: 0;
+  border-top: none;
+}
 
 .temp-password {
   margin-top: 10px;

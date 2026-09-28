@@ -9,6 +9,7 @@ import { CleanupSection } from "./CleanupSection";
 import { Diagnostics } from "./Diagnostics";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { LoginProvidersSection } from "./LoginProvidersSection";
+import { OutdatedNotice } from "./OutdatedNotice";
 import { PasswordSignInSection } from "./PasswordSignInSection";
 import { PersonalTokensSetting } from "./PersonalTokensSetting";
 import { ReachabilitySection } from "./ReachabilitySection";
@@ -88,6 +89,7 @@ export function AdminPage() {
     >
       {active === "server" && (
         <>
+          <OutdatedNotice />
           <ServerSection />
           <AboutSection />
         </>

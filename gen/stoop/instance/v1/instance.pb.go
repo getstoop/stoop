@@ -1986,7 +1986,10 @@ type GetUpdateResponse struct {
 	// been read yet.
 	Latest string `protobuf:"bytes,1,opt,name=latest,proto3" json:"latest,omitempty"`
 	// Whether latest is newer than this server.
-	Available     bool `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	Available bool `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	// Whether this server is older than the oldest release the index
+	// names as supported.
+	Outdated      bool `protobuf:"varint,3,opt,name=outdated,proto3" json:"outdated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2031,6 +2034,13 @@ func (x *GetUpdateResponse) GetLatest() string {
 func (x *GetUpdateResponse) GetAvailable() bool {
 	if x != nil {
 		return x.Available
+	}
+	return false
+}
+
+func (x *GetUpdateResponse) GetOutdated() bool {
+	if x != nil {
+		return x.Outdated
 	}
 	return false
 }
@@ -2354,10 +2364,11 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\bbuilt_at\x18\x03 \x01(\tR\abuiltAt\x12\x1d\n" +
 	"\n" +
 	"go_version\x18\x04 \x01(\tR\tgoVersion\"\x12\n" +
-	"\x10GetUpdateRequest\"I\n" +
+	"\x10GetUpdateRequest\"e\n" +
 	"\x11GetUpdateResponse\x12\x16\n" +
 	"\x06latest\x18\x01 \x01(\tR\x06latest\x12\x1c\n" +
-	"\tavailable\x18\x02 \x01(\bR\tavailable\"0\n" +
+	"\tavailable\x18\x02 \x01(\bR\tavailable\x12\x1a\n" +
+	"\boutdated\x18\x03 \x01(\bR\boutdated\"0\n" +
 	"\x15ListUserTokensRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"N\n" +
 	"\x16ListUserTokensResponse\x124\n" +
