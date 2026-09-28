@@ -28,7 +28,7 @@ Stoop behind the reverse proxy, Cloudflare Tunnel, or Tailscale you already
 use, and what voice needs from each. Short version:
 
 ```sh
-R=https://github.com/getstoop/stoop/releases/latest/download
+R=https://getstoop.org/releases/latest/download
 curl -fLO $R/docker-compose.yml
 curl -fLO $R/livekit.yaml
 curl -fLO $R/livekit-entrypoint.sh

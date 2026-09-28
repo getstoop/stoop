@@ -99,7 +99,7 @@ version; the bare binary comes later, as the same verb with a different
 switch step.
 
 ```sh
-curl -fsSL https://github.com/getstoop/stoop/releases/latest/download/stoop_linux_amd64.tar.gz | tar -xz stoop
+curl -fsSL https://getstoop.org/releases/latest/download/stoop_linux_amd64.tar.gz | tar -xz stoop
 ./stoop upgrade                 # to the latest release
 ./stoop upgrade --plan          # print what would happen and stop
 ./stoop upgrade --to 0.4.0
