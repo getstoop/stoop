@@ -280,6 +280,25 @@ bus events into queued deliveries, and the worker, which leases and POSTs
 them. Both stop with the process; the queue is in Postgres, so nothing in
 flight is lost across a restart.
 
+### The update check
+
+Server admin → About says when a newer release exists. `GetUpdate` reads
+`https://getstoop.org/releases.json` and compares its `latest` with the
+running version (`internal/app/update_check.go`).
+
+- **Asked, not scheduled.** The index is read when an admin opens About
+  and the last answer is older than 6 hours; a failed read keeps the last
+  answer and is retried after 15 minutes. A server nobody administers
+  makes no request.
+- **Nothing is sent** but a `User-Agent` of `stoop`: no version, no
+  address of the instance.
+- **Only a release checks.** A local build has no version to compare.
+- **`latest` must look like a version** (`1.2.3`) or the read counts as
+  failed; the page builds its link from that and nothing else in the file.
+- `STOOP_UPDATE_CHECK=false` turns it off; `GetUpdate` then answers empty.
+
+The server never updates itself; the row names `stoop upgrade`.
+
 ## The admin CLI
 
 `stoop admin` runs and exits, talking to `STOOP_DATABASE_URL` directly

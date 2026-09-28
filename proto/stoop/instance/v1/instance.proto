@@ -69,6 +69,9 @@ service InstanceService {
   // GetBuildInfo reports which Stoop this is. Instance admins only: an
   // exact version tells a stranger which bugs to try.
   rpc GetBuildInfo(GetBuildInfoRequest) returns (GetBuildInfoResponse) {}
+  // GetUpdate reports the newest release the release index lists and
+  // whether it is newer than this server. Instance admins only.
+  rpc GetUpdate(GetUpdateRequest) returns (GetUpdateResponse) {}
   // ListUserTokens lists another account's personal tokens, never their
   // secrets. Instance admins only.
   rpc ListUserTokens(ListUserTokensRequest) returns (ListUserTokensResponse) {}
@@ -356,6 +359,17 @@ message GetBuildInfoResponse {
   string built_at = 3;
   // The Go toolchain the binary was built with.
   string go_version = 4;
+}
+
+message GetUpdateRequest {}
+
+message GetUpdateResponse {
+  // Newest release without the "v"; empty when the check is off
+  // (STOOP_UPDATE_CHECK), this is a local build, or the index has not
+  // been read yet.
+  string latest = 1;
+  // Whether latest is newer than this server.
+  bool available = 2;
 }
 
 message ListUserTokensRequest {

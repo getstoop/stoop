@@ -32,7 +32,8 @@ has a reachable path: see [Voice](voice.md).
 ### Upgrading
 
 Fetch the `stoop` binary for the machine once, then run its `upgrade`
-verb from the install directory whenever a release is out:
+verb from the install directory whenever a release is out (Server admin
+→ About says when one is):
 
 ```sh
 curl -fsSL https://github.com/getstoop/stoop/releases/latest/download/stoop_linux_amd64.tar.gz | tar -xz stoop

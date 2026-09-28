@@ -1,12 +1,14 @@
-import { useBuildInfo } from "../../api/queries";
+import { useBuildInfo, useUpdate } from "../../api/queries";
 import { SettingRow } from "../../components/SettingRow";
 
 const RELEASES = "https://github.com/getstoop/stoop/releases";
 
 // Which Stoop this is. Read-only rows; the version links to its release
-// notes when it is a release rather than a local build.
+// notes when it is a release rather than a local build. A newer release
+// gets a row of its own.
 export function AboutSection() {
   const { data: build } = useBuildInfo(true);
+  const { data: update } = useUpdate(true);
   if (!build) return null;
   const isRelease = build.version !== "dev";
   return (
@@ -24,6 +26,25 @@ export function AboutSection() {
           <span>{build.version}</span>
         )}
       </SettingRow>
+      {update?.available && (
+        <SettingRow
+          title="Update Available"
+          description={
+            <>
+              Run <code>./stoop upgrade</code> on the host.
+            </>
+          }
+          data-testid="update-available"
+        >
+          <a
+            href={`${RELEASES}/tag/v${update.latest}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            v{update.latest} available
+          </a>
+        </SettingRow>
+      )}
       {build.commit && (
         <SettingRow title="Commit">
           <code>{build.commit}</code>
