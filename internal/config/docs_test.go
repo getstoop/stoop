@@ -13,24 +13,24 @@ var (
 	composeRE  = regexp.MustCompile(`\$\{(STOOP_[A-Z0-9_]+)`)
 )
 
-// The Configuration reference in docs/self-hosting.md is what operators
+// docs/self-hosting/configuration.md is what operators
 // read to find a setting, and the compose file passes .env straight
 // through, so a variable missing from the table is a variable nobody can
 // find. Keep the two in step.
 func TestConfigReferenceDocumentsEveryVariable(t *testing.T) {
 	inCode := keys(t, envKeyRE, "config.go")
-	inDocs := keys(t, tableKeyRE, "../../docs/self-hosting.md")
+	inDocs := keys(t, tableKeyRE, "../../docs/self-hosting/configuration.md")
 
 	for k := range inCode {
 		if !inDocs[k] {
-			t.Errorf("%s is read by config.go but has no row in docs/self-hosting.md → Configuration reference", k)
+			t.Errorf("%s is read by config.go but has no row in docs/self-hosting/configuration.md", k)
 		}
 	}
 	// Some settings are read by the compose file and never by the server.
 	inCompose := keys(t, composeRE, "../../deploy/docker-compose.yml")
 	for k := range inDocs {
 		if !inCode[k] && !inCompose[k] {
-			t.Errorf("%s has a row in docs/self-hosting.md but neither config.go nor the compose file reads it", k)
+			t.Errorf("%s has a row in docs/self-hosting/configuration.md but neither config.go nor the compose file reads it", k)
 		}
 	}
 }

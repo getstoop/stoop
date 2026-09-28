@@ -4,7 +4,7 @@ This document covers what the running system *is* on a machine: the
 process, how it is configured, how the world reaches it, what protects it,
 and how a build gets made.
 
-The operator's how-to is [../self-hosting.md](../self-hosting.md). This is
+The operator's how-to is [../self-hosting/](../self-hosting/README.md). This is
 the model behind it.
 
 ## The process
@@ -104,7 +104,7 @@ disturbing a relay.
 ### The environment surface
 
 The full reference with defaults is in
-[../self-hosting.md](../self-hosting.md#configuration-reference).
+[../self-hosting/configuration.md](../self-hosting/configuration.md).
 
 Two are dangerous enough to be logged loudly at startup:
 `STOOP_UNFURL_ALLOW_PRIVATE` (which turns the server into a probe of the
@@ -326,7 +326,7 @@ releases can start against the database before putting the old file
 back; it never runs the older image's binary, since releases up to 0.2.0
 treat an unknown verb as "serve". Every host command goes through a
 `Runner` interface, so the sequence is tested with a fake that records
-commands ([self-hosting.md → Upgrading](../self-hosting.md#upgrading)).
+commands ([self-hosting/install.md → Upgrading](../self-hosting/install.md#upgrading)).
 
 ## Build and release
 

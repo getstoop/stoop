@@ -24,7 +24,7 @@ Unauthenticated JSON, served by `internal/app` beside `/healthz`:
 
 The shell asks on add, on every reconnect and on focus, not only once.
 Disclosing the version is deliberate; the web app's asset names change
-with every release anyway (`docs/self-hosting.md` → Security headers).
+with every release anyway (`docs/self-hosting/accounts-and-security.md` → Security headers).
 
 ## `window.stoop`
 

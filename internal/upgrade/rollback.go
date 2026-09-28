@@ -30,7 +30,7 @@ func (u *Upgrader) Rollback(ctx context.Context) error {
 		return fmt.Errorf("could not confirm that %s can start against this database (the %s image did not answer `migrate status`).\nTo go back anyway: mv %s %s && docker compose up -d", target, current, prevFile, composeFile)
 	}
 	if Older(target, oldest) {
-		return fmt.Errorf("%s cannot start against this database: only %s and later can, because an upgrade contained a contract migration.\nRestore the backup taken before that upgrade instead: docs/self-hosting.md → Restoring in place", target, oldest)
+		return fmt.Errorf("%s cannot start against this database: only %s and later can, because an upgrade contained a contract migration.\nRestore the backup taken before that upgrade instead: docs/self-hosting/backups.md → Restoring in place", target, oldest)
 	}
 	if err := u.confirm(fmt.Sprintf("Put %s back and restart?", target)); err != nil {
 		return err

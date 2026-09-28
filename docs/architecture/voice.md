@@ -9,7 +9,7 @@ The consequence is stated up front because it has bitten every operator who
 skipped it: **a front door that only carries HTTP gives a silent room.**
 Chat works, the voice channel populates, and nobody can hear anybody, until
 a reachable TURN relay is configured. See "Front doors" below and
-`docs/self-hosting.md`.
+`docs/self-hosting/voice.md`.
 
 Voice is optional. With `STOOP_LIVEKIT_*` unset, `JoinVoiceChannel` returns
 `Unavailable` and Stoop is a text-only chat server that ships one binary
@@ -363,7 +363,7 @@ gets a media connection from a browser on the same machine even with every
 port published. `make dev-services` runs it natively on macOS and as a
 `network_mode: host` container on Linux.
 Testing from a second device on the LAN needs HTTPS
-([../self-hosting.md](../self-hosting.md#a-lan-without-https)); for a quick
+([../self-hosting/reaching-your-server.md](../self-hosting/reaching-your-server.md#a-lan-without-https)); for a quick
 check, Chrome's `chrome://flags/#unsafely-treat-insecure-origin-as-secure`
 with `http://<lan-ip>:8091` does the job on that one device.
 

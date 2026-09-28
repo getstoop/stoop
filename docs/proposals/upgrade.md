@@ -12,7 +12,7 @@ Status: decided 2026-09-25 (STOOP-294), not started. Nothing here is built.
   the floor refuses to start and says so.
 - A patch release carries no migrations.
 - A backup is `pg_dump` plus the uploads directory; the restore runbook is
-  in [self-hosting.md → Backups](../self-hosting.md#backups).
+  in [self-hosting/backups.md](../self-hosting/backups.md).
 - `stoop admin`, `stoop health`, `stoop version`, and `GET /version`.
 
 ## The problem
@@ -123,7 +123,7 @@ What a run does, in order:
    release's `docker-compose.yml` and `env.example` to temporary names.
    Refuse a target older than current: going back is `rollback`. Refuse a
    Postgres major that differs from the running one and point at the
-   Postgres section of self-hosting.md; that upgrade stays manual.
+   Postgres section of self-hosting/install.md; that upgrade stays manual.
 3. **Plan.** `docker compose -f <new file> run --rm --no-deps stoop
    migrate plan --json` against the running database. This pulls the new
    image as a side effect. Print the plan, and the `.env` keys the new
@@ -186,7 +186,7 @@ environment variable, which is phase 3's CI job.
    test; the release table. Small PRs, no operator-visible change yet.
 2. **The verb.** `migrate plan --json` and `status --json`; `stoop
    upgrade` with forward, `--plan`, `--to`, `--file`, `--yes`, backup,
-   one-step rollback. The Upgrading section of self-hosting.md leads
+   one-step rollback. The Upgrading section of self-hosting/install.md leads
    with it; the manual commands stay below as "what it does", and
    Backups gains "Restoring in place".
 3. **Hardening.** Restore on a contract failure run by the verb; the

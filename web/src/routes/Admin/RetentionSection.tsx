@@ -17,7 +17,7 @@ const MAX_DAYS = 3650;
 
 // How long messages and attachments are kept, on the Storage tab. Blank
 // keeps forever. A shorter period asks first, with what it would delete
-// now. See "Retention" in docs/self-hosting.md.
+// now. See "Retention" in docs/self-hosting/storage.md.
 export function RetentionSection() {
   const queryClient = useQueryClient();
   const { data: status } = useInstanceStatus();

@@ -37,7 +37,7 @@ const (
 // MaxAttachmentBytes caps one message attachment. 100 MB is deliberately
 // the ceiling: Cloudflare Tunnel on the free plan rejects larger request
 // bodies, and going past it means chunked uploads, a separate piece of
-// work. See docs/self-hosting.md.
+// work. See docs/self-hosting/storage.md.
 const MaxAttachmentBytes = 100 << 20
 
 // Avatars is files' port onto the auth module: the current avatar pointer.

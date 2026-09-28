@@ -23,7 +23,7 @@ const upgradeUsage = `usage: stoop upgrade [--plan] [--yes] [--to VERSION | --fi
 
 Run it from the directory that holds docker-compose.yml and .env. Needs
 docker compose; talks to nothing else on this machine. What it does and
-why: docs/self-hosting.md → Upgrading.
+why: docs/self-hosting/install.md → Upgrading.
 `
 
 // runUpgrade implements `stoop upgrade ...`. It returns the process exit code.

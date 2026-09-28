@@ -14,7 +14,7 @@ import (
 // Proxies append to X-Forwarded-For, so the client is the rightmost
 // address that isn't a proxy of ours; anything further left was written
 // by the caller and is a lie waiting to happen. See
-// docs/self-hosting.md, "Trusted proxies".
+// docs/self-hosting/reaching-your-server.md, "Trusted proxies".
 func ClientIP(remoteAddr string, h http.Header, trusts func(addr string) bool) string {
 	peer := peerKey(remoteAddr)
 	if !trusts(remoteAddr) {

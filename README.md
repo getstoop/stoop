@@ -23,7 +23,7 @@ voice rooms backed by [LiveKit](https://livekit.io).
 
 ## Self-hosting
 
-See [docs/self-hosting.md](docs/self-hosting.md) — including how to put
+See [docs/self-hosting/](docs/self-hosting/README.md) — including how to put
 Stoop behind the reverse proxy, Cloudflare Tunnel, or Tailscale you already
 use, and what voice needs from each. Short version:
 
