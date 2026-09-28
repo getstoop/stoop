@@ -41,17 +41,51 @@ func (f HTTPFetcher) Fetch(ctx context.Context, url string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 }
 
-// latestVersion asks the releases API for the newest tag, without the v.
-func (u *Upgrader) latestVersion(ctx context.Context) (string, error) {
-	body, err := u.Fetch.Fetch(ctx, u.API)
+// index is the release index: docs/architecture/runtime.md → The update
+// check has the file's shape.
+type index struct {
+	Latest   string `json:"latest"`
+	Releases []struct {
+		Version string            `json:"version"`
+		Files   map[string]string `json:"files"`
+	} `json:"releases"`
+}
+
+// release reads the index and returns the version asked for ("" is the
+// latest) with where each of its files is.
+func (u *Upgrader) release(ctx context.Context, version string) (string, map[string]string, error) {
+	body, err := u.Fetch.Fetch(ctx, u.Index)
 	if err != nil {
-		return "", fmt.Errorf("could not read the latest release: %w", err)
+		return "", nil, fmt.Errorf("could not read the release index: %w", err)
 	}
-	var release struct {
-		Tag string `json:"tag_name"`
+	var idx index
+	if err := json.Unmarshal(body, &idx); err != nil {
+		return "", nil, fmt.Errorf("could not read the release index at %s: %w", u.Index, err)
 	}
-	if err := json.Unmarshal(body, &release); err != nil || release.Tag == "" {
-		return "", fmt.Errorf("could not read the latest release from %s", u.API)
+	if version == "" {
+		version = idx.Latest
 	}
-	return strings.TrimPrefix(release.Tag, "v"), nil
+	version = strings.TrimPrefix(version, "v")
+	if version == "" {
+		return "", nil, fmt.Errorf("the release index at %s names no latest release", u.Index)
+	}
+	for _, r := range idx.Releases {
+		if r.Version == version {
+			return version, r.Files, nil
+		}
+	}
+	return "", nil, fmt.Errorf("no release %s in %s", version, u.Index)
+}
+
+// fetchFile gets one file of a release. The index is read over HTTPS and
+// so is everything it points at.
+func (u *Upgrader) fetchFile(ctx context.Context, files map[string]string, name string) ([]byte, error) {
+	url, ok := files[name]
+	if !ok {
+		return nil, fmt.Errorf("the release has no %s", name)
+	}
+	if !strings.HasPrefix(url, "https://") {
+		return nil, fmt.Errorf("%s is not an https address", url)
+	}
+	return u.Fetch.Fetch(ctx, url)
 }

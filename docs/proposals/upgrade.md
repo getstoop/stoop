@@ -118,8 +118,9 @@ What a run does, in order:
 1. **Preflight.** `docker compose` present; the directory holds
    `docker-compose.yml` and `.env`. The current tag is read from the
    compose file.
-2. **Resolve the target.** The latest release from the GitHub API, or
-   `--to`, or `--file` for a compose file already on disk. Fetch that
+2. **Resolve the target.** The latest release in the release index
+   (`https://getstoop.org/releases.json`), or `--to`, or `--file` for a
+   compose file already on disk. The index says where each file is. Fetch that
    release's `docker-compose.yml` and `env.example` to temporary names.
    Refuse a target older than current: going back is `rollback`. Refuse a
    Postgres major that differs from the running one and point at the
