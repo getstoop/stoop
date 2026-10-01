@@ -46,11 +46,10 @@ changes three files:
 - `deploy/release-notes.md`: the commits on `main` since the last
   release.
 
-It opens the pull request with the `RELEASE_TOKEN` secret, a fine-grained
-token for this repository with Contents and Pull requests set to read
-and write. With the workflow's own token CI would not run on the pull
-request. When the token expires the workflow fails at its checkout, and
-the fix is a new token in the same secret.
+It opens the pull request with the `RELEASE_TOKEN` secret, a token of our
+own for this repository. With the workflow's own token CI would not run
+on the pull request. When the token expires the workflow fails at its
+checkout, and the fix is a new token in the same secret.
 
 ## 2. Review
 
