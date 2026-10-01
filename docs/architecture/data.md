@@ -340,8 +340,8 @@ A contract migration raises the constant `db.Floor` in the same PR.
 `TestFloorMatchesSchema` migrates a fresh database and checks
 `schema_floor` equals the constant, so the two cannot drift, and a binary
 can say what an upgrade means for rollback with no database in front of
-it. `db.Releases` maps each tag to the last migration it shipped; the
-release PR appends a row ([releasing.md](../releasing.md)). Together they
+it. `db.Releases` maps each tag to the last migration it shipped; a
+release candidate appends a row ([releasing.md](../releasing.md)). Together they
 turn "the floor is 37" into "0.2.0 and later can start against this
 database", which is what an operator needs to hear.
 
@@ -361,11 +361,8 @@ in a `-- +goose NO TRANSACTION` file using `CONCURRENTLY` and `IF NOT
 EXISTS`, so the second run picks up where the first stopped. Small DDL
 stays transactional, which is what makes it atomic.
 
-A **patch release carries no migrations.** It is cut from a branch off the
-previous tag ([releasing.md](../releasing.md)), and goose applies files in
-numeric order: a migration numbered after `main`'s unreleased ones would be
-applied on patched instances and then block the upgrade to the next minor
-as an out-of-order gap. A fix that needs the schema ships as a minor.
+A **patch release carries no migrations.** A fix that needs the schema
+ships as a minor ([releasing.md → Versions](../releasing.md#versions)).
 
 ## Queries and sqlc
 

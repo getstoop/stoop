@@ -29,8 +29,8 @@ services:
     logging: *logging
 
   stoop:
-    # Pinned to the release this file shipped with; each release PR bumps
-    # it. Rolling back one release is editing this line and `up -d`.
+    # Pinned to the release this file shipped with; each release candidate
+    # moves it. Rolling back one release is editing this line and `up -d`.
     image: ghcr.io/getstoop/stoop:0.3.0
     restart: unless-stopped
     # The user that owns STOOP_DATA_PATH; the image's own when unset.

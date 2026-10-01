@@ -1,0 +1,101 @@
+name: Build release
+
+# The second step of a release: merging a release candidate
+# (cut-release-candidate.yml) builds it and leaves it unpublished. The
+# archives and the compose bundle go on a draft release, and the image is
+# pushed under its full version only. No tag is made here and nothing
+# called latest moves: both wait for the draft to be published
+# (move-latest.yml).
+#
+# A failed build is run again from its run page. Nothing starts on a
+# pushed tag.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Every merge to main comes through here; only a release candidate's
+  # goes on to build.
+  candidate:
+    name: Find the release candidate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      version: ${{ steps.find.outputs.version }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq '[.[] | select(.merged_at != null and .base.ref == "main")][0].head.ref // ""')
+          case "$head" in
+            release-candidate/*) echo "version=${head#release-candidate/}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "This merge is not a release candidate; nothing to build." ;;
+          esac
+
+  build:
+    name: Build the unpublished release
+    needs: candidate
+    if: needs.candidate.outputs.version != ''
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-build
+    permissions:
+      contents: write
+      packages: write
+    env:
+      VERSION: ${{ needs.candidate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Check the version against the tree
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          number='(0|[1-9][0-9]*)'
+          release="^$number\.$number\.$number$"
+          [[ "$VERSION" =~ $release ]] || fail "\"$VERSION\" is not a version."
+          grep -q "image: ghcr.io/getstoop/stoop:$VERSION\$" deploy/docker-compose.yml ||
+            fail "deploy/docker-compose.yml does not pin $VERSION."
+          newest=$(git tag --list 'v*' | sed 's/^v//' | grep -E "$release" | sort -V | tail -n 1 || true)
+          [ "$VERSION" != "$newest" ] && [ "$(printf '%s\n' "$newest" "$VERSION" | sort -V | tail -n 1)" = "$VERSION" ] ||
+            fail "$VERSION is not newer than $newest, the newest release."
+          # GoReleaser takes the version from a tag. This one never leaves
+          # the runner: the real tag is made when the draft is published.
+          git tag "v$VERSION"
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # Same steps as `make build-web`, .gitkeep included: the embed
+      # directory's contents are gitignored but the .gitkeep is tracked,
+      # and GoReleaser refuses a dirty checkout.
+      - name: Build web app for embedding
+        run: make build-web
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - name: GoReleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: v2.18.0
+          args: release --clean --release-notes deploy/release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
