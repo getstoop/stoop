@@ -56,7 +56,9 @@ docker_manifests:
 # files from the same commit the images were built from:
 # https://github.com/getstoop/stoop/releases/latest/download/<file>
 # The notes are deploy/release-notes.md, via --release-notes in Build
-# release; each release candidate rewrites that file.
+# release; each release candidate rewrites that file. The flag also turns
+# the change list off. Disabling the changelog here as well would skip
+# the step that reads the file, and the draft would have no notes.
 release:
   draft: true
   replace_existing_draft: true
@@ -69,6 +71,3 @@ release:
     # would upload it as "default.env.example"), so it ships as env.example.
     - glob: deploy/.env.example
       name_template: env.example
-
-changelog:
-  disable: true
