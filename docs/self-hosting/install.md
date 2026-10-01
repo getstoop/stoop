@@ -91,9 +91,9 @@ Coming from 0.2.0, add `COMPOSE_PROFILES=bundled-postgres` to `.env`
 first. Without it the bundled Postgres does not start, and the log says
 `lookup postgres: no such host`.
 
-An image tag of the form `0.2` follows patch releases of that minor;
-`latest` follows everything. Both exist for people who prefer them to the
-pinned tag.
+The image tag `latest` follows the newest release, for people who prefer
+it to the pinned tag. Tags of the form `0.3` are no longer moved: 0.3.0
+was the last release to set one.
 
 ### Supported Postgres and LiveKit versions
 

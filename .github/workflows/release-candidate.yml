@@ -1,9 +1,10 @@
 name: Release candidate
 
-# The first step of a release: started by hand with the version to
-# release, it opens the pull request that proposes it. The pull request
-# moves the version, drafts the notes from the commits since the last
-# release, and is labelled major, minor or patch.
+# The first step of a release (docs/releasing.md): started by hand with
+# the version to release, it opens the pull request that proposes it. The
+# pull request moves the version, drafts the notes from the commits since
+# the last release, and is labelled major, minor or patch. Merging it is
+# what builds the release (release-build.yml).
 #
 # RELEASE_TOKEN is a token of our own: a pull request opened with the
 # workflow's default token starts no other workflow, so CI would never
@@ -127,6 +128,8 @@ jobs:
           - \`deploy/docker-compose.yml\` pins the image to $VERSION.
           - \`internal/db/releases.go\` gains a row when $VERSION ships a new migration.
           - \`deploy/release-notes.md\` lists the commits on main since $PREVIOUS. **Edit it in this pull request** before merging.
+
+          Merging builds the release and leaves it unpublished, as a draft. Publishing the draft is the release.
           EOF
           gh pr create --base main --head "$branch" --label "$KIND" \
             --title "Release $VERSION" --body-file "$RUNNER_TEMP/body.md"

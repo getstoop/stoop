@@ -1,7 +1,7 @@
 package db
 
-// Release is a tagged release and the last migration it shipped. The
-// release PR appends a row (docs/releasing.md), which is what lets the
+// Release is a tagged release and the last migration it shipped. A
+// release candidate appends a row (docs/releasing.md), which is what lets the
 // binary say "0.2.0 and later can start against this database" instead of
 // naming a migration number.
 type Release struct {

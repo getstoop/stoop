@@ -1,9 +1,18 @@
 # Releasing Stoop
 
-A release is a tag: a minor on `main`, a patch on a `release/X.Y` branch
-off the previous tag. Pushing it runs the Release workflow, which
-turns everything merged since the last tag into binaries, images, and the
-compose bundle an operator installs from. Nothing else publishes anything.
+A release is four steps, all of them on GitHub. Nothing is run from a
+checkout and nobody makes a tag by hand: a pushed tag starts nothing.
+
+1. **Open the release candidate.** Actions → **Release candidate** → Run
+   workflow, on `main`, with the version to release (`0.4.0`). It opens
+   the pull request "Release 0.4.0", labelled `patch`, `minor` or `major`.
+2. **Review it and merge it.** Edit `deploy/release-notes.md` in the pull
+   request first.
+3. **The merge builds the release** and leaves it unpublished: a draft
+   release with the archives and the compose bundle, and the image
+   `ghcr.io/getstoop/stoop:0.4.0`.
+4. **Publish the draft.** That is the release. GitHub makes the tag
+   `v0.4.0` on the commit that was built, and `latest` moves to it.
 
 ## Versions
 
@@ -14,87 +23,88 @@ What every release promises regardless: it upgrades in place from the
 release before it, and it can be rolled back one release
 ([architecture/data.md → Upgrades and rollback](architecture/data.md#upgrades-and-rollback)).
 
-## A minor release, end to end
+A release is cut from `main`, so it carries everything merged since the
+last one. There are no release branches.
 
-1. **Develop on `main`.** One change per PR, green CI, merge. Migrations
-   follow expand/contract; a contract migration raises `schema_floor`.
-   The changelog writes itself from PR titles, so title PRs for the notes.
-2. **The release PR.** Bump the image tag in `deploy/docker-compose.yml`
-   to the version about to be cut (the image does not exist yet; it will
-   before anyone downloads this file from the release). Append the
-   version and its last migration to `db.Releases`
-   (`internal/db/releases.go`), which is how the binary names releases
-   when it talks about the schema. Bump the
-   `cloudflared` pin in both Dockerfiles to Cloudflare's current release,
-   tag and digest together. Rewrite
-   `deploy/release-notes.md`: what changed for operators, any LiveKit or
-   Postgres pin that moved, contract migrations by name, known issues. The
-   generated PR list is appended below it automatically.
-3. **Tag.** An annotated tag on the release PR's merge commit, pushed once.
-   The tag ruleset lets only repository admins create `v*` tags and nobody
-   move or delete one.
+## 1. The release candidate
 
-   ```sh
-   git tag -a v0.2.0 -m "Stoop 0.2.0"
-   git push origin v0.2.0
-   ```
+The workflow (`.github/workflows/release-candidate.yml`) takes the
+version and refuses it unless it is the next one: after 0.3.0 that is
+0.3.1, 0.4.0 or 1.0.0. It also refuses when nothing has been merged
+since the last release.
 
-4. **The workflow** builds the web app, embeds it, and runs GoReleaser:
-   linux amd64, linux arm64 and darwin arm64 archives (named without the
-   version, so `releases/latest/download/stoop_linux_amd64.tar.gz` always
-   serves the newest) with `checksums.txt`;
-   images pushed to `ghcr.io/getstoop/stoop` as `0.2.0`, `0.2` and
-   `latest`; the compose bundle (`docker-compose.yml`, `livekit.yaml`,
-   `livekit-entrypoint.sh`, `env.example`) attached to the GitHub
-   Release so `releases/latest/download/<file>` serves it.
-5. **Verify against what was published.** Cold install from the quick
-   start on a clean machine. Upgrade an instance of the previous release
-   with data using `stoop upgrade` from the published archive. Roll it
-   back one release with `stoop upgrade rollback`, then forward again.
-   Anything wrong becomes a patch
-   release; the git tag is never moved. (For the very first release
-   there is no previous one: the cold install is the whole check.)
-6. **Close.** Tracker items to Done with the version noted. Anything this
-   release stopped using may be contracted in the next cycle.
+The pull request it opens, from a `release-candidate/0.4.0` branch,
+changes three files:
 
-## A patch release
+- `deploy/docker-compose.yml`: the image pin moves to the version. The
+  image does not exist yet; it will before anyone can download this file
+  from the release.
+- `internal/db/releases.go`: a row for the version and its last
+  migration, which is how the binary names releases when it talks about
+  the schema. A release that ships no new migration gets no row.
+- `deploy/release-notes.md`: the commits on `main` since the last
+  release.
 
-For a fix that cannot wait for the next minor while `main` already carries
-unreleased changes.
+It opens the pull request with the `RELEASE_TOKEN` secret, a fine-grained
+token for this repository with Contents and Pull requests set to read
+and write. With the workflow's own token CI would not run on the pull
+request. When the token expires the workflow fails at its checkout, and
+the fix is a new token in the same secret.
 
-1. **Fix forward on `main` first.** Normal PR, green CI, merged. The next
-   minor inherits it; the patch exists so operators need not take the
-   unreleased work.
-2. **Branch from the tag, on demand.** `git switch -c release/0.2 v0.2.0`
-   and push it. The main ruleset covers `release/*`: PR only, green CI,
-   no force-push. Only the newest minor gets a branch; older lines are not
-   patched ([SECURITY.md](../SECURITY.md)).
-3. **Cherry-pick into a PR against the branch.** `git cherry-pick -x` of
-   the merged fix, plus the release-PR edits: compose tag `0.2.1`, a notes
-   header describing the one fix. If the pick does not apply because
-   `main` moved, rewrite the fix on the branch by hand, still after `main`
-   has it. Green CI, merge.
-4. **Tag `v0.2.1` on the branch head.** The workflow does not care which
-   branch a tag is on. `0.2` and `latest` move to the patch, and
-   `releases/latest` serves its bundle.
-5. **Verify** the upgrade `0.2.0 → 0.2.1` and back; with no schema change
-   both are trivial.
-6. **Retire the branch** once the next minor ships.
+## 2. Review
 
-Two rules keep a patch safe:
+Rewrite `deploy/release-notes.md` in the pull request: what changed for
+operators, any LiveKit or Postgres pin that moved, contract migrations
+by name, known issues. What is in the file when the pull request merges
+is what the release says.
 
-- **No migrations.** Goose applies files in numeric order and refuses a
-  database with a higher number applied and lower ones missing. A hotfix
-  migration would be applied on patched instances and then block the
-  upgrade to the next minor. A fix that needs the schema is a minor.
-- **No dependency majors or pin moves**, unless the pin is the fix. A
-  patch is the smallest change that makes the bug go away.
+The `cloudflared` pin in `deploy/Dockerfile` and
+`deploy/Dockerfile.goreleaser` is moved by hand, tag and digest together,
+in this pull request or before it.
 
-## What the release workflow does not test
+To drop a candidate, close the pull request and delete its branch.
 
-CI never runs GoReleaser, so the Dockerfile, the goreleaser config and the
-goreleaser action version are exercised only by a tag. Before changing
-any of them, run a snapshot locally:
+## 3. The build
+
+Merging a pull request from a `release-candidate/` branch starts
+**Release build** (`.github/workflows/release-build.yml`). It checks the
+compose file pins the version and that the version is newer than every
+release, builds the web app, and runs GoReleaser:
+
+- linux amd64, linux arm64 and darwin arm64 archives, named without the
+  version so `releases/latest/download/stoop_linux_amd64.tar.gz` always
+  serves the newest, with `checksums.txt`;
+- the image, pushed as `ghcr.io/getstoop/stoop:0.4.0` and nothing else;
+- a **draft** release holding the archives and the compose bundle
+  (`docker-compose.yml`, `livekit.yaml`, `livekit-entrypoint.sh`,
+  `env.example`), with `deploy/release-notes.md` as its notes.
+
+Nothing public has moved at this point: there is no tag, `latest` is
+still the previous release, and `releases/latest/download/<file>` still
+serves the previous bundle. The image can be pulled by anyone who types
+its full tag.
+
+A build that fails is run again from its run page. To drop a built
+candidate, delete the draft.
+
+## 4. Publishing
+
+Releases → the draft → **Publish release**. GitHub makes the tag on the
+commit the draft was built from and marks the release latest, and
+**Release publish** (`.github/workflows/release-publish.yml`) points
+`ghcr.io/getstoop/stoop:latest` at the release's image.
+
+Then check what was published: a cold install from the quick start on a
+clean machine, and an instance of the previous release with data
+upgraded with `stoop upgrade`, rolled back with `stoop upgrade rollback`,
+and upgraded again. Anything wrong becomes the next release; a tag is
+never moved.
+
+## What a release does not test
+
+CI never runs GoReleaser, so the Dockerfile, the GoReleaser config and
+the action's version are exercised only by a release build. Before
+changing any of them, run a snapshot locally:
 
 ```sh
 make build-web
@@ -104,9 +114,9 @@ go run github.com/goreleaser/goreleaser/v2@v2.18.0 release --snapshot --clean --
 It builds the archives and the images without publishing; `dist/` and
 `docker images | grep getstoop` show the result.
 
-One thing a snapshot does not check: a real release refuses to run from a
+One thing a snapshot does not check: a real build refuses to run from a
 dirty checkout, and the snapshot ignores that. After the workflow's build
 steps the tree must be clean, which is why the web build goes through
 `make build-web` (it restores the tracked `.gitkeep` in the embed
-directory). If a release run fails with "git is in a dirty state", the
-file it names is what a build step changed.
+directory). If a build fails with "git is in a dirty state", the file it
+names is what a build step changed.

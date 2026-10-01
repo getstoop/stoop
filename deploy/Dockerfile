@@ -34,7 +34,7 @@ COPY --from=dirs --chown=65532:65532 /out/livekit-keys /livekit-keys
 # with no shell to resolve anything else.
 COPY --from=build /stoop /usr/local/bin/stoop
 # Cloudflare's connector, which Stoop runs when a tunnel is switched on
-# (Server admin → Hosting). Pinned; each release PR bumps it.
+# (Server admin → Hosting). Pinned; moved by hand for a release.
 COPY --from=cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c /usr/local/bin/cloudflared /usr/local/bin/cloudflared
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/stoop"]

@@ -16,9 +16,9 @@ with a React web app in `web/`.
   debugging a spec CI failed). Changes land by
   pull request: `main` refuses direct pushes and merges only with green
   CI (`docs/agent-workflow.md` → How a change lands).
-- **Releases and patch releases:** `docs/releasing.md` — a minor is a tag
-  on `main`; a patch is a tag on a `release/X.Y` branch off the previous
-  tag and carries no migrations.
+- **Releases:** `docs/releasing.md` — a workflow opens the release
+  candidate pull request, merging it builds an unpublished release, and
+  publishing that makes the tag. Nobody tags by hand.
 - **Build Iteratively:** Build stable simple solutions before building nice 
   to have features or clever solutions. The operator has the final say in
   what you build.
