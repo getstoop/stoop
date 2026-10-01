@@ -1,0 +1,132 @@
+name: Cut release candidate
+
+# The first step of a release: started by hand with the version to
+# release, it opens the pull request that proposes it. The pull request
+# moves the version, drafts the notes from the commits since the last
+# release, and is labelled major, minor or patch.
+#
+# RELEASE_TOKEN is a token of our own: a pull request opened with the
+# workflow's default token starts no other workflow, so CI would never
+# run on it and it could not merge.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version to release, like 0.4.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate
+
+jobs:
+  candidate:
+    name: Open the release candidate
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+    steps:
+      - name: Only on main, with the token
+        run: |
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::A release candidate is cut from main, not from $GITHUB_REF_NAME."
+            exit 1
+          fi
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::The RELEASE_TOKEN secret is not set."
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Every tag, to find the last release, and the commits since it.
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      # The version has to be the next one: one patch, minor or major on
+      # from the newest release tag.
+      - name: Check the version
+        id: check
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          number='(0|[1-9][0-9]*)'
+          release="^$number\.$number\.$number$"
+          [[ "$VERSION" =~ $release ]] || fail "\"$VERSION\" is not a version: give three numbers, like 0.4.0."
+
+          previous=$(git tag --list 'v*' | sed 's/^v//' | grep -E "$release" | sort -V | tail -n 1 || true)
+          [ -n "$previous" ] || fail "There is no release tag to follow."
+          IFS=. read -r major minor patch <<< "$previous"
+          next_patch="$major.$minor.$((patch + 1))"
+          next_minor="$major.$((minor + 1)).0"
+          next_major="$((major + 1)).0.0"
+          case "$VERSION" in
+            "$next_patch") kind=patch ;;
+            "$next_minor") kind=minor ;;
+            "$next_major") kind=major ;;
+            *) fail "$VERSION does not follow $previous: the next release is $next_patch (patch), $next_minor (minor) or $next_major (major)." ;;
+          esac
+          [ -n "$(git log --no-merges --format=%h "v$previous..HEAD")" ] || fail "Nothing has been merged since $previous."
+
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+
+      - name: Write the release
+        env:
+          PREVIOUS: ${{ steps.check.outputs.previous }}
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+
+          # The image the compose file pins.
+          compose=deploy/docker-compose.yml
+          pin='image: ghcr.io/getstoop/stoop:'
+          [ "$(grep -c "$pin" "$compose")" = 1 ] || fail "Want one stoop image line in $compose."
+          sed -E "s|($pin).*|\1$VERSION|" "$compose" > "$RUNNER_TEMP/compose"
+          cp "$RUNNER_TEMP/compose" "$compose"
+
+          # The release table is in migration order, so a release that
+          # ships no new migration has no row of its own.
+          table=internal/db/releases.go
+          newest=$(ls internal/db/migrations | sed -n -E 's/^0*([0-9]+)_.*\.sql$/\1/p' | sort -n | tail -n 1)
+          last=$(sed -n -E 's/^[[:space:]]*\{"[0-9.]+", ([0-9]+)\},$/\1/p' "$table" | tail -n 1)
+          [ -n "$newest" ] && [ -n "$last" ] || fail "Could not read the newest migration, or the last release's, from the tree."
+          if [ "$newest" -gt "$last" ]; then
+            awk -v row="$(printf '\t{"%s", %s},' "$VERSION" "$newest")" '
+              /^var Releases = / { table = 1 }
+              table && /^}/ { print row; table = 0 }
+              { print }
+            ' "$table" > "$RUNNER_TEMP/releases"
+            cp "$RUNNER_TEMP/releases" "$table"
+          fi
+
+          # The notes start as the commits since the last release, oldest
+          # first, and are edited by hand in the pull request.
+          {
+            printf 'Stoop %s\n\nChanges since %s:\n\n' "$VERSION" "$PREVIOUS"
+            git log --no-merges --reverse --format='- %s (%h)' "v$PREVIOUS..HEAD"
+          } > deploy/release-notes.md
+
+      - name: Open the pull request
+        env:
+          KIND: ${{ steps.check.outputs.kind }}
+          PREVIOUS: ${{ steps.check.outputs.previous }}
+        run: |
+          branch="release-candidate/$VERSION"
+          gh label create "$KIND" --color 5319e7 --description "A $KIND release" --force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add deploy/docker-compose.yml deploy/release-notes.md internal/db/releases.go
+          git commit -m "Release $VERSION"
+          git push origin "$branch"
+          cat > "$RUNNER_TEMP/body.md" <<EOF
+          The release candidate for Stoop $VERSION, a $KIND release after $PREVIOUS.
+
+          - \`deploy/docker-compose.yml\` pins the image to $VERSION.
+          - \`internal/db/releases.go\` gains a row when $VERSION ships a new migration.
+          - \`deploy/release-notes.md\` lists the commits on main since $PREVIOUS. **Edit it in this pull request** before merging.
+          EOF
+          gh pr create --base main --head "$branch" --label "$KIND" \
+            --title "Release $VERSION" --body-file "$RUNNER_TEMP/body.md"
