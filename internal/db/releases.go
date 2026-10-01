@@ -14,6 +14,7 @@ type Release struct {
 var Releases = []Release{
 	{"0.1.0", 28},
 	{"0.2.0", 37},
+	{"0.3.0", 42},
 }
 
 // OldestStartable is the oldest release that can start against a
