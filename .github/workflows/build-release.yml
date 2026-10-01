@@ -1,11 +1,11 @@
-name: Release build
+name: Build release
 
 # The second step of a release: merging a release candidate
-# (release-candidate.yml) builds it and leaves it unpublished. The
+# (cut-release-candidate.yml) builds it and leaves it unpublished. The
 # archives and the compose bundle go on a draft release, and the image is
 # pushed under its full version only. No tag is made here and nothing
 # called latest moves: both wait for the draft to be published
-# (release-publish.yml).
+# (move-latest.yml).
 #
 # A failed build is run again from its run page. Nothing starts on a
 # pushed tag.

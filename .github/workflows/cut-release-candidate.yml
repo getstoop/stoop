@@ -4,7 +4,7 @@ name: Cut release candidate
 # the version to release, it opens the pull request that proposes it. The
 # pull request moves the version, drafts the notes from the commits since
 # the last release, and is labelled major, minor or patch. Merging it is
-# what builds the release (release-build.yml).
+# what builds the release (build-release.yml).
 #
 # RELEASE_TOKEN is a token of our own: a pull request opened with the
 # workflow's default token starts no other workflow, so CI would never

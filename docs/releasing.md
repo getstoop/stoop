@@ -3,9 +3,10 @@
 A release is four steps, all of them on GitHub. Nothing is run from a
 checkout and nobody makes a tag by hand: a pushed tag starts nothing.
 
-1. **Open the release candidate.** Actions → **Release candidate** → Run
-   workflow, on `main`, with the version to release (`0.4.0`). It opens
-   the pull request "Release 0.4.0", labelled `patch`, `minor` or `major`.
+1. **Cut the release candidate.** Actions → **Cut release candidate** →
+   Run workflow, on `main`, with the version to release (`0.4.0`). It
+   opens the pull request "Release 0.4.0", labelled `patch`, `minor` or
+   `major`.
 2. **Review it and merge it.** Edit `deploy/release-notes.md` in the pull
    request first.
 3. **The merge builds the release** and leaves it unpublished: a draft
@@ -28,7 +29,7 @@ last one. There are no release branches.
 
 ## 1. The release candidate
 
-The workflow (`.github/workflows/release-candidate.yml`) takes the
+The workflow (`.github/workflows/cut-release-candidate.yml`) takes the
 version and refuses it unless it is the next one: after 0.3.0 that is
 0.3.1, 0.4.0 or 1.0.0. It also refuses when nothing has been merged
 since the last release.
@@ -67,7 +68,7 @@ To drop a candidate, close the pull request and delete its branch.
 ## 3. The build
 
 Merging a pull request from a `release-candidate/` branch starts
-**Release build** (`.github/workflows/release-build.yml`). It checks the
+**Build release** (`.github/workflows/build-release.yml`). It checks the
 compose file pins the version and that the version is newer than every
 release, builds the web app, and runs GoReleaser:
 
@@ -91,7 +92,7 @@ candidate, delete the draft.
 
 Releases → the draft → **Publish release**. GitHub makes the tag on the
 commit the draft was built from and marks the release latest, and
-**Release publish** (`.github/workflows/release-publish.yml`) points
+**Move latest to release** (`.github/workflows/move-latest.yml`) points
 `ghcr.io/getstoop/stoop:latest` at the release's image.
 
 Then check what was published: a cold install from the quick start on a

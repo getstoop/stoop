@@ -1,6 +1,6 @@
-name: Release publish
+name: Move latest to release
 
-# The last step of a release: publishing the draft that Release build
+# The last step of a release: publishing the draft that Build release
 # left is the release. GitHub makes the tag on the commit that was built
 # and marks the release latest; this moves the image's `latest` to match.
 on:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-publish
+  group: move-latest
 
 jobs:
   latest:
@@ -34,7 +34,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       # Fails, and moves nothing, when the release has no image of its
-      # own: one published by hand, not from a Release build draft.
+      # own: one published by hand, not from a Build release draft.
       - name: Point latest at the release's image
         run: |
           fail() { echo "::error::$1"; exit 1; }
