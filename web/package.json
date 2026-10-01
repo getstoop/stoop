@@ -38,7 +38,7 @@
     "@playwright/test": "^1.63.0",
     "@storybook/addon-a11y": "^10.6.0",
     "@storybook/react-vite": "^10.6.0",
-    "@types/node": "^22.20.2",
+    "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.2.5",
