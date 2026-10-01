@@ -1,4 +1,4 @@
-name: Release candidate
+name: Cut release candidate
 
 # The first step of a release: started by hand with the version to
 # release, it opens the pull request that proposes it. The pull request
