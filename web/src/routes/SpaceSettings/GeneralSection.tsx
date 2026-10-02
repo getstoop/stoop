@@ -32,6 +32,12 @@ export function GeneralSection({ space }: { space: Space }) {
     try {
       await chatClient.updateSpace({ spaceId: space.id, ...patch });
       await queryClient.invalidateQueries({ queryKey: ["spaces"] });
+      // The voice switch decides which channels the space lists.
+      if (patch.voiceEnabled !== undefined) {
+        await queryClient.invalidateQueries({
+          queryKey: ["channels", space.id],
+        });
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch (err) {

@@ -356,7 +356,10 @@ A space can turn voice off for itself: `spaces.voice_enabled`, written
 through `UpdateSpace` with `space.manage` and carried on `Space`. Turning
 it off closes the space's rooms the way deleting its voice channels
 would, and the `SpaceUpdated` it broadcasts has clients refetch the
-space's channels and hang up a call in it.
+space's channels and hang up a call in it. Unlike a deleted channel, the
+room can come back: a close's repeat asks `IsVoiceChannel` first and
+does nothing when the space has turned voice on again, so it cannot end
+the call people have since started.
 
 **Voice channels are hidden, not deleted.** Their rows and the messages in
 their chats stay, and return when voice does. Chat asks one question of a
