@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/getstoop/stoop/gen/stoop/auth/v1/authv1connect"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -45,18 +44,11 @@ func (s *Service) NewInterceptor() connect.UnaryInterceptorFunc {
 	}
 }
 
-// rule classifies a procedure. Without Options.Procedures every procedure
-// but Register and Login admits any caller.
+// rule looks a procedure up in Options.Procedures. A procedure missing from
+// the table, or no table at all, has no rule and is refused.
 func (s *Service) rule(procedure string) (authctx.Rule, bool) {
-	switch procedure {
-	case authv1connect.AuthServiceRegisterProcedure, authv1connect.AuthServiceLoginProcedure:
-		return authctx.Rule{Public: true}, true
-	}
-	if s.opts.Procedures == nil {
-		return authctx.Rule{}, true
-	}
-	r, ok := s.opts.Procedures[procedure]
-	return r, ok
+	rule, ok := s.opts.Procedures[procedure]
+	return rule, ok
 }
 
 // TokenFromHeader extracts a session token from an Authorization: Bearer
