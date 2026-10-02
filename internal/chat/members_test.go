@@ -296,3 +296,40 @@ func TestTransferToNonMemberChangesNothing(t *testing.T) {
 		t.Errorf("ownership changed: %+v", res.Msg.Space)
 	}
 }
+
+func TestInstanceAdminJoiningOwnSpaceIsNotAnnounced(t *testing.T) {
+	pool := dbtest.New(t)
+	bus := events.NewInProcBus()
+	svc := chat.New(pool, bus, dbDirectory{pool})
+	owner := newUser(t, pool, "owner", authctx.RoleAdmin)
+	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaceID := sp.Msg.Space.Id
+	inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := svc.JoinSpace(owner, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spaceSub := bus.Subscribe("space:" + spaceID)
+	defer spaceSub.Close()
+	userSub := bus.Subscribe("user:" + authctx.UserID(owner))
+	defer userSub.Close()
+	got, err := svc.JoinSpace(owner, connect.NewRequest(&chatv1.JoinSpaceRequest{SpaceId: spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	noEvent(t, spaceSub)
+	noEvent(t, userSub)
+	if !proto.Equal(got.Msg, want.Msg) {
+		t.Errorf("response differs from the invite path:\n got %v\nwant %v", got.Msg, want.Msg)
+	}
+	if got.Msg.Space.MyRole != chatv1.SpaceRole_SPACE_ROLE_OWNER {
+		t.Errorf("role = %v, want owner", got.Msg.Space.MyRole)
+	}
+}

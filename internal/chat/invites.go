@@ -334,6 +334,17 @@ func (s *Service) joinAsInstanceAdmin(ctx context.Context, userID, spaceID strin
 	if err != nil {
 		return nil, notFoundOr(err, "space")
 	}
+	isMember, err := s.q.IsSpaceMember(ctx, dbgen.IsSpaceMemberParams{SpaceID: space.ID, UserID: userID})
+	if err != nil {
+		return nil, fmt.Errorf("check membership: %w", err)
+	}
+	if isMember {
+		existing, err := s.actorForUser(ctx, space.ID, userID, true)
+		if err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(&chatv1.JoinSpaceResponse{Space: toProtoSpace(space, memberActor(existing.role, true), callerCredential(ctx))}), nil
+	}
 	if err := s.q.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
 		SpaceID: space.ID, UserID: userID, Role: string(RoleMember),
 	}); err != nil {
