@@ -12,6 +12,7 @@ import (
 	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Users: the current user's own record, the lookups other modules consume
@@ -45,7 +46,7 @@ func myActions(ctx context.Context) []authctx.Action {
 // information as an avatar (docs/architecture/files.md), so there is
 // no membership test and an unknown id can say so plainly.
 func (s *Service) GetUserProfile(ctx context.Context, req *connect.Request[authv1.GetUserProfileRequest]) (*connect.Response[authv1.GetUserProfileResponse], error) {
-	if err := requireUserID(req.Msg.UserId); err != nil {
+	if err := rowid.Require(req.Msg.UserId, "user"); err != nil {
 		return nil, err
 	}
 	row, err := s.q.GetUserProfile(ctx, req.Msg.UserId)

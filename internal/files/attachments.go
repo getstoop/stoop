@@ -19,6 +19,7 @@ import (
 
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 const (
@@ -205,11 +206,8 @@ func (s *Service) storeAttachment(r *http.Request, ownerID, spaceID string, part
 		return Info{}, fmt.Errorf("rewind: %w", err)
 	}
 
-	id, err := uuid.NewV7()
-	if err != nil {
-		return Info{}, err
-	}
-	key := storageKey(KindAttachment, id.String())
+	id := rowid.New()
+	key := storageKey(KindAttachment, id)
 	hasher := sha256.New()
 	if err := s.store.Put(ctx, key, io.TeeReader(part, hasher), size, contentType); err != nil {
 		return Info{}, fmt.Errorf("store blob: %w", err)
@@ -220,7 +218,7 @@ func (s *Service) storeAttachment(r *http.Request, ownerID, spaceID string, part
 		space = &spaceID
 	}
 	f, err := s.recordFile(ctx, dbgen.CreateFileParams{
-		ID: id.String(), Kind: string(KindAttachment), OwnerID: ownerID, SpaceID: space,
+		ID: id, Kind: string(KindAttachment), OwnerID: ownerID, SpaceID: space,
 		ContentType: contentType, Size: size, Sha256: hasher.Sum(nil), StorageKey: key,
 		Name: sanitizeFilename(filename),
 	})

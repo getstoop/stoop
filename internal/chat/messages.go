@@ -14,6 +14,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 const (
@@ -73,7 +74,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
 	qtx := s.q.WithTx(tx)
 	created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
-		ID: newID(), ChannelID: channel.ID, AuthorID: userID, Content: content,
+		ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
 		MentionsEveryone: res.everyone, MentionsHere: res.here, ReplyToMessageID: replyTo,
 	})
 	if err != nil {

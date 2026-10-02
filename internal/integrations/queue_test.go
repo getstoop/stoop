@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // The Queue contract, written against the interface so a second backend
@@ -34,7 +35,7 @@ func TestPostgresQueueContract(t *testing.T) {
 	var queue Queue = q
 	ids := map[string]string{}
 	for i, lane := range []struct{ lane, name string }{{laneA, "a1"}, {laneA, "a2"}, {laneB, "b1"}} {
-		id := newID()
+		id := rowid.New()
 		ids[lane.name] = id
 		if err := queue.Enqueue(ctx, Item{ID: id, Lane: lane.lane, Event: "message.created", Sequence: uint64(i + 1), Body: []byte("{}")}); err != nil {
 			t.Fatal(err)

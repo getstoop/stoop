@@ -11,6 +11,7 @@ import (
 	"github.com/alexedwards/argon2id"
 
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Lost passwords. There is no email, so no self-service reset: an
@@ -42,7 +43,7 @@ func generateTempPassword() (string, error) {
 // which never resets the owner: only the owner changes that password, or
 // the host operator through the CLI.
 func (s *Service) ResetPassword(ctx context.Context, userID string) (temporary string, summary AccountSummary, err error) {
-	if err := requireUserID(userID); err != nil {
+	if err := rowid.Require(userID, "user"); err != nil {
 		return "", AccountSummary{}, err
 	}
 	u, err := s.q.GetUserByID(ctx, userID)

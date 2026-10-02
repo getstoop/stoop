@@ -7,12 +7,12 @@ import (
 	"net/url"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // The hook RPCs shared by both kinds.
@@ -117,8 +117,8 @@ func (s *Service) DeleteWebhook(ctx context.Context, req *connect.Request[integr
 	if err := s.ready(); err != nil {
 		return nil, err
 	}
-	if _, err := uuid.Parse(req.Msg.Id); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("webhook not found"))
+	if err := rowid.Require(req.Msg.Id, "webhook"); err != nil {
+		return nil, err
 	}
 	hook, err := s.incomingHook(ctx, req.Msg.Id)
 	if err == nil {

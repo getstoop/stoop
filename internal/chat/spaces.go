@@ -18,6 +18,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.CreateSpaceRequest]) (*connect.Response[chatv1.CreateSpaceResponse], error) {
@@ -48,7 +49,7 @@ func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.C
 
 	qtx := s.q.WithTx(tx)
 	space, err := qtx.CreateSpace(ctx, dbgen.CreateSpaceParams{
-		ID: newID(), Name: name, OwnerID: userID,
+		ID: rowid.New(), Name: name, OwnerID: userID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create space: %w", err)
@@ -59,7 +60,7 @@ func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.C
 		return nil, fmt.Errorf("add owner as member: %w", err)
 	}
 	channel, err := qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
-		ID: newID(), SpaceID: space.ID, Name: defaultChannelName,
+		ID: rowid.New(), SpaceID: space.ID, Name: defaultChannelName,
 		Kind: int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT), Position: 0,
 	})
 	if err != nil {

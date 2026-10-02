@@ -15,6 +15,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Direct messages are channels with no space (kind DM), their people in
@@ -149,7 +150,7 @@ func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[ch
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
 	qtx := s.q.WithTx(tx)
-	id := newID()
+	id := rowid.New()
 	key := dmKey(participants)
 	channel, err := qtx.OpenDMChannel(ctx, dbgen.OpenDMChannelParams{ID: id, DmKey: &key})
 	if err != nil {

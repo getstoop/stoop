@@ -14,6 +14,7 @@ import (
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // AccountSummary is what the instance module's user administration sees.
@@ -82,7 +83,7 @@ var errLastAdmin = connect.NewError(connect.CodeFailedPrecondition,
 // instance actions belong to a person's own token. A demotion runs under
 // the admin guard.
 func (s *Service) SetAccountRole(ctx context.Context, userID string, role authctx.Role) (AccountSummary, error) {
-	if err := requireUserID(userID); err != nil {
+	if err := rowid.Require(userID, "user"); err != nil {
 		return AccountSummary{}, err
 	}
 	if role == authctx.RoleMember {
@@ -112,7 +113,7 @@ func (s *Service) SetAccountRole(ctx context.Context, userID string, role authct
 // runs under the admin guard and revokes every credential immediately;
 // the row (and the user's messages) remain.
 func (s *Service) SetAccountActive(ctx context.Context, userID string, active bool) (AccountSummary, error) {
-	if err := requireUserID(userID); err != nil {
+	if err := rowid.Require(userID, "user"); err != nil {
 		return AccountSummary{}, err
 	}
 	if active {
@@ -183,7 +184,7 @@ func (s *Service) underAdminGuard(ctx context.Context, targetID string, write fu
 // RenameAccount changes an account's username and/or display name on an
 // admin's behalf — same rules as the profile page's own rename.
 func (s *Service) RenameAccount(ctx context.Context, userID string, username, displayName *string) (AccountSummary, error) {
-	if err := requireUserID(userID); err != nil {
+	if err := rowid.Require(userID, "user"); err != nil {
 		return AccountSummary{}, err
 	}
 	u, err := s.q.GetUserByID(ctx, userID)
@@ -229,7 +230,7 @@ func (s *Service) RenameAccount(ctx context.Context, userID string, username, di
 // take down a slur, and nobody needs an admin authoring someone's
 // self-description. Clearing neither is a no-op, not an error.
 func (s *Service) ClearAccountProfile(ctx context.Context, userID string, pronouns, bio bool) (AccountSummary, error) {
-	if err := requireUserID(userID); err != nil {
+	if err := rowid.Require(userID, "user"); err != nil {
 		return AccountSummary{}, err
 	}
 	empty := ""
@@ -250,7 +251,7 @@ func (s *Service) ClearAccountProfile(ctx context.Context, userID string, pronou
 // SetAccountUsernameFrozen locks or unlocks self-service renames on an
 // account. Policy (no freezing admins) is enforced by the instance module.
 func (s *Service) SetAccountUsernameFrozen(ctx context.Context, userID string, frozen bool) (AccountSummary, error) {
-	if err := requireUserID(userID); err != nil {
+	if err := rowid.Require(userID, "user"); err != nil {
 		return AccountSummary{}, err
 	}
 	target, err := s.q.GetUserByID(ctx, userID)

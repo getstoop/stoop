@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -230,14 +229,6 @@ func (s *Service) resolveAuthors(ctx context.Context, ids []string) (map[string]
 		}
 	}
 	return authors, nil
-}
-
-func newID() string {
-	id, err := uuid.NewV7()
-	if err != nil {
-		return uuid.NewString()
-	}
-	return id.String()
 }
 
 func notFoundOr(err error, what string) error {

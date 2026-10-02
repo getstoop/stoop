@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -16,6 +15,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 func (s *Service) UploadAvatar(ctx context.Context, req *connect.Request[filesv1.UploadAvatarRequest]) (*connect.Response[filesv1.UploadAvatarResponse], error) {
@@ -35,8 +35,8 @@ func (s *Service) UploadBotAvatar(ctx context.Context, req *connect.Request[file
 	if err := apierr.RequireAction(ctx, authctx.InstanceIntegrationsManage); err != nil {
 		return nil, err
 	}
-	if _, err := uuid.Parse(req.Msg.UserId); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
+	if err := rowid.Require(req.Msg.UserId, "bot"); err != nil {
+		return nil, err
 	}
 	bot, err := s.avatars.IsBot(ctx, req.Msg.UserId)
 	if err != nil {
@@ -115,17 +115,14 @@ func (s *Service) storeImage(ctx context.Context, kind Kind, ownerID string, spa
 		}
 		return dbgen.File{}, err
 	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		return dbgen.File{}, err
-	}
-	key := storageKey(kind, id.String())
+	id := rowid.New()
+	key := storageKey(kind, id)
 	if err := s.store.Put(ctx, key, bytes.NewReader(encoded), int64(len(encoded)), "image/png"); err != nil {
 		return dbgen.File{}, fmt.Errorf("store blob: %w", err)
 	}
 	sum := sha256.Sum256(encoded)
 	f, err := s.recordFile(ctx, dbgen.CreateFileParams{
-		ID: id.String(), Kind: string(kind), OwnerID: ownerID, SpaceID: spaceID,
+		ID: id, Kind: string(kind), OwnerID: ownerID, SpaceID: spaceID,
 		ContentType: "image/png", Size: int64(len(encoded)), Sha256: sum[:], StorageKey: key, Name: "",
 	})
 	if err != nil {

@@ -14,12 +14,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/alexedwards/argon2id"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Sessions: signing in and out, the opaque token behind the cookie, and
@@ -202,15 +202,12 @@ func (s *Service) createSession(ctx context.Context, userID, userAgent string) (
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	hash := sha256.Sum256([]byte(token))
 
-	id, err := uuid.NewV7()
-	if err != nil {
-		return "", 0, err
-	}
+	id := rowid.New()
 	if len(userAgent) > maxUserAgent {
 		userAgent = strings.ToValidUTF8(userAgent[:maxUserAgent], "")
 	}
 	_, err = s.q.CreateSession(ctx, dbgen.CreateSessionParams{
-		ID:        id.String(),
+		ID:        id,
 		HolderID:  userID,
 		TokenHash: hash[:],
 		ExpiresAt: time.Now().Add(ttl),
