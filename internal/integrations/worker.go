@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/diag"
@@ -273,5 +274,9 @@ func clip(str string, n int) string {
 	if len(str) <= n {
 		return str
 	}
-	return str[:n]
+	cut := n
+	for cut > 0 && !utf8.RuneStart(str[cut]) {
+		cut--
+	}
+	return str[:cut]
 }

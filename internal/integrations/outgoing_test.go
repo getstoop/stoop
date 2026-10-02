@@ -14,6 +14,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -435,4 +436,50 @@ func (s *subscriber) has(topic string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.sub != nil && s.sub.Has(topic)
+}
+
+func TestOutgoingAcceptedReplyIsNotRepeated(t *testing.T) {
+	replies := map[string]string{
+		"binary":   "\xff\xfe\x80 not text",
+		"nul":      "ok\x00ok",
+		"straddle": strings.Repeat("a", responseKeep-1) + "é",
+	}
+	for name, reply := range replies {
+		t.Run(name, func(t *testing.T) {
+			fixture, _ := outgoingFixture(t)
+			var mu sync.Mutex
+			calls := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+				mu.Lock()
+				calls++
+				mu.Unlock()
+				_, _ = io.WriteString(writer, reply)
+			}))
+			t.Cleanup(srv.Close)
+			hook, _ := fixture.createOutgoing(t, srv.URL, []string{EventMessageCreated}, "")
+			out, _ := fixture.svc.translate(context.Background(), message(fixture.channel, fixture.space, "hello"))
+			fixture.enqueue(t, out)
+			fixture.drain(t)
+			if _, err := fixture.pool.Exec(context.Background(), `UPDATE webhook_deliveries SET leased_until = now() - interval '1 minute' WHERE finished_at IS NULL`); err != nil {
+				t.Fatal(err)
+			}
+			fixture.drain(t)
+			mu.Lock()
+			defer mu.Unlock()
+			if calls != 1 {
+				t.Errorf("receiver called %d times", calls)
+			}
+			log, err := fixture.svc.ListDeliveries(fixture.admin, connect.NewRequest(&integrationsv1.ListDeliveriesRequest{WebhookId: hook.Id}))
+			if err != nil || len(log.Msg.Deliveries) != 1 || log.Msg.Deliveries[0].FinishedAt == nil || log.Msg.Deliveries[0].GetStatusCode() != 200 {
+				t.Errorf("log: %v %+v", err, log.Msg.Deliveries)
+			}
+		})
+	}
+}
+
+func TestClipKeepsWholeCharacters(t *testing.T) {
+	got := clip("aé", 2)
+	if got != "a" || !utf8.ValidString(got) {
+		t.Errorf("clip = %q", got)
+	}
 }
