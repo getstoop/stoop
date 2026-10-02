@@ -29,7 +29,7 @@ const (
 	typingInterval = 2 * time.Second
 	// The web app sends a typing frame per channel every few seconds and a
 	// voice report per join, leave or toggle, so a person stays far below
-	// these; frames over them are dropped unread.
+	// these; frames over them are dropped before they are decoded.
 	clientFrameRate  = 5 // per second, sustained
 	clientFrameBurst = 20
 )
