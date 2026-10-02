@@ -74,6 +74,7 @@ func (s *Service) resetPassword(ctx context.Context, u dbgen.User) (temporary st
 	if err := s.revokeAll(ctx, u.ID); err != nil {
 		return "", AccountSummary{}, err
 	}
+	u.PasswordHash = &hash
 	return temporary, toSummary(u), nil
 }
 

@@ -56,3 +56,18 @@ func TestResetPassword(t *testing.T) {
 		t.Errorf("CLI reset of the owner: %v", err)
 	}
 }
+
+func TestResetPasswordSummaryHasPassword(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
+	signIn(t, svc, "casey", "correct horse battery") // the owner
+	_, userID := socialUser(t, pool, "bea", "sso")
+
+	_, summary, err := svc.ResetPassword(context.Background(), userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !summary.HasPassword {
+		t.Errorf("summary after reset says no password: %+v", summary)
+	}
+}
