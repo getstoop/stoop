@@ -71,7 +71,12 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	attempt := r.URL.Query().Get("attempt")
 	var att desktopAttempt
 	if attempt != "" {
-		a, ok := s.desktop.claim(attempt, id)
+		a, ok, err := s.desktop.claim(ctx, attempt, id)
+		if err != nil {
+			slog.Error("claim a desktop attempt", "err", err)
+			loginError(w, r, "server_error")
+			return
+		}
 		if !ok {
 			loginError(w, r, "login_state")
 			return

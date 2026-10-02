@@ -35,6 +35,7 @@ import (
 	"github.com/getstoop/stoop/internal/files"
 	"github.com/getstoop/stoop/internal/instance"
 	"github.com/getstoop/stoop/internal/integrations"
+	"github.com/getstoop/stoop/internal/kv"
 	"github.com/getstoop/stoop/internal/ratelimit"
 	"github.com/getstoop/stoop/internal/realtime"
 	"github.com/getstoop/stoop/internal/tailnet"
@@ -85,9 +86,13 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	}
 	log.Info("file storage", "backend", cfg.Storage, "dir", store.Root())
 
+	// Keyed in-memory state (lockouts, sign-in attempts, rate buckets):
+	// one backend, so the Diagnostics tab can count every store.
+	stores := kv.NewMemory(nil)
 	authSvc := auth.New(pool, auth.Options{
 		SecureCookies: cfg.SecureCookies,
 		Procedures:    procedures,
+		Stores:        stores,
 	})
 	instanceSvc := instance.New(pool, userAdmin{authSvc})
 	if err := instanceSvc.Seed(ctx, instance.Defaults{
@@ -136,7 +141,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	gateway := realtime.NewGateway(bus, identityVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
 	gateway.UseDoNotDisturb(authSvc)
 	chatSvc.UsePresence(gateway)
-	registerGauges(gateway)
+	registerGauges(gateway, stores)
 	filesSvc := files.New(pool, store, bus, authSvc, chatSvc, identityVerifier{authSvc}, log)
 	filesSvc.UsePolicy(instanceSvc)
 	instanceSvc.UseUploadCeiling(files.MaxAttachmentBytes)

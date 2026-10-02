@@ -67,8 +67,9 @@ minute histograms on each minute boundary.
 package that sees the gateway: `connections`, `online_users`,
 `voice_rooms`, `voice_participants`, `requests_per_minute` and
 `request_errors_per_minute` (a counter turned into a rate over the last
-minute of samples). Every gauge is read from memory; nothing the sampler
-does touches Postgres.
+minute of samples), and one `<store>_entries` per `internal/kv` store
+(`desktop_attempts`, `desktop_codes`). Every gauge is read from memory;
+nothing the sampler does touches Postgres.
 
 **The webhook queue is not a gauge.** Its counts (one grouped `SELECT` on
 `webhook_deliveries`, `webhook_queue.go`) are taken only when something
