@@ -172,7 +172,7 @@ func newSocialRig(t *testing.T, svc *auth.Service) *socialRig {
 	svc.UseProviders(&fakeProviders{
 		callback: app.URL,
 		cfgs: map[string]auth.ProviderConfig{
-			"sso": {ID: "sso", Kind: auth.KindOIDC, DisplayName: "SSO",
+			"sso": {Kind: auth.KindOIDC,
 				Issuer: idp.srv.URL, ClientID: "client-1", ClientSecret: "secret-1"},
 		},
 	})

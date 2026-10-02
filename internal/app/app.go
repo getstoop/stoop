@@ -685,7 +685,7 @@ func (p providerSource) LoginProvider(ctx context.Context, id string) (auth.Prov
 		return auth.ProviderConfig{}, err
 	}
 	return auth.ProviderConfig{
-		ID: lp.ID, Kind: lp.Kind, DisplayName: lp.DisplayName,
+		Kind:   lp.Kind,
 		Issuer: lp.Issuer, ClientID: lp.ClientID, ClientSecret: lp.ClientSecret,
 	}, nil
 }

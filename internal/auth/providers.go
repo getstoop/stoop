@@ -16,9 +16,7 @@ const KindOIDC = "oidc"
 // ProviderConfig is one effective provider, secret included (in-process
 // only; the admin API never returns secrets).
 type ProviderConfig struct {
-	ID           string
 	Kind         string
-	DisplayName  string
 	Issuer       string
 	ClientID     string
 	ClientSecret string
