@@ -514,3 +514,11 @@ func TestDeliverLeavesTheItemWhenTheHookLookupFails(t *testing.T) {
 		t.Errorf("a missing hook: %v, %v, settled %v", ok, err, recorder.settled)
 	}
 }
+
+func TestDeleteWebhookWithAMalformedIDIsNotFound(t *testing.T) {
+	fixture, _ := outgoingFixture(t)
+	_, err := fixture.svc.DeleteWebhook(fixture.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: "nope"}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("delete nope: %v", err)
+	}
+}

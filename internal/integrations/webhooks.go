@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
@@ -115,6 +116,9 @@ func (s *Service) DeleteWebhook(ctx context.Context, req *connect.Request[integr
 	}
 	if err := s.ready(); err != nil {
 		return nil, err
+	}
+	if _, err := uuid.Parse(req.Msg.Id); err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("webhook not found"))
 	}
 	hook, err := s.incomingHook(ctx, req.Msg.Id)
 	if err == nil {
