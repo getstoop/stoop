@@ -65,6 +65,9 @@ type roomCall struct {
 	method string
 	grant  videoGrant
 	body   map[string]string
+	// reopened reports that the room is in use again, so the repeat must
+	// not happen. Nil for a call that always repeats.
+	reopened func(ctx context.Context) bool
 }
 
 // RemoveParticipant disconnects one user from a voice channel's room.
@@ -83,7 +86,22 @@ func (s *Service) CloseRoom(ctx context.Context, channelID string) error {
 		// DeleteRoom is gated on roomCreate, not roomAdmin.
 		grant: videoGrant{Room: channelID, RoomCreate: true},
 		body:  map[string]string{"room": channelID},
+		reopened: func(ctx context.Context) bool {
+			return s.roomInUse(ctx, channelID)
+		},
 	})
+}
+
+// roomInUse reports whether a channel is a voice channel people may be
+// in. A space that turned voice off can turn it back on before a close
+// repeats, and the room is then a new call's. A failed lookup reads as
+// not in use, so the close still happens.
+func (s *Service) roomInUse(ctx context.Context, channelID string) bool {
+	if s.channels == nil {
+		return false
+	}
+	inUse, err := s.channels.IsVoiceChannel(ctx, channelID)
+	return err == nil && inUse
 }
 
 // do makes a room call now and once more after any token already handed
@@ -111,6 +129,9 @@ func (s *Service) repeatOnceTokensExpire(c roomCall) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), roomRequestTimeout)
 		defer cancel()
+		if c.reopened != nil && c.reopened(ctx) {
+			return
+		}
 		if err := s.rooms.call(ctx, c); err != nil {
 			s.log.Warn("could not repeat a livekit room call once tokens expired",
 				"method", c.method, "room", c.body["room"], "err", err)

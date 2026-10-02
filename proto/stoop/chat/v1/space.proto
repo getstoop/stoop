@@ -53,6 +53,10 @@ message Space {
   // called with. Clients show a control only when its permission is
   // listed; the server still enforces. Empty on broadcast events.
   repeated stoop.access.v1.Permission my_permissions = 13;
+  // Whether this space uses voice channels; on unless a space admin
+  // turned it off. Off, or with GetInstanceStatus.voice_available false,
+  // its voice channels are not listed and cannot be created or joined.
+  bool voice_enabled = 14;
 }
 
 // SpaceSummary is one row of the server admin's Spaces list: a space the

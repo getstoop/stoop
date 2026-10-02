@@ -167,3 +167,112 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 		}
 	}
 }
+
+// A space's own switch hides its voice channels and ends its calls,
+// leaves other spaces alone, and is the space admins' to flip.
+func TestSpaceVoiceSwitch(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	rooms := &stubRooms{}
+	svc.UseVoiceRooms(rooms)
+
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	newSpace := func(name string) (spaceID, voiceID string) {
+		t.Helper()
+		space, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: name}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		voice, err := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{
+			SpaceId: space.Msg.Space.Id, Name: "hangout", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE,
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return space.Msg.Space.Id, voice.Msg.Channel.Id
+	}
+	porch, porchVoice := newSpace("Porch")
+	garage, garageVoice := newSpace("Garage")
+	invited, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: porch}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invited.Msg.Invite.Code})); err != nil {
+		t.Fatal(err)
+	}
+
+	set := func(ctx context.Context, on bool) (*chatv1.Space, error) {
+		res, err := svc.UpdateSpace(ctx, connect.NewRequest(&chatv1.UpdateSpaceRequest{SpaceId: porch, VoiceEnabled: &on}))
+		if err != nil {
+			return nil, err
+		}
+		return res.Msg.Space, nil
+	}
+	listed := func(spaceID string) int {
+		t.Helper()
+		res, err := svc.ListChannels(owner, connect.NewRequest(&chatv1.ListChannelsRequest{SpaceId: spaceID}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(res.Msg.Channels)
+	}
+	voiceSpace := func(channelID string) string {
+		t.Helper()
+		id, err := svc.VoiceChannelSpace(context.Background(), channelID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+
+	if _, err := set(bea, false); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a member turning voice off: want permission_denied, got %v", err)
+	}
+	space, err := set(owner, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if space.VoiceEnabled {
+		t.Error("the space still says voice is on")
+	}
+	if len(rooms.closed) != 1 || rooms.closed[0] != porchVoice {
+		t.Errorf("closed rooms %v, want the space's one voice channel", rooms.closed)
+	}
+	if got := listed(porch); got != 1 {
+		t.Errorf("the space lists %d channels with voice off, want 1", got)
+	}
+	if got := voiceSpace(porchVoice); got != "" {
+		t.Errorf("a hidden voice channel resolved to space %q", got)
+	}
+	post := func(channelID string) error {
+		_, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "anyone here?"}))
+		return err
+	}
+	if err := post(porchVoice); code(err) != connect.CodeNotFound {
+		t.Errorf("posting in the hidden channel by id: want not_found, got %v", err)
+	}
+	if err := post(garageVoice); err != nil {
+		t.Errorf("posting in the other space's voice channel: %v", err)
+	}
+	_, err = svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: porch, Name: "garage", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE,
+	}))
+	if code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("creating a voice channel with the space's voice off: want failed_precondition, got %v", err)
+	}
+	// The other space is untouched.
+	if got := listed(garage); got != 2 {
+		t.Errorf("the other space lists %d channels, want 2", got)
+	}
+	if got := voiceSpace(garageVoice); got != garage {
+		t.Errorf("the other space's voice channel resolved to %q", got)
+	}
+
+	if space, err = set(owner, true); err != nil || !space.VoiceEnabled {
+		t.Fatalf("turning voice back on: %v, %+v", err, space)
+	}
+	if got := listed(porch); got != 2 {
+		t.Errorf("the space lists %d channels with voice back on, want 2", got)
+	}
+}

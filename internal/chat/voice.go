@@ -31,21 +31,59 @@ type VoiceRooms interface {
 // UseVoiceRooms wires the SFU port.
 func (s *Service) UseVoiceRooms(v VoiceRooms) { s.rooms = v }
 
-var errVoiceOff = connect.NewError(connect.CodeFailedPrecondition,
-	errors.New("voice is turned off on this server"))
+var (
+	errVoiceOff = connect.NewError(connect.CodeFailedPrecondition,
+		errors.New("voice is turned off on this server"))
+	errSpaceVoiceOff = connect.NewError(connect.CodeFailedPrecondition,
+		errors.New("voice is turned off in this space"))
+)
 
-// voiceOn reports whether voice channels are in use. While they are not
-// they are hidden: see docs/architecture/voice.md → Turning voice off.
-func (s *Service) voiceOn() bool { return s.policy == nil || s.policy.VoiceAvailable() }
+// voiceAvailable reports whether the instance has voice at all.
+func (s *Service) voiceAvailable() bool { return s.policy == nil || s.policy.VoiceAvailable() }
+
+// requireVoice refuses while a space's voice channels are not in use:
+// the instance has no voice, or the space turned it off. While they are
+// not in use they are hidden: see docs/architecture/voice.md → Turning
+// voice off.
+func (s *Service) requireVoice(ctx context.Context, spaceID string) error {
+	if !s.voiceAvailable() {
+		return errVoiceOff
+	}
+	on, err := s.q.SpaceVoiceEnabled(ctx, spaceID)
+	if err != nil {
+		return notFoundOr(err, "space")
+	}
+	if !on {
+		return errSpaceVoiceOff
+	}
+	return nil
+}
+
+// voiceOn is requireVoice as a yes or no.
+func (s *Service) voiceOn(ctx context.Context, spaceID string) (bool, error) {
+	switch err := s.requireVoice(ctx, spaceID); {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, errVoiceOff), errors.Is(err, errSpaceVoiceOff):
+		return false, nil
+	default:
+		return false, err
+	}
+}
 
 func isVoice(channel dbgen.Channel) bool {
 	return chatv1.ChannelKind(channel.Kind) == chatv1.ChannelKind_CHANNEL_KIND_VOICE
 }
 
 // hiddenChannel reports whether a channel is a voice channel while voice
-// is off. Its members are then answered as if it did not exist.
-func (s *Service) hiddenChannel(channel dbgen.Channel) bool {
-	return isVoice(channel) && !s.voiceOn()
+// is off for its space. Its members are then answered as if it did not
+// exist.
+func (s *Service) hiddenChannel(ctx context.Context, channel dbgen.Channel) (bool, error) {
+	if !isVoice(channel) {
+		return false, nil
+	}
+	on, err := s.voiceOn(ctx, spaceOf(channel))
+	return !on, err
 }
 
 // memberChannel loads a channel for someone already known to be in it. A
@@ -55,7 +93,11 @@ func (s *Service) memberChannel(ctx context.Context, channelID string) (dbgen.Ch
 	if err != nil {
 		return dbgen.Channel{}, notFoundOr(err, "channel")
 	}
-	if s.hiddenChannel(channel) {
+	hidden, err := s.hiddenChannel(ctx, channel)
+	if err != nil {
+		return dbgen.Channel{}, err
+	}
+	if hidden {
 		return dbgen.Channel{}, connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
 	}
 	return channel, nil
@@ -69,12 +111,13 @@ func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]d
 	if err != nil {
 		return nil, fmt.Errorf("list channels: %w", err)
 	}
-	if s.voiceOn() {
-		return rows, nil
+	on, err := s.voiceOn(ctx, spaceID)
+	if err != nil || on {
+		return rows, err
 	}
 	shown := rows[:0]
 	for _, row := range rows {
-		if !s.hiddenChannel(row.Channel) {
+		if !isVoice(row.Channel) {
 			shown = append(shown, row)
 		}
 	}

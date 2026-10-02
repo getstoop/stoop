@@ -79,8 +79,10 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("direct messages are opened with OpenDirectMessage"))
 	}
-	if kind == chatv1.ChannelKind_CHANNEL_KIND_VOICE && !s.voiceOn() {
-		return nil, errVoiceOff
+	if kind == chatv1.ChannelKind_CHANNEL_KIND_VOICE {
+		if err := s.requireVoice(ctx, req.Msg.SpaceId); err != nil {
+			return nil, err
+		}
 	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -133,12 +135,9 @@ func (s *Service) ListChannels(ctx context.Context, req *connect.Request[chatv1.
 }
 
 // VoiceChannelSpace implements realtime.ChannelLookup: the space of a
-// voice channel, or "" for unknown and text channels, and for every
+// voice channel, or "" for unknown and text channels, and for a voice
 // channel while voice is off.
 func (s *Service) VoiceChannelSpace(ctx context.Context, channelID string) (string, error) {
-	if !s.voiceOn() {
-		return "", nil
-	}
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
@@ -148,6 +147,9 @@ func (s *Service) VoiceChannelSpace(ctx context.Context, channelID string) (stri
 	}
 	if !isVoice(channel) {
 		return "", nil
+	}
+	if on, err := s.voiceOn(ctx, spaceOf(channel)); err != nil || !on {
+		return "", err
 	}
 	return spaceOf(channel), nil
 }
@@ -230,8 +232,12 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, err
 	}
+	withVoice, err := s.voiceOn(ctx, spaceOf(channel))
+	if err != nil {
+		return nil, err
+	}
 	listed, err := s.q.CountChannelsInSpace(ctx, dbgen.CountChannelsInSpaceParams{
-		SpaceID: spaceOf(channel), WithVoice: s.voiceOn(),
+		SpaceID: spaceOf(channel), WithVoice: withVoice,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("count channels: %w", err)

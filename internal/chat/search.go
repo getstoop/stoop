@@ -57,9 +57,13 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 		limit = maxSearchPage
 	}
 
+	withVoice, err := s.voiceOn(ctx, spaceID)
+	if err != nil {
+		return nil, err
+	}
 	params := dbgen.SearchMessagesParams{
 		SpaceID: spaceID, Words: q.words, Prefix: q.prefix, Lim: limit,
-		BeforeAt: q.before, AfterAt: q.after, WithVoice: s.voiceOn(),
+		BeforeAt: q.before, AfterAt: q.after, WithVoice: withVoice,
 	}
 	if req.Msg.BeforeId != "" {
 		params.BeforeID = &req.Msg.BeforeId

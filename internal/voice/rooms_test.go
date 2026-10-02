@@ -190,6 +190,36 @@ func TestRoomCallsRepeatOnceTokensExpire(t *testing.T) {
 	}
 }
 
+// A space can turn voice back on before a close repeats. The room is then
+// a new call's, and the repeat would end it.
+func TestCloseRoomDoesNotRepeatOnceReopened(t *testing.T) {
+	stub := &stubLiveKit{seen: make(chan struct{}, 4)}
+	srv := stub.server(t, "devsecret")
+	defer srv.Close()
+
+	svc := New(fakeChannels{voice: map[string]bool{"chan-1": true}}, nil, Options{
+		LiveKitURL: srv.URL, LiveKitAPIKey: "devkey", LiveKitAPISecret: "devsecret",
+	}, nil)
+	t.Cleanup(svc.Close)
+	svc.repeatDelay = time.Millisecond
+	if err := svc.CloseRoom(context.Background(), "chan-1"); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	stub.waitForCall(t, "the close")
+	// Once the repeat has run its course there is nothing in flight.
+	svc.repeats.Wait()
+	if extra := len(stub.seen); extra != 0 {
+		t.Errorf("the sidecar saw %d more calls for a reopened room, want none", extra)
+	}
+
+	// A removal has no such way back: it still repeats.
+	if err := svc.RemoveParticipant(context.Background(), "chan-1", "user-1"); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	stub.waitForCall(t, "the removal")
+	stub.waitForCall(t, "its repeat")
+}
+
 // Shutdown must not sit on a repeat that is still a minute and a half off.
 func TestCloseAbandonsAWaitingRepeat(t *testing.T) {
 	stub := &stubLiveKit{}

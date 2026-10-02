@@ -213,6 +213,7 @@ type Space struct {
 	Description      string
 	Welcome          string
 	DefaultChannelID *string
+	VoiceEnabled     bool
 }
 
 type SpaceBan struct {

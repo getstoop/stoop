@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
+import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import {
   authClient,
   chatClient,
@@ -25,6 +26,12 @@ export function useInstanceStatus() {
 // no LiveKit is configured, and until the status has loaded.
 export function useVoiceAvailable(): boolean {
   return useInstanceStatus().data?.voiceAvailable ?? false;
+}
+
+// Whether a space's voice channels are in use: the server has voice and
+// the space has not turned it off.
+export function useSpaceVoice(space: Space | undefined): boolean {
+  return useVoiceAvailable() && !!space?.voiceEnabled;
 }
 
 // The configured login providers with secrets elided, for the admin

@@ -21,7 +21,7 @@ import {
   useActivity,
   useChannels,
   useSpaces,
-  useVoiceAvailable,
+  useSpaceVoice,
 } from "../api/queries";
 import {
   copyShareLink,
@@ -71,8 +71,8 @@ export function SpaceLayout() {
     channels?.filter((c) => c.kind === ChannelKind.VOICE) ?? [];
   // With voice off the server lists no voice channels; this hides the
   // empty group from those who could otherwise add to it.
-  const voiceAvailable = useVoiceAvailable();
-  const addVoice = manage && voiceAvailable;
+  const spaceVoice = useSpaceVoice(space);
+  const addVoice = manage && spaceVoice;
 
   // Kicked, left, or the space was deleted: the list no longer has it.
   if (spaces && !space) {
