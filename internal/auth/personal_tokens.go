@@ -167,8 +167,8 @@ func (s *Service) RevokePersonalToken(ctx context.Context, req *connect.Request[
 // ListTokensOf lists another account's personal tokens for the admin page.
 // Authorisation is the caller's (instance) job.
 func (s *Service) ListTokensOf(ctx context.Context, userID string) ([]*authv1.PersonalToken, error) {
-	if _, err := uuid.Parse(userID); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
+	if err := requireUserID(userID); err != nil {
+		return nil, err
 	}
 	u, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {

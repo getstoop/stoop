@@ -86,6 +86,15 @@ func New(pool *pgxpool.Pool, opts Options) *Service {
 		desktop: newDesktopStore()}
 }
 
+// requireUserID answers not found for an id that is not a UUID, which
+// Postgres would reject as invalid input.
+func requireUserID(userID string) error {
+	if _, err := uuid.Parse(userID); err != nil {
+		return connect.NewError(connect.CodeNotFound, errors.New("user not found"))
+	}
+	return nil
+}
+
 func notFoundOr(err error, what string) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found", what))

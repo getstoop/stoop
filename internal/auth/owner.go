@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 
 	"github.com/getstoop/stoop/internal/authctx"
 )
@@ -19,8 +18,8 @@ import (
 // TransferOwnership makes toUserID the owner. fromUserID is the caller,
 // who must be the owner; "" is the CLI, which may always.
 func (s *Service) TransferOwnership(ctx context.Context, fromUserID, toUserID string) (AccountSummary, error) {
-	if _, err := uuid.Parse(toUserID); err != nil {
-		return AccountSummary{}, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
+	if err := requireUserID(toUserID); err != nil {
+		return AccountSummary{}, err
 	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
