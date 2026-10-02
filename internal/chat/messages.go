@@ -11,6 +11,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -56,7 +57,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	if id := req.Msg.ReplyToMessageId; id != "" {
 		p, err := s.q.GetMessage(ctx, id)
 		if err != nil {
-			return nil, notFoundOr(err, "message")
+			return nil, apierr.NotFoundOr(err, "message")
 		}
 		if p.ChannelID != channel.ID {
 			return nil, connect.NewError(connect.CodeInvalidArgument,
@@ -348,7 +349,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	}
 	msg, err := s.q.GetMessage(ctx, req.Msg.MessageId)
 	if err != nil {
-		return nil, notFoundOr(err, "message")
+		return nil, apierr.NotFoundOr(err, "message")
 	}
 	if msg.AuthorID != authctx.UserID(ctx) {
 		return nil, connect.NewError(connect.CodePermissionDenied,
@@ -396,11 +397,11 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1.DeleteMessageRequest]) (*connect.Response[chatv1.DeleteMessageResponse], error) {
 	msg, err := s.q.GetMessage(ctx, req.Msg.MessageId)
 	if err != nil {
-		return nil, notFoundOr(err, "message")
+		return nil, apierr.NotFoundOr(err, "message")
 	}
 	channel, err := s.q.GetChannel(ctx, msg.ChannelID)
 	if err != nil {
-		return nil, notFoundOr(err, "channel")
+		return nil, apierr.NotFoundOr(err, "channel")
 	}
 	if msg.AuthorID != authctx.UserID(ctx) {
 		// In a DM there is no moderator: each person deletes only their own.

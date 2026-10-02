@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -51,7 +52,7 @@ func (s *Service) requireVoice(ctx context.Context, spaceID string) error {
 	}
 	on, err := s.q.SpaceVoiceEnabled(ctx, spaceID)
 	if err != nil {
-		return notFoundOr(err, "space")
+		return apierr.NotFoundOr(err, "space")
 	}
 	if !on {
 		return errSpaceVoiceOff
@@ -91,7 +92,7 @@ func (s *Service) hiddenChannel(ctx context.Context, channel dbgen.Channel) (boo
 func (s *Service) memberChannel(ctx context.Context, channelID string) (dbgen.Channel, error) {
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if err != nil {
-		return dbgen.Channel{}, notFoundOr(err, "channel")
+		return dbgen.Channel{}, apierr.NotFoundOr(err, "channel")
 	}
 	hidden, err := s.hiddenChannel(ctx, channel)
 	if err != nil {

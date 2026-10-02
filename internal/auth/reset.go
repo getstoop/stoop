@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/alexedwards/argon2id"
 
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -48,7 +49,7 @@ func (s *Service) ResetPassword(ctx context.Context, userID string) (temporary s
 	}
 	u, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
-		return "", AccountSummary{}, notFoundOr(err, "user")
+		return "", AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	if u.IsOwner {
 		return "", AccountSummary{}, connect.NewError(connect.CodePermissionDenied,
@@ -84,7 +85,7 @@ func (s *Service) resetPassword(ctx context.Context, u dbgen.User) (temporary st
 func (s *Service) ResetPasswordByUsername(ctx context.Context, username string) (temporary string, summary AccountSummary, err error) {
 	u, err := s.q.GetUserByUsername(ctx, username)
 	if err != nil {
-		return "", AccountSummary{}, notFoundOr(err, "user")
+		return "", AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	return s.resetPassword(ctx, u)
 }

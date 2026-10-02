@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -154,7 +155,7 @@ func (s *Service) requirePermission(ctx context.Context, spaceID string, perm au
 	if perm == authctx.InvitesCreate && a.member && !a.role.atLeast(RoleAdmin) {
 		space, err := s.q.GetSpace(ctx, spaceID)
 		if err != nil {
-			return notFoundOr(err, "space")
+			return apierr.NotFoundOr(err, "space")
 		}
 		membersCanInvite = space.MembersCanInvite
 	}

@@ -11,6 +11,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -26,11 +27,11 @@ const maxChannelPins = 50
 func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[chatv1.SetMessagePinnedRequest]) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
 	msg, err := s.q.GetMessage(ctx, req.Msg.MessageId)
 	if err != nil {
-		return nil, notFoundOr(err, "message")
+		return nil, apierr.NotFoundOr(err, "message")
 	}
 	channel, err := s.q.GetChannel(ctx, msg.ChannelID)
 	if err != nil {
-		return nil, notFoundOr(err, "channel")
+		return nil, apierr.NotFoundOr(err, "channel")
 	}
 	if isDM(channel) {
 		return nil, connect.NewError(connect.CodeInvalidArgument,

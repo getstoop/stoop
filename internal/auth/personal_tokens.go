@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
@@ -20,6 +19,7 @@ import (
 	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -169,7 +169,7 @@ func (s *Service) ListTokensOf(ctx context.Context, userID string) ([]*authv1.Pe
 	}
 	u, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, notFoundOr(err, "user")
+		return nil, apierr.NotFoundOr(err, "user")
 	}
 	return s.personalTokensOf(ctx, u.ID, authctx.Role(u.Role))
 }
@@ -280,6 +280,5 @@ func toProtoToken(r dbgen.ListPersonalTokensRow, blocked bool) *authv1.PersonalT
 // isBadReference reports a foreign key that points nowhere, or an id that
 // isn't a uuid at all.
 func isBadReference(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && (pgErr.Code == "23503" || pgErr.Code == "22P02")
+	return db.HasCode(err, db.ForeignKeyViolation, db.InvalidTextRepresentation)
 }

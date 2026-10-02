@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -36,7 +37,7 @@ func (s *Service) TransferOwnership(ctx context.Context, fromUserID, toUserID st
 	if fromUserID != "" {
 		from, err := qtx.GetUserByID(ctx, fromUserID)
 		if err != nil {
-			return AccountSummary{}, notFoundOr(err, "user")
+			return AccountSummary{}, apierr.NotFoundOr(err, "user")
 		}
 		if !from.IsOwner {
 			return AccountSummary{}, connect.NewError(connect.CodePermissionDenied,
@@ -45,7 +46,7 @@ func (s *Service) TransferOwnership(ctx context.Context, fromUserID, toUserID st
 	}
 	to, err := qtx.GetUserByID(ctx, toUserID)
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	if to.IsOwner {
 		return toSummary(to), nil
@@ -79,7 +80,7 @@ func (s *Service) TransferOwnership(ctx context.Context, fromUserID, toUserID st
 func (s *Service) TransferOwnershipByUsername(ctx context.Context, username string) (AccountSummary, error) {
 	u, err := s.q.GetUserByUsername(ctx, username)
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	out, err := s.TransferOwnership(ctx, "", u.ID)
 	var cerr *connect.Error

@@ -186,7 +186,7 @@ func (s *Service) GetSpace(ctx context.Context, req *connect.Request[chatv1.GetS
 	}
 	space, err := s.q.GetSpace(ctx, req.Msg.SpaceId)
 	if err != nil {
-		return nil, notFoundOr(err, "space")
+		return nil, apierr.NotFoundOr(err, "space")
 	}
 	return connect.NewResponse(&chatv1.GetSpaceResponse{Space: toProtoSpace(space, a, callerCredential(ctx))}), nil
 }
@@ -288,7 +288,7 @@ func (s *Service) SetSpaceIcon(ctx context.Context, spaceID, fileID string) (pre
 	qtx := s.q.WithTx(tx)
 	prev, err := qtx.GetSpaceIconForUpdate(ctx, spaceID)
 	if err != nil {
-		return "", notFoundOr(err, "space")
+		return "", apierr.NotFoundOr(err, "space")
 	}
 	var next *string
 	if fileID != "" {
@@ -302,7 +302,7 @@ func (s *Service) SetSpaceIcon(ctx context.Context, spaceID, fileID string) (pre
 	}
 	space, err := s.q.GetSpace(ctx, spaceID)
 	if err != nil {
-		return "", notFoundOr(err, "space")
+		return "", apierr.NotFoundOr(err, "space")
 	}
 	s.bus.Publish(events.SpaceTopic(space.ID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceUpdated{
@@ -353,7 +353,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 		if id := *req.Msg.DefaultChannelId; id != "" {
 			channel, err := s.q.GetChannel(ctx, id)
 			if err != nil {
-				return nil, notFoundOr(err, "channel")
+				return nil, apierr.NotFoundOr(err, "channel")
 			}
 			// A channel from another space would send arrivals somewhere
 			// they may not be able to read; a voice channel would drop
@@ -371,7 +371,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 	}
 	space, err := s.q.UpdateSpaceSettings(ctx, patch)
 	if err != nil {
-		return nil, notFoundOr(err, "space")
+		return nil, apierr.NotFoundOr(err, "space")
 	}
 	a, err := s.actorFor(ctx, space.ID)
 	if err != nil {
@@ -430,7 +430,7 @@ func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[ch
 	s.publishRoleChanged(req.Msg.SpaceId, req.Msg.UserId, RoleOwner)
 	space, err := s.q.GetSpace(ctx, req.Msg.SpaceId)
 	if err != nil {
-		return nil, notFoundOr(err, "space")
+		return nil, apierr.NotFoundOr(err, "space")
 	}
 	return connect.NewResponse(&chatv1.TransferOwnershipResponse{Space: toProtoSpace(space, memberActor(RoleAdmin, authctx.IsAdmin(ctx)), callerCredential(ctx))}), nil
 }

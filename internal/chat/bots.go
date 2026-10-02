@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -52,7 +53,7 @@ func (s *Service) ChannelSpace(ctx context.Context, channelID string) (string, e
 func (s *Service) SpaceName(ctx context.Context, spaceID string) (string, error) {
 	space, err := s.q.GetSpace(ctx, spaceID)
 	if err != nil {
-		return "", notFoundOr(err, "space")
+		return "", apierr.NotFoundOr(err, "space")
 	}
 	return space.Name, nil
 }
@@ -62,7 +63,7 @@ func (s *Service) SpaceName(ctx context.Context, spaceID string) (string, error)
 func (s *Service) AddBotMember(ctx context.Context, spaceID, userID string) error {
 	space, err := s.q.GetSpace(ctx, spaceID)
 	if err != nil {
-		return notFoundOr(err, "space")
+		return apierr.NotFoundOr(err, "space")
 	}
 	isMember, err := s.q.IsSpaceMember(ctx, dbgen.IsSpaceMemberParams{SpaceID: spaceID, UserID: userID})
 	if err != nil {
@@ -108,7 +109,7 @@ func (s *Service) RemoveBotMember(ctx context.Context, spaceID, userID string) e
 func (s *Service) Member(ctx context.Context, spaceID, userID string) (*chatv1.Member, error) {
 	row, err := s.q.GetSpaceMember(ctx, dbgen.GetSpaceMemberParams{SpaceID: spaceID, UserID: userID})
 	if err != nil {
-		return nil, notFoundOr(err, "member")
+		return nil, apierr.NotFoundOr(err, "member")
 	}
 	members, err := s.toProtoMembers(ctx, []dbgen.SpaceMember{row})
 	if err != nil {

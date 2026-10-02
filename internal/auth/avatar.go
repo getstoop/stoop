@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -20,7 +21,7 @@ func (s *Service) SetAvatar(ctx context.Context, userID, fileID string) (previou
 	qtx := s.q.WithTx(tx)
 	prev, err := qtx.GetUserAvatarForUpdate(ctx, userID)
 	if err != nil {
-		return "", notFoundOr(err, "user")
+		return "", apierr.NotFoundOr(err, "user")
 	}
 	var next *string
 	if fileID != "" {

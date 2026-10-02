@@ -12,10 +12,10 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -84,8 +84,7 @@ func (s *Service) CreateBot(ctx context.Context, username, displayName string) (
 	id := rowid.New()
 	u, err := s.q.CreateBot(ctx, dbgen.CreateBotParams{ID: id, Username: username, DisplayName: displayName})
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if db.HasCode(err, db.UniqueViolation) {
 			return Bot{}, apierr.Field(connect.CodeAlreadyExists, "username", errors.New("username is taken"))
 		}
 		return Bot{}, fmt.Errorf("create bot: %w", err)
@@ -225,7 +224,7 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 		if isBadReference(err) {
 			return BotCredential{}, "", connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
 		}
-		return BotCredential{}, "", notFoundOr(err, "bot")
+		return BotCredential{}, "", apierr.NotFoundOr(err, "bot")
 	}
 	if m.ChannelID != "" {
 		if err := qtx.AddCredentialChannelBound(ctx, dbgen.AddCredentialChannelBoundParams{CredentialID: row.ID, ChannelID: m.ChannelID}); err != nil {

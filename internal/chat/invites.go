@@ -11,12 +11,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -30,7 +30,6 @@ const (
 	// Retries on the (astronomically unlikely) code collision.
 	inviteCodeAttempts = 5
 	maxInviteLifetime  = 365 * 24 * time.Hour
-	uniqueViolation    = "23505"
 )
 
 func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.CreateInviteRequest]) (*connect.Response[chatv1.CreateInviteResponse], error) {
@@ -78,7 +77,7 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 		if err == nil {
 			break
 		}
-		if isUniqueViolation(err) && attempt < inviteCodeAttempts-1 {
+		if db.HasCode(err, db.UniqueViolation) && attempt < inviteCodeAttempts-1 {
 			continue
 		}
 		return nil, fmt.Errorf("create invite: %w", err)
@@ -108,7 +107,7 @@ func (s *Service) RevokeInvite(ctx context.Context, req *connect.Request[chatv1.
 	userID := authctx.UserID(ctx)
 	invite, err := s.q.GetInvite(ctx, req.Msg.InviteId)
 	if err != nil {
-		return nil, notFoundOr(err, "invite")
+		return nil, apierr.NotFoundOr(err, "invite")
 	}
 	// Your own invites are yours to revoke as long as you're still in the
 	// space and the credential reaches it; anyone else's needs
@@ -171,7 +170,7 @@ func (s *Service) JoinSpace(ctx context.Context, req *connect.Request[chatv1.Joi
 func (s *Service) ValidateInvite(ctx context.Context, code string) error {
 	invite, err := s.q.GetInviteByCode(ctx, strings.TrimSpace(code))
 	if err != nil {
-		return notFoundOr(err, "invite")
+		return apierr.NotFoundOr(err, "invite")
 	}
 	return inviteUsable(invite, time.Now())
 }
@@ -187,7 +186,7 @@ func (s *Service) LookupInvite(ctx context.Context, req *connect.Request[chatv1.
 	}
 	row, err := s.q.LookupInviteByCode(ctx, code)
 	if err != nil {
-		return nil, notFoundOr(err, "invite")
+		return nil, apierr.NotFoundOr(err, "invite")
 	}
 	if err := inviteUsable(row.Invite, time.Now()); err != nil {
 		return nil, err
@@ -238,11 +237,11 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 
 	invite, err := s.q.GetInviteByCode(ctx, code)
 	if err != nil {
-		return dbgen.Space{}, "", notFoundOr(err, "invite")
+		return dbgen.Space{}, "", apierr.NotFoundOr(err, "invite")
 	}
 	space, err := s.q.GetSpace(ctx, invite.SpaceID)
 	if err != nil {
-		return dbgen.Space{}, "", notFoundOr(err, "space")
+		return dbgen.Space{}, "", apierr.NotFoundOr(err, "space")
 	}
 	if err := s.refuseIfBanned(ctx, space.ID, userID); err != nil {
 		return dbgen.Space{}, "", err
@@ -282,7 +281,7 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 		// The guard rejected it; re-read so the error names the reason.
 		current, err := qtx.GetInviteByCode(ctx, code)
 		if err != nil {
-			return dbgen.Space{}, "", notFoundOr(err, "invite")
+			return dbgen.Space{}, "", apierr.NotFoundOr(err, "invite")
 		}
 		return dbgen.Space{}, "", inviteRejection(current, time.Now())
 	}
@@ -333,7 +332,7 @@ func (s *Service) joinAsInstanceAdmin(ctx context.Context, userID, spaceID strin
 	}
 	space, err := s.q.GetSpace(ctx, spaceID)
 	if err != nil {
-		return nil, notFoundOr(err, "space")
+		return nil, apierr.NotFoundOr(err, "space")
 	}
 	isMember, err := s.q.IsSpaceMember(ctx, dbgen.IsSpaceMemberParams{SpaceID: space.ID, UserID: userID})
 	if err != nil {
@@ -390,11 +389,6 @@ func newInviteCode() (string, error) {
 		}
 	}
 	return string(code), nil
-}
-
-func isUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation
 }
 
 func toProtoInvite(i dbgen.Invite) *chatv1.Invite {

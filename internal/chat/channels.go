@@ -391,7 +391,7 @@ func (s *Service) MarkChannelRead(ctx context.Context, req *connect.Request[chat
 func (s *Service) spaceChannelToManage(ctx context.Context, channelID string) (dbgen.Channel, error) {
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if err != nil {
-		return dbgen.Channel{}, notFoundOr(err, "channel")
+		return dbgen.Channel{}, apierr.NotFoundOr(err, "channel")
 	}
 	if isDM(channel) {
 		return dbgen.Channel{}, connect.NewError(connect.CodeInvalidArgument,

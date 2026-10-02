@@ -7,9 +7,9 @@ import (
 	"net/url"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
@@ -131,10 +131,7 @@ func (s *Service) DeleteWebhook(ctx context.Context, req *connect.Request[integr
 		return nil, err
 	}
 	if _, err := s.q.DeleteOutgoingWebhook(ctx, req.Msg.Id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("webhook not found"))
-		}
-		return nil, fmt.Errorf("delete hook: %w", err)
+		return nil, apierr.NotFoundOr(fmt.Errorf("delete hook: %w", err), "webhook")
 	}
 	return connect.NewResponse(&integrationsv1.DeleteWebhookResponse{}), nil
 }
