@@ -32,8 +32,9 @@ in, and usually exposes a Connect service. There are seven: `auth`,
 
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
-`authctx`, `accesswire`, `apierr`, `blob`, `unfurl`, `netguard`, `ratelimit`,
-`trustedproxy`, `tailnet`, `cftunnel`, `buildinfo`, `webui`.
+`authctx`, `accesswire`, `apierr`, `rowid`, `release`, `diag`, `blob`,
+`unfurl`, `netguard`, `ratelimit`, `trustedproxy`, `tailnet`, `cftunnel`,
+`buildinfo`, `webui`.
 
 `internal/app` is neither. It is the composition root, and it is allowed to
 know everything.
@@ -43,9 +44,8 @@ know everything.
 `internal/chat` must not import `internal/auth`, and so on for every pair.
 
 What a module *may* import: `gen/` (generated protobuf and Connect code),
-`internal/db` helpers, its own slice of `internal/dbgen`, `internal/events`,
-`internal/config`, `internal/authctx`, the standard library, and
-third-party libraries.
+`internal/db` helpers, its own slice of `internal/dbgen`, the other support
+packages above, the standard library, and third-party libraries.
 
 **Enforcement is mechanical.** `.golangci.yml` configures `depguard` with
 one rule block per module, denying the other six module paths by import
