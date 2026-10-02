@@ -10,13 +10,13 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/alexedwards/argon2id"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 var usernameRE = regexp.MustCompile(`^[a-z0-9_]{3,32}$`)
@@ -199,10 +199,7 @@ type identitySeed struct {
 // the count and insert run under an advisory lock so two simultaneous
 // first registrations can't both observe an empty table.
 func (s *Service) createAccount(ctx context.Context, p createAccountParams) (dbgen.User, error) {
-	id, err := uuid.NewV7()
-	if err != nil {
-		return dbgen.User{}, err
-	}
+	id := rowid.New()
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return dbgen.User{}, fmt.Errorf("begin tx: %w", err)
@@ -223,7 +220,7 @@ func (s *Service) createAccount(ctx context.Context, p createAccountParams) (dbg
 	}
 
 	user, err := qtx.CreateUser(ctx, dbgen.CreateUserParams{
-		ID:              id.String(),
+		ID:              id,
 		Username:        p.Username,
 		DisplayName:     p.DisplayName,
 		PasswordHash:    p.PasswordHash,

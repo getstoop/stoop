@@ -23,6 +23,7 @@ import (
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // receiver is an httptest endpoint that records every delivery and
@@ -365,7 +366,7 @@ func TestOutgoingTargetsAndAuthorisation(t *testing.T) {
 	if _, err := f.svc.TestWebhook(f.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id})); connect.CodeOf(err) != connect.CodeUnavailable {
 		t.Errorf("test with outgoing off: %v", err)
 	}
-	if _, err := f.pool.Exec(context.Background(), `INSERT INTO webhook_deliveries (id, lane, event_type, sequence, body, not_before, created_at) VALUES ($1, $2, 'message.created', 99, '{}', now(), now())`, newID(), hook.Id); err != nil {
+	if _, err := f.pool.Exec(context.Background(), `INSERT INTO webhook_deliveries (id, lane, event_type, sequence, body, not_before, created_at) VALUES ($1, $2, 'message.created', 99, '{}', now(), now())`, rowid.New(), hook.Id); err != nil {
 		t.Fatal(err)
 	}
 	f.drain(t)

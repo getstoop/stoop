@@ -12,6 +12,7 @@ import (
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // The subscriber: bus events in, queue items out. No HTTP here, so a slow
@@ -168,7 +169,7 @@ func (s *Service) enqueueFor(ctx context.Context, hookID string, ev outgoingEven
 	if err != nil {
 		return "", fmt.Errorf("next sequence: %w", err)
 	}
-	id := newID()
+	id := rowid.New()
 	body, err := json.Marshal(envelope{
 		ID: id, Type: ev.Type, TS: s.now().UTC(), Instance: instance,
 		Space: envelopeSpace{ID: ev.SpaceID, Name: spaceName}, Data: ev.Data,

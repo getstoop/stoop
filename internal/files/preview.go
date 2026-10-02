@@ -6,9 +6,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // StoreLinkPreviewImage re-encodes a fetched preview image (fit within
@@ -21,17 +20,14 @@ func (s *Service) StoreLinkPreviewImage(ctx context.Context, ownerID string, dat
 	if err != nil {
 		return "", 0, 0, err
 	}
-	uid, err := uuid.NewV7()
-	if err != nil {
-		return "", 0, 0, err
-	}
-	key := storageKey(KindLinkPreview, uid.String())
+	uid := rowid.New()
+	key := storageKey(KindLinkPreview, uid)
 	if err := s.store.Put(ctx, key, bytes.NewReader(encoded), int64(len(encoded)), contentType); err != nil {
 		return "", 0, 0, fmt.Errorf("store blob: %w", err)
 	}
 	sum := sha256.Sum256(encoded)
 	if _, err := s.q.CreateFile(ctx, dbgen.CreateFileParams{
-		ID: uid.String(), Kind: string(KindLinkPreview), OwnerID: ownerID,
+		ID: uid, Kind: string(KindLinkPreview), OwnerID: ownerID,
 		ContentType: contentType, Size: int64(len(encoded)), Sha256: sum[:], StorageKey: key, Name: "",
 	}); err != nil {
 		if derr := s.store.Delete(ctx, key); derr != nil {
@@ -39,5 +35,5 @@ func (s *Service) StoreLinkPreviewImage(ctx context.Context, ownerID string, dat
 		}
 		return "", 0, 0, fmt.Errorf("record file: %w", err)
 	}
-	return uid.String(), w, h, nil
+	return uid, w, h, nil
 }

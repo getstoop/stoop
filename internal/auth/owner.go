@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // The server owner: one admin no other admin can demote, deactivate or
@@ -18,7 +19,7 @@ import (
 // TransferOwnership makes toUserID the owner. fromUserID is the caller,
 // who must be the owner; "" is the CLI, which may always.
 func (s *Service) TransferOwnership(ctx context.Context, fromUserID, toUserID string) (AccountSummary, error) {
-	if err := requireUserID(toUserID); err != nil {
+	if err := rowid.Require(toUserID, "user"); err != nil {
 		return AccountSummary{}, err
 	}
 	tx, err := s.pool.Begin(ctx)

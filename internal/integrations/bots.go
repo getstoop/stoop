@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // The bot RPCs: the admin surface over auth's bot accounts and their
@@ -196,8 +196,8 @@ func (s *Service) RevokeBotToken(ctx context.Context, req *connect.Request[integ
 		return nil, err
 	}
 	notFound := connect.NewError(connect.CodeNotFound, errors.New("token not found"))
-	if _, err := uuid.Parse(req.Msg.TokenId); err != nil {
-		return nil, notFound
+	if err := rowid.Require(req.Msg.TokenId, "token"); err != nil {
+		return nil, err
 	}
 	creds, err := s.bots.Credentials(ctx, nil, []string{req.Msg.TokenId})
 	if err != nil {

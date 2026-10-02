@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
@@ -17,6 +16,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/netguard"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Outgoing hooks: a URL they host, a signing secret, a set of event types
@@ -66,7 +66,7 @@ func (s *Service) CreateOutgoing(ctx context.Context, req *connect.Request[integ
 		return nil, err
 	}
 	row, err := s.q.CreateOutgoingWebhook(ctx, dbgen.CreateOutgoingWebhookParams{
-		ID: newID(), SpaceID: req.Msg.SpaceId, ChannelID: channelID, Url: target, Secret: []byte(secret),
+		ID: rowid.New(), SpaceID: req.Msg.SpaceId, ChannelID: channelID, Url: target, Secret: []byte(secret),
 		EventTypes: types, Name: name, CreatedBy: authctx.UserID(ctx),
 	})
 	if err != nil {
@@ -206,8 +206,8 @@ func (s *Service) RedeliverDelivery(ctx context.Context, req *connect.Request[in
 	if err := s.requireOutgoing(ctx); err != nil {
 		return nil, err
 	}
-	if _, err := uuid.Parse(req.Msg.DeliveryId); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("delivery not found"))
+	if err := rowid.Require(req.Msg.DeliveryId, "delivery"); err != nil {
+		return nil, err
 	}
 	d, err := s.q.GetDelivery(ctx, req.Msg.DeliveryId)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -229,7 +229,7 @@ func (s *Service) RedeliverDelivery(ctx context.Context, req *connect.Request[in
 	if hook.DisabledAt != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this webhook is disabled"))
 	}
-	id := newID()
+	id := rowid.New()
 	if err := s.queue.Enqueue(ctx, Item{ID: id, Lane: d.Lane, Event: d.EventType, Sequence: uint64(d.Sequence), Body: d.Body}); err != nil {
 		return nil, err
 	}
@@ -336,8 +336,8 @@ func newSecret() (string, error) {
 }
 
 func (s *Service) outgoingHook(ctx context.Context, id string) (dbgen.OutgoingWebhook, error) {
-	if _, err := uuid.Parse(id); err != nil {
-		return dbgen.OutgoingWebhook{}, connect.NewError(connect.CodeNotFound, errors.New("webhook not found"))
+	if err := rowid.Require(id, "webhook"); err != nil {
+		return dbgen.OutgoingWebhook{}, err
 	}
 	hook, err := s.q.GetOutgoingWebhook(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {

@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Personal tokens: a person's own credentials for scripts, carrying only
@@ -121,13 +121,10 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	credID, err := uuid.NewV7()
-	if err != nil {
-		return nil, err
-	}
+	credID := rowid.New()
 	// A token reaches everything its holder does: no bounds, ever.
 	row, err := s.q.CreatePersonalToken(ctx, dbgen.CreatePersonalTokenParams{
-		ID: credID.String(), HolderID: id.UserID, TokenHash: hash, Name: name,
+		ID: credID, HolderID: id.UserID, TokenHash: hash, Name: name,
 		Grants: grants, Bounded: false, ExpiresAt: expires, Hint: secret[len(secret)-4:],
 	})
 	if err != nil {
@@ -167,7 +164,7 @@ func (s *Service) RevokePersonalToken(ctx context.Context, req *connect.Request[
 // ListTokensOf lists another account's personal tokens for the admin page.
 // Authorisation is the caller's (instance) job.
 func (s *Service) ListTokensOf(ctx context.Context, userID string) ([]*authv1.PersonalToken, error) {
-	if err := requireUserID(userID); err != nil {
+	if err := rowid.Require(userID, "user"); err != nil {
 		return nil, err
 	}
 	u, err := s.q.GetUserByID(ctx, userID)
@@ -201,8 +198,8 @@ func (s *Service) personalTokensOf(ctx context.Context, userID string, role auth
 
 func (s *Service) revokeToken(ctx context.Context, holderID, tokenID string) error {
 	notFound := connect.NewError(connect.CodeNotFound, errors.New("token not found"))
-	if _, err := uuid.Parse(tokenID); err != nil {
-		return notFound
+	if err := rowid.Require(tokenID, "token"); err != nil {
+		return err
 	}
 	rows, err := s.q.DeletePersonalToken(ctx, dbgen.DeletePersonalTokenParams{ID: tokenID, HolderID: holderID})
 	if err != nil {

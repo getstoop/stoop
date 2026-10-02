@@ -11,6 +11,7 @@ import (
 
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // One row in each state the panel distinguishes: waiting, waiting behind
@@ -41,7 +42,7 @@ func TestQueueStats(t *testing.T) {
 	seq := int64(0)
 	add := func(t *testing.T) string {
 		seq++
-		id := newID()
+		id := rowid.New()
 		if err := q.EnqueueDelivery(ctx, dbgen.EnqueueDeliveryParams{
 			ID: id, Lane: lane, EventType: "message.created", Sequence: seq, Body: []byte("{}"), NotBefore: clock, Now: clock,
 		}); err != nil {

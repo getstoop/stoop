@@ -18,6 +18,7 @@ import (
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 const (
@@ -70,7 +71,7 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 			return nil, fmt.Errorf("generate invite code: %w", err)
 		}
 		invite, err = s.q.CreateInvite(ctx, dbgen.CreateInviteParams{
-			ID: newID(), SpaceID: req.Msg.SpaceId, Code: code,
+			ID: rowid.New(), SpaceID: req.Msg.SpaceId, Code: code,
 			CreatedBy: authctx.UserID(ctx), ExpiresAt: expiresAt, MaxUses: req.Msg.MaxUses,
 			Role: string(grant),
 		})

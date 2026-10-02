@@ -17,6 +17,7 @@ import (
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 const maxChannelName = 32
@@ -91,7 +92,7 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
 	qtx := s.q.WithTx(tx)
 
-	id := newID()
+	id := rowid.New()
 	if err := claimChannelName(ctx, qtx, req.Msg.SpaceId, name, id); err != nil {
 		return nil, err
 	}

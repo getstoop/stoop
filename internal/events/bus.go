@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/diag"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 var droppedSubscribers = diag.NewCounter("bus_dropped_total", "Subscribers dropped for falling behind.")
@@ -36,11 +36,7 @@ type Bus interface {
 
 // Stamp fills the envelope's event ID and timestamp in place and returns it.
 func Stamp(ev *realtimev1.ServerEvent) *realtimev1.ServerEvent {
-	id, err := uuid.NewV7()
-	if err != nil {
-		id = uuid.New()
-	}
-	ev.EventId = id.String()
+	ev.EventId = rowid.New()
 	ev.Ts = timestamppb.New(time.Now())
 	return ev
 }

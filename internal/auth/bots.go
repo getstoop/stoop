@@ -12,12 +12,12 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Bots: accounts of kind bot and the credentials they hold. Exposed to the
@@ -81,11 +81,8 @@ func (s *Service) CreateBot(ctx context.Context, username, displayName string) (
 		return Bot{}, apierr.Field(connect.CodeInvalidArgument, "display_name",
 			fmt.Errorf("display name must be 1-%d characters", maxDisplayNameLen))
 	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		return Bot{}, err
-	}
-	u, err := s.q.CreateBot(ctx, dbgen.CreateBotParams{ID: id.String(), Username: username, DisplayName: displayName})
+	id := rowid.New()
+	u, err := s.q.CreateBot(ctx, dbgen.CreateBotParams{ID: id, Username: username, DisplayName: displayName})
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -97,8 +94,8 @@ func (s *Service) CreateBot(ctx context.Context, username, displayName string) (
 }
 
 func (s *Service) GetBot(ctx context.Context, id string) (Bot, error) {
-	if _, err := uuid.Parse(id); err != nil {
-		return Bot{}, connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
+	if err := rowid.Require(id, "bot"); err != nil {
+		return Bot{}, err
 	}
 	u, err := s.q.GetUserByID(ctx, id)
 	if err != nil || u.Kind != string(authctx.KindBot) {
@@ -209,10 +206,7 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 	if err != nil {
 		return BotCredential{}, "", err
 	}
-	credID, err := uuid.NewV7()
-	if err != nil {
-		return BotCredential{}, "", err
-	}
+	credID := rowid.New()
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return BotCredential{}, "", fmt.Errorf("begin tx: %w", err)
@@ -224,7 +218,7 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 		createdBy = &m.CreatedBy
 	}
 	row, err := qtx.CreateBotCredential(ctx, dbgen.CreateBotCredentialParams{
-		ID: credID.String(), HolderID: m.HolderID, Kind: string(m.Kind), TokenHash: hash, Name: name,
+		ID: credID, HolderID: m.HolderID, Kind: string(m.Kind), TokenHash: hash, Name: name,
 		Grants: grants, Bounded: bounded, CreatedBy: createdBy, Hint: secret[len(secret)-4:],
 	})
 	if err != nil {
@@ -253,8 +247,8 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 
 // SetCredentialGrants replaces a bot credential's grant.
 func (s *Service) SetCredentialGrants(ctx context.Context, id string, grants []authctx.Action) error {
-	if _, err := uuid.Parse(id); err != nil {
-		return connect.NewError(connect.CodeNotFound, errors.New("credential not found"))
+	if err := rowid.Require(id, "credential"); err != nil {
+		return err
 	}
 	out := make([]string, 0, len(grants))
 	for _, a := range grants {
@@ -275,8 +269,8 @@ func (s *Service) SetCredentialGrants(ctx context.Context, id string, grants []a
 
 // RevokeCredential deletes a bot credential and announces it.
 func (s *Service) RevokeCredential(ctx context.Context, id string) error {
-	if _, err := uuid.Parse(id); err != nil {
-		return connect.NewError(connect.CodeNotFound, errors.New("credential not found"))
+	if err := rowid.Require(id, "credential"); err != nil {
+		return err
 	}
 	rows, err := s.q.DeleteBotCredential(ctx, id)
 	if err != nil {

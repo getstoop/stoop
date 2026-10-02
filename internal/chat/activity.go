@@ -15,6 +15,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 const (
@@ -33,7 +34,7 @@ func (s *Service) recordMentions(ctx context.Context, msg messageRow, spaceID *s
 	}
 	for _, userID := range mentioned {
 		a, err := s.q.CreateActivityItem(ctx, dbgen.CreateActivityItemParams{
-			ID: newID(), UserID: userID, Kind: activityKindMention,
+			ID: rowid.New(), UserID: userID, Kind: activityKindMention,
 			SpaceID: spaceID, ChannelID: msg.ChannelID, MessageID: &msg.ID, ActorID: msg.AuthorID,
 		})
 		if err != nil {
@@ -71,7 +72,7 @@ func (s *Service) recordReply(ctx context.Context, msg messageRow, spaceID *stri
 		return nil
 	}
 	a, err := s.q.CreateActivityItem(ctx, dbgen.CreateActivityItemParams{
-		ID: newID(), UserID: parentAuthorID, Kind: activityKindReply,
+		ID: rowid.New(), UserID: parentAuthorID, Kind: activityKindReply,
 		SpaceID: spaceID, ChannelID: msg.ChannelID, MessageID: &msg.ID, ActorID: msg.AuthorID,
 	})
 	if err != nil {
@@ -128,7 +129,7 @@ func (s *Service) recordDM(ctx context.Context, msg messageRow, channel dbgen.Ch
 			})
 		case errors.Is(err, pgx.ErrNoRows):
 			a, err = s.q.CreateActivityItem(ctx, dbgen.CreateActivityItemParams{
-				ID: newID(), UserID: id, Kind: activityKindDM,
+				ID: rowid.New(), UserID: id, Kind: activityKindDM,
 				ChannelID: msg.ChannelID, MessageID: &msg.ID, ActorID: msg.AuthorID,
 			})
 		}

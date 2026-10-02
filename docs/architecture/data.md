@@ -229,7 +229,7 @@ created_at DESC)` for the settings page. See
 
 ## Identifiers
 
-**Every id is a UUIDv7**, minted by the application (`uuid.NewV7()`), not
+**Every id is a UUIDv7**, minted by the application (`rowid.New()`), not
 by the database.
 
 UUIDv7 embeds a millisecond timestamp in its high bits, so ids sort

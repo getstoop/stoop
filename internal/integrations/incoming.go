@@ -8,13 +8,13 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Incoming hooks: a credential in a URL that posts into one channel as
@@ -96,7 +96,7 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 		return nil, err
 	}
 	row, err := s.q.CreateIncomingWebhook(ctx, dbgen.CreateIncomingWebhookParams{
-		ID: newID(), SpaceID: spaceID, ChannelID: req.Msg.ChannelId, BotUserID: bot.ID,
+		ID: rowid.New(), SpaceID: spaceID, ChannelID: req.Msg.ChannelId, BotUserID: bot.ID,
 		CredentialID: &cred.ID, Name: name, CreatedBy: authctx.UserID(ctx),
 	})
 	if err != nil {
@@ -371,8 +371,8 @@ func (s *Service) hookURL(ctx context.Context, secret string) (string, error) {
 }
 
 func (s *Service) incomingHook(ctx context.Context, id string) (dbgen.IncomingWebhook, error) {
-	if _, err := uuid.Parse(id); err != nil {
-		return dbgen.IncomingWebhook{}, connect.NewError(connect.CodeNotFound, errors.New("webhook not found"))
+	if err := rowid.Require(id, "webhook"); err != nil {
+		return dbgen.IncomingWebhook{}, err
 	}
 	hook, err := s.q.GetIncomingWebhook(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -382,12 +382,4 @@ func (s *Service) incomingHook(ctx context.Context, id string) (dbgen.IncomingWe
 		return dbgen.IncomingWebhook{}, fmt.Errorf("get hook: %w", err)
 	}
 	return hook, nil
-}
-
-func newID() string {
-	id, err := uuid.NewV7()
-	if err != nil {
-		panic(err)
-	}
-	return id.String()
 }
