@@ -61,8 +61,12 @@ SELECT EXISTS (
 -- name: DeleteChannel :exec
 DELETE FROM channels WHERE id = $1;
 
+-- CountChannelsInSpace leaves voice channels (kind 2) out when they are
+-- hidden.
 -- name: CountChannelsInSpace :one
-SELECT count(*) FROM channels WHERE space_id = sqlc.arg(space_id)::uuid;
+SELECT count(*) FROM channels
+WHERE space_id = sqlc.arg(space_id)::uuid
+  AND (sqlc.arg(with_voice)::bool OR kind <> 2);
 
 -- name: SetChannelPosition :exec
 UPDATE channels SET position = sqlc.arg(position) WHERE id = sqlc.arg(id) AND space_id = sqlc.arg(space_id)::uuid;

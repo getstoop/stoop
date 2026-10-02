@@ -2,8 +2,12 @@ package chat
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
+
+	"connectrpc.com/connect"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/dbgen"
@@ -26,6 +30,33 @@ type VoiceRooms interface {
 
 // UseVoiceRooms wires the SFU port.
 func (s *Service) UseVoiceRooms(v VoiceRooms) { s.rooms = v }
+
+var errVoiceOff = connect.NewError(connect.CodeFailedPrecondition,
+	errors.New("voice is turned off on this server"))
+
+// voiceOn reports whether voice channels are in use. While they are not
+// they are hidden: see docs/architecture/voice.md → Turning voice off.
+func (s *Service) voiceOn() bool { return s.policy == nil || s.policy.VoiceAvailable() }
+
+// listChannels is a space's channels as its members see them.
+func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]dbgen.ListChannelsBySpaceRow, error) {
+	rows, err := s.q.ListChannelsBySpace(ctx, dbgen.ListChannelsBySpaceParams{
+		SpaceID: spaceID, UserID: userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list channels: %w", err)
+	}
+	if s.voiceOn() {
+		return rows, nil
+	}
+	shown := rows[:0]
+	for _, r := range rows {
+		if chatv1.ChannelKind(r.Channel.Kind) != chatv1.ChannelKind_CHANNEL_KIND_VOICE {
+			shown = append(shown, r)
+		}
+	}
+	return shown, nil
+}
 
 // cleanupCtx detaches this work from the caller, who has already committed
 // the change it enforces, and bounds what an unreachable sidecar can cost.

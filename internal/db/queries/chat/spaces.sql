@@ -28,7 +28,8 @@ ORDER BY s.name, s.id;
 -- ListSpacesByUser also returns the caller's role in each space, whether
 -- any channel there has messages newer than their read marker, and their
 -- own mute for the space. has_unread does not know about space mutes; the
--- client derives the effective state from both flags.
+-- client derives the effective state from both flags. Hidden voice
+-- channels (kind 2) don't count.
 -- name: ListSpacesByUser :many
 SELECT sqlc.embed(s), m.role AS my_role,
     EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.space_id = s.id AND sm.user_id = m.user_id) AS muted,
@@ -36,13 +37,14 @@ SELECT sqlc.embed(s), m.role AS my_role,
         SELECT 1 FROM channels c
         LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = m.user_id
         WHERE c.space_id = s.id
+          AND (sqlc.arg(with_voice)::bool OR c.kind <> 2)
           AND c.last_message_id IS NOT NULL
           AND (r.last_read_message_id IS NULL OR c.last_message_id > r.last_read_message_id)
           AND NOT EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = m.user_id)
     ) AS has_unread
 FROM spaces s
 JOIN space_members m ON m.space_id = s.id
-WHERE m.user_id = $1
+WHERE m.user_id = sqlc.arg(user_id)
 ORDER BY m.joined_at;
 
 -- name: UpdateSpaceOwner :exec

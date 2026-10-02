@@ -11,9 +11,9 @@ Chat works, the voice channel populates, and nobody can hear anybody, until
 a reachable TURN relay is configured. See "Front doors" below and
 `docs/self-hosting/voice.md`.
 
-Voice is optional. With `STOOP_LIVEKIT_*` unset, `JoinVoiceChannel` returns
-`Unavailable` and Stoop is a text-only chat server that ships one binary
-and needs no sidecar.
+Voice is optional. With `STOOP_LIVEKIT_URL` unset or `STOOP_VOICE=false`,
+Stoop is a text-only chat server that ships one binary and needs no
+sidecar. See [Turning voice off](#turning-voice-off).
 
 ## Joining
 
@@ -339,6 +339,33 @@ socket and kept in gateway memory
 stale name in a sidebar until the next reconnect, which is the right
 amount of wrong for a hint — and nothing that enforces a kick reads it,
 precisely because it is one.
+
+## Turning voice off
+
+`STOOP_VOICE=false` is read at startup and leaves the server in the state
+it is in with no LiveKit named: `livekitKeys` settles no pair, so nothing
+is minted or written, `voice.Options` is not enabled, the signaling proxy
+answers `503`, and the tailnet node carries no media ports. The one
+difference is `GetReachability.voice_off`, which lets the Hosting tab say
+why instead of offering LiveKit and relay settings.
+
+Everyone else learns it from `GetInstanceStatus.voice_available`, which is
+public because the sidebar needs it.
+
+**Voice channels are hidden, not deleted.** Their rows and the messages in
+their chats stay, and return when voice does. Chat asks one question,
+`voiceOn`, and while the answer is no:
+
+- `ListChannels` leaves them out, and `ReorderChannels` orders the
+  channels that are listed.
+- `CreateChannel` refuses a voice channel.
+- They don't count toward a space's `has_unread`, a search, or the
+  one channel a space must keep.
+- `VoiceChannelSpace` resolves none of them, so the gateway takes no
+  voice state for them.
+
+An activity item that points into a hidden channel's chat opens the space
+instead, as it does for a deleted channel.
 
 ## Front doors, and the one thing they all share
 

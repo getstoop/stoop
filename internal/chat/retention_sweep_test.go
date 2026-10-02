@@ -19,6 +19,7 @@ type retentionPolicy int
 
 func (retentionPolicy) MembersMayCreateSpaces(context.Context) (bool, error) { return true, nil }
 func (p retentionPolicy) MessageRetentionDays(context.Context) (int, error)  { return int(p), nil }
+func (retentionPolicy) VoiceAvailable() bool                                 { return true }
 
 // See docs/architecture/messaging.md#message-retention.
 func TestMessageRetention(t *testing.T) {

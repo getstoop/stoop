@@ -119,18 +119,22 @@ export function ReachabilityForm({
         data={data}
       />
 
-      <LiveKitSection lk={data?.livekit} />
+      {!data?.voiceOff && (
+        <>
+          <LiveKitSection lk={data?.livekit} />
 
-      <VoiceRelaySection
-        fields={fields}
-        errors={form.errors}
-        set={set}
-        secrets={secrets}
-        setSecrets={setSecrets}
-        showOwnRelay={showOwnRelay}
-        setShowOwnRelay={setShowOwnRelay}
-        saved={data?.reachability}
-      />
+          <VoiceRelaySection
+            fields={fields}
+            errors={form.errors}
+            set={set}
+            secrets={secrets}
+            setSecrets={setSecrets}
+            showOwnRelay={showOwnRelay}
+            setShowOwnRelay={setShowOwnRelay}
+            saved={data?.reachability}
+          />
+        </>
+      )}
 
       {/* What the settings above add up to, rather than what anyone
           intended: read back from the server after every save. */}

@@ -43,7 +43,7 @@ export function CloudflareTunnelSection({
       heading
       stack
       title="Cloudflare Tunnel"
-      description="A public hostname on your Cloudflare domain, with nothing forwarded from your router. Voice and video can't use the tunnel; they need a relay."
+      description={`A public hostname on your Cloudflare domain, with nothing forwarded from your router.${data?.voiceOff ? "" : " Voice and video can't use the tunnel; they need a relay."}`}
     >
       <label className="reach-check">
         <Switch

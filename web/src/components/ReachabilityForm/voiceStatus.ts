@@ -7,6 +7,9 @@ import type { GetReachabilityResponse } from "../../gen/stoop/instance/v1/instan
 // ports itself, or when the Tailscale app is on this machine.
 export function voiceStatus(r: GetReachabilityResponse | undefined): string {
   if (!r) return "";
+  if (r.voiceOff) {
+    return "Voice is turned off on this server (STOOP_VOICE=false).";
+  }
   if (!r.voiceConfigured) {
     return "Voice isn't configured on this server (no LiveKit), so none of the relay settings apply yet.";
   }

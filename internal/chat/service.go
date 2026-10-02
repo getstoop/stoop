@@ -50,6 +50,8 @@ type InstancePolicy interface {
 	MembersMayCreateSpaces(ctx context.Context) (bool, error)
 	// MessageRetentionDays is how long messages are kept; 0 is forever.
 	MessageRetentionDays(ctx context.Context) (int, error)
+	// VoiceAvailable is whether voice channels work on this server.
+	VoiceAvailable() bool
 }
 
 // PresenceLister is chat's port onto the realtime gateway: which of these

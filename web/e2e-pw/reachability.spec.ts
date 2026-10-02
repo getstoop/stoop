@@ -210,17 +210,16 @@ test("reaching your server, in setup and on the admin page", async ({
         kind: "CHANNEL_KIND_VOICE",
       })
     ).channel;
-  const join = await rpc("voice.v1.VoiceService/JoinVoiceChannel", {
-    channelId: voice.id,
-  });
-  if (join.code === "unavailable") {
-    // No LiveKit behind this server (CI): the join is refused before the
-    // relay is consulted. The saved relay is still visible on the admin
-    // page above; the voice spec (opt-in) covers the join itself.
+  if (!voice) {
+    // No voice on this server, so no voice channel to join. The saved
+    // relay is still visible on the admin page above.
     console.log(
       "SKIP voice join offers the saved relay (voice not configured)",
     );
   } else {
+    const join = await rpc("voice.v1.VoiceService/JoinVoiceChannel", {
+      channelId: voice.id,
+    });
     const ice = join.iceServers ?? [];
     expect(
       ice.some(

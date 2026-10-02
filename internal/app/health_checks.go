@@ -96,8 +96,11 @@ func shortDuration(d time.Duration) string {
 
 // ---- livekit ----
 
-func newLiveKitCheck(opts voice.Options, r *liveKitReporter) instance.HealthCheck {
+func newLiveKitCheck(voiceOn bool, opts voice.Options, r *liveKitReporter) instance.HealthCheck {
 	return instance.HealthCheck{Name: "livekit", FixTab: "hosting", Run: func(ctx context.Context) (instance.CheckState, string) {
+		if !voiceOn {
+			return instance.CheckOff, "voice is turned off (STOOP_VOICE=false)"
+		}
 		if !opts.Enabled() {
 			return instance.CheckOff, "not configured"
 		}

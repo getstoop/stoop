@@ -5,14 +5,15 @@
 -- columns as ListMessagesBefore so rows hydrate through one path. `words`
 -- is websearch syntax; `prefix` is a quoted lexeme with :* or "" (see
 -- internal/chat/search_query.go). Dates bound created_at; the cursor
--- bounds id.
+-- bounds id. Hidden voice channels (kind 2) are left out.
 -- name: SearchMessages :many
 SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
     p.author_id AS reply_author_id, p.content AS reply_content,
     COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
-WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(space_id)::uuid)
+WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(space_id)::uuid
+        AND (sqlc.arg(with_voice)::bool OR c.kind <> 2))
   AND m.search @@ (CASE
       WHEN sqlc.arg(prefix)::text = '' THEN websearch_to_tsquery('simple', sqlc.arg(words)::text)
       WHEN sqlc.arg(words)::text = '' THEN to_tsquery('simple', sqlc.arg(prefix)::text)

@@ -33,11 +33,20 @@ func (q *Queries) ChannelNameTaken(ctx context.Context, arg ChannelNameTakenPara
 }
 
 const countChannelsInSpace = `-- name: CountChannelsInSpace :one
-SELECT count(*) FROM channels WHERE space_id = $1::uuid
+SELECT count(*) FROM channels
+WHERE space_id = $1::uuid
+  AND ($2::bool OR kind <> 2)
 `
 
-func (q *Queries) CountChannelsInSpace(ctx context.Context, spaceID string) (int64, error) {
-	row := q.db.QueryRow(ctx, countChannelsInSpace, spaceID)
+type CountChannelsInSpaceParams struct {
+	SpaceID   string
+	WithVoice bool
+}
+
+// CountChannelsInSpace leaves voice channels (kind 2) out when they are
+// hidden.
+func (q *Queries) CountChannelsInSpace(ctx context.Context, arg CountChannelsInSpaceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countChannelsInSpace, arg.SpaceID, arg.WithVoice)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

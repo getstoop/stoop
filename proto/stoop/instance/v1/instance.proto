@@ -186,6 +186,10 @@ message GetInstanceStatusResponse {
   // Attachments older than this many days are deleted and shown as
   // expired, pinned messages' files excepted; 0 keeps them forever.
   int32 attachment_retention_days = 18;
+  // Whether voice channels work here. False when the operator turned
+  // voice off (STOOP_VOICE=false) or no LiveKit is configured; voice
+  // channels are then not listed and cannot be created.
+  bool voice_available = 19;
 }
 
 message UpdateSettingsRequest {
@@ -324,6 +328,9 @@ message GetReachabilityResponse {
   // The voice sidecar's own state.
   LiveKitStatus livekit = 5;
   CloudflareTunnelStatus cloudflare_tunnel = 6;
+  // The operator turned voice off (STOOP_VOICE=false), which is why
+  // voice_configured is false whatever LiveKit settings exist.
+  bool voice_off = 7;
 }
 
 message UpdateReachabilityRequest {

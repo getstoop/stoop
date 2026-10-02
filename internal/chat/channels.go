@@ -79,6 +79,9 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("direct messages are opened with OpenDirectMessage"))
 	}
+	if kind == chatv1.ChannelKind_CHANNEL_KIND_VOICE && !s.voiceOn() {
+		return nil, errVoiceOff
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -113,11 +116,9 @@ func (s *Service) ListChannels(ctx context.Context, req *connect.Request[chatv1.
 	if err := s.requireSpaceMember(ctx, req.Msg.SpaceId); err != nil {
 		return nil, err
 	}
-	rows, err := s.q.ListChannelsBySpace(ctx, dbgen.ListChannelsBySpaceParams{
-		SpaceID: req.Msg.SpaceId, UserID: authctx.UserID(ctx),
-	})
+	rows, err := s.listChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("list channels: %w", err)
+		return nil, err
 	}
 	channels := make([]*chatv1.Channel, len(rows))
 	for i, r := range rows {
@@ -132,8 +133,12 @@ func (s *Service) ListChannels(ctx context.Context, req *connect.Request[chatv1.
 }
 
 // VoiceChannelSpace implements realtime.ChannelLookup: the space of a
-// voice channel, or "" for unknown and text channels.
+// voice channel, or "" for unknown and text channels, and for every
+// channel while voice is off.
 func (s *Service) VoiceChannelSpace(ctx context.Context, channelID string) (string, error) {
+	if !s.voiceOn() {
+		return "", nil
+	}
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
@@ -225,7 +230,9 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, err
 	}
-	n, err := s.q.CountChannelsInSpace(ctx, spaceOf(channel))
+	n, err := s.q.CountChannelsInSpace(ctx, dbgen.CountChannelsInSpaceParams{
+		SpaceID: spaceOf(channel), WithVoice: s.voiceOn(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("count channels: %w", err)
 	}
@@ -285,11 +292,9 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.ChannelsManage); err != nil {
 		return nil, err
 	}
-	rows, err := s.q.ListChannelsBySpace(ctx, dbgen.ListChannelsBySpaceParams{
-		SpaceID: req.Msg.SpaceId, UserID: authctx.UserID(ctx),
-	})
+	rows, err := s.listChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("list channels: %w", err)
+		return nil, err
 	}
 	// The request must name every channel exactly once.
 	existing := make(map[string]bool, len(rows))
@@ -326,11 +331,9 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 
-	rows, err = s.q.ListChannelsBySpace(ctx, dbgen.ListChannelsBySpaceParams{
-		SpaceID: req.Msg.SpaceId, UserID: authctx.UserID(ctx),
-	})
+	rows, err = s.listChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("list channels: %w", err)
+		return nil, err
 	}
 	channels := make([]*chatv1.Channel, len(rows))
 	for i, r := range rows {

@@ -291,6 +291,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			},
 		},
 		VoiceConfigured: voiceSvc.Enabled(),
+		VoiceOff:        !cfg.Voice,
 	})
 	// One login provider can come from the environment; the admin page's
 	// saved list overrides it (same fallback rule as reachability).
@@ -326,7 +327,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	instanceSvc.UseStartedAt(started)
 	instanceSvc.UseHealthChecks(
 		newPostgresCheck(pool, started),
-		newLiveKitCheck(voiceOpts, livekit),
+		newLiveKitCheck(cfg.Voice, voiceOpts, livekit),
 		newStorageCheck(store.Root(), filesSvc),
 		instanceSvc.PublicAddressCheck(),
 		newWebhooksCheck(queue, started),
@@ -354,9 +355,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 //
 // The file is written every time (not only when minting) so that an
 // environment-configured server also feeds the sidecar from one place.
-// Nothing is minted while LiveKit is unconfigured: no URL, no voice.
+// Nothing is minted while LiveKit is unconfigured or voice is turned off
+// (STOOP_VOICE=false): no pair, no voice.
 func livekitKeys(ctx context.Context, cfg config.Config, store *instance.Service, log *slog.Logger) (voice.Keys, error) {
-	if cfg.LiveKitURL == "" {
+	if cfg.LiveKitURL == "" || !cfg.Voice {
 		return voice.Keys{}, nil
 	}
 	path := cfg.LiveKitKeyFile
