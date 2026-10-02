@@ -165,13 +165,12 @@ type RelaySettings struct {
 
 // RelayProvider is voice's port for runtime relay settings (the admin page
 // can change them); implemented by the instance module, wired in
-// internal/app. Without one, Options' values apply.
+// internal/app. Without one, no relay is offered.
 type RelayProvider interface {
 	RelaySettings(ctx context.Context) (RelaySettings, error)
 }
 
-// UseRelayProvider switches from Options' fixed relay settings to ones
-// looked up per join.
+// UseRelayProvider sets where relay settings are looked up per join.
 func (s *Service) UseRelayProvider(p RelayProvider) { s.relay = p }
 
 // sources returns the ICE sources for this join. Cloudflare's source is
@@ -179,7 +178,7 @@ func (s *Service) UseRelayProvider(p RelayProvider) { s.relay = p }
 // the key changes.
 func (s *Service) sources(ctx context.Context) ([]iceSource, error) {
 	if s.relay == nil {
-		return s.ice, nil
+		return nil, nil
 	}
 	rs, err := s.relay.RelaySettings(ctx)
 	if err != nil {
