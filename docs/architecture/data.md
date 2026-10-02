@@ -376,7 +376,8 @@ protobuf boundary as strings, and converting at every edge would be noise),
 pointers. So a `*time.Time` in `dbgen` means the column is genuinely
 nullable, which reads well at the call site.
 
-Transactions use `s.q.WithTx(tx)`, and there are few of them, on purpose.
+Transactions go through `db.InTx` (a module's `inTx` wraps it), and there
+are few of them, on purpose.
 The two that matter:
 
 - **`SendMessage`** writes the message, its attachment links, and its link
