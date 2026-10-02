@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,6 +48,24 @@ func (c fakeVoiceChannels) VoiceChannelSpace(_ context.Context, channelID string
 }
 
 func (fakeVoiceChannels) DMParticipants(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
+// countingChannels is fakeVoiceChannels that counts its lookups; no
+// channel is a direct message.
+type countingChannels struct {
+	voice        fakeVoiceChannels
+	voiceLookups atomic.Int64
+	dmLookups    atomic.Int64
+}
+
+func (channels *countingChannels) VoiceChannelSpace(ctx context.Context, channelID string) (string, error) {
+	channels.voiceLookups.Add(1)
+	return channels.voice.VoiceChannelSpace(ctx, channelID)
+}
+
+func (channels *countingChannels) DMParticipants(context.Context, string) ([]string, error) {
+	channels.dmLookups.Add(1)
 	return nil, nil
 }
 
@@ -538,4 +558,126 @@ func TestVoiceVideoFlags(t *testing.T) {
 	if r == nil || len(r.VoiceParticipants) != 1 || !r.VoiceParticipants[0].ScreenSharing {
 		t.Errorf("Ready voice participants = %+v", r.GetVoiceParticipants())
 	}
+}
+
+// throttledBound is the most client frames one connection may have acted
+// on since start: the burst plus what refilled since.
+func throttledBound(start time.Time) int64 {
+	return int64(realtime.ClientFrameBurst + realtime.ClientFrameRate*time.Since(start).Seconds() + 1)
+}
+
+// flood sends frames as fast as it can, then closes the socket and waits
+// for the watcher to hear the sender go offline, which the gateway only
+// announces once it has read every frame before the close.
+func flood(t *testing.T, sender, watcher *client, user string, frames int, frame func(int) *realtimev1.ClientEvent) {
+	t.Helper()
+	for index := 0; index < frames; index++ {
+		sender.send(frame(index))
+	}
+	_ = sender.conn.Close(websocket.StatusNormalClosure, "")
+	if watcher.waitFor(func(event *realtimev1.ServerEvent) bool {
+		presence := event.GetPresenceChanged()
+		return presence != nil && presence.UserId == user && !presence.Online
+	}) == nil {
+		t.Fatalf("never heard %s go offline after the flood", user)
+	}
+}
+
+func TestTypingFloodIsThrottled(t *testing.T) {
+	channels := &countingChannels{}
+	gw := realtime.NewGateway(events.NewInProcBus(), fakeVerifier{}, fakeMembers{
+		"casey": {"s1"}, "ada": {"s1"},
+	}, channels, []string{"*"}, slog.Default())
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+
+	ada := dial(t, srv, "ada")
+	ada.waitFor(presenceOf("ada"))
+	start := time.Now()
+	casey := dial(t, srv, "casey")
+	ada.waitFor(presenceOf("casey"))
+
+	// A new channel id every frame and no space: each one the gateway acts
+	// on is a direct-message lookup.
+	const frames = 300
+	flood(t, casey, ada, "casey", frames, func(index int) *realtimev1.ClientEvent {
+		return &realtimev1.ClientEvent{Payload: &realtimev1.ClientEvent_Typing{Typing: &realtimev1.Typing{ChannelId: "dm" + strconv.Itoa(index)}}}
+	})
+	if got, bound := channels.dmLookups.Load(), throttledBound(start); got > bound {
+		t.Fatalf("%d typing frames made %d lookups, want at most %d", frames, got, bound)
+	}
+	_ = ada.conn.Close(websocket.StatusNormalClosure, "")
+}
+
+func TestVoiceStateFloodIsThrottled(t *testing.T) {
+	channels := &countingChannels{voice: fakeVoiceChannels{"v1": "s1"}}
+	gw := realtime.NewGateway(events.NewInProcBus(), fakeVerifier{}, fakeMembers{
+		"casey": {"s1"}, "ada": {"s1"},
+	}, channels, []string{"*"}, slog.Default())
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+
+	ada := dial(t, srv, "ada")
+	ada.waitFor(presenceOf("ada"))
+	start := time.Now()
+	casey := dial(t, srv, "casey")
+	ada.waitFor(presenceOf("casey"))
+
+	const frames = 300
+	var heard atomic.Int64
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ada.waitFor(func(event *realtimev1.ServerEvent) bool {
+			if event.GetVoiceStateChanged() != nil {
+				heard.Add(1)
+			}
+			presence := event.GetPresenceChanged()
+			return presence != nil && presence.UserId == "casey" && !presence.Online
+		})
+	}()
+	for index := 0; index < frames; index++ {
+		casey.send(voiceEvent("v1", index%2 == 0))
+	}
+	_ = casey.conn.Close(websocket.StatusNormalClosure, "")
+	<-done
+	bound := throttledBound(start)
+	if got := channels.voiceLookups.Load(); got > bound {
+		t.Errorf("%d voice frames made %d lookups, want at most %d", frames, got, bound)
+	}
+	// One broadcast per report, and one for the leave on disconnect.
+	if got := heard.Load(); got > bound+1 {
+		t.Errorf("%d voice frames made %d broadcasts, want at most %d", frames, got, bound+1)
+	}
+	_ = ada.conn.Close(websocket.StatusNormalClosure, "")
+}
+
+// Typing somewhere the sender may not post does not start that channel's
+// interval, so their next, allowed frame there is still relayed.
+func TestRefusedTypingDoesNotStartTheInterval(t *testing.T) {
+	gw := realtime.NewGateway(events.NewInProcBus(), fakeVerifier{}, fakeMembers{
+		"casey": {"s1"}, "ada": {"s1"},
+	}, fakeVoiceChannels{}, []string{"*"}, slog.Default())
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+
+	ada := dial(t, srv, "ada")
+	ada.waitFor(presenceOf("ada"))
+	casey := dial(t, srv, "casey")
+	ada.waitFor(presenceOf("casey"))
+
+	typing := func(spaceID string) *realtimev1.ClientEvent {
+		return &realtimev1.ClientEvent{Payload: &realtimev1.ClientEvent_Typing{Typing: &realtimev1.Typing{SpaceId: spaceID, ChannelId: "c1"}}}
+	}
+	casey.send(typing("s9"))
+	casey.send(typing("s1"))
+	if ada.waitFor(func(event *realtimev1.ServerEvent) bool { return event.GetUserTyping() != nil }) == nil {
+		t.Fatal("ada never saw casey typing after a refused frame for the same channel")
+	}
+	casey.send(typing("s1"))
+	if ev := ada.next(300 * time.Millisecond); ev != nil {
+		t.Fatalf("a second typing frame inside the interval was relayed: %v", ev)
+	}
+	_ = casey.conn.Close(websocket.StatusNormalClosure, "")
+	_ = ada.conn.Close(websocket.StatusNormalClosure, "")
 }
