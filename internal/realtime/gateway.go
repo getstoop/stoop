@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"golang.org/x/time/rate"
 	"google.golang.org/protobuf/proto"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -26,6 +27,11 @@ const (
 	// typingInterval is the least time between relayed typing events from
 	// one connection for one channel; faster sends are dropped.
 	typingInterval = 2 * time.Second
+	// The web app sends a typing frame per channel every few seconds and a
+	// voice report per join, leave or toggle, so a person stays far below
+	// these; frames over them are dropped unread.
+	clientFrameRate  = 5 // per second, sustained
+	clientFrameBurst = 20
 )
 
 // SessionVerifier authenticates the WebSocket upgrade from the request
@@ -146,10 +152,14 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer cancel()
 		lastTyping := map[string]time.Time{}
+		frames := rate.NewLimiter(clientFrameRate, clientFrameBurst)
 		for {
 			_, data, err := conn.Read(ctx)
 			if err != nil {
 				return
+			}
+			if !frames.Allow() {
+				continue
 			}
 			ev := &realtimev1.ClientEvent{}
 			if err := proto.Unmarshal(data, ev); err != nil {
@@ -315,7 +325,6 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, cred authctx.C
 	if now.Sub(last[t.ChannelId]) < typingInterval {
 		return
 	}
-	last[t.ChannelId] = now
 
 	var topics []string
 	if t.SpaceId != "" {
@@ -344,6 +353,7 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, cred authctx.C
 			return
 		}
 	}
+	last[t.ChannelId] = now
 	ev := events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_UserTyping{
 			UserTyping: &realtimev1.UserTyping{SpaceId: t.SpaceId, ChannelId: t.ChannelId, UserId: userID},

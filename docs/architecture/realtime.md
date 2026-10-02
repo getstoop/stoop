@@ -257,7 +257,10 @@ somewhere it can't see. In a DM the event carries an empty `space_id`, and
 the gateway resolves participants through `ChannelLookup.DMParticipants`
 and publishes to each `user:` topic, verifying the sender is one of them.
 
-Rate-limited per connection per channel to one relay every two seconds.
+Rate-limited per connection per channel to one relay every two seconds,
+counted from the last relay the sender was allowed. Every client frame,
+voice reports included, also passes a per-connection limit of five a
+second in bursts of twenty; frames over it are dropped.
 Clients also drop a typing indicator after a few seconds unless it is
 refreshed, so a client that vanishes mid-keystroke doesn't leave a ghost.
 
