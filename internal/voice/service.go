@@ -47,10 +47,6 @@ type Options struct {
 	LiveKitURL       string
 	LiveKitAPIKey    string
 	LiveKitAPISecret string
-	// TURN is a static relay to offer browsers; zero value means none.
-	TURN StaticTURN
-	// Cloudflare enables Cloudflare's TURN service; zero value means off.
-	Cloudflare CloudflareTURN
 }
 
 // Enabled reports whether every LiveKit setting is present.
@@ -62,7 +58,6 @@ type Service struct {
 	channels ChannelDirectory
 	users    UserDirectory
 	opts     Options
-	ice      []iceSource // from Options; used when no RelayProvider is set
 	relay    RelayProvider
 	cfMu     sync.Mutex
 	cf       *cloudflareSource // the provider's Cloudflare source, kept across joins
@@ -92,12 +87,6 @@ func New(channels ChannelDirectory, users UserDirectory, opts Options, log *slog
 		} else {
 			s.rooms = r
 		}
-	}
-	if len(opts.TURN.URLs) > 0 || len(opts.TURN.STUNURLs) > 0 {
-		s.ice = append(s.ice, opts.TURN)
-	}
-	if opts.Cloudflare.KeyID != "" {
-		s.ice = append(s.ice, newCloudflareSource(opts.Cloudflare))
 	}
 	return s
 }

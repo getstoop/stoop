@@ -11,7 +11,8 @@ func TestRegistrySnapshot(t *testing.T) {
 		t.Fatal("Counter should be idempotent by name")
 	}
 	c.Inc()
-	c.Add(2)
+	c.Inc()
+	c.Inc()
 	r.Counter("a_first", "")
 	r.Gauge("z_gauge", "", func() float64 { return 4 })
 	g := r.Gauge("connections", "Open sockets.", func() float64 { return 7 })

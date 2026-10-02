@@ -11,12 +11,12 @@ import (
 )
 
 func TestStaticTURN_InResponse(t *testing.T) {
-	opts := configured
-	opts.TURN = StaticTURN{
+	service := newTestService(configured)
+	service.UseRelayProvider(&fakeRelay{settings: RelaySettings{TURN: StaticTURN{
 		URLs: []string{"turns:t.example.com:5349"}, Username: "u", Credential: "p",
 		STUNURLs: []string{"stun:t.example.com:3478"},
-	}
-	resp, err := join(newTestService(opts), as("u1"), "voice")
+	}}})
+	resp, err := join(service, as("u1"), "voice")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,9 +89,11 @@ func TestCloudflare_FailureDoesNotBlockJoin(t *testing.T) {
 		http.Error(w, `{"error":"nope"}`, http.StatusUnauthorized)
 	}))
 	defer api.Close()
-	opts := configured
-	opts.Cloudflare = CloudflareTURN{KeyID: "k", APIToken: "bad", BaseURL: api.URL}
-	resp, err := join(newTestService(opts), as("u1"), "voice")
+	service := newTestService(configured)
+	service.UseRelayProvider(&fakeRelay{settings: RelaySettings{
+		Cloudflare: CloudflareTURN{KeyID: "k", APIToken: "bad", BaseURL: api.URL},
+	}})
+	resp, err := join(service, as("u1"), "voice")
 	if err != nil {
 		t.Fatalf("join must succeed without TURN: %v", err)
 	}
@@ -107,7 +109,7 @@ type fakeRelay struct {
 
 func (f *fakeRelay) RelaySettings(context.Context) (RelaySettings, error) { return f.settings, f.err }
 
-func TestRelayProvider_OverridesOptionsAndKeepsCloudflareSource(t *testing.T) {
+func TestRelayProvider_KeepsCloudflareSource(t *testing.T) {
 	calls := 0
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		calls++
@@ -119,9 +121,7 @@ func TestRelayProvider_OverridesOptionsAndKeepsCloudflareSource(t *testing.T) {
 	}))
 	defer api.Close()
 
-	opts := configured
-	opts.TURN = StaticTURN{URLs: []string{"turns:from-options.example.com:5349"}, Username: "o", Credential: "o"}
-	s := newTestService(opts)
+	s := newTestService(configured)
 	relay := &fakeRelay{settings: RelaySettings{
 		TURN:       StaticTURN{STUNURLs: []string{"stun:relay.example.com:3478"}},
 		Cloudflare: CloudflareTURN{KeyID: "k1", APIToken: "t1", BaseURL: api.URL},
@@ -134,11 +134,6 @@ func TestRelayProvider_OverridesOptionsAndKeepsCloudflareSource(t *testing.T) {
 	}
 	if len(resp.IceServers) != 3 || resp.IceServers[0].Urls[0] != "stun:relay.example.com:3478" || resp.IceServers[2].Username != "u" {
 		t.Errorf("provider settings not used: %+v", resp.IceServers)
-	}
-	for _, s := range resp.IceServers {
-		if len(s.Urls) > 0 && s.Urls[0] == "turns:from-options.example.com:5349" {
-			t.Error("Options' TURN must not apply once a provider is set")
-		}
 	}
 	// Same key → cached credentials; changed key → fresh source.
 	if _, err := join(s, as("u1"), "voice"); err != nil || calls != 1 {

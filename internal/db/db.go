@@ -91,18 +91,3 @@ func readFloor(ctx context.Context, pool *pgxpool.Pool) (int64, error) {
 	}
 	return floor, nil
 }
-
-// MigrateTo applies migrations up to and including version, for tests
-// that need a database shaped like an older release.
-func MigrateTo(ctx context.Context, pool *pgxpool.Pool, version int64) error {
-	goose.SetBaseFS(migrationsFS)
-	if err := goose.SetDialect("postgres"); err != nil {
-		return err
-	}
-	sqlDB := stdlib.OpenDBFromPool(pool)
-	defer func() { _ = sqlDB.Close() }()
-	if err := goose.UpToContext(ctx, sqlDB, "migrations", version); err != nil {
-		return fmt.Errorf("apply migrations to %d: %w", version, err)
-	}
-	return nil
-}

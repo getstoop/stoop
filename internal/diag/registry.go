@@ -62,7 +62,6 @@ func (r *Registry) Counter(name, help string) *Counter {
 }
 
 func (c *Counter) Inc()         { c.n.Add(1) }
-func (c *Counter) Add(n int64)  { c.n.Add(n) }
 func (c *Counter) Value() int64 { return c.n.Load() }
 
 // Gauge is a read function plus the ring of samples the sampler took.

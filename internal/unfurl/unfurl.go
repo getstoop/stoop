@@ -37,12 +37,11 @@ const (
 	maxHTMLBytes  = 1 << 20 // 1 MB of HTML is plenty to find <head>
 	maxImageBytes = 5 << 20
 	maxRedirects  = 5
+	fetchTimeout  = 10 * time.Second
 	userAgent     = "Mozilla/5.0 (compatible; Stoop link preview; +https://github.com/getstoop/stoop)"
 )
 
 var (
-	ErrNotPublic  = netguard.ErrNotPublic
-	ErrBadScheme  = netguard.ErrBadScheme
 	ErrNotHTML    = errors.New("not an HTML page or image")
 	ErrTooLarge   = errors.New("response too large")
 	ErrBadStatus  = errors.New("unexpected HTTP status")
@@ -52,23 +51,18 @@ var (
 type Options struct {
 	// AllowPrivate disables the public-address check. Dev and tests only.
 	AllowPrivate bool
-	Timeout      time.Duration
 }
 
 type Fetcher struct {
 	client *http.Client
-	opts   Options
 }
 
 func New(opts Options) *Fetcher {
-	if opts.Timeout == 0 {
-		opts.Timeout = 10 * time.Second
-	}
 	// The guard resolves once and dials what it checked (internal/netguard).
 	transport := netguard.Policy{AllowPrivate: opts.AllowPrivate}.Transport()
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   opts.Timeout,
+		Timeout:   fetchTimeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= maxRedirects {
 				return errors.New("too many redirects")
@@ -76,7 +70,7 @@ func New(opts Options) *Fetcher {
 			return checkURL(req.URL)
 		},
 	}
-	return &Fetcher{client: client, opts: opts}
+	return &Fetcher{client: client}
 }
 
 func checkURL(u *url.URL) error { return netguard.CheckURL(u) }
