@@ -258,7 +258,7 @@ func (s *Service) watchedTopics(ctx context.Context) ([]string, error) {
 	for _, h := range hooks {
 		if !seen[h.SpaceID] {
 			seen[h.SpaceID] = true
-			topics = append(topics, "space:"+h.SpaceID)
+			topics = append(topics, events.SpaceTopic(h.SpaceID))
 		}
 	}
 	return topics, nil
@@ -269,7 +269,7 @@ func (s *Service) watchedTopics(ctx context.Context) ([]string, error) {
 func (s *Service) watchSpace(spaceID string) {
 	s.subs.mu.Lock()
 	defer s.subs.mu.Unlock()
-	if s.subs.sub != nil && !s.subs.sub.Has("space:"+spaceID) {
-		s.subs.sub.Add("space:" + spaceID)
+	if s.subs.sub != nil && !s.subs.sub.Has(events.SpaceTopic(spaceID)) {
+		s.subs.sub.Add(events.SpaceTopic(spaceID))
 	}
 }

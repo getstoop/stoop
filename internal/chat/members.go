@@ -218,7 +218,7 @@ func (s *Service) actorAndTarget(ctx context.Context, spaceID, targetID string) 
 }
 
 func (s *Service) publishRoleChanged(spaceID, userID string, role Role) {
-	s.bus.Publish("space:"+spaceID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(spaceID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MemberRoleChanged{
 			MemberRoleChanged: &realtimev1.MemberRoleChanged{
 				SpaceId: spaceID, UserId: userID, Role: toProtoRole(role),
@@ -231,7 +231,7 @@ func (s *Service) publishRoleChanged(spaceID, userID string, role Role) {
 // connections are still subscribed at this instant, and the gateway drops
 // the subscription when it sees its user in the event.
 func (s *Service) publishMemberRemoved(spaceID, userID string, kicked bool) {
-	s.bus.Publish("space:"+spaceID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(spaceID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MemberRemoved{
 			MemberRemoved: &realtimev1.MemberRemoved{SpaceId: spaceID, UserId: userID, Kicked: kicked},
 		},

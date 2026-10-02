@@ -20,7 +20,7 @@ func (s *Service) announceRevoked(id, holderID string) {
 	if s.bus == nil {
 		return
 	}
-	s.bus.Publish("user:"+holderID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.UserTopic(holderID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_CredentialRevoked{
 			CredentialRevoked: &realtimev1.CredentialRevoked{CredentialId: id},
 		},

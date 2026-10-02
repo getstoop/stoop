@@ -70,7 +70,7 @@ func (s *Service) setAvatar(ctx context.Context, userID string, data []byte) (db
 		s.log.Warn("avatar changed but spaces not notified", "user_id", userID, "err", err)
 	}
 	for _, spaceID := range spaceIDs {
-		s.bus.Publish("space:"+spaceID, events.Stamp(&realtimev1.ServerEvent{
+		s.bus.Publish(events.SpaceTopic(spaceID), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_MemberUpdated{
 				MemberUpdated: &realtimev1.MemberUpdated{SpaceId: spaceID, UserId: userID},
 			},
