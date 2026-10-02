@@ -27,8 +27,8 @@ type Options struct {
 	// small servers (64 MiB, t=2). Lower memory on Pi-class hardware.
 	Argon2Params *argon2id.Params
 	// Procedures classifies every Connect procedure for the credential gate
-	// (see authctx.Rule). Register and Login are always public. Nil admits any
-	// caller to everything else, so a Service built in a test is ungated.
+	// (see authctx.Rule). A procedure not in the map is refused, so a nil map
+	// refuses every call that goes through the interceptor.
 	Procedures map[string]authctx.Rule
 }
 
