@@ -98,3 +98,39 @@ func TestBans(t *testing.T) {
 		t.Errorf("rejoin after unban: %v", err)
 	}
 }
+
+func TestSpaceMuteDroppedOnBan(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaceID := sp.Msg.Space.Id
+	inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	join := func() {
+		t.Helper()
+		if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	join()
+	if _, err := svc.SetSpaceMuted(bea, connect.NewRequest(&chatv1.SetSpaceMutedRequest{SpaceId: spaceID, Muted: true})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.BanMember(owner, connect.NewRequest(&chatv1.BanMemberRequest{SpaceId: spaceID, UserId: authctx.UserID(bea)})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.UnbanMember(owner, connect.NewRequest(&chatv1.UnbanMemberRequest{SpaceId: spaceID, UserId: authctx.UserID(bea)})); err != nil {
+		t.Fatal(err)
+	}
+	join()
+	if spaceMuted(t, svc, bea, spaceID) {
+		t.Errorf("being banned didn't drop the space mute")
+	}
+}
