@@ -3,6 +3,7 @@ import {
   acceptDialog,
   channelLink,
   expect,
+  hasVoice,
   pastGate,
   seed,
   signIn,
@@ -17,8 +18,8 @@ const SELECT = 'select[name="default-channel"]';
 
 test("the channel a space opens in", async ({ browser, request }) => {
   // A server without voice has no voice channel to keep out of the
-  // choices; the signalling proxy answers 503 there.
-  const voice = (await request.get("/livekit/")).status() !== 503;
+  // choices.
+  const voice = await hasVoice(request);
   const { invite, password, space, suffix, tokens } = await seed({
     users: ["ada"],
     channels: ["general"],

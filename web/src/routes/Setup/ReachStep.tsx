@@ -1,9 +1,9 @@
-import { useInstanceStatus } from "../../api/queries";
+import { useVoiceAvailable } from "../../api/queries";
 import { ReachabilityForm } from "../../components/ReachabilityForm";
 
 // Step 3: how people reach the server. Skippable; it is also in Server admin.
 export function ReachStep({ onDone }: { onDone: () => void }) {
-  const { data: status } = useInstanceStatus();
+  const voiceAvailable = useVoiceAvailable();
   return (
     <div className="login-card bare">
       <p>
@@ -12,8 +12,8 @@ export function ReachStep({ onDone }: { onDone: () => void }) {
       <p className="hint">
         Right now it's reachable on this machine and its network. Pick what
         you'll put in front of it so invite links point at the right address
-        {status?.voiceAvailable ? " and voice knows how to get through" : ""}.
-        You can change all of this later under Server admin.
+        {voiceAvailable ? " and voice knows how to get through" : ""}. You can
+        change all of this later under Server admin.
       </p>
       <ReachabilityForm onSkip={onDone} />
     </div>

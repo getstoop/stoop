@@ -21,6 +21,12 @@ export function useInstanceStatus() {
   });
 }
 
+// Whether this server has voice: off when the operator turned it off or
+// no LiveKit is configured, and until the status has loaded.
+export function useVoiceAvailable(): boolean {
+  return useInstanceStatus().data?.voiceAvailable ?? false;
+}
+
 // The configured login providers with secrets elided, for the admin
 // page's Login tab. Admin-only, so gated on the tab being open.
 export function useLoginProviders(enabled: boolean) {

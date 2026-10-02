@@ -4,13 +4,13 @@ import { GetReachabilityResponseSchema } from "../../gen/stoop/instance/v1/insta
 import { voiceStatus } from "./voiceStatus";
 
 test("voice turned off outranks every other reading", () => {
-  const r = create(GetReachabilityResponseSchema, { voiceOff: true });
-  expect(voiceStatus(r)).toBe(
+  const reading = create(GetReachabilityResponseSchema, { voiceOff: true });
+  expect(voiceStatus(reading)).toBe(
     "Voice is turned off on this server (STOOP_VOICE=false).",
   );
 });
 
 test("no LiveKit reads as unconfigured, not turned off", () => {
-  const r = create(GetReachabilityResponseSchema, {});
-  expect(voiceStatus(r)).toContain("isn't configured");
+  const reading = create(GetReachabilityResponseSchema, {});
+  expect(voiceStatus(reading)).toContain("isn't configured");
 });
