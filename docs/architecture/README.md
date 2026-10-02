@@ -77,6 +77,9 @@ this plainly.
 Support packages, which are not modules and own no domain: `internal/events`
 (the bus), `internal/db` (pool + migrations), `internal/dbgen` (sqlc output),
 `internal/config`, `internal/authctx` (the shared identity contract),
+`internal/apierr` (API error replies and the instance-admin gate),
+`internal/rowid` (makes and checks ids), `internal/release` (the release
+index and version comparison),
 `internal/blob` (the storage port and its backends), `internal/unfurl`
 (the link fetcher), `internal/ratelimit`, `internal/trustedproxy`, `internal/netguard`,
 `internal/accesswire`, `internal/buildinfo`, `internal/diag` (the
