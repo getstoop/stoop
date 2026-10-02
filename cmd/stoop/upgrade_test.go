@@ -24,6 +24,8 @@ func TestRunUpgradeRollbackRefusesOtherFlags(t *testing.T) {
 		{"rollback", "--plan", "--yes"},
 		{"rollback", "--to", "0.3.0"},
 		{"rollback", "--file", "x.yml"},
+		{"rollback", "--to", "", "--yes"},
+		{"rollback", "--file", ""},
 	} {
 		out.Reset()
 		if code := runUpgrade(t.Context(), args, &out); code != 2 || !strings.Contains(out.String(), "usage: stoop upgrade") {
