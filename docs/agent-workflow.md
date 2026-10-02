@@ -20,7 +20,10 @@ sections, in this order:
    layout (`docs/conventions.md`: one component per file, one stylesheet
    per feature), "don't touch the message format / server / protos", no
    new dependencies, Biome rules that bite (`aria-hidden` on SVGs, no ARIA
-   roles on divs, index keys need a `biome-ignore`), no `console.log`.
+   roles on divs, index keys need a `biome-ignore`), no `console.log`,
+   and no single-character names: a variable, parameter or loop index
+   says what it holds (`row`, `index`, `event`). The two exceptions are a
+   Go method receiver and `t *testing.T`.
 4. **Tests** — the browser spec to write (`web/e2e-pw/<name>.spec.ts`,
    modelled on an existing spec) and what it must check. Say what the
    spec *cannot* see (pixel alignment, scroll position) and demand a
