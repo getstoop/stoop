@@ -86,10 +86,8 @@ func (o *oidcProvider) exchange(ctx context.Context, code, verifier, nonce, redi
 
 	var c struct {
 		Email             string `json:"email"`
-		EmailVerified     bool   `json:"email_verified"`
 		PreferredUsername string `json:"preferred_username"`
 		Name              string `json:"name"`
-		Picture           string `json:"picture"`
 	}
 	if err := idToken.Claims(&c); err != nil {
 		return Claims{}, fmt.Errorf("decode claims: %w", err)
@@ -100,14 +98,12 @@ func (o *oidcProvider) exchange(ctx context.Context, code, verifier, nonce, redi
 		if info, err := o.p.UserInfo(ctx, oauth2.StaticTokenSource(tok)); err == nil {
 			var u struct {
 				Email             string `json:"email"`
-				EmailVerified     bool   `json:"email_verified"`
 				PreferredUsername string `json:"preferred_username"`
 				Name              string `json:"name"`
-				Picture           string `json:"picture"`
 			}
 			if err := info.Claims(&u); err == nil {
 				if c.Email == "" {
-					c.Email, c.EmailVerified = u.Email, u.EmailVerified
+					c.Email = u.Email
 				}
 				if c.PreferredUsername == "" {
 					c.PreferredUsername = u.PreferredUsername
@@ -115,19 +111,14 @@ func (o *oidcProvider) exchange(ctx context.Context, code, verifier, nonce, redi
 				if c.Name == "" {
 					c.Name = u.Name
 				}
-				if c.Picture == "" {
-					c.Picture = u.Picture
-				}
 			}
 		}
 	}
 	return Claims{
 		Subject:           idToken.Subject,
 		Email:             c.Email,
-		EmailVerified:     c.EmailVerified,
 		PreferredUsername: c.PreferredUsername,
 		Name:              c.Name,
-		Picture:           c.Picture,
 	}, nil
 }
 

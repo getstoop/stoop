@@ -29,10 +29,8 @@ type ProviderConfig struct {
 type Claims struct {
 	Subject           string
 	Email             string
-	EmailVerified     bool
 	PreferredUsername string
 	Name              string
-	Picture           string
 }
 
 // ProviderSource is auth's port for provider configuration; backed by the
