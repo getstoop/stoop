@@ -39,10 +39,17 @@ func (s *Service) HookHandler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		if s.hookLimit != nil && !s.hookLimit.Allow(id.Credential.ID) {
-			w.Header().Set("Retry-After", "60")
-			http.Error(w, "too many posts; slow down", http.StatusTooManyRequests)
-			return
+		if s.hookLimit != nil {
+			allowed, err := s.hookLimit.Allow(ctx, id.Credential.ID)
+			if err != nil {
+				http.Error(w, "the server cannot take this post right now; try again in a moment", http.StatusServiceUnavailable)
+				return
+			}
+			if !allowed {
+				w.Header().Set("Retry-After", "60")
+				http.Error(w, "too many posts; slow down", http.StatusTooManyRequests)
+				return
+			}
 		}
 		hook, err := s.q.GetIncomingWebhookByCredential(ctx, &id.Credential.ID)
 		if err != nil || hook.DisabledAt != nil {

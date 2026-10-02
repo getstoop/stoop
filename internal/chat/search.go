@@ -25,9 +25,10 @@ const (
 )
 
 // Throttle is chat's port onto a rate limiter, keyed per user for
-// search. Nil means unlimited.
+// search. Nil means unlimited. An error means the limiter could not
+// answer, and the search is refused.
 type Throttle interface {
-	Allow(key string) bool
+	Allow(ctx context.Context, key string) (bool, error)
 }
 
 // UseSearchThrottle wires the per-user search limiter.
@@ -42,10 +43,16 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 		return nil, err
 	}
 	userID := authctx.UserID(ctx)
-	if s.searchThrottle != nil && !s.searchThrottle.Allow(userID) {
-		err := connect.NewError(connect.CodeResourceExhausted, errors.New("too many searches; try again in a minute"))
-		err.Meta().Set("Retry-After", "60")
-		return nil, err
+	if s.searchThrottle != nil {
+		allowed, err := s.searchThrottle.Allow(ctx, userID)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("search is unavailable right now; try again in a moment"))
+		}
+		if !allowed {
+			err := connect.NewError(connect.CodeResourceExhausted, errors.New("too many searches; try again in a minute"))
+			err.Meta().Set("Retry-After", "60")
+			return nil, err
+		}
 	}
 	q, err := parseSearchQuery(req.Msg.Query)
 	if err != nil {

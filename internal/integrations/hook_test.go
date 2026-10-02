@@ -20,6 +20,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/kv"
 	"github.com/getstoop/stoop/internal/ratelimit"
 )
 
@@ -410,7 +411,7 @@ func TestIncomingHookPosts(t *testing.T) {
 	f.policy.incoming = true
 
 	// The per-hook limit.
-	f.svc.UseHookThrottle(ratelimit.New(2, 2))
+	f.svc.UseHookThrottle(ratelimit.New(kv.NewMemory(nil), "hooks", 2, 2))
 	f.post(t, path(made.Url), "text/plain", "one")
 	f.post(t, path(made.Url), "text/plain", "two")
 	if status, _ := f.post(t, path(made.Url), "text/plain", "three"); status != http.StatusTooManyRequests {

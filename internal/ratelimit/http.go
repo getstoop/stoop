@@ -1,9 +1,15 @@
 package ratelimit
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 )
+
+// unavailableMessage is the refusal when the store cannot answer: the
+// request is not waved through, since that would make an outage a way
+// past the limit.
+const unavailableMessage = "the server cannot take this request right now; try again in a moment"
 
 // Middleware rejects requests over the limit with 429 before next runs.
 // trusts answers "may this peer's forwarded headers be believed?" per
@@ -14,7 +20,13 @@ func Middleware(l *Limiter, trusts func(remoteAddr string) bool, next http.Handl
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !l.Allow(ClientIP(r.RemoteAddr, r.Header, trusts)) {
+		allowed, err := l.Allow(r.Context(), ClientIP(r.RemoteAddr, r.Header, trusts))
+		if err != nil {
+			slog.Error("rate limiter store", "err", err)
+			http.Error(w, unavailableMessage, http.StatusServiceUnavailable)
+			return
+		}
+		if !allowed {
 			w.Header().Set("Retry-After", strconv.Itoa(int(RetryAfter.Seconds())))
 			http.Error(w, "too many requests; slow down", http.StatusTooManyRequests)
 			return

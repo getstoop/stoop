@@ -16,7 +16,7 @@ import (
 
 type denyAll struct{}
 
-func (denyAll) Allow(string) bool { return false }
+func (denyAll) Allow(context.Context, string) (bool, error) { return false, nil }
 
 func TestSearchMessages(t *testing.T) {
 	pool := dbtest.New(t)

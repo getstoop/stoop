@@ -1,76 +1,112 @@
 package ratelimit
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/getstoop/stoop/internal/kv"
 )
 
-func TestLimiterBurstThenRefill(t *testing.T) {
-	l := New(60, 3) // 1/s, burst 3
-	now := time.Unix(1_700_000_000, 0)
-	l.now = func() time.Time { return now }
+func newTestLimiter(perMinute, burst int) *Limiter {
+	return New(kv.NewMemory(nil), "test", perMinute, burst)
+}
 
-	for i := range 3 {
-		if !l.Allow("a") {
-			t.Fatalf("request %d within burst should pass", i)
+// newClockedLimiter is a limiter whose clock, shared with its store, the
+// test moves.
+func newClockedLimiter(perMinute, burst int) (*Limiter, *time.Time) {
+	at := time.Unix(1_700_000_000, 0)
+	now := func() time.Time { return at }
+	limiter := New(kv.NewMemory(now), "test", perMinute, burst)
+	limiter.now = now
+	return limiter, &at
+}
+
+func allow(t *testing.T, limiter *Limiter, key string) bool {
+	t.Helper()
+	allowed, err := limiter.Allow(context.Background(), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return allowed
+}
+
+func TestLimiterBurstThenRefill(t *testing.T) {
+	limiter, now := newClockedLimiter(60, 3) // 1/s, burst 3
+
+	for request := range 3 {
+		if !allow(t, limiter, "a") {
+			t.Fatalf("request %d within burst should pass", request)
 		}
 	}
-	if l.Allow("a") {
+	if allow(t, limiter, "a") {
 		t.Fatal("4th request must be throttled")
 	}
-	if !l.Allow("b") {
+	if !allow(t, limiter, "b") {
 		t.Fatal("other keys have their own bucket")
 	}
-	now = now.Add(time.Second)
-	if !l.Allow("a") {
+	*now = now.Add(time.Second)
+	if !allow(t, limiter, "a") {
 		t.Fatal("one token refills per second")
+	}
+	if allow(t, limiter, "a") {
+		t.Fatal("only one token refilled")
+	}
+	// A long idle refills to the burst and no further.
+	*now = now.Add(time.Hour)
+	for request := range 3 {
+		if !allow(t, limiter, "a") {
+			t.Fatalf("request %d after a rest should pass", request)
+		}
+	}
+	if allow(t, limiter, "a") {
+		t.Fatal("a rest never banks more than the burst")
 	}
 }
 
 func TestLimiterDisabled(t *testing.T) {
-	l := New(0, 0)
-	if l.Enabled() {
+	limiter := newTestLimiter(0, 0)
+	if limiter.Enabled() {
 		t.Fatal("0/min must mean disabled")
 	}
 	for range 100 {
-		if !l.Allow("x") {
+		if !allow(t, limiter, "x") {
 			t.Fatal("disabled limiter must allow everything")
 		}
 	}
-	var nilL *Limiter
-	if !nilL.Allow("x") {
+	var none *Limiter
+	if !allow(t, none, "x") {
 		t.Fatal("nil limiter must allow everything")
 	}
 }
 
-func TestLimiterGC(t *testing.T) {
-	l := New(60, 1)
-	now := time.Unix(1_700_000_000, 0)
-	l.now = func() time.Time { return now }
-	l.Allow("a")
-	if len(l.buckets) != 1 {
-		t.Fatalf("buckets = %d, want 1", len(l.buckets))
+func TestLimiterIdleBucketsExpire(t *testing.T) {
+	ctx := context.Background()
+	limiter, now := newClockedLimiter(60, 1)
+	allow(t, limiter, "a")
+	if count, _ := limiter.buckets.Len(ctx); count != 1 {
+		t.Fatalf("buckets = %d, want 1", count)
 	}
-	now = now.Add(2 * time.Minute)
-	l.Allow("b")
-	if _, ok := l.buckets["a"]; ok {
-		t.Fatal("fully refilled idle bucket should be pruned")
+	*now = now.Add(2 * time.Minute)
+	allow(t, limiter, "b")
+	if _, found, _ := limiter.buckets.Get(ctx, "a"); found {
+		t.Fatal("fully refilled idle bucket should be gone")
 	}
 }
 
 func TestMiddleware(t *testing.T) {
-	l := New(60, 1)
-	h := Middleware(l, never, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	limiter := newTestLimiter(60, 1)
+	handler := Middleware(limiter, never, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
 	do := func() *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodGet, "/livekit/rtc", nil)
 		req.RemoteAddr = "198.51.100.7:5555"
 		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, req)
+		handler.ServeHTTP(rec, req)
 		return rec
 	}
 	if rec := do(); rec.Code != http.StatusTeapot {
@@ -84,7 +120,7 @@ func TestMiddleware(t *testing.T) {
 		t.Error("429 should carry Retry-After")
 	}
 	// Disabled limiter returns next unwrapped.
-	if Middleware(New(0, 0), never, http.NotFoundHandler()) == nil {
+	if Middleware(newTestLimiter(0, 0), never, http.NotFoundHandler()) == nil {
 		t.Fatal("nil handler")
 	}
 }
@@ -93,9 +129,9 @@ func TestMiddleware(t *testing.T) {
 // can't mint a fresh bucket per made-up address.
 func TestMiddlewareTrustsOnlyNamedPeers(t *testing.T) {
 	seen := map[string]int{}
-	l := New(60, 60)
+	limiter := newTestLimiter(60, 60)
 	trusts := func(addr string) bool { return strings.HasPrefix(addr, "10.0.0.1:") }
-	h := Middleware(l, trusts, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := Middleware(limiter, trusts, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen[ClientIP(r.RemoteAddr, r.Header, trusts)]++
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -103,7 +139,7 @@ func TestMiddlewareTrustsOnlyNamedPeers(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.RemoteAddr = peer
 		req.Header.Set("X-Forwarded-For", xff)
-		h.ServeHTTP(httptest.NewRecorder(), req)
+		handler.ServeHTTP(httptest.NewRecorder(), req)
 	}
 	call("10.0.0.1:5000", "203.0.113.9") // the proxy speaks for its caller
 	call("8.8.8.8:5000", "203.0.113.9")  // a stranger's claim is ignored
