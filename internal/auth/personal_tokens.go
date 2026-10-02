@@ -2,9 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -117,10 +114,7 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 		expires = &t
 	}
 
-	secret, hash, err := newPersonalToken()
-	if err != nil {
-		return nil, err
-	}
+	secret, hash := newToken(personalTokenPrefix)
 	credID := rowid.New()
 	// A token reaches everything its holder does: no bounds, ever.
 	row, err := s.q.CreatePersonalToken(ctx, dbgen.CreatePersonalTokenParams{
@@ -251,16 +245,6 @@ func checkGrantDependencies(has map[authctx.Action]bool) error {
 			errors.New("reading activity needs reading messages and direct messages as well"))
 	}
 	return nil
-}
-
-func newPersonalToken() (secret string, hash []byte, err error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return "", nil, err
-	}
-	secret = personalTokenPrefix + base64.RawURLEncoding.EncodeToString(raw)
-	sum := sha256.Sum256([]byte(secret))
-	return secret, sum[:], nil
 }
 
 func toProtoToken(r dbgen.ListPersonalTokensRow, blocked bool) *authv1.PersonalToken {

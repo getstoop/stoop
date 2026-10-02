@@ -7,6 +7,8 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/alexedwards/argon2id"
@@ -84,6 +86,26 @@ func New(pool *pgxpool.Pool, opts Options) *Service {
 	return &Service{pool: pool, q: dbgen.New(pool), opts: opts, argon2: params,
 		guard: newLoginGuard(), dummyHash: dummy, stateKey: stateKey,
 		desktop: newDesktopStore()}
+}
+
+// randomToken is 32 random bytes as unpadded URL-safe base64 (43 characters).
+func randomToken() string {
+	raw := make([]byte, 32)
+	// Read never fails: since Go 1.24 crypto/rand stops the program instead.
+	_, _ = rand.Read(raw)
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+// hashToken is the SHA-256 the database keeps in place of a token.
+func hashToken(token string) []byte {
+	sum := sha256.Sum256([]byte(token))
+	return sum[:]
+}
+
+// newToken makes a secret with the given prefix and the hash to store for it.
+func newToken(prefix string) (secret string, hash []byte) {
+	secret = prefix + randomToken()
+	return secret, hashToken(secret)
 }
 
 // inTx runs fn in a transaction with queries bound to it.

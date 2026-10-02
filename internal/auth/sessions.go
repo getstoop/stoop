@@ -2,9 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -136,8 +133,7 @@ func (s *Service) verify(ctx context.Context, token string, allowHook bool) (aut
 	if token == "" {
 		return authctx.Identity{}, errors.New("missing token")
 	}
-	hash := sha256.Sum256([]byte(token))
-	c, err := s.q.GetCredentialByTokenHash(ctx, hash[:])
+	c, err := s.q.GetCredentialByTokenHash(ctx, hashToken(token))
 	if err != nil {
 		return authctx.Identity{}, errors.New("invalid or expired session")
 	}
@@ -195,12 +191,7 @@ func (s *Service) createSession(ctx context.Context, userID, userAgent string) (
 	if err != nil {
 		return "", 0, err
 	}
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return "", 0, err
-	}
-	token := base64.RawURLEncoding.EncodeToString(raw)
-	hash := sha256.Sum256([]byte(token))
+	token, hash := newToken("")
 
 	id := rowid.New()
 	if len(userAgent) > maxUserAgent {
@@ -209,7 +200,7 @@ func (s *Service) createSession(ctx context.Context, userID, userAgent string) (
 	_, err = s.q.CreateSession(ctx, dbgen.CreateSessionParams{
 		ID:        id,
 		HolderID:  userID,
-		TokenHash: hash[:],
+		TokenHash: hash,
 		ExpiresAt: time.Now().Add(ttl),
 		UserAgent: userAgent,
 	})

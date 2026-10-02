@@ -2,12 +2,10 @@ package auth
 
 import (
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -289,14 +287,6 @@ func (s *Service) readLoginState(r *http.Request) (loginState, error) {
 		return loginState{}, errors.New("state cookie expired")
 	}
 	return st, nil
-}
-
-func randomToken() string {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		panic(fmt.Sprintf("auth: read random: %v", err))
-	}
-	return base64.RawURLEncoding.EncodeToString(b)
 }
 
 // safeRedirectPath mirrors the client's safeRedirect: same-origin
