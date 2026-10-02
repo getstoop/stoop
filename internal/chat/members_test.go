@@ -280,3 +280,19 @@ func TestAddMember(t *testing.T) {
 		t.Errorf("adding a banned user: want a refusal, got %v", err)
 	}
 }
+
+func TestTransferToNonMemberChangesNothing(t *testing.T) {
+	fixture := newFixture(t)
+	stranger := authctx.UserID(fixture.operator)
+	_, err := fixture.svc.TransferOwnership(fixture.owner, connect.NewRequest(&chatv1.TransferOwnershipRequest{SpaceId: fixture.spaceID, UserId: stranger}))
+	if code(err) != connect.CodeNotFound {
+		t.Fatalf("transfer to a non-member: want not_found, got %v", err)
+	}
+	res, err := fixture.svc.GetSpace(fixture.owner, connect.NewRequest(&chatv1.GetSpaceRequest{SpaceId: fixture.spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Msg.Space.OwnerId != authctx.UserID(fixture.owner) || res.Msg.Space.MyRole != chatv1.SpaceRole_SPACE_ROLE_OWNER {
+		t.Errorf("ownership changed: %+v", res.Msg.Space)
+	}
+}
