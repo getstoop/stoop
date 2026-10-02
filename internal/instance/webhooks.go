@@ -46,9 +46,6 @@ func (s *Service) WebhooksAllowPrivateTargets(ctx context.Context) (bool, error)
 	return s.readBool(ctx, keyWebhooksAllowPrivateTargets, false)
 }
 
-// WebhooksAvailable reports the STOOP_WEBHOOKS floor.
-func (s *Service) WebhooksAvailable() bool { return s.webhooksEnv }
-
 func (s *Service) writeBool(ctx context.Context, key string, v bool) error {
 	raw, _ := json.Marshal(v)
 	if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: key, Value: raw}); err != nil {
