@@ -48,7 +48,6 @@ type App struct {
 	server  *http.Server
 	tailnet *tailnet.Manager
 	tunnel  *cftunnel.Manager
-	nodeIP  *nodeIPWriter
 	auth    *auth.Service
 	files   *files.Service
 	hooks   *integrations.Service
@@ -266,8 +265,8 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		// Carrying the ports is half of it: LiveKit also has to offer the
 		// node's address to browsers, and it only reads that at startup.
 		// Stoop writes it where the sidecar picks it up.
-		a.nodeIP = newNodeIPWriter(cfg, log)
-		a.tailnet.UseAddressHook(a.nodeIP.set)
+		nodeIP := newNodeIPWriter(cfg, log)
+		a.tailnet.UseAddressHook(nodeIP.set)
 	}
 
 	a.tunnel = cftunnel.NewManager(cfg.CloudflaredPath, log)
