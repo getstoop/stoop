@@ -145,30 +145,30 @@ func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[ch
 		return nil, err
 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	id := rowid.New()
-	key := dmKey(participants)
-	channel, err := qtx.OpenDMChannel(ctx, dbgen.OpenDMChannelParams{ID: id, DmKey: &key})
-	if err != nil {
-		return nil, fmt.Errorf("open dm: %w", err)
-	}
-	for _, uid := range participants {
-		if err := qtx.AddDMMember(ctx, dbgen.AddDMMemberParams{ChannelID: channel.ID, UserID: uid}); err != nil {
-			return nil, fmt.Errorf("add participant: %w", err)
+	var id string
+	var channel dbgen.Channel
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		id = rowid.New()
+		key := dmKey(participants)
+		var err error
+		channel, err = qtx.OpenDMChannel(ctx, dbgen.OpenDMChannelParams{ID: id, DmKey: &key})
+		if err != nil {
+			return fmt.Errorf("open dm: %w", err)
 		}
-	}
-	// Opening a conversation the caller had closed puts it back on their
-	// list; nobody else's row is touched.
-	if err := qtx.SetDMClosed(ctx, dbgen.SetDMClosedParams{ChannelID: channel.ID, UserID: me, Closed: false}); err != nil {
-		return nil, fmt.Errorf("reopen dm: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+		for _, uid := range participants {
+			if err := qtx.AddDMMember(ctx, dbgen.AddDMMemberParams{ChannelID: channel.ID, UserID: uid}); err != nil {
+				return fmt.Errorf("add participant: %w", err)
+			}
+		}
+		// Opening a conversation the caller had closed puts it back on their
+		// list; nobody else's row is touched.
+		if err := qtx.SetDMClosed(ctx, dbgen.SetDMClosedParams{ChannelID: channel.ID, UserID: me, Closed: false}); err != nil {
+			return fmt.Errorf("reopen dm: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	// A brand-new conversation shows up in everyone's list at once. An
 	// existing one needs no announcement: they all already have it.

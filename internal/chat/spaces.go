@@ -41,33 +41,32 @@ func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.C
 		return nil, apierr.Field(connect.CodeInvalidArgument, "name", errSpaceName)
 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-
-	qtx := s.q.WithTx(tx)
-	space, err := qtx.CreateSpace(ctx, dbgen.CreateSpaceParams{
-		ID: rowid.New(), Name: name, OwnerID: userID,
+	var space dbgen.Space
+	var channel dbgen.Channel
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		space, err = qtx.CreateSpace(ctx, dbgen.CreateSpaceParams{
+			ID: rowid.New(), Name: name, OwnerID: userID,
+		})
+		if err != nil {
+			return fmt.Errorf("create space: %w", err)
+		}
+		if err := qtx.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
+			SpaceID: space.ID, UserID: userID, Role: string(RoleOwner),
+		}); err != nil {
+			return fmt.Errorf("add owner as member: %w", err)
+		}
+		channel, err = qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
+			ID: rowid.New(), SpaceID: space.ID, Name: defaultChannelName,
+			Kind: int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT), Position: 0,
+		})
+		if err != nil {
+			return fmt.Errorf("create default channel: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create space: %w", err)
-	}
-	if err := qtx.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
-		SpaceID: space.ID, UserID: userID, Role: string(RoleOwner),
-	}); err != nil {
-		return nil, fmt.Errorf("add owner as member: %w", err)
-	}
-	channel, err := qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
-		ID: rowid.New(), SpaceID: space.ID, Name: defaultChannelName,
-		Kind: int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT), Position: 0,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create default channel: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+		return nil, err
 	}
 
 	return connect.NewResponse(&chatv1.CreateSpaceResponse{
@@ -280,25 +279,24 @@ func (s *Service) SetSpaceIcon(ctx context.Context, spaceID, fileID string) (pre
 	if err := s.requirePermission(ctx, spaceID, authctx.SpaceManage); err != nil {
 		return "", err
 	}
-	tx, err := s.pool.Begin(ctx)
+	var prev *string
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		prev, err = qtx.GetSpaceIconForUpdate(ctx, spaceID)
+		if err != nil {
+			return apierr.NotFoundOr(err, "space")
+		}
+		var next *string
+		if fileID != "" {
+			next = &fileID
+		}
+		if err := qtx.SetSpaceIcon(ctx, dbgen.SetSpaceIconParams{ID: spaceID, IconFileID: next}); err != nil {
+			return fmt.Errorf("set space icon: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return "", fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	prev, err := qtx.GetSpaceIconForUpdate(ctx, spaceID)
-	if err != nil {
-		return "", apierr.NotFoundOr(err, "space")
-	}
-	var next *string
-	if fileID != "" {
-		next = &fileID
-	}
-	if err := qtx.SetSpaceIcon(ctx, dbgen.SetSpaceIconParams{ID: spaceID, IconFileID: next}); err != nil {
-		return "", fmt.Errorf("set space icon: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return "", fmt.Errorf("commit: %w", err)
+		return "", err
 	}
 	space, err := s.q.GetSpace(ctx, spaceID)
 	if err != nil {
@@ -398,32 +396,29 @@ func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[ch
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("you already own this space"))
 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	// Demote first: the one-owner index forbids two owners even briefly.
-	if _, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{
-		SpaceID: req.Msg.SpaceId, UserID: userID, Role: string(RoleAdmin),
-	}); err != nil {
-		return nil, fmt.Errorf("demote owner: %w", err)
-	}
-	promoted, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{
-		SpaceID: req.Msg.SpaceId, UserID: req.Msg.UserId, Role: string(RoleOwner),
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// Demote first: the one-owner index forbids two owners even briefly.
+		if _, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{
+			SpaceID: req.Msg.SpaceId, UserID: userID, Role: string(RoleAdmin),
+		}); err != nil {
+			return fmt.Errorf("demote owner: %w", err)
+		}
+		promoted, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{
+			SpaceID: req.Msg.SpaceId, UserID: req.Msg.UserId, Role: string(RoleOwner),
+		})
+		if err != nil {
+			return fmt.Errorf("promote new owner: %w", err)
+		}
+		if promoted == 0 {
+			return connect.NewError(connect.CodeNotFound, errors.New("member not found"))
+		}
+		if err := qtx.UpdateSpaceOwner(ctx, dbgen.UpdateSpaceOwnerParams{ID: req.Msg.SpaceId, OwnerID: req.Msg.UserId}); err != nil {
+			return fmt.Errorf("update owner: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("promote new owner: %w", err)
-	}
-	if promoted == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("member not found"))
-	}
-	if err := qtx.UpdateSpaceOwner(ctx, dbgen.UpdateSpaceOwnerParams{ID: req.Msg.SpaceId, OwnerID: req.Msg.UserId}); err != nil {
-		return nil, fmt.Errorf("update owner: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+		return nil, err
 	}
 
 	s.publishRoleChanged(req.Msg.SpaceId, userID, RoleAdmin)
