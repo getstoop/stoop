@@ -23,7 +23,7 @@ func (v *flippingVerifier) VerifyRequest(context.Context, http.Header) (authctx.
 	if v.revoked.Load() {
 		return authctx.Identity{}, errors.New("gone")
 	}
-	return authctx.Identity{UserID: "alice", Credential: authctx.Credential{ID: "t", Kind: authctx.CredentialPersonalToken, Grants: []authctx.Action{authctx.MessagesRead}}}, nil
+	return authctx.Identity{UserID: "alice", Credential: authctx.Credential{ID: "t", Kind: authctx.CredentialSession}}, nil
 }
 
 type noMembers struct{}
@@ -35,8 +35,8 @@ type noChannels struct{}
 func (noChannels) VoiceChannelSpace(context.Context, string) (string, error) { return "", nil }
 func (noChannels) DMParticipants(context.Context, string) ([]string, error)  { return nil, nil }
 
-// A credential that stops verifying (expired, setting turned off, deleted
-// by the CLI) ends its socket at the next ping.
+// A session that stops verifying (expired, or deleted by the CLI) ends
+// its socket at the next ping.
 func TestSocketClosesWhenTheCredentialStopsVerifying(t *testing.T) {
 	v := &flippingVerifier{}
 	gw := NewGateway(events.NewInProcBus(), v, noMembers{}, noChannels{}, []string{"*"}, slog.Default())

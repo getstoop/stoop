@@ -36,8 +36,8 @@ func TestE2EPersonalTokenGates(t *testing.T) {
 	h.rpc(reader, "stoop.auth.v1.AuthService/ListPersonalTokens", map[string]any{}).expect(t, "permission_denied")
 	h.rpc(reader, "stoop.auth.v1.AuthService/ChangePassword", map[string]any{"currentPassword": password, "newPassword": "another horse battery"}).expect(t, "permission_denied")
 
-	// A hook token is never a bearer token, and a bot token never opens
-	// the socket; a personal token does.
+	// A hook token is never a bearer token, and only a session opens the
+	// socket: a bot token and a personal token are both refused.
 	bot := h.bot(casey, "uptime")
 	h.addBot(casey, bot, h.spaceIDOf(casey, "The Stoop"))
 	_, url := h.hook(casey, bot, general, "alerts")
@@ -45,8 +45,11 @@ func TestE2EPersonalTokenGates(t *testing.T) {
 	if status := h.socket(h.botToken(casey, bot, "messages.read")); status != http.StatusForbidden {
 		t.Errorf("a bot token opened the socket: %d", status)
 	}
-	if status := h.socket(reader); status != http.StatusSwitchingProtocols {
-		t.Errorf("a personal token couldn't open the socket: %d", status)
+	if status := h.socket(reader); status != http.StatusForbidden {
+		t.Errorf("a personal token opened the socket: %d", status)
+	}
+	if status := h.socket(ada); status != http.StatusSwitchingProtocols {
+		t.Errorf("a session couldn't open the socket: %d", status)
 	}
 
 	// The server's setting is checked at every use, not only at minting.
