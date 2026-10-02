@@ -52,6 +52,7 @@ func dmKey(ids []string) string {
 // accessChannel loads a channel the caller may read: a member of its
 // space, or a participant in the direct message. Membership is checked
 // before the row is read so an outsider learns nothing from the error.
+// A hidden voice channel is not found.
 func (s *Service) accessChannel(ctx context.Context, channelID string) (dbgen.Channel, error) {
 	if err := s.requireChannelMember(ctx, channelID); err != nil {
 		return dbgen.Channel{}, err
@@ -59,6 +60,9 @@ func (s *Service) accessChannel(ctx context.Context, channelID string) (dbgen.Ch
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if err != nil {
 		return dbgen.Channel{}, notFoundOr(err, "channel")
+	}
+	if s.hiddenChannel(channel) {
+		return dbgen.Channel{}, errChannelNotFound
 	}
 	return channel, nil
 }

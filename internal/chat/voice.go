@@ -38,6 +38,14 @@ var errVoiceOff = connect.NewError(connect.CodeFailedPrecondition,
 // they are hidden: see docs/architecture/voice.md → Turning voice off.
 func (s *Service) voiceOn() bool { return s.policy == nil || s.policy.VoiceAvailable() }
 
+// hiddenChannel reports whether a channel is a voice channel while voice
+// is off. Its members are then answered as if it did not exist.
+func (s *Service) hiddenChannel(channel dbgen.Channel) bool {
+	return chatv1.ChannelKind(channel.Kind) == chatv1.ChannelKind_CHANNEL_KIND_VOICE && !s.voiceOn()
+}
+
+var errChannelNotFound = connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
+
 // listChannels is a space's channels as its members see them.
 func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]dbgen.ListChannelsBySpaceRow, error) {
 	rows, err := s.q.ListChannelsBySpace(ctx, dbgen.ListChannelsBySpaceParams{
@@ -51,7 +59,7 @@ func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]d
 	}
 	shown := rows[:0]
 	for _, r := range rows {
-		if chatv1.ChannelKind(r.Channel.Kind) != chatv1.ChannelKind_CHANNEL_KIND_VOICE {
+		if !s.hiddenChannel(r.Channel) {
 			shown = append(shown, r)
 		}
 	}
