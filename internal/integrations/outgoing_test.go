@@ -522,3 +522,17 @@ func TestDeleteWebhookWithAMalformedIDIsNotFound(t *testing.T) {
 		t.Errorf("delete nope: %v", err)
 	}
 }
+
+func TestTestWebhookReturnsTheTestDelivery(t *testing.T) {
+	fixture, receiver := outgoingFixture(t)
+	hook, _ := fixture.createOutgoing(t, receiver.srv.URL, []string{EventMessageCreated}, "")
+	out, _ := fixture.svc.translate(context.Background(), message(fixture.channel, fixture.space, "earlier"))
+	fixture.enqueue(t, out)
+	res, err := fixture.svc.TestWebhook(fixture.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Msg.Delivery.EventType; got != EventWebhookTest {
+		t.Errorf("event type = %q", got)
+	}
+}
