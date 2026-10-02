@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -65,7 +66,7 @@ func toProtoPersonalTokens(v TokenSetting) instancev1.PersonalTokens {
 }
 
 func (s *Service) ListUserTokens(ctx context.Context, req *connect.Request[instancev1.ListUserTokensRequest]) (*connect.Response[instancev1.ListUserTokensResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	tokens, err := s.users.ListUserTokens(ctx, req.Msg.UserId)
@@ -76,7 +77,7 @@ func (s *Service) ListUserTokens(ctx context.Context, req *connect.Request[insta
 }
 
 func (s *Service) RevokeUserToken(ctx context.Context, req *connect.Request[instancev1.RevokeUserTokenRequest]) (*connect.Response[instancev1.RevokeUserTokenResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	if err := s.users.RevokeUserToken(ctx, req.Msg.UserId, req.Msg.TokenId); err != nil {

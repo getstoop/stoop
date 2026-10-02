@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -179,13 +180,7 @@ func (s *Service) UseHookThrottle(l *ratelimit.Limiter) { s.hookLimit = l }
 
 // requireManage is the identity gate for configuring integrations.
 func requireManage(ctx context.Context) error {
-	if !authctx.Holds(ctx, authctx.InstanceIntegrationsManage) {
-		return connect.NewError(connect.CodePermissionDenied, errors.New("instance admin role required"))
-	}
-	if !authctx.Covers(ctx, authctx.InstanceIntegrationsManage) {
-		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, authctx.InstanceIntegrationsManage))
-	}
-	return nil
+	return apierr.RequireAction(ctx, authctx.InstanceIntegrationsManage)
 }
 
 func (s *Service) incomingEnabled(ctx context.Context) (bool, error) {

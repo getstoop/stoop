@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -31,7 +32,7 @@ func (s *Service) StorageUsage(ctx context.Context) (Usage, error) {
 }
 
 func (s *Service) GetStorageUsage(ctx context.Context, _ *connect.Request[filesv1.GetStorageUsageRequest]) (*connect.Response[filesv1.GetStorageUsageResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	u, err := s.StorageUsage(ctx)

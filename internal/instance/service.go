@@ -8,10 +8,8 @@ import (
 	"sync/atomic"
 
 	"context"
-	"errors"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
@@ -121,16 +119,4 @@ func (s *Service) UsePublicURL(fn func() string) {
 	if fn != nil {
 		s.publicURL = fn
 	}
-}
-
-// requireAction is both gates for an action on the instance.
-func requireAction(ctx context.Context, a authctx.Action) error {
-	if !authctx.Holds(ctx, a) {
-		return connect.NewError(connect.CodePermissionDenied,
-			errors.New("instance admin role required"))
-	}
-	if !authctx.Covers(ctx, a) {
-		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, a))
-	}
-	return nil
 }

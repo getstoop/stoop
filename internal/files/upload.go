@@ -12,6 +12,7 @@ import (
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -31,7 +32,7 @@ func (s *Service) UploadAvatar(ctx context.Context, req *connect.Request[filesv1
 // UploadBotAvatar is the admin's path to a bot's face: the same image
 // pipeline as UploadAvatar, aimed at a bot the caller manages.
 func (s *Service) UploadBotAvatar(ctx context.Context, req *connect.Request[filesv1.UploadBotAvatarRequest]) (*connect.Response[filesv1.UploadBotAvatarResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceIntegrationsManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceIntegrationsManage); err != nil {
 		return nil, err
 	}
 	if _, err := uuid.Parse(req.Msg.UserId); err != nil {

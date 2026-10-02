@@ -11,11 +11,12 @@ import (
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
 func (s *Service) ListUsers(ctx context.Context, _ *connect.Request[instancev1.ListUsersRequest]) (*connect.Response[instancev1.ListUsersResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	users, err := s.users.ListUsers(ctx)
@@ -30,7 +31,7 @@ func (s *Service) ListUsers(ctx context.Context, _ *connect.Request[instancev1.L
 }
 
 func (s *Service) SetUserRole(ctx context.Context, req *connect.Request[instancev1.SetUserRoleRequest]) (*connect.Response[instancev1.SetUserRoleResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.UserId == authctx.UserID(ctx) {
@@ -53,7 +54,7 @@ func (s *Service) SetUserRole(ctx context.Context, req *connect.Request[instance
 }
 
 func (s *Service) SetUserActive(ctx context.Context, req *connect.Request[instancev1.SetUserActiveRequest]) (*connect.Response[instancev1.SetUserActiveResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	if !req.Msg.Active {
@@ -69,7 +70,7 @@ func (s *Service) SetUserActive(ctx context.Context, req *connect.Request[instan
 }
 
 func (s *Service) ResetUserPassword(ctx context.Context, req *connect.Request[instancev1.ResetUserPasswordRequest]) (*connect.Response[instancev1.ResetUserPasswordResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.UserId == "" {
@@ -86,7 +87,7 @@ func (s *Service) ResetUserPassword(ctx context.Context, req *connect.Request[in
 }
 
 func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[instancev1.TransferOwnershipRequest]) (*connect.Response[instancev1.TransferOwnershipResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	u, err := s.users.TransferOwnership(ctx, authctx.UserID(ctx), req.Msg.UserId)
@@ -97,7 +98,7 @@ func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[in
 }
 
 func (s *Service) RenameUser(ctx context.Context, req *connect.Request[instancev1.RenameUserRequest]) (*connect.Response[instancev1.RenameUserResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.UserId == "" {
@@ -120,7 +121,7 @@ func (s *Service) RenameUser(ctx context.Context, req *connect.Request[instancev
 // Clearing only — see the RPC comment. Unrecorded, like RenameUser above
 // it; STOOP-121 covers giving moderation a trail.
 func (s *Service) ClearUserProfile(ctx context.Context, req *connect.Request[instancev1.ClearUserProfileRequest]) (*connect.Response[instancev1.ClearUserProfileResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.UserId == "" {
@@ -140,7 +141,7 @@ func (s *Service) ClearUserProfile(ctx context.Context, req *connect.Request[ins
 }
 
 func (s *Service) SetUsernameFrozen(ctx context.Context, req *connect.Request[instancev1.SetUsernameFrozenRequest]) (*connect.Response[instancev1.SetUsernameFrozenResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceUsersManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceUsersManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.UserId == "" {

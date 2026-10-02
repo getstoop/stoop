@@ -346,7 +346,7 @@ func validateTURN(t TURNRelay) error {
 }
 
 func (s *Service) GetReachability(ctx context.Context, _ *connect.Request[instancev1.GetReachabilityRequest]) (*connect.Response[instancev1.GetReachabilityResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	resp, err := s.reachabilityResponse(ctx)
@@ -357,7 +357,7 @@ func (s *Service) GetReachability(ctx context.Context, _ *connect.Request[instan
 }
 
 func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[instancev1.UpdateReachabilityRequest]) (*connect.Response[instancev1.UpdateReachabilityResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceSettingsManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.PublicUrl != nil {

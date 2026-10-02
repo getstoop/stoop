@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/diag"
 )
@@ -16,7 +17,7 @@ import (
 // The Right now and Database panels (docs/architecture/diagnostics.md).
 
 func (s *Service) GetLiveStats(ctx context.Context, _ *connect.Request[instancev1.GetLiveStatsRequest]) (*connect.Response[instancev1.GetLiveStatsResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	snap := diag.Default.Snapshot()
@@ -34,7 +35,7 @@ func (s *Service) GetLiveStats(ctx context.Context, _ *connect.Request[instancev
 }
 
 func (s *Service) GetDatabaseStats(ctx context.Context, _ *connect.Request[instancev1.GetDatabaseStatsRequest]) (*connect.Response[instancev1.GetDatabaseStatsResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	start := time.Now()

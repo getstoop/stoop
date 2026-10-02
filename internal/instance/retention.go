@@ -64,7 +64,7 @@ func errRetentionRange(field string) error {
 }
 
 func (s *Service) PreviewRetention(ctx context.Context, req *connect.Request[instancev1.PreviewRetentionRequest]) (*connect.Response[instancev1.PreviewRetentionResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceSettingsManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
 	m, a := req.Msg.MessageRetentionDays, req.Msg.AttachmentRetentionDays

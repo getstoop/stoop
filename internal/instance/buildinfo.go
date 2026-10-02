@@ -6,6 +6,7 @@ import (
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -18,7 +19,7 @@ type BuildInfo struct {
 func (s *Service) UseBuildInfo(b BuildInfo) { s.build = b }
 
 func (s *Service) GetBuildInfo(ctx context.Context, _ *connect.Request[instancev1.GetBuildInfoRequest]) (*connect.Response[instancev1.GetBuildInfoResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&instancev1.GetBuildInfoResponse{
