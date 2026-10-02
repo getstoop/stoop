@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/getstoop/stoop/internal/release"
 )
 
 // switchTo puts the new bundle files in place, keeps the old ones as
@@ -39,7 +41,7 @@ func (u *Upgrader) switchTo(ctx context.Context, current, target string, backup 
 		// its contract migration ran leaves the floor where it was.
 		canStart := !plannedContract
 		if oldest, ok := u.startable(ctx); ok {
-			canStart = !Older(current, oldest)
+			canStart = !release.Older(current, oldest)
 		}
 		if canStart {
 			_, _ = fmt.Fprintf(u.Out, "Nothing it did stops %s from starting. To go back:\n  stoop upgrade rollback\n", current)

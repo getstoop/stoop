@@ -2,12 +2,13 @@ package upgrade
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/getstoop/stoop/internal/release"
 )
 
 // Fetcher gets a URL; the tests use a map.
@@ -16,15 +17,10 @@ type Fetcher interface {
 }
 
 // HTTPFetcher is the real one.
-type HTTPFetcher struct {
-	Client *http.Client
-}
+type HTTPFetcher struct{}
 
 func (f HTTPFetcher) Fetch(ctx context.Context, url string) ([]byte, error) {
-	client := f.Client
-	if client == nil {
-		client = &http.Client{Timeout: 60 * time.Second}
-	}
+	client := &http.Client{Timeout: 60 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -41,16 +37,6 @@ func (f HTTPFetcher) Fetch(ctx context.Context, url string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 }
 
-// index is the release index: docs/architecture/runtime.md → The update
-// check has the file's shape.
-type index struct {
-	Latest   string `json:"latest"`
-	Releases []struct {
-		Version string            `json:"version"`
-		Files   map[string]string `json:"files"`
-	} `json:"releases"`
-}
-
 // release reads the index and returns the version asked for ("" is the
 // latest) with where each of its files is.
 func (u *Upgrader) release(ctx context.Context, version string) (string, map[string]string, error) {
@@ -58,8 +44,8 @@ func (u *Upgrader) release(ctx context.Context, version string) (string, map[str
 	if err != nil {
 		return "", nil, fmt.Errorf("could not read the release index: %w", err)
 	}
-	var idx index
-	if err := json.Unmarshal(body, &idx); err != nil {
+	idx, err := release.ParseIndex(body)
+	if err != nil {
 		return "", nil, fmt.Errorf("could not read the release index at %s: %w", u.Index, err)
 	}
 	if version == "" {

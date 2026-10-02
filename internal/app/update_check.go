@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,13 +12,10 @@ import (
 	"time"
 
 	"github.com/getstoop/stoop/internal/instance"
-	"github.com/getstoop/stoop/internal/upgrade"
+	"github.com/getstoop/stoop/internal/release"
 )
 
 // The update check (docs/architecture/runtime.md → The update check).
-
-// A variable so a build can be pointed at another index with -X.
-var releaseIndexURL = "https://getstoop.org/releases.json"
 
 const (
 	updateTTL     = 6 * time.Hour
@@ -38,14 +34,7 @@ type updateChecker struct {
 
 	mu     sync.Mutex
 	nextAt time.Time
-	index  releaseIndex
-}
-
-// releaseIndex is what the check reads of the file. Supported is the
-// oldest release still supported; an index without one names none.
-type releaseIndex struct {
-	Latest    string `json:"latest"`
-	Supported string `json:"supported"`
+	index  release.Index
 }
 
 // newUpdateChecker returns nil for a build that is not a release: there
@@ -57,7 +46,7 @@ func newUpdateChecker(version string, log *slog.Logger) *updateChecker {
 	}
 	return &updateChecker{
 		current: current,
-		url:     releaseIndexURL,
+		url:     release.IndexURL,
 		client:  &http.Client{Timeout: updateTimeout},
 		log:     log,
 		now:     time.Now,
@@ -81,38 +70,38 @@ func (c *updateChecker) LatestRelease(ctx context.Context) instance.Update {
 	}
 	return instance.Update{
 		Latest:    c.index.Latest,
-		Available: c.index.Latest != "" && upgrade.Older(c.current, c.index.Latest),
-		Outdated:  c.index.Supported != "" && upgrade.Older(c.current, c.index.Supported),
+		Available: c.index.Latest != "" && release.Older(c.current, c.index.Latest),
+		Outdated:  c.index.Supported != "" && release.Older(c.current, c.index.Supported),
 	}
 }
 
-func (c *updateChecker) fetch(ctx context.Context) (releaseIndex, error) {
+func (c *updateChecker) fetch(ctx context.Context) (release.Index, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url, nil)
 	if err != nil {
-		return releaseIndex{}, err
+		return release.Index{}, err
 	}
 	req.Header.Set("User-Agent", "stoop")
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return releaseIndex{}, err
+		return release.Index{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return releaseIndex{}, fmt.Errorf("status %s", resp.Status)
+		return release.Index{}, fmt.Errorf("status %s", resp.Status)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return releaseIndex{}, err
+		return release.Index{}, err
 	}
-	var index releaseIndex
-	if err := json.Unmarshal(body, &index); err != nil {
-		return releaseIndex{}, err
+	index, err := release.ParseIndex(body)
+	if err != nil {
+		return release.Index{}, err
 	}
 	if !releaseVersionRE.MatchString(index.Latest) {
-		return releaseIndex{}, fmt.Errorf("latest is %q, not a release version", index.Latest)
+		return release.Index{}, fmt.Errorf("latest is %q, not a release version", index.Latest)
 	}
 	if index.Supported != "" && !releaseVersionRE.MatchString(index.Supported) {
-		return releaseIndex{}, fmt.Errorf("supported is %q, not a release version", index.Supported)
+		return release.Index{}, fmt.Errorf("supported is %q, not a release version", index.Supported)
 	}
 	return index, nil
 }

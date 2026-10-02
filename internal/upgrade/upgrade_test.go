@@ -495,17 +495,6 @@ func TestRollbackRefusedPastFloor(t *testing.T) {
 }
 
 func TestHelpers(t *testing.T) {
-	for _, c := range []struct {
-		a, b string
-		want bool
-	}{
-		{"0.2.0", "0.3.0", true}, {"0.3.0", "0.2.0", false}, {"0.2.0", "0.2.0", false},
-		{"0.9.0", "0.10.0", true}, {"0.2", "0.2.1", true}, {"0.2.0", "dev", true}, {"dev", "0.2.0", false}, {"v0.2.0", "0.3.0", true},
-	} {
-		if got := Older(c.a, c.b); got != c.want {
-			t.Errorf("Older(%q, %q) = %v", c.a, c.b, got)
-		}
-	}
 	if got := TagOf("  image: ghcr.io/getstoop/stoop:0.2.0\n"); got != "0.2.0" {
 		t.Errorf("TagOf = %q", got)
 	}

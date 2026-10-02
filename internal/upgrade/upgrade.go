@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/getstoop/stoop/internal/db"
+	"github.com/getstoop/stoop/internal/release"
 )
 
 // Options is what the command line decides.
@@ -45,7 +46,7 @@ var ErrFailed = errors.New("the upgrade did not come up healthy")
 
 func New(o Options) *Upgrader {
 	if o.Index == "" {
-		o.Index = "https://getstoop.org/releases.json"
+		o.Index = release.IndexURL
 	}
 	if o.Wait == "" {
 		o.Wait = "600"
@@ -212,7 +213,7 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 		u.say("already on %s; nothing to do", target)
 		return target, fetched, true, nil
 	}
-	if Older(target, current) {
+	if release.Older(target, current) {
 		u.cleanupNext()
 		return "", false, false, fmt.Errorf("%s is older than the installed %s; going back is: stoop upgrade rollback", target, current)
 	}
