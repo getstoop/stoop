@@ -35,7 +35,8 @@ upload does not become a large allocation.
 The handler authenticates and takes one of the account's three upload
 slots before it reads the body. The operator's per-file cap wraps the
 body in a `MaxBytesReader` (plus a little slack for the multipart
-framing). The channel and the quota are checked once the body is read:
+framing), and an upload that sends nothing for 30 seconds is ended with
+`408`, which gives its slot back. The channel and the quota are checked once the body is read:
 `Spaces.ChannelSpaceToPostIn` decides membership and the
 announcement-channel rule through the port — returning a Connect error that is translated to the right HTTP
 status, so there is one implementation of "may you post here".

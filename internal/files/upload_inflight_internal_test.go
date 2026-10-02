@@ -1,12 +1,15 @@
 package files
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/getstoop/stoop/internal/authctx"
 )
@@ -71,6 +74,44 @@ func TestUploadReleasesItsSlot(t *testing.T) {
 	for range MaxInflightUploads {
 		if !svc.inflight.acquire("casey") {
 			t.Fatal("a finished upload kept its slot")
+		}
+	}
+}
+
+// An upload that stops sending is ended, and its slot comes back.
+func TestStalledUploadIsEndedAndReleasesItsSlot(t *testing.T) {
+	svc := &Service{
+		sessions:   fixedSession{userID: "casey"},
+		inflight:   newInflight(MaxInflightUploads),
+		uploadIdle: 100 * time.Millisecond,
+		log:        slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	srv := httptest.NewServer(svc.UploadHandler())
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	// Headers that promise a body, its first bytes, and then nothing.
+	request := "POST /files/upload HTTP/1.1\r\nHost: stoop\r\n" +
+		"Content-Type: multipart/form-data; boundary=x\r\nContent-Length: 1000\r\n\r\n--x\r\n"
+	if _, err := io.WriteString(conn, request); err != nil {
+		t.Fatal(err)
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("a stalled upload was never answered: %v", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+	if res.StatusCode != http.StatusRequestTimeout {
+		t.Errorf("status = %d, want 408", res.StatusCode)
+	}
+	for range MaxInflightUploads {
+		if !svc.inflight.acquire("casey") {
+			t.Fatal("the stalled upload kept its slot")
 		}
 	}
 }
