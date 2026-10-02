@@ -48,6 +48,12 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
+		// Taken before the body is read, so refused callers spool nothing.
+		if !s.inflight.acquire(identity.UserID) {
+			writeError(w, http.StatusTooManyRequests, tooManyUploadsMessage)
+			return
+		}
+		defer s.inflight.release(identity.UserID)
 		ctx := authctx.WithIdentity(r.Context(), identity)
 		// The operator's per-file cap
 		limit, err := s.maxUploadBytes(ctx)
@@ -122,11 +128,6 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-		if !s.inflight.acquire(identity.UserID) {
-			writeError(w, http.StatusTooManyRequests, tooManyUploadsMessage)
-			return
-		}
-		defer s.inflight.release(identity.UserID)
 
 		info, err := s.storeAttachment(r, identity.UserID, spaceID, part, header.Size, header.Filename)
 		if err != nil {

@@ -6,9 +6,8 @@ import (
 )
 
 // MaxInflightUploads bounds one account's concurrent attachment uploads.
-// The quota is enforced when a file is recorded, after its bytes have been
-// spooled, so without this bound N parallel requests could hold N times
-// the per-file cap on disk before any of them is refused.
+// The slot is taken before the body is read, so an account has at most this
+// many bodies spooled to disk at once; the quota is only checked afterwards.
 const MaxInflightUploads = 3
 
 var tooManyUploadsMessage = fmt.Sprintf("at most %d uploads at a time; wait for one to finish", MaxInflightUploads)
