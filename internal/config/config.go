@@ -72,6 +72,9 @@ type Config struct {
 	// Postgres.
 	StorageDir string
 
+	// Voice false makes this a text-only server: LiveKit is ignored even
+	// when configured, and no key pair is minted or written.
+	Voice bool
 	// LiveKit sidecar settings; empty until voice is configured.
 	LiveKitURL string
 	// LiveKitKeyFile is where the server writes the key pair for a LiveKit
@@ -315,6 +318,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	if cfg.Voice, err = parseBool("STOOP_VOICE", true); err != nil {
+		return Config{}, err
+	}
 	cfg.LiveKitMediaHost = getenv("STOOP_LIVEKIT_MEDIA_HOST", "127.0.0.1")
 	if cfg.LiveKitTCPPort, err = parsePort("STOOP_LIVEKIT_TCP_PORT", 7881); err != nil {
 		return Config{}, err

@@ -59,7 +59,7 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 
 	params := dbgen.SearchMessagesParams{
 		SpaceID: spaceID, Words: q.words, Prefix: q.prefix, Lim: limit,
-		BeforeAt: q.before, AfterAt: q.after,
+		BeforeAt: q.before, AfterAt: q.after, WithVoice: s.voiceOn(),
 	}
 	if req.Msg.BeforeId != "" {
 		params.BeforeID = &req.Msg.BeforeId

@@ -83,7 +83,7 @@ rather than by what the provider happens to expose, and it stays small.
 | -------- | ---- | --------- | ------------ |
 | `chat` | `UserDirectory` | auth | Author and member records for rendering messages and rosters. |
 | `chat` | `PresenceLister` | realtime | Which of these users are connected — the whole of `@here`. |
-| `chat` | `InstancePolicy` | instance | Whether members may create spaces. |
+| `chat` | `InstancePolicy` | instance | Whether members may create spaces, and whether voice is available. |
 | `chat` | `FileDirectory` | files | Verify an attachment claim; delete a deleted message's files. |
 | `chat` | `Unfurler` | `internal/unfurl` | Fetch a URL's Open Graph metadata, through `internal/netguard`. |
 | `chat` | `PreviewImages` | files | Store a fetched preview image as a file. |

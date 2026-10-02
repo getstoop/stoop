@@ -130,7 +130,13 @@ func (s *Service) UseLiveKit(r LiveKitReporter) { s.livekit = r }
 type ReachabilityEnv struct {
 	Reachability
 	VoiceConfigured bool
+	// VoiceOff: the operator turned voice off (STOOP_VOICE=false).
+	VoiceOff bool
 }
+
+// VoiceAvailable reports whether voice channels work on this server.
+// Also chat's port.
+func (s *Service) VoiceAvailable() bool { return s.env.VoiceConfigured }
 
 // TailscaleStatus is reported by the built-in Tailscale listener.
 type TailscaleStatus struct {
@@ -517,6 +523,7 @@ func (s *Service) reachabilityResponse(ctx context.Context) (*instancev1.GetReac
 		},
 		Tailscale:        &instancev1.TailscaleStatus{},
 		VoiceConfigured:  s.env.VoiceConfigured,
+		VoiceOff:         s.env.VoiceOff,
 		HostTailscale:    hostHasTailscale(),
 		Livekit:          &instancev1.LiveKitStatus{},
 		CloudflareTunnel: &instancev1.CloudflareTunnelStatus{},

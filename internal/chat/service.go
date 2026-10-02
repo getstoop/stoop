@@ -50,6 +50,8 @@ type InstancePolicy interface {
 	MembersMayCreateSpaces(ctx context.Context) (bool, error)
 	// MessageRetentionDays is how long messages are kept; 0 is forever.
 	MessageRetentionDays(ctx context.Context) (int, error)
+	// VoiceAvailable is whether voice channels work on this server.
+	VoiceAvailable() bool
 }
 
 // PresenceLister is chat's port onto the realtime gateway: which of these
@@ -142,9 +144,9 @@ func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID st
 	if !ok {
 		return "", connect.NewError(connect.CodePermissionDenied, errors.New("not a member of this channel's space"))
 	}
-	channel, err := s.q.GetChannel(ctx, channelID)
+	channel, err := s.memberChannel(ctx, channelID)
 	if err != nil {
-		return "", notFoundOr(err, "channel")
+		return "", err
 	}
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return "", err

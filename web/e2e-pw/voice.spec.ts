@@ -1,5 +1,14 @@
 import type { Browser, Page } from "@playwright/test";
-import { acceptDialog, expect, focus, reload, seed, signIn, test } from "./lib";
+import {
+  acceptDialog,
+  expect,
+  focus,
+  hasVoice,
+  reload,
+  seed,
+  signIn,
+  test,
+} from "./lib";
 
 // Voice channels end to end: create one, join by clicking it (which opens
 // its view, muted), see each other in the sidebar (snapshot and live),
@@ -166,14 +175,10 @@ test("voice channels, the stage, and who is in them", async ({
   browser,
   request,
 }) => {
-  // Whether this instance has voice, asked of the instance itself: the
-  // signalling proxy is the one voice route without a session on it, and
-  // it answers 503 while LiveKit is unconfigured. The puppeteer suite
-  // gated on STOOP_E2E_VOICE instead, which said what the runner believed
-  // rather than what the server had.
-  const probe = await request.get("/livekit/");
+  // The puppeteer suite gated on STOOP_E2E_VOICE instead, which said what
+  // the runner believed rather than what the server had.
   test.skip(
-    probe.status() === 503,
+    !(await hasVoice(request)),
     "no LiveKit on this instance (make dev-services)",
   );
   // Two connected browsers, a share and a camera: much longer than the

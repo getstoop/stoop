@@ -17,7 +17,12 @@ import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { isMuted } from "../api/mutes";
 import { canCreateInvites, canManageChannels } from "../api/permissions";
-import { useActivity, useChannels, useSpaces } from "../api/queries";
+import {
+  useActivity,
+  useChannels,
+  useSpaces,
+  useVoiceAvailable,
+} from "../api/queries";
 import {
   copyShareLink,
   shareOrigin,
@@ -64,6 +69,10 @@ export function SpaceLayout() {
   const manage = !!space && canManageChannels(space);
   const voiceChannels =
     channels?.filter((c) => c.kind === ChannelKind.VOICE) ?? [];
+  // With voice off the server lists no voice channels; this hides the
+  // empty group from those who could otherwise add to it.
+  const voiceAvailable = useVoiceAvailable();
+  const addVoice = manage && voiceAvailable;
 
   // Kicked, left, or the space was deleted: the list no longer has it.
   if (spaces && !space) {
@@ -263,10 +272,10 @@ export function SpaceLayout() {
               <ChannelMenu channel={channel} space={space} />
             </div>
           ))}
-          {(voiceChannels.length > 0 || manage) && (
+          {(voiceChannels.length > 0 || addVoice) && (
             <ChannelGroupHeading
               label="Voice channels"
-              add={manage ? "Add voice channel" : undefined}
+              add={addVoice ? "Add voice channel" : undefined}
               onAdd={() => createChannel(ChannelKind.VOICE)}
               divided
             />

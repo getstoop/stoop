@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { chatClient } from "../../api/clients";
+import { useVoiceAvailable } from "../../api/queries";
 import { MAX_SPACE_NAME } from "../../api/spaces";
 import { Field } from "../../components/Field";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
@@ -17,6 +18,7 @@ export function SpaceStep({
   const [name, setName] = useState("");
   const form = useFieldErrors(["name"]);
   const [busy, setBusy] = useState(false);
+  const voiceAvailable = useVoiceAvailable();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -46,8 +48,8 @@ export function SpaceStep({
         <strong>Create your first space.</strong>
       </p>
       <p className="hint">
-        A space is where your people hang out — it holds channels for text and
-        voice. You can make more later.
+        A space is where your people hang out — it holds channels for text
+        {voiceAvailable ? " and voice" : ""}. You can make more later.
       </p>
       <Field label="Space name" error={form.errors.name}>
         <input

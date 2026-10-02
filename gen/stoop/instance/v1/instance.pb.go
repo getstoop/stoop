@@ -329,8 +329,12 @@ type GetInstanceStatusResponse struct {
 	// Attachments older than this many days are deleted and shown as
 	// expired, pinned messages' files excepted; 0 keeps them forever.
 	AttachmentRetentionDays int32 `protobuf:"varint,18,opt,name=attachment_retention_days,json=attachmentRetentionDays,proto3" json:"attachment_retention_days,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Whether voice channels work here. False when the operator turned
+	// voice off (STOOP_VOICE=false) or no LiveKit is configured; voice
+	// channels are then not listed and cannot be created.
+	VoiceAvailable bool `protobuf:"varint,19,opt,name=voice_available,json=voiceAvailable,proto3" json:"voice_available,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetInstanceStatusResponse) Reset() {
@@ -487,6 +491,13 @@ func (x *GetInstanceStatusResponse) GetAttachmentRetentionDays() int32 {
 		return x.AttachmentRetentionDays
 	}
 	return 0
+}
+
+func (x *GetInstanceStatusResponse) GetVoiceAvailable() bool {
+	if x != nil {
+		return x.VoiceAvailable
+	}
+	return false
 }
 
 type UpdateSettingsRequest struct {
@@ -1622,8 +1633,11 @@ type GetReachabilityResponse struct {
 	// The voice sidecar's own state.
 	Livekit          *LiveKitStatus          `protobuf:"bytes,5,opt,name=livekit,proto3" json:"livekit,omitempty"`
 	CloudflareTunnel *CloudflareTunnelStatus `protobuf:"bytes,6,opt,name=cloudflare_tunnel,json=cloudflareTunnel,proto3" json:"cloudflare_tunnel,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The operator turned voice off (STOOP_VOICE=false), which is why
+	// voice_configured is false whatever LiveKit settings exist.
+	VoiceOff      bool `protobuf:"varint,7,opt,name=voice_off,json=voiceOff,proto3" json:"voice_off,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetReachabilityResponse) Reset() {
@@ -1696,6 +1710,13 @@ func (x *GetReachabilityResponse) GetCloudflareTunnel() *CloudflareTunnelStatus 
 		return x.CloudflareTunnel
 	}
 	return nil
+}
+
+func (x *GetReachabilityResponse) GetVoiceOff() bool {
+	if x != nil {
+		return x.VoiceOff
+	}
+	return false
 }
 
 type UpdateReachabilityRequest struct {
@@ -2226,7 +2247,7 @@ var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
 const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\n" +
 	" stoop/instance/v1/instance.proto\x12\x11stoop.instance.v1\x1a\x18stoop/auth/v1/auth.proto\x1a#stoop/instance/v1/diagnostics.proto\x1a!stoop/instance/v1/providers.proto\x1a$stoop/instance/v1/reachability.proto\x1a\x1cstoop/instance/v1/user.proto\"\x1a\n" +
-	"\x18GetInstanceStatusRequest\"\x85\b\n" +
+	"\x18GetInstanceStatusRequest\"\xae\b\n" +
 	"\x19GetInstanceStatusResponse\x12\x1f\n" +
 	"\vneeds_setup\x18\x01 \x01(\bR\n" +
 	"needsSetup\x12V\n" +
@@ -2248,7 +2269,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\rself_deletion\x18\x0f \x01(\bR\fselfDeletion\x122\n" +
 	"\x15session_lifetime_days\x18\x10 \x01(\x05R\x13sessionLifetimeDays\x124\n" +
 	"\x16message_retention_days\x18\x11 \x01(\x05R\x14messageRetentionDays\x12:\n" +
-	"\x19attachment_retention_days\x18\x12 \x01(\x05R\x17attachmentRetentionDays\"\xcd\t\n" +
+	"\x19attachment_retention_days\x18\x12 \x01(\x05R\x17attachmentRetentionDays\x12'\n" +
+	"\x0fvoice_available\x18\x13 \x01(\bR\x0evoiceAvailable\"\xcd\t\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
 	"\x0espace_creation\x18\x02 \x01(\x0e2&.stoop.instance.v1.SpaceCreationPolicyH\x01R\rspaceCreation\x88\x01\x01\x123\n" +
@@ -2330,14 +2352,15 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"P\n" +
 	"\x19TransferOwnershipResponse\x123\n" +
 	"\x04user\x18\x01 \x01(\v2\x1f.stoop.instance.v1.InstanceUserR\x04user\"\x18\n" +
-	"\x16GetReachabilityRequest\"\x86\x03\n" +
+	"\x16GetReachabilityRequest\"\xa3\x03\n" +
 	"\x17GetReachabilityResponse\x12C\n" +
 	"\freachability\x18\x01 \x01(\v2\x1f.stoop.instance.v1.ReachabilityR\freachability\x12@\n" +
 	"\ttailscale\x18\x02 \x01(\v2\".stoop.instance.v1.TailscaleStatusR\ttailscale\x12)\n" +
 	"\x10voice_configured\x18\x03 \x01(\bR\x0fvoiceConfigured\x12%\n" +
 	"\x0ehost_tailscale\x18\x04 \x01(\bR\rhostTailscale\x12:\n" +
 	"\alivekit\x18\x05 \x01(\v2 .stoop.instance.v1.LiveKitStatusR\alivekit\x12V\n" +
-	"\x11cloudflare_tunnel\x18\x06 \x01(\v2).stoop.instance.v1.CloudflareTunnelStatusR\x10cloudflareTunnel\"\x96\x04\n" +
+	"\x11cloudflare_tunnel\x18\x06 \x01(\v2).stoop.instance.v1.CloudflareTunnelStatusR\x10cloudflareTunnel\x12\x1b\n" +
+	"\tvoice_off\x18\a \x01(\bR\bvoiceOff\"\x96\x04\n" +
 	"\x19UpdateReachabilityRequest\x12\"\n" +
 	"\n" +
 	"public_url\x18\x01 \x01(\tH\x00R\tpublicUrl\x88\x01\x01\x125\n" +

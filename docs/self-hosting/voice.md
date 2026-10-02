@@ -5,8 +5,8 @@ each browser and LiveKit. Voice needs three things:
 
 1. **A LiveKit server.** The compose file runs one, and Stoop mints the
    key pair the two share on first boot; there is nothing to set. With
-   `STOOP_LIVEKIT_URL` empty, voice is off and joining fails with "voice is
-   not configured". To use a LiveKit you run elsewhere, or LiveKit Cloud,
+   `STOOP_LIVEKIT_URL` empty, voice is off, as it is when you
+   [turn it off](#running-without-voice). To use a LiveKit you run elsewhere, or LiveKit Cloud,
    set `STOOP_LIVEKIT_URL` and that server's pair in
    `STOOP_LIVEKIT_API_KEY` / `STOOP_LIVEKIT_API_SECRET`.
 2. **Media ports reachable**, or a [TURN relay](#turn-when-media-ports-cant-be-reached).
@@ -16,6 +16,12 @@ each browser and LiveKit. Voice needs three things:
    advertise (`use_external_ip: true`); on a LAN-only install, set
    `NODE_IP` in `.env` to the machine's LAN address instead.
 3. **HTTPS**, see [Reaching your server](reaching-your-server.md).
+
+## Running without voice
+
+Set `STOOP_VOICE=false` in `.env` and restart Stoop. Voice channels are
+hidden and none can be created. Nothing is deleted: set it back to `true`
+and they return.
 
 ## TURN, when media ports can't be reached
 
@@ -57,7 +63,7 @@ available from phone browsers; cameras are.
 
 | Symptom | Cause |
 | --- | --- |
-| Joining fails with "voice is not configured" | `STOOP_LIVEKIT_URL` not set |
+| No space has voice channels, and none can be added | `STOOP_LIVEKIT_URL` not set, or `STOOP_VOICE=false` |
 | Joining fails with an error mentioning the microphone; or you join but the mic button is stuck muted | Not a secure origin — you need HTTPS off `localhost` |
 | Joining fails after ~15 s with "Couldn't establish an audio connection" | Media ports unreachable from that network: not forwarded, wrong `NODE_IP`, or an HTTP-only tunnel with no TURN. `docker compose logs livekit` shows "removing participant without connection" with the ICE candidates it tried |
 | Everyone shows as connected, nobody hears anyone | The same, but the media path broke after the join (a network change); leave and rejoin, then check the row above |

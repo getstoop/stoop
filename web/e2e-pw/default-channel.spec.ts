@@ -3,6 +3,7 @@ import {
   acceptDialog,
   channelLink,
   expect,
+  hasVoice,
   pastGate,
   seed,
   signIn,
@@ -15,7 +16,10 @@ import {
 // Ported from web/e2e/default-channel.mjs (STOOP-238).
 const SELECT = 'select[name="default-channel"]';
 
-test("the channel a space opens in", async ({ browser }) => {
+test("the channel a space opens in", async ({ browser, request }) => {
+  // A server without voice has no voice channel to keep out of the
+  // choices.
+  const voice = await hasVoice(request);
   const { invite, password, space, suffix, tokens } = await seed({
     users: ["ada"],
     channels: ["general"],
@@ -56,9 +60,11 @@ test("the channel a space opens in", async ({ browser }) => {
   await A.locator(".channel-group-heading .channel-add:not(.voice)").click();
   await acceptDialog(A, "tools");
   await channelLink(A, "tools").waitFor();
-  await A.locator(".channel-group-heading .channel-add.voice").click();
-  await acceptDialog(A, "porch-swing");
-  await channelLink(A, "porch-swing").waitFor();
+  if (voice) {
+    await A.locator(".channel-group-heading .channel-add.voice").click();
+    await acceptDialog(A, "porch-swing");
+    await channelLink(A, "porch-swing").waitFor();
+  }
 
   await settings(A);
   await expect(options(A).first(), "unset is the first option").toHaveText(

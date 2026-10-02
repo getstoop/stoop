@@ -79,7 +79,9 @@ func (s *Service) ListSpaces(ctx context.Context, req *connect.Request[chatv1.Li
 	if req.Msg.All {
 		return s.listAllSpaces(ctx)
 	}
-	rows, err := s.q.ListSpacesByUser(ctx, authctx.UserID(ctx))
+	rows, err := s.q.ListSpacesByUser(ctx, dbgen.ListSpacesByUserParams{
+		UserID: authctx.UserID(ctx), WithVoice: s.voiceOn(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list spaces: %w", err)
 	}

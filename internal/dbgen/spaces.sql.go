@@ -212,15 +212,21 @@ SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file
         SELECT 1 FROM channels c
         LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = m.user_id
         WHERE c.space_id = s.id
+          AND ($1::bool OR c.kind <> 2)
           AND c.last_message_id IS NOT NULL
           AND (r.last_read_message_id IS NULL OR c.last_message_id > r.last_read_message_id)
           AND NOT EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = m.user_id)
     ) AS has_unread
 FROM spaces s
 JOIN space_members m ON m.space_id = s.id
-WHERE m.user_id = $1
+WHERE m.user_id = $2
 ORDER BY m.joined_at
 `
+
+type ListSpacesByUserParams struct {
+	WithVoice bool
+	UserID    string
+}
 
 type ListSpacesByUserRow struct {
 	Space     Space
@@ -232,9 +238,10 @@ type ListSpacesByUserRow struct {
 // ListSpacesByUser also returns the caller's role in each space, whether
 // any channel there has messages newer than their read marker, and their
 // own mute for the space. has_unread does not know about space mutes; the
-// client derives the effective state from both flags.
-func (q *Queries) ListSpacesByUser(ctx context.Context, userID string) ([]ListSpacesByUserRow, error) {
-	rows, err := q.db.Query(ctx, listSpacesByUser, userID)
+// client derives the effective state from both flags. Hidden voice
+// channels (kind 2) don't count.
+func (q *Queries) ListSpacesByUser(ctx context.Context, arg ListSpacesByUserParams) ([]ListSpacesByUserRow, error) {
+	rows, err := q.db.Query(ctx, listSpacesByUser, arg.WithVoice, arg.UserID)
 	if err != nil {
 		return nil, err
 	}

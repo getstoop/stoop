@@ -188,7 +188,7 @@ func TestLoad_LiveKitMedia(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.LiveKitMediaHost != "127.0.0.1" || cfg.LiveKitTCPPort != 7881 ||
-		cfg.LiveKitUDPStart != 50000 || cfg.LiveKitUDPEnd != 50100 || !cfg.TailscaleVoice {
+		cfg.LiveKitUDPStart != 50000 || cfg.LiveKitUDPEnd != 50100 || !cfg.TailscaleVoice || !cfg.Voice {
 		t.Fatalf("defaults should match LiveKit's own: %+v", cfg)
 	}
 
@@ -196,11 +196,12 @@ func TestLoad_LiveKitMedia(t *testing.T) {
 	t.Setenv("STOOP_LIVEKIT_TCP_PORT", "7882")
 	t.Setenv("STOOP_LIVEKIT_UDP_PORTS", "60000-60010")
 	t.Setenv("STOOP_TAILSCALE_VOICE", "false")
+	t.Setenv("STOOP_VOICE", "false")
 	if cfg, err = Load(); err != nil {
 		t.Fatal(err)
 	}
 	if cfg.LiveKitMediaHost != "livekit" || cfg.LiveKitTCPPort != 7882 ||
-		cfg.LiveKitUDPStart != 60000 || cfg.LiveKitUDPEnd != 60010 || cfg.TailscaleVoice {
+		cfg.LiveKitUDPStart != 60000 || cfg.LiveKitUDPEnd != 60010 || cfg.TailscaleVoice || cfg.Voice {
 		t.Fatalf("overrides not applied: %+v", cfg)
 	}
 

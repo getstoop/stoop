@@ -50,23 +50,25 @@ SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_ever
     COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
-WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = $1::uuid)
+WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = $1::uuid
+        AND ($2::bool OR c.kind <> 2))
   AND m.search @@ (CASE
-      WHEN $2::text = '' THEN websearch_to_tsquery('simple', $3::text)
-      WHEN $3::text = '' THEN to_tsquery('simple', $2::text)
-      ELSE websearch_to_tsquery('simple', $3::text) && to_tsquery('simple', $2::text)
+      WHEN $3::text = '' THEN websearch_to_tsquery('simple', $4::text)
+      WHEN $4::text = '' THEN to_tsquery('simple', $3::text)
+      ELSE websearch_to_tsquery('simple', $4::text) && to_tsquery('simple', $3::text)
       END)
-  AND ($4::uuid IS NULL OR m.channel_id = $4::uuid)
-  AND ($5::uuid IS NULL OR m.author_id = $5::uuid)
-  AND ($6::timestamptz IS NULL OR m.created_at >= $6::timestamptz)
-  AND ($7::timestamptz IS NULL OR m.created_at < $7::timestamptz)
-  AND ($8::uuid IS NULL OR m.id < $8::uuid)
+  AND ($5::uuid IS NULL OR m.channel_id = $5::uuid)
+  AND ($6::uuid IS NULL OR m.author_id = $6::uuid)
+  AND ($7::timestamptz IS NULL OR m.created_at >= $7::timestamptz)
+  AND ($8::timestamptz IS NULL OR m.created_at < $8::timestamptz)
+  AND ($9::uuid IS NULL OR m.id < $9::uuid)
 ORDER BY m.id DESC
-LIMIT $9
+LIMIT $10
 `
 
 type SearchMessagesParams struct {
 	SpaceID   string
+	WithVoice bool
 	Prefix    string
 	Words     string
 	ChannelID *string
@@ -98,10 +100,11 @@ type SearchMessagesRow struct {
 // columns as ListMessagesBefore so rows hydrate through one path. `words`
 // is websearch syntax; `prefix` is a quoted lexeme with :* or "" (see
 // internal/chat/search_query.go). Dates bound created_at; the cursor
-// bounds id.
+// bounds id. Hidden voice channels (kind 2) are left out.
 func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) ([]SearchMessagesRow, error) {
 	rows, err := q.db.Query(ctx, searchMessages,
 		arg.SpaceID,
+		arg.WithVoice,
 		arg.Prefix,
 		arg.Words,
 		arg.ChannelID,
