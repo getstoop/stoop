@@ -50,3 +50,27 @@ func TestUploadRefusedAtLimitWithoutReadingBody(t *testing.T) {
 		t.Errorf("body was read %d times before the refusal", body.reads)
 	}
 }
+
+// An admitted upload gives its slot back when the request ends, however
+// it ends.
+func TestUploadReleasesItsSlot(t *testing.T) {
+	svc := &Service{
+		sessions: fixedSession{userID: "casey"},
+		inflight: newInflight(MaxInflightUploads),
+		log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	for range MaxInflightUploads + 1 {
+		req := httptest.NewRequest(http.MethodPost, "/files/upload", &watchedBody{})
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=x")
+		rec := httptest.NewRecorder()
+		svc.UploadHandler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400 for an empty form", rec.Code)
+		}
+	}
+	for range MaxInflightUploads {
+		if !svc.inflight.acquire("casey") {
+			t.Fatal("a finished upload kept its slot")
+		}
+	}
+}
