@@ -35,8 +35,8 @@ type Store[V any] interface {
 }
 
 // Backend is what internal/app wires. Open returns the store named name,
-// bounded to cap entries; the name is the store's namespace, and each is
-// opened once.
+// bounded to cap entries (at least one); the name is the store's
+// namespace, and each is opened once.
 type Backend interface {
 	Open(name string, cap int) Store[any]
 }
@@ -59,7 +59,9 @@ func (s typed[V]) Get(ctx context.Context, key string) (V, bool, error) {
 	if err != nil || !found {
 		return zero, false, err
 	}
-	return value.(V), true, nil
+	// A stored nil reads back as the zero value rather than a panic.
+	typedValue, _ := value.(V)
+	return typedValue, true, nil
 }
 
 func (s typed[V]) Set(ctx context.Context, key string, value V, ttl time.Duration) error {
@@ -68,10 +70,7 @@ func (s typed[V]) Set(ctx context.Context, key string, value V, ttl time.Duratio
 
 func (s typed[V]) Update(ctx context.Context, key string, change func(current V, found bool) (V, time.Duration, bool)) error {
 	return s.raw.Update(ctx, key, func(current any, found bool) (any, time.Duration, bool) {
-		var value V
-		if found {
-			value = current.(V)
-		}
+		value, _ := current.(V)
 		return change(value, found)
 	})
 }

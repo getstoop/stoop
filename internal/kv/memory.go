@@ -24,13 +24,16 @@ func NewMemory(now func() time.Time) *Memory {
 	return &Memory{now: now, stores: map[string]*memoryStore{}}
 }
 
-// Open returns a new store. A name opened twice is a wiring mistake and
-// stops the program.
+// Open returns a new store. A name opened twice or a cap under one is a
+// wiring mistake and stops the program.
 func (m *Memory) Open(name string, cap int) Store[any] {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if _, taken := m.stores[name]; taken {
 		panic(fmt.Sprintf("kv: store %q opened twice", name))
+	}
+	if cap < 1 {
+		panic(fmt.Sprintf("kv: store %q opened with cap %d", name, cap))
 	}
 	store := &memoryStore{cap: cap, now: m.now, entries: map[string]memoryEntry{}}
 	m.stores[name] = store
@@ -48,6 +51,12 @@ func (m *Memory) Each(visit func(name string, store Store[any])) {
 
 // sweepEvery bounds how often a write pays for a full scan.
 const sweepEvery = time.Minute
+
+// evictSample is how many entries a full store looks at to pick the one
+// to evict. A full scan per new key would make a flood of keys cost a
+// walk of the whole store each; a sample keeps the cost flat, and a map
+// iteration starts somewhere different every time.
+const evictSample = 16
 
 type memoryStore struct {
 	cap int
@@ -151,23 +160,28 @@ func (s *memoryStore) dropExpiredLocked() {
 	}
 }
 
-// makeRoomLocked frees a slot for a new key when the store is full: the
-// entry nearest its expiry goes, since it is the one with least left to
-// say.
+// makeRoomLocked frees a slot for a new key when the store is full. An
+// expired entry in the sample goes first; failing that, the one nearest
+// its expiry, since it is the one with least left to say.
 func (s *memoryStore) makeRoomLocked() {
 	if len(s.entries) < s.cap {
 		return
 	}
-	s.dropExpiredLocked()
-	if len(s.entries) < s.cap {
-		return
-	}
+	now := s.now()
 	var soonestKey string
 	var soonest time.Time
-	first := true
+	seen := 0
 	for key, entry := range s.entries {
-		if first || entry.expires.Before(soonest) {
-			soonestKey, soonest, first = key, entry.expires, false
+		if !now.Before(entry.expires) {
+			delete(s.entries, key)
+			return
+		}
+		if seen == 0 || entry.expires.Before(soonest) {
+			soonestKey, soonest = key, entry.expires
+		}
+		seen++
+		if seen == evictSample {
+			break
 		}
 	}
 	delete(s.entries, soonestKey)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 )
@@ -179,6 +180,63 @@ func TestMemoryDeleteAndLen(t *testing.T) {
 	}
 }
 
+func TestMemoryUpdateIsAtomic(t *testing.T) {
+	ctx := context.Background()
+	store := openCounter(t, newClock(), 10)
+	const workers, perWorker = 8, 500
+	increment := func(current int, _ bool) (int, time.Duration, bool) {
+		return current + 1, time.Hour, true
+	}
+	var wait sync.WaitGroup
+	for range workers {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for range perWorker {
+				if err := store.Update(ctx, "shared", increment); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+	wait.Wait()
+	if value, _, _ := store.Get(ctx, "shared"); value != workers*perWorker {
+		t.Fatalf("count = %d, want %d", value, workers*perWorker)
+	}
+}
+
+func TestMemoryNilValueReadsAsZero(t *testing.T) {
+	ctx := context.Background()
+	backend := NewMemory(nil)
+	store := Open[any](backend, "anything", 10)
+	if err := store.Set(ctx, "none", nil, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	value, found, err := store.Get(ctx, "none")
+	if err != nil || !found || value != nil {
+		t.Fatalf("got %v, %v, %v; want nil, true, nil", value, found, err)
+	}
+	var sawFound bool
+	err = store.Update(ctx, "none", func(current any, found bool) (any, time.Duration, bool) {
+		sawFound = found
+		return current, 0, true
+	})
+	if err != nil || !sawFound {
+		t.Fatalf("update saw found=%v, err=%v", sawFound, err)
+	}
+}
+
+func TestMemoryOpenRefusesNoCap(t *testing.T) {
+	backend := NewMemory(nil)
+	defer func() {
+		if recover() == nil {
+			t.Fatal("a cap under one should panic")
+		}
+	}()
+	backend.Open("empty", 0)
+}
+
 func TestMemoryOpenTwicePanics(t *testing.T) {
 	backend := NewMemory(nil)
 	backend.Open("once", 1)
@@ -203,5 +261,38 @@ func TestMemoryEach(t *testing.T) {
 	})
 	if !seen["first"] || !seen["second"] {
 		t.Fatalf("each visited %v", seen)
+	}
+}
+
+func BenchmarkMemorySetWhenFull(b *testing.B) {
+	ctx := context.Background()
+	store := Open[int](NewMemory(nil), "full", 100_000)
+	for index := range 100_000 {
+		_ = store.Set(ctx, fmt.Sprint(index), index, time.Hour)
+	}
+	b.ResetTimer()
+	for index := range b.N {
+		_ = store.Set(ctx, fmt.Sprint("new", index), index, time.Hour)
+	}
+}
+
+func TestBrokenAnswersTheError(t *testing.T) {
+	ctx := context.Background()
+	boom := errors.New("boom")
+	store := Open[int](Broken(boom), "any", 1)
+	if _, _, err := store.Get(ctx, "k"); !errors.Is(err, boom) {
+		t.Fatalf("Get err = %v", err)
+	}
+	if err := store.Set(ctx, "k", 1, time.Hour); !errors.Is(err, boom) {
+		t.Fatalf("Set err = %v", err)
+	}
+	if err := store.Update(ctx, "k", func(int, bool) (int, time.Duration, bool) { return 1, time.Hour, true }); !errors.Is(err, boom) {
+		t.Fatalf("Update err = %v", err)
+	}
+	if err := store.Delete(ctx, "k"); !errors.Is(err, boom) {
+		t.Fatalf("Delete err = %v", err)
+	}
+	if _, err := store.Len(ctx); !errors.Is(err, boom) {
+		t.Fatalf("Len err = %v", err)
 	}
 }
