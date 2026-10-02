@@ -33,8 +33,15 @@ in, and usually exposes a Connect service. There are seven: `auth`,
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
 `authctx`, `accesswire`, `apierr`, `rowid`, `release`, `diag`, `blob`,
-`unfurl`, `netguard`, `ratelimit`, `trustedproxy`, `tailnet`, `cftunnel`,
+`unfurl`, `kv`, `netguard`, `ratelimit`, `trustedproxy`, `tailnet`, `cftunnel`,
 `buildinfo`, `webui`.
+
+Keyed state that lives and dies in memory — a lockout per username, a
+sign-in attempt per desktop window, a bucket per client address — goes in
+a `kv` store, never in a new map with its own mutex. Every store has a
+cap and every entry a ttl. `internal/app` opens the backend and hands it
+to the modules; today that is the in-process one, and a shared one would
+be another backend wired in the same place.
 
 `internal/app` is neither. It is the composition root, and it is allowed to
 know everything.
