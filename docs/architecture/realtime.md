@@ -33,7 +33,8 @@ type Bus interface {
 **Two topic shapes, and only two.** `space:<id>` reaches everyone in a
 space; `user:<id>` reaches one person across all their connections. Every
 connection subscribes to its own `user:` topic plus one `space:` topic per
-membership.
+membership. `events.SpaceTopic` and `events.UserTopic` build the
+names.
 
 That there is no `channel:` topic is a design decision with real
 consequences. Channel-level fan-out would mean the gateway tracking which

@@ -34,7 +34,7 @@ func (s *Service) SetChannelMuted(ctx context.Context, req *connect.Request[chat
 	}
 	out := toProtoChannel(channel)
 	out.Muted = req.Msg.Muted
-	s.bus.Publish("user:"+userID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelMuted{
 			ChannelMuted: &realtimev1.ChannelMuted{
 				SpaceId: spaceOf(channel), ChannelId: channel.ID, Muted: req.Msg.Muted,

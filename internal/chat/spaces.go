@@ -193,13 +193,13 @@ func (s *Service) GetSpace(ctx context.Context, req *connect.Request[chatv1.GetS
 // publishSpaceJoined tells the joiner's live connections about their new
 // space; the gateway also uses it to subscribe them to the space's events.
 func (s *Service) publishSpaceJoined(userID string, space dbgen.Space, viewer actor) {
-	s.bus.Publish("user:"+userID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceJoined{
 			SpaceJoined: &realtimev1.SpaceJoined{Space: toProtoSpace(space, viewer, authctx.Credential{})},
 		},
 	}))
 	// Existing members learn about the newcomer on the space topic.
-	s.bus.Publish("space:"+space.ID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(space.ID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MemberJoined{
 			MemberJoined: &realtimev1.MemberJoined{SpaceId: space.ID, UserId: userID},
 		},
@@ -303,7 +303,7 @@ func (s *Service) SetSpaceIcon(ctx context.Context, spaceID, fileID string) (pre
 	if err != nil {
 		return "", notFoundOr(err, "space")
 	}
-	s.bus.Publish("space:"+space.ID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(space.ID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceUpdated{
 			SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(space, actor{}, authctx.Credential{})},
 		},
@@ -376,7 +376,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 	if err != nil {
 		return nil, err
 	}
-	s.bus.Publish("space:"+space.ID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(space.ID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceUpdated{
 			SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(space, actor{}, authctx.Credential{})},
 		},
@@ -446,7 +446,7 @@ func (s *Service) DeleteSpace(ctx context.Context, req *connect.Request[chatv1.D
 	s.closeVoiceRooms(ctx, voiceChannels...)
 	// Subscriptions are topic-based, so members still hear this after the
 	// rows are gone (and the gateway drops the topic on receipt).
-	s.bus.Publish("space:"+req.Msg.SpaceId, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(req.Msg.SpaceId), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceDeleted{
 			SpaceDeleted: &realtimev1.SpaceDeleted{SpaceId: req.Msg.SpaceId},
 		},

@@ -67,7 +67,7 @@ func (s *Service) announceDoNotDisturb(u dbgen.User) {
 		return
 	}
 	on, until := dndState(u.Dnd, u.DndUntil, time.Now())
-	s.bus.Publish("user:"+u.ID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.UserTopic(u.ID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_DoNotDisturbChanged{
 			DoNotDisturbChanged: &realtimev1.DoNotDisturbChanged{
 				UserId: u.ID, Dnd: on, Until: timestampOrNil(until),

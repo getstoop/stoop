@@ -94,7 +94,7 @@ func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.
 // bookkeeping).
 func (s *Service) publishChannel(ctx context.Context, channel dbgen.Channel, ev *realtimev1.ServerEvent) {
 	if !isDM(channel) {
-		s.bus.Publish("space:"+*channel.SpaceID, ev)
+		s.bus.Publish(events.SpaceTopic(*channel.SpaceID), ev)
 		return
 	}
 	ids, err := s.q.ListDMMembers(ctx, channel.ID)
@@ -103,7 +103,7 @@ func (s *Service) publishChannel(ctx context.Context, channel dbgen.Channel, ev 
 		return
 	}
 	for _, id := range ids {
-		s.bus.Publish("user:"+id, ev)
+		s.bus.Publish(events.UserTopic(id), ev)
 	}
 }
 
@@ -231,7 +231,7 @@ func (s *Service) reopenDM(ctx context.Context, channel dbgen.Channel) {
 		return
 	}
 	for _, uid := range reopened {
-		s.bus.Publish("user:"+uid, events.Stamp(&realtimev1.ServerEvent{
+		s.bus.Publish(events.UserTopic(uid), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ChannelCreated{ChannelCreated: toProtoChannel(channel)},
 		}))
 	}

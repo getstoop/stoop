@@ -127,7 +127,7 @@ func (g *Gateway) handleVoiceState(ctx context.Context, userID string, conn uint
 	}
 	// Unknown channel, a text channel, or a space this connection isn't
 	// subscribed to (so not a member of): ignore the report.
-	if spaceID == "" || !sub.Has("space:"+spaceID) {
+	if spaceID == "" || !sub.Has(events.SpaceTopic(spaceID)) {
 		return
 	}
 	left, now := g.voice.set(userID, conn, spaceID, vs)
@@ -154,7 +154,7 @@ func (g *Gateway) channelDeleted(channelID string) {
 }
 
 func (g *Gateway) publishVoice(userID string, e *voiceEntry, joined bool) {
-	g.bus.Publish("space:"+e.spaceID, events.Stamp(&realtimev1.ServerEvent{
+	g.bus.Publish(events.SpaceTopic(e.spaceID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_VoiceStateChanged{
 			VoiceStateChanged: &realtimev1.VoiceStateChanged{
 				Participant: e.participant(userID), Joined: joined,

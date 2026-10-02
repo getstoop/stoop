@@ -41,7 +41,7 @@ func (s *Service) SetSpaceMuted(ctx context.Context, req *connect.Request[chatv1
 	}
 	out := toProtoSpace(space, a, callerCredential(ctx))
 	out.Muted = req.Msg.Muted
-	s.bus.Publish("user:"+userID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_SpaceMuted{
 			SpaceMuted: &realtimev1.SpaceMuted{SpaceId: space.ID, Muted: req.Msg.Muted},
 		},

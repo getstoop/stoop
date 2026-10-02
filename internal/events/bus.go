@@ -23,6 +23,12 @@ var droppedSubscribers = diag.NewCounter("bus_dropped_total", "Subscribers dropp
 // Topic naming: "space:<id>" for space-wide events, "user:<id>" for events
 // addressed to one user (across all their connections).
 
+// SpaceTopic names the topic for everything that happens in a space.
+func SpaceTopic(spaceID string) string { return "space:" + spaceID }
+
+// UserTopic names the topic for one person's own events.
+func UserTopic(userID string) string { return "user:" + userID }
+
 type Bus interface {
 	Publish(topic string, ev *realtimev1.ServerEvent)
 	Subscribe(topics ...string) *Subscription

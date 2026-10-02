@@ -103,9 +103,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	topics := make([]string, 0, len(spaceIDs)+1)
-	topics = append(topics, "user:"+userID)
+	topics = append(topics, events.UserTopic(userID))
 	for _, id := range spaceIDs {
-		topics = append(topics, "space:"+id)
+		topics = append(topics, events.SpaceTopic(id))
 	}
 	sub := g.bus.Subscribe(topics...)
 	defer sub.Close()
@@ -222,19 +222,19 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			joinedSpace := ""
 			if joined := ev.GetSpaceJoined(); joined != nil {
 				joinedSpace = joined.Space.Id
-				sub.Add("space:" + joinedSpace)
+				sub.Add(events.SpaceTopic(joinedSpace))
 				g.presence.addSpace(userID, joinedSpace)
 				g.publishPresence(userID, []string{joinedSpace}, true)
 			}
 			// Kicked, left, or the space is gone: stop receiving its events.
 			if removed := ev.GetMemberRemoved(); removed != nil && removed.UserId == userID {
 				g.leaveVoice(userID, 0, removed.SpaceId)
-				sub.Remove("space:" + removed.SpaceId)
+				sub.Remove(events.SpaceTopic(removed.SpaceId))
 				g.presence.removeSpace(userID, removed.SpaceId)
 			}
 			if deleted := ev.GetSpaceDeleted(); deleted != nil {
 				g.leaveVoice(userID, 0, deleted.SpaceId)
-				sub.Remove("space:" + deleted.SpaceId)
+				sub.Remove(events.SpaceTopic(deleted.SpaceId))
 				g.presence.removeSpace(userID, deleted.SpaceId)
 			}
 			if deleted := ev.GetChannelDeleted(); deleted != nil {
@@ -303,7 +303,7 @@ func (g *Gateway) sendSpaceSnapshot(ctx context.Context, conn *websocket.Conn, s
 func (g *Gateway) publishPresence(userID string, spaceIDs []string, online bool) {
 	dnd := online && g.presence.dndOf(userID)
 	for _, s := range spaceIDs {
-		g.bus.Publish("space:"+s, events.Stamp(&realtimev1.ServerEvent{
+		g.bus.Publish(events.SpaceTopic(s), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_PresenceChanged{
 				PresenceChanged: &realtimev1.PresenceChanged{UserId: userID, Online: online, Dnd: dnd},
 			},
@@ -326,10 +326,10 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Su
 
 	var topics []string
 	if t.SpaceId != "" {
-		if !sub.Has("space:" + t.SpaceId) {
+		if !sub.Has(events.SpaceTopic(t.SpaceId)) {
 			return
 		}
-		topics = []string{"space:" + t.SpaceId}
+		topics = []string{events.SpaceTopic(t.SpaceId)}
 	} else {
 		ids, err := g.channels.DMParticipants(ctx, t.ChannelId)
 		if err != nil {
@@ -341,7 +341,7 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Su
 			if id == userID {
 				mine = true
 			} else {
-				topics = append(topics, "user:"+id)
+				topics = append(topics, events.UserTopic(id))
 			}
 		}
 		if !mine {

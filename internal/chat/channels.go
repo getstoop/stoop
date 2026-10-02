@@ -105,7 +105,7 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 
-	s.bus.Publish("space:"+req.Msg.SpaceId, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(req.Msg.SpaceId), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelCreated{
 			ChannelCreated: toProtoChannel(channel),
 		},
@@ -221,7 +221,7 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 	out := toProtoChannel(row)
-	s.bus.Publish("space:"+spaceOf(channel), events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelUpdated{ChannelUpdated: out},
 	}))
 	return connect.NewResponse(&chatv1.UpdateChannelResponse{Channel: out}), nil
@@ -273,7 +273,7 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, fmt.Errorf("commit: %w", err)
 	}
 
-	s.bus.Publish("space:"+spaceOf(channel), events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelDeleted{
 			ChannelDeleted: &realtimev1.ChannelDeleted{SpaceId: spaceOf(channel), ChannelId: channel.ID},
 		},
@@ -285,7 +285,7 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	// was actually written: members whose settings page is open would
 	// otherwise go on being offered a channel that is gone.
 	if wasDefault {
-		s.bus.Publish("space:"+cleared.ID, events.Stamp(&realtimev1.ServerEvent{
+		s.bus.Publish(events.SpaceTopic(cleared.ID), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_SpaceUpdated{
 				SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(cleared, actor{}, authctx.Credential{})},
 			},
@@ -346,7 +346,7 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 		channels[i] = toProtoChannel(r.Channel)
 	}
 	// Broadcast without per-caller read markers; clients keep their own.
-	s.bus.Publish("space:"+req.Msg.SpaceId, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.SpaceTopic(req.Msg.SpaceId), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelsReordered{
 			ChannelsReordered: &realtimev1.ChannelsReordered{SpaceId: req.Msg.SpaceId, Channels: channels},
 		},
@@ -375,7 +375,7 @@ func (s *Service) MarkChannelRead(ctx context.Context, req *connect.Request[chat
 	}); err != nil {
 		return nil, fmt.Errorf("mark read: %w", err)
 	}
-	s.bus.Publish("user:"+userID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelRead{
 			ChannelRead: &realtimev1.ChannelRead{
 				SpaceId: spaceOf(channel), ChannelId: channel.ID, LastReadMessageId: target,

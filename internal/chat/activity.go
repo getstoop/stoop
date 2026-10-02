@@ -43,7 +43,7 @@ func (s *Service) recordMentions(ctx context.Context, msg messageRow, spaceID *s
 		if err != nil {
 			return err
 		}
-		s.bus.Publish("user:"+userID, events.Stamp(&realtimev1.ServerEvent{
+		s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ActivityItemCreated{
 				ActivityItemCreated: &realtimev1.ActivityItemCreated{
 					Item: toProtoActivityItem(a, &msg.Content, firstAttachment, author, muted),
@@ -81,7 +81,7 @@ func (s *Service) recordReply(ctx context.Context, msg messageRow, spaceID *stri
 	if err != nil {
 		return err
 	}
-	s.bus.Publish("user:"+parentAuthorID, events.Stamp(&realtimev1.ServerEvent{
+	s.bus.Publish(events.UserTopic(parentAuthorID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ActivityItemCreated{
 			ActivityItemCreated: &realtimev1.ActivityItemCreated{
 				Item: toProtoActivityItem(a, &msg.Content, firstAttachment, author, muted),
@@ -139,7 +139,7 @@ func (s *Service) recordDM(ctx context.Context, msg messageRow, channel dbgen.Ch
 		if err != nil {
 			return err
 		}
-		s.bus.Publish("user:"+id, events.Stamp(&realtimev1.ServerEvent{
+		s.bus.Publish(events.UserTopic(id), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ActivityItemCreated{
 				ActivityItemCreated: &realtimev1.ActivityItemCreated{
 					Item: toProtoActivityItem(a, &msg.Content, firstAttachment, author, muted),
