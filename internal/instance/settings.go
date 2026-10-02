@@ -352,7 +352,7 @@ func (s *Service) GetInstanceStatus(ctx context.Context, _ *connect.Request[inst
 }
 
 func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[instancev1.UpdateSettingsRequest]) (*connect.Response[instancev1.UpdateSettingsResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceSettingsManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
 	// The name goes first: it is the one field with a validation that can

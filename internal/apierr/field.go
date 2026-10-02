@@ -1,5 +1,6 @@
 // Package apierr builds the Connect errors that carry more than a code and
-// a sentence. See docs/architecture/contracts.md → Errors.
+// a sentence, and holds the gate shared by instance-wide actions. See
+// docs/architecture/contracts.md → Errors.
 package apierr
 
 import (

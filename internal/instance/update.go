@@ -6,6 +6,7 @@ import (
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -26,7 +27,7 @@ type UpdateChecker interface {
 func (s *Service) UseUpdateChecker(c UpdateChecker) { s.updates = c }
 
 func (s *Service) GetUpdate(ctx context.Context, _ *connect.Request[instancev1.GetUpdateRequest]) (*connect.Response[instancev1.GetUpdateResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	if s.updates == nil {

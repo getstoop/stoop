@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/dbgen"
@@ -337,19 +338,8 @@ func (s *Service) RunSweeper(ctx context.Context, interval time.Duration) {
 	}
 }
 
-// requireAction is both gates for an action on the instance.
-func requireAction(ctx context.Context, a authctx.Action) error {
-	if !authctx.Holds(ctx, a) {
-		return connect.NewError(connect.CodePermissionDenied, errors.New("instance admin role required"))
-	}
-	if !authctx.Covers(ctx, a) {
-		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, a))
-	}
-	return nil
-}
-
 func (s *Service) SweepFiles(ctx context.Context, _ *connect.Request[filesv1.SweepFilesRequest]) (*connect.Response[filesv1.SweepFilesResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceFilesManage); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceFilesManage); err != nil {
 		return nil, err
 	}
 	rep, err := s.Sweep(ctx)

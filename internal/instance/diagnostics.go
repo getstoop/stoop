@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/diag"
 )
@@ -18,7 +19,7 @@ import (
 // Background work in diagnostics_jobs.go.
 
 func (s *Service) GetHealth(ctx context.Context, _ *connect.Request[instancev1.GetHealthRequest]) (*connect.Response[instancev1.GetHealthResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	checks := s.runHealthChecks(ctx)
@@ -50,7 +51,7 @@ func toProtoCheckState(st CheckState) instancev1.CheckState {
 }
 
 func (s *Service) GetRequestStats(ctx context.Context, _ *connect.Request[instancev1.GetRequestStatsRequest]) (*connect.Response[instancev1.GetRequestStatsResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	procs := diag.RPC.Procedures(diag.Last5Minutes)
@@ -70,7 +71,7 @@ func micros(d time.Duration) int32 {
 }
 
 func (s *Service) ListJobs(ctx context.Context, _ *connect.Request[instancev1.ListJobsRequest]) (*connect.Response[instancev1.ListJobsResponse], error) {
-	if err := requireAction(ctx, authctx.InstanceRead); err != nil {
+	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(s.listJobs(ctx)), nil
