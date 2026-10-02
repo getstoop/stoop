@@ -62,7 +62,9 @@ test("space settings, roles and deletion", async ({ browser }) => {
   );
 
   // Members can invite toggle → B gains the Invite chip live.
-  await A.locator(".toggle-row input").click();
+  await A.locator(".toggle-row", { hasText: "Members can create invites" })
+    .locator("input")
+    .click();
   await expect
     .poll(() => menuItems(B), { message: "invite toggle reaches B live" })
     .toContain("Invite people");
