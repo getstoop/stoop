@@ -3,7 +3,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { filesClient } from "../../api/files";
-import { useInstanceStatus } from "../../api/queries";
+import { useVoiceAvailable } from "../../api/queries";
 import { MAX_SPACE_NAME } from "../../api/spaces";
 import { Field } from "../../components/Field";
 import { controlAttrs } from "../../components/fieldControl";
@@ -16,7 +16,7 @@ export function GeneralSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(space.name);
   const form = useFieldErrors(["name"]);
-  const { data: status } = useInstanceStatus();
+  const voiceAvailable = useVoiceAvailable();
   // The toggles have no field to carry a refusal.
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -85,11 +85,11 @@ export function GeneralSection({ space }: { space: Space }) {
           </span>
         </span>
       </label>
-      {status?.voiceAvailable && (
+      {voiceAvailable && (
         <label className="toggle-row">
           <Switch
             checked={space.voiceEnabled}
-            onChange={(e) => update({ voiceEnabled: e.target.checked })}
+            onChange={(event) => update({ voiceEnabled: event.target.checked })}
           />
           <span>
             <strong>Voice channels</strong>

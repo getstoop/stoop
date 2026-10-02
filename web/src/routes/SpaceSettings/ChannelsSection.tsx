@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { useChannels, useInstanceStatus } from "../../api/queries";
+import { useChannels, useSpaceVoice } from "../../api/queries";
 import { type Channel, ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { confirm } from "../../stores/dialogs";
@@ -13,7 +13,7 @@ import { EditChannelModal } from "./EditChannelModal";
 export function ChannelsSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
   const { data: channels } = useChannels(space.id);
-  const { data: status } = useInstanceStatus();
+  const spaceVoice = useSpaceVoice(space);
   const [error, setError] = useState<string | null>(null);
   const [failed, setFailed] = useState<{ id: string; text: string } | null>(
     null,
@@ -104,7 +104,7 @@ export function ChannelsSection({ space }: { space: Space }) {
         />
         {channels && <DefaultChannelRow space={space} channels={channels} />}
       </section>
-      {status?.voiceAvailable && space.voiceEnabled && (
+      {spaceVoice && (
         <section className="card">
           <h3>Voice channels</h3>
           <ChannelTable

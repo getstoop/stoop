@@ -18,7 +18,7 @@ type voicePolicy struct{ on bool }
 
 func (*voicePolicy) MembersMayCreateSpaces(context.Context) (bool, error) { return true, nil }
 func (*voicePolicy) MessageRetentionDays(context.Context) (int, error)    { return 0, nil }
-func (p *voicePolicy) VoiceAvailable() bool                               { return p.on }
+func (policy *voicePolicy) VoiceAvailable() bool                          { return policy.on }
 
 // With voice off a voice channel is not listed, counted, searched or
 // created, and it is all back when voice is.
@@ -30,16 +30,16 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
-	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	created, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	spaceID, general := sp.Msg.Space.Id, sp.Msg.DefaultChannel.Id
-	inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
+	spaceID, general := created.Msg.Space.Id, created.Msg.DefaultChannel.Id
+	invited, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invited.Msg.Invite.Code})); err != nil {
 		t.Fatal(err)
 	}
 	newVoice := func(name string) (string, error) {
@@ -67,8 +67,8 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 			t.Fatal(err)
 		}
 		ids := make([]string, len(res.Msg.Channels))
-		for i, c := range res.Msg.Channels {
-			ids[i] = c.Id
+		for index, channel := range res.Msg.Channels {
+			ids[index] = channel.Id
 		}
 		return ids
 	}
@@ -180,25 +180,25 @@ func TestSpaceVoiceSwitch(t *testing.T) {
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	newSpace := func(name string) (spaceID, voiceID string) {
 		t.Helper()
-		sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: name}))
+		space, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: name}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		vc, err := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{
-			SpaceId: sp.Msg.Space.Id, Name: "hangout", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE,
+		voice, err := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{
+			SpaceId: space.Msg.Space.Id, Name: "hangout", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE,
 		}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		return sp.Msg.Space.Id, vc.Msg.Channel.Id
+		return space.Msg.Space.Id, voice.Msg.Channel.Id
 	}
 	porch, porchVoice := newSpace("Porch")
 	garage, garageVoice := newSpace("Garage")
-	inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: porch}))
+	invited, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: porch}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invited.Msg.Invite.Code})); err != nil {
 		t.Fatal(err)
 	}
 

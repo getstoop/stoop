@@ -71,18 +71,37 @@ func (s *Service) voiceOn(ctx context.Context, spaceID string) (bool, error) {
 	}
 }
 
+func isVoice(channel dbgen.Channel) bool {
+	return chatv1.ChannelKind(channel.Kind) == chatv1.ChannelKind_CHANNEL_KIND_VOICE
+}
+
 // hiddenChannel reports whether a channel is a voice channel while voice
 // is off for its space. Its members are then answered as if it did not
 // exist.
 func (s *Service) hiddenChannel(ctx context.Context, channel dbgen.Channel) (bool, error) {
-	if chatv1.ChannelKind(channel.Kind) != chatv1.ChannelKind_CHANNEL_KIND_VOICE {
+	if !isVoice(channel) {
 		return false, nil
 	}
 	on, err := s.voiceOn(ctx, spaceOf(channel))
 	return !on, err
 }
 
-var errChannelNotFound = connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
+// memberChannel loads a channel for someone already known to be in it. A
+// hidden voice channel is not found.
+func (s *Service) memberChannel(ctx context.Context, channelID string) (dbgen.Channel, error) {
+	channel, err := s.q.GetChannel(ctx, channelID)
+	if err != nil {
+		return dbgen.Channel{}, notFoundOr(err, "channel")
+	}
+	hidden, err := s.hiddenChannel(ctx, channel)
+	if err != nil {
+		return dbgen.Channel{}, err
+	}
+	if hidden {
+		return dbgen.Channel{}, connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
+	}
+	return channel, nil
+}
 
 // listChannels is a space's channels as its members see them.
 func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]dbgen.ListChannelsBySpaceRow, error) {
@@ -97,9 +116,9 @@ func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]d
 		return rows, err
 	}
 	shown := rows[:0]
-	for _, r := range rows {
-		if chatv1.ChannelKind(r.Channel.Kind) != chatv1.ChannelKind_CHANNEL_KIND_VOICE {
-			shown = append(shown, r)
+	for _, row := range rows {
+		if !isVoice(row.Channel) {
+			shown = append(shown, row)
 		}
 	}
 	return shown, nil

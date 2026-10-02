@@ -144,14 +144,9 @@ func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID st
 	if !ok {
 		return "", connect.NewError(connect.CodePermissionDenied, errors.New("not a member of this channel's space"))
 	}
-	channel, err := s.q.GetChannel(ctx, channelID)
+	channel, err := s.memberChannel(ctx, channelID)
 	if err != nil {
-		return "", notFoundOr(err, "channel")
-	}
-	if hidden, err := s.hiddenChannel(ctx, channel); err != nil {
 		return "", err
-	} else if hidden {
-		return "", errChannelNotFound
 	}
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return "", err

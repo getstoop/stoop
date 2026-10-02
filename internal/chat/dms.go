@@ -57,16 +57,7 @@ func (s *Service) accessChannel(ctx context.Context, channelID string) (dbgen.Ch
 	if err := s.requireChannelMember(ctx, channelID); err != nil {
 		return dbgen.Channel{}, err
 	}
-	channel, err := s.q.GetChannel(ctx, channelID)
-	if err != nil {
-		return dbgen.Channel{}, notFoundOr(err, "channel")
-	}
-	if hidden, err := s.hiddenChannel(ctx, channel); err != nil {
-		return dbgen.Channel{}, err
-	} else if hidden {
-		return dbgen.Channel{}, errChannelNotFound
-	}
-	return channel, nil
+	return s.memberChannel(ctx, channelID)
 }
 
 // writableChannel loads a channel the caller may write in: accessChannel,

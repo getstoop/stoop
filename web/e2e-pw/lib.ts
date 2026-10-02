@@ -1,4 +1,9 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import {
+  type APIRequestContext,
+  test as base,
+  expect,
+  type Page,
+} from "@playwright/test";
 import pg from "pg";
 // Seeding lives in .mjs with a .d.mts beside it: it was shared with the
 // puppeteer suite, and there is no reason to churn it now that suite is
@@ -67,6 +72,13 @@ export async function signIn(page: Page, token: string, path = "/") {
     .addCookies([{ name: SESSION_COOKIE, value: token, url: BASE }]);
   await page.goto(path);
   await live(page);
+}
+
+// Whether this server has voice, asked of the server itself: the
+// signalling proxy is the one voice route without a session on it, and it
+// answers 503 while voice is off or LiveKit is unconfigured.
+export async function hasVoice(request: APIRequestContext) {
+  return (await request.get("/livekit/")).status() !== 503;
 }
 
 // Entering on a shared link — an invite, a space, a channel, a message —
