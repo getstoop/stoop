@@ -288,3 +288,23 @@ func drainEvents(sub *events.Subscription) {
 		}
 	}
 }
+
+func TestCloseSpaceChannelIsNotFound(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := chat.New(pool, events.NewInProcBus(), noDirectory{})
+	ada := newUser(t, pool, "ada", authctx.RoleMember)
+	sp, err := svc.CreateSpace(ada, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	channels, err := svc.ListChannels(ada, connect.NewRequest(&chatv1.ListChannelsRequest{SpaceId: sp.Msg.Space.Id}))
+	if err != nil || len(channels.Msg.Channels) == 0 {
+		t.Fatalf("list channels: %v", err)
+	}
+	res, err := svc.SetDirectMessageClosed(ada, connect.NewRequest(&chatv1.SetDirectMessageClosedRequest{
+		ChannelId: channels.Msg.Channels[0].Id, Closed: true,
+	}))
+	if res != nil || code(err) != connect.CodeNotFound {
+		t.Errorf("closing a space channel: want not_found, got %v, %v", res, err)
+	}
+}

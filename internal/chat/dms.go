@@ -189,8 +189,11 @@ func (s *Service) OpenDirectMessage(ctx context.Context, req *connect.Request[ch
 func (s *Service) SetDirectMessageClosed(ctx context.Context, req *connect.Request[chatv1.SetDirectMessageClosedRequest]) (*connect.Response[chatv1.SetDirectMessageClosedResponse], error) {
 	me := authctx.UserID(ctx)
 	channel, err := s.q.GetChannel(ctx, req.Msg.ChannelId)
-	if err != nil || !isDM(channel) {
+	if err != nil {
 		return nil, notFoundOr(err, "conversation")
+	}
+	if !isDM(channel) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("conversation not found"))
 	}
 	isMember, err := s.q.IsDMMember(ctx, dbgen.IsDMMemberParams{ChannelID: channel.ID, UserID: me})
 	if err != nil {
