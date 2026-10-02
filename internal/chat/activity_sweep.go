@@ -15,9 +15,7 @@ import (
 // taken from them.
 
 const (
-	// DefaultActivityRetention keeps a month of read items.
-	DefaultActivityRetention = 30 * 24 * time.Hour
-	activitySweepDelay       = 2 * time.Minute
+	activitySweepDelay = 2 * time.Minute
 )
 
 // SweepActivity removes read activity items whose read_at is older than
