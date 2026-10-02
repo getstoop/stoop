@@ -353,9 +353,16 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         leaveVoiceIn(payload.value.spaceId);
       }
       break;
-    case "spaceUpdated":
+    case "spaceUpdated": {
       queryClient.invalidateQueries({ queryKey: ["spaces"] });
+      // The space's voice switch decides which channels it lists.
+      const space = payload.value.space;
+      if (space) {
+        queryClient.invalidateQueries({ queryKey: ["channels", space.id] });
+        if (!space.voiceEnabled) leaveVoiceIn(space.id);
+      }
       break;
+    }
     case "spaceDeleted": {
       const id = payload.value.spaceId;
       queryClient.setQueryData<Space[]>(["spaces"], (old) =>

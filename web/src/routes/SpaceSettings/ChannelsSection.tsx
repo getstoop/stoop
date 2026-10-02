@@ -104,7 +104,7 @@ export function ChannelsSection({ space }: { space: Space }) {
         />
         {channels && <DefaultChannelRow space={space} channels={channels} />}
       </section>
-      {status?.voiceAvailable && (
+      {status?.voiceAvailable && space.voiceEnabled && (
         <section className="card">
           <h3>Voice channels</h3>
           <ChannelTable

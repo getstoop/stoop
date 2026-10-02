@@ -37,7 +37,7 @@ SELECT sqlc.embed(s), m.role AS my_role,
         SELECT 1 FROM channels c
         LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = m.user_id
         WHERE c.space_id = s.id
-          AND (sqlc.arg(with_voice)::bool OR c.kind <> 2)
+          AND ((sqlc.arg(with_voice)::bool AND s.voice_enabled) OR c.kind <> 2)
           AND c.last_message_id IS NOT NULL
           AND (r.last_read_message_id IS NULL OR c.last_message_id > r.last_read_message_id)
           AND NOT EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = m.user_id)
@@ -59,6 +59,7 @@ UPDATE spaces SET owner_id = $2 WHERE id = $1;
 UPDATE spaces
 SET name = COALESCE(sqlc.narg('name'), name),
     members_can_invite = COALESCE(sqlc.narg('members_can_invite'), members_can_invite),
+    voice_enabled = COALESCE(sqlc.narg('voice_enabled'), voice_enabled),
     description = COALESCE(sqlc.narg('description'), description),
     welcome = COALESCE(sqlc.narg('welcome'), welcome),
     default_channel_id = CASE WHEN sqlc.arg('set_default_channel')::boolean
@@ -89,3 +90,6 @@ SELECT icon_file_id FROM spaces WHERE id = $1 FOR UPDATE;
 
 -- name: SetSpaceIcon :exec
 UPDATE spaces SET icon_file_id = sqlc.narg('icon_file_id') WHERE id = $1;
+
+-- name: SpaceVoiceEnabled :one
+SELECT voice_enabled FROM spaces WHERE id = $1;

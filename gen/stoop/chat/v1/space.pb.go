@@ -117,6 +117,10 @@ type Space struct {
 	// called with. Clients show a control only when its permission is
 	// listed; the server still enforces. Empty on broadcast events.
 	MyPermissions []v1.Permission `protobuf:"varint,13,rep,packed,name=my_permissions,json=myPermissions,proto3,enum=stoop.access.v1.Permission" json:"my_permissions,omitempty"`
+	// Whether this space uses voice channels; on unless a space admin
+	// turned it off. Off, or with GetInstanceStatus.voice_available false,
+	// its voice channels are not listed and cannot be created or joined.
+	VoiceEnabled  bool `protobuf:"varint,14,opt,name=voice_enabled,json=voiceEnabled,proto3" json:"voice_enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -240,6 +244,13 @@ func (x *Space) GetMyPermissions() []v1.Permission {
 		return x.MyPermissions
 	}
 	return nil
+}
+
+func (x *Space) GetVoiceEnabled() bool {
+	if x != nil {
+		return x.VoiceEnabled
+	}
+	return false
 }
 
 // SpaceSummary is one row of the server admin's Spaces list: a space the
@@ -379,7 +390,7 @@ var File_stoop_chat_v1_space_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_space_proto_rawDesc = "" +
 	"\n" +
-	"\x19stoop/chat/v1/space.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\xe7\x03\n" +
+	"\x19stoop/chat/v1/space.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\"\x8c\x04\n" +
 	"\x05Space\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
@@ -397,7 +408,8 @@ const file_stoop_chat_v1_space_proto_rawDesc = "" +
 	" \x01(\tR\awelcome\x12,\n" +
 	"\x12default_channel_id\x18\v \x01(\tR\x10defaultChannelId\x12\x14\n" +
 	"\x05muted\x18\f \x01(\bR\x05muted\x12B\n" +
-	"\x0emy_permissions\x18\r \x03(\x0e2\x1b.stoop.access.v1.PermissionR\rmyPermissions\"\x93\x03\n" +
+	"\x0emy_permissions\x18\r \x03(\x0e2\x1b.stoop.access.v1.PermissionR\rmyPermissions\x12#\n" +
+	"\rvoice_enabled\x18\x0e \x01(\bR\fvoiceEnabled\"\x93\x03\n" +
 	"\fSpaceSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +

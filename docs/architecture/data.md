@@ -67,7 +67,7 @@ the provider is consulted at sign-in and never again.
 
 **`spaces`** — `name`, `owner_id`, `description` (the public one line an
 invite shows a stranger), `welcome` (Markdown a new member reads on
-arrival, not public), `members_can_invite`, `icon_file_id`.
+arrival, not public), `members_can_invite`, `voice_enabled`, `icon_file_id`.
 
 **`space_members`** — `PRIMARY KEY (space_id, user_id)` plus `role`. A
 partial unique index enforces the model's most important invariant in the

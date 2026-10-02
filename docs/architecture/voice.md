@@ -352,17 +352,26 @@ why instead of offering LiveKit and relay settings.
 Everyone else learns it from `GetInstanceStatus.voice_available`, which is
 public because the sidebar needs it.
 
+A space can turn voice off for itself: `spaces.voice_enabled`, written
+through `UpdateSpace` with `space.manage` and carried on `Space`. Turning
+it off closes the space's rooms the way deleting its voice channels
+would, and the `SpaceUpdated` it broadcasts has clients refetch the
+space's channels and hang up a call in it.
+
 **Voice channels are hidden, not deleted.** Their rows and the messages in
-their chats stay, and return when voice does. Chat asks one question,
-`voiceOn`, and while the answer is no:
+their chats stay, and return when voice does. Chat asks one question of a
+space, `voiceOn` — the instance has voice and the space has not turned it
+off — and while the answer is no:
 
 - `ListChannels` leaves them out, and `ReorderChannels` orders the
   channels that are listed.
-- `CreateChannel` refuses a voice channel.
+- `CreateChannel` refuses a voice channel, saying which of the two turned
+  it off.
 - They don't count toward a space's `has_unread`, a search, or the
   one channel a space must keep.
 - `VoiceChannelSpace` resolves none of them, so the gateway takes no
-  voice state for them.
+  voice state for them and `JoinVoiceChannel` refuses them as not voice
+  channels.
 
 An activity item that points into a hidden channel's chat opens the space
 instead, as it does for a deleted channel.

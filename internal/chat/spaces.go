@@ -80,7 +80,7 @@ func (s *Service) ListSpaces(ctx context.Context, req *connect.Request[chatv1.Li
 		return s.listAllSpaces(ctx)
 	}
 	rows, err := s.q.ListSpacesByUser(ctx, dbgen.ListSpacesByUserParams{
-		UserID: authctx.UserID(ctx), WithVoice: s.voiceOn(),
+		UserID: authctx.UserID(ctx), WithVoice: s.voiceAvailable(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list spaces: %w", err)
@@ -251,6 +251,7 @@ func toProtoSpace(s dbgen.Space, viewer actor, cred authctx.Credential) *chatv1.
 	space := &chatv1.Space{
 		Id: s.ID, Name: s.Name, OwnerId: s.OwnerID, CreatedAt: timestamppb.New(s.CreatedAt),
 		MyRole: toProtoRole(viewer.role), MembersCanInvite: s.MembersCanInvite,
+		VoiceEnabled:  s.VoiceEnabled,
 		MyPermissions: accesswire.ToProto(spacePermissions(viewer, s, cred)),
 		Description:   s.Description, Welcome: s.Welcome,
 	}
@@ -319,6 +320,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 	}
 	patch := dbgen.UpdateSpaceSettingsParams{
 		ID: req.Msg.SpaceId, MembersCanInvite: req.Msg.MembersCanInvite,
+		VoiceEnabled: req.Msg.VoiceEnabled,
 	}
 	if req.Msg.Name != nil {
 		n, ok := cleanSpaceName(*req.Msg.Name)
@@ -379,6 +381,10 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 			SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(space, actor{}, authctx.Credential{})},
 		},
 	}))
+	// Turning voice off ends the space's calls.
+	if req.Msg.VoiceEnabled != nil && !space.VoiceEnabled {
+		s.closeVoiceRooms(ctx, s.voiceChannelIDs(ctx, space.ID)...)
+	}
 	return connect.NewResponse(&chatv1.UpdateSpaceResponse{Space: toProtoSpace(space, a, callerCredential(ctx))}), nil
 }
 

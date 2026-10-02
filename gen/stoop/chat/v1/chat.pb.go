@@ -2013,8 +2013,11 @@ type UpdateSpaceRequest struct {
 	// A text channel in this space, or empty to go back to whichever
 	// channel sorts first.
 	DefaultChannelId *string `protobuf:"bytes,6,opt,name=default_channel_id,json=defaultChannelId,proto3,oneof" json:"default_channel_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Turning it off ends the space's calls and hides its voice channels;
+	// nothing is deleted.
+	VoiceEnabled  *bool `protobuf:"varint,7,opt,name=voice_enabled,json=voiceEnabled,proto3,oneof" json:"voice_enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateSpaceRequest) Reset() {
@@ -2087,6 +2090,13 @@ func (x *UpdateSpaceRequest) GetDefaultChannelId() string {
 		return *x.DefaultChannelId
 	}
 	return ""
+}
+
+func (x *UpdateSpaceRequest) GetVoiceEnabled() bool {
+	if x != nil && x.VoiceEnabled != nil {
+		return *x.VoiceEnabled
+	}
+	return false
 }
 
 type UpdateSpaceResponse struct {
@@ -4664,20 +4674,22 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"G\n" +
 	"\x19TransferOwnershipResponse\x12*\n" +
-	"\x05space\x18\x01 \x01(\v2\x14.stoop.chat.v1.SpaceR\x05space\"\xc7\x02\n" +
+	"\x05space\x18\x01 \x01(\v2\x14.stoop.chat.v1.SpaceR\x05space\"\x83\x03\n" +
 	"\x12UpdateSpaceRequest\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x121\n" +
 	"\x12members_can_invite\x18\x03 \x01(\bH\x01R\x10membersCanInvite\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x04 \x01(\tH\x02R\vdescription\x88\x01\x01\x12\x1d\n" +
 	"\awelcome\x18\x05 \x01(\tH\x03R\awelcome\x88\x01\x01\x121\n" +
-	"\x12default_channel_id\x18\x06 \x01(\tH\x04R\x10defaultChannelId\x88\x01\x01B\a\n" +
+	"\x12default_channel_id\x18\x06 \x01(\tH\x04R\x10defaultChannelId\x88\x01\x01\x12(\n" +
+	"\rvoice_enabled\x18\a \x01(\bH\x05R\fvoiceEnabled\x88\x01\x01B\a\n" +
 	"\x05_nameB\x15\n" +
 	"\x13_members_can_inviteB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
 	"\b_welcomeB\x15\n" +
-	"\x13_default_channel_id\"A\n" +
+	"\x13_default_channel_idB\x10\n" +
+	"\x0e_voice_enabled\"A\n" +
 	"\x13UpdateSpaceResponse\x12*\n" +
 	"\x05space\x18\x01 \x01(\v2\x14.stoop.chat.v1.SpaceR\x05space\"/\n" +
 	"\x12DeleteSpaceRequest\x12\x19\n" +

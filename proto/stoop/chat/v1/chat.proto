@@ -355,6 +355,9 @@ message UpdateSpaceRequest {
   // A text channel in this space, or empty to go back to whichever
   // channel sorts first.
   optional string default_channel_id = 6;
+  // Turning it off ends the space's calls and hides its voice channels;
+  // nothing is deleted.
+  optional bool voice_enabled = 7;
 }
 
 message UpdateSpaceResponse {

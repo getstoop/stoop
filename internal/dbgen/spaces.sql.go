@@ -13,7 +13,7 @@ const clearSpaceDefaultChannel = `-- name: ClearSpaceDefaultChannel :one
 UPDATE spaces SET default_channel_id = NULL
 WHERE id = $1::uuid
   AND default_channel_id = $2::uuid
-RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id
+RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id, voice_enabled
 `
 
 type ClearSpaceDefaultChannelParams struct {
@@ -39,6 +39,7 @@ func (q *Queries) ClearSpaceDefaultChannel(ctx context.Context, arg ClearSpaceDe
 		&i.Description,
 		&i.Welcome,
 		&i.DefaultChannelID,
+		&i.VoiceEnabled,
 	)
 	return i, err
 }
@@ -47,7 +48,7 @@ const createSpace = `-- name: CreateSpace :one
 
 INSERT INTO spaces (id, name, owner_id)
 VALUES ($1, $2, $3)
-RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id
+RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id, voice_enabled
 `
 
 type CreateSpaceParams struct {
@@ -71,6 +72,7 @@ func (q *Queries) CreateSpace(ctx context.Context, arg CreateSpaceParams) (Space
 		&i.Description,
 		&i.Welcome,
 		&i.DefaultChannelID,
+		&i.VoiceEnabled,
 	)
 	return i, err
 }
@@ -85,7 +87,7 @@ func (q *Queries) DeleteSpace(ctx context.Context, id string) error {
 }
 
 const getSpace = `-- name: GetSpace :one
-SELECT id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id FROM spaces WHERE id = $1
+SELECT id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id, voice_enabled FROM spaces WHERE id = $1
 `
 
 func (q *Queries) GetSpace(ctx context.Context, id string) (Space, error) {
@@ -101,6 +103,7 @@ func (q *Queries) GetSpace(ctx context.Context, id string) (Space, error) {
 		&i.Description,
 		&i.Welcome,
 		&i.DefaultChannelID,
+		&i.VoiceEnabled,
 	)
 	return i, err
 }
@@ -120,7 +123,7 @@ func (q *Queries) GetSpaceIconForUpdate(ctx context.Context, id string) (*string
 }
 
 const listAllSpaces = `-- name: ListAllSpaces :many
-SELECT id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id FROM spaces ORDER BY name, id
+SELECT id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id, voice_enabled FROM spaces ORDER BY name, id
 `
 
 func (q *Queries) ListAllSpaces(ctx context.Context) ([]Space, error) {
@@ -142,6 +145,7 @@ func (q *Queries) ListAllSpaces(ctx context.Context) ([]Space, error) {
 			&i.Description,
 			&i.Welcome,
 			&i.DefaultChannelID,
+			&i.VoiceEnabled,
 		); err != nil {
 			return nil, err
 		}
@@ -154,7 +158,7 @@ func (q *Queries) ListAllSpaces(ctx context.Context) ([]Space, error) {
 }
 
 const listAllSpacesForAdmin = `-- name: ListAllSpacesForAdmin :many
-SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file_id, s.description, s.welcome, s.default_channel_id,
+SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file_id, s.description, s.welcome, s.default_channel_id, s.voice_enabled,
     (SELECT count(*) FROM space_members m WHERE m.space_id = s.id) AS member_count,
     EXISTS (
         SELECT 1 FROM space_members m
@@ -192,6 +196,7 @@ func (q *Queries) ListAllSpacesForAdmin(ctx context.Context, userID string) ([]L
 			&i.Space.Description,
 			&i.Space.Welcome,
 			&i.Space.DefaultChannelID,
+			&i.Space.VoiceEnabled,
 			&i.MemberCount,
 			&i.ViewerIsMember,
 		); err != nil {
@@ -206,13 +211,13 @@ func (q *Queries) ListAllSpacesForAdmin(ctx context.Context, userID string) ([]L
 }
 
 const listSpacesByUser = `-- name: ListSpacesByUser :many
-SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file_id, s.description, s.welcome, s.default_channel_id, m.role AS my_role,
+SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file_id, s.description, s.welcome, s.default_channel_id, s.voice_enabled, m.role AS my_role,
     EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.space_id = s.id AND sm.user_id = m.user_id) AS muted,
     EXISTS (
         SELECT 1 FROM channels c
         LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = m.user_id
         WHERE c.space_id = s.id
-          AND ($1::bool OR c.kind <> 2)
+          AND (($1::bool AND s.voice_enabled) OR c.kind <> 2)
           AND c.last_message_id IS NOT NULL
           AND (r.last_read_message_id IS NULL OR c.last_message_id > r.last_read_message_id)
           AND NOT EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = m.user_id)
@@ -259,6 +264,7 @@ func (q *Queries) ListSpacesByUser(ctx context.Context, arg ListSpacesByUserPara
 			&i.Space.Description,
 			&i.Space.Welcome,
 			&i.Space.DefaultChannelID,
+			&i.Space.VoiceEnabled,
 			&i.MyRole,
 			&i.Muted,
 			&i.HasUnread,
@@ -287,6 +293,17 @@ func (q *Queries) SetSpaceIcon(ctx context.Context, arg SetSpaceIconParams) erro
 	return err
 }
 
+const spaceVoiceEnabled = `-- name: SpaceVoiceEnabled :one
+SELECT voice_enabled FROM spaces WHERE id = $1
+`
+
+func (q *Queries) SpaceVoiceEnabled(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRow(ctx, spaceVoiceEnabled, id)
+	var voice_enabled bool
+	err := row.Scan(&voice_enabled)
+	return voice_enabled, err
+}
+
 const updateSpaceOwner = `-- name: UpdateSpaceOwner :exec
 UPDATE spaces SET owner_id = $2 WHERE id = $1
 `
@@ -305,19 +322,21 @@ const updateSpaceSettings = `-- name: UpdateSpaceSettings :one
 UPDATE spaces
 SET name = COALESCE($2, name),
     members_can_invite = COALESCE($3, members_can_invite),
-    description = COALESCE($4, description),
-    welcome = COALESCE($5, welcome),
-    default_channel_id = CASE WHEN $6::boolean
-        THEN $7::uuid
+    voice_enabled = COALESCE($4, voice_enabled),
+    description = COALESCE($5, description),
+    welcome = COALESCE($6, welcome),
+    default_channel_id = CASE WHEN $7::boolean
+        THEN $8::uuid
         ELSE default_channel_id END
 WHERE id = $1
-RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id
+RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id, voice_enabled
 `
 
 type UpdateSpaceSettingsParams struct {
 	ID                string
 	Name              *string
 	MembersCanInvite  *bool
+	VoiceEnabled      *bool
 	Description       *string
 	Welcome           *string
 	SetDefaultChannel bool
@@ -334,6 +353,7 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		arg.ID,
 		arg.Name,
 		arg.MembersCanInvite,
+		arg.VoiceEnabled,
 		arg.Description,
 		arg.Welcome,
 		arg.SetDefaultChannel,
@@ -350,6 +370,7 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		&i.Description,
 		&i.Welcome,
 		&i.DefaultChannelID,
+		&i.VoiceEnabled,
 	)
 	return i, err
 }

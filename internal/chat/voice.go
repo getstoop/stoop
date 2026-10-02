@@ -31,12 +31,45 @@ type VoiceRooms interface {
 // UseVoiceRooms wires the SFU port.
 func (s *Service) UseVoiceRooms(v VoiceRooms) { s.rooms = v }
 
-var errVoiceOff = connect.NewError(connect.CodeFailedPrecondition,
-	errors.New("voice is turned off on this server"))
+var (
+	errVoiceOff = connect.NewError(connect.CodeFailedPrecondition,
+		errors.New("voice is turned off on this server"))
+	errSpaceVoiceOff = connect.NewError(connect.CodeFailedPrecondition,
+		errors.New("voice is turned off in this space"))
+)
 
-// voiceOn reports whether voice channels are in use. While they are not
-// they are hidden: see docs/architecture/voice.md → Turning voice off.
-func (s *Service) voiceOn() bool { return s.policy == nil || s.policy.VoiceAvailable() }
+// voiceAvailable reports whether the instance has voice at all.
+func (s *Service) voiceAvailable() bool { return s.policy == nil || s.policy.VoiceAvailable() }
+
+// requireVoice refuses while a space's voice channels are not in use:
+// the instance has no voice, or the space turned it off. While they are
+// not in use they are hidden: see docs/architecture/voice.md → Turning
+// voice off.
+func (s *Service) requireVoice(ctx context.Context, spaceID string) error {
+	if !s.voiceAvailable() {
+		return errVoiceOff
+	}
+	on, err := s.q.SpaceVoiceEnabled(ctx, spaceID)
+	if err != nil {
+		return notFoundOr(err, "space")
+	}
+	if !on {
+		return errSpaceVoiceOff
+	}
+	return nil
+}
+
+// voiceOn is requireVoice as a yes or no.
+func (s *Service) voiceOn(ctx context.Context, spaceID string) (bool, error) {
+	switch err := s.requireVoice(ctx, spaceID); {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, errVoiceOff), errors.Is(err, errSpaceVoiceOff):
+		return false, nil
+	default:
+		return false, err
+	}
+}
 
 // listChannels is a space's channels as its members see them.
 func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]dbgen.ListChannelsBySpaceRow, error) {
@@ -46,8 +79,9 @@ func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]d
 	if err != nil {
 		return nil, fmt.Errorf("list channels: %w", err)
 	}
-	if s.voiceOn() {
-		return rows, nil
+	on, err := s.voiceOn(ctx, spaceID)
+	if err != nil || on {
+		return rows, err
 	}
 	shown := rows[:0]
 	for _, r := range rows {

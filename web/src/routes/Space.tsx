@@ -72,7 +72,7 @@ export function SpaceLayout() {
   // With voice off the server lists no voice channels; this hides the
   // empty group from those who could otherwise add to it.
   const { data: status } = useInstanceStatus();
-  const addVoice = manage && !!status?.voiceAvailable;
+  const addVoice = manage && !!status?.voiceAvailable && !!space?.voiceEnabled;
 
   // Kicked, left, or the space was deleted: the list no longer has it.
   if (spaces && !space) {

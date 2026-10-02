@@ -3,6 +3,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { filesClient } from "../../api/files";
+import { useInstanceStatus } from "../../api/queries";
 import { MAX_SPACE_NAME } from "../../api/spaces";
 import { Field } from "../../components/Field";
 import { controlAttrs } from "../../components/fieldControl";
@@ -15,7 +16,8 @@ export function GeneralSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState(space.name);
   const form = useFieldErrors(["name"]);
-  // The invite toggle has no field to carry a refusal.
+  const { data: status } = useInstanceStatus();
+  // The toggles have no field to carry a refusal.
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => setName(space.name), [space.name]);
@@ -23,6 +25,7 @@ export function GeneralSection({ space }: { space: Space }) {
   const update = async (patch: {
     name?: string;
     membersCanInvite?: boolean;
+    voiceEnabled?: boolean;
   }) => {
     setError(null);
     form.begin();
@@ -82,6 +85,21 @@ export function GeneralSection({ space }: { space: Space }) {
           </span>
         </span>
       </label>
+      {status?.voiceAvailable && (
+        <label className="toggle-row">
+          <Switch
+            checked={space.voiceEnabled}
+            onChange={(e) => update({ voiceEnabled: e.target.checked })}
+          />
+          <span>
+            <strong>Voice channels</strong>
+            <span className="muted small">
+              {" "}
+              — off hides them and ends any call; nothing is deleted.
+            </span>
+          </span>
+        </label>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
