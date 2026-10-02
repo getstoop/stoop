@@ -81,7 +81,8 @@ Support packages, which are not modules and own no domain: `internal/events`
 `internal/rowid` (makes and checks ids), `internal/release` (the release
 index and version comparison),
 `internal/blob` (the storage port and its backends), `internal/unfurl`
-(the link fetcher), `internal/ratelimit`, `internal/trustedproxy`, `internal/netguard`,
+(the link fetcher), `internal/kv` (keyed state with a cap and an expiry,
+in memory), `internal/ratelimit`, `internal/trustedproxy`, `internal/netguard`,
 `internal/accesswire`, `internal/buildinfo`, `internal/diag` (the
 in-memory instruments behind the Diagnostics tab and `/metrics`),
 `internal/tailnet` (the optional embedded Tailscale node),
