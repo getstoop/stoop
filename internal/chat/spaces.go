@@ -396,11 +396,6 @@ func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[ch
 	if req.Msg.UserId == userID {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("you already own this space"))
 	}
-	if _, err := s.q.GetSpaceMember(ctx, dbgen.GetSpaceMemberParams{
-		SpaceID: req.Msg.SpaceId, UserID: req.Msg.UserId,
-	}); err != nil {
-		return nil, notFoundOr(err, "member")
-	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -414,10 +409,14 @@ func (s *Service) TransferOwnership(ctx context.Context, req *connect.Request[ch
 	}); err != nil {
 		return nil, fmt.Errorf("demote owner: %w", err)
 	}
-	if _, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{
+	promoted, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{
 		SpaceID: req.Msg.SpaceId, UserID: req.Msg.UserId, Role: string(RoleOwner),
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, fmt.Errorf("promote new owner: %w", err)
+	}
+	if promoted == 0 {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("member not found"))
 	}
 	if err := qtx.UpdateSpaceOwner(ctx, dbgen.UpdateSpaceOwnerParams{ID: req.Msg.SpaceId, OwnerID: req.Msg.UserId}); err != nil {
 		return nil, fmt.Errorf("update owner: %w", err)

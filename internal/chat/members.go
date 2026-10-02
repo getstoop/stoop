@@ -61,6 +61,9 @@ func (s *Service) SetMemberRole(ctx context.Context, req *connect.Request[chatv1
 	if req.Msg.Role == chatv1.SpaceRole_SPACE_ROLE_UNSPECIFIED {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("role is required"))
 	}
+	if newRole == RoleOwner {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("ownership can't be set as a role; transfer it instead"))
+	}
 	if err := grantableRole(actor, newRole); err != nil {
 		return nil, err
 	}

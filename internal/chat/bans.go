@@ -76,9 +76,7 @@ func (s *Service) BanMember(ctx context.Context, req *connect.Request[chatv1.Ban
 		return nil, fmt.Errorf("ban: %w", err)
 	}
 	if isMember {
-		if _, err := s.q.DeleteSpaceMember(ctx, dbgen.DeleteSpaceMemberParams{
-			SpaceID: req.Msg.SpaceId, UserID: req.Msg.UserId,
-		}); err != nil {
+		if err := s.removeMember(ctx, req.Msg.SpaceId, req.Msg.UserId); err != nil {
 			return nil, fmt.Errorf("remove member: %w", err)
 		}
 		s.publishMemberRemoved(req.Msg.SpaceId, req.Msg.UserId, true)

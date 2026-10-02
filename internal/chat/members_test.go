@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -278,5 +279,71 @@ func TestAddMember(t *testing.T) {
 	}
 	if err := add(f.admin, otherID); err == nil || connect.CodeOf(err) == connect.CodeAlreadyExists {
 		t.Errorf("adding a banned user: want a refusal, got %v", err)
+	}
+}
+
+func TestTransferToNonMemberChangesNothing(t *testing.T) {
+	fixture := newFixture(t)
+	stranger := authctx.UserID(fixture.operator)
+	_, err := fixture.svc.TransferOwnership(fixture.owner, connect.NewRequest(&chatv1.TransferOwnershipRequest{SpaceId: fixture.spaceID, UserId: stranger}))
+	if code(err) != connect.CodeNotFound {
+		t.Fatalf("transfer to a non-member: want not_found, got %v", err)
+	}
+	res, err := fixture.svc.GetSpace(fixture.owner, connect.NewRequest(&chatv1.GetSpaceRequest{SpaceId: fixture.spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Msg.Space.OwnerId != authctx.UserID(fixture.owner) || res.Msg.Space.MyRole != chatv1.SpaceRole_SPACE_ROLE_OWNER {
+		t.Errorf("ownership changed: %+v", res.Msg.Space)
+	}
+}
+
+func TestSetMemberRoleOwnerSaysTransfer(t *testing.T) {
+	fixture := newFixture(t)
+	_, err := fixture.svc.SetMemberRole(fixture.owner, connect.NewRequest(&chatv1.SetMemberRoleRequest{
+		SpaceId: fixture.spaceID, UserId: authctx.UserID(fixture.member), Role: chatv1.SpaceRole_SPACE_ROLE_OWNER,
+	}))
+	if code(err) != connect.CodeInvalidArgument {
+		t.Fatalf("want invalid_argument, got %v", err)
+	}
+	if strings.Contains(err.Error(), "invite") {
+		t.Errorf("message mentions an invite: %v", err)
+	}
+}
+
+func TestInstanceAdminJoiningOwnSpaceIsNotAnnounced(t *testing.T) {
+	pool := dbtest.New(t)
+	bus := events.NewInProcBus()
+	svc := chat.New(pool, bus, dbDirectory{pool})
+	owner := newUser(t, pool, "owner", authctx.RoleAdmin)
+	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaceID := sp.Msg.Space.Id
+	inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := svc.JoinSpace(owner, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spaceSub := bus.Subscribe("space:" + spaceID)
+	defer spaceSub.Close()
+	userSub := bus.Subscribe("user:" + authctx.UserID(owner))
+	defer userSub.Close()
+	got, err := svc.JoinSpace(owner, connect.NewRequest(&chatv1.JoinSpaceRequest{SpaceId: spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	noEvent(t, spaceSub)
+	noEvent(t, userSub)
+	if !proto.Equal(got.Msg, want.Msg) {
+		t.Errorf("response differs from the invite path:\n got %v\nwant %v", got.Msg, want.Msg)
+	}
+	if got.Msg.Space.MyRole != chatv1.SpaceRole_SPACE_ROLE_OWNER {
+		t.Errorf("role = %v, want owner", got.Msg.Space.MyRole)
 	}
 }
