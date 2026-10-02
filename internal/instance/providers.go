@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
-	"regexp"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -13,6 +11,7 @@ import (
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/config"
 )
 
 // Login providers: external identities people can sign in with (OIDC).
@@ -28,8 +27,6 @@ const maxLoginProviders = 16
 // KindOIDC is the only provider kind today; GitHub-style plain
 // OAuth2 presets would add kinds.
 const KindOIDC = "oidc"
-
-var providerIDRE = regexp.MustCompile(`^[a-z0-9_-]{2,32}$`)
 
 // providerIcons is the set the web client can draw.
 var providerIcons = map[string]bool{"google": true, "microsoft": true, "key": true, "none": true}
@@ -207,7 +204,7 @@ func validateLoginProvider(in *instancev1.LoginProvider, at func(field string) s
 		return p, apierr.Field(connect.CodeInvalidArgument, at("kind"),
 			errors.New("kind must be oidc"))
 	}
-	if !providerIDRE.MatchString(p.ID) {
+	if !config.ValidProviderID(p.ID) {
 		return p, apierr.Field(connect.CodeInvalidArgument, at("id"),
 			errors.New("provider id must be 2-32 of a-z, 0-9, -, _"))
 	}
@@ -235,8 +232,7 @@ func validateLoginProvider(in *instancev1.LoginProvider, at func(field string) s
 // no query or fragment. HTTPS is what any real provider uses; plain HTTP
 // is allowed for IdPs on a LAN and for tests.
 func validateIssuer(raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {
+	if !config.IssuerURL(raw) {
 		return connect.NewError(connect.CodeInvalidArgument,
 			errors.New("issuer must look like https://auth.example.com"))
 	}

@@ -3,17 +3,15 @@ package instance
 import (
 	"context"
 	"time"
+
+	"github.com/getstoop/stoop/internal/config"
 )
 
 // The session_lifetime_days setting: how long a sign-in lasts. Read by
 // auth through its SessionPolicy port when a session is made, so a change
 // applies to sign-ins from then on.
 
-const (
-	keySessionLifetime = "session_lifetime_days"
-	// MaxSessionLifetimeDays bounds both the setting and the environment.
-	MaxSessionLifetimeDays = 365
-)
+const keySessionLifetime = "session_lifetime_days"
 
 // UseSessionLifetimeEnv supplies STOOP_SESSION_LIFETIME_DAYS, the
 // fallback when nothing is saved.
@@ -33,7 +31,7 @@ func (s *Service) SessionLifetimeDays(ctx context.Context) (int, error) {
 	case s.sessionDaysEnv > 0:
 		return s.sessionDaysEnv, nil
 	}
-	return 30, nil
+	return config.DefaultSessionLifetimeDays, nil
 }
 
 // SessionLifetime is the auth module's port.

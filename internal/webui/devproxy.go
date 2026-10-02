@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
+
+	"github.com/getstoop/stoop/internal/config"
 )
 
 // DevProxy serves the web app from a running Vite dev server instead of
@@ -12,8 +13,8 @@ import (
 // the live source with hot reload — for a browser, the desktop shell and
 // a phone alike. Development only; `make dev` turns it on.
 func DevProxy(target string) (http.Handler, error) {
-	u, err := url.Parse(target)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+	u, ok := config.HTTPURL(target)
+	if !ok {
 		return nil, fmt.Errorf("must look like http://localhost:5173 (got %q)", target)
 	}
 	return &httputil.ReverseProxy{

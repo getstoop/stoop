@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -245,8 +244,7 @@ func Load() (Config, error) {
 	cfg.StorageDir = getenv("STOOP_STORAGE_DIR", "./data")
 
 	if cfg.PublicURL = os.Getenv("STOOP_PUBLIC_URL"); cfg.PublicURL != "" {
-		u, err := url.Parse(cfg.PublicURL)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || (u.Path != "" && u.Path != "/") {
+		if !Origin(cfg.PublicURL) {
 			return Config{}, fmt.Errorf("STOOP_PUBLIC_URL must look like https://chat.example.com (got %q)", cfg.PublicURL)
 		}
 		cfg.PublicURL = strings.TrimSuffix(cfg.PublicURL, "/")
@@ -362,8 +360,7 @@ func Load() (Config, error) {
 	cfg.OIDCName = getenv("STOOP_OIDC_NAME", "Continue with single sign-on")
 	cfg.OIDCID = getenv("STOOP_OIDC_ID", "sso")
 	if cfg.OIDCIssuer != "" {
-		u, err := url.Parse(cfg.OIDCIssuer)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		if !IssuerURL(cfg.OIDCIssuer) {
 			return Config{}, fmt.Errorf("STOOP_OIDC_ISSUER must look like https://auth.example.com (got %q)", cfg.OIDCIssuer)
 		}
 		if cfg.OIDCClientID == "" || cfg.OIDCClientSecret == "" {
@@ -372,11 +369,11 @@ func Load() (Config, error) {
 	} else if cfg.OIDCClientID != "" || cfg.OIDCClientSecret != "" {
 		return Config{}, fmt.Errorf("STOOP_OIDC_CLIENT_ID and STOOP_OIDC_CLIENT_SECRET need STOOP_OIDC_ISSUER")
 	}
-	if cfg.SessionLifetimeDays, err = parseNonNegativeInt("STOOP_SESSION_LIFETIME_DAYS", 30); err != nil {
+	if cfg.SessionLifetimeDays, err = parseNonNegativeInt("STOOP_SESSION_LIFETIME_DAYS", DefaultSessionLifetimeDays); err != nil {
 		return Config{}, err
 	}
-	if cfg.SessionLifetimeDays < 1 || cfg.SessionLifetimeDays > 365 {
-		return Config{}, fmt.Errorf("STOOP_SESSION_LIFETIME_DAYS must be 1-365 (got %d)", cfg.SessionLifetimeDays)
+	if cfg.SessionLifetimeDays < 1 || cfg.SessionLifetimeDays > MaxSessionLifetimeDays {
+		return Config{}, fmt.Errorf("STOOP_SESSION_LIFETIME_DAYS must be 1-%d (got %d)", MaxSessionLifetimeDays, cfg.SessionLifetimeDays)
 	}
 	cfg.PasswordSignIn = getenv("STOOP_PASSWORD_SIGN_IN", "everyone")
 	switch cfg.PasswordSignIn {
@@ -384,21 +381,18 @@ func Load() (Config, error) {
 	default:
 		return Config{}, fmt.Errorf("STOOP_PASSWORD_SIGN_IN must be everyone, admins, or off (got %q)", cfg.PasswordSignIn)
 	}
-	if !oidcIDRE.MatchString(cfg.OIDCID) {
+	if !ValidProviderID(cfg.OIDCID) {
 		return Config{}, fmt.Errorf("STOOP_OIDC_ID must be 2-32 of a-z, 0-9, -, _ (got %q)", cfg.OIDCID)
 	}
 	// Held to the same rules as a name saved on the admin page (instance
 	// settings.go): trimmed, and at most 100 characters.
 	cfg.InstanceName = strings.TrimSpace(os.Getenv("STOOP_INSTANCE_NAME"))
-	if utf8.RuneCountInString(cfg.InstanceName) > 100 {
+	if utf8.RuneCountInString(cfg.InstanceName) > MaxInstanceNameRunes {
 		return Config{}, fmt.Errorf("STOOP_INSTANCE_NAME must be 100 characters or fewer")
 	}
 
 	return cfg, nil
 }
-
-// oidcIDRE matches the provider-id rule enforced by the admin API too.
-var oidcIDRE = regexp.MustCompile(`^[a-z0-9_-]{2,32}$`)
 
 // splitList parses a comma-separated value, dropping blanks.
 func splitList(v string) []string {
