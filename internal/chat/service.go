@@ -148,6 +148,11 @@ func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID st
 	if err != nil {
 		return "", notFoundOr(err, "channel")
 	}
+	if hidden, err := s.hiddenChannel(ctx, channel); err != nil {
+		return "", err
+	} else if hidden {
+		return "", errChannelNotFound
+	}
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return "", err
 	}

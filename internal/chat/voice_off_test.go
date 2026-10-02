@@ -126,6 +126,34 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 	})); err != nil {
 		t.Errorf("reordering the listed channels with voice off: %v", err)
 	}
+	// Knowing its id is no way in: every member-facing call says not found.
+	byID := map[string]func() error{
+		"SendMessage": func() error {
+			_, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: hangout, Content: "anyone here?"}))
+			return err
+		},
+		"ListMessages": func() error {
+			_, err := svc.ListMessages(bea, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: hangout}))
+			return err
+		},
+		"ListPinnedMessages": func() error {
+			_, err := svc.ListPinnedMessages(bea, connect.NewRequest(&chatv1.ListPinnedMessagesRequest{ChannelId: hangout}))
+			return err
+		},
+		"MarkChannelRead": func() error {
+			_, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: hangout}))
+			return err
+		},
+		"an upload": func() error {
+			_, err := svc.ChannelSpaceToPostIn(bea, authctx.UserID(bea), hangout)
+			return err
+		},
+	}
+	for name, call := range byID {
+		if err := call(); code(err) != connect.CodeNotFound {
+			t.Errorf("%s in a hidden channel: want not_found, got %v", name, err)
+		}
+	}
 	// The hidden channel does not make the last text channel deletable.
 	if _, err := svc.DeleteChannel(owner, connect.NewRequest(&chatv1.DeleteChannelRequest{ChannelId: general})); code(err) != connect.CodeFailedPrecondition {
 		t.Errorf("deleting the only listed channel: want failed_precondition, got %v", err)
@@ -133,6 +161,11 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 
 	policy.on = true
 	check("voice back on", 2, true, 1, spaceID)
+	for name, call := range byID {
+		if err := call(); err != nil {
+			t.Errorf("%s with voice back on: %v", name, err)
+		}
+	}
 }
 
 // A space's own switch hides its voice channels and ends its calls,
@@ -211,6 +244,16 @@ func TestSpaceVoiceSwitch(t *testing.T) {
 	}
 	if got := voiceSpace(porchVoice); got != "" {
 		t.Errorf("a hidden voice channel resolved to space %q", got)
+	}
+	post := func(channelID string) error {
+		_, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "anyone here?"}))
+		return err
+	}
+	if err := post(porchVoice); code(err) != connect.CodeNotFound {
+		t.Errorf("posting in the hidden channel by id: want not_found, got %v", err)
+	}
+	if err := post(garageVoice); err != nil {
+		t.Errorf("posting in the other space's voice channel: %v", err)
 	}
 	_, err = svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{
 		SpaceId: porch, Name: "garage", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE,

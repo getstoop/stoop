@@ -71,6 +71,19 @@ func (s *Service) voiceOn(ctx context.Context, spaceID string) (bool, error) {
 	}
 }
 
+// hiddenChannel reports whether a channel is a voice channel while voice
+// is off for its space. Its members are then answered as if it did not
+// exist.
+func (s *Service) hiddenChannel(ctx context.Context, channel dbgen.Channel) (bool, error) {
+	if chatv1.ChannelKind(channel.Kind) != chatv1.ChannelKind_CHANNEL_KIND_VOICE {
+		return false, nil
+	}
+	on, err := s.voiceOn(ctx, spaceOf(channel))
+	return !on, err
+}
+
+var errChannelNotFound = connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
+
 // listChannels is a space's channels as its members see them.
 func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]dbgen.ListChannelsBySpaceRow, error) {
 	rows, err := s.q.ListChannelsBySpace(ctx, dbgen.ListChannelsBySpaceParams{

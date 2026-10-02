@@ -372,6 +372,9 @@ off — and while the answer is no:
 - `VoiceChannelSpace` resolves none of them, so the gateway takes no
   voice state for them and `JoinVoiceChannel` refuses them as not voice
   channels.
+- Knowing an id is no way in. `accessChannel`, which every message, pin,
+  reaction, read-marker and mute call loads its channel through, answers
+  not found, and so does the upload check.
 
 An activity item that points into a hidden channel's chat opens the space
 instead, as it does for a deleted channel.
