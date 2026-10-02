@@ -59,6 +59,10 @@ func runUpgrade(ctx context.Context, args []string, out io.Writer) int {
 		fmt.Fprintln(os.Stderr, "stoop upgrade: --to and --file are alternatives; give one")
 		return 2
 	}
+	if rollback && (o.PlanOnly || o.To != "" || o.File != "") {
+		_, _ = fmt.Fprint(out, upgradeUsage)
+		return 2
+	}
 	u := upgrade.New(o)
 	u.Out = out
 	var err error

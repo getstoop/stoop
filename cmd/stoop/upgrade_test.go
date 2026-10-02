@@ -15,3 +15,19 @@ func TestRunUpgradeUsage(t *testing.T) {
 		}
 	}
 }
+
+func TestRunUpgradeRollbackRefusesOtherFlags(t *testing.T) {
+	t.Chdir(t.TempDir())
+	var out bytes.Buffer
+	for _, args := range [][]string{
+		{"rollback", "--plan"},
+		{"rollback", "--plan", "--yes"},
+		{"rollback", "--to", "0.3.0"},
+		{"rollback", "--file", "x.yml"},
+	} {
+		out.Reset()
+		if code := runUpgrade(t.Context(), args, &out); code != 2 || !strings.Contains(out.String(), "usage: stoop upgrade") {
+			t.Errorf("%v: exit %d, %q", args, code, out.String())
+		}
+	}
+}
