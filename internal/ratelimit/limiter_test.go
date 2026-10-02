@@ -2,6 +2,7 @@ package ratelimit
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -148,5 +149,24 @@ func TestMiddlewareTrustsOnlyNamedPeers(t *testing.T) {
 	}
 	if seen["8.8.8.8"] != 1 {
 		t.Errorf("untrusted peer should be keyed by its own address: %v", seen)
+	}
+}
+
+func TestMiddlewareRefusesWhenStoreFails(t *testing.T) {
+	limiter := New(kv.Broken(errors.New("store down")), "test", 60, 10)
+	reached := false
+	handler := Middleware(limiter, never, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/livekit/rtc", nil)
+	req.RemoteAddr = "198.51.100.7:5555"
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", rec.Code)
+	}
+	if reached {
+		t.Fatal("a request the limiter could not account for reached the handler")
 	}
 }

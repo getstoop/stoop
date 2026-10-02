@@ -56,11 +56,13 @@ func (l *Limiter) Allow(ctx context.Context, key string) (bool, error) {
 	if !l.Enabled() {
 		return true, nil
 	}
-	now := l.now()
 	perSecond := float64(l.perMinute) / 60
 	refill := time.Duration(float64(l.burst) / perSecond * float64(time.Second))
 	allowed := false
 	err := l.buckets.Update(ctx, key, func(b bucket, found bool) (bucket, time.Duration, bool) {
+		// The clock is read under the store's lock, so two requests for
+		// one key see time move one way.
+		now := l.now()
 		if !found {
 			b = bucket{tokens: float64(l.burst), at: now}
 		}

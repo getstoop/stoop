@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -17,6 +18,12 @@ import (
 type denyAll struct{}
 
 func (denyAll) Allow(context.Context, string) (bool, error) { return false, nil }
+
+type brokenThrottle struct{}
+
+func (brokenThrottle) Allow(context.Context, string) (bool, error) {
+	return false, errors.New("store down")
+}
 
 func TestSearchMessages(t *testing.T) {
 	pool := dbtest.New(t)
@@ -122,5 +129,10 @@ func TestSearchMessages(t *testing.T) {
 	svc.UseSearchThrottle(denyAll{})
 	if _, err := search(bea, "livekit", "", 0); code(err) != connect.CodeResourceExhausted {
 		t.Errorf("throttled: %v", err)
+	}
+	// A throttle that cannot answer refuses the search rather than waving it through.
+	svc.UseSearchThrottle(brokenThrottle{})
+	if _, err := search(bea, "livekit", "", 0); code(err) != connect.CodeUnavailable {
+		t.Errorf("throttle down: %v", err)
 	}
 }

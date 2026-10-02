@@ -418,6 +418,12 @@ func TestIncomingHookPosts(t *testing.T) {
 		t.Errorf("over the limit: %d", status)
 	}
 	f.svc.UseHookThrottle(nil)
+	// A limiter that cannot answer refuses the post rather than waving it through.
+	f.svc.UseHookThrottle(ratelimit.New(kv.Broken(errors.New("store down")), "hooks_broken", 2, 2))
+	if status, _ := f.post(t, path(made.Url), "text/plain", "four"); status != http.StatusServiceUnavailable {
+		t.Errorf("limiter down: %d", status)
+	}
+	f.svc.UseHookThrottle(nil)
 
 	// Disabled, rotated, deleted.
 	off := false
