@@ -66,10 +66,16 @@ render | tr -d ' \n' | grep -q -- 'command:-postgres--c-shared_buffers=256MB--c-
 	fail "POSTGRES_ARGS: flags did not reach the postgres command"
 
 # Own Postgres: profile off, URL set.
-printf 'COMPOSE_PROFILES=\nSTOOP_DATABASE_URL=postgres://me@db.lan/stoop\n' >"$env_file"
+printf 'COMPOSE_PROFILES=bundled-livekit\nSTOOP_DATABASE_URL=postgres://me@db.lan/stoop\n' >"$env_file"
 [ "$(services)" = "keys-owner livekit stoop " ] || fail "own postgres: got services: $(services)"
 render | grep -q 'STOOP_DATABASE_URL: postgres://me@db.lan/stoop' ||
 	fail "own postgres: STOOP_DATABASE_URL from .env was not used"
 render 2>&1 | grep -qi 'warn' && fail "own postgres: compose printed a warning"
+
+# Text only: LiveKit's profile off, and the server told so.
+printf 'COMPOSE_PROFILES=bundled-postgres\nPOSTGRES_PASSWORD=change-me\nSTOOP_VOICE=false\n' >"$env_file"
+[ "$(services)" = "keys-owner postgres stoop " ] || fail "text only: got services: $(services)"
+render | tr -d ' \n"' | grep -q 'STOOP_VOICE:false' || fail "text only: STOOP_VOICE did not reach the server"
+render 2>&1 | grep -qi 'warn' && fail "text only: compose printed a warning"
 
 echo "compose-check: ok"

@@ -72,7 +72,7 @@ the Docker Compose install only.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `COMPOSE_PROFILES` | `bundled-postgres` | Which bundled services run. Empty to [use your own Postgres](install.md#using-your-own-postgres) |
+| `COMPOSE_PROFILES` | `bundled-postgres,bundled-livekit` | Which bundled services run. Without `bundled-postgres` you [use your own Postgres](install.md#using-your-own-postgres); without `bundled-livekit` you [run without voice](voice.md#running-without-voice) |
 | `STOOP_PORT` | `8080` | The port the web app is published on |
 | `TZ` | `UTC` | Time zone of the timestamps in `docker compose logs` |
 | `STOOP_DATA_PATH` | `stoop-data` volume | Where uploads and the Tailscale node identity live; see [Where the data lives](install.md#where-the-data-lives) |

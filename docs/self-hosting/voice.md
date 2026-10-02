@@ -19,9 +19,25 @@ each browser and LiveKit. Voice needs three things:
 
 ## Running without voice
 
-Set `STOOP_VOICE=false` in `.env` and restart Stoop. Voice channels are
-hidden and none can be created. Nothing is deleted: set it back to `true`
-and they return.
+In `.env`, set `STOOP_VOICE=false` and take `bundled-livekit` out of
+`COMPOSE_PROFILES`, leaving the rest of that line as it is. On the default
+install that makes:
+
+```sh
+COMPOSE_PROFILES=bundled-postgres
+STOOP_VOICE=false
+```
+
+Then:
+
+```sh
+docker compose up -d
+docker compose rm -sf livekit
+```
+
+The second command stops a LiveKit that was already running, which `up`
+leaves alone. Voice channels are hidden and none can be created. Nothing
+is deleted: put both settings back and they return.
 
 ## TURN, when media ports can't be reached
 
