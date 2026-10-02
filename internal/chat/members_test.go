@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -294,6 +295,19 @@ func TestTransferToNonMemberChangesNothing(t *testing.T) {
 	}
 	if res.Msg.Space.OwnerId != authctx.UserID(fixture.owner) || res.Msg.Space.MyRole != chatv1.SpaceRole_SPACE_ROLE_OWNER {
 		t.Errorf("ownership changed: %+v", res.Msg.Space)
+	}
+}
+
+func TestSetMemberRoleOwnerSaysTransfer(t *testing.T) {
+	fixture := newFixture(t)
+	_, err := fixture.svc.SetMemberRole(fixture.owner, connect.NewRequest(&chatv1.SetMemberRoleRequest{
+		SpaceId: fixture.spaceID, UserId: authctx.UserID(fixture.member), Role: chatv1.SpaceRole_SPACE_ROLE_OWNER,
+	}))
+	if code(err) != connect.CodeInvalidArgument {
+		t.Fatalf("want invalid_argument, got %v", err)
+	}
+	if strings.Contains(err.Error(), "invite") {
+		t.Errorf("message mentions an invite: %v", err)
 	}
 }
 
