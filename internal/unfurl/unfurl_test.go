@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/getstoop/stoop/internal/netguard"
 )
 
 func TestParseHTML(t *testing.T) {
@@ -59,13 +61,13 @@ func TestFetch_LocalServerRefusedUnlessAllowed(t *testing.T) {
 	ctx := context.Background()
 
 	// The default fetcher must refuse loopback — that's the SSRF guard.
-	if _, err := New(Options{}).Fetch(ctx, srv.URL+"/page"); !errors.Is(err, ErrNotPublic) {
+	if _, err := New(Options{}).Fetch(ctx, srv.URL+"/page"); !errors.Is(err, netguard.ErrNotPublic) {
 		t.Fatalf("loopback fetch should be refused, got %v", err)
 	}
-	if _, err := New(Options{}).Fetch(ctx, "ftp://example.com/x"); !errors.Is(err, ErrBadScheme) {
+	if _, err := New(Options{}).Fetch(ctx, "ftp://example.com/x"); !errors.Is(err, netguard.ErrBadScheme) {
 		t.Errorf("ftp should be refused, got %v", err)
 	}
-	if _, err := New(Options{}).Fetch(ctx, "http://user:pw@example.com/"); !errors.Is(err, ErrBadScheme) {
+	if _, err := New(Options{}).Fetch(ctx, "http://user:pw@example.com/"); !errors.Is(err, netguard.ErrBadScheme) {
 		t.Errorf("userinfo should be refused, got %v", err)
 	}
 
