@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -60,7 +61,7 @@ func (p *PostgresQueue) Lease(ctx context.Context, n int, until time.Duration) (
 }
 
 func (p *PostgresQueue) Ack(ctx context.Context, id string, r Attempt) error {
-	if err := p.q.AckDelivery(ctx, dbgen.AckDeliveryParams{ID: id, Now: p.now(), StatusCode: statusPtr(r.StatusCode), Response: r.Response}); err != nil {
+	if err := p.q.AckDelivery(ctx, dbgen.AckDeliveryParams{ID: id, Now: p.now(), StatusCode: statusPtr(r.StatusCode), Response: storableText(r.Response)}); err != nil {
 		return fmt.Errorf("ack delivery: %w", err)
 	}
 	return nil
@@ -68,7 +69,7 @@ func (p *PostgresQueue) Ack(ctx context.Context, id string, r Attempt) error {
 
 func (p *PostgresQueue) Nack(ctx context.Context, id string, retryAfter time.Duration, r Attempt) error {
 	if err := p.q.NackDelivery(ctx, dbgen.NackDeliveryParams{
-		ID: id, NotBefore: p.now().Add(retryAfter), StatusCode: statusPtr(r.StatusCode), Response: r.Response, Error: r.Error,
+		ID: id, NotBefore: p.now().Add(retryAfter), StatusCode: statusPtr(r.StatusCode), Response: storableText(r.Response), Error: storableText(r.Error),
 	}); err != nil {
 		return fmt.Errorf("nack delivery: %w", err)
 	}
@@ -76,7 +77,7 @@ func (p *PostgresQueue) Nack(ctx context.Context, id string, retryAfter time.Dur
 }
 
 func (p *PostgresQueue) Dead(ctx context.Context, id string, r Attempt) error {
-	if err := p.q.DeadDelivery(ctx, dbgen.DeadDeliveryParams{ID: id, Now: p.now(), StatusCode: statusPtr(r.StatusCode), Response: r.Response, Error: r.Error}); err != nil {
+	if err := p.q.DeadDelivery(ctx, dbgen.DeadDeliveryParams{ID: id, Now: p.now(), StatusCode: statusPtr(r.StatusCode), Response: storableText(r.Response), Error: storableText(r.Error)}); err != nil {
 		return fmt.Errorf("dead-letter delivery: %w", err)
 	}
 	return nil
@@ -88,4 +89,10 @@ func statusPtr(code int) *int32 {
 	}
 	c := int32(code)
 	return &c
+}
+
+// storableText makes a receiver's text safe for a text column, which
+// refuses invalid UTF-8 and NUL bytes.
+func storableText(text string) string {
+	return strings.ReplaceAll(strings.ToValidUTF8(text, "\uFFFD"), "\x00", "")
 }

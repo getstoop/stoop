@@ -154,18 +154,19 @@ func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 				instance, _ = s.policy.PublicURL(ctx)
 			}
 		}
-		if err := s.enqueueFor(ctx, h.ID, ev, spaceName, instance); err != nil {
+		if _, err := s.enqueueFor(ctx, h.ID, ev, spaceName, instance); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// enqueueFor takes the hook's next sequence number and queues the body.
-func (s *Service) enqueueFor(ctx context.Context, hookID string, ev outgoingEvent, spaceName, instance string) error {
+// enqueueFor takes the hook's next sequence number, queues the body and
+// returns the delivery's id.
+func (s *Service) enqueueFor(ctx context.Context, hookID string, ev outgoingEvent, spaceName, instance string) (string, error) {
 	seq, err := s.q.NextOutgoingSequence(ctx, hookID)
 	if err != nil {
-		return fmt.Errorf("next sequence: %w", err)
+		return "", fmt.Errorf("next sequence: %w", err)
 	}
 	id := newID()
 	body, err := json.Marshal(envelope{
@@ -173,13 +174,13 @@ func (s *Service) enqueueFor(ctx context.Context, hookID string, ev outgoingEven
 		Space: envelopeSpace{ID: ev.SpaceID, Name: spaceName}, Data: ev.Data,
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := s.queue.Enqueue(ctx, Item{ID: id, Lane: hookID, Event: ev.Type, Sequence: uint64(seq), Body: body}); err != nil {
-		return err
+		return "", err
 	}
 	s.wakeWorker()
-	return nil
+	return id, nil
 }
 
 func wants(types []string, t string) bool {

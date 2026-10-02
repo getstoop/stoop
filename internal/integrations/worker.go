@@ -13,6 +13,9 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"unicode/utf8"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/diag"
@@ -120,8 +123,11 @@ func (s *Service) deliverOnce(ctx context.Context) (delivered, failed int, err e
 // deliver makes one attempt and settles the item; true is an ack.
 func (s *Service) deliver(ctx context.Context, it Leased) (bool, error) {
 	hook, err := s.q.GetOutgoingWebhook(ctx, it.Lane)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return false, s.queue.Dead(ctx, it.ID, Attempt{Error: "webhook is gone"})
+	}
+	if err != nil {
+		return false, fmt.Errorf("get hook: %w", err)
 	}
 	if hook.DisabledAt != nil {
 		return false, s.queue.Dead(ctx, it.ID, Attempt{Error: "webhook is disabled"})
@@ -273,5 +279,9 @@ func clip(str string, n int) string {
 	if len(str) <= n {
 		return str
 	}
-	return str[:n]
+	cut := n
+	for cut > 0 && !utf8.RuneStart(str[cut]) {
+		cut--
+	}
+	return str[:cut]
 }

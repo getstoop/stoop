@@ -157,18 +157,15 @@ func (s *Service) TestWebhook(ctx context.Context, req *connect.Request[integrat
 	if s.policy != nil {
 		instance, _ = s.policy.PublicURL(ctx)
 	}
-	before, err := s.q.ListDeliveriesByLane(ctx, dbgen.ListDeliveriesByLaneParams{Lane: hook.ID, Limit: 1})
+	id, err := s.enqueueFor(ctx, hook.ID, outgoingEvent{Type: EventWebhookTest, SpaceID: hook.SpaceID, Data: rawJSON(map[string]any{})}, spaceName, instance)
 	if err != nil {
-		return nil, fmt.Errorf("list deliveries: %w", err)
-	}
-	if err := s.enqueueFor(ctx, hook.ID, outgoingEvent{Type: EventWebhookTest, SpaceID: hook.SpaceID, Data: rawJSON(map[string]any{})}, spaceName, instance); err != nil {
 		return nil, err
 	}
-	after, err := s.q.ListDeliveriesByLane(ctx, dbgen.ListDeliveriesByLaneParams{Lane: hook.ID, Limit: 1})
-	if err != nil || len(after) == 0 || (len(before) > 0 && after[0].ID == before[0].ID) {
-		return nil, fmt.Errorf("find test delivery: %w", err)
+	delivery, err := s.q.GetDelivery(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get delivery: %w", err)
 	}
-	return connect.NewResponse(&integrationsv1.TestWebhookResponse{Delivery: toProtoDelivery(after[0])}), nil
+	return connect.NewResponse(&integrationsv1.TestWebhookResponse{Delivery: toProtoDelivery(delivery)}), nil
 }
 
 func (s *Service) ListDeliveries(ctx context.Context, req *connect.Request[integrationsv1.ListDeliveriesRequest]) (*connect.Response[integrationsv1.ListDeliveriesResponse], error) {

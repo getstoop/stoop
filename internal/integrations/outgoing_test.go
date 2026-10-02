@@ -14,6 +14,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -435,4 +436,103 @@ func (s *subscriber) has(topic string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.sub != nil && s.sub.Has(topic)
+}
+
+func TestOutgoingAcceptedReplyIsNotRepeated(t *testing.T) {
+	replies := map[string]string{
+		"binary":   "\xff\xfe\x80 not text",
+		"nul":      "ok\x00ok",
+		"straddle": strings.Repeat("a", responseKeep-1) + "é",
+	}
+	for name, reply := range replies {
+		t.Run(name, func(t *testing.T) {
+			fixture, _ := outgoingFixture(t)
+			var mu sync.Mutex
+			calls := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+				mu.Lock()
+				calls++
+				mu.Unlock()
+				_, _ = io.WriteString(writer, reply)
+			}))
+			t.Cleanup(srv.Close)
+			hook, _ := fixture.createOutgoing(t, srv.URL, []string{EventMessageCreated}, "")
+			out, _ := fixture.svc.translate(context.Background(), message(fixture.channel, fixture.space, "hello"))
+			fixture.enqueue(t, out)
+			fixture.drain(t)
+			if _, err := fixture.pool.Exec(context.Background(), `UPDATE webhook_deliveries SET leased_until = now() - interval '1 minute' WHERE finished_at IS NULL`); err != nil {
+				t.Fatal(err)
+			}
+			fixture.drain(t)
+			mu.Lock()
+			defer mu.Unlock()
+			if calls != 1 {
+				t.Errorf("receiver called %d times", calls)
+			}
+			log, err := fixture.svc.ListDeliveries(fixture.admin, connect.NewRequest(&integrationsv1.ListDeliveriesRequest{WebhookId: hook.Id}))
+			if err != nil || len(log.Msg.Deliveries) != 1 || log.Msg.Deliveries[0].FinishedAt == nil || log.Msg.Deliveries[0].GetStatusCode() != 200 {
+				t.Errorf("log: %v %+v", err, log.Msg.Deliveries)
+			}
+		})
+	}
+}
+
+func TestClipKeepsWholeCharacters(t *testing.T) {
+	got := clip("aé", 2)
+	if got != "a" || !utf8.ValidString(got) {
+		t.Errorf("clip = %q", got)
+	}
+}
+
+// settleRecorder is a queue that records how items are settled.
+type settleRecorder struct {
+	Queue
+	settled []string
+}
+
+func (recorder *settleRecorder) Dead(_ context.Context, id string, _ Attempt) error {
+	recorder.settled = append(recorder.settled, id)
+	return nil
+}
+
+func TestDeliverLeavesTheItemWhenTheHookLookupFails(t *testing.T) {
+	fixture, _ := outgoingFixture(t)
+	recorder := &settleRecorder{}
+	fixture.svc.UseQueue(recorder)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ok, err := fixture.svc.deliver(ctx, Leased{Item: Item{ID: uuid.NewString(), Lane: uuid.NewString()}})
+	if ok || err == nil {
+		t.Errorf("deliver = %v, %v", ok, err)
+	}
+	if len(recorder.settled) != 0 {
+		t.Errorf("a lookup failure dead-lettered %v", recorder.settled)
+	}
+
+	ok, err = fixture.svc.deliver(context.Background(), Leased{Item: Item{ID: "gone", Lane: uuid.NewString()}})
+	if ok || err != nil || len(recorder.settled) != 1 {
+		t.Errorf("a missing hook: %v, %v, settled %v", ok, err, recorder.settled)
+	}
+}
+
+func TestDeleteWebhookWithAMalformedIDIsNotFound(t *testing.T) {
+	fixture, _ := outgoingFixture(t)
+	_, err := fixture.svc.DeleteWebhook(fixture.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: "nope"}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("delete nope: %v", err)
+	}
+}
+
+func TestTestWebhookReturnsTheTestDelivery(t *testing.T) {
+	fixture, receiver := outgoingFixture(t)
+	hook, _ := fixture.createOutgoing(t, receiver.srv.URL, []string{EventMessageCreated}, "")
+	out, _ := fixture.svc.translate(context.Background(), message(fixture.channel, fixture.space, "earlier"))
+	fixture.enqueue(t, out)
+	res, err := fixture.svc.TestWebhook(fixture.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := res.Msg.Delivery.EventType; got != EventWebhookTest {
+		t.Errorf("event type = %q", got)
+	}
 }
