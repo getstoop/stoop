@@ -146,7 +146,7 @@ func (s *Service) VoiceChannelSpace(ctx context.Context, channelID string) (stri
 	if err != nil {
 		return "", fmt.Errorf("get channel: %w", err)
 	}
-	if chatv1.ChannelKind(channel.Kind) != chatv1.ChannelKind_CHANNEL_KIND_VOICE {
+	if !isVoice(channel) {
 		return "", nil
 	}
 	return spaceOf(channel), nil
@@ -230,13 +230,13 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, err
 	}
-	n, err := s.q.CountChannelsInSpace(ctx, dbgen.CountChannelsInSpaceParams{
+	listed, err := s.q.CountChannelsInSpace(ctx, dbgen.CountChannelsInSpaceParams{
 		SpaceID: spaceOf(channel), WithVoice: s.voiceOn(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("count channels: %w", err)
 	}
-	if n <= 1 {
+	if listed <= 1 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			errors.New("a space needs at least one channel"))
 	}
@@ -272,7 +272,7 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 			ChannelDeleted: &realtimev1.ChannelDeleted{SpaceId: spaceOf(channel), ChannelId: channel.ID},
 		},
 	}))
-	if chatv1.ChannelKind(channel.Kind) == chatv1.ChannelKind_CHANNEL_KIND_VOICE {
+	if isVoice(channel) {
 		s.closeVoiceRooms(ctx, channel.ID)
 	}
 	// Only when this delete is what cleared it, and carrying the row that
