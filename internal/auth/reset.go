@@ -42,6 +42,9 @@ func generateTempPassword() (string, error) {
 // which never resets the owner: only the owner changes that password, or
 // the host operator through the CLI.
 func (s *Service) ResetPassword(ctx context.Context, userID string) (temporary string, summary AccountSummary, err error) {
+	if err := requireUserID(userID); err != nil {
+		return "", AccountSummary{}, err
+	}
 	u, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
 		return "", AccountSummary{}, notFoundOr(err, "user")
