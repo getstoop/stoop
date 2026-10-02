@@ -322,27 +322,6 @@ func (q *Queries) SetDMClosed(ctx context.Context, arg SetDMClosedParams) error 
 	return err
 }
 
-const sharesSpace = `-- name: SharesSpace :one
-SELECT EXISTS (
-    SELECT 1 FROM space_members a
-    JOIN space_members b ON b.space_id = a.space_id
-    WHERE a.user_id = $1 AND b.user_id = $2
-) AS shares
-`
-
-type SharesSpaceParams struct {
-	UserID   string
-	UserID_2 string
-}
-
-// SharesSpace: do two users belong to at least one common space?
-func (q *Queries) SharesSpace(ctx context.Context, arg SharesSpaceParams) (bool, error) {
-	row := q.db.QueryRow(ctx, sharesSpace, arg.UserID, arg.UserID_2)
-	var shares bool
-	err := row.Scan(&shares)
-	return shares, err
-}
-
 const sharesSpaceAmong = `-- name: SharesSpaceAmong :many
 SELECT DISTINCT b.user_id FROM space_members a
 JOIN space_members b ON b.space_id = a.space_id

@@ -10,21 +10,6 @@ import (
 	"time"
 )
 
-const addCredentialSpaceBound = `-- name: AddCredentialSpaceBound :exec
-INSERT INTO credential_bounds (credential_id, space_id)
-VALUES ($1::uuid, $2::uuid)
-`
-
-type AddCredentialSpaceBoundParams struct {
-	CredentialID string
-	SpaceID      string
-}
-
-func (q *Queries) AddCredentialSpaceBound(ctx context.Context, arg AddCredentialSpaceBoundParams) error {
-	_, err := q.db.Exec(ctx, addCredentialSpaceBound, arg.CredentialID, arg.SpaceID)
-	return err
-}
-
 const countPersonalTokensByHolder = `-- name: CountPersonalTokensByHolder :many
 SELECT holder_id, count(*) AS n FROM credentials WHERE kind = 'personal_token' GROUP BY holder_id
 `

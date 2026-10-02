@@ -618,40 +618,6 @@ func (q *Queries) SetUserRole(ctx context.Context, arg SetUserRoleParams) (User,
 	return i, err
 }
 
-const setUserRoleByUsername = `-- name: SetUserRoleByUsername :one
-UPDATE users SET role = $2 WHERE username = $1 RETURNING id, username, display_name, password_hash, created_at, role, deactivated_at, avatar_file_id, username_pending, username_frozen, pronouns, bio, kind, dnd, dnd_until, deleted_at, is_owner
-`
-
-type SetUserRoleByUsernameParams struct {
-	Username string
-	Role     string
-}
-
-func (q *Queries) SetUserRoleByUsername(ctx context.Context, arg SetUserRoleByUsernameParams) (User, error) {
-	row := q.db.QueryRow(ctx, setUserRoleByUsername, arg.Username, arg.Role)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
-		&i.DisplayName,
-		&i.PasswordHash,
-		&i.CreatedAt,
-		&i.Role,
-		&i.DeactivatedAt,
-		&i.AvatarFileID,
-		&i.UsernamePending,
-		&i.UsernameFrozen,
-		&i.Pronouns,
-		&i.Bio,
-		&i.Kind,
-		&i.Dnd,
-		&i.DndUntil,
-		&i.DeletedAt,
-		&i.IsOwner,
-	)
-	return i, err
-}
-
 const setUsername = `-- name: SetUsername :one
 UPDATE users SET username = $2, username_pending = false
 WHERE id = $1 AND NOT username_frozen
