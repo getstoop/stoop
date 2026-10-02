@@ -9,12 +9,14 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 )
@@ -117,6 +119,11 @@ func (s *Service) UsePresence(p PresenceLister) { s.presence = p }
 
 func New(pool *pgxpool.Pool, bus events.Bus, users UserDirectory) *Service {
 	return &Service{pool: pool, q: dbgen.New(pool), bus: bus, users: users}
+}
+
+// inTx runs fn in a transaction with queries bound to it.
+func (s *Service) inTx(ctx context.Context, fn func(qtx *dbgen.Queries) error) error {
+	return db.InTx(ctx, s.pool, func(tx pgx.Tx) error { return fn(s.q.WithTx(tx)) })
 }
 
 // ListSpaceIDs reports the spaces a user belongs to. Exposed for the

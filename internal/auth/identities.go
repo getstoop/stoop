@@ -47,38 +47,34 @@ func (s *Service) UnlinkIdentity(ctx context.Context, req *connect.Request[authv
 	}
 	// The count and delete share a transaction so two concurrent unlinks
 	// can't strip a passwordless account of its last way to sign in.
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-
-	qtx := s.q.WithTx(tx)
-	user, err := qtx.GetUserByID(ctx, authctx.UserID(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("look up user: %w", err)
-	}
-	if user.PasswordHash == nil {
-		n, err := qtx.CountUserIdentities(ctx, user.ID)
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		user, err := qtx.GetUserByID(ctx, authctx.UserID(ctx))
 		if err != nil {
-			return nil, fmt.Errorf("count identities: %w", err)
+			return fmt.Errorf("look up user: %w", err)
 		}
-		if n <= 1 {
-			return nil, connect.NewError(connect.CodeFailedPrecondition,
-				errors.New("set a password first: this is the account's only way to sign in"))
+		if user.PasswordHash == nil {
+			linked, err := qtx.CountUserIdentities(ctx, user.ID)
+			if err != nil {
+				return fmt.Errorf("count identities: %w", err)
+			}
+			if linked <= 1 {
+				return connect.NewError(connect.CodeFailedPrecondition,
+					errors.New("set a password first: this is the account's only way to sign in"))
+			}
 		}
-	}
-	deleted, err := qtx.DeleteUserIdentity(ctx, dbgen.DeleteUserIdentityParams{
-		UserID: user.ID, Provider: provider,
+		deleted, err := qtx.DeleteUserIdentity(ctx, dbgen.DeleteUserIdentityParams{
+			UserID: user.ID, Provider: provider,
+		})
+		if err != nil {
+			return fmt.Errorf("unlink identity: %w", err)
+		}
+		if deleted == 0 {
+			return connect.NewError(connect.CodeNotFound, errors.New("identity not found"))
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("unlink identity: %w", err)
-	}
-	if deleted == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("identity not found"))
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+		return nil, err
 	}
 	return connect.NewResponse(&authv1.UnlinkIdentityResponse{}), nil
 }

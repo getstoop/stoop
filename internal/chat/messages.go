@@ -68,31 +68,29 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 
 	// The message and its attachment links land together: a claim that
 	// fails (file already used) must not leave a bare message behind.
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
-		ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
-		MentionsEveryone: res.everyone, MentionsHere: res.here, ReplyToMessageID: replyTo,
+	var row messageRow
+	var linksToFetch []string
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
+			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
+			MentionsEveryone: res.everyone, MentionsHere: res.here, ReplyToMessageID: replyTo,
+		})
+		if err != nil {
+			return fmt.Errorf("create message: %w", err)
+		}
+		row = messageRow(created)
+		if err := insertAttachments(ctx, qtx, row.ID, attachments); err != nil {
+			return err
+		}
+		if s.unfurler != nil {
+			if linksToFetch, err = s.recordLinks(ctx, qtx, row.ID, extractLinks(content)); err != nil {
+				return fmt.Errorf("record links: %w", err)
+			}
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create message: %w", err)
-	}
-	row := messageRow(created)
-	if err := insertAttachments(ctx, qtx, row.ID, attachments); err != nil {
 		return nil, err
-	}
-	var linksToFetch []string
-	if s.unfurler != nil {
-		if linksToFetch, err = s.recordLinks(ctx, qtx, row.ID, extractLinks(content)); err != nil {
-			return nil, fmt.Errorf("record links: %w", err)
-		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
 	}
 	for _, id := range mentioned {
 		if err := s.q.InsertMessageMention(ctx, dbgen.InsertMessageMentionParams{MessageID: row.ID, UserID: id}); err != nil {

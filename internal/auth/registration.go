@@ -198,56 +198,53 @@ type identitySeed struct {
 // transaction. The first account on a fresh instance becomes the admin:
 // the count and insert run under an advisory lock so two simultaneous
 // first registrations can't both observe an empty table.
-func (s *Service) createAccount(ctx context.Context, p createAccountParams) (dbgen.User, error) {
+func (s *Service) createAccount(ctx context.Context, params createAccountParams) (dbgen.User, error) {
 	id := rowid.New()
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return dbgen.User{}, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
+	var user dbgen.User
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if err := qtx.LockUserBootstrap(ctx); err != nil {
+			return fmt.Errorf("lock bootstrap: %w", err)
+		}
+		underLock, err := qtx.CountUsers(ctx)
+		if err != nil {
+			return fmt.Errorf("count users: %w", err)
+		}
+		role := authctx.RoleMember
+		if underLock == 0 {
+			role = authctx.RoleAdmin
+		}
 
-	qtx := s.q.WithTx(tx)
-	if err := qtx.LockUserBootstrap(ctx); err != nil {
-		return dbgen.User{}, fmt.Errorf("lock bootstrap: %w", err)
-	}
-	underLock, err := qtx.CountUsers(ctx)
-	if err != nil {
-		return dbgen.User{}, fmt.Errorf("count users: %w", err)
-	}
-	role := authctx.RoleMember
-	if underLock == 0 {
-		role = authctx.RoleAdmin
-	}
-
-	user, err := qtx.CreateUser(ctx, dbgen.CreateUserParams{
-		ID:              id,
-		Username:        p.Username,
-		DisplayName:     p.DisplayName,
-		PasswordHash:    p.PasswordHash,
-		Role:            string(role),
-		UsernamePending: p.UsernamePending,
-		// The first account, the server's first admin, owns it.
-		IsOwner: underLock == 0,
+		user, err = qtx.CreateUser(ctx, dbgen.CreateUserParams{
+			ID:              id,
+			Username:        params.Username,
+			DisplayName:     params.DisplayName,
+			PasswordHash:    params.PasswordHash,
+			Role:            string(role),
+			UsernamePending: params.UsernamePending,
+			// The first account, the server's first admin, owns it.
+			IsOwner: underLock == 0,
+		})
+		if err != nil {
+			if db.HasCode(err, db.UniqueViolation) {
+				return apierr.Field(connect.CodeAlreadyExists, "username",
+					errors.New("username is taken"))
+			}
+			return fmt.Errorf("create user: %w", err)
+		}
+		if params.Identity != nil {
+			if _, err := qtx.CreateIdentity(ctx, dbgen.CreateIdentityParams{
+				Provider: params.Identity.Provider,
+				Subject:  params.Identity.Subject,
+				UserID:   user.ID,
+				Email:    params.Identity.Email,
+			}); err != nil {
+				return fmt.Errorf("create identity: %w", err)
+			}
+		}
+		return nil
 	})
 	if err != nil {
-		if db.HasCode(err, db.UniqueViolation) {
-			return dbgen.User{}, apierr.Field(connect.CodeAlreadyExists, "username",
-				errors.New("username is taken"))
-		}
-		return dbgen.User{}, fmt.Errorf("create user: %w", err)
-	}
-	if p.Identity != nil {
-		if _, err := qtx.CreateIdentity(ctx, dbgen.CreateIdentityParams{
-			Provider: p.Identity.Provider,
-			Subject:  p.Identity.Subject,
-			UserID:   user.ID,
-			Email:    p.Identity.Email,
-		}); err != nil {
-			return dbgen.User{}, fmt.Errorf("create identity: %w", err)
-		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return dbgen.User{}, fmt.Errorf("commit: %w", err)
+		return dbgen.User{}, err
 	}
 	return user, nil
 }

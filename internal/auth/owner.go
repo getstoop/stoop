@@ -9,6 +9,7 @@ import (
 
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
@@ -23,56 +24,55 @@ func (s *Service) TransferOwnership(ctx context.Context, fromUserID, toUserID st
 	if err := rowid.Require(toUserID, "user"); err != nil {
 		return AccountSummary{}, err
 	}
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return AccountSummary{}, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	// The roster lock: a demotion or deactivation of the new owner can't
-	// slip in between the check below and the hand-over.
-	if err := qtx.LockAdminRoster(ctx); err != nil {
-		return AccountSummary{}, fmt.Errorf("lock admin roster: %w", err)
-	}
-	if fromUserID != "" {
-		from, err := qtx.GetUserByID(ctx, fromUserID)
+	var owner dbgen.User
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// The roster lock: a demotion or deactivation of the new owner can't
+		// slip in between the check below and the hand-over.
+		if err := qtx.LockAdminRoster(ctx); err != nil {
+			return fmt.Errorf("lock admin roster: %w", err)
+		}
+		if fromUserID != "" {
+			from, err := qtx.GetUserByID(ctx, fromUserID)
+			if err != nil {
+				return apierr.NotFoundOr(err, "user")
+			}
+			if !from.IsOwner {
+				return connect.NewError(connect.CodePermissionDenied,
+					errors.New("only the server owner can hand ownership on"))
+			}
+		}
+		to, err := qtx.GetUserByID(ctx, toUserID)
 		if err != nil {
-			return AccountSummary{}, apierr.NotFoundOr(err, "user")
+			return apierr.NotFoundOr(err, "user")
 		}
-		if !from.IsOwner {
-			return AccountSummary{}, connect.NewError(connect.CodePermissionDenied,
-				errors.New("only the server owner can hand ownership on"))
+		if to.IsOwner {
+			owner = to
+			return nil
 		}
-	}
-	to, err := qtx.GetUserByID(ctx, toUserID)
+		if err := refuseBotTarget(to, "a bot can't own the server"); err != nil {
+			return err
+		}
+		switch {
+		case to.DeactivatedAt != nil:
+			return connect.NewError(connect.CodeFailedPrecondition,
+				errors.New("that account is deactivated; the owner has to be an active admin"))
+		case authctx.Role(to.Role) != authctx.RoleAdmin:
+			return connect.NewError(connect.CodeFailedPrecondition,
+				errors.New("make them an admin first; the owner has to be an active admin"))
+		}
+		if err := qtx.ClearOwner(ctx); err != nil {
+			return fmt.Errorf("clear owner: %w", err)
+		}
+		owner, err = qtx.SetOwner(ctx, to.ID)
+		if err != nil {
+			return fmt.Errorf("set owner: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return AccountSummary{}, apierr.NotFoundOr(err, "user")
-	}
-	if to.IsOwner {
-		return toSummary(to), nil
-	}
-	if err := refuseBotTarget(to, "a bot can't own the server"); err != nil {
 		return AccountSummary{}, err
 	}
-	switch {
-	case to.DeactivatedAt != nil:
-		return AccountSummary{}, connect.NewError(connect.CodeFailedPrecondition,
-			errors.New("that account is deactivated; the owner has to be an active admin"))
-	case authctx.Role(to.Role) != authctx.RoleAdmin:
-		return AccountSummary{}, connect.NewError(connect.CodeFailedPrecondition,
-			errors.New("make them an admin first; the owner has to be an active admin"))
-	}
-	if err := qtx.ClearOwner(ctx); err != nil {
-		return AccountSummary{}, fmt.Errorf("clear owner: %w", err)
-	}
-	u, err := qtx.SetOwner(ctx, to.ID)
-	if err != nil {
-		return AccountSummary{}, fmt.Errorf("set owner: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return AccountSummary{}, fmt.Errorf("commit: %w", err)
-	}
-	return toSummary(u), nil
+	return toSummary(owner), nil
 }
 
 // TransferOwnershipByUsername is the CLI's hand-over, with refusals as

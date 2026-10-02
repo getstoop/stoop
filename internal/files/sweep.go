@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/diag"
 )
@@ -100,38 +102,34 @@ func fits(used, size, quota int64) error {
 // N uploads that each passed checkQuota while the others were in flight
 // cannot all land. The caller has already written the blob; on
 // ErrStorageFull it removes it again.
-func (s *Service) recordFile(ctx context.Context, p dbgen.CreateFileParams) (dbgen.File, error) {
+func (s *Service) recordFile(ctx context.Context, params dbgen.CreateFileParams) (dbgen.File, error) {
 	quota, err := s.quota(ctx)
 	if err != nil {
 		return dbgen.File{}, err
 	}
 	if quota <= 0 {
-		return s.q.CreateFile(ctx, p)
+		return s.q.CreateFile(ctx, params)
 	}
-	tx, err := s.pool.Begin(ctx)
+	var file dbgen.File
+	err = db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		qtx := s.q.WithTx(tx)
+		if err := qtx.LockStorageQuota(ctx); err != nil {
+			return fmt.Errorf("lock quota: %w", err)
+		}
+		usage, err := qtx.StorageUsage(ctx)
+		if err != nil {
+			return fmt.Errorf("storage usage: %w", err)
+		}
+		if err := fits(usage.Bytes, params.Size, quota); err != nil {
+			return err
+		}
+		file, err = qtx.CreateFile(ctx, params)
+		return err
+	})
 	if err != nil {
-		return dbgen.File{}, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	if err := qtx.LockStorageQuota(ctx); err != nil {
-		return dbgen.File{}, fmt.Errorf("lock quota: %w", err)
-	}
-	u, err := qtx.StorageUsage(ctx)
-	if err != nil {
-		return dbgen.File{}, fmt.Errorf("storage usage: %w", err)
-	}
-	if err := fits(u.Bytes, p.Size, quota); err != nil {
 		return dbgen.File{}, err
 	}
-	f, err := qtx.CreateFile(ctx, p)
-	if err != nil {
-		return dbgen.File{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return dbgen.File{}, fmt.Errorf("commit: %w", err)
-	}
-	return f, nil
+	return file, nil
 }
 
 // maxUploadBytes is the cap one attachment is measured against

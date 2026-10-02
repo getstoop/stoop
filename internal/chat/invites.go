@@ -267,31 +267,27 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 		return dbgen.Space{}, "", err
 	}
 
-	tx, err := s.pool.Begin(ctx)
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.ConsumeInvite(ctx, code); err != nil {
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("consume invite: %w", err)
+			}
+			// The guard rejected it; re-read so the error names the reason.
+			current, err := qtx.GetInviteByCode(ctx, code)
+			if err != nil {
+				return apierr.NotFoundOr(err, "invite")
+			}
+			return inviteRejection(current, time.Now())
+		}
+		if err := qtx.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
+			SpaceID: space.ID, UserID: userID, Role: string(granted),
+		}); err != nil {
+			return fmt.Errorf("join space: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return dbgen.Space{}, "", fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-
-	qtx := s.q.WithTx(tx)
-	if _, err := qtx.ConsumeInvite(ctx, code); err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			return dbgen.Space{}, "", fmt.Errorf("consume invite: %w", err)
-		}
-		// The guard rejected it; re-read so the error names the reason.
-		current, err := qtx.GetInviteByCode(ctx, code)
-		if err != nil {
-			return dbgen.Space{}, "", apierr.NotFoundOr(err, "invite")
-		}
-		return dbgen.Space{}, "", inviteRejection(current, time.Now())
-	}
-	if err := qtx.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
-		SpaceID: space.ID, UserID: userID, Role: string(granted),
-	}); err != nil {
-		return dbgen.Space{}, "", fmt.Errorf("join space: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return dbgen.Space{}, "", fmt.Errorf("commit: %w", err)
+		return dbgen.Space{}, "", err
 	}
 
 	s.publishSpaceJoined(userID, space, memberActor(granted, authctx.IsAdmin(ctx)))

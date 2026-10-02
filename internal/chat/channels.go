@@ -85,25 +85,23 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 			return nil, err
 		}
 	}
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-
-	id := rowid.New()
-	if err := claimChannelName(ctx, qtx, req.Msg.SpaceId, name, id); err != nil {
-		return nil, err
-	}
-	channel, err := qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
-		ID: id, SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind),
+	var channel dbgen.Channel
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		id := rowid.New()
+		if err := claimChannelName(ctx, qtx, req.Msg.SpaceId, name, id); err != nil {
+			return err
+		}
+		var err error
+		channel, err = qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
+			ID: id, SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind),
+		})
+		if err != nil {
+			return fmt.Errorf("create channel: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create channel: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+		return nil, err
 	}
 
 	s.bus.Publish(events.SpaceTopic(req.Msg.SpaceId), events.Stamp(&realtimev1.ServerEvent{
@@ -200,26 +198,24 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 		}
 		policy = &p
 	}
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-
-	if renamed {
-		if err := claimChannelName(ctx, qtx, spaceOf(channel), *name, channel.ID); err != nil {
-			return nil, err
+	var row dbgen.Channel
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if renamed {
+			if err := claimChannelName(ctx, qtx, spaceOf(channel), *name, channel.ID); err != nil {
+				return err
+			}
 		}
-	}
-	row, err := qtx.UpdateChannel(ctx, dbgen.UpdateChannelParams{
-		ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy,
+		var err error
+		row, err = qtx.UpdateChannel(ctx, dbgen.UpdateChannelParams{
+			ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy,
+		})
+		if err != nil {
+			return fmt.Errorf("update channel: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("update channel: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+		return nil, err
 	}
 	out := toProtoChannel(row)
 	s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
@@ -253,25 +249,24 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	// either miss a clear that happened or announce one that did not. The
 	// conditional UPDATE decides and reports in a single statement, and
 	// holds the space's row lock until the delete commits.
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-
-	cleared, err := qtx.ClearSpaceDefaultChannel(ctx, dbgen.ClearSpaceDefaultChannelParams{
-		ID: spaceOf(channel), ChannelID: channel.ID,
+	var cleared dbgen.Space
+	var wasDefault bool
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		cleared, err = qtx.ClearSpaceDefaultChannel(ctx, dbgen.ClearSpaceDefaultChannelParams{
+			ID: spaceOf(channel), ChannelID: channel.ID,
+		})
+		wasDefault = err == nil
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("clear default channel: %w", err)
+		}
+		if err := qtx.DeleteChannel(ctx, channel.ID); err != nil {
+			return fmt.Errorf("delete channel: %w", err)
+		}
+		return nil
 	})
-	wasDefault := err == nil
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return nil, fmt.Errorf("clear default channel: %w", err)
-	}
-	if err := qtx.DeleteChannel(ctx, channel.ID); err != nil {
-		return nil, fmt.Errorf("delete channel: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+	if err != nil {
+		return nil, err
 	}
 
 	s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
@@ -321,21 +316,18 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 		seen[id] = true
 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	for i, id := range req.Msg.ChannelIds {
-		if err := qtx.SetChannelPosition(ctx, dbgen.SetChannelPositionParams{
-			ID: id, SpaceID: req.Msg.SpaceId, Position: int32(i),
-		}); err != nil {
-			return nil, fmt.Errorf("set position: %w", err)
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		for index, id := range req.Msg.ChannelIds {
+			if err := qtx.SetChannelPosition(ctx, dbgen.SetChannelPositionParams{
+				ID: id, SpaceID: req.Msg.SpaceId, Position: int32(index),
+			}); err != nil {
+				return fmt.Errorf("set position: %w", err)
+			}
 		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	rows, err = s.listChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))

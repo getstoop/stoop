@@ -179,24 +179,17 @@ func (s *Service) LeaveSpace(ctx context.Context, req *connect.Request[chatv1.Le
 // together: a rejoin starts unmuted. Channel mutes are left alone, as
 // they always have been; they go when the channel does.
 func (s *Service) removeMember(ctx context.Context, spaceID, userID string) error {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	if _, err := qtx.DeleteSpaceMember(ctx, dbgen.DeleteSpaceMemberParams{
-		SpaceID: spaceID, UserID: userID,
-	}); err != nil {
-		return fmt.Errorf("delete member: %w", err)
-	}
-	if err := qtx.UnmuteSpace(ctx, dbgen.UnmuteSpaceParams{UserID: userID, SpaceID: spaceID}); err != nil {
-		return fmt.Errorf("drop space mute: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit: %w", err)
-	}
-	return nil
+	return s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.DeleteSpaceMember(ctx, dbgen.DeleteSpaceMemberParams{
+			SpaceID: spaceID, UserID: userID,
+		}); err != nil {
+			return fmt.Errorf("delete member: %w", err)
+		}
+		if err := qtx.UnmuteSpace(ctx, dbgen.UnmuteSpaceParams{UserID: userID, SpaceID: spaceID}); err != nil {
+			return fmt.Errorf("drop space mute: %w", err)
+		}
+		return nil
+	})
 }
 
 // actorAndTarget loads both sides of a member-management call and applies

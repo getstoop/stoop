@@ -61,30 +61,28 @@ func (s *Service) AnnounceDeparture(ctx context.Context, userID string, spaceIDs
 // they are not a member. The outgoing owner is demoted in the same
 // transaction: the one-owner index forbids two, even briefly.
 func (s *Service) handOver(ctx context.Context, spaceID, from, to string) error {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	if _, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{SpaceID: spaceID, UserID: from, Role: string(RoleAdmin)}); err != nil {
-		return fmt.Errorf("demote owner: %w", err)
-	}
-	n, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{SpaceID: spaceID, UserID: to, Role: string(RoleOwner)})
-	if err != nil {
-		return fmt.Errorf("promote heir: %w", err)
-	}
-	joined := n == 0
-	if joined {
-		if err := qtx.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{SpaceID: spaceID, UserID: to, Role: string(RoleOwner)}); err != nil {
-			return fmt.Errorf("add heir: %w", err)
+	var joined bool
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{SpaceID: spaceID, UserID: from, Role: string(RoleAdmin)}); err != nil {
+			return fmt.Errorf("demote owner: %w", err)
 		}
-	}
-	if err := qtx.UpdateSpaceOwner(ctx, dbgen.UpdateSpaceOwnerParams{ID: spaceID, OwnerID: to}); err != nil {
-		return fmt.Errorf("update owner: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit: %w", err)
+		promoted, err := qtx.SetSpaceMemberRole(ctx, dbgen.SetSpaceMemberRoleParams{SpaceID: spaceID, UserID: to, Role: string(RoleOwner)})
+		if err != nil {
+			return fmt.Errorf("promote heir: %w", err)
+		}
+		joined = promoted == 0
+		if joined {
+			if err := qtx.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{SpaceID: spaceID, UserID: to, Role: string(RoleOwner)}); err != nil {
+				return fmt.Errorf("add heir: %w", err)
+			}
+		}
+		if err := qtx.UpdateSpaceOwner(ctx, dbgen.UpdateSpaceOwnerParams{ID: spaceID, OwnerID: to}); err != nil {
+			return fmt.Errorf("update owner: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 	if joined {
 		if space, err := s.q.GetSpace(ctx, spaceID); err == nil {
