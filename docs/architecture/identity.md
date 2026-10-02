@@ -217,10 +217,10 @@ in, and expires after 30, 90 or 365 days, or never.
 - **It is shown once.** The token is `stp_pat_` and 32 random bytes; Stoop
   stores its SHA-256 and its last four characters (`credentials.hint`),
   never the token.
-- **It is a bearer token only.** `Authorization: Bearer` on Connect calls,
-  `/ws` and file downloads, never a cookie. The socket delivers only what
-  the token covers ([realtime.md](realtime.md#credentials)); a download
-  needs `messages.read` in the file's space, or `dms.read` for a direct
+- **It is a bearer token only.** `Authorization: Bearer` on Connect calls
+  and file downloads, never a cookie. It does not open `/ws`: only a
+  session does ([realtime.md](realtime.md#credentials)). A download needs
+  `messages.read` in the file's space, or `dms.read` for a direct
   message's attachment.
 - **No token can make, list or revoke tokens**, change a password or link
   a provider: those need `account.security`, which only a session carries.
@@ -229,8 +229,7 @@ in, and expires after 30, 90 or 365 days, or never.
   channel.
 - **Some grants need company.** Reading activity is refused without
   reading messages and direct messages beside it, since every activity
-  item is a preview of a message from one or the other
-  ([realtime.md](realtime.md#credentials)).
+  item is a preview of a message from one or the other.
 - **Leaving a space needs a session.** A token with `preferences.manage`
   mutes, blocks and moves read markers; leaving is a decision, and the
   app is where it is made.

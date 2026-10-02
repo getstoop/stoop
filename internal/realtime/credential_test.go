@@ -42,113 +42,61 @@ func revoked(credentialID string) *realtimev1.ServerEvent {
 	}})
 }
 
-func TestTokenHearsOnlyWhatItCovers(t *testing.T) {
-	token := func(id string, bounded bool, spaces []string, grants ...authctx.Action) authctx.Identity {
-		return authctx.Identity{UserID: "alice", Credential: authctx.Credential{
-			ID: id, Kind: authctx.CredentialPersonalToken, Grants: grants, Bounded: bounded, Spaces: spaces,
-		}}
-	}
+// Only a session opens the socket: a personal token and a bot token are
+// refused at the handshake.
+func TestOnlyASessionOpensTheSocket(t *testing.T) {
 	verifier := fakeVerifier{
-		"ro":   token("ro", true, []string{"s1"}, authctx.MessagesRead),
-		"dm":   token("dm", false, nil, authctx.MessagesRead, authctx.DMsRead, authctx.MessagesPost),
-		"act":  token("act", false, nil, authctx.ActivityRead, authctx.MessagesRead),
-		"feed": token("feed", false, nil, authctx.ActivityRead, authctx.MessagesRead, authctx.DMsRead),
-		"bot":  {UserID: "ops", Kind: authctx.KindBot, Credential: authctx.Credential{ID: "b", Kind: authctx.CredentialBotToken, Grants: []authctx.Action{authctx.MessagesRead}}},
+		"token": {UserID: "casey", Credential: authctx.Credential{
+			ID: "token", Kind: authctx.CredentialPersonalToken, Grants: []authctx.Action{authctx.MessagesRead},
+		}},
+		"bot": {UserID: "uptime", Kind: authctx.KindBot, Credential: authctx.Credential{
+			ID: "bot", Kind: authctx.CredentialBotToken, Grants: []authctx.Action{authctx.MessagesRead},
+		}},
 	}
-	bus := events.NewInProcBus()
-	gw := realtime.NewGateway(bus, verifier, fakeMembers{
-		"alice": {"s1", "s2"}, "bob": {"s1"}, "ops": {"s1"},
-	}, fakeVoiceChannels{"v1": "s1"}, []string{"*"}, slog.Default())
+	gw := realtime.NewGateway(events.NewInProcBus(), verifier, fakeMembers{
+		"casey": {"s1"}, "uptime": {"s1"},
+	}, fakeVoiceChannels{}, []string{"*"}, slog.Default())
 	srv := httptest.NewServer(gw)
 	defer srv.Close()
 
-	// A bot's token doesn't open the socket at all.
-	if _, res, err := tryDial(srv, "bot"); err == nil || res == nil || res.StatusCode != http.StatusForbidden {
-		t.Fatalf("bot token: err = %v, status = %v", err, res)
-	}
-
-	bob := dial(t, srv, "bob")
-	bob.waitFor(presenceOf("bob")) // Ready, then his own presence
-
-	// A token limited to s1 with messages.read: Ready lists s1 alone, s2's
-	// events never arrive, and neither do direct messages or activity.
-	ro := dial(t, srv, "ro")
-	if r := ro.next(time.Second).GetReady(); r == nil || len(r.SpaceIds) != 1 || r.SpaceIds[0] != "s1" {
-		t.Fatalf("ro ready = %+v", r)
-	}
-	bob.waitFor(presenceOf("alice"))
-	bus.Publish("space:s2", message("s2", "c2"))
-	bus.Publish("user:alice", message("", "dm1"))
-	bus.Publish("user:alice", activity(""))
-	bus.Publish("space:s1", message("s1", "c1"))
-	if ev := ro.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetMessageCreated() != nil }); ev == nil || ev.GetMessageCreated().SpaceId != "s1" {
-		t.Fatalf("ro's first message = %v", ev)
-	}
-	if ev := ro.next(300 * time.Millisecond); ev != nil {
-		t.Fatalf("ro heard something it wasn't granted: %v", ev.Payload)
-	}
-	bob.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetMessageCreated() != nil })
-
-	// Without messages.post its typing isn't relayed; without voice.join
-	// its voice state is dropped.
-	ro.send(&realtimev1.ClientEvent{Payload: &realtimev1.ClientEvent_Typing{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "c1"}}})
-	ro.send(voiceEvent("v1", false))
-	if ev := bob.next(300 * time.Millisecond); ev != nil {
-		t.Fatalf("bob heard a read-only token act: %v", ev.Payload)
-	}
-
-	// An unbounded token with dms.read hears direct messages, but not
-	// activity, and its typing in a space it may post to is relayed.
-	dm := dial(t, srv, "dm")
-	if r := dm.next(time.Second).GetReady(); r == nil || len(r.SpaceIds) != 2 {
-		t.Fatalf("dm ready = %+v", r)
-	}
-	bus.Publish("user:alice", activity(""))
-	bus.Publish("user:alice", message("", "dm1"))
-	if ev := dm.waitFor(func(e *realtimev1.ServerEvent) bool {
-		return e.GetMessageCreated() != nil || e.GetActivityItemCreated() != nil
-	}); ev == nil || ev.GetMessageCreated() == nil {
-		t.Fatalf("dm token: first event = %v", ev)
-	}
-	dm.send(&realtimev1.ClientEvent{Payload: &realtimev1.ClientEvent_Typing{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "c1"}}})
-	if ev := bob.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetUserTyping() != nil }); ev == nil {
-		t.Fatal("bob never saw the posting token type")
-	}
-	dm.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetUserTyping() != nil }) // her own relay
-
-	// Every activity item previews a message, so activity.read needs both
-	// read grants beside it: a token missing dms.read hears no item at
-	// all; one with all three hears every item.
-	act := dial(t, srv, "act")
-	if r := act.next(time.Second).GetReady(); r == nil {
-		t.Fatal("act never became ready")
-	}
-	feed := dial(t, srv, "feed")
-	if r := feed.next(time.Second).GetReady(); r == nil {
-		t.Fatal("feed never became ready")
-	}
-	bus.Publish("user:alice", activity(""))
-	bus.Publish("user:alice", activity("s1"))
-	for i := 0; i < 2; i++ {
-		if ev := feed.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetActivityItemCreated() != nil }); ev == nil {
-			t.Fatalf("feed missed activity item %d", i)
+	for _, credential := range []string{"token", "bot"} {
+		if _, res, err := tryDial(srv, credential); err == nil || res == nil || res.StatusCode != http.StatusForbidden {
+			t.Errorf("%s: err = %v, response = %v", credential, err, res)
 		}
 	}
-	if ev := act.next(300 * time.Millisecond); ev != nil {
-		t.Fatalf("act heard an item without dms.read: %v", ev.Payload)
+	casey := dial(t, srv, "casey")
+	if casey.next(time.Second).GetReady() == nil {
+		t.Fatal("a session never became ready")
 	}
+	_ = casey.conn.Close(websocket.StatusNormalClosure, "")
+}
 
-	// Revoking one token closes its socket with the revoked code and
-	// leaves the other alone.
-	bus.Publish("user:alice", revoked("ro"))
-	if !ro.closed(2*time.Second) || ro.closeCode != realtime.StatusCredentialRevoked {
-		t.Fatalf("ro socket after revocation: closed = %v, code = %v", ro.closeCode != 0, ro.closeCode)
+// Revoking one session closes its socket and leaves the person's other
+// session alone.
+func TestRevocationClosesOnlyItsOwnSocket(t *testing.T) {
+	session := func(id string) authctx.Identity {
+		return authctx.Identity{UserID: "casey", Credential: authctx.Credential{ID: id, Kind: authctx.CredentialSession}}
 	}
-	if ev := dm.next(300 * time.Millisecond); ev != nil {
-		t.Fatalf("dm heard another credential's revocation: %v", ev.Payload)
+	bus := events.NewInProcBus()
+	gw := realtime.NewGateway(bus, fakeVerifier{"laptop": session("laptop"), "phone": session("phone")},
+		fakeMembers{"casey": {"s1"}}, fakeVoiceChannels{}, []string{"*"}, slog.Default())
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+
+	laptop := dial(t, srv, "laptop")
+	laptop.waitFor(presenceOf("casey")) // Ready, then casey's own presence
+	phone := dial(t, srv, "phone")
+	if phone.next(time.Second).GetReady() == nil {
+		t.Fatal("the second session never became ready")
 	}
-	_ = dm.conn.Close(websocket.StatusNormalClosure, "")
-	_ = bob.conn.Close(websocket.StatusNormalClosure, "")
+	bus.Publish("user:casey", revoked("laptop"))
+	if !laptop.closed(2*time.Second) || laptop.closeCode != realtime.StatusCredentialRevoked {
+		t.Fatalf("revoked session's socket: code = %v", laptop.closeCode)
+	}
+	if event := phone.next(300 * time.Millisecond); event != nil {
+		t.Fatalf("the other session heard the revocation: %v", event.Payload)
+	}
+	_ = phone.conn.Close(websocket.StatusNormalClosure, "")
 }
 
 func TestSessionHearsEverythingAndItsRevocation(t *testing.T) {

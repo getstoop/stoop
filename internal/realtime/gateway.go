@@ -1,6 +1,6 @@
 // Package realtime is the WebSocket gateway: it holds one authenticated
-// connection per client, subscribes it to the bus topics its credential
-// covers, and pushes protobuf-encoded ServerEvent frames. It never talks to
+// connection per client, subscribes it to its user's bus topics, and
+// pushes protobuf-encoded ServerEvent frames. It never talks to
 // the database or other modules directly — only through its ports.
 package realtime
 
@@ -93,17 +93,14 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "this credential can't open a realtime connection", http.StatusForbidden)
 		return
 	}
-	userID, cred := id.UserID, id.Credential
+	userID, sessionID := id.UserID, id.Credential.ID
 
-	memberOf, err := g.members.ListSpaceIDs(ctx, userID)
+	spaceIDs, err := g.members.ListSpaceIDs(ctx, userID)
 	if err != nil {
 		g.log.Error("list memberships", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	// Only the spaces the credential may read are subscribed, snapshotted
-	// and counted for presence.
-	spaceIDs := coveredSpaces(cred, memberOf)
 
 	topics := make([]string, 0, len(spaceIDs)+1)
 	topics = append(topics, "user:"+userID)
@@ -166,10 +163,10 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if t := ev.GetTyping(); t != nil {
-				g.relayTyping(ctx, userID, cred, sub, t, lastTyping)
+				g.relayTyping(ctx, userID, sub, t, lastTyping)
 			}
 			if vs := ev.GetVoiceState(); vs != nil {
-				g.handleVoiceState(ctx, userID, cred, connID, sub, vs)
+				g.handleVoiceState(ctx, userID, connID, sub, vs)
 			}
 		}
 	}()
@@ -187,7 +184,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g.log.Info("ws connected", "user_id", userID, "credential", cred.Kind)
+	g.log.Info("ws connected", "user_id", userID)
 	defer g.log.Info("ws disconnected", "user_id", userID)
 
 	pings := time.NewTicker(g.pingInterval)
@@ -199,11 +196,11 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_ = conn.Close(websocket.StatusNormalClosure, "")
 			return
 		case <-pings.C:
-			// The credential is checked again with every ping, so a
-			// token that expired, a setting that turned tokens off, or a
-			// revocation the bus never carried (the CLI, a publish that
-			// beat the subscription) ends the socket within a ping.
-			if fresh, err := g.verifier.VerifyRequest(ctx, r.Header); err != nil || fresh.Credential.ID != cred.ID {
+			// The session is checked again with every ping, so one that
+			// expired, or a revocation the bus never carried (the CLI, a
+			// publish that beat the subscription), ends the socket within
+			// a ping.
+			if fresh, err := g.verifier.VerifyRequest(ctx, r.Header); err != nil || fresh.Credential.ID != sessionID {
 				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
 				return
 			}
@@ -221,9 +218,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Joining a space while connected: start receiving its events
-			// on this same connection, if the credential reaches it.
+			// on this same connection.
 			joinedSpace := ""
-			if joined := ev.GetSpaceJoined(); joined != nil && coversSpace(cred, authctx.MessagesRead, joined.Space.Id) {
+			if joined := ev.GetSpaceJoined(); joined != nil {
 				joinedSpace = joined.Space.Id
 				sub.Add("space:" + joinedSpace)
 				g.presence.addSpace(userID, joinedSpace)
@@ -250,7 +247,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					g.publishPresence(userID, g.presence.spacesOf(userID), true)
 				}
 			}
-			if !admits(cred, ev) {
+			// A revocation is told only to the socket opened with that
+			// session.
+			if revoked := ev.GetCredentialRevoked(); revoked != nil && revoked.CredentialId != sessionID {
 				continue
 			}
 			if err := g.send(ctx, conn, ev); err != nil {
@@ -263,7 +262,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-			// The credential this socket was opened with is gone: the
+			// The session this socket was opened with is gone: the
 			// client has been told, and must not come back with it.
 			if ev.GetCredentialRevoked() != nil {
 				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
@@ -315,9 +314,8 @@ func (g *Gateway) publishPresence(userID string, spaceIDs []string, online bool)
 // relayTyping rebroadcasts a typing hint — to the space, if the connection
 // is actually subscribed to it, or (with no space) to the direct message's
 // other participants, if the sender is one — unless it relayed for this
-// channel a moment ago. Typing is a promise to post, so the credential
-// must cover posting there.
-func (g *Gateway) relayTyping(ctx context.Context, userID string, cred authctx.Credential, sub *events.Subscription, t *realtimev1.Typing, last map[string]time.Time) {
+// channel a moment ago.
+func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, t *realtimev1.Typing, last map[string]time.Time) {
 	if t.ChannelId == "" {
 		return
 	}
@@ -328,14 +326,11 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, cred authctx.C
 
 	var topics []string
 	if t.SpaceId != "" {
-		if !sub.Has("space:"+t.SpaceId) || !coversSpace(cred, authctx.MessagesPost, t.SpaceId) {
+		if !sub.Has("space:" + t.SpaceId) {
 			return
 		}
 		topics = []string{"space:" + t.SpaceId}
 	} else {
-		if !coversOwn(cred, authctx.DMsPost) {
-			return
-		}
 		ids, err := g.channels.DMParticipants(ctx, t.ChannelId)
 		if err != nil {
 			g.log.Error("resolve dm participants", "err", err)

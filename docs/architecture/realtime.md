@@ -87,12 +87,11 @@ everything it knows comes from four ports: `SessionVerifier` and
    the same cookie or bearer token the Connect interceptor does and returns
    the identity with its credential. A failure is a plain `401`, not a
    WebSocket close — a client that isn't signed in should find out from
-   HTTP. A credential that may not open the socket (a bot's token, in v1)
-   is a `403`.
+   HTTP. Anything but a session is a `403`
+   ([Credentials](#credentials) below).
 2. **Resolve memberships and subscribe**, before the upgrade. The
    subscription exists from the moment the socket does, so nothing
-   published during setup is missed. Only the spaces the credential covers
-   are subscribed ([Credentials](#credentials) below).
+   published during setup is missed.
 3. **Accept the upgrade**, with origin patterns checked against the request
    host, `STOOP_PUBLIC_URL`'s host, and `STOOP_ALLOWED_WS_ORIGINS`.
 4. **Register presence.** The first connection for a user announces them
@@ -117,7 +116,7 @@ subscription:
 
 | Event seen | Action |
 | ---------- | ------ |
-| `SpaceJoined` | If the credential covers `messages.read` there: `sub.Add("space:"+id)`, record the space in presence, announce presence into it, then send this connection who is online and in voice there — `Ready` only covered the spaces held at connect time. |
+| `SpaceJoined` | `sub.Add("space:"+id)`, record the space in presence, announce presence into it, then send this connection who is online and in voice there — `Ready` only covered the spaces held at connect time. |
 | `MemberRemoved` (this user) | Leave any voice channel there, `sub.Remove(…)`, drop the space from presence. |
 | `SpaceDeleted` | Same. |
 | `ChannelDeleted` | Clear anyone the gateway believed was in that voice channel. |
@@ -128,41 +127,28 @@ control channel. The event stream is its own control plane.
 
 ### Credentials
 
-A connection is opened with a credential — a session, or a personal token
-— and hears only what that credential covers. A session covers
-everything, so the web app sees no difference. For a token,
-`internal/realtime/credential.go` applies three rules:
+Only a session opens the socket. A personal token and a bot token are
+refused with `403`: they act through Connect calls, and a script that
+needs to hear events uses an outgoing webhook
+([integrations.md](integrations.md)). So every connection hears
+everything its person may, and all of a person's connections reach the
+same spaces.
 
-- **Space topics subscribe only where `messages.read` covers the space.**
-  `Ready.space_ids`, the presence snapshot and the voice snapshot are the
-  covered spaces, not the memberships.
-- **The user topic is always subscribed, and filtered per event.** It is
-  the control plane — `SpaceJoined`, `CredentialRevoked` — so every
-  connection needs it; `admits` then drops direct-message events unless the
-  credential covers `dms.read`, and activity unless it covers
-  `activity.read` together with `messages.read` and `dms.read`, since
-  every item previews a message. `ListActivity` refuses on the same rule,
-  and a token is only ever minted with the three together. A bounded
-  credential reaches neither.
-- **Client events need the matching action.** Typing is relayed only with
-  `messages.post` in that space (or `dms.post`); a voice report is kept
-  only with `voice.join` there.
-
-**Revocation closes the socket.** Every path that deletes a credential —
-logout, a password change, an admin reset, deactivation, revoking a token,
-the expiry sweep — publishes `CredentialRevoked` to the holder's topic. The
-gateway forwards it only to connections opened with that credential, then
-closes them with code **4001**. It goes over the bus rather than a direct
+**Revocation closes the socket.** Every path that deletes a session —
+logout, a password change, an admin reset, deactivation, the expiry
+sweep — publishes `CredentialRevoked` to the holder's topic. The gateway
+forwards it only to the connection opened with that session, then closes
+it with code **4001**. It goes over the bus rather than a direct
 call so it works the same way a `MessageCreated` does, on every node there
 might one day be. A tab signed out from another tab is therefore told at
 once, and goes to the login page.
 
-**And the credential is re-verified with every ping** (every 30 s), with
+**And the session is re-verified with every ping** (every 30 s), with
 the same close code when it no longer verifies. That is what catches what
-the bus can't carry: a token past its expiry (the sweep only deletes it a
-month later), the `personal_tokens` setting turned down, a reset from the
-CLI (a separate process with no bus), or a revocation published in the gap
-between verifying the upgrade and subscribing.
+the bus can't carry: a session past its expiry that the sweep has not
+reached, a reset from the CLI (a separate process with no bus), or a
+revocation published in the gap between verifying the upgrade and
+subscribing.
 
 ## The wire format
 
