@@ -158,44 +158,44 @@ func (s *Service) DeactivateBot(ctx context.Context, id string) error {
 
 // MintCredential mints a bot token or hook token and returns the secret,
 // which is never stored.
-func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred BotCredential, secret string, err error) {
+func (s *Service) MintCredential(ctx context.Context, mint MintBotCredential) (cred BotCredential, secret string, err error) {
 	var prefix string
-	switch m.Kind {
+	switch mint.Kind {
 	case authctx.CredentialBotToken:
 		prefix = botTokenPrefix
-		if m.ChannelID != "" {
+		if mint.ChannelID != "" {
 			return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("a bot token is bounded to spaces, not a channel"))
 		}
 	case authctx.CredentialIncomingHook:
 		prefix = hookTokenPrefix
-		if m.ChannelID == "" {
+		if mint.ChannelID == "" {
 			return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("a hook is bounded to exactly one channel"))
 		}
 	default:
 		return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("not a bot credential kind"))
 	}
-	name := strings.TrimSpace(m.Name)
+	name := strings.TrimSpace(mint.Name)
 	if name == "" || utf8.RuneCountInString(name) > maxTokenNameRunes {
 		return BotCredential{}, "", apierr.Field(connect.CodeInvalidArgument, "name",
 			fmt.Errorf("a credential's name must be 1-%d characters", maxTokenNameRunes))
 	}
-	if len(m.Grants) == 0 {
+	if len(mint.Grants) == 0 {
 		return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("choose at least one permission"))
 	}
-	bounded := m.ChannelID != ""
-	grants := make([]string, 0, len(m.Grants))
+	bounded := mint.ChannelID != ""
+	grants := make([]string, 0, len(mint.Grants))
 	has := map[authctx.Action]bool{}
-	for _, a := range m.Grants {
-		if !a.Grantable() {
+	for _, action := range mint.Grants {
+		if !action.Grantable() {
 			return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument,
-				fmt.Errorf("a credential can't be allowed to %s", a.Describe()))
+				fmt.Errorf("a credential can't be allowed to %s", action.Describe()))
 		}
-		if bounded && !a.OnSpace() {
+		if bounded && !action.OnSpace() {
 			return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument,
-				fmt.Errorf("a bounded credential can't be allowed to %s", a.Describe()))
+				fmt.Errorf("a bounded credential can't be allowed to %s", action.Describe()))
 		}
-		has[a] = true
-		grants = append(grants, string(a))
+		has[action] = true
+		grants = append(grants, string(action))
 	}
 	if err := checkGrantDependencies(has); err != nil {
 		return BotCredential{}, "", err
@@ -206,40 +206,39 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 		return BotCredential{}, "", err
 	}
 	credID := rowid.New()
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return BotCredential{}, "", fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	var createdBy *string
-	if m.CreatedBy != "" {
-		createdBy = &m.CreatedBy
-	}
-	row, err := qtx.CreateBotCredential(ctx, dbgen.CreateBotCredentialParams{
-		ID: credID, HolderID: m.HolderID, Kind: string(m.Kind), TokenHash: hash, Name: name,
-		Grants: grants, Bounded: bounded, CreatedBy: createdBy, Hint: secret[len(secret)-4:],
+	var row dbgen.Credential
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var createdBy *string
+		if mint.CreatedBy != "" {
+			createdBy = &mint.CreatedBy
+		}
+		var err error
+		row, err = qtx.CreateBotCredential(ctx, dbgen.CreateBotCredentialParams{
+			ID: credID, HolderID: mint.HolderID, Kind: string(mint.Kind), TokenHash: hash, Name: name,
+			Grants: grants, Bounded: bounded, CreatedBy: createdBy, Hint: secret[len(secret)-4:],
+		})
+		if err != nil {
+			if isBadReference(err) {
+				return connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
+			}
+			return apierr.NotFoundOr(err, "bot")
+		}
+		if mint.ChannelID != "" {
+			if err := qtx.AddCredentialChannelBound(ctx, dbgen.AddCredentialChannelBoundParams{CredentialID: row.ID, ChannelID: mint.ChannelID}); err != nil {
+				if isBadReference(err) {
+					return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown channel %q", mint.ChannelID))
+				}
+				return fmt.Errorf("bound credential: %w", err)
+			}
+		}
+		return nil
 	})
 	if err != nil {
-		if isBadReference(err) {
-			return BotCredential{}, "", connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
-		}
-		return BotCredential{}, "", apierr.NotFoundOr(err, "bot")
-	}
-	if m.ChannelID != "" {
-		if err := qtx.AddCredentialChannelBound(ctx, dbgen.AddCredentialChannelBoundParams{CredentialID: row.ID, ChannelID: m.ChannelID}); err != nil {
-			if isBadReference(err) {
-				return BotCredential{}, "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown channel %q", m.ChannelID))
-			}
-			return BotCredential{}, "", fmt.Errorf("bound credential: %w", err)
-		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return BotCredential{}, "", fmt.Errorf("commit: %w", err)
+		return BotCredential{}, "", err
 	}
 	return BotCredential{
-		ID: row.ID, HolderID: row.HolderID, Kind: m.Kind, Name: row.Name, Grants: m.Grants,
-		Bounded: row.Bounded, ChannelIDs: channelList(m.ChannelID),
+		ID: row.ID, HolderID: row.HolderID, Kind: mint.Kind, Name: row.Name, Grants: mint.Grants,
+		Bounded: row.Bounded, ChannelIDs: channelList(mint.ChannelID),
 		Hint: row.Hint, CreatedAt: row.CreatedAt,
 	}, secret, nil
 }

@@ -13,25 +13,24 @@ import (
 // module's port; the files module owns the file rows and blobs and deletes
 // the old one after this returns.
 func (s *Service) SetAvatar(ctx context.Context, userID, fileID string) (previous string, err error) {
-	tx, err := s.pool.Begin(ctx)
+	var prev *string
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		prev, err = qtx.GetUserAvatarForUpdate(ctx, userID)
+		if err != nil {
+			return apierr.NotFoundOr(err, "user")
+		}
+		var next *string
+		if fileID != "" {
+			next = &fileID
+		}
+		if err := qtx.SetUserAvatar(ctx, dbgen.SetUserAvatarParams{ID: userID, AvatarFileID: next}); err != nil {
+			return fmt.Errorf("set avatar: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return "", fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	prev, err := qtx.GetUserAvatarForUpdate(ctx, userID)
-	if err != nil {
-		return "", apierr.NotFoundOr(err, "user")
-	}
-	var next *string
-	if fileID != "" {
-		next = &fileID
-	}
-	if err := qtx.SetUserAvatar(ctx, dbgen.SetUserAvatarParams{ID: userID, AvatarFileID: next}); err != nil {
-		return "", fmt.Errorf("set avatar: %w", err)
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return "", fmt.Errorf("commit: %w", err)
+		return "", err
 	}
 	return deref(prev), nil
 }

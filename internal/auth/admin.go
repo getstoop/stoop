@@ -146,39 +146,37 @@ func (s *Service) SetAccountActive(ctx context.Context, userID string, active bo
 // it may: the roster lock makes the check and the write one step, so two
 // admins demoting each other at once can't leave a server with none.
 func (s *Service) underAdminGuard(ctx context.Context, targetID string, write func(qtx *dbgen.Queries) (dbgen.User, error)) (dbgen.User, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return dbgen.User{}, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
-	qtx := s.q.WithTx(tx)
-	if err := qtx.LockAdminRoster(ctx); err != nil {
-		return dbgen.User{}, fmt.Errorf("lock admin roster: %w", err)
-	}
-	target, err := qtx.GetUserByID(ctx, targetID)
-	if err != nil {
-		return dbgen.User{}, apierr.NotFoundOr(err, "user")
-	}
-	if target.IsOwner {
-		return dbgen.User{}, errOwner
-	}
-	if authctx.Role(target.Role) == authctx.RoleAdmin && target.DeactivatedAt == nil {
-		n, err := qtx.CountAdmins(ctx)
+	var written dbgen.User
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if err := qtx.LockAdminRoster(ctx); err != nil {
+			return fmt.Errorf("lock admin roster: %w", err)
+		}
+		target, err := qtx.GetUserByID(ctx, targetID)
 		if err != nil {
-			return dbgen.User{}, fmt.Errorf("count admins: %w", err)
+			return apierr.NotFoundOr(err, "user")
 		}
-		if n <= 1 {
-			return dbgen.User{}, errLastAdmin
+		if target.IsOwner {
+			return errOwner
 		}
-	}
-	u, err := write(qtx)
+		if authctx.Role(target.Role) == authctx.RoleAdmin && target.DeactivatedAt == nil {
+			admins, err := qtx.CountAdmins(ctx)
+			if err != nil {
+				return fmt.Errorf("count admins: %w", err)
+			}
+			if admins <= 1 {
+				return errLastAdmin
+			}
+		}
+		written, err = write(qtx)
+		if err != nil {
+			return apierr.NotFoundOr(err, "user")
+		}
+		return nil
+	})
 	if err != nil {
-		return dbgen.User{}, apierr.NotFoundOr(err, "user")
+		return dbgen.User{}, err
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return dbgen.User{}, fmt.Errorf("commit: %w", err)
-	}
-	return u, nil
+	return written, nil
 }
 
 // RenameAccount changes an account's username and/or display name on an

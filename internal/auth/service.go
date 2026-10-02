@@ -5,14 +5,17 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 
 	"github.com/alexedwards/argon2id"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 )
@@ -81,4 +84,9 @@ func New(pool *pgxpool.Pool, opts Options) *Service {
 	return &Service{pool: pool, q: dbgen.New(pool), opts: opts, argon2: params,
 		guard: newLoginGuard(), dummyHash: dummy, stateKey: stateKey,
 		desktop: newDesktopStore()}
+}
+
+// inTx runs fn in a transaction with queries bound to it.
+func (s *Service) inTx(ctx context.Context, fn func(qtx *dbgen.Queries) error) error {
+	return db.InTx(ctx, s.pool, func(tx pgx.Tx) error { return fn(s.q.WithTx(tx)) })
 }
