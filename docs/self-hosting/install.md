@@ -91,6 +91,10 @@ Coming from 0.2.0, add `COMPOSE_PROFILES=bundled-postgres` to `.env`
 first. Without it the bundled Postgres does not start, and the log says
 `lookup postgres: no such host`.
 
+Coming from 0.3, add `bundled-livekit` to that line first:
+`COMPOSE_PROFILES=bundled-postgres,bundled-livekit`. Without it LiveKit
+does not start, and Server admin → Hosting shows it as stopped.
+
 The image tag `latest` follows the newest release, for people who prefer
 it to the pinned tag. Tags of the form `0.3` are no longer moved: 0.3.0
 was the last release to set one.
@@ -131,7 +135,7 @@ In `.env`, take `bundled-postgres` out of `COMPOSE_PROFILES` and name your
 server:
 
 ```sh
-COMPOSE_PROFILES=
+COMPOSE_PROFILES=bundled-livekit
 STOOP_DATABASE_URL=postgres://stoop:secret@192.168.1.20:5432/stoop?sslmode=require
 ```
 

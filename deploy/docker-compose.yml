@@ -127,6 +127,10 @@ services:
 
   livekit:
     image: livekit/livekit-server:v1.13.6
+    # A profile, like the bundled Postgres. A text-only server takes it
+    # out of COMPOSE_PROFILES and sets STOOP_VOICE=false:
+    # docs/self-hosting/voice.md → Running without voice.
+    profiles: ["bundled-livekit"]
     restart: unless-stopped
     logging: *logging
     # The key pair comes from the file Stoop writes, not from livekit.yaml;
