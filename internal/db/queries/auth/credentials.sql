@@ -69,10 +69,6 @@ VALUES (sqlc.arg(id)::uuid, sqlc.arg(holder_id)::uuid, 'personal_token', sqlc.ar
         sqlc.narg(expires_at)::timestamptz, sqlc.arg(hint)::text)
 RETURNING *;
 
--- name: AddCredentialSpaceBound :exec
-INSERT INTO credential_bounds (credential_id, space_id)
-VALUES (sqlc.arg(credential_id)::uuid, sqlc.arg(space_id)::uuid);
-
 -- ListPersonalTokens is one account's tokens, expired ones included.
 -- name: ListPersonalTokens :many
 SELECT c.id, c.name, c.grants, c.bounded, c.created_at, c.last_used_at, c.expires_at, c.hint,

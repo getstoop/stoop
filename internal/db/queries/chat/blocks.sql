@@ -8,12 +8,6 @@ ON CONFLICT DO NOTHING;
 -- name: UnblockUser :execrows
 DELETE FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2;
 
--- HasBlocked: has blocker blocked blocked?
--- name: HasBlocked :one
-SELECT EXISTS (
-    SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2
-) AS blocked;
-
 -- BlockedEitherWay: does either of the two block the other?
 -- name: BlockedEitherWay :one
 SELECT EXISTS (

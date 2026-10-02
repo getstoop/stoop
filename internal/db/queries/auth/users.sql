@@ -136,9 +136,6 @@ UPDATE users SET is_owner = false WHERE is_owner;
 -- name: SetOwner :one
 UPDATE users SET is_owner = true WHERE id = $1 RETURNING *;
 
--- name: SetUserRoleByUsername :one
-UPDATE users SET role = $2 WHERE username = $1 RETURNING *;
-
 -- The avatar pointer is replaced in a transaction: lock the row and read
 -- the current file id, then update, so the caller can delete the old blob
 -- without racing another upload.

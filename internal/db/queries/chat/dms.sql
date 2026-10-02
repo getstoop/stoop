@@ -63,14 +63,6 @@ UPDATE dm_members SET closed_at = NULL
 WHERE channel_id = $1 AND closed_at IS NOT NULL
 RETURNING user_id;
 
--- SharesSpace: do two users belong to at least one common space?
--- name: SharesSpace :one
-SELECT EXISTS (
-    SELECT 1 FROM space_members a
-    JOIN space_members b ON b.space_id = a.space_id
-    WHERE a.user_id = $1 AND b.user_id = $2
-) AS shares;
-
 -- SharesSpaceAmong: which of these users share at least one space with the
 -- caller. The caller may message exactly those, so a short list back means
 -- somebody in the request is out of reach.

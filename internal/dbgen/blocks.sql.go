@@ -79,25 +79,6 @@ func (q *Queries) BlockersAmong(ctx context.Context, arg BlockersAmongParams) ([
 	return items, nil
 }
 
-const hasBlocked = `-- name: HasBlocked :one
-SELECT EXISTS (
-    SELECT 1 FROM user_blocks WHERE blocker_id = $1 AND blocked_id = $2
-) AS blocked
-`
-
-type HasBlockedParams struct {
-	BlockerID string
-	BlockedID string
-}
-
-// HasBlocked: has blocker blocked blocked?
-func (q *Queries) HasBlocked(ctx context.Context, arg HasBlockedParams) (bool, error) {
-	row := q.db.QueryRow(ctx, hasBlocked, arg.BlockerID, arg.BlockedID)
-	var blocked bool
-	err := row.Scan(&blocked)
-	return blocked, err
-}
-
 const listBlockedUserIDs = `-- name: ListBlockedUserIDs :many
 SELECT blocked_id FROM user_blocks WHERE blocker_id = $1 ORDER BY created_at DESC
 `
