@@ -124,7 +124,6 @@ type Policy interface {
 
 // Service is the integrations module.
 type Service struct {
-	pool      *pgxpool.Pool
 	q         *dbgen.Queries
 	bus       events.Bus
 	log       *slog.Logger
@@ -149,7 +148,7 @@ type egress struct {
 
 func New(pool *pgxpool.Pool, bus events.Bus, log *slog.Logger) *Service {
 	return &Service{
-		pool: pool, q: dbgen.New(pool), bus: bus, log: log,
+		q: dbgen.New(pool), bus: bus, log: log,
 		wake: make(chan struct{}, 1), ladder: defaultLadder, now: time.Now,
 		egress: egress{
 			public:  netguard.Policy{}.Transport(),
