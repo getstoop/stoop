@@ -50,7 +50,11 @@ func (s *Service) Login(ctx context.Context, req *connect.Request[authv1.LoginRe
 	// The guard is keyed on the handle as typed, normalized the way
 	// Register does, so "Ada" and "ada" share one budget.
 	handle := strings.ToLower(strings.TrimSpace(req.Msg.Username))
-	if wait := s.guard.check(handle); wait > 0 {
+	wait, err := s.guard.check(ctx, handle)
+	if err != nil {
+		return nil, errGuardDown(err)
+	}
+	if wait > 0 {
 		return nil, errLockedOut(wait)
 	}
 
@@ -75,10 +79,14 @@ func (s *Service) Login(ctx context.Context, req *connect.Request[authv1.LoginRe
 		return nil, fmt.Errorf("verify password: %w", cmpErr)
 	}
 	if !person || user.PasswordHash == nil || !match {
-		s.guard.failure(handle)
+		if err := s.guard.failure(ctx, handle); err != nil {
+			return nil, errGuardDown(err)
+		}
 		return nil, errInvalidCredentials()
 	}
-	s.guard.success(handle)
+	if err := s.guard.success(ctx, handle); err != nil {
+		return nil, errGuardDown(err)
+	}
 	// A deleted account has no password, so it never gets this far: it
 	// reads as a wrong password, and says nothing about having existed.
 	if user.DeactivatedAt != nil {
