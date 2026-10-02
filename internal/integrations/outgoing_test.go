@@ -483,3 +483,34 @@ func TestClipKeepsWholeCharacters(t *testing.T) {
 		t.Errorf("clip = %q", got)
 	}
 }
+
+// settleRecorder is a queue that records how items are settled.
+type settleRecorder struct {
+	Queue
+	settled []string
+}
+
+func (recorder *settleRecorder) Dead(_ context.Context, id string, _ Attempt) error {
+	recorder.settled = append(recorder.settled, id)
+	return nil
+}
+
+func TestDeliverLeavesTheItemWhenTheHookLookupFails(t *testing.T) {
+	fixture, _ := outgoingFixture(t)
+	recorder := &settleRecorder{}
+	fixture.svc.UseQueue(recorder)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ok, err := fixture.svc.deliver(ctx, Leased{Item: Item{ID: uuid.NewString(), Lane: uuid.NewString()}})
+	if ok || err == nil {
+		t.Errorf("deliver = %v, %v", ok, err)
+	}
+	if len(recorder.settled) != 0 {
+		t.Errorf("a lookup failure dead-lettered %v", recorder.settled)
+	}
+
+	ok, err = fixture.svc.deliver(context.Background(), Leased{Item: Item{ID: "gone", Lane: uuid.NewString()}})
+	if ok || err != nil || len(recorder.settled) != 1 {
+		t.Errorf("a missing hook: %v, %v, settled %v", ok, err, recorder.settled)
+	}
+}
