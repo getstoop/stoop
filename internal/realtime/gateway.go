@@ -130,19 +130,16 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	connID := g.connSeq.Add(1)
 	defer g.leaveVoice(userID, connID, "")
 
-	// Presence: a connection announces "online" to the spaces the user was
-	// not yet visible in, and the last disconnect announces "offline". Do
-	// not disturb is read again on every connect, which also rebuilds an end
-	// timer a restart lost.
-	added := g.presence.connect(userID, spaceIDs)
+	// Presence: first connection announces "online" to the user's spaces,
+	// last disconnect announces "offline". Do not disturb is read again on
+	// every connect, which also rebuilds an end timer a restart lost.
+	first := g.presence.connect(userID, spaceIDs)
 	changed := false
 	if s, ok := g.lookupDoNotDisturb(ctx, userID); ok {
 		changed = g.applyDoNotDisturb(userID, s)
 	}
-	if changed {
+	if first || changed {
 		g.publishPresence(userID, g.presence.spacesOf(userID), true)
-	} else if len(added) > 0 {
-		g.publishPresence(userID, added, true)
 	}
 	defer func() {
 		if spaces := g.presence.disconnect(userID); spaces != nil {
