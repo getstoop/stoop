@@ -16,9 +16,7 @@ const KindOIDC = "oidc"
 // ProviderConfig is one effective provider, secret included (in-process
 // only; the admin API never returns secrets).
 type ProviderConfig struct {
-	ID           string
 	Kind         string
-	DisplayName  string
 	Issuer       string
 	ClientID     string
 	ClientSecret string
@@ -29,10 +27,8 @@ type ProviderConfig struct {
 type Claims struct {
 	Subject           string
 	Email             string
-	EmailVerified     bool
 	PreferredUsername string
 	Name              string
-	Picture           string
 }
 
 // ProviderSource is auth's port for provider configuration; backed by the

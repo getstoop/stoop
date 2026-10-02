@@ -263,9 +263,8 @@ func (q *Queries) SetChannelPosition(ctx context.Context, arg SetChannelPosition
 const updateChannel = `-- name: UpdateChannel :one
 UPDATE channels
 SET name = COALESCE($2, name),
-    position = COALESCE($3, position),
-    topic = COALESCE($4, topic),
-    post_policy = COALESCE($5, post_policy)
+    topic = COALESCE($3, topic),
+    post_policy = COALESCE($4, post_policy)
 WHERE id = $1
 RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy
 `
@@ -273,7 +272,6 @@ RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_ke
 type UpdateChannelParams struct {
 	ID         string
 	Name       *string
-	Position   *int32
 	Topic      *string
 	PostPolicy *string
 }
@@ -282,7 +280,6 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 	row := q.db.QueryRow(ctx, updateChannel,
 		arg.ID,
 		arg.Name,
-		arg.Position,
 		arg.Topic,
 		arg.PostPolicy,
 	)

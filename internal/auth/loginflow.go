@@ -33,7 +33,6 @@ const (
 )
 
 type loginState struct {
-	V        int    `json:"v"`
 	Provider string `json:"p"`
 	State    string `json:"st"`
 	Nonce    string `json:"n"`
@@ -108,7 +107,6 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	st := loginState{
-		V:        1,
 		Provider: id,
 		State:    randomToken(),
 		Nonce:    randomToken(),
@@ -287,7 +285,7 @@ func (s *Service) readLoginState(r *http.Request) (loginState, error) {
 	if err := json.Unmarshal(payload, &st); err != nil {
 		return loginState{}, err
 	}
-	if st.V != 1 || time.Now().Unix() > st.Exp {
+	if time.Now().Unix() > st.Exp {
 		return loginState{}, errors.New("state cookie expired")
 	}
 	return st, nil

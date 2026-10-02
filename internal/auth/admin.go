@@ -43,11 +43,6 @@ type AccountSummary struct {
 	IsOwner bool
 }
 
-// CountActiveAdmins reports how many non-deactivated instance admins exist.
-func (s *Service) CountActiveAdmins(ctx context.Context) (int64, error) {
-	return s.q.CountAdmins(ctx)
-}
-
 func (s *Service) ListAccounts(ctx context.Context) ([]AccountSummary, error) {
 	rows, err := s.q.ListUsers(ctx)
 	if err != nil {
