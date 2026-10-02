@@ -114,7 +114,9 @@ type Service struct {
 	policy   Policy
 	grace    time.Duration
 	inflight *inflight
-	log      *slog.Logger
+	// uploadIdle is how long an upload's body may send nothing.
+	uploadIdle time.Duration
+	log        *slog.Logger
 }
 
 func New(pool *pgxpool.Pool, store blob.Store, bus events.Bus, avatars Avatars, spaces Spaces, sessions SessionVerifier, log *slog.Logger) *Service {
@@ -122,6 +124,7 @@ func New(pool *pgxpool.Pool, store blob.Store, bus events.Bus, avatars Avatars, 
 		q: dbgen.New(pool), pool: pool, store: store, bus: bus,
 		avatars: avatars, spaces: spaces, sessions: sessions, log: log,
 		grace: DefaultSweepGrace, inflight: newInflight(MaxInflightUploads),
+		uploadIdle: uploadIdle,
 	}
 }
 

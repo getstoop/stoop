@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -27,7 +29,22 @@ const (
 	// Slack for the multipart framing and the channel_id field on top of
 	// the file itself.
 	multipartOverhead = 64 << 10
+	// An upload that sends nothing for this long is ended, so a stalled
+	// one gives its slot back.
+	uploadIdle = 30 * time.Second
 )
+
+// idleBody is a request body whose every read must arrive within idle.
+type idleBody struct {
+	io.ReadCloser
+	control *http.ResponseController
+	idle    time.Duration
+}
+
+func (body idleBody) Read(buffer []byte) (int, error) {
+	_ = body.control.SetReadDeadline(time.Now().Add(body.idle))
+	return body.ReadCloser.Read(buffer)
+}
 
 // UploadHandler serves POST /files/upload: a multipart form with a
 // channel_id field and one file part. Bytes are stored as sent — no
@@ -48,6 +65,12 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
+		// Taken before the body is read, so refused callers spool nothing.
+		if !s.inflight.acquire(identity.UserID) {
+			writeError(w, http.StatusTooManyRequests, tooManyUploadsMessage)
+			return
+		}
+		defer s.inflight.release(identity.UserID)
 		ctx := authctx.WithIdentity(r.Context(), identity)
 		// The operator's per-file cap
 		limit, err := s.maxUploadBytes(ctx)
@@ -56,16 +79,26 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, limit+multipartOverhead)
+		control := http.NewResponseController(w)
+		body := r.Body
+		if s.uploadIdle > 0 {
+			body = idleBody{ReadCloser: r.Body, control: control, idle: s.uploadIdle}
+		}
+		r.Body = http.MaxBytesReader(w, body, limit+multipartOverhead)
 		if err := r.ParseMultipartForm(multipartMemory); err != nil {
 			var tooBig *http.MaxBytesError
-			if errors.As(err, &tooBig) {
+			switch {
+			case errors.As(err, &tooBig):
 				writeError(w, http.StatusRequestEntityTooLarge, tooLargeMessage(limit))
-				return
+			case errors.Is(err, os.ErrDeadlineExceeded):
+				writeError(w, http.StatusRequestTimeout, "the upload stopped arriving; try again")
+			default:
+				writeError(w, http.StatusBadRequest, "expected a multipart form")
 			}
-			writeError(w, http.StatusBadRequest, "expected a multipart form")
 			return
 		}
+		// The body is in; nothing below waits on the client.
+		_ = control.SetReadDeadline(time.Time{})
 		defer func() { _ = r.MultipartForm.RemoveAll() }()
 
 		channelID := r.FormValue("channel_id")
@@ -122,11 +155,6 @@ func (s *Service) UploadHandler() http.Handler {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-		if !s.inflight.acquire(identity.UserID) {
-			writeError(w, http.StatusTooManyRequests, tooManyUploadsMessage)
-			return
-		}
-		defer s.inflight.release(identity.UserID)
 
 		info, err := s.storeAttachment(r, identity.UserID, spaceID, part, header.Size, header.Filename)
 		if err != nil {
