@@ -248,17 +248,11 @@ func checkGrantDependencies(has map[authctx.Action]bool) error {
 }
 
 func toProtoToken(r dbgen.ListPersonalTokensRow, blocked bool) *authv1.PersonalToken {
-	out := &authv1.PersonalToken{
+	return &authv1.PersonalToken{
 		Id: r.ID, Name: r.Name, Permissions: accesswire.ToProto(toActions(r.Grants)),
 		CreatedAt: timestamppb.New(r.CreatedAt), Hint: r.Hint, Blocked: blocked,
+		LastUsedAt: timestampOrNil(r.LastUsedAt), ExpiresAt: timestampOrNil(r.ExpiresAt),
 	}
-	if r.LastUsedAt != nil {
-		out.LastUsedAt = timestamppb.New(*r.LastUsedAt)
-	}
-	if r.ExpiresAt != nil {
-		out.ExpiresAt = timestamppb.New(*r.ExpiresAt)
-	}
-	return out
 }
 
 // isBadReference reports a foreign key that points nowhere, or an id that
