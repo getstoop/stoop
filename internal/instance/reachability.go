@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -14,6 +13,7 @@ import (
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/trustedproxy"
 )
@@ -314,8 +314,7 @@ func (s *Service) PublicURL(ctx context.Context) (string, error) {
 }
 
 func validatePublicURL(raw string) (string, error) {
-	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
+	if !config.Origin(raw) {
 		return "", apierr.Field(connect.CodeInvalidArgument, "public_url",
 			errors.New("the public address must look like https://chat.example.com"))
 	}
@@ -429,7 +428,7 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 				errors.New("the node name must be letters, digits, and hyphens"))
 		}
 		if ts.ControlURL != "" {
-			if u, err := url.Parse(ts.ControlURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			if _, ok := config.HTTPURL(ts.ControlURL); !ok {
 				return nil, apierr.Field(connect.CodeInvalidArgument, "tailscale.control_url",
 					errors.New("the control URL must be an http(s) URL"))
 			}

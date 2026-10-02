@@ -14,6 +14,7 @@ import (
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -49,11 +50,6 @@ const (
 	// DeletionPolicy port.
 	keySelfDeletion = "self_deletion"
 )
-
-// MaxInstanceNameRunes bounds the name in characters, not bytes. The
-// admin form's maxLength and config's STOOP_INSTANCE_NAME check use the
-// same number.
-const MaxInstanceNameRunes = 100
 
 // PasswordSignIn is who may sign in (and register) with a password; the
 // auth module consumes it as a string through its PasswordPolicy port.
@@ -361,7 +357,7 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	// keeps a rejected save from half-applying.
 	// Also judged on the value alone, so it is refused before anything is
 	// written too.
-	if d := req.Msg.SessionLifetimeDays; d != nil && (*d < 0 || *d > MaxSessionLifetimeDays) {
+	if d := req.Msg.SessionLifetimeDays; d != nil && (*d < 0 || *d > config.MaxSessionLifetimeDays) {
 		return nil, apierr.Field(connect.CodeInvalidArgument, "session_lifetime_days",
 			errors.New("a sign-in lasts 1-365 days, or 0 to use the server's default"))
 	}
@@ -376,9 +372,9 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 		if name == "" {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "instance_name", errors.New("the server name must not be blank"))
 		}
-		if utf8.RuneCountInString(name) > MaxInstanceNameRunes {
+		if utf8.RuneCountInString(name) > config.MaxInstanceNameRunes {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "instance_name",
-				fmt.Errorf("the server name must be %d characters or fewer", MaxInstanceNameRunes))
+				fmt.Errorf("the server name must be %d characters or fewer", config.MaxInstanceNameRunes))
 		}
 		v, _ := json.Marshal(name)
 		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyInstanceName, Value: v}); err != nil {
