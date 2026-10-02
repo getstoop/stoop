@@ -10,11 +10,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/alexedwards/argon2id"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -71,13 +71,12 @@ func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1
 		if _, err := s.q.SetUsername(ctx, dbgen.SetUsernameParams{
 			ID: authctx.UserID(ctx), Username: username,
 		}); err != nil {
-			var pgErr *pgconn.PgError
 			switch {
 			case errors.Is(err, pgx.ErrNoRows):
 				// The only way the row doesn't match: an admin froze it.
 				return nil, apierr.Field(connect.CodeFailedPrecondition, "username",
 					errors.New("an admin has locked your username"))
-			case errors.As(err, &pgErr) && pgErr.Code == "23505":
+			case db.HasCode(err, db.UniqueViolation):
 				return nil, apierr.Field(connect.CodeAlreadyExists, "username",
 					errors.New("username is taken"))
 			default:

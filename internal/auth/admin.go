@@ -9,10 +9,10 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -203,8 +203,7 @@ func (s *Service) RenameAccount(ctx context.Context, userID string, username, di
 		}
 		u, err = s.q.AdminSetUsername(ctx, dbgen.AdminSetUsernameParams{ID: userID, Username: name})
 		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			if db.HasCode(err, db.UniqueViolation) {
 				return AccountSummary{}, apierr.Field(connect.CodeAlreadyExists, "username",
 					errors.New("username is taken"))
 			}

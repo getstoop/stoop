@@ -11,12 +11,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -30,7 +30,6 @@ const (
 	// Retries on the (astronomically unlikely) code collision.
 	inviteCodeAttempts = 5
 	maxInviteLifetime  = 365 * 24 * time.Hour
-	uniqueViolation    = "23505"
 )
 
 func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.CreateInviteRequest]) (*connect.Response[chatv1.CreateInviteResponse], error) {
@@ -78,7 +77,7 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 		if err == nil {
 			break
 		}
-		if isUniqueViolation(err) && attempt < inviteCodeAttempts-1 {
+		if db.HasCode(err, db.UniqueViolation) && attempt < inviteCodeAttempts-1 {
 			continue
 		}
 		return nil, fmt.Errorf("create invite: %w", err)
@@ -390,11 +389,6 @@ func newInviteCode() (string, error) {
 		}
 	}
 	return string(code), nil
-}
-
-func isUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation
 }
 
 func toProtoInvite(i dbgen.Invite) *chatv1.Invite {

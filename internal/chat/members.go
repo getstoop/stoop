@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -14,6 +13,7 @@ import (
 	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 )
@@ -117,8 +117,7 @@ func (s *Service) AddMember(ctx context.Context, req *connect.Request[chatv1.Add
 	if err := s.q.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
 		SpaceID: space.ID, UserID: req.Msg.UserId, Role: string(RoleMember),
 	}); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		if db.HasCode(err, db.ForeignKeyViolation) {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 		}
 		return nil, fmt.Errorf("add member: %w", err)

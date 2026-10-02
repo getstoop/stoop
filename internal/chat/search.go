@@ -9,11 +9,11 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -115,8 +115,7 @@ func (s *Service) searchWithTimeout(ctx context.Context, params dbgen.SearchMess
 	}
 	found, err := s.q.WithTx(tx).SearchMessages(ctx, params)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "57014" {
+		if db.HasCode(err, db.QueryCanceled) {
 			return nil, connect.NewError(connect.CodeDeadlineExceeded, errors.New("that search took too long; add a channel or a word"))
 		}
 		return nil, fmt.Errorf("search messages: %w", err)

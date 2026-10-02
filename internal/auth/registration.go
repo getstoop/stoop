@@ -10,11 +10,11 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/alexedwards/argon2id"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -230,8 +230,7 @@ func (s *Service) createAccount(ctx context.Context, p createAccountParams) (dbg
 		IsOwner: underLock == 0,
 	})
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if db.HasCode(err, db.UniqueViolation) {
 			return dbgen.User{}, apierr.Field(connect.CodeAlreadyExists, "username",
 				errors.New("username is taken"))
 		}

@@ -7,9 +7,9 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -68,8 +68,7 @@ func insertAttachments(ctx context.Context, q *dbgen.Queries, messageID string, 
 			MessageID: messageID, FileID: f.ID, Position: int32(i),
 		})
 		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			if db.HasCode(err, db.UniqueViolation) {
 				return connect.NewError(connect.CodeInvalidArgument, errors.New("attachment already used"))
 			}
 			return fmt.Errorf("attach file: %w", err)

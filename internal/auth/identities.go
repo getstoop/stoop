@@ -12,11 +12,11 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -156,8 +156,7 @@ func (s *Service) linkIdentity(r *http.Request, providerID string, claims Claims
 		Provider: providerID, Subject: claims.Subject,
 		UserID: ident.UserID, Email: claims.Email,
 	}); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if db.HasCode(err, db.UniqueViolation) {
 			// The same account already has this provider; the identity
 			// itself was checked above, so the conflict is (user, provider).
 			return flowResult{}, &flowErr{code: "already_linked", toProfile: true}

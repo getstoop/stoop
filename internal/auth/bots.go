@@ -12,10 +12,10 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -84,8 +84,7 @@ func (s *Service) CreateBot(ctx context.Context, username, displayName string) (
 	id := rowid.New()
 	u, err := s.q.CreateBot(ctx, dbgen.CreateBotParams{ID: id, Username: username, DisplayName: displayName})
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if db.HasCode(err, db.UniqueViolation) {
 			return Bot{}, apierr.Field(connect.CodeAlreadyExists, "username", errors.New("username is taken"))
 		}
 		return Bot{}, fmt.Errorf("create bot: %w", err)
