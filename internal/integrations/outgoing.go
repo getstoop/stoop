@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/apierr"
@@ -210,11 +209,8 @@ func (s *Service) RedeliverDelivery(ctx context.Context, req *connect.Request[in
 		return nil, err
 	}
 	d, err := s.q.GetDelivery(ctx, req.Msg.DeliveryId)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("delivery not found"))
-	}
 	if err != nil {
-		return nil, fmt.Errorf("get delivery: %w", err)
+		return nil, apierr.NotFoundOr(fmt.Errorf("get delivery: %w", err), "delivery")
 	}
 	if d.FinishedAt == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this delivery is still in progress"))
@@ -340,11 +336,8 @@ func (s *Service) outgoingHook(ctx context.Context, id string) (dbgen.OutgoingWe
 		return dbgen.OutgoingWebhook{}, err
 	}
 	hook, err := s.q.GetOutgoingWebhook(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbgen.OutgoingWebhook{}, connect.NewError(connect.CodeNotFound, errors.New("webhook not found"))
-	}
 	if err != nil {
-		return dbgen.OutgoingWebhook{}, fmt.Errorf("get hook: %w", err)
+		return dbgen.OutgoingWebhook{}, apierr.NotFoundOr(fmt.Errorf("get hook: %w", err), "webhook")
 	}
 	return hook, nil
 }

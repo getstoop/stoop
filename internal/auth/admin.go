@@ -97,14 +97,14 @@ func (s *Service) SetAccountRole(ctx context.Context, userID string, role authct
 	}
 	target, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	if err := refuseBotTarget(target, "a bot can't be a server admin; a person's own token carries the server actions"); err != nil {
 		return AccountSummary{}, err
 	}
 	u, err := s.q.SetUserRole(ctx, dbgen.SetUserRoleParams{ID: userID, Role: string(role)})
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	return toSummary(u), nil
 }
@@ -118,14 +118,14 @@ func (s *Service) SetAccountActive(ctx context.Context, userID string, active bo
 	}
 	if active {
 		if cur, err := s.q.GetUserByID(ctx, userID); err != nil {
-			return AccountSummary{}, notFoundOr(err, "user")
+			return AccountSummary{}, apierr.NotFoundOr(err, "user")
 		} else if cur.DeletedAt != nil {
 			return AccountSummary{}, connect.NewError(connect.CodeFailedPrecondition,
 				errors.New("they deleted their account; it can't be brought back"))
 		}
 		u, err := s.q.SetUserDeactivated(ctx, dbgen.SetUserDeactivatedParams{ID: userID, Deactivated: false})
 		if err != nil {
-			return AccountSummary{}, notFoundOr(err, "user")
+			return AccountSummary{}, apierr.NotFoundOr(err, "user")
 		}
 		return toSummary(u), nil
 	}
@@ -157,7 +157,7 @@ func (s *Service) underAdminGuard(ctx context.Context, targetID string, write fu
 	}
 	target, err := qtx.GetUserByID(ctx, targetID)
 	if err != nil {
-		return dbgen.User{}, notFoundOr(err, "user")
+		return dbgen.User{}, apierr.NotFoundOr(err, "user")
 	}
 	if target.IsOwner {
 		return dbgen.User{}, errOwner
@@ -173,7 +173,7 @@ func (s *Service) underAdminGuard(ctx context.Context, targetID string, write fu
 	}
 	u, err := write(qtx)
 	if err != nil {
-		return dbgen.User{}, notFoundOr(err, "user")
+		return dbgen.User{}, apierr.NotFoundOr(err, "user")
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return dbgen.User{}, fmt.Errorf("commit: %w", err)
@@ -189,7 +189,7 @@ func (s *Service) RenameAccount(ctx context.Context, userID string, username, di
 	}
 	u, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	if username != nil {
 		name := strings.ToLower(strings.TrimSpace(*username))
@@ -243,7 +243,7 @@ func (s *Service) ClearAccountProfile(ctx context.Context, userID string, pronou
 	}
 	u, err := s.q.UpdateUserProfile(ctx, arg)
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	return toSummary(u), nil
 }
@@ -256,14 +256,14 @@ func (s *Service) SetAccountUsernameFrozen(ctx context.Context, userID string, f
 	}
 	target, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	if err := refuseBotTarget(target, "a bot never renames itself, so there is nothing to freeze"); err != nil {
 		return AccountSummary{}, err
 	}
 	u, err := s.q.SetUsernameFrozen(ctx, dbgen.SetUsernameFrozenParams{ID: userID, UsernameFrozen: frozen})
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	return toSummary(u), nil
 }
@@ -286,7 +286,7 @@ func toSummary(u dbgen.User) AccountSummary {
 func (s *Service) SetRoleByUsername(ctx context.Context, username string, role authctx.Role) (AccountSummary, error) {
 	u, err := s.q.GetUserByUsername(ctx, username)
 	if err != nil {
-		return AccountSummary{}, notFoundOr(err, "user")
+		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
 	out, err := s.SetAccountRole(ctx, u.ID, role)
 	var cerr *connect.Error

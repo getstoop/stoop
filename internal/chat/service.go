@@ -9,11 +9,11 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -204,7 +204,7 @@ func (s *Service) requireChannelMember(ctx context.Context, channelID string) er
 	if id, _ := authctx.From(ctx); id.Credential.Bounded {
 		channel, err := s.q.GetChannel(ctx, channelID)
 		if err != nil {
-			return notFoundOr(err, "channel")
+			return apierr.NotFoundOr(err, "channel")
 		}
 		if !id.Credential.Reaches(spaceOf(channel), channel.ID) {
 			return connect.NewError(connect.CodePermissionDenied, authctx.ErrOutOfBounds)
@@ -229,11 +229,4 @@ func (s *Service) resolveAuthors(ctx context.Context, ids []string) (map[string]
 		}
 	}
 	return authors, nil
-}
-
-func notFoundOr(err error, what string) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found", what))
-	}
-	return err
 }

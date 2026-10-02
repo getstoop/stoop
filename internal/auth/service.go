@@ -6,13 +6,10 @@ package auth
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 
-	"connectrpc.com/connect"
 	"github.com/alexedwards/argon2id"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/authctx"
@@ -84,11 +81,4 @@ func New(pool *pgxpool.Pool, opts Options) *Service {
 	return &Service{pool: pool, q: dbgen.New(pool), opts: opts, argon2: params,
 		guard: newLoginGuard(), dummyHash: dummy, stateKey: stateKey,
 		desktop: newDesktopStore()}
-}
-
-func notFoundOr(err error, what string) error {
-	if errors.Is(err, pgx.ErrNoRows) {
-		return connect.NewError(connect.CodeNotFound, fmt.Errorf("%s not found", what))
-	}
-	return err
 }

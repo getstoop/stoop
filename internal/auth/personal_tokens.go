@@ -169,7 +169,7 @@ func (s *Service) ListTokensOf(ctx context.Context, userID string) ([]*authv1.Pe
 	}
 	u, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, notFoundOr(err, "user")
+		return nil, apierr.NotFoundOr(err, "user")
 	}
 	return s.personalTokensOf(ctx, u.ID, authctx.Role(u.Role))
 }

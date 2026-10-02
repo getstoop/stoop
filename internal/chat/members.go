@@ -12,6 +12,7 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -25,7 +26,7 @@ func (s *Service) GetMember(ctx context.Context, req *connect.Request[chatv1.Get
 		SpaceID: req.Msg.SpaceId, UserID: req.Msg.UserId,
 	})
 	if err != nil {
-		return nil, notFoundOr(err, "member")
+		return nil, apierr.NotFoundOr(err, "member")
 	}
 	members, err := s.toProtoMembers(ctx, []dbgen.SpaceMember{row})
 	if err != nil {
@@ -95,7 +96,7 @@ func (s *Service) AddMember(ctx context.Context, req *connect.Request[chatv1.Add
 	}
 	space, err := s.q.GetSpace(ctx, req.Msg.SpaceId)
 	if err != nil {
-		return nil, notFoundOr(err, "space")
+		return nil, apierr.NotFoundOr(err, "space")
 	}
 	if records, err := s.users.GetUsers(ctx, []string{req.Msg.UserId}); err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
@@ -161,7 +162,7 @@ func (s *Service) LeaveSpace(ctx context.Context, req *connect.Request[chatv1.Le
 	userID := authctx.UserID(ctx)
 	role, err := s.q.GetSpaceMemberRole(ctx, dbgen.GetSpaceMemberRoleParams{SpaceID: req.Msg.SpaceId, UserID: userID})
 	if err != nil {
-		return nil, notFoundOr(err, "membership")
+		return nil, apierr.NotFoundOr(err, "membership")
 	}
 	if Role(role) == RoleOwner {
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
@@ -208,7 +209,7 @@ func (s *Service) actorAndTarget(ctx context.Context, spaceID, targetID string) 
 	}
 	target, err := s.q.GetSpaceMember(ctx, dbgen.GetSpaceMemberParams{SpaceID: spaceID, UserID: targetID})
 	if err != nil {
-		return a, target, notFoundOr(err, "member")
+		return a, target, apierr.NotFoundOr(err, "member")
 	}
 	if !canActOn(a, Role(target.Role)) {
 		return a, target, connect.NewError(connect.CodePermissionDenied,

@@ -225,7 +225,7 @@ func (s *Service) MintCredential(ctx context.Context, m MintBotCredential) (cred
 		if isBadReference(err) {
 			return BotCredential{}, "", connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
 		}
-		return BotCredential{}, "", notFoundOr(err, "bot")
+		return BotCredential{}, "", apierr.NotFoundOr(err, "bot")
 	}
 	if m.ChannelID != "" {
 		if err := qtx.AddCredentialChannelBound(ctx, dbgen.AddCredentialChannelBoundParams{CredentialID: row.ID, ChannelID: m.ChannelID}); err != nil {

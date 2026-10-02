@@ -10,6 +10,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -45,7 +46,7 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	userID := authctx.UserID(ctx)
 	msg, err := s.q.GetMessage(ctx, req.Msg.MessageId)
 	if err != nil {
-		return nil, notFoundOr(err, "message")
+		return nil, apierr.NotFoundOr(err, "message")
 	}
 	channel, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -191,7 +192,7 @@ func (s *Service) SetDirectMessageClosed(ctx context.Context, req *connect.Reque
 	me := authctx.UserID(ctx)
 	channel, err := s.q.GetChannel(ctx, req.Msg.ChannelId)
 	if err != nil {
-		return nil, notFoundOr(err, "conversation")
+		return nil, apierr.NotFoundOr(err, "conversation")
 	}
 	if !isDM(channel) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("conversation not found"))

@@ -8,7 +8,6 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/apierr"
@@ -375,11 +374,8 @@ func (s *Service) incomingHook(ctx context.Context, id string) (dbgen.IncomingWe
 		return dbgen.IncomingWebhook{}, err
 	}
 	hook, err := s.q.GetIncomingWebhook(ctx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dbgen.IncomingWebhook{}, connect.NewError(connect.CodeNotFound, errors.New("webhook not found"))
-	}
 	if err != nil {
-		return dbgen.IncomingWebhook{}, fmt.Errorf("get hook: %w", err)
+		return dbgen.IncomingWebhook{}, apierr.NotFoundOr(fmt.Errorf("get hook: %w", err), "webhook")
 	}
 	return hook, nil
 }

@@ -10,6 +10,7 @@ import (
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
@@ -51,7 +52,7 @@ func (s *Service) GetUserProfile(ctx context.Context, req *connect.Request[authv
 	}
 	row, err := s.q.GetUserProfile(ctx, req.Msg.UserId)
 	if err != nil {
-		return nil, notFoundOr(err, "user")
+		return nil, apierr.NotFoundOr(err, "user")
 	}
 	dnd, _ := dndState(row.Dnd, row.DndUntil, time.Now())
 	return connect.NewResponse(&authv1.GetUserProfileResponse{

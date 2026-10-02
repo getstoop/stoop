@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -71,7 +72,7 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 	if q.in != "" {
 		channel, err := s.q.GetChannelInSpaceByName(ctx, dbgen.GetChannelInSpaceByNameParams{SpaceID: spaceID, Name: q.in})
 		if err != nil {
-			return nil, notFoundOr(err, "channel")
+			return nil, apierr.NotFoundOr(err, "channel")
 		}
 		params.ChannelID = &channel.ID
 	}
