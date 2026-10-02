@@ -176,3 +176,43 @@ func TestSessionHearsEverythingAndItsRevocation(t *testing.T) {
 		t.Fatalf("session socket after revocation: code = %v", alice.closeCode)
 	}
 }
+
+// A token bounded to s1 connects first, then a session reaching s1 and s2:
+// s2 hears casey come online, and s1 is not told twice.
+func TestWiderSecondConnectionAnnouncesOnline(t *testing.T) {
+	verifier := fakeVerifier{
+		"bounded": {UserID: "casey", Credential: authctx.Credential{
+			ID: "bounded", Kind: authctx.CredentialPersonalToken,
+			Grants: []authctx.Action{authctx.MessagesRead}, Bounded: true, Spaces: []string{"s1"},
+		}},
+	}
+	gw := realtime.NewGateway(events.NewInProcBus(), verifier, fakeMembers{
+		"casey": {"s1", "s2"}, "ada": {"s1"}, "bea": {"s2"},
+	}, fakeVoiceChannels{}, []string{"*"}, slog.Default())
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+
+	ada := dial(t, srv, "ada")
+	ada.waitFor(presenceOf("ada"))
+	bea := dial(t, srv, "bea")
+	bea.waitFor(presenceOf("bea"))
+
+	bounded := dial(t, srv, "bounded")
+	bounded.next(time.Second)
+	if ada.waitFor(presenceOf("casey")) == nil {
+		t.Fatal("ada never heard casey come online")
+	}
+
+	session := dial(t, srv, "casey")
+	session.next(time.Second)
+	if ev := bea.waitFor(presenceOf("casey")); ev == nil || !ev.GetPresenceChanged().Online {
+		t.Fatalf("bea never heard casey come online: %v", ev)
+	}
+	if ev := ada.next(300 * time.Millisecond); ev != nil {
+		t.Fatalf("ada was told again: %v", ev.Payload)
+	}
+	_ = session.conn.Close(websocket.StatusNormalClosure, "")
+	_ = bounded.conn.Close(websocket.StatusNormalClosure, "")
+	_ = ada.conn.Close(websocket.StatusNormalClosure, "")
+	_ = bea.conn.Close(websocket.StatusNormalClosure, "")
+}
