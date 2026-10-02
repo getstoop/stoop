@@ -31,10 +31,14 @@ func runUpgrade(ctx context.Context, args []string, out io.Writer) int {
 	var o upgrade.Options
 	o.Dir = "."
 	rollback := false
+	// upgradeOnly is whether a flag rollback does not take was given,
+	// whatever its value.
+	upgradeOnly := false
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--plan":
 			o.PlanOnly = true
+			upgradeOnly = true
 		case "--yes", "-y":
 			o.Yes = true
 		case "--to", "--file":
@@ -47,6 +51,7 @@ func runUpgrade(ctx context.Context, args []string, out io.Writer) int {
 			} else {
 				o.File = args[i+1]
 			}
+			upgradeOnly = true
 			i++
 		case "rollback":
 			rollback = true
@@ -57,6 +62,10 @@ func runUpgrade(ctx context.Context, args []string, out io.Writer) int {
 	}
 	if o.To != "" && o.File != "" {
 		fmt.Fprintln(os.Stderr, "stoop upgrade: --to and --file are alternatives; give one")
+		return 2
+	}
+	if rollback && upgradeOnly {
+		_, _ = fmt.Fprint(out, upgradeUsage)
 		return 2
 	}
 	u := upgrade.New(o)
