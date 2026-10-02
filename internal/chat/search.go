@@ -51,12 +51,7 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	limit := req.Msg.Limit
-	if limit <= 0 {
-		limit = defaultSearchPage
-	} else if limit > maxSearchPage {
-		limit = maxSearchPage
-	}
+	limit := clampPageSize(req.Msg.Limit, defaultSearchPage, maxSearchPage)
 
 	withVoice, err := s.voiceOn(ctx, spaceID)
 	if err != nil {

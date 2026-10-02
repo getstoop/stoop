@@ -155,12 +155,7 @@ var errActivityNeedsReads = errors.New("reading activity needs reading messages 
 
 func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.ListActivityRequest]) (*connect.Response[chatv1.ListActivityResponse], error) {
 	userID := authctx.UserID(ctx)
-	limit := req.Msg.Limit
-	if limit <= 0 {
-		limit = defaultPageSize
-	} else if limit > maxPageSize {
-		limit = maxPageSize
-	}
+	limit := clampPageSize(req.Msg.Limit, defaultPageSize, maxPageSize)
 	var before *string
 	if req.Msg.BeforeId != "" {
 		before = &req.Msg.BeforeId

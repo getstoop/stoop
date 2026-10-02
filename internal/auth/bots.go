@@ -2,9 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -201,10 +198,7 @@ func (s *Service) MintCredential(ctx context.Context, mint MintBotCredential) (c
 		return BotCredential{}, "", err
 	}
 
-	secret, hash, err := newToken(prefix)
-	if err != nil {
-		return BotCredential{}, "", err
-	}
+	secret, hash := newToken(prefix)
 	credID := rowid.New()
 	var row dbgen.Credential
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
@@ -331,16 +325,6 @@ func (s *Service) VerifyHookToken(ctx context.Context, token string) (authctx.Id
 		return authctx.Identity{}, errors.New("not a hook token")
 	}
 	return id, nil
-}
-
-func newToken(prefix string) (secret string, hash []byte, err error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return "", nil, err
-	}
-	secret = prefix + base64.RawURLEncoding.EncodeToString(raw)
-	sum := sha256.Sum256([]byte(secret))
-	return secret, sum[:], nil
 }
 
 func channelList(id string) []string {

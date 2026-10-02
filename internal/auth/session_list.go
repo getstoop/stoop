@@ -29,12 +29,7 @@ func (s *Service) ListSessions(ctx context.Context, _ *connect.Request[authv1.Li
 		out[i] = &authv1.Session{
 			Id: r.ID, CreatedAt: timestamppb.New(r.CreatedAt),
 			UserAgent: r.UserAgent, Current: r.ID == id.SessionID,
-		}
-		if r.LastUsedAt != nil {
-			out[i].LastUsedAt = timestamppb.New(*r.LastUsedAt)
-		}
-		if r.ExpiresAt != nil {
-			out[i].ExpiresAt = timestamppb.New(*r.ExpiresAt)
+			LastUsedAt: timestampOrNil(r.LastUsedAt), ExpiresAt: timestampOrNil(r.ExpiresAt),
 		}
 	}
 	return connect.NewResponse(&authv1.ListSessionsResponse{Sessions: out}), nil

@@ -24,6 +24,15 @@ const (
 	maxPageSize     = 100
 )
 
+// clampPageSize is the requested page size, or fallback when it is zero or
+// negative, and never more than maximum.
+func clampPageSize(requested, fallback, maximum int32) int32 {
+	if requested <= 0 {
+		return fallback
+	}
+	return min(requested, maximum)
+}
+
 func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.SendMessageRequest]) (*connect.Response[chatv1.SendMessageResponse], error) {
 	userID := authctx.UserID(ctx)
 	content := req.Msg.Content
@@ -167,12 +176,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 		return nil, err
 	}
 
-	limit := req.Msg.Limit
-	if limit <= 0 {
-		limit = defaultPageSize
-	} else if limit > maxPageSize {
-		limit = maxPageSize
-	}
+	limit := clampPageSize(req.Msg.Limit, defaultPageSize, maxPageSize)
 
 	var (
 		rows               []dbgen.ListMessagesBeforeRow

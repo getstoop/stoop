@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -74,11 +73,4 @@ func (s *Service) announceDoNotDisturb(u dbgen.User) {
 			},
 		},
 	}))
-}
-
-func timestampOrNil(t *time.Time) *timestamppb.Timestamp {
-	if t == nil {
-		return nil
-	}
-	return timestamppb.New(*t)
 }
