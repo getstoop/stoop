@@ -220,7 +220,7 @@ since the generic table cannot carry the foreign key.
 **Phase 3: `stoop jobs` as a process.** A subcommand that builds the
 composition root without the HTTP listener, the gateway or the voice
 proxy, and runs only the dispatcher. `STOOP_JOBS=external` tells the main
-process to run none. The dispatcher heartbeat drives a `jobs runner`
+process to run none. The dispatcher heartbeat drives a `jobs_runner`
 health row: warn when no dispatcher has been seen for a minute. The
 Compose files gain a `jobs` service with a memory limit and
 `restart: unless-stopped`; the main process can spawn and supervise the

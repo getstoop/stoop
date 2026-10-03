@@ -24,7 +24,7 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 		t.Errorf("no serverStartedAt: %s", r.raw)
 	}
 	rows, order := healthRows(r)
-	if strings.Join(order, ",") != "postgres,livekit,storage,public_address,webhooks,jobs,jobs runner" {
+	if strings.Join(order, ",") != "postgres,livekit,storage,public_address,webhooks,jobs,jobs_runner" {
 		t.Errorf("check order = %v", order)
 	}
 	if pg := rows["postgres"]; pg["state"] != "CHECK_STATE_OK" || !strings.Contains(pg["detail"].(string), "pool") || pg["checkedAt"] == "" {
@@ -49,12 +49,12 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 	}
 	// The dispatcher registers its heartbeat shortly after the start, and
 	// the answer is cached for two seconds, so the row is polled.
-	runner := h.healthRow(casey, "jobs runner", func(row map[string]any) bool {
+	runner := h.healthRow(casey, "jobs_runner", func(row map[string]any) bool {
 		detail, _ := row["detail"].(string)
 		return row["state"] == "CHECK_STATE_OK" && strings.HasPrefix(detail, "1 running")
 	})
 	if runner["state"] != "CHECK_STATE_OK" || runner["fixTab"] != nil {
-		t.Errorf("jobs runner = %v", runner)
+		t.Errorf("jobs_runner = %v", runner)
 	}
 }
 

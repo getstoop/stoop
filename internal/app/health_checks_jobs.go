@@ -118,11 +118,11 @@ func jobOff(record diag.JobRecord) bool {
 	return record.Interval <= 0
 }
 
-// ---- jobs runner ----
+// ---- jobs_runner ----
 
 // newJobsRunnerCheck reads the heartbeat rows.
 func newJobsRunnerCheck(dispatchers func(ctx context.Context) ([]jobs.Dispatcher, error)) instance.HealthCheck {
-	return instance.HealthCheck{Name: "jobs runner", Run: func(ctx context.Context) (instance.CheckState, string) {
+	return instance.HealthCheck{Name: "jobs_runner", Run: func(ctx context.Context) (instance.CheckState, string) {
 		all, err := dispatchers(ctx)
 		if err != nil {
 			return instance.CheckDanger, err.Error()

@@ -28,7 +28,7 @@ const (
 	DefaultShutdownGrace = 5 * time.Second
 	DefaultLease         = 10 * time.Minute
 	// DefaultHeartbeat is how often a dispatcher touches its row between
-	// passes, so the jobs runner health row holds whatever the poll is.
+	// passes, so the jobs_runner health row holds whatever the poll is.
 	DefaultHeartbeat   = 15 * time.Second
 	DefaultMaxAttempts = 4
 	// ScheduleLead is how soon after a schedule row is created its first

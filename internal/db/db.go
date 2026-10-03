@@ -8,6 +8,7 @@ import (
 	"embed"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -16,6 +17,13 @@ import (
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
+
+// migrateLockKey is the advisory lock one process holds while it migrates,
+// so two starting together apply each migration once. The files quota lock
+// is 4207011.
+const migrateLockKey = 4207012
+
+const unlockTimeout = 5 * time.Second
 
 // Connect opens the pool. poolMax caps it; 0 keeps pgx's default.
 func Connect(ctx context.Context, databaseURL string, poolMax int) (*pgxpool.Pool, error) {
@@ -40,11 +48,23 @@ func Connect(ctx context.Context, databaseURL string, poolMax int) (*pgxpool.Poo
 	return pool, nil
 }
 
+// Migrate applies the pending migrations under a session-level advisory
+// lock held on a connection of its own, so a second process starting at
+// the same time waits for this one and then finds nothing to do.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	goose.SetBaseFS(migrationsFS)
 	if err := goose.SetDialect("postgres"); err != nil {
 		return err
 	}
+	lock, err := pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("lock for migrations: %w", err)
+	}
+	if _, err := lock.Exec(ctx, "SELECT pg_advisory_lock($1)", migrateLockKey); err != nil {
+		lock.Release()
+		return fmt.Errorf("lock for migrations: %w", err)
+	}
+	defer unlockMigrations(lock)
 	if err := checkSchemaFloor(ctx, pool); err != nil {
 		return err
 	}
@@ -54,6 +74,18 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("apply migrations: %w", err)
 	}
 	return nil
+}
+
+// unlockMigrations gives the lock and its connection back; a connection
+// whose unlock failed still holds the lock, so it leaves the pool instead.
+func unlockMigrations(lock *pgxpool.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), unlockTimeout)
+	defer cancel()
+	if _, err := lock.Exec(ctx, "SELECT pg_advisory_unlock($1)", migrateLockKey); err != nil {
+		_ = lock.Hijack().Close(ctx)
+		return
+	}
+	lock.Release()
 }
 
 // checkSchemaFloor refuses to run a binary that is too old for the database.
