@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -61,12 +62,33 @@ type App struct {
 	registry *jobs.Registry
 	pool     *pgxpool.Pool
 	log      *slog.Logger
+	// jobsMode is where the dispatcher runs (STOOP_JOBS).
+	jobsMode string
 	// wg counts the goroutines spawn started, so shutdown can wait for
 	// them before the pool closes.
 	wg sync.WaitGroup
 }
 
-func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error) {
+// modules is what the server and the jobs runner both build: the pool,
+// the bus, the stores, every module with its ports wired, and the jobs
+// service with its kinds registered and the sweeps scheduled.
+type modules struct {
+	pool     *pgxpool.Pool
+	bus      *events.InProcBus
+	store    *blob.FS
+	stores   *kv.Memory
+	auth     *auth.Service
+	instance *instance.Service
+	chat     *chat.Service
+	files    *files.Service
+	hooks    *integrations.Service
+	registry *jobs.Registry
+	jobs     *jobs.Service
+}
+
+// newModules connects and migrates, then constructs the modules in the
+// order docs/architecture/modules.md gives. It closes the pool on failure.
+func newModules(ctx context.Context, cfg config.Config, log *slog.Logger) (*modules, error) {
 	pool, err := db.Connect(ctx, cfg.DatabaseURL, cfg.DatabasePoolMax)
 	if err != nil {
 		return nil, err
@@ -119,32 +141,8 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	instanceSvc.UsePasswordSignInEnv(cfg.PasswordSignIn)
 	instanceSvc.UseSessionLifetimeEnv(cfg.SessionLifetimeDays)
 	instanceSvc.UseWebhooksEnv(cfg.Webhooks)
-	bi := buildinfo.Get()
-	instanceSvc.UseBuildInfo(instance.BuildInfo{Version: bi.Version, Commit: bi.Commit, BuiltAt: bi.Date, GoVersion: bi.GoVersion})
-	if cfg.UpdateCheck {
-		// A nil pointer in the interface would not read as "off".
-		if checker := newUpdateChecker(bi.Version, log); checker != nil {
-			instanceSvc.UseUpdateChecker(checker)
-		}
-	}
 	chatSvc.UseInstancePolicy(instanceSvc)
 	chatSvc.UseSearchThrottle(ratelimit.New(stores, "ratelimit_search", cfg.SearchRateLimit, cfg.SearchRateLimit))
-	keys, err := livekitKeys(ctx, cfg, instanceSvc, log)
-	if err != nil {
-		pool.Close()
-		return nil, err
-	}
-	voiceOpts := voice.Options{
-		LiveKitURL:       cfg.LiveKitURL,
-		LiveKitAPIKey:    keys.APIKey,
-		LiveKitAPISecret: keys.APISecret,
-	}
-	voiceSvc := voice.New(chatSvc, displayNames{authSvc}, voiceOpts, log)
-	// The other direction: chat ends calls through the SFU.
-	chatSvc.UseVoiceRooms(voiceSvc)
-	gateway := realtime.NewGateway(bus, identityVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
-	gateway.UseDoNotDisturb(authSvc)
-	chatSvc.UsePresence(gateway)
 	filesSvc := files.New(pool, store, bus, authSvc, chatSvc, identityVerifier{authSvc}, log)
 	filesSvc.UsePolicy(instanceSvc)
 	instanceSvc.UseUploadCeiling(files.MaxAttachmentBytes)
@@ -169,18 +167,61 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		pool.Close()
 		return nil, err
 	}
-	jobList := jobReader(jobsSvc)
-	instanceSvc.UseJobRecords(jobList)
-	// The delivery backlog and log as the Diagnostics tab and a metrics
-	// scrape read them, counted only when asked.
-	queue := webhookQueue(jobsSvc, integrationsSvc)
-	instanceSvc.UseWebhookQueue(queue.stats)
 	if cfg.LinkPreviews {
 		chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate})}, filesSvc, chat.UnfurlOptions{})
 		if cfg.UnfurlAllowPrivate {
 			log.Warn("link previews may fetch private addresses (STOOP_UNFURL_ALLOW_PRIVATE); never use this outside development")
 		}
 	}
+	return &modules{
+		pool: pool, bus: bus, store: store, stores: stores,
+		auth: authSvc, instance: instanceSvc, chat: chatSvc, files: filesSvc, hooks: integrationsSvc,
+		registry: registry, jobs: jobsSvc,
+	}, nil
+}
+
+// New builds the server: the modules, then what only the server runs —
+// voice, the gateway, the limiters, the mux, the front doors and the
+// Diagnostics tab's readers.
+func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error) {
+	shared, err := newModules(ctx, cfg, log)
+	if err != nil {
+		return nil, err
+	}
+	pool, bus, store, stores := shared.pool, shared.bus, shared.store, shared.stores
+	authSvc, instanceSvc, chatSvc := shared.auth, shared.instance, shared.chat
+	filesSvc, integrationsSvc, jobsSvc := shared.files, shared.hooks, shared.jobs
+
+	bi := buildinfo.Get()
+	instanceSvc.UseBuildInfo(instance.BuildInfo{Version: bi.Version, Commit: bi.Commit, BuiltAt: bi.Date, GoVersion: bi.GoVersion})
+	if cfg.UpdateCheck {
+		// A nil pointer in the interface would not read as "off".
+		if checker := newUpdateChecker(bi.Version, log); checker != nil {
+			instanceSvc.UseUpdateChecker(checker)
+		}
+	}
+	keys, err := livekitKeys(ctx, cfg, instanceSvc, log)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	voiceOpts := voice.Options{
+		LiveKitURL:       cfg.LiveKitURL,
+		LiveKitAPIKey:    keys.APIKey,
+		LiveKitAPISecret: keys.APISecret,
+	}
+	voiceSvc := voice.New(chatSvc, displayNames{authSvc}, voiceOpts, log)
+	// The other direction: chat ends calls through the SFU.
+	chatSvc.UseVoiceRooms(voiceSvc)
+	gateway := realtime.NewGateway(bus, identityVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
+	gateway.UseDoNotDisturb(authSvc)
+	chatSvc.UsePresence(gateway)
+	jobList := jobReader(jobsSvc)
+	instanceSvc.UseJobRecords(jobList)
+	// The delivery backlog and log as the Diagnostics tab and a metrics
+	// scrape read them, counted only when asked.
+	queue := webhookQueue(jobsSvc, integrationsSvc)
+	instanceSvc.UseWebhookQueue(queue.stats)
 
 	// Anonymous-endpoint throttles. Login, Register and the invite lookup
 	// are the only Connect procedures worth guessing at; the signaling
@@ -265,9 +306,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		hooks:    integrationsSvc,
 		voice:    voiceSvc,
 		jobs:     jobsSvc,
-		registry: registry,
+		registry: shared.registry,
 		pool:     pool,
 		log:      log,
+		jobsMode: cfg.Jobs,
 	}
 	a.tailnet = tailnet.NewManager(filepath.Join(cfg.StorageDir, "tailscale"), handler, log)
 	// The built-in node carries LiveKit's media ports as well as HTTPS, so
@@ -515,12 +557,12 @@ func (a *App) spawn(fn func()) {
 }
 
 // StartBackground launches everything that runs beside the plain
-// listener: the job dispatcher, the outgoing-webhook subscriber, the two
-// front-door managers and the sampler. Run calls it; a test that serves
-// the handler itself calls it too, so deliveries happen.
+// listener: the job dispatcher (or the child that runs it), the
+// outgoing-webhook subscriber, the two front-door managers and the
+// sampler. Run calls it; a test that serves the handler itself calls it
+// too, so deliveries happen.
 func (a *App) StartBackground(ctx context.Context) {
-	// The sweeps, the deliveries and anything else queued, until ctx ends.
-	a.spawn(func() { a.jobs.RunDispatcher(ctx) })
+	a.startDispatcher(ctx)
 	// The outgoing pipeline's producer: bus in, delivery jobs out; the
 	// POSTs run on the dispatcher.
 	a.spawn(func() { a.hooks.RunSubscriber(ctx) })
@@ -531,6 +573,27 @@ func (a *App) StartBackground(ctx context.Context) {
 	a.spawn(func() { a.tunnel.Run(ctx) })
 	// The Diagnostics tab's gauge ring and per-minute request windows.
 	a.spawn(func() { diag.RunSampler(ctx, diag.Default, diag.RPC) })
+}
+
+// startDispatcher runs the sweeps, the deliveries and anything else
+// queued where STOOP_JOBS says: in this process, in a `stoop jobs` child
+// it supervises, or nowhere in it (external).
+func (a *App) startDispatcher(ctx context.Context) {
+	switch a.jobsMode {
+	case config.JobsExternal:
+		a.log.Info("background jobs run in a separate stoop jobs process (STOOP_JOBS=external)")
+		return
+	case config.JobsChild:
+		path, err := os.Executable()
+		if err != nil {
+			a.log.Error("background jobs run in this process: could not find the binary to start a child (STOOP_JOBS=child)", "err", err)
+			break
+		}
+		a.log.Info("background jobs run in a supervised stoop jobs child (STOOP_JOBS=child)", "path", path)
+		a.spawn(func() { newJobsChild(path, []string{"jobs"}, a.log).Run(ctx) })
+		return
+	}
+	a.spawn(func() { a.jobs.RunDispatcher(ctx) })
 }
 
 // Run serves until ctx ends or the listener fails, then shuts down: the

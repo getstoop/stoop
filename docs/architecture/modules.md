@@ -249,6 +249,11 @@ the recovery model.
    so that saved settings override the environment and clearing a setting
    falls back to it rather than to nothing.
 
+Steps 1 to 4, with the jobs registry, the schedules and link previews,
+are one unexported builder that `app.New` and `app.NewRunner` share;
+`New` adds the rest, which only the server runs, and `NewRunner` (the
+root of `stoop jobs`) adds nothing.
+
 `cmd/stoop/main.go` stays short: dispatch the `admin`
 subcommand, load config, install a signal-cancelled context, `app.New`,
 `app.Run`.

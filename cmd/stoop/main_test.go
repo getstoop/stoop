@@ -30,3 +30,17 @@ func TestDispatchNoArgumentsServes(t *testing.T) {
 		t.Errorf("handled %v, out %q, err %q", handled, out.String(), errOut.String())
 	}
 }
+
+func TestDispatchJobsIsHandled(t *testing.T) {
+	// No database to reach, so the verb fails at its configuration
+	// instead of running.
+	t.Setenv("STOOP_DATABASE_URL", "")
+	var out, errOut bytes.Buffer
+	code, handled := dispatch(t.Context(), []string{"jobs"}, &out, &errOut)
+	if !handled || code != 1 {
+		t.Errorf("handled %v, exit %d, out %q, err %q", handled, code, out.String(), errOut.String())
+	}
+	if !strings.Contains(usage, "\n  jobs ") {
+		t.Errorf("usage does not list jobs:\n%s", usage)
+	}
+}

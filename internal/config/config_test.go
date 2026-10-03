@@ -311,3 +311,24 @@ func TestLoad_Jobs(t *testing.T) {
 		t.Errorf("a negative retention should be rejected, got %v", err)
 	}
 }
+
+func TestLoad_JobsMode(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Jobs != JobsEmbedded {
+		t.Errorf("default = %q, want %q", cfg.Jobs, JobsEmbedded)
+	}
+	for _, mode := range []string{JobsEmbedded, JobsExternal, JobsChild} {
+		t.Setenv("STOOP_JOBS", mode)
+		if cfg, err = Load(); err != nil || cfg.Jobs != mode {
+			t.Errorf("STOOP_JOBS=%s: got %q, err %v", mode, cfg.Jobs, err)
+		}
+	}
+	t.Setenv("STOOP_JOBS", "sometimes")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_JOBS") {
+		t.Errorf("STOOP_JOBS=sometimes should be rejected, got %v", err)
+	}
+}
