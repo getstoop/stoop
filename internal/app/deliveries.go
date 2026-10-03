@@ -32,19 +32,12 @@ func registerDeliveries(registry *jobs.Registry, hooksSvc *integrations.Service)
 	}, jobs.Options{MaxAttempts: deliveryAttempts})
 }
 
-// deliveryJobs adapts the jobs module onto integrations' port.
-type deliveryJobs struct{ jobs *jobs.Service }
-
-func (d deliveryJobs) EnqueueInLane(ctx context.Context, kind string, args any, lane string, sequence int64) (string, error) {
-	return d.jobs.EnqueueInLane(ctx, kind, args, lane, sequence)
-}
-
-func (d deliveryJobs) DiscardLane(ctx context.Context, lane, reason string) (int64, error) {
-	return d.jobs.DiscardLane(ctx, lane, reason)
-}
+// deliveryJobs adapts the jobs module onto integrations' port: the queue
+// methods are the module's own, and the job states are mapped.
+type deliveryJobs struct{ *jobs.Service }
 
 func (d deliveryJobs) JobStatuses(ctx context.Context, ids []string) (map[string]integrations.JobStatus, error) {
-	runs, err := d.jobs.GetRuns(ctx, ids)
+	runs, err := d.GetRuns(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
