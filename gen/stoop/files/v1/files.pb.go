@@ -155,13 +155,10 @@ func (*SweepFilesRequest) Descriptor() ([]byte, []int) {
 }
 
 type SweepFilesResponse struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	FilesRemoved int64                  `protobuf:"varint,1,opt,name=files_removed,json=filesRemoved,proto3" json:"files_removed,omitempty"`
-	BytesFreed   int64                  `protobuf:"varint,2,opt,name=bytes_freed,json=bytesFreed,proto3" json:"bytes_freed,omitempty"`
-	// Blobs in storage that no file row pointed at.
-	StrayBlobsRemoved int64 `protobuf:"varint,3,opt,name=stray_blobs_removed,json=strayBlobsRemoved,proto3" json:"stray_blobs_removed,omitempty"`
-	// Files that could not be removed this pass (logged server-side).
-	Errors        int64 `protobuf:"varint,4,opt,name=errors,proto3" json:"errors,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The sweep runs as a background job; the Diagnostics tab's Background
+	// work panel shows its outcome.
+	JobId         string `protobuf:"bytes,5,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -196,32 +193,11 @@ func (*SweepFilesResponse) Descriptor() ([]byte, []int) {
 	return file_stoop_files_v1_files_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *SweepFilesResponse) GetFilesRemoved() int64 {
+func (x *SweepFilesResponse) GetJobId() string {
 	if x != nil {
-		return x.FilesRemoved
+		return x.JobId
 	}
-	return 0
-}
-
-func (x *SweepFilesResponse) GetBytesFreed() int64 {
-	if x != nil {
-		return x.BytesFreed
-	}
-	return 0
-}
-
-func (x *SweepFilesResponse) GetStrayBlobsRemoved() int64 {
-	if x != nil {
-		return x.StrayBlobsRemoved
-	}
-	return 0
-}
-
-func (x *SweepFilesResponse) GetErrors() int64 {
-	if x != nil {
-		return x.Errors
-	}
-	return 0
+	return ""
 }
 
 type UploadAvatarRequest struct {
@@ -524,13 +500,9 @@ const file_stoop_files_v1_files_proto_rawDesc = "" +
 	"file_count\x18\x02 \x01(\x03R\tfileCount\x12\x1f\n" +
 	"\vquota_bytes\x18\x03 \x01(\x03R\n" +
 	"quotaBytes\"\x13\n" +
-	"\x11SweepFilesRequest\"\xa2\x01\n" +
-	"\x12SweepFilesResponse\x12#\n" +
-	"\rfiles_removed\x18\x01 \x01(\x03R\ffilesRemoved\x12\x1f\n" +
-	"\vbytes_freed\x18\x02 \x01(\x03R\n" +
-	"bytesFreed\x12.\n" +
-	"\x13stray_blobs_removed\x18\x03 \x01(\x03R\x11strayBlobsRemoved\x12\x16\n" +
-	"\x06errors\x18\x04 \x01(\x03R\x06errors\")\n" +
+	"\x11SweepFilesRequest\"1\n" +
+	"\x12SweepFilesResponse\x12\x15\n" +
+	"\x06job_id\x18\x05 \x01(\tR\x05jobIdJ\x04\b\x01\x10\x05\")\n" +
 	"\x13UploadAvatarRequest\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\"/\n" +
 	"\x14UploadAvatarResponse\x12\x17\n" +

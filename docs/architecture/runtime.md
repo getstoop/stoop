@@ -18,10 +18,8 @@ stoop
 ├── goroutine: tailnet manager                  reconciles the node with saved settings
 ├── goroutine: tunnel manager                   reconciles cloudflared with saved settings
 │   └── child process: cloudflared              when a Cloudflare Tunnel is enabled
-├── goroutines: file, activity, credential      STOOP_FILE_SWEEP_INTERVAL
-│   and hook sweeps
-├── goroutines: message and attachment          hourly
-│   retention sweeps
+├── goroutine: jobs dispatcher                  the schedules and the queue, in Postgres
+│   └── STOOP_JOBS_WORKERS worker goroutines
 └── goroutines: webhook subscriber and worker   bus events in, POSTs out
 ```
 
@@ -36,7 +34,11 @@ unmigrated schema would fail later and less legibly than one that refuses
 to start.
 
 **Shutdown** cancels the context, gives the HTTP server ten seconds to
-drain, and closes the pool. Failures on the Tailscale listener are logged
+drain, waits on `App`'s wait group for the dispatcher (which stops
+leasing, gives in-flight jobs ten seconds and clears the lease on any
+still running, so they are retried on the next start), the webhook
+subscriber and worker, the sampler, cloudflared and the Tailscale node,
+and only then closes the pool. Failures on the Tailscale listener are logged
 and never fatal to the plain one: an optional front door must not be able
 to take down the baseline.
 
@@ -252,24 +254,51 @@ reason:
 
 ## Background work
 
-Four sweepers run on `STOOP_FILE_SWEEP_INTERVAL` (default 6 h; 0 disables
-the timer), each running once shortly after boot rather than at boot, so a restart loop never turns
-into a scan loop:
+`internal/jobs` is a module ([modules.md](modules.md)) with three tables.
+`jobs` is the queue and the history: one row per job, `queued`,
+`running`, `succeeded` or `discarded`, with the attempt count and the
+latest attempt's timing, error and counters. `job_schedules` is one row
+per periodic kind: its interval, whether it is enabled and when it is
+next due; the dispatcher inserts a `jobs` row when that passes. A new
+schedule row is due two minutes after it is created; an existing one
+keeps its `next_due` across a restart, moved earlier only when a
+shortened interval would pass first. `job_dispatchers` is a heartbeat
+row per dispatcher.
 
-- **The file sweep** removes uploads nothing points at, and blobs no row
-  names. See [files.md](files.md#the-sweep).
-- **The activity sweep** removes *read* activity items older than
-  `STOOP_ACTIVITY_RETENTION` (default 30 days), never unread ones. See
-  [messaging.md](messaging.md#retention).
-- **The credential sweep** deletes expired sessions at once and expired
-  personal tokens a month after expiry.
-- **The hook sweep** revokes hook credentials whose hook row a channel or
-  space delete cascaded away, retires bots left with nothing, and removes
-  finished deliveries older than `STOOP_WEBHOOK_DELIVERY_RETENTION`.
+The seven kinds, registered and scheduled in `internal/app` except the
+last, which the module owns:
 
-Two more run hourly and do nothing while their setting keeps forever: the
-**message retention sweep** ([messaging.md](messaging.md#message-retention))
-and the **attachment retention sweep** ([files.md](files.md#retention)).
+| Kind | Every | Removes |
+| --- | --- | --- |
+| `sweep_files` | `STOOP_FILE_SWEEP_INTERVAL` | uploads nothing points at and blobs no row names ([files.md](files.md#the-sweep)) |
+| `sweep_activity` | `STOOP_FILE_SWEEP_INTERVAL` | *read* activity items older than `STOOP_ACTIVITY_RETENTION`, never unread ones ([messaging.md](messaging.md#retention)) |
+| `sweep_credentials` | `STOOP_FILE_SWEEP_INTERVAL` | expired sessions at once, expired personal tokens a month after expiry |
+| `sweep_hooks` | `STOOP_FILE_SWEEP_INTERVAL` | hook credentials whose hook a channel or space delete cascaded away, bots left with nothing, finished deliveries older than `STOOP_WEBHOOK_DELIVERY_RETENTION` |
+| `sweep_messages` | hourly | messages past `message_retention_days` ([messaging.md](messaging.md#message-retention)) |
+| `sweep_attachments` | hourly | attachments past `attachment_retention_days` ([files.md](files.md#retention)) |
+| `sweep_jobs` | hourly | finished `jobs` rows older than `STOOP_JOBS_RETENTION`, and dispatcher rows not seen for an hour |
+
+The dispatcher (`RunDispatcher`) polls for due rows every
+`STOOP_JOBS_POLL` and leases them with `FOR UPDATE SKIP LOCKED` to
+`STOOP_JOBS_WORKERS` goroutines. `running` means the lease (10 minutes
+by default; a performer may extend it) is in the future, so a row whose
+lease has lapsed is claimed again as a new attempt. A failed attempt,
+a panic included, goes back to `queued` at the backoff ladder's time
+(5 s, 30 s, 2 min; four attempts by default) and is then `discarded`;
+only the latest attempt's error and timing are kept. On shutdown it stops
+leasing, gives in-flight jobs ten seconds, and clears the lease on
+anything still running so the next start retries it.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `STOOP_JOBS_WORKERS` | `4` | Jobs run at once. |
+| `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for. |
+| `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever and disables `sweep_jobs`. |
+| `STOOP_FILE_SWEEP_INTERVAL` | `6h` | `0` disables the four schedules on it; the Storage tab can still queue a file sweep. |
+
+The Storage tab's **Clean now** is `FileService.SweepFiles`: it enqueues
+one `sweep_files` job and returns its id, and the Diagnostics tab's
+Background work panel shows the pass ([diagnostics.md](diagnostics.md)).
 
 None is required for correctness. A server that never sweeps works; it
 just accumulates.

@@ -27,8 +27,8 @@ import graph.
 ## Modules and support packages
 
 A **module** owns a slice of the domain, owns the tables that slice lives
-in, and usually exposes a Connect service. There are seven: `auth`,
-`chat`, `instance`, `realtime`, `voice`, `files`, `integrations`.
+in, and usually exposes a Connect service. There are eight: `auth`,
+`chat`, `instance`, `realtime`, `voice`, `files`, `integrations`, `jobs`.
 
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
@@ -113,6 +113,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `instance` | `LiveKitReporter` | `internal/app` | What the Hosting page can say about the voice sidecar. |
 | `instance` | `UpdateChecker` | `internal/app` | The newest release in the release index, cached. |
 | `instance` | `RetentionCounter` | chat, files | What a retention period would delete now, for `PreviewRetention`. |
+| `instance` | `JobRecords` (a function port) | jobs | One row per schedule with its latest run, for the Background work panel, the `jobs` check and `/metrics`. |
 | `realtime` | `SessionVerifier` | auth | Authenticate the WebSocket upgrade: the identity and the credential it presents. |
 | `realtime` | `MembershipLister` | chat | Which space topics this connection subscribes to. |
 | `realtime` | `ChannelLookup` | chat | Resolve a voice channel's space; list a DM's participants. |
@@ -124,6 +125,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `files` | `Spaces` | chat | Set the icon pointer, authorise downloads, report referenced files. |
 | `files` | `SessionVerifier` | auth | Authenticate the plain-HTTP download handler: the identity and its credential. |
 | `files` | `Policy` | instance | The storage quota and the per-upload cap. |
+| `files` | `JobQueue` | jobs | Queue the file sweep by hand; the only kind files performs. |
 | `integrations` | `Poster` | chat | Post a message with the hook's bot identity and credential already on the context. |
 | `integrations` | `SpaceAccess` | chat | A channel's space and the space's name; add a bot as a member and set its role. |
 | `integrations` | `BotIdentities` | auth | Create, rename and deactivate bots; mint, revoke and verify their credentials. |
@@ -138,6 +140,11 @@ a space member is. It asks chat — `Spaces.ChannelSpaceToPostIn`,
 an answer or a Connect error it can return unchanged. There is exactly one
 implementation of "may this person read this channel", and it lives in the
 module that owns membership.
+
+**A module enqueues only kinds it performs**, through its own port onto
+`jobs`; the performers are registered in `internal/app`, the one package
+that sees both the registry and the module methods. Another module that
+wants that work publishes an event instead.
 
 **The sweep is a question, not a scan.** `files` cannot look for orphans by
 querying other modules' tables, so instead it asks: *of these ids, which do
@@ -180,12 +187,13 @@ module's tests construct it alone.
 | `instance` | `instance_settings` |
 | `files` | `files` |
 | `integrations` | `incoming_webhooks`, `outgoing_webhooks`, `webhook_deliveries` |
+| `jobs` | `jobs`, `job_schedules`, `job_dispatchers` |
 | `realtime` | *(none — by rule)* |
 | `voice` | *(none)* |
 
 Ownership is auditable from the filesystem: sqlc query files live one
 directory per module
-(`internal/db/queries/{auth,chat,instance,files,integrations}/`),
+(`internal/db/queries/{auth,chat,instance,files,integrations,jobs}/`),
 one file per entity. A query against another module's columns would have to
 be written into that module's directory, where it would be obvious in
 review.
@@ -247,7 +255,8 @@ subcommand, load config, install a signal-cancelled context, `app.New`,
 
 `app.Run` starts the plain listener, the Tailscale manager and the
 background work ([runtime.md](runtime.md#background-work)), then blocks. On cancellation it gives the HTTP
-server ten seconds to drain and closes the pool. A failure on the Tailscale
+server ten seconds to drain, waits for the background goroutines, and
+closes the pool. A failure on the Tailscale
 listener is logged, never fatal: the plain listener is the baseline and
 must not be taken down by an optional front door.
 

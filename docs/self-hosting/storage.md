@@ -34,18 +34,18 @@ point it at.
 ## Upload storage: the sweep and the quota
 
 Uploads that are never sent, attachments of deleted channels and spaces,
-and replaced avatars and icons are removed by a sweep that runs an hour
-after start and then every `STOOP_FILE_SWEEP_INTERVAL` (default `6h`;
-`0` turns the timer off). Only files older than `STOOP_FILE_SWEEP_GRACE`
+and replaced avatars and icons are removed by a sweep that runs every
+`STOOP_FILE_SWEEP_INTERVAL` (default `6h`; `0` turns the schedule off).
+Only files older than `STOOP_FILE_SWEEP_GRACE`
 (default `24h`) qualify, so a draft's attachment is never taken from
 under it. The admin page's Storage tab shows usage and sets the **Upload storage
 limit** on total upload storage (0 = unlimited); past it, uploads are
 refused with a message that says how full the server is. Next to it,
 **Maximum size per file** caps one attachment, so a single upload cannot
 take the whole quota (see [File storage](#file-storage)). **Clean up disk**
-runs the sweep on demand.
+queues the sweep now; Diagnostics → Background work shows it run.
 
-The same timer also prunes **activity**: mention, reply and DM
+The same schedule also prunes **activity**: mention, reply and DM
 items that have been read for longer than `STOOP_ACTIVITY_RETENTION`
 (default `720h`, thirty days; `0` keeps them forever) are removed. Unread
 ones are never touched.

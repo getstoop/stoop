@@ -339,16 +339,18 @@ func (s *Service) RunSweeper(ctx context.Context, interval time.Duration) {
 	}
 }
 
+// SweepFiles queues one sweep_files job and returns its id; the
+// Diagnostics tab shows the pass.
 func (s *Service) SweepFiles(ctx context.Context, _ *connect.Request[filesv1.SweepFilesRequest]) (*connect.Response[filesv1.SweepFilesResponse], error) {
 	if err := apierr.RequireAction(ctx, authctx.InstanceFilesManage); err != nil {
 		return nil, err
 	}
-	rep, err := s.Sweep(ctx)
-	if err != nil {
-		return nil, err
+	if s.jobs == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("the job queue is not running"))
 	}
-	return connect.NewResponse(&filesv1.SweepFilesResponse{
-		FilesRemoved: int64(rep.Files), BytesFreed: rep.Bytes,
-		StrayBlobsRemoved: int64(rep.StrayBlobs), Errors: int64(rep.Errors),
-	}), nil
+	id, err := s.jobs.Enqueue(ctx, SweepFilesKind, nil)
+	if err != nil {
+		return nil, fmt.Errorf("queue file sweep: %w", err)
+	}
+	return connect.NewResponse(&filesv1.SweepFilesResponse{JobId: id}), nil
 }

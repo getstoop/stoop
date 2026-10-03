@@ -6,7 +6,8 @@ it; the operator's how-to is
 [../self-hosting/webhooks-and-diagnostics.md](../self-hosting/webhooks-and-diagnostics.md#diagnostics).
 
 ```
-  module code ──► internal/diag (counters · gauges · timings · jobs, in memory)
+  module code ──► internal/diag (counters · gauges · timings, in memory)
+                  internal/jobs (schedules and runs, in Postgres)
                         │                        │
         InstanceService RPCs, every 5 s      GET /metrics, text format
                         │                        │
@@ -24,8 +25,10 @@ it; the operator's how-to is
 - **Every number has a named source.** The panel tables below say where
   each field is read from; nothing is a derived score.
 - **In memory, fifteen minutes deep.** Gauges keep a ring of 90 samples at
-  10 s. Counters and timings are since start. There is no metrics table
-  and no migration; history is the operator's Prometheus.
+  10 s. Counters and timings are since start. There is no metrics table;
+  history is the operator's Prometheus. Job state is the exception: the
+  schedules and their runs live in the jobs tables
+  ([runtime.md](runtime.md#background-work)).
 - **Polling, not push.** Each panel's query refetches every 5 s while the
   tab is open and visible (`refetchInterval: 5000`,
   `refetchIntervalInBackground: false`). The WebSocket carries no
@@ -42,7 +45,7 @@ var next to the code that owns the number:
 
 ```go
 var droppedSubscribers = diag.NewCounter("bus_dropped_total", "Subscribers dropped for falling behind.")
-var fileSweep = diag.NewJob("file_sweep")
+var webhookWorker = diag.NewJob("webhook_worker").Continuous()
 diag.NewGauge("connections", "Open WebSocket sessions.", func() float64 { … })
 ```
 
@@ -50,7 +53,7 @@ diag.NewGauge("connections", "Open WebSocket sessions.", func() float64 { … })
 | --- | --- | --- |
 | `Counter` | A monotonic count since start. | `Inc`, `Add`. |
 | `Gauge` | A read function; the sampler stores its last 90 values. | Registered with the function; never written to. |
-| `Job` | One background loop's passes. | `Every(interval)` or `Continuous()` once, then `Run(func() (Counters, error))` around each pass. |
+| `Job` | The webhook worker's passes; the only loop left on it, since every sweep is a job kind. | `Continuous()` once, then `Run(func() (Counters, error))` around each pass. |
 | `RPCStats` | Per-procedure timings and error counts. | `diag.Interceptor()`, outermost in the Connect chain so refused calls are timed too. |
 
 Timings are a histogram with 20 log-spaced buckets from 1 ms to 10 s per
@@ -96,7 +99,7 @@ state it is given.
 | `storage` | `statfs` on the upload directory, a create-and-delete probe, the quota | volume 85 % full, or quota 90 % used | volume 95 % full, or the probe fails |
 | `public_address` | the reachability state `GetReachability` computes | a tunnel or tailnet is configured but reconnecting | configured and down for over a minute |
 | `webhooks` | the queue port | any delivery dead-lettered in the last hour | the worker has had no successful pass for 5 min with items queued |
-| `jobs` | the job records; a sweeper switched off by its interval (no interval, never ran, not continuous) is counted apart as "off" | a pass failed, or a job is one interval overdue | three intervals overdue |
+| `jobs` | the jobs tables through `instance`'s `JobRecords` port, one record per schedule with its latest run, plus the webhook worker's `diag.Job`; a disabled schedule is counted apart as "off" | a pass failed, or a job is one interval overdue | three intervals overdue |
 
 ## The panels and what they read
 
@@ -111,7 +114,7 @@ under query keys `["diag", "<panel>"]`
 | Right now | `GetLiveStats` | every gauge with its ring, and every counter, from the registry snapshot |
 | Database | `GetDatabaseStats` | `pgxpool.Stat()` (max, acquired, idle, empty-acquire count and wait time), a timed `Ping`, and one query for `pg_database_size`, `pg_stat_activity` counts, the oldest transaction, `server_version`; the goose version from `goose_db_version` |
 | Requests | `GetRequestStats` | `RPCStats` over the last five minutes: calls, errors (any code but Canceled), p50, p95, max. Since-start is on the metrics endpoint only |
-| Background work | `ListJobs` | every `Job` record (interval or `continuous`, last start, duration, outcome, error, counters, next due; a sweeper that is switched off shows "off") and the queue port's counts |
+| Background work | `ListJobs` | one row per schedule from the jobs tables (interval, last start, duration, outcome, error, counters, next due; a disabled schedule shows "off") and the webhook worker's `diag.Job`, with the queue port's counts; a failed read is the panel's error line |
 
 The sixth tile, Webhooks queued, and the two queue rows on Background work
 read the same cached queue count.
@@ -144,7 +147,8 @@ client library): counters as `stoop_<name>_total`, gauges as
 `stoop_<name>`, `stoop_rpc_calls_total`, `stoop_rpc_errors_total` and the
 `stoop_rpc_duration_seconds` histogram by `procedure`, and
 `stoop_job_last_success_timestamp_seconds` /
-`stoop_job_last_duration_seconds` by `job`. `internal/app` then appends
+`stoop_job_last_duration_seconds` by `job`, one family over the
+schedules read from the jobs tables and the webhook worker. `internal/app` then appends
 the two families only it can know, so `diag` stays a plain registry:
 `stoop_health{check="…"}` (0 ok, 1 warn, 2 danger, 3 off, from
 `instance.Service.HealthSnapshot`, the same 2 s cache as the panel) and

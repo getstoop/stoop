@@ -42,7 +42,7 @@ describe("buildReport", () => {
         ],
       }),
       jobs: create(ListJobsResponseSchema, {
-        jobs: [{ name: "file_sweep", counters: { files_removed: 3n } }],
+        jobs: [{ name: "sweep_files", counters: { files_removed: 3n } }],
       }),
     });
 
@@ -69,7 +69,7 @@ describe("buildReport", () => {
       ],
     });
     expect(report.jobs).toEqual({
-      jobs: [{ name: "file_sweep", counters: { files_removed: "3" } }],
+      jobs: [{ name: "sweep_files", counters: { files_removed: "3" } }],
     });
     expect(() => JSON.stringify(report)).not.toThrow();
   });
