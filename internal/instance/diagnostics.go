@@ -12,6 +12,7 @@ import (
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/diag"
+	"github.com/getstoop/stoop/internal/pbtime"
 )
 
 // The Diagnostics tab's RPCs (docs/architecture/diagnostics.md): Health here,
@@ -30,9 +31,7 @@ func (s *Service) GetHealth(ctx context.Context, _ *connect.Request[instancev1.G
 			FixTab: c.FixTab, CheckedAt: timestamppb.New(c.CheckedAt),
 		}
 	}
-	if !s.startedAt.IsZero() {
-		resp.ServerStartedAt = timestamppb.New(s.startedAt)
-	}
+	resp.ServerStartedAt = pbtime.OrZero(s.startedAt)
 	return connect.NewResponse(resp), nil
 }
 

@@ -9,6 +9,7 @@ import (
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/pbtime"
 )
 
 // Wire shapes. Nothing here ever carries a token or a secret.
@@ -25,9 +26,7 @@ func toProtoIncoming(h dbgen.IncomingWebhook, cred *Credential) *integrationsv1.
 	if cred != nil {
 		out.Permissions = accesswire.ToProto(cred.Grants)
 		out.Hint = cred.Hint
-		if cred.LastUsedAt != nil {
-			out.LastUsedAt = timestamppb.New(*cred.LastUsedAt)
-		}
+		out.LastUsedAt = pbtime.OrNil(cred.LastUsedAt)
 	}
 	return out
 }
@@ -113,9 +112,8 @@ func toProtoDelivery(d dbgen.WebhookDelivery) *integrationsv1.Delivery {
 	if d.StatusCode != nil {
 		out.StatusCode = d.StatusCode
 	}
-	if d.FinishedAt != nil {
-		out.FinishedAt = timestamppb.New(*d.FinishedAt)
-	} else {
+	out.FinishedAt = pbtime.OrNil(d.FinishedAt)
+	if d.FinishedAt == nil {
 		out.NextAttemptAt = timestamppb.New(d.NotBefore)
 	}
 	return out
@@ -126,9 +124,7 @@ func toProtoBot(b Bot, creds []Credential, spaceIDs []string) *integrationsv1.Bo
 		Id: b.ID, Username: b.Username, DisplayName: b.DisplayName, AvatarFileId: b.AvatarFileID, Bio: b.Bio,
 		CreatedAt: timestamppb.New(b.CreatedAt), SpaceIds: spaceIDs,
 	}
-	if b.DeactivatedAt != nil {
-		out.DeactivatedAt = timestamppb.New(*b.DeactivatedAt)
-	}
+	out.DeactivatedAt = pbtime.OrNil(b.DeactivatedAt)
 	for _, c := range creds {
 		if c.HolderID == b.ID && c.Kind == "bot_token" {
 			out.Tokens = append(out.Tokens, toProtoBotToken(c))
@@ -142,9 +138,7 @@ func toProtoBotToken(c Credential) *integrationsv1.BotToken {
 		Id: c.ID, BotUserId: c.HolderID, Name: c.Name, Permissions: accesswire.ToProto(c.Grants),
 		CreatedAt: timestamppb.New(c.CreatedAt), Hint: c.Hint,
 	}
-	if c.LastUsedAt != nil {
-		out.LastUsedAt = timestamppb.New(*c.LastUsedAt)
-	}
+	out.LastUsedAt = pbtime.OrNil(c.LastUsedAt)
 	return out
 }
 

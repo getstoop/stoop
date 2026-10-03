@@ -18,6 +18,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/pbtime"
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
@@ -251,7 +252,7 @@ func toProtoToken(r dbgen.ListPersonalTokensRow, blocked bool) *authv1.PersonalT
 	return &authv1.PersonalToken{
 		Id: r.ID, Name: r.Name, Permissions: accesswire.ToProto(toActions(r.Grants)),
 		CreatedAt: timestamppb.New(r.CreatedAt), Hint: r.Hint, Blocked: blocked,
-		LastUsedAt: timestampOrNil(r.LastUsedAt), ExpiresAt: timestampOrNil(r.ExpiresAt),
+		LastUsedAt: pbtime.OrNil(r.LastUsedAt), ExpiresAt: pbtime.OrNil(r.ExpiresAt),
 	}
 }
 

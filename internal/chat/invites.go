@@ -18,6 +18,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/pbtime"
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
@@ -393,11 +394,7 @@ func toProtoInvite(i dbgen.Invite) *chatv1.Invite {
 		MaxUses: i.MaxUses, UseCount: i.UseCount, CreatedAt: timestamppb.New(i.CreatedAt),
 		Role: toProtoRole(Role(i.Role)),
 	}
-	if i.ExpiresAt != nil {
-		out.ExpiresAt = timestamppb.New(*i.ExpiresAt)
-	}
-	if i.RevokedAt != nil {
-		out.RevokedAt = timestamppb.New(*i.RevokedAt)
-	}
+	out.ExpiresAt = pbtime.OrNil(i.ExpiresAt)
+	out.RevokedAt = pbtime.OrNil(i.RevokedAt)
 	return out
 }

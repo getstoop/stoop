@@ -10,13 +10,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"time"
 
 	"github.com/alexedwards/argon2id"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db"
@@ -116,14 +114,6 @@ func hashToken(token string) []byte {
 func newToken(prefix string) (secret string, hash []byte) {
 	secret = prefix + randomToken()
 	return secret, hashToken(secret)
-}
-
-// timestampOrNil is the proto timestamp of at, or nil when at is nil.
-func timestampOrNil(at *time.Time) *timestamppb.Timestamp {
-	if at == nil {
-		return nil
-	}
-	return timestamppb.New(*at)
 }
 
 // inTx runs fn in a transaction with queries bound to it.
