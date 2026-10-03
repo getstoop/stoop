@@ -137,7 +137,7 @@ func (s *Service) tryDelivery(ctx context.Context, args DeliveryArgs, attempt, m
 	if hook.DisabledAt != nil {
 		return deadVerdict("webhook is disabled", false), nil
 	}
-	tried, retryAfter := s.attempt(ctx, hook, args, attempt)
+	tried, retryAfter := s.post(ctx, hook, args, attempt)
 	out := verdict{tried: tried, result: DeliveryResult{Error: tried.describe()}}
 	switch {
 	case tried.StatusCode >= 200 && tried.StatusCode < 300:
@@ -161,9 +161,9 @@ func deadVerdict(reason string, settle bool) verdict {
 	return verdict{tried: Attempt{Error: reason}, result: DeliveryResult{Dead: true, Error: reason}, settle: settle}
 }
 
-// attempt POSTs once and returns what it learned and the receiver's
+// post makes the one POST and returns what it learned and the receiver's
 // Retry-After, when it sent one.
-func (s *Service) attempt(ctx context.Context, hook dbgen.OutgoingWebhook, args DeliveryArgs, attempt int) (Attempt, time.Duration) {
+func (s *Service) post(ctx context.Context, hook dbgen.OutgoingWebhook, args DeliveryArgs, attempt int) (Attempt, time.Duration) {
 	ctx, cancel := context.WithTimeout(ctx, attemptTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, hook.Url, bytes.NewReader(args.Body))
