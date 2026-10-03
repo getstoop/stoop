@@ -74,12 +74,17 @@ type Performer interface {
 	Perform(ctx context.Context, job *Job) error
 }
 
-// Options is a kind's retry policy; a zero field takes its default.
+// Options is a kind's retry policy and its concurrency cap; a zero field
+// takes its default.
 type Options struct {
 	// MaxAttempts is how many tries before the job is discarded.
 	MaxAttempts int
 	// Backoff is the wait before attempts 2, 3, …; the last wait repeats.
 	Backoff []time.Duration
+	// MaxInFlight caps how many rows of the kind hold a live lease at once,
+	// across every dispatcher; 0 is no cap. See
+	// docs/architecture/runtime.md → Background work.
+	MaxInFlight int
 }
 
 func (o Options) withDefaults() Options {
