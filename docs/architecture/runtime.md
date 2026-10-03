@@ -33,14 +33,18 @@ migrations, *then* construct anything. A server that started on an
 unmigrated schema would fail later and less legibly than one that refuses
 to start.
 
-**Shutdown** cancels the context, gives the HTTP server ten seconds to
-drain, waits on `App`'s wait group for the dispatcher (which stops
-leasing, gives in-flight jobs ten seconds and clears the lease on any
-still running, so they are retried on the next start), the webhook
-subscriber and worker, the sampler, cloudflared and the Tailscale node,
-and only then closes the pool. Failures on the Tailscale listener are logged
-and never fatal to the plain one: an optional front door must not be able
-to take down the baseline.
+**Shutdown** cancels the context and gives the HTTP server and `App`'s
+wait group ten seconds together: the server drains, and the dispatcher
+(which stops leasing, gives in-flight jobs five seconds and clears the
+lease on any still running, so they are retried on the next start), the
+webhook subscriber, the sampler, cloudflared and the Tailscale node
+return. What
+is still running when the ten seconds end is logged, and the pool closes
+either way. A listener that fails to start takes the same path and
+returns its error. `deploy/docker-compose.yml` sets
+`stop_grace_period: 15s` so a container stop waits for it. Failures on
+the Tailscale listener are logged and never fatal to the plain one: an
+optional front door must not be able to take down the baseline.
 
 **Migrations run automatically at startup**, which is what makes upgrading
 "pull the new binary and restart". There is no separate migration step for
@@ -294,10 +298,12 @@ so a row whose lease has lapsed is claimed again as a new attempt. A
 failed attempt, a panic included, goes back to `queued` at the kind's
 backoff ladder's time (5 s, 30 s, 2 min; four attempts by default) and
 is then `discarded`; only the latest attempt's error and timing are
-kept. On shutdown it stops leasing, gives in-flight jobs ten seconds,
+kept. On shutdown it stops leasing, gives in-flight jobs five seconds,
 and clears the lease on anything still running without counting the
-attempt, so the next start retries it. The heartbeat row is what shows
-a dispatcher is alive.
+attempt, so the next start retries it; the clearing and the wait for
+the cancelled workers are bounded too, so it is back under ten seconds
+whatever a performer does. The heartbeat row is what shows a dispatcher
+is alive.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
