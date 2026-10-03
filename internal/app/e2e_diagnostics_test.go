@@ -59,10 +59,10 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 }
 
 // healthRows reads GetHealth's checks by name, and the order they came in.
-func healthRows(r reply) (map[string]map[string]any, []string) {
+func healthRows(answer reply) (map[string]map[string]any, []string) {
 	rows := map[string]map[string]any{}
 	var order []string
-	for _, check := range r.list("checks") {
+	for _, check := range answer.list("checks") {
 		row, _ := check.(map[string]any)
 		name, _ := row["name"].(string)
 		rows[name] = row
