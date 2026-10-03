@@ -24,27 +24,30 @@ WHERE j.id IN (
 )
 RETURNING j.*;
 
--- name: FinishJob :exec
+-- The outcome writes match the attempt they were leased for, so a stale
+-- attempt whose lease lapsed changes nothing.
+-- name: FinishJob :execrows
 UPDATE jobs
 SET state = sqlc.arg(state), finished_at = sqlc.arg(now)::timestamptz, leased_until = NULL,
     error = sqlc.arg(error), counters = sqlc.narg(counters)
-WHERE id = sqlc.arg(id);
+WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt);
 
--- name: RequeueJob :exec
+-- name: RequeueJob :execrows
 UPDATE jobs
 SET state = 'queued', leased_until = NULL, finished_at = sqlc.arg(now)::timestamptz,
     error = sqlc.arg(error), counters = sqlc.narg(counters), not_before = sqlc.arg(not_before)::timestamptz
-WHERE id = sqlc.arg(id);
+WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt);
 
--- name: ExtendJobLease :exec
+-- name: ExtendJobLease :execrows
 UPDATE jobs SET leased_until = sqlc.arg(until)::timestamptz
-WHERE id = sqlc.arg(id) AND state = 'running';
+WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt) AND state = 'running';
 
 -- ReleaseJobs clears the lease on a dispatcher's in-flight rows at
 -- shutdown, so the next start retries them.
 -- name: ReleaseJobs :exec
 UPDATE jobs SET state = 'queued', leased_until = NULL
-WHERE state = 'running' AND id = ANY(sqlc.arg(ids)::uuid[]);
+WHERE state = 'running'
+  AND (id, attempt) IN (SELECT unnest(sqlc.arg(ids)::uuid[]), unnest(sqlc.arg(attempts)::int[]));
 
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = $1;

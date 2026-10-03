@@ -49,7 +49,7 @@ type Config struct {
 	// Poll is how often due rows are looked for (STOOP_JOBS_POLL).
 	Poll time.Duration
 	// Retention is how long finished rows are kept (STOOP_JOBS_RETENTION);
-	// 0 keeps them forever and leaves the sweep_jobs schedule disabled.
+	// 0 keeps them forever.
 	Retention time.Duration
 	// ShutdownGrace is how long in-flight jobs may finish after the
 	// context ends before their leases are cleared.

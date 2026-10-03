@@ -119,3 +119,16 @@ func healthDetail(response reply, check string) string {
 	}
 	return ""
 }
+
+func TestE2EJobsActivityRetentionZeroDisablesTheRow(t *testing.T) {
+	h := newHarness(t, "STOOP_ACTIVITY_RETENTION", "0")
+	casey := h.person("casey")
+
+	jobs := jobsByName(h.rpc(casey, diagnostics+"ListJobs", map[string]any{}).expect(t, "ok"))
+	if row := jobs["sweep_activity"]; row["interval"] != nil {
+		t.Errorf("sweep_activity = %v, want no interval while nothing is retained", row)
+	}
+	if row := jobs["sweep_files"]; row["interval"] == nil {
+		t.Errorf("sweep_files = %v, want its interval kept", row)
+	}
+}

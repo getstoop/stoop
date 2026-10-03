@@ -13,10 +13,14 @@ SET interval_ms = EXCLUDED.interval_ms,
                     ELSE job_schedules.next_due END;
 
 -- DueSchedules locks the due rows for the caller's transaction; SKIP
--- LOCKED keeps two dispatchers from inserting the same run.
+-- LOCKED keeps two dispatchers from inserting the same run. A kind with a
+-- run still queued or running waits for the next tick.
 -- name: DueSchedules :many
 SELECT * FROM job_schedules
 WHERE enabled AND next_due <= sqlc.arg(now)::timestamptz
+  AND NOT EXISTS (
+      SELECT 1 FROM jobs WHERE jobs.kind = job_schedules.kind AND jobs.state IN ('queued', 'running')
+  )
 ORDER BY kind
 FOR UPDATE SKIP LOCKED;
 
