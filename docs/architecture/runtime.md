@@ -307,7 +307,7 @@ attempt, so the next start retries it; the clearing and the wait for
 the cancelled workers are bounded too, so it is back under ten seconds
 whatever a performer does. The heartbeat row, touched on every pass and
 every 15 s between them, is what shows a dispatcher is alive; it drives
-the `jobs runner` health row
+the `jobs_runner` health row
 ([diagnostics.md](diagnostics.md#the-health-check-port)).
 
 | Variable | Default | Meaning |
