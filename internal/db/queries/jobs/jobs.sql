@@ -38,8 +38,10 @@ SET state = 'queued', leased_until = NULL, finished_at = sqlc.arg(now)::timestam
     error = sqlc.arg(error), counters = sqlc.narg(counters), not_before = sqlc.arg(not_before)::timestamptz
 WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt);
 
+-- ExtendJobLease never moves a deadline earlier: a renewal keeps an
+-- Extend the performer asked for.
 -- name: ExtendJobLease :execrows
-UPDATE jobs SET leased_until = sqlc.arg(until)::timestamptz
+UPDATE jobs SET leased_until = GREATEST(leased_until, sqlc.arg(until)::timestamptz)
 WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt) AND state = 'running';
 
 -- ReleaseJobs clears the lease on a dispatcher's in-flight rows at

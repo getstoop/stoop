@@ -50,8 +50,7 @@ func (j *Job) Record(counters Counters) {
 	maps.Copy(j.counters, counters)
 }
 
-// Extend moves the lease deadline to now + lease, for a pass that outlives
-// the kind's lease.
+// Extend moves the lease deadline to now + lease when that is later.
 func (j *Job) Extend(ctx context.Context, lease time.Duration) error {
 	if j.extend == nil {
 		return nil
@@ -78,9 +77,6 @@ type Options struct {
 	MaxAttempts int
 	// Backoff is the wait before attempts 2, 3, …; the last wait repeats.
 	Backoff []time.Duration
-	// Lease is how long one attempt may run before another worker may
-	// claim the row.
-	Lease time.Duration
 }
 
 func (o Options) withDefaults() Options {
@@ -89,9 +85,6 @@ func (o Options) withDefaults() Options {
 	}
 	if len(o.Backoff) == 0 {
 		o.Backoff = DefaultBackoff
-	}
-	if o.Lease <= 0 {
-		o.Lease = DefaultLease
 	}
 	return o
 }
@@ -143,16 +136,4 @@ func (r *Registry) lookup(kind string) (kindEntry, bool) {
 	defer r.mu.RUnlock()
 	entry, ok := r.kinds[kind]
 	return entry, ok
-}
-
-// maxLease is the longest lease any registered kind asks for; the lease
-// query claims every row with it.
-func (r *Registry) maxLease() time.Duration {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	longest := DefaultLease
-	for _, entry := range r.kinds {
-		longest = max(longest, entry.opts.Lease)
-	}
-	return longest
 }
