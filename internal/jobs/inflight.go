@@ -1,6 +1,10 @@
 package jobs
 
-import "sync"
+import (
+	"maps"
+	"slices"
+	"sync"
+)
 
 // inflight is the set of rows this dispatcher has leased and not yet
 // written an outcome for, each with the attempt it was leased for.
@@ -38,6 +42,13 @@ func (f *inflight) drain() (ids []string, attempts []int32) {
 	}
 	f.attempts = map[string]int32{}
 	return ids, attempts
+}
+
+// ids lists the rows in flight, never nil: the lease query excludes them.
+func (f *inflight) ids() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.AppendSeq(make([]string, 0, len(f.attempts)), maps.Keys(f.attempts))
 }
 
 func (f *inflight) count() int {

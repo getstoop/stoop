@@ -114,6 +114,11 @@ func (s *Service) Enqueue(ctx context.Context, kind string, args any) (string, e
 
 // EnqueueAt queues kind for at.
 func (s *Service) EnqueueAt(ctx context.Context, kind string, args any, at time.Time) (string, error) {
+	return s.insertJob(ctx, kind, args, at, nil, nil)
+}
+
+// insertJob is the one insert behind Enqueue, EnqueueAt and EnqueueInLane.
+func (s *Service) insertJob(ctx context.Context, kind string, args any, at time.Time, lane *string, sequence *int64) (string, error) {
 	entry, ok := s.registry.lookup(kind)
 	if !ok {
 		return "", fmt.Errorf("enqueue %q: %w", kind, ErrUnknownKind)
@@ -124,7 +129,8 @@ func (s *Service) EnqueueAt(ctx context.Context, kind string, args any, at time.
 	}
 	id := rowid.New()
 	err = s.queries.InsertJob(ctx, dbgen.InsertJobParams{
-		ID: id, Kind: kind, Args: encoded, MaxAttempts: int32(entry.opts.MaxAttempts), NotBefore: at, Now: s.now(),
+		ID: id, Kind: kind, Args: encoded, Lane: lane, Sequence: sequence,
+		MaxAttempts: int32(entry.opts.MaxAttempts), NotBefore: at, Now: s.now(),
 	})
 	if err != nil {
 		return "", fmt.Errorf("enqueue %q: %w", kind, err)

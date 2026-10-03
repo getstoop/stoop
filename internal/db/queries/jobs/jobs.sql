@@ -3,11 +3,15 @@
 -- clock decides due-ness and leases. See docs/proposals/jobs.md.
 
 -- name: InsertJob :exec
-INSERT INTO jobs (id, kind, args, state, attempt, max_attempts, not_before, created_at)
-VALUES ($1, $2, $3, 'queued', 0, $4, sqlc.arg(not_before)::timestamptz, sqlc.arg(now)::timestamptz);
+INSERT INTO jobs (id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, created_at)
+VALUES (sqlc.arg(id), sqlc.arg(kind), sqlc.arg(args), sqlc.narg(lane), sqlc.narg(sequence), 'queued', 0,
+        sqlc.arg(max_attempts), sqlc.arg(not_before)::timestamptz, sqlc.arg(now)::timestamptz);
 
 -- LeaseJobs claims due rows of the kinds this dispatcher performs whose
--- lease is absent or lapsed. A lapsed lease claimed again is a new attempt.
+-- lease is absent or lapsed, skipping the rows it still has in flight. A
+-- lapsed lease claimed again is a new attempt. A row with a lane is its
+-- lane's head: no other unfinished row in the lane has a lower
+-- (sequence, id). A head waiting on its backoff holds the lane.
 -- name: LeaseJobs :many
 UPDATE jobs j
 SET state = 'running', leased_until = sqlc.arg(until)::timestamptz, started_at = sqlc.arg(now)::timestamptz,
@@ -18,6 +22,12 @@ WHERE j.id IN (
       AND c.kind = ANY(sqlc.arg(kinds)::text[])
       AND c.not_before <= sqlc.arg(now)::timestamptz
       AND (c.leased_until IS NULL OR c.leased_until < sqlc.arg(now)::timestamptz)
+      AND NOT (c.id = ANY(sqlc.arg(excluded)::uuid[]))
+      AND (c.lane IS NULL OR NOT EXISTS (
+          SELECT 1 FROM jobs o
+          WHERE o.lane = c.lane AND o.state IN ('queued', 'running')
+            AND (o.sequence, o.id) < (c.sequence, c.id)
+      ))
     ORDER BY c.not_before, c.created_at
     LIMIT sqlc.arg('limit')
     FOR UPDATE SKIP LOCKED
@@ -45,11 +55,31 @@ UPDATE jobs SET leased_until = GREATEST(leased_until, sqlc.arg(until)::timestamp
 WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt) AND state = 'running';
 
 -- ReleaseJobs clears the lease on a dispatcher's in-flight rows at
--- shutdown, so the next start retries them.
+-- shutdown and gives back the attempt the lease counted, so the next start
+-- retries them at no cost.
 -- name: ReleaseJobs :exec
-UPDATE jobs SET state = 'queued', leased_until = NULL
+UPDATE jobs SET state = 'queued', leased_until = NULL, attempt = attempt - 1
 WHERE state = 'running'
   AND (id, attempt) IN (SELECT unnest(sqlc.arg(ids)::uuid[]), unnest(sqlc.arg(attempts)::int[]));
+
+-- DiscardLane ends a lane's queued rows; a running one finishes on its own.
+-- name: DiscardLane :execrows
+UPDATE jobs
+SET state = 'discarded', finished_at = sqlc.arg(now)::timestamptz, leased_until = NULL, error = sqlc.arg(error)
+WHERE lane = sqlc.arg(lane)::text AND state = 'queued';
+
+-- KindBacklog counts a kind's unfinished rows: waiting (queued, or running
+-- with a lapsed lease), running on a live lease, and the earliest due
+-- not_before among the waiting, the zero time when none is due.
+-- name: KindBacklog :one
+SELECT
+    count(*) FILTER (WHERE state = 'queued' OR leased_until < sqlc.arg(now)::timestamptz)::bigint AS queued,
+    count(*) FILTER (WHERE state = 'running' AND leased_until >= sqlc.arg(now)::timestamptz)::bigint AS running,
+    COALESCE(min(not_before) FILTER (WHERE (state = 'queued' OR leased_until < sqlc.arg(now)::timestamptz)
+                                     AND not_before <= sqlc.arg(now)::timestamptz),
+             '0001-01-01 00:00:00+00'::timestamptz)::timestamptz AS oldest_due
+FROM jobs
+WHERE kind = sqlc.arg(kind) AND state IN ('queued', 'running');
 
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = $1;

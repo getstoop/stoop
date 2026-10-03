@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
@@ -79,12 +81,32 @@ func TestShutdownReleasesInFlightRows(t *testing.T) {
 	if took > cfg.ShutdownGrace+outcomeTimeout+3*time.Second {
 		t.Errorf("RunDispatcher took %v to return after cancel", took)
 	}
-	row := readJob(t, pool, id)
-	if row.State != string(StateQueued) || row.LeasedUntil != nil || row.Attempt != 1 {
-		t.Errorf("after shutdown: state %s leased_until %v attempt %d", row.State, row.LeasedUntil, row.Attempt)
-	}
+	expectReleased(t, pool, id)
 	if countRows(t, pool, `SELECT count(*) FROM job_dispatchers`) != 0 {
 		t.Error("heartbeat row left behind")
+	}
+
+	// The interrupted run cost no attempt: the next start runs it as the first.
+	restarted, restartedRegistry := newTestService(pool, clock, cfg)
+	attempts := make(chan int, 1)
+	Register(restartedRegistry, "blocks", func(_ context.Context, job *Job, _ NoArgs) error {
+		attempts <- job.Attempt
+		return nil
+	}, Options{})
+	startDispatcher(t, restarted)
+	waitForState(t, pool, id, StateSucceeded, 1)
+	if got := <-attempts; got != 1 {
+		t.Errorf("performed as attempt %d after a restart, want 1", got)
+	}
+}
+
+// expectReleased checks a row shutdown let go of: queued, unleased, and
+// the interrupted attempt given back.
+func expectReleased(t *testing.T, pool *pgxpool.Pool, id string) {
+	t.Helper()
+	row := readJob(t, pool, id)
+	if row.State != string(StateQueued) || row.LeasedUntil != nil || row.Attempt != 0 {
+		t.Errorf("after shutdown: state %s leased_until %v attempt %d", row.State, row.LeasedUntil, row.Attempt)
 	}
 }
 
@@ -198,8 +220,36 @@ func TestShutdownWaitsForCancelledWorkers(t *testing.T) {
 	if took > cfg.ShutdownGrace+outcomeTimeout {
 		t.Errorf("RunDispatcher took %v to return after cancel", took)
 	}
+	expectReleased(t, pool, id)
+}
+
+func TestLapsedLeaseIsNotReleasedInProcess(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	service, registry := newTestService(pool, clock, testConfig())
+	var performed atomic.Int32
+	release := make(chan struct{})
+	Register(registry, "lapses", func(context.Context, *Job, NoArgs) error {
+		performed.Add(1)
+		<-release
+		return nil
+	}, Options{})
+
+	id := mustEnqueue(t, service, "lapses", nil)
+	startDispatcher(t, service)
+	waitForState(t, pool, id, StateRunning, 1)
+
+	// The lease lapses under a performer this dispatcher is still running
+	// (renewals missed, or the clock jumping); it must not claim the row again.
+	clock.Advance(service.lease + time.Second)
+	time.Sleep(5 * testConfig().Poll)
 	row := readJob(t, pool, id)
-	if row.State != string(StateQueued) || row.LeasedUntil != nil || row.Attempt != 1 {
-		t.Errorf("after shutdown: state %s leased_until %v attempt %d", row.State, row.LeasedUntil, row.Attempt)
+	if row.State != string(StateRunning) || row.Attempt != 1 {
+		t.Fatalf("re-leased in process: state %s attempt %d", row.State, row.Attempt)
 	}
+	if performed.Load() != 1 {
+		t.Fatalf("performer ran %d times", performed.Load())
+	}
+	close(release)
+	waitForState(t, pool, id, StateSucceeded, 1)
 }

@@ -19,13 +19,17 @@ func TestArgsCountersAndExtendReachTheRow(t *testing.T) {
 	ctx := context.Background()
 	service, registry := newTestService(pool, clock, testConfig())
 
-	seen := make(chan string, 1)
+	type greeted struct {
+		name                 string
+		attempt, maxAttempts int
+	}
+	seen := make(chan greeted, 1)
 	Register(registry, "greet", func(_ context.Context, job *Job, args greetArgs) error {
-		seen <- args.Name
+		seen <- greeted{name: args.Name, attempt: job.Attempt, maxAttempts: job.MaxAttempts}
 		job.Record(Counters{"greeted": 1, "bytes": 10})
 		job.Record(Counters{"bytes": 20})
 		return nil
-	}, Options{})
+	}, Options{MaxAttempts: 7})
 	extended := make(chan struct{})
 	release := make(chan struct{})
 	t.Cleanup(func() { close(release) })
@@ -46,8 +50,8 @@ func TestArgsCountersAndExtendReachTheRow(t *testing.T) {
 	startDispatcher(t, service)
 
 	row := waitForState(t, pool, greet, StateSucceeded, 1)
-	if got := <-seen; got != "casey" {
-		t.Errorf("decoded name = %q", got)
+	if got := <-seen; got != (greeted{name: "casey", attempt: 1, maxAttempts: 7}) {
+		t.Errorf("performer saw %+v", got)
 	}
 	if row.LeasedUntil != nil || row.Error != "" {
 		t.Errorf("succeeded row: leased_until %v error %q", row.LeasedUntil, row.Error)
