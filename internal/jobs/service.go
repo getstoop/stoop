@@ -76,6 +76,9 @@ type Service struct {
 	cfg      Config
 	log      *slog.Logger
 	now      func() time.Time
+	// lease is how long one attempt holds its row; the worker renews it
+	// every half lease while the performer runs.
+	lease time.Duration
 }
 
 // New builds the module over the pool. It registers the sweep_jobs kind
@@ -97,7 +100,7 @@ func New(pool *pgxpool.Pool, registry *Registry, cfg Config, log *slog.Logger) *
 	if log == nil {
 		log = slog.Default()
 	}
-	service := &Service{pool: pool, queries: dbgen.New(pool), registry: registry, cfg: cfg, log: log, now: time.Now}
+	service := &Service{pool: pool, queries: dbgen.New(pool), registry: registry, cfg: cfg, log: log, now: time.Now, lease: DefaultLease}
 	Register(registry, SweepJobsKind, service.sweepJobs, Options{})
 	return service
 }
