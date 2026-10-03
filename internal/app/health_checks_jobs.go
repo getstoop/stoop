@@ -7,13 +7,16 @@ import (
 
 	"github.com/getstoop/stoop/internal/diag"
 	"github.com/getstoop/stoop/internal/instance"
+	"github.com/getstoop/stoop/internal/jobs"
 )
 
-// The Health panel's last two rows, from the job list and the queue
-// port. Thresholds are the table in docs/architecture/diagnostics.md.
+// The Health panel's last three rows, from the queue port, the job list
+// and the heartbeat rows. Thresholds are the table in
+// docs/architecture/diagnostics.md.
 
 const (
 	workerStale   = 5 * time.Minute
+	runnerQuiet   = time.Minute
 	overdueWarn   = 1
 	overdueDanger = 3
 )
@@ -113,6 +116,46 @@ func jobsState(records []diag.JobRecord, now time.Time) (instance.CheckState, st
 // history.
 func jobOff(record diag.JobRecord) bool {
 	return record.Interval <= 0
+}
+
+// ---- jobs runner ----
+
+// newJobsRunnerCheck reads the heartbeat rows.
+func newJobsRunnerCheck(dispatchers func(ctx context.Context) ([]jobs.Dispatcher, error)) instance.HealthCheck {
+	return instance.HealthCheck{Name: "jobs runner", Run: func(ctx context.Context) (instance.CheckState, string) {
+		all, err := dispatchers(ctx)
+		if err != nil {
+			return instance.CheckDanger, err.Error()
+		}
+		return jobsRunnerState(all, time.Now())
+	}}
+}
+
+// jobsRunnerState goes by the newest heartbeat: warn when it is a minute
+// old, danger at workerStale or when no dispatcher has registered.
+func jobsRunnerState(dispatchers []jobs.Dispatcher, now time.Time) (instance.CheckState, string) {
+	if len(dispatchers) == 0 {
+		return instance.CheckDanger, "no dispatcher has registered"
+	}
+	var newest time.Time
+	running := 0
+	for _, dispatcher := range dispatchers {
+		if dispatcher.SeenAt.After(newest) {
+			newest = dispatcher.SeenAt
+		}
+		if now.Sub(dispatcher.SeenAt) < runnerQuiet {
+			running++
+		}
+	}
+	// A runner's clock may run ahead of this one; never read as the future.
+	since := max(now.Sub(newest), 0)
+	switch {
+	case since >= workerStale:
+		return instance.CheckDanger, "no dispatcher seen for " + sinceWords(since)
+	case since >= runnerQuiet:
+		return instance.CheckWarn, "no dispatcher seen for " + sinceWords(since)
+	}
+	return instance.CheckOK, fmt.Sprintf("%d running · seen %s ago", running, sinceWords(since))
 }
 
 // sinceWords is a duration the way the row says it: "3 min", "2 h", "1 d".

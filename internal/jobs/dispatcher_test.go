@@ -2,12 +2,14 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -255,4 +257,82 @@ func TestLapsedLeaseIsNotReleasedInProcess(t *testing.T) {
 	}
 	close(release)
 	waitForState(t, pool, id, StateSucceeded, 1)
+}
+
+// wakeBudget is how soon a job queued on an idle dispatcher must finish
+// for the wake-up to have done it: the poll is set far beyond it.
+const wakeBudget = 2 * time.Second
+
+func TestEnqueueWakesTheDispatcherBeforeThePoll(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	cfg := testConfig()
+	cfg.Poll = 10 * time.Second
+	service, registry := newTestService(pool, clock, cfg)
+	listened := make(chan struct{}, 4)
+	service.listening = func() { listened <- struct{}{} }
+	Register(registry, "quick", func(context.Context, *Job, NoArgs) error { return nil }, Options{})
+
+	// A job queued before the start is taken by the first pass; waiting for
+	// it leaves the dispatcher idle until its ten-second poll.
+	first := mustEnqueue(t, service, "quick", nil)
+	startDispatcher(t, service)
+	waitForState(t, pool, first, StateSucceeded, 1)
+	awaitListening(t, listened)
+	expectWoken(t, pool, service, wakeBudget)
+
+	// The listener's backend is killed under it; it reconnects after the
+	// first backoff and the next enqueue wakes the dispatcher again.
+	if _, err := pool.Exec(context.Background(), `SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+		WHERE pid <> pg_backend_pid() AND datname = current_database() AND query ILIKE 'LISTEN%'`); err != nil {
+		t.Fatal(err)
+	}
+	awaitListening(t, listened)
+	expectWoken(t, pool, service, wakeBudget+listenBackoffMin)
+}
+
+// awaitListening waits for the listener to report a LISTEN in place.
+func awaitListening(t *testing.T, listened <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-listened:
+	case <-time.After(waitTimeout):
+		t.Fatal("the listener did not come up")
+	}
+}
+
+// expectWoken queues a job and checks it succeeded within the budget.
+func expectWoken(t *testing.T, pool *pgxpool.Pool, service *Service, budget time.Duration) {
+	t.Helper()
+	queued := time.Now()
+	id := mustEnqueue(t, service, "quick", nil)
+	waitForState(t, pool, id, StateSucceeded, 1)
+	if took := time.Since(queued); took > budget {
+		t.Errorf("job succeeded %v after enqueue, budget %v", took, budget)
+	}
+}
+
+// The heartbeat keeps the row fresh between passes, so a long poll does
+// not read as a dead runner.
+func TestHeartbeatKeepsUpBetweenPolls(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	cfg := testConfig()
+	cfg.Poll = 10 * time.Second
+	service, _ := newTestService(pool, clock, cfg)
+	service.heartbeat = 50 * time.Millisecond
+	startDispatcher(t, service)
+
+	// seenAt is the row's heartbeat, or the zero time before it is inserted.
+	seenAt := func() time.Time {
+		var seen time.Time
+		err := pool.QueryRow(context.Background(), `SELECT seen_at FROM job_dispatchers`).Scan(&seen)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("read seen_at: %v", err)
+		}
+		return seen
+	}
+	waitFor(t, "the first heartbeat", func() bool { return seenAt().Equal(clock.Now()) })
+	clock.Advance(time.Minute)
+	waitFor(t, "a heartbeat between polls", func() bool { return seenAt().Equal(clock.Now()) })
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/getstoop/stoop/internal/diag"
 	"github.com/getstoop/stoop/internal/instance"
+	"github.com/getstoop/stoop/internal/jobs"
 )
 
 func TestWebhooksState(t *testing.T) {
@@ -81,6 +82,35 @@ func TestJobsState(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			state, detail := jobsState(tc.jobs, now)
+			if state != tc.want || !strings.Contains(detail, tc.detail) {
+				t.Errorf("got %d %q, want %d containing %q", state, detail, tc.want, tc.detail)
+			}
+		})
+	}
+}
+
+func TestJobsRunnerState(t *testing.T) {
+	now := time.Now()
+	seen := func(ago time.Duration) jobs.Dispatcher {
+		return jobs.Dispatcher{ID: "d-" + ago.String(), Host: "box", Workers: 4, StartedAt: now.Add(-time.Hour), SeenAt: now.Add(-ago)}
+	}
+	tests := []struct {
+		name        string
+		dispatchers []jobs.Dispatcher
+		want        instance.CheckState
+		detail      string
+	}{
+		{"none", nil, instance.CheckDanger, "no dispatcher has registered"},
+		{"fresh", []jobs.Dispatcher{seen(2 * time.Second)}, instance.CheckOK, "1 running · seen 2 s ago"},
+		{"a stale one beside a fresh one", []jobs.Dispatcher{seen(3 * time.Second), seen(40 * time.Minute)}, instance.CheckOK, "1 running · seen 3 s ago"},
+		{"just under a minute", []jobs.Dispatcher{seen(59 * time.Second)}, instance.CheckOK, "1 running · seen 59 s ago"},
+		{"a minute", []jobs.Dispatcher{seen(time.Minute)}, instance.CheckWarn, "no dispatcher seen for 1 min"},
+		{"just under five minutes", []jobs.Dispatcher{seen(5*time.Minute - time.Second)}, instance.CheckWarn, "no dispatcher seen for 4 min"},
+		{"five minutes", []jobs.Dispatcher{seen(5 * time.Minute)}, instance.CheckDanger, "no dispatcher seen for 5 min"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			state, detail := jobsRunnerState(tc.dispatchers, now)
 			if state != tc.want || !strings.Contains(detail, tc.detail) {
 				t.Errorf("got %d %q, want %d containing %q", state, detail, tc.want, tc.detail)
 			}

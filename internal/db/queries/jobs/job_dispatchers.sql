@@ -12,3 +12,6 @@ DELETE FROM job_dispatchers WHERE id = $1;
 
 -- name: SweepDispatchers :execrows
 DELETE FROM job_dispatchers WHERE seen_at < sqlc.arg(before)::timestamptz;
+
+-- name: ListDispatchers :many
+SELECT * FROM job_dispatchers ORDER BY seen_at DESC, id;
