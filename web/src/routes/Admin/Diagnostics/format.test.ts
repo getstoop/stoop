@@ -58,6 +58,9 @@ describe("countersSentence", () => {
     expect(countersSentence({ messages_removed: 1n })).toBe(
       "removed 1 message",
     );
+    expect(
+      countersSentence({ deliveries_lost: 1n, deliveries_removed: 2n }),
+    ).toBe("1 delivery lost · removed 2 deliveries");
     expect(countersSentence({ credentials_expired: 2n })).toBe(
       "expired 2 credentials",
     );

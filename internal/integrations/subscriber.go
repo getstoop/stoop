@@ -183,17 +183,22 @@ func (s *Service) enqueueFor(ctx context.Context, hookID string, ev outgoingEven
 
 // queueDelivery writes the log row, then the job, so the performer always
 // finds the row; a row whose job could not be queued is removed again.
+// The job's id goes on the row for the sweep; the job runs either way.
 func (s *Service) queueDelivery(ctx context.Context, args DeliveryArgs) error {
 	if err := s.q.InsertDelivery(ctx, dbgen.InsertDeliveryParams{
 		ID: args.DeliveryID, WebhookID: args.HookID, EventType: args.Event, Sequence: args.Sequence, Body: args.Body, Now: s.now(),
 	}); err != nil {
 		return fmt.Errorf("insert delivery: %w", err)
 	}
-	if _, err := s.jobs.EnqueueInLane(ctx, DeliverWebhookKind, args, args.HookID, args.Sequence); err != nil {
+	jobID, err := s.jobs.EnqueueInLane(ctx, DeliverWebhookKind, args, args.HookID, args.Sequence)
+	if err != nil {
 		if removeErr := s.q.DeleteDelivery(ctx, args.DeliveryID); removeErr != nil {
 			s.log.Warn("delivery row left without a job", "delivery", args.DeliveryID, "err", removeErr)
 		}
 		return fmt.Errorf("queue delivery: %w", err)
+	}
+	if err := s.q.SetDeliveryJob(ctx, dbgen.SetDeliveryJobParams{ID: args.DeliveryID, JobID: jobID}); err != nil {
+		s.log.Warn("delivery row left without its job id", "delivery", args.DeliveryID, "job", jobID, "err", err)
 	}
 	return nil
 }

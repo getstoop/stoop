@@ -23,7 +23,8 @@ func (q *Queries) CountQueuedJobs(ctx context.Context, kind string) (int64, erro
 
 const discardLane = `-- name: DiscardLane :execrows
 UPDATE jobs
-SET state = 'discarded', finished_at = $1::timestamptz, leased_until = NULL, error = $2
+SET state = 'discarded', finished_at = $1::timestamptz, leased_until = NULL, error = $2,
+    args = '{}'::jsonb
 WHERE lane = $3::text AND state = 'queued'
 `
 
@@ -33,7 +34,8 @@ type DiscardLaneParams struct {
 	Lane  string
 }
 
-// DiscardLane ends a lane's queued rows; a running one finishes on its own.
+// DiscardLane ends a lane's queued rows; a running one finishes on its
+// own. Their arguments are not kept: the lane's owner is going away.
 func (q *Queries) DiscardLane(ctx context.Context, arg DiscardLaneParams) (int64, error) {
 	result, err := q.db.Exec(ctx, discardLane, arg.Now, arg.Error, arg.Lane)
 	if err != nil {
@@ -123,6 +125,46 @@ func (q *Queries) GetJob(ctx context.Context, id string) (Job, error) {
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getJobs = `-- name: GetJobs :many
+SELECT id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, leased_until, started_at, finished_at, error, counters, created_at FROM jobs WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) GetJobs(ctx context.Context, ids []string) ([]Job, error) {
+	rows, err := q.db.Query(ctx, getJobs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Args,
+			&i.Lane,
+			&i.Sequence,
+			&i.State,
+			&i.Attempt,
+			&i.MaxAttempts,
+			&i.NotBefore,
+			&i.LeasedUntil,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.Error,
+			&i.Counters,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertJob = `-- name: InsertJob :exec

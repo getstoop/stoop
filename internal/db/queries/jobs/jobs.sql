@@ -64,10 +64,12 @@ UPDATE jobs SET state = 'queued', leased_until = NULL, attempt = attempt - 1
 WHERE state = 'running'
   AND (id, attempt) IN (SELECT unnest(sqlc.arg(ids)::uuid[]), unnest(sqlc.arg(attempts)::int[]));
 
--- DiscardLane ends a lane's queued rows; a running one finishes on its own.
+-- DiscardLane ends a lane's queued rows; a running one finishes on its
+-- own. Their arguments are not kept: the lane's owner is going away.
 -- name: DiscardLane :execrows
 UPDATE jobs
-SET state = 'discarded', finished_at = sqlc.arg(now)::timestamptz, leased_until = NULL, error = sqlc.arg(error)
+SET state = 'discarded', finished_at = sqlc.arg(now)::timestamptz, leased_until = NULL, error = sqlc.arg(error),
+    args = '{}'::jsonb
 WHERE lane = sqlc.arg(lane)::text AND state = 'queued';
 
 -- KindBacklog counts a kind's unfinished rows: waiting (queued, or running
@@ -91,6 +93,9 @@ WHERE j.kind = sqlc.arg(kind) AND j.state IN ('queued', 'running');
 
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = $1;
+
+-- name: GetJobs :many
+SELECT * FROM jobs WHERE id = ANY(sqlc.arg(ids)::uuid[]);
 
 -- name: LastStartedJob :one
 SELECT * FROM jobs WHERE kind = $1 AND started_at IS NOT NULL ORDER BY started_at DESC LIMIT 1;

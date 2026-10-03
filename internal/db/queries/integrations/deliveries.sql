@@ -28,3 +28,17 @@ SELECT * FROM webhook_deliveries WHERE webhook_id = $1 ORDER BY created_at DESC,
 
 -- name: SweepFinishedDeliveries :execrows
 DELETE FROM webhook_deliveries WHERE finished_at IS NOT NULL AND finished_at < sqlc.arg(before)::timestamptz;
+
+-- name: SetDeliveryJob :exec
+UPDATE webhook_deliveries SET job_id = sqlc.arg(job_id)::uuid WHERE id = sqlc.arg(id);
+
+-- ListUnfinishedDeliveriesBefore is what the sweep asks the jobs port about.
+-- name: ListUnfinishedDeliveriesBefore :many
+SELECT id, job_id, created_at FROM webhook_deliveries
+WHERE finished_at IS NULL AND created_at < sqlc.arg(before)::timestamptz;
+
+-- FinishLostDelivery ends a delivery whose job will never finish it as
+-- dead with the reason; a row the job finished meanwhile is left alone.
+-- name: FinishLostDelivery :execrows
+UPDATE webhook_deliveries SET finished_at = sqlc.arg(now)::timestamptz, error = sqlc.arg(error)
+WHERE id = sqlc.arg(id) AND finished_at IS NULL;

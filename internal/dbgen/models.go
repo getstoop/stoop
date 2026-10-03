@@ -317,4 +317,5 @@ type WebhookDelivery struct {
 	Response   string
 	Error      string
 	CreatedAt  time.Time
+	JobID      *string
 }

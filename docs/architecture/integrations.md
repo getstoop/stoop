@@ -172,6 +172,12 @@ dispatcher's outcomes; the module never imports `jobs`. A delivery
 found queued while outgoing is off is dead with that reason, and Send
 again works once the switch is back on.
 
+The log row keeps its job's id. A job can end without the performer
+finishing the row (a lease lapsed on the last attempt, a crash between
+the two inserts), so `sweep_hooks` finishes an unfinished row older than
+five minutes whose job is discarded or gone as dead with the reason: Send
+again works on it and it counts toward the twenty.
+
 ## Egress
 
 Every server-side request to a URL somebody chose goes through
@@ -188,8 +194,9 @@ setting.
 `webhooks_incoming`, `webhooks_outgoing` and
 `webhooks_allow_private_targets` are instance settings (on, on, off by
 default), and `STOOP_WEBHOOKS=false` is the floor under all three. With a
-direction off nothing is deleted: hooks answer 404 or wait, queued
-deliveries wait, and the settings page says so.
+direction off nothing is deleted: hooks answer 404 or wait, a delivery
+already queued is dead with the reason and can be sent again once the
+switch is on, and the settings page says so.
 
 ## Who sees what
 

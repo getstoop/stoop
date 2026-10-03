@@ -19,8 +19,29 @@ func (q *Queries) DeleteDelivery(ctx context.Context, id string) error {
 	return err
 }
 
+const finishLostDelivery = `-- name: FinishLostDelivery :execrows
+UPDATE webhook_deliveries SET finished_at = $1::timestamptz, error = $2
+WHERE id = $3 AND finished_at IS NULL
+`
+
+type FinishLostDeliveryParams struct {
+	Now   time.Time
+	Error string
+	ID    string
+}
+
+// FinishLostDelivery ends a delivery whose job will never finish it as
+// dead with the reason; a row the job finished meanwhile is left alone.
+func (q *Queries) FinishLostDelivery(ctx context.Context, arg FinishLostDeliveryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, finishLostDelivery, arg.Now, arg.Error, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getDelivery = `-- name: GetDelivery :one
-SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at FROM webhook_deliveries WHERE id = $1
+SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at, job_id FROM webhook_deliveries WHERE id = $1
 `
 
 func (q *Queries) GetDelivery(ctx context.Context, id string) (WebhookDelivery, error) {
@@ -38,6 +59,7 @@ func (q *Queries) GetDelivery(ctx context.Context, id string) (WebhookDelivery, 
 		&i.Response,
 		&i.Error,
 		&i.CreatedAt,
+		&i.JobID,
 	)
 	return i, err
 }
@@ -74,7 +96,7 @@ func (q *Queries) InsertDelivery(ctx context.Context, arg InsertDeliveryParams) 
 }
 
 const listDeliveriesByWebhook = `-- name: ListDeliveriesByWebhook :many
-SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at FROM webhook_deliveries WHERE webhook_id = $1 ORDER BY created_at DESC, sequence DESC LIMIT $2
+SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at, job_id FROM webhook_deliveries WHERE webhook_id = $1 ORDER BY created_at DESC, sequence DESC LIMIT $2
 `
 
 type ListDeliveriesByWebhookParams struct {
@@ -103,7 +125,40 @@ func (q *Queries) ListDeliveriesByWebhook(ctx context.Context, arg ListDeliverie
 			&i.Response,
 			&i.Error,
 			&i.CreatedAt,
+			&i.JobID,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUnfinishedDeliveriesBefore = `-- name: ListUnfinishedDeliveriesBefore :many
+SELECT id, job_id, created_at FROM webhook_deliveries
+WHERE finished_at IS NULL AND created_at < $1::timestamptz
+`
+
+type ListUnfinishedDeliveriesBeforeRow struct {
+	ID        string
+	JobID     *string
+	CreatedAt time.Time
+}
+
+// ListUnfinishedDeliveriesBefore is what the sweep asks the jobs port about.
+func (q *Queries) ListUnfinishedDeliveriesBefore(ctx context.Context, before time.Time) ([]ListUnfinishedDeliveriesBeforeRow, error) {
+	rows, err := q.db.Query(ctx, listUnfinishedDeliveriesBefore, before)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUnfinishedDeliveriesBeforeRow
+	for rows.Next() {
+		var i ListUnfinishedDeliveriesBeforeRow
+		if err := rows.Scan(&i.ID, &i.JobID, &i.CreatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -145,6 +200,20 @@ func (q *Queries) RecordDeliveryAttempt(ctx context.Context, arg RecordDeliveryA
 		arg.Delivered,
 		arg.ID,
 	)
+	return err
+}
+
+const setDeliveryJob = `-- name: SetDeliveryJob :exec
+UPDATE webhook_deliveries SET job_id = $1::uuid WHERE id = $2
+`
+
+type SetDeliveryJobParams struct {
+	JobID string
+	ID    string
+}
+
+func (q *Queries) SetDeliveryJob(ctx context.Context, arg SetDeliveryJobParams) error {
+	_, err := q.db.Exec(ctx, setDeliveryJob, arg.JobID, arg.ID)
 	return err
 }
 

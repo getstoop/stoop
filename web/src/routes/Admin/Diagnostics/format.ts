@@ -98,6 +98,7 @@ const PHRASES: [string, (n: bigint) => string][] = [
     "credentials_expired",
     (n) => `expired ${plural(n, "credential", "credentials")}`,
   ],
+  ["deliveries_lost", (n) => `${plural(n, "delivery", "deliveries")} lost`],
   [
     "deliveries_removed",
     (n) => `removed ${plural(n, "delivery", "deliveries")}`,

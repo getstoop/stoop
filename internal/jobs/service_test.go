@@ -80,6 +80,32 @@ func TestGetRunNotFound(t *testing.T) {
 	}
 }
 
+// GetRuns answers the ids that are rows, in one call, and leaves out an
+// id with no row or that is not an id.
+func TestGetRunsLeavesOutWhatIsNotARow(t *testing.T) {
+	pool := dbtest.New(t)
+	service, registry := newTestService(pool, newFakeClock(), testConfig())
+	ctx := context.Background()
+	Register(registry, "greet", func(context.Context, *Job, greetArgs) error { return nil }, Options{})
+	first := mustEnqueue(t, service, "greet", greetArgs{Name: "casey"})
+	second := mustEnqueue(t, service, "greet", greetArgs{Name: "ada"})
+
+	runs, err := service.GetRuns(ctx, []string{first, "not-a-uuid", "00000000-0000-7000-8000-000000000009", second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, run := range runs {
+		found[run.ID] = run.State == StateQueued
+	}
+	if len(runs) != 2 || !found[first] || !found[second] {
+		t.Errorf("GetRuns = %+v", runs)
+	}
+	if runs, err := service.GetRuns(ctx, nil); err != nil || len(runs) != 0 {
+		t.Errorf("GetRuns(nil) = %+v, %v", runs, err)
+	}
+}
+
 func TestNewAppliesDefaults(t *testing.T) {
 	registry := NewRegistry()
 	service := New(nil, registry, Config{}, nil)
