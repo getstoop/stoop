@@ -349,6 +349,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		instanceSvc.PublicAddressCheck(),
 		newWebhooksCheck(queue),
 		newJobsCheck(jobList),
+		newJobsRunnerCheck(jobsSvc.Dispatchers),
 	)
 	if err := instanceSvc.UseTailscale(ctx, tailscaleController{a.tailnet}); err != nil {
 		pool.Close()

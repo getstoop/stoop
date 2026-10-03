@@ -169,9 +169,13 @@ func (q *Queries) GetJobs(ctx context.Context, ids []string) ([]Job, error) {
 
 const insertJob = `-- name: InsertJob :exec
 
-INSERT INTO jobs (id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, created_at)
-VALUES ($1, $2, $3, $4, $5, 'queued', 0,
-        $6, $7::timestamptz, $8::timestamptz)
+WITH inserted AS (
+    INSERT INTO jobs (id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, created_at)
+    VALUES ($1, $2, $3, $4, $5, 'queued', 0,
+            $6, $7::timestamptz, $8::timestamptz)
+    RETURNING id
+)
+SELECT pg_notify('stoop_jobs', '') FROM inserted
 `
 
 type InsertJobParams struct {
@@ -188,6 +192,7 @@ type InsertJobParams struct {
 // The job queue. Owned by the jobs module; only internal/jobs may use
 // these queries. The clock is always the caller's, never now(), so one
 // clock decides due-ness and leases. See docs/proposals/jobs.md.
+// InsertJob raises jobs.NotifyChannel, so the dispatcher wakes without a trigger.
 func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) error {
 	_, err := q.db.Exec(ctx, insertJob,
 		arg.ID,

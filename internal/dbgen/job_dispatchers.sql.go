@@ -43,6 +43,36 @@ func (q *Queries) InsertDispatcher(ctx context.Context, arg InsertDispatcherPara
 	return err
 }
 
+const listDispatchers = `-- name: ListDispatchers :many
+SELECT id, host, workers, started_at, seen_at FROM job_dispatchers ORDER BY seen_at DESC, id
+`
+
+func (q *Queries) ListDispatchers(ctx context.Context) ([]JobDispatcher, error) {
+	rows, err := q.db.Query(ctx, listDispatchers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []JobDispatcher
+	for rows.Next() {
+		var i JobDispatcher
+		if err := rows.Scan(
+			&i.ID,
+			&i.Host,
+			&i.Workers,
+			&i.StartedAt,
+			&i.SeenAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sweepDispatchers = `-- name: SweepDispatchers :execrows
 DELETE FROM job_dispatchers WHERE seen_at < $1::timestamptz
 `

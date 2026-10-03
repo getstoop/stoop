@@ -21,12 +21,20 @@ const (
 
 // RunDispatcher leases due rows and hands them to the worker pool, inserts
 // jobs for due schedules and heartbeats job_dispatchers, until ctx ends.
-// It then stops leasing, gives in-flight jobs ShutdownGrace (five seconds
-// by default) to finish, three seconds to release any still running so
-// they are retried on the next start, and one second for the cancelled
-// workers to leave: under ten seconds in all, whatever a performer does.
-// It returns only after that, so the caller may close the pool.
+// It runs a pass when an insert notifies NotifyChannel and every Poll as
+// the backstop. It then stops leasing, gives in-flight jobs ShutdownGrace
+// (five seconds by default) to finish, three seconds to release any still
+// running so they are retried on the next start, and one second for the
+// cancelled workers to leave: under ten seconds in all, whatever a
+// performer does. It returns only after that, so the caller may close the
+// pool.
 func (s *Service) RunDispatcher(ctx context.Context) {
+	wake := make(chan struct{}, 1)
+	listenerDone := make(chan struct{})
+	go func() {
+		defer close(listenerDone)
+		s.listen(ctx, wake)
+	}()
 	dispatcherID := rowid.New()
 	if err := s.queries.InsertDispatcher(ctx, dbgen.InsertDispatcherParams{
 		ID: dispatcherID, Host: s.cfg.Host, Workers: int32(s.cfg.Workers), Now: s.now(),
@@ -45,27 +53,42 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 
 	ticker := time.NewTicker(s.cfg.Poll)
 	defer ticker.Stop()
+	heartbeat := time.NewTicker(s.heartbeat)
+	defer heartbeat.Stop()
 	for ctx.Err() == nil {
 		s.tick(ctx, dispatcherID, queue, tracked)
 		select {
 		case <-ctx.Done():
 		case <-ticker.C:
+		case <-wake:
+		case <-heartbeat.C:
+			// Between passes the row is kept fresh on its own clock, so a
+			// long poll never reads as a dead runner.
+			s.touch(ctx, dispatcherID)
 		}
 	}
 	close(queue)
 	s.shutdown(dispatcherID, &workers, cancelWork, tracked)
+	// The listener closes its connection meanwhile; the caller closes the
+	// pool only once it has.
+	<-listenerDone
 }
 
 // tick is one poll: heartbeat, materialise due schedules, then lease
 // until a batch comes back short.
 func (s *Service) tick(ctx context.Context, dispatcherID string, queue chan<- dbgen.Job, tracked *inflight) {
-	if err := s.queries.TouchDispatcher(ctx, dbgen.TouchDispatcherParams{Now: s.now(), ID: dispatcherID}); err != nil {
-		s.logUnlessStopping(ctx, "jobs: heartbeat", err)
-	}
+	s.touch(ctx, dispatcherID)
 	if err := s.materialiseDue(ctx); err != nil {
 		s.logUnlessStopping(ctx, "jobs: schedules", err)
 	}
 	for s.leaseBatch(ctx, queue, tracked) {
+	}
+}
+
+// touch is the heartbeat: seen_at = now on this dispatcher's row.
+func (s *Service) touch(ctx context.Context, dispatcherID string) {
+	if err := s.queries.TouchDispatcher(ctx, dbgen.TouchDispatcherParams{Now: s.now(), ID: dispatcherID}); err != nil {
+		s.logUnlessStopping(ctx, "jobs: heartbeat", err)
 	}
 }
 
