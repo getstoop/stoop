@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 const diagnostics = "stoop.instance.v1.InstanceService/"
@@ -22,15 +23,8 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 	if r.str("serverStartedAt") == "" {
 		t.Errorf("no serverStartedAt: %s", r.raw)
 	}
-	rows := map[string]map[string]any{}
-	var order []string
-	for _, c := range r.list("checks") {
-		m, _ := c.(map[string]any)
-		name, _ := m["name"].(string)
-		rows[name] = m
-		order = append(order, name)
-	}
-	if strings.Join(order, ",") != "postgres,livekit,storage,public_address,webhooks,jobs" {
+	rows, order := healthRows(r)
+	if strings.Join(order, ",") != "postgres,livekit,storage,public_address,webhooks,jobs,jobs runner" {
 		t.Errorf("check order = %v", order)
 	}
 	if pg := rows["postgres"]; pg["state"] != "CHECK_STATE_OK" || !strings.Contains(pg["detail"].(string), "pool") || pg["checkedAt"] == "" {
@@ -53,7 +47,44 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 	if jb := rows["jobs"]; jb["state"] != "CHECK_STATE_OK" || !strings.Contains(jb["detail"].(string), "7 jobs on schedule") {
 		t.Errorf("jobs = %v", jb)
 	}
+	// The dispatcher registers its heartbeat shortly after the start, and
+	// the answer is cached for two seconds, so the row is polled.
+	runner := h.healthRow(casey, "jobs runner", func(row map[string]any) bool {
+		detail, _ := row["detail"].(string)
+		return row["state"] == "CHECK_STATE_OK" && strings.HasPrefix(detail, "1 running")
+	})
+	if runner["state"] != "CHECK_STATE_OK" || runner["fixTab"] != nil {
+		t.Errorf("jobs runner = %v", runner)
+	}
+}
 
+// healthRows reads GetHealth's checks by name, and the order they came in.
+func healthRows(r reply) (map[string]map[string]any, []string) {
+	rows := map[string]map[string]any{}
+	var order []string
+	for _, check := range r.list("checks") {
+		row, _ := check.(map[string]any)
+		name, _ := row["name"].(string)
+		rows[name] = row
+		order = append(order, name)
+	}
+	return rows, order
+}
+
+// healthRow polls GetHealth for up to five seconds until one check's row
+// satisfies ready, and returns the row as last seen.
+func (h *harness) healthRow(token, name string, ready func(row map[string]any) bool) map[string]any {
+	h.t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	var row map[string]any
+	for {
+		rows, _ := healthRows(h.rpc(token, diagnostics+"GetHealth", map[string]any{}).expect(h.t, "ok"))
+		row = rows[name]
+		if ready(row) || time.Now().After(deadline) {
+			return row
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 // The Requests panel counts every unary call, refused ones included:

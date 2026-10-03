@@ -290,12 +290,14 @@ earlier unfinished job shares its lane, so one runs per lane at a time,
 in sequence order, and a retry waiting on its backoff holds the lane.
 Sweeps have no lane.
 
-The dispatcher (`RunDispatcher`) polls for due rows every
-`STOOP_JOBS_POLL` and leases them with `FOR UPDATE SKIP LOCKED` to
-`STOOP_JOBS_WORKERS` goroutines, never a row it is itself still
-performing. `running` means the lease (10 minutes by default, renewed
-while the performer runs; a performer may extend it) is in the future,
-so a row whose lease has lapsed is claimed again as a new attempt. A
+The dispatcher (`RunDispatcher`) is woken by the `NOTIFY` the insert of
+a job raises, on a connection of its own outside the pool, and polls for
+due rows every `STOOP_JOBS_POLL` as the backstop; it leases them with
+`FOR UPDATE SKIP LOCKED` to `STOOP_JOBS_WORKERS` goroutines, never a row
+it is itself still performing. `running` means the lease (10 minutes by
+default, renewed while the performer runs; a performer may extend it) is
+in the future, so a row whose lease has lapsed is claimed again as a new
+attempt. A
 failed attempt, a panic included, goes back to `queued` at the kind's
 backoff ladder's time (5 s, 30 s, 2 min; four attempts by default) and
 is then `discarded`; only the latest attempt's error and timing are
@@ -304,12 +306,13 @@ and clears the lease on anything still running without counting the
 attempt, so the next start retries it; the clearing and the wait for
 the cancelled workers are bounded too, so it is back under ten seconds
 whatever a performer does. The heartbeat row is what shows a dispatcher
-is alive.
+is alive; it drives the `jobs runner` health row
+([diagnostics.md](diagnostics.md#the-health-check-port)).
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `STOOP_JOBS_WORKERS` | `4` | Jobs run at once. |
-| `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for. |
+| `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for when no insert has woken the dispatcher. |
 | `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever. |
 | `STOOP_FILE_SWEEP_INTERVAL` | `6h` | `0` disables the four schedules on it; the Storage tab can still queue a file sweep. |
 | `STOOP_JOBS` | `embedded` | Where the dispatcher runs: in the server, in a `stoop jobs` the server starts and supervises (`child`, restarted with backoff like cloudflared), or in none of it (`external`, the `jobs` compose service or a bare `stoop jobs`). |
