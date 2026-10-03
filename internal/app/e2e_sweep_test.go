@@ -49,8 +49,8 @@ func (h *harness) awaitJobOutcome(token, name, outcome string, deadline time.Dur
 }
 
 // jobRow finds one job's row in a ListJobs reply, or nil.
-func jobRow(r reply, name string) map[string]any {
-	for _, job := range r.list("jobs") {
+func jobRow(response reply, name string) map[string]any {
+	for _, job := range response.list("jobs") {
 		row, _ := job.(map[string]any)
 		if row["name"] == name {
 			return row
