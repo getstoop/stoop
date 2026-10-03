@@ -29,6 +29,9 @@ func (s *Service) listen(ctx context.Context, wake chan<- struct{}) {
 		if ctx.Err() != nil {
 			return
 		}
+		if time.Since(started) > listenSteady {
+			backoff = listenBackoffMin
+		}
 		// The same failure every retry is said once.
 		level := slog.LevelWarn
 		if err.Error() == lastErr {
@@ -37,9 +40,6 @@ func (s *Service) listen(ctx context.Context, wake chan<- struct{}) {
 			lastErr = err.Error()
 		}
 		s.log.Log(ctx, level, "jobs: listener stopped; retrying", "err", err, "in", backoff)
-		if time.Since(started) > listenSteady {
-			backoff = listenBackoffMin
-		}
 		select {
 		case <-ctx.Done():
 			return

@@ -147,7 +147,8 @@ func jobsRunnerState(dispatchers []jobs.Dispatcher, now time.Time) (instance.Che
 			running++
 		}
 	}
-	since := now.Sub(newest)
+	// A runner's clock may run ahead of this one; never read as the future.
+	since := max(now.Sub(newest), 0)
 	switch {
 	case since >= workerStale:
 		return instance.CheckDanger, "no dispatcher seen for " + sinceWords(since)
