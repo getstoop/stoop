@@ -66,7 +66,8 @@ func (q *Queries) ExtendJobLease(ctx context.Context, arg ExtendJobLeaseParams) 
 const finishJob = `-- name: FinishJob :execrows
 UPDATE jobs
 SET state = $1, finished_at = $2::timestamptz, leased_until = NULL,
-    error = $3, counters = $4
+    error = $3, counters = $4,
+    args = CASE WHEN $1::text = 'succeeded' THEN '{}'::jsonb ELSE args END
 WHERE id = $5 AND attempt = $6
 `
 
@@ -80,7 +81,8 @@ type FinishJobParams struct {
 }
 
 // The outcome writes match the attempt they were leased for, so a stale
-// attempt whose lease lapsed changes nothing.
+// attempt whose lease lapsed changes nothing. A succeeded job's arguments
+// are not kept: nothing reads them, and they may carry content.
 func (q *Queries) FinishJob(ctx context.Context, arg FinishJobParams) (int64, error) {
 	result, err := q.db.Exec(ctx, finishJob,
 		arg.State,
@@ -160,13 +162,18 @@ func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) error {
 
 const kindBacklog = `-- name: KindBacklog :one
 SELECT
-    count(*) FILTER (WHERE state = 'queued' OR leased_until < $1::timestamptz)::bigint AS queued,
-    count(*) FILTER (WHERE state = 'running' AND leased_until >= $1::timestamptz)::bigint AS running,
-    COALESCE(min(not_before) FILTER (WHERE (state = 'queued' OR leased_until < $1::timestamptz)
-                                     AND not_before <= $1::timestamptz),
+    count(*) FILTER (WHERE j.state = 'queued' OR j.leased_until < $1::timestamptz)::bigint AS queued,
+    count(*) FILTER (WHERE j.state = 'running' AND j.leased_until >= $1::timestamptz)::bigint AS running,
+    COALESCE(min(j.not_before) FILTER (WHERE (j.state = 'queued' OR j.leased_until < $1::timestamptz)
+                                       AND j.not_before <= $1::timestamptz
+                                       AND (j.lane IS NULL OR NOT EXISTS (
+                                           SELECT 1 FROM jobs o
+                                           WHERE o.lane = j.lane AND o.state IN ('queued', 'running')
+                                             AND (o.sequence, o.id) < (j.sequence, j.id)
+                                       ))),
              '0001-01-01 00:00:00+00'::timestamptz)::timestamptz AS oldest_due
-FROM jobs
-WHERE kind = $2 AND state IN ('queued', 'running')
+FROM jobs j
+WHERE j.kind = $2 AND j.state IN ('queued', 'running')
 `
 
 type KindBacklogParams struct {
@@ -182,7 +189,8 @@ type KindBacklogRow struct {
 
 // KindBacklog counts a kind's unfinished rows: waiting (queued, or running
 // with a lapsed lease), running on a live lease, and the earliest due
-// not_before among the waiting, the zero time when none is due.
+// not_before among the waiting rows the dispatcher could lease (a row
+// held behind its lane's head is not one), the zero time when none is.
 func (q *Queries) KindBacklog(ctx context.Context, arg KindBacklogParams) (KindBacklogRow, error) {
 	row := q.db.QueryRow(ctx, kindBacklog, arg.Now, arg.Kind)
 	var i KindBacklogRow
