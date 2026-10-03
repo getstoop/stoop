@@ -2,11 +2,11 @@ package integrations
 
 import (
 	"context"
-	"errors"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
