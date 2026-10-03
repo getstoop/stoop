@@ -70,16 +70,22 @@ WHERE lane = sqlc.arg(lane)::text AND state = 'queued';
 
 -- KindBacklog counts a kind's unfinished rows: waiting (queued, or running
 -- with a lapsed lease), running on a live lease, and the earliest due
--- not_before among the waiting, the zero time when none is due.
+-- not_before among the waiting rows the dispatcher could lease (a row
+-- held behind its lane's head is not one), the zero time when none is.
 -- name: KindBacklog :one
 SELECT
-    count(*) FILTER (WHERE state = 'queued' OR leased_until < sqlc.arg(now)::timestamptz)::bigint AS queued,
-    count(*) FILTER (WHERE state = 'running' AND leased_until >= sqlc.arg(now)::timestamptz)::bigint AS running,
-    COALESCE(min(not_before) FILTER (WHERE (state = 'queued' OR leased_until < sqlc.arg(now)::timestamptz)
-                                     AND not_before <= sqlc.arg(now)::timestamptz),
+    count(*) FILTER (WHERE j.state = 'queued' OR j.leased_until < sqlc.arg(now)::timestamptz)::bigint AS queued,
+    count(*) FILTER (WHERE j.state = 'running' AND j.leased_until >= sqlc.arg(now)::timestamptz)::bigint AS running,
+    COALESCE(min(j.not_before) FILTER (WHERE (j.state = 'queued' OR j.leased_until < sqlc.arg(now)::timestamptz)
+                                       AND j.not_before <= sqlc.arg(now)::timestamptz
+                                       AND (j.lane IS NULL OR NOT EXISTS (
+                                           SELECT 1 FROM jobs o
+                                           WHERE o.lane = j.lane AND o.state IN ('queued', 'running')
+                                             AND (o.sequence, o.id) < (j.sequence, j.id)
+                                       ))),
              '0001-01-01 00:00:00+00'::timestamptz)::timestamptz AS oldest_due
-FROM jobs
-WHERE kind = sqlc.arg(kind) AND state IN ('queued', 'running');
+FROM jobs j
+WHERE j.kind = sqlc.arg(kind) AND j.state IN ('queued', 'running');
 
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = $1;
