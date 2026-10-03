@@ -182,6 +182,20 @@ func (h *harness) post(path, contentType, body string, headers ...string) reply 
 	return h.do(r)
 }
 
+// get fetches a path as a bearer token, the way an <img> with a session
+// would; "" is anonymous.
+func (h *harness) get(token, path string) reply {
+	h.t.Helper()
+	r, err := http.NewRequest(http.MethodGet, h.srv.URL+path, nil)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	if token != "" {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
+	return h.do(r)
+}
+
 func (h *harness) do(r *http.Request) reply {
 	h.t.Helper()
 	res, err := http.DefaultClient.Do(r)

@@ -160,6 +160,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger) (*modu
 	registry := jobs.NewRegistry()
 	registerSweeps(registry, cfg, log, authSvc, chatSvc, filesSvc, integrationsSvc)
 	registerDeliveries(registry, integrationsSvc)
+	registerImages(registry, filesSvc)
 	jobsSvc := jobs.New(pool, registry, jobs.Config{Workers: cfg.JobsWorkers, Poll: cfg.JobsPoll, Retention: cfg.JobsRetention}, log)
 	filesSvc.UseJobs(jobsSvc)
 	integrationsSvc.UseJobs(deliveryJobs{jobsSvc})

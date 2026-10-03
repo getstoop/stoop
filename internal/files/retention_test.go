@@ -31,6 +31,7 @@ func TestAttachmentRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.performImage(t)
 	later := time.Now().Add(31 * 24 * time.Hour)
 
 	// Off: nothing to count, nothing swept.

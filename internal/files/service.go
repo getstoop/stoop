@@ -60,7 +60,9 @@ type Spaces interface {
 	// ctx may change the space's settings.
 	RequireManageSpace(ctx context.Context, spaceID string) error
 	// SetSpaceIcon points the space at fileID ("" clears), announces the
-	// change to members, and returns the id it replaced ("" if none).
+	// change to members, and returns the id it replaced ("" if none). It
+	// asks nothing of the caller in ctx: the normalise_image job has no
+	// identity, and RequireManageSpace was asked when the upload came in.
 	SetSpaceIcon(ctx context.Context, spaceID, fileID string) (previous string, err error)
 	// MayReadSpace reports whether the caller in ctx may read the space's
 	// messages, and so its icon and attachments.
@@ -116,7 +118,8 @@ type Service struct {
 	inflight *inflight
 	// uploadIdle is how long an upload's body may send nothing.
 	uploadIdle time.Duration
-	// jobs is the queue SweepFiles enqueues on; nil until UseJobs.
+	// jobs is the queue SweepFiles and the image uploads enqueue on; nil
+	// until UseJobs, and those refuse without it.
 	jobs JobQueue
 	log  *slog.Logger
 }

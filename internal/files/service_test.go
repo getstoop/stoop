@@ -6,6 +6,7 @@ import (
 	"errors"
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
 	"io"
 	"log/slog"
@@ -32,6 +33,8 @@ import (
 type fakeAvatars struct {
 	current map[string]string
 	bots    map[string]bool
+	// setErr is what SetAvatar answers when set.
+	setErr error
 }
 
 func (f *fakeAvatars) IsBot(_ context.Context, userID string) (bool, error) {
@@ -52,6 +55,9 @@ func (f *fakeAvatars) ReferencedFiles(_ context.Context, ids []string) ([]string
 	return out, nil
 }
 func (f *fakeAvatars) SetAvatar(_ context.Context, userID, fileID string) (string, error) {
+	if f.setErr != nil {
+		return "", f.setErr
+	}
 	prev := f.current[userID]
 	f.current[userID] = fileID
 	return prev, nil
@@ -65,6 +71,7 @@ type fakeSpaces struct {
 	channelID  string
 	referenced map[string]bool // file ids chat "still points at" (sweep)
 	pinned     []string        // files on pinned messages (retention)
+	setIconErr error           // what SetSpaceIcon answers when set
 }
 
 func (f *fakeSpaces) PinnedFileIDs(context.Context) ([]string, error) { return f.pinned, nil }
@@ -100,6 +107,9 @@ func (f *fakeSpaces) RequireManageSpace(ctx context.Context, _ string) error {
 	return nil
 }
 func (f *fakeSpaces) SetSpaceIcon(_ context.Context, _ string, fileID string) (string, error) {
+	if f.setIconErr != nil {
+		return "", f.setIconErr
+	}
 	prev := f.icon
 	f.icon = fileID
 	return prev, nil
@@ -133,15 +143,19 @@ func (f *fakeSessions) VerifyRequest(_ context.Context, h http.Header) (authctx.
 }
 
 type fixture struct {
-	svc    *files.Service
-	store  *blob.FS
-	pool   *pgxpool.Pool
-	owner  string // a member who manages the space
-	member string
-	other  string // signed in, not a member
-	space  string
-	spaces *fakeSpaces
-	sess   *fakeSessions
+	svc     *files.Service
+	store   *blob.FS
+	pool    *pgxpool.Pool
+	owner   string // a member who manages the space
+	member  string
+	other   string // signed in, not a member
+	space   string
+	spaces  *fakeSpaces
+	avatars *fakeAvatars
+	sess    *fakeSessions
+	bus     *events.InProcBus
+	// queue records what the uploads enqueue; nil means none is wired.
+	queue *fakeJobQueue
 }
 
 func setup(t *testing.T) *fixture {
@@ -177,32 +191,62 @@ func setup(t *testing.T) *fixture {
 		"other":  {UserID: f.other, Role: authctx.RoleMember},
 		"admin":  {UserID: f.other, Role: authctx.RoleAdmin},
 	}}
-	f.svc = newService(f, &fakeAvatars{current: map[string]string{}})
+	f.bus = events.NewInProcBus()
+	f.queue = &fakeJobQueue{}
+	f.avatars = &fakeAvatars{current: map[string]string{}}
+	f.svc = newService(f, f.avatars)
 	return f
 }
 
 func newService(f *fixture, avatars files.Avatars) *files.Service {
-	return files.New(f.pool, f.store, events.NewInProcBus(), avatars, f.spaces, f.sess,
+	svc := files.New(f.pool, f.store, f.bus, avatars, f.spaces, f.sess,
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if f.queue != nil {
+		svc.UseJobs(f.queue)
+	}
+	return svc
+}
+
+// performImage runs the oldest queued normalise_image job against the
+// fixture's service, as the dispatcher would, and fails the test if it
+// fails.
+func (f *fixture) performImage(t *testing.T) {
+	t.Helper()
+	if err := f.queue.perform(t, f.svc, false); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func as(userID string) context.Context {
 	return authctx.WithIdentity(context.Background(), authctx.Identity{UserID: userID, Role: authctx.RoleMember})
 }
 
-func pngBytes(t *testing.T, w, h int) []byte {
-	t.Helper()
-	img := image.NewNRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+func testImage(width, height int) *image.NRGBA {
+	img := image.NewNRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			img.Set(x, y, color.NRGBA{R: uint8(x), G: uint8(y), B: 128, A: 255})
 		}
 	}
-	var b bytes.Buffer
-	if err := png.Encode(&b, img); err != nil {
+	return img
+}
+
+func pngBytes(t *testing.T, width, height int) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, testImage(width, height)); err != nil {
 		t.Fatal(err)
 	}
-	return b.Bytes()
+	return buf.Bytes()
+}
+
+func jpegBytes(t *testing.T, width, height int) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, testImage(width, height), nil); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
 }
 
 func (f *fixture) blobExists(t *testing.T, key string) bool {
@@ -216,15 +260,45 @@ func (f *fixture) blobExists(t *testing.T, key string) bool {
 
 func (f *fixture) get(t *testing.T, id, user string) *http.Response {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodGet, "/files/"+id, nil)
+	return f.fetch(t, http.MethodGet, id, user)
+}
+
+func (f *fixture) fetch(t *testing.T, method, id, user string) *http.Response {
+	t.Helper()
+	req := httptest.NewRequest(method, "/files/"+id, nil)
 	if user != "" {
 		req.Header.Set("X-Test-User", user)
 	}
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	mux.Handle("GET /files/{id}", f.svc.Handler())
+	mux.Handle("HEAD /files/{id}", f.svc.Handler())
 	mux.ServeHTTP(rec, req)
 	return rec.Result()
+}
+
+// expectServedPNG checks a GET of a normalised image: 200, the headers
+// every file carries, and a size×size PNG body.
+func expectServedPNG(t *testing.T, res *http.Response, size int) {
+	t.Helper()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("GET: %d", res.StatusCode)
+	}
+	for header, want := range map[string]string{
+		"Content-Type":           "image/png",
+		"X-Content-Type-Options": "nosniff",
+		"Cache-Control":          "private, max-age=31536000, immutable",
+		"Content-Disposition":    "inline",
+	} {
+		if got := res.Header.Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+	body, _ := io.ReadAll(res.Body)
+	cfg, err := png.DecodeConfig(bytes.NewReader(body))
+	if err != nil || cfg.Width != size || cfg.Height != size {
+		t.Fatalf("served image: %v %dx%d, want %dx%d", err, cfg.Width, cfg.Height, size, size)
+	}
 }
 
 func TestUploadAvatarRefusesBots(t *testing.T) {
@@ -257,6 +331,15 @@ func TestUploadBotAvatar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if job := f.queue.jobs[0]; job.lane != "avatar:"+f.member || job.args.UserID != f.member {
+		t.Errorf("queued %+v, want the bot's lane", job)
+	}
+	if avatars.current[f.member] != "" {
+		t.Errorf("avatar set before the job ran: %q", avatars.current[f.member])
+	}
+	if err := f.queue.perform(t, svc, false); err != nil {
+		t.Fatal(err)
+	}
 	if avatars.current[f.member] != res.Msg.FileId || !f.blobExists(t, "avatar/"+res.Msg.FileId) {
 		t.Errorf("avatar not set: current %q, file %q", avatars.current[f.member], res.Msg.FileId)
 	}
@@ -274,35 +357,20 @@ func TestUploadAvatarStoresAndReplaces(t *testing.T) {
 	if !f.blobExists(t, "avatar/"+id1) {
 		t.Fatal("first blob missing")
 	}
+	f.performImage(t)
 	// The served file is a 256 px PNG with the required headers.
-	res := f.get(t, id1, "other")
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("GET as another signed-in user: %d", res.StatusCode)
-	}
-	if ct := res.Header.Get("Content-Type"); ct != "image/png" {
-		t.Errorf("Content-Type = %q", ct)
-	}
-	if v := res.Header.Get("X-Content-Type-Options"); v != "nosniff" {
-		t.Errorf("X-Content-Type-Options = %q", v)
-	}
-	if v := res.Header.Get("Cache-Control"); v != "private, max-age=31536000, immutable" {
-		t.Errorf("Cache-Control = %q", v)
-	}
-	if v := res.Header.Get("Content-Disposition"); v != "inline" {
-		t.Errorf("Content-Disposition = %q", v)
-	}
-	body, _ := io.ReadAll(res.Body)
-	cfg, err := png.DecodeConfig(bytes.NewReader(body))
-	if err != nil || cfg.Width != files.AvatarSize || cfg.Height != files.AvatarSize {
-		t.Fatalf("served image: %v %dx%d", err, cfg.Width, cfg.Height)
-	}
+	expectServedPNG(t, f.get(t, id1, "other"), files.AvatarSize)
 
-	// Replacing deletes the previous row and blob.
+	// Replacing deletes the previous row and blob once the job has run.
 	second, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 50, 50)}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	id2 := second.Msg.FileId
+	if !f.blobExists(t, "avatar/"+id1) || f.avatars.current[f.member] != id1 {
+		t.Error("the old avatar went before the job ran")
+	}
+	f.performImage(t)
 	if id2 == id1 {
 		t.Fatal("expected a new file id")
 	}
@@ -342,6 +410,9 @@ func TestUploadRejectsBadInput(t *testing.T) {
 	if len(entries) != 0 {
 		t.Errorf("rejected uploads left %d blobs behind", len(entries))
 	}
+	if len(f.queue.jobs) != 0 {
+		t.Errorf("rejected uploads queued %d jobs", len(f.queue.jobs))
+	}
 }
 
 func TestSpaceIconAuthorisation(t *testing.T) {
@@ -360,13 +431,14 @@ func TestSpaceIconAuthorisation(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := res.Msg.FileId
+	if job := f.queue.jobs[0]; job.lane != "space_icon:"+f.space || job.args.SpaceID != f.space || job.args.UserID != "" {
+		t.Errorf("queued %+v, want the space's lane", job)
+	}
+	f.performImage(t)
 	if f.spaces.icon != id {
 		t.Fatalf("port not told about the new icon (%q)", f.spaces.icon)
 	}
-	body, _ := io.ReadAll(f.get(t, id, "owner").Body)
-	if cfg, err := png.DecodeConfig(bytes.NewReader(body)); err != nil || cfg.Width != files.SpaceIconSize {
-		t.Fatalf("icon: %v %dx%d", err, cfg.Width, cfg.Height)
-	}
+	expectServedPNG(t, f.get(t, id, "owner"), files.SpaceIconSize)
 
 	for user, want := range map[string]int{
 		"":       http.StatusUnauthorized,

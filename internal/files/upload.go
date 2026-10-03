@@ -6,27 +6,32 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
-	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
-	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
 )
+
+// Avatars and icons are accepted here and normalised by the
+// normalise_image job (normalise.go): the request refuses what is cheap to
+// refuse, stores the bytes as sent under a pending row and queues the job.
+// The account or space still shows its old image until the job swaps the
+// pointer. See docs/architecture/files.md → Images.
 
 func (s *Service) UploadAvatar(ctx context.Context, req *connect.Request[filesv1.UploadAvatarRequest]) (*connect.Response[filesv1.UploadAvatarResponse], error) {
 	if id, _ := authctx.From(ctx); id.Kind == authctx.KindBot {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("a bot's avatar is set by a server admin"))
 	}
-	f, err := s.setAvatar(ctx, authctx.UserID(ctx), req.Msg.Data)
+	fileID, err := s.queueAvatar(ctx, authctx.UserID(ctx), req.Msg.Data)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&filesv1.UploadAvatarResponse{FileId: f.ID}), nil
+	return connect.NewResponse(&filesv1.UploadAvatarResponse{FileId: fileID}), nil
 }
 
 // UploadBotAvatar is the admin's path to a bot's face: the same image
@@ -45,39 +50,15 @@ func (s *Service) UploadBotAvatar(ctx context.Context, req *connect.Request[file
 	if !bot {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("only a bot's avatar can be set for it; people set their own"))
 	}
-	f, err := s.setAvatar(ctx, req.Msg.UserId, req.Msg.Data)
+	fileID, err := s.queueAvatar(ctx, req.Msg.UserId, req.Msg.Data)
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&filesv1.UploadBotAvatarResponse{FileId: f.ID}), nil
+	return connect.NewResponse(&filesv1.UploadBotAvatarResponse{FileId: fileID}), nil
 }
 
-// setAvatar stores the image, points the account at it, deletes the one
-// it replaced, and tells every space the account is in to refetch it.
-func (s *Service) setAvatar(ctx context.Context, userID string, data []byte) (dbgen.File, error) {
-	f, err := s.storeImage(ctx, KindAvatar, userID, nil, data, AvatarSize)
-	if err != nil {
-		return dbgen.File{}, err
-	}
-	prev, err := s.avatars.SetAvatar(ctx, userID, f.ID)
-	if err != nil {
-		s.discard(ctx, f)
-		return dbgen.File{}, err
-	}
-	s.deleteFile(ctx, prev)
-
-	spaceIDs, err := s.spaces.ListSpaceIDs(ctx, userID)
-	if err != nil {
-		s.log.Warn("avatar changed but spaces not notified", "user_id", userID, "err", err)
-	}
-	for _, spaceID := range spaceIDs {
-		s.bus.Publish(events.SpaceTopic(spaceID), events.Stamp(&realtimev1.ServerEvent{
-			Payload: &realtimev1.ServerEvent_MemberUpdated{
-				MemberUpdated: &realtimev1.MemberUpdated{SpaceId: spaceID, UserId: userID},
-			},
-		}))
-	}
-	return f, nil
+func (s *Service) queueAvatar(ctx context.Context, userID string, data []byte) (string, error) {
+	return s.queueImage(ctx, KindAvatar, userID, nil, data, NormaliseImageArgs{UserID: userID}, "avatar:"+userID)
 }
 
 func (s *Service) UploadSpaceIcon(ctx context.Context, req *connect.Request[filesv1.UploadSpaceIconRequest]) (*connect.Response[filesv1.UploadSpaceIconResponse], error) {
@@ -89,77 +70,98 @@ func (s *Service) UploadSpaceIcon(ctx context.Context, req *connect.Request[file
 	if err := s.spaces.RequireManageSpace(ctx, spaceID); err != nil {
 		return nil, err
 	}
-	f, err := s.storeImage(ctx, KindSpaceIcon, authctx.UserID(ctx), &spaceID, req.Msg.Data, SpaceIconSize)
+	fileID, err := s.queueImage(ctx, KindSpaceIcon, authctx.UserID(ctx), &spaceID, req.Msg.Data, NormaliseImageArgs{SpaceID: spaceID}, "space_icon:"+spaceID)
 	if err != nil {
 		return nil, err
 	}
-	prev, err := s.spaces.SetSpaceIcon(ctx, spaceID, f.ID)
-	if err != nil {
-		s.discard(ctx, f)
-		return nil, err
-	}
-	s.deleteFile(ctx, prev)
-	return connect.NewResponse(&filesv1.UploadSpaceIconResponse{FileId: f.ID}), nil
+	return connect.NewResponse(&filesv1.UploadSpaceIconResponse{FileId: fileID}), nil
 }
 
-// storeImage validates and normalises an image upload, writes the blob,
-// and records the file row. Validation failures are InvalidArgument.
-func (s *Service) storeImage(ctx context.Context, kind Kind, ownerID string, spaceID *string, data []byte, size int) (dbgen.File, error) {
-	encoded, err := processImage(data, size)
-	if err != nil {
-		return dbgen.File{}, connect.NewError(connect.CodeInvalidArgument, err)
+// queueImage refuses what the request can tell cheaply, stores the bytes
+// as sent under a pending row and queues the normalise_image job in the
+// target's lane, so two uploads for one target apply in arrival order.
+func (s *Service) queueImage(ctx context.Context, kind Kind, ownerID string, spaceID *string, data []byte, args NormaliseImageArgs, lane string) (string, error) {
+	if s.jobs == nil {
+		return "", connect.NewError(connect.CodeUnavailable, errors.New("the job queue is not running"))
 	}
-	if err := s.checkQuota(ctx, int64(len(encoded))); err != nil {
-		if errors.Is(err, ErrStorageFull) {
-			return dbgen.File{}, connect.NewError(connect.CodeResourceExhausted, err)
-		}
-		return dbgen.File{}, err
+	contentType, err := validateImage(data)
+	if err != nil {
+		return "", connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	file, err := s.storePendingImage(ctx, kind, ownerID, spaceID, data, contentType)
+	if err != nil {
+		return "", err
+	}
+	args.FileID = file.ID
+	if _, err := s.jobs.EnqueueInLane(ctx, NormaliseImageKind, args, lane, time.Now().UnixNano()); err != nil {
+		s.discard(ctx, file)
+		return "", fmt.Errorf("queue %s: %w", NormaliseImageKind, err)
+	}
+	return file.ID, nil
+}
+
+// storePendingImage writes the upload's own bytes and records the pending
+// row, with the quota checked on their size. Quota failures are
+// ResourceExhausted.
+func (s *Service) storePendingImage(ctx context.Context, kind Kind, ownerID string, spaceID *string, data []byte, contentType string) (dbgen.File, error) {
+	size := int64(len(data))
+	if err := s.checkQuota(ctx, size); err != nil {
+		return dbgen.File{}, quotaError(err)
 	}
 	id := rowid.New()
 	key := storageKey(kind, id)
-	if err := s.store.Put(ctx, key, bytes.NewReader(encoded), int64(len(encoded)), "image/png"); err != nil {
+	if err := s.store.Put(ctx, key, bytes.NewReader(data), size, contentType); err != nil {
 		return dbgen.File{}, fmt.Errorf("store blob: %w", err)
 	}
-	sum := sha256.Sum256(encoded)
-	f, err := s.recordFile(ctx, dbgen.CreateFileParams{
+	sum := sha256.Sum256(data)
+	file, err := s.recordPendingFile(ctx, dbgen.CreatePendingFileParams{
 		ID: id, Kind: string(kind), OwnerID: ownerID, SpaceID: spaceID,
-		ContentType: "image/png", Size: int64(len(encoded)), Sha256: sum[:], StorageKey: key, Name: "",
+		ContentType: contentType, Size: size, Sha256: sum[:], StorageKey: key,
 	})
 	if err != nil {
 		if derr := s.store.Delete(ctx, key); derr != nil {
 			s.log.Warn("orphan blob after failed insert", "key", key, "err", derr)
 		}
 		if errors.Is(err, ErrStorageFull) {
-			return dbgen.File{}, connect.NewError(connect.CodeResourceExhausted, err)
+			return dbgen.File{}, quotaError(err)
 		}
 		return dbgen.File{}, fmt.Errorf("record file: %w", err)
 	}
-	return f, nil
+	return file, nil
 }
 
-// discard undoes storeImage after a later step failed.
-func (s *Service) discard(ctx context.Context, f dbgen.File) {
-	if _, err := s.q.DeleteFile(ctx, f.ID); err != nil {
-		s.log.Warn("could not delete file row", "file_id", f.ID, "err", err)
+// quotaError maps ErrStorageFull onto its Connect code; any other error
+// passes unchanged.
+func quotaError(err error) error {
+	if errors.Is(err, ErrStorageFull) {
+		return connect.NewError(connect.CodeResourceExhausted, err)
 	}
-	if err := s.store.Delete(ctx, f.StorageKey); err != nil {
-		s.log.Warn("could not delete blob", "key", f.StorageKey, "err", err)
+	return err
+}
+
+// discard removes a file whose row is known, after a later step failed.
+func (s *Service) discard(ctx context.Context, file dbgen.File) {
+	if _, err := s.q.DeleteFile(ctx, file.ID); err != nil {
+		s.log.Warn("could not delete file row", "file_id", file.ID, "err", err)
+	}
+	if err := s.store.Delete(ctx, file.StorageKey); err != nil {
+		s.log.Warn("could not delete blob", "key", file.StorageKey, "err", err)
 	}
 }
 
-// deleteFile removes a replaced file's row and blob. Failures are logged,
-// not returned: the new file is already in place and an orphan blob is
-// harmless (a GC sweep is planned).
+// deleteFile removes a file's row and blob by id. Failures are logged,
+// not returned: the caller has already moved on and an orphan blob is
+// collected by the sweep.
 func (s *Service) deleteFile(ctx context.Context, id string) {
 	if id == "" {
 		return
 	}
-	f, err := s.q.DeleteFile(ctx, id)
+	file, err := s.q.DeleteFile(ctx, id)
 	if err != nil {
-		s.log.Warn("could not delete replaced file row", "file_id", id, "err", err)
+		s.log.Warn("could not delete file row", "file_id", id, "err", err)
 		return
 	}
-	if err := s.store.Delete(ctx, f.StorageKey); err != nil {
-		s.log.Warn("could not delete replaced blob", "key", f.StorageKey, "err", err)
+	if err := s.store.Delete(ctx, file.StorageKey); err != nil {
+		s.log.Warn("could not delete blob", "key", file.StorageKey, "err", err)
 	}
 }

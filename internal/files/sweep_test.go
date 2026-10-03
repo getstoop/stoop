@@ -3,6 +3,7 @@ package files_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -114,19 +115,62 @@ func TestSweep(t *testing.T) {
 	}
 }
 
-// fakeJobQueue records what was enqueued and answers with a fixed id.
+// queuedJob is one enqueue as the fake saw it; args is decoded for
+// normalise_image, the one kind files queues with arguments.
+type queuedJob struct {
+	kind     string
+	lane     string
+	sequence int64
+	args     files.NormaliseImageArgs
+}
+
+// fakeJobQueue records what was enqueued and answers with a counting id.
 type fakeJobQueue struct {
-	kinds []string
+	jobs []queuedJob
+	// fail is what every enqueue answers when set.
+	fail error
 }
 
-func (q *fakeJobQueue) Enqueue(_ context.Context, kind string, _ any) (string, error) {
-	q.kinds = append(q.kinds, kind)
-	return "job-1", nil
+func (q *fakeJobQueue) Enqueue(_ context.Context, kind string, args any) (string, error) {
+	return q.record(kind, args, "", 0)
 }
 
-func (q *fakeJobQueue) EnqueueInLane(_ context.Context, kind string, _ any, _ string, _ int64) (string, error) {
-	q.kinds = append(q.kinds, kind)
-	return "job-1", nil
+func (q *fakeJobQueue) EnqueueInLane(_ context.Context, kind string, args any, lane string, sequence int64) (string, error) {
+	return q.record(kind, args, lane, sequence)
+}
+
+func (q *fakeJobQueue) record(kind string, args any, lane string, sequence int64) (string, error) {
+	if q.fail != nil {
+		return "", q.fail
+	}
+	job := queuedJob{kind: kind, lane: lane, sequence: sequence}
+	if kind == files.NormaliseImageKind {
+		// Through JSON, as the real queue carries them.
+		encoded, err := json.Marshal(args)
+		if err != nil {
+			return "", err
+		}
+		if err := json.Unmarshal(encoded, &job.args); err != nil {
+			return "", err
+		}
+	}
+	q.jobs = append(q.jobs, job)
+	return fmt.Sprintf("job-%d", len(q.jobs)), nil
+}
+
+// perform runs the oldest queued normalise_image job as the dispatcher
+// would and returns what the performer returned.
+func (q *fakeJobQueue) perform(t *testing.T, svc *files.Service, lastAttempt bool) error {
+	t.Helper()
+	for index, job := range q.jobs {
+		if job.kind != files.NormaliseImageKind {
+			continue
+		}
+		q.jobs = append(q.jobs[:index], q.jobs[index+1:]...)
+		return svc.NormaliseImage(context.Background(), job.args, lastAttempt)
+	}
+	t.Fatal("no normalise_image job queued")
+	return nil
 }
 
 // The RPC is admin-only; it queues one sweep_files job rather than
@@ -140,6 +184,8 @@ func TestSweepFilesEnqueues(t *testing.T) {
 		return connect.NewRequest(&filesv1.SweepFilesRequest{})
 	}
 
+	f.queue = nil
+	f.svc = newService(f, f.avatars)
 	if _, err := f.svc.SweepFiles(admin, request()); connect.CodeOf(err) != connect.CodeUnavailable {
 		t.Errorf("no queue: want unavailable, got %v", err)
 	}
@@ -152,8 +198,8 @@ func TestSweepFilesEnqueues(t *testing.T) {
 	if err != nil || res.Msg.JobId != "job-1" {
 		t.Errorf("admin sweep: %v %v", res, err)
 	}
-	if len(queue.kinds) != 1 || queue.kinds[0] != files.SweepFilesKind {
-		t.Errorf("enqueued %v, want one %s", queue.kinds, files.SweepFilesKind)
+	if len(queue.jobs) != 1 || queue.jobs[0].kind != files.SweepFilesKind {
+		t.Errorf("enqueued %v, want one %s", queue.jobs, files.SweepFilesKind)
 	}
 }
 
