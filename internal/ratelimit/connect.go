@@ -31,7 +31,7 @@ func Interceptor(l *Limiter, trusts func(remoteAddr string) bool, procedures ...
 			}
 			if !allowed {
 				err := connect.NewError(connect.CodeResourceExhausted,
-					errors.New("too many attempts from your address; try again in a minute"))
+					errors.New("too many attempts; try again later"))
 				err.Meta().Set("Retry-After", strconv.Itoa(int(RetryAfter.Seconds())))
 				return nil, err
 			}

@@ -240,13 +240,18 @@ func errInvalidCredentials() error {
 	return connect.NewError(connect.CodeUnauthenticated, errors.New("invalid username or password"))
 }
 
+// tooManyAttempts is the one refusal for a locked handle and for a
+// throttled address, so the form never says which it was.
+const tooManyAttempts = "too many attempts; try again later"
+
 func errLockedOut(wait time.Duration) error {
 	secs := int(wait.Round(time.Second).Seconds())
 	if secs < 1 {
 		secs = 1
 	}
-	err := connect.NewError(connect.CodeResourceExhausted,
-		fmt.Errorf("too many failed sign-in attempts; try again in %ds", secs))
+	// The message says nothing about how long or why: the wait is in the
+	// header for a client that wants it, not on the form for a guesser.
+	err := connect.NewError(connect.CodeResourceExhausted, errors.New(tooManyAttempts))
 	err.Meta().Set("Retry-After", fmt.Sprint(secs))
 	return err
 }
