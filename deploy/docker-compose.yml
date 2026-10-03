@@ -15,6 +15,54 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+# The image the stoop and jobs services run. Pinned to the release this
+# file shipped with; each release candidate moves it. Rolling back one
+# release is editing this line and `up -d`.
+x-stoop-image: &stoop-image
+  image: ghcr.io/getstoop/stoop:0.3.1
+
+# Everything in .env reaches the server, so any variable in
+# docs/self-hosting/configuration.md can be set there. The entries below
+# are the ones this file computes, pins, or defaults differently from a
+# bare binary; they win over .env, because `environment:` takes
+# precedence over `env_file:`. The jobs service takes the same set.
+x-stoop-environment: &stoop-environment
+  TZ: ${TZ:-UTC}
+  STOOP_DATABASE_URL: ${STOOP_DATABASE_URL:-postgres://stoop:${POSTGRES_PASSWORD:-}@postgres:5432/stoop?sslmode=disable}
+  STOOP_PUBLIC_URL: ${STOOP_PUBLIC_URL:-}
+  STOOP_TRUST_PROXY: ${STOOP_TRUST_PROXY:-false}
+  STOOP_SECURE_COOKIES: ${STOOP_SECURE_COOKIES:-false}
+  STOOP_ALLOWED_WS_ORIGINS: ${STOOP_ALLOWED_WS_ORIGINS:-localhost:*}
+  STOOP_STORAGE_DIR: /data
+  STOOP_LIVEKIT_URL: ${STOOP_LIVEKIT_URL:-http://livekit:7880}
+  # Optional: set these in .env to use a pair you already have. Left
+  # empty, Stoop mints one on first boot and writes it to the shared
+  # livekit-keys volume for the sidecar.
+  STOOP_LIVEKIT_API_KEY: ${STOOP_LIVEKIT_API_KEY:-}
+  STOOP_LIVEKIT_API_SECRET: ${STOOP_LIVEKIT_API_SECRET:-}
+  STOOP_LIVEKIT_KEY_FILE: /livekit-keys/keys.yaml
+  STOOP_CLOUDFLARE_TURN_KEY_ID: ${STOOP_CLOUDFLARE_TURN_KEY_ID:-}
+  STOOP_CLOUDFLARE_TURN_API_TOKEN: ${STOOP_CLOUDFLARE_TURN_API_TOKEN:-}
+  STOOP_TURN_URLS: ${STOOP_TURN_URLS:-}
+  STOOP_TURN_USERNAME: ${STOOP_TURN_USERNAME:-}
+  STOOP_TURN_CREDENTIAL: ${STOOP_TURN_CREDENTIAL:-}
+  STOOP_STUN_URLS: ${STOOP_STUN_URLS:-}
+  STOOP_CLOUDFLARE_TUNNEL: ${STOOP_CLOUDFLARE_TUNNEL:-false}
+  STOOP_CLOUDFLARE_TUNNEL_TOKEN: ${STOOP_CLOUDFLARE_TUNNEL_TOKEN:-}
+  STOOP_TAILSCALE: ${STOOP_TAILSCALE:-false}
+  STOOP_TAILSCALE_HOSTNAME: ${STOOP_TAILSCALE_HOSTNAME:-stoop}
+  STOOP_TAILSCALE_AUTHKEY: ${STOOP_TAILSCALE_AUTHKEY:-}
+  STOOP_TAILSCALE_CONTROL_URL: ${STOOP_TAILSCALE_CONTROL_URL:-}
+  STOOP_TAILSCALE_FUNNEL: ${STOOP_TAILSCALE_FUNNEL:-false}
+  # The built-in Tailscale node carries LiveKit's media ports too, so
+  # voice rides the tailnet. It needs to know where LiveKit is: the
+  # sidecar's name on this network, and the same two port settings the
+  # livekit service below takes.
+  STOOP_TAILSCALE_VOICE: ${STOOP_TAILSCALE_VOICE:-true}
+  STOOP_LIVEKIT_MEDIA_HOST: ${STOOP_LIVEKIT_MEDIA_HOST:-livekit}
+  STOOP_LIVEKIT_TCP_PORT: ${STOOP_LIVEKIT_TCP_PORT:-7881}
+  STOOP_LIVEKIT_UDP_PORTS: ${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}
+
 services:
   # Runs once, before stoop: hands the key volume to the user stoop runs
   # as, which a PUID other than the image's own could not write to. It
@@ -29,9 +77,7 @@ services:
     logging: *logging
 
   stoop:
-    # Pinned to the release this file shipped with; each release candidate
-    # moves it. Rolling back one release is editing this line and `up -d`.
-    image: ghcr.io/getstoop/stoop:0.3.1
+    <<: *stoop-image
     restart: unless-stopped
     # Covers the ten-second shutdown, so in-flight jobs are given back.
     stop_grace_period: 15s
@@ -55,48 +101,8 @@ services:
       postgres:
         condition: service_healthy
         required: false
-    # Everything in .env reaches the server, so any variable in
-    # docs/self-hosting/configuration.md can be set there. The
-    # entries below are the ones this file computes, pins, or defaults
-    # differently from a bare binary; they win over .env, because
-    # `environment:` takes precedence over `env_file:`.
     env_file: .env
-    environment:
-      TZ: ${TZ:-UTC}
-      STOOP_DATABASE_URL: ${STOOP_DATABASE_URL:-postgres://stoop:${POSTGRES_PASSWORD:-}@postgres:5432/stoop?sslmode=disable}
-      STOOP_PUBLIC_URL: ${STOOP_PUBLIC_URL:-}
-      STOOP_TRUST_PROXY: ${STOOP_TRUST_PROXY:-false}
-      STOOP_SECURE_COOKIES: ${STOOP_SECURE_COOKIES:-false}
-      STOOP_ALLOWED_WS_ORIGINS: ${STOOP_ALLOWED_WS_ORIGINS:-localhost:*}
-      STOOP_STORAGE_DIR: /data
-      STOOP_LIVEKIT_URL: ${STOOP_LIVEKIT_URL:-http://livekit:7880}
-      # Optional: set these in .env to use a pair you already have. Left
-      # empty, Stoop mints one on first boot and writes it to the shared
-      # livekit-keys volume for the sidecar.
-      STOOP_LIVEKIT_API_KEY: ${STOOP_LIVEKIT_API_KEY:-}
-      STOOP_LIVEKIT_API_SECRET: ${STOOP_LIVEKIT_API_SECRET:-}
-      STOOP_LIVEKIT_KEY_FILE: /livekit-keys/keys.yaml
-      STOOP_CLOUDFLARE_TURN_KEY_ID: ${STOOP_CLOUDFLARE_TURN_KEY_ID:-}
-      STOOP_CLOUDFLARE_TURN_API_TOKEN: ${STOOP_CLOUDFLARE_TURN_API_TOKEN:-}
-      STOOP_TURN_URLS: ${STOOP_TURN_URLS:-}
-      STOOP_TURN_USERNAME: ${STOOP_TURN_USERNAME:-}
-      STOOP_TURN_CREDENTIAL: ${STOOP_TURN_CREDENTIAL:-}
-      STOOP_STUN_URLS: ${STOOP_STUN_URLS:-}
-      STOOP_CLOUDFLARE_TUNNEL: ${STOOP_CLOUDFLARE_TUNNEL:-false}
-      STOOP_CLOUDFLARE_TUNNEL_TOKEN: ${STOOP_CLOUDFLARE_TUNNEL_TOKEN:-}
-      STOOP_TAILSCALE: ${STOOP_TAILSCALE:-false}
-      STOOP_TAILSCALE_HOSTNAME: ${STOOP_TAILSCALE_HOSTNAME:-stoop}
-      STOOP_TAILSCALE_AUTHKEY: ${STOOP_TAILSCALE_AUTHKEY:-}
-      STOOP_TAILSCALE_CONTROL_URL: ${STOOP_TAILSCALE_CONTROL_URL:-}
-      STOOP_TAILSCALE_FUNNEL: ${STOOP_TAILSCALE_FUNNEL:-false}
-      # The built-in Tailscale node carries LiveKit's media ports too, so
-      # voice rides the tailnet. It needs to know where LiveKit is: the
-      # sidecar's name on this network, and the same two port settings the
-      # livekit service below takes.
-      STOOP_TAILSCALE_VOICE: ${STOOP_TAILSCALE_VOICE:-true}
-      STOOP_LIVEKIT_MEDIA_HOST: ${STOOP_LIVEKIT_MEDIA_HOST:-livekit}
-      STOOP_LIVEKIT_TCP_PORT: ${STOOP_LIVEKIT_TCP_PORT:-7881}
-      STOOP_LIVEKIT_UDP_PORTS: ${STOOP_LIVEKIT_UDP_PORTS:-50000-50100}
+    environment: *stoop-environment
     volumes:
       # Uploaded files and the Tailscale node identity. Back this up with
       # Postgres. STOOP_DATA_PATH puts it on a path of yours instead.
@@ -106,6 +112,33 @@ services:
       - livekit-keys:/livekit-keys
     ports:
       - "${STOOP_PORT:-8080}:8080"
+
+  # The job dispatcher as its own container: set STOOP_JOBS=external in
+  # .env and add jobs to COMPOSE_PROFILES. It shares the uploads volume
+  # because the file sweep touches blobs.
+  jobs:
+    <<: *stoop-image
+    profiles: ["jobs"]
+    command: jobs
+    restart: unless-stopped
+    stop_grace_period: 15s
+    user: "${PUID:-65532}:${PGID:-65532}"
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    # Waits for a healthy stoop so migrations have run once, in the server.
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+      stoop:
+        condition: service_healthy
+    env_file: .env
+    environment: *stoop-environment
+    volumes:
+      - ${STOOP_DATA_PATH:-stoop-data}:/data
 
   postgres:
     image: postgres:16-alpine

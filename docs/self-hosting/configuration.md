@@ -36,6 +36,7 @@ the server. Two are pinned by the compose file itself and ignore what
 | `STOOP_JOBS_WORKERS`       | `4`                         | How many background jobs run at once |
 | `STOOP_JOBS_POLL`          | `2s`                        | How often the dispatcher looks for due jobs |
 | `STOOP_JOBS_RETENTION`     | `168h`                      | How long finished job rows are kept for the Background work panel; `0` keeps them forever |
+| `STOOP_JOBS`               | `embedded`                  | Where the job dispatcher runs. `external` runs no jobs in the server, for the `jobs` compose service or your own `stoop jobs`; `child` has the server start and supervise `stoop jobs` itself. See [Running background jobs apart](install.md#running-background-jobs-apart) |
 | `STOOP_DEV_WEB_URL`        | (empty)                     | Serve the web app from a Vite dev server at this address instead of the embedded build, allowing inline scripts for its hot reload. **Development only** — `make dev` sets it |
 | `STOOP_VOICE`              | `true`                      | `false` runs a text-only server: LiveKit is ignored, no key pair is minted, and voice channels are hidden. Nothing is deleted |
 | `STOOP_LIVEKIT_URL`        | (empty)                     | LiveKit sidecar address the app proxies signaling to, e.g. `http://livekit:7880` (voice) |
@@ -75,7 +76,7 @@ the Docker Compose install only.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `COMPOSE_PROFILES` | `bundled-postgres,bundled-livekit` | Which bundled services run. Without `bundled-postgres` you [use your own Postgres](install.md#using-your-own-postgres); without `bundled-livekit` you [run without voice](voice.md#running-without-voice) |
+| `COMPOSE_PROFILES` | `bundled-postgres,bundled-livekit` | Which bundled services run. Without `bundled-postgres` you [use your own Postgres](install.md#using-your-own-postgres); without `bundled-livekit` you [run without voice](voice.md#running-without-voice); with `jobs` you [run the background jobs apart](install.md#running-background-jobs-apart) |
 | `STOOP_PORT` | `8080` | The port the web app is published on |
 | `TZ` | `UTC` | Time zone of the timestamps in `docker compose logs` |
 | `STOOP_DATA_PATH` | `stoop-data` volume | Where uploads and the Tailscale node identity live; see [Where the data lives](install.md#where-the-data-lives) |

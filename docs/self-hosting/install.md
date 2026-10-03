@@ -157,6 +157,27 @@ Then `docker compose up -d`. The bundled Postgres no longer starts, and
   lines there run against your server instead of `docker compose exec
   postgres`. The `stoop-data` volume still holds the uploads.
 
+### Running background jobs apart
+
+The sweeps and outgoing webhook deliveries run inside the server by
+default. To run them in their own container, in `.env` set
+`STOOP_JOBS=external` and add `jobs` to `COMPOSE_PROFILES`:
+
+```sh
+COMPOSE_PROFILES=bundled-postgres,bundled-livekit,jobs
+STOOP_JOBS=external
+```
+
+Then `docker compose up -d`. The `jobs` service starts once `stoop` is
+healthy and works the queue; the server runs none itself. Server admin →
+Diagnostics → Health shows the `jobs runner` row at ok while a runner has
+been seen in the last minute, and at danger when none has.
+
+The runner must see the same uploads directory as the server, because file
+storage is local disk and the file sweep removes blobs: the compose
+service mounts the same volume; a bare `stoop jobs` runs on the same host,
+or against the same mounted path, with the server's environment.
+
 ### Where the data lives
 
 To keep uploads and the database on a disk you already back up, set the
