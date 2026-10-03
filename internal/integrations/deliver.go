@@ -84,7 +84,8 @@ type verdict struct {
 	tried  Attempt
 	result DeliveryResult
 	// settle is set when a dead delivery counts toward disabling the
-	// hook; not when the hook was already gone or disabled.
+	// hook; not when the hook was already gone or disabled, and not when
+	// the server's switch stopped it.
 	settle bool
 }
 
@@ -125,7 +126,7 @@ func (s *Service) tryDelivery(ctx context.Context, args DeliveryArgs, attempt, m
 		return verdict{}, err
 	}
 	if !on {
-		return deadVerdict(reasonOff, true), nil
+		return deadVerdict(reasonOff, false), nil
 	}
 	hook, err := s.q.GetOutgoingWebhook(ctx, args.HookID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -252,7 +253,7 @@ func (s *Service) settleDead(ctx context.Context, hookID string) error {
 		return nil
 	}
 	for _, row := range recent {
-		if row.FinishedAt == nil || delivered(row) {
+		if row.FinishedAt == nil || delivered(row) || row.Error == reasonOff {
 			return nil
 		}
 	}

@@ -10,6 +10,15 @@ import (
 	"time"
 )
 
+const deleteDelivery = `-- name: DeleteDelivery :exec
+DELETE FROM webhook_deliveries WHERE id = $1
+`
+
+func (q *Queries) DeleteDelivery(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteDelivery, id)
+	return err
+}
+
 const getDelivery = `-- name: GetDelivery :one
 SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at FROM webhook_deliveries WHERE id = $1
 `

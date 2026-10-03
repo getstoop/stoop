@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -95,9 +96,14 @@ type fakeJobs struct {
 	mu        sync.Mutex
 	queued    []queuedJob
 	discarded []string
+	// refuse, when set, is what every enqueue fails with.
+	refuse error
 }
 
 func (jobs *fakeJobs) EnqueueInLane(_ context.Context, kind string, args any, lane string, sequence int64) (string, error) {
+	if jobs.refuse != nil {
+		return "", jobs.refuse
+	}
 	encoded, err := json.Marshal(args)
 	if err != nil {
 		return "", err
@@ -590,20 +596,52 @@ func TestOutgoingTargetsAndAuthorisation(t *testing.T) {
 func TestOutgoingTwentyDeadInARowDisable(t *testing.T) {
 	f, endpoint := outgoingFixture(t)
 	hook, _ := f.createOutgoing(t, endpoint.srv.URL+"/down", []string{EventMessageCreated}, "")
-	for range deadToDisable * testMaxAttempts {
+	for range 2 * deadToDisable * testMaxAttempts {
 		endpoint.status = append(endpoint.status, 503)
 	}
-	for index := range deadToDisable - 1 {
-		f.enqueueMessage(t, "down "+strconv.Itoa(index))
+	failTimes := func(count int, label string) {
+		for index := range count {
+			f.enqueueMessage(t, label+" "+strconv.Itoa(index))
+		}
+		f.drain(t)
 	}
-	f.drain(t)
+	failTimes(deadToDisable-1, "down")
 	if disabled, _ := f.hook(t, hook.Id); disabled {
 		t.Fatal("disabled before the twentieth dead delivery")
 	}
-	f.enqueueMessage(t, "the twentieth")
+
+	// A delivery the server's switch stopped is not the receiver's
+	// failure: it neither counts nor continues the run.
+	f.enqueueMessage(t, "stopped by the switch")
+	f.policy.outgoing = false
 	f.drain(t)
+	f.policy.outgoing = true
+	failTimes(1, "after the switch")
+	if disabled, _ := f.hook(t, hook.Id); disabled {
+		t.Fatal("disabled across a switch-off")
+	}
+
+	failTimes(deadToDisable-1, "down again")
 	if disabled, reason := f.hook(t, hook.Id); !disabled || !strings.Contains(reason, "20 deliveries in a row") {
 		t.Errorf("hook after twenty dead: %v %q", disabled, reason)
+	}
+}
+
+// A log row whose job could not be queued is removed, so nothing pending
+// is left that no job will ever finish.
+func TestFailedEnqueueLeavesNoLogRow(t *testing.T) {
+	f, endpoint := outgoingFixture(t)
+	hook, _ := f.createOutgoing(t, endpoint.srv.URL+"/hook", []string{EventMessageCreated}, "")
+	f.jobs.refuse = errors.New("the queue is down")
+	out, ok := f.svc.translate(context.Background(), message(f.channel, f.space, "unqueued"))
+	if !ok {
+		t.Fatal("message not translated")
+	}
+	if err := f.svc.enqueue(context.Background(), out); err == nil || !strings.Contains(err.Error(), "the queue is down") {
+		t.Fatalf("enqueue with the queue down: %v", err)
+	}
+	if rows := f.listDeliveries(t, hook.Id); len(rows) != 0 {
+		t.Errorf("log rows left without a job: %d", len(rows))
 	}
 }
 

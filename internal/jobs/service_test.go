@@ -53,8 +53,8 @@ func TestArgsCountersAndExtendReachTheRow(t *testing.T) {
 	if got := <-seen; got != (greeted{name: "casey", attempt: 1, maxAttempts: 7}) {
 		t.Errorf("performer saw %+v", got)
 	}
-	if row.LeasedUntil != nil || row.Error != "" {
-		t.Errorf("succeeded row: leased_until %v error %q", row.LeasedUntil, row.Error)
+	if row.LeasedUntil != nil || row.Error != "" || string(row.Args) != "{}" {
+		t.Errorf("succeeded row: leased_until %v error %q args %s", row.LeasedUntil, row.Error, row.Args)
 	}
 	run, err := service.GetRun(ctx, greet)
 	if err != nil || run.State != StateSucceeded || len(run.Counters) != 2 || run.Counters["bytes"] != 20 || run.Counters["greeted"] != 1 {
