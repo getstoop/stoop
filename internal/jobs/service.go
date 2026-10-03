@@ -25,7 +25,7 @@ import (
 const (
 	DefaultWorkers       = 4
 	DefaultPoll          = 2 * time.Second
-	DefaultShutdownGrace = 10 * time.Second
+	DefaultShutdownGrace = 5 * time.Second
 	DefaultLease         = 10 * time.Minute
 	DefaultMaxAttempts   = 4
 	// ScheduleLead is how soon after a schedule row is created its first

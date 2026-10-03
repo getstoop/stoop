@@ -253,12 +253,14 @@ the recovery model.
 subcommand, load config, install a signal-cancelled context, `app.New`,
 `app.Run`.
 
-`app.Run` starts the plain listener, the Tailscale manager and the
-background work ([runtime.md](runtime.md#background-work)), then blocks. On cancellation it gives the HTTP
-server ten seconds to drain, waits for the background goroutines, and
-closes the pool. A failure on the Tailscale
-listener is logged, never fatal: the plain listener is the baseline and
-must not be taken down by an optional front door.
+`app.Run` starts the plain listener, then `StartBackground` (the job
+dispatcher, the webhook subscriber, the Tailscale and Cloudflare Tunnel
+managers and the sampler; [runtime.md](runtime.md#background-work)),
+then blocks. On cancellation, or when the listener fails, it gives the
+HTTP server and the background goroutines ten seconds together, then
+closes the pool. A failure on the Tailscale listener is logged, never
+fatal: the plain listener is the baseline and must not be taken down by
+an optional front door.
 
 ## What extraction would actually involve
 
