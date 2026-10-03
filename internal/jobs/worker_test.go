@@ -19,7 +19,7 @@ func TestStaleAttemptWritesChangeNothing(t *testing.T) {
 	id := mustEnqueue(t, service, "noop", nil)
 
 	leaseUntil := clock.Now().Add(10 * time.Minute)
-	leased, err := service.queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{Until: leaseUntil, Now: clock.Now(), Kinds: []string{"noop"}, Limit: 1})
+	leased, err := service.queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{Until: leaseUntil, Now: clock.Now(), Kinds: []string{"noop"}, Excluded: []string{}, Limit: 1})
 	if err != nil || len(leased) != 1 || leased[0].Attempt != 1 {
 		t.Fatalf("lease = %+v, %v", leased, err)
 	}

@@ -47,7 +47,7 @@ func (s *Service) perform(ctx context.Context, row dbgen.Job, tracked *inflight)
 
 func (s *Service) newJob(row dbgen.Job) *Job {
 	return &Job{
-		ID: row.ID, Kind: row.Kind, Attempt: int(row.Attempt), args: row.Args, now: s.now,
+		ID: row.ID, Kind: row.Kind, Attempt: int(row.Attempt), MaxAttempts: int(row.MaxAttempts), args: row.Args, now: s.now,
 		extend: func(ctx context.Context, until time.Time) error {
 			return s.extendLease(ctx, row, until)
 		},

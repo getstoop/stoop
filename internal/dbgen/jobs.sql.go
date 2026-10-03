@@ -21,6 +21,27 @@ func (q *Queries) CountQueuedJobs(ctx context.Context, kind string) (int64, erro
 	return count, err
 }
 
+const discardLane = `-- name: DiscardLane :execrows
+UPDATE jobs
+SET state = 'discarded', finished_at = $1::timestamptz, leased_until = NULL, error = $2
+WHERE lane = $3::text AND state = 'queued'
+`
+
+type DiscardLaneParams struct {
+	Now   time.Time
+	Error string
+	Lane  string
+}
+
+// DiscardLane ends a lane's queued rows; a running one finishes on its own.
+func (q *Queries) DiscardLane(ctx context.Context, arg DiscardLaneParams) (int64, error) {
+	result, err := q.db.Exec(ctx, discardLane, arg.Now, arg.Error, arg.Lane)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const extendJobLease = `-- name: ExtendJobLease :execrows
 UPDATE jobs SET leased_until = GREATEST(leased_until, $1::timestamptz)
 WHERE id = $2 AND attempt = $3 AND state = 'running'
@@ -45,7 +66,8 @@ func (q *Queries) ExtendJobLease(ctx context.Context, arg ExtendJobLeaseParams) 
 const finishJob = `-- name: FinishJob :execrows
 UPDATE jobs
 SET state = $1, finished_at = $2::timestamptz, leased_until = NULL,
-    error = $3, counters = $4
+    error = $3, counters = $4,
+    args = CASE WHEN $1::text = 'succeeded' THEN '{}'::jsonb ELSE args END
 WHERE id = $5 AND attempt = $6
 `
 
@@ -59,7 +81,8 @@ type FinishJobParams struct {
 }
 
 // The outcome writes match the attempt they were leased for, so a stale
-// attempt whose lease lapsed changes nothing.
+// attempt whose lease lapsed changes nothing. A succeeded job's arguments
+// are not kept: nothing reads them, and they may carry content.
 func (q *Queries) FinishJob(ctx context.Context, arg FinishJobParams) (int64, error) {
 	result, err := q.db.Exec(ctx, finishJob,
 		arg.State,
@@ -104,14 +127,17 @@ func (q *Queries) GetJob(ctx context.Context, id string) (Job, error) {
 
 const insertJob = `-- name: InsertJob :exec
 
-INSERT INTO jobs (id, kind, args, state, attempt, max_attempts, not_before, created_at)
-VALUES ($1, $2, $3, 'queued', 0, $4, $5::timestamptz, $6::timestamptz)
+INSERT INTO jobs (id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, created_at)
+VALUES ($1, $2, $3, $4, $5, 'queued', 0,
+        $6, $7::timestamptz, $8::timestamptz)
 `
 
 type InsertJobParams struct {
 	ID          string
 	Kind        string
 	Args        []byte
+	Lane        *string
+	Sequence    *int64
 	MaxAttempts int32
 	NotBefore   time.Time
 	Now         time.Time
@@ -125,11 +151,51 @@ func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) error {
 		arg.ID,
 		arg.Kind,
 		arg.Args,
+		arg.Lane,
+		arg.Sequence,
 		arg.MaxAttempts,
 		arg.NotBefore,
 		arg.Now,
 	)
 	return err
+}
+
+const kindBacklog = `-- name: KindBacklog :one
+SELECT
+    count(*) FILTER (WHERE j.state = 'queued' OR j.leased_until < $1::timestamptz)::bigint AS queued,
+    count(*) FILTER (WHERE j.state = 'running' AND j.leased_until >= $1::timestamptz)::bigint AS running,
+    COALESCE(min(j.not_before) FILTER (WHERE (j.state = 'queued' OR j.leased_until < $1::timestamptz)
+                                       AND j.not_before <= $1::timestamptz
+                                       AND (j.lane IS NULL OR NOT EXISTS (
+                                           SELECT 1 FROM jobs o
+                                           WHERE o.lane = j.lane AND o.state IN ('queued', 'running')
+                                             AND (o.sequence, o.id) < (j.sequence, j.id)
+                                       ))),
+             '0001-01-01 00:00:00+00'::timestamptz)::timestamptz AS oldest_due
+FROM jobs j
+WHERE j.kind = $2 AND j.state IN ('queued', 'running')
+`
+
+type KindBacklogParams struct {
+	Now  time.Time
+	Kind string
+}
+
+type KindBacklogRow struct {
+	Queued    int64
+	Running   int64
+	OldestDue time.Time
+}
+
+// KindBacklog counts a kind's unfinished rows: waiting (queued, or running
+// with a lapsed lease), running on a live lease, and the earliest due
+// not_before among the waiting rows the dispatcher could lease (a row
+// held behind its lane's head is not one), the zero time when none is.
+func (q *Queries) KindBacklog(ctx context.Context, arg KindBacklogParams) (KindBacklogRow, error) {
+	row := q.db.QueryRow(ctx, kindBacklog, arg.Now, arg.Kind)
+	var i KindBacklogRow
+	err := row.Scan(&i.Queued, &i.Running, &i.OldestDue)
+	return i, err
 }
 
 const lastStartedJob = `-- name: LastStartedJob :one
@@ -196,27 +262,38 @@ WHERE j.id IN (
       AND c.kind = ANY($3::text[])
       AND c.not_before <= $2::timestamptz
       AND (c.leased_until IS NULL OR c.leased_until < $2::timestamptz)
+      AND NOT (c.id = ANY($4::uuid[]))
+      AND (c.lane IS NULL OR NOT EXISTS (
+          SELECT 1 FROM jobs o
+          WHERE o.lane = c.lane AND o.state IN ('queued', 'running')
+            AND (o.sequence, o.id) < (c.sequence, c.id)
+      ))
     ORDER BY c.not_before, c.created_at
-    LIMIT $4
+    LIMIT $5
     FOR UPDATE SKIP LOCKED
 )
 RETURNING j.id, j.kind, j.args, j.lane, j.sequence, j.state, j.attempt, j.max_attempts, j.not_before, j.leased_until, j.started_at, j.finished_at, j.error, j.counters, j.created_at
 `
 
 type LeaseJobsParams struct {
-	Until time.Time
-	Now   time.Time
-	Kinds []string
-	Limit int32
+	Until    time.Time
+	Now      time.Time
+	Kinds    []string
+	Excluded []string
+	Limit    int32
 }
 
 // LeaseJobs claims due rows of the kinds this dispatcher performs whose
-// lease is absent or lapsed. A lapsed lease claimed again is a new attempt.
+// lease is absent or lapsed, skipping the rows it still has in flight. A
+// lapsed lease claimed again is a new attempt. A row with a lane is its
+// lane's head: no other unfinished row in the lane has a lower
+// (sequence, id). A head waiting on its backoff holds the lane.
 func (q *Queries) LeaseJobs(ctx context.Context, arg LeaseJobsParams) ([]Job, error) {
 	rows, err := q.db.Query(ctx, leaseJobs,
 		arg.Until,
 		arg.Now,
 		arg.Kinds,
+		arg.Excluded,
 		arg.Limit,
 	)
 	if err != nil {
@@ -254,7 +331,7 @@ func (q *Queries) LeaseJobs(ctx context.Context, arg LeaseJobsParams) ([]Job, er
 }
 
 const releaseJobs = `-- name: ReleaseJobs :exec
-UPDATE jobs SET state = 'queued', leased_until = NULL
+UPDATE jobs SET state = 'queued', leased_until = NULL, attempt = attempt - 1
 WHERE state = 'running'
   AND (id, attempt) IN (SELECT unnest($1::uuid[]), unnest($2::int[]))
 `
@@ -265,7 +342,8 @@ type ReleaseJobsParams struct {
 }
 
 // ReleaseJobs clears the lease on a dispatcher's in-flight rows at
-// shutdown, so the next start retries them.
+// shutdown and gives back the attempt the lease counted, so the next start
+// retries them at no cost.
 func (q *Queries) ReleaseJobs(ctx context.Context, arg ReleaseJobsParams) error {
 	_, err := q.db.Exec(ctx, releaseJobs, arg.Ids, arg.Attempts)
 	return err

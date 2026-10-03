@@ -68,7 +68,7 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 	}
 	now := s.now()
 	rows, err := s.queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{
-		Until: now.Add(s.lease), Now: now, Kinds: s.registry.Kinds(), Limit: int32(free),
+		Until: now.Add(s.lease), Now: now, Kinds: s.registry.Kinds(), Excluded: tracked.ids(), Limit: int32(free),
 	})
 	if err != nil {
 		s.logUnlessStopping(ctx, "jobs: lease", err)
@@ -87,22 +87,26 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 	return len(rows) == free
 }
 
-// shutdown waits for the workers up to ShutdownGrace, cancels what is
-// still running, releases those rows, removes the heartbeat and gives the
-// cancelled workers outcomeTimeout to leave before the caller closes the
-// pool.
+// shutdown waits for the workers up to ShutdownGrace, takes over the rows
+// still in flight before cancelling what runs them (so a performer that
+// returns on the cancel writes no outcome), releases those rows, removes
+// the heartbeat and gives the cancelled workers outcomeTimeout to leave
+// before the caller closes the pool.
 func (s *Service) shutdown(dispatcherID string, workers *sync.WaitGroup, cancelWork context.CancelFunc, tracked *inflight) {
 	done := make(chan struct{})
 	go func() {
 		workers.Wait()
 		close(done)
 	}()
+	var ids []string
+	var attempts []int32
 	if !waitUntil(done, s.cfg.ShutdownGrace) {
+		ids, attempts = tracked.drain()
 		cancelWork()
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), outcomeTimeout)
 	defer cancel()
-	if ids, attempts := tracked.drain(); len(ids) > 0 {
+	if len(ids) > 0 {
 		if err := s.queries.ReleaseJobs(ctx, dbgen.ReleaseJobsParams{Ids: ids, Attempts: attempts}); err != nil {
 			s.log.Error("jobs: release in-flight rows", "count", len(ids), "err", err)
 		}
