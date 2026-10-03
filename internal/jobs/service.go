@@ -81,6 +81,8 @@ type Service struct {
 	// lease is how long one attempt holds its row; the worker renews it
 	// every half lease while the performer runs.
 	lease time.Duration
+	// listening, when set by a test, is called after each LISTEN succeeds.
+	listening func()
 }
 
 // New builds the module over the pool. It registers the sweep_jobs kind

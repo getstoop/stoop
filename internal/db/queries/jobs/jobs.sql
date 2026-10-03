@@ -2,10 +2,15 @@
 -- these queries. The clock is always the caller's, never now(), so one
 -- clock decides due-ness and leases. See docs/proposals/jobs.md.
 
+-- InsertJob raises jobs.NotifyChannel, so the dispatcher wakes without a trigger.
 -- name: InsertJob :exec
-INSERT INTO jobs (id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, created_at)
-VALUES (sqlc.arg(id), sqlc.arg(kind), sqlc.arg(args), sqlc.narg(lane), sqlc.narg(sequence), 'queued', 0,
-        sqlc.arg(max_attempts), sqlc.arg(not_before)::timestamptz, sqlc.arg(now)::timestamptz);
+WITH inserted AS (
+    INSERT INTO jobs (id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, created_at)
+    VALUES (sqlc.arg(id), sqlc.arg(kind), sqlc.arg(args), sqlc.narg(lane), sqlc.narg(sequence), 'queued', 0,
+            sqlc.arg(max_attempts), sqlc.arg(not_before)::timestamptz, sqlc.arg(now)::timestamptz)
+    RETURNING id
+)
+SELECT pg_notify('stoop_jobs', '') FROM inserted;
 
 -- LeaseJobs claims due rows of the kinds this dispatcher performs whose
 -- lease is absent or lapsed, skipping the rows it still has in flight. A
