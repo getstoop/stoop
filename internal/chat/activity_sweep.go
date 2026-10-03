@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"time"
-
-	"github.com/getstoop/stoop/internal/diag"
 )
 
 // Activity retention. Mention, reply and DM items are rows that nobody
@@ -13,10 +11,6 @@ import (
 // but not forever. The sweep removes read items older than the retention
 // window; unread ones stay however old, so nothing someone hasn't seen is
 // taken from them.
-
-const (
-	activitySweepDelay = 2 * time.Minute
-)
 
 // SweepActivity removes read activity items whose read_at is older than
 // retention and reports how many went. retention <= 0 removes none.
@@ -36,39 +30,3 @@ func (s *Service) SweepActivity(ctx context.Context, retention time.Duration) (i
 
 // SweepActivityKind is the job kind internal/app registers for SweepActivity.
 const SweepActivityKind = "sweep_activity"
-
-var activityRetention = diag.NewJob("activity_retention")
-
-// RunActivitySweeper sweeps on a timer until ctx ends: once shortly
-// after start, then every interval. interval or retention <= 0 disables.
-func (s *Service) RunActivitySweeper(ctx context.Context, interval, retention time.Duration) {
-	if interval <= 0 || retention <= 0 {
-		return
-	}
-	activityRetention.Every(interval)
-	run := func() {
-		activityRetention.Run(func() (diag.Counters, error) {
-			n, err := s.SweepActivity(ctx, retention)
-			if err != nil && ctx.Err() == nil {
-				slog.Default().Warn("activity sweep failed", "err", err)
-			}
-			return diag.Counters{"rows_trimmed": n}, err
-		})
-	}
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(activitySweepDelay):
-		run()
-	}
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			run()
-		}
-	}
-}

@@ -2,8 +2,10 @@ package instance
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
+	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
@@ -11,8 +13,8 @@ import (
 	"github.com/getstoop/stoop/internal/pbtime"
 )
 
-// The Background work panel: every job the modules record into
-// internal/diag, plus the webhook queue through a port on integrations.
+// The Background work panel: every job through a port wired in
+// internal/app, plus the webhook queue through a port on integrations.
 // See docs/architecture/diagnostics.md.
 
 // QueueStats is the webhook queue by state; Hooks is how many outgoing
@@ -28,8 +30,20 @@ func (s *Service) UseWebhookQueue(fn func(ctx context.Context) (QueueStats, erro
 	s.webhookQueue = fn
 }
 
-func (s *Service) listJobs(ctx context.Context) *instancev1.ListJobsResponse {
+// UseJobRecords wires the job list. Without one the panel shows the
+// records kept in internal/diag alone.
+func (s *Service) UseJobRecords(fn func(ctx context.Context) ([]diag.JobRecord, error)) {
+	s.jobRecords = fn
+}
+
+func (s *Service) listJobs(ctx context.Context) (*instancev1.ListJobsResponse, error) {
 	recs := diag.Default.Jobs()
+	if s.jobRecords != nil {
+		var err error
+		if recs, err = s.jobRecords(ctx); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list jobs: %w", err))
+		}
+	}
 	resp := &instancev1.ListJobsResponse{Jobs: make([]*instancev1.Job, 0, len(recs))}
 	for _, r := range recs {
 		resp.Jobs = append(resp.Jobs, toProtoJob(r))
@@ -45,7 +59,7 @@ func (s *Service) listJobs(ctx context.Context) *instancev1.ListJobsResponse {
 	resp.Webhooks = &instancev1.QueueStats{
 		Queued: q.Queued, Leased: q.Leased, Dead: q.Dead, DeadLastHour: q.DeadLastHour,
 	}
-	return resp
+	return resp, nil
 }
 
 func toProtoJob(r diag.JobRecord) *instancev1.Job {

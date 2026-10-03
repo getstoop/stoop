@@ -14,8 +14,9 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 
 describe("jobLabel", () => {
-  it("names the seven jobs and passes the rest through", () => {
-    expect(jobLabel("file_sweep")).toBe("File sweep");
+  it("names the eight jobs and passes the rest through", () => {
+    expect(jobLabel("sweep_files")).toBe("File sweep");
+    expect(jobLabel("sweep_jobs")).toBe("Job history sweep");
     expect(jobLabel("webhook_worker")).toBe("Webhook worker");
     expect(jobLabel("moon_phase")).toBe("moon_phase");
   });

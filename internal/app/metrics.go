@@ -1,8 +1,10 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,9 +19,11 @@ import (
 // metricsHandler answers GET /metrics with the registry in Prometheus text
 // format, for a bearer token that holds instance.read: the same verifier
 // and the same gate as the Connect procedures behind the Diagnostics tab.
-// The health rows and the build come from this package, which is the only
-// one that knows both; internal/diag stays a plain registry.
-func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service, queue *queueStats) http.Handler {
+// The health rows, the job list and the build come from this package,
+// which is the only one that knows them all; internal/diag stays a plain
+// registry.
+func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service, queue *queueStats,
+	jobList func(ctx context.Context) ([]diag.JobRecord, error), log *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		identity, err := authSvc.VerifyToken(r.Context(), token)
@@ -35,7 +39,15 @@ func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service, queue 
 		}
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		if err := diag.WriteText(w, diag.Default.Snapshot()); err != nil {
+		snap := diag.Default.Snapshot()
+		// A failed read keeps the in-memory rows, so the families still
+		// appear; the scheduled jobs are simply absent until it works.
+		if all, err := jobList(ctx); err != nil {
+			log.Warn("metrics: list jobs", "err", err)
+		} else {
+			snap.Jobs = all
+		}
+		if err := diag.WriteText(w, snap); err != nil {
 			return
 		}
 		writeHealth(w, instanceSvc.HealthSnapshot(ctx))

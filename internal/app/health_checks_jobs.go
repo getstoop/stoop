@@ -9,7 +9,7 @@ import (
 	"github.com/getstoop/stoop/internal/instance"
 )
 
-// The Health panel's last two rows, from the job recorder and the queue
+// The Health panel's last two rows, from the job list and the queue
 // port. Thresholds are the table in docs/architecture/diagnostics.md.
 
 const (
@@ -61,9 +61,15 @@ func webhooksState(q instance.QueueStats, workerLast, now time.Time) (instance.C
 
 // ---- jobs ----
 
-func newJobsCheck() instance.HealthCheck {
-	return instance.HealthCheck{Name: "jobs", Run: func(context.Context) (instance.CheckState, string) {
-		return jobsState(diag.Default.Jobs(), time.Now())
+// newJobsCheck reads every job through the same list the Background work
+// panel shows; a list that cannot be read is itself the finding.
+func newJobsCheck(records func(ctx context.Context) ([]diag.JobRecord, error)) instance.HealthCheck {
+	return instance.HealthCheck{Name: "jobs", Run: func(ctx context.Context) (instance.CheckState, string) {
+		all, err := records(ctx)
+		if err != nil {
+			return instance.CheckDanger, err.Error()
+		}
+		return jobsState(all, time.Now())
 	}}
 }
 
@@ -118,10 +124,10 @@ func jobsState(jobs []diag.JobRecord, now time.Time) (instance.CheckState, strin
 	return instance.CheckOK, detail + " · last ran " + sinceWords(now.Sub(lastRan)) + " ago"
 }
 
-// jobOff is a sweeper that was switched off: its loop returned before
-// Every, so the record has no interval and never ran.
+// jobOff is a scheduled job whose schedule is disabled: no interval,
+// whatever its history.
 func jobOff(j diag.JobRecord) bool {
-	return !j.Continuous && j.Interval <= 0 && j.LastStarted.IsZero()
+	return !j.Continuous && j.Interval <= 0
 }
 
 // sinceWords is a duration the way the row says it: "3 min", "2 h", "1 d".

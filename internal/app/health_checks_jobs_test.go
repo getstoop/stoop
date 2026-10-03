@@ -65,36 +65,38 @@ func TestJobsState(t *testing.T) {
 		}
 		return r
 	}
-	fresh := scheduled("file_sweep", now.Add(-12*time.Minute), diag.Succeeded)
+	fresh := scheduled("sweep_files", now.Add(-12*time.Minute), diag.Succeeded)
 	tests := []struct {
 		name   string
 		jobs   []diag.JobRecord
 		want   instance.CheckState
 		detail string
 	}{
-		{"just started", []diag.JobRecord{scheduled("file_sweep", time.Time{}, diag.NeverRan), {Name: "webhook_worker", Continuous: true}},
+		{"just started", []diag.JobRecord{scheduled("sweep_files", time.Time{}, diag.NeverRan), {Name: "webhook_worker", Continuous: true}},
 			instance.CheckOK, "1 jobs on schedule · none run yet"},
-		{"on schedule", []diag.JobRecord{fresh, scheduled("credential_sweep", now.Add(-50*time.Minute), diag.Succeeded)},
+		{"on schedule", []diag.JobRecord{fresh, scheduled("sweep_credentials", now.Add(-50*time.Minute), diag.Succeeded)},
 			instance.CheckOK, "2 jobs on schedule · last ran 12 min ago"},
 		{"failed", []diag.JobRecord{fresh, func() diag.JobRecord {
-			r := scheduled("message_retention", now.Add(-5*time.Minute), diag.Failed)
+			r := scheduled("sweep_messages", now.Add(-5*time.Minute), diag.Failed)
 			r.LastError = "list expired messages: timeout"
 			return r
-		}()}, instance.CheckWarn, "message_retention failed: list expired messages: timeout"},
-		{"one interval late", []diag.JobRecord{fresh, scheduled("activity_retention", now.Add(-190*time.Minute), diag.Succeeded)},
-			instance.CheckWarn, "activity_retention overdue by 2 h"},
-		{"three intervals late", []diag.JobRecord{fresh, scheduled("activity_retention", now.Add(-5*hour), diag.Succeeded)},
-			instance.CheckDanger, "activity_retention overdue by 4 h"},
+		}()}, instance.CheckWarn, "sweep_messages failed: list expired messages: timeout"},
+		{"one interval late", []diag.JobRecord{fresh, scheduled("sweep_activity", now.Add(-190*time.Minute), diag.Succeeded)},
+			instance.CheckWarn, "sweep_activity overdue by 2 h"},
+		{"three intervals late", []diag.JobRecord{fresh, scheduled("sweep_activity", now.Add(-5*hour), diag.Succeeded)},
+			instance.CheckDanger, "sweep_activity overdue by 4 h"},
 		{"danger beats a failure", []diag.JobRecord{
-			scheduled("credential_sweep", now.Add(-time.Minute), diag.Failed),
-			scheduled("activity_retention", now.Add(-5*hour), diag.Succeeded),
-		}, instance.CheckDanger, "activity_retention overdue"},
+			scheduled("sweep_credentials", now.Add(-time.Minute), diag.Failed),
+			scheduled("sweep_activity", now.Add(-5*hour), diag.Succeeded),
+		}, instance.CheckDanger, "sweep_activity overdue"},
 		{"continuous is skipped", []diag.JobRecord{fresh, {Name: "webhook_worker", Continuous: true, Outcome: diag.Failed, LastError: "boom"}},
 			instance.CheckOK, "1 jobs on schedule"},
-		{"off is counted apart", []diag.JobRecord{fresh, {Name: "file_sweep"}, {Name: "activity_retention"}},
+		{"off is counted apart", []diag.JobRecord{fresh, {Name: "sweep_files"}, {Name: "sweep_activity"}},
 			instance.CheckOK, "1 jobs on schedule · 2 off · last ran 12 min ago"},
-		{"off before any run", []diag.JobRecord{scheduled("credential_sweep", time.Time{}, diag.NeverRan), {Name: "file_sweep"}},
+		{"off before any run", []diag.JobRecord{scheduled("sweep_credentials", time.Time{}, diag.NeverRan), {Name: "sweep_files"}},
 			instance.CheckOK, "1 jobs on schedule · 1 off · none run yet"},
+		{"off keeps its history", []diag.JobRecord{fresh, {Name: "sweep_activity", LastStarted: now.Add(-3 * hour), Outcome: diag.Succeeded}},
+			instance.CheckOK, "1 jobs on schedule · 1 off · last ran 12 min ago"},
 		{"all on", []diag.JobRecord{fresh}, instance.CheckOK, "1 jobs on schedule · last ran 12 min ago"},
 	}
 	for _, tc := range tests {
