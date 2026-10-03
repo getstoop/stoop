@@ -38,6 +38,9 @@ func (c *jobsChild) Run(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
+		if time.Since(started) > time.Minute {
+			backoff = time.Second
+		}
 		// The same exit every retry is said once.
 		level := slog.LevelWarn
 		if reason == lastReason {
@@ -45,9 +48,6 @@ func (c *jobsChild) Run(ctx context.Context) {
 		}
 		lastReason = reason
 		c.log.Log(ctx, level, "jobs: the child runner stopped; restarting", "reason", reason, "in", backoff)
-		if time.Since(started) > time.Minute {
-			backoff = time.Second
-		}
 		select {
 		case <-ctx.Done():
 			return
