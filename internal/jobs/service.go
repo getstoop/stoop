@@ -27,7 +27,10 @@ const (
 	DefaultPoll          = 2 * time.Second
 	DefaultShutdownGrace = 5 * time.Second
 	DefaultLease         = 10 * time.Minute
-	DefaultMaxAttempts   = 4
+	// DefaultHeartbeat is how often a dispatcher touches its row between
+	// passes, so the jobs runner health row holds whatever the poll is.
+	DefaultHeartbeat   = 15 * time.Second
+	DefaultMaxAttempts = 4
 	// ScheduleLead is how soon after a schedule row is created its first
 	// job is due, so a fresh install sweeps soon after boot.
 	ScheduleLead = 2 * time.Minute
@@ -81,6 +84,8 @@ type Service struct {
 	// lease is how long one attempt holds its row; the worker renews it
 	// every half lease while the performer runs.
 	lease time.Duration
+	// heartbeat is how often the dispatcher touches job_dispatchers.
+	heartbeat time.Duration
 	// listening, when set by a test, is called after each LISTEN succeeds.
 	listening func()
 }
@@ -104,7 +109,7 @@ func New(pool *pgxpool.Pool, registry *Registry, cfg Config, log *slog.Logger) *
 	if log == nil {
 		log = slog.Default()
 	}
-	service := &Service{pool: pool, queries: dbgen.New(pool), registry: registry, cfg: cfg, log: log, now: time.Now, lease: DefaultLease}
+	service := &Service{pool: pool, queries: dbgen.New(pool), registry: registry, cfg: cfg, log: log, now: time.Now, lease: DefaultLease, heartbeat: DefaultHeartbeat}
 	Register(registry, SweepJobsKind, service.sweepJobs, Options{})
 	return service
 }

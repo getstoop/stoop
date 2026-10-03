@@ -2,12 +2,14 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -308,4 +310,29 @@ func expectWoken(t *testing.T, pool *pgxpool.Pool, service *Service, budget time
 	if took := time.Since(queued); took > budget {
 		t.Errorf("job succeeded %v after enqueue, budget %v", took, budget)
 	}
+}
+
+// The heartbeat keeps the row fresh between passes, so a long poll does
+// not read as a dead runner.
+func TestHeartbeatKeepsUpBetweenPolls(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	cfg := testConfig()
+	cfg.Poll = 10 * time.Second
+	service, _ := newTestService(pool, clock, cfg)
+	service.heartbeat = 50 * time.Millisecond
+	startDispatcher(t, service)
+
+	// seenAt is the row's heartbeat, or the zero time before it is inserted.
+	seenAt := func() time.Time {
+		var seen time.Time
+		err := pool.QueryRow(context.Background(), `SELECT seen_at FROM job_dispatchers`).Scan(&seen)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("read seen_at: %v", err)
+		}
+		return seen
+	}
+	waitFor(t, "the first heartbeat", func() bool { return seenAt().Equal(clock.Now()) })
+	clock.Advance(time.Minute)
+	waitFor(t, "a heartbeat between polls", func() bool { return seenAt().Equal(clock.Now()) })
 }

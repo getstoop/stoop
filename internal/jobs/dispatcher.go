@@ -53,12 +53,18 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 
 	ticker := time.NewTicker(s.cfg.Poll)
 	defer ticker.Stop()
+	heartbeat := time.NewTicker(s.heartbeat)
+	defer heartbeat.Stop()
 	for ctx.Err() == nil {
 		s.tick(ctx, dispatcherID, queue, tracked)
 		select {
 		case <-ctx.Done():
 		case <-ticker.C:
 		case <-wake:
+		case <-heartbeat.C:
+			// Between passes the row is kept fresh on its own clock, so a
+			// long poll never reads as a dead runner.
+			s.touch(ctx, dispatcherID)
 		}
 	}
 	close(queue)
@@ -71,13 +77,18 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 // tick is one poll: heartbeat, materialise due schedules, then lease
 // until a batch comes back short.
 func (s *Service) tick(ctx context.Context, dispatcherID string, queue chan<- dbgen.Job, tracked *inflight) {
-	if err := s.queries.TouchDispatcher(ctx, dbgen.TouchDispatcherParams{Now: s.now(), ID: dispatcherID}); err != nil {
-		s.logUnlessStopping(ctx, "jobs: heartbeat", err)
-	}
+	s.touch(ctx, dispatcherID)
 	if err := s.materialiseDue(ctx); err != nil {
 		s.logUnlessStopping(ctx, "jobs: schedules", err)
 	}
 	for s.leaseBatch(ctx, queue, tracked) {
+	}
+}
+
+// touch is the heartbeat: seen_at = now on this dispatcher's row.
+func (s *Service) touch(ctx context.Context, dispatcherID string) {
+	if err := s.queries.TouchDispatcher(ctx, dbgen.TouchDispatcherParams{Now: s.now(), ID: dispatcherID}); err != nil {
+		s.logUnlessStopping(ctx, "jobs: heartbeat", err)
 	}
 }
 
