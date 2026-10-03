@@ -81,9 +81,13 @@ func sweepHooks(ctx context.Context, job *jobs.Job, hooksSvc *integrations.Servi
 	return failed
 }
 
-// scheduleSweeps makes the six kinds periodic; an interval of 0 leaves the
-// row disabled.
+// scheduleSweeps makes the six sweeps and the module's own history sweep
+// periodic; an interval of 0 leaves the row disabled.
 func scheduleSweeps(ctx context.Context, jobsSvc *jobs.Service, cfg config.Config) error {
+	historySweep := jobs.SweepJobsInterval
+	if cfg.JobsRetention == 0 {
+		historySweep = 0
+	}
 	for _, schedule := range []struct {
 		kind  string
 		every time.Duration
@@ -94,6 +98,7 @@ func scheduleSweeps(ctx context.Context, jobsSvc *jobs.Service, cfg config.Confi
 		{integrations.SweepHooksKind, cfg.FileSweepInterval},
 		{chat.SweepMessagesKind, chat.RetentionInterval},
 		{files.SweepAttachmentsKind, chat.RetentionInterval},
+		{jobs.SweepJobsKind, historySweep},
 	} {
 		if err := jobsSvc.Schedule(ctx, schedule.kind, schedule.every); err != nil {
 			return fmt.Errorf("schedule %s: %w", schedule.kind, err)
