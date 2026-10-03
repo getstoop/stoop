@@ -11,11 +11,21 @@ import (
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
+// releaseTimeout bounds the writes that give in-flight rows back and
+// remove the heartbeat at shutdown; leaveTimeout is how long the
+// cancelled workers get to return after that.
+const (
+	releaseTimeout = 3 * time.Second
+	leaveTimeout   = time.Second
+)
+
 // RunDispatcher leases due rows and hands them to the worker pool, inserts
 // jobs for due schedules and heartbeats job_dispatchers, until ctx ends.
-// It then stops leasing, gives in-flight jobs ShutdownGrace to finish and
-// clears the lease on any still running, so they are retried on the next
-// start. It returns only after that, so the caller may close the pool.
+// It then stops leasing, gives in-flight jobs ShutdownGrace (five seconds
+// by default) to finish, three seconds to release any still running so
+// they are retried on the next start, and one second for the cancelled
+// workers to leave: under ten seconds in all, whatever a performer does.
+// It returns only after that, so the caller may close the pool.
 func (s *Service) RunDispatcher(ctx context.Context) {
 	dispatcherID := rowid.New()
 	if err := s.queries.InsertDispatcher(ctx, dbgen.InsertDispatcherParams{
@@ -89,9 +99,9 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 
 // shutdown waits for the workers up to ShutdownGrace, takes over the rows
 // still in flight before cancelling what runs them (so a performer that
-// returns on the cancel writes no outcome), releases those rows, removes
-// the heartbeat and gives the cancelled workers outcomeTimeout to leave
-// before the caller closes the pool.
+// returns on the cancel writes no outcome), releases those rows and
+// removes the heartbeat within releaseTimeout, and gives the cancelled
+// workers leaveTimeout to return before the caller closes the pool.
 func (s *Service) shutdown(dispatcherID string, workers *sync.WaitGroup, cancelWork context.CancelFunc, tracked *inflight) {
 	done := make(chan struct{})
 	go func() {
@@ -104,7 +114,7 @@ func (s *Service) shutdown(dispatcherID string, workers *sync.WaitGroup, cancelW
 		ids, attempts = tracked.drain()
 		cancelWork()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), outcomeTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), releaseTimeout)
 	defer cancel()
 	if len(ids) > 0 {
 		if err := s.queries.ReleaseJobs(ctx, dbgen.ReleaseJobsParams{Ids: ids, Attempts: attempts}); err != nil {
@@ -114,7 +124,7 @@ func (s *Service) shutdown(dispatcherID string, workers *sync.WaitGroup, cancelW
 	if err := s.queries.DeleteDispatcher(ctx, dispatcherID); err != nil {
 		s.log.Error("jobs: remove dispatcher", "err", err)
 	}
-	if !waitUntil(done, outcomeTimeout) {
+	if !waitUntil(done, leaveTimeout) {
 		s.log.Warn("jobs: workers still running at shutdown", "count", s.cfg.Workers)
 	}
 }

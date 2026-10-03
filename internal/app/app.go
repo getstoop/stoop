@@ -47,15 +47,20 @@ import (
 	"github.com/getstoop/stoop/internal/webui"
 )
 
+// shutdownTimeout is how long Run and Close give the HTTP server to drain
+// and the background goroutines to return before the pool closes.
+const shutdownTimeout = 10 * time.Second
+
 type App struct {
-	server  *http.Server
-	tailnet *tailnet.Manager
-	tunnel  *cftunnel.Manager
-	hooks   *integrations.Service
-	voice   *voice.Service
-	jobs    *jobs.Service
-	pool    *pgxpool.Pool
-	log     *slog.Logger
+	server   *http.Server
+	tailnet  *tailnet.Manager
+	tunnel   *cftunnel.Manager
+	hooks    *integrations.Service
+	voice    *voice.Service
+	jobs     *jobs.Service
+	registry *jobs.Registry
+	pool     *pgxpool.Pool
+	log      *slog.Logger
 	// wg counts the goroutines spawn started, so shutdown can wait for
 	// them before the pool closes.
 	wg sync.WaitGroup
@@ -257,11 +262,12 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			Handler:           handler,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
-		hooks: integrationsSvc,
-		voice: voiceSvc,
-		jobs:  jobsSvc,
-		pool:  pool,
-		log:   log,
+		hooks:    integrationsSvc,
+		voice:    voiceSvc,
+		jobs:     jobsSvc,
+		registry: registry,
+		pool:     pool,
+		log:      log,
 	}
 	a.tailnet = tailnet.NewManager(filepath.Join(cfg.StorageDir, "tailscale"), handler, log)
 	// The built-in node carries LiveKit's media ports as well as HTTPS, so
@@ -471,17 +477,31 @@ func (p relayProvider) RelaySettings(ctx context.Context) (voice.RelaySettings, 
 	}, nil
 }
 
-// Run serves until ctx is canceled, then shuts down gracefully. The plain
-// listener always runs; the Tailscale one runs alongside it when enabled.
 // Handler is the whole HTTP surface, for a test that serves the binary
 // in-process.
 func (a *App) Handler() http.Handler { return a.server.Handler }
 
-// Close waits for the background goroutines and releases the database
-// pool; Run does this itself on shutdown.
+// Close waits up to shutdownTimeout for the background goroutines and
+// releases the database pool; Run does this itself on shutdown.
 func (a *App) Close() {
-	a.wg.Wait()
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	a.waitBackground(ctx)
 	a.pool.Close()
+}
+
+// waitBackground waits for the goroutines spawn started until ctx ends.
+func (a *App) waitBackground(ctx context.Context) {
+	done := make(chan struct{})
+	go func() {
+		a.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		a.log.Warn("background work still running at shutdown")
+	}
 }
 
 // spawn runs fn on a goroutine Close and Run wait for.
@@ -493,47 +513,57 @@ func (a *App) spawn(fn func()) {
 	}()
 }
 
-// StartBackground launches everything that runs beside the listener:
-// the job dispatcher and the outgoing-webhook subscriber. Run calls it; a
-// test that serves the handler itself calls it too, so deliveries happen.
+// StartBackground launches everything that runs beside the plain
+// listener: the job dispatcher, the outgoing-webhook subscriber, the two
+// front-door managers and the sampler. Run calls it; a test that serves
+// the handler itself calls it too, so deliveries happen.
 func (a *App) StartBackground(ctx context.Context) {
 	// The sweeps, the deliveries and anything else queued, until ctx ends.
 	a.spawn(func() { a.jobs.RunDispatcher(ctx) })
 	// The outgoing pipeline's producer: bus in, delivery jobs out; the
 	// POSTs run on the dispatcher.
 	a.spawn(func() { a.hooks.RunSubscriber(ctx) })
-	// cloudflared starts, stops, and restarts as its settings change.
+	// The Tailscale node and cloudflared start, stop and restart as their
+	// settings change; a failure there is logged, never fatal to the plain
+	// listener.
+	a.spawn(func() { a.tailnet.Run(ctx) })
 	a.spawn(func() { a.tunnel.Run(ctx) })
 	// The Diagnostics tab's gauge ring and per-minute request windows.
 	a.spawn(func() { diag.RunSampler(ctx, diag.Default, diag.RPC) })
 }
 
+// Run serves until ctx ends or the listener fails, then shuts down: the
+// HTTP server drains and the background work, voice included, returns
+// within shutdownTimeout, then the pool closes.
 func (a *App) Run(ctx context.Context) error {
-	errCh := make(chan error, 2)
+	runCtx, stop := context.WithCancel(ctx)
+	defer stop()
+	served := make(chan error, 1)
 	go func() {
 		a.log.Info("stoop listening", "addr", a.server.Addr)
-		errCh <- a.server.ListenAndServe()
+		served <- a.server.ListenAndServe()
+		stop()
 	}()
-	// The Tailscale listener starts, stops, and restarts as its settings
-	// change; a failure there is logged, never fatal to the plain listener.
-	a.spawn(func() { a.tailnet.Run(ctx) })
-	a.StartBackground(ctx)
-
-	select {
-	case err := <-errCh:
-		return fmt.Errorf("serve: %w", err)
-	case <-ctx.Done():
-	}
+	a.StartBackground(runCtx)
+	// Voice's room-close repeats stop with the rest, inside the budget.
+	a.spawn(func() {
+		<-runCtx.Done()
+		a.voice.Close()
+	})
+	<-runCtx.Done()
 
 	a.log.Info("shutting down")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-	err := a.server.Shutdown(shutdownCtx)
-	a.wg.Wait()
-	a.voice.Close()
+	shutdownErr := a.server.Shutdown(shutdownCtx)
+	a.waitBackground(shutdownCtx)
 	a.pool.Close()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("shutdown: %w", err)
+	// Shutdown makes ListenAndServe return at once, so this never blocks.
+	if serveErr := <-served; !errors.Is(serveErr, http.ErrServerClosed) {
+		return fmt.Errorf("serve: %w", serveErr)
+	}
+	if shutdownErr != nil {
+		return fmt.Errorf("shutdown: %w", shutdownErr)
 	}
 	return nil
 }

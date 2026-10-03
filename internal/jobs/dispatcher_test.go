@@ -77,10 +77,7 @@ func TestShutdownReleasesInFlightRows(t *testing.T) {
 
 	// The performer ignores its context, so shutdown abandons it after the
 	// grace and the bounded wait for the workers.
-	took := stop()
-	if took > cfg.ShutdownGrace+outcomeTimeout+3*time.Second {
-		t.Errorf("RunDispatcher took %v to return after cancel", took)
-	}
+	expectWithinShutdownBudget(t, cfg, stop())
 	expectReleased(t, pool, id)
 	if countRows(t, pool, `SELECT count(*) FROM job_dispatchers`) != 0 {
 		t.Error("heartbeat row left behind")
@@ -97,6 +94,15 @@ func TestShutdownReleasesInFlightRows(t *testing.T) {
 	waitForState(t, pool, id, StateSucceeded, 1)
 	if got := <-attempts; got != 1 {
 		t.Errorf("performed as attempt %d after a restart, want 1", got)
+	}
+}
+
+// expectWithinShutdownBudget checks RunDispatcher came back after a cancel
+// within the grace, the release writes and the wait for the workers.
+func expectWithinShutdownBudget(t *testing.T, cfg Config, took time.Duration) {
+	t.Helper()
+	if budget := cfg.ShutdownGrace + releaseTimeout + leaveTimeout; took > budget {
+		t.Errorf("RunDispatcher took %v to return after cancel, budget %v", took, budget)
 	}
 }
 
@@ -216,10 +222,7 @@ func TestShutdownWaitsForCancelledWorkers(t *testing.T) {
 	id := mustEnqueue(t, service, "obeys", nil)
 	stop := startDispatcher(t, service)
 	waitForState(t, pool, id, StateRunning, 1)
-	took := stop()
-	if took > cfg.ShutdownGrace+outcomeTimeout {
-		t.Errorf("RunDispatcher took %v to return after cancel", took)
-	}
+	expectWithinShutdownBudget(t, cfg, stop())
 	expectReleased(t, pool, id)
 }
 
