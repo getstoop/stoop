@@ -136,7 +136,11 @@ services:
       stoop:
         condition: service_healthy
     env_file: .env
-    environment: *stoop-environment
+    environment:
+      <<: *stoop-environment
+      # Keeps the Go heap inside the memory limit above while images are
+      # decoded; see docs/architecture/files.md → Images.
+      GOMEMLIMIT: 400MiB
     volumes:
       - ${STOOP_DATA_PATH:-stoop-data}:/data
 
