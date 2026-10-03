@@ -129,14 +129,18 @@ func TestE2EOptionalTimestamps(t *testing.T) {
 		t.Errorf("a reactivated user still carries deactivatedAt: %s", on.raw)
 	}
 
-	// instance: the process start is a time; at boot no sweeper has run
-	// yet, so none carries a start or a next run.
+	// instance: the process start is a time; at boot no sweep has run yet,
+	// so none carries a start, while every schedule carries its next run.
 	if health := h.rpc(casey, instance+"GetHealth", map[string]any{}).expect(t, "ok"); health.str("serverStartedAt") == "" {
 		t.Errorf("no serverStartedAt: %s", health.raw)
 	}
 	for _, job := range h.rpc(casey, instance+"ListJobs", map[string]any{}).expect(t, "ok").list("jobs") {
-		if fields, _ := job.(map[string]any); fields["lastStarted"] != nil || fields["nextDue"] != nil {
-			t.Errorf("a job that never ran carries a time: %v", fields)
+		fields, _ := job.(map[string]any)
+		if fields["lastStarted"] != nil {
+			t.Errorf("a job that never ran carries a start: %v", fields)
+		}
+		if fields["continuous"] != true && fields["nextDue"] == nil {
+			t.Errorf("a schedule carries no next run: %v", fields)
 		}
 	}
 
