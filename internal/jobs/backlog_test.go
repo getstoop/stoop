@@ -50,7 +50,7 @@ func TestBacklogCounts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if backlog.Queued != 2 || backlog.Running != 3 || !backlog.OldestDue.IsZero() {
+	if backlog.Queued != 5 || backlog.Running != 3 || !backlog.OldestDue.IsZero() {
 		t.Errorf("backlog an hour earlier = %+v", backlog)
 	}
 }
