@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -137,6 +138,40 @@ func (r *Registry) Kinds() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return slices.Sorted(maps.Keys(r.kinds))
+}
+
+// cappedKind is a kind registered with a MaxInFlight.
+type cappedKind struct {
+	kind        string
+	maxInFlight int
+}
+
+// uncappedKinds lists the kinds with no MaxInFlight, sorted.
+func (r *Registry) uncappedKinds() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	kinds := make([]string, 0, len(r.kinds))
+	for kind, entry := range r.kinds {
+		if entry.opts.MaxInFlight <= 0 {
+			kinds = append(kinds, kind)
+		}
+	}
+	slices.Sort(kinds)
+	return kinds
+}
+
+// cappedKinds lists the kinds with a MaxInFlight and their caps, sorted by kind.
+func (r *Registry) cappedKinds() []cappedKind {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var kinds []cappedKind
+	for kind, entry := range r.kinds {
+		if entry.opts.MaxInFlight > 0 {
+			kinds = append(kinds, cappedKind{kind: kind, maxInFlight: entry.opts.MaxInFlight})
+		}
+	}
+	slices.SortFunc(kinds, func(left, right cappedKind) int { return cmp.Compare(left.kind, right.kind) })
+	return kinds
 }
 
 func (r *Registry) lookup(kind string) (kindEntry, bool) {
