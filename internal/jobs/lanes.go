@@ -12,7 +12,7 @@ import (
 // Lanes serialise jobs: with a lane set, one job per lane runs at a time,
 // in sequence order, and a job whose turn has not come (a retry waiting
 // on its backoff) holds the lane. The webhook rule; sweeps have no lane.
-// See docs/architecture/integrations.md → Deliveries as jobs.
+// See docs/architecture/runtime.md → Background work.
 
 var errEmptyLane = errors.New("enqueue in lane: lane is empty")
 
