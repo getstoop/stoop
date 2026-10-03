@@ -68,7 +68,8 @@ package that sees the gateway: `connections`, `online_users`,
 `voice_rooms`, `voice_participants`, `requests_per_minute` and
 `request_errors_per_minute` (a counter turned into a rate over the last
 minute of samples), and one `<store>_entries` per `internal/kv` store
-(`desktop_attempts`, `desktop_codes`, `lockouts`). Every gauge is read from memory;
+(`desktop_attempts`, `desktop_codes`, `lockouts`, and a `ratelimit_*` per
+limiter). Every gauge is read from memory;
 nothing the sampler does touches Postgres.
 
 **The webhook queue is not a gauge.** Its counts (one grouped `SELECT` on

@@ -3,6 +3,7 @@ package ratelimit
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 
 	"connectrpc.com/connect"
@@ -23,7 +24,12 @@ func Interceptor(l *Limiter, trusts func(remoteAddr string) bool, procedures ...
 			if !l.Enabled() || !guarded[req.Spec().Procedure] {
 				return next(ctx, req)
 			}
-			if !l.Allow(ClientIP(req.Peer().Addr, req.Header(), trusts)) {
+			allowed, err := l.Allow(ctx, ClientIP(req.Peer().Addr, req.Header(), trusts))
+			if err != nil {
+				slog.Error("rate limiter store", "err", err)
+				return nil, connect.NewError(connect.CodeUnavailable, errors.New(unavailableMessage))
+			}
+			if !allowed {
 				err := connect.NewError(connect.CodeResourceExhausted,
 					errors.New("too many attempts from your address; try again in a minute"))
 				err.Meta().Set("Retry-After", strconv.Itoa(int(RetryAfter.Seconds())))

@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+
+	"github.com/getstoop/stoop/internal/kv"
 )
 
 // fakeRequest is the slice of connect.AnyRequest the interceptor reads.
@@ -22,7 +24,7 @@ func (f fakeRequest) Peer() connect.Peer  { return connect.Peer{Addr: f.addr} }
 func (f fakeRequest) Header() http.Header { return f.hdr }
 
 func TestInterceptorGuardsOnlyNamedProcedures(t *testing.T) {
-	l := New(60, 1)
+	l := newTestLimiter(60, 1)
 	calls := 0
 	next := connect.UnaryFunc(func(context.Context, connect.AnyRequest) (connect.AnyResponse, error) {
 		calls++
@@ -58,16 +60,34 @@ func TestInterceptorTrustsForwardedForOnlyWhenTold(t *testing.T) {
 		return fakeRequest{proc: "/p", addr: "10.0.0.1:1", hdr: http.Header{"X-Forwarded-For": {xff}}}
 	}
 	// Untrusted: two "different" forwarded clients share the proxy's bucket.
-	h := Interceptor(New(60, 1), never, "/p")(next)
+	h := Interceptor(newTestLimiter(60, 1), never, "/p")(next)
 	_, _ = h(context.Background(), mk("1.1.1.1"))
 	if _, err := h(context.Background(), mk("2.2.2.2")); err == nil {
 		t.Error("without TrustProxy X-Forwarded-For must not split buckets")
 	}
 	// Trusted: they don't.
-	h = Interceptor(New(60, 1), always, "/p")(next)
+	h = Interceptor(newTestLimiter(60, 1), always, "/p")(next)
 	_, _ = h(context.Background(), mk("1.1.1.1"))
 	if _, err := h(context.Background(), mk("2.2.2.2")); err != nil {
 		t.Errorf("with TrustProxy forwarded clients get their own bucket: %v", err)
+	}
+}
+
+func TestInterceptorRefusesWhenStoreFails(t *testing.T) {
+	calls := 0
+	next := connect.UnaryFunc(func(context.Context, connect.AnyRequest) (connect.AnyResponse, error) {
+		calls++
+		return nil, nil
+	})
+	limiter := New(kv.Broken(errors.New("store down")), "test", 60, 10)
+	handler := Interceptor(limiter, never, "/p")(next)
+	_, err := handler(context.Background(), fakeRequest{proc: "/p", addr: "192.0.2.1:1", hdr: http.Header{}})
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeUnavailable {
+		t.Fatalf("err = %v, want Unavailable", err)
+	}
+	if calls != 0 {
+		t.Fatal("a call the limiter could not account for reached the procedure")
 	}
 }
 

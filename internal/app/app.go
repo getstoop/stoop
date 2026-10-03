@@ -124,7 +124,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		}
 	}
 	chatSvc.UseInstancePolicy(instanceSvc)
-	chatSvc.UseSearchThrottle(ratelimit.New(cfg.SearchRateLimit, cfg.SearchRateLimit))
+	chatSvc.UseSearchThrottle(ratelimit.New(stores, "ratelimit_search", cfg.SearchRateLimit, cfg.SearchRateLimit))
 	keys, err := livekitKeys(ctx, cfg, instanceSvc, log)
 	if err != nil {
 		pool.Close()
@@ -141,7 +141,6 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	gateway := realtime.NewGateway(bus, identityVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
 	gateway.UseDoNotDisturb(authSvc)
 	chatSvc.UsePresence(gateway)
-	registerGauges(gateway, stores)
 	filesSvc := files.New(pool, store, bus, authSvc, chatSvc, identityVerifier{authSvc}, log)
 	filesSvc.UsePolicy(instanceSvc)
 	instanceSvc.UseUploadCeiling(files.MaxAttachmentBytes)
@@ -158,7 +157,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	integrationsSvc.UsePoster(hookPoster{chatSvc})
 	integrationsSvc.UseSpaceAccess(chatSvc)
 	integrationsSvc.UseBotIdentities(botIdentities{authSvc})
-	integrationsSvc.UseHookThrottle(ratelimit.New(cfg.WebhookRateLimit, cfg.WebhookRateLimit))
+	integrationsSvc.UseHookThrottle(ratelimit.New(stores, "ratelimit_hooks", cfg.WebhookRateLimit, cfg.WebhookRateLimit))
 	if cfg.LinkPreviews {
 		chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate})}, filesSvc, chat.UnfurlOptions{})
 		if cfg.UnfurlAllowPrivate {
@@ -170,12 +169,14 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	// are the only Connect procedures worth guessing at; the signaling
 	// proxy is the only plain handler without a session check. Both are per client IP, so behind
 	// a proxy STOOP_TRUST_PROXY must be on or every user shares a bucket.
-	authLimiter := ratelimit.New(cfg.AuthRateLimit, cfg.AuthRateLimit)
-	signalingLimiter := ratelimit.New(cfg.SignalingRateLimit, cfg.SignalingRateLimit)
+	authLimiter := ratelimit.New(stores, "ratelimit_auth", cfg.AuthRateLimit, cfg.AuthRateLimit)
+	signalingLimiter := ratelimit.New(stores, "ratelimit_signaling", cfg.SignalingRateLimit, cfg.SignalingRateLimit)
 	if !authLimiter.Enabled() || !signalingLimiter.Enabled() {
 		log.Warn("rate limiting is disabled for some anonymous endpoints; fine for dev, not for a reachable server",
 			"auth_per_minute", cfg.AuthRateLimit, "signaling_per_minute", cfg.SignalingRateLimit)
 	}
+	// After the last store is opened, so every one gets its gauge.
+	registerGauges(gateway, stores)
 
 	// maxRequestBytes bounds any single Connect message. The largest
 	// legitimate payload is an avatar/icon upload (≤ 2 MB of image bytes).

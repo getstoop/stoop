@@ -537,9 +537,9 @@ there is visible immediately, and the friction is not worth it.
 
 ## Abuse controls on the anonymous surface
 
-`internal/ratelimit` is in-memory, per-process token buckets. That is a
-deliberate ceiling: a limiter that required Redis would never be turned on
-by the audience this project serves, and an unprotected server is worse
+`internal/ratelimit` is token buckets in a per-process `internal/kv`
+store. That is a deliberate ceiling: a limiter that required a second
+service would never be turned on by the audience this project serves, and an unprotected server is worse
 than an imperfectly protected one. A Cloudflare WAF rule in front is a
 welcome second layer and never a substitute.
 
@@ -553,9 +553,9 @@ The signaling proxy needs its own limit because it is the one plain handler
 with no session check — LiveKit validates the room token, so the proxy
 can't — which without a limit would make it an open relay.
 
-The limiter maps are bounded (100,000 keys) and, when full, new keys share
-one overflow bucket rather than being waved through. Buckets idle past the
-refill horizon are dropped.
+Each limiter's store is bounded (100,000 keys); when full, the bucket
+nearest to refilling makes way for the new key. A bucket expires once it
+would have refilled completely.
 
 **Client IP** is the TCP peer, *or* the first `X-Forwarded-For` hop when
 the peer is a trusted proxy. Never otherwise: anyone who can reach the port
