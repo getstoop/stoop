@@ -45,7 +45,6 @@ var next to the code that owns the number:
 
 ```go
 var droppedSubscribers = diag.NewCounter("bus_dropped_total", "Subscribers dropped for falling behind.")
-var webhookWorker = diag.NewJob("webhook_worker").Continuous()
 diag.NewGauge("connections", "Open WebSocket sessions.", func() float64 { … })
 ```
 
@@ -53,7 +52,6 @@ diag.NewGauge("connections", "Open WebSocket sessions.", func() float64 { … })
 | --- | --- | --- |
 | `Counter` | A monotonic count since start. | `Inc`, `Add`. |
 | `Gauge` | A read function; the sampler stores its last 90 values. | Registered with the function; never written to. |
-| `Job` | The webhook worker's passes; the only loop left on it, since every sweep is a job kind. | `Continuous()` once, then `Run(func() (Counters, error))` around each pass. |
 | `RPCStats` | Per-procedure timings and error counts. | `diag.Interceptor()`, outermost in the Connect chain so refused calls are timed too. |
 
 Timings are a histogram with 20 log-spaced buckets from 1 ms to 10 s per
@@ -75,12 +73,12 @@ minute of samples), and one `<store>_entries` per `internal/kv` store
 limiter). Every gauge is read from memory;
 nothing the sampler does touches Postgres.
 
-**The webhook queue is not a gauge.** Its counts (one grouped `SELECT` on
-`webhook_deliveries`, `webhook_queue.go`) are taken only when something
-asks: the Health row, the Background work panel, the sixth tile and a
-metrics scrape share a 10 s cache, so a tab polling every 5 s costs one
-count per TTL and an idle server runs none. The tile therefore has no
-sparkline.
+**The webhook queue is not a gauge.** Its counts (`webhook_queue.go`:
+queued and in flight from the `deliver_webhook` rows in the jobs tables,
+dead from the delivery log) are taken only when something asks: the
+Health row, the sixth tile and a metrics scrape share a 10 s cache, so a
+tab polling every 5 s costs one count per TTL and an idle server runs
+none. The tile therefore has no sparkline.
 
 ## The health-check port
 
@@ -98,8 +96,8 @@ state it is given.
 | `livekit` | the Hosting page's reachability probe | — | configured and unreachable |
 | `storage` | `statfs` on the upload directory, a create-and-delete probe, the quota | volume 85 % full, or quota 90 % used | volume 95 % full, or the probe fails |
 | `public_address` | the reachability state `GetReachability` computes | a tunnel or tailnet is configured but reconnecting | configured and down for over a minute |
-| `webhooks` | the queue port | any delivery dead-lettered in the last hour | the worker has had no successful pass for 5 min with items queued |
-| `jobs` | the jobs tables through `instance`'s `JobRecords` port, one record per schedule with its latest run, plus the webhook worker's `diag.Job`; a disabled schedule is counted apart as "off" | a pass failed, or a job is one interval overdue | three intervals overdue |
+| `webhooks` | the queue counts above | any delivery dead-lettered in the last hour | a due delivery has waited 5 min without starting |
+| `jobs` | the jobs tables through `instance`'s `JobRecords` port, one record per schedule with its latest run; a disabled schedule is counted apart as "off" | a pass failed, or a job is one interval overdue | three intervals overdue |
 
 ## The panels and what they read
 
@@ -114,10 +112,7 @@ under query keys `["diag", "<panel>"]`
 | Right now | `GetLiveStats` | every gauge with its ring, and every counter, from the registry snapshot |
 | Database | `GetDatabaseStats` | `pgxpool.Stat()` (max, acquired, idle, empty-acquire count and wait time), a timed `Ping`, and one query for `pg_database_size`, `pg_stat_activity` counts, the oldest transaction, `server_version`; the goose version from `goose_db_version` |
 | Requests | `GetRequestStats` | `RPCStats` over the last five minutes: calls, errors (any code but Canceled), p50, p95, max. Since-start is on the metrics endpoint only |
-| Background work | `ListJobs` | one row per schedule from the jobs tables (interval, last start, duration, outcome, error, counters, next due; a disabled schedule shows "off") and the webhook worker's `diag.Job`, with the queue port's counts; a failed read is the panel's error line |
-
-The sixth tile, Webhooks queued, and the two queue rows on Background work
-read the same cached queue count.
+| Background work | `ListJobs` | one row per schedule from the jobs tables (interval, last start, duration, outcome, error, counters, next due; a disabled schedule shows "off"), plus the queue counts for the sixth tile; a failed read is the panel's error line |
 
 ## The web side
 
@@ -148,7 +143,7 @@ client library): counters as `stoop_<name>_total`, gauges as
 `stoop_rpc_duration_seconds` histogram by `procedure`, and
 `stoop_job_last_success_timestamp_seconds` /
 `stoop_job_last_duration_seconds` by `job`, one family over the
-schedules read from the jobs tables and the webhook worker. `internal/app` then appends
+schedules read from the jobs tables. `internal/app` then appends
 the two families only it can know, so `diag` stays a plain registry:
 `stoop_health{check="…"}` (0 ok, 1 warn, 2 danger, 3 off, from
 `instance.Service.HealthSnapshot`, the same 2 s cache as the panel) and

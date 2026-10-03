@@ -265,8 +265,8 @@ keeps its `next_due` across a restart, moved earlier only when a
 shortened interval would pass first. `job_dispatchers` is a heartbeat
 row per dispatcher.
 
-The seven kinds, registered and scheduled in `internal/app` except the
-last, which the module owns:
+The seven scheduled kinds, registered and scheduled in `internal/app`
+except the last, which the module owns:
 
 | Kind | Every | Removes |
 | --- | --- | --- |
@@ -278,16 +278,26 @@ last, which the module owns:
 | `sweep_attachments` | hourly | attachments past `attachment_retention_days` ([files.md](files.md#retention)) |
 | `sweep_jobs` | hourly | finished `jobs` rows older than `STOOP_JOBS_RETENTION`, and dispatcher rows not seen for an hour |
 
+One one-shot kind, `deliver_webhook`, is queued by the integrations
+module per outgoing delivery ([integrations.md](integrations.md#deliveries-as-jobs)).
+It uses a lane: a job with `lane` and `sequence` set runs only when no
+earlier unfinished job shares its lane, so one runs per lane at a time,
+in sequence order, and a retry waiting on its backoff holds the lane.
+Sweeps have no lane.
+
 The dispatcher (`RunDispatcher`) polls for due rows every
 `STOOP_JOBS_POLL` and leases them with `FOR UPDATE SKIP LOCKED` to
-`STOOP_JOBS_WORKERS` goroutines. `running` means the lease (10 minutes
-by default; a performer may extend it) is in the future, so a row whose
-lease has lapsed is claimed again as a new attempt. A failed attempt,
-a panic included, goes back to `queued` at the backoff ladder's time
-(5 s, 30 s, 2 min; four attempts by default) and is then `discarded`;
-only the latest attempt's error and timing are kept. On shutdown it stops
-leasing, gives in-flight jobs ten seconds, and clears the lease on
-anything still running so the next start retries it.
+`STOOP_JOBS_WORKERS` goroutines, never a row it is itself still
+performing. `running` means the lease (10 minutes by default, renewed
+while the performer runs; a performer may extend it) is in the future,
+so a row whose lease has lapsed is claimed again as a new attempt. A
+failed attempt, a panic included, goes back to `queued` at the kind's
+backoff ladder's time (5 s, 30 s, 2 min; four attempts by default) and
+is then `discarded`; only the latest attempt's error and timing are
+kept. On shutdown it stops leasing, gives in-flight jobs ten seconds,
+and clears the lease on anything still running without counting the
+attempt, so the next start retries it. The heartbeat row is what shows
+a dispatcher is alive.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -303,11 +313,10 @@ Background work panel shows the pass ([diagnostics.md](diagnostics.md)).
 None is required for correctness. A server that never sweeps works; it
 just accumulates.
 
-Two more goroutines run for outgoing webhooks
+One more goroutine runs for outgoing webhooks
 ([integrations.md](integrations.md#outgoing)): the subscriber, which turns
-bus events into queued deliveries, and the worker, which leases and POSTs
-them. Both stop with the process; the queue is in Postgres, so nothing in
-flight is lost across a restart.
+bus events into `deliver_webhook` jobs. It stops with the process; the
+jobs are in Postgres, so nothing in flight is lost across a restart.
 
 ### The update check
 

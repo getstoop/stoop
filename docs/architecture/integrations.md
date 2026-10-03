@@ -3,14 +3,14 @@
 `internal/integrations` owns what the server talks to: incoming webhooks
 (a URL the server hosts that posts into one channel), outgoing webhooks
 (a URL somebody else hosts that the server POSTs signed events to), the
-delivery queue between the bus and those POSTs, and the admin surface for
+delivery log and the job that makes those POSTs, and the admin surface for
 bots and the credentials that authenticate as them. This page is
 what the code does.
 
 ## The shape
 
 ```
-        incoming — synchronous, no queue            outgoing — queued
+        incoming — synchronous, no queue            outgoing — a job per delivery
 
   appliance                                   chat.SendMessage
         │ POST /hooks/{token}                        │ publish
@@ -18,10 +18,10 @@ what the code does.
   vendor adapter                                events.Bus   topic space:ID
         │ verify the hook's credential               │ subscribe
         ▼                                            ▼
-  chat.SendMessage — the same one            Queue.Enqueue — one item per hook
+  chat.SendMessage — the same one            a log row + a job per hook
         │  membership, mentions, blocks              │       lane = hook id
         ├──▶ 200 ok to the caller                    ▼
-        └──▶ events.Bus ──▶ /ws ──▶ tabs      Queue.Lease ──▶ POST ──▶ Ack
+        └──▶ events.Bus ──▶ /ws ──▶ tabs      jobs dispatcher ──▶ POST ──▶ the log
                                                      │    0s · 5s · 30s · 2m, then dead
                                                      ▼
                                               the operator's endpoint
@@ -106,15 +106,20 @@ credential and revokes the old one.
 ## Outgoing
 
 An outgoing hook holds a URL, a raw signing secret, a set of event types
-and an optional channel filter. Two goroutines that never share work:
+and an optional channel filter. A goroutine and a job kind that never
+share work:
 
 - **The subscriber** watches the `space:ID` topic of every space with an
   outgoing hook, translates events to the catalogue below, renders a
-  self-contained envelope and queues one item per matching hook, taking
-  the hook's next `Stoop-Sequence`. Direct messages publish to user
-  topics and never reach it.
-- **The worker** leases due items, one in flight per hook and in sequence
-  order, POSTs with a 10 s timeout under a 30 s lease, and acks.
+  self-contained envelope and, per matching hook, writes a log row and
+  queues a `deliver_webhook` job in the hook's lane at the hook's next
+  `Stoop-Sequence`. Direct messages publish to user topics and never
+  reach it.
+- **The `deliver_webhook` job** (`DeliverWebhook`, run by the jobs
+  dispatcher) makes one POST with a 10 s timeout and writes what the
+  receiver said to the log row. The lane keeps one delivery per hook in
+  flight, in sequence order; a retry waiting on its backoff holds the
+  lane.
 
 | Type | `data` |
 | --- | --- |
@@ -132,8 +137,8 @@ The body is `{id, type, ts, instance, space: {id, name}, data}` with
 `Stoop-Attempt`, and `Stoop-Signature: t=<unix>,v1=<hex>` where `v1` is
 HMAC-SHA256 with the secret over `<t>.<body>`.
 
-Attempts run at 0 s, 5 s, 30 s and 2 min, jittered, then the item is
-dead. Any 2xx acks. `410 Gone` disables the hook. `429` honours
+Attempts run at 0 s, 5 s, 30 s and 2 min, the jobs module's default
+ladder, then the delivery is dead. Any 2xx acks. `410 Gone` disables the hook. `429` honours
 `Retry-After` up to the ladder's end. A 3xx is a failure and is never
 followed. Twenty consecutive dead deliveries disable the hook with a
 reason. A dead item keeps its body and can be sent again from the log;
@@ -146,26 +151,26 @@ receiver dedupes on `Stoop-Delivery` and reads a gap off
 (`ListMessages(after_id=…)` for messages; `ListMembers` and
 `ListChannels` for the rest). Hard-deleted messages are unrecoverable.
 
-## The queue
+## Deliveries as jobs
 
-The worker is written against a port, not Postgres:
+`webhook_deliveries` is the delivery log the Integrations page reads:
+one row per delivery with the hook, event, sequence, body, attempts,
+status code, response, error and when it finished. The subscriber
+inserts it pending; the performer rewrites it after every attempt and
+clears the body once a receiver accepted. The queue is the jobs module's
+([runtime.md](runtime.md#background-work)): the job's arguments carry
+the delivery id, the hook id, the event, the sequence and the body, so
+the performer never reads the log to deliver, and the hook id is the
+lane.
 
-```go
-type Queue interface {
-    Enqueue(ctx, Item) error
-    Lease(ctx, n int, until time.Duration) ([]Leased, error)
-    Ack(ctx, id string, Attempt) error
-    Nack(ctx, id string, retryAfter time.Duration, Attempt) error
-    Dead(ctx, id string, Attempt) error
-}
-```
-
-`PostgresQueue` is the implementation over `webhook_deliveries`:
-leases are a `leased_until` column claimed with `SKIP LOCKED`, and a
-lane's head is its lowest unfinished sequence. The queue takes the
-caller's clock for due-ness and leases rather than `now()`, so one clock
-decides and the contract test drives it with a fake one. A lease that
-expires counts as an attempt.
+The module reaches the queue through its `Jobs` port: `EnqueueInLane`
+from the fan-out, the Test button and Send again; `DiscardLane` when a
+hook is deleted, since the `jobs` table carries no foreign key to the
+hook. `DeliverWebhook` answers with a `DeliveryResult` (delivered, dead,
+or retry after a chosen wait) that `internal/app` maps onto the
+dispatcher's outcomes; the module never imports `jobs`. A delivery
+found queued while outgoing is off is dead with that reason, and Send
+again works once the switch is back on.
 
 ## Egress
 

@@ -220,12 +220,12 @@ on delete: losing the channel widens the hook and must not destroy its
 secret, which is why the two hook kinds are two tables), and `sequence`,
 the `Stoop-Sequence` counter.
 
-**`webhook_deliveries`** — the Postgres queue behind the `Queue` port: a
-queued row is work, a finished row is the delivery log. `lane` is the hook,
-`not_before` and `leased_until` are the claim, `body` is cleared on success.
-Two partial/ordered indexes: due items for the worker, and `(lane,
-created_at DESC)` for the settings page. See
-[integrations.md](integrations.md#the-queue).
+**`webhook_deliveries`** — the delivery log: one row per delivery,
+written pending by the subscriber and rewritten by the `deliver_webhook`
+job after each attempt; `body` is cleared on success. The queue is the
+`jobs` table. One index, `(webhook_id, created_at DESC)`, for the
+settings page. See
+[integrations.md](integrations.md#deliveries-as-jobs).
 
 ## Identifiers
 

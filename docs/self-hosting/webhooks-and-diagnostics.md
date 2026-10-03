@@ -54,11 +54,11 @@ entry means a health row is at warn or danger.
 
 | Panel | Answers |
 | --- | --- |
-| Health | Is each dependency up: Postgres, LiveKit, file storage, the public address, the webhook worker, the sweeps. An *off* row is something you have not configured, not a fault. Each row links to the tab that fixes it. |
+| Health | Is each dependency up: Postgres, LiveKit, file storage, the public address, webhook deliveries, the sweeps. An *off* row is something you have not configured, not a fault. Each row links to the tab that fixes it. |
 | Right now | Connections, people online, people in voice, requests per minute, slow consumers dropped, each with its last fifteen minutes, and the webhook queue as it is now. |
 | Database | The connection pool, ping, database size, backends, the oldest open transaction, and the Postgres and schema versions. |
 | Requests | Calls, errors and p50 / p95 / max per procedure over the last 5 minutes. Since-start totals are on the metrics endpoint. |
-| Background work | Every sweep and the webhook worker: when it last ran, how long it took, what it removed, when it is due. |
+| Background work | Every sweep: when it last ran, how long it took, what it removed, when it is due. |
 
 Reading it:
 
@@ -66,7 +66,7 @@ Reading it:
 | --- | --- | --- |
 | "Voice is choppy" | Health: LiveKit, then Hosting | Unreachable means the sidecar. Reachable with people in rooms means media, not Stoop: TURN, the network, or the host itself. |
 | "Messages take ages to load" | Requests, then Database | A high p95 on `ListMessages` with pool waits means Postgres is saturated. A high p95 with an idle pool means the query itself, or the disk. |
-| "My webhook stopped firing" | Background work, then Integrations | Dead-lettered with a 5xx is the receiving end. Queued and never leased is the worker. |
+| "My webhook stopped firing" | Background work, then Integrations | Dead-lettered with a 5xx is the receiving end. Queued and never started is the job dispatcher. |
 | "People keep dropping" | Right now: Connections, Slow consumers dropped | A sawtooth in connections with drops climbing means the server is falling behind on fan-out. Flat drops with a sawtooth means their network or the proxy in front. |
 | "Uploads fail" | Health: File storage | Volume full, quota reached, or the directory is not writable after a restore. |
 | "It was fine yesterday" | Copy report | Paste it into an issue. |
