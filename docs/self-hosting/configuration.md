@@ -9,7 +9,7 @@ the server. Two are pinned by the compose file itself and ignore what
 | Variable                   | Default                     | Purpose                          |
 | -------------------------- | --------------------------- | -------------------------------- |
 | `STOOP_DATABASE_URL`       | (required)                  | Postgres connection string       |
-| `STOOP_DATABASE_POOL_MAX`  | `0`                         | Most connections Stoop opens to Postgres, plus one the job dispatcher holds to be woken. `0` is the larger of 4 and the CPU count; otherwise at least 2. Keep it under Postgres `max_connections`, less what backups and `psql` need. Wins over `pool_max_conns` in the URL |
+| `STOOP_DATABASE_POOL_MAX`  | `0`                         | Most connections each Stoop process opens to Postgres, plus one the job dispatcher holds to be woken. `0` is the larger of 4 and the CPU count; otherwise at least 2. Keep it under Postgres `max_connections`, less what backups and `psql` need. Wins over `pool_max_conns` in the URL |
 | `STOOP_LISTEN_ADDR`        | `:8080`                     | HTTP bind address                |
 | `STOOP_PUBLIC_URL`         | (empty)                     | The address people use to reach the server; invite links use it, its host is an allowed WS origin. Defaults to the tailnet address with the built-in Tailscale listener |
 | `STOOP_TRUST_PROXY`        | `false`                     | Believe `X-Forwarded-For` / `X-Forwarded-Proto` from **every** caller, taking the header's rightmost address as the client. Blunt, and spoofable unless the proxy sets or appends the header itself; prefer `STOOP_TRUSTED_PROXIES`. Can't be combined with it |
