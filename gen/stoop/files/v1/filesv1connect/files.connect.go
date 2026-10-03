@@ -62,11 +62,9 @@ type FileServiceClient interface {
 	// GetStorageUsage reports how much upload storage is in use and the
 	// instance's quota. Instance admins only.
 	GetStorageUsage(context.Context, *connect.Request[v1.GetStorageUsageRequest]) (*connect.Response[v1.GetStorageUsageResponse], error)
-	// SweepFiles removes files nothing references any more (uploads never
-	// sent, attachments of deleted channels and spaces, replaced avatars
-	// and icons, preview images, blobs with no row) that are older than the
-	// grace period, and reports what went. The server also runs this on a
-	// timer. Instance admins only.
+	// SweepFiles queues the sweep that removes files nothing references
+	// any more (the pass that also runs on a schedule) and returns the job
+	// id. Instance admins only.
 	SweepFiles(context.Context, *connect.Request[v1.SweepFilesRequest]) (*connect.Response[v1.SweepFilesResponse], error)
 }
 
@@ -161,11 +159,9 @@ type FileServiceHandler interface {
 	// GetStorageUsage reports how much upload storage is in use and the
 	// instance's quota. Instance admins only.
 	GetStorageUsage(context.Context, *connect.Request[v1.GetStorageUsageRequest]) (*connect.Response[v1.GetStorageUsageResponse], error)
-	// SweepFiles removes files nothing references any more (uploads never
-	// sent, attachments of deleted channels and spaces, replaced avatars
-	// and icons, preview images, blobs with no row) that are older than the
-	// grace period, and reports what went. The server also runs this on a
-	// timer. Instance admins only.
+	// SweepFiles queues the sweep that removes files nothing references
+	// any more (the pass that also runs on a schedule) and returns the job
+	// id. Instance admins only.
 	SweepFiles(context.Context, *connect.Request[v1.SweepFilesRequest]) (*connect.Response[v1.SweepFilesResponse], error)
 }
 

@@ -16,6 +16,7 @@ import (
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
+	"github.com/getstoop/stoop/internal/files"
 )
 
 // fileRow inserts a file row and its blob directly, aged by `age`.
@@ -106,19 +107,48 @@ func TestSweep(t *testing.T) {
 		t.Errorf("young stray blob should stay")
 	}
 
-	// The RPC is admin-only and reports the same numbers.
-	member := authctx.WithIdentity(ctx, authctx.Identity{UserID: f.member, Role: authctx.RoleMember})
-	if _, err := f.svc.SweepFiles(member, connect.NewRequest(&filesv1.SweepFilesRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("member sweep: want permission_denied, got %v", err)
-	}
 	admin := authctx.WithIdentity(ctx, authctx.Identity{UserID: f.other, Role: authctx.RoleAdmin})
-	res, err := f.svc.SweepFiles(admin, connect.NewRequest(&filesv1.SweepFilesRequest{}))
-	if err != nil || res.Msg.FilesRemoved != 0 {
-		t.Errorf("second sweep: %v %v", res, err)
-	}
 	usage, err := f.svc.GetStorageUsage(admin, connect.NewRequest(&filesv1.GetStorageUsageRequest{}))
 	if err != nil || usage.Msg.FileCount != 3 {
 		t.Errorf("usage: %v %v", usage, err)
+	}
+}
+
+// fakeJobQueue records what was enqueued and answers with a fixed id.
+type fakeJobQueue struct {
+	kinds []string
+}
+
+func (q *fakeJobQueue) Enqueue(_ context.Context, kind string, _ any) (string, error) {
+	q.kinds = append(q.kinds, kind)
+	return "job-1", nil
+}
+
+// The RPC is admin-only; it queues one sweep_files job rather than
+// sweeping in the request, and refuses when no queue is wired.
+func TestSweepFilesEnqueues(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+	member := authctx.WithIdentity(ctx, authctx.Identity{UserID: f.member, Role: authctx.RoleMember})
+	admin := authctx.WithIdentity(ctx, authctx.Identity{UserID: f.other, Role: authctx.RoleAdmin})
+	request := func() *connect.Request[filesv1.SweepFilesRequest] {
+		return connect.NewRequest(&filesv1.SweepFilesRequest{})
+	}
+
+	if _, err := f.svc.SweepFiles(admin, request()); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Errorf("no queue: want unavailable, got %v", err)
+	}
+	queue := &fakeJobQueue{}
+	f.svc.UseJobs(queue)
+	if _, err := f.svc.SweepFiles(member, request()); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Errorf("member sweep: want permission_denied, got %v", err)
+	}
+	res, err := f.svc.SweepFiles(admin, request())
+	if err != nil || res.Msg.JobId != "job-1" {
+		t.Errorf("admin sweep: %v %v", res, err)
+	}
+	if len(queue.kinds) != 1 || queue.kinds[0] != files.SweepFilesKind {
+		t.Errorf("enqueued %v, want one %s", queue.kinds, files.SweepFilesKind)
 	}
 }
 

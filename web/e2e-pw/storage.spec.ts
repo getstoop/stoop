@@ -35,9 +35,10 @@ test("the storage limit, what it says and cleaning up", async ({ browser }) => {
   await expect(storage, "limit persists").toContainText("limit 1.0 GB");
 
   await cleanup.locator(".sweep-button").click();
-  await expect(cleanup, "cleanup runs and reports").toContainText(
-    "Removed 0 files",
-  );
+  await expect(
+    cleanup,
+    "cleanup is queued and says where to watch",
+  ).toContainText("Cleaning up in the background");
 
   await A.locator(".storage-quota input").fill("0");
   await A.locator(".storage-section button.primary").click();

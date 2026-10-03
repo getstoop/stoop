@@ -257,7 +257,8 @@ a person was meant to see arrive.
 ### Retention
 
 Read activity items older than `STOOP_ACTIVITY_RETENTION` are removed by
-a sweeper sharing the file sweep's timer. Unread ones are never swept.
+the `sweep_activity` job, on the file sweep's interval
+([runtime.md](runtime.md#background-work)). Unread ones are never swept.
 
 ## Reads and unreads
 

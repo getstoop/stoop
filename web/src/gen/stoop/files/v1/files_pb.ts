@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/files/v1/files.proto.
  */
 export const file_stoop_files_v1_files: GenFile = /*@__PURE__*/
-  fileDesc("ChpzdG9vcC9maWxlcy92MS9maWxlcy5wcm90bxIOc3Rvb3AuZmlsZXMudjEiGAoWR2V0U3RvcmFnZVVzYWdlUmVxdWVzdCJWChdHZXRTdG9yYWdlVXNhZ2VSZXNwb25zZRISCgp1c2VkX2J5dGVzGAEgASgDEhIKCmZpbGVfY291bnQYAiABKAMSEwoLcXVvdGFfYnl0ZXMYAyABKAMiEwoRU3dlZXBGaWxlc1JlcXVlc3QibQoSU3dlZXBGaWxlc1Jlc3BvbnNlEhUKDWZpbGVzX3JlbW92ZWQYASABKAMSEwoLYnl0ZXNfZnJlZWQYAiABKAMSGwoTc3RyYXlfYmxvYnNfcmVtb3ZlZBgDIAEoAxIOCgZlcnJvcnMYBCABKAMiIwoTVXBsb2FkQXZhdGFyUmVxdWVzdBIMCgRkYXRhGAEgASgMIicKFFVwbG9hZEF2YXRhclJlc3BvbnNlEg8KB2ZpbGVfaWQYASABKAkiNwoWVXBsb2FkQm90QXZhdGFyUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEgwKBGRhdGEYAiABKAwiKgoXVXBsb2FkQm90QXZhdGFyUmVzcG9uc2USDwoHZmlsZV9pZBgBIAEoCSI4ChZVcGxvYWRTcGFjZUljb25SZXF1ZXN0EhAKCHNwYWNlX2lkGAEgASgJEgwKBGRhdGEYAiABKAwiKgoXVXBsb2FkU3BhY2VJY29uUmVzcG9uc2USDwoHZmlsZV9pZBgBIAEoCTLzAwoLRmlsZVNlcnZpY2USWwoMVXBsb2FkQXZhdGFyEiMuc3Rvb3AuZmlsZXMudjEuVXBsb2FkQXZhdGFyUmVxdWVzdBokLnN0b29wLmZpbGVzLnYxLlVwbG9hZEF2YXRhclJlc3BvbnNlIgASZAoPVXBsb2FkQm90QXZhdGFyEiYuc3Rvb3AuZmlsZXMudjEuVXBsb2FkQm90QXZhdGFyUmVxdWVzdBonLnN0b29wLmZpbGVzLnYxLlVwbG9hZEJvdEF2YXRhclJlc3BvbnNlIgASZAoPVXBsb2FkU3BhY2VJY29uEiYuc3Rvb3AuZmlsZXMudjEuVXBsb2FkU3BhY2VJY29uUmVxdWVzdBonLnN0b29wLmZpbGVzLnYxLlVwbG9hZFNwYWNlSWNvblJlc3BvbnNlIgASZAoPR2V0U3RvcmFnZVVzYWdlEiYuc3Rvb3AuZmlsZXMudjEuR2V0U3RvcmFnZVVzYWdlUmVxdWVzdBonLnN0b29wLmZpbGVzLnYxLkdldFN0b3JhZ2VVc2FnZVJlc3BvbnNlIgASVQoKU3dlZXBGaWxlcxIhLnN0b29wLmZpbGVzLnYxLlN3ZWVwRmlsZXNSZXF1ZXN0GiIuc3Rvb3AuZmlsZXMudjEuU3dlZXBGaWxlc1Jlc3BvbnNlIgBCsAEKEmNvbS5zdG9vcC5maWxlcy52MUIKRmlsZXNQcm90b1ABWjRnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9maWxlcy92MTtmaWxlc3YxogIDU0ZYqgIOU3Rvb3AuRmlsZXMuVjHKAg5TdG9vcFxGaWxlc1xWMeICGlN0b29wXEZpbGVzXFYxXEdQQk1ldGFkYXRh6gIQU3Rvb3A6OkZpbGVzOjpWMWIGcHJvdG8z");
+  fileDesc("ChpzdG9vcC9maWxlcy92MS9maWxlcy5wcm90bxIOc3Rvb3AuZmlsZXMudjEiGAoWR2V0U3RvcmFnZVVzYWdlUmVxdWVzdCJWChdHZXRTdG9yYWdlVXNhZ2VSZXNwb25zZRISCgp1c2VkX2J5dGVzGAEgASgDEhIKCmZpbGVfY291bnQYAiABKAMSEwoLcXVvdGFfYnl0ZXMYAyABKAMiEwoRU3dlZXBGaWxlc1JlcXVlc3QiKgoSU3dlZXBGaWxlc1Jlc3BvbnNlEg4KBmpvYl9pZBgFIAEoCUoECAEQBSIjChNVcGxvYWRBdmF0YXJSZXF1ZXN0EgwKBGRhdGEYASABKAwiJwoUVXBsb2FkQXZhdGFyUmVzcG9uc2USDwoHZmlsZV9pZBgBIAEoCSI3ChZVcGxvYWRCb3RBdmF0YXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkSDAoEZGF0YRgCIAEoDCIqChdVcGxvYWRCb3RBdmF0YXJSZXNwb25zZRIPCgdmaWxlX2lkGAEgASgJIjgKFlVwbG9hZFNwYWNlSWNvblJlcXVlc3QSEAoIc3BhY2VfaWQYASABKAkSDAoEZGF0YRgCIAEoDCIqChdVcGxvYWRTcGFjZUljb25SZXNwb25zZRIPCgdmaWxlX2lkGAEgASgJMvMDCgtGaWxlU2VydmljZRJbCgxVcGxvYWRBdmF0YXISIy5zdG9vcC5maWxlcy52MS5VcGxvYWRBdmF0YXJSZXF1ZXN0GiQuc3Rvb3AuZmlsZXMudjEuVXBsb2FkQXZhdGFyUmVzcG9uc2UiABJkCg9VcGxvYWRCb3RBdmF0YXISJi5zdG9vcC5maWxlcy52MS5VcGxvYWRCb3RBdmF0YXJSZXF1ZXN0Gicuc3Rvb3AuZmlsZXMudjEuVXBsb2FkQm90QXZhdGFyUmVzcG9uc2UiABJkCg9VcGxvYWRTcGFjZUljb24SJi5zdG9vcC5maWxlcy52MS5VcGxvYWRTcGFjZUljb25SZXF1ZXN0Gicuc3Rvb3AuZmlsZXMudjEuVXBsb2FkU3BhY2VJY29uUmVzcG9uc2UiABJkCg9HZXRTdG9yYWdlVXNhZ2USJi5zdG9vcC5maWxlcy52MS5HZXRTdG9yYWdlVXNhZ2VSZXF1ZXN0Gicuc3Rvb3AuZmlsZXMudjEuR2V0U3RvcmFnZVVzYWdlUmVzcG9uc2UiABJVCgpTd2VlcEZpbGVzEiEuc3Rvb3AuZmlsZXMudjEuU3dlZXBGaWxlc1JlcXVlc3QaIi5zdG9vcC5maWxlcy52MS5Td2VlcEZpbGVzUmVzcG9uc2UiAEKwAQoSY29tLnN0b29wLmZpbGVzLnYxQgpGaWxlc1Byb3RvUAFaNGdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2ZpbGVzL3YxO2ZpbGVzdjGiAgNTRliqAg5TdG9vcC5GaWxlcy5WMcoCDlN0b29wXEZpbGVzXFYx4gIaU3Rvb3BcRmlsZXNcVjFcR1BCTWV0YWRhdGHqAhBTdG9vcDo6RmlsZXM6OlYxYgZwcm90bzM");
 
 /**
  * @generated from message stoop.files.v1.GetStorageUsageRequest
@@ -72,28 +72,12 @@ export const SweepFilesRequestSchema: GenMessage<SweepFilesRequest> = /*@__PURE_
  */
 export type SweepFilesResponse = Message<"stoop.files.v1.SweepFilesResponse"> & {
   /**
-   * @generated from field: int64 files_removed = 1;
-   */
-  filesRemoved: bigint;
-
-  /**
-   * @generated from field: int64 bytes_freed = 2;
-   */
-  bytesFreed: bigint;
-
-  /**
-   * Blobs in storage that no file row pointed at.
+   * The sweep runs as a background job; the Diagnostics tab's Background
+   * work panel shows its outcome.
    *
-   * @generated from field: int64 stray_blobs_removed = 3;
+   * @generated from field: string job_id = 5;
    */
-  strayBlobsRemoved: bigint;
-
-  /**
-   * Files that could not be removed this pass (logged server-side).
-   *
-   * @generated from field: int64 errors = 4;
-   */
-  errors: bigint;
+  jobId: string;
 };
 
 /**
@@ -289,11 +273,9 @@ export const FileService: GenService<{
     output: typeof GetStorageUsageResponseSchema;
   },
   /**
-   * SweepFiles removes files nothing references any more (uploads never
-   * sent, attachments of deleted channels and spaces, replaced avatars
-   * and icons, preview images, blobs with no row) that are older than the
-   * grace period, and reports what went. The server also runs this on a
-   * timer. Instance admins only.
+   * SweepFiles queues the sweep that removes files nothing references
+   * any more (the pass that also runs on a schedule) and returns the job
+   * id. Instance admins only.
    *
    * @generated from rpc stoop.files.v1.FileService.SweepFiles
    */

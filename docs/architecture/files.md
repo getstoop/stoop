@@ -197,9 +197,11 @@ A self-hosted disk fills quietly. Things that stop being referenced:
 - preview images no preview points at,
 - a blob whose row insert failed.
 
-`internal/files/sweep.go` runs on a timer from startup
-(`STOOP_FILE_SWEEP_INTERVAL`, default 6 h; 0 disables the timer) and from
-the admin page's **Sweep now**. It:
+`internal/files/sweep.go` is the `sweep_files` job kind
+([runtime.md](runtime.md#background-work)), scheduled on
+`STOOP_FILE_SWEEP_INTERVAL` (default 6 h; 0 disables the schedule).
+The admin page's **Clean now** (`SweepFiles`) enqueues one and returns the
+job id; the Diagnostics tab shows the pass. It:
 
 1. Pages the `files` table (500 at a time) for rows older than the grace
    period.
