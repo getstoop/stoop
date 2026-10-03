@@ -62,8 +62,10 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 		}
 	}
 	close(queue)
-	<-listenerDone
 	s.shutdown(dispatcherID, &workers, cancelWork, tracked)
+	// The listener closes its connection meanwhile; the caller closes the
+	// pool only once it has.
+	<-listenerDone
 }
 
 // tick is one poll: heartbeat, materialise due schedules, then lease
