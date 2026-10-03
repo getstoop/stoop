@@ -95,18 +95,34 @@ func fits(used, size, quota int64) error {
 	return nil
 }
 
-// recordFile inserts the file row, and with a quota set it does so under
-// an advisory lock with the usage summed inside the same transaction, so
-// N uploads that each passed checkQuota while the others were in flight
-// cannot all land. The caller has already written the blob; on
-// ErrStorageFull it removes it again.
+// recordFile inserts the file row under the quota (insertUnderQuota). The
+// caller has already written the blob; on ErrStorageFull it removes it
+// again.
 func (s *Service) recordFile(ctx context.Context, params dbgen.CreateFileParams) (dbgen.File, error) {
+	return s.insertUnderQuota(ctx, params.Size, func(queries *dbgen.Queries) (dbgen.File, error) {
+		return queries.CreateFile(ctx, params)
+	})
+}
+
+// recordPendingFile is recordFile for an avatar or icon stored as sent,
+// which the normalise_image job readies.
+func (s *Service) recordPendingFile(ctx context.Context, params dbgen.CreatePendingFileParams) (dbgen.File, error) {
+	return s.insertUnderQuota(ctx, params.Size, func(queries *dbgen.Queries) (dbgen.File, error) {
+		return queries.CreatePendingFile(ctx, params)
+	})
+}
+
+// insertUnderQuota runs insert, and with a quota set it does so under an
+// advisory lock with the usage summed inside the same transaction, so N
+// uploads that each passed checkQuota while the others were in flight
+// cannot all land.
+func (s *Service) insertUnderQuota(ctx context.Context, size int64, insert func(queries *dbgen.Queries) (dbgen.File, error)) (dbgen.File, error) {
 	quota, err := s.quota(ctx)
 	if err != nil {
 		return dbgen.File{}, err
 	}
 	if quota <= 0 {
-		return s.q.CreateFile(ctx, params)
+		return insert(s.q)
 	}
 	var file dbgen.File
 	err = db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -118,10 +134,10 @@ func (s *Service) recordFile(ctx context.Context, params dbgen.CreateFileParams)
 		if err != nil {
 			return fmt.Errorf("storage usage: %w", err)
 		}
-		if err := fits(usage.Bytes, params.Size, quota); err != nil {
+		if err := fits(usage.Bytes, size, quota); err != nil {
 			return err
 		}
-		file, err = qtx.CreateFile(ctx, params)
+		file, err = insert(qtx)
 		return err
 	})
 	if err != nil {
