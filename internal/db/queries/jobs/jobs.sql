@@ -35,11 +35,13 @@ WHERE j.id IN (
 RETURNING j.*;
 
 -- The outcome writes match the attempt they were leased for, so a stale
--- attempt whose lease lapsed changes nothing.
+-- attempt whose lease lapsed changes nothing. A succeeded job's arguments
+-- are not kept: nothing reads them, and they may carry content.
 -- name: FinishJob :execrows
 UPDATE jobs
 SET state = sqlc.arg(state), finished_at = sqlc.arg(now)::timestamptz, leased_until = NULL,
-    error = sqlc.arg(error), counters = sqlc.narg(counters)
+    error = sqlc.arg(error), counters = sqlc.narg(counters),
+    args = CASE WHEN sqlc.arg(state)::text = 'succeeded' THEN '{}'::jsonb ELSE args END
 WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt);
 
 -- name: RequeueJob :execrows

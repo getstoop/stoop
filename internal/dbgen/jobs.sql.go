@@ -66,7 +66,8 @@ func (q *Queries) ExtendJobLease(ctx context.Context, arg ExtendJobLeaseParams) 
 const finishJob = `-- name: FinishJob :execrows
 UPDATE jobs
 SET state = $1, finished_at = $2::timestamptz, leased_until = NULL,
-    error = $3, counters = $4
+    error = $3, counters = $4,
+    args = CASE WHEN $1::text = 'succeeded' THEN '{}'::jsonb ELSE args END
 WHERE id = $5 AND attempt = $6
 `
 
@@ -80,7 +81,8 @@ type FinishJobParams struct {
 }
 
 // The outcome writes match the attempt they were leased for, so a stale
-// attempt whose lease lapsed changes nothing.
+// attempt whose lease lapsed changes nothing. A succeeded job's arguments
+// are not kept: nothing reads them, and they may carry content.
 func (q *Queries) FinishJob(ctx context.Context, arg FinishJobParams) (int64, error) {
 	result, err := q.db.Exec(ctx, finishJob,
 		arg.State,
