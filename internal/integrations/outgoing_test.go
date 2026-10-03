@@ -478,10 +478,10 @@ func TestOutgoingAcceptedReplyIsNotRepeated(t *testing.T) {
 	}
 }
 
-func TestClipKeepsWholeCharacters(t *testing.T) {
-	got := clip("aé", 2)
+func TestCutBytesKeepsWholeCharacters(t *testing.T) {
+	got := cutBytes("aé", 2)
 	if got != "a" || !utf8.ValidString(got) {
-		t.Errorf("clip = %q", got)
+		t.Errorf("cutBytes = %q", got)
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"mime"
 	"strings"
-	"unicode/utf8"
 )
 
 // Vendor adapters: each sender's body shape, coerced to the text that is
@@ -56,13 +55,4 @@ func fromJSON(raw []byte) string {
 		}
 	}
 	return strings.Join(parts, "\n")
-}
-
-// truncate cuts text to the message limit, ending it with an ellipsis.
-func truncate(text string) string {
-	if utf8.RuneCountInString(text) <= maxPostRunes {
-		return text
-	}
-	runes := []rune(text)
-	return strings.TrimRight(string(runes[:maxPostRunes-1]), " \n") + "…"
 }

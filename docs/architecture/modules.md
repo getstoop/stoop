@@ -32,9 +32,13 @@ in, and usually exposes a Connect service. There are seven: `auth`,
 
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
-`authctx`, `accesswire`, `apierr`, `rowid`, `release`, `diag`, `blob`,
+`authctx`, `accesswire`, `apierr`, `rowid`, `text`, `release`, `diag`, `blob`,
 `unfurl`, `kv`, `netguard`, `ratelimit`, `trustedproxy`, `tailnet`, `cftunnel`,
 `buildinfo`, `webui`.
+
+A helper two modules both write earns a support package when it has
+callers in several packages and the package name says what it holds;
+there is no util package. Two sites of a one-liner stay as copies.
 
 Keyed state that lives and dies in memory — a lockout per username, a
 sign-in attempt per desktop window, a bucket per client address — goes in

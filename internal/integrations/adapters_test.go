@@ -27,20 +27,6 @@ func TestAdapt(t *testing.T) {
 	}
 }
 
-func TestTruncate(t *testing.T) {
-	long := strings.Repeat("é", maxPostRunes+50)
-	got := truncate(long)
-	if n := len([]rune(got)); n != maxPostRunes || !strings.HasSuffix(got, "…") {
-		t.Errorf("truncated to %d runes, ends %q", n, got[len(got)-3:])
-	}
-	if short := "fits"; truncate(short) != short {
-		t.Error("short text changed")
-	}
-	if n := len([]rune(truncate(strings.Repeat("x", maxPostRunes)))); n != maxPostRunes {
-		t.Errorf("exact fit changed to %d", n)
-	}
-}
-
 func TestBotUsername(t *testing.T) {
 	cases := map[string]string{
 		"Uptime Kuma": "uptime_kuma", "UPS!": "ups", "a": "a_bot", "--Grafana.alerts--": "grafana_alerts",

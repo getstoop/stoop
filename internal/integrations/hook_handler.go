@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/text"
 )
 
 // maxHookBody bounds an appliance's request body.
@@ -61,12 +62,12 @@ func (s *Service) HookHandler() http.Handler {
 			http.Error(w, "body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		text := truncate(adapt(r.Header.Get("Content-Type"), raw))
-		if text == "" {
+		post := text.Truncate(adapt(r.Header.Get("Content-Type"), raw), maxPostRunes)
+		if post == "" {
 			http.Error(w, "nothing to post", http.StatusBadRequest)
 			return
 		}
-		if _, err := s.poster.Post(authctx.WithIdentity(ctx, id), PostRequest{ChannelID: hook.ChannelID, Content: text}); err != nil {
+		if _, err := s.poster.Post(authctx.WithIdentity(ctx, id), PostRequest{ChannelID: hook.ChannelID, Content: post}); err != nil {
 			status, msg := hookFailure(err)
 			if status == http.StatusInternalServerError {
 				s.log.Error("hook post failed", "hook", hook.ID, "err", err)
