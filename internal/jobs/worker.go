@@ -61,7 +61,7 @@ func (s *Service) performRenewing(ctx context.Context, entry kindEntry, job *Job
 	renewed := make(chan struct{})
 	go func() {
 		defer close(renewed)
-		s.renewLease(renewCtx, row, entry.opts.Lease)
+		s.renewLease(renewCtx, row)
 	}()
 	err := performSafely(ctx, entry.performer, job)
 	stopRenewing()
@@ -69,8 +69,8 @@ func (s *Service) performRenewing(ctx context.Context, entry kindEntry, job *Job
 	return err
 }
 
-func (s *Service) renewLease(ctx context.Context, row dbgen.Job, lease time.Duration) {
-	ticker := time.NewTicker(lease / 2)
+func (s *Service) renewLease(ctx context.Context, row dbgen.Job) {
+	ticker := time.NewTicker(s.lease / 2)
 	defer ticker.Stop()
 	for {
 		select {
@@ -78,7 +78,7 @@ func (s *Service) renewLease(ctx context.Context, row dbgen.Job, lease time.Dura
 			return
 		case <-ticker.C:
 		}
-		if err := s.extendLease(ctx, row, s.now().Add(lease)); err != nil && ctx.Err() == nil {
+		if err := s.extendLease(ctx, row, s.now().Add(s.lease)); err != nil && ctx.Err() == nil {
 			s.log.Error("job lease not renewed", "kind", row.Kind, "id", row.ID, "err", err)
 		}
 	}

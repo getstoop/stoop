@@ -22,7 +22,7 @@ func (q *Queries) CountQueuedJobs(ctx context.Context, kind string) (int64, erro
 }
 
 const extendJobLease = `-- name: ExtendJobLease :execrows
-UPDATE jobs SET leased_until = $1::timestamptz
+UPDATE jobs SET leased_until = GREATEST(leased_until, $1::timestamptz)
 WHERE id = $2 AND attempt = $3 AND state = 'running'
 `
 
@@ -32,6 +32,8 @@ type ExtendJobLeaseParams struct {
 	Attempt int32
 }
 
+// ExtendJobLease never moves a deadline earlier: a renewal keeps an
+// Extend the performer asked for.
 func (q *Queries) ExtendJobLease(ctx context.Context, arg ExtendJobLeaseParams) (int64, error) {
 	result, err := q.db.Exec(ctx, extendJobLease, arg.Until, arg.ID, arg.Attempt)
 	if err != nil {

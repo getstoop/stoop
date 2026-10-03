@@ -110,13 +110,19 @@ func TestSlowPerformerKeepsItsLease(t *testing.T) {
 	pool := dbtest.New(t)
 	clock := newFakeClock()
 	service, registry := newTestService(pool, clock, testConfig())
+	service.lease = 400 * time.Millisecond
 	var performed atomic.Int32
-	release := make(chan struct{})
-	Register(registry, "slow", func(context.Context, *Job, NoArgs) error {
+	extendNow, extended, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	Register(registry, "slow", func(ctx context.Context, job *Job, _ NoArgs) error {
 		performed.Add(1)
+		<-extendNow
+		if err := job.Extend(ctx, 3*time.Hour); err != nil {
+			return err
+		}
+		close(extended)
 		<-release
 		return nil
-	}, Options{Lease: time.Second})
+	}, Options{})
 
 	id := mustEnqueue(t, service, "slow", nil)
 	startDispatcher(t, service)
@@ -127,14 +133,20 @@ func TestSlowPerformerKeepsItsLease(t *testing.T) {
 	for range 3 {
 		waitFor(t, "the lease to be renewed", func() bool {
 			row := readJob(t, pool, id)
-			return row.LeasedUntil != nil && row.LeasedUntil.Equal(clock.Now().Add(time.Second))
+			return row.LeasedUntil != nil && row.LeasedUntil.Equal(clock.Now().Add(service.lease))
 		})
-		clock.Advance(700 * time.Millisecond)
+		clock.Advance(300 * time.Millisecond)
 	}
 	time.Sleep(5 * testConfig().Poll)
 	if row := readJob(t, pool, id); row.Attempt != 1 || row.State != string(StateRunning) {
 		t.Fatalf("re-leased: attempt %d state %s", row.Attempt, row.State)
 	}
+
+	// An explicit Extend outlives the renewals that follow it.
+	close(extendNow)
+	<-extended
+	time.Sleep(3 * service.lease)
+	sameInstant(t, "leased_until after Extend and renewals", readJob(t, pool, id).LeasedUntil, clock.Now().Add(3*time.Hour))
 	close(release)
 	waitForState(t, pool, id, StateSucceeded, 1)
 	if performed.Load() != 1 {
