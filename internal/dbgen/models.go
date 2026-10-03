@@ -127,6 +127,40 @@ type Invite struct {
 	Role      string
 }
 
+type Job struct {
+	ID          string
+	Kind        string
+	Args        []byte
+	Lane        *string
+	Sequence    *int64
+	State       string
+	Attempt     int32
+	MaxAttempts int32
+	NotBefore   time.Time
+	LeasedUntil *time.Time
+	StartedAt   *time.Time
+	FinishedAt  *time.Time
+	Error       string
+	Counters    []byte
+	CreatedAt   time.Time
+}
+
+type JobDispatcher struct {
+	ID        string
+	Host      string
+	Workers   int32
+	StartedAt time.Time
+	SeenAt    time.Time
+}
+
+type JobSchedule struct {
+	Kind       string
+	IntervalMs int64
+	Enabled    bool
+	NextDue    time.Time
+	LastJobID  *string
+}
+
 type LinkPreview struct {
 	Url         string
 	State       string

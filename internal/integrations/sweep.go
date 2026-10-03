@@ -104,6 +104,9 @@ func (s *Service) SweepDeliveries(ctx context.Context, retention time.Duration) 
 	return n, nil
 }
 
+// SweepHooksKind is the job kind internal/app registers for the three hook sweeps.
+const SweepHooksKind = "sweep_hooks"
+
 var deliveryLogSweep = diag.NewJob("delivery_log_sweep")
 
 // RunSweeper sweeps orphaned hook credentials and old deliveries shortly

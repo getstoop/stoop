@@ -116,8 +116,19 @@ type Service struct {
 	inflight *inflight
 	// uploadIdle is how long an upload's body may send nothing.
 	uploadIdle time.Duration
-	log        *slog.Logger
+	// jobs is the queue SweepFiles enqueues on; nil until UseJobs.
+	jobs JobQueue
+	log  *slog.Logger
 }
+
+// JobQueue is the files module's port onto the job queue, wired in
+// internal/app. The module enqueues only the kinds it performs.
+type JobQueue interface {
+	Enqueue(ctx context.Context, kind string, args any) (string, error)
+}
+
+// UseJobs wires the job queue.
+func (s *Service) UseJobs(q JobQueue) { s.jobs = q }
 
 func New(pool *pgxpool.Pool, store blob.Store, bus events.Bus, avatars Avatars, spaces Spaces, sessions SessionVerifier, log *slog.Logger) *Service {
 	return &Service{

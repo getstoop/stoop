@@ -101,6 +101,9 @@ func (s *Service) SweepMessages(ctx context.Context, now time.Time) (int64, erro
 	return removed, nil
 }
 
+// SweepMessagesKind is the job kind internal/app registers for SweepMessages.
+const SweepMessagesKind = "sweep_messages"
+
 var messageRetention = diag.NewJob("message_retention")
 
 // RunMessageSweeper runs SweepMessages hourly until ctx ends.

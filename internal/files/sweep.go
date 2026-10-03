@@ -297,6 +297,9 @@ func (s *Service) referenced(ctx context.Context, ids []string) (map[string]bool
 	return out, nil
 }
 
+// SweepFilesKind is the job kind internal/app registers for Sweep.
+const SweepFilesKind = "sweep_files"
+
 var fileSweep = diag.NewJob("file_sweep")
 
 // RunSweeper sweeps on a timer until ctx ends: once shortly after start,
