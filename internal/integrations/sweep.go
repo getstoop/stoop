@@ -7,15 +7,12 @@ import (
 
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
-	"github.com/getstoop/stoop/internal/diag"
 )
 
 // A deleted channel or space cascades its hook rows but not their
 // credentials, which live in auth's table. The sweep revokes those and
 // retires bots left with nothing, and turns off the hooks of bots kicked
 // or banned out of their space.
-
-const sweepStartupDelay = 45 * time.Second
 
 // SweepOrphanHooks revokes hook credentials no hook row points at and
 // reports how many.
@@ -106,53 +103,3 @@ func (s *Service) SweepDeliveries(ctx context.Context, retention time.Duration) 
 
 // SweepHooksKind is the job kind internal/app registers for the three hook sweeps.
 const SweepHooksKind = "sweep_hooks"
-
-var deliveryLogSweep = diag.NewJob("delivery_log_sweep")
-
-// RunSweeper sweeps orphaned hook credentials and old deliveries shortly
-// after start and then every interval; 0 disables the timer.
-func (s *Service) RunSweeper(ctx context.Context, interval, retention time.Duration) {
-	if interval <= 0 {
-		return
-	}
-	deliveryLogSweep.Every(interval)
-	run := func() {
-		deliveryLogSweep.Run(func() (diag.Counters, error) {
-			var failed error
-			if n, err := s.SweepOrphanHooks(ctx); err != nil && ctx.Err() == nil {
-				s.log.Warn("hook sweep failed", "err", err)
-				failed = err
-			} else if n > 0 {
-				s.log.Info("revoked orphaned hook credentials", "count", n)
-			}
-			if n, err := s.SweepRemovedBotHooks(ctx); err != nil && ctx.Err() == nil {
-				s.log.Warn("removed-bot hook sweep failed", "err", err)
-				failed = err
-			} else if n > 0 {
-				s.log.Info("turned off hooks of bots removed from their space", "count", n)
-			}
-			n, err := s.SweepDeliveries(ctx, retention)
-			if err != nil && ctx.Err() == nil {
-				s.log.Warn("delivery sweep failed", "err", err)
-				failed = err
-			}
-			return diag.Counters{"deliveries_removed": n}, failed
-		})
-	}
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(sweepStartupDelay):
-		run()
-	}
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			run()
-		}
-	}
-}

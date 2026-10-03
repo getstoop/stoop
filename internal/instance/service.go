@@ -15,6 +15,7 @@ import (
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/diag"
 	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
@@ -103,6 +104,8 @@ type Service struct {
 	// webhookQueue is the Background work panel's view of the outgoing
 	// queue (diagnostics_jobs.go).
 	webhookQueue func(ctx context.Context) (QueueStats, error)
+	// jobRecords is the panel's job list (diagnostics_jobs.go).
+	jobRecords func(ctx context.Context) ([]diag.JobRecord, error)
 	// trusted is read on every HTTP request (TrustsPeer), so it is kept
 	// in memory and swapped on save rather than read from the database.
 	trusted atomic.Pointer[trustedproxy.Set]

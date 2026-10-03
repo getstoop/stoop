@@ -32,11 +32,18 @@ type harness struct {
 	srv *httptest.Server
 }
 
-// newHarness boots the binary; env is extra STOOP_* settings as
-// key/value pairs, over the defaults a test needs.
+// newHarness boots the binary on a fresh database; env is extra STOOP_*
+// settings as key/value pairs, over the defaults a test needs.
 func newHarness(t *testing.T, env ...string) *harness {
 	t.Helper()
-	t.Setenv("STOOP_DATABASE_URL", dbtest.NewURL(t))
+	return newHarnessOn(t, dbtest.NewURL(t), env...)
+}
+
+// newHarnessOn boots the binary on a database that may already hold an
+// instance, the way a restart does.
+func newHarnessOn(t *testing.T, databaseURL string, env ...string) *harness {
+	t.Helper()
+	t.Setenv("STOOP_DATABASE_URL", databaseURL)
 	t.Setenv("STOOP_STORAGE_DIR", t.TempDir())
 	t.Setenv("STOOP_REGISTRATION", "open")
 	t.Setenv("STOOP_AUTH_RATE_LIMIT", "0")
@@ -53,8 +60,8 @@ func newHarness(t *testing.T, env ...string) *harness {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(a.Handler())
-	// The pipeline behind the handler (sweepers, outgoing deliveries)
-	// runs until the test ends, then the pool closes.
+	// The pipeline behind the handler (the job dispatcher, outgoing
+	// deliveries) runs until the test ends, then the pool closes.
 	bg, stop := context.WithCancel(context.Background())
 	a.StartBackground(bg)
 	t.Cleanup(func() {

@@ -35,12 +35,13 @@ export function formatDuration(us: number): string {
 // ---- Background work ----
 
 const JOB_LABELS: Record<string, string> = {
-  file_sweep: "File sweep",
-  attachment_retention: "Attachment retention",
-  message_retention: "Message retention",
-  activity_retention: "Activity retention",
-  credential_sweep: "Credential sweep",
-  delivery_log_sweep: "Delivery log sweep",
+  sweep_files: "File sweep",
+  sweep_attachments: "Attachment retention",
+  sweep_messages: "Message retention",
+  sweep_activity: "Activity retention",
+  sweep_credentials: "Credential sweep",
+  sweep_hooks: "Hook sweep",
+  sweep_jobs: "Job history sweep",
   webhook_worker: "Webhook worker",
 };
 

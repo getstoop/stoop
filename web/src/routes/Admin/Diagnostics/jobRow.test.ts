@@ -15,7 +15,7 @@ describe("toRow", () => {
   it("reads a sweeper on its timer", () => {
     const row = toRow(
       create(JobSchema, {
-        name: "file_sweep",
+        name: "sweep_files",
         interval: { seconds: 3600n },
         lastStarted: timestampFromMs(now - 12 * MIN),
         lastDurationMs: 340,
@@ -37,7 +37,7 @@ describe("toRow", () => {
   it("says off, with dashes, for a sweeper that is switched off", () => {
     const row = toRow(
       create(JobSchema, {
-        name: "activity_retention",
+        name: "sweep_activity",
         lastOutcome: JobOutcome.NEVER_RAN,
       }),
       undefined,

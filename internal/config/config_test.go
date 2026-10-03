@@ -3,6 +3,7 @@ package config
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoad_Tailscale(t *testing.T) {
@@ -270,5 +271,43 @@ func TestLoad_CloudflareTunnel(t *testing.T) {
 	t.Setenv("STOOP_CLOUDFLARE_TUNNEL", "maybe")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_CLOUDFLARE_TUNNEL") {
 		t.Errorf("bad bool should be rejected, got %v", err)
+	}
+}
+
+func TestLoad_Jobs(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.JobsWorkers != 4 || cfg.JobsPoll != 2*time.Second || cfg.JobsRetention != 168*time.Hour {
+		t.Errorf("defaults = %d, %s, %s", cfg.JobsWorkers, cfg.JobsPoll, cfg.JobsRetention)
+	}
+	t.Setenv("STOOP_JOBS_WORKERS", "2")
+	t.Setenv("STOOP_JOBS_POLL", "500ms")
+	t.Setenv("STOOP_JOBS_RETENTION", "0")
+	if cfg, err = Load(); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.JobsWorkers != 2 || cfg.JobsPoll != 500*time.Millisecond || cfg.JobsRetention != 0 {
+		t.Errorf("cfg = %d, %s, %s", cfg.JobsWorkers, cfg.JobsPoll, cfg.JobsRetention)
+	}
+	for _, bad := range []string{"0", "-1", "many"} {
+		t.Setenv("STOOP_JOBS_WORKERS", bad)
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_JOBS_WORKERS") {
+			t.Errorf("STOOP_JOBS_WORKERS=%q should be rejected, got %v", bad, err)
+		}
+	}
+	t.Setenv("STOOP_JOBS_WORKERS", "4")
+	for _, bad := range []string{"0", "-2s", "soon"} {
+		t.Setenv("STOOP_JOBS_POLL", bad)
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_JOBS_POLL") {
+			t.Errorf("STOOP_JOBS_POLL=%q should be rejected, got %v", bad, err)
+		}
+	}
+	t.Setenv("STOOP_JOBS_POLL", "2s")
+	t.Setenv("STOOP_JOBS_RETENTION", "-1h")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_JOBS_RETENTION") {
+		t.Errorf("a negative retention should be rejected, got %v", err)
 	}
 }

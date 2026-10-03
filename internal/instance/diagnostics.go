@@ -73,5 +73,9 @@ func (s *Service) ListJobs(ctx context.Context, _ *connect.Request[instancev1.Li
 	if err := apierr.RequireAction(ctx, authctx.InstanceRead); err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(s.listJobs(ctx)), nil
+	resp, err := s.listJobs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
 }
