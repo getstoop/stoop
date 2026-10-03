@@ -103,7 +103,7 @@ and the main process can tell whether a runner is alive wherever it runs.
 ```go
 // Scheduler is what callers use. An unknown kind is refused, not stored.
 type Scheduler interface {
-    PerformLater(ctx context.Context, kind string, args any) (id string, err error)
+    Perform(ctx context.Context, kind string, args any) (id string, err error)
     PerformAt(ctx context.Context, kind string, args any, at time.Time) (id string, err error)
 }
 
@@ -135,9 +135,9 @@ func Register[A any](r *Registry, kind string, fn func(ctx context.Context, job 
 
 The dispatcher is one goroutine: lease up to the batch size of due rows,
 hand each to a free worker, repeat on a short poll. Workers are
-goroutines, `STOOP_JOBS_WORKERS` of them. The worker calls `Perform`,
+goroutines, `STOOP_JOBS_WORKERS` of them. The worker calls `Performer.Perform`,
 recovers a panic as a failure, and writes the outcome the moment
-`Perform` returns. The return value is how the outcome reaches the row;
+`Performer.Perform` returns. The return value is how the outcome reaches the row;
 a performer cannot forget to report and nothing is left `running`.
 
 A lease, not a flag: `running` means `leased_until` is in the future. A
@@ -250,7 +250,8 @@ Made on 2026-10-03 while shaping this:
   this document is the moment to adopt a library, not extend.
 - Periodic jobs are schedules that materialise queue rows, so every pass
   is a history row and run-now is an insert.
-- The outcome is `Perform`'s return value; the dispatcher writes it.
+- The outcome is `Performer.Perform`'s return value; the dispatcher writes it.
+- `Scheduler.Perform` queues for now and `PerformAt` for a time. No `PerformLater`, which reads as a delay, and no `PerformNow`, which reads as inline.
 - "Dispatcher" for the poller; "supervisor" is reserved for the process
   minder in phase 3.
 - The runner is in-process by default. A second process is the
