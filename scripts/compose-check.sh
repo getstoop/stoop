@@ -78,4 +78,14 @@ printf 'COMPOSE_PROFILES=bundled-postgres\nPOSTGRES_PASSWORD=change-me\nSTOOP_VO
 render | tr -d ' \n"' | grep -q 'STOOP_VOICE:false' || fail "text only: STOOP_VOICE did not reach the server"
 render 2>&1 | grep -qi 'warn' && fail "text only: compose printed a warning"
 
+# Jobs apart: the profile on and the server told to run none.
+printf 'COMPOSE_PROFILES=bundled-postgres,bundled-livekit,jobs\nPOSTGRES_PASSWORD=change-me\nSTOOP_JOBS=external\n' >"$env_file"
+[ "$(services)" = "jobs keys-owner livekit postgres stoop " ] || fail "jobs: got services: $(services)"
+jobs=$(render | sed -n '/^  jobs:/,/^  keys-owner:/p' | tr -d ' \n"')
+for want in image:ghcr.io/getstoop/stoop: command:-jobs target:/data stoop:condition:service_healthy \
+	STOOP_JOBS:external STOOP_STORAGE_DIR:/data memory:536870912; do
+	echo "$jobs" | grep -q "$want" || fail "jobs: $want missing from the jobs service"
+done
+render 2>&1 | grep -qi 'warn' && fail "jobs: compose printed a warning"
+
 echo "compose-check: ok"

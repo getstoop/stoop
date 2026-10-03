@@ -18,9 +18,10 @@ stoop
 ├── goroutine: tailnet manager                  reconciles the node with saved settings
 ├── goroutine: tunnel manager                   reconciles cloudflared with saved settings
 │   └── child process: cloudflared              when a Cloudflare Tunnel is enabled
-├── goroutine: jobs dispatcher                  the schedules and the queue, in Postgres
-│   └── STOOP_JOBS_WORKERS worker goroutines
-└── goroutines: webhook subscriber and worker   bus events in, POSTs out
+├── goroutine: jobs dispatcher                  the schedules and the queue, in Postgres;
+│   └── STOOP_JOBS_WORKERS worker goroutines    or a `stoop jobs` process (STOOP_JOBS)
+│       └── child process: stoop jobs           when STOOP_JOBS=child
+└── goroutine: webhook subscriber               bus events in, delivery jobs out
 ```
 
 `cmd/stoop/main.go` is short: dispatch the `admin` subcommand,
@@ -315,6 +316,7 @@ the `jobs runner` health row
 | `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for when no insert has woken the dispatcher. |
 | `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever. |
 | `STOOP_FILE_SWEEP_INTERVAL` | `6h` | `0` disables the four schedules on it; the Storage tab can still queue a file sweep. |
+| `STOOP_JOBS` | `embedded` | Where the dispatcher runs: in the server, in a `stoop jobs` the server starts and supervises (`child`, restarted with backoff like cloudflared), or in none of it (`external`, the `jobs` compose service or a bare `stoop jobs`). |
 
 The Storage tab's **Clean now** is `FileService.SweepFiles`: it enqueues
 one `sweep_files` job and returns its id, and the Diagnostics tab's
@@ -327,6 +329,11 @@ One more goroutine runs for outgoing webhooks
 ([integrations.md](integrations.md#outgoing)): the subscriber, which turns
 bus events into `deliver_webhook` jobs. It stops with the process; the
 jobs are in Postgres, so nothing in flight is lost across a restart.
+
+Only the dispatcher moves out under `STOOP_JOBS`. The subscriber reads
+the in-process bus, which only the server publishes to, so it, the
+sampler and the front-door managers stay in the server in every mode;
+`stoop jobs` builds the modules and runs the dispatcher and nothing else.
 
 ### The update check
 

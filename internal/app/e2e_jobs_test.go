@@ -1,11 +1,18 @@
 package app_test
 
 import (
+	"context"
+	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/getstoop/stoop/internal/app"
+	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
@@ -129,5 +136,70 @@ func TestE2EJobsActivityRetentionZeroDisablesTheRow(t *testing.T) {
 	}
 	if row := jobs["sweep_files"]; row["interval"] == nil {
 		t.Errorf("sweep_files = %v, want its interval kept", row)
+	}
+}
+
+// With STOOP_JOBS=external the server runs no dispatcher: a sweep queued
+// by hand waits until a `stoop jobs` runner on the same database works it.
+func TestE2EJobsExternalRunnerWorksTheQueue(t *testing.T) {
+	databaseURL := dbtest.NewURL(t)
+	h := newHarnessOn(t, databaseURL, "STOOP_JOBS", "external")
+	casey := h.person("casey")
+	pool, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+
+	var dispatchers int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM job_dispatchers`).Scan(&dispatchers); err != nil {
+		t.Fatal(err)
+	}
+	if dispatchers != 0 {
+		t.Fatalf("%d dispatcher rows with STOOP_JOBS=external, want none", dispatchers)
+	}
+	jobID := h.rpc(casey, "stoop.files.v1.FileService/SweepFiles", map[string]any{}).expect(t, "ok").str("jobId")
+	var state string
+	if err := pool.QueryRow(context.Background(), `SELECT state FROM jobs WHERE id = $1`, jobID).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "queued" {
+		t.Fatalf("sweep_files is %s with no dispatcher, want queued", state)
+	}
+
+	// The runner the operator would start, from the same environment.
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, err := app.NewRunner(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	var runErr error
+	go func() {
+		runErr = runner.Run(ctx)
+		close(done)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(15 * time.Second):
+			t.Error("Run did not return after cancel")
+		}
+	})
+
+	h.awaitJobOutcome(casey, "sweep_files", "JOB_OUTCOME_SUCCEEDED", 15*time.Second)
+	cancel()
+	select {
+	case <-done:
+		if runErr != nil {
+			t.Errorf("Run returned %v", runErr)
+		}
+	case <-time.After(12 * time.Second):
+		t.Fatal("Run did not return within 12s of cancel")
 	}
 }
