@@ -167,3 +167,61 @@ func TestUnknownKindIsRefused(t *testing.T) {
 		t.Error("a refused kind left a row")
 	}
 }
+
+func TestScheduleWaitsForTheRunningRun(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	ctx := context.Background()
+	service, registry := newTestService(pool, clock, testConfig())
+	release := make(chan struct{})
+	Register(registry, "tick", func(context.Context, *Job, NoArgs) error {
+		<-release
+		return nil
+	}, Options{})
+	if err := service.Schedule(ctx, "tick", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	firstDue := clock.Now().Add(ScheduleLead)
+	countTicks := func() int64 { return countRows(t, pool, `SELECT count(*) FROM jobs WHERE kind = 'tick'`) }
+	expectHeld := func(what string, ticks int64, nextDue time.Time) {
+		t.Helper()
+		time.Sleep(5 * testConfig().Poll)
+		if got := countTicks(); got != ticks {
+			t.Fatalf("%s: %d tick rows, want %d", what, got, ticks)
+		}
+		if row := readSchedule(t, pool, "tick"); !row.NextDue.Equal(nextDue) {
+			t.Fatalf("%s: next_due moved to %v", what, row.NextDue)
+		}
+	}
+
+	// A queued run of the kind holds the schedule.
+	queued, err := service.EnqueueAt(ctx, "tick", nil, clock.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	startDispatcher(t, service)
+	clock.Advance(ScheduleLead + time.Second)
+	expectHeld("while a run is queued", 1, firstDue)
+
+	if _, err := pool.Exec(ctx, `DELETE FROM jobs WHERE id = $1`, queued); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the schedule to insert a run", func() bool { return countTicks() == 1 && readSchedule(t, pool, "tick").LastJobID != nil })
+	secondDue := clock.Now().Add(time.Minute)
+	if row := readSchedule(t, pool, "tick"); !row.NextDue.Equal(secondDue) {
+		t.Fatalf("next_due = %v, want now + 1m", row.NextDue)
+	}
+	running := *readSchedule(t, pool, "tick").LastJobID
+	waitForState(t, pool, running, StateRunning, 1)
+
+	// A running one holds it too.
+	clock.Advance(time.Minute + time.Second)
+	expectHeld("while a run is running", 1, secondDue)
+
+	close(release)
+	waitForState(t, pool, running, StateSucceeded, 1)
+	waitFor(t, "the schedule to insert the next run", func() bool { return countTicks() == 2 })
+	if row := readSchedule(t, pool, "tick"); !row.NextDue.Equal(clock.Now().Add(time.Minute)) {
+		t.Errorf("next_due after the run = %v, want now + 1m", row.NextDue)
+	}
+}

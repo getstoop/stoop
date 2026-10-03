@@ -63,7 +63,7 @@ func (s *Service) Schedule(ctx context.Context, kind string, every time.Duration
 	}
 	now := s.now()
 	params := dbgen.UpsertScheduleParams{Kind: kind, FirstDue: now.Add(ScheduleLead), MovedDue: now}
-	if every > 0 {
+	if every >= time.Millisecond {
 		params.IntervalMs = every.Milliseconds()
 		params.Enabled = true
 		params.MovedDue = now.Add(every)

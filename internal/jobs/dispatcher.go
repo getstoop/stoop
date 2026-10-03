@@ -81,36 +81,49 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 		return cmp.Compare(left.CreatedAt.UnixNano(), right.CreatedAt.UnixNano())
 	})
 	for _, row := range rows {
-		tracked.add(row.ID)
+		tracked.add(row.ID, row.Attempt)
 		queue <- row
 	}
 	return len(rows) == free
 }
 
 // shutdown waits for the workers up to ShutdownGrace, cancels what is
-// still running, then releases those rows and removes the heartbeat.
+// still running, releases those rows, removes the heartbeat and gives the
+// cancelled workers outcomeTimeout to leave before the caller closes the
+// pool.
 func (s *Service) shutdown(dispatcherID string, workers *sync.WaitGroup, cancelWork context.CancelFunc, tracked *inflight) {
 	done := make(chan struct{})
 	go func() {
 		workers.Wait()
 		close(done)
 	}()
-	grace := time.NewTimer(s.cfg.ShutdownGrace)
-	defer grace.Stop()
-	select {
-	case <-done:
-	case <-grace.C:
+	if !waitUntil(done, s.cfg.ShutdownGrace) {
 		cancelWork()
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), outcomeTimeout)
 	defer cancel()
-	if ids := tracked.drain(); len(ids) > 0 {
-		if err := s.queries.ReleaseJobs(ctx, ids); err != nil {
+	if ids, attempts := tracked.drain(); len(ids) > 0 {
+		if err := s.queries.ReleaseJobs(ctx, dbgen.ReleaseJobsParams{Ids: ids, Attempts: attempts}); err != nil {
 			s.log.Error("jobs: release in-flight rows", "count", len(ids), "err", err)
 		}
 	}
 	if err := s.queries.DeleteDispatcher(ctx, dispatcherID); err != nil {
 		s.log.Error("jobs: remove dispatcher", "err", err)
+	}
+	if !waitUntil(done, outcomeTimeout) {
+		s.log.Warn("jobs: workers still running at shutdown", "count", s.cfg.Workers)
+	}
+}
+
+// waitUntil reports whether done closed before the timeout.
+func waitUntil(done <-chan struct{}, timeout time.Duration) bool {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return true
+	case <-timer.C:
+		return false
 	}
 }
 

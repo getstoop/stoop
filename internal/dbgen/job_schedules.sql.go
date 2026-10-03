@@ -29,12 +29,16 @@ func (q *Queries) AdvanceSchedule(ctx context.Context, arg AdvanceScheduleParams
 const dueSchedules = `-- name: DueSchedules :many
 SELECT kind, interval_ms, enabled, next_due, last_job_id FROM job_schedules
 WHERE enabled AND next_due <= $1::timestamptz
+  AND NOT EXISTS (
+      SELECT 1 FROM jobs WHERE jobs.kind = job_schedules.kind AND jobs.state IN ('queued', 'running')
+  )
 ORDER BY kind
 FOR UPDATE SKIP LOCKED
 `
 
 // DueSchedules locks the due rows for the caller's transaction; SKIP
-// LOCKED keeps two dispatchers from inserting the same run.
+// LOCKED keeps two dispatchers from inserting the same run. A kind with a
+// run still queued or running waits for the next tick.
 func (q *Queries) DueSchedules(ctx context.Context, now time.Time) ([]JobSchedule, error) {
 	rows, err := q.db.Query(ctx, dueSchedules, now)
 	if err != nil {
