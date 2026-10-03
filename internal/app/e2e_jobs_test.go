@@ -87,9 +87,9 @@ func TestE2EJobsMetricsListEveryJobOnce(t *testing.T) {
 }
 
 // jobsByName indexes a ListJobs reply by job name.
-func jobsByName(r reply) map[string]map[string]any {
+func jobsByName(response reply) map[string]map[string]any {
 	jobs := map[string]map[string]any{}
-	for _, item := range r.list("jobs") {
+	for _, item := range response.list("jobs") {
 		row, _ := item.(map[string]any)
 		name, _ := row["name"].(string)
 		jobs[name] = row
@@ -109,8 +109,8 @@ func nextDue(t *testing.T, row map[string]any) time.Time {
 }
 
 // healthDetail is one check's detail line in a GetHealth reply.
-func healthDetail(r reply, check string) string {
-	for _, item := range r.list("checks") {
+func healthDetail(response reply, check string) string {
+	for _, item := range response.list("checks") {
 		row, _ := item.(map[string]any)
 		if row["name"] == check {
 			detail, _ := row["detail"].(string)
