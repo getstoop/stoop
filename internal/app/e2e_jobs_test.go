@@ -185,7 +185,11 @@ func TestE2EJobsExternalRunnerWorksTheQueue(t *testing.T) {
 	}()
 	t.Cleanup(func() {
 		cancel()
-		<-done
+		select {
+		case <-done:
+		case <-time.After(15 * time.Second):
+			t.Error("Run did not return after cancel")
+		}
 	})
 
 	h.awaitJobOutcome(casey, "sweep_files", "JOB_OUTCOME_SUCCEEDED", 15*time.Second)
