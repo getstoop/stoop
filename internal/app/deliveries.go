@@ -31,3 +31,19 @@ func registerDeliveries(registry *jobs.Registry, hooksSvc *integrations.Service)
 		return errors.New(result.Error)
 	}, jobs.Options{MaxAttempts: deliveryAttempts})
 }
+
+// deliveryJobs adapts the jobs module onto integrations' port: the queue
+// methods are the module's own, and the job states are mapped.
+type deliveryJobs struct{ *jobs.Service }
+
+func (d deliveryJobs) JobStatuses(ctx context.Context, ids []string) (map[string]integrations.JobStatus, error) {
+	runs, err := d.GetRuns(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	statuses := make(map[string]integrations.JobStatus, len(runs))
+	for _, run := range runs {
+		statuses[run.ID] = integrations.JobStatus{Discarded: run.State == jobs.StateDiscarded, Error: run.Error}
+	}
+	return statuses, nil
+}

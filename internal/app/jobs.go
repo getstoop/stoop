@@ -55,7 +55,7 @@ func registerSweeps(registry *jobs.Registry, cfg config.Config, log *slog.Logger
 	}, jobs.Options{})
 }
 
-// sweepHooks runs the three hook sweeps and returns the first error.
+// sweepHooks runs the hook sweeps and returns the first error.
 func sweepHooks(ctx context.Context, job *jobs.Job, hooksSvc *integrations.Service, retention time.Duration, log *slog.Logger) error {
 	var failed error
 	keep := func(err error) {
@@ -73,9 +73,11 @@ func sweepHooks(ctx context.Context, job *jobs.Job, hooksSvc *integrations.Servi
 	} else if disabled > 0 {
 		log.Info("turned off hooks of bots removed from their space", "count", disabled)
 	}
+	lost, err := hooksSvc.SweepLostDeliveries(ctx)
+	keep(err)
 	removed, err := hooksSvc.SweepDeliveries(ctx, retention)
 	keep(err)
-	job.Record(jobs.Counters{"deliveries_removed": removed})
+	job.Record(jobs.Counters{"deliveries_lost": lost, "deliveries_removed": removed})
 	return failed
 }
 

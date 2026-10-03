@@ -157,12 +157,12 @@ func TestDiscardLaneReleasesTheLane(t *testing.T) {
 	}
 	for _, id := range []string{a2, a3} {
 		row := readJob(t, pool, id)
-		if row.State != string(StateDiscarded) || row.Error != "hook deleted" || row.FinishedAt == nil || row.Attempt != 0 {
-			t.Errorf("discarded row: state %s error %q finished_at %v attempt %d", row.State, row.Error, row.FinishedAt, row.Attempt)
+		if row.State != string(StateDiscarded) || row.Error != "hook deleted" || row.FinishedAt == nil || row.Attempt != 0 || string(row.Args) != "{}" {
+			t.Errorf("discarded row: state %s error %q finished_at %v attempt %d args %s", row.State, row.Error, row.FinishedAt, row.Attempt, row.Args)
 		}
 	}
-	if row := readJob(t, pool, a1); row.State != string(StateRunning) {
-		t.Errorf("a1 after DiscardLane: state %s", row.State)
+	if row := readJob(t, pool, a1); row.State != string(StateRunning) || string(row.Args) != `{"name": "a1"}` {
+		t.Errorf("a1 after DiscardLane: state %s args %s", row.State, row.Args)
 	}
 
 	// The lane is free for what comes after.
