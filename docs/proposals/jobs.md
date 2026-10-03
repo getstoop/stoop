@@ -70,6 +70,7 @@ CREATE TABLE jobs (
     started_at   timestamptz,
     finished_at  timestamptz,
     error        text NOT NULL DEFAULT '',
+    attempts     jsonb,                            -- earlier attempts: attempt, started_at, finished_at, error
     counters     jsonb,
     created_at   timestamptz NOT NULL
 );
@@ -93,7 +94,9 @@ CREATE TABLE job_dispatchers (
 
 `jobs` is the queue and the history: one row per run. A failed attempt
 that will be retried goes back to `queued` with a later `not_before`; the
-error and attempt count stay on the row. `job_schedules` is one row per
+error and attempt count stay on the row, and the dispatcher appends the
+failed attempt to `attempts`, so a retried job is one row with its whole
+history on it. `job_schedules` is one row per
 periodic kind; the dispatcher inserts a `jobs` row when `next_due` passes
 and advances it. `job_dispatchers` is a heartbeat, so the Diagnostics tab
 and the main process can tell whether a runner is alive wherever it runs.
@@ -257,11 +260,10 @@ Made on 2026-10-03 while shaping this:
 - The runner is in-process by default. A second process is the
   operator's choice, never the default install.
 
-Open, to settle in review:
+Settled on 2026-10-03 after review:
 
-- Whether `STOOP_JOBS_WORKERS` defaults to 4 or 1 until phase 2 gives it
-  something to parallelise.
-- Whether `SweepFiles` keeps returning the sweep report synchronously in
-  phase 1, or returns the job id as written above.
-- Whether per-run history should be kept at all, or `jobs` should hold
-  only the latest row per kind, as `diag.Job` does today.
+- `STOOP_JOBS_WORKERS` defaults to 4.
+- `SweepFiles` enqueues and returns the job id. A synchronous run would
+  defeat the point of it being a job.
+- One row per run, with retention. Retries stay on the row, logged in
+  `attempts`.
