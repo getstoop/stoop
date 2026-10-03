@@ -183,7 +183,7 @@ func (s *Service) attempt(ctx context.Context, hook dbgen.OutgoingWebhook, it Le
 		if errors.Is(err, netguard.ErrNotPublic) {
 			_ = s.disableOutgoing(ctx, hook.ID, "its address is not allowed by this server's egress policy")
 		}
-		return attemptResult{Attempt: Attempt{Error: clip(err.Error(), responseKeep)}}
+		return attemptResult{Attempt: Attempt{Error: cutBytes(err.Error(), responseKeep)}}
 	}
 	defer func() { _ = resp.Body.Close() }()
 	head, _ := io.ReadAll(io.LimitReader(resp.Body, responseKeep))
@@ -275,11 +275,12 @@ func (s *Service) ladderRemaining(attempt int) time.Duration {
 	return total
 }
 
-func clip(str string, n int) string {
-	if len(str) <= n {
+// cutBytes keeps at most limit bytes of str, never splitting a rune.
+func cutBytes(str string, limit int) string {
+	if len(str) <= limit {
 		return str
 	}
-	cut := n
+	cut := limit
 	for cut > 0 && !utf8.RuneStart(str[cut]) {
 		cut--
 	}

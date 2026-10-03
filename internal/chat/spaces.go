@@ -19,6 +19,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
+	"github.com/getstoop/stoop/internal/text"
 )
 
 func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.CreateSpaceRequest]) (*connect.Response[chatv1.CreateSpaceResponse], error) {
@@ -220,7 +221,7 @@ var errSpaceName = fmt.Errorf(
 // cleanSpaceName is the rule for a new name or a rename; see
 // docs/architecture/messaging.md → Space names.
 func cleanSpaceName(name string) (string, bool) {
-	name = oneLine(name)
+	name = text.OneLine(name)
 	if utf8.RuneCountInString(name) > maxSpaceName {
 		return "", false
 	}
@@ -234,13 +235,6 @@ func cleanSpaceName(name string) (string, bool) {
 		}
 	}
 	return name, visible
-}
-
-// oneLine collapses every run of whitespace, newlines included, to a
-// single space: a description is rendered where a line break would only
-// ever be an ellipsis.
-func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
 }
 
 // toProtoSpace renders a space for one caller; myRole is that caller's
@@ -329,7 +323,7 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 		patch.Name = &n
 	}
 	if req.Msg.Description != nil {
-		d := oneLine(*req.Msg.Description)
+		d := text.OneLine(*req.Msg.Description)
 		if utf8.RuneCountInString(d) > maxSpaceDescription {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "description",
 				fmt.Errorf("description must be %d characters or fewer", maxSpaceDescription))

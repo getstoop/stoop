@@ -16,6 +16,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/text"
 )
 
 const (
@@ -25,13 +26,6 @@ const (
 	minPasswordLen    = 8
 )
 
-// oneLine collapses runs of whitespace, so a pasted line break becomes a
-// space rather than a tall profile card. chat has its own copy: modules
-// don't import each other, and a package for one function is worse.
-func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
-}
-
 // profileText normalises one optional free-text profile field. A nil
 // argument leaves the column alone; empty clears it. field is the request
 // field, which is also the word for it in the sentence.
@@ -39,12 +33,12 @@ func profileText(v *string, field string, max int) (*string, error) {
 	if v == nil {
 		return nil, nil
 	}
-	text := oneLine(*v)
-	if utf8.RuneCountInString(text) > max {
+	value := text.OneLine(*v)
+	if utf8.RuneCountInString(value) > max {
 		return nil, apierr.Field(connect.CodeInvalidArgument, field,
 			fmt.Errorf("%s must be %d characters or fewer", field, max))
 	}
-	return &text, nil
+	return &value, nil
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1.UpdateProfileRequest]) (*connect.Response[authv1.UpdateProfileResponse], error) {

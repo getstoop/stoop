@@ -16,6 +16,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
+	"github.com/getstoop/stoop/internal/text"
 )
 
 const (
@@ -448,7 +449,7 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 func replyRef(id string, author *chatv1.MessageAuthor, content *string, firstAttachment string) *chatv1.ReplyRef {
 	ref := &chatv1.ReplyRef{MessageId: id, Author: author}
 	if content != nil {
-		ref.Preview = truncate(previewText(*content, firstAttachment), previewLen)
+		ref.Preview = text.Truncate(previewText(*content, firstAttachment), previewLen)
 	}
 	return ref
 }

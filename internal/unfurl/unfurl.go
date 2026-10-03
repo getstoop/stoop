@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/html"
 
 	"github.com/getstoop/stoop/internal/netguard"
+	"github.com/getstoop/stoop/internal/text"
 )
 
 // Preview is what a URL unfurled to. Image is the raw bytes of the page's
@@ -229,9 +230,9 @@ done:
 	p.Description = firstNonEmpty(pick("og:description", "twitter:description"), description)
 	p.SiteName = pick("og:site_name")
 	imageURL = pick("og:image", "og:image:url", "og:image:secure_url", "twitter:image")
-	p.Title = clip(html.UnescapeString(p.Title), 200)
-	p.Description = clip(html.UnescapeString(p.Description), 500)
-	p.SiteName = clip(html.UnescapeString(p.SiteName), 100)
+	p.Title = text.Truncate(text.OneLine(html.UnescapeString(p.Title)), 200)
+	p.Description = text.Truncate(text.OneLine(html.UnescapeString(p.Description)), 500)
+	p.SiteName = text.Truncate(text.OneLine(html.UnescapeString(p.SiteName)), 100)
 	return p, imageURL
 }
 
@@ -242,13 +243,4 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
-}
-
-func clip(s string, n int) string {
-	s = strings.Join(strings.Fields(s), " ")
-	r := []rune(s)
-	if len(r) > n {
-		return string(r[:n-1]) + "…"
-	}
-	return s
 }

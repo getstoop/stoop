@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -16,6 +15,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
+	"github.com/getstoop/stoop/internal/text"
 )
 
 const (
@@ -250,7 +250,7 @@ func toProtoActivityItem(a dbgen.ActivityItem, content *string, firstAttachment 
 		out.MessageId = *a.MessageID
 	}
 	if content != nil {
-		out.Preview = truncate(previewText(*content, firstAttachment), previewLen)
+		out.Preview = text.Truncate(previewText(*content, firstAttachment), previewLen)
 	}
 	if a.ReadAt != nil {
 		out.ReadAt = timestamppb.New(*a.ReadAt)
@@ -266,12 +266,4 @@ func (s *Service) mutedFor(ctx context.Context, userID, channelID string, spaceI
 		return false, fmt.Errorf("is muted for: %w", err)
 	}
 	return muted, nil
-}
-
-func truncate(s string, n int) string {
-	if utf8.RuneCountInString(s) <= n {
-		return s
-	}
-	r := []rune(s)
-	return string(r[:n-1]) + "…"
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
+	"github.com/getstoop/stoop/internal/text"
 )
 
 const maxChannelName = 32
@@ -179,7 +180,7 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 	// An empty topic clears it; an absent one leaves it alone.
 	var topic *string
 	if req.Msg.Topic != nil {
-		t := oneLine(*req.Msg.Topic)
+		t := text.OneLine(*req.Msg.Topic)
 		if utf8.RuneCountInString(t) > maxChannelTopic {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "topic",
 				fmt.Errorf("topic must be %d characters or fewer", maxChannelTopic))
