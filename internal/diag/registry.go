@@ -1,7 +1,7 @@
 // Package diag holds the in-memory instruments behind the Diagnostics tab
-// and GET /metrics: counters, sampled gauges, per-procedure timings and
-// job records. Modules record into it the way they log into slog. The
-// reasoning is in docs/architecture/diagnostics.md.
+// and GET /metrics: counters, sampled gauges and per-procedure timings.
+// Modules record into it the way they log into slog. The reasoning is in
+// docs/architecture/diagnostics.md.
 package diag
 
 import (
@@ -23,7 +23,6 @@ type Registry struct {
 	mu       sync.Mutex
 	counters map[string]*Counter
 	gauges   map[string]*Gauge
-	jobs     map[string]*Job
 	rpc      *RPCStats
 }
 
@@ -34,7 +33,6 @@ func NewRegistry() *Registry {
 	return &Registry{
 		counters: map[string]*Counter{},
 		gauges:   map[string]*Gauge{},
-		jobs:     map[string]*Job{},
 		rpc:      NewRPCStats(),
 	}
 }
@@ -123,15 +121,13 @@ func (g *Gauge) sample() {
 	}
 }
 
-// NewCounter, NewGauge and NewJob register on Default, the way slog.Info
-// logs to the default logger.
+// NewCounter and NewGauge register on Default, the way slog.Info logs to
+// the default logger.
 func NewCounter(name, help string) *Counter { return Default.Counter(name, help) }
 
 func NewGauge(name, help string, read func() float64) *Gauge {
 	return Default.Gauge(name, help, read)
 }
-
-func NewJob(name string) *Job { return Default.Job(name) }
 
 type CounterSample struct {
 	Name, Help string
@@ -145,7 +141,8 @@ type GaugeSample struct {
 }
 
 // Snapshot is everything the registry knows at one instant, sorted by
-// name; Procedures are since start.
+// name; Procedures are since start. Jobs is left for the caller, which
+// reads the rows from the jobs tables.
 type Snapshot struct {
 	At         time.Time
 	Counters   []CounterSample
@@ -166,7 +163,7 @@ func (r *Registry) Snapshot() Snapshot {
 	}
 	r.mu.Unlock()
 
-	s := Snapshot{At: time.Now(), Procedures: r.rpc.Procedures(SinceStart), Jobs: r.Jobs()}
+	s := Snapshot{At: time.Now(), Procedures: r.rpc.Procedures(SinceStart)}
 	for _, c := range counters {
 		s.Counters = append(s.Counters, CounterSample{Name: c.name, Help: c.help, Value: c.Value()})
 	}

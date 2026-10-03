@@ -42,7 +42,6 @@ const JOB_LABELS: Record<string, string> = {
   sweep_credentials: "Credential sweep",
   sweep_hooks: "Hook sweep",
   sweep_jobs: "Job history sweep",
-  webhook_worker: "Webhook worker",
 };
 
 export function jobLabel(name: string): string {
@@ -63,13 +62,9 @@ function trim(n: number): string {
   return Number.isInteger(one) ? String(one) : one.toFixed(1);
 }
 
-// No interval is the worker that never stops, or a sweeper switched off.
-export function formatEvery(
-  ms: number | undefined,
-  continuous: boolean,
-): string {
-  if (ms !== undefined) return span(ms);
-  return continuous ? "continuous" : "off";
+// No interval is a sweeper switched off.
+export function formatEvery(ms: number | undefined): string {
+  return ms === undefined ? "off" : span(ms);
 }
 
 export function agoWords(ms: number): string {
@@ -126,12 +121,4 @@ export function countersSentence(counters: Record<string, bigint>): string {
     parts.push(`${key} ${counters[key]}`);
   }
   return parts.join(" · ");
-}
-
-export function queueSentence(q: {
-  queued: bigint;
-  leased: bigint;
-  dead: bigint;
-}): string {
-  return `${q.queued} queued · ${q.leased} in flight · ${q.dead} dead-lettered`;
 }

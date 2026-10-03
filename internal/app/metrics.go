@@ -40,8 +40,7 @@ func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service, queue 
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		snap := diag.Default.Snapshot()
-		// A failed read keeps the in-memory rows, so the families still
-		// appear; the scheduled jobs are simply absent until it works.
+		// A failed read leaves the job families out of this scrape.
 		if all, err := jobList(ctx); err != nil {
 			log.Warn("metrics: list jobs", "err", err)
 		} else {
