@@ -50,7 +50,8 @@ optional front door must not be able to take down the baseline.
 **Migrations run automatically at startup**, which is what makes upgrading
 "pull the new binary and restart". There is no separate migration step for
 an operator to forget, and no window where a new binary runs against an old
-schema.
+schema. The run holds a Postgres advisory lock, so a server and a `stoop
+jobs` starting together apply each migration once.
 
 `GET /healthz` answers `200 ok` for container health checks and for the E2E
 harness's readiness loop. `GET /version` answers
