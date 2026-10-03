@@ -73,6 +73,7 @@ this plainly.
 | `internal/voice`    | LiveKit token minting, the `/livekit` signaling proxy, ICE/TURN sources |
 | `internal/files`    | uploaded files: the `files` table, upload RPCs, `GET /files/{id}`, the sweep, the quota |
 | `internal/integrations` | incoming and outgoing webhooks, the delivery log and the `deliver_webhook` job, and the admin surface for bots and their credentials |
+| `internal/jobs`     | the background-job queue: the `jobs`, `job_schedules` and `job_dispatchers` tables, the dispatcher and its workers, lanes, per-kind caps, the schedules that materialise periodic kinds |
 
 Support packages, which are not modules and own no domain: `internal/events`
 (the bus), `internal/db` (pool + migrations), `internal/dbgen` (sqlc output),

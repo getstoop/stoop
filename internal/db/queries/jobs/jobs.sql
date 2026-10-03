@@ -1,6 +1,6 @@
 -- The job queue. Owned by the jobs module; only internal/jobs may use
 -- these queries. The clock is always the caller's, never now(), so one
--- clock decides due-ness and leases. See docs/proposals/jobs.md.
+-- clock decides due-ness and leases. See docs/architecture/runtime.md → Background work.
 
 -- InsertJob raises jobs.NotifyChannel, so the dispatcher wakes without a trigger.
 -- name: InsertJob :exec
