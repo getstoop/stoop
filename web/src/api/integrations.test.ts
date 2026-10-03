@@ -57,9 +57,12 @@ describe("integrations helpers", () => {
     expect(deliveryText(dead)).toBe(
       "Failed (dial tcp: connection refused) · 4 attempts",
     );
-    const waiting = create(DeliverySchema, { attempts: 1 });
+    const waiting = create(DeliverySchema, { attempts: 0 });
     expect(deliveryState(waiting)).toBe("pending");
-    expect(deliveryText(waiting)).toBe("Waiting to send · 1 attempt");
+    expect(deliveryText(waiting)).toBe("Waiting to send · 0 attempts");
+    const retrying = create(DeliverySchema, { attempts: 1, statusCode: 500 });
+    expect(deliveryState(retrying)).toBe("pending");
+    expect(deliveryText(retrying)).toBe("Retrying · 1 attempt");
   });
 
   it("completes a bare hook path with the origin", () => {

@@ -317,9 +317,7 @@ type Delivery struct {
 	Error     string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Set once delivered or dead.
-	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
-	// The next attempt's earliest time, while unfinished.
-	NextAttemptAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=next_attempt_at,json=nextAttemptAt,proto3" json:"next_attempt_at,omitempty"`
+	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -424,13 +422,6 @@ func (x *Delivery) GetFinishedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Delivery) GetNextAttemptAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.NextAttemptAt
-	}
-	return nil
-}
-
 var File_stoop_integrations_v1_webhook_proto protoreflect.FileDescriptor
 
 const file_stoop_integrations_v1_webhook_proto_rawDesc = "" +
@@ -471,7 +462,7 @@ const file_stoop_integrations_v1_webhook_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1a\n" +
 	"\bsequence\x18\v \x01(\x03R\bsequence\x12\x1d\n" +
 	"\n" +
-	"space_name\x18\f \x01(\tR\tspaceName\"\xb4\x03\n" +
+	"space_name\x18\f \x01(\tR\tspaceName\"\xf6\x02\n" +
 	"\bDelivery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -488,9 +479,8 @@ const file_stoop_integrations_v1_webhook_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
 	"\vfinished_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"finishedAt\x12B\n" +
-	"\x0fnext_attempt_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAtB\x0e\n" +
-	"\f_status_codeB\xe3\x01\n" +
+	"finishedAtB\x0e\n" +
+	"\f_status_codeJ\x04\b\v\x10\fB\xe3\x01\n" +
 	"\x19com.stoop.integrations.v1B\fWebhookProtoP\x01ZBgithub.com/getstoop/stoop/gen/stoop/integrations/v1;integrationsv1\xa2\x02\x03SIX\xaa\x02\x15Stoop.Integrations.V1\xca\x02\x15Stoop\\Integrations\\V1\xe2\x02!Stoop\\Integrations\\V1\\GPBMetadata\xea\x02\x17Stoop::Integrations::V1b\x06proto3"
 
 var (
@@ -520,12 +510,11 @@ var file_stoop_integrations_v1_webhook_proto_depIdxs = []int32{
 	4, // 3: stoop.integrations.v1.OutgoingWebhook.created_at:type_name -> google.protobuf.Timestamp
 	4, // 4: stoop.integrations.v1.Delivery.created_at:type_name -> google.protobuf.Timestamp
 	4, // 5: stoop.integrations.v1.Delivery.finished_at:type_name -> google.protobuf.Timestamp
-	4, // 6: stoop.integrations.v1.Delivery.next_attempt_at:type_name -> google.protobuf.Timestamp
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_stoop_integrations_v1_webhook_proto_init() }

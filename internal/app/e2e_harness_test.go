@@ -48,6 +48,8 @@ func newHarnessOn(t *testing.T, databaseURL string, env ...string) *harness {
 	t.Setenv("STOOP_REGISTRATION", "open")
 	t.Setenv("STOOP_AUTH_RATE_LIMIT", "0")
 	t.Setenv("STOOP_ALLOWED_WS_ORIGINS", "*")
+	// Deliveries wait for the dispatcher's poll.
+	t.Setenv("STOOP_JOBS_POLL", "100ms")
 	for i := 0; i+1 < len(env); i += 2 {
 		t.Setenv(env[i], env[i+1])
 	}

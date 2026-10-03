@@ -287,6 +287,7 @@ type fixture struct {
 	spaces  *fakeSpaces
 	poster  *fakePoster
 	policy  *fakePolicy
+	jobs    *fakeJobs
 	admin   context.Context
 	member  context.Context
 	space   string

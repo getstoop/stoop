@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -17,11 +18,14 @@ import (
 // internal/app, plus the webhook queue through a port on integrations.
 // See docs/architecture/diagnostics.md.
 
-// QueueStats is the webhook queue by state; Hooks is how many outgoing
-// webhooks exist, so the health check can say "off" rather than "empty".
+// QueueStats is the outgoing deliveries by state; Hooks is how many
+// outgoing webhooks exist, so the health check can say "off" rather than
+// "empty". OldestDue is when the earliest due delivery became due, zero
+// when none is.
 type QueueStats struct {
 	Queued, Leased, Dead, DeadLastHour int64
 	Hooks                              int64
+	OldestDue                          time.Time
 }
 
 // UseWebhookQueue wires the queue port. Without one the panel reports

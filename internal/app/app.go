@@ -147,12 +147,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	chatSvc.UseFiles(fileDirectory{filesSvc})
 	instanceSvc.UseRetentionCounter(retentionCounter{chatSvc, filesSvc})
 	integrationsSvc := integrations.New(pool, bus, log)
-	// The outgoing queue as the Diagnostics tab and a metrics scrape read
-	// it, counted only when asked.
-	queue := webhookQueue(integrationsSvc)
-	instanceSvc.UseWebhookQueue(queue.stats)
 	integrationsSvc.UsePolicy(instanceSvc)
-	integrationsSvc.UseQueue(integrations.NewPostgresQueue(pool))
 	integrationsSvc.UsePoster(hookPoster{chatSvc})
 	integrationsSvc.UseSpaceAccess(chatSvc)
 	integrationsSvc.UseBotIdentities(botIdentities{authSvc})
@@ -161,14 +156,20 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	// health row and /metrics read their rows through one reader.
 	registry := jobs.NewRegistry()
 	registerSweeps(registry, cfg, log, authSvc, chatSvc, filesSvc, integrationsSvc)
+	registerDeliveries(registry, integrationsSvc)
 	jobsSvc := jobs.New(pool, registry, jobs.Config{Workers: cfg.JobsWorkers, Poll: cfg.JobsPoll, Retention: cfg.JobsRetention}, log)
 	filesSvc.UseJobs(jobsSvc)
+	integrationsSvc.UseJobs(jobsSvc)
 	if err := scheduleSweeps(ctx, jobsSvc, cfg); err != nil {
 		pool.Close()
 		return nil, err
 	}
 	jobList := jobReader(jobsSvc)
 	instanceSvc.UseJobRecords(jobList)
+	// The delivery backlog and log as the Diagnostics tab and a metrics
+	// scrape read them, counted only when asked.
+	queue := webhookQueue(jobsSvc, integrationsSvc)
+	instanceSvc.UseWebhookQueue(queue.stats)
 	if cfg.LinkPreviews {
 		chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate})}, filesSvc, chat.UnfurlOptions{})
 		if cfg.UnfurlAllowPrivate {
@@ -340,7 +341,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		newLiveKitCheck(cfg.Voice, voiceOpts, livekit),
 		newStorageCheck(store.Root(), filesSvc),
 		instanceSvc.PublicAddressCheck(),
-		newWebhooksCheck(queue, started),
+		newWebhooksCheck(queue),
 		newJobsCheck(jobList),
 	)
 	if err := instanceSvc.UseTailscale(ctx, tailscaleController{a.tailnet}); err != nil {
@@ -493,14 +494,14 @@ func (a *App) spawn(fn func()) {
 }
 
 // StartBackground launches everything that runs beside the listener:
-// the job dispatcher and the outgoing-webhook pipeline. Run calls it; a
+// the job dispatcher and the outgoing-webhook subscriber. Run calls it; a
 // test that serves the handler itself calls it too, so deliveries happen.
 func (a *App) StartBackground(ctx context.Context) {
-	// The sweeps and anything else queued, until ctx ends.
+	// The sweeps, the deliveries and anything else queued, until ctx ends.
 	a.spawn(func() { a.jobs.RunDispatcher(ctx) })
-	// The outgoing pipeline: bus in, POSTs out.
+	// The outgoing pipeline's producer: bus in, delivery jobs out; the
+	// POSTs run on the dispatcher.
 	a.spawn(func() { a.hooks.RunSubscriber(ctx) })
-	a.spawn(func() { a.hooks.RunWorker(ctx) })
 	// cloudflared starts, stops, and restarts as its settings change.
 	a.spawn(func() { a.tunnel.Run(ctx) })
 	// The Diagnostics tab's gauge ring and per-minute request windows.

@@ -1,4 +1,3 @@
-import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import type {
   Delivery,
@@ -59,9 +58,8 @@ export function deliveryText(d: Delivery): string {
   const state = deliveryState(d);
   const attempts = `${d.attempts} attempt${d.attempts === 1 ? "" : "s"}`;
   if (state === "pending") {
-    const next = d.nextAttemptAt && timestampDate(d.nextAttemptAt);
-    return next && next.getTime() > Date.now()
-      ? `Retrying at ${next.toLocaleTimeString()} · ${attempts}`
+    return d.attempts > 0
+      ? `Retrying · ${attempts}`
       : `Waiting to send · ${attempts}`;
   }
   const status = d.statusCode ? `HTTP ${d.statusCode}` : d.error || "no answer";

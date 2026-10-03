@@ -11,12 +11,13 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
-// The subscriber: bus events in, queue items out. No HTTP here, so a slow
-// receiver can never hold the bus's buffer. See
+// The subscriber: bus events in, delivery jobs out. No HTTP here, so a
+// slow receiver can never hold the bus's buffer. See
 // docs/architecture/integrations.md → Outgoing.
 
 // Event types, v1.
@@ -127,10 +128,10 @@ func rawJSON(v any) json.RawMessage {
 	return b
 }
 
-// enqueue renders one item per enabled hook that wants the event. With
+// enqueue queues one delivery per enabled hook that wants the event. With
 // outgoing off nothing is queued; the gap shows in Stoop-Sequence.
 func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
-	if s.queue == nil {
+	if s.jobs == nil {
 		return nil
 	}
 	if on, err := s.outgoingEnabled(ctx); err != nil || !on {
@@ -162,10 +163,10 @@ func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 	return nil
 }
 
-// enqueueFor takes the hook's next sequence number, queues the body and
-// returns the delivery's id.
+// enqueueFor takes the hook's next sequence number, renders the body and
+// queues the delivery, returning its id.
 func (s *Service) enqueueFor(ctx context.Context, hookID string, ev outgoingEvent, spaceName, instance string) (string, error) {
-	seq, err := s.q.NextOutgoingSequence(ctx, hookID)
+	sequence, err := s.q.NextOutgoingSequence(ctx, hookID)
 	if err != nil {
 		return "", fmt.Errorf("next sequence: %w", err)
 	}
@@ -177,11 +178,21 @@ func (s *Service) enqueueFor(ctx context.Context, hookID string, ev outgoingEven
 	if err != nil {
 		return "", err
 	}
-	if err := s.queue.Enqueue(ctx, Item{ID: id, Lane: hookID, Event: ev.Type, Sequence: uint64(seq), Body: body}); err != nil {
-		return "", err
+	return id, s.queueDelivery(ctx, DeliveryArgs{DeliveryID: id, HookID: hookID, Event: ev.Type, Sequence: sequence, Body: body})
+}
+
+// queueDelivery writes the log row, then the job, so the performer always
+// finds the row.
+func (s *Service) queueDelivery(ctx context.Context, args DeliveryArgs) error {
+	if err := s.q.InsertDelivery(ctx, dbgen.InsertDeliveryParams{
+		ID: args.DeliveryID, WebhookID: args.HookID, EventType: args.Event, Sequence: args.Sequence, Body: args.Body, Now: s.now(),
+	}); err != nil {
+		return fmt.Errorf("insert delivery: %w", err)
 	}
-	s.wakeWorker()
-	return id, nil
+	if _, err := s.jobs.EnqueueInLane(ctx, DeliverWebhookKind, args, args.HookID, args.Sequence); err != nil {
+		return fmt.Errorf("queue delivery: %w", err)
+	}
+	return nil
 }
 
 func wants(types []string, t string) bool {
@@ -205,7 +216,7 @@ type subscriber struct {
 // (the consumer fell behind) is re-opened; the gap is what Stoop-Sequence
 // makes visible.
 func (s *Service) RunSubscriber(ctx context.Context) {
-	if s.bus == nil || s.queue == nil {
+	if s.bus == nil || s.jobs == nil {
 		return
 	}
 	for ctx.Err() == nil {

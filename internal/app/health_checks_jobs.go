@@ -16,42 +16,30 @@ const (
 	workerStale   = 5 * time.Minute
 	overdueWarn   = 1
 	overdueDanger = 3
-	workerJob     = "webhook_worker"
 )
 
 // ---- webhooks ----
 
-// newWebhooksCheck reads the queue through the shared cache. Freshness
-// is the worker's last pass that leased without error, not its last
-// attempt, which Run stamps even when the lease fails; started is when
-// the process came up, for a worker that has not succeeded yet.
-func newWebhooksCheck(q *queueStats, started time.Time) instance.HealthCheck {
+// newWebhooksCheck reads the delivery backlog and log through the shared
+// cache.
+func newWebhooksCheck(q *queueStats) instance.HealthCheck {
 	return instance.HealthCheck{Name: "webhooks", FixTab: "integrations", Run: func(ctx context.Context) (instance.CheckState, string) {
 		stats, err := q.stats(ctx)
 		if err != nil {
 			return instance.CheckDanger, err.Error()
 		}
-		return webhooksState(stats, workerLast(diag.Default.Jobs(), started), time.Now())
+		return webhooksState(stats, time.Now())
 	}}
 }
 
-// workerLast is when the worker last leased without error; started when
-// it has not yet.
-func workerLast(jobs []diag.JobRecord, started time.Time) time.Time {
-	for _, j := range jobs {
-		if j.Name == workerJob && !j.LastSuccess.IsZero() {
-			return j.LastSuccess
-		}
-	}
-	return started
-}
-
-func webhooksState(q instance.QueueStats, workerLast, now time.Time) (instance.CheckState, string) {
+// webhooksState is danger when a due delivery has waited workerStale: the
+// dispatcher is not taking them.
+func webhooksState(q instance.QueueStats, now time.Time) (instance.CheckState, string) {
 	if q.Hooks == 0 {
 		return instance.CheckOff, "no outgoing webhooks"
 	}
-	if since := now.Sub(workerLast); q.Queued > 0 && since >= workerStale {
-		return instance.CheckDanger, fmt.Sprintf("%d queued and the worker has not run for %s", q.Queued, sinceWords(since))
+	if waited := now.Sub(q.OldestDue); q.Queued > 0 && !q.OldestDue.IsZero() && waited >= workerStale {
+		return instance.CheckDanger, fmt.Sprintf("%d queued and the oldest has waited %s", q.Queued, sinceWords(waited))
 	}
 	if q.DeadLastHour > 0 {
 		return instance.CheckWarn, fmt.Sprintf("%s dead-lettered in the last hour", plural(q.DeadLastHour, "delivery", "deliveries"))

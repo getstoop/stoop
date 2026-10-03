@@ -249,3 +249,70 @@ func TestE2EOutgoingDeliveries(t *testing.T) {
 		t.Errorf("the loop posted: %d messages", len(h.messages(casey, general)))
 	}
 }
+
+// A receiver that keeps failing leaves the delivery retrying on the
+// dispatcher, which the Background work panel counts as queued; deleting
+// the hook discards what is queued and takes the log with it.
+func TestE2EOutgoingRetryIsQueuedUntilTheHookIsDeleted(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	stoop, general := h.space(casey, "The Stoop")
+	rcv := newReceiver(t)
+	rcv.status.Store(http.StatusInternalServerError)
+	h.rpc(casey, "stoop.instance.v1.InstanceService/UpdateSettings", map[string]any{"webhooksAllowPrivateTargets": true}).expect(t, "ok")
+	hookID, _ := h.outgoing(casey, stoop, rcv.srv.URL+"/down", "message.created")
+
+	h.send(casey, general, "nobody home").expect(t, "ok")
+	rcv.next(t)
+	retrying := h.waitDelivery(casey, hookID, func(row map[string]any) bool { return row["attempts"] == float64(1) })
+	if retrying == nil || retrying["finishedAt"] != nil || retrying["statusCode"] != float64(500) {
+		t.Fatalf("the log while retrying = %v", retrying)
+	}
+	if got := h.waitQueued(casey, "1"); got != "1" {
+		t.Fatalf("webhooks.queued = %q after a failed attempt, want 1", got)
+	}
+
+	h.rpc(casey, "stoop.integrations.v1.IntegrationService/DeleteWebhook", map[string]any{"id": hookID}).expect(t, "ok")
+	if got := h.waitQueued(casey, "0"); got != "0" {
+		t.Errorf("webhooks.queued = %q after the hook was deleted, want 0", got)
+	}
+	h.rpc(casey, "stoop.integrations.v1.IntegrationService/ListDeliveries", map[string]any{"webhookId": hookID}).expect(t, "not_found")
+}
+
+// waitDelivery polls the hook's log for up to five seconds for a row
+// matching want; nil when none appears.
+func (h *harness) waitDelivery(admin, hookID string, want func(row map[string]any) bool) map[string]any {
+	h.t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		for _, entry := range h.rpc(admin, "stoop.integrations.v1.IntegrationService/ListDeliveries", map[string]any{"webhookId": hookID}).expect(h.t, "ok").list("deliveries") {
+			if row := entry.(map[string]any); want(row) {
+				return row
+			}
+		}
+	}
+	return nil
+}
+
+// webhooksQueued is ListJobs' count of deliveries waiting for the
+// dispatcher, as protojson renders the int64: a string, left out at zero.
+func (h *harness) webhooksQueued(admin string) string {
+	h.t.Helper()
+	got := h.rpc(admin, "stoop.instance.v1.InstanceService/ListJobs", map[string]any{}).expect(h.t, "ok").str("webhooks.queued")
+	if got == "" {
+		return "0"
+	}
+	return got
+}
+
+// waitQueued polls webhooksQueued until it reads want, for longer than
+// the count's cache keeps a stale answer.
+func (h *harness) waitQueued(admin, want string) string {
+	h.t.Helper()
+	got := ""
+	for deadline := time.Now().Add(15 * time.Second); time.Now().Before(deadline); time.Sleep(250 * time.Millisecond) {
+		if got = h.webhooksQueued(admin); got == want {
+			return got
+		}
+	}
+	return got
+}

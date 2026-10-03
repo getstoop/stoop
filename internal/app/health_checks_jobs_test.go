@@ -14,44 +14,25 @@ func TestWebhooksState(t *testing.T) {
 	tests := []struct {
 		name   string
 		q      instance.QueueStats
-		worker time.Time
 		want   instance.CheckState
 		detail string
 	}{
-		{"no hooks", instance.QueueStats{}, now, instance.CheckOff, "no outgoing webhooks"},
-		{"idle", instance.QueueStats{Hooks: 2}, now.Add(-3 * time.Second), instance.CheckOK, "0 queued · none dead-lettered in the last hour"},
-		{"busy", instance.QueueStats{Hooks: 2, Queued: 7}, now.Add(-3 * time.Second), instance.CheckOK, "7 queued"},
-		{"dead", instance.QueueStats{Hooks: 2, DeadLastHour: 1, Dead: 9}, now, instance.CheckWarn, "1 delivery dead-lettered in the last hour"},
-		{"dead many", instance.QueueStats{Hooks: 2, DeadLastHour: 4}, now, instance.CheckWarn, "4 deliveries dead-lettered"},
-		{"worker stuck", instance.QueueStats{Hooks: 2, Queued: 3, DeadLastHour: 1}, now.Add(-7 * time.Minute), instance.CheckDanger, "3 queued and the worker has not run for 7 min"},
-		{"worker stuck, nothing queued", instance.QueueStats{Hooks: 2}, now.Add(-time.Hour), instance.CheckOK, "0 queued"},
+		{"no hooks", instance.QueueStats{}, instance.CheckOff, "no outgoing webhooks"},
+		{"idle", instance.QueueStats{Hooks: 2}, instance.CheckOK, "0 queued · none dead-lettered in the last hour"},
+		{"busy", instance.QueueStats{Hooks: 2, Queued: 7, OldestDue: now.Add(-3 * time.Second)}, instance.CheckOK, "7 queued"},
+		{"retry waiting its backoff", instance.QueueStats{Hooks: 2, Queued: 1, OldestDue: now.Add(2 * time.Minute)}, instance.CheckOK, "1 queued"},
+		{"dead", instance.QueueStats{Hooks: 2, DeadLastHour: 1, Dead: 9}, instance.CheckWarn, "1 delivery dead-lettered in the last hour"},
+		{"dead many", instance.QueueStats{Hooks: 2, DeadLastHour: 4}, instance.CheckWarn, "4 deliveries dead-lettered"},
+		{"dispatcher stuck", instance.QueueStats{Hooks: 2, Queued: 3, DeadLastHour: 1, OldestDue: now.Add(-7 * time.Minute)}, instance.CheckDanger, "3 queued and the oldest has waited 7 min"},
+		{"nothing queued", instance.QueueStats{Hooks: 2}, instance.CheckOK, "0 queued"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			state, detail := webhooksState(tc.q, tc.worker, now)
+			state, detail := webhooksState(tc.q, now)
 			if state != tc.want || !strings.Contains(detail, tc.detail) {
 				t.Errorf("got %d %q, want %d containing %q", state, detail, tc.want, tc.detail)
 			}
 		})
-	}
-}
-
-func TestWorkerLast(t *testing.T) {
-	now := time.Now()
-	started := now.Add(-time.Hour)
-	stuck := diag.JobRecord{Name: workerJob, Continuous: true, LastStarted: now.Add(-2 * time.Second), LastSuccess: now.Add(-9 * time.Minute), Outcome: diag.Failed, LastError: "lease: connection refused"}
-	if got := workerLast([]diag.JobRecord{stuck}, started); !got.Equal(stuck.LastSuccess) {
-		t.Errorf("a failing pass counts as a run: got %v, want %v", got, stuck.LastSuccess)
-	}
-	if state, detail := webhooksState(instance.QueueStats{Hooks: 1, Queued: 2}, workerLast([]diag.JobRecord{stuck}, started), now); state != instance.CheckDanger || !strings.Contains(detail, "has not run for 9 min") {
-		t.Errorf("got %d %q, want danger", state, detail)
-	}
-	never := diag.JobRecord{Name: workerJob, Continuous: true, LastStarted: now, Outcome: diag.Failed}
-	if got := workerLast([]diag.JobRecord{never}, started); !got.Equal(started) {
-		t.Errorf("never succeeded: got %v, want process start %v", got, started)
-	}
-	if got := workerLast(nil, started); !got.Equal(started) {
-		t.Errorf("no record: got %v, want %v", got, started)
 	}
 }
 
