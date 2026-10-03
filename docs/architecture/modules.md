@@ -32,7 +32,7 @@ in, and usually exposes a Connect service. There are seven: `auth`,
 
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `db`, `dbgen`, `config`,
-`authctx`, `accesswire`, `apierr`, `rowid`, `text`, `release`, `diag`, `blob`,
+`authctx`, `accesswire`, `apierr`, `rowid`, `text`, `pbtime`, `release`, `diag`, `blob`,
 `unfurl`, `kv`, `netguard`, `ratelimit`, `trustedproxy`, `tailnet`, `cftunnel`,
 `buildinfo`, `webui`.
 

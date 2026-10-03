@@ -14,6 +14,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/pbtime"
 	"github.com/getstoop/stoop/internal/rowid"
 	"github.com/getstoop/stoop/internal/text"
 )
@@ -252,9 +253,7 @@ func toProtoActivityItem(a dbgen.ActivityItem, content *string, firstAttachment 
 	if content != nil {
 		out.Preview = text.Truncate(previewText(*content, firstAttachment), previewLen)
 	}
-	if a.ReadAt != nil {
-		out.ReadAt = timestamppb.New(*a.ReadAt)
-	}
+	out.ReadAt = pbtime.OrNil(a.ReadAt)
 	return out
 }
 

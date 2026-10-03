@@ -9,6 +9,7 @@ import (
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/pbtime"
 )
 
 // Where a person is signed in: listing their sessions and signing all of
@@ -29,7 +30,7 @@ func (s *Service) ListSessions(ctx context.Context, _ *connect.Request[authv1.Li
 		out[i] = &authv1.Session{
 			Id: r.ID, CreatedAt: timestamppb.New(r.CreatedAt),
 			UserAgent: r.UserAgent, Current: r.ID == id.SessionID,
-			LastUsedAt: timestampOrNil(r.LastUsedAt), ExpiresAt: timestampOrNil(r.ExpiresAt),
+			LastUsedAt: pbtime.OrNil(r.LastUsedAt), ExpiresAt: pbtime.OrNil(r.ExpiresAt),
 		}
 	}
 	return connect.NewResponse(&authv1.ListSessionsResponse{Sessions: out}), nil

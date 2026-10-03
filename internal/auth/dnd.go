@@ -13,6 +13,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/pbtime"
 )
 
 // Do not disturb: the one presence choice a person makes, kept on their
@@ -69,7 +70,7 @@ func (s *Service) announceDoNotDisturb(u dbgen.User) {
 	s.bus.Publish(events.UserTopic(u.ID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_DoNotDisturbChanged{
 			DoNotDisturbChanged: &realtimev1.DoNotDisturbChanged{
-				UserId: u.ID, Dnd: on, Until: timestampOrNil(until),
+				UserId: u.ID, Dnd: on, Until: pbtime.OrNil(until),
 			},
 		},
 	}))

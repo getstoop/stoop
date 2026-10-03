@@ -15,6 +15,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/pbtime"
 	"github.com/getstoop/stoop/internal/rowid"
 	"github.com/getstoop/stoop/internal/text"
 )
@@ -479,8 +480,6 @@ func toProtoMessage(m messageRow, authors map[string]*chatv1.MessageAuthor, ment
 		MentionUserIds: mentions, SpaceId: spaceID,
 		MentionsEveryone: m.MentionsEveryone, MentionsHere: m.MentionsHere,
 	}
-	if m.EditedAt != nil {
-		out.EditedAt = timestamppb.New(*m.EditedAt)
-	}
+	out.EditedAt = pbtime.OrNil(m.EditedAt)
 	return out
 }

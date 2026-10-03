@@ -13,6 +13,7 @@ import (
 	"github.com/getstoop/stoop/internal/accesswire"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/pbtime"
 )
 
 func (s *Service) ListUsers(ctx context.Context, _ *connect.Request[instancev1.ListUsersRequest]) (*connect.Response[instancev1.ListUsersResponse], error) {
@@ -226,12 +227,8 @@ func toProtoUser(u UserSummary) *instancev1.InstanceUser {
 	default:
 		out.Role = authv1.InstanceRole_INSTANCE_ROLE_MEMBER
 	}
-	if u.DeactivatedAt != nil {
-		out.DeactivatedAt = timestamppb.New(*u.DeactivatedAt)
-	}
-	if u.DeletedAt != nil {
-		out.DeletedAt = timestamppb.New(*u.DeletedAt)
-	}
+	out.DeactivatedAt = pbtime.OrNil(u.DeactivatedAt)
+	out.DeletedAt = pbtime.OrNil(u.DeletedAt)
 	out.Owner = u.IsOwner
 	out.UsernameFrozen = u.UsernameFrozen
 	out.HasPassword = u.HasPassword

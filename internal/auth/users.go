@@ -13,6 +13,7 @@ import (
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
+	"github.com/getstoop/stoop/internal/pbtime"
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
@@ -120,7 +121,7 @@ func toProtoUser(u dbgen.User) *authv1.User {
 		Bio:             u.Bio,
 		Kind:            accesswire.KindToProto(authctx.IdentityKind(u.Kind)),
 		Dnd:             dnd,
-		DndUntil:        timestampOrNil(dndUntil),
+		DndUntil:        pbtime.OrNil(dndUntil),
 	}
 }
 

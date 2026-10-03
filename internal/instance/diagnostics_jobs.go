@@ -5,10 +5,10 @@ import (
 	"log/slog"
 
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/diag"
+	"github.com/getstoop/stoop/internal/pbtime"
 )
 
 // The Background work panel: every job the modules record into
@@ -60,12 +60,8 @@ func toProtoJob(r diag.JobRecord) *instancev1.Job {
 	if !r.Continuous && r.Interval > 0 {
 		j.Interval = durationpb.New(r.Interval)
 	}
-	if !r.LastStarted.IsZero() {
-		j.LastStarted = timestamppb.New(r.LastStarted)
-	}
-	if !r.NextDue.IsZero() {
-		j.NextDue = timestamppb.New(r.NextDue)
-	}
+	j.LastStarted = pbtime.OrZero(r.LastStarted)
+	j.NextDue = pbtime.OrZero(r.NextDue)
 	return j
 }
 
