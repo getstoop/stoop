@@ -38,7 +38,7 @@ const createFile = `-- name: CreateFile :one
 
 INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
 `
 
 type CreateFileParams struct {
@@ -80,12 +80,61 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		&i.CreatedAt,
 		&i.Name,
 		&i.ExpiredAt,
+		&i.Pending,
+	)
+	return i, err
+}
+
+const createPendingFile = `-- name: CreatePendingFile :one
+INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, pending)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '', true)
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
+`
+
+type CreatePendingFileParams struct {
+	ID          string
+	Kind        string
+	OwnerID     string
+	SpaceID     *string
+	ContentType string
+	Size        int64
+	Sha256      []byte
+	StorageKey  string
+}
+
+// CreatePendingFile stores an avatar or icon upload as sent; the
+// normalise_image job readies it. The row is never served while pending.
+func (q *Queries) CreatePendingFile(ctx context.Context, arg CreatePendingFileParams) (File, error) {
+	row := q.db.QueryRow(ctx, createPendingFile,
+		arg.ID,
+		arg.Kind,
+		arg.OwnerID,
+		arg.SpaceID,
+		arg.ContentType,
+		arg.Size,
+		arg.Sha256,
+		arg.StorageKey,
+	)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.OwnerID,
+		&i.SpaceID,
+		&i.ContentType,
+		&i.Size,
+		&i.Sha256,
+		&i.StorageKey,
+		&i.CreatedAt,
+		&i.Name,
+		&i.ExpiredAt,
+		&i.Pending,
 	)
 	return i, err
 }
 
 const deleteFile = `-- name: DeleteFile :one
-DELETE FROM files WHERE id = $1 RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at
+DELETE FROM files WHERE id = $1 RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
 `
 
 func (q *Queries) DeleteFile(ctx context.Context, id string) (File, error) {
@@ -103,12 +152,13 @@ func (q *Queries) DeleteFile(ctx context.Context, id string) (File, error) {
 		&i.CreatedAt,
 		&i.Name,
 		&i.ExpiredAt,
+		&i.Pending,
 	)
 	return i, err
 }
 
 const deleteFilesByIDs = `-- name: DeleteFilesByIDs :many
-DELETE FROM files WHERE id = ANY($1::uuid[]) RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at
+DELETE FROM files WHERE id = ANY($1::uuid[]) RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
 `
 
 func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]File, error) {
@@ -132,6 +182,7 @@ func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]Fi
 			&i.CreatedAt,
 			&i.Name,
 			&i.ExpiredAt,
+			&i.Pending,
 		); err != nil {
 			return nil, err
 		}
@@ -155,7 +206,7 @@ func (q *Queries) ExpireFiles(ctx context.Context, ids []string) error {
 }
 
 const getFile = `-- name: GetFile :one
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at FROM files WHERE id = $1
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending FROM files WHERE id = $1
 `
 
 func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
@@ -173,12 +224,13 @@ func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
 		&i.CreatedAt,
 		&i.Name,
 		&i.ExpiredAt,
+		&i.Pending,
 	)
 	return i, err
 }
 
 const getFilesByIDs = `-- name: GetFilesByIDs :many
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at FROM files WHERE id = ANY($1::uuid[])
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending FROM files WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File, error) {
@@ -202,6 +254,7 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File,
 			&i.CreatedAt,
 			&i.Name,
 			&i.ExpiredAt,
+			&i.Pending,
 		); err != nil {
 			return nil, err
 		}
@@ -257,7 +310,7 @@ func (q *Queries) ListExpiringAttachments(ctx context.Context, arg ListExpiringA
 }
 
 const listFilesOlderThan = `-- name: ListFilesOlderThan :many
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at FROM files
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending FROM files
 WHERE created_at < $1 AND id > $2
 ORDER BY id
 LIMIT $3
@@ -291,6 +344,7 @@ func (q *Queries) ListFilesOlderThan(ctx context.Context, arg ListFilesOlderThan
 			&i.CreatedAt,
 			&i.Name,
 			&i.ExpiredAt,
+			&i.Pending,
 		); err != nil {
 			return nil, err
 		}
@@ -335,6 +389,46 @@ SELECT pg_advisory_xact_lock(4207011)
 func (q *Queries) LockStorageQuota(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockStorageQuota)
 	return err
+}
+
+const readyPendingFile = `-- name: ReadyPendingFile :one
+UPDATE files SET pending = false, content_type = $1, size = $2, sha256 = $3
+WHERE id = $4 AND pending
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
+`
+
+type ReadyPendingFileParams struct {
+	ContentType string
+	Size        int64
+	Sha256      []byte
+	ID          string
+}
+
+// ReadyPendingFile records the normalised bytes and clears pending; no row
+// comes back when the file is gone or was already readied.
+func (q *Queries) ReadyPendingFile(ctx context.Context, arg ReadyPendingFileParams) (File, error) {
+	row := q.db.QueryRow(ctx, readyPendingFile,
+		arg.ContentType,
+		arg.Size,
+		arg.Sha256,
+		arg.ID,
+	)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.OwnerID,
+		&i.SpaceID,
+		&i.ContentType,
+		&i.Size,
+		&i.Sha256,
+		&i.StorageKey,
+		&i.CreatedAt,
+		&i.Name,
+		&i.ExpiredAt,
+		&i.Pending,
+	)
+	return i, err
 }
 
 const storageUsage = `-- name: StorageUsage :one

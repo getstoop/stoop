@@ -122,9 +122,14 @@ type Service struct {
 }
 
 // JobQueue is the files module's port onto the job queue, wired in
-// internal/app. The module enqueues only the kinds it performs.
+// internal/app. The module enqueues only the kinds it performs: the file
+// sweep, and normalise_image for its avatar and icon uploads.
 type JobQueue interface {
 	Enqueue(ctx context.Context, kind string, args any) (string, error)
+	// EnqueueInLane queues kind in lane at sequence: one job per lane runs
+	// at a time, in sequence order, so uploads for one target apply in
+	// the order they arrived.
+	EnqueueInLane(ctx context.Context, kind string, args any, lane string, sequence int64) (string, error)
 }
 
 // UseJobs wires the job queue.

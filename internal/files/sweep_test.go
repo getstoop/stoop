@@ -124,6 +124,11 @@ func (q *fakeJobQueue) Enqueue(_ context.Context, kind string, _ any) (string, e
 	return "job-1", nil
 }
 
+func (q *fakeJobQueue) EnqueueInLane(_ context.Context, kind string, _ any, _ string, _ int64) (string, error) {
+	q.kinds = append(q.kinds, kind)
+	return "job-1", nil
+}
+
 // The RPC is admin-only; it queues one sweep_files job rather than
 // sweeping in the request, and refuses when no queue is wired.
 func TestSweepFilesEnqueues(t *testing.T) {
