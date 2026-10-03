@@ -94,7 +94,7 @@ func New(pool *pgxpool.Pool, opts Options) *Service {
 		stores = kv.NewMemory(nil)
 	}
 	return &Service{pool: pool, q: dbgen.New(pool), opts: opts, argon2: params,
-		guard: newLoginGuard(), dummyHash: dummy, stateKey: stateKey,
+		guard: newLoginGuard(stores), dummyHash: dummy, stateKey: stateKey,
 		desktop: newDesktopStore(stores)}
 }
 

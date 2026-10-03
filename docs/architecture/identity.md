@@ -149,8 +149,8 @@ Three behaviours cooperate, and all three are needed:
 
 ### Lockout
 
-`loginGuard` is per-process, in-memory: five consecutive failures lock a
-handle for 30 seconds, doubling per further failure to a 15-minute
+`loginGuard` is per-process, in an `internal/kv` store: five consecutive
+failures lock a handle for 30 seconds, doubling per further failure to a 15-minute
 maximum, cleared by a success.
 
 It exists because the per-IP rate limiter cannot see a distributed attack.
