@@ -78,7 +78,6 @@ func TestE2EJobsMetricsListEveryJobOnce(t *testing.T) {
 	for _, line := range []string{
 		"# TYPE stoop_job_last_duration_seconds gauge\n",
 		`stoop_job_last_duration_seconds{job="sweep_files"} `,
-		`stoop_job_last_duration_seconds{job="webhook_worker"} `,
 	} {
 		if n := strings.Count(r.raw, line); n != 1 {
 			t.Errorf("%q appears %d times, want once:\n%s", line, n, r.raw)

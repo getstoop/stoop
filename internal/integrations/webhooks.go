@@ -130,6 +130,12 @@ func (s *Service) DeleteWebhook(ctx context.Context, req *connect.Request[integr
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		return nil, err
 	}
+	// The queued deliveries are the lane's jobs; the log rows cascade.
+	if s.jobs != nil {
+		if _, err := s.jobs.DiscardLane(ctx, req.Msg.Id, "the webhook was deleted"); err != nil {
+			return nil, fmt.Errorf("discard deliveries: %w", err)
+		}
+	}
 	if _, err := s.q.DeleteOutgoingWebhook(ctx, req.Msg.Id); err != nil {
 		return nil, apierr.NotFoundOr(fmt.Errorf("delete hook: %w", err), "webhook")
 	}

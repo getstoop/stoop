@@ -65,6 +65,6 @@ message Delivery {
   google.protobuf.Timestamp created_at = 9;
   // Set once delivered or dead.
   google.protobuf.Timestamp finished_at = 10;
-  // The next attempt's earliest time, while unfinished.
-  google.protobuf.Timestamp next_attempt_at = 11;
+  // 11 was next_attempt_at; the log no longer knows the next time.
+  reserved 11;
 }

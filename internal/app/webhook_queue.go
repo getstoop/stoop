@@ -7,13 +7,14 @@ import (
 
 	"github.com/getstoop/stoop/internal/instance"
 	"github.com/getstoop/stoop/internal/integrations"
+	"github.com/getstoop/stoop/internal/jobs"
 )
 
-// The outgoing queue, counted only when someone asks: the Health row,
-// the Background work panel and a metrics scrape share one answer, cached
-// so a tab polling every five seconds costs Postgres one count per TTL.
-// It is deliberately not a sampled gauge, so nothing runs the query while
-// no one is looking.
+// The outgoing deliveries, counted only when someone asks: the Health
+// row, the Background work panel and a metrics scrape share one answer,
+// cached so a tab polling every five seconds costs Postgres one count
+// per TTL. It is deliberately not a sampled gauge, so nothing runs the
+// queries while no one is looking.
 
 const queueStatsTTL = 10 * time.Second
 
@@ -26,14 +27,22 @@ type queueStats struct {
 	err  error
 }
 
-// webhookQueue adapts integrations.QueueStats to the instance port.
-func webhookQueue(hooks *integrations.Service) *queueStats {
+// webhookQueue answers the instance port from two readers: the backlog
+// of deliver_webhook jobs and the delivery log.
+func webhookQueue(jobsSvc *jobs.Service, hooks *integrations.Service) *queueStats {
 	return &queueStats{read: func(ctx context.Context) (instance.QueueStats, error) {
-		q, err := hooks.QueueStats(ctx)
+		backlog, err := jobsSvc.Backlog(ctx, integrations.DeliverWebhookKind)
+		if err != nil {
+			return instance.QueueStats{}, err
+		}
+		log, err := hooks.DeliveryStats(ctx)
+		if err != nil {
+			return instance.QueueStats{}, err
+		}
 		return instance.QueueStats{
-			Queued: q.Queued, Leased: q.Leased, Dead: q.Dead,
-			DeadLastHour: q.DeadLastHour, Hooks: q.Hooks,
-		}, err
+			Queued: backlog.Queued, Leased: backlog.Running, OldestDue: backlog.OldestDue,
+			Dead: log.Dead, DeadLastHour: log.DeadLastHour, Hooks: log.Hooks,
+		}, nil
 	}}
 }
 

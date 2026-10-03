@@ -1,5 +1,5 @@
 // Package integrations owns what the server talks to: incoming and
-// outgoing webhooks, the delivery queue, and the admin surface for bots
+// outgoing webhooks, the delivery log, and the admin surface for bots
 // and the credentials that authenticate as them. Design and reasoning:
 // docs/architecture/integrations.md.
 package integrations
@@ -122,6 +122,14 @@ type Policy interface {
 	PublicURL(ctx context.Context) (string, error)
 }
 
+// Jobs is integrations' port onto the job queue, wired in internal/app.
+// The module enqueues only the kind it performs; a hook's id is its lane.
+type Jobs interface {
+	EnqueueInLane(ctx context.Context, kind string, args any, lane string, sequence int64) (string, error)
+	// DiscardLane drops the lane's queued jobs with reason as their error.
+	DiscardLane(ctx context.Context, lane, reason string) (int64, error)
+}
+
 // Service is the integrations module.
 type Service struct {
 	q         *dbgen.Queries
@@ -131,13 +139,11 @@ type Service struct {
 	spaces    SpaceAccess
 	bots      BotIdentities
 	policy    Policy
-	queue     Queue
+	jobs      Jobs
 	hookLimit *ratelimit.Limiter
 
 	subs   subscriber
-	wake   chan struct{}
 	egress egress
-	ladder []time.Duration
 	now    func() time.Time
 }
 
@@ -148,8 +154,7 @@ type egress struct {
 
 func New(pool *pgxpool.Pool, bus events.Bus, log *slog.Logger) *Service {
 	return &Service{
-		q: dbgen.New(pool), bus: bus, log: log,
-		wake: make(chan struct{}, 1), ladder: defaultLadder, now: time.Now,
+		q: dbgen.New(pool), bus: bus, log: log, now: time.Now,
 		egress: egress{
 			public:  netguard.Policy{}.Transport(),
 			private: netguard.Policy{AllowPrivate: true}.Transport(),
@@ -170,9 +175,8 @@ func (s *Service) UseBotIdentities(b BotIdentities) { s.bots = b }
 // UsePolicy wires instance. Without it both directions are off.
 func (s *Service) UsePolicy(p Policy) { s.policy = p }
 
-// UseQueue wires the delivery queue. Without it outgoing hooks deliver
-// nothing.
-func (s *Service) UseQueue(q Queue) { s.queue = q }
+// UseJobs wires the job queue. Without it outgoing hooks deliver nothing.
+func (s *Service) UseJobs(jobs Jobs) { s.jobs = jobs }
 
 // UseHookThrottle limits posts per hook credential. Nil means no limit.
 func (s *Service) UseHookThrottle(l *ratelimit.Limiter) { s.hookLimit = l }

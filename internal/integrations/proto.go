@@ -104,19 +104,12 @@ func toProtoOutgoing(h dbgen.OutgoingWebhook) *integrationsv1.OutgoingWebhook {
 	return out
 }
 
-func toProtoDelivery(d dbgen.WebhookDelivery) *integrationsv1.Delivery {
-	out := &integrationsv1.Delivery{
-		Id: d.ID, WebhookId: d.Lane, EventType: d.EventType, Sequence: d.Sequence, Attempts: d.Attempts,
-		Response: d.Response, Error: d.Error, CreatedAt: timestamppb.New(d.CreatedAt),
+func toProtoDelivery(row dbgen.WebhookDelivery) *integrationsv1.Delivery {
+	return &integrationsv1.Delivery{
+		Id: row.ID, WebhookId: row.WebhookID, EventType: row.EventType, Sequence: row.Sequence, Attempts: row.Attempts,
+		StatusCode: row.StatusCode, Response: row.Response, Error: row.Error,
+		CreatedAt: timestamppb.New(row.CreatedAt), FinishedAt: pbtime.OrNil(row.FinishedAt),
 	}
-	if d.StatusCode != nil {
-		out.StatusCode = d.StatusCode
-	}
-	out.FinishedAt = pbtime.OrNil(d.FinishedAt)
-	if d.FinishedAt == nil {
-		out.NextAttemptAt = timestamppb.New(d.NotBefore)
-	}
-	return out
 }
 
 func toProtoBot(b Bot, creds []Credential, spaceIDs []string) *integrationsv1.Bot {

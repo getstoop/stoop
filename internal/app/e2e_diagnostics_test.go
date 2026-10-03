@@ -162,8 +162,8 @@ func liveNumber(r reply, key string) float64 {
 }
 
 // Background work: every schedule row carries its interval and when it is
-// next due before its first pass, and the continuous worker carries
-// neither. The queue counts come back even when nothing is queued.
+// next due before its first pass. The delivery counts come back even when
+// nothing is queued.
 func TestE2EDiagnosticsJobs(t *testing.T) {
 	h := newHarness(t)
 	casey := h.person("casey")
@@ -178,11 +178,8 @@ func TestE2EDiagnosticsJobs(t *testing.T) {
 			t.Errorf("%s = %v, want an interval and a nextDue", name, j)
 		}
 	}
-	if w, ok := jobs["webhook_worker"]; !ok || w["interval"] != nil || w["nextDue"] != nil {
-		t.Errorf("webhook_worker = %v, want no interval and no next_due", w)
-	}
-	if len(jobs) != 8 {
-		t.Errorf("%d jobs, want 8: %s", len(jobs), r.raw)
+	if len(jobs) != 7 {
+		t.Errorf("%d jobs, want 7: %s", len(jobs), r.raw)
 	}
 	if !strings.Contains(r.raw, `"webhooks"`) {
 		t.Errorf("no webhooks in %s", r.raw)

@@ -306,17 +306,15 @@ type UserIdentity struct {
 }
 
 type WebhookDelivery struct {
-	ID          string
-	Lane        string
-	EventType   string
-	Sequence    int64
-	Body        []byte
-	Attempts    int32
-	NotBefore   time.Time
-	LeasedUntil *time.Time
-	FinishedAt  *time.Time
-	StatusCode  *int32
-	Response    string
-	Error       string
-	CreatedAt   time.Time
+	ID         string
+	WebhookID  string
+	EventType  string
+	Sequence   int64
+	Body       []byte
+	Attempts   int32
+	FinishedAt *time.Time
+	StatusCode *int32
+	Response   string
+	Error      string
+	CreatedAt  time.Time
 }

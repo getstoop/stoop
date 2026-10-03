@@ -138,8 +138,8 @@ func (s *Service) TestWebhook(ctx context.Context, req *connect.Request[integrat
 	if err := s.ready(); err != nil {
 		return nil, err
 	}
-	if s.queue == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("deliveries are not wired"))
+	if err := s.deliveriesWired(); err != nil {
+		return nil, err
 	}
 	if err := s.requireOutgoing(ctx); err != nil {
 		return nil, err
@@ -182,13 +182,13 @@ func (s *Service) ListDeliveries(ctx context.Context, req *connect.Request[integ
 	if limit > 100 {
 		limit = 100
 	}
-	rows, err := s.q.ListDeliveriesByLane(ctx, dbgen.ListDeliveriesByLaneParams{Lane: hook.ID, Limit: limit})
+	rows, err := s.q.ListDeliveriesByWebhook(ctx, dbgen.ListDeliveriesByWebhookParams{WebhookID: hook.ID, Limit: limit})
 	if err != nil {
 		return nil, fmt.Errorf("list deliveries: %w", err)
 	}
 	res := &integrationsv1.ListDeliveriesResponse{}
-	for _, d := range rows {
-		res.Deliveries = append(res.Deliveries, toProtoDelivery(d))
+	for _, row := range rows {
+		res.Deliveries = append(res.Deliveries, toProtoDelivery(row))
 	}
 	return connect.NewResponse(res), nil
 }
@@ -199,8 +199,8 @@ func (s *Service) RedeliverDelivery(ctx context.Context, req *connect.Request[in
 	if err := requireManage(ctx); err != nil {
 		return nil, err
 	}
-	if s.queue == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("deliveries are not wired"))
+	if err := s.deliveriesWired(); err != nil {
+		return nil, err
 	}
 	if err := s.requireOutgoing(ctx); err != nil {
 		return nil, err
@@ -208,17 +208,17 @@ func (s *Service) RedeliverDelivery(ctx context.Context, req *connect.Request[in
 	if err := rowid.Require(req.Msg.DeliveryId, "delivery"); err != nil {
 		return nil, err
 	}
-	d, err := s.q.GetDelivery(ctx, req.Msg.DeliveryId)
+	dead, err := s.q.GetDelivery(ctx, req.Msg.DeliveryId)
 	if err != nil {
 		return nil, apierr.NotFoundOr(fmt.Errorf("get delivery: %w", err), "delivery")
 	}
-	if d.FinishedAt == nil {
+	if dead.FinishedAt == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this delivery is still in progress"))
 	}
-	if d.Body == nil {
+	if dead.Body == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this delivery succeeded; its body was not kept"))
 	}
-	hook, err := s.outgoingHook(ctx, d.Lane)
+	hook, err := s.outgoingHook(ctx, dead.WebhookID)
 	if err != nil {
 		return nil, err
 	}
@@ -226,10 +226,9 @@ func (s *Service) RedeliverDelivery(ctx context.Context, req *connect.Request[in
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this webhook is disabled"))
 	}
 	id := rowid.New()
-	if err := s.queue.Enqueue(ctx, Item{ID: id, Lane: d.Lane, Event: d.EventType, Sequence: uint64(d.Sequence), Body: d.Body}); err != nil {
+	if err := s.queueDelivery(ctx, DeliveryArgs{DeliveryID: id, HookID: dead.WebhookID, Event: dead.EventType, Sequence: dead.Sequence, Body: dead.Body}); err != nil {
 		return nil, err
 	}
-	s.wakeWorker()
 	again, err := s.q.GetDelivery(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get delivery: %w", err)
@@ -247,6 +246,14 @@ func (s *Service) rotateOutgoing(ctx context.Context, hook dbgen.OutgoingWebhook
 		return "", fmt.Errorf("rotate secret: %w", err)
 	}
 	return secret, nil
+}
+
+// deliveriesWired refuses what needs the job queue until it is wired.
+func (s *Service) deliveriesWired() error {
+	if s.jobs == nil {
+		return connect.NewError(connect.CodeUnavailable, errors.New("deliveries are not wired"))
+	}
+	return nil
 }
 
 func (s *Service) requireOutgoing(ctx context.Context) error {

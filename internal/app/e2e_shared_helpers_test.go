@@ -144,7 +144,7 @@ func TestE2EOptionalTimestamps(t *testing.T) {
 		}
 	}
 
-	// integrations: a delivered item has a finish and no next attempt.
+	// integrations: a delivered item has a finish.
 	rcv := newReceiver(t)
 	h.rpc(casey, instance+"UpdateSettings", map[string]any{"webhooksAllowPrivateTargets": true}).expect(t, "ok")
 	hookID, _ := h.outgoing(casey, stoop, rcv.srv.URL+"/hook", "message.created")
@@ -162,7 +162,7 @@ func TestE2EOptionalTimestamps(t *testing.T) {
 	if done == nil {
 		t.Fatal("the delivery was never recorded")
 	}
-	if done["finishedAt"] == nil || done["nextAttemptAt"] != nil {
-		t.Errorf("a delivered item carries finishedAt=%v nextAttemptAt=%v", done["finishedAt"], done["nextAttemptAt"])
+	if done["finishedAt"] == nil {
+		t.Errorf("a delivered item carries no finishedAt: %v", done)
 	}
 }
