@@ -27,6 +27,9 @@ func (s *Service) SweepCredentials(ctx context.Context) (int64, error) {
 	return int64(len(rows)), nil
 }
 
+// SweepCredentialsKind is the job kind internal/app registers for SweepCredentials.
+const SweepCredentialsKind = "sweep_credentials"
+
 var credentialSweep = diag.NewJob("credential_sweep")
 
 // RunCredentialSweeper sweeps on a timer until ctx ends: once shortly after

@@ -103,6 +103,9 @@ func (s *Service) SweepAttachments(ctx context.Context, now time.Time) (int64, e
 	return expired, nil
 }
 
+// SweepAttachmentsKind is the job kind internal/app registers for SweepAttachments.
+const SweepAttachmentsKind = "sweep_attachments"
+
 var attachmentRetention = diag.NewJob("attachment_retention")
 
 // RunAttachmentSweeper runs SweepAttachments hourly until ctx ends.

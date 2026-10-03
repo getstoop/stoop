@@ -34,6 +34,9 @@ func (s *Service) SweepActivity(ctx context.Context, retention time.Duration) (i
 	return n, nil
 }
 
+// SweepActivityKind is the job kind internal/app registers for SweepActivity.
+const SweepActivityKind = "sweep_activity"
+
 var activityRetention = diag.NewJob("activity_retention")
 
 // RunActivitySweeper sweeps on a timer until ctx ends: once shortly
