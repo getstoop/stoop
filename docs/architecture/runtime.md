@@ -50,7 +50,8 @@ optional front door must not be able to take down the baseline.
 **Migrations run automatically at startup**, which is what makes upgrading
 "pull the new binary and restart". There is no separate migration step for
 an operator to forget, and no window where a new binary runs against an old
-schema.
+schema. The run holds a Postgres advisory lock, so a server and a `stoop
+jobs` starting together apply each migration once.
 
 `GET /healthz` answers `200 ok` for container health checks and for the E2E
 harness's readiness loop. `GET /version` answers
@@ -290,6 +291,14 @@ earlier unfinished job shares its lane, so one runs per lane at a time,
 in sequence order, and a retry waiting on its backoff holds the lane.
 Sweeps have no lane.
 
+A kind registered with `Options{MaxInFlight: n}` never has more than
+`n` rows on a live lease (`running`, `leased_until` in the future) across
+every dispatcher; `0`, the default, is no cap. The uncapped kinds are
+leased together in one query. A capped kind is leased in its own
+transaction under a per-kind advisory lock, with a LIMIT of the cap less
+the live leases, so one batch cannot overshoot; a kind at its cap holds
+back nothing else.
+
 The dispatcher (`RunDispatcher`) is woken by the `NOTIFY` the insert of
 a job raises, on a connection of its own outside the pool, and polls for
 due rows every `STOOP_JOBS_POLL` as the backstop; it leases them with
@@ -305,9 +314,10 @@ kept. On shutdown it stops leasing, gives in-flight jobs five seconds,
 and clears the lease on anything still running without counting the
 attempt, so the next start retries it; the clearing and the wait for
 the cancelled workers are bounded too, so it is back under ten seconds
-whatever a performer does. The heartbeat row, touched on every pass and
-every 15 s between them, is what shows a dispatcher is alive; it drives
-the `jobs runner` health row
+whatever a performer does. The heartbeat row, upserted on every pass and
+every 15 s between them, is what shows a dispatcher is alive, and a row
+that has gone missing is back on the next beat; it drives
+the `jobs_runner` health row
 ([diagnostics.md](diagnostics.md#the-health-check-port)).
 
 | Variable | Default | Meaning |
@@ -316,7 +326,7 @@ the `jobs runner` health row
 | `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for when no insert has woken the dispatcher. |
 | `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever. |
 | `STOOP_FILE_SWEEP_INTERVAL` | `6h` | `0` disables the four schedules on it; the Storage tab can still queue a file sweep. |
-| `STOOP_JOBS` | `embedded` | Where the dispatcher runs: in the server, in a `stoop jobs` the server starts and supervises (`child`, restarted with backoff like cloudflared), or in none of it (`external`, the `jobs` compose service or a bare `stoop jobs`). |
+| `STOOP_JOBS` | `embedded` | Where the dispatcher runs: in the server, in a `stoop jobs` the server starts and supervises (`child`, restarted with backoff like cloudflared; on Linux it is sent `SIGTERM` when the server dies, however it dies), or in none of it (`external`, the `jobs` compose service or a bare `stoop jobs`). |
 
 The Storage tab's **Clean now** is `FileService.SweepFiles`: it enqueues
 one `sweep_files` job and returns its id, and the Diagnostics tab's

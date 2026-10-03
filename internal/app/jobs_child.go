@@ -57,17 +57,25 @@ func (c *jobsChild) Run(ctx context.Context) {
 	}
 }
 
-// runOnce runs the child to its exit. It inherits the environment,
-// stdout and stderr, so its log lines land in the server's stream.
+// runOnce runs the child to its exit.
 func (c *jobsChild) runOnce(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, c.path, c.args...)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
-	cmd.WaitDelay = childWaitDelay
+	cmd := c.command(ctx)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	return cmd.Wait()
+}
+
+// command builds the child's command. It inherits the environment,
+// stdout and stderr, so its log lines land in the server's stream, and
+// on Linux it dies with the server.
+func (c *jobsChild) command(ctx context.Context) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, c.path, c.args...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
+	cmd.WaitDelay = childWaitDelay
+	cmd.SysProcAttr = childProcessAttributes()
+	return cmd
 }
 
 func exitReason(err error) string {

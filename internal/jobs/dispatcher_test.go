@@ -336,3 +336,29 @@ func TestHeartbeatKeepsUpBetweenPolls(t *testing.T) {
 	clock.Advance(time.Minute)
 	waitFor(t, "a heartbeat between polls", func() bool { return seenAt().Equal(clock.Now()) })
 }
+
+// The heartbeat is an upsert, so a row that was never written or that
+// something removed comes back under the same id.
+func TestHeartbeatRestoresADeletedRow(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	cfg := testConfig()
+	cfg.Poll = 10 * time.Second
+	service, _ := newTestService(pool, clock, cfg)
+	service.heartbeat = 50 * time.Millisecond
+	startDispatcher(t, service)
+
+	var dispatcherID string
+	waitFor(t, "the dispatcher to register", func() bool {
+		return pool.QueryRow(context.Background(), `SELECT id FROM job_dispatchers`).Scan(&dispatcherID) == nil
+	})
+	if _, err := pool.Exec(context.Background(), `DELETE FROM job_dispatchers`); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the row to come back", func() bool {
+		return countRows(t, pool, `SELECT count(*) FROM job_dispatchers WHERE id = $1`, dispatcherID) == 1
+	})
+	if countRows(t, pool, `SELECT count(*) FROM job_dispatchers`) != 1 {
+		t.Error("more than one heartbeat row for one dispatcher")
+	}
+}

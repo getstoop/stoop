@@ -39,6 +39,19 @@ WHERE j.id IN (
 )
 RETURNING j.*;
 
+-- LockKindLeasing serialises the lease of one capped kind across
+-- dispatchers for the transaction, so the count below and the LeaseJobs
+-- that follows it see no concurrent lease. 4207020 is this lock's
+-- namespace; the storage quota lock in files.sql is 4207011.
+-- name: LockKindLeasing :exec
+SELECT pg_advisory_xact_lock(4207020, hashtext(sqlc.arg(kind)::text));
+
+-- CountLiveLeases is a kind's rows running on a live lease, the same
+-- count KindBacklog calls running.
+-- name: CountLiveLeases :one
+SELECT count(*)::bigint FROM jobs
+WHERE kind = sqlc.arg(kind) AND state = 'running' AND leased_until >= sqlc.arg(now)::timestamptz;
+
 -- The outcome writes match the attempt they were leased for, so a stale
 -- attempt whose lease lapsed changes nothing. A succeeded job's arguments
 -- are not kept: nothing reads them, and they may carry content.
