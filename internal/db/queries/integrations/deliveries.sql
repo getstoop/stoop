@@ -17,6 +17,9 @@ SET attempts = sqlc.arg(attempts), status_code = sqlc.narg(status_code),
     body = CASE WHEN sqlc.arg(delivered)::boolean THEN NULL ELSE body END
 WHERE id = sqlc.arg(id);
 
+-- name: DeleteDelivery :exec
+DELETE FROM webhook_deliveries WHERE id = $1;
+
 -- name: GetDelivery :one
 SELECT * FROM webhook_deliveries WHERE id = $1;
 
