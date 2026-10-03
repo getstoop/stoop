@@ -23,7 +23,8 @@ func (q *Queries) CountQueuedJobs(ctx context.Context, kind string) (int64, erro
 
 const discardLane = `-- name: DiscardLane :execrows
 UPDATE jobs
-SET state = 'discarded', finished_at = $1::timestamptz, leased_until = NULL, error = $2
+SET state = 'discarded', finished_at = $1::timestamptz, leased_until = NULL, error = $2,
+    args = '{}'::jsonb
 WHERE lane = $3::text AND state = 'queued'
 `
 
@@ -33,7 +34,8 @@ type DiscardLaneParams struct {
 	Lane  string
 }
 
-// DiscardLane ends a lane's queued rows; a running one finishes on its own.
+// DiscardLane ends a lane's queued rows; a running one finishes on its
+// own. Their arguments are not kept: the lane's owner is going away.
 func (q *Queries) DiscardLane(ctx context.Context, arg DiscardLaneParams) (int64, error) {
 	result, err := q.db.Exec(ctx, discardLane, arg.Now, arg.Error, arg.Lane)
 	if err != nil {
