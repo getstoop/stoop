@@ -153,6 +153,26 @@ func (s *Service) GetRun(ctx context.Context, id string) (Run, error) {
 	return runFromRow(row), nil
 }
 
+// GetRuns reads the rows with these ids; an id with no row, or that is
+// not an id, is left out.
+func (s *Service) GetRuns(ctx context.Context, ids []string) ([]Run, error) {
+	valid := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if _, err := uuid.Parse(id); err == nil {
+			valid = append(valid, id)
+		}
+	}
+	rows, err := s.queries.GetJobs(ctx, valid)
+	if err != nil {
+		return nil, fmt.Errorf("get jobs: %w", err)
+	}
+	runs := make([]Run, len(rows))
+	for index, row := range rows {
+		runs[index] = runFromRow(row)
+	}
+	return runs, nil
+}
+
 func encodeArgs(args any) ([]byte, error) {
 	if args == nil {
 		return []byte("{}"), nil

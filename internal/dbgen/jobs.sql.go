@@ -125,6 +125,46 @@ func (q *Queries) GetJob(ctx context.Context, id string) (Job, error) {
 	return i, err
 }
 
+const getJobs = `-- name: GetJobs :many
+SELECT id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, leased_until, started_at, finished_at, error, counters, created_at FROM jobs WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) GetJobs(ctx context.Context, ids []string) ([]Job, error) {
+	rows, err := q.db.Query(ctx, getJobs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Job
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Args,
+			&i.Lane,
+			&i.Sequence,
+			&i.State,
+			&i.Attempt,
+			&i.MaxAttempts,
+			&i.NotBefore,
+			&i.LeasedUntil,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.Error,
+			&i.Counters,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertJob = `-- name: InsertJob :exec
 
 INSERT INTO jobs (id, kind, args, lane, sequence, state, attempt, max_attempts, not_before, created_at)

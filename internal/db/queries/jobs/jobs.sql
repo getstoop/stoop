@@ -92,6 +92,9 @@ WHERE j.kind = sqlc.arg(kind) AND j.state IN ('queued', 'running');
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = $1;
 
+-- name: GetJobs :many
+SELECT * FROM jobs WHERE id = ANY(sqlc.arg(ids)::uuid[]);
+
 -- name: LastStartedJob :one
 SELECT * FROM jobs WHERE kind = $1 AND started_at IS NOT NULL ORDER BY started_at DESC LIMIT 1;
 

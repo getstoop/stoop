@@ -98,6 +98,8 @@ type fakeJobs struct {
 	discarded []string
 	// refuse, when set, is what every enqueue fails with.
 	refuse error
+	// statuses is what JobStatuses answers, by id.
+	statuses map[string]JobStatus
 }
 
 func (jobs *fakeJobs) EnqueueInLane(_ context.Context, kind string, args any, lane string, sequence int64) (string, error) {
@@ -116,6 +118,18 @@ func (jobs *fakeJobs) EnqueueInLane(_ context.Context, kind string, args any, la
 	defer jobs.mu.Unlock()
 	jobs.queued = append(jobs.queued, queuedJob{kind: kind, args: decoded, lane: lane, sequence: sequence})
 	return rowid.New(), nil
+}
+
+func (jobs *fakeJobs) JobStatuses(_ context.Context, ids []string) (map[string]JobStatus, error) {
+	jobs.mu.Lock()
+	defer jobs.mu.Unlock()
+	found := map[string]JobStatus{}
+	for _, id := range ids {
+		if status, ok := jobs.statuses[id]; ok {
+			found[id] = status
+		}
+	}
+	return found, nil
 }
 
 func (jobs *fakeJobs) DiscardLane(_ context.Context, lane, _ string) (int64, error) {

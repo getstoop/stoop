@@ -122,12 +122,23 @@ type Policy interface {
 	PublicURL(ctx context.Context) (string, error)
 }
 
+// JobStatus is what the port reports about a delivery's job.
+type JobStatus struct {
+	// Discarded is set once the job ended without succeeding.
+	Discarded bool
+	// Error is the latest attempt's error.
+	Error string
+}
+
 // Jobs is integrations' port onto the job queue, wired in internal/app.
 // The module enqueues only the kind it performs; a hook's id is its lane.
 type Jobs interface {
 	EnqueueInLane(ctx context.Context, kind string, args any, lane string, sequence int64) (string, error)
 	// DiscardLane drops the lane's queued jobs with reason as their error.
 	DiscardLane(ctx context.Context, lane, reason string) (int64, error)
+	// JobStatuses reads the jobs with these ids; a job that is gone is
+	// left out of the map.
+	JobStatuses(ctx context.Context, ids []string) (map[string]JobStatus, error)
 }
 
 // Service is the integrations module.

@@ -159,7 +159,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	registerDeliveries(registry, integrationsSvc)
 	jobsSvc := jobs.New(pool, registry, jobs.Config{Workers: cfg.JobsWorkers, Poll: cfg.JobsPoll, Retention: cfg.JobsRetention}, log)
 	filesSvc.UseJobs(jobsSvc)
-	integrationsSvc.UseJobs(jobsSvc)
+	integrationsSvc.UseJobs(deliveryJobs{jobsSvc})
 	if err := scheduleSweeps(ctx, jobsSvc, cfg); err != nil {
 		pool.Close()
 		return nil, err
