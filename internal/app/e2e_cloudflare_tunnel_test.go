@@ -2,21 +2,12 @@ package app_test
 
 import (
 	"encoding/base64"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/getstoop/stoop/internal/cftunnel/cftunneltest"
 )
-
-// Run as the fake cloudflared when the connector starts this binary.
-func TestMain(m *testing.M) {
-	if os.Getenv(cftunneltest.Env) != "" {
-		cftunneltest.Main()
-	}
-	os.Exit(m.Run())
-}
 
 const reachability = "stoop.instance.v1.InstanceService/"
 
