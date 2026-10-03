@@ -271,7 +271,7 @@ last, which the module owns:
 | Kind | Every | Removes |
 | --- | --- | --- |
 | `sweep_files` | `STOOP_FILE_SWEEP_INTERVAL` | uploads nothing points at and blobs no row names ([files.md](files.md#the-sweep)) |
-| `sweep_activity` | `STOOP_FILE_SWEEP_INTERVAL` | *read* activity items older than `STOOP_ACTIVITY_RETENTION`, never unread ones ([messaging.md](messaging.md#retention)) |
+| `sweep_activity` | `STOOP_FILE_SWEEP_INTERVAL`; off when `STOOP_ACTIVITY_RETENTION` is `0` | *read* activity items older than `STOOP_ACTIVITY_RETENTION`, never unread ones ([messaging.md](messaging.md#retention)) |
 | `sweep_credentials` | `STOOP_FILE_SWEEP_INTERVAL` | expired sessions at once, expired personal tokens a month after expiry |
 | `sweep_hooks` | `STOOP_FILE_SWEEP_INTERVAL` | hook credentials whose hook a channel or space delete cascaded away, bots left with nothing, finished deliveries older than `STOOP_WEBHOOK_DELIVERY_RETENTION` |
 | `sweep_messages` | hourly | messages past `message_retention_days` ([messaging.md](messaging.md#message-retention)) |
@@ -293,7 +293,7 @@ anything still running so the next start retries it.
 | --- | --- | --- |
 | `STOOP_JOBS_WORKERS` | `4` | Jobs run at once. |
 | `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for. |
-| `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever and disables `sweep_jobs`. |
+| `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever. |
 | `STOOP_FILE_SWEEP_INTERVAL` | `6h` | `0` disables the four schedules on it; the Storage tab can still queue a file sweep. |
 
 The Storage tab's **Clean now** is `FileService.SweepFiles`: it enqueues

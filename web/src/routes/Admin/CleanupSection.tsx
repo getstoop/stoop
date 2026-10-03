@@ -1,5 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { filesClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { SettingRow } from "../../components/SettingRow";
@@ -7,13 +8,20 @@ import { SettingRow } from "../../components/SettingRow";
 // The sweep, on demand. The server runs the same pass on a schedule; this
 // queues one now and the Diagnostics tab shows it run. One row of the
 // Storage group.
+
+// The usage numbers lag the queued sweep, so they are refreshed for a while.
+const USAGE_REFRESH_MS = 5000;
+const USAGE_REFRESH_FOR_MS = 60_000;
+
 export function CleanupSection() {
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [queued, setQueued] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const clean = async () => {
     setBusy(true);
+    setQueued(false);
     setError(null);
     try {
       await filesClient.sweepFiles({});
@@ -24,6 +32,18 @@ export function CleanupSection() {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!queued) return;
+    const refresh = () =>
+      queryClient.invalidateQueries({ queryKey: ["storage-usage"] });
+    const timer = setInterval(refresh, USAGE_REFRESH_MS);
+    const stop = setTimeout(() => clearInterval(timer), USAGE_REFRESH_FOR_MS);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(stop);
+    };
+  }, [queued, queryClient]);
 
   return (
     <SettingRow
