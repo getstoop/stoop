@@ -29,34 +29,34 @@ type Job struct {
 	counters Counters
 }
 
-// Args decodes the JSON arguments into v.
-func (j *Job) Args(v any) error {
+// Args decodes the JSON arguments into the value pointed to.
+func (j *Job) Args(into any) error {
 	if len(j.args) == 0 {
 		return nil
 	}
-	if err := json.Unmarshal(j.args, v); err != nil {
+	if err := json.Unmarshal(j.args, into); err != nil {
 		return fmt.Errorf("decode %s args: %w", j.Kind, err)
 	}
 	return nil
 }
 
 // Record attaches counters to the row; they are written with the outcome.
-func (j *Job) Record(c Counters) {
+func (j *Job) Record(counters Counters) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	if j.counters == nil {
 		j.counters = Counters{}
 	}
-	maps.Copy(j.counters, c)
+	maps.Copy(j.counters, counters)
 }
 
-// Extend moves the lease deadline to now + d, for a pass that outlives
+// Extend moves the lease deadline to now + lease, for a pass that outlives
 // the kind's lease.
-func (j *Job) Extend(ctx context.Context, d time.Duration) error {
+func (j *Job) Extend(ctx context.Context, lease time.Duration) error {
 	if j.extend == nil {
 		return nil
 	}
-	return j.extend(ctx, j.now().Add(d))
+	return j.extend(ctx, j.now().Add(lease))
 }
 
 func (j *Job) recorded() Counters {
@@ -115,7 +115,7 @@ func NewRegistry() *Registry { return &Registry{kinds: map[string]kindEntry{}} }
 
 // Register binds kind to a typed performer; the wrapper decodes the JSON
 // arguments into A. Registering a kind twice panics.
-func Register[A any](r *Registry, kind string, fn func(ctx context.Context, job *Job, args A) error, opts Options) {
+func Register[A any](registry *Registry, kind string, fn func(ctx context.Context, job *Job, args A) error, opts Options) {
 	perform := performFunc(func(ctx context.Context, job *Job) error {
 		var args A
 		if err := job.Args(&args); err != nil {
@@ -123,12 +123,12 @@ func Register[A any](r *Registry, kind string, fn func(ctx context.Context, job 
 		}
 		return fn(ctx, job, args)
 	})
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if _, taken := r.kinds[kind]; taken {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+	if _, taken := registry.kinds[kind]; taken {
 		panic(fmt.Sprintf("jobs: kind %q registered twice", kind))
 	}
-	r.kinds[kind] = kindEntry{performer: perform, opts: opts.withDefaults()}
+	registry.kinds[kind] = kindEntry{performer: perform, opts: opts.withDefaults()}
 }
 
 // Kinds lists the registered kinds, sorted.
