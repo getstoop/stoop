@@ -66,7 +66,7 @@ Reading it:
 | --- | --- | --- |
 | "Voice is choppy" | Health: LiveKit, then Hosting | Unreachable means the sidecar. Reachable with people in rooms means media, not Stoop: TURN, the network, or the host itself. |
 | "Messages take ages to load" | Requests, then Database | A high p95 on `ListMessages` with pool waits means Postgres is saturated. A high p95 with an idle pool means the query itself, or the disk. |
-| "My webhook stopped firing" | Background work, then Integrations | Dead-lettered with a 5xx is the receiving end. Queued and never started is the job dispatcher. |
+| "My webhook stopped firing" | Health: Webhooks, then Integrations | Dead-lettered with a 5xx is the receiving end. Queued with the oldest waiting for minutes is the job dispatcher; the Webhooks queued tile shows the backlog. |
 | "People keep dropping" | Right now: Connections, Slow consumers dropped | A sawtooth in connections with drops climbing means the server is falling behind on fan-out. Flat drops with a sawtooth means their network or the proxy in front. |
 | "Uploads fail" | Health: File storage | Volume full, quota reached, or the directory is not writable after a restore. |
 | "It was fine yesterday" | Copy report | Paste it into an issue. |
