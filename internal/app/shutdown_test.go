@@ -16,6 +16,9 @@ import (
 	"github.com/getstoop/stoop/internal/jobs"
 )
 
+// schedulingAllowance is what a loaded machine may add to the budget.
+const schedulingAllowance = 2 * time.Second
+
 // newShutdownApp builds the whole binary on a throwaway database, bound
 // to listenAddr, and returns it with a pool of the test's own on that
 // database, for reading rows after Run has closed the app's.
@@ -92,7 +95,7 @@ func TestRunShutdownStaysInsideTheBudget(t *testing.T) {
 	// back after its grace, and Run comes back inside the ten seconds.
 	began := time.Now()
 	cancel()
-	err = wait(12 * time.Second)
+	err = wait(shutdownTimeout + schedulingAllowance)
 	took := time.Since(began)
 	if err != nil {
 		t.Fatalf("Run returned %v after %v", err, took)
