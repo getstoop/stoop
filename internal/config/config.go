@@ -15,6 +15,13 @@ import (
 	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
+// STOOP_JOBS: where the job dispatcher runs.
+const (
+	JobsEmbedded = "embedded"
+	JobsExternal = "external"
+	JobsChild    = "child"
+)
+
 type Config struct {
 	// ListenAddr is the address the HTTP server binds to.
 	ListenAddr string
@@ -143,6 +150,9 @@ type Config struct {
 	JobsWorkers int
 	// JobsPoll is how often the dispatcher looks for due jobs.
 	JobsPoll time.Duration
+	// Jobs is where the job dispatcher runs: JobsEmbedded in this process,
+	// JobsExternal nowhere in it, JobsChild in a `stoop jobs` it starts.
+	Jobs string
 	// JobsRetention is how long finished job rows are kept; 0 keeps them
 	// forever.
 	JobsRetention time.Duration
@@ -313,6 +323,10 @@ func Load() (Config, error) {
 	}
 	if cfg.JobsRetention, err = parseDuration("STOOP_JOBS_RETENTION", "168h"); err != nil {
 		return Config{}, err
+	}
+	cfg.Jobs = getenv("STOOP_JOBS", JobsEmbedded)
+	if cfg.Jobs != JobsEmbedded && cfg.Jobs != JobsExternal && cfg.Jobs != JobsChild {
+		return Config{}, fmt.Errorf("STOOP_JOBS must be %s, %s or %s (got %q)", JobsEmbedded, JobsExternal, JobsChild, cfg.Jobs)
 	}
 
 	if cfg.CloudflareTunnel, err = parseBool("STOOP_CLOUDFLARE_TUNNEL", false); err != nil {
