@@ -3,42 +3,45 @@ package jobs
 import "sync"
 
 // inflight is the set of rows this dispatcher has leased and not yet
-// written an outcome for. Whoever removes an id first owns the row's
-// next write: the worker finishing it, or shutdown releasing it.
+// written an outcome for, each with the attempt it was leased for.
+// Whoever removes an id first owns the row's next write: the worker
+// finishing it, or shutdown releasing it.
 type inflight struct {
-	mu  sync.Mutex
-	ids map[string]bool
+	mu       sync.Mutex
+	attempts map[string]int32
 }
 
-func newInflight() *inflight { return &inflight{ids: map[string]bool{}} }
+func newInflight() *inflight { return &inflight{attempts: map[string]int32{}} }
 
-func (f *inflight) add(id string) {
+func (f *inflight) add(id string, attempt int32) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.ids[id] = true
+	f.attempts[id] = attempt
 }
 
 func (f *inflight) remove(id string) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	present := f.ids[id]
-	delete(f.ids, id)
+	_, present := f.attempts[id]
+	delete(f.attempts, id)
 	return present
 }
 
-func (f *inflight) drain() []string {
+// drain empties the set and returns the ids with their attempts, index
+// for index.
+func (f *inflight) drain() (ids []string, attempts []int32) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	ids := make([]string, 0, len(f.ids))
-	for id := range f.ids {
+	for id, attempt := range f.attempts {
 		ids = append(ids, id)
+		attempts = append(attempts, attempt)
 	}
-	f.ids = map[string]bool{}
-	return ids
+	f.attempts = map[string]int32{}
+	return ids, attempts
 }
 
 func (f *inflight) count() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return len(f.ids)
+	return len(f.attempts)
 }

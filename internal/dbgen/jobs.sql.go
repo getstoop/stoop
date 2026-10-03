@@ -21,26 +21,30 @@ func (q *Queries) CountQueuedJobs(ctx context.Context, kind string) (int64, erro
 	return count, err
 }
 
-const extendJobLease = `-- name: ExtendJobLease :exec
+const extendJobLease = `-- name: ExtendJobLease :execrows
 UPDATE jobs SET leased_until = $1::timestamptz
-WHERE id = $2 AND state = 'running'
+WHERE id = $2 AND attempt = $3 AND state = 'running'
 `
 
 type ExtendJobLeaseParams struct {
-	Until time.Time
-	ID    string
+	Until   time.Time
+	ID      string
+	Attempt int32
 }
 
-func (q *Queries) ExtendJobLease(ctx context.Context, arg ExtendJobLeaseParams) error {
-	_, err := q.db.Exec(ctx, extendJobLease, arg.Until, arg.ID)
-	return err
+func (q *Queries) ExtendJobLease(ctx context.Context, arg ExtendJobLeaseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, extendJobLease, arg.Until, arg.ID, arg.Attempt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const finishJob = `-- name: FinishJob :exec
+const finishJob = `-- name: FinishJob :execrows
 UPDATE jobs
 SET state = $1, finished_at = $2::timestamptz, leased_until = NULL,
     error = $3, counters = $4
-WHERE id = $5
+WHERE id = $5 AND attempt = $6
 `
 
 type FinishJobParams struct {
@@ -49,17 +53,24 @@ type FinishJobParams struct {
 	Error    string
 	Counters []byte
 	ID       string
+	Attempt  int32
 }
 
-func (q *Queries) FinishJob(ctx context.Context, arg FinishJobParams) error {
-	_, err := q.db.Exec(ctx, finishJob,
+// The outcome writes match the attempt they were leased for, so a stale
+// attempt whose lease lapsed changes nothing.
+func (q *Queries) FinishJob(ctx context.Context, arg FinishJobParams) (int64, error) {
+	result, err := q.db.Exec(ctx, finishJob,
 		arg.State,
 		arg.Now,
 		arg.Error,
 		arg.Counters,
 		arg.ID,
+		arg.Attempt,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getJob = `-- name: GetJob :one
@@ -242,21 +253,27 @@ func (q *Queries) LeaseJobs(ctx context.Context, arg LeaseJobsParams) ([]Job, er
 
 const releaseJobs = `-- name: ReleaseJobs :exec
 UPDATE jobs SET state = 'queued', leased_until = NULL
-WHERE state = 'running' AND id = ANY($1::uuid[])
+WHERE state = 'running'
+  AND (id, attempt) IN (SELECT unnest($1::uuid[]), unnest($2::int[]))
 `
+
+type ReleaseJobsParams struct {
+	Ids      []string
+	Attempts []int32
+}
 
 // ReleaseJobs clears the lease on a dispatcher's in-flight rows at
 // shutdown, so the next start retries them.
-func (q *Queries) ReleaseJobs(ctx context.Context, ids []string) error {
-	_, err := q.db.Exec(ctx, releaseJobs, ids)
+func (q *Queries) ReleaseJobs(ctx context.Context, arg ReleaseJobsParams) error {
+	_, err := q.db.Exec(ctx, releaseJobs, arg.Ids, arg.Attempts)
 	return err
 }
 
-const requeueJob = `-- name: RequeueJob :exec
+const requeueJob = `-- name: RequeueJob :execrows
 UPDATE jobs
 SET state = 'queued', leased_until = NULL, finished_at = $1::timestamptz,
     error = $2, counters = $3, not_before = $4::timestamptz
-WHERE id = $5
+WHERE id = $5 AND attempt = $6
 `
 
 type RequeueJobParams struct {
@@ -265,17 +282,22 @@ type RequeueJobParams struct {
 	Counters  []byte
 	NotBefore time.Time
 	ID        string
+	Attempt   int32
 }
 
-func (q *Queries) RequeueJob(ctx context.Context, arg RequeueJobParams) error {
-	_, err := q.db.Exec(ctx, requeueJob,
+func (q *Queries) RequeueJob(ctx context.Context, arg RequeueJobParams) (int64, error) {
+	result, err := q.db.Exec(ctx, requeueJob,
 		arg.Now,
 		arg.Error,
 		arg.Counters,
 		arg.NotBefore,
 		arg.ID,
+		arg.Attempt,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const sweepFinishedJobs = `-- name: SweepFinishedJobs :execrows
