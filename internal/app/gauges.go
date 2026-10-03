@@ -1,16 +1,24 @@
 package app
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/getstoop/stoop/internal/diag"
+	"github.com/getstoop/stoop/internal/kv"
 	"github.com/getstoop/stoop/internal/realtime"
 )
 
 // The Right now panel's gauges. Each is a read function the sampler calls
 // every diag.SampleStep (docs/architecture/diagnostics.md).
-func registerGauges(gateway *realtime.Gateway) {
+func registerGauges(gateway *realtime.Gateway, stores *kv.Memory) {
+	stores.Each(func(name string, store kv.Store[any]) {
+		diag.NewGauge(name+"_entries", "Live entries in the "+name+" store.", func() float64 {
+			count, _ := store.Len(context.Background())
+			return float64(count)
+		})
+	})
 	diag.NewGauge("connections", "Open WebSocket sessions.", func() float64 { return float64(gateway.ConnectionCount()) })
 	diag.NewGauge("online_users", "Accounts with at least one connection.", func() float64 { return float64(gateway.OnlineUserCount()) })
 	diag.NewGauge("voice_rooms", "Voice channels with someone in them.", func() float64 { return float64(gateway.VoiceRoomCount()) })

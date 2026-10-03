@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -8,8 +9,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
+
+	"github.com/getstoop/stoop/internal/kv"
 )
 
 // The desktop app's leg of provider sign-in and account linking. The
@@ -60,7 +62,6 @@ type desktopAttempt struct {
 	// claimed by the start that used it: an id is only ever visible
 	// because a browser carried it, so a second start is a replay.
 	claimed bool
-	expires time.Time
 }
 
 func (a desktopAttempt) isLink() bool { return a.linkUserID != "" }
@@ -72,107 +73,99 @@ type desktopCode struct {
 	target string
 	// userID is who to sign in; claims are what the provider returned,
 	// held for a link attempt. One or the other, never both.
-	userID  string
-	claims  Claims
-	expires time.Time
+	userID string
+	claims Claims
 }
+
+// desktopStoreCap bounds each store. Anyone can open an attempt, so the
+// cap is what keeps a flood of starts from growing memory without end.
+const desktopStoreCap = 10_000
 
 // desktopStore holds attempts and the codes they become. In memory and
 // per process, like the login-state key: a restart mid-sign-in expires
 // the attempt.
 type desktopStore struct {
-	mu       sync.Mutex
-	attempts map[string]desktopAttempt
-	codes    map[string]desktopCode
+	attempts kv.Store[desktopAttempt]
+	codes    kv.Store[desktopCode]
 }
 
-func newDesktopStore() *desktopStore {
+func newDesktopStore(backend kv.Backend) *desktopStore {
 	return &desktopStore{
-		attempts: map[string]desktopAttempt{},
-		codes:    map[string]desktopCode{},
+		attempts: kv.Open[desktopAttempt](backend, "desktop_attempts", desktopStoreCap),
+		codes:    kv.Open[desktopCode](backend, "desktop_codes", desktopStoreCap),
 	}
 }
 
-func (d *desktopStore) begin(a desktopAttempt) string {
+func (d *desktopStore) begin(ctx context.Context, a desktopAttempt) (string, error) {
 	id := randomToken()
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.sweep()
-	d.attempts[id] = a
-	return id
+	return id, d.attempts.Set(ctx, id, a, desktopAttemptTTL)
 }
 
 // claim marks the attempt started and returns it. One start per attempt:
 // whoever reads the id out of the browser afterwards finds it spent, so
 // only a live race is left to an attacker who has it.
-func (d *desktopStore) claim(id, provider string) (desktopAttempt, bool) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	a, ok := d.attempts[id]
-	if !ok || a.claimed || a.provider != provider || time.Now().After(a.expires) {
-		return desktopAttempt{}, false
-	}
-	a.claimed = true
-	d.attempts[id] = a
-	return a, true
+func (d *desktopStore) claim(ctx context.Context, id, provider string) (desktopAttempt, bool, error) {
+	var claimed desktopAttempt
+	ok := false
+	err := d.attempts.Update(ctx, id, func(a desktopAttempt, found bool) (desktopAttempt, time.Duration, bool) {
+		if !found || a.claimed || a.provider != provider {
+			return a, 0, found
+		}
+		a.claimed = true
+		claimed, ok = a, true
+		return a, 0, true
+	})
+	return claimed, ok, err
 }
 
 // mint consumes the attempt and returns the code the app redeems for it.
 // out carries what the callback learned: a user id for a sign-in, the
 // provider's claims for a link.
-func (d *desktopStore) mint(id, provider string, out desktopCode) (string, bool) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	a, ok := d.attempts[id]
-	delete(d.attempts, id)
-	if !ok || a.provider != provider || time.Now().After(a.expires) {
-		return "", false
+func (d *desktopStore) mint(ctx context.Context, id, provider string, out desktopCode) (string, bool, error) {
+	var a desktopAttempt
+	ok := false
+	err := d.attempts.Update(ctx, id, func(current desktopAttempt, found bool) (desktopAttempt, time.Duration, bool) {
+		if found && current.provider == provider {
+			a, ok = current, true
+		}
+		return current, 0, false
+	})
+	if err != nil || !ok {
+		return "", false, err
 	}
 	code := randomToken()
-	out.attempt, out.expires = a, time.Now().Add(desktopCodeTTL)
-	d.codes[code] = out
-	return code, true
+	out.attempt = a
+	if err := d.codes.Set(ctx, code, out, desktopCodeTTL); err != nil {
+		return "", false, err
+	}
+	return code, true, nil
 }
 
 // redeem checks the verifier against the challenge the attempt carried
 // and consumes the code. Single use, spent on a failed check too — with
 // one exception: a link's preview call leaves it for the confirming one.
-func (d *desktopStore) redeem(code, verifier string, confirm bool) (desktopCode, bool) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	c, ok := d.codes[code]
-	if !ok || time.Now().After(c.expires) || !c.attempt.matches(verifier) {
-		delete(d.codes, code)
-		return desktopCode{}, false
-	}
-	if confirm || !c.attempt.isLink() {
-		delete(d.codes, code)
-	}
-	return c, true
+func (d *desktopStore) redeem(ctx context.Context, code, verifier string, confirm bool) (desktopCode, bool, error) {
+	var redeemed desktopCode
+	ok := false
+	err := d.codes.Update(ctx, code, func(c desktopCode, found bool) (desktopCode, time.Duration, bool) {
+		if !found || !c.attempt.matches(verifier) {
+			return c, 0, false
+		}
+		redeemed, ok = c, true
+		return c, 0, !confirm && c.attempt.isLink()
+	})
+	return redeemed, ok, err
 }
 
 // drop discards an attempt that will never be redeemed, and reports
 // whether it was a link.
-func (d *desktopStore) drop(id string) bool {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	a, ok := d.attempts[id]
-	delete(d.attempts, id)
-	return ok && a.isLink()
-}
-
-func (d *desktopStore) sweep() {
-	now := time.Now()
-	for id, a := range d.attempts {
-		if now.After(a.expires) {
-			delete(d.attempts, id)
-		}
-	}
-	for code, c := range d.codes {
-		if now.After(c.expires) {
-			delete(d.codes, code)
-		}
-	}
+func (d *desktopStore) drop(ctx context.Context, id string) (bool, error) {
+	wasLink := false
+	err := d.attempts.Update(ctx, id, func(a desktopAttempt, found bool) (desktopAttempt, time.Duration, bool) {
+		wasLink = found && a.isLink()
+		return a, 0, false
+	})
+	return wasLink, err
 }
 
 func (a desktopAttempt) matches(verifier string) bool {
@@ -247,7 +240,6 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 		provider:  req.Provider,
 		challenge: req.Challenge,
 		method:    req.Method,
-		expires:   time.Now().Add(desktopAttemptTTL),
 	}
 	// The app's fetch is same-origin, so a link start carries the session
 	// cookie; the identity attaches to that account and nothing else.
@@ -259,7 +251,12 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 		}
 		a.linkUserID, a.sessionID = ident.UserID, ident.SessionID
 	}
-	id := s.desktop.begin(a)
+	id, err := s.desktop.begin(r.Context(), a)
+	if err != nil {
+		slog.Error("store a desktop attempt", "err", err)
+		desktopError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
 	writeDesktopJSON(w, http.StatusOK, map[string]any{
 		"attempt": id, "expiresIn": int(desktopAttemptTTL.Seconds()),
 	})
@@ -273,8 +270,13 @@ func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st logi
 		loginError(w, r, "login_state")
 		return
 	}
-	code, ok := s.desktop.mint(st.Attempt, st.Provider,
+	code, ok, err := s.desktop.mint(r.Context(), st.Attempt, st.Provider,
 		desktopCode{userID: res.userID, target: res.target})
+	if err != nil {
+		slog.Error("mint a desktop code", "err", err)
+		loginError(w, r, "server_error")
+		return
+	}
 	if !ok {
 		loginError(w, r, "login_expired")
 		return
@@ -287,7 +289,12 @@ func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st logi
 // link, and the system browser has none. The claims ride the code back
 // to /auth/desktop/complete instead.
 func (s *Service) desktopLinkHandOff(w http.ResponseWriter, r *http.Request, st loginState, claims Claims) {
-	code, ok := s.desktop.mint(st.Attempt, st.Provider, desktopCode{claims: claims})
+	code, ok, err := s.desktop.mint(r.Context(), st.Attempt, st.Provider, desktopCode{claims: claims})
+	if err != nil {
+		slog.Error("mint a desktop link code", "err", err)
+		loginError(w, r, "server_error")
+		return
+	}
 	if !ok {
 		loginError(w, r, "login_expired")
 		return
@@ -308,7 +315,11 @@ func (s *Service) loginFail(w http.ResponseWriter, r *http.Request, attempt, pro
 	q := url.Values{"error": {code}, "provider": {provider}}
 	// The return page sends a link's failures to /profile, a sign-in's to
 	// /login, so it is told which this was.
-	if s.desktop.drop(attempt) {
+	wasLink, err := s.desktop.drop(r.Context(), attempt)
+	if err != nil {
+		slog.Error("drop a desktop attempt", "err", err)
+	}
+	if wasLink {
 		q.Set("link", "1")
 	}
 	desktopReturn(w, r, q)
@@ -330,7 +341,12 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 	if !readDesktopJSON(w, r, &req) {
 		return
 	}
-	c, ok := s.desktop.redeem(req.Code, req.Verifier, req.Confirm)
+	c, ok, err := s.desktop.redeem(r.Context(), req.Code, req.Verifier, req.Confirm)
+	if err != nil {
+		slog.Error("redeem a desktop code", "err", err)
+		desktopError(w, http.StatusInternalServerError, "server_error")
+		return
+	}
 	if !ok {
 		desktopError(w, http.StatusUnauthorized, "code_invalid")
 		return

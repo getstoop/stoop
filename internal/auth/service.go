@@ -22,6 +22,7 @@ import (
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/kv"
 )
 
 type Options struct {
@@ -34,6 +35,9 @@ type Options struct {
 	// (see authctx.Rule). A procedure not in the map is refused, so a nil map
 	// refuses every call that goes through the interceptor.
 	Procedures map[string]authctx.Rule
+	// Stores backs the keyed state auth keeps in memory: desktop sign-in
+	// attempts and lockouts. nil opens an in-process backend of its own.
+	Stores kv.Backend
 }
 
 type Service struct {
@@ -85,9 +89,13 @@ func New(pool *pgxpool.Pool, opts Options) *Service {
 	if _, err := rand.Read(stateKey); err != nil {
 		panic(fmt.Sprintf("auth: read random: %v", err))
 	}
+	stores := opts.Stores
+	if stores == nil {
+		stores = kv.NewMemory(nil)
+	}
 	return &Service{pool: pool, q: dbgen.New(pool), opts: opts, argon2: params,
 		guard: newLoginGuard(), dummyHash: dummy, stateKey: stateKey,
-		desktop: newDesktopStore()}
+		desktop: newDesktopStore(stores)}
 }
 
 // randomToken is 32 random bytes as unpadded URL-safe base64 (43 characters).
