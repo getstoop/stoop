@@ -65,6 +65,8 @@ type Scheduler interface {
 	Enqueue(ctx context.Context, kind string, args any) (string, error)
 	// EnqueueAt queues a job for a time and returns its id.
 	EnqueueAt(ctx context.Context, kind string, args any, at time.Time) (string, error)
+	// EnqueueInLane queues a job for now in a lane, in sequence order.
+	EnqueueInLane(ctx context.Context, kind string, args any, lane string, sequence int64) (string, error)
 }
 
 // Service is the module: the Scheduler, the schedule loop, the dispatcher

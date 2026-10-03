@@ -18,9 +18,12 @@ type NoArgs struct{}
 
 // Job is what a performer is handed.
 type Job struct {
-	ID      string
-	Kind    string
-	Attempt int
+	ID   string
+	Kind string
+	// Attempt is this try, from 1; MaxAttempts is the kind's limit, so a
+	// performer can tell its last try from the rest.
+	Attempt     int
+	MaxAttempts int
 
 	args     []byte
 	extend   func(ctx context.Context, until time.Time) error
