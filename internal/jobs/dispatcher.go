@@ -35,11 +35,8 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 		defer close(listenerDone)
 		s.listen(ctx, wake)
 	}()
-	dispatcherID := rowid.New()
-	if err := s.queries.InsertDispatcher(ctx, dbgen.InsertDispatcherParams{
-		ID: dispatcherID, Host: s.cfg.Host, Workers: int32(s.cfg.Workers), Now: s.now(),
-	}); err != nil {
-		s.log.Error("jobs: register dispatcher", "err", err)
+	registration := dbgen.UpsertDispatcherParams{
+		ID: rowid.New(), Host: s.cfg.Host, Workers: int32(s.cfg.Workers), StartedAt: s.now(),
 	}
 
 	workCtx, cancelWork := context.WithCancel(context.Background())
@@ -56,7 +53,7 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 	heartbeat := time.NewTicker(s.heartbeat)
 	defer heartbeat.Stop()
 	for ctx.Err() == nil {
-		s.tick(ctx, dispatcherID, queue, tracked)
+		s.tick(ctx, registration, queue, tracked)
 		select {
 		case <-ctx.Done():
 		case <-ticker.C:
@@ -64,11 +61,11 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 		case <-heartbeat.C:
 			// Between passes the row is kept fresh on its own clock, so a
 			// long poll never reads as a dead runner.
-			s.touch(ctx, dispatcherID)
+			s.touch(ctx, registration)
 		}
 	}
 	close(queue)
-	s.shutdown(dispatcherID, &workers, cancelWork, tracked)
+	s.shutdown(registration.ID, &workers, cancelWork, tracked)
 	// The listener closes its connection meanwhile; the caller closes the
 	// pool only once it has.
 	<-listenerDone
@@ -76,8 +73,8 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 
 // tick is one poll: heartbeat, materialise due schedules, then lease
 // until a batch comes back short.
-func (s *Service) tick(ctx context.Context, dispatcherID string, queue chan<- dbgen.Job, tracked *inflight) {
-	s.touch(ctx, dispatcherID)
+func (s *Service) tick(ctx context.Context, registration dbgen.UpsertDispatcherParams, queue chan<- dbgen.Job, tracked *inflight) {
+	s.touch(ctx, registration)
 	if err := s.materialiseDue(ctx); err != nil {
 		s.logUnlessStopping(ctx, "jobs: schedules", err)
 	}
@@ -85,9 +82,11 @@ func (s *Service) tick(ctx context.Context, dispatcherID string, queue chan<- db
 	}
 }
 
-// touch is the heartbeat: seen_at = now on this dispatcher's row.
-func (s *Service) touch(ctx context.Context, dispatcherID string) {
-	if err := s.queries.TouchDispatcher(ctx, dbgen.TouchDispatcherParams{Now: s.now(), ID: dispatcherID}); err != nil {
+// touch is the heartbeat: an upsert of this dispatcher's row with seen_at
+// = now, so a row that was never written or has gone comes back.
+func (s *Service) touch(ctx context.Context, registration dbgen.UpsertDispatcherParams) {
+	registration.Now = s.now()
+	if err := s.queries.UpsertDispatcher(ctx, registration); err != nil {
 		s.logUnlessStopping(ctx, "jobs: heartbeat", err)
 	}
 }

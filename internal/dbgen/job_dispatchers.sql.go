@@ -19,30 +19,6 @@ func (q *Queries) DeleteDispatcher(ctx context.Context, id string) error {
 	return err
 }
 
-const insertDispatcher = `-- name: InsertDispatcher :exec
-
-INSERT INTO job_dispatchers (id, host, workers, started_at, seen_at)
-VALUES ($1, $2, $3, $4::timestamptz, $4::timestamptz)
-`
-
-type InsertDispatcherParams struct {
-	ID      string
-	Host    string
-	Workers int32
-	Now     time.Time
-}
-
-// Dispatcher heartbeats. Owned by the jobs module.
-func (q *Queries) InsertDispatcher(ctx context.Context, arg InsertDispatcherParams) error {
-	_, err := q.db.Exec(ctx, insertDispatcher,
-		arg.ID,
-		arg.Host,
-		arg.Workers,
-		arg.Now,
-	)
-	return err
-}
-
 const listDispatchers = `-- name: ListDispatchers :many
 SELECT id, host, workers, started_at, seen_at FROM job_dispatchers ORDER BY seen_at DESC, id
 `
@@ -85,16 +61,29 @@ func (q *Queries) SweepDispatchers(ctx context.Context, before time.Time) (int64
 	return result.RowsAffected(), nil
 }
 
-const touchDispatcher = `-- name: TouchDispatcher :exec
-UPDATE job_dispatchers SET seen_at = $1::timestamptz WHERE id = $2
+const upsertDispatcher = `-- name: UpsertDispatcher :exec
+
+INSERT INTO job_dispatchers (id, host, workers, started_at, seen_at)
+VALUES ($1, $2, $3, $4::timestamptz, $5::timestamptz)
+ON CONFLICT (id) DO UPDATE SET seen_at = EXCLUDED.seen_at
 `
 
-type TouchDispatcherParams struct {
-	Now time.Time
-	ID  string
+type UpsertDispatcherParams struct {
+	ID        string
+	Host      string
+	Workers   int32
+	StartedAt time.Time
+	Now       time.Time
 }
 
-func (q *Queries) TouchDispatcher(ctx context.Context, arg TouchDispatcherParams) error {
-	_, err := q.db.Exec(ctx, touchDispatcher, arg.Now, arg.ID)
+// Dispatcher heartbeats. Owned by the jobs module.
+func (q *Queries) UpsertDispatcher(ctx context.Context, arg UpsertDispatcherParams) error {
+	_, err := q.db.Exec(ctx, upsertDispatcher,
+		arg.ID,
+		arg.Host,
+		arg.Workers,
+		arg.StartedAt,
+		arg.Now,
+	)
 	return err
 }

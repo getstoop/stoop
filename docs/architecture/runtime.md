@@ -305,8 +305,9 @@ kept. On shutdown it stops leasing, gives in-flight jobs five seconds,
 and clears the lease on anything still running without counting the
 attempt, so the next start retries it; the clearing and the wait for
 the cancelled workers are bounded too, so it is back under ten seconds
-whatever a performer does. The heartbeat row, touched on every pass and
-every 15 s between them, is what shows a dispatcher is alive; it drives
+whatever a performer does. The heartbeat row, upserted on every pass and
+every 15 s between them, is what shows a dispatcher is alive, and a row
+that has gone missing is back on the next beat; it drives
 the `jobs_runner` health row
 ([diagnostics.md](diagnostics.md#the-health-check-port)).
 
