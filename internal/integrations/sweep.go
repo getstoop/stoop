@@ -101,5 +101,64 @@ func (s *Service) SweepDeliveries(ctx context.Context, retention time.Duration) 
 	return n, nil
 }
 
-// SweepHooksKind is the job kind internal/app registers for the three hook sweeps.
+// lostAfter is how old an unfinished delivery must be before the sweep
+// asks about its job: a younger one may simply not have run yet.
+const lostAfter = 5 * time.Minute
+
+// SweepLostDeliveries finishes unfinished deliveries whose job is
+// discarded or gone, or that never got one, as dead with the reason, and
+// reports how many.
+func (s *Service) SweepLostDeliveries(ctx context.Context) (int64, error) {
+	if s.jobs == nil {
+		return 0, nil
+	}
+	rows, err := s.q.ListUnfinishedDeliveriesBefore(ctx, s.now().Add(-lostAfter))
+	if err != nil {
+		return 0, fmt.Errorf("list unfinished deliveries: %w", err)
+	}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row.JobID != nil {
+			ids = append(ids, *row.JobID)
+		}
+	}
+	statuses, err := s.jobs.JobStatuses(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	var finished int64
+	for _, row := range rows {
+		reason, lost := lostReason(row.JobID, statuses)
+		if !lost {
+			continue
+		}
+		count, err := s.q.FinishLostDelivery(ctx, dbgen.FinishLostDeliveryParams{ID: row.ID, Now: s.now(), Error: reason})
+		if err != nil {
+			return finished, fmt.Errorf("finish lost delivery: %w", err)
+		}
+		finished += count
+	}
+	return finished, nil
+}
+
+// lostReason says why a delivery's job will never finish it, or false
+// while the job may still.
+func lostReason(jobID *string, statuses map[string]JobStatus) (string, bool) {
+	if jobID == nil {
+		return "no job was queued for it", true
+	}
+	status, found := statuses[*jobID]
+	switch {
+	case !found:
+		return "its job is gone", true
+	case !status.Discarded:
+		return "", false
+	case status.Error != "":
+		return "its job was discarded: " + status.Error, true
+	default:
+		return "its job was discarded", true
+	}
+}
+
+// SweepHooksKind is the job kind internal/app registers for the hook sweeps.
 const SweepHooksKind = "sweep_hooks"

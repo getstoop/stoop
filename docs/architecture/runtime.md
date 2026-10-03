@@ -273,7 +273,7 @@ except the last, which the module owns:
 | `sweep_files` | `STOOP_FILE_SWEEP_INTERVAL` | uploads nothing points at and blobs no row names ([files.md](files.md#the-sweep)) |
 | `sweep_activity` | `STOOP_FILE_SWEEP_INTERVAL`; off when `STOOP_ACTIVITY_RETENTION` is `0` | *read* activity items older than `STOOP_ACTIVITY_RETENTION`, never unread ones ([messaging.md](messaging.md#retention)) |
 | `sweep_credentials` | `STOOP_FILE_SWEEP_INTERVAL` | expired sessions at once, expired personal tokens a month after expiry |
-| `sweep_hooks` | `STOOP_FILE_SWEEP_INTERVAL` | hook credentials whose hook a channel or space delete cascaded away, bots left with nothing, finished deliveries older than `STOOP_WEBHOOK_DELIVERY_RETENTION` |
+| `sweep_hooks` | `STOOP_FILE_SWEEP_INTERVAL` | hook credentials whose hook a channel or space delete cascaded away, bots left with nothing, finished deliveries older than `STOOP_WEBHOOK_DELIVERY_RETENTION`; also finishes deliveries whose job is discarded or gone as dead |
 | `sweep_messages` | hourly | messages past `message_retention_days` ([messaging.md](messaging.md#message-retention)) |
 | `sweep_attachments` | hourly | attachments past `attachment_retention_days` ([files.md](files.md#retention)) |
 | `sweep_jobs` | hourly | finished `jobs` rows older than `STOOP_JOBS_RETENTION`, and dispatcher rows not seen for an hour |

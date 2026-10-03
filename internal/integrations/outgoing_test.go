@@ -23,6 +23,7 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -781,5 +782,92 @@ func TestDeliveriesRefusedUntilWired(t *testing.T) {
 	}
 	if logged := f.listDeliveries(t, hook.Id); len(logged) != 0 {
 		t.Errorf("queued without the port: %+v", logged)
+	}
+}
+
+// seedUnfinished inserts a pending log row made at when, with a job id
+// when one is given.
+func (f *fixture) seedUnfinished(t *testing.T, hookID string, sequence int64, when time.Time, jobID string) string {
+	t.Helper()
+	ctx := context.Background()
+	id := rowid.New()
+	if err := f.svc.q.InsertDelivery(ctx, dbgen.InsertDeliveryParams{
+		ID: id, WebhookID: hookID, EventType: EventMessageCreated, Sequence: sequence, Body: []byte(`{"id":"` + id + `"}`), Now: when,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if jobID != "" {
+		if err := f.svc.q.SetDeliveryJob(ctx, dbgen.SetDeliveryJobParams{ID: id, JobID: jobID}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return id
+}
+
+// A queued delivery records its job's id; the sweep finishes an old
+// unfinished row whose job is discarded, gone or was never queued as
+// dead with the reason, leaves a live or young one alone, and the dead
+// row can be sent again.
+func TestSweepLostDeliveries(t *testing.T) {
+	f, endpoint := outgoingFixture(t)
+	ctx := context.Background()
+	clock := time.Now().Truncate(time.Microsecond)
+	f.svc.now = func() time.Time { return clock }
+	hook, _ := f.createOutgoing(t, endpoint.srv.URL+"/hook", []string{EventMessageCreated}, "")
+
+	f.enqueueMessage(t, "with a job")
+	queued := f.jobs.pop(t)
+	if row, err := f.svc.q.GetDelivery(ctx, queued.args.DeliveryID); err != nil || row.JobID == nil {
+		t.Fatalf("the queued row's job id: %+v, %v", row, err)
+	}
+
+	old := clock.Add(-lostAfter - time.Minute)
+	discardedJob, goneJob, liveJob := rowid.New(), rowid.New(), rowid.New()
+	f.jobs.statuses = map[string]JobStatus{
+		discardedJob: {Discarded: true, Error: "the receiver answered HTTP 500"},
+		liveJob:      {},
+	}
+	discarded := f.seedUnfinished(t, hook.Id, 2, old, discardedJob)
+	gone := f.seedUnfinished(t, hook.Id, 3, old, goneJob)
+	unqueued := f.seedUnfinished(t, hook.Id, 4, old, "")
+	live := f.seedUnfinished(t, hook.Id, 5, old, liveJob)
+	young := f.seedUnfinished(t, hook.Id, 6, clock.Add(-time.Minute), "")
+
+	finished, err := f.svc.SweepLostDeliveries(ctx)
+	if err != nil || finished != 3 {
+		t.Fatalf("SweepLostDeliveries = %d, %v", finished, err)
+	}
+	finishedWith := map[string]string{}
+	for _, row := range f.listDeliveries(t, hook.Id) {
+		if row.FinishedAt != nil {
+			finishedWith[row.Id] = row.Error
+		}
+	}
+	want := map[string]string{
+		discarded: "its job was discarded: the receiver answered HTTP 500",
+		gone:      "its job is gone",
+		unqueued:  "no job was queued for it",
+	}
+	for id, reason := range want {
+		if finishedWith[id] != reason {
+			t.Errorf("row %s finished with %q, want %q", id, finishedWith[id], reason)
+		}
+	}
+	for _, id := range []string{live, young, queued.args.DeliveryID} {
+		if _, finished := finishedWith[id]; finished {
+			t.Errorf("row %s was finished by the sweep", id)
+		}
+	}
+	if stats, err := f.svc.DeliveryStats(ctx); err != nil || stats != (DeliveryStats{Dead: 3, DeadLastHour: 3, Hooks: 1}) {
+		t.Errorf("stats after the sweep = %+v, %v", stats, err)
+	}
+
+	again, err := f.svc.RedeliverDelivery(f.admin, connect.NewRequest(&integrationsv1.RedeliverDeliveryRequest{DeliveryId: discarded}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := f.jobs.pop(t)
+	if job.args.DeliveryID != again.Msg.Delivery.Id || string(job.args.Body) != `{"id":"`+discarded+`"}` || job.args.Sequence != 2 {
+		t.Errorf("sent again as %+v", job)
 	}
 }
