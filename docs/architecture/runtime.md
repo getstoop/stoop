@@ -290,6 +290,14 @@ earlier unfinished job shares its lane, so one runs per lane at a time,
 in sequence order, and a retry waiting on its backoff holds the lane.
 Sweeps have no lane.
 
+A kind registered with `Options{MaxInFlight: n}` never has more than
+`n` rows on a live lease (`running`, `leased_until` in the future) across
+every dispatcher; `0`, the default, is no cap. The uncapped kinds are
+leased together in one query. A capped kind is leased in its own
+transaction under a per-kind advisory lock, with a LIMIT of the cap less
+the live leases, so one batch cannot overshoot; a kind at its cap holds
+back nothing else.
+
 The dispatcher (`RunDispatcher`) is woken by the `NOTIFY` the insert of
 a job raises, on a connection of its own outside the pool, and polls for
 due rows every `STOOP_JOBS_POLL` as the backstop; it leases them with
