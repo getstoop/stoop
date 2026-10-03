@@ -15,7 +15,6 @@ import (
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
-	"github.com/getstoop/stoop/internal/diag"
 )
 
 // Storage hygiene: the sweep and the quota. A self-hosted disk fills
@@ -34,7 +33,6 @@ const (
 	// draft lives.
 	DefaultSweepGrace = 24 * time.Hour
 	sweepBatch        = 500
-	sweepStartupDelay = time.Minute
 	unclaimedCursor   = "00000000-0000-0000-0000-000000000000"
 )
 
@@ -299,45 +297,6 @@ func (s *Service) referenced(ctx context.Context, ids []string) (map[string]bool
 
 // SweepFilesKind is the job kind internal/app registers for Sweep.
 const SweepFilesKind = "sweep_files"
-
-var fileSweep = diag.NewJob("file_sweep")
-
-// RunSweeper sweeps on a timer until ctx ends: once shortly after start,
-// then every interval. interval <= 0 disables it.
-func (s *Service) RunSweeper(ctx context.Context, interval time.Duration) {
-	if interval <= 0 {
-		return
-	}
-	fileSweep.Every(interval)
-	run := func() {
-		fileSweep.Run(func() (diag.Counters, error) {
-			rep, err := s.Sweep(ctx)
-			if err != nil && ctx.Err() == nil {
-				s.log.Warn("files sweep failed", "err", err)
-			}
-			return diag.Counters{
-				"files_removed": int64(rep.Files), "bytes_freed": rep.Bytes,
-				"stray_blobs_removed": int64(rep.StrayBlobs),
-			}, err
-		})
-	}
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(sweepStartupDelay):
-		run()
-	}
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			run()
-		}
-	}
-}
 
 // SweepFiles queues one sweep_files job and returns its id; the
 // Diagnostics tab shows the pass.

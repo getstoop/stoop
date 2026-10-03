@@ -33,6 +33,9 @@ the server. Two are pinned by the compose file itself and ignore what
 | `STOOP_WEBHOOKS`           | `true`                      | `false` stops every incoming webhook post and outgoing delivery, whatever the admin settings say; nothing is deleted |
 | `STOOP_WEBHOOK_RATE_LIMIT` | `60`                        | Posts per minute one incoming webhook may make; `0` removes the limit |
 | `STOOP_WEBHOOK_DELIVERY_RETENTION` | `168h`              | How long finished outgoing webhook deliveries are kept in the log; `0` keeps them forever |
+| `STOOP_JOBS_WORKERS`       | `4`                         | How many background jobs run at once |
+| `STOOP_JOBS_POLL`          | `2s`                        | How often the dispatcher looks for due jobs |
+| `STOOP_JOBS_RETENTION`     | `168h`                      | How long finished job rows are kept for the Background work panel; `0` keeps them forever |
 | `STOOP_DEV_WEB_URL`        | (empty)                     | Serve the web app from a Vite dev server at this address instead of the embedded build, allowing inline scripts for its hot reload. **Development only** — `make dev` sets it |
 | `STOOP_VOICE`              | `true`                      | `false` runs a text-only server: LiveKit is ignored, no key pair is minted, and voice channels are hidden. Nothing is deleted |
 | `STOOP_LIVEKIT_URL`        | (empty)                     | LiveKit sidecar address the app proxies signaling to, e.g. `http://livekit:7880` (voice) |

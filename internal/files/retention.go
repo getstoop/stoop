@@ -8,7 +8,6 @@ import (
 
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/dbgen"
-	"github.com/getstoop/stoop/internal/diag"
 )
 
 // Attachment retention: attachments older than the instance's
@@ -16,11 +15,6 @@ import (
 // row marked expired so the message can still say a file was there.
 // Pinned messages' files, avatars, icons and preview images are kept. See
 // docs/architecture/files.md#retention.
-
-const retentionSweepDelay = 4 * time.Minute
-
-// RetentionInterval is how often the attachment retention sweep runs.
-const RetentionInterval = time.Hour
 
 func retentionCutoff(now time.Time, days int) time.Time {
 	return now.Add(-time.Duration(days) * 24 * time.Hour)
@@ -105,35 +99,3 @@ func (s *Service) SweepAttachments(ctx context.Context, now time.Time) (int64, e
 
 // SweepAttachmentsKind is the job kind internal/app registers for SweepAttachments.
 const SweepAttachmentsKind = "sweep_attachments"
-
-var attachmentRetention = diag.NewJob("attachment_retention")
-
-// RunAttachmentSweeper runs SweepAttachments hourly until ctx ends.
-func (s *Service) RunAttachmentSweeper(ctx context.Context) {
-	attachmentRetention.Every(RetentionInterval)
-	run := func() {
-		attachmentRetention.Run(func() (diag.Counters, error) {
-			n, err := s.SweepAttachments(ctx, time.Now())
-			if err != nil && ctx.Err() == nil {
-				s.log.Warn("attachment retention sweep failed", "err", err)
-			}
-			return diag.Counters{"attachments_removed": n}, err
-		})
-	}
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(retentionSweepDelay):
-		run()
-	}
-	t := time.NewTicker(RetentionInterval)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			run()
-		}
-	}
-}

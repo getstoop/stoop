@@ -139,6 +139,14 @@ type Config struct {
 	// are kept for the log; 0 keeps them forever.
 	WebhookDeliveryRetention time.Duration
 
+	// JobsWorkers is how many background jobs run at once.
+	JobsWorkers int
+	// JobsPoll is how often the dispatcher looks for due jobs.
+	JobsPoll time.Duration
+	// JobsRetention is how long finished job rows are kept; 0 keeps them
+	// forever.
+	JobsRetention time.Duration
+
 	// CloudflareTunnel runs cloudflared as a child process with
 	// CloudflareTunnelToken, a remotely managed tunnel's token.
 	CloudflareTunnel      bool
@@ -288,6 +296,22 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.WebhookDeliveryRetention, err = parseDuration("STOOP_WEBHOOK_DELIVERY_RETENTION", "168h"); err != nil {
+		return Config{}, err
+	}
+
+	if cfg.JobsWorkers, err = parseNonNegativeInt("STOOP_JOBS_WORKERS", 4); err != nil {
+		return Config{}, err
+	}
+	if cfg.JobsWorkers < 1 {
+		return Config{}, fmt.Errorf("STOOP_JOBS_WORKERS must be at least 1 (got %d)", cfg.JobsWorkers)
+	}
+	if cfg.JobsPoll, err = parseDuration("STOOP_JOBS_POLL", "2s"); err != nil {
+		return Config{}, err
+	}
+	if cfg.JobsPoll <= 0 {
+		return Config{}, fmt.Errorf("STOOP_JOBS_POLL must be more than 0 (got %q)", os.Getenv("STOOP_JOBS_POLL"))
+	}
+	if cfg.JobsRetention, err = parseDuration("STOOP_JOBS_RETENTION", "168h"); err != nil {
 		return Config{}, err
 	}
 

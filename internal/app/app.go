@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -35,6 +36,7 @@ import (
 	"github.com/getstoop/stoop/internal/files"
 	"github.com/getstoop/stoop/internal/instance"
 	"github.com/getstoop/stoop/internal/integrations"
+	"github.com/getstoop/stoop/internal/jobs"
 	"github.com/getstoop/stoop/internal/kv"
 	"github.com/getstoop/stoop/internal/ratelimit"
 	"github.com/getstoop/stoop/internal/realtime"
@@ -49,17 +51,14 @@ type App struct {
 	server  *http.Server
 	tailnet *tailnet.Manager
 	tunnel  *cftunnel.Manager
-	auth    *auth.Service
-	files   *files.Service
 	hooks   *integrations.Service
-	chat    *chat.Service
 	voice   *voice.Service
-	sweep   time.Duration
-	keep    time.Duration
-	// deliveries is how long finished webhook deliveries are kept.
-	deliveries time.Duration
-	pool       *pgxpool.Pool
-	log        *slog.Logger
+	jobs    *jobs.Service
+	pool    *pgxpool.Pool
+	log     *slog.Logger
+	// wg counts the goroutines spawn started, so shutdown can wait for
+	// them before the pool closes.
+	wg sync.WaitGroup
 }
 
 func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error) {
@@ -158,6 +157,18 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	integrationsSvc.UseSpaceAccess(chatSvc)
 	integrationsSvc.UseBotIdentities(botIdentities{authSvc})
 	integrationsSvc.UseHookThrottle(ratelimit.New(stores, "ratelimit_hooks", cfg.WebhookRateLimit, cfg.WebhookRateLimit))
+	// The sweeps as scheduled jobs; the Background work panel, the jobs
+	// health row and /metrics read their rows through one reader.
+	registry := jobs.NewRegistry()
+	registerSweeps(registry, cfg, log, authSvc, chatSvc, filesSvc, integrationsSvc)
+	jobsSvc := jobs.New(pool, registry, jobs.Config{Workers: cfg.JobsWorkers, Poll: cfg.JobsPoll, Retention: cfg.JobsRetention}, log)
+	filesSvc.UseJobs(jobsSvc)
+	if err := scheduleSweeps(ctx, jobsSvc, cfg); err != nil {
+		pool.Close()
+		return nil, err
+	}
+	jobList := jobReader(jobsSvc)
+	instanceSvc.UseJobRecords(jobList)
 	if cfg.LinkPreviews {
 		chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate})}, filesSvc, chat.UnfurlOptions{})
 		if cfg.UnfurlAllowPrivate {
@@ -218,7 +229,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle("GET /version", versionHandler())
-	mux.Handle("GET /metrics", metricsHandler(authSvc, instanceSvc, queue))
+	mux.Handle("GET /metrics", metricsHandler(authSvc, instanceSvc, queue, jobList, log))
 	web, scripts := webui.Handler(), webui.ScriptHashes()
 	if cfg.DevWebURL != "" {
 		if web, err = webui.DevProxy(cfg.DevWebURL); err != nil {
@@ -245,17 +256,11 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			Handler:           handler,
 			ReadHeaderTimeout: 10 * time.Second,
 		},
-		auth:  authSvc,
-		files: filesSvc,
 		hooks: integrationsSvc,
-		chat:  chatSvc,
 		voice: voiceSvc,
-		sweep: cfg.FileSweepInterval,
-		keep:  cfg.ActivityRetention,
-
-		deliveries: cfg.WebhookDeliveryRetention,
-		pool:       pool,
-		log:        log,
+		jobs:  jobsSvc,
+		pool:  pool,
+		log:   log,
 	}
 	a.tailnet = tailnet.NewManager(filepath.Join(cfg.StorageDir, "tailscale"), handler, log)
 	// The built-in node carries LiveKit's media ports as well as HTTPS, so
@@ -336,7 +341,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		newStorageCheck(store.Root(), filesSvc),
 		instanceSvc.PublicAddressCheck(),
 		newWebhooksCheck(queue, started),
-		newJobsCheck(),
+		newJobsCheck(jobList),
 	)
 	if err := instanceSvc.UseTailscale(ctx, tailscaleController{a.tailnet}); err != nil {
 		pool.Close()
@@ -471,32 +476,35 @@ func (p relayProvider) RelaySettings(ctx context.Context) (voice.RelaySettings, 
 // in-process.
 func (a *App) Handler() http.Handler { return a.server.Handler }
 
-// Close releases the database pool; Run does this itself on shutdown.
-func (a *App) Close() { a.pool.Close() }
+// Close waits for the background goroutines and releases the database
+// pool; Run does this itself on shutdown.
+func (a *App) Close() {
+	a.wg.Wait()
+	a.pool.Close()
+}
+
+// spawn runs fn on a goroutine Close and Run wait for.
+func (a *App) spawn(fn func()) {
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		fn()
+	}()
+}
 
 // StartBackground launches everything that runs beside the listener:
-// the sweepers and the outgoing-webhook pipeline. Run calls it; a test
-// that serves the handler itself calls it too, so deliveries happen.
+// the job dispatcher and the outgoing-webhook pipeline. Run calls it; a
+// test that serves the handler itself calls it too, so deliveries happen.
 func (a *App) StartBackground(ctx context.Context) {
-	// Storage hygiene on a timer (STOOP_FILE_SWEEP_INTERVAL; 0 disables).
-	go a.files.RunSweeper(ctx, a.sweep)
-	// Read activity items older than STOOP_ACTIVITY_RETENTION go too.
-	go a.chat.RunActivitySweeper(ctx, a.sweep, a.keep)
-	// The retention settings, hourly; each does nothing while its setting
-	// keeps forever.
-	go a.chat.RunMessageSweeper(ctx)
-	go a.files.RunAttachmentSweeper(ctx)
-	// Expired sessions, and personal tokens a month past expiry.
-	go a.auth.RunCredentialSweeper(ctx, a.sweep)
-	// Hook credentials whose channel or space was deleted, and old
-	// deliveries; then the outgoing pipeline: bus in, POSTs out.
-	go a.hooks.RunSweeper(ctx, a.sweep, a.deliveries)
-	go a.hooks.RunSubscriber(ctx)
-	go a.hooks.RunWorker(ctx)
+	// The sweeps and anything else queued, until ctx ends.
+	a.spawn(func() { a.jobs.RunDispatcher(ctx) })
+	// The outgoing pipeline: bus in, POSTs out.
+	a.spawn(func() { a.hooks.RunSubscriber(ctx) })
+	a.spawn(func() { a.hooks.RunWorker(ctx) })
 	// cloudflared starts, stops, and restarts as its settings change.
-	go a.tunnel.Run(ctx)
+	a.spawn(func() { a.tunnel.Run(ctx) })
 	// The Diagnostics tab's gauge ring and per-minute request windows.
-	go diag.RunSampler(ctx, diag.Default, diag.RPC)
+	a.spawn(func() { diag.RunSampler(ctx, diag.Default, diag.RPC) })
 }
 
 func (a *App) Run(ctx context.Context) error {
@@ -507,7 +515,7 @@ func (a *App) Run(ctx context.Context) error {
 	}()
 	// The Tailscale listener starts, stops, and restarts as its settings
 	// change; a failure there is logged, never fatal to the plain listener.
-	go a.tailnet.Run(ctx)
+	a.spawn(func() { a.tailnet.Run(ctx) })
 	a.StartBackground(ctx)
 
 	select {
@@ -520,6 +528,7 @@ func (a *App) Run(ctx context.Context) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	err := a.server.Shutdown(shutdownCtx)
+	a.wg.Wait()
 	a.voice.Close()
 	a.pool.Close()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {

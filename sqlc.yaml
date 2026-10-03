@@ -11,6 +11,7 @@ sql:
       - "internal/db/queries/instance"
       - "internal/db/queries/files"
       - "internal/db/queries/integrations"
+      - "internal/db/queries/jobs"
     gen:
       go:
         package: "dbgen"
