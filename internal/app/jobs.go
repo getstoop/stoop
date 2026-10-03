@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/getstoop/stoop/internal/auth"
@@ -107,8 +105,8 @@ func scheduleSweeps(ctx context.Context, jobsSvc *jobs.Service, cfg config.Confi
 	return nil
 }
 
-// jobRecords reads the schedules into the Diagnostics tab's row shape.
-func jobRecords(jobsSvc *jobs.Service) func(ctx context.Context) ([]diag.JobRecord, error) {
+// jobReader reads the schedules into the Diagnostics tab's row shape.
+func jobReader(jobsSvc *jobs.Service) func(ctx context.Context) ([]diag.JobRecord, error) {
 	return func(ctx context.Context) ([]diag.JobRecord, error) {
 		schedules, err := jobsSvc.Schedules(ctx)
 		if err != nil {
@@ -163,19 +161,4 @@ func runOutcome(run jobs.Run) diag.Outcome {
 		}
 	}
 	return diag.NeverRan
-}
-
-// jobReader joins the module's schedules with the records still kept in
-// internal/diag, sorted by name.
-func jobReader(jobsSvc *jobs.Service) func(ctx context.Context) ([]diag.JobRecord, error) {
-	scheduled := jobRecords(jobsSvc)
-	return func(ctx context.Context) ([]diag.JobRecord, error) {
-		fromJobs, err := scheduled(ctx)
-		if err != nil {
-			return nil, err
-		}
-		all := append(diag.Default.Jobs(), fromJobs...)
-		slices.SortFunc(all, func(left, right diag.JobRecord) int { return strings.Compare(left.Name, right.Name) })
-		return all, nil
-	}
 }

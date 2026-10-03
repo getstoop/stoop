@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   JobOutcome,
   JobSchema,
-  QueueStatsSchema,
 } from "../../../gen/stoop/instance/v1/diagnostics_pb";
 import { toRow } from "./jobRow";
 
@@ -23,7 +22,6 @@ describe("toRow", () => {
         counters: { files_removed: 2n },
         nextDue: timestampFromMs(now + 48 * MIN),
       }),
-      undefined,
       now,
     );
     expect(row.every).toBe("1 h");
@@ -40,7 +38,6 @@ describe("toRow", () => {
         name: "sweep_activity",
         lastOutcome: JobOutcome.NEVER_RAN,
       }),
-      undefined,
       now,
     );
     expect(row.label).toBe("Activity retention");
@@ -53,30 +50,39 @@ describe("toRow", () => {
     expect(row.everyMs).toBeUndefined();
   });
 
-  it("keeps the worker continuous and reads the queue", () => {
+  it("shows the error of a failed pass", () => {
     const row = toRow(
       create(JobSchema, {
-        name: "webhook_worker",
-        continuous: true,
+        name: "sweep_messages",
+        interval: { seconds: 3600n },
         lastStarted: timestampFromMs(now - 3000),
-        lastOutcome: JobOutcome.SUCCEEDED,
+        lastDurationMs: 12,
+        lastOutcome: JobOutcome.FAILED,
+        lastError: "list expired messages: timeout",
+        nextDue: timestampFromMs(now + 57 * MIN),
       }),
-      create(QueueStatsSchema, { queued: 4n, leased: 1n, dead: 0n }),
       now,
     );
-    expect(row.every).toBe("continuous");
     expect(row.lastRun).toBe("3 s ago");
-    expect(row.result).toBe("4 queued · 1 in flight · 0 dead-lettered");
-    expect(row.next).toBe("—");
+    expect(row.badge?.label).toBe("failed");
+    expect(row.result).toBe("list expired messages: timeout");
+    expect(row.next).toBe("in 57 min");
   });
 
-  it("is never for a worker that has not run yet", () => {
+  it("keeps the history of a sweeper switched off after it ran", () => {
     const row = toRow(
-      create(JobSchema, { name: "webhook_worker", continuous: true }),
-      undefined,
+      create(JobSchema, {
+        name: "sweep_activity",
+        lastStarted: timestampFromMs(now - 2 * 3600_000),
+        lastDurationMs: 40,
+        lastOutcome: JobOutcome.SUCCEEDED,
+        counters: { rows_trimmed: 0n },
+      }),
       now,
     );
-    expect(row.every).toBe("continuous");
-    expect(row.lastRun).toBe("never");
+    expect(row.every).toBe("off");
+    expect(row.lastRun).toBe("2 h ago");
+    expect(row.result).toBe("nothing to remove");
+    expect(row.next).toBe("—");
   });
 });

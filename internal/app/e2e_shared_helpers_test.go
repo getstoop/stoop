@@ -139,7 +139,7 @@ func TestE2EOptionalTimestamps(t *testing.T) {
 		if fields["lastStarted"] != nil {
 			t.Errorf("a job that never ran carries a start: %v", fields)
 		}
-		if fields["continuous"] != true && fields["nextDue"] == nil {
+		if fields["nextDue"] == nil {
 			t.Errorf("a schedule carries no next run: %v", fields)
 		}
 	}

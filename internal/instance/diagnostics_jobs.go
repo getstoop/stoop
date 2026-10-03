@@ -34,53 +34,51 @@ func (s *Service) UseWebhookQueue(fn func(ctx context.Context) (QueueStats, erro
 	s.webhookQueue = fn
 }
 
-// UseJobRecords wires the job list. Without one the panel shows the
-// records kept in internal/diag alone.
+// UseJobRecords wires the job list. Without one the panel is empty.
 func (s *Service) UseJobRecords(fn func(ctx context.Context) ([]diag.JobRecord, error)) {
 	s.jobRecords = fn
 }
 
 func (s *Service) listJobs(ctx context.Context) (*instancev1.ListJobsResponse, error) {
-	recs := diag.Default.Jobs()
+	var records []diag.JobRecord
 	if s.jobRecords != nil {
 		var err error
-		if recs, err = s.jobRecords(ctx); err != nil {
+		if records, err = s.jobRecords(ctx); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list jobs: %w", err))
 		}
 	}
-	resp := &instancev1.ListJobsResponse{Jobs: make([]*instancev1.Job, 0, len(recs))}
-	for _, r := range recs {
-		resp.Jobs = append(resp.Jobs, toProtoJob(r))
+	resp := &instancev1.ListJobsResponse{Jobs: make([]*instancev1.Job, 0, len(records))}
+	for _, record := range records {
+		resp.Jobs = append(resp.Jobs, toProtoJob(record))
 	}
-	var q QueueStats
+	var queue QueueStats
 	if s.webhookQueue != nil {
 		var err error
-		if q, err = s.webhookQueue(ctx); err != nil {
+		if queue, err = s.webhookQueue(ctx); err != nil {
 			slog.Default().Warn("webhook queue stats", "err", err)
-			q = QueueStats{}
+			queue = QueueStats{}
 		}
 	}
 	resp.Webhooks = &instancev1.QueueStats{
-		Queued: q.Queued, Leased: q.Leased, Dead: q.Dead, DeadLastHour: q.DeadLastHour,
+		Queued: queue.Queued, Leased: queue.Leased, Dead: queue.Dead, DeadLastHour: queue.DeadLastHour,
 	}
 	return resp, nil
 }
 
-func toProtoJob(r diag.JobRecord) *instancev1.Job {
-	j := &instancev1.Job{
-		Name:           r.Name,
-		LastDurationMs: int32(r.LastDuration.Milliseconds()),
-		LastOutcome:    toProtoOutcome(r.Outcome),
-		LastError:      r.LastError,
-		Counters:       r.Counters,
-		Continuous:     r.Continuous,
+func toProtoJob(record diag.JobRecord) *instancev1.Job {
+	job := &instancev1.Job{
+		Name:           record.Name,
+		LastDurationMs: int32(record.LastDuration.Milliseconds()),
+		LastOutcome:    toProtoOutcome(record.Outcome),
+		LastError:      record.LastError,
+		Counters:       record.Counters,
 	}
-	if !r.Continuous && r.Interval > 0 {
-		j.Interval = durationpb.New(r.Interval)
+	if record.Interval > 0 {
+		job.Interval = durationpb.New(record.Interval)
 	}
-	j.LastStarted = pbtime.OrZero(r.LastStarted)
-	j.NextDue = pbtime.OrZero(r.NextDue)
-	return j
+	job.LastStarted = pbtime.OrZero(record.LastStarted)
+	job.NextDue = pbtime.OrZero(record.NextDue)
+	return job
 }
 
 func toProtoOutcome(o diag.Outcome) instancev1.JobOutcome {

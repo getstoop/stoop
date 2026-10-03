@@ -13,7 +13,7 @@ func TestWebhooksState(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
 		name   string
-		q      instance.QueueStats
+		stats  instance.QueueStats
 		want   instance.CheckState
 		detail string
 	}{
@@ -28,7 +28,7 @@ func TestWebhooksState(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			state, detail := webhooksState(tc.q, now)
+			state, detail := webhooksState(tc.stats, now)
 			if state != tc.want || !strings.Contains(detail, tc.detail) {
 				t.Errorf("got %d %q, want %d containing %q", state, detail, tc.want, tc.detail)
 			}
@@ -40,11 +40,11 @@ func TestJobsState(t *testing.T) {
 	now := time.Now()
 	hour := time.Hour
 	scheduled := func(name string, last time.Time, outcome diag.Outcome) diag.JobRecord {
-		r := diag.JobRecord{Name: name, Interval: hour, LastStarted: last, Outcome: outcome}
+		record := diag.JobRecord{Name: name, Interval: hour, LastStarted: last, Outcome: outcome}
 		if !last.IsZero() {
-			r.NextDue = last.Add(hour)
+			record.NextDue = last.Add(hour)
 		}
-		return r
+		return record
 	}
 	fresh := scheduled("sweep_files", now.Add(-12*time.Minute), diag.Succeeded)
 	tests := []struct {
@@ -53,14 +53,14 @@ func TestJobsState(t *testing.T) {
 		want   instance.CheckState
 		detail string
 	}{
-		{"just started", []diag.JobRecord{scheduled("sweep_files", time.Time{}, diag.NeverRan), {Name: "webhook_worker", Continuous: true}},
+		{"just started", []diag.JobRecord{scheduled("sweep_files", time.Time{}, diag.NeverRan)},
 			instance.CheckOK, "1 jobs on schedule · none run yet"},
 		{"on schedule", []diag.JobRecord{fresh, scheduled("sweep_credentials", now.Add(-50*time.Minute), diag.Succeeded)},
 			instance.CheckOK, "2 jobs on schedule · last ran 12 min ago"},
 		{"failed", []diag.JobRecord{fresh, func() diag.JobRecord {
-			r := scheduled("sweep_messages", now.Add(-5*time.Minute), diag.Failed)
-			r.LastError = "list expired messages: timeout"
-			return r
+			record := scheduled("sweep_messages", now.Add(-5*time.Minute), diag.Failed)
+			record.LastError = "list expired messages: timeout"
+			return record
 		}()}, instance.CheckWarn, "sweep_messages failed: list expired messages: timeout"},
 		{"one interval late", []diag.JobRecord{fresh, scheduled("sweep_activity", now.Add(-190*time.Minute), diag.Succeeded)},
 			instance.CheckWarn, "sweep_activity overdue by 2 h"},
@@ -70,8 +70,6 @@ func TestJobsState(t *testing.T) {
 			scheduled("sweep_credentials", now.Add(-time.Minute), diag.Failed),
 			scheduled("sweep_activity", now.Add(-5*hour), diag.Succeeded),
 		}, instance.CheckDanger, "sweep_activity overdue"},
-		{"continuous is skipped", []diag.JobRecord{fresh, {Name: "webhook_worker", Continuous: true, Outcome: diag.Failed, LastError: "boom"}},
-			instance.CheckOK, "1 jobs on schedule"},
 		{"off is counted apart", []diag.JobRecord{fresh, {Name: "sweep_files"}, {Name: "sweep_activity"}},
 			instance.CheckOK, "1 jobs on schedule · 2 off · last ran 12 min ago"},
 		{"off before any run", []diag.JobRecord{scheduled("sweep_credentials", time.Time{}, diag.NeverRan), {Name: "sweep_files"}},

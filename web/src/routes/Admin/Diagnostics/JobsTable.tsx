@@ -60,13 +60,13 @@ const rowProps = (r: JobRow) => ({ "data-job": r.name });
 export function JobsTable({ now }: { now: number }) {
   const { data, error, isPending } = useDiagJobs();
   const rows = useMemo(
-    () => data?.jobs.map((j) => toRow(j, data.webhooks, now)),
+    () => data?.jobs.map((job) => toRow(job, now)),
     [data, now],
   );
   return (
     <section className="card" data-testid="jobs-section">
       <h3>Background work</h3>
-      <p className="hint">Every scheduled job and the webhook queue.</p>
+      <p className="hint">Every scheduled job.</p>
       {error ? (
         <p className="error" role="alert">
           Could not read background work: {error.message}

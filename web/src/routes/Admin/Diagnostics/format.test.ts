@@ -6,7 +6,6 @@ import {
   formatEvery,
   formatTook,
   jobLabel,
-  queueSentence,
   untilWords,
 } from "./format";
 
@@ -14,23 +13,21 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 
 describe("jobLabel", () => {
-  it("names the eight jobs and passes the rest through", () => {
+  it("names the seven jobs and passes the rest through", () => {
     expect(jobLabel("sweep_files")).toBe("File sweep");
     expect(jobLabel("sweep_jobs")).toBe("Job history sweep");
-    expect(jobLabel("webhook_worker")).toBe("Webhook worker");
     expect(jobLabel("moon_phase")).toBe("moon_phase");
   });
 });
 
 describe("spans", () => {
   it("says an interval in its largest unit", () => {
-    expect(formatEvery(6 * HOUR, false)).toBe("6 h");
-    expect(formatEvery(HOUR, false)).toBe("1 h");
-    expect(formatEvery(90 * MIN, false)).toBe("1.5 h");
-    expect(formatEvery(5 * MIN, false)).toBe("5 min");
-    expect(formatEvery(30_000, false)).toBe("30 s");
-    expect(formatEvery(undefined, true)).toBe("continuous");
-    expect(formatEvery(undefined, false)).toBe("off");
+    expect(formatEvery(6 * HOUR)).toBe("6 h");
+    expect(formatEvery(HOUR)).toBe("1 h");
+    expect(formatEvery(90 * MIN)).toBe("1.5 h");
+    expect(formatEvery(5 * MIN)).toBe("5 min");
+    expect(formatEvery(30_000)).toBe("30 s");
+    expect(formatEvery(undefined)).toBe("off");
   });
   it("counts back and forward", () => {
     expect(agoWords(12 * MIN)).toBe("12 min ago");
@@ -72,14 +69,6 @@ describe("countersSentence", () => {
   it("shows a counter it has no phrase for", () => {
     expect(countersSentence({ zebras: 2n, files_removed: 1n })).toBe(
       "removed 1 file · zebras 2",
-    );
-  });
-});
-
-describe("queueSentence", () => {
-  it("reads the three queue counts", () => {
-    expect(queueSentence({ queued: 4n, leased: 1n, dead: 0n })).toBe(
-      "4 queued · 1 in flight · 0 dead-lettered",
     );
   });
 });

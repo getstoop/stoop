@@ -130,7 +130,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `integrations` | `SpaceAccess` | chat | A channel's space and the space's name; add a bot as a member and set its role. |
 | `integrations` | `BotIdentities` | auth | Create, rename and deactivate bots; mint, revoke and verify their credentials. |
 | `integrations` | `Policy` | instance | Whether each webhook direction is on, whether private targets are allowed, the public URL. |
-| `integrations` | `Queue` | `internal/integrations` (Postgres) | Enqueue, lease, ack, nack and dead-letter outgoing deliveries; see [integrations.md](integrations.md#the-queue). Deliveries go out through `internal/netguard`. |
+| `integrations` | `Jobs` | jobs | Queue a `deliver_webhook` job in the hook's lane; discard a deleted hook's lane; see [integrations.md](integrations.md#deliveries-as-jobs). Deliveries go out through `internal/netguard`. |
 
 Two patterns recur in that table and are worth naming.
 

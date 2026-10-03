@@ -72,7 +72,7 @@ this plainly.
 | `internal/realtime` | the WebSocket gateway; in-memory presence, typing and voice state (no database access at all) |
 | `internal/voice`    | LiveKit token minting, the `/livekit` signaling proxy, ICE/TURN sources |
 | `internal/files`    | uploaded files: the `files` table, upload RPCs, `GET /files/{id}`, the sweep, the quota |
-| `internal/integrations` | incoming and outgoing webhooks, the delivery queue, and the admin surface for bots and their credentials |
+| `internal/integrations` | incoming and outgoing webhooks, the delivery log and the `deliver_webhook` job, and the admin surface for bots and their credentials |
 
 Support packages, which are not modules and own no domain: `internal/events`
 (the bus), `internal/db` (pool + migrations), `internal/dbgen` (sqlc output),
@@ -123,7 +123,7 @@ one its reasoning, its enforcement, and what it costs.
 | [runtime.md](runtime.md) | Process model, configuration precedence, front doors, security headers, background work, and how a build is produced. |
 | [diagnostics.md](diagnostics.md) | The Diagnostics tab and its panels, the `internal/diag` instruments, the health-check port, the sampler, and `GET /metrics`. |
 | [desktop.md](desktop.md) | The contract the desktop shell relies on: `GET /version`, `window.stoop`, deep links, sessions, and what lives in which repository. |
-| [integrations.md](integrations.md) | Bots and their credentials, incoming webhooks and their adapters, outgoing webhooks, the delivery queue and its contract, egress, and the switches. |
+| [integrations.md](integrations.md) | Bots and their credentials, incoming webhooks and their adapters, outgoing webhooks, deliveries as jobs, egress, and the switches. |
 
 Related documents outside this directory: [../vision.md](../vision.md) for
 why Stoop exists, [../conventions.md](../conventions.md) for how files are

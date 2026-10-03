@@ -43,9 +43,6 @@ func TestDefaultHelpers(t *testing.T) {
 	if NewGauge("diag_test_gauge", "", func() float64 { return 0 }) != Default.Gauge("diag_test_gauge", "", func() float64 { return 0 }) {
 		t.Error("NewGauge should register on Default")
 	}
-	if NewJob("diag_test_job") != Default.Job("diag_test_job") {
-		t.Error("NewJob should register on Default")
-	}
 	if RPC != Default.RPC() {
 		t.Error("RPC should be Default's stats")
 	}
