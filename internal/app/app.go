@@ -597,8 +597,8 @@ func (a *App) startDispatcher(ctx context.Context) {
 }
 
 // Run serves until ctx ends or the listener fails, then shuts down: the
-// HTTP server drains and the background work returns within
-// shutdownTimeout, then voice and the pool close.
+// HTTP server drains and the background work, voice included, returns
+// within shutdownTimeout, then the pool closes.
 func (a *App) Run(ctx context.Context) error {
 	runCtx, stop := context.WithCancel(ctx)
 	defer stop()
@@ -609,6 +609,11 @@ func (a *App) Run(ctx context.Context) error {
 		stop()
 	}()
 	a.StartBackground(runCtx)
+	// Voice's room-close repeats stop with the rest, inside the budget.
+	a.spawn(func() {
+		<-runCtx.Done()
+		a.voice.Close()
+	})
 	<-runCtx.Done()
 
 	a.log.Info("shutting down")
@@ -616,7 +621,6 @@ func (a *App) Run(ctx context.Context) error {
 	defer cancel()
 	shutdownErr := a.server.Shutdown(shutdownCtx)
 	a.waitBackground(shutdownCtx)
-	a.voice.Close()
 	a.pool.Close()
 	// Shutdown makes ListenAndServe return at once, so this never blocks.
 	if serveErr := <-served; !errors.Is(serveErr, http.ErrServerClosed) {
