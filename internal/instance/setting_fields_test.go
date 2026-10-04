@@ -113,6 +113,12 @@ func TestSettingFields(t *testing.T) {
 		t.Errorf("round trip lost the secret: %+v", provider)
 	}
 
+	if err := svc.SetSettingFields(ctx, map[string]string{
+		"login-providers": `[{"id":"gh","kind":"oauth2","issuer":"https://idp.example.com","client_id":"c","client_secret":"s"}]`,
+	}); err == nil {
+		t.Error("a provider kind the page refuses was saved")
+	}
+
 	// Reset refuses to leave members no way to sign in.
 	if err := svc.SetSettingFields(ctx, map[string]string{"password-sign-in": "off"}); err != nil {
 		t.Fatal(err)

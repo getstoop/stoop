@@ -237,8 +237,12 @@ func (s *Service) SetSettingFields(ctx context.Context, changes map[string]strin
 				if provider.ClientSecret == secretPlaceholder {
 					return fmt.Errorf("login-providers: %s is not a client secret; leave it blank to keep the saved one", secretPlaceholder)
 				}
+				if provider.Kind != "" && provider.Kind != KindOIDC {
+					return fmt.Errorf("login-providers: kind must be %s (got %q)", KindOIDC, provider.Kind)
+				}
 				providers = append(providers, &instancev1.LoginProvider{
-					Id: provider.ID, DisplayName: provider.DisplayName, Icon: provider.Icon, Issuer: provider.Issuer,
+					Id: provider.ID, Kind: instancev1.LoginProviderKind_LOGIN_PROVIDER_KIND_OIDC,
+					DisplayName: provider.DisplayName, Icon: provider.Icon, Issuer: provider.Issuer,
 					ClientId: provider.ClientID, ClientSecret: provider.ClientSecret,
 				})
 			}
