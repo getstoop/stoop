@@ -54,10 +54,6 @@ limits where a credential reaches; bounded with no rows left reaches
 nothing. `hint` keeps the token's last four characters, for telling tokens
 apart in a list. See [identity.md](identity.md#personal-tokens).
 
-**`sessions`** — legacy, read only by 0.1.0 and no longer written.
-0.2.0 to 0.3.x still delete from it, so it is dropped once they are below
-the floor (STOOP-409).
-
 **`user_identities`** — `(provider, subject) PRIMARY KEY` maps an OIDC
 subject to an account, with `UNIQUE (user_id, provider)` so one account
 links at most one identity per provider. No provider tokens are stored:
