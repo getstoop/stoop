@@ -118,7 +118,7 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 func (s *Service) leaseDue(ctx context.Context, free int, excluded []string) []dbgen.Job {
 	now := s.now()
 	rows, err := s.queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{
-		Until: now.Add(s.lease), Now: now, Kinds: s.registry.uncappedKinds(), Excluded: excluded, Limit: int32(free),
+		Until: now.Add(s.lease), Now: now, Kinds: s.registry.uncappedKinds(), Excluded: excluded, Limit: int32Column(free),
 	})
 	if err != nil {
 		s.logUnlessStopping(ctx, "jobs: lease", err)
