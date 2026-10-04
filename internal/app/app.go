@@ -33,6 +33,7 @@ import (
 	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/diag"
+	"github.com/getstoop/stoop/internal/eventrelay"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/files"
 	"github.com/getstoop/stoop/internal/instance"
@@ -60,8 +61,10 @@ type App struct {
 	voice    *voice.Service
 	jobs     *jobs.Service
 	registry *jobs.Registry
-	pool     *pgxpool.Pool
-	log      *slog.Logger
+	// relay republishes what a `stoop jobs` process publishes.
+	relay *eventrelay.Listener
+	pool  *pgxpool.Pool
+	log   *slog.Logger
 	// jobsMode is where the dispatcher runs (STOOP_JOBS).
 	jobsMode string
 	// wg counts the goroutines spawn started, so shutdown can wait for
@@ -74,7 +77,7 @@ type App struct {
 // service with its kinds registered and the sweeps scheduled.
 type modules struct {
 	pool     *pgxpool.Pool
-	bus      *events.InProcBus
+	bus      events.Bus
 	store    *blob.FS
 	stores   *kv.Memory
 	auth     *auth.Service
@@ -87,8 +90,9 @@ type modules struct {
 }
 
 // newModules connects and migrates, then constructs the modules in the
-// order docs/architecture/modules.md gives. It closes the pool on failure.
-func newModules(ctx context.Context, cfg config.Config, log *slog.Logger) (*modules, error) {
+// order docs/architecture/modules.md gives, on the bus newBus builds over
+// the pool. It closes the pool on failure.
+func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus func(*pgxpool.Pool) events.Bus) (*modules, error) {
 	pool, err := db.Connect(ctx, cfg.DatabaseURL, cfg.DatabasePoolMax)
 	if err != nil {
 		return nil, err
@@ -101,7 +105,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger) (*modu
 		return nil, err
 	}
 
-	bus := events.NewInProcBus()
+	bus := newBus(pool)
 
 	// The blob store is the only thing that touches file storage. Only
 	// the filesystem backend exists today; config rejects anything else.
@@ -185,7 +189,9 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger) (*modu
 // voice, the gateway, the limiters, the mux, the front doors and the
 // Diagnostics tab's readers.
 func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error) {
-	shared, err := newModules(ctx, cfg, log)
+	// The server's own publishes stay in this process; what a `stoop jobs`
+	// publishes arrives through the relay listener StartBackground runs.
+	shared, err := newModules(ctx, cfg, log, func(*pgxpool.Pool) events.Bus { return events.NewInProcBus() })
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +314,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		voice:    voiceSvc,
 		jobs:     jobsSvc,
 		registry: shared.registry,
+		relay:    eventrelay.NewListener(bus, pool, log),
 		pool:     pool,
 		log:      log,
 		jobsMode: cfg.Jobs,
@@ -558,12 +565,15 @@ func (a *App) spawn(fn func()) {
 }
 
 // StartBackground launches everything that runs beside the plain
-// listener: the job dispatcher (or the child that runs it), the
-// outgoing-webhook subscriber, the two front-door managers and the
-// sampler. Run calls it; a test that serves the handler itself calls it
-// too, so deliveries happen.
+// listener: the job dispatcher (or the child that runs it), the relay
+// listener, the outgoing-webhook subscriber, the two front-door managers
+// and the sampler. Run calls it; a test that serves the handler itself
+// calls it too, so deliveries happen.
 func (a *App) StartBackground(ctx context.Context) {
 	a.startDispatcher(ctx)
+	// Events a `stoop jobs` process publishes, in every mode: one may run
+	// beside this server whatever STOOP_JOBS says.
+	a.spawn(func() { a.relay.Run(ctx) })
 	// The outgoing pipeline's producer: bus in, delivery jobs out; the
 	// POSTs run on the dispatcher.
 	a.spawn(func() { a.hooks.RunSubscriber(ctx) })

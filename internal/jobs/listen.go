@@ -2,51 +2,22 @@ package jobs
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/getstoop/stoop/internal/restart"
 )
 
-const (
-	listenBackoffMin = time.Second
-	listenBackoffMax = 30 * time.Second
-	// listenSteady is how long a connection must have held for the next
-	// failure to start the backoff over.
-	listenSteady = time.Minute
-	closeTimeout = time.Second
-)
+const closeTimeout = time.Second
 
 // listen holds one connection outside the pool on NotifyChannel and
 // sends on wake for each notification, reconnecting with backoff after
 // any failure, until ctx ends.
 func (s *Service) listen(ctx context.Context, wake chan<- struct{}) {
-	backoff := listenBackoffMin
-	lastErr := ""
-	for ctx.Err() == nil {
-		started := time.Now()
-		err := s.listenOnce(ctx, wake)
-		if ctx.Err() != nil {
-			return
-		}
-		if time.Since(started) > listenSteady {
-			backoff = listenBackoffMin
-		}
-		// The same failure every retry is said once.
-		level := slog.LevelWarn
-		if err.Error() == lastErr {
-			level = slog.LevelDebug
-		} else {
-			lastErr = err.Error()
-		}
-		s.log.Log(ctx, level, "jobs: listener stopped; retrying", "err", err, "in", backoff)
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(backoff):
-		}
-		backoff = min(backoff*2, listenBackoffMax)
-	}
+	restart.Loop(ctx, s.log, "jobs: listener stopped; retrying", func(ctx context.Context) error {
+		return s.listenOnce(ctx, wake)
+	})
 }
 
 // listenOnce connects, listens and forwards notifications until the

@@ -153,6 +153,11 @@ linters:
               desc: the job queue imports no module (performers are registered in internal/app)
             - pkg: github.com/getstoop/stoop/internal/integrations
               desc: the job queue imports no module (performers are registered in internal/app)
+        events-package:
+          files: ["**/internal/events/**"]
+          deny:
+            - pkg: github.com/jackc/pgx/v5
+              desc: the bus is in-process; the relay over Postgres is internal/eventrelay
 
 formatters:
   enable:

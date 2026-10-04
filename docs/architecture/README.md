@@ -136,6 +136,9 @@ and lands.
 
 Federation, end-to-end encryption, mobile apps, plugins, a SQLite mode, and
 multi-node scaling. The `events.Bus` interface is the only concession made
-to the last of those today, and it is a real one: a NATS or Redis
-implementation is a marshal/unmarshal wrapper behind the same interface,
-because every payload on the bus is already a protobuf message.
+to the last of those today, and it is a real one: because every payload on
+the bus is already a protobuf message, a cross-process implementation is a
+marshal/unmarshal wrapper behind the same interface. `internal/eventrelay`
+is that wrapper over Postgres `NOTIFY`, from a `stoop jobs` process to the
+server ([realtime.md](realtime.md#across-processes)); a NATS or Redis one
+would be the same shape.

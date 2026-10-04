@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/restart"
 )
 
 func TestTwoDispatchersPerformEachJobOnce(t *testing.T) {
@@ -288,7 +289,7 @@ func TestEnqueueWakesTheDispatcherBeforeThePoll(t *testing.T) {
 		t.Fatal(err)
 	}
 	awaitListening(t, listened)
-	expectWoken(t, pool, service, wakeBudget+listenBackoffMin)
+	expectWoken(t, pool, service, wakeBudget+restart.BackoffMin)
 }
 
 // awaitListening waits for the listener to report a LISTEN in place.
