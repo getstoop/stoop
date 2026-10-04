@@ -98,18 +98,7 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 	if free <= 0 || ctx.Err() != nil {
 		return false
 	}
-<<<<<<< HEAD
 	rows := s.leaseDue(ctx, free, tracked.ids())
-=======
-	now := s.now()
-	rows, err := s.queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{
-		Until: now.Add(s.lease), Now: now, Kinds: s.registry.Kinds(), Excluded: tracked.ids(), Limit: int32Column(free),
-	})
-	if err != nil {
-		s.logUnlessStopping(ctx, "jobs: lease", err)
-		return false
-	}
->>>>>>> jobs-hardening
 	slices.SortFunc(rows, func(left, right dbgen.Job) int {
 		if byDue := left.NotBefore.Compare(right.NotBefore); byDue != 0 {
 			return byDue
