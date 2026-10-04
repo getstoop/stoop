@@ -378,6 +378,14 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		pool.Close()
 		return nil, err
 	}
+	drifted, err := instanceSvc.EnvDrift(ctx)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	for _, name := range drifted {
+		log.Warn("this variable differs from the saved setting, which is the one used; change it under Server admin", "variable", name)
+	}
 	if err := instanceSvc.LoadTrustedProxies(ctx); err != nil {
 		pool.Close()
 		return nil, err

@@ -95,7 +95,8 @@ proxies, TURN, Cloudflare TURN, Tailscale, Cloudflare tunnel) and the
   (`instance.SeedFromEnv`, and `Seed` for the registration policy and
   name). An unset `STOOP_INSTANCE_NAME` seeds a random name.
 - Once a row exists, it is the setting. Changing the variable does
-  nothing.
+  nothing, and `EnvDrift` names each variable that differs so the start
+  logs a warning.
 - Clearing a value on the admin page saves an empty row, never deletes
   one, so a cleared or switched-off setting stays that way across
   restarts.

@@ -23,6 +23,10 @@ const (
 	JobsChild    = "child"
 )
 
+// DefaultTailscaleHostname is the node name when STOOP_TAILSCALE_HOSTNAME
+// is unset.
+const DefaultTailscaleHostname = "stoop"
+
 type Config struct {
 	// ListenAddr is the address the HTTP server binds to.
 	ListenAddr string
@@ -341,7 +345,7 @@ func Load() (Config, error) {
 	if cfg.Tailscale, err = parseBool("STOOP_TAILSCALE", false); err != nil {
 		return Config{}, err
 	}
-	cfg.TailscaleHostname = getenv("STOOP_TAILSCALE_HOSTNAME", "stoop")
+	cfg.TailscaleHostname = getenv("STOOP_TAILSCALE_HOSTNAME", DefaultTailscaleHostname)
 	cfg.TailscaleAuthKey = os.Getenv("STOOP_TAILSCALE_AUTHKEY")
 	cfg.TailscaleControlURL = os.Getenv("STOOP_TAILSCALE_CONTROL_URL")
 	if cfg.TailscaleFunnel, err = parseBool("STOOP_TAILSCALE_FUNNEL", false); err != nil {
