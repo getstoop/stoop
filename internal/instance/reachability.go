@@ -153,12 +153,12 @@ type TailscaleStatus struct {
 	CarriesVoice bool
 }
 
-// ReachabilityEnvValue returns the environment values as they stand, so
-// a caller can adjust one field and hand them back.
-func (s *Service) ReachabilityEnvValue() ReachabilityEnv { return s.env }
-
 // UseReachabilityEnv supplies the environment values.
 func (s *Service) UseReachabilityEnv(env ReachabilityEnv) { s.env = env }
+
+// UseVoiceConfigured records whether voice works here, which is known only
+// once the voice module is built. Call it after UseReachabilityEnv.
+func (s *Service) UseVoiceConfigured(configured bool) { s.env.VoiceConfigured = configured }
 
 // UseTailscale connects the built-in listener; nil means the build has
 // none. The settings in force are applied right away.

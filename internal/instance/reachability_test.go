@@ -247,9 +247,10 @@ func TestTrustedProxies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := svc.ReachabilityEnvValue()
-	env.TrustedProxies = envSet
-	svc.UseReachabilityEnv(env)
+	svc.UseReachabilityEnv(instance.ReachabilityEnv{
+		Reachability:    instance.Reachability{TrustedProxies: envSet},
+		VoiceConfigured: true,
+	})
 	if _, err := svc.UpdateReachability(admin, connect.NewRequest(&instancev1.UpdateReachabilityRequest{
 		TrustedProxies: &instancev1.TrustedProxies{},
 	})); err != nil {
