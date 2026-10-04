@@ -221,7 +221,7 @@ secret, which is why the two hook kinds are two tables), and `sequence`,
 the `Stoop-Sequence` counter.
 
 **`webhook_deliveries`** — the delivery log: one row per delivery,
-written pending by the subscriber and rewritten by the `deliver_webhook`
+written pending by the `fan_out_webhook_event` job and rewritten by the `deliver_webhook`
 job after each attempt; `body` is cleared on success. The queue is the
 `jobs` table. One index, `(webhook_id, created_at DESC)`, for the
 settings page. See

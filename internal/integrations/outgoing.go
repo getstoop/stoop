@@ -7,12 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/netguard"
 	"github.com/getstoop/stoop/internal/rowid"
@@ -151,13 +154,12 @@ func (s *Service) TestWebhook(ctx context.Context, req *connect.Request[integrat
 	if hook.DisabledAt != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this webhook is disabled"))
 	}
-	spaceName, _ := s.spaces.SpaceName(ctx, hook.SpaceID)
-	instance := ""
-	if s.policy != nil {
-		instance, _ = s.policy.PublicURL(ctx)
-	}
-	id, err := s.enqueueFor(ctx, hook.ID, outgoingEvent{Type: EventWebhookTest, SpaceID: hook.SpaceID, Data: rawJSON(map[string]any{})}, spaceName, instance)
-	if err != nil {
+	spaceName, instance := s.envelopeNames(ctx, hook.SpaceID)
+	ev := OutgoingEvent{Type: EventWebhookTest, SpaceID: hook.SpaceID, Data: rawJSON(map[string]any{}), At: s.now()}
+	id := rowid.New()
+	if err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		return s.enqueueFor(ctx, tx, id, hook.ID, ev, spaceName, instance)
+	}); err != nil {
 		return nil, err
 	}
 	delivery, err := s.q.GetDelivery(ctx, id)
@@ -226,7 +228,8 @@ func (s *Service) RedeliverDelivery(ctx context.Context, req *connect.Request[in
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this webhook is disabled"))
 	}
 	id := rowid.New()
-	if err := s.queueDelivery(ctx, DeliveryArgs{DeliveryID: id, HookID: dead.WebhookID, Event: dead.EventType, Sequence: dead.Sequence, Body: dead.Body}); err != nil {
+	args := DeliveryArgs{DeliveryID: id, HookID: dead.WebhookID, Event: dead.EventType, Sequence: dead.Sequence, Body: dead.Body}
+	if err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error { return s.queueDelivery(ctx, tx, args) }); err != nil {
 		return nil, err
 	}
 	again, err := s.q.GetDelivery(ctx, id)
@@ -316,7 +319,7 @@ func eventTypes(raw []string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
 	for _, t := range raw {
-		if !wants(EventTypes, t) {
+		if !slices.Contains(EventTypes, t) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown event type %q", t))
 		}
 		if !seen[t] {

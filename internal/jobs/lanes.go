@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -21,7 +23,17 @@ func (s *Service) EnqueueInLane(ctx context.Context, kind string, args any, lane
 	if lane == "" {
 		return "", errEmptyLane
 	}
-	return s.insertJob(ctx, kind, args, s.now(), &lane, &sequence)
+	return s.insertJob(ctx, s.queries, kind, args, s.now(), &lane, &sequence)
+}
+
+// EnqueueInLaneTx is EnqueueInLane inside the caller's transaction: the
+// job exists only if the caller commits, and the dispatcher hears of it
+// at the commit.
+func (s *Service) EnqueueInLaneTx(ctx context.Context, tx pgx.Tx, kind string, args any, lane string, sequence int64) (string, error) {
+	if lane == "" {
+		return "", errEmptyLane
+	}
+	return s.insertJob(ctx, s.queries.WithTx(tx), kind, args, s.now(), &lane, &sequence)
 }
 
 // DiscardLane discards the lane's queued jobs with reason as their error
