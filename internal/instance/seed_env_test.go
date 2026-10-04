@@ -165,3 +165,32 @@ func TestSeedFillsBlankTunnelToken(t *testing.T) {
 		t.Errorf("tunnel after upgrade = %+v", inForce.CloudflareTunnel)
 	}
 }
+
+// An empty provider list saved when clearing fell back to STOOP_OIDC_*
+// gets the environment's provider back when password sign-in is
+// restricted; with password sign-in open, the empty list is kept.
+func TestSeedFillsLegacyEmptyProviders(t *testing.T) {
+	ctx := context.Background()
+	envProvider := []instance.LoginProvider{{
+		ID: "sso", Kind: instance.KindOIDC, DisplayName: "Single sign-on", Icon: "key",
+		Issuer: "https://idp.example.com", ClientID: "c", ClientSecret: "s",
+	}}
+	for _, password := range []string{"off", "everyone"} {
+		pool := dbtest.New(t)
+		if _, err := pool.Exec(ctx, `INSERT INTO instance_settings (key, value) VALUES ('login_providers', '[]'), ('password_sign_in', to_jsonb($1::text))`, password); err != nil {
+			t.Fatal(err)
+		}
+		svc := instance.New(pool, newFakeUsers())
+		svc.UseLoginProvidersEnv(envProvider)
+		if err := svc.SeedFromEnv(ctx); err != nil {
+			t.Fatal(err)
+		}
+		providers, err := svc.LoginProviders(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := map[string]int{"off": 1, "everyone": 0}[password]; len(providers) != want {
+			t.Errorf("password %s: %d providers, want %d", password, len(providers), want)
+		}
+	}
+}
