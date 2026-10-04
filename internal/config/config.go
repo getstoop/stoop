@@ -4,7 +4,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -262,16 +261,6 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("STOOP_PUBLIC_URL must look like https://chat.example.com (got %q)", cfg.PublicURL)
 		}
 		cfg.PublicURL = strings.TrimSuffix(cfg.PublicURL, "/")
-	}
-	// Compose still passes STOOP_TRUST_PROXY (false by default) for one
-	// release, so an operator who set it true is told instead of silently
-	// trusting nothing (STOOP-406 removes it).
-	trustEveryone, err := parseBool("STOOP_TRUST_PROXY", false)
-	if err != nil {
-		return Config{}, err
-	}
-	if trustEveryone {
-		return Config{}, errors.New("STOOP_TRUST_PROXY=true is no longer supported: name your proxy's addresses in STOOP_TRUSTED_PROXIES and remove STOOP_TRUST_PROXY")
 	}
 	if cfg.TrustedProxies, err = trustedproxy.Parse(splitList(os.Getenv("STOOP_TRUSTED_PROXIES"))); err != nil {
 		return Config{}, fmt.Errorf("STOOP_TRUSTED_PROXIES: %w", err)

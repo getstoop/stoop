@@ -108,20 +108,6 @@ func TestLoad_TrustedProxies(t *testing.T) {
 	}
 }
 
-// Compose passes STOOP_TRUST_PROXY=false to every install; only true is
-// refused, and the refusal names the replacement.
-func TestLoad_TrustProxyRefused(t *testing.T) {
-	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
-	t.Setenv("STOOP_TRUST_PROXY", "false")
-	if _, err := Load(); err != nil {
-		t.Fatalf("false should start: %v", err)
-	}
-	t.Setenv("STOOP_TRUST_PROXY", "true")
-	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_TRUSTED_PROXIES") {
-		t.Errorf("true should be refused naming STOOP_TRUSTED_PROXIES, got %v", err)
-	}
-}
-
 func TestLoad_SessionLifetime(t *testing.T) {
 	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
 	cfg, err := Load()

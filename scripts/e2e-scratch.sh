@@ -51,7 +51,7 @@ fi
 # The same shape CI starts the server in: no Tailscale, no proxy, no public
 # URL (invite links must carry the local origin), private unfurls allowed,
 # the per-address sign-in throttle off.
-unset STOOP_TAILSCALE STOOP_TAILSCALE_FUNNEL STOOP_TRUST_PROXY STOOP_PUBLIC_URL STOOP_LIVEKIT_URL
+unset STOOP_TAILSCALE STOOP_TAILSCALE_FUNNEL STOOP_PUBLIC_URL STOOP_LIVEKIT_URL
 env $LIVEKIT_ENV \
 STOOP_DATABASE_URL=$DB_URL STOOP_LISTEN_ADDR=":$PORT" STOOP_STORAGE_DIR=$STORAGE \
 STOOP_UNFURL_ALLOW_PRIVATE=true STOOP_AUTH_RATE_LIMIT=0 \
