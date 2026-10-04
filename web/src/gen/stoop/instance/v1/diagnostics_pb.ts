@@ -19,7 +19,7 @@ export const file_stoop_instance_v1_diagnostics: GenFile = /*@__PURE__*/
  */
 export type HealthCheck = Message<"stoop.instance.v1.HealthCheck"> & {
   /**
-   * postgres · livekit · storage · public_address · webhooks · jobs
+   * postgres · livekit · storage · public_address · webhooks · jobs · jobs_runner
    *
    * @generated from field: string name = 1;
    */

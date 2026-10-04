@@ -19,7 +19,7 @@ enum CheckState {
 }
 
 message HealthCheck {
-  // postgres · livekit · storage · public_address · webhooks · jobs
+  // postgres · livekit · storage · public_address · webhooks · jobs · jobs_runner
   string name = 1;
   CheckState state = 2;
   // The one line on the row, written by the check.

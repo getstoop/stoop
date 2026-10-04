@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"time"
 
@@ -28,7 +29,7 @@ const (
 	DefaultShutdownGrace = 5 * time.Second
 	DefaultLease         = 10 * time.Minute
 	// DefaultHeartbeat is how often a dispatcher touches its row between
-	// passes, so the jobs runner health row holds whatever the poll is.
+	// passes, so the jobs_runner health row holds whatever the poll is.
 	DefaultHeartbeat   = 15 * time.Second
 	DefaultMaxAttempts = 4
 	// ScheduleLead is how soon after a schedule row is created its first
@@ -178,6 +179,14 @@ func (s *Service) GetRuns(ctx context.Context, ids []string) ([]Run, error) {
 		runs[index] = runFromRow(row)
 	}
 	return runs, nil
+}
+
+// int32Column narrows a count for an int32 column or LIMIT, bounded.
+func int32Column(count int) int32 {
+	if count > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(count)
 }
 
 func encodeArgs(args any) ([]byte, error) {

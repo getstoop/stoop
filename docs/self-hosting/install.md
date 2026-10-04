@@ -170,7 +170,7 @@ STOOP_JOBS=external
 
 Then `docker compose up -d`. The `jobs` service starts once `stoop` is
 healthy and works the queue; the server runs none itself. Server admin →
-Diagnostics → Health shows the `jobs runner` row at ok while a runner has
+Diagnostics → Health shows the `jobs_runner` row at ok while a runner has
 been seen in the last minute, and at danger when none has.
 
 The runner must see the same uploads directory as the server, because file

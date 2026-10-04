@@ -9,6 +9,9 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+// MigrateLockKey hands the migration lock to the db_test package.
+const MigrateLockKey = migrateLockKey
+
 // MigrateTo applies migrations up to and including version, for tests
 // that need a database shaped like an older release.
 func MigrateTo(ctx context.Context, pool *pgxpool.Pool, version int64) error {
