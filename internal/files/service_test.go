@@ -315,6 +315,8 @@ func TestUploadBotAvatar(t *testing.T) {
 	svc := newService(f, avatars)
 	admin := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: f.other, Role: authctx.RoleAdmin})
 	data := pngBytes(t, 300, 200)
+	adminDevices := f.bus.Subscribe(events.UserTopic(f.other))
+	defer adminDevices.Close()
 
 	// A member can't; an admin can't aim it at a person.
 	if _, err := svc.UploadBotAvatar(as(f.owner), connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data})); connect.CodeOf(err) != connect.CodePermissionDenied {
@@ -331,8 +333,8 @@ func TestUploadBotAvatar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if job := f.queue.jobs[0]; job.lane != "avatar:"+f.member || job.args.UserID != f.member {
-		t.Errorf("queued %+v, want the bot's lane", job)
+	if job := f.queue.jobs[0]; job.lane != "avatar:"+f.member || job.args.UserID != f.member || job.args.UploaderID != f.other {
+		t.Errorf("queued %+v, want the bot's lane, uploaded by the admin", job)
 	}
 	if avatars.current[f.member] != "" {
 		t.Errorf("avatar set before the job ran: %q", avatars.current[f.member])
@@ -342,6 +344,10 @@ func TestUploadBotAvatar(t *testing.T) {
 	}
 	if avatars.current[f.member] != res.Msg.FileId || !f.blobExists(t, "avatar/"+res.Msg.FileId) {
 		t.Errorf("avatar not set: current %q, file %q", avatars.current[f.member], res.Msg.FileId)
+	}
+	// The admin shares no space with the bot; their own devices hear it.
+	if updated := awaitMemberUpdated(t, adminDevices); updated.SpaceId != "" || updated.UserId != f.member {
+		t.Errorf("MemberUpdated on the admin's topic %+v, want no space and user %s", updated, f.member)
 	}
 }
 

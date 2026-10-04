@@ -38,6 +38,9 @@ type NormaliseImageArgs struct {
 	FileID  string `json:"file_id"`
 	UserID  string `json:"user_id,omitempty"`
 	SpaceID string `json:"space_id,omitempty"`
+	// UploaderID is set when someone other than UserID sent the picture
+	// (an admin setting a bot's), so their devices hear the swap too.
+	UploaderID string `json:"uploader_id,omitempty"`
 }
 
 // ErrImageUnusable is NormaliseImage's permanent failure: the bytes did
@@ -79,7 +82,7 @@ func (s *Service) NormaliseImage(ctx context.Context, args NormaliseImageArgs, l
 		s.deleteFile(ctx, previous)
 	}
 	if args.UserID != "" {
-		s.announceAvatar(ctx, args.UserID)
+		s.announceAvatar(ctx, args.UserID, args.UploaderID)
 	}
 	return nil
 }
@@ -137,9 +140,11 @@ func (s *Service) pointAt(ctx context.Context, file dbgen.File, args NormaliseIm
 	return s.avatars.SetAvatar(ctx, args.UserID, file.ID)
 }
 
-// announceAvatar tells every space the account is in to refetch it, and
-// the account's own devices, which hear it whatever spaces it is in.
-func (s *Service) announceAvatar(ctx context.Context, userID string) {
+// announceAvatar tells every space the account is in to refetch it, the
+// account's own devices, which hear it whatever spaces it is in, and the
+// uploader's when that is someone else: an admin may share no space with
+// the bot whose face they set.
+func (s *Service) announceAvatar(ctx context.Context, userID, uploaderID string) {
 	spaceIDs, err := s.spaces.ListSpaceIDs(ctx, userID)
 	if err != nil {
 		s.log.Warn("avatar changed but spaces not notified", "user_id", userID, "err", err)
@@ -148,6 +153,9 @@ func (s *Service) announceAvatar(ctx context.Context, userID string) {
 		s.publishMemberUpdated(events.SpaceTopic(spaceID), spaceID, userID)
 	}
 	s.publishMemberUpdated(events.UserTopic(userID), "", userID)
+	if uploaderID != "" && uploaderID != userID {
+		s.publishMemberUpdated(events.UserTopic(uploaderID), "", userID)
+	}
 }
 
 func (s *Service) publishMemberUpdated(topic, spaceID, userID string) {

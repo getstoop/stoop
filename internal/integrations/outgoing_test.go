@@ -97,14 +97,16 @@ type fakeJobs struct {
 	mu        sync.Mutex
 	queued    []queuedJob
 	discarded []string
-	// refuse, when set, is what every enqueue fails with.
-	refuse error
+	// refuse, when set, is what every enqueue fails with; with refuseLane
+	// set too, only an enqueue into that lane.
+	refuse     error
+	refuseLane string
 	// statuses is what JobStatuses answers, by id.
 	statuses map[string]JobStatus
 }
 
 func (jobs *fakeJobs) EnqueueInLane(_ context.Context, kind string, args any, lane string, sequence int64) (string, error) {
-	if jobs.refuse != nil {
+	if jobs.refuse != nil && (jobs.refuseLane == "" || jobs.refuseLane == lane) {
 		return "", jobs.refuse
 	}
 	encoded, err := json.Marshal(args)
@@ -652,11 +654,37 @@ func TestFailedEnqueueLeavesNoLogRow(t *testing.T) {
 	if !ok {
 		t.Fatal("message not translated")
 	}
-	if err := f.svc.enqueue(context.Background(), out); err == nil || !strings.Contains(err.Error(), "the queue is down") {
+	if err := f.svc.enqueue(context.Background(), out); err != nil {
 		t.Fatalf("enqueue with the queue down: %v", err)
 	}
 	if rows := f.listDeliveries(t, hook.Id); len(rows) != 0 {
 		t.Errorf("log rows left without a job: %d", len(rows))
+	}
+}
+
+// One hook's failed enqueue does not cost the space's other hooks the
+// event; it is logged, not returned.
+func TestOneHooksFailedEnqueueSparesTheOthers(t *testing.T) {
+	f, endpoint := outgoingFixture(t)
+	refused, _ := f.createOutgoing(t, endpoint.srv.URL+"/refused", []string{EventMessageCreated}, "")
+	spared, _ := f.createOutgoing(t, endpoint.srv.URL+"/spared", []string{EventMessageCreated}, "")
+	f.jobs.refuse = errors.New("the queue is down")
+	f.jobs.refuseLane = refused.Id
+	out, ok := f.svc.translate(context.Background(), message(f.channel, f.space, "for both"))
+	if !ok {
+		t.Fatal("message not translated")
+	}
+	if err := f.svc.enqueue(context.Background(), out); err != nil {
+		t.Fatalf("enqueue with one lane refused: %v", err)
+	}
+	if f.jobs.pending() != 1 {
+		t.Fatalf("%d jobs queued, want the spared hook's", f.jobs.pending())
+	}
+	if job := f.jobs.pop(t); job.args.HookID != spared.Id {
+		t.Errorf("queued for hook %s, want %s", job.args.HookID, spared.Id)
+	}
+	if rows := f.listDeliveries(t, refused.Id); len(rows) != 0 {
+		t.Errorf("refused hook has %d log rows, want none", len(rows))
 	}
 }
 

@@ -118,7 +118,7 @@ func optionalRow(row dbgen.Job, err error) (dbgen.Job, bool, error) {
 
 // materialiseDue inserts one queued run for each due schedule and
 // advances it, in one transaction so a second dispatcher skips the locked
-// rows.
+// rows. A due row whose kind is not registered is disabled instead.
 func (s *Service) materialiseDue(ctx context.Context) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -134,6 +134,12 @@ func (s *Service) materialiseDue(ctx context.Context) error {
 	for _, schedule := range due {
 		entry, ok := s.registry.lookup(schedule.Kind)
 		if !ok || schedule.IntervalMs <= 0 {
+			// A kind this build no longer performs: off, so the row stops
+			// reading as overdue.
+			if err := queries.DisableSchedule(ctx, schedule.Kind); err != nil {
+				return err
+			}
+			s.log.Warn("jobs: schedule disabled, kind not registered", "kind", schedule.Kind)
 			continue
 		}
 		id := rowid.New()
