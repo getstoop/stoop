@@ -44,7 +44,31 @@ func (s *Service) SeedFromEnv(ctx context.Context) error {
 			return fmt.Errorf("seed %s: %w", seed.key, err)
 		}
 	}
-	return s.fillTunnelToken(ctx)
+	if err := s.fillTunnelToken(ctx); err != nil {
+		return err
+	}
+	return s.fillLoginProviders(ctx)
+}
+
+// fillLoginProviders repairs an empty provider list saved before seeding
+// existed, when clearing the list fell back to STOOP_OIDC_*. With password
+// sign-in restricted, the empty list would leave members no way to sign
+// in, a state the page now refuses to save, so such a row is always the
+// old kind and takes the environment's provider.
+func (s *Service) fillLoginProviders(ctx context.Context) error {
+	if len(s.loginEnv) == 0 {
+		return nil
+	}
+	var saved []LoginProvider
+	ok, err := s.readJSON(ctx, keyLoginProviders, &saved)
+	if err != nil || !ok || len(saved) > 0 {
+		return err
+	}
+	password, err := s.PasswordSignIn(ctx)
+	if err != nil || password == string(PasswordEveryone) {
+		return err
+	}
+	return s.writeJSON(ctx, keyLoginProviders, s.loginEnv)
 }
 
 // fillTunnelToken repairs a tunnel row saved before seeding existed: the
