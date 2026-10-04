@@ -116,8 +116,12 @@ type Registry struct {
 func NewRegistry() *Registry { return &Registry{kinds: map[string]kindEntry{}} }
 
 // Register binds kind to a typed performer; the wrapper decodes the JSON
-// arguments into A. Registering a kind twice panics.
+// arguments into A. Registering a kind twice, or with a negative
+// MaxInFlight, panics.
 func Register[A any](registry *Registry, kind string, fn func(ctx context.Context, job *Job, args A) error, opts Options) {
+	if opts.MaxInFlight < 0 {
+		panic(fmt.Sprintf("jobs: kind %q has a negative MaxInFlight", kind))
+	}
 	perform := performFunc(func(ctx context.Context, job *Job) error {
 		var args A
 		if err := job.Args(&args); err != nil {
