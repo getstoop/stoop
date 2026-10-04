@@ -6,6 +6,20 @@ INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, sto
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
+-- CreatePendingFile stores an avatar or icon upload as sent; the
+-- normalise_image job readies it. The row is never served while pending.
+-- name: CreatePendingFile :one
+INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, pending)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '', true)
+RETURNING *;
+
+-- ReadyPendingFile records the normalised bytes and clears pending; no row
+-- comes back when the file is gone or was already readied.
+-- name: ReadyPendingFile :one
+UPDATE files SET pending = false, content_type = sqlc.arg(content_type), size = sqlc.arg(size), sha256 = sqlc.arg(sha256)
+WHERE id = sqlc.arg(id) AND pending
+RETURNING *;
+
 -- name: GetFilesByIDs :many
 SELECT * FROM files WHERE id = ANY($1::uuid[]);
 

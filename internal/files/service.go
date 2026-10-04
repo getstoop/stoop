@@ -60,7 +60,9 @@ type Spaces interface {
 	// ctx may change the space's settings.
 	RequireManageSpace(ctx context.Context, spaceID string) error
 	// SetSpaceIcon points the space at fileID ("" clears), announces the
-	// change to members, and returns the id it replaced ("" if none).
+	// change to members, and returns the id it replaced ("" if none). It
+	// asks nothing of the caller in ctx: the normalise_image job has no
+	// identity, and RequireManageSpace was asked when the upload came in.
 	SetSpaceIcon(ctx context.Context, spaceID, fileID string) (previous string, err error)
 	// MayReadSpace reports whether the caller in ctx may read the space's
 	// messages, and so its icon and attachments.
@@ -116,15 +118,21 @@ type Service struct {
 	inflight *inflight
 	// uploadIdle is how long an upload's body may send nothing.
 	uploadIdle time.Duration
-	// jobs is the queue SweepFiles enqueues on; nil until UseJobs.
+	// jobs is the queue SweepFiles and the image uploads enqueue on; nil
+	// until UseJobs, and those refuse without it.
 	jobs JobQueue
 	log  *slog.Logger
 }
 
 // JobQueue is the files module's port onto the job queue, wired in
-// internal/app. The module enqueues only the kinds it performs.
+// internal/app. The module enqueues only the kinds it performs: the file
+// sweep, and normalise_image for its avatar and icon uploads.
 type JobQueue interface {
 	Enqueue(ctx context.Context, kind string, args any) (string, error)
+	// EnqueueInLane queues kind in lane at sequence: one job per lane runs
+	// at a time, in sequence order, so uploads for one target apply in
+	// the order they arrived.
+	EnqueueInLane(ctx context.Context, kind string, args any, lane string, sequence int64) (string, error)
 }
 
 // UseJobs wires the job queue.

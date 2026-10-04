@@ -268,11 +268,10 @@ func (s *Service) RequireManageSpace(ctx context.Context, spaceID string) error 
 // SetSpaceIcon points a space at a new icon file (or clears it with "")
 // and returns the file id it replaced, "" if none. Exposed for the files
 // module's port, which owns the file rows and deletes the old one after
-// this returns. Members hear about it as SpaceUpdated.
+// this returns. Members hear about it as SpaceUpdated. No permission is
+// checked here: files asked RequireManageSpace when the upload came in,
+// and the normalise_image job that calls this carries no identity.
 func (s *Service) SetSpaceIcon(ctx context.Context, spaceID, fileID string) (previous string, err error) {
-	if err := s.requirePermission(ctx, spaceID, authctx.SpaceManage); err != nil {
-		return "", err
-	}
 	var prev *string
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		var err error

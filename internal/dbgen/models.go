@@ -93,6 +93,7 @@ type File struct {
 	CreatedAt   time.Time
 	Name        string
 	ExpiredAt   *time.Time
+	Pending     bool
 }
 
 type IncomingWebhook struct {

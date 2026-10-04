@@ -328,7 +328,8 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "memberUpdated":
       // Profile change (avatar): refetch them wherever they're shown,
-      // including the avatar beside their messages.
+      // including the avatar beside their messages. An avatar is set by a
+      // job after the upload returns, so our own and a bot's go too.
       queryClient.invalidateQueries({
         queryKey: ["member", payload.value.spaceId, payload.value.userId],
       });
@@ -336,6 +337,13 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         queryKey: ["members", payload.value.spaceId],
       });
       queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.invalidateQueries({
+        queryKey: ["user-profile", payload.value.userId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["bots"] });
+      if (payload.value.userId === useConnectionStore.getState().userId) {
+        queryClient.invalidateQueries({ queryKey: ["me"] });
+      }
       break;
     case "memberRemoved":
       queryClient.invalidateQueries({

@@ -38,7 +38,7 @@ func (s *Service) Handler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		f, err := s.q.GetFile(r.Context(), id)
+		file, err := s.q.GetFile(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				http.NotFound(w, r)
@@ -48,9 +48,14 @@ func (s *Service) Handler() http.Handler {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		ok, err := s.mayDownload(r.Context(), identity, f)
+		// An upload the normalise_image job has not readied is not a file yet.
+		if file.Pending {
+			http.NotFound(w, r)
+			return
+		}
+		ok, err := s.mayDownload(r.Context(), identity, file)
 		if err != nil {
-			s.log.Error("authorise download", "file_id", f.ID, "err", err)
+			s.log.Error("authorise download", "file_id", file.ID, "err", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
@@ -58,12 +63,12 @@ func (s *Service) Handler() http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		if f.ExpiredAt != nil {
+		if file.ExpiredAt != nil {
 			http.Error(w, "this attachment has expired", http.StatusGone)
 			return
 		}
 
-		s.serveBlob(w, r, f)
+		s.serveBlob(w, r, file)
 	})
 }
 

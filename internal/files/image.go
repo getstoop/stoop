@@ -38,38 +38,49 @@ var rasterTypes = map[string]bool{
 	"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true,
 }
 
-// processImage validates an upload and re-encodes it as a size×size PNG.
-// The content type is decided by sniffing the bytes — the client's type
-// and filename are never consulted — and the decode/re-encode drops any
-// metadata (EXIF, ICC, comments) the original carried. Animated GIFs keep
-// their first frame.
-func processImage(data []byte, size int) ([]byte, error) {
+// sniffImage decides the content type from the bytes — the client's type
+// and filename are never consulted — and bounds the decode.
+func sniffImage(data []byte) (contentType string, cfg image.Config, err error) {
 	if len(data) == 0 {
-		return nil, errEmptyUpload
+		return "", image.Config{}, errEmptyUpload
 	}
-	if len(data) > MaxImageBytes {
-		return nil, errTooLarge
+	contentType = http.DetectContentType(data)
+	if !rasterTypes[contentType] {
+		return "", image.Config{}, errNotAnImage
 	}
-	if !rasterTypes[http.DetectContentType(data)] {
-		return nil, errNotAnImage
-	}
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	cfg, _, err = image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return nil, errNotAnImage
+		return "", image.Config{}, errNotAnImage
 	}
 	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > maxImagePixels {
-		return nil, errHugeImage
+		return "", image.Config{}, errHugeImage
 	}
+	return contentType, cfg, nil
+}
+
+// validateImage is what an avatar or icon upload refuses in the request:
+// the byte cap and what sniffImage refuses. It returns the sniffed type.
+func validateImage(data []byte) (string, error) {
+	if len(data) > MaxImageBytes {
+		return "", errTooLarge
+	}
+	contentType, _, err := sniffImage(data)
+	return contentType, err
+}
+
+// normaliseImage decodes a validated image, centre-crops it to a square
+// and scales it to size×size, re-encoded as PNG. The decode drops any
+// metadata (EXIF, ICC, comments) the original carried; an animated GIF
+// keeps its first frame.
+func normaliseImage(data []byte, size int) ([]byte, error) {
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, errNotAnImage
 	}
-
-	// Centre-crop to a square, then scale to the target size.
-	b := src.Bounds()
-	side := min(b.Dx(), b.Dy())
+	bounds := src.Bounds()
+	side := min(bounds.Dx(), bounds.Dy())
 	crop := image.Rect(0, 0, side, side).Add(image.Pt(
-		b.Min.X+(b.Dx()-side)/2, b.Min.Y+(b.Dy()-side)/2,
+		bounds.Min.X+(bounds.Dx()-side)/2, bounds.Min.Y+(bounds.Dy()-side)/2,
 	))
 	dst := image.NewNRGBA(image.Rect(0, 0, size, size))
 	draw.CatmullRom.Scale(dst, dst.Bounds(), src, crop, draw.Src, nil)
@@ -79,6 +90,15 @@ func processImage(data []byte, size int) ([]byte, error) {
 		return nil, fmt.Errorf("encode png: %w", err)
 	}
 	return out.Bytes(), nil
+}
+
+// processImage validates and normalises in one step: what the
+// normalise_image job runs on the stored upload.
+func processImage(data []byte, size int) ([]byte, error) {
+	if _, err := validateImage(data); err != nil {
+		return nil, err
+	}
+	return normaliseImage(data, size)
 }
 
 // isRaster reports whether a content type may be rendered inline by the
@@ -104,19 +124,9 @@ const (
 // it wrote: PNG, or GIF for an animation. Same validation and metadata
 // stripping as processImage.
 func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) {
-	if len(data) == 0 {
-		return nil, "", 0, 0, errEmptyUpload
-	}
-	sniffed := http.DetectContentType(data)
-	if !rasterTypes[sniffed] {
-		return nil, "", 0, 0, errNotAnImage
-	}
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	sniffed, cfg, err := sniffImage(data)
 	if err != nil {
-		return nil, "", 0, 0, errNotAnImage
-	}
-	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width*cfg.Height > maxImagePixels {
-		return nil, "", 0, 0, errHugeImage
+		return nil, "", 0, 0, err
 	}
 	if sniffed == "image/gif" {
 		frames, err := gifFrames(data)

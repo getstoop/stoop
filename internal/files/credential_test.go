@@ -76,6 +76,7 @@ func TestDownloadsFollowTheCredential(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.performImage(t)
 	if res := f.get(t, avatar.Msg.FileId, "member-nothing"); res.StatusCode != http.StatusOK {
 		t.Errorf("avatar with an empty token: %d", res.StatusCode)
 	}
