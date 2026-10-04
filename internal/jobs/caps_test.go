@@ -155,3 +155,12 @@ func TestCapOfTwoLetsTwoRunAtOnce(t *testing.T) {
 		waitForState(t, pool, id, StateSucceeded, 1)
 	}
 }
+
+func TestRegisterRefusesANegativeCap(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("a negative MaxInFlight registered without a panic")
+		}
+	}()
+	Register(NewRegistry(), "negative", func(context.Context, *Job, NoArgs) error { return nil }, Options{MaxInFlight: -1})
+}
