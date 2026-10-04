@@ -4,11 +4,8 @@
 package config
 
 import (
-	"errors"
-	"fmt"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -210,186 +207,157 @@ type Config struct {
 	DevWebURL string
 }
 
+// Load reads the configuration, refusing every bad variable at once.
 func Load() (Config, error) {
+	env := &envReader{}
 	cfg := Config{
-		ListenAddr:        getenv("STOOP_LISTEN_ADDR", ":8080"),
-		DatabaseURL:       os.Getenv("STOOP_DATABASE_URL"),
-		LiveKitURL:        os.Getenv("STOOP_LIVEKIT_URL"),
-		LiveKitKeyFile:    os.Getenv("STOOP_LIVEKIT_KEY_FILE"),
-		LiveKitNodeIPFile: os.Getenv("STOOP_LIVEKIT_NODE_IP_FILE"),
-		LiveKitAPIKey:     os.Getenv("STOOP_LIVEKIT_API_KEY"),
-		LiveKitAPISecret:  os.Getenv("STOOP_LIVEKIT_API_SECRET"),
-		DevWebURL:         os.Getenv("STOOP_DEV_WEB_URL"),
+		ListenAddr:         getenv("STOOP_LISTEN_ADDR", ":8080"),
+		DatabaseURL:        os.Getenv("STOOP_DATABASE_URL"),
+		DatabasePoolMax:    env.nonNegativeInt("STOOP_DATABASE_POOL_MAX", 0),
+		SecureCookies:      env.bool("STOOP_SECURE_COOKIES", false),
+		RegistrationPolicy: env.oneOf("STOOP_REGISTRATION", "invite", "open", "invite", "closed"),
+		StorageDir:         getenv("STOOP_STORAGE_DIR", "./data"),
+		LinkPreviews:       env.bool("STOOP_LINK_PREVIEWS", true),
+		UpdateCheck:        env.bool("STOOP_UPDATE_CHECK", true),
+		UnfurlAllowPrivate: env.bool("STOOP_UNFURL_ALLOW_PRIVATE", false),
+		FileSweepInterval:  env.duration("STOOP_FILE_SWEEP_INTERVAL", 6*time.Hour),
+		FileSweepGrace:     env.duration("STOOP_FILE_SWEEP_GRACE", 24*time.Hour),
+		ActivityRetention:  env.duration("STOOP_ACTIVITY_RETENTION", 720*time.Hour),
+		AuthRateLimit:      env.nonNegativeInt("STOOP_AUTH_RATE_LIMIT", 20),
+		SignalingRateLimit: env.nonNegativeInt("STOOP_SIGNALING_RATE_LIMIT", 30),
+		SearchRateLimit:    env.nonNegativeInt("STOOP_SEARCH_RATE_LIMIT", 30),
+		PasswordSignIn:     env.oneOf("STOOP_PASSWORD_SIGN_IN", "everyone", "everyone", "admins", "off"),
+		DevWebURL:          os.Getenv("STOOP_DEV_WEB_URL"),
+
+		Webhooks:                 env.bool("STOOP_WEBHOOKS", true),
+		WebhookRateLimit:         env.nonNegativeInt("STOOP_WEBHOOK_RATE_LIMIT", 60),
+		WebhookDeliveryRetention: env.duration("STOOP_WEBHOOK_DELIVERY_RETENTION", 168*time.Hour),
 	}
 
 	if cfg.DatabaseURL == "" {
-		return Config{}, fmt.Errorf("STOOP_DATABASE_URL is required")
-	}
-	var err error
-	if cfg.DatabasePoolMax, err = parseNonNegativeInt("STOOP_DATABASE_POOL_MAX", 0); err != nil {
-		return Config{}, err
+		env.fail("STOOP_DATABASE_URL is required")
 	}
 	if cfg.DatabasePoolMax == 1 {
-		return Config{}, fmt.Errorf("STOOP_DATABASE_POOL_MAX must be at least 2: a request needs a connection while a sweep holds one")
+		env.fail("STOOP_DATABASE_POOL_MAX must be at least 2: a request needs a connection while a sweep holds one")
 	}
 	cfg.DatabasePoolMaxShadowsURL = cfg.DatabasePoolMax > 0 && strings.Contains(cfg.DatabaseURL, "pool_max_conns")
-
-	secure, err := parseBool("STOOP_SECURE_COOKIES", false)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.SecureCookies = secure
-
-	cfg.RegistrationPolicy = getenv("STOOP_REGISTRATION", "invite")
-	switch cfg.RegistrationPolicy {
-	case "open", "invite", "closed":
-	default:
-		return Config{}, fmt.Errorf("STOOP_REGISTRATION must be open, invite, or closed (got %q)", cfg.RegistrationPolicy)
-	}
 
 	cfg.Storage = getenv("STOOP_STORAGE", "fs")
 	switch cfg.Storage {
 	case "fs":
 	case "s3":
-		return Config{}, fmt.Errorf("STOOP_STORAGE=s3 is not built; use fs")
+		env.fail("STOOP_STORAGE=s3 is not built; use fs")
 	default:
-		return Config{}, fmt.Errorf("STOOP_STORAGE must be fs or s3 (got %q)", cfg.Storage)
+		env.fail("STOOP_STORAGE must be fs or s3 (got %q)", cfg.Storage)
 	}
-	cfg.StorageDir = getenv("STOOP_STORAGE_DIR", "./data")
 
-	if cfg.PublicURL = os.Getenv("STOOP_PUBLIC_URL"); cfg.PublicURL != "" {
-		if !Origin(cfg.PublicURL) {
-			return Config{}, fmt.Errorf("STOOP_PUBLIC_URL must look like https://chat.example.com (got %q)", cfg.PublicURL)
-		}
-		cfg.PublicURL = strings.TrimSuffix(cfg.PublicURL, "/")
+	cfg.SessionLifetimeDays = env.nonNegativeInt("STOOP_SESSION_LIFETIME_DAYS", DefaultSessionLifetimeDays)
+	if cfg.SessionLifetimeDays < 1 || cfg.SessionLifetimeDays > MaxSessionLifetimeDays {
+		env.fail("STOOP_SESSION_LIFETIME_DAYS must be 1-%d (got %d)", MaxSessionLifetimeDays, cfg.SessionLifetimeDays)
 	}
+	// Held to the same rules as a name saved on the admin page (instance
+	// settings.go): trimmed, and at most 100 characters.
+	cfg.InstanceName = strings.TrimSpace(os.Getenv("STOOP_INSTANCE_NAME"))
+	if utf8.RuneCountInString(cfg.InstanceName) > MaxInstanceNameRunes {
+		env.fail("STOOP_INSTANCE_NAME must be 100 characters or fewer")
+	}
+
+	loadFrontDoors(env, &cfg)
+	loadVoice(env, &cfg)
+	loadJobs(env, &cfg)
+	loadOIDC(env, &cfg)
+
+	if err := env.err(); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+// loadFrontDoors reads how people reach the server: its public address,
+// the proxies in front of it, and the built-in tunnel and tailnet node.
+func loadFrontDoors(env *envReader, cfg *Config) {
+	cfg.AllowedWSOrigins = splitList(getenv("STOOP_ALLOWED_WS_ORIGINS", "localhost:*,127.0.0.1:*"))
+	if publicURL := os.Getenv("STOOP_PUBLIC_URL"); publicURL != "" {
+		parsed, err := url.Parse(publicURL)
+		if err != nil || !Origin(publicURL) {
+			env.fail("STOOP_PUBLIC_URL must look like https://chat.example.com (got %q)", publicURL)
+		} else {
+			cfg.PublicURL = strings.TrimSuffix(publicURL, "/")
+			cfg.AllowedWSOrigins = append(cfg.AllowedWSOrigins, parsed.Host)
+		}
+	}
+
 	// Compose still passes STOOP_TRUST_PROXY (false by default) for one
 	// release, so an operator who set it true is told instead of silently
 	// trusting nothing (STOOP-406 removes it).
-	trustEveryone, err := parseBool("STOOP_TRUST_PROXY", false)
+	if env.bool("STOOP_TRUST_PROXY", false) {
+		env.fail("STOOP_TRUST_PROXY=true is no longer supported: name your proxy's addresses in STOOP_TRUSTED_PROXIES and remove STOOP_TRUST_PROXY")
+	}
+	proxies, err := trustedproxy.Parse(splitList(os.Getenv("STOOP_TRUSTED_PROXIES")))
 	if err != nil {
-		return Config{}, err
+		env.fail("STOOP_TRUSTED_PROXIES: %w", err)
 	}
-	if trustEveryone {
-		return Config{}, errors.New("STOOP_TRUST_PROXY=true is no longer supported: name your proxy's addresses in STOOP_TRUSTED_PROXIES and remove STOOP_TRUST_PROXY")
+	cfg.TrustedProxies = proxies
+
+	cfg.CloudflareTunnel = env.bool("STOOP_CLOUDFLARE_TUNNEL", false)
+	cfg.CloudflareTunnelToken = os.Getenv("STOOP_CLOUDFLARE_TUNNEL_TOKEN")
+	if cfg.CloudflareTunnel && cfg.CloudflareTunnelToken == "" {
+		env.fail("STOOP_CLOUDFLARE_TUNNEL needs STOOP_CLOUDFLARE_TUNNEL_TOKEN")
 	}
-	if cfg.TrustedProxies, err = trustedproxy.Parse(splitList(os.Getenv("STOOP_TRUSTED_PROXIES"))); err != nil {
-		return Config{}, fmt.Errorf("STOOP_TRUSTED_PROXIES: %w", err)
+	cfg.CloudflaredPath = os.Getenv("STOOP_CLOUDFLARED_PATH")
+
+	cfg.Tailscale = env.bool("STOOP_TAILSCALE", false)
+	cfg.TailscaleHostname = getenv("STOOP_TAILSCALE_HOSTNAME", "stoop")
+	cfg.TailscaleAuthKey = os.Getenv("STOOP_TAILSCALE_AUTHKEY")
+	cfg.TailscaleControlURL = os.Getenv("STOOP_TAILSCALE_CONTROL_URL")
+	cfg.TailscaleFunnel = env.bool("STOOP_TAILSCALE_FUNNEL", false)
+	if cfg.TailscaleFunnel && !cfg.Tailscale {
+		env.fail("STOOP_TAILSCALE_FUNNEL needs STOOP_TAILSCALE=true")
 	}
+	cfg.TailscaleVoice = env.bool("STOOP_TAILSCALE_VOICE", true)
+}
+
+// loadVoice reads the LiveKit sidecar and the relays offered to browsers.
+func loadVoice(env *envReader, cfg *Config) {
+	cfg.Voice = env.bool("STOOP_VOICE", true)
+	cfg.LiveKitURL = os.Getenv("STOOP_LIVEKIT_URL")
+	cfg.LiveKitKeyFile = os.Getenv("STOOP_LIVEKIT_KEY_FILE")
+	cfg.LiveKitNodeIPFile = os.Getenv("STOOP_LIVEKIT_NODE_IP_FILE")
+	cfg.LiveKitAPIKey = os.Getenv("STOOP_LIVEKIT_API_KEY")
+	cfg.LiveKitAPISecret = os.Getenv("STOOP_LIVEKIT_API_SECRET")
+	cfg.LiveKitMediaHost = getenv("STOOP_LIVEKIT_MEDIA_HOST", "127.0.0.1")
+	cfg.LiveKitTCPPort = env.port("STOOP_LIVEKIT_TCP_PORT", 7881)
+	cfg.LiveKitUDPStart, cfg.LiveKitUDPEnd = env.portRange("STOOP_LIVEKIT_UDP_PORTS", 50000, 50100)
 
 	cfg.TURNURLs = splitList(os.Getenv("STOOP_TURN_URLS"))
 	cfg.TURNUsername = os.Getenv("STOOP_TURN_USERNAME")
 	cfg.TURNCredential = os.Getenv("STOOP_TURN_CREDENTIAL")
 	cfg.STUNURLs = splitList(os.Getenv("STOOP_STUN_URLS"))
 	if len(cfg.TURNURLs) > 0 && (cfg.TURNUsername == "" || cfg.TURNCredential == "") {
-		return Config{}, fmt.Errorf("STOOP_TURN_URLS needs STOOP_TURN_USERNAME and STOOP_TURN_CREDENTIAL")
+		env.fail("STOOP_TURN_URLS needs STOOP_TURN_USERNAME and STOOP_TURN_CREDENTIAL")
 	}
 	cfg.CloudflareTURNKeyID = os.Getenv("STOOP_CLOUDFLARE_TURN_KEY_ID")
 	cfg.CloudflareTURNAPIToken = os.Getenv("STOOP_CLOUDFLARE_TURN_API_TOKEN")
 	if (cfg.CloudflareTURNKeyID == "") != (cfg.CloudflareTURNAPIToken == "") {
-		return Config{}, fmt.Errorf("STOOP_CLOUDFLARE_TURN_KEY_ID and STOOP_CLOUDFLARE_TURN_API_TOKEN must be set together")
+		env.fail("STOOP_CLOUDFLARE_TURN_KEY_ID and STOOP_CLOUDFLARE_TURN_API_TOKEN must be set together")
 	}
+}
 
-	if cfg.LinkPreviews, err = parseBool("STOOP_LINK_PREVIEWS", true); err != nil {
-		return Config{}, err
-	}
-	if cfg.UpdateCheck, err = parseBool("STOOP_UPDATE_CHECK", true); err != nil {
-		return Config{}, err
-	}
-	if cfg.UnfurlAllowPrivate, err = parseBool("STOOP_UNFURL_ALLOW_PRIVATE", false); err != nil {
-		return Config{}, err
-	}
-	if cfg.Webhooks, err = parseBool("STOOP_WEBHOOKS", true); err != nil {
-		return Config{}, err
-	}
-	if cfg.WebhookRateLimit, err = parseNonNegativeInt("STOOP_WEBHOOK_RATE_LIMIT", 60); err != nil {
-		return Config{}, err
-	}
-	if cfg.WebhookDeliveryRetention, err = parseDuration("STOOP_WEBHOOK_DELIVERY_RETENTION", "168h"); err != nil {
-		return Config{}, err
-	}
-
-	if cfg.JobsWorkers, err = parseNonNegativeInt("STOOP_JOBS_WORKERS", 4); err != nil {
-		return Config{}, err
-	}
+func loadJobs(env *envReader, cfg *Config) {
+	cfg.Jobs = env.oneOf("STOOP_JOBS", JobsEmbedded, JobsEmbedded, JobsExternal, JobsChild)
+	cfg.JobsWorkers = env.nonNegativeInt("STOOP_JOBS_WORKERS", 4)
 	if cfg.JobsWorkers < 1 {
-		return Config{}, fmt.Errorf("STOOP_JOBS_WORKERS must be at least 1 (got %d)", cfg.JobsWorkers)
+		env.fail("STOOP_JOBS_WORKERS must be at least 1 (got %d)", cfg.JobsWorkers)
 	}
-	if cfg.JobsPoll, err = parseDuration("STOOP_JOBS_POLL", "2s"); err != nil {
-		return Config{}, err
-	}
+	cfg.JobsPoll = env.duration("STOOP_JOBS_POLL", 2*time.Second)
 	if cfg.JobsPoll <= 0 {
-		return Config{}, fmt.Errorf("STOOP_JOBS_POLL must be more than 0 (got %q)", os.Getenv("STOOP_JOBS_POLL"))
+		env.fail("STOOP_JOBS_POLL must be more than 0 (got %q)", os.Getenv("STOOP_JOBS_POLL"))
 	}
-	if cfg.JobsRetention, err = parseDuration("STOOP_JOBS_RETENTION", "168h"); err != nil {
-		return Config{}, err
-	}
-	cfg.Jobs = getenv("STOOP_JOBS", JobsEmbedded)
-	if cfg.Jobs != JobsEmbedded && cfg.Jobs != JobsExternal && cfg.Jobs != JobsChild {
-		return Config{}, fmt.Errorf("STOOP_JOBS must be %s, %s or %s (got %q)", JobsEmbedded, JobsExternal, JobsChild, cfg.Jobs)
-	}
+	cfg.JobsRetention = env.duration("STOOP_JOBS_RETENTION", 168*time.Hour)
+}
 
-	if cfg.CloudflareTunnel, err = parseBool("STOOP_CLOUDFLARE_TUNNEL", false); err != nil {
-		return Config{}, err
-	}
-	cfg.CloudflareTunnelToken = os.Getenv("STOOP_CLOUDFLARE_TUNNEL_TOKEN")
-	if cfg.CloudflareTunnel && cfg.CloudflareTunnelToken == "" {
-		return Config{}, fmt.Errorf("STOOP_CLOUDFLARE_TUNNEL needs STOOP_CLOUDFLARE_TUNNEL_TOKEN")
-	}
-	cfg.CloudflaredPath = os.Getenv("STOOP_CLOUDFLARED_PATH")
-
-	if cfg.Tailscale, err = parseBool("STOOP_TAILSCALE", false); err != nil {
-		return Config{}, err
-	}
-	cfg.TailscaleHostname = getenv("STOOP_TAILSCALE_HOSTNAME", "stoop")
-	cfg.TailscaleAuthKey = os.Getenv("STOOP_TAILSCALE_AUTHKEY")
-	cfg.TailscaleControlURL = os.Getenv("STOOP_TAILSCALE_CONTROL_URL")
-	if cfg.TailscaleFunnel, err = parseBool("STOOP_TAILSCALE_FUNNEL", false); err != nil {
-		return Config{}, err
-	}
-	if cfg.TailscaleFunnel && !cfg.Tailscale {
-		return Config{}, fmt.Errorf("STOOP_TAILSCALE_FUNNEL needs STOOP_TAILSCALE=true")
-	}
-	if cfg.TailscaleVoice, err = parseBool("STOOP_TAILSCALE_VOICE", true); err != nil {
-		return Config{}, err
-	}
-
-	if cfg.Voice, err = parseBool("STOOP_VOICE", true); err != nil {
-		return Config{}, err
-	}
-	cfg.LiveKitMediaHost = getenv("STOOP_LIVEKIT_MEDIA_HOST", "127.0.0.1")
-	if cfg.LiveKitTCPPort, err = parsePort("STOOP_LIVEKIT_TCP_PORT", 7881); err != nil {
-		return Config{}, err
-	}
-	if cfg.LiveKitUDPStart, cfg.LiveKitUDPEnd, err = parsePortRange("STOOP_LIVEKIT_UDP_PORTS", "50000-50100"); err != nil {
-		return Config{}, err
-	}
-
-	cfg.AllowedWSOrigins = splitList(getenv("STOOP_ALLOWED_WS_ORIGINS", "localhost:*,127.0.0.1:*"))
-	if cfg.FileSweepInterval, err = parseDuration("STOOP_FILE_SWEEP_INTERVAL", "6h"); err != nil {
-		return cfg, err
-	}
-	if cfg.FileSweepGrace, err = parseDuration("STOOP_FILE_SWEEP_GRACE", "24h"); err != nil {
-		return cfg, err
-	}
-	if cfg.ActivityRetention, err = parseDuration("STOOP_ACTIVITY_RETENTION", "720h"); err != nil {
-		return cfg, err
-	}
-	if cfg.AuthRateLimit, err = parseNonNegativeInt("STOOP_AUTH_RATE_LIMIT", 20); err != nil {
-		return Config{}, err
-	}
-	if cfg.SignalingRateLimit, err = parseNonNegativeInt("STOOP_SIGNALING_RATE_LIMIT", 30); err != nil {
-		return Config{}, err
-	}
-	if cfg.SearchRateLimit, err = parseNonNegativeInt("STOOP_SEARCH_RATE_LIMIT", 30); err != nil {
-		return Config{}, err
-	}
-	if cfg.PublicURL != "" {
-		if u, err := url.Parse(cfg.PublicURL); err == nil {
-			cfg.AllowedWSOrigins = append(cfg.AllowedWSOrigins, u.Host)
-		}
-	}
-
+// loadOIDC reads the one login provider the environment can configure.
+func loadOIDC(env *envReader, cfg *Config) {
 	// Kept exactly as given: discovery requires a byte-identical issuer
 	// match, and some issuers (Authentik) end in "/".
 	cfg.OIDCIssuer = os.Getenv("STOOP_OIDC_ISSUER")
@@ -399,122 +367,15 @@ func Load() (Config, error) {
 	cfg.OIDCID = getenv("STOOP_OIDC_ID", "sso")
 	if cfg.OIDCIssuer != "" {
 		if !IssuerURL(cfg.OIDCIssuer) {
-			return Config{}, fmt.Errorf("STOOP_OIDC_ISSUER must look like https://auth.example.com (got %q)", cfg.OIDCIssuer)
+			env.fail("STOOP_OIDC_ISSUER must look like https://auth.example.com (got %q)", cfg.OIDCIssuer)
 		}
 		if cfg.OIDCClientID == "" || cfg.OIDCClientSecret == "" {
-			return Config{}, fmt.Errorf("STOOP_OIDC_ISSUER needs STOOP_OIDC_CLIENT_ID and STOOP_OIDC_CLIENT_SECRET")
+			env.fail("STOOP_OIDC_ISSUER needs STOOP_OIDC_CLIENT_ID and STOOP_OIDC_CLIENT_SECRET")
 		}
 	} else if cfg.OIDCClientID != "" || cfg.OIDCClientSecret != "" {
-		return Config{}, fmt.Errorf("STOOP_OIDC_CLIENT_ID and STOOP_OIDC_CLIENT_SECRET need STOOP_OIDC_ISSUER")
-	}
-	if cfg.SessionLifetimeDays, err = parseNonNegativeInt("STOOP_SESSION_LIFETIME_DAYS", DefaultSessionLifetimeDays); err != nil {
-		return Config{}, err
-	}
-	if cfg.SessionLifetimeDays < 1 || cfg.SessionLifetimeDays > MaxSessionLifetimeDays {
-		return Config{}, fmt.Errorf("STOOP_SESSION_LIFETIME_DAYS must be 1-%d (got %d)", MaxSessionLifetimeDays, cfg.SessionLifetimeDays)
-	}
-	cfg.PasswordSignIn = getenv("STOOP_PASSWORD_SIGN_IN", "everyone")
-	switch cfg.PasswordSignIn {
-	case "everyone", "admins", "off":
-	default:
-		return Config{}, fmt.Errorf("STOOP_PASSWORD_SIGN_IN must be everyone, admins, or off (got %q)", cfg.PasswordSignIn)
+		env.fail("STOOP_OIDC_CLIENT_ID and STOOP_OIDC_CLIENT_SECRET need STOOP_OIDC_ISSUER")
 	}
 	if !ValidProviderID(cfg.OIDCID) {
-		return Config{}, fmt.Errorf("STOOP_OIDC_ID must be 2-32 of a-z, 0-9, -, _ (got %q)", cfg.OIDCID)
+		env.fail("STOOP_OIDC_ID must be 2-32 of a-z, 0-9, -, _ (got %q)", cfg.OIDCID)
 	}
-	// Held to the same rules as a name saved on the admin page (instance
-	// settings.go): trimmed, and at most 100 characters.
-	cfg.InstanceName = strings.TrimSpace(os.Getenv("STOOP_INSTANCE_NAME"))
-	if utf8.RuneCountInString(cfg.InstanceName) > MaxInstanceNameRunes {
-		return Config{}, fmt.Errorf("STOOP_INSTANCE_NAME must be 100 characters or fewer")
-	}
-
-	return cfg, nil
-}
-
-// splitList parses a comma-separated value, dropping blanks.
-func splitList(v string) []string {
-	var out []string
-	for _, s := range strings.Split(v, ",") {
-		if s = strings.TrimSpace(s); s != "" {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-func parseBool(key string, fallback bool) (bool, error) {
-	v, err := strconv.ParseBool(getenv(key, strconv.FormatBool(fallback)))
-	if err != nil {
-		return false, fmt.Errorf("%s: %w", key, err)
-	}
-	return v, nil
-}
-
-func parseDuration(key, fallback string) (time.Duration, error) {
-	d, err := time.ParseDuration(getenv(key, fallback))
-	if err != nil || d < 0 {
-		return 0, fmt.Errorf("%s must be a duration like 6h or 30m, or 0 (got %q)", key, os.Getenv(key))
-	}
-	return d, nil
-}
-
-func parseNonNegativeInt(key string, fallback int) (int, error) {
-	v, err := strconv.Atoi(getenv(key, strconv.Itoa(fallback)))
-	if err != nil || v < 0 {
-		return 0, fmt.Errorf("%s must be a whole number >= 0 (got %q)", key, os.Getenv(key))
-	}
-	return v, nil
-}
-
-func parsePort(key string, fallback int) (int, error) {
-	v, err := strconv.Atoi(getenv(key, strconv.Itoa(fallback)))
-	if err != nil || v < 1 || v > 65535 {
-		return 0, fmt.Errorf("%s must be a port between 1 and 65535 (got %q)", key, os.Getenv(key))
-	}
-	return v, nil
-}
-
-// maxPortRange bounds how many UDP ports the Tailscale node will carry.
-// LiveKit's default range is 101; a typo asking for tens of thousands of
-// listeners should be rejected, not obeyed.
-const maxPortRange = 4096
-
-// parsePortRange reads an inclusive "start-end" range, or a single port.
-func parsePortRange(key, fallback string) (int, int, error) {
-	raw := getenv(key, fallback)
-	bad := func() (int, int, error) {
-		return 0, 0, fmt.Errorf("%s must be a port range like 50000-50100 (got %q)", key, raw)
-	}
-	start, end, ok := strings.Cut(raw, "-")
-	if !ok {
-		end = start
-	}
-	lo, err := strconv.Atoi(strings.TrimSpace(start))
-	if err != nil {
-		return bad()
-	}
-	hi, err := strconv.Atoi(strings.TrimSpace(end))
-	if err != nil {
-		return bad()
-	}
-	if lo < 1 || hi > 65535 || lo > hi {
-		return bad()
-	}
-	if hi-lo+1 > maxPortRange {
-		return 0, 0, fmt.Errorf("%s covers %d ports; %d is the most that will be carried",
-			key, hi-lo+1, maxPortRange)
-	}
-	return lo, hi, nil
-}
-
-// IsSet reports whether the environment gives name a value; empty counts
-// as unset, as everywhere else here.
-func IsSet(name string) bool { return os.Getenv(name) != "" }
-
-func getenv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }
