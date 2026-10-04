@@ -654,7 +654,7 @@ func TestFailedEnqueueLeavesNoLogRow(t *testing.T) {
 	if !ok {
 		t.Fatal("message not translated")
 	}
-	if err := f.svc.enqueue(context.Background(), out); err == nil || !strings.Contains(err.Error(), "the queue is down") {
+	if err := f.svc.enqueue(context.Background(), out); err != nil {
 		t.Fatalf("enqueue with the queue down: %v", err)
 	}
 	if rows := f.listDeliveries(t, hook.Id); len(rows) != 0 {
@@ -663,7 +663,7 @@ func TestFailedEnqueueLeavesNoLogRow(t *testing.T) {
 }
 
 // One hook's failed enqueue does not cost the space's other hooks the
-// event; the error is still returned.
+// event; it is logged, not returned.
 func TestOneHooksFailedEnqueueSparesTheOthers(t *testing.T) {
 	f, endpoint := outgoingFixture(t)
 	refused, _ := f.createOutgoing(t, endpoint.srv.URL+"/refused", []string{EventMessageCreated}, "")
@@ -674,7 +674,7 @@ func TestOneHooksFailedEnqueueSparesTheOthers(t *testing.T) {
 	if !ok {
 		t.Fatal("message not translated")
 	}
-	if err := f.svc.enqueue(context.Background(), out); err == nil || !strings.Contains(err.Error(), "the queue is down") {
+	if err := f.svc.enqueue(context.Background(), out); err != nil {
 		t.Fatalf("enqueue with one lane refused: %v", err)
 	}
 	if f.jobs.pending() != 1 {

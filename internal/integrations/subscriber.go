@@ -1,7 +1,6 @@
 package integrations
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -130,7 +129,8 @@ func rawJSON(v any) json.RawMessage {
 }
 
 // enqueue queues one delivery per enabled hook that wants the event. With
-// outgoing off nothing is queued; the gap shows in Stoop-Sequence.
+// outgoing off nothing is queued; the gap shows in Stoop-Sequence. The
+// error is one that stopped every hook; a single hook's is logged.
 func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 	if s.jobs == nil {
 		return nil
@@ -143,7 +143,6 @@ func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 		return fmt.Errorf("list hooks: %w", err)
 	}
 	var spaceName, instance string
-	var failed error
 	named := false
 	for _, h := range hooks {
 		if !wants(h.EventTypes, ev.Type) || (h.ChannelID != nil && ev.ChannelID != "" && *h.ChannelID != ev.ChannelID) {
@@ -159,13 +158,13 @@ func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 			}
 		}
 		// One hook's failure (deleted since the list, say) is not the
-		// others': every hook is tried, the first error is returned.
-		if _, err := s.enqueueFor(ctx, h.ID, ev, spaceName, instance); err != nil {
+		// others': every hook is tried. It is logged here, per hook, and
+		// not returned, so the caller does not log it again.
+		if _, err := s.enqueueFor(ctx, h.ID, ev, spaceName, instance); err != nil && ctx.Err() == nil {
 			s.log.Error("enqueue hook delivery", "hook", h.ID, "event", ev.Type, "err", err)
-			failed = cmp.Or(failed, err)
 		}
 	}
-	return failed
+	return nil
 }
 
 // enqueueFor takes the hook's next sequence number, renders the body and
