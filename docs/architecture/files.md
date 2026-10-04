@@ -112,8 +112,8 @@ and peaks at 330 MiB of resident memory over repeated jobs, inside the
 `jobs` compose service's 512m limit; two at once reached 650 MiB even
 under `GOMEMLIMIT`, which the service sets as insurance. A normalise
 takes tens of milliseconds for a typical picture and under half a second
-for the largest, so a second upload waits that long. Link preview images are still
-re-encoded in the request that fetched them (`preview.go`).
+for the largest, so a second upload waits that long. Link preview images
+are still re-encoded in the request that fetched them (`preview.go`).
 
 Three things fall out of the re-encode:
 
