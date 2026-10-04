@@ -418,6 +418,7 @@ func UseSettingsEnv(inst *instance.Service, cfg config.Config) {
 		}})
 	}
 	inst.UsePasswordSignInEnv(cfg.PasswordSignIn)
+	inst.UseInstanceNameEnv(cfg.InstanceName)
 }
 
 // livekitKeys settles which API key pair signs room tokens, and leaves it

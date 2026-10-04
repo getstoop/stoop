@@ -59,11 +59,14 @@ type SettingField struct {
 	Saved bool
 }
 
-func secretShown(v string) string {
-	if v == "" {
+// secretPlaceholder is how list shows a saved secret.
+const secretPlaceholder = "(set)"
+
+func secretShown(secret string) string {
+	if secret == "" {
 		return ""
 	}
-	return "(set)"
+	return secretPlaceholder
 }
 
 // SettingFields lists every field of every group.
@@ -76,9 +79,11 @@ func (s *Service) SettingFields(ctx context.Context) ([]SettingField, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Listed without client secrets, so the JSON can be edited and set
+	// back: a blank secret keeps the saved one.
 	shownProviders := []LoginProvider{}
 	for _, provider := range providers {
-		provider.ClientSecret = secretShown(provider.ClientSecret)
+		provider.ClientSecret = ""
 		shownProviders = append(shownProviders, provider)
 	}
 	providersJSON, err := json.Marshal(shownProviders)
@@ -95,8 +100,10 @@ func (s *Service) SettingFields(ctx context.Context) ([]SettingField, error) {
 	}
 	saved := map[string]bool{}
 	for _, group := range SettingGroups {
-		raw, err := s.q.GetSetting(ctx, group.key)
-		saved[group.Name] = err == nil && raw != nil
+		var raw json.RawMessage
+		if saved[group.Name], err = s.readJSON(ctx, group.key, &raw); err != nil {
+			return nil, err
+		}
 	}
 	fields := []struct {
 		group, field, value string
@@ -178,6 +185,9 @@ func (s *Service) SetSettingFields(ctx context.Context, changes map[string]strin
 	slices.Sort(names)
 	for _, name := range names {
 		value := changes[name]
+		if value == secretPlaceholder {
+			return fmt.Errorf("%s: %s is how list shows a saved secret; leave the field out to keep it", name, secretPlaceholder)
+		}
 		var flag bool
 		if strings.HasSuffix(name, ".enabled") || name == "tailscale.funnel" {
 			if flag, err = strconv.ParseBool(value); err != nil {
@@ -222,6 +232,9 @@ func (s *Service) SetSettingFields(ctx context.Context, changes map[string]strin
 			}
 			providers = []*instancev1.LoginProvider{}
 			for _, provider := range list {
+				if provider.ClientSecret == secretPlaceholder {
+					return fmt.Errorf("login-providers: %s is not a client secret; leave it blank to keep the saved one", secretPlaceholder)
+				}
 				providers = append(providers, &instancev1.LoginProvider{
 					Id: provider.ID, DisplayName: provider.DisplayName, Icon: provider.Icon, Issuer: provider.Issuer,
 					ClientId: provider.ClientID, ClientSecret: provider.ClientSecret,
@@ -303,10 +316,29 @@ func (s *Service) ClearSetting(ctx context.Context, name string) error {
 
 // ResetSetting deletes a group's row, so the environment's value is in
 // force again and the next start seeds it. Reports whether a row existed.
+// Like the page, it refuses to leave members no way to sign in.
 func (s *Service) ResetSetting(ctx context.Context, name string) (bool, error) {
 	group, err := settingGroup(name)
 	if err != nil {
 		return false, err
+	}
+	switch group.key {
+	case keyLoginProviders:
+		password, err := s.PasswordSignIn(ctx)
+		if err != nil {
+			return false, err
+		}
+		if len(s.loginEnv) == 0 && password != string(PasswordEveryone) {
+			return false, errors.New("the environment has no login provider; let everyone use password sign-in first")
+		}
+	case keyPasswordSignIn:
+		providers, err := s.LoginProviders(ctx)
+		if err != nil {
+			return false, err
+		}
+		if s.passwordEnv != "" && s.passwordEnv != string(PasswordEveryone) && len(providers) == 0 {
+			return false, errors.New("STOOP_PASSWORD_SIGN_IN restricts password sign-in and no login provider is set")
+		}
 	}
 	deleted, err := s.q.DeleteSetting(ctx, group.key)
 	if err != nil {

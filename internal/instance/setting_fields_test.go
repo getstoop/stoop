@@ -2,6 +2,7 @@ package instance_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/getstoop/stoop/internal/authctx"
@@ -85,5 +86,35 @@ func TestSettingFields(t *testing.T) {
 	}
 	if _, err := svc.ResetSetting(ctx, "nope"); err == nil {
 		t.Error("an unknown group was reset")
+	}
+
+	// The placeholder list shows for a secret is never saved as one.
+	if err := svc.SetSettingFields(ctx, map[string]string{"turn.credential": "(set)"}); err == nil {
+		t.Error("the secret placeholder was saved as a credential")
+	}
+
+	// Listed providers carry no secret, so the JSON can be set back as is.
+	if err := svc.SetSettingFields(ctx, map[string]string{
+		"login-providers": `[{"id":"sso","issuer":"https://idp.example.com","client_id":"c","client_secret":"s"}]`,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	listed := field("login-providers").Value
+	if strings.Contains(listed, `"client_secret":"s"`) || strings.Contains(listed, "(set)") {
+		t.Errorf("listed providers = %s", listed)
+	}
+	if err := svc.SetSettingFields(ctx, map[string]string{"login-providers": listed}); err != nil {
+		t.Fatalf("setting the listed JSON back: %v", err)
+	}
+	if provider, _ := svc.LoginProvider(ctx, "sso"); provider.ClientSecret != "s" {
+		t.Errorf("round trip lost the secret: %+v", provider)
+	}
+
+	// Reset refuses to leave members no way to sign in.
+	if err := svc.SetSettingFields(ctx, map[string]string{"password-sign-in": "off"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ResetSetting(ctx, "login-providers"); err == nil {
+		t.Error("reset removed the only provider with password sign-in off")
 	}
 }

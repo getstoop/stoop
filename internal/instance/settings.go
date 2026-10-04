@@ -59,6 +59,10 @@ const (
 	PasswordOff      PasswordSignIn = "off"
 )
 
+// UseInstanceNameEnv supplies STOOP_INSTANCE_NAME, for a process that
+// doesn't run Seed (stoop admin).
+func (s *Service) UseInstanceNameEnv(name string) { s.instanceNameEnv = name }
+
 // UsePasswordSignInEnv supplies STOOP_PASSWORD_SIGN_IN.
 func (s *Service) UsePasswordSignInEnv(v string) { s.passwordEnv = v }
 

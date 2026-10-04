@@ -178,7 +178,7 @@ stoop admin setting reset <group>
 way back from a wrong public URL or tunnel token. `setting list` shows
 every name. `reset` forgets the saved value, so `.env` applies again.
 Restart the server after changing Tailscale, the tunnel or trusted
-proxies.
+proxies, and after a `reset` if you have edited `.env` since it started.
 
 The first account owns the server: no admin can demote, deactivate or
 reset it from the admin page. `reset-password` and `transfer-owner` work

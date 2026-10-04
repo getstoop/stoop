@@ -18,7 +18,8 @@ const settingUsage = `usage: stoop admin setting <command>
   set <name>=<value>...
                        change settings, checked as the admin page checks
                        them; lists are comma-separated, login-providers is
-                       a JSON list, and a secret left out is kept
+                       a JSON list as list prints it, and a secret left
+                       out or blank is kept
   clear <group>        save a group empty: no address, no relay, off
   reset <group>        forget the saved value: .env applies again, and the
                        next start saves it
@@ -93,7 +94,8 @@ func runAdminSetting(ctx context.Context, inst *instance.Service, args []string,
 			_, _ = fmt.Fprintf(out, "%s had nothing saved\n", args[1])
 			return 0
 		}
-		return saved(out, args[1])
+		_, _ = fmt.Fprintln(out, "saved\nthe running server uses .env as it was at start; restart it if .env has changed since")
+		return 0
 	default:
 		fmt.Fprintf(os.Stderr, "unknown setting command %q\n\n%s", args[0], settingUsage)
 		return 2
