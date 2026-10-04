@@ -215,8 +215,9 @@ func TestPiecesOfOneEventAreRebuiltInAnyOrder(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, err = pieces.add(p); err != nil {
-			t.Fatal(err)
+		var abandoned string
+		if got, abandoned, err = pieces.add(p); err != nil || abandoned != "" {
+			t.Fatalf("add: %v, abandoned %q", err, abandoned)
 		}
 		if index > 0 && got != nil {
 			t.Fatal("an event came out before its last piece")
@@ -225,8 +226,51 @@ func TestPiecesOfOneEventAreRebuiltInAnyOrder(t *testing.T) {
 	if got == nil || got.GetEventId() != sent.GetEventId() {
 		t.Fatalf("rebuilt %v, want event %s", got, sent.GetEventId())
 	}
-	if len(pieces.open) != 0 {
-		t.Errorf("%d batches left open", len(pieces.open))
+	if pieces.open != nil {
+		t.Error("a batch was left open")
+	}
+}
+
+func TestAnUnfinishedBatchIsDroppedWhenAnotherPayloadArrives(t *testing.T) {
+	first, err := encode(events.SpaceTopic("s1"), spaceUpdated("s1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	whole, err := encode(events.SpaceTopic("s1"), memberUpdated("s1", "u1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pieces := newAssembler()
+	p, err := decodePayload(first[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := pieces.add(p); err != nil {
+		t.Fatal(err)
+	}
+	p, err = decodePayload(whole[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, abandoned, err := pieces.add(p)
+	if err != nil || got == nil || got.GetMemberUpdated() == nil {
+		t.Fatalf("the whole event must come through: %v, %v", got, err)
+	}
+	if abandoned == "" {
+		t.Error("the unfinished batch was not reported")
+	}
+	if pieces.open != nil {
+		t.Error("the unfinished batch is still held")
+	}
+	// Its remaining pieces, arriving later, start nothing that completes.
+	for _, payload := range first[1:] {
+		p, err := decodePayload(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, _, _ := pieces.add(p); got != nil {
+			t.Fatal("an event came out of a batch missing its first piece")
+		}
 	}
 }
 

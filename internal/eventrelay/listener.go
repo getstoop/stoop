@@ -66,7 +66,10 @@ func (l *Listener) runOnce(ctx context.Context) error {
 			l.log.Warn("events: relayed event unreadable; dropped", "err", err)
 			continue
 		}
-		ev, err := pieces.add(p)
+		ev, abandoned, err := pieces.add(p)
+		if abandoned != "" {
+			l.log.Warn("events: relayed event never completed; dropped", "batch", abandoned)
+		}
 		if err != nil {
 			l.log.Warn("events: relayed event unreadable; dropped", "topic", p.topic, "err", err)
 			continue

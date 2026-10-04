@@ -116,42 +116,51 @@ func decodeEvent(encoded string) (*realtimev1.ServerEvent, error) {
 
 // assembly collects the pieces of one event as they arrive.
 type assembly struct {
+	batch    string
 	pieces   []string
 	received int
 }
 
-// assembler rebuilds events sent in pieces. One connection's
-// notifications arrive in order, and a batch is notified in one
-// transaction, so its pieces arrive together; a batch left unfinished
-// belongs to a connection that failed and is forgotten with it.
+// assembler rebuilds events sent in pieces. A batch is notified in one
+// transaction and Postgres delivers a transaction's notifications
+// together, so a batch's pieces arrive one after another with nothing
+// between them. At most one batch is therefore open at a time, and any
+// other payload arriving while it is open means it will never finish,
+// so it is dropped; the memory held is bounded by one event.
 type assembler struct {
-	open map[string]*assembly
+	open *assembly
 }
 
-func newAssembler() *assembler { return &assembler{open: map[string]*assembly{}} }
+func newAssembler() *assembler { return &assembler{} }
 
 // add takes one decoded payload and returns the event it completes, or
-// nil while more pieces are due.
-func (a *assembler) add(p part) (*realtimev1.ServerEvent, error) {
+// nil while more pieces are due. abandoned names a batch dropped
+// unfinished because this payload belonged to something else.
+func (a *assembler) add(p part) (ev *realtimev1.ServerEvent, abandoned string, err error) {
+	if a.open != nil && a.open.batch != p.batch {
+		abandoned = a.open.batch
+		a.open = nil
+	}
 	if p.batch == "" {
-		return decodeEvent(p.encoded)
+		ev, err = decodeEvent(p.encoded)
+		return ev, abandoned, err
 	}
-	current, ok := a.open[p.batch]
-	if !ok {
-		current = &assembly{pieces: make([]string, p.count)}
-		a.open[p.batch] = current
+	if a.open == nil {
+		a.open = &assembly{batch: p.batch, pieces: make([]string, p.count)}
 	}
+	current := a.open
 	if len(current.pieces) != p.count {
-		delete(a.open, p.batch)
-		return nil, fmt.Errorf("piece %d says %d pieces, the batch %d", p.index, p.count, len(current.pieces))
+		a.open = nil
+		return nil, abandoned, fmt.Errorf("piece %d says %d pieces, the batch %d", p.index, p.count, len(current.pieces))
 	}
 	if current.pieces[p.index] == "" {
 		current.received++
 	}
 	current.pieces[p.index] = p.encoded
 	if current.received < p.count {
-		return nil, nil
+		return nil, abandoned, nil
 	}
-	delete(a.open, p.batch)
-	return decodeEvent(strings.Join(current.pieces, ""))
+	a.open = nil
+	ev, err = decodeEvent(strings.Join(current.pieces, ""))
+	return ev, abandoned, err
 }

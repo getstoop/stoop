@@ -92,7 +92,8 @@ over Postgres `NOTIFY`, the channel the dispatcher is already woken by.
   and the marshalled `ServerEvent` in one text-safe payload. `NOTIFY`
   carries 8000 bytes. An event over that is sent as up to eight pieces in
   one transaction, so they arrive together and in order, and the listener
-  rebuilds it; the one event a job publishes that can need this is
+  rebuilds it, holding one unfinished event at most and dropping it if
+  anything else arrives first; the one event a job publishes that can need this is
   `space_updated`, whose welcome may run to 4000 characters of a script
   that takes several bytes each. An event larger still is logged and
   dropped, never truncated.
