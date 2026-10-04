@@ -33,13 +33,11 @@ channel by it (`in:#garden`). `validChannelName` in `chat/channels.go`:
 - 32 characters at most;
 - unique within the space, compared case-folded.
 
-The rule is checked in the chat module when a channel is created or
-renamed, and there is no database constraint behind it. A name that was
-saved before the rule stays as it is until someone renames the channel,
-so a database can hold `General`, `off topic`, or two channels of one
-name. Creates and renames take the space's row lock (`FOR NO KEY
-UPDATE`) before looking for a clash, so two of them cannot both find a
-name free. A rename that repeats the channel's current name writes no
+The shape is checked in the chat module when a channel is created or
+renamed; a name saved before the rule (`General`, `off topic`) stays
+until someone renames the channel. Uniqueness is the index
+`channels_space_name_uniq` on `(space_id, lower(name))`, and a write it
+refuses is the name field's error. A rename that repeats the channel's current name writes no
 name at all, so a request built from a stale read cannot put an old name
 back.
 
