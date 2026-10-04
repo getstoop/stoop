@@ -33,7 +33,7 @@ func (s *Service) leaseCapped(ctx context.Context, now time.Time, kind cappedKin
 			return nil
 		}
 		rows, err = queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{
-			Until: now.Add(s.lease), Now: now, Kinds: []string{kind.kind}, Excluded: excluded, Limit: int32(limit),
+			Until: now.Add(s.lease), Now: now, Kinds: []string{kind.kind}, Excluded: excluded, Limit: int32Column(limit),
 		})
 		return err
 	})
