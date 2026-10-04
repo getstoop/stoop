@@ -27,9 +27,9 @@ import (
 const NormaliseImageKind = "normalise_image"
 
 // NormaliseImageMaxInFlight bounds the decodes running at once across
-// every dispatcher; two 4096×4096 decodes fit the jobs container's
-// memory limit.
-const NormaliseImageMaxInFlight = 2
+// every dispatcher: one, so the largest decode the bound allows fits the
+// jobs container's memory limit with room.
+const NormaliseImageMaxInFlight = 1
 
 // NormaliseImageArgs names the pending file and who shows it once it is
 // ready: exactly one of UserID (an avatar) and SpaceID (a space icon) is
