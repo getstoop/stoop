@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/getstoop/stoop/internal/app"
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/config"
@@ -28,6 +29,10 @@ const adminUsage = `usage: stoop admin <command>
   password-login <everyone|admins|off>
                        who may use the username/password form; "everyone"
                        is the break-glass when the login provider is down
+  setting <list|set|clear|reset>
+                       the settings .env seeds (public URL, relays,
+                       Tailscale, tunnel, login providers, name); run
+                       "stoop admin setting" for details
 
 The recovery path when you've locked yourself out of the admin page. Talks
 to the database in STOOP_DATABASE_URL directly; the server may keep running.
@@ -78,6 +83,10 @@ func runAdmin(ctx context.Context, args []string, out io.Writer) int {
 	svc := auth.New(pool, auth.Options{})
 
 	switch args[0] {
+	case "setting":
+		inst := instance.New(pool, nil)
+		app.UseSettingsEnv(inst, cfg)
+		return runAdminSetting(ctx, inst, args[1:], out)
 	case "password-login":
 		if len(args) != 2 {
 			fmt.Fprintln(os.Stderr, "usage: stoop admin password-login <everyone|admins|off>")

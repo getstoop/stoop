@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/getstoop/stoop/internal/db"
@@ -42,5 +43,49 @@ func TestRunAdminLeavesBehindDatabaseAlone(t *testing.T) {
 	}
 	if plan.Applied != 0 {
 		t.Errorf("admin migrated the database to %d", plan.Applied)
+	}
+}
+
+func TestRunAdminSetting(t *testing.T) {
+	databaseURL := dbtest.NewURL(t)
+	pool, err := db.Connect(context.Background(), databaseURL, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrate(context.Background(), pool); err != nil {
+		t.Fatal(err)
+	}
+	pool.Close()
+	t.Setenv("STOOP_DATABASE_URL", databaseURL)
+	t.Setenv("STOOP_PUBLIC_URL", "https://env.example.com")
+	run := func(args ...string) (int, string) {
+		var out bytes.Buffer
+		code := runAdmin(t.Context(), append([]string{"setting"}, args...), &out)
+		return code, out.String()
+	}
+
+	if code, out := run("list"); code != 0 || !strings.Contains(out, "https://env.example.com") {
+		t.Errorf("list: exit %d\n%s", code, out)
+	}
+	if code, out := run("set", "tailscale.enabled=true", "tailscale.hostname=porch"); code != 0 || !strings.Contains(out, "restart") {
+		t.Errorf("set tailscale: exit %d\n%s", code, out)
+	}
+	if code, _ := run("set", "public-url"); code != 2 {
+		t.Errorf("set without =: exit %d, want 2", code)
+	}
+	if code, _ := run("set", "public-url=chat.example.com"); code != 1 {
+		t.Errorf("set a bare host: exit %d, want 1", code)
+	}
+	if code, out := run("clear", "public-url"); code != 0 || out != "saved\n" {
+		t.Errorf("clear: exit %d\n%s", code, out)
+	}
+	if code, out := run("reset", "public-url"); code != 0 || !strings.Contains(out, "restart it if .env has changed") {
+		t.Errorf("reset: exit %d\n%s", code, out)
+	}
+	if code, out := run("reset", "tailscale"); code != 0 || !strings.Contains(out, "restart the server for the tailscale change") {
+		t.Errorf("reset tailscale: exit %d\n%s", code, out)
+	}
+	if code, _ := run("bogus"); code != 2 {
+		t.Errorf("unknown command: exit %d, want 2", code)
 	}
 }

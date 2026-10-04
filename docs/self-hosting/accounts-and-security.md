@@ -168,7 +168,17 @@ stoop admin demote <username>
 stoop admin reset-password <username>
 stoop admin transfer-owner <username>
 stoop admin password-login everyone|admins|off
+stoop admin setting list
+stoop admin setting set <name>=<value>...
+stoop admin setting clear <group>
+stoop admin setting reset <group>
 ```
+
+`setting` changes what the Hosting page and login providers hold: the
+way back from a wrong public URL or tunnel token. `setting list` shows
+every name. `reset` forgets the saved value, so `.env` applies again.
+Restart the server after changing Tailscale, the tunnel or trusted
+proxies, and after a `reset` if you have edited `.env` since it started.
 
 The first account owns the server: no admin can demote, deactivate or
 reset it from the admin page. `reset-password` and `transfer-owner` work
