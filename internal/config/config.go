@@ -508,9 +508,9 @@ func parsePortRange(key, fallback string) (int, int, error) {
 	return lo, hi, nil
 }
 
-// IsSet reports whether the environment gives name a value; empty counts
-// as unset, as everywhere else here.
-func IsSet(name string) bool { return os.Getenv(name) != "" }
+// IsSet reports whether the environment gives name a value; empty or
+// spaces count as unset, as Load treats them.
+func IsSet(name string) bool { return strings.TrimSpace(os.Getenv(name)) != "" }
 
 func getenv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
