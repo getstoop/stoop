@@ -230,6 +230,14 @@ type SchemaFloor struct {
 	MinMigration int64
 }
 
+type Session struct {
+	ID        string
+	UserID    string
+	TokenHash []byte
+	CreatedAt time.Time
+	ExpiresAt time.Time
+}
+
 type Space struct {
 	ID               string
 	Name             string

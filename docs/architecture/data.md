@@ -54,6 +54,10 @@ limits where a credential reaches; bounded with no rows left reaches
 nothing. `hint` keeps the token's last four characters, for telling tokens
 apart in a list. See [identity.md](identity.md#personal-tokens).
 
+**`sessions`** — legacy, read only by 0.1.0 and no longer written.
+0.2.0 to 0.3.x still delete from it, so it is dropped once they are below
+the floor (STOOP-409).
+
 **`user_identities`** — `(provider, subject) PRIMARY KEY` maps an OIDC
 subject to an account, with `UNIQUE (user_id, provider)` so one account
 links at most one identity per provider. No provider tokens are stored:
@@ -326,7 +330,7 @@ schema (`TestMigrateToleratesNewerAdditiveSchema`).
 The exception is a contract migration, which by definition breaks an
 older release. It says so by raising the one-row `schema_floor` table to
 the last migration of the oldest release that still works against the
-result (00049 sets 37: it breaks 0.1.0 only), and
+result (00049 sets 37: it refuses 0.1.0 only), and
 `db.Migrate` refuses to start a binary whose newest embedded migration is
 below that floor, naming both numbers, instead of failing at some later
 query. Expand-only releases never touch the floor, so rolling back across
