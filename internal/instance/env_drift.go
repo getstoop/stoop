@@ -104,7 +104,10 @@ func (s *Service) EnvDrift(ctx context.Context) ([]string, error) {
 	if saved, err = s.readJSON(ctx, keyInstanceName, &name); err != nil {
 		return nil, err
 	}
-	differs("STOOP_INSTANCE_NAME", saved, name == s.instanceNameEnv)
+	// Load trims the name, so one of only spaces is no name at all.
+	if s.instanceNameEnv != "" {
+		differs("STOOP_INSTANCE_NAME", saved, name == s.instanceNameEnv)
+	}
 	return drifted, nil
 }
 
