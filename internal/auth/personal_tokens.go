@@ -222,7 +222,7 @@ func tokenGrants(perms []accessv1.Permission) ([]string, error) {
 	seen := map[authctx.Action]bool{}
 	var out []string
 	for _, a := range actions {
-		if !a.Grantable() {
+		if !a.GrantableTo(authctx.CredentialPersonalToken) {
 			return nil, connect.NewError(connect.CodeInvalidArgument,
 				fmt.Errorf("a token can't be allowed to %s", a.Describe()))
 		}

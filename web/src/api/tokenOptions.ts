@@ -11,7 +11,8 @@ import { Permission } from "../gen/stoop/access/v1/access_pb";
 // Deliberately offered to nobody, and listed by name if a token somehow
 // holds one: SPACE_TRANSFER and SPACE_DELETE (one-off, destructive, done
 // in the app); for bots also every server action and SPACES_CREATE,
-// SPACES_JOIN_ANY and DMS_REACH_ANYONE, which the server refuses a bot.
+// SPACES_JOIN_ANY and DMS_REACH_ANYONE, which the server refuses a bot;
+// for people VOICE_JOIN, which the server refuses a personal token.
 
 export type TokenGroup = "space" | "account" | "server";
 
@@ -23,7 +24,7 @@ export type TokenOption = {
   permissions: Permission[];
 };
 
-export const TOKEN_OPTIONS: TokenOption[] = [
+const ALL_OPTIONS: TokenOption[] = [
   {
     key: "read",
     label: "Read messages",
@@ -168,6 +169,12 @@ export const TOKEN_OPTIONS: TokenOption[] = [
   },
 ];
 
+const BOT_ONLY_KEYS = ["voice"];
+
+export const TOKEN_OPTIONS: TokenOption[] = ALL_OPTIONS.filter(
+  (o) => !BOT_ONLY_KEYS.includes(o.key),
+);
+
 export const GROUP_LABELS: Record<TokenGroup, string> = {
   space: "In spaces",
   account: "Your account",
@@ -189,7 +196,7 @@ const BOT_SPACE_KEYS = [
   "space",
 ];
 
-export const BOT_TOKEN_OPTIONS: TokenOption[] = TOKEN_OPTIONS.filter((o) =>
+export const BOT_TOKEN_OPTIONS: TokenOption[] = ALL_OPTIONS.filter((o) =>
   BOT_SPACE_KEYS.includes(o.key),
 );
 
@@ -226,7 +233,7 @@ export function heldOptions(held: Iterable<Permission>): TokenOption[] {
 export function permissionsFor(keys: Iterable<string>): Permission[] {
   const chosen = new Set(keys);
   const out = new Set<Permission>();
-  for (const o of TOKEN_OPTIONS) {
+  for (const o of ALL_OPTIONS) {
     if (chosen.has(o.key)) {
       for (const p of o.permissions) out.add(p);
     }
