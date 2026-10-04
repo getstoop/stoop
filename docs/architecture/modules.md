@@ -122,10 +122,10 @@ rather than by what the provider happens to expose, and it stays small.
 | `voice` | `UserDirectory` | auth | The display name other participants see. |
 | `voice` | `RelayProvider` | instance | The TURN relay in force, read per join. |
 | `files` | `Avatars` | auth | Set the avatar pointer; report which files are still someone's avatar. |
-| `files` | `Spaces` | chat | Set the icon pointer, authorise downloads, report referenced files. |
+| `files` | `Spaces` | chat | Authorise an icon upload; set the icon pointer once the job has normalised it; authorise downloads; report referenced files. |
 | `files` | `SessionVerifier` | auth | Authenticate the plain-HTTP download handler: the identity and its credential. |
 | `files` | `Policy` | instance | The storage quota and the per-upload cap. |
-| `files` | `JobQueue` | jobs | Queue the file sweep by hand; the only kind files performs. |
+| `files` | `JobQueue` | jobs | Queue the file sweep by hand, and a `normalise_image` job per avatar or icon upload in a lane per target; the two kinds files performs. |
 | `integrations` | `Poster` | chat | Post a message with the hook's bot identity and credential already on the context. |
 | `integrations` | `SpaceAccess` | chat | A channel's space and the space's name; add a bot as a member and set its role. |
 | `integrations` | `BotIdentities` | auth | Create, rename and deactivate bots; mint, revoke and verify their credentials. |
@@ -143,8 +143,10 @@ module that owns membership.
 
 **A module enqueues only kinds it performs**, through its own port onto
 `jobs`; the performers are registered in `internal/app`, the one package
-that sees both the registry and the module methods. Another module that
-wants that work publishes an event instead.
+that sees both the registry and the module methods, and a kind's argument
+type is declared beside its performer in the owning module
+(`files.NormaliseImageArgs`, `integrations.DeliveryArgs`). Another module
+that wants that work publishes an event instead.
 
 **The sweep is a question, not a scan.** `files` cannot look for orphans by
 querying other modules' tables, so instead it asks: *of these ids, which do

@@ -2,7 +2,7 @@
 // schedules that materialise them, and a dispatcher that works them. It
 // owns jobs, job_schedules and job_dispatchers and imports no module.
 // Callers reach it through their own port; internal/app registers the
-// performers and runs the dispatcher. See docs/proposals/jobs.md.
+// performers and runs the dispatcher. See docs/architecture/runtime.md → Background work.
 package jobs
 
 import (

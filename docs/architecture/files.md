@@ -13,8 +13,8 @@ knows how bytes are stored.
 
 | Kind | Cap | Treatment |
 | ---- | --- | --------- |
-| `avatar` | 2 MB in | Decoded and re-encoded to a 256 px PNG. |
-| `space_icon` | 2 MB in | Decoded and re-encoded to a 512 px PNG. |
+| `avatar` | 2 MB in | Stored as sent, then re-encoded to a 256 px PNG by the `normalise_image` job. |
+| `space_icon` | 2 MB in | Stored as sent, then re-encoded to a 512 px PNG by the same job. |
 | `attachment` | 100 MB, or the operator's lower `max_upload_bytes` | Stored exactly as uploaded. |
 | `link_preview` | fetched, bounded at 5 MB | Re-encoded like an icon; an animated GIF frame by frame, kept as a GIF. |
 
@@ -24,7 +24,9 @@ Kind decides the size cap, the image treatment, and who may download it.
 
 **Avatars and icons ride inside the Connect request.** They are small, they
 are always images, and the request is already authenticated and typed.
-`UploadAvatar` and `UploadSpaceIcon` take raw bytes in a proto field.
+`UploadAvatar` and `UploadSpaceIcon` take raw bytes in a proto field. The
+request refuses what is cheap to refuse and stores the rest as a *pending*
+file for the `normalise_image` job to finish ([Images](#images)).
 
 **Attachments go through `POST /files/upload`**, a multipart form with a
 `channel_id` and one file part. Base64 inside a JSON Connect body would
@@ -43,8 +45,8 @@ status, so there is one implementation of "may you post here".
 
 ### Attachments are claimed, not pushed
 
-An upload creates a **pending** file: owned by the caller, in the channel's
-space, attached to nothing. `SendMessage.attachment_ids` (at most 10)
+An upload creates an **unclaimed** file: owned by the caller, in the
+channel's space, attached to nothing. `SendMessage.attachment_ids` (at most 10)
 claims it. Chat verifies each id through its `FileDirectory` port — kind,
 owner, space — and links it in `message_attachments` inside the same
 transaction as the message.
@@ -83,8 +85,37 @@ does.
 
 ## Images
 
-Avatars and icons are decoded (PNG, JPEG, GIF, WebP), resized, and
-re-encoded as PNG at a fixed size. Three things fall out of that:
+Avatars and icons are decoded (PNG, JPEG, GIF, WebP), centre-cropped,
+resized, and re-encoded as PNG at a fixed size, by the `normalise_image`
+job ([runtime.md](runtime.md#background-work)), not in the request.
+
+The request keeps the cheap refusals inline, so a person sees them beside
+the picker: empty, over 2 MB, not an image by sniffing, dimensions over
+the bound. It then stores the original bytes as a **pending** file row and
+queues the job in a lane per user or space, so two uploads for one target
+apply in the order the server received them, and returns the file id. The job decodes
+and re-encodes, replaces the blob under the same key, readies the row
+(`image/png`, the new size and hash), points the account or space at it,
+deletes the file it replaced, and publishes `member_updated` (chat
+publishes `space_updated` from its pointer setter), so clients refetch.
+Until then everyone sees the old image: the pointer moves only when the
+job succeeds, and a failure leaves it where it was. A decode that fails is
+permanent: the job discards the pending file and is not retried. Anything
+else is retried on the kind's ladder, and the last failed attempt
+discards the file too, so no pending file outlives its job. The uploader
+is told nothing on a failure; the image simply stays as it was.
+
+The kind runs one at a time across every dispatcher (`MaxInFlight: 1`).
+The largest decode the bound allows, a 4096×4096 16-bit PNG, holds about
+195 MiB while it runs (128 MiB of pixels and a 64 MiB resampling buffer)
+and peaks at 330 MiB of resident memory over repeated jobs, inside the
+`jobs` compose service's 512m limit; two at once reached 650 MiB even
+under `GOMEMLIMIT`, which the service sets as insurance. A normalise
+takes tens of milliseconds for a typical picture and under half a second
+for the largest, so a second upload waits that long. Link preview images
+are still re-encoded in the request that fetched them (`preview.go`).
+
+Three things fall out of the re-encode:
 
 - **Metadata is stripped.** A person uploading a photo as an avatar does
   not also upload where it was taken.
@@ -98,6 +129,9 @@ re-encoded as PNG at a fixed size. Three things fall out of that:
 
 `GET|HEAD /files/{id}` is plain HTTP so that `<img>`, `<video>` and the
 browser's download machinery work.
+
+A **pending** file answers 404 as if it did not exist, before any
+authorisation: nothing serves bytes the job has not finished.
 
 **Authorisation is per kind**, decided in one place (`mayDownload`):
 
@@ -180,8 +214,9 @@ gives them meaning belongs to the files table.
 ## Pointer swaps
 
 `users.avatar_file_id` and `spaces.icon_file_id` are `ON DELETE SET NULL`
-references. Files replaces the pointer **first** and deletes the old row
-and blob **after** (`files.Avatars` ← auth, `files.Spaces` ← chat).
+references. The `normalise_image` job replaces the pointer **first** and
+deletes the old row and blob **after** (`files.Avatars` ← auth,
+`files.Spaces` ← chat); the upload request itself never moves a pointer.
 
 The ordering matters: if the process dies between the two steps, the result
 is an orphaned file — which the sweep collects — rather than a user whose
@@ -194,6 +229,7 @@ A self-hosted disk fills quietly. Things that stop being referenced:
 - uploads that were never sent,
 - attachments of a deleted message, channel or space,
 - a replaced avatar or icon whose delete was interrupted,
+- an avatar or icon upload whose job never ran,
 - preview images no preview points at,
 - a blob whose row insert failed.
 
@@ -212,7 +248,9 @@ job id; the Diagnostics tab shows the pass. It:
 4. Walks the store (`blob.Store.Walk`) for blobs old enough that no row
    names them.
 
-**A file younger than the grace period is never touched.**
+**A file younger than the grace period is never touched**, a pending one
+included; a job whose row the sweep took first finds nothing and is
+discarded.
 `STOOP_FILE_SWEEP_GRACE` defaults to 24 hours, which is longer than any
 draft lives between the upload and the send that claims it. That window is
 the entire safety mechanism for the claim model: without it, the sweep and

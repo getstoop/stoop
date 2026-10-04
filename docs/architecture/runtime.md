@@ -284,12 +284,16 @@ except the last, which the module owns:
 | `sweep_attachments` | hourly | attachments past `attachment_retention_days` ([files.md](files.md#retention)) |
 | `sweep_jobs` | hourly | finished `jobs` rows older than `STOOP_JOBS_RETENTION`, and dispatcher rows not seen for an hour |
 
-One one-shot kind, `deliver_webhook`, is queued by the integrations
+Two one-shot kinds. `deliver_webhook` is queued by the integrations
 module per outgoing delivery ([integrations.md](integrations.md#deliveries-as-jobs)).
-It uses a lane: a job with `lane` and `sequence` set runs only when no
+`normalise_image` is queued by the files module per avatar, bot avatar or
+space icon upload and re-encodes the picture off the request
+([files.md](files.md#images)); it is capped at one running at a time.
+Both use a lane: a job with `lane` and `sequence` set runs only when no
 earlier unfinished job shares its lane, so one runs per lane at a time,
-in sequence order, and a retry waiting on its backoff holds the lane.
-Sweeps have no lane.
+in sequence order, and a retry waiting on its backoff holds the lane. A
+hook is a lane; so is one user's avatar or one space's icon, so uploads
+apply in the order the server received them. Sweeps have no lane.
 
 A kind registered with `Options{MaxInFlight: n}` never has more than
 `n` rows on a live lease (`running`, `leased_until` in the future) across
@@ -335,6 +339,18 @@ Background work panel shows the pass ([diagnostics.md](diagnostics.md)).
 
 None is required for correctness. A server that never sweeps works; it
 just accumulates.
+
+Why it is shaped this way. The queue is Stoop's own, not a library: the
+lease pattern was proven by the webhook queue before it, and the feature
+list (schedules, lanes, caps, retries) is small and fixed; a need past
+that is the moment to adopt a library, not to extend this one. The runner
+holds nothing it cannot rebuild from the tables, so it runs in the server
+or as `stoop jobs` unchanged; the in-process server is the default, and a
+second process is the operator's choice, never the default install. An
+attempt's outcome is `Perform`'s return value, written by the dispatcher,
+so a performer cannot forget to report and nothing is left `running`. The
+poller is the dispatcher; the process minder that runs the child is the
+supervisor.
 
 One more goroutine runs for outgoing webhooks
 ([integrations.md](integrations.md#outgoing)): the subscriber, which turns

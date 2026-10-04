@@ -1,7 +1,7 @@
 -- +goose Up
 -- The background-job queue: one row per job, the schedules that
 -- materialise periodic jobs, and a heartbeat per running dispatcher.
--- Owned by internal/jobs. See docs/proposals/jobs.md.
+-- Owned by internal/jobs. See docs/architecture/runtime.md → Background work.
 CREATE TABLE jobs (
     id           uuid PRIMARY KEY,
     kind         text NOT NULL,
