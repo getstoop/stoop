@@ -137,26 +137,47 @@ func (s *Service) pointAt(ctx context.Context, file dbgen.File, args NormaliseIm
 	return s.avatars.SetAvatar(ctx, args.UserID, file.ID)
 }
 
-// announceAvatar tells every space the account is in to refetch it.
+// announceAvatar tells every space the account is in to refetch it, and
+// the account's own devices, which hear it whatever spaces it is in.
 func (s *Service) announceAvatar(ctx context.Context, userID string) {
 	spaceIDs, err := s.spaces.ListSpaceIDs(ctx, userID)
 	if err != nil {
 		s.log.Warn("avatar changed but spaces not notified", "user_id", userID, "err", err)
 	}
 	for _, spaceID := range spaceIDs {
-		s.bus.Publish(events.SpaceTopic(spaceID), events.Stamp(&realtimev1.ServerEvent{
-			Payload: &realtimev1.ServerEvent_MemberUpdated{
-				MemberUpdated: &realtimev1.MemberUpdated{SpaceId: spaceID, UserId: userID},
-			},
-		}))
+		s.publishMemberUpdated(events.SpaceTopic(spaceID), spaceID, userID)
 	}
+	s.publishMemberUpdated(events.UserTopic(userID), "", userID)
+}
+
+func (s *Service) publishMemberUpdated(topic, spaceID, userID string) {
+	s.bus.Publish(topic, events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_MemberUpdated{
+			MemberUpdated: &realtimev1.MemberUpdated{SpaceId: spaceID, UserId: userID},
+		},
+	}))
 }
 
 // failNormalise returns a transient error for the dispatcher to retry; on
 // the last attempt the file goes first, so no pending file is left behind.
 func (s *Service) failNormalise(ctx context.Context, fileID string, lastAttempt bool, err error) error {
 	if lastAttempt {
-		s.deleteFile(ctx, fileID)
+		s.deleteUnlessReferenced(ctx, fileID)
 	}
 	return err
+}
+
+// deleteUnlessReferenced removes the file a last attempt leaves behind,
+// unless a target already points at it: the swap landed and only a step
+// after it failed. A reference check that fails leaves the file to the
+// sweep.
+func (s *Service) deleteUnlessReferenced(ctx context.Context, fileID string) {
+	referenced, err := s.referenced(ctx, []string{fileID})
+	if err != nil {
+		s.log.Warn("could not check whether the file is referenced; left for the sweep", "file_id", fileID, "err", err)
+		return
+	}
+	if !referenced[fileID] {
+		s.deleteFile(ctx, fileID)
+	}
 }
