@@ -1730,9 +1730,7 @@ type UpdateReachabilityRequest struct {
 	// Applied immediately: the listener starts, stops, or restarts.
 	Tailscale *TailscaleSettings `protobuf:"bytes,4,opt,name=tailscale,proto3,oneof" json:"tailscale,omitempty"`
 	// Applied immediately, without a restart. An empty cidrs list clears
-	// the saved value and falls back to the environment. trust_all is
-	// ignored here: naming addresses is the only way to add trust from the
-	// API.
+	// the saved value and falls back to the environment.
 	TrustedProxies *TrustedProxies `protobuf:"bytes,5,opt,name=trusted_proxies,json=trustedProxies,proto3,oneof" json:"trusted_proxies,omitempty"`
 	// Applied immediately: cloudflared starts, stops, or restarts.
 	CloudflareTunnel *CloudflareTunnelSettings `protobuf:"bytes,6,opt,name=cloudflare_tunnel,json=cloudflareTunnel,proto3,oneof" json:"cloudflare_tunnel,omitempty"`

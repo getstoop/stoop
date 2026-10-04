@@ -63,13 +63,13 @@ func TestInterceptorTrustsForwardedForOnlyWhenTold(t *testing.T) {
 	h := Interceptor(newTestLimiter(60, 1), never, "/p")(next)
 	_, _ = h(context.Background(), mk("1.1.1.1"))
 	if _, err := h(context.Background(), mk("2.2.2.2")); err == nil {
-		t.Error("without TrustProxy X-Forwarded-For must not split buckets")
+		t.Error("from an untrusted peer X-Forwarded-For must not split buckets")
 	}
 	// Trusted: they don't.
-	h = Interceptor(newTestLimiter(60, 1), always, "/p")(next)
+	h = Interceptor(newTestLimiter(60, 1), proxyOnly, "/p")(next)
 	_, _ = h(context.Background(), mk("1.1.1.1"))
 	if _, err := h(context.Background(), mk("2.2.2.2")); err != nil {
-		t.Errorf("with TrustProxy forwarded clients get their own bucket: %v", err)
+		t.Errorf("behind a trusted proxy forwarded clients get their own bucket: %v", err)
 	}
 }
 
@@ -91,7 +91,7 @@ func TestInterceptorRefusesWhenStoreFails(t *testing.T) {
 	}
 }
 
-// Trust predicates for the tests: the peer's headers are never or always
-// believed.
-func never(string) bool  { return false }
-func always(string) bool { return true }
+// Trust predicates for the tests: nothing is a proxy, or only the peer
+// the fake requests come from.
+func never(string) bool          { return false }
+func proxyOnly(addr string) bool { return addr == "10.0.0.1:1" }

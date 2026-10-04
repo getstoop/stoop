@@ -47,16 +47,6 @@ func TestZeroValueTrustsNothing(t *testing.T) {
 	}
 }
 
-func TestAllTrustsEveryone(t *testing.T) {
-	all := trustedproxy.All()
-	if all.Empty() {
-		t.Error("All() reports empty")
-	}
-	if !all.Trusted("8.8.8.8:80") || !all.Trusted("garbage") {
-		t.Error("All() should trust any peer")
-	}
-}
-
 func TestParseRejectsJunk(t *testing.T) {
 	for _, bad := range []string{"example.com", "10.0.0.0/64", "1.2.3.4/x", "hello"} {
 		if _, err := trustedproxy.Parse([]string{bad}); err == nil {

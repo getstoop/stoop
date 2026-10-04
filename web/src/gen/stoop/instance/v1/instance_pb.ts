@@ -779,9 +779,7 @@ export type UpdateReachabilityRequest = Message<"stoop.instance.v1.UpdateReachab
 
   /**
    * Applied immediately, without a restart. An empty cidrs list clears
-   * the saved value and falls back to the environment. trust_all is
-   * ignored here: naming addresses is the only way to add trust from the
-   * API.
+   * the saved value and falls back to the environment.
    *
    * @generated from field: optional stoop.instance.v1.TrustedProxies trusted_proxies = 5;
    */

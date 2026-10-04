@@ -23,14 +23,6 @@ func ClientIP(remoteAddr string, h http.Header, trusts func(addr string) bool) s
 	// A proxy may add its hop as a second header line rather than on
 	// the first; the lines together are one chain.
 	hops := strings.Split(strings.Join(h.Values("X-Forwarded-For"), ","), ",")
-	// STOOP_TRUST_PROXY=true trusts every hop, so the walk below would
-	// skip them all. The last one is what the proxy itself appended.
-	if trustsEveryone(trusts) {
-		if key := addrKey(hops[len(hops)-1]); key != "" {
-			return key
-		}
-		return peer
-	}
 	for i := len(hops) - 1; i >= 0; i-- {
 		key := addrKey(hops[i])
 		if key == "" {
@@ -42,12 +34,6 @@ func ClientIP(remoteAddr string, h http.Header, trusts func(addr string) bool) s
 	}
 	return peer
 }
-
-// trustsEveryone reports the blunt trust-everything mode: a predicate
-// that believes even a peer that is not an address at all.
-func trustsEveryone(trusts func(addr string) bool) bool { return trusts(notAnAddress) }
-
-const notAnAddress = "-"
 
 // addrKey normalizes one address to a bucket key, or "" if it is not an
 // IP address.

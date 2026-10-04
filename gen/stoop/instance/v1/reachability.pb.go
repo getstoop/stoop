@@ -325,10 +325,7 @@ func (x *CloudflareTunnelSettings) GetHasToken() bool {
 type TrustedProxies struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CIDR ranges ("10.0.0.0/8") or single addresses ("192.168.1.5").
-	Cidrs []string `protobuf:"bytes,1,rep,name=cidrs,proto3" json:"cidrs,omitempty"`
-	// True when the server is configured to trust every peer's headers
-	// (the older STOOP_TRUST_PROXY=true, with no addresses named).
-	TrustAll      bool `protobuf:"varint,2,opt,name=trust_all,json=trustAll,proto3" json:"trust_all,omitempty"`
+	Cidrs         []string `protobuf:"bytes,1,rep,name=cidrs,proto3" json:"cidrs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -368,13 +365,6 @@ func (x *TrustedProxies) GetCidrs() []string {
 		return x.Cidrs
 	}
 	return nil
-}
-
-func (x *TrustedProxies) GetTrustAll() bool {
-	if x != nil {
-		return x.TrustAll
-	}
-	return false
 }
 
 // Reachability is the effective configuration: a saved value where one
@@ -719,10 +709,9 @@ const file_stoop_instance_v1_reachability_proto_rawDesc = "" +
 	"\x18CloudflareTunnelSettings\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12\x1b\n" +
-	"\thas_token\x18\x03 \x01(\bR\bhasToken\"C\n" +
+	"\thas_token\x18\x03 \x01(\bR\bhasToken\"7\n" +
 	"\x0eTrustedProxies\x12\x14\n" +
-	"\x05cidrs\x18\x01 \x03(\tR\x05cidrs\x12\x1b\n" +
-	"\ttrust_all\x18\x02 \x01(\bR\btrustAll\"\x8c\x03\n" +
+	"\x05cidrs\x18\x01 \x03(\tR\x05cidrsJ\x04\b\x02\x10\x03R\ttrust_all\"\x8c\x03\n" +
 	"\fReachability\x12\x1d\n" +
 	"\n" +
 	"public_url\x18\x01 \x01(\tR\tpublicUrl\x120\n" +

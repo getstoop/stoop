@@ -79,12 +79,11 @@ func TestLoad_PublicURL(t *testing.T) {
 		}
 	}
 	t.Setenv("STOOP_PUBLIC_URL", "https://chat.example.com/")
-	t.Setenv("STOOP_TRUST_PROXY", "true")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.PublicURL != "https://chat.example.com" || !cfg.TrustProxy {
+	if cfg.PublicURL != "https://chat.example.com" {
 		t.Errorf("cfg = %+v", cfg)
 	}
 	if got := cfg.AllowedWSOrigins; len(got) != 3 || got[2] != "chat.example.com" {
@@ -103,15 +102,23 @@ func TestLoad_TrustedProxies(t *testing.T) {
 		t.Errorf("TrustedProxies = %v", got)
 	}
 
-	t.Setenv("STOOP_TRUST_PROXY", "true")
-	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "not both") {
-		t.Errorf("both proxy settings should be rejected, got %v", err)
-	}
-
-	t.Setenv("STOOP_TRUST_PROXY", "false")
 	t.Setenv("STOOP_TRUSTED_PROXIES", "proxy.lan")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_TRUSTED_PROXIES") {
 		t.Errorf("a hostname should be rejected, got %v", err)
+	}
+}
+
+// Compose passes STOOP_TRUST_PROXY=false to every install; only true is
+// refused, and the refusal names the replacement.
+func TestLoad_TrustProxyRefused(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	t.Setenv("STOOP_TRUST_PROXY", "false")
+	if _, err := Load(); err != nil {
+		t.Fatalf("false should start: %v", err)
+	}
+	t.Setenv("STOOP_TRUST_PROXY", "true")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_TRUSTED_PROXIES") {
+		t.Errorf("true should be refused naming STOOP_TRUSTED_PROXIES, got %v", err)
 	}
 }
 

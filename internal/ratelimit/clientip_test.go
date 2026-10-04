@@ -17,7 +17,6 @@ func TestClientIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	named := set.Trusted
-	everyone := trustedproxy.All().Trusted
 
 	cases := []struct {
 		name   string
@@ -45,14 +44,6 @@ func TestClientIP(t *testing.T) {
 		{"unparseable peer is used as-is", "weird", "", named, "weird"},
 		{"proxy adds a second header line", "10.0.0.1:5000", "1.2.3.4\n203.0.113.9", named, "203.0.113.9"},
 		{"second line carries the chain", "10.0.0.1:5000", "1.2.3.4\n203.0.113.9, 10.0.0.2", named, "203.0.113.9"},
-
-		// STOOP_TRUST_PROXY=true: every hop is trusted, so the walk would
-		// skip the lot. The last entry is the one the proxy appended.
-		{"trust everyone takes the rightmost", "10.0.0.1:5000", "1.2.3.4, 203.0.113.9", everyone, "203.0.113.9"},
-		{"trust everyone, single hop", "8.8.8.8:5000", "203.0.113.9", everyone, "203.0.113.9"},
-		{"trust everyone, no header", "8.8.8.8:5000", "", everyone, "8.8.8.8"},
-		{"trust everyone, garbage last", "10.0.0.1:5000", "203.0.113.9, foo", everyone, "10.0.0.1"},
-		{"trust everyone, second header line", "10.0.0.1:5000", "1.2.3.4\n203.0.113.9", everyone, "203.0.113.9"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -72,7 +63,11 @@ func TestClientIP(t *testing.T) {
 
 // A nil header is what a Connect peer without metadata looks like.
 func TestClientIPNilHeader(t *testing.T) {
-	if got := ClientIP("[::1]:80", nil, trustedproxy.All().Trusted); got != "::1" {
+	set, err := trustedproxy.Parse([]string{"::1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := ClientIP("[::1]:80", nil, set.Trusted); got != "::1" {
 		t.Errorf("got %q, want ::1", got)
 	}
 }
