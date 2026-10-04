@@ -346,6 +346,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		pool.Close()
 		return nil, err
 	}
+	instanceSvc.UseEnvSet(config.IsSet)
 	drifted, err := instanceSvc.EnvDrift(ctx)
 	if err != nil {
 		pool.Close()

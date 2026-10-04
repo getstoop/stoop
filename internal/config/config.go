@@ -23,10 +23,6 @@ const (
 	JobsChild    = "child"
 )
 
-// DefaultTailscaleHostname is the node name when STOOP_TAILSCALE_HOSTNAME
-// is unset.
-const DefaultTailscaleHostname = "stoop"
-
 type Config struct {
 	// ListenAddr is the address the HTTP server binds to.
 	ListenAddr string
@@ -345,7 +341,7 @@ func Load() (Config, error) {
 	if cfg.Tailscale, err = parseBool("STOOP_TAILSCALE", false); err != nil {
 		return Config{}, err
 	}
-	cfg.TailscaleHostname = getenv("STOOP_TAILSCALE_HOSTNAME", DefaultTailscaleHostname)
+	cfg.TailscaleHostname = getenv("STOOP_TAILSCALE_HOSTNAME", "stoop")
 	cfg.TailscaleAuthKey = os.Getenv("STOOP_TAILSCALE_AUTHKEY")
 	cfg.TailscaleControlURL = os.Getenv("STOOP_TAILSCALE_CONTROL_URL")
 	if cfg.TailscaleFunnel, err = parseBool("STOOP_TAILSCALE_FUNNEL", false); err != nil {
@@ -511,6 +507,10 @@ func parsePortRange(key, fallback string) (int, int, error) {
 	}
 	return lo, hi, nil
 }
+
+// IsSet reports whether the environment gives name a value; empty counts
+// as unset, as everywhere else here.
+func IsSet(name string) bool { return os.Getenv(name) != "" }
 
 func getenv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
