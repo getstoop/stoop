@@ -363,3 +363,45 @@ func TestHeartbeatRestoresADeletedRow(t *testing.T) {
 		t.Error("more than one heartbeat row for one dispatcher")
 	}
 }
+
+// drainBudget is how long ten queued jobs that hold each other back get
+// on a ten-second poll: only a finish waking the dispatcher meets it.
+const drainBudget = 5 * time.Second
+
+func TestFinishedCappedJobWakesTheDispatcher(t *testing.T) {
+	pool := dbtest.New(t)
+	cfg := testConfig()
+	cfg.Poll = 10 * time.Second
+	service, registry := newTestService(pool, newFakeClock(), cfg)
+	Register(registry, "capped", func(context.Context, *Job, NoArgs) error { return nil }, Options{MaxInFlight: 1})
+	for range 10 {
+		mustEnqueue(t, service, "capped", nil)
+	}
+	expectDrained(t, pool, service, "capped")
+}
+
+func TestFinishedLanedJobWakesTheDispatcher(t *testing.T) {
+	pool := dbtest.New(t)
+	cfg := testConfig()
+	cfg.Poll = 10 * time.Second
+	service, registry := newTestService(pool, newFakeClock(), cfg)
+	Register(registry, "laned", func(context.Context, *Job, laneArgs) error { return nil }, Options{})
+	for sequence := range int64(10) {
+		mustEnqueueInLane(t, service, "laned", "job", "A", sequence)
+	}
+	expectDrained(t, pool, service, "laned")
+}
+
+// expectDrained starts the dispatcher and checks every row of kind
+// succeeded within drainBudget.
+func expectDrained(t *testing.T, pool *pgxpool.Pool, service *Service, kind string) {
+	t.Helper()
+	started := time.Now()
+	startDispatcher(t, service)
+	waitFor(t, "every "+kind+" job to succeed", func() bool {
+		return countRows(t, pool, `SELECT count(*) FROM jobs WHERE kind = $1 AND state <> 'succeeded'`, kind) == 0
+	})
+	if took := time.Since(started); took > drainBudget {
+		t.Errorf("ten %s jobs took %v, budget %v", kind, took, drainBudget)
+	}
+}

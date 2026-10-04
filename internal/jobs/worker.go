@@ -16,13 +16,13 @@ const outcomeTimeout = 10 * time.Second
 const lapsedLeaseError = "attempts exhausted: the lease lapsed"
 
 // work runs leased rows from queue until it closes, one at a time.
-func (s *Service) work(ctx context.Context, queue <-chan dbgen.Job, tracked *inflight) {
+func (s *Service) work(ctx context.Context, queue <-chan dbgen.Job, tracked *inflight, wake chan<- struct{}) {
 	for row := range queue {
-		s.perform(ctx, row, tracked)
+		s.perform(ctx, row, tracked, wake)
 	}
 }
 
-func (s *Service) perform(ctx context.Context, row dbgen.Job, tracked *inflight) {
+func (s *Service) perform(ctx context.Context, row dbgen.Job, tracked *inflight, wake chan<- struct{}) {
 	entry, ok := s.registry.lookup(row.Kind)
 	if !ok {
 		tracked.remove(row.ID)
@@ -42,6 +42,14 @@ func (s *Service) perform(ctx context.Context, row dbgen.Job, tracked *inflight)
 	defer cancel()
 	if writeErr := s.writeOutcome(writeCtx, row, job, entry.opts, err); writeErr != nil {
 		s.log.Error("job outcome not recorded", "kind", row.Kind, "id", row.ID, "err", writeErr)
+	}
+	// A finished capped or laned job may free the next one, which no
+	// insert would announce.
+	if entry.opts.MaxInFlight > 0 || row.Lane != nil {
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
 	}
 }
 

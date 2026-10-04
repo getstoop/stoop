@@ -295,7 +295,9 @@ Both use a lane: a job with `lane` and `sequence` set runs only when no
 earlier unfinished job shares its lane, so one runs per lane at a time,
 in sequence order, and a retry waiting on its backoff holds the lane. A
 hook is a lane; so is one user's avatar or one space's icon, so uploads
-apply in the order the server received them. Sweeps have no lane.
+apply in the order the server received them. Sweeps have no lane. A
+laned job's finish wakes the dispatcher, so a lane drains at the pace
+of its work, not one head per poll.
 
 A kind registered with `Options{MaxInFlight: n}` never has more than
 `n` rows on a live lease (`running`, `leased_until` in the future) across
@@ -304,7 +306,8 @@ in its own transaction under a per-kind advisory lock, with a LIMIT of
 the cap less the live leases, so one batch cannot overshoot; a kind at
 its cap holds back nothing else. Capped kinds are leased first, so a
 stream of uncapped work cannot starve them; the uncapped kinds then
-share one query for the slots left.
+share one query for the slots left. A capped job's finish wakes the
+dispatcher, since nothing else announces the freed slot.
 
 The dispatcher (`RunDispatcher`) is woken by the `NOTIFY` the insert of
 a job raises, on a connection of its own outside the pool, and polls for
