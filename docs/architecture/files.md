@@ -98,7 +98,9 @@ apply in the order the server received them, and returns the file id. The job de
 and re-encodes, replaces the blob under the same key, readies the row
 (`image/png`, the new size and hash), points the account or space at it,
 deletes the file it replaced, and publishes `member_updated` (chat
-publishes `space_updated` from its pointer setter), so clients refetch.
+publishes `space_updated` from its pointer setter), so clients refetch;
+for a bot's avatar the admin who sent it hears it on their own user
+topic, since they may share no space with the bot.
 Until then everyone sees the old image: the pointer moves only when the
 job succeeds, and a failure leaves it where it was. A decode that fails is
 permanent: the job discards the pending file and is not retried. Anything

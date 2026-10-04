@@ -27,7 +27,7 @@ func (s *Service) UploadAvatar(ctx context.Context, req *connect.Request[filesv1
 	if id, _ := authctx.From(ctx); id.Kind == authctx.KindBot {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("a bot's avatar is set by a server admin"))
 	}
-	fileID, err := s.queueAvatar(ctx, authctx.UserID(ctx), req.Msg.Data)
+	fileID, err := s.queueAvatar(ctx, NormaliseImageArgs{UserID: authctx.UserID(ctx)}, req.Msg.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -50,15 +50,16 @@ func (s *Service) UploadBotAvatar(ctx context.Context, req *connect.Request[file
 	if !bot {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("only a bot's avatar can be set for it; people set their own"))
 	}
-	fileID, err := s.queueAvatar(ctx, req.Msg.UserId, req.Msg.Data)
+	fileID, err := s.queueAvatar(ctx, NormaliseImageArgs{UserID: req.Msg.UserId, UploaderID: authctx.UserID(ctx)}, req.Msg.Data)
 	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&filesv1.UploadBotAvatarResponse{FileId: fileID}), nil
 }
 
-func (s *Service) queueAvatar(ctx context.Context, userID string, data []byte) (string, error) {
-	return s.queueImage(ctx, KindAvatar, userID, nil, data, NormaliseImageArgs{UserID: userID}, "avatar:"+userID)
+// queueAvatar queues the picture in args.UserID's lane.
+func (s *Service) queueAvatar(ctx context.Context, args NormaliseImageArgs, data []byte) (string, error) {
+	return s.queueImage(ctx, KindAvatar, args.UserID, nil, data, args, "avatar:"+args.UserID)
 }
 
 func (s *Service) UploadSpaceIcon(ctx context.Context, req *connect.Request[filesv1.UploadSpaceIconRequest]) (*connect.Response[filesv1.UploadSpaceIconResponse], error) {
