@@ -133,6 +133,45 @@ func TestPublishOnOneBusReachesASubscriberOnTheOther(t *testing.T) {
 	}
 }
 
+// spaceUpdated is the largest event a job publishes: the space the icon
+// swap announces, with a welcome at the longest chat allows, in a script
+// that takes several bytes a character.
+func spaceUpdated(spaceID string) *realtimev1.ServerEvent {
+	return events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_SpaceUpdated{
+			SpaceUpdated: &realtimev1.SpaceUpdated{Space: &chatv1.Space{
+				Id: spaceID, Name: "The Stoop", Description: strings.Repeat("説", 200), Welcome: strings.Repeat("歓迎", 2000),
+			}},
+		},
+	})
+}
+
+func TestEventOverOnePayloadArrivesInPieces(t *testing.T) {
+	pool := dbtest.New(t)
+	r := newRelay(t, pool)
+	sub := r.server.Subscribe(events.SpaceTopic("s1"))
+	defer sub.Close()
+
+	sent := spaceUpdated("s1")
+	if payloads, err := encode(events.SpaceTopic("s1"), sent); err != nil || len(payloads) < 2 {
+		t.Fatalf("encode: %d payloads, %v; want several", len(payloads), err)
+	}
+	r.publisher.Publish(events.SpaceTopic("s1"), sent)
+	after := memberUpdated("s1", "u1")
+	r.publisher.Publish(events.SpaceTopic("s1"), after)
+
+	got := receive(t, sub)
+	if got.GetEventId() != sent.GetEventId() {
+		t.Fatalf("first event_id = %q, want the pieced one %q", got.GetEventId(), sent.GetEventId())
+	}
+	if space := got.GetSpaceUpdated().GetSpace(); space.GetWelcome() != sent.GetSpaceUpdated().GetSpace().GetWelcome() || space.GetName() != "The Stoop" {
+		t.Errorf("the pieced event did not arrive intact")
+	}
+	if got := receive(t, sub); got.GetEventId() != after.GetEventId() {
+		t.Errorf("second event_id = %q, want %q: order must hold across a pieced event", got.GetEventId(), after.GetEventId())
+	}
+}
+
 func TestOversizeEventIsDroppedAndLogged(t *testing.T) {
 	pool := dbtest.New(t)
 	r := newRelay(t, pool)
@@ -141,7 +180,7 @@ func TestOversizeEventIsDroppedAndLogged(t *testing.T) {
 
 	huge := events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageCreated{
-			MessageCreated: &chatv1.Message{Content: strings.Repeat("x", maxPayload)},
+			MessageCreated: &chatv1.Message{Content: strings.Repeat("x", maxParts*maxPayload)},
 		},
 	})
 	r.publisher.Publish(events.SpaceTopic("s1"), huge)
@@ -155,6 +194,39 @@ func TestOversizeEventIsDroppedAndLogged(t *testing.T) {
 	}
 	if logged := r.log.String(); !strings.Contains(logged, "dropped") || !strings.Contains(logged, huge.GetEventId()) {
 		t.Errorf("the drop was not logged with its event id:\n%s", logged)
+	}
+}
+
+func TestPiecesOfOneEventAreRebuiltInAnyOrder(t *testing.T) {
+	sent := spaceUpdated("s1")
+	payloads, err := encode(events.SpaceTopic("s1"), sent)
+	if err != nil || len(payloads) < 2 {
+		t.Fatalf("encode: %d payloads, %v", len(payloads), err)
+	}
+	for _, payload := range payloads {
+		if len(payload) > maxPayload {
+			t.Errorf("a piece is %d bytes, over %d", len(payload), maxPayload)
+		}
+	}
+	pieces := newAssembler()
+	var got *realtimev1.ServerEvent
+	for index := len(payloads) - 1; index >= 0; index-- {
+		p, err := decodePayload(payloads[index])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, err = pieces.add(p); err != nil {
+			t.Fatal(err)
+		}
+		if index > 0 && got != nil {
+			t.Fatal("an event came out before its last piece")
+		}
+	}
+	if got == nil || got.GetEventId() != sent.GetEventId() {
+		t.Fatalf("rebuilt %v, want event %s", got, sent.GetEventId())
+	}
+	if len(pieces.open) != 0 {
+		t.Errorf("%d batches left open", len(pieces.open))
 	}
 }
 

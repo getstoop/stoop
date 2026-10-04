@@ -90,8 +90,12 @@ over Postgres `NOTIFY`, the channel the dispatcher is already woken by.
   an `eventrelay.Publisher`: every `Publish` reaches the local bus as
   before and also raises `NOTIFY stoop_events` on the pool, with the topic
   and the marshalled `ServerEvent` in one text-safe payload. `NOTIFY`
-  carries 8000 bytes; an event over that is logged and dropped, never
-  truncated. The events jobs publish are far smaller.
+  carries 8000 bytes. An event over that is sent as up to eight pieces in
+  one transaction, so they arrive together and in order, and the listener
+  rebuilds it; the one event a job publishes that can need this is
+  `space_updated`, whose welcome may run to 4000 characters of a script
+  that takes several bytes each. An event larger still is logged and
+  dropped, never truncated.
 - **The server listens.** `app.New` builds its modules on a plain
   `InProcBus` and runs an `eventrelay.Listener` on one connection outside
   the pool, reconnecting with backoff like the dispatcher's listener (both

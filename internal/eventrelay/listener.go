@@ -55,16 +55,24 @@ func (l *Listener) runOnce(ctx context.Context) error {
 	if l.listening != nil {
 		l.listening()
 	}
+	pieces := newAssembler()
 	for {
 		notification, err := conn.WaitForNotification(ctx)
 		if err != nil {
 			return err
 		}
-		topic, ev, err := decode(notification.Payload)
+		p, err := decodePayload(notification.Payload)
 		if err != nil {
 			l.log.Warn("events: relayed event unreadable; dropped", "err", err)
 			continue
 		}
-		l.bus.Publish(topic, ev)
+		ev, err := pieces.add(p)
+		if err != nil {
+			l.log.Warn("events: relayed event unreadable; dropped", "topic", p.topic, "err", err)
+			continue
+		}
+		if ev != nil {
+			l.bus.Publish(p.topic, ev)
+		}
 	}
 }

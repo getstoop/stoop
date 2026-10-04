@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -29,21 +30,37 @@ func NewPublisher(bus events.Bus, pool *pgxpool.Pool, log *slog.Logger) *Publish
 	return &Publisher{bus: bus, pool: pool, log: log}
 }
 
-// Publish delivers to the wrapped bus, then notifies. An event too large
-// for NOTIFY is delivered locally and dropped from the relay with a
-// warning; so is one the notification fails for.
+// Publish delivers to the wrapped bus, then notifies: once for an event
+// that fits a payload, in one transaction for one sent in pieces. An
+// event too large even for that is delivered locally and dropped from
+// the relay with a warning; so is one the notification fails for.
 func (p *Publisher) Publish(topic string, ev *realtimev1.ServerEvent) {
 	p.bus.Publish(topic, ev)
-	payload, err := encode(topic, ev)
+	payloads, err := encode(topic, ev)
 	if err != nil {
 		p.log.Warn("events: not relayed; dropped", "topic", topic, "event_id", ev.GetEventId(), "err", err)
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
 	defer cancel()
-	if _, err := p.pool.Exec(ctx, "SELECT pg_notify($1, $2)", Channel, payload); err != nil {
+	if err := p.notify(ctx, payloads); err != nil {
 		p.log.Warn("events: not relayed; dropped", "topic", topic, "event_id", ev.GetEventId(), "err", err)
 	}
+}
+
+func (p *Publisher) notify(ctx context.Context, payloads []string) error {
+	if len(payloads) == 1 {
+		_, err := p.pool.Exec(ctx, "SELECT pg_notify($1, $2)", Channel, payloads[0])
+		return err
+	}
+	return pgx.BeginFunc(ctx, p.pool, func(tx pgx.Tx) error {
+		for _, payload := range payloads {
+			if _, err := tx.Exec(ctx, "SELECT pg_notify($1, $2)", Channel, payload); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // Subscribe is the wrapped bus's Subscribe.
