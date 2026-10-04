@@ -18,12 +18,11 @@ import (
 	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
-// Reachability — how people reach this server — is configured either from
-// the environment (docker-compose users editing .env) or from the setup
-// wizard / admin page. A saved value wins over the environment; clearing
-// it falls back. Nothing here is seeded: the environment stays live as
-// the fallback, so editing .env keeps working for people who never touch
-// the UI.
+// Reachability — how people reach this server — is pre-configured from
+// the environment and then owned by the database: SeedFromEnv copies each
+// group into a missing row at start, and a saved row, empty included, is
+// the setting from then on. The environment is read directly only for a
+// group with no row (a database wiped under a running server).
 
 const (
 	keyPublicURL      = "public_url"
@@ -125,8 +124,8 @@ type LiveKitReporter interface {
 // admin page shows voice as unconfigured.
 func (s *Service) UseLiveKit(r LiveKitReporter) { s.livekit = r }
 
-// ReachabilityEnv is what the environment provides; the fallback for any
-// value with nothing saved.
+// ReachabilityEnv is what the environment provides: the seed for a group
+// with no row.
 type ReachabilityEnv struct {
 	Reachability
 	VoiceConfigured bool
@@ -154,11 +153,11 @@ type TailscaleStatus struct {
 	CarriesVoice bool
 }
 
-// ReachabilityEnvValue returns the environment fallback as it stands, so
-// a caller can adjust one field and hand it back.
+// ReachabilityEnvValue returns the environment values as they stand, so
+// a caller can adjust one field and hand them back.
 func (s *Service) ReachabilityEnvValue() ReachabilityEnv { return s.env }
 
-// UseReachabilityEnv supplies the environment fallback.
+// UseReachabilityEnv supplies the environment values.
 func (s *Service) UseReachabilityEnv(env ReachabilityEnv) { s.env = env }
 
 // UseTailscale connects the built-in listener; nil means the build has
@@ -191,26 +190,56 @@ func (s *Service) readJSON(ctx context.Context, key string, into any) (bool, err
 }
 
 func (s *Service) writeJSON(ctx context.Context, key string, v any) error {
-	raw, err := json.Marshal(v)
+	return s.writeSettings(ctx, []settingWrite{{key, v}})
+}
+
+// settingWrite is one validated value waiting to be saved.
+type settingWrite struct {
+	key   string
+	value any
+}
+
+// writeSettings saves every write or none, so a handler that validates
+// first and then calls this once can't half-apply a refused save.
+func (s *Service) writeSettings(ctx context.Context, writes []settingWrite) error {
+	if len(writes) == 0 {
+		return nil
+	}
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: key, Value: raw}); err != nil {
-		return fmt.Errorf("write %s: %w", key, err)
+	defer func() { _ = tx.Rollback(ctx) }()
+	queries := s.q.WithTx(tx)
+	for _, write := range writes {
+		raw, err := json.Marshal(write.value)
+		if err != nil {
+			return fmt.Errorf("encode %s: %w", write.key, err)
+		}
+		if err := queries.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: write.key, Value: raw}); err != nil {
+			return fmt.Errorf("write %s: %w", write.key, err)
+		}
 	}
-	return nil
+	return tx.Commit(ctx)
 }
 
-// Reachability is the effective configuration: saved values first, the
-// environment otherwise.
+// keepSecret is the rule for write-only fields: a blank one keeps the
+// secret in force.
+func keepSecret(typed, current string) string {
+	if typed != "" {
+		return typed
+	}
+	return current
+}
+
+// Reachability is the configuration in force: each group's saved row,
+// or the environment for a group with none.
 func (s *Service) Reachability(ctx context.Context) (Reachability, error) {
 	r := s.env.Reachability
-	// Clearing the public URL from the form saves "" rather than deleting
-	// the key; like PublicURL, treat that as "fall back to the environment".
 	var pu string
 	if ok, err := s.readJSON(ctx, keyPublicURL, &pu); err != nil {
 		return r, err
-	} else if ok && pu != "" {
+	} else if ok {
 		r.PublicURL = pu
 	}
 	var t TURNRelay
@@ -235,11 +264,6 @@ func (s *Service) Reachability(ctx context.Context) (Reachability, error) {
 	if ok, err := s.readJSON(ctx, keyCloudflareTunnel, &ct); err != nil {
 		return r, err
 	} else if ok {
-		// A saved blank token falls back to the environment's, so the
-		// switch can be saved without copying the secret out of .env.
-		if ct.Token == "" {
-			ct.Token = r.CloudflareTunnel.Token
-		}
 		r.CloudflareTunnel = ct
 	}
 	tp, err := s.trustedProxies(ctx)
@@ -250,17 +274,16 @@ func (s *Service) Reachability(ctx context.Context) (Reachability, error) {
 	return r, nil
 }
 
-// trustedProxies resolves the saved address list, falling back to the
-// environment (STOOP_TRUSTED_PROXIES) when none is saved. A saved-but-empty list means "trust nothing" only if the
-// environment doesn't say otherwise — same convention as the rest: an
-// empty saved value falls back.
+// trustedProxies resolves the saved address list, or the environment's
+// (STOOP_TRUSTED_PROXIES) when none is saved. A saved empty list trusts
+// nothing.
 func (s *Service) trustedProxies(ctx context.Context) (trustedproxy.Set, error) {
 	var saved []string
 	ok, err := s.readJSON(ctx, keyTrustedProxies, &saved)
 	if err != nil {
 		return trustedproxy.Set{}, err
 	}
-	if ok && len(saved) > 0 {
+	if ok {
 		set, err := trustedproxy.Parse(saved)
 		if err != nil {
 			// Saved values were validated on the way in; a bad one here
@@ -295,19 +318,15 @@ func (s *Service) TrustsPeer(remoteAddr string) bool {
 	return set.Trusted(remoteAddr)
 }
 
-// PublicURL is the effective public address: saved, else environment or
-// the built-in Tailscale listener's address (via UsePublicURL).
+// PublicURL is the address in force, or the built-in Tailscale
+// listener's address (via UsePublicURL) when none is set.
 func (s *Service) PublicURL(ctx context.Context) (string, error) {
-	var pu string
-	ok, err := s.readJSON(ctx, keyPublicURL, &pu)
+	r, err := s.Reachability(ctx)
 	if err != nil {
 		return "", err
 	}
-	if ok && pu != "" {
-		return pu, nil
-	}
-	if s.env.PublicURL != "" {
-		return s.env.PublicURL, nil
+	if r.PublicURL != "" {
+		return r.PublicURL, nil
 	}
 	return s.publicURL(), nil
 }
@@ -358,69 +377,56 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 	if err := apierr.RequireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
+	current, err := s.Reachability(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Every group is validated before anything is written, and the
+	// controllers are told only once the writes have committed.
+	var writes []settingWrite
 	if req.Msg.PublicUrl != nil {
 		pu := strings.TrimSpace(*req.Msg.PublicUrl)
 		if pu != "" {
-			var err error
 			if pu, err = validatePublicURL(pu); err != nil {
 				return nil, err
 			}
 		}
-		if err := s.writeJSON(ctx, keyPublicURL, pu); err != nil {
+		writes = append(writes, settingWrite{keyPublicURL, pu})
+	}
+	if in := req.Msg.Turn; in != nil {
+		relay := TURNRelay{
+			URLs: trimAll(in.Urls), Username: strings.TrimSpace(in.Username),
+			Credential: keepSecret(in.Credential, current.TURN.Credential), STUNURLs: trimAll(in.StunUrls),
+		}
+		if len(relay.URLs) == 0 && len(relay.STUNURLs) == 0 {
+			relay = TURNRelay{}
+		} else if err := validateTURN(relay); err != nil {
 			return nil, err
 		}
+		writes = append(writes, settingWrite{keyTURN, relay})
 	}
-	if req.Msg.Turn != nil {
-		t := TURNRelay{
-			URLs: trimAll(req.Msg.Turn.Urls), Username: strings.TrimSpace(req.Msg.Turn.Username),
-			Credential: req.Msg.Turn.Credential, STUNURLs: trimAll(req.Msg.Turn.StunUrls),
-		}
-		if len(t.URLs) == 0 && len(t.STUNURLs) == 0 {
-			t = TURNRelay{}
-		} else {
-			if t.Credential == "" {
-				// The credential is write-only; a blank one keeps what's saved.
-				var prev TURNRelay
-				if _, err := s.readJSON(ctx, keyTURN, &prev); err != nil {
-					return nil, err
-				}
-				t.Credential = prev.Credential
-			}
-			if err := validateTURN(t); err != nil {
-				return nil, err
-			}
-		}
-		if err := s.writeJSON(ctx, keyTURN, t); err != nil {
-			return nil, err
-		}
-	}
-	if req.Msg.Cloudflare != nil {
-		cf := CloudflareTURN{KeyID: strings.TrimSpace(req.Msg.Cloudflare.KeyId), APIToken: strings.TrimSpace(req.Msg.Cloudflare.ApiToken)}
+	if in := req.Msg.Cloudflare; in != nil {
+		cf := CloudflareTURN{KeyID: strings.TrimSpace(in.KeyId), APIToken: strings.TrimSpace(in.ApiToken)}
 		if cf.KeyID == "" {
 			cf = CloudflareTURN{}
-		} else if cf.APIToken == "" {
-			// Keep the saved token when only the key id is resent.
-			var prev CloudflareTURN
-			if _, err := s.readJSON(ctx, keyCloudflareTURN, &prev); err != nil {
-				return nil, err
-			}
-			if prev.KeyID == cf.KeyID {
-				cf.APIToken = prev.APIToken
+		} else {
+			// The token in force belongs to its key; a new key needs its own.
+			if current.Cloudflare.KeyID == cf.KeyID {
+				cf.APIToken = keepSecret(cf.APIToken, current.Cloudflare.APIToken)
 			}
 			if cf.APIToken == "" {
 				return nil, apierr.Field(connect.CodeInvalidArgument, "cloudflare.api_token",
 					errors.New("cloudflare TURN needs the key's API token"))
 			}
 		}
-		if err := s.writeJSON(ctx, keyCloudflareTURN, cf); err != nil {
-			return nil, err
-		}
+		writes = append(writes, settingWrite{keyCloudflareTURN, cf})
 	}
-	if req.Msg.Tailscale != nil {
-		in := req.Msg.Tailscale
+	var tailscale *TailscaleSettings
+	if in := req.Msg.Tailscale; in != nil {
 		ts := TailscaleSettings{
 			Enabled: in.Enabled, Hostname: strings.TrimSpace(in.Hostname), Funnel: in.Funnel,
-			AuthKey: strings.TrimSpace(in.AuthKey), ControlURL: strings.TrimSpace(in.ControlUrl),
+			AuthKey:    keepSecret(strings.TrimSpace(in.AuthKey), current.Tailscale.AuthKey),
+			ControlURL: strings.TrimSpace(in.ControlUrl),
 		}
 		if ts.Hostname != "" && !validHostname(ts.Hostname) {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "tailscale.hostname",
@@ -432,25 +438,17 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 					errors.New("the control URL must be an http(s) URL"))
 			}
 		}
-		if ts.AuthKey == "" {
-			// Keep the saved key when the field is left blank.
-			var prev TailscaleSettings
-			if _, err := s.readJSON(ctx, keyTailscale, &prev); err != nil {
-				return nil, err
-			}
-			ts.AuthKey = prev.AuthKey
-		}
-		if err := s.writeJSON(ctx, keyTailscale, ts); err != nil {
-			return nil, err
-		}
-		if s.tailscale != nil {
-			s.tailscale.Apply(ts)
-		}
+		tailscale = &ts
+		writes = append(writes, settingWrite{keyTailscale, ts})
 	}
+	var tunnel *CloudflareTunnelSettings
 	if in := req.Msg.CloudflareTunnel; in != nil {
-		if err := s.updateCloudflareTunnel(ctx, in.Enabled, in.Token); err != nil {
+		ct, err := cloudflareTunnelSetting(in.Enabled, in.Token, current.CloudflareTunnel)
+		if err != nil {
 			return nil, err
 		}
+		tunnel = &ct
+		writes = append(writes, settingWrite{keyCloudflareTunnel, ct})
 	}
 	if req.Msg.TrustedProxies != nil {
 		cidrs := trimAll(req.Msg.TrustedProxies.Cidrs)
@@ -461,9 +459,19 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 		if _, err := trustedproxy.Parse(cidrs); err != nil {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs", err)
 		}
-		if err := s.writeJSON(ctx, keyTrustedProxies, cidrs); err != nil {
-			return nil, err
+		if cidrs == nil {
+			cidrs = []string{}
 		}
+		writes = append(writes, settingWrite{keyTrustedProxies, cidrs})
+	}
+	if err := s.writeSettings(ctx, writes); err != nil {
+		return nil, err
+	}
+	if tailscale != nil && s.tailscale != nil {
+		s.tailscale.Apply(*tailscale)
+	}
+	if tunnel != nil && s.tunnel != nil {
+		s.tunnel.Apply(*tunnel)
 	}
 	// Applied without a restart: every request reads the cache, so
 	// refreshing it here is all a change needs.

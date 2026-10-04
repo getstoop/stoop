@@ -2,16 +2,13 @@ package instance
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // The personal_tokens setting — who may make and use personal tokens — and
@@ -35,23 +32,16 @@ func (s *Service) PersonalTokens(ctx context.Context) (string, error) {
 	return s.readSetting(ctx, keyPersonalTokens, string(TokensEveryone))
 }
 
-func (s *Service) setPersonalTokens(ctx context.Context, p instancev1.PersonalTokens) error {
-	var v TokenSetting
+func personalTokensFromProto(p instancev1.PersonalTokens) (TokenSetting, error) {
 	switch p {
 	case instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE:
-		v = TokensEveryone
+		return TokensEveryone, nil
 	case instancev1.PersonalTokens_PERSONAL_TOKENS_ADMINS:
-		v = TokensAdmins
+		return TokensAdmins, nil
 	case instancev1.PersonalTokens_PERSONAL_TOKENS_OFF:
-		v = TokensOff
-	default:
-		return connect.NewError(connect.CodeInvalidArgument, errors.New("personal_tokens must be everyone, admins, or off"))
+		return TokensOff, nil
 	}
-	raw, _ := json.Marshal(v)
-	if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyPersonalTokens, Value: raw}); err != nil {
-		return fmt.Errorf("write %s: %w", keyPersonalTokens, err)
-	}
-	return nil
+	return "", connect.NewError(connect.CodeInvalidArgument, errors.New("personal_tokens must be everyone, admins, or off"))
 }
 
 func toProtoPersonalTokens(v TokenSetting) instancev1.PersonalTokens {

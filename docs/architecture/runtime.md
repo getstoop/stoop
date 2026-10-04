@@ -84,24 +84,34 @@ decides and may change at runtime: the registration policy, quotas, login
 providers, how the server is reached. They live in Postgres and are edited
 from `/admin`.
 
-The two tiers meet by one of two rules, and which rule applies is
-deliberate:
+The two tiers meet by one rule: **the environment seeds, the database
+decides.** It covers `STOOP_REGISTRATION`, `STOOP_INSTANCE_NAME`,
+`STOOP_PASSWORD_SIGN_IN`, every reachability group (public URL, trusted
+proxies, TURN, Cloudflare TURN, Tailscale, Cloudflare tunnel) and the
+`STOOP_OIDC_*` login provider.
 
-| Rule | Applies to | Behaviour |
-| ---- | ---------- | --------- |
-| **Seed once** | `STOOP_REGISTRATION` | The environment sets the value on first boot only. After that the database is the source of truth, and changing the variable does nothing. |
-| **Env fallback** | `STOOP_PASSWORD_SIGN_IN`, `STOOP_INSTANCE_NAME`, reachability, login providers | A saved value overrides the environment; *clearing* a saved value falls back to the environment. Nothing is seeded. (`STOOP_INSTANCE_NAME` is the one exception: when it is *unset*, first boot seeds a random name so the tab never just says "Stoop"; when set, it is a plain fallback like the others.) |
-
-The second rule exists so that `.env` stays live for people who never open
-the admin page. An operator who configured everything in Docker Compose and
-never touched the UI keeps working exactly as before; an operator who saves
-something on the Hosting page takes ownership of that field and can hand it
-back by clearing it.
+- At every start, a setting with no row in `instance_settings` is copied
+  from the environment if the environment sets it
+  (`instance.SeedFromEnv`, and `Seed` for the registration policy and
+  name). An unset `STOOP_INSTANCE_NAME` seeds a random name.
+- Once a row exists, it is the setting. Changing the variable does
+  nothing.
+- Clearing a value on the admin page saves an empty row, never deletes
+  one, so a cleared or switched-off setting stays that way across
+  restarts.
+- A setting is read from the environment directly only while it has no
+  row, which happens when the database is wiped under a running server.
 
 **Secrets are write-only in the API.** `GetReachability` and
 `GetLoginProviders` never return a client secret or a TURN credential;
-saving with a blank secret keeps the stored one, as long as the identifier
-beside it is unchanged.
+saving with a blank secret keeps the one in force. A Cloudflare TURN
+token or a provider's client secret is kept only while the key id or
+client id beside it is unchanged.
+
+**A refused save writes nothing.** `UpdateSettings` and
+`UpdateReachability` validate every field first, then write them in one
+transaction, then apply side effects (the Tailscale node, the tunnel,
+the trusted-proxy cache).
 
 **Every field of `UpdateReachability` is optional, and an unset field is
 left exactly as found.** The admin form leans on this: it keeps a baseline
@@ -151,7 +161,7 @@ All three call `instance.Service.TrustsPeer`, which reads an
 applies to the next request with no restart and **no database read on the
 hot path**.
 
-`STOOP_TRUSTED_PROXIES` is the fallback when no addresses are saved.
+`STOOP_TRUSTED_PROXIES` seeds the list; a saved empty list trusts nothing.
 
 Why this matters twice over: `X-Forwarded-For` from an untrusted peer would
 let a caller mint a fresh rate-limit bucket per made-up address, and

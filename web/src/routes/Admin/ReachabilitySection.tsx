@@ -7,8 +7,8 @@ export function ReachabilitySection() {
     <section className="card reach-section">
       <h3>Hosting</h3>
       <p className="hint">
-        Saved values here override the server's environment; clear one to fall
-        back to it.
+        The server's environment fills these in once; after that, change them
+        here.
       </p>
       <ReachabilityForm />
     </section>

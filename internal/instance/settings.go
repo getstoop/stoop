@@ -37,13 +37,11 @@ const (
 	// keyMaxUpload caps one uploaded file in bytes; absent or 0 means the
 	// operator set no limit
 	keyMaxUpload = "max_upload_bytes"
-	// keyPasswordSignIn: who may use the username/password form. Not
-	// seeded: STOOP_PASSWORD_SIGN_IN stays live as the fallback.
+	// keyPasswordSignIn: who may use the username/password form. Seeded
+	// from STOOP_PASSWORD_SIGN_IN (seed_env.go).
 	keyPasswordSignIn = "password_sign_in"
-	// keyInstanceName: shown in the browser tab. Seeded with a random
-	// name unless STOOP_INSTANCE_NAME is set, in which case (like
-	// keyPasswordSignIn) it's left unseeded and stays live as the
-	// fallback.
+	// keyInstanceName: shown in the browser tab. Seeded from
+	// STOOP_INSTANCE_NAME, or with a random name when that is unset.
 	keyInstanceName = "instance_name"
 	// keySelfDeletion: whether a person may delete their own account. On
 	// unless the operator turns it off. Read by auth through its
@@ -61,10 +59,10 @@ const (
 	PasswordOff      PasswordSignIn = "off"
 )
 
-// UsePasswordSignInEnv supplies the environment fallback.
+// UsePasswordSignInEnv supplies STOOP_PASSWORD_SIGN_IN.
 func (s *Service) UsePasswordSignInEnv(v string) { s.passwordEnv = v }
 
-// PasswordSignIn is the effective setting: saved, else environment, else
+// PasswordSignIn is the setting in force: saved, else environment, else
 // everyone. Also the auth module's port.
 func (s *Service) PasswordSignIn(ctx context.Context) (string, error) {
 	fallback := s.passwordEnv
@@ -101,7 +99,7 @@ const (
 type Defaults struct {
 	RegistrationPolicy Policy
 	// InstanceNameEnv is STOOP_INSTANCE_NAME. Empty means Seed picks a
-	// random name instead of seeding one from it.
+	// random name.
 	InstanceNameEnv string
 }
 
@@ -119,15 +117,16 @@ func (s *Service) Seed(ctx context.Context, d Defaults) error {
 		return fmt.Errorf("seed %s: %w", keySpaceCreation, err)
 	}
 	s.instanceNameEnv = d.InstanceNameEnv
-	if d.InstanceNameEnv == "" {
-		name, err := randomInstanceName()
-		if err != nil {
+	name := d.InstanceNameEnv
+	if name == "" {
+		var err error
+		if name, err = randomInstanceName(); err != nil {
 			return fmt.Errorf("generate instance name: %w", err)
 		}
-		nv, _ := json.Marshal(name)
-		if err := s.q.SeedSetting(ctx, dbgen.SeedSettingParams{Key: keyInstanceName, Value: nv}); err != nil {
-			return fmt.Errorf("seed %s: %w", keyInstanceName, err)
-		}
+	}
+	nv, _ := json.Marshal(name)
+	if err := s.q.SeedSetting(ctx, dbgen.SeedSettingParams{Key: keyInstanceName, Value: nv}); err != nil {
+		return fmt.Errorf("seed %s: %w", keyInstanceName, err)
 	}
 	return nil
 }
@@ -351,21 +350,28 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	if err := apierr.RequireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
-	// The name goes first: it is the one field with a validation that can
-	// fail on the value alone, and the Server form sends it together with
-	// the two policies below. Refusing it before any of them is written
-	// keeps a rejected save from half-applying.
-	// Also judged on the value alone, so it is refused before anything is
-	// written too.
-	if d := req.Msg.SessionLifetimeDays; d != nil && (*d < 0 || *d > config.MaxSessionLifetimeDays) {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "session_lifetime_days",
-			errors.New("a sign-in lasts 1-365 days, or 0 to use the server's default"))
+	// Every field is validated before anything is written, so a refused
+	// save changes nothing.
+	var writes []settingWrite
+	if d := req.Msg.SessionLifetimeDays; d != nil {
+		if *d < 0 || *d > config.MaxSessionLifetimeDays {
+			return nil, apierr.Field(connect.CodeInvalidArgument, "session_lifetime_days",
+				errors.New("a sign-in lasts 1-365 days, or 0 to use the server's default"))
+		}
+		writes = append(writes, settingWrite{keySessionLifetime, *d})
 	}
 	if !validRetention(req.Msg.MessageRetentionDays) {
 		return nil, errRetentionRange("message_retention_days")
 	}
 	if !validRetention(req.Msg.AttachmentRetentionDays) {
 		return nil, errRetentionRange("attachment_retention_days")
+	}
+	for key, days := range map[string]*int32{
+		keyMessageRetention: req.Msg.MessageRetentionDays, keyAttachmentRetention: req.Msg.AttachmentRetentionDays,
+	} {
+		if days != nil {
+			writes = append(writes, settingWrite{key, *days})
+		}
 	}
 	if req.Msg.InstanceName != nil {
 		name := strings.TrimSpace(*req.Msg.InstanceName)
@@ -376,20 +382,14 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 			return nil, apierr.Field(connect.CodeInvalidArgument, "instance_name",
 				fmt.Errorf("the server name must be %d characters or fewer", config.MaxInstanceNameRunes))
 		}
-		v, _ := json.Marshal(name)
-		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyInstanceName, Value: v}); err != nil {
-			return nil, fmt.Errorf("write %s: %w", keyInstanceName, err)
-		}
+		writes = append(writes, settingWrite{keyInstanceName, name})
 	}
 	if req.Msg.RegistrationPolicy != nil {
 		p, ok := policyFromProto(*req.Msg.RegistrationPolicy)
 		if !ok {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("registration_policy must be open, invite, or closed"))
 		}
-		v, _ := json.Marshal(p)
-		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyRegistrationPolicy, Value: v}); err != nil {
-			return nil, fmt.Errorf("write %s: %w", keyRegistrationPolicy, err)
-		}
+		writes = append(writes, settingWrite{keyRegistrationPolicy, p})
 	}
 	if req.Msg.SpaceCreation != nil {
 		var sc SpaceCreation
@@ -401,19 +401,18 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 		default:
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("space_creation must be admins or everyone"))
 		}
-		v, _ := json.Marshal(sc)
-		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keySpaceCreation, Value: v}); err != nil {
-			return nil, fmt.Errorf("write %s: %w", keySpaceCreation, err)
-		}
+		writes = append(writes, settingWrite{keySpaceCreation, sc})
 	}
-	if req.Msg.StorageQuotaBytes != nil {
-		if *req.Msg.StorageQuotaBytes < 0 {
+	quota, err := s.StorageQuotaBytes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if requested := req.Msg.StorageQuotaBytes; requested != nil {
+		if *requested < 0 {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "storage_quota_bytes", errors.New("the storage limit must be 0 (no limit) or more"))
 		}
-		v, _ := json.Marshal(*req.Msg.StorageQuotaBytes)
-		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyStorageQuota, Value: v}); err != nil {
-			return nil, fmt.Errorf("write %s: %w", keyStorageQuota, err)
-		}
+		quota = *requested
+		writes = append(writes, settingWrite{keyStorageQuota, *requested})
 	}
 	if req.Msg.MaxUploadBytes != nil {
 		n := *req.Msg.MaxUploadBytes
@@ -425,20 +424,13 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 				fmt.Errorf("the size per file must be %d MB or less", s.uploadCeiling>>20))
 		}
 		// A per-file cap above the total storage limit is a limit that can
-		// never be reached. Read after the quota branch above, so setting
-		// both at once is judged against the new total, not the old one.
-		quota, err := s.StorageQuotaBytes(ctx)
-		if err != nil {
-			return nil, err
-		}
+		// never be reached. Judged against the quota in this request when
+		// it sets one.
 		if quota > 0 && n > quota {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
 				fmt.Errorf("the size per file is more than the upload storage limit of %d MB", quota>>20))
 		}
-		v, _ := json.Marshal(n)
-		if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyMaxUpload, Value: v}); err != nil {
-			return nil, fmt.Errorf("write %s: %w", keyMaxUpload, err)
-		}
+		writes = append(writes, settingWrite{keyMaxUpload, n})
 	}
 	if req.Msg.PasswordSignIn != nil {
 		pw, ok := passwordSignInFromProto(*req.Msg.PasswordSignIn)
@@ -456,28 +448,14 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 					errors.New("add a login provider before restricting password sign-in"))
 			}
 		}
-		if err := s.SetPasswordSignIn(ctx, pw); err != nil {
-			return nil, err
-		}
+		writes = append(writes, settingWrite{keyPasswordSignIn, pw})
 	}
 	if req.Msg.PersonalTokens != nil {
-		if err := s.setPersonalTokens(ctx, *req.Msg.PersonalTokens); err != nil {
+		v, err := personalTokensFromProto(*req.Msg.PersonalTokens)
+		if err != nil {
 			return nil, err
 		}
-	}
-	if req.Msg.SessionLifetimeDays != nil {
-		if err := s.writeJSON(ctx, keySessionLifetime, *req.Msg.SessionLifetimeDays); err != nil {
-			return nil, err
-		}
-	}
-	for key, v := range map[string]*int32{
-		keyMessageRetention: req.Msg.MessageRetentionDays, keyAttachmentRetention: req.Msg.AttachmentRetentionDays,
-	} {
-		if v != nil {
-			if err := s.writeJSON(ctx, key, *v); err != nil {
-				return nil, err
-			}
-		}
+		writes = append(writes, settingWrite{keyPersonalTokens, v})
 	}
 	for key, v := range map[string]*bool{
 		keyWebhooksIncoming: req.Msg.WebhooksIncoming, keyWebhooksOutgoing: req.Msg.WebhooksOutgoing,
@@ -485,10 +463,11 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 		keySelfDeletion:                req.Msg.SelfDeletion,
 	} {
 		if v != nil {
-			if err := s.writeBool(ctx, key, *v); err != nil {
-				return nil, err
-			}
+			writes = append(writes, settingWrite{key, *v})
 		}
+	}
+	if err := s.writeSettings(ctx, writes); err != nil {
+		return nil, err
 	}
 	st, err := s.status(ctx)
 	if err != nil {

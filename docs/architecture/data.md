@@ -190,11 +190,9 @@ login-provider list is an array of objects, the LiveKit key pair is a
 struct. A new setting is a new key, not a migration.
 
 The rule that makes this work: **the environment seeds, the database
-decides.** `STOOP_REGISTRATION` sets the value on first boot only; after
-that the admin page owns it. Reachability and provider settings invert
-slightly — a saved value overrides the environment, and *clearing* it falls
-back to the environment — so an operator who never opens the admin page
-keeps their `.env` live. See [runtime.md](runtime.md).
+decides.** A variable is copied into its row when the row doesn't exist
+yet; after that the admin page owns it, and an empty row means cleared.
+See [runtime.md](runtime.md).
 
 ### files
 

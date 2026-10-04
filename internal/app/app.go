@@ -338,8 +338,9 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 
 	a.tunnel = cftunnel.NewManager(cfg.CloudflaredPath, log)
 
-	// Reachability: saved settings override these environment values; the
-	// tailnet address is the last-resort public URL.
+	// Reachability: these environment values seed any group with nothing
+	// saved (SeedFromEnv below); the tailnet address is the last-resort
+	// public URL.
 	instanceSvc.UseReachabilityEnv(instance.ReachabilityEnv{
 		Reachability: instance.Reachability{
 			PublicURL: cfg.PublicURL,
@@ -359,8 +360,8 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		VoiceConfigured: voiceSvc.Enabled(),
 		VoiceOff:        !cfg.Voice,
 	})
-	// One login provider can come from the environment; the admin page's
-	// saved list overrides it (same fallback rule as reachability).
+	// One login provider can come from the environment; seeded like
+	// reachability.
 	if cfg.OIDCIssuer != "" {
 		instanceSvc.UseLoginProvidersEnv([]instance.LoginProvider{{
 			ID: cfg.OIDCID, Kind: instance.KindOIDC, DisplayName: cfg.OIDCName,
@@ -372,6 +373,10 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		env := instanceSvc.ReachabilityEnvValue()
 		env.TrustedProxies = cfg.TrustedProxies
 		instanceSvc.UseReachabilityEnv(env)
+	}
+	if err := instanceSvc.SeedFromEnv(ctx); err != nil {
+		pool.Close()
+		return nil, err
 	}
 	if err := instanceSvc.LoadTrustedProxies(ctx); err != nil {
 		pool.Close()

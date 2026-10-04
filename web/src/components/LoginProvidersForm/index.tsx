@@ -78,9 +78,8 @@ export function LoginProvidersForm() {
       )}
       {fromEnv && (
         <p className="hint">
-          These come from the server's environment (STOOP_OIDC_*). Editing here
-          saves a list that overrides them; removing every provider falls back
-          to them.
+          These come from the server's environment (STOOP_OIDC_*) until you save
+          here.
         </p>
       )}
       <div className="provider-list-head">
