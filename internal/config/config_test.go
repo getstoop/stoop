@@ -339,3 +339,28 @@ func TestLoad_JobsMode(t *testing.T) {
 		t.Errorf("STOOP_JOBS=sometimes should be rejected, got %v", err)
 	}
 }
+
+func TestLoad_ReportsEveryBadVariable(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	t.Setenv("STOOP_TAILSCALE", "maybe")
+	t.Setenv("STOOP_JOBS_POLL", "soon")
+	t.Setenv("STOOP_LIVEKIT_TCP_PORT", "0")
+	_, err := Load()
+	if err == nil {
+		t.Fatal("bad variables should be rejected")
+	}
+	for _, key := range []string{"STOOP_TAILSCALE", "STOOP_JOBS_POLL", "STOOP_LIVEKIT_TCP_PORT"} {
+		if !strings.Contains(err.Error(), key) {
+			t.Errorf("error should name %s, got %v", key, err)
+		}
+	}
+	// A refused variable reads as its default, so no second refusal follows.
+	if strings.Contains(err.Error(), "more than 0") {
+		t.Errorf("a refused poll interval should not also fail the > 0 check: %v", err)
+	}
+
+	t.Setenv("STOOP_TAILSCALE_FUNNEL", "true")
+	if _, err := Load(); err == nil || strings.Contains(err.Error(), "STOOP_TAILSCALE_FUNNEL") {
+		t.Errorf("a refused STOOP_TAILSCALE should not also blame the funnel, got %v", err)
+	}
+}
