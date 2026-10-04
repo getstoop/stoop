@@ -152,8 +152,7 @@ All three call `instance.Service.TrustsPeer`, which reads an
 applies to the next request with no restart and **no database read on the
 hot path**.
 
-`STOOP_TRUST_PROXY=true` maps to the legacy trust-everyone set, and is the
-fallback when no addresses are saved.
+`STOOP_TRUSTED_PROXIES` is the fallback when no addresses are saved.
 
 Why this matters twice over: `X-Forwarded-For` from an untrusted peer would
 let a caller mint a fresh rate-limit bucket per made-up address, and

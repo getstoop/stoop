@@ -251,8 +251,7 @@ func (s *Service) Reachability(ctx context.Context) (Reachability, error) {
 }
 
 // trustedProxies resolves the saved address list, falling back to the
-// environment (STOOP_TRUST_PROXY=true trusts every peer) when none is
-// saved. A saved-but-empty list means "trust nothing" only if the
+// environment (STOOP_TRUSTED_PROXIES) when none is saved. A saved-but-empty list means "trust nothing" only if the
 // environment doesn't say otherwise — same convention as the rest: an
 // empty saved value falls back.
 func (s *Service) trustedProxies(ctx context.Context) (trustedproxy.Set, error) {
@@ -513,8 +512,7 @@ func (s *Service) reachabilityResponse(ctx context.Context) (*instancev1.GetReac
 				HasAuthKey: r.Tailscale.AuthKey != "", ControlUrl: r.Tailscale.ControlURL,
 			},
 			TrustedProxies: &instancev1.TrustedProxies{
-				Cidrs:    r.TrustedProxies.Strings(),
-				TrustAll: r.TrustedProxies.TrustsEveryone(),
+				Cidrs: r.TrustedProxies.Strings(),
 			},
 			CloudflareTunnel: &instancev1.CloudflareTunnelSettings{
 				Enabled: r.CloudflareTunnel.Enabled, HasToken: r.CloudflareTunnel.Token != "",

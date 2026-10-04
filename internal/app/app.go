@@ -43,7 +43,6 @@ import (
 	"github.com/getstoop/stoop/internal/ratelimit"
 	"github.com/getstoop/stoop/internal/realtime"
 	"github.com/getstoop/stoop/internal/tailnet"
-	"github.com/getstoop/stoop/internal/trustedproxy"
 	"github.com/getstoop/stoop/internal/unfurl"
 	"github.com/getstoop/stoop/internal/voice"
 	"github.com/getstoop/stoop/internal/webui"
@@ -233,7 +232,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 	// Anonymous-endpoint throttles. Login, Register and the invite lookup
 	// are the only Connect procedures worth guessing at; the signaling
 	// proxy is the only plain handler without a session check. Both are per client IP, so behind
-	// a proxy STOOP_TRUST_PROXY must be on or every user shares a bucket.
+	// a proxy it must be a trusted proxy or every user shares a bucket.
 	authLimiter := ratelimit.New(stores, "ratelimit_auth", cfg.AuthRateLimit, cfg.AuthRateLimit)
 	signalingLimiter := ratelimit.New(stores, "ratelimit_signaling", cfg.SignalingRateLimit, cfg.SignalingRateLimit)
 	if !authLimiter.Enabled() || !signalingLimiter.Enabled() {
@@ -369,14 +368,9 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 			ClientID: cfg.OIDCClientID, ClientSecret: cfg.OIDCClientSecret,
 		}})
 	}
-	// STOOP_TRUST_PROXY=true is the blunt older form: believe every peer.
-	// Named addresses, from the environment or the admin page, replace it.
-	if cfg.TrustProxy || !cfg.TrustedProxies.Empty() {
+	if !cfg.TrustedProxies.Empty() {
 		env := instanceSvc.ReachabilityEnvValue()
 		env.TrustedProxies = cfg.TrustedProxies
-		if cfg.TrustProxy {
-			env.TrustedProxies = trustedproxy.All()
-		}
 		instanceSvc.UseReachabilityEnv(env)
 	}
 	if err := instanceSvc.LoadTrustedProxies(ctx); err != nil {

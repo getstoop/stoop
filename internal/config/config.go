@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -39,11 +40,6 @@ type Config struct {
 	// address the browser used"; with the built-in Tailscale listener the
 	// tailnet address is used when this is unset.
 	PublicURL string
-	// TrustProxy honours X-Forwarded-Proto from a reverse proxy in front of
-	// the plain listener, so cookies issued through an HTTPS proxy are
-	// Secure. Only enable it when a proxy you control is the only way to
-	// reach ListenAddr.
-	TrustProxy bool
 	// TrustedProxies names the proxies whose forwarded headers are
 	// believed. The admin page's saved list overrides it.
 	TrustedProxies trustedproxy.Set
@@ -267,14 +263,18 @@ func Load() (Config, error) {
 		}
 		cfg.PublicURL = strings.TrimSuffix(cfg.PublicURL, "/")
 	}
-	if cfg.TrustProxy, err = parseBool("STOOP_TRUST_PROXY", false); err != nil {
+	// Compose still passes STOOP_TRUST_PROXY (false by default) for one
+	// release, so an operator who set it true is told instead of silently
+	// trusting nothing (STOOP-406 removes it).
+	trustEveryone, err := parseBool("STOOP_TRUST_PROXY", false)
+	if err != nil {
 		return Config{}, err
+	}
+	if trustEveryone {
+		return Config{}, errors.New("STOOP_TRUST_PROXY=true is no longer supported: name your proxy's addresses in STOOP_TRUSTED_PROXIES and remove STOOP_TRUST_PROXY")
 	}
 	if cfg.TrustedProxies, err = trustedproxy.Parse(splitList(os.Getenv("STOOP_TRUSTED_PROXIES"))); err != nil {
 		return Config{}, fmt.Errorf("STOOP_TRUSTED_PROXIES: %w", err)
-	}
-	if cfg.TrustProxy && !cfg.TrustedProxies.Empty() {
-		return Config{}, fmt.Errorf("set STOOP_TRUSTED_PROXIES or STOOP_TRUST_PROXY=true, not both")
 	}
 
 	cfg.TURNURLs = splitList(os.Getenv("STOOP_TURN_URLS"))

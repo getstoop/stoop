@@ -343,9 +343,7 @@ message UpdateReachabilityRequest {
   // Applied immediately: the listener starts, stops, or restarts.
   optional TailscaleSettings tailscale = 4;
   // Applied immediately, without a restart. An empty cidrs list clears
-  // the saved value and falls back to the environment. trust_all is
-  // ignored here: naming addresses is the only way to add trust from the
-  // API.
+  // the saved value and falls back to the environment.
   optional TrustedProxies trusted_proxies = 5;
   // Applied immediately: cloudflared starts, stops, or restarts.
   optional CloudflareTunnelSettings cloudflare_tunnel = 6;

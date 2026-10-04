@@ -20,14 +20,8 @@ import (
 // The zero value trusts nothing, which is the right default for a server
 // whose port is reachable directly.
 type Set struct {
-	// all trusts every peer: STOOP_TRUST_PROXY=true, kept for servers
-	// configured before addresses could be named.
-	all      bool
 	prefixes []netip.Prefix
 }
-
-// All trusts any peer's forwarded headers.
-func All() Set { return Set{all: true} }
 
 // Parse builds a set from CIDRs ("10.0.0.0/8") and bare addresses
 // ("192.168.1.5", which means that address alone). Blank entries are
@@ -52,12 +46,8 @@ func Parse(entries []string) (Set, error) {
 	return s, nil
 }
 
-// TrustsEveryone reports the blunt legacy mode: every peer believed,
-// with no addresses named.
-func (s Set) TrustsEveryone() bool { return s.all }
-
 // Empty reports whether nothing is trusted.
-func (s Set) Empty() bool { return !s.all && len(s.prefixes) == 0 }
+func (s Set) Empty() bool { return len(s.prefixes) == 0 }
 
 // Strings renders the set back for the API and the form.
 func (s Set) Strings() []string {
@@ -75,9 +65,6 @@ func (s Set) Strings() []string {
 // Trusted reports whether remoteAddr — an "ip:port" peer, or a bare IP —
 // is a proxy whose forwarded headers may be believed.
 func (s Set) Trusted(remoteAddr string) bool {
-	if s.all {
-		return true
-	}
 	if len(s.prefixes) == 0 {
 		return false
 	}

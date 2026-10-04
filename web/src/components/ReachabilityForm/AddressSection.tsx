@@ -7,14 +7,10 @@ export function AddressSection({
   fields,
   errors,
   set,
-  trustAll,
 }: {
   fields: Fields;
   errors: ReachErrors;
   set: SetField;
-  // Whether the server is currently trusting every caller's forwarded
-  // headers (STOOP_TRUST_PROXY=true), which naming proxies replaces.
-  trustAll: boolean;
 }) {
   return (
     <>
@@ -55,15 +51,6 @@ export function AddressSection({
           placeholder="10.0.0.0/8, 192.168.1.5"
           autoComplete="off"
         />
-        {/* The warning about a wide-open trust setting isn't help text —
-            it's about this server right now, so it stays in the open. */}
-        {trustAll && (
-          <p className="hint">
-            This server currently trusts <strong>every</strong> caller's
-            forwarded headers (STOOP_TRUST_PROXY=true in its environment).
-            Naming addresses here replaces that with something safer.
-          </p>
-        )}
       </SettingRow>
     </>
   );

@@ -229,7 +229,7 @@ func TestTrustedProxies(t *testing.T) {
 		t.Fatal(err)
 	}
 	if list := got.Msg.Reachability.TrustedProxies; list == nil ||
-		len(list.Cidrs) != 2 || list.Cidrs[0] != "10.0.0.0/8" || list.Cidrs[1] != "192.168.1.5" || list.TrustAll {
+		len(list.Cidrs) != 2 || list.Cidrs[0] != "10.0.0.0/8" || list.Cidrs[1] != "192.168.1.5" {
 		t.Errorf("round trip: %v", got.Msg.Reachability.TrustedProxies)
 	}
 
@@ -243,9 +243,13 @@ func TestTrustedProxies(t *testing.T) {
 		t.Error("a refused save changed the list")
 	}
 
-	// Clearing falls back to the environment, which here trusts everyone.
+	// Clearing falls back to the environment.
+	envSet, err := trustedproxy.Parse([]string{"8.8.8.0/24"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	env := svc.ReachabilityEnvValue()
-	env.TrustedProxies = trustedproxy.All()
+	env.TrustedProxies = envSet
 	svc.UseReachabilityEnv(env)
 	if _, err := svc.UpdateReachability(admin, connect.NewRequest(&instancev1.UpdateReachabilityRequest{
 		TrustedProxies: &instancev1.TrustedProxies{},
@@ -253,14 +257,14 @@ func TestTrustedProxies(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !svc.TrustsPeer("8.8.8.8:80") {
-		t.Error("cleared list should fall back to STOOP_TRUST_PROXY")
+		t.Error("cleared list should fall back to STOOP_TRUSTED_PROXIES")
 	}
 	got, err = svc.GetReachability(admin, connect.NewRequest(&instancev1.GetReachabilityRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.Msg.Reachability.TrustedProxies.TrustAll {
-		t.Error("trust_all should be reported when the environment trusts everyone")
+	if cidrs := got.Msg.Reachability.TrustedProxies.Cidrs; len(cidrs) != 1 || cidrs[0] != "8.8.8.0/24" {
+		t.Errorf("the environment's list should be reported, got %v", cidrs)
 	}
 
 	// Saving something else leaves the proxies alone.

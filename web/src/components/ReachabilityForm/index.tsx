@@ -92,12 +92,7 @@ export function ReachabilityForm({
 
   return (
     <form className="reach-form" ref={form.formRef} onSubmit={submit}>
-      <AddressSection
-        fields={fields}
-        errors={form.errors}
-        set={set}
-        trustAll={data?.reachability?.trustedProxies?.trustAll ?? false}
-      />
+      <AddressSection fields={fields} errors={form.errors} set={set} />
 
       <CloudflareTunnelSection
         fields={fields}
