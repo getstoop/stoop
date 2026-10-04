@@ -31,7 +31,22 @@ const adminUsage = `usage: stoop admin <command>
 
 The recovery path when you've locked yourself out of the admin page. Talks
 to the database in STOOP_DATABASE_URL directly; the server may keep running.
+It never migrates: on a database behind this binary, or too new for it,
+it refuses with exit status 3.
 `
+
+// adminRefusal is why stoop admin will not run against this database, or
+// nil. Migrating here would change the schema under a running older server,
+// skipping the backup and plan stoop upgrade takes first.
+func adminRefusal(p db.Plan) error {
+	if err := p.Refused(); err != nil {
+		return err
+	}
+	if len(p.Pending) > 0 {
+		return fmt.Errorf("database is at migration %d and this binary needs %d: start this version's server first (stoop upgrade does), or use the stoop that matches the running server", p.Applied, p.Newest)
+	}
+	return nil
+}
 
 // runAdmin implements `stoop admin ...`. It returns the process exit code.
 func runAdmin(ctx context.Context, args []string, out io.Writer) int {
@@ -50,9 +65,14 @@ func runAdmin(ctx context.Context, args []string, out io.Writer) int {
 		return 1
 	}
 	defer pool.Close()
-	if err := db.Migrate(ctx, pool); err != nil {
+	plan, err := db.Inspect(ctx, pool)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
+	}
+	if err := adminRefusal(plan); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 3
 	}
 	svc := auth.New(pool, auth.Options{})
 
