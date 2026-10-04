@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -198,7 +199,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
-		rows = newestFirst(after)
+		rows = listedRows(after)
 		hasOlder, hasNewer = true, int32(len(after)) == limit
 
 	case req.Msg.AroundId != "":
@@ -221,7 +222,8 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
-		rows = append(newestFirst(after), before...)
+		slices.Reverse(before)
+		rows = append(before, listedRows(after)...)
 		hasOlder, hasNewer = int32(len(before)) == older, int32(len(after)) == newer
 
 	default:
@@ -237,6 +239,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
 		hasOlder, hasNewer = int32(len(rows)) == limit, before != nil
+		slices.Reverse(rows)
 	}
 
 	messages, err := s.hydrateMessages(ctx, spaceOf(channel), rows)
@@ -248,14 +251,14 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	}), nil
 }
 
-// newestFirst flips an ascending forward page into the newest-first order the
-// hydrator expects. The two sqlc row types are structurally identical.
-func newestFirst(asc []dbgen.ListMessagesAfterRow) []dbgen.ListMessagesBeforeRow {
-	out := make([]dbgen.ListMessagesBeforeRow, len(asc))
-	for i, r := range asc {
-		out[len(asc)-1-i] = dbgen.ListMessagesBeforeRow(r)
+// listedRows converts a forward page to the hydrator's row type; the two
+// sqlc row types are structurally identical.
+func listedRows(rows []dbgen.ListMessagesAfterRow) []dbgen.ListMessagesBeforeRow {
+	listed := make([]dbgen.ListMessagesBeforeRow, len(rows))
+	for index, row := range rows {
+		listed[index] = dbgen.ListMessagesBeforeRow(row)
 	}
-	return out
+	return listed
 }
 
 // messageRow is a messages row without its search vector, which the
@@ -272,8 +275,8 @@ func listedMessage(r dbgen.ListMessagesBeforeRow) messageRow {
 	}
 }
 
-// hydrateMessages turns newest-first rows into oldest-first protos with
-// authors, mentions, reactions, attachments, link previews and reply quotes.
+// hydrateMessages turns rows into protos, in the same order, with authors,
+// mentions, reactions, attachments, link previews and reply quotes.
 func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.ListMessagesBeforeRow) ([]*chatv1.Message, error) {
 	authorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}
@@ -325,7 +328,6 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		return nil, err
 	}
 
-	// Rows come newest-first; return oldest-first for rendering.
 	messages := make([]*chatv1.Message, len(rows))
 	for i, r := range rows {
 		m := toProtoMessage(listedMessage(r), authors, mentions[r.ID], spaceID)
@@ -340,7 +342,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			}
 			m.ReplyTo = replyRef(*r.ReplyToMessageID, author, r.ReplyContent, replyFiles[r.ReplyFirstFileID].label())
 		}
-		messages[len(rows)-1-i] = m
+		messages[i] = m
 	}
 	return messages, nil
 }
@@ -385,7 +387,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 			return nil, fmt.Errorf("record links: %w", err)
 		}
 	}
-	out, err := s.loadMessage(ctx, row, spaceOf(channel))
+	out, err := s.loadMessage(ctx, row.ID, spaceOf(channel))
 	if err != nil {
 		return nil, err
 	}

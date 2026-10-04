@@ -90,13 +90,9 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 	if err != nil {
 		return nil, err
 	}
-	// The hydrator returns oldest-first; results read newest-first.
 	messages, err := s.hydrateMessages(ctx, spaceID, rows)
 	if err != nil {
 		return nil, err
-	}
-	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
-		messages[i], messages[j] = messages[j], messages[i]
 	}
 	return connect.NewResponse(&chatv1.SearchMessagesResponse{
 		Messages: messages, HasOlder: int32(len(rows)) == limit,
