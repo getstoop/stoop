@@ -5,6 +5,10 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+
+	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 )
 
 // translateMessage is a message.created for the fixture's channel.
@@ -173,6 +177,44 @@ func TestCommittedFanOutRunAgainQueuesNothing(t *testing.T) {
 	}
 	if spent := f.countRows(t, `SELECT count(*) FROM outgoing_webhooks WHERE sequence <> 1`); spent != 0 {
 		t.Errorf("%d hooks spent a sequence on the second run", spent)
+	}
+}
+
+// A hook deleted while its space's fan-out is under way fails that
+// attempt whole; the retry delivers to the hook that is left, once.
+func TestHookDeletedMidFanOutFailsTheAttemptAndTheRetryDelivers(t *testing.T) {
+	f, endpoint := outgoingFixture(t)
+	kept, _ := f.createOutgoing(t, endpoint.srv.URL+"/kept", []string{EventMessageCreated}, "")
+	deleted, _ := f.createOutgoing(t, endpoint.srv.URL+"/deleted", []string{EventMessageCreated}, "")
+	event := f.translateMessage(t, "during the delete")
+	f.jobs.onEnqueueInTx = func(lane string) {
+		if lane != kept.Id {
+			return
+		}
+		f.jobs.onEnqueueInTx = nil
+		if _, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: deleted.Id})); err != nil {
+			t.Errorf("delete mid-fan-out: %v", err)
+		}
+	}
+
+	if err := f.svc.FanOutWebhookEvent(context.Background(), event); err == nil {
+		t.Fatal("a fan-out whose hook vanished under it succeeded")
+	}
+	if pending := f.jobs.pending(); pending != 0 {
+		t.Errorf("%d deliveries queued by the failed attempt", pending)
+	}
+	if rows := f.countRows(t, `SELECT count(*) FROM webhook_deliveries`); rows != 0 {
+		t.Errorf("%d delivery rows left by the failed attempt", rows)
+	}
+
+	if err := f.svc.FanOutWebhookEvent(context.Background(), event); err != nil {
+		t.Fatalf("retry: %v", err)
+	}
+	if results := f.drain(t); len(results) != 1 || !results[0].Delivered {
+		t.Fatalf("retry delivered %+v", results)
+	}
+	if logged := f.listDeliveries(t, kept.Id); len(logged) != 1 || logged[0].Sequence != 1 {
+		t.Errorf("the kept hook's log after the retry: %+v", logged)
 	}
 }
 

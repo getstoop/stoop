@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -13,6 +14,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
 // An outgoing hook POSTs signed events to a URL somebody else hosts. The
@@ -50,10 +55,15 @@ func newReceiver(t *testing.T) *receiver {
 // next waits for a delivery, or fails.
 func (r *receiver) next(t *testing.T) delivery {
 	t.Helper()
+	return r.nextWithin(t, 5*time.Second)
+}
+
+func (r *receiver) nextWithin(t *testing.T, wait time.Duration) delivery {
+	t.Helper()
 	select {
 	case d := <-r.got:
 		return d
-	case <-time.After(5 * time.Second):
+	case <-time.After(wait):
 		t.Fatal("no delivery arrived")
 		return delivery{}
 	}
@@ -346,5 +356,79 @@ func TestE2EOutgoingBurstReachesEveryHookInOrder(t *testing.T) {
 	}
 	for _, rcv := range receivers {
 		rcv.none(t)
+	}
+}
+
+// A fan-out that fails part-way is rolled back whole, and the real
+// dispatcher's retry delivers the event to every hook exactly once.
+func TestE2EFailedFanOutIsRetriedWhole(t *testing.T) {
+	databaseURL := dbtest.NewURL(t)
+	h := newHarnessOn(t, databaseURL)
+	pool, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	casey := h.person("casey")
+	stoop, general := h.space(casey, "The Stoop")
+	h.rpc(casey, "stoop.instance.v1.InstanceService/UpdateSettings", map[string]any{"webhooksAllowPrivateTargets": true}).expect(t, "ok")
+	receivers := make([]*receiver, 3)
+	var lastHook string
+	for index := range receivers {
+		receivers[index] = newReceiver(t)
+		lastHook, _ = h.outgoing(casey, stoop, receivers[index].srv.URL, "message.created")
+	}
+
+	// The last hook's log row fails to insert on the first try only: a
+	// sequence, unlike a table, keeps counting through the rollback.
+	for _, statement := range []string{
+		`CREATE SEQUENCE injected_failures`,
+		`CREATE FUNCTION fail_first_insert() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN
+			IF NEW.webhook_id::text = '` + lastHook + `' AND nextval('injected_failures') = 1 THEN
+				RAISE EXCEPTION 'injected fan-out failure';
+			END IF;
+			RETURN NEW;
+		END $$`,
+		`CREATE TRIGGER fail_first_insert BEFORE INSERT ON webhook_deliveries FOR EACH ROW EXECUTE FUNCTION fail_first_insert()`,
+	} {
+		if _, err := pool.Exec(context.Background(), statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	h.send(casey, general, "all or nothing").expect(t, "ok")
+	countRows := func(query string) int {
+		var count int
+		if err := pool.QueryRow(context.Background(), query).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		return count
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for countRows(`SELECT count(*) FROM jobs WHERE kind = 'fan_out_webhook_event' AND state = 'queued' AND attempt = 1`) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("the fan-out's first attempt did not fail")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if rows := countRows(`SELECT count(*) FROM webhook_deliveries`); rows != 0 {
+		t.Errorf("%d delivery rows left by the failed attempt", rows)
+	}
+	if queued := countRows(`SELECT count(*) FROM jobs WHERE kind = 'deliver_webhook'`); queued != 0 {
+		t.Errorf("%d deliver_webhook jobs left by the failed attempt", queued)
+	}
+
+	for index, rcv := range receivers {
+		got := rcv.nextWithin(t, 15*time.Second)
+		if got.headers.Get("Stoop-Sequence") != "1" || got.body["data"].(map[string]any)["content"] != "all or nothing" {
+			t.Errorf("hook %d: sequence %s, body %s", index, got.headers.Get("Stoop-Sequence"), got.raw)
+		}
+	}
+	for _, rcv := range receivers {
+		rcv.none(t)
+	}
+	if done := countRows(`SELECT count(*) FROM jobs WHERE kind = 'fan_out_webhook_event' AND state = 'succeeded' AND attempt = 2`); done != 1 {
+		t.Errorf("fan-out jobs that succeeded on the retry: %d, want 1", done)
 	}
 }

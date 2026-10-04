@@ -113,6 +113,9 @@ type fakeJobs struct {
 	refuseLane string
 	// statuses is what JobStatuses answers, by id.
 	statuses map[string]JobStatus
+	// onEnqueueInTx, when set, runs after each enqueue in a transaction,
+	// while that transaction is still open.
+	onEnqueueInTx func(lane string)
 }
 
 func (jobs *fakeJobs) EnqueueInLane(_ context.Context, kind string, args any, lane string, sequence int64) (string, error) {
@@ -136,6 +139,9 @@ func (jobs *fakeJobs) EnqueueInLaneTx(ctx context.Context, tx pgx.Tx, kind strin
 		return "", err
 	}
 	jobs.add(job)
+	if jobs.onEnqueueInTx != nil {
+		jobs.onEnqueueInTx(lane)
+	}
 	return job.id, nil
 }
 
