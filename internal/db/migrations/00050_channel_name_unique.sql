@@ -16,6 +16,7 @@ BEGIN
             FROM channels WHERE space_id IS NOT NULL
         ) ranked
         WHERE rank > 1
+        ORDER BY space_id, lower(name), rank
     LOOP
         suffix := 2;
         WHILE EXISTS (
