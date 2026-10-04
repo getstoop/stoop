@@ -95,12 +95,9 @@ type Service struct {
 // in registry; the kinds internal/app performs are registered before
 // RunDispatcher starts.
 func New(pool *pgxpool.Pool, registry *Registry, cfg Config, log *slog.Logger) *Service {
-	// The count is written to an int32 column; the bound is what makes
-	// the narrowing safe.
 	if cfg.Workers <= 0 {
 		cfg.Workers = DefaultWorkers
 	}
-	cfg.Workers = min(cfg.Workers, math.MaxInt32)
 	if cfg.Poll <= 0 {
 		cfg.Poll = DefaultPoll
 	}
@@ -182,6 +179,14 @@ func (s *Service) GetRuns(ctx context.Context, ids []string) ([]Run, error) {
 		runs[index] = runFromRow(row)
 	}
 	return runs, nil
+}
+
+// int32Column narrows a count for an int32 column or LIMIT, bounded.
+func int32Column(count int) int32 {
+	if count > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(count)
 }
 
 func encodeArgs(args any) ([]byte, error) {

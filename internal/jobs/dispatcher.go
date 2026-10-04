@@ -36,7 +36,7 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 		s.listen(ctx, wake)
 	}()
 	registration := dbgen.UpsertDispatcherParams{
-		ID: rowid.New(), Host: s.cfg.Host, Workers: int32(s.cfg.Workers), StartedAt: s.now(),
+		ID: rowid.New(), Host: s.cfg.Host, Workers: int32Column(s.cfg.Workers), StartedAt: s.now(),
 	}
 
 	workCtx, cancelWork := context.WithCancel(context.Background())
@@ -100,7 +100,7 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 	}
 	now := s.now()
 	rows, err := s.queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{
-		Until: now.Add(s.lease), Now: now, Kinds: s.registry.Kinds(), Excluded: tracked.ids(), Limit: int32(free),
+		Until: now.Add(s.lease), Now: now, Kinds: s.registry.Kinds(), Excluded: tracked.ids(), Limit: int32Column(free),
 	})
 	if err != nil {
 		s.logUnlessStopping(ctx, "jobs: lease", err)
