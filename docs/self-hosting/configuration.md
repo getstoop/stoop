@@ -10,8 +10,9 @@ Settings that also appear on the admin page (the instance name, password
 sign-in, the `STOOP_OIDC_*` provider, and the public URL, trusted
 proxies, TURN, Cloudflare and Tailscale settings) only pre-configure the
 server. Each is copied into the database the first time the server
-starts with it set. After that, changing the variable does nothing:
-change the setting on the admin page.
+starts with it set. After that, changing the variable does nothing
+(the server logs a warning naming it): change the setting on the admin
+page.
 
 | Variable                   | Default                     | Purpose                          |
 | -------------------------- | --------------------------- | -------------------------------- |
