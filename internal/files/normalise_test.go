@@ -55,6 +55,8 @@ func TestAvatarUploadIsNormalisedByJob(t *testing.T) {
 	f := setup(t)
 	sub := f.bus.Subscribe(events.SpaceTopic(f.space))
 	defer sub.Close()
+	ownDevices := f.bus.Subscribe(events.UserTopic(f.member))
+	defer ownDevices.Close()
 	original := jpegBytes(t, 300, 200)
 
 	res, err := f.svc.UploadAvatar(as(f.member), connect.NewRequest(&filesv1.UploadAvatarRequest{Data: original}))
@@ -95,6 +97,9 @@ func TestAvatarUploadIsNormalisedByJob(t *testing.T) {
 	}
 	if updated := awaitMemberUpdated(t, sub); updated.SpaceId != f.space || updated.UserId != f.member {
 		t.Errorf("MemberUpdated %+v, want space %s user %s", updated, f.space, f.member)
+	}
+	if updated := awaitMemberUpdated(t, ownDevices); updated.SpaceId != "" || updated.UserId != f.member {
+		t.Errorf("MemberUpdated on the user topic %+v, want no space and user %s", updated, f.member)
 	}
 }
 

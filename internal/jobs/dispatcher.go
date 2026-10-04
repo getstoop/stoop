@@ -112,29 +112,35 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 	return len(rows) == free
 }
 
-// leaseDue leases the uncapped kinds in one query, then each capped kind
-// under its lock while free workers remain. A failed capped lease ends the
-// pass; what was leased before it is still returned.
+// leaseDue leases the capped kinds first, each under its lock, then the
+// uncapped kinds in one query for the slots left. Capped first because
+// their caps bound what they take, while a stream of uncapped work could
+// otherwise fill every slot ahead of them. A failed lease ends the pass;
+// what was leased before it is still returned.
 func (s *Service) leaseDue(ctx context.Context, free int, excluded []string) []dbgen.Job {
 	now := s.now()
-	rows, err := s.queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{
-		Until: now.Add(s.lease), Now: now, Kinds: s.registry.uncappedKinds(), Excluded: excluded, Limit: int32Column(free),
-	})
-	if err != nil {
-		s.logUnlessStopping(ctx, "jobs: lease", err)
-		return nil
-	}
+	var rows []dbgen.Job
 	for _, kind := range s.registry.cappedKinds() {
 		remaining := free - len(rows)
 		if remaining <= 0 {
-			break
+			return rows
 		}
 		capped, err := s.leaseCapped(ctx, now, kind, remaining, excluded)
 		if err != nil {
 			s.logUnlessStopping(ctx, "jobs: lease "+kind.kind, err)
-			break
+			return rows
 		}
 		rows = append(rows, capped...)
+	}
+	if remaining := free - len(rows); remaining > 0 {
+		uncapped, err := s.queries.LeaseJobs(ctx, dbgen.LeaseJobsParams{
+			Until: now.Add(s.lease), Now: now, Kinds: s.registry.uncappedKinds(), Excluded: excluded, Limit: int32Column(remaining),
+		})
+		if err != nil {
+			s.logUnlessStopping(ctx, "jobs: lease", err)
+			return rows
+		}
+		rows = append(rows, uncapped...)
 	}
 	return rows
 }

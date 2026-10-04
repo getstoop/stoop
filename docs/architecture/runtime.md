@@ -297,11 +297,12 @@ apply in the order the server received them. Sweeps have no lane.
 
 A kind registered with `Options{MaxInFlight: n}` never has more than
 `n` rows on a live lease (`running`, `leased_until` in the future) across
-every dispatcher; `0`, the default, is no cap. The uncapped kinds are
-leased together in one query. A capped kind is leased in its own
-transaction under a per-kind advisory lock, with a LIMIT of the cap less
-the live leases, so one batch cannot overshoot; a kind at its cap holds
-back nothing else.
+every dispatcher; `0`, the default, is no cap. A capped kind is leased
+in its own transaction under a per-kind advisory lock, with a LIMIT of
+the cap less the live leases, so one batch cannot overshoot; a kind at
+its cap holds back nothing else. Capped kinds are leased first, so a
+stream of uncapped work cannot starve them; the uncapped kinds then
+share one query for the slots left.
 
 The dispatcher (`RunDispatcher`) is woken by the `NOTIFY` the insert of
 a job raises, on a connection of its own outside the pool, and polls for

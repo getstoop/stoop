@@ -81,6 +81,9 @@ func (s *Service) UploadSpaceIcon(ctx context.Context, req *connect.Request[file
 // as sent under a pending row and queues the normalise_image job in the
 // target's lane, so two uploads for one target apply in arrival order.
 func (s *Service) queueImage(ctx context.Context, kind Kind, ownerID string, spaceID *string, data []byte, args NormaliseImageArgs, lane string) (string, error) {
+	// The lane runs in sequence order, so the sequence is the moment the
+	// request arrived, before anything that takes time.
+	sequence := time.Now().UnixNano()
 	if s.jobs == nil {
 		return "", connect.NewError(connect.CodeUnavailable, errors.New("the job queue is not running"))
 	}
@@ -93,7 +96,7 @@ func (s *Service) queueImage(ctx context.Context, kind Kind, ownerID string, spa
 		return "", err
 	}
 	args.FileID = file.ID
-	if _, err := s.jobs.EnqueueInLane(ctx, NormaliseImageKind, args, lane, time.Now().UnixNano()); err != nil {
+	if _, err := s.jobs.EnqueueInLane(ctx, NormaliseImageKind, args, lane, sequence); err != nil {
 		s.discard(ctx, file)
 		return "", fmt.Errorf("queue %s: %w", NormaliseImageKind, err)
 	}
