@@ -93,7 +93,7 @@ The request keeps the cheap refusals inline, so a person sees them beside
 the picker: empty, over 2 MB, not an image by sniffing, dimensions over
 the bound. It then stores the original bytes as a **pending** file row and
 queues the job in a lane per user or space, so two uploads for one target
-apply in the order they arrived, and returns the file id. The job decodes
+apply in the order the server received them, and returns the file id. The job decodes
 and re-encodes, replaces the blob under the same key, readies the row
 (`image/png`, the new size and hash), points the account or space at it,
 deletes the file it replaced, and publishes `member_updated` (chat
@@ -113,8 +113,9 @@ repeated pairs in one process, two 8-bit decodes at once peak at 397 MiB
 of resident memory with `GOMEMLIMIT=400MiB` and 592 MiB without it, which
 is why the `jobs` compose service sets that variable under its 512m
 limit; two 16-bit decodes at once reach 650 MiB even so, and one at a
-time 330 MiB. An operator who sees the runner restart on uploads lowers
-the cap to 1 or raises the limit. Link preview images are still
+time 330 MiB. An operator who sees the runner restart on uploads raises the
+container's memory limit; the cap is a constant in `files`
+(`NormaliseImageMaxInFlight`), not a setting. Link preview images are still
 re-encoded in the request that fetched them (`preview.go`).
 
 Three things fall out of the re-encode:
