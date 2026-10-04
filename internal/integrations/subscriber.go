@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -142,6 +143,7 @@ func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 		return fmt.Errorf("list hooks: %w", err)
 	}
 	var spaceName, instance string
+	var failed error
 	named := false
 	for _, h := range hooks {
 		if !wants(h.EventTypes, ev.Type) || (h.ChannelID != nil && ev.ChannelID != "" && *h.ChannelID != ev.ChannelID) {
@@ -156,11 +158,14 @@ func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 				instance, _ = s.policy.PublicURL(ctx)
 			}
 		}
+		// One hook's failure (deleted since the list, say) is not the
+		// others': every hook is tried, the first error is returned.
 		if _, err := s.enqueueFor(ctx, h.ID, ev, spaceName, instance); err != nil {
-			return err
+			s.log.Error("enqueue hook delivery", "hook", h.ID, "event", ev.Type, "err", err)
+			failed = cmp.Or(failed, err)
 		}
 	}
-	return nil
+	return failed
 }
 
 // enqueueFor takes the hook's next sequence number, renders the body and
