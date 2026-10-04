@@ -154,12 +154,6 @@ func TestDeactivationRevokesEveryCredential(t *testing.T) {
 	ada, _ := authctx.From(signedIn)
 	ctx := context.Background()
 	mintToken(t, pool, ada.UserID, []string{"messages.read"}, false)
-	legacy := sha256.Sum256([]byte("legacy"))
-	if _, err := pool.Exec(ctx,
-		`INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, now() + interval '1 hour')`,
-		uuid.NewString(), ada.UserID, legacy[:]); err != nil {
-		t.Fatal(err)
-	}
 
 	if _, err := svc.SetAccountActive(ctx, ada.UserID, false); err != nil {
 		t.Fatal(err)
@@ -167,18 +161,12 @@ func TestDeactivationRevokesEveryCredential(t *testing.T) {
 	if _, err := svc.VerifyToken(ctx, session); err == nil {
 		t.Error("the session still verifies")
 	}
-	var credentials, sessions int
+	var credentials int
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM credentials WHERE holder_id = $1`, ada.UserID).Scan(&credentials); err != nil {
-		t.Fatal(err)
-	}
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM sessions WHERE user_id = $1`, ada.UserID).Scan(&sessions); err != nil {
 		t.Fatal(err)
 	}
 	if credentials != 0 {
 		t.Errorf("%d credentials left after deactivation", credentials)
-	}
-	if sessions != 0 {
-		t.Errorf("%d legacy sessions left; a rollback would bring them back", sessions)
 	}
 }
 

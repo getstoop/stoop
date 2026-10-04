@@ -185,7 +185,7 @@ module's tests construct it alone.
 
 | Module | Tables |
 | ------ | ------ |
-| `auth` | `users`, `credentials`, `credential_bounds`, `user_identities`, and the legacy `sessions` until its contract migration |
+| `auth` | `users`, `credentials`, `credential_bounds`, `user_identities` |
 | `chat` | `spaces`, `space_members`, `space_bans`, `user_blocks`, `channels`, `channel_reads`, `channel_mutes`, `space_mutes`, `channel_pins`, `dm_members`, `messages`, `message_mentions`, `message_reactions`, `message_attachments`, `message_links`, `link_previews`, `activity_items`, `invites` |
 | `instance` | `instance_settings` |
 | `files` | `files` |

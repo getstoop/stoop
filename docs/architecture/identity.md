@@ -189,10 +189,7 @@ connection secure?" genuinely varies per request.
 **A session is one kind of credential.** It is a row in `credentials`, the
 table personal tokens, bot tokens and hook URLs share (see
 [Personal tokens](#personal-tokens)), and only a person can
-hold one: the insert refuses a bot. Every revocation — logout, a password
-change, deactivation, an admin reset — also clears the matching rows in the
-legacy `sessions` table until a contract migration drops it, so rolling back
-to the previous release can't revive a revoked session.
+hold one: the insert refuses a bot.
 
 **A session lasts a fixed time from sign-in**: `session_lifetime_days`
 (1-365), else `STOOP_SESSION_LIFETIME_DAYS`, else 30. It is read when the

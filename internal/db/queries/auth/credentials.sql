@@ -1,10 +1,8 @@
 -- Credentials. Owned by the auth module.
 -- Only internal/auth may use these queries.
 --
--- Until the contract migration drops sessions, every revocation also clears
--- the matching legacy rows, so rolling back to the previous release can't
--- bring a revoked session back. Every revocation returns what it removed,
--- so auth can tell the gateway to close the sockets opened with it.
+-- Every revocation returns what it removed, so auth can tell the gateway
+-- to close the sockets opened with it.
 
 -- CreateSession mints a session for a person. A bot never gets one: the
 -- insert finds no holder and returns no row.
@@ -32,14 +30,12 @@ WHERE c.token_hash = $1
 GROUP BY c.id, u.role, u.kind;
 
 -- name: DeleteCredential :many
-WITH legacy AS (DELETE FROM sessions WHERE sessions.id = $1)
 DELETE FROM credentials WHERE credentials.id = $1
 RETURNING id, holder_id;
 
 -- DeleteOtherSessions signs a person out everywhere except the calling
 -- session (used after a password change).
 -- name: DeleteOtherSessions :many
-WITH legacy AS (DELETE FROM sessions WHERE user_id = sqlc.arg(holder_id) AND sessions.id <> sqlc.arg(id))
 DELETE FROM credentials
 WHERE holder_id = sqlc.arg(holder_id) AND kind = 'session' AND credentials.id <> sqlc.arg(id)
 RETURNING id, holder_id;
@@ -54,7 +50,6 @@ ORDER BY coalesce(last_used_at, created_at) DESC;
 -- DeleteUserCredentials revokes everything an account holds, on
 -- deactivation and on an admin password reset.
 -- name: DeleteUserCredentials :many
-WITH legacy AS (DELETE FROM sessions WHERE user_id = $1)
 DELETE FROM credentials WHERE holder_id = $1
 RETURNING id, holder_id;
 
@@ -95,7 +90,6 @@ SELECT holder_id, count(*) AS n FROM credentials WHERE kind = 'personal_token' G
 -- once they expired before expired_before, so a list can still explain a
 -- recently expired token.
 -- name: SweepCredentials :many
-WITH legacy AS (DELETE FROM sessions WHERE sessions.expires_at <= now())
 DELETE FROM credentials
 WHERE (kind = 'session' AND expires_at <= now())
    OR (kind <> 'session' AND expires_at <= sqlc.arg(expired_before)::timestamptz)

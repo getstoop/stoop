@@ -3,6 +3,7 @@ package db_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -15,7 +16,7 @@ func TestWriteReport(t *testing.T) {
 	db.WriteReport(&out, pending, true)
 	for _, want := range []string{
 		"database   migration 37 (0.2.0), floor 0",
-		"binary     0.3.0, migration 42, floor 0",
+		fmt.Sprintf("binary     0.3.0, migration 42, floor %d", db.Floor),
 		"pending    2",
 		"           00038_session_user_agent",
 		"startable  0.1.0 and later can start",

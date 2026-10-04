@@ -109,10 +109,8 @@ type CreateSessionParams struct {
 // Credentials. Owned by the auth module.
 // Only internal/auth may use these queries.
 //
-// Until the contract migration drops sessions, every revocation also clears
-// the matching legacy rows, so rolling back to the previous release can't
-// bring a revoked session back. Every revocation returns what it removed,
-// so auth can tell the gateway to close the sockets opened with it.
+// Every revocation returns what it removed, so auth can tell the gateway
+// to close the sockets opened with it.
 // CreateSession mints a session for a person. A bot never gets one: the
 // insert finds no holder and returns no row.
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (string, error) {
@@ -129,7 +127,6 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (s
 }
 
 const deleteCredential = `-- name: DeleteCredential :many
-WITH legacy AS (DELETE FROM sessions WHERE sessions.id = $1)
 DELETE FROM credentials WHERE credentials.id = $1
 RETURNING id, holder_id
 `
@@ -160,7 +157,6 @@ func (q *Queries) DeleteCredential(ctx context.Context, id string) ([]DeleteCred
 }
 
 const deleteOtherSessions = `-- name: DeleteOtherSessions :many
-WITH legacy AS (DELETE FROM sessions WHERE user_id = $1 AND sessions.id <> $2)
 DELETE FROM credentials
 WHERE holder_id = $1 AND kind = 'session' AND credentials.id <> $2
 RETURNING id, holder_id
@@ -235,7 +231,6 @@ func (q *Queries) DeletePersonalToken(ctx context.Context, arg DeletePersonalTok
 }
 
 const deleteUserCredentials = `-- name: DeleteUserCredentials :many
-WITH legacy AS (DELETE FROM sessions WHERE user_id = $1)
 DELETE FROM credentials WHERE holder_id = $1
 RETURNING id, holder_id
 `
@@ -451,7 +446,6 @@ func (q *Queries) ListSessions(ctx context.Context, holderID string) ([]ListSess
 }
 
 const sweepCredentials = `-- name: SweepCredentials :many
-WITH legacy AS (DELETE FROM sessions WHERE sessions.expires_at <= now())
 DELETE FROM credentials
 WHERE (kind = 'session' AND expires_at <= now())
    OR (kind <> 'session' AND expires_at <= $1::timestamptz)

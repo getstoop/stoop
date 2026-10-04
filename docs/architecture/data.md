@@ -54,10 +54,6 @@ limits where a credential reaches; bounded with no rows left reaches
 nothing. `hint` keeps the token's last four characters, for telling tokens
 apart in a list. See [identity.md](identity.md#personal-tokens).
 
-**`sessions`** — legacy. Read only by the previous release; its rows are
-copied into `credentials` by migration 00031 and the table is dropped by a
-later contract migration.
-
 **`user_identities`** — `(provider, subject) PRIMARY KEY` maps an OIDC
 subject to an account, with `UNIQUE (user_id, provider)` so one account
 links at most one identity per provider. No provider tokens are stored:
@@ -327,9 +323,10 @@ Goose itself is fine with this: it ignores applied versions it has no file
 for, so an older binary sees "nothing to run" against an additive newer
 schema (`TestMigrateToleratesNewerAdditiveSchema`).
 
-The exception is a contract migration, which by definition breaks the
-release before last. It says so by raising the one-row `schema_floor`
-table to the last migration the *previous* release shipped, and
+The exception is a contract migration, which by definition breaks an
+older release. It says so by raising the one-row `schema_floor` table to
+the last migration of the oldest release that still works against the
+result (00049 sets 37: it breaks 0.1.0 only), and
 `db.Migrate` refuses to start a binary whose newest embedded migration is
 below that floor, naming both numbers, instead of failing at some later
 query. Expand-only releases never touch the floor, so rolling back across
