@@ -81,6 +81,9 @@ type Service struct {
 	loginEnv []LoginProvider
 	// passwordEnv is the STOOP_PASSWORD_SIGN_IN fallback (settings.go).
 	passwordEnv string
+	// envSet reports whether a variable is set rather than defaulted, for
+	// EnvDrift.
+	envSet func(name string) bool
 	// instanceNameEnv is the STOOP_INSTANCE_NAME fallback, set from Seed's
 	// Defaults. Empty unless the operator configured it (settings.go).
 	instanceNameEnv string
