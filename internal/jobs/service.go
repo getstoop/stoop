@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"time"
 
@@ -94,9 +95,12 @@ type Service struct {
 // in registry; the kinds internal/app performs are registered before
 // RunDispatcher starts.
 func New(pool *pgxpool.Pool, registry *Registry, cfg Config, log *slog.Logger) *Service {
+	// The count is written to an int32 column; the bound is what makes
+	// the narrowing safe.
 	if cfg.Workers <= 0 {
 		cfg.Workers = DefaultWorkers
 	}
+	cfg.Workers = min(cfg.Workers, math.MaxInt32)
 	if cfg.Poll <= 0 {
 		cfg.Poll = DefaultPoll
 	}
