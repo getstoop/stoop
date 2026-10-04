@@ -70,10 +70,51 @@ client reconnects and refetches. So:
   drop, so it is exercised constantly rather than being a rarely-taken
   branch that rots.
 
-Because every payload is a protobuf message, a multi-node implementation of
-`Bus` — NATS, Redis — is a marshal/unmarshal wrapper behind the same
-interface. That is the only concession the codebase makes to multi-node
-scaling, and it costs nothing today.
+Because every payload is a protobuf message, a cross-process
+implementation of `Bus` is a marshal/unmarshal wrapper behind the same
+interface. The one that exists is below; a multi-node one — NATS, Redis —
+would be the same shape, and that is the only concession the codebase
+makes to multi-node scaling.
+
+### Across processes
+
+The bus is one `InProcBus` per process, and the gateway lives only in the
+server. A job that runs in a `stoop jobs` process
+([runtime.md](runtime.md#background-work)) publishes to that process's
+bus, which nothing subscribes to; without a relay, an avatar the
+`normalise_image` job finished would change for nobody until they
+reloaded. `internal/eventrelay` carries those publishes to the server
+over Postgres `NOTIFY`, the channel the dispatcher is already woken by.
+
+- **The runner's bus is wrapped.** `app.NewRunner` builds its modules on
+  an `eventrelay.Publisher`: every `Publish` reaches the local bus as
+  before and also raises `NOTIFY stoop_events` on the pool, with the topic
+  and the marshalled `ServerEvent` in one text-safe payload. `NOTIFY`
+  carries 8000 bytes; an event over that is logged and dropped, never
+  truncated. The events jobs publish are far smaller.
+- **The server listens.** `app.New` builds its modules on a plain
+  `InProcBus` and runs an `eventrelay.Listener` on one connection outside
+  the pool, reconnecting with backoff like the dispatcher's listener (both
+  on `internal/restart`). Each notification is decoded and published on
+  the server's bus with the runner's `event_id` and timestamp intact, so
+  the gateway and the webhook subscriber see it as any other event.
+- **The server never notifies.** Its own publishes stay on its bus, so
+  embedded mode publishes once and nothing is relayed twice: a server
+  beside an external runner hears the runner and never echoes itself.
+  Nothing flows the other way; the runner has no subscribers.
+
+What crosses is whatever a job publishes: `member_updated` from
+`normalise_image`, `space_updated` from the icon pointer swap it asks chat
+for, `credential_revoked` from `sweep_credentials`. What the server
+publishes does not cross. No module subscribes in both processes — the
+gateway and the webhook subscriber run only in the server — so a relayed
+event is handled once.
+
+The relay keeps the bus's guarantees and adds none. `NOTIFY` is at most
+once: a notification raised while the listener is reconnecting is lost,
+and nothing replays it. Clients refetch everything on reconnect and
+`ListMessages` stays the source of truth, so a lost relayed event costs a
+stale picture until the next load, not correctness.
 
 ## The gateway
 

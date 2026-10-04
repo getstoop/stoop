@@ -8,6 +8,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/config"
+	"github.com/getstoop/stoop/internal/eventrelay"
+	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/jobs"
 )
 
@@ -21,9 +23,11 @@ type Runner struct {
 }
 
 // NewRunner builds the modules the way New does, less what only the
-// server runs.
+// server runs, on a bus that relays every publish to the server.
 func NewRunner(ctx context.Context, cfg config.Config, log *slog.Logger) (*Runner, error) {
-	shared, err := newModules(ctx, cfg, log)
+	shared, err := newModules(ctx, cfg, log, func(pool *pgxpool.Pool) events.Bus {
+		return eventrelay.NewPublisher(events.NewInProcBus(), pool, log)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -31,9 +35,9 @@ func NewRunner(ctx context.Context, cfg config.Config, log *slog.Logger) (*Runne
 }
 
 // Run works the queue until ctx ends, then releases what it holds and
-// closes the pool. Only the dispatcher runs here: the webhook subscriber
-// reads the in-process bus, which only the server publishes to, so it
-// stays in the server in every mode.
+// closes the pool. Only the dispatcher runs here; what the jobs publish
+// reaches the server's bus through the relay, and the webhook subscriber
+// reads it there.
 func (r *Runner) Run(ctx context.Context) error {
 	host, _ := os.Hostname()
 	r.log.Info("jobs runner started", "host", host, "workers", r.workers)
