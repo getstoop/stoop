@@ -21,8 +21,8 @@ const (
 
 // RunDispatcher leases due rows and hands them to the worker pool, inserts
 // jobs for due schedules and heartbeats job_dispatchers, until ctx ends.
-// It runs a pass when an insert notifies NotifyChannel and every Poll as
-// the backstop. It then stops leasing, gives in-flight jobs ShutdownGrace
+// It runs a pass when an insert notifies NotifyChannel, when a job of a
+// capped kind or in a lane finishes, and every Poll as the backstop. It then stops leasing, gives in-flight jobs ShutdownGrace
 // (five seconds by default) to finish, three seconds to release any still
 // running so they are retried on the next start, and one second for the
 // cancelled workers to leave: under ten seconds in all, whatever a
@@ -45,7 +45,7 @@ func (s *Service) RunDispatcher(ctx context.Context) {
 	queue := make(chan dbgen.Job, s.cfg.Workers)
 	var workers sync.WaitGroup
 	for range s.cfg.Workers {
-		workers.Go(func() { s.work(workCtx, queue, tracked) })
+		workers.Go(func() { s.work(workCtx, queue, tracked, wake) })
 	}
 
 	ticker := time.NewTicker(s.cfg.Poll)
