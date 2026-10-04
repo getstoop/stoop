@@ -193,4 +193,25 @@ func TestSeedFillsLegacyEmptyProviders(t *testing.T) {
 			t.Errorf("password %s: %d providers, want %d", password, len(providers), want)
 		}
 	}
+
+	// Once repaired, a list cleared later stays cleared, even when the
+	// shell then restricts password sign-in past the page's check.
+	pool := dbtest.New(t)
+	svc := instance.New(pool, newFakeUsers())
+	svc.UseLoginProvidersEnv(envProvider)
+	if err := svc.SeedFromEnv(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.UpdateLoginProviders(as("a1", authctx.RoleAdmin), connect.NewRequest(&instancev1.UpdateLoginProvidersRequest{})); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetPasswordSignIn(ctx, instance.PasswordOff); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SeedFromEnv(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if providers, _ := svc.LoginProviders(ctx); len(providers) != 0 {
+		t.Errorf("a later clear was undone at restart: %+v", providers)
+	}
 }
