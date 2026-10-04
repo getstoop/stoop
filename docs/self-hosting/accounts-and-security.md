@@ -99,8 +99,9 @@ Login**:
    goes away, and it's required before unlinking the only identity).
 
 One provider can also come from the environment (`STOOP_OIDC_*` in the
-[Configuration reference](configuration.md)); the admin page's
-saved list overrides it, the same as the Hosting settings. Sign-ins
+[Configuration reference](configuration.md)). It is copied into the admin
+page's list the first time the server starts with it set; after that,
+edit it on the page. Sign-ins
 survive a server restart, but a sign-in *in flight* across one is
 abandoned with "sign-in took too long" — just click the button again.
 The public URL's scheme must match how people actually reach the server

@@ -76,35 +76,17 @@ func ParseTunnelToken(token string) (string, error) {
 	return token, nil
 }
 
-// updateCloudflareTunnel saves and applies; a blank token keeps the
-// saved one. The environment's token is never copied into the database:
-// a saved blank falls back to it (see Reachability), so editing .env
-// keeps working.
-func (s *Service) updateCloudflareTunnel(ctx context.Context, enabled bool, token string) error {
+// cloudflareTunnelSetting validates a save of the group; a blank token
+// keeps the one in force.
+func cloudflareTunnelSetting(enabled bool, token string, current CloudflareTunnelSettings) (CloudflareTunnelSettings, error) {
 	token, err := ParseTunnelToken(token)
 	if err != nil {
-		return err
+		return CloudflareTunnelSettings{}, err
 	}
-	if token == "" {
-		var prev CloudflareTunnelSettings
-		if _, err := s.readJSON(ctx, keyCloudflareTunnel, &prev); err != nil {
-			return err
-		}
-		token = prev.Token
-	}
-	if enabled && token == "" && s.env.CloudflareTunnel.Token == "" {
-		return apierr.Field(connect.CodeInvalidArgument, "cloudflare_tunnel.token",
+	token = keepSecret(token, current.Token)
+	if enabled && token == "" {
+		return CloudflareTunnelSettings{}, apierr.Field(connect.CodeInvalidArgument, "cloudflare_tunnel.token",
 			errors.New("a Cloudflare Tunnel needs the tunnel's token"))
 	}
-	t := CloudflareTunnelSettings{Enabled: enabled, Token: token}
-	if err := s.writeJSON(ctx, keyCloudflareTunnel, t); err != nil {
-		return err
-	}
-	if s.tunnel != nil {
-		if t.Token == "" {
-			t.Token = s.env.CloudflareTunnel.Token
-		}
-		s.tunnel.Apply(t)
-	}
-	return nil
+	return CloudflareTunnelSettings{Enabled: enabled, Token: token}, nil
 }

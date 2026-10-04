@@ -15,9 +15,9 @@ import (
 )
 
 // Login providers: external identities people can sign in with (OIDC).
-// Saved from the admin page with env fallback, same rule as reachability:
-// a saved list overrides STOOP_OIDC_*; clearing it falls back. The auth
-// module consumes the effective list through its ProviderSource port.
+// Seeded from STOOP_OIDC_* like reachability (seed_env.go); the saved
+// list, empty included, is the setting. The auth module consumes the
+// list in force through its ProviderSource port.
 
 const keyLoginProviders = "login_providers"
 
@@ -43,17 +43,17 @@ type LoginProvider struct {
 	ClientSecret string `json:"client_secret"`
 }
 
-// UseLoginProvidersEnv supplies the environment fallback (STOOP_OIDC_*).
+// UseLoginProvidersEnv supplies the environment's provider (STOOP_OIDC_*).
 func (s *Service) UseLoginProvidersEnv(ps []LoginProvider) { s.loginEnv = ps }
 
-// LoginProviders is the effective list: the saved one when present and
-// non-empty, the environment otherwise.
+// LoginProviders is the list in force: the saved one, or the
+// environment's when nothing is saved.
 func (s *Service) LoginProviders(ctx context.Context) ([]LoginProvider, error) {
 	saved, ok, err := s.savedLoginProviders(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if ok && len(saved) > 0 {
+	if ok {
 		return saved, nil
 	}
 	return s.loginEnv, nil
@@ -108,7 +108,7 @@ func (s *Service) loginProvidersResponse(ctx context.Context) (*instancev1.GetLo
 		return nil, err
 	}
 	ps, fromEnv := saved, false
-	if !ok || len(saved) == 0 {
+	if !ok {
 		ps, fromEnv = s.loginEnv, true
 	}
 	out := make([]*instancev1.LoginProvider, len(ps))
@@ -140,12 +140,12 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 		return nil, apierr.Field(connect.CodeInvalidArgument, "providers",
 			fmt.Errorf("at most %d login providers", maxLoginProviders))
 	}
-	saved, _, err := s.savedLoginProviders(ctx)
+	current, err := s.LoginProviders(ctx)
 	if err != nil {
 		return nil, err
 	}
-	prior := make(map[string]LoginProvider, len(saved))
-	for _, p := range saved {
+	prior := make(map[string]LoginProvider, len(current))
+	for _, p := range current {
 		prior[p.ID] = p
 	}
 
@@ -166,16 +166,25 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 		seen[p.ID] = true
 		// A blank secret keeps the saved one, as long as the client id it
 		// belongs to is unchanged (same rule as the Cloudflare TURN token).
+		if prev, ok := prior[p.ID]; ok && prev.ClientID == p.ClientID {
+			p.ClientSecret = keepSecret(p.ClientSecret, prev.ClientSecret)
+		}
 		if p.ClientSecret == "" {
-			if prev, ok := prior[p.ID]; ok && prev.ClientID == p.ClientID {
-				p.ClientSecret = prev.ClientSecret
-			}
-			if p.ClientSecret == "" {
-				return nil, apierr.Field(connect.CodeInvalidArgument, at("client_secret"),
-					fmt.Errorf("provider %q needs a client secret", p.ID))
-			}
+			return nil, apierr.Field(connect.CodeInvalidArgument, at("client_secret"),
+				fmt.Errorf("provider %q needs a client secret", p.ID))
 		}
 		next = append(next, p)
+	}
+	// Removing the last provider must not leave nobody able to sign in.
+	if len(next) == 0 {
+		pw, err := s.PasswordSignIn(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if pw != string(PasswordEveryone) {
+			return nil, apierr.Field(connect.CodeFailedPrecondition, "providers",
+				errors.New("let everyone use password sign-in before removing the last login provider"))
+		}
 	}
 	if err := s.writeJSON(ctx, keyLoginProviders, next); err != nil {
 		return nil, err

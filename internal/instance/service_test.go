@@ -222,14 +222,19 @@ func TestInstanceName(t *testing.T) {
 		t.Errorf("over-length name: %v", err)
 	}
 
-	// STOOP_INSTANCE_NAME fallback: never seeded, so it stays live until
-	// an admin saves something through the UI.
+	// STOOP_INSTANCE_NAME seeds the name; a later change to it doesn't.
 	envSvc := instance.New(dbtest.New(t), users)
 	if err := envSvc.Seed(ctx, instance.Defaults{InstanceNameEnv: "Env Instance"}); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := envSvc.InstanceName(ctx); got != "Env Instance" {
-		t.Errorf("env fallback = %q", got)
+		t.Errorf("seeded from env = %q", got)
+	}
+	if err := envSvc.Seed(ctx, instance.Defaults{InstanceNameEnv: "Renamed In Env"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := envSvc.InstanceName(ctx); got != "Env Instance" {
+		t.Errorf("a changed env replaced the saved name: %q", got)
 	}
 }
 
