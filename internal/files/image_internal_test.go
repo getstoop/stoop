@@ -187,3 +187,32 @@ func TestGIFFrames(t *testing.T) {
 		t.Error("a header alone should be an error")
 	}
 }
+
+// vp8xHeader is the start of an extended-format WebP: a VP8X chunk with
+// the given flags and a canvas size, which is all DecodeConfig reads.
+func vp8xHeader(flags byte, width, height int) []byte {
+	chunk := make([]byte, 18)
+	copy(chunk, "VP8X")
+	chunk[4] = 10 // chunk size, little-endian
+	chunk[8] = flags
+	w, h := width-1, height-1
+	chunk[12], chunk[13], chunk[14] = byte(w), byte(w>>8), byte(w>>16)
+	chunk[15], chunk[16], chunk[17] = byte(h), byte(h>>8), byte(h>>16)
+	header := make([]byte, 12)
+	copy(header, "RIFF")
+	header[4] = byte(4 + len(chunk))
+	copy(header[8:], "WEBP")
+	return append(header, chunk...)
+}
+
+func TestValidateImageRefusesAnimatedWebP(t *testing.T) {
+	const animation = 0x02
+	_, err := validateImage(vp8xHeader(animation, 267, 199))
+	if !errors.Is(err, errAnimatedWebP) {
+		t.Fatalf("animated webp: err = %v, want %v", err, errAnimatedWebP)
+	}
+	contentType, err := validateImage(vp8xHeader(0, 267, 199))
+	if err != nil || contentType != "image/webp" {
+		t.Fatalf("still vp8x webp: %q, %v; want image/webp, nil", contentType, err)
+	}
+}

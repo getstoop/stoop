@@ -91,7 +91,8 @@ job ([runtime.md](runtime.md#background-work)), not in the request.
 
 The request keeps the cheap refusals inline, so a person sees them beside
 the picker: empty, over 2 MB, not an image by sniffing, dimensions over
-the bound. It then stores the original bytes as a **pending** file row and
+the bound, an animated WebP (read from the VP8X flags; the decoder reads
+still WebP only, where an animated GIF keeps its first frame). It then stores the original bytes as a **pending** file row and
 queues the job in a lane per user or space, so two uploads for one target
 apply in the order the server received them, and returns the file id. The job decodes
 and re-encodes, replaces the blob under the same key, readies the row

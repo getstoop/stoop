@@ -26,10 +26,11 @@ const (
 )
 
 var (
-	errTooLarge    = fmt.Errorf("image must be %d MB or smaller", MaxImageBytes>>20)
-	errNotAnImage  = errors.New("not a supported image (PNG, JPEG, GIF, or WebP)")
-	errHugeImage   = errors.New("image dimensions are too large")
-	errEmptyUpload = errors.New("no image data")
+	errTooLarge     = fmt.Errorf("image must be %d MB or smaller", MaxImageBytes>>20)
+	errNotAnImage   = errors.New("not a supported image (PNG, JPEG, GIF, or WebP)")
+	errHugeImage    = errors.New("image dimensions are too large")
+	errEmptyUpload  = errors.New("no image data")
+	errAnimatedWebP = errors.New("animated WebP is not supported; a still image or a GIF works")
 )
 
 // rasterTypes are the image types accepted as uploads (by sniffing) and
@@ -59,13 +60,30 @@ func sniffImage(data []byte) (contentType string, cfg image.Config, err error) {
 }
 
 // validateImage is what an avatar or icon upload refuses in the request:
-// the byte cap and what sniffImage refuses. It returns the sniffed type.
+// the byte cap, what sniffImage refuses, and an animated WebP, which
+// passes the sniff but the decoder will not read. It returns the sniffed
+// type.
 func validateImage(data []byte) (string, error) {
 	if len(data) > MaxImageBytes {
 		return "", errTooLarge
 	}
 	contentType, _, err := sniffImage(data)
-	return contentType, err
+	if err != nil {
+		return "", err
+	}
+	if contentType == "image/webp" && webpAnimated(data) {
+		return "", errAnimatedWebP
+	}
+	return contentType, nil
+}
+
+// webpAnimated reports whether a WebP's VP8X header has its animation
+// flag set. The flags byte follows the RIFF header and the chunk's id
+// and size.
+func webpAnimated(data []byte) bool {
+	const flagsOffset = 20
+	const animationBit = 0x02
+	return len(data) > flagsOffset && string(data[12:16]) == "VP8X" && data[flagsOffset]&animationBit != 0
 }
 
 // normaliseImage decodes a validated image, centre-crops it to a square
