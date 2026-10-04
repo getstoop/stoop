@@ -10,6 +10,25 @@ import (
 	"time"
 )
 
+const countLiveLeases = `-- name: CountLiveLeases :one
+SELECT count(*)::bigint FROM jobs
+WHERE kind = $1 AND state = 'running' AND leased_until >= $2::timestamptz
+`
+
+type CountLiveLeasesParams struct {
+	Kind string
+	Now  time.Time
+}
+
+// CountLiveLeases is a kind's rows running on a live lease, the same
+// count KindBacklog calls running.
+func (q *Queries) CountLiveLeases(ctx context.Context, arg CountLiveLeasesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countLiveLeases, arg.Kind, arg.Now)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countQueuedJobs = `-- name: CountQueuedJobs :one
 SELECT count(*) FROM jobs WHERE kind = $1 AND state = 'queued'
 `
@@ -375,6 +394,19 @@ func (q *Queries) LeaseJobs(ctx context.Context, arg LeaseJobsParams) ([]Job, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockKindLeasing = `-- name: LockKindLeasing :exec
+SELECT pg_advisory_xact_lock(4207020, hashtext($1::text))
+`
+
+// LockKindLeasing serialises the lease of one capped kind across
+// dispatchers for the transaction, so the count below and the LeaseJobs
+// that follows it see no concurrent lease. 4207020 is this lock's
+// namespace; the storage quota lock in files.sql is 4207011.
+func (q *Queries) LockKindLeasing(ctx context.Context, kind string) error {
+	_, err := q.db.Exec(ctx, lockKindLeasing, kind)
+	return err
 }
 
 const releaseJobs = `-- name: ReleaseJobs :exec

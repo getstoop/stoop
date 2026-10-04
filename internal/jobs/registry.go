@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -74,12 +75,17 @@ type Performer interface {
 	Perform(ctx context.Context, job *Job) error
 }
 
-// Options is a kind's retry policy; a zero field takes its default.
+// Options is a kind's retry policy and its concurrency cap; a zero field
+// takes its default.
 type Options struct {
 	// MaxAttempts is how many tries before the job is discarded.
 	MaxAttempts int
 	// Backoff is the wait before attempts 2, 3, …; the last wait repeats.
 	Backoff []time.Duration
+	// MaxInFlight caps how many rows of the kind hold a live lease at once,
+	// across every dispatcher; 0 is no cap. See
+	// docs/architecture/runtime.md → Background work.
+	MaxInFlight int
 }
 
 func (o Options) withDefaults() Options {
@@ -110,8 +116,12 @@ type Registry struct {
 func NewRegistry() *Registry { return &Registry{kinds: map[string]kindEntry{}} }
 
 // Register binds kind to a typed performer; the wrapper decodes the JSON
-// arguments into A. Registering a kind twice panics.
+// arguments into A. Registering a kind twice, or with a negative
+// MaxInFlight, panics.
 func Register[A any](registry *Registry, kind string, fn func(ctx context.Context, job *Job, args A) error, opts Options) {
+	if opts.MaxInFlight < 0 {
+		panic(fmt.Sprintf("jobs: kind %q has a negative MaxInFlight", kind))
+	}
 	perform := performFunc(func(ctx context.Context, job *Job) error {
 		var args A
 		if err := job.Args(&args); err != nil {
@@ -132,6 +142,40 @@ func (r *Registry) Kinds() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return slices.Sorted(maps.Keys(r.kinds))
+}
+
+// cappedKind is a kind registered with a MaxInFlight.
+type cappedKind struct {
+	kind        string
+	maxInFlight int
+}
+
+// uncappedKinds lists the kinds with no MaxInFlight, sorted.
+func (r *Registry) uncappedKinds() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	kinds := make([]string, 0, len(r.kinds))
+	for kind, entry := range r.kinds {
+		if entry.opts.MaxInFlight <= 0 {
+			kinds = append(kinds, kind)
+		}
+	}
+	slices.Sort(kinds)
+	return kinds
+}
+
+// cappedKinds lists the kinds with a MaxInFlight and their caps, sorted by kind.
+func (r *Registry) cappedKinds() []cappedKind {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var kinds []cappedKind
+	for kind, entry := range r.kinds {
+		if entry.opts.MaxInFlight > 0 {
+			kinds = append(kinds, cappedKind{kind: kind, maxInFlight: entry.opts.MaxInFlight})
+		}
+	}
+	slices.SortFunc(kinds, func(left, right cappedKind) int { return cmp.Compare(left.kind, right.kind) })
+	return kinds
 }
 
 func (r *Registry) lookup(kind string) (kindEntry, bool) {
