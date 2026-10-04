@@ -150,6 +150,32 @@ func TestFailedFanOutLeavesNothing(t *testing.T) {
 	}
 }
 
+// A fan-out run again after it committed (its outcome was never written)
+// queues nothing twice and spends no sequence.
+func TestCommittedFanOutRunAgainQueuesNothing(t *testing.T) {
+	f, endpoint := outgoingFixture(t)
+	f.createOutgoing(t, endpoint.srv.URL+"/one", []string{EventMessageCreated}, "")
+	f.createOutgoing(t, endpoint.srv.URL+"/two", []string{EventMessageCreated}, "")
+	event := f.translateMessage(t, "once only")
+	if event.EventID == "" {
+		t.Fatal("the translated event has no id")
+	}
+	for range 2 {
+		if err := f.svc.FanOutWebhookEvent(context.Background(), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if pending := f.jobs.pending(); pending != 2 {
+		t.Errorf("%d deliveries queued, want one per hook", pending)
+	}
+	if rows := f.countRows(t, `SELECT count(*) FROM webhook_deliveries`); rows != 2 {
+		t.Errorf("%d delivery rows, want one per hook", rows)
+	}
+	if spent := f.countRows(t, `SELECT count(*) FROM outgoing_webhooks WHERE sequence <> 1`); spent != 0 {
+		t.Errorf("%d hooks spent a sequence on the second run", spent)
+	}
+}
+
 // A hook that stops wanting the event between the subscriber and the
 // fan-out gets nothing; the hook that still wants it does.
 func TestFanOutReadsTheHooksAtItsOwnTime(t *testing.T) {

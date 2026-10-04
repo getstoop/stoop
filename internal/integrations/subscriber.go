@@ -55,8 +55,10 @@ type envelopeSpace struct {
 }
 
 // OutgoingEvent is one bus event translated for hooks, and the fan-out
-// job's args. At is when it happened: the envelope's ts.
+// job's args. EventID is the bus event's id; At is when it happened, the
+// envelope's ts.
 type OutgoingEvent struct {
+	EventID   string          `json:"event_id,omitempty"`
 	Type      string          `json:"type"`
 	SpaceID   string          `json:"space_id"`
 	ChannelID string          `json:"channel_id,omitempty"`
@@ -68,6 +70,7 @@ type OutgoingEvent struct {
 // event's time, or false for the kinds hooks never see.
 func (s *Service) translate(ctx context.Context, ev *realtimev1.ServerEvent) (OutgoingEvent, bool) {
 	out, ok := s.translatePayload(ctx, ev)
+	out.EventID = ev.EventId
 	out.At = s.now()
 	if ev.Ts != nil {
 		out.At = ev.Ts.AsTime()

@@ -3,8 +3,10 @@ package integrations
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/getstoop/stoop/internal/db"
@@ -23,7 +25,9 @@ const FanOutWebhookEventKind = "fan_out_webhook_event"
 // FanOutWebhookEvent writes a delivery row and queues a deliver_webhook
 // job for every enabled hook in the space that wants the event, all in
 // one transaction: a failure leaves nothing and the job's retry starts
-// over. With outgoing off nothing is written.
+// over. A hook that already has the event's delivery is skipped, so a
+// fan-out run again after it committed queues nothing twice. With
+// outgoing off nothing is written.
 func (s *Service) FanOutWebhookEvent(ctx context.Context, ev OutgoingEvent) error {
 	if s.jobs == nil {
 		return nil
@@ -41,12 +45,41 @@ func (s *Service) FanOutWebhookEvent(ctx context.Context, ev OutgoingEvent) erro
 			if !hookWants(hook, ev) {
 				continue
 			}
-			if _, err := s.enqueueFor(ctx, tx, hook.ID, ev, spaceName, instance); err != nil {
+			id := eventDeliveryID(ev, hook.ID)
+			done, err := s.deliveryExists(ctx, tx, id)
+			if err != nil {
+				return fmt.Errorf("hook %s: %w", hook.ID, err)
+			}
+			if done {
+				continue
+			}
+			if err := s.enqueueFor(ctx, tx, id, hook.ID, ev, spaceName, instance); err != nil {
 				return fmt.Errorf("hook %s: %w", hook.ID, err)
 			}
 		}
 		return nil
 	})
+}
+
+// eventDeliveryID is the event's delivery to the hook, derived from both
+// so a second run of its fan-out finds it; random for an event without
+// an id.
+func eventDeliveryID(ev OutgoingEvent, hookID string) string {
+	if ev.EventID == "" {
+		return rowid.New()
+	}
+	return uuid.NewSHA1(uuid.NameSpaceURL, []byte("stoop:webhook-delivery:"+ev.EventID+":"+hookID)).String()
+}
+
+func (s *Service) deliveryExists(ctx context.Context, tx pgx.Tx, id string) (bool, error) {
+	_, err := s.q.WithTx(tx).GetDelivery(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get delivery: %w", err)
+	}
+	return true, nil
 }
 
 // envelopeNames is the space's name and the instance's URL for the body;
@@ -62,21 +95,20 @@ func (s *Service) envelopeNames(ctx context.Context, spaceID string) (spaceName,
 }
 
 // enqueueFor takes the hook's next sequence number, renders the body and
-// queues the delivery inside tx, returning its id.
-func (s *Service) enqueueFor(ctx context.Context, tx pgx.Tx, hookID string, ev OutgoingEvent, spaceName, instance string) (string, error) {
+// queues the delivery id inside tx.
+func (s *Service) enqueueFor(ctx context.Context, tx pgx.Tx, id, hookID string, ev OutgoingEvent, spaceName, instance string) error {
 	sequence, err := s.q.WithTx(tx).NextOutgoingSequence(ctx, hookID)
 	if err != nil {
-		return "", fmt.Errorf("next sequence: %w", err)
+		return fmt.Errorf("next sequence: %w", err)
 	}
-	id := rowid.New()
 	body, err := json.Marshal(envelope{
 		ID: id, Type: ev.Type, TS: ev.At.UTC(), Instance: instance,
 		Space: envelopeSpace{ID: ev.SpaceID, Name: spaceName}, Data: ev.Data,
 	})
 	if err != nil {
-		return "", err
+		return err
 	}
-	return id, s.queueDelivery(ctx, tx, DeliveryArgs{DeliveryID: id, HookID: hookID, Event: ev.Type, Sequence: sequence, Body: body})
+	return s.queueDelivery(ctx, tx, DeliveryArgs{DeliveryID: id, HookID: hookID, Event: ev.Type, Sequence: sequence, Body: body})
 }
 
 // queueDelivery writes the log row, queues its job in the hook's lane and

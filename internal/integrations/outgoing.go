@@ -156,11 +156,9 @@ func (s *Service) TestWebhook(ctx context.Context, req *connect.Request[integrat
 	}
 	spaceName, instance := s.envelopeNames(ctx, hook.SpaceID)
 	ev := OutgoingEvent{Type: EventWebhookTest, SpaceID: hook.SpaceID, Data: rawJSON(map[string]any{}), At: s.now()}
-	var id string
+	id := rowid.New()
 	if err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-		var err error
-		id, err = s.enqueueFor(ctx, tx, hook.ID, ev, spaceName, instance)
-		return err
+		return s.enqueueFor(ctx, tx, id, hook.ID, ev, spaceName, instance)
 	}); err != nil {
 		return nil, err
 	}

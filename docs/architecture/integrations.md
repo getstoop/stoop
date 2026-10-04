@@ -120,6 +120,9 @@ share work:
   `Stoop-Sequence`, renders a self-contained envelope, writes a log row
   and queues a `deliver_webhook` job in the hook's lane, all in one
   transaction: a failed attempt leaves nothing and its retry starts over.
+  A delivery's id is derived from the bus event's id and the hook's, so
+  a fan-out run again after it committed skips the hooks it already
+  queued, and a receiver never sees one event under two ids.
   The space's lane keeps each hook's sequence in message order. The
   lane's sequence is the event's time in nanoseconds, moved past the
   previous one so it never goes back.
