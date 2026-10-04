@@ -288,7 +288,7 @@ Two one-shot kinds. `deliver_webhook` is queued by the integrations
 module per outgoing delivery ([integrations.md](integrations.md#deliveries-as-jobs)).
 `normalise_image` is queued by the files module per avatar, bot avatar or
 space icon upload and re-encodes the picture off the request
-([files.md](files.md#images)); it is capped at two running at once.
+([files.md](files.md#images)); it is capped at one running at a time.
 Both use a lane: a job with `lane` and `sequence` set runs only when no
 earlier unfinished job shares its lane, so one runs per lane at a time,
 in sequence order, and a retry waiting on its backoff holds the lane. A

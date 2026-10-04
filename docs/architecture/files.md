@@ -105,17 +105,14 @@ else is retried on the kind's ladder, and the last failed attempt
 discards the file too, so no pending file outlives its job. The uploader
 is told nothing on a failure; the image simply stays as it was.
 
-The kind runs at most two at a time across every dispatcher
-(`MaxInFlight: 2`). The largest decode the bound allows, a 4096×4096
-16-bit PNG, holds about 195 MiB while it runs (128 MiB of pixels and a
-64 MiB resampling buffer); an 8-bit one about 130 MiB. Measured over
-repeated pairs in one process, two 8-bit decodes at once peak at 397 MiB
-of resident memory with `GOMEMLIMIT=400MiB` and 592 MiB without it, which
-is why the `jobs` compose service sets that variable under its 512m
-limit; two 16-bit decodes at once reach 650 MiB even so, and one at a
-time 330 MiB. An operator who sees the runner restart on uploads raises the
-container's memory limit; the cap is a constant in `files`
-(`NormaliseImageMaxInFlight`), not a setting. Link preview images are still
+The kind runs one at a time across every dispatcher (`MaxInFlight: 1`).
+The largest decode the bound allows, a 4096×4096 16-bit PNG, holds about
+195 MiB while it runs (128 MiB of pixels and a 64 MiB resampling buffer)
+and peaks at 330 MiB of resident memory over repeated jobs, inside the
+`jobs` compose service's 512m limit; two at once reached 650 MiB even
+under `GOMEMLIMIT`, which the service sets as insurance. A normalise
+takes tens of milliseconds for a typical picture and under half a second
+for the largest, so a second upload waits that long. Link preview images are still
 re-encoded in the request that fetched them (`preview.go`).
 
 Three things fall out of the re-encode:
