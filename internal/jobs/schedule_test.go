@@ -225,3 +225,24 @@ func TestScheduleWaitsForTheRunningRun(t *testing.T) {
 		t.Errorf("next_due after the run = %v, want now + 1m", row.NextDue)
 	}
 }
+
+// A schedule row whose kind this build no longer registers is disabled
+// when it falls due, so it stops reading as overdue.
+func TestDueScheduleOfAnUnregisteredKindIsDisabled(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	ctx := context.Background()
+	old, oldRegistry := newTestService(pool, clock, testConfig())
+	Register(oldRegistry, "retired", func(context.Context, *Job, NoArgs) error { return nil }, Options{})
+	if err := old.Schedule(ctx, "retired", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+
+	service, _ := newTestService(pool, clock, testConfig())
+	startDispatcher(t, service)
+	clock.Advance(ScheduleLead + time.Second)
+	waitFor(t, "the row to be disabled", func() bool { return !readSchedule(t, pool, "retired").Enabled })
+	if got := countRows(t, pool, `SELECT count(*) FROM jobs WHERE kind = 'retired'`); got != 0 {
+		t.Errorf("%d jobs inserted for an unregistered kind", got)
+	}
+}

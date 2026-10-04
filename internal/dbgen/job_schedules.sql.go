@@ -26,6 +26,17 @@ func (q *Queries) AdvanceSchedule(ctx context.Context, arg AdvanceScheduleParams
 	return err
 }
 
+const disableSchedule = `-- name: DisableSchedule :exec
+UPDATE job_schedules SET enabled = false WHERE kind = $1
+`
+
+// DisableSchedule turns a row off whose kind no dispatcher performs any
+// more, so it stops reading as due.
+func (q *Queries) DisableSchedule(ctx context.Context, kind string) error {
+	_, err := q.db.Exec(ctx, disableSchedule, kind)
+	return err
+}
+
 const dueSchedules = `-- name: DueSchedules :many
 SELECT kind, interval_ms, enabled, next_due, last_job_id FROM job_schedules
 WHERE enabled AND next_due <= $1::timestamptz

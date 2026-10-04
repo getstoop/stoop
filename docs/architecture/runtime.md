@@ -269,7 +269,8 @@ per periodic kind: its interval, whether it is enabled and when it is
 next due; the dispatcher inserts a `jobs` row when that passes. A new
 schedule row is due two minutes after it is created; an existing one
 keeps its `next_due` across a restart, moved earlier only when a
-shortened interval would pass first. `job_dispatchers` is a heartbeat
+shortened interval would pass first; one whose kind this build no longer
+registers is disabled when it falls due. `job_dispatchers` is a heartbeat
 row per dispatcher.
 
 The seven scheduled kinds, registered and scheduled in `internal/app`

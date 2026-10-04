@@ -24,6 +24,11 @@ WHERE enabled AND next_due <= sqlc.arg(now)::timestamptz
 ORDER BY kind
 FOR UPDATE SKIP LOCKED;
 
+-- DisableSchedule turns a row off whose kind no dispatcher performs any
+-- more, so it stops reading as due.
+-- name: DisableSchedule :exec
+UPDATE job_schedules SET enabled = false WHERE kind = sqlc.arg(kind);
+
 -- name: AdvanceSchedule :exec
 UPDATE job_schedules SET next_due = sqlc.arg(next_due)::timestamptz, last_job_id = sqlc.arg(last_job_id)
 WHERE kind = sqlc.arg(kind);
