@@ -34,7 +34,7 @@ func (c Credential) Covers(a Action) bool {
 	if c.Grants == nil {
 		return true
 	}
-	return a.Grantable() && slices.Contains(c.Grants, a)
+	return a.GrantableTo(c.Kind) && slices.Contains(c.Grants, a)
 }
 
 // Reaches reports whether the bounds admit a resource: a space, a channel
