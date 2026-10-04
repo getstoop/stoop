@@ -191,7 +191,7 @@ func (s *Service) republish(ctx context.Context, messageID, channelID string) {
 	}
 	var msg *chatv1.Message
 	if err == nil {
-		msg, err = s.loadMessage(ctx, row, spaceOf(channel))
+		msg, err = s.loadMessage(ctx, row.ID, spaceOf(channel))
 	}
 	if err != nil {
 		slog.Default().Warn("could not reload message for previews", "message_id", messageID, "err", err)

@@ -79,4 +79,20 @@ func TestReplies(t *testing.T) {
 	if msgs.Msg.Messages[1].ReplyTo == nil || msgs.Msg.Messages[1].ReplyTo.Author.Username != "owner" || msgs.Msg.Messages[0].ReplyTo != nil {
 		t.Errorf("ListMessages reply refs: %+v", msgs.Msg.Messages)
 	}
+
+	// An edit and a reaction resend the reply with its quote.
+	edited, err := svc.EditMessage(bea, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: rep.Msg.Message.Id, Content: "yes!!"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quote := edited.Msg.Message.ReplyTo; quote == nil || quote.Author.Username != "owner" || quote.Preview != "anyone up for pizza?" {
+		t.Errorf("edited reply_to = %+v", quote)
+	}
+	reacted, err := svc.ToggleReaction(owner, connect.NewRequest(&chatv1.ToggleReactionRequest{MessageId: rep.Msg.Message.Id, Emoji: "👍"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quote := reacted.Msg.Message.ReplyTo; quote == nil || quote.Author.Username != "owner" || quote.Preview != "anyone up for pizza?" {
+		t.Errorf("reacted reply_to = %+v", quote)
+	}
 }

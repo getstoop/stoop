@@ -64,7 +64,7 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 		}
 	}
 
-	out, err := s.loadMessage(ctx, msg, spaceOf(channel))
+	out, err := s.loadMessage(ctx, msg.ID, spaceOf(channel))
 	if err != nil {
 		return nil, err
 	}
@@ -102,46 +102,16 @@ func (s *Service) reactionsByMessage(ctx context.Context, messageIDs []string) (
 	return out, nil
 }
 
-// loadMessage renders one stored message in full — author, mentions,
-// reply quote, reactions — for RPCs that return a message they didn't
-// just build (edit, toggle reaction).
-func (s *Service) loadMessage(ctx context.Context, row messageRow, spaceID string) (*chatv1.Message, error) {
-	mentions, err := s.mentionsByMessage(ctx, []string{row.ID})
+// loadMessage reads one message and hydrates it, for the events that resend
+// a message after it changes.
+func (s *Service) loadMessage(ctx context.Context, messageID, spaceID string) (*chatv1.Message, error) {
+	row, err := s.q.GetMessageWithReply(ctx, messageID)
+	if err != nil {
+		return nil, fmt.Errorf("load message: %w", err)
+	}
+	messages, err := s.hydrateMessages(ctx, spaceID, []dbgen.ListMessagesBeforeRow{dbgen.ListMessagesBeforeRow(row)})
 	if err != nil {
 		return nil, err
 	}
-	reactions, err := s.reactionsByMessage(ctx, []string{row.ID})
-	if err != nil {
-		return nil, err
-	}
-	authors, err := s.resolveAuthors(ctx, []string{row.AuthorID})
-	if err != nil {
-		return nil, err
-	}
-	attachments, err := s.attachmentsByMessage(ctx, []string{row.ID})
-	if err != nil {
-		return nil, err
-	}
-	previews, err := s.linkPreviewsByMessage(ctx, []string{row.ID})
-	if err != nil {
-		return nil, err
-	}
-	pinned, err := s.pinnedByMessage(ctx, []string{row.ID})
-	if err != nil {
-		return nil, err
-	}
-	out := toProtoMessage(row, authors, mentions[row.ID], spaceID)
-	out.Reactions = reactions[row.ID]
-	out.Attachments = attachments[row.ID]
-	out.LinkPreviews = previews[row.ID]
-	out.Pinned = pinned[row.ID]
-	if row.ReplyToMessageID != nil {
-		if parent, err := s.q.GetMessage(ctx, *row.ReplyToMessageID); err == nil {
-			pa, _ := s.resolveAuthors(ctx, []string{parent.AuthorID})
-			out.ReplyTo = replyRef(parent.ID, pa[parent.AuthorID], &parent.Content, s.firstAttachmentName(ctx, parent.ID))
-		} else {
-			out.ReplyTo = replyRef(*row.ReplyToMessageID, nil, nil, "")
-		}
-	}
-	return out, nil
+	return messages[0], nil
 }

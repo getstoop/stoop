@@ -135,6 +135,52 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, err
 	return i, err
 }
 
+const getMessageWithReply = `-- name: GetMessageWithReply :one
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
+    p.author_id AS reply_author_id, p.content AS reply_content,
+    COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
+FROM messages m
+LEFT JOIN messages p ON p.id = m.reply_to_message_id
+WHERE m.id = $1
+`
+
+type GetMessageWithReplyRow struct {
+	ID               string
+	ChannelID        string
+	AuthorID         string
+	Content          string
+	CreatedAt        time.Time
+	MentionsEveryone bool
+	ReplyToMessageID *string
+	MentionsHere     bool
+	EditedAt         *time.Time
+	ReplyAuthorID    *string
+	ReplyContent     *string
+	ReplyFirstFileID string
+}
+
+// GetMessageWithReply is one message with the reply columns, for the
+// events that resend a message after it changes.
+func (q *Queries) GetMessageWithReply(ctx context.Context, id string) (GetMessageWithReplyRow, error) {
+	row := q.db.QueryRow(ctx, getMessageWithReply, id)
+	var i GetMessageWithReplyRow
+	err := row.Scan(
+		&i.ID,
+		&i.ChannelID,
+		&i.AuthorID,
+		&i.Content,
+		&i.CreatedAt,
+		&i.MentionsEveryone,
+		&i.ReplyToMessageID,
+		&i.MentionsHere,
+		&i.EditedAt,
+		&i.ReplyAuthorID,
+		&i.ReplyContent,
+		&i.ReplyFirstFileID,
+	)
+	return i, err
+}
+
 const insertMessageMention = `-- name: InsertMessageMention :exec
 INSERT INTO message_mentions (message_id, user_id)
 VALUES ($1, $2)
