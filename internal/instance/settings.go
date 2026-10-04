@@ -350,123 +350,7 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 	if err := apierr.RequireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
-	// Every field is validated before anything is written, so a refused
-	// save changes nothing.
-	var writes []settingWrite
-	if d := req.Msg.SessionLifetimeDays; d != nil {
-		if *d < 0 || *d > config.MaxSessionLifetimeDays {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "session_lifetime_days",
-				errors.New("a sign-in lasts 1-365 days, or 0 to use the server's default"))
-		}
-		writes = append(writes, settingWrite{keySessionLifetime, *d})
-	}
-	if !validRetention(req.Msg.MessageRetentionDays) {
-		return nil, errRetentionRange("message_retention_days")
-	}
-	if !validRetention(req.Msg.AttachmentRetentionDays) {
-		return nil, errRetentionRange("attachment_retention_days")
-	}
-	for key, days := range map[string]*int32{
-		keyMessageRetention: req.Msg.MessageRetentionDays, keyAttachmentRetention: req.Msg.AttachmentRetentionDays,
-	} {
-		if days != nil {
-			writes = append(writes, settingWrite{key, *days})
-		}
-	}
-	if req.Msg.InstanceName != nil {
-		name := strings.TrimSpace(*req.Msg.InstanceName)
-		if name == "" {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "instance_name", errors.New("the server name must not be blank"))
-		}
-		if utf8.RuneCountInString(name) > config.MaxInstanceNameRunes {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "instance_name",
-				fmt.Errorf("the server name must be %d characters or fewer", config.MaxInstanceNameRunes))
-		}
-		writes = append(writes, settingWrite{keyInstanceName, name})
-	}
-	if req.Msg.RegistrationPolicy != nil {
-		p, ok := policyFromProto(*req.Msg.RegistrationPolicy)
-		if !ok {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("registration_policy must be open, invite, or closed"))
-		}
-		writes = append(writes, settingWrite{keyRegistrationPolicy, p})
-	}
-	if req.Msg.SpaceCreation != nil {
-		var sc SpaceCreation
-		switch *req.Msg.SpaceCreation {
-		case instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_ADMINS:
-			sc = SpaceCreationAdmins
-		case instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_EVERYONE:
-			sc = SpaceCreationEveryone
-		default:
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("space_creation must be admins or everyone"))
-		}
-		writes = append(writes, settingWrite{keySpaceCreation, sc})
-	}
-	quota, err := s.StorageQuotaBytes(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if requested := req.Msg.StorageQuotaBytes; requested != nil {
-		if *requested < 0 {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "storage_quota_bytes", errors.New("the storage limit must be 0 (no limit) or more"))
-		}
-		quota = *requested
-		writes = append(writes, settingWrite{keyStorageQuota, *requested})
-	}
-	if req.Msg.MaxUploadBytes != nil {
-		n := *req.Msg.MaxUploadBytes
-		if n < 0 {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes", errors.New("the size per file must be 0 (no limit) or more"))
-		}
-		if s.uploadCeiling > 0 && n > s.uploadCeiling {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
-				fmt.Errorf("the size per file must be %d MB or less", s.uploadCeiling>>20))
-		}
-		// A per-file cap above the total storage limit is a limit that can
-		// never be reached. Judged against the quota in this request when
-		// it sets one.
-		if quota > 0 && n > quota {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
-				fmt.Errorf("the size per file is more than the upload storage limit of %d MB", quota>>20))
-		}
-		writes = append(writes, settingWrite{keyMaxUpload, n})
-	}
-	if req.Msg.PasswordSignIn != nil {
-		pw, ok := passwordSignInFromProto(*req.Msg.PasswordSignIn)
-		if !ok {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("password_sign_in must be everyone, admins, or off"))
-		}
-		// Never save "nobody can log in": below everyone needs a provider.
-		if pw != PasswordEveryone {
-			providers, err := s.LoginProviders(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if len(providers) == 0 {
-				return nil, apierr.Field(connect.CodeFailedPrecondition, "password_sign_in",
-					errors.New("add a login provider before restricting password sign-in"))
-			}
-		}
-		writes = append(writes, settingWrite{keyPasswordSignIn, pw})
-	}
-	if req.Msg.PersonalTokens != nil {
-		v, err := personalTokensFromProto(*req.Msg.PersonalTokens)
-		if err != nil {
-			return nil, err
-		}
-		writes = append(writes, settingWrite{keyPersonalTokens, v})
-	}
-	for key, v := range map[string]*bool{
-		keyWebhooksIncoming: req.Msg.WebhooksIncoming, keyWebhooksOutgoing: req.Msg.WebhooksOutgoing,
-		keyWebhooksAllowPrivateTargets: req.Msg.WebhooksAllowPrivateTargets,
-		keySelfDeletion:                req.Msg.SelfDeletion,
-	} {
-		if v != nil {
-			writes = append(writes, settingWrite{key, *v})
-		}
-	}
-	if err := s.writeSettings(ctx, writes); err != nil {
+	if err := s.SaveSettings(ctx, req.Msg); err != nil {
 		return nil, err
 	}
 	st, err := s.status(ctx)
@@ -474,6 +358,128 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 		return nil, err
 	}
 	return connect.NewResponse(&instancev1.UpdateSettingsResponse{Status: st}), nil
+}
+
+// SaveSettings saves the fields set in msg. Shared by the admin page and
+// stoop admin, which checks no permission.
+func (s *Service) SaveSettings(ctx context.Context, msg *instancev1.UpdateSettingsRequest) error {
+	// Every field is validated before anything is written, so a refused
+	// save changes nothing.
+	var writes []settingWrite
+	if d := msg.SessionLifetimeDays; d != nil {
+		if *d < 0 || *d > config.MaxSessionLifetimeDays {
+			return apierr.Field(connect.CodeInvalidArgument, "session_lifetime_days",
+				errors.New("a sign-in lasts 1-365 days, or 0 to use the server's default"))
+		}
+		writes = append(writes, settingWrite{keySessionLifetime, *d})
+	}
+	if !validRetention(msg.MessageRetentionDays) {
+		return errRetentionRange("message_retention_days")
+	}
+	if !validRetention(msg.AttachmentRetentionDays) {
+		return errRetentionRange("attachment_retention_days")
+	}
+	for key, days := range map[string]*int32{
+		keyMessageRetention: msg.MessageRetentionDays, keyAttachmentRetention: msg.AttachmentRetentionDays,
+	} {
+		if days != nil {
+			writes = append(writes, settingWrite{key, *days})
+		}
+	}
+	if msg.InstanceName != nil {
+		name := strings.TrimSpace(*msg.InstanceName)
+		if name == "" {
+			return apierr.Field(connect.CodeInvalidArgument, "instance_name", errors.New("the server name must not be blank"))
+		}
+		if utf8.RuneCountInString(name) > config.MaxInstanceNameRunes {
+			return apierr.Field(connect.CodeInvalidArgument, "instance_name",
+				fmt.Errorf("the server name must be %d characters or fewer", config.MaxInstanceNameRunes))
+		}
+		writes = append(writes, settingWrite{keyInstanceName, name})
+	}
+	if msg.RegistrationPolicy != nil {
+		p, ok := policyFromProto(*msg.RegistrationPolicy)
+		if !ok {
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("registration_policy must be open, invite, or closed"))
+		}
+		writes = append(writes, settingWrite{keyRegistrationPolicy, p})
+	}
+	if msg.SpaceCreation != nil {
+		var sc SpaceCreation
+		switch *msg.SpaceCreation {
+		case instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_ADMINS:
+			sc = SpaceCreationAdmins
+		case instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_EVERYONE:
+			sc = SpaceCreationEveryone
+		default:
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("space_creation must be admins or everyone"))
+		}
+		writes = append(writes, settingWrite{keySpaceCreation, sc})
+	}
+	quota, err := s.StorageQuotaBytes(ctx)
+	if err != nil {
+		return err
+	}
+	if requested := msg.StorageQuotaBytes; requested != nil {
+		if *requested < 0 {
+			return apierr.Field(connect.CodeInvalidArgument, "storage_quota_bytes", errors.New("the storage limit must be 0 (no limit) or more"))
+		}
+		quota = *requested
+		writes = append(writes, settingWrite{keyStorageQuota, *requested})
+	}
+	if msg.MaxUploadBytes != nil {
+		n := *msg.MaxUploadBytes
+		if n < 0 {
+			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes", errors.New("the size per file must be 0 (no limit) or more"))
+		}
+		if s.uploadCeiling > 0 && n > s.uploadCeiling {
+			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
+				fmt.Errorf("the size per file must be %d MB or less", s.uploadCeiling>>20))
+		}
+		// A per-file cap above the total storage limit is a limit that can
+		// never be reached. Judged against the quota in this request when
+		// it sets one.
+		if quota > 0 && n > quota {
+			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
+				fmt.Errorf("the size per file is more than the upload storage limit of %d MB", quota>>20))
+		}
+		writes = append(writes, settingWrite{keyMaxUpload, n})
+	}
+	if msg.PasswordSignIn != nil {
+		pw, ok := passwordSignInFromProto(*msg.PasswordSignIn)
+		if !ok {
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("password_sign_in must be everyone, admins, or off"))
+		}
+		// Never save "nobody can log in": below everyone needs a provider.
+		if pw != PasswordEveryone {
+			providers, err := s.LoginProviders(ctx)
+			if err != nil {
+				return err
+			}
+			if len(providers) == 0 {
+				return apierr.Field(connect.CodeFailedPrecondition, "password_sign_in",
+					errors.New("add a login provider before restricting password sign-in"))
+			}
+		}
+		writes = append(writes, settingWrite{keyPasswordSignIn, pw})
+	}
+	if msg.PersonalTokens != nil {
+		v, err := personalTokensFromProto(*msg.PersonalTokens)
+		if err != nil {
+			return err
+		}
+		writes = append(writes, settingWrite{keyPersonalTokens, v})
+	}
+	for key, v := range map[string]*bool{
+		keyWebhooksIncoming: msg.WebhooksIncoming, keyWebhooksOutgoing: msg.WebhooksOutgoing,
+		keyWebhooksAllowPrivateTargets: msg.WebhooksAllowPrivateTargets,
+		keySelfDeletion:                msg.SelfDeletion,
+	} {
+		if v != nil {
+			writes = append(writes, settingWrite{key, *v})
+		}
+	}
+	return s.writeSettings(ctx, writes)
 }
 
 func toProtoPasswordSignIn(p PasswordSignIn) instancev1.PasswordSignIn {

@@ -377,23 +377,36 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 	if err := apierr.RequireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
-	current, err := s.Reachability(ctx)
+	if err := s.SaveReachability(ctx, req.Msg); err != nil {
+		return nil, err
+	}
+	resp, err := s.reachabilityResponse(ctx)
 	if err != nil {
 		return nil, err
+	}
+	return connect.NewResponse(&instancev1.UpdateReachabilityResponse{Reachability: resp}), nil
+}
+
+// SaveReachability saves the groups set in msg. Shared by the admin page
+// and stoop admin, which checks no permission.
+func (s *Service) SaveReachability(ctx context.Context, msg *instancev1.UpdateReachabilityRequest) error {
+	current, err := s.Reachability(ctx)
+	if err != nil {
+		return err
 	}
 	// Every group is validated before anything is written, and the
 	// controllers are told only once the writes have committed.
 	var writes []settingWrite
-	if req.Msg.PublicUrl != nil {
-		pu := strings.TrimSpace(*req.Msg.PublicUrl)
+	if msg.PublicUrl != nil {
+		pu := strings.TrimSpace(*msg.PublicUrl)
 		if pu != "" {
 			if pu, err = validatePublicURL(pu); err != nil {
-				return nil, err
+				return err
 			}
 		}
 		writes = append(writes, settingWrite{keyPublicURL, pu})
 	}
-	if in := req.Msg.Turn; in != nil {
+	if in := msg.Turn; in != nil {
 		relay := TURNRelay{
 			URLs: trimAll(in.Urls), Username: strings.TrimSpace(in.Username),
 			Credential: keepSecret(in.Credential, current.TURN.Credential), STUNURLs: trimAll(in.StunUrls),
@@ -401,11 +414,11 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 		if len(relay.URLs) == 0 && len(relay.STUNURLs) == 0 {
 			relay = TURNRelay{}
 		} else if err := validateTURN(relay); err != nil {
-			return nil, err
+			return err
 		}
 		writes = append(writes, settingWrite{keyTURN, relay})
 	}
-	if in := req.Msg.Cloudflare; in != nil {
+	if in := msg.Cloudflare; in != nil {
 		cf := CloudflareTURN{KeyID: strings.TrimSpace(in.KeyId), APIToken: strings.TrimSpace(in.ApiToken)}
 		if cf.KeyID == "" {
 			cf = CloudflareTURN{}
@@ -415,26 +428,26 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 				cf.APIToken = keepSecret(cf.APIToken, current.Cloudflare.APIToken)
 			}
 			if cf.APIToken == "" {
-				return nil, apierr.Field(connect.CodeInvalidArgument, "cloudflare.api_token",
+				return apierr.Field(connect.CodeInvalidArgument, "cloudflare.api_token",
 					errors.New("cloudflare TURN needs the key's API token"))
 			}
 		}
 		writes = append(writes, settingWrite{keyCloudflareTURN, cf})
 	}
 	var tailscale *TailscaleSettings
-	if in := req.Msg.Tailscale; in != nil {
+	if in := msg.Tailscale; in != nil {
 		ts := TailscaleSettings{
 			Enabled: in.Enabled, Hostname: strings.TrimSpace(in.Hostname), Funnel: in.Funnel,
 			AuthKey:    keepSecret(strings.TrimSpace(in.AuthKey), current.Tailscale.AuthKey),
 			ControlURL: strings.TrimSpace(in.ControlUrl),
 		}
 		if ts.Hostname != "" && !validHostname(ts.Hostname) {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "tailscale.hostname",
+			return apierr.Field(connect.CodeInvalidArgument, "tailscale.hostname",
 				errors.New("the node name must be letters, digits, and hyphens"))
 		}
 		if ts.ControlURL != "" {
 			if _, ok := config.HTTPURL(ts.ControlURL); !ok {
-				return nil, apierr.Field(connect.CodeInvalidArgument, "tailscale.control_url",
+				return apierr.Field(connect.CodeInvalidArgument, "tailscale.control_url",
 					errors.New("the control URL must be an http(s) URL"))
 			}
 		}
@@ -442,22 +455,22 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 		writes = append(writes, settingWrite{keyTailscale, ts})
 	}
 	var tunnel *CloudflareTunnelSettings
-	if in := req.Msg.CloudflareTunnel; in != nil {
+	if in := msg.CloudflareTunnel; in != nil {
 		ct, err := cloudflareTunnelSetting(in.Enabled, in.Token, current.CloudflareTunnel)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		tunnel = &ct
 		writes = append(writes, settingWrite{keyCloudflareTunnel, ct})
 	}
-	if req.Msg.TrustedProxies != nil {
-		cidrs := trimAll(req.Msg.TrustedProxies.Cidrs)
+	if msg.TrustedProxies != nil {
+		cidrs := trimAll(msg.TrustedProxies.Cidrs)
 		if len(cidrs) > maxTrustedProxies {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs",
+			return apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs",
 				fmt.Errorf("at most %d trusted proxy addresses", maxTrustedProxies))
 		}
 		if _, err := trustedproxy.Parse(cidrs); err != nil {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs", err)
+			return apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs", err)
 		}
 		if cidrs == nil {
 			cidrs = []string{}
@@ -465,7 +478,7 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 		writes = append(writes, settingWrite{keyTrustedProxies, cidrs})
 	}
 	if err := s.writeSettings(ctx, writes); err != nil {
-		return nil, err
+		return err
 	}
 	if tailscale != nil && s.tailscale != nil {
 		s.tailscale.Apply(*tailscale)
@@ -475,14 +488,7 @@ func (s *Service) UpdateReachability(ctx context.Context, req *connect.Request[i
 	}
 	// Applied without a restart: every request reads the cache, so
 	// refreshing it here is all a change needs.
-	if err := s.LoadTrustedProxies(ctx); err != nil {
-		return nil, err
-	}
-	resp, err := s.reachabilityResponse(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&instancev1.UpdateReachabilityResponse{Reachability: resp}), nil
+	return s.LoadTrustedProxies(ctx)
 }
 
 func validHostname(h string) bool {

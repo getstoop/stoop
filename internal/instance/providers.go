@@ -136,31 +136,44 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 	if err := apierr.RequireAction(ctx, authctx.InstanceSettingsManage); err != nil {
 		return nil, err
 	}
-	if len(req.Msg.Providers) > maxLoginProviders {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "providers",
+	if err := s.SaveLoginProviders(ctx, req.Msg.Providers); err != nil {
+		return nil, err
+	}
+	resp, err := s.loginProvidersResponse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&instancev1.UpdateLoginProvidersResponse{Providers: resp}), nil
+}
+
+// SaveLoginProviders replaces the list. Shared by the admin page and
+// stoop admin, which checks no permission.
+func (s *Service) SaveLoginProviders(ctx context.Context, providers []*instancev1.LoginProvider) error {
+	if len(providers) > maxLoginProviders {
+		return apierr.Field(connect.CodeInvalidArgument, "providers",
 			fmt.Errorf("at most %d login providers", maxLoginProviders))
 	}
 	current, err := s.LoginProviders(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	prior := make(map[string]LoginProvider, len(current))
 	for _, p := range current {
 		prior[p.ID] = p
 	}
 
-	next := make([]LoginProvider, 0, len(req.Msg.Providers))
+	next := make([]LoginProvider, 0, len(providers))
 	seen := make(map[string]bool)
-	for i, in := range req.Msg.Providers {
+	for i, in := range providers {
 		// A provider's field is named by its place in the list:
 		// providers[2].client_id.
 		at := func(field string) string { return fmt.Sprintf("providers[%d].%s", i, field) }
 		p, err := validateLoginProvider(in, at)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if seen[p.ID] {
-			return nil, apierr.Field(connect.CodeInvalidArgument, at("id"),
+			return apierr.Field(connect.CodeInvalidArgument, at("id"),
 				fmt.Errorf("duplicate provider id %q", p.ID))
 		}
 		seen[p.ID] = true
@@ -170,7 +183,7 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 			p.ClientSecret = keepSecret(p.ClientSecret, prev.ClientSecret)
 		}
 		if p.ClientSecret == "" {
-			return nil, apierr.Field(connect.CodeInvalidArgument, at("client_secret"),
+			return apierr.Field(connect.CodeInvalidArgument, at("client_secret"),
 				fmt.Errorf("provider %q needs a client secret", p.ID))
 		}
 		next = append(next, p)
@@ -179,21 +192,14 @@ func (s *Service) UpdateLoginProviders(ctx context.Context, req *connect.Request
 	if len(next) == 0 {
 		pw, err := s.PasswordSignIn(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if pw != string(PasswordEveryone) {
-			return nil, apierr.Field(connect.CodeFailedPrecondition, "providers",
+			return apierr.Field(connect.CodeFailedPrecondition, "providers",
 				errors.New("let everyone use password sign-in before removing the last login provider"))
 		}
 	}
-	if err := s.writeJSON(ctx, keyLoginProviders, next); err != nil {
-		return nil, err
-	}
-	resp, err := s.loginProvidersResponse(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&instancev1.UpdateLoginProvidersResponse{Providers: resp}), nil
+	return s.writeJSON(ctx, keyLoginProviders, next)
 }
 
 func validateLoginProvider(in *instancev1.LoginProvider, at func(field string) string) (LoginProvider, error) {

@@ -9,6 +9,20 @@ import (
 	"context"
 )
 
+const deleteSetting = `-- name: DeleteSetting :execrows
+DELETE FROM instance_settings WHERE key = $1
+`
+
+// DeleteSetting removes a saved value, so the next start seeds it from the
+// environment again (stoop admin setting reset).
+func (q *Queries) DeleteSetting(ctx context.Context, key string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSetting, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getSetting = `-- name: GetSetting :one
 
 SELECT value FROM instance_settings WHERE key = $1
@@ -34,7 +48,7 @@ type SeedSettingParams struct {
 	Value []byte
 }
 
-// SeedSetting only inserts when the key is absent (first boot).
+// SeedSetting only inserts when the key is absent.
 func (q *Queries) SeedSetting(ctx context.Context, arg SeedSettingParams) error {
 	_, err := q.db.Exec(ctx, seedSetting, arg.Key, arg.Value)
 	return err

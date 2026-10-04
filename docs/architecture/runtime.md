@@ -420,11 +420,17 @@ demote <username>
 reset-password <username>         temporary password, printed once, sessions revoked
 transfer-owner <username>         make an active admin the server owner
 password-login <everyone|admins|off>
+setting list|set|clear|reset      the settings the environment seeds
 ```
 
 This exists for exactly one situation: the admin page is what you cannot
 reach. `password-login everyone` is the break-glass when an identity
-provider is down.
+provider is down; `setting` is the way back from a bad public URL, tunnel
+token or provider list, since editing `.env` no longer changes a saved
+setting. `setting` saves through the same `Save…` methods as the admin
+page, so it refuses what the page refuses. Tailscale, the tunnel and the
+trusted-proxy cache are applied at start, so a change to those needs a
+restart.
 
 It never migrates. A newer binary would change the schema under the
 running server, without the backup `stoop upgrade` takes, so it refuses

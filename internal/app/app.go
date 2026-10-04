@@ -141,7 +141,6 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	authSvc.UseSessionPolicy(instanceSvc)
 	authSvc.UseDeletionPorts(instanceSvc, chatSvc)
 	authSvc.UseBus(bus)
-	instanceSvc.UsePasswordSignInEnv(cfg.PasswordSignIn)
 	instanceSvc.UseSessionLifetimeEnv(cfg.SessionLifetimeDays)
 	instanceSvc.UseWebhooksEnv(cfg.Webhooks)
 	chatSvc.UseInstancePolicy(instanceSvc)
@@ -338,42 +337,11 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 
 	a.tunnel = cftunnel.NewManager(cfg.CloudflaredPath, log)
 
-	// Reachability: these environment values seed any group with nothing
-	// saved (SeedFromEnv below); the tailnet address is the last-resort
-	// public URL.
-	instanceSvc.UseReachabilityEnv(instance.ReachabilityEnv{
-		Reachability: instance.Reachability{
-			PublicURL: cfg.PublicURL,
-			TURN: instance.TURNRelay{
-				URLs: cfg.TURNURLs, Username: cfg.TURNUsername, Credential: cfg.TURNCredential,
-				STUNURLs: cfg.STUNURLs,
-			},
-			Cloudflare: instance.CloudflareTURN{KeyID: cfg.CloudflareTURNKeyID, APIToken: cfg.CloudflareTURNAPIToken},
-			Tailscale: instance.TailscaleSettings{
-				Enabled: cfg.Tailscale, Hostname: cfg.TailscaleHostname, Funnel: cfg.TailscaleFunnel,
-				AuthKey: cfg.TailscaleAuthKey, ControlURL: cfg.TailscaleControlURL,
-			},
-			CloudflareTunnel: instance.CloudflareTunnelSettings{
-				Enabled: cfg.CloudflareTunnel, Token: cfg.CloudflareTunnelToken,
-			},
-		},
-		VoiceConfigured: voiceSvc.Enabled(),
-		VoiceOff:        !cfg.Voice,
-	})
-	// One login provider can come from the environment; seeded like
-	// reachability.
-	if cfg.OIDCIssuer != "" {
-		instanceSvc.UseLoginProvidersEnv([]instance.LoginProvider{{
-			ID: cfg.OIDCID, Kind: instance.KindOIDC, DisplayName: cfg.OIDCName,
-			Icon: "key", Issuer: cfg.OIDCIssuer,
-			ClientID: cfg.OIDCClientID, ClientSecret: cfg.OIDCClientSecret,
-		}})
-	}
-	if !cfg.TrustedProxies.Empty() {
-		env := instanceSvc.ReachabilityEnvValue()
-		env.TrustedProxies = cfg.TrustedProxies
-		instanceSvc.UseReachabilityEnv(env)
-	}
+	UseSettingsEnv(instanceSvc, cfg)
+	voiceEnv := instanceSvc.ReachabilityEnvValue()
+	voiceEnv.VoiceConfigured = voiceSvc.Enabled()
+	voiceEnv.VoiceOff = !cfg.Voice
+	instanceSvc.UseReachabilityEnv(voiceEnv)
 	if err := instanceSvc.SeedFromEnv(ctx); err != nil {
 		pool.Close()
 		return nil, err
@@ -384,7 +352,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		return nil, err
 	}
 	for _, name := range drifted {
-		log.Warn("this variable differs from the saved setting, which is the one used; change it under Server admin", "variable", name)
+		log.Warn("this variable differs from the saved setting, which is the one used; change it under Server admin or with stoop admin setting", "variable", name)
 	}
 	if err := instanceSvc.LoadTrustedProxies(ctx); err != nil {
 		pool.Close()
@@ -417,6 +385,38 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (*App, error)
 		return nil, err
 	}
 	return a, nil
+}
+
+// UseSettingsEnv hands the instance module what the environment sets for
+// the settings it seeds (SeedFromEnv): reachability, the login provider and
+// password sign-in. The tailnet address is the last-resort public URL,
+// supplied separately. Shared with stoop admin, so it sees .env as the
+// server does.
+func UseSettingsEnv(inst *instance.Service, cfg config.Config) {
+	inst.UseReachabilityEnv(instance.ReachabilityEnv{Reachability: instance.Reachability{
+		PublicURL: cfg.PublicURL,
+		TURN: instance.TURNRelay{
+			URLs: cfg.TURNURLs, Username: cfg.TURNUsername, Credential: cfg.TURNCredential,
+			STUNURLs: cfg.STUNURLs,
+		},
+		Cloudflare: instance.CloudflareTURN{KeyID: cfg.CloudflareTURNKeyID, APIToken: cfg.CloudflareTURNAPIToken},
+		Tailscale: instance.TailscaleSettings{
+			Enabled: cfg.Tailscale, Hostname: cfg.TailscaleHostname, Funnel: cfg.TailscaleFunnel,
+			AuthKey: cfg.TailscaleAuthKey, ControlURL: cfg.TailscaleControlURL,
+		},
+		CloudflareTunnel: instance.CloudflareTunnelSettings{
+			Enabled: cfg.CloudflareTunnel, Token: cfg.CloudflareTunnelToken,
+		},
+		TrustedProxies: cfg.TrustedProxies,
+	}})
+	if cfg.OIDCIssuer != "" {
+		inst.UseLoginProvidersEnv([]instance.LoginProvider{{
+			ID: cfg.OIDCID, Kind: instance.KindOIDC, DisplayName: cfg.OIDCName,
+			Icon: "key", Issuer: cfg.OIDCIssuer,
+			ClientID: cfg.OIDCClientID, ClientSecret: cfg.OIDCClientSecret,
+		}})
+	}
+	inst.UsePasswordSignInEnv(cfg.PasswordSignIn)
 }
 
 // livekitKeys settles which API key pair signs room tokens, and leaves it
