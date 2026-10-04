@@ -106,15 +106,23 @@ credential and revokes the old one.
 ## Outgoing
 
 An outgoing hook holds a URL, a raw signing secret, a set of event types
-and an optional channel filter. A goroutine and a job kind that never
+and an optional channel filter. A goroutine and two job kinds that never
 share work:
 
 - **The subscriber** watches the `space:ID` topic of every space with an
-  outgoing hook, translates events to the catalogue below, renders a
-  self-contained envelope and, per matching hook, writes a log row and
-  queues a `deliver_webhook` job in the hook's lane at the hook's next
-  `Stoop-Sequence`. Direct messages publish to user topics and never
-  reach it.
+  outgoing hook and translates events to the catalogue below. When an
+  enabled hook in the space wants the event, it queues one
+  `fan_out_webhook_event` job in the space's lane; that insert is all it
+  writes, so it keeps up with the bus. Direct messages publish to user
+  topics and never reach it.
+- **The `fan_out_webhook_event` job** (`FanOutWebhookEvent`) reads the
+  space's hooks again and, per matching hook, takes the hook's next
+  `Stoop-Sequence`, renders a self-contained envelope, writes a log row
+  and queues a `deliver_webhook` job in the hook's lane, all in one
+  transaction: a failed attempt leaves nothing and its retry starts over.
+  The space's lane keeps each hook's sequence in message order. The
+  lane's sequence is the event's time in nanoseconds, moved past the
+  previous one so it never goes back.
 - **The `deliver_webhook` job** (`DeliverWebhook`, run by the jobs
   dispatcher) makes one POST with a 10 s timeout and writes what the
   receiver said to the log row. The lane keeps one delivery per hook in
@@ -155,8 +163,8 @@ receiver dedupes on `Stoop-Delivery` and reads a gap off
 
 `webhook_deliveries` is the delivery log the Integrations page reads:
 one row per delivery with the hook, event, sequence, body, attempts,
-status code, response, error and when it finished. The subscriber
-inserts it pending; the performer rewrites it after every attempt and
+status code, response, error and when it finished. The fan-out inserts
+it pending; the performer rewrites it after every attempt and
 clears the body once a receiver accepted. The queue is the jobs module's
 ([runtime.md](runtime.md#background-work)): the job's arguments carry
 the delivery id, the hook id, the event, the sequence and the body, so
@@ -164,7 +172,9 @@ the performer never reads the log to deliver, and the hook id is the
 lane.
 
 The module reaches the queue through its `Jobs` port: `EnqueueInLane`
-from the fan-out, the Test button and Send again; `DiscardLane` when a
+from the subscriber; `EnqueueInLaneTx` from the fan-out, the Test button
+and Send again, inside the transaction that writes the log row;
+`DiscardLane` when a
 hook is deleted, since the `jobs` table carries no foreign key to the
 hook. `DeliverWebhook` answers with a `DeliveryResult` (delivered, dead,
 or retry after a chosen wait) that `internal/app` maps onto the
@@ -173,8 +183,7 @@ found queued while outgoing is off is dead with that reason, and Send
 again works once the switch is back on.
 
 The log row keeps its job's id. A job can end without the performer
-finishing the row (a lease lapsed on the last attempt, a crash between
-the two inserts), so `sweep_hooks` finishes an unfinished row older than
+finishing the row (a lease lapsed on the last attempt), so `sweep_hooks` finishes an unfinished row older than
 five minutes whose job is discarded or gone as dead with the reason: Send
 again works on it and it counts toward the twenty.
 

@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
@@ -201,5 +204,41 @@ func TestEnqueueInLaneNeedsALane(t *testing.T) {
 		VALUES ('00000000-0000-7000-8000-000000000001', 'laned', 'A', 'queued', 4, $1, $1)`, clock.Now())
 	if err == nil || !strings.Contains(err.Error(), "jobs_lane_sequence_check") {
 		t.Errorf("a lane without a sequence was stored: %v", err)
+	}
+}
+
+func TestEnqueueInLaneTxFollowsTheTransaction(t *testing.T) {
+	pool := dbtest.New(t)
+	ctx := context.Background()
+	service, registry := newTestService(pool, newFakeClock(), testConfig())
+	Register(registry, "laned", func(context.Context, *Job, laneArgs) error { return nil }, Options{})
+
+	rolledBack := errors.New("roll back")
+	err := db.InTx(ctx, pool, func(tx pgx.Tx) error {
+		if _, err := service.EnqueueInLaneTx(ctx, tx, "laned", laneArgs{Name: "dropped"}, "A", 1); err != nil {
+			return err
+		}
+		return rolledBack
+	})
+	if !errors.Is(err, rolledBack) {
+		t.Fatalf("rolled-back transaction: %v", err)
+	}
+	if countRows(t, pool, `SELECT count(*) FROM jobs`) != 0 {
+		t.Error("a rolled-back enqueue left a row")
+	}
+
+	var id string
+	if err := db.InTx(ctx, pool, func(tx pgx.Tx) error {
+		var err error
+		id, err = service.EnqueueInLaneTx(ctx, tx, "laned", laneArgs{Name: "kept"}, "A", 2)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if row := readJob(t, pool, id); row.Lane == nil || *row.Lane != "A" || row.Sequence == nil || *row.Sequence != 2 {
+		t.Errorf("committed enqueue: %+v", row)
+	}
+	if _, err := service.EnqueueInLaneTx(ctx, nil, "laned", nil, "", 1); !errors.Is(err, errEmptyLane) {
+		t.Errorf("empty lane: %v", err)
 	}
 }

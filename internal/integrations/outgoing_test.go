@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +18,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
@@ -83,17 +84,26 @@ func (endpoint *receiver) last() delivery {
 	return got[len(got)-1]
 }
 
-// queuedJob is one call the fake port recorded.
+// queuedJob is one call the fake port recorded: a delivery's args, or a
+// fan-out's event.
 type queuedJob struct {
+	id       string
 	kind     string
 	args     DeliveryArgs
+	event    OutgoingEvent
 	lane     string
 	sequence int64
+	// inTx marks a job enqueued in a transaction; it counts once its row
+	// in jobs is committed.
+	inTx bool
 }
 
 // fakeJobs is the Jobs port in memory: what was queued, in order, and
 // which lanes were discarded. Args go through JSON as the dispatcher's do.
+// A job enqueued in a transaction also writes a jobs row there, so a
+// rollback takes it back.
 type fakeJobs struct {
+	pool      *pgxpool.Pool
 	mu        sync.Mutex
 	queued    []queuedJob
 	discarded []string
@@ -106,21 +116,51 @@ type fakeJobs struct {
 }
 
 func (jobs *fakeJobs) EnqueueInLane(_ context.Context, kind string, args any, lane string, sequence int64) (string, error) {
-	if jobs.refuse != nil && (jobs.refuseLane == "" || jobs.refuseLane == lane) {
-		return "", jobs.refuse
-	}
-	encoded, err := json.Marshal(args)
+	job, err := jobs.record(kind, args, lane, sequence)
 	if err != nil {
 		return "", err
 	}
-	var decoded DeliveryArgs
-	if err := json.Unmarshal(encoded, &decoded); err != nil {
+	jobs.add(job)
+	return job.id, nil
+}
+
+func (jobs *fakeJobs) EnqueueInLaneTx(ctx context.Context, tx pgx.Tx, kind string, args any, lane string, sequence int64) (string, error) {
+	job, err := jobs.record(kind, args, lane, sequence)
+	if err != nil {
 		return "", err
 	}
+	job.inTx = true
+	if err := dbgen.New(tx).InsertJob(ctx, dbgen.InsertJobParams{
+		ID: job.id, Kind: kind, Args: []byte("{}"), Lane: &lane, Sequence: &sequence, MaxAttempts: testMaxAttempts, NotBefore: time.Now(), Now: time.Now(),
+	}); err != nil {
+		return "", err
+	}
+	jobs.add(job)
+	return job.id, nil
+}
+
+// record decodes args by kind, or fails as refuse says.
+func (jobs *fakeJobs) record(kind string, args any, lane string, sequence int64) (queuedJob, error) {
+	if jobs.refuse != nil && (jobs.refuseLane == "" || jobs.refuseLane == lane) {
+		return queuedJob{}, jobs.refuse
+	}
+	encoded, err := json.Marshal(args)
+	if err != nil {
+		return queuedJob{}, err
+	}
+	job := queuedJob{id: rowid.New(), kind: kind, lane: lane, sequence: sequence}
+	if kind == FanOutWebhookEventKind {
+		err = json.Unmarshal(encoded, &job.event)
+	} else {
+		err = json.Unmarshal(encoded, &job.args)
+	}
+	return job, err
+}
+
+func (jobs *fakeJobs) add(job queuedJob) {
 	jobs.mu.Lock()
 	defer jobs.mu.Unlock()
-	jobs.queued = append(jobs.queued, queuedJob{kind: kind, args: decoded, lane: lane, sequence: sequence})
-	return rowid.New(), nil
+	jobs.queued = append(jobs.queued, job)
 }
 
 func (jobs *fakeJobs) JobStatuses(_ context.Context, ids []string) (map[string]JobStatus, error) {
@@ -153,14 +193,51 @@ func (jobs *fakeJobs) DiscardLane(_ context.Context, lane, _ string) (int64, err
 }
 
 func (jobs *fakeJobs) pending() int {
+	jobs.forgetRolledBack()
 	jobs.mu.Lock()
 	defer jobs.mu.Unlock()
 	return len(jobs.queued)
 }
 
-// pop takes the oldest queued job.
+// forgetRolledBack drops the jobs enqueued in a transaction that did not
+// commit.
+func (jobs *fakeJobs) forgetRolledBack() {
+	jobs.mu.Lock()
+	defer jobs.mu.Unlock()
+	kept := jobs.queued[:0]
+	for _, job := range jobs.queued {
+		if job.inTx {
+			var committed bool
+			if err := jobs.pool.QueryRow(context.Background(), `SELECT EXISTS (SELECT 1 FROM jobs WHERE id = $1)`, job.id).Scan(&committed); err != nil || !committed {
+				continue
+			}
+		}
+		kept = append(kept, job)
+	}
+	jobs.queued = kept
+}
+
+// takeFanOuts removes the queued fan-out jobs, in order.
+func (jobs *fakeJobs) takeFanOuts() []queuedJob {
+	jobs.forgetRolledBack()
+	jobs.mu.Lock()
+	defer jobs.mu.Unlock()
+	var fanOuts, rest []queuedJob
+	for _, job := range jobs.queued {
+		if job.kind == FanOutWebhookEventKind {
+			fanOuts = append(fanOuts, job)
+		} else {
+			rest = append(rest, job)
+		}
+	}
+	jobs.queued = rest
+	return fanOuts
+}
+
+// pop takes the oldest queued delivery.
 func (jobs *fakeJobs) pop(t *testing.T) queuedJob {
 	t.Helper()
+	jobs.forgetRolledBack()
 	jobs.mu.Lock()
 	defer jobs.mu.Unlock()
 	if len(jobs.queued) == 0 {
@@ -180,7 +257,7 @@ func outgoingFixture(t *testing.T) (*fixture, *receiver) {
 	t.Helper()
 	f := setup(t)
 	f.policy.private = true
-	f.jobs = &fakeJobs{}
+	f.jobs = &fakeJobs{pool: f.pool}
 	f.svc.UseJobs(f.jobs)
 	return f, newReceiver(t)
 }
@@ -196,10 +273,26 @@ func (f *fixture) createOutgoing(t *testing.T, url string, types []string, chann
 	return res.Msg.Webhook, res.Msg.Secret
 }
 
-func (f *fixture) enqueue(t *testing.T, ev outgoingEvent) {
+// enqueue runs the event through the subscriber's enqueue and performs
+// the fan-out it queued, as the dispatcher would.
+func (f *fixture) enqueue(t *testing.T, ev OutgoingEvent) {
 	t.Helper()
 	if err := f.svc.enqueue(context.Background(), ev); err != nil {
 		t.Fatal(err)
+	}
+	f.fanOut(t)
+}
+
+// fanOut performs every queued fan-out job once.
+func (f *fixture) fanOut(t *testing.T) {
+	t.Helper()
+	for _, job := range f.jobs.takeFanOuts() {
+		if job.lane != job.event.SpaceID {
+			t.Fatalf("fan-out in lane %q for space %q", job.lane, job.event.SpaceID)
+		}
+		if err := f.svc.FanOutWebhookEvent(context.Background(), job.event); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -332,7 +425,7 @@ func TestOutgoingDeliversSignedEvents(t *testing.T) {
 	}
 
 	// An unsubscribed event type and a channel-filtered hook queue nothing.
-	f.enqueue(t, outgoingEvent{Type: EventChannelDeleted, SpaceID: f.space, ChannelID: f.channel, Data: rawJSON(map[string]string{})})
+	f.enqueue(t, OutgoingEvent{Type: EventChannelDeleted, SpaceID: f.space, ChannelID: f.channel, Data: rawJSON(map[string]string{})})
 	if f.jobs.pending() != 0 {
 		t.Error("an unwanted event type was queued")
 	}
@@ -644,50 +737,6 @@ func TestOutgoingTwentyDeadInARowDisable(t *testing.T) {
 	}
 }
 
-// A log row whose job could not be queued is removed, so nothing pending
-// is left that no job will ever finish.
-func TestFailedEnqueueLeavesNoLogRow(t *testing.T) {
-	f, endpoint := outgoingFixture(t)
-	hook, _ := f.createOutgoing(t, endpoint.srv.URL+"/hook", []string{EventMessageCreated}, "")
-	f.jobs.refuse = errors.New("the queue is down")
-	out, ok := f.svc.translate(context.Background(), message(f.channel, f.space, "unqueued"))
-	if !ok {
-		t.Fatal("message not translated")
-	}
-	if err := f.svc.enqueue(context.Background(), out); err != nil {
-		t.Fatalf("enqueue with the queue down: %v", err)
-	}
-	if rows := f.listDeliveries(t, hook.Id); len(rows) != 0 {
-		t.Errorf("log rows left without a job: %d", len(rows))
-	}
-}
-
-// One hook's failed enqueue does not cost the space's other hooks the
-// event; it is logged, not returned.
-func TestOneHooksFailedEnqueueSparesTheOthers(t *testing.T) {
-	f, endpoint := outgoingFixture(t)
-	refused, _ := f.createOutgoing(t, endpoint.srv.URL+"/refused", []string{EventMessageCreated}, "")
-	spared, _ := f.createOutgoing(t, endpoint.srv.URL+"/spared", []string{EventMessageCreated}, "")
-	f.jobs.refuse = errors.New("the queue is down")
-	f.jobs.refuseLane = refused.Id
-	out, ok := f.svc.translate(context.Background(), message(f.channel, f.space, "for both"))
-	if !ok {
-		t.Fatal("message not translated")
-	}
-	if err := f.svc.enqueue(context.Background(), out); err != nil {
-		t.Fatalf("enqueue with one lane refused: %v", err)
-	}
-	if f.jobs.pending() != 1 {
-		t.Fatalf("%d jobs queued, want the spared hook's", f.jobs.pending())
-	}
-	if job := f.jobs.pop(t); job.args.HookID != spared.Id {
-		t.Errorf("queued for hook %s, want %s", job.args.HookID, spared.Id)
-	}
-	if rows := f.listDeliveries(t, refused.Id); len(rows) != 0 {
-		t.Errorf("refused hook has %d log rows, want none", len(rows))
-	}
-}
-
 func TestSubscriberQueuesDeliveriesFromTheBus(t *testing.T) {
 	f, endpoint := outgoingFixture(t)
 	f.createOutgoing(t, endpoint.srv.URL+"/bus", []string{EventMessageCreated}, "")
@@ -705,6 +754,7 @@ func TestSubscriberQueuesDeliveriesFromTheBus(t *testing.T) {
 	if f.jobs.pending() != 1 {
 		t.Fatal("the bus event was not queued")
 	}
+	f.fanOut(t)
 	job := f.jobs.pop(t)
 	if !strings.Contains(string(job.args.Body), "over the bus") || job.args.Event != EventMessageCreated {
 		t.Fatalf("queued job: %+v", job)

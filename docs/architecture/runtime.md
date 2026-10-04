@@ -22,7 +22,7 @@ stoop
 │   └── STOOP_JOBS_WORKERS worker goroutines    or a `stoop jobs` process (STOOP_JOBS)
 │       └── child process: stoop jobs           when STOOP_JOBS=child
 ├── goroutine: events relay listener            what a `stoop jobs` publishes, onto the bus
-└── goroutine: webhook subscriber               bus events in, delivery jobs out
+└── goroutine: webhook subscriber               bus events in, fan-out jobs out
 ```
 
 `cmd/stoop/main.go` is short: dispatch the `admin` subcommand,
@@ -286,15 +286,18 @@ except the last, which the module owns:
 | `sweep_attachments` | hourly | attachments past `attachment_retention_days` ([files.md](files.md#retention)) |
 | `sweep_jobs` | hourly | finished `jobs` rows older than `STOOP_JOBS_RETENTION`, and dispatcher rows not seen for an hour |
 
-Two one-shot kinds. `deliver_webhook` is queued by the integrations
-module per outgoing delivery ([integrations.md](integrations.md#deliveries-as-jobs)).
+Three one-shot kinds. `fan_out_webhook_event` is queued by the
+integrations module per event a hook wants, and queues a
+`deliver_webhook` per outgoing delivery
+([integrations.md](integrations.md#outgoing)).
 `normalise_image` is queued by the files module per avatar, bot avatar or
 space icon upload and re-encodes the picture off the request
 ([files.md](files.md#images)); it is capped at one running at a time.
-Both use a lane: a job with `lane` and `sequence` set runs only when no
+All three use a lane: a job with `lane` and `sequence` set runs only when no
 earlier unfinished job shares its lane, so one runs per lane at a time,
 in sequence order, and a retry waiting on its backoff holds the lane. A
-hook is a lane; so is one user's avatar or one space's icon, so uploads
+hook is a lane, and so is a space for its fan-outs; so is one user's
+avatar or one space's icon, so uploads
 apply in the order the server received them. Sweeps have no lane. A
 laned job's finish wakes the dispatcher, so a lane drains at the pace
 of its work, not one head per poll.
@@ -359,7 +362,7 @@ supervisor.
 
 One more goroutine runs for outgoing webhooks
 ([integrations.md](integrations.md#outgoing)): the subscriber, which turns
-bus events into `deliver_webhook` jobs. It stops with the process; the
+bus events into `fan_out_webhook_event` jobs. It stops with the process; the
 jobs are in Postgres, so nothing in flight is lost across a restart.
 
 Only the dispatcher moves out under `STOOP_JOBS`. The subscriber, the

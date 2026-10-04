@@ -10,15 +10,6 @@ import (
 	"time"
 )
 
-const deleteDelivery = `-- name: DeleteDelivery :exec
-DELETE FROM webhook_deliveries WHERE id = $1
-`
-
-func (q *Queries) DeleteDelivery(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, deleteDelivery, id)
-	return err
-}
-
 const finishLostDelivery = `-- name: FinishLostDelivery :execrows
 UPDATE webhook_deliveries SET finished_at = $1::timestamptz, error = $2
 WHERE id = $3 AND finished_at IS NULL

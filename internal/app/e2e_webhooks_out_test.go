@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -315,4 +316,35 @@ func (h *harness) waitQueued(admin, want string) string {
 		}
 	}
 	return got
+}
+
+// A burst to a space with several hooks reaches every hook once per
+// message, in message order, through the fan-out and the real dispatcher.
+func TestE2EOutgoingBurstReachesEveryHookInOrder(t *testing.T) {
+	h := newHarness(t)
+	casey := h.person("casey")
+	stoop, general := h.space(casey, "The Stoop")
+	h.rpc(casey, "stoop.instance.v1.InstanceService/UpdateSettings", map[string]any{"webhooksAllowPrivateTargets": true}).expect(t, "ok")
+	const hookCount, burst = 4, 30
+	receivers := make([]*receiver, hookCount)
+	for index := range receivers {
+		receivers[index] = newReceiver(t)
+		h.outgoing(casey, stoop, receivers[index].srv.URL, "message.created")
+	}
+
+	for index := range burst {
+		h.send(casey, general, "burst "+strconv.Itoa(index)).expect(t, "ok")
+	}
+	for hookIndex, rcv := range receivers {
+		for index := range burst {
+			got := rcv.next(t)
+			sequence, content := got.headers.Get("Stoop-Sequence"), got.body["data"].(map[string]any)["content"]
+			if sequence != strconv.Itoa(index+1) || content != "burst "+strconv.Itoa(index) {
+				t.Fatalf("hook %d delivery %d: sequence %s, content %v", hookIndex, index, sequence, content)
+			}
+		}
+	}
+	for _, rcv := range receivers {
+		rcv.none(t)
+	}
 }

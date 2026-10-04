@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -13,11 +14,11 @@ import (
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
-	"github.com/getstoop/stoop/internal/rowid"
 )
 
-// The subscriber: bus events in, delivery jobs out. No HTTP here, so a
-// slow receiver can never hold the bus's buffer. See
+// The subscriber: bus events in, one fan-out job per event out. No HTTP
+// and no per-hook writes here, so neither a slow receiver nor a space
+// with many hooks holds the bus's buffer. See
 // docs/architecture/integrations.md → Outgoing.
 
 // Event types, v1.
@@ -53,17 +54,28 @@ type envelopeSpace struct {
 	Name string `json:"name"`
 }
 
-// outgoingEvent is one bus event translated for hooks.
-type outgoingEvent struct {
-	Type      string
-	SpaceID   string
-	ChannelID string
-	Data      json.RawMessage
+// OutgoingEvent is one bus event translated for hooks, and the fan-out
+// job's args. At is when it happened: the envelope's ts.
+type OutgoingEvent struct {
+	Type      string          `json:"type"`
+	SpaceID   string          `json:"space_id"`
+	ChannelID string          `json:"channel_id,omitempty"`
+	Data      json.RawMessage `json:"data"`
+	At        time.Time       `json:"at"`
 }
 
-// translate maps a realtime event to a hook event, or false for the
-// kinds hooks never see.
-func (s *Service) translate(ctx context.Context, ev *realtimev1.ServerEvent) (outgoingEvent, bool) {
+// translate maps a realtime event to a hook event stamped with the
+// event's time, or false for the kinds hooks never see.
+func (s *Service) translate(ctx context.Context, ev *realtimev1.ServerEvent) (OutgoingEvent, bool) {
+	out, ok := s.translatePayload(ctx, ev)
+	out.At = s.now()
+	if ev.Ts != nil {
+		out.At = ev.Ts.AsTime()
+	}
+	return out, ok
+}
+
+func (s *Service) translatePayload(ctx context.Context, ev *realtimev1.ServerEvent) (OutgoingEvent, bool) {
 	switch p := ev.Payload.(type) {
 	case *realtimev1.ServerEvent_MessageCreated:
 		return s.messageEvent(ctx, EventMessageCreated, p.MessageCreated.ChannelId, p.MessageCreated.SpaceId, p.MessageCreated)
@@ -71,9 +83,9 @@ func (s *Service) translate(ctx context.Context, ev *realtimev1.ServerEvent) (ou
 		return s.messageEvent(ctx, EventMessageUpdated, p.MessageUpdated.ChannelId, p.MessageUpdated.SpaceId, p.MessageUpdated)
 	case *realtimev1.ServerEvent_MessageDeleted:
 		if p.MessageDeleted.SpaceId == "" {
-			return outgoingEvent{}, false
+			return OutgoingEvent{}, false
 		}
-		return outgoingEvent{Type: EventMessageDeleted, SpaceID: p.MessageDeleted.SpaceId, ChannelID: p.MessageDeleted.ChannelId,
+		return OutgoingEvent{Type: EventMessageDeleted, SpaceID: p.MessageDeleted.SpaceId, ChannelID: p.MessageDeleted.ChannelId,
 			Data: rawJSON(map[string]string{"channel_id": p.MessageDeleted.ChannelId, "message_id": p.MessageDeleted.MessageId})}, true
 	case *realtimev1.ServerEvent_MemberJoined:
 		data := rawJSON(map[string]string{"space_id": p.MemberJoined.SpaceId, "user_id": p.MemberJoined.UserId})
@@ -82,37 +94,37 @@ func (s *Service) translate(ctx context.Context, ev *realtimev1.ServerEvent) (ou
 				data = protoJSON(m)
 			}
 		}
-		return outgoingEvent{Type: EventMemberJoined, SpaceID: p.MemberJoined.SpaceId, Data: data}, true
+		return OutgoingEvent{Type: EventMemberJoined, SpaceID: p.MemberJoined.SpaceId, Data: data}, true
 	case *realtimev1.ServerEvent_MemberRemoved:
 		reason := "left"
 		if p.MemberRemoved.Kicked {
 			reason = "removed"
 		}
-		return outgoingEvent{Type: EventMemberLeft, SpaceID: p.MemberRemoved.SpaceId,
+		return OutgoingEvent{Type: EventMemberLeft, SpaceID: p.MemberRemoved.SpaceId,
 			Data: rawJSON(map[string]string{"space_id": p.MemberRemoved.SpaceId, "user_id": p.MemberRemoved.UserId, "reason": reason})}, true
 	case *realtimev1.ServerEvent_ChannelCreated:
 		if p.ChannelCreated.SpaceId == "" {
-			return outgoingEvent{}, false
+			return OutgoingEvent{}, false
 		}
-		return outgoingEvent{Type: EventChannelCreated, SpaceID: p.ChannelCreated.SpaceId, ChannelID: p.ChannelCreated.Id, Data: protoJSON(p.ChannelCreated)}, true
+		return OutgoingEvent{Type: EventChannelCreated, SpaceID: p.ChannelCreated.SpaceId, ChannelID: p.ChannelCreated.Id, Data: protoJSON(p.ChannelCreated)}, true
 	case *realtimev1.ServerEvent_ChannelDeleted:
-		return outgoingEvent{Type: EventChannelDeleted, SpaceID: p.ChannelDeleted.SpaceId, ChannelID: p.ChannelDeleted.ChannelId,
+		return OutgoingEvent{Type: EventChannelDeleted, SpaceID: p.ChannelDeleted.SpaceId, ChannelID: p.ChannelDeleted.ChannelId,
 			Data: rawJSON(map[string]string{"space_id": p.ChannelDeleted.SpaceId, "channel_id": p.ChannelDeleted.ChannelId})}, true
 	}
-	return outgoingEvent{}, false
+	return OutgoingEvent{}, false
 }
 
-func (s *Service) messageEvent(ctx context.Context, typ, channelID, spaceID string, m proto.Message) (outgoingEvent, bool) {
+func (s *Service) messageEvent(ctx context.Context, typ, channelID, spaceID string, m proto.Message) (OutgoingEvent, bool) {
 	if spaceID == "" && s.spaces != nil {
 		var err error
 		if spaceID, err = s.spaces.ChannelSpace(ctx, channelID); err != nil {
-			return outgoingEvent{}, false
+			return OutgoingEvent{}, false
 		}
 	}
 	if spaceID == "" {
-		return outgoingEvent{}, false
+		return OutgoingEvent{}, false
 	}
-	return outgoingEvent{Type: typ, SpaceID: spaceID, ChannelID: channelID, Data: protoJSON(m)}, true
+	return OutgoingEvent{Type: typ, SpaceID: spaceID, ChannelID: channelID, Data: protoJSON(m)}, true
 }
 
 func protoJSON(m proto.Message) json.RawMessage {
@@ -128,10 +140,10 @@ func rawJSON(v any) json.RawMessage {
 	return b
 }
 
-// enqueue queues one delivery per enabled hook that wants the event. With
-// outgoing off nothing is queued; the gap shows in Stoop-Sequence. The
-// error is one that stopped every hook; a single hook's is logged.
-func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
+// enqueue queues one fan-out job for the event in its space's lane. With
+// outgoing off, or no enabled hook in the space wanting the event,
+// nothing is queued.
+func (s *Service) enqueue(ctx context.Context, ev OutgoingEvent) error {
 	if s.jobs == nil {
 		return nil
 	}
@@ -142,78 +154,22 @@ func (s *Service) enqueue(ctx context.Context, ev outgoingEvent) error {
 	if err != nil {
 		return fmt.Errorf("list hooks: %w", err)
 	}
-	var spaceName, instance string
-	named := false
-	for _, h := range hooks {
-		if !wants(h.EventTypes, ev.Type) || (h.ChannelID != nil && ev.ChannelID != "" && *h.ChannelID != ev.ChannelID) {
-			continue
-		}
-		if !named {
-			named = true
-			if s.spaces != nil {
-				spaceName, _ = s.spaces.SpaceName(ctx, ev.SpaceID)
-			}
-			if s.policy != nil {
-				instance, _ = s.policy.PublicURL(ctx)
-			}
-		}
-		// One hook's failure (deleted since the list, say) is not the
-		// others': every hook is tried. It is logged here, per hook, and
-		// not returned, so the caller does not log it again.
-		if _, err := s.enqueueFor(ctx, h.ID, ev, spaceName, instance); err != nil && ctx.Err() == nil {
-			s.log.Error("enqueue hook delivery", "hook", h.ID, "event", ev.Type, "err", err)
-		}
+	if !slices.ContainsFunc(hooks, func(hook dbgen.OutgoingWebhook) bool { return hookWants(hook, ev) }) {
+		return nil
+	}
+	if _, err := s.jobs.EnqueueInLane(ctx, FanOutWebhookEventKind, ev, ev.SpaceID, s.subs.nextSequence(ev.At)); err != nil {
+		return fmt.Errorf("queue fan-out: %w", err)
 	}
 	return nil
 }
 
-// enqueueFor takes the hook's next sequence number, renders the body and
-// queues the delivery, returning its id.
-func (s *Service) enqueueFor(ctx context.Context, hookID string, ev outgoingEvent, spaceName, instance string) (string, error) {
-	sequence, err := s.q.NextOutgoingSequence(ctx, hookID)
-	if err != nil {
-		return "", fmt.Errorf("next sequence: %w", err)
+// hookWants reports whether the hook takes the event: its type, and its
+// channel when the hook has a filter and the event a channel.
+func hookWants(hook dbgen.OutgoingWebhook, ev OutgoingEvent) bool {
+	if !slices.Contains(hook.EventTypes, ev.Type) {
+		return false
 	}
-	id := rowid.New()
-	body, err := json.Marshal(envelope{
-		ID: id, Type: ev.Type, TS: s.now().UTC(), Instance: instance,
-		Space: envelopeSpace{ID: ev.SpaceID, Name: spaceName}, Data: ev.Data,
-	})
-	if err != nil {
-		return "", err
-	}
-	return id, s.queueDelivery(ctx, DeliveryArgs{DeliveryID: id, HookID: hookID, Event: ev.Type, Sequence: sequence, Body: body})
-}
-
-// queueDelivery writes the log row, then the job, so the performer always
-// finds the row; a row whose job could not be queued is removed again.
-// The job's id goes on the row for the sweep; the job runs either way.
-func (s *Service) queueDelivery(ctx context.Context, args DeliveryArgs) error {
-	if err := s.q.InsertDelivery(ctx, dbgen.InsertDeliveryParams{
-		ID: args.DeliveryID, WebhookID: args.HookID, EventType: args.Event, Sequence: args.Sequence, Body: args.Body, Now: s.now(),
-	}); err != nil {
-		return fmt.Errorf("insert delivery: %w", err)
-	}
-	jobID, err := s.jobs.EnqueueInLane(ctx, DeliverWebhookKind, args, args.HookID, args.Sequence)
-	if err != nil {
-		if removeErr := s.q.DeleteDelivery(ctx, args.DeliveryID); removeErr != nil {
-			s.log.Warn("delivery row left without a job", "delivery", args.DeliveryID, "err", removeErr)
-		}
-		return fmt.Errorf("queue delivery: %w", err)
-	}
-	if err := s.q.SetDeliveryJob(ctx, dbgen.SetDeliveryJobParams{ID: args.DeliveryID, JobID: jobID}); err != nil {
-		s.log.Warn("delivery row left without its job id", "delivery", args.DeliveryID, "job", jobID, "err", err)
-	}
-	return nil
-}
-
-func wants(types []string, t string) bool {
-	for _, x := range types {
-		if x == t {
-			return true
-		}
-	}
-	return false
+	return hook.ChannelID == nil || ev.ChannelID == "" || *hook.ChannelID == ev.ChannelID
 }
 
 // subscriber watches the space topics of every space with an enabled
@@ -222,11 +178,22 @@ func wants(types []string, t string) bool {
 type subscriber struct {
 	mu  sync.Mutex
 	sub *events.Subscription
+	// lastSequence is the last fan-out's lane sequence; only the
+	// consuming goroutine touches it.
+	lastSequence int64
+}
+
+// nextSequence is the event's time in nanoseconds, moved past the last
+// one so a lane stays in the order events were read.
+func (sub *subscriber) nextSequence(at time.Time) int64 {
+	sub.lastSequence = max(sub.lastSequence+1, at.UnixNano())
+	return sub.lastSequence
 }
 
 // RunSubscriber consumes the bus until ctx ends. A dropped subscription
-// (the consumer fell behind) is re-opened; the gap is what Stoop-Sequence
-// makes visible.
+// (the consumer fell behind) is re-opened, and the events published
+// before that are lost to every hook alike: the sequence is taken at
+// fan-out, so Stoop-Sequence shows no gap for them.
 func (s *Service) RunSubscriber(ctx context.Context) {
 	if s.bus == nil || s.jobs == nil {
 		return
@@ -266,7 +233,7 @@ func (s *Service) consume(ctx context.Context, sub *events.Subscription) {
 				continue
 			}
 			if err := s.enqueue(ctx, out); err != nil && ctx.Err() == nil {
-				s.log.Error("enqueue hook delivery", "event", out.Type, "err", err)
+				s.log.Error("enqueue hook fan-out", "event", out.Type, "err", err)
 			}
 		}
 	}
