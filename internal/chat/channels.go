@@ -15,6 +15,7 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/apierr"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
@@ -45,24 +46,9 @@ func validChannelName(name string) bool {
 	return true
 }
 
-// claimChannelName holds the space's name lock for the transaction and
-// refuses a name another channel in the space already has.
-func claimChannelName(ctx context.Context, qtx *dbgen.Queries, spaceID, name, channelID string) error {
-	if _, err := qtx.LockSpaceChannelNames(ctx, spaceID); err != nil {
-		return fmt.Errorf("lock channel names: %w", err)
-	}
-	taken, err := qtx.ChannelNameTaken(ctx, dbgen.ChannelNameTakenParams{
-		SpaceID: spaceID, Name: name, ExceptID: channelID,
-	})
-	if err != nil {
-		return fmt.Errorf("check channel name: %w", err)
-	}
-	if taken {
-		return apierr.Field(connect.CodeAlreadyExists, "name",
-			errors.New("this space already has a channel with that name"))
-	}
-	return nil
-}
+// errChannelNameTaken answers a write refused by channels_space_name_uniq.
+var errChannelNameTaken = apierr.Field(connect.CodeAlreadyExists, "name",
+	errors.New("this space already has a channel with that name"))
 
 func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1.CreateChannelRequest]) (*connect.Response[chatv1.CreateChannelResponse], error) {
 	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.ChannelsManage); err != nil {
@@ -86,23 +72,14 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 			return nil, err
 		}
 	}
-	var channel dbgen.Channel
-	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		id := rowid.New()
-		if err := claimChannelName(ctx, qtx, req.Msg.SpaceId, name, id); err != nil {
-			return err
-		}
-		var err error
-		channel, err = qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
-			ID: id, SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind),
-		})
-		if err != nil {
-			return fmt.Errorf("create channel: %w", err)
-		}
-		return nil
+	channel, err := s.q.CreateChannel(ctx, dbgen.CreateChannelParams{
+		ID: rowid.New(), SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind),
 	})
+	if db.HasCode(err, db.UniqueViolation) {
+		return nil, errChannelNameTaken
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create channel: %w", err)
 	}
 
 	s.bus.Publish(events.SpaceTopic(req.Msg.SpaceId), events.Stamp(&realtimev1.ServerEvent{
@@ -199,24 +176,14 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 		}
 		policy = &p
 	}
-	var row dbgen.Channel
-	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if renamed {
-			if err := claimChannelName(ctx, qtx, spaceOf(channel), *name, channel.ID); err != nil {
-				return err
-			}
-		}
-		var err error
-		row, err = qtx.UpdateChannel(ctx, dbgen.UpdateChannelParams{
-			ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy,
-		})
-		if err != nil {
-			return fmt.Errorf("update channel: %w", err)
-		}
-		return nil
+	row, err := s.q.UpdateChannel(ctx, dbgen.UpdateChannelParams{
+		ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy,
 	})
+	if db.HasCode(err, db.UniqueViolation) {
+		return nil, errChannelNameTaken
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("update channel: %w", err)
 	}
 	out := toProtoChannel(row)
 	s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
