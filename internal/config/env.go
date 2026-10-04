@@ -13,11 +13,22 @@ import (
 // names all the bad variables at once. A refused variable reads as its
 // fallback, which keeps one mistake from setting off checks further down.
 type envReader struct {
-	errs []error
+	errs    []error
+	refused map[string]bool
 }
 
 func (env *envReader) fail(format string, args ...any) {
 	env.errs = append(env.errs, fmt.Errorf(format, args...))
+}
+
+// refuse records a bad value for key, so a check that depends on it can
+// stay quiet instead of blaming another variable.
+func (env *envReader) refuse(key, format string, args ...any) {
+	if env.refused == nil {
+		env.refused = map[string]bool{}
+	}
+	env.refused[key] = true
+	env.fail(format, args...)
 }
 
 func (env *envReader) err() error { return errors.Join(env.errs...) }
@@ -29,7 +40,7 @@ func (env *envReader) bool(key string, fallback bool) bool {
 	}
 	value, err := strconv.ParseBool(raw)
 	if err != nil {
-		env.fail("%s must be true or false (got %q)", key, raw)
+		env.refuse(key, "%s must be true or false (got %q)", key, raw)
 		return fallback
 	}
 	return value
@@ -43,7 +54,7 @@ func (env *envReader) duration(key string, fallback time.Duration) time.Duration
 	}
 	value, err := time.ParseDuration(raw)
 	if err != nil || value < 0 {
-		env.fail("%s must be a duration like 6h or 30m, or 0 (got %q)", key, raw)
+		env.refuse(key, "%s must be a duration like 6h or 30m, or 0 (got %q)", key, raw)
 		return fallback
 	}
 	return value
@@ -56,7 +67,7 @@ func (env *envReader) nonNegativeInt(key string, fallback int) int {
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil || value < 0 {
-		env.fail("%s must be a whole number >= 0 (got %q)", key, raw)
+		env.refuse(key, "%s must be a whole number >= 0 (got %q)", key, raw)
 		return fallback
 	}
 	return value
@@ -69,7 +80,7 @@ func (env *envReader) port(key string, fallback int) int {
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil || value < 1 || value > 65535 {
-		env.fail("%s must be a port between 1 and 65535 (got %q)", key, raw)
+		env.refuse(key, "%s must be a port between 1 and 65535 (got %q)", key, raw)
 		return fallback
 	}
 	return value
@@ -93,11 +104,11 @@ func (env *envReader) portRange(key string, fallbackStart, fallbackEnd int) (int
 	start, startErr := strconv.Atoi(strings.TrimSpace(startText))
 	end, endErr := strconv.Atoi(strings.TrimSpace(endText))
 	if startErr != nil || endErr != nil || start < 1 || end > 65535 || start > end {
-		env.fail("%s must be a port range like 50000-50100 (got %q)", key, raw)
+		env.refuse(key, "%s must be a port range like 50000-50100 (got %q)", key, raw)
 		return fallbackStart, fallbackEnd
 	}
 	if end-start+1 > maxPortRange {
-		env.fail("%s covers %d ports; %d is the most that will be carried", key, end-start+1, maxPortRange)
+		env.refuse(key, "%s covers %d ports; %d is the most that will be carried", key, end-start+1, maxPortRange)
 		return fallbackStart, fallbackEnd
 	}
 	return start, end
@@ -110,7 +121,7 @@ func (env *envReader) oneOf(key, fallback string, allowed ...string) string {
 			return value
 		}
 	}
-	env.fail("%s must be %s (got %q)", key, strings.Join(allowed, ", "), value)
+	env.refuse(key, "%s must be %s (got %q)", key, strings.Join(allowed, ", "), value)
 	return fallback
 }
 

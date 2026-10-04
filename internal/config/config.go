@@ -311,7 +311,7 @@ func loadFrontDoors(env *envReader, cfg *Config) {
 	cfg.TailscaleAuthKey = os.Getenv("STOOP_TAILSCALE_AUTHKEY")
 	cfg.TailscaleControlURL = os.Getenv("STOOP_TAILSCALE_CONTROL_URL")
 	cfg.TailscaleFunnel = env.bool("STOOP_TAILSCALE_FUNNEL", false)
-	if cfg.TailscaleFunnel && !cfg.Tailscale {
+	if cfg.TailscaleFunnel && !cfg.Tailscale && !env.refused["STOOP_TAILSCALE"] {
 		env.fail("STOOP_TAILSCALE_FUNNEL needs STOOP_TAILSCALE=true")
 	}
 	cfg.TailscaleVoice = env.bool("STOOP_TAILSCALE_VOICE", true)

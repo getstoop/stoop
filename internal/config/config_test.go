@@ -358,4 +358,9 @@ func TestLoad_ReportsEveryBadVariable(t *testing.T) {
 	if strings.Contains(err.Error(), "more than 0") {
 		t.Errorf("a refused poll interval should not also fail the > 0 check: %v", err)
 	}
+
+	t.Setenv("STOOP_TAILSCALE_FUNNEL", "true")
+	if _, err := Load(); err == nil || strings.Contains(err.Error(), "STOOP_TAILSCALE_FUNNEL") {
+		t.Errorf("a refused STOOP_TAILSCALE should not also blame the funnel, got %v", err)
+	}
 }
