@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 
@@ -93,6 +94,9 @@ func runAdminSetting(ctx context.Context, inst *instance.Service, args []string,
 		if !existed {
 			_, _ = fmt.Fprintf(out, "%s had nothing saved\n", args[1])
 			return 0
+		}
+		if slices.Contains(restartNeeded, args[1]) {
+			return saved(out, args[1])
 		}
 		_, _ = fmt.Fprintln(out, "saved\nthe running server uses .env as it was at start; restart it if .env has changed since")
 		return 0

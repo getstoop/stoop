@@ -62,6 +62,8 @@ type SettingField struct {
 // secretPlaceholder is how list shows a saved secret.
 const secretPlaceholder = "(set)"
 
+var secretFields = []string{"turn.credential", "cloudflare-turn.api-token", "tailscale.auth-key", "cloudflare-tunnel.token"}
+
 func secretShown(secret string) string {
 	if secret == "" {
 		return ""
@@ -185,7 +187,7 @@ func (s *Service) SetSettingFields(ctx context.Context, changes map[string]strin
 	slices.Sort(names)
 	for _, name := range names {
 		value := changes[name]
-		if value == secretPlaceholder {
+		if value == secretPlaceholder && slices.Contains(secretFields, name) {
 			return fmt.Errorf("%s: %s is how list shows a saved secret; leave the field out to keep it", name, secretPlaceholder)
 		}
 		var flag bool

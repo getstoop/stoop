@@ -82,6 +82,9 @@ func TestRunAdminSetting(t *testing.T) {
 	if code, out := run("reset", "public-url"); code != 0 || !strings.Contains(out, "restart it if .env has changed") {
 		t.Errorf("reset: exit %d\n%s", code, out)
 	}
+	if code, out := run("reset", "tailscale"); code != 0 || !strings.Contains(out, "restart the server for the tailscale change") {
+		t.Errorf("reset tailscale: exit %d\n%s", code, out)
+	}
 	if code, _ := run("bogus"); code != 2 {
 		t.Errorf("unknown command: exit %d, want 2", code)
 	}

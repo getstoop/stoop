@@ -92,6 +92,9 @@ func TestSettingFields(t *testing.T) {
 	if err := svc.SetSettingFields(ctx, map[string]string{"turn.credential": "(set)"}); err == nil {
 		t.Error("the secret placeholder was saved as a credential")
 	}
+	if err := svc.SetSettingFields(ctx, map[string]string{"instance-name": "(set)"}); err != nil {
+		t.Errorf("a name that looks like the placeholder: %v", err)
+	}
 
 	// Listed providers carry no secret, so the JSON can be set back as is.
 	if err := svc.SetSettingFields(ctx, map[string]string{
