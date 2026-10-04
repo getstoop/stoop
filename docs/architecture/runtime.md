@@ -416,8 +416,9 @@ reach. `password-login everyone` is the break-glass when an identity
 provider is down.
 
 It never migrates. A newer binary would change the schema under the
-running server, without the backup `stoop upgrade` takes, so on a
-database behind it (or too new for it) it refuses with exit status 3.
+running server, without the backup `stoop upgrade` takes, so it refuses
+with exit status 3 when migrations are pending, or when the schema floor
+is past this binary (the same refusal as startup).
 
 `stoop migrate` is the same binary looking at the schema, for the moment
 before an upgrade ([data.md](data.md#upgrades-and-rollback)):

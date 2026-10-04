@@ -31,8 +31,9 @@ const adminUsage = `usage: stoop admin <command>
 
 The recovery path when you've locked yourself out of the admin page. Talks
 to the database in STOOP_DATABASE_URL directly; the server may keep running.
-It never migrates: on a database behind this binary, or too new for it,
-it refuses with exit status 3.
+It never migrates: when the database has migrations pending, or a newer
+release has raised the schema floor past this binary, it refuses with exit
+status 3.
 `
 
 // adminRefusal is why stoop admin will not run against this database, or
