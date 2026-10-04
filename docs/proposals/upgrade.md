@@ -85,10 +85,6 @@ All the judgment lives in the image, so the host side stays dumb.
 | `stoop migrate status` | Database version, the binary's newest migration, the floor, pending migrations by name. Reads only. | 0 |
 | `stoop migrate plan` | `status`, plus: whether any pending migration is a contract, the floor after, and which releases can start against the result ("0.2.0 and later"). Reads only. | 0 nothing to do, 2 pending, 3 database is ahead |
 | `stoop migrate up` | Applies, logging each migration, and exits. The same call startup makes. | 0 or 1 |
-| `stoop version --json` | `{"version","commit","migration","floor"}`. No database needed. | 0 |
-
-`GET /version` gains `migration` and `floor`, so the update notice
-(STOOP-174) and the tool can ask a running instance the same question.
 
 ## The host tool
 
@@ -183,7 +179,7 @@ environment variable, which is phase 3's CI job.
 ## Phases
 
 1. **Rules and verbs.** R1 to R5 into data.md; `stoop migrate
-   status|plan|up`; `stoop version --json`; the floor constant and its
+   status|plan|up`; the floor constant and its
    test; the release table. Small PRs, no operator-visible change yet.
 2. **The verb.** `migrate plan --json` and `status --json`; `stoop
    upgrade` with forward, `--plan`, `--to`, `--file`, `--yes`, backup,

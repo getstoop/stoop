@@ -56,12 +56,11 @@ jobs` starting together apply each migration once.
 
 `GET /healthz` answers `200 ok` for container health checks and for the E2E
 harness's readiness loop. `GET /version` answers
-`{"name":"stoop","version":"0.4.0","bridge":2,"migration":42,"floor":0}`
+`{"name":"stoop","version":"0.4.0","bridge":2}`
 to anyone, so a client can tell what it is talking to before logging in —
 the desktop shell refuses a server older than it supports and reads the
-`window.stoop` level the served web app speaks ([desktop.md](desktop.md)),
-and the upgrade tool reads the newest migration and the floor this build
-carries ([data.md](data.md#upgrades-and-rollback)). `GET /metrics` is the
+`window.stoop` level the served web app speaks ([desktop.md](desktop.md)).
+`GET /metrics` is the
 Prometheus view of the same instruments the Diagnostics tab reads, behind a
 personal token ([diagnostics.md](diagnostics.md)). Logging is `log/slog` to stderr, structured, with
 no log file to rotate — the supervisor that runs the process already has
@@ -430,9 +429,7 @@ up        apply the pending migrations and exit; what startup does
 `goose_db_version`, `schema_floor`, the embedded files, `db.Floor` and
 `db.Releases`, so `plan` run from the release about to be installed says
 whether the release that made the database can still start against it
-afterwards; `--json` emits the same `db.Report` for a program. `stoop
-version --json` reports the migration and floor a build carries with no
-database at all.
+afterwards; `--json` emits the same `db.Report` for a program.
 
 `stoop upgrade` is the host side of that (`internal/upgrade`): run from
 a compose install directory, it fetches the target release's compose

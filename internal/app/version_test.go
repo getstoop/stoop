@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/getstoop/stoop/internal/buildinfo"
-	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/webui"
 )
 
@@ -22,17 +21,14 @@ func TestVersionHandler(t *testing.T) {
 		t.Fatalf("code=%d content-type=%q cache-control=%q", rec.Code, rec.Header().Get("Content-Type"), rec.Header().Get("Cache-Control"))
 	}
 	var got struct {
-		Name      string `json:"name"`
-		Version   string `json:"version"`
-		Bridge    int    `json:"bridge"`
-		Migration int64  `json:"migration"`
-		Floor     int64  `json:"floor"`
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Bridge  int    `json:"bridge"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	newest, _ := db.Newest()
-	if got.Name != "stoop" || got.Version != "0.4.0" || got.Bridge != webui.Bridge || got.Migration != newest || got.Floor != db.Floor {
+	if got.Name != "stoop" || got.Version != "0.4.0" || got.Bridge != webui.Bridge {
 		t.Errorf("got %+v", got)
 	}
 }
