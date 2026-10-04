@@ -42,16 +42,23 @@ func (s *Service) EnvDrift(ctx context.Context) ([]string, error) {
 	if saved, err = s.readJSON(ctx, keyTrustedProxies, &proxies); err != nil {
 		return nil, err
 	}
-	differs("STOOP_TRUSTED_PROXIES", saved, sameAddresses(proxies, env.TrustedProxies))
+	// Load drops blank list entries, so a list of only spaces is no list.
+	if !env.TrustedProxies.Empty() {
+		differs("STOOP_TRUSTED_PROXIES", saved, sameAddresses(proxies, env.TrustedProxies))
+	}
 
 	var relay TURNRelay
 	if saved, err = s.readJSON(ctx, keyTURN, &relay); err != nil {
 		return nil, err
 	}
-	differs("STOOP_TURN_URLS", saved, slices.Equal(relay.URLs, env.TURN.URLs))
+	if len(env.TURN.URLs) > 0 {
+		differs("STOOP_TURN_URLS", saved, slices.Equal(relay.URLs, env.TURN.URLs))
+	}
 	differs("STOOP_TURN_USERNAME", saved, relay.Username == env.TURN.Username)
 	differs("STOOP_TURN_CREDENTIAL", saved, relay.Credential == env.TURN.Credential)
-	differs("STOOP_STUN_URLS", saved, slices.Equal(relay.STUNURLs, env.TURN.STUNURLs))
+	if len(env.TURN.STUNURLs) > 0 {
+		differs("STOOP_STUN_URLS", saved, slices.Equal(relay.STUNURLs, env.TURN.STUNURLs))
+	}
 
 	var cloudflare CloudflareTURN
 	if saved, err = s.readJSON(ctx, keyCloudflareTURN, &cloudflare); err != nil {
