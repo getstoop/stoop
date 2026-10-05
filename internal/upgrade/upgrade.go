@@ -127,8 +127,15 @@ func (u *Upgrader) Upgrade(ctx context.Context) error {
 			u.cleanupNext()
 		}
 	}()
-	target, fetched, done, err := u.resolve(ctx, current)
-	if err != nil || done {
+	target, err := u.stage(ctx)
+	if err != nil {
+		return err
+	}
+	if target == current {
+		u.say("already on %s; nothing to do", target)
+		return nil
+	}
+	if err := u.checkTarget(current, target); err != nil {
 		return err
 	}
 	u.say("upgrade %s -> %s", current, target)
@@ -148,7 +155,7 @@ func (u *Upgrader) Upgrade(ctx context.Context) error {
 		return err
 	}
 	switched = true
-	return u.switchTo(ctx, current, target, backup, report.Contract, fetched)
+	return u.switchTo(ctx, switchPlan{current: current, target: target, backup: backup, contract: report.Contract})
 }
 
 // startable asks the running image which release is the oldest that can
@@ -185,42 +192,43 @@ func (u *Upgrader) preflight(ctx context.Context) (string, error) {
 	return current, nil
 }
 
-// resolve puts the new compose file at nextFile and its env example
-// beside it. done is an upgrade there is nothing to do for. It starts by
-// clearing staged files an earlier run left, which includes the .next
-// files a rollback by an older stoop parked.
-func (u *Upgrader) resolve(ctx context.Context, current string) (target string, fetched, done bool, err error) {
+// stage puts the new compose file at nextFile and its env example beside
+// it, and returns the release it pins. It starts by clearing staged files
+// an earlier run left, which includes the .next files a rollback by an
+// older stoop parked.
+func (u *Upgrader) stage(ctx context.Context) (string, error) {
 	var given []byte
 	if u.File != "" {
 		// Read before clearing: the file given may be a stale nextFile.
+		var err error
 		if given, err = os.ReadFile(u.File); err != nil {
-			return "", false, false, err
+			return "", err
 		}
 	}
 	u.cleanupNext()
 	if u.File != "" {
 		if err := os.WriteFile(u.path(nextFile), given, 0o644); err != nil {
-			return "", false, false, err
+			return "", err
 		}
 	} else {
 		to, files, err := u.release(ctx, u.To)
 		if err != nil {
-			return "", false, false, err
+			return "", err
 		}
 		u.say("fetching the %s compose bundle", to)
 		compose, err := u.fetchFile(ctx, files, composeFile)
 		if err != nil {
-			return "", false, false, fmt.Errorf("could not fetch %s for %s: %w", composeFile, to, err)
+			return "", fmt.Errorf("could not fetch %s for %s: %w", composeFile, to, err)
 		}
 		example, err := u.fetchFile(ctx, files, "env.example")
 		if err != nil {
-			return "", false, false, fmt.Errorf("could not fetch env.example for %s: %w", to, err)
+			return "", fmt.Errorf("could not fetch env.example for %s: %w", to, err)
 		}
 		if err := os.WriteFile(u.path(nextFile), compose, 0o644); err != nil {
-			return "", false, false, err
+			return "", err
 		}
 		if err := os.WriteFile(u.path(envNextFile), example, 0o644); err != nil {
-			return "", false, false, err
+			return "", err
 		}
 		// The rest of the bundle; a release from before a file existed has none.
 		for _, name := range companions {
@@ -229,34 +237,38 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 				continue
 			}
 			if err := os.WriteFile(u.path(name+".next"), data, 0o644); err != nil {
-				return "", false, false, err
+				return "", err
 			}
 		}
-		fetched = true
 	}
 	next, err := os.ReadFile(u.path(nextFile))
 	if err != nil {
-		return "", false, false, err
+		return "", err
 	}
-	target = TagOf(string(next))
+	target := TagOf(string(next))
 	if target == "" {
-		return "", false, false, errors.New("cannot read the stoop image tag from the new compose file")
+		return "", errors.New("cannot read the stoop image tag from the new compose file")
 	}
-	if target == current {
-		u.say("already on %s; nothing to do", target)
-		return target, fetched, true, nil
-	}
+	return target, nil
+}
+
+// checkTarget refuses a staged release this tool cannot move to.
+func (u *Upgrader) checkTarget(current, target string) error {
 	if release.Older(target, current) {
-		return "", false, false, fmt.Errorf("%s is older than the installed %s; going back is: stoop upgrade rollback", target, current)
+		return fmt.Errorf("%s is older than the installed %s; going back is: stoop upgrade rollback", target, current)
 	}
 	old, err := os.ReadFile(u.path(composeFile))
 	if err != nil {
-		return "", false, false, err
+		return err
+	}
+	next, err := os.ReadFile(u.path(nextFile))
+	if err != nil {
+		return err
 	}
 	if now, then := PostgresMajor(string(old)), PostgresMajor(string(next)); now != "" && then != "" && now != then {
-		return "", false, false, fmt.Errorf("%s moves Postgres from %s to %s, which this tool does not do: docs/self-hosting/install.md → Supported Postgres and LiveKit versions", target, now, then)
+		return fmt.Errorf("%s moves Postgres from %s to %s, which this tool does not do: docs/self-hosting/install.md → Supported Postgres and LiveKit versions", target, now, then)
 	}
-	return target, fetched, false, nil
+	return nil
 }
 
 func (u *Upgrader) confirm(prompt string) error {
