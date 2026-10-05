@@ -98,9 +98,9 @@ func (s *Service) AddMember(ctx context.Context, req *connect.Request[chatv1.Add
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "space")
 	}
-	if records, err := s.users.GetUsers(ctx, []string{req.Msg.UserId}); err != nil {
+	if user, found, err := s.lookupUser(ctx, req.Msg.UserId); err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
-	} else if len(records) == 1 && records[0].Kind == authctx.KindBot {
+	} else if found && user.Kind == authctx.KindBot {
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			errors.New("a bot's spaces are set from Server admin → Integrations"))
 	}
@@ -237,17 +237,13 @@ func (s *Service) toProtoMembers(ctx context.Context, rows []dbgen.SpaceMember) 
 	for i, r := range rows {
 		ids[i] = r.UserID
 	}
-	records, err := s.users.GetUsers(ctx, ids)
+	users, err := s.usersByID(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("resolve members: %w", err)
 	}
-	byID := make(map[string]UserRecord, len(records))
-	for _, r := range records {
-		byID[r.ID] = r
-	}
 	out := make([]*chatv1.Member, len(rows))
-	for i, r := range rows {
-		out[i] = toProtoMember(r, byID[r.UserID])
+	for i, member := range rows {
+		out[i] = toProtoMember(member, users[member.UserID])
 	}
 	return out, nil
 }

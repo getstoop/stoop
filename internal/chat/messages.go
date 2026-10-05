@@ -471,17 +471,13 @@ func (s *Service) firstAttachmentName(ctx context.Context, messageID string) str
 	return records[ids[0]].label()
 }
 
-func toProtoMessage(m messageRow, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
-	author := authors[m.AuthorID]
-	if author == nil {
-		author = &chatv1.MessageAuthor{Id: m.AuthorID, Username: "unknown"}
-	}
+func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
 	out := &chatv1.Message{
-		Id: m.ID, ChannelId: m.ChannelID, Author: author,
-		Content: m.Content, CreatedAt: timestamppb.New(m.CreatedAt),
+		Id: row.ID, ChannelId: row.ChannelID, Author: authorOrUnknown(authors, row.AuthorID),
+		Content: row.Content, CreatedAt: timestamppb.New(row.CreatedAt),
 		MentionUserIds: mentions, SpaceId: spaceID,
-		MentionsEveryone: m.MentionsEveryone, MentionsHere: m.MentionsHere,
+		MentionsEveryone: row.MentionsEveryone, MentionsHere: row.MentionsHere,
 	}
-	out.EditedAt = pbtime.OrNil(m.EditedAt)
+	out.EditedAt = pbtime.OrNil(row.EditedAt)
 	return out
 }

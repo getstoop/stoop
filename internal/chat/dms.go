@@ -265,15 +265,15 @@ func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]str
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			fmt.Errorf("a conversation holds %d people; make a space for anything bigger", maxDMParticipants))
 	}
-	records, err := s.users.GetUsers(ctx, out)
+	users, err := s.usersByID(ctx, out)
 	if err != nil {
 		return nil, fmt.Errorf("look up users: %w", err)
 	}
-	if len(records) != len(out) {
+	if len(users) != len(out) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
-	for _, r := range records {
-		if r.Kind == authctx.KindBot {
+	for _, user := range users {
+		if user.Kind == authctx.KindBot {
 			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("bots can't be messaged directly"))
 		}
 	}
@@ -358,20 +358,16 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 		return nil, err
 	}
 	out := make([]*chatv1.DirectMessage, len(rows))
-	for i, r := range rows {
-		channel := toProtoChannel(r.Channel)
-		if r.LastReadMessageID != nil {
-			channel.LastReadMessageId = *r.LastReadMessageID
+	for i, row := range rows {
+		channel := toProtoChannel(row.Channel)
+		if row.LastReadMessageID != nil {
+			channel.LastReadMessageId = *row.LastReadMessageID
 		}
-		channel.UnreadCount = int32(r.UnreadCount)
-		channel.Muted = r.Muted
-		dm := &chatv1.DirectMessage{Channel: channel, Closed: r.ClosedAt != nil}
-		for _, uid := range byChannel[r.Channel.ID] {
-			if a := authors[uid]; a != nil {
-				dm.Participants = append(dm.Participants, a)
-			} else {
-				dm.Participants = append(dm.Participants, &chatv1.MessageAuthor{Id: uid, Username: "unknown"})
-			}
+		channel.UnreadCount = int32(row.UnreadCount)
+		channel.Muted = row.Muted
+		dm := &chatv1.DirectMessage{Channel: channel, Closed: row.ClosedAt != nil}
+		for _, participantID := range byChannel[row.Channel.ID] {
+			dm.Participants = append(dm.Participants, authorOrUnknown(authors, participantID))
 		}
 		out[i] = dm
 	}

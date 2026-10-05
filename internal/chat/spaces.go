@@ -144,17 +144,13 @@ func (s *Service) ListAllSpaces(ctx context.Context, _ *connect.Request[chatv1.L
 	for i, r := range rows {
 		ownerIDs[i] = r.Space.OwnerID
 	}
-	owners, err := s.users.GetUsers(ctx, ownerIDs)
+	owners, err := s.usersByID(ctx, ownerIDs)
 	if err != nil {
 		return nil, fmt.Errorf("resolve owners: %w", err)
 	}
-	byID := make(map[string]UserRecord, len(owners))
-	for _, o := range owners {
-		byID[o.ID] = o
-	}
 	spaces := make([]*chatv1.SpaceSummary, len(rows))
-	for i, r := range rows {
-		spaces[i] = toProtoSpaceSummary(r, byID[r.Space.OwnerID])
+	for i, row := range rows {
+		spaces[i] = toProtoSpaceSummary(row, owners[row.Space.OwnerID])
 	}
 	return connect.NewResponse(&chatv1.ListAllSpacesResponse{Spaces: spaces}), nil
 }

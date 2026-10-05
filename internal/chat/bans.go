@@ -62,11 +62,11 @@ func (s *Service) BanMember(ctx context.Context, req *connect.Request[chatv1.Ban
 				fmt.Errorf("you can't ban the space's %s", target.Role))
 		}
 	} else {
-		users, err := s.users.GetUsers(ctx, []string{req.Msg.UserId})
+		_, found, err := s.lookupUser(ctx, req.Msg.UserId)
 		if err != nil {
 			return nil, fmt.Errorf("look up user: %w", err)
 		}
-		if len(users) == 0 {
+		if !found {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 		}
 	}
@@ -116,12 +116,10 @@ func (s *Service) ListBans(ctx context.Context, req *connect.Request[chatv1.List
 		return nil, err
 	}
 	out := make([]*chatv1.Ban, len(rows))
-	for i, r := range rows {
-		u := authors[r.UserID]
-		if u == nil {
-			u = &chatv1.MessageAuthor{Id: r.UserID, Username: "unknown"}
+	for i, ban := range rows {
+		out[i] = &chatv1.Ban{
+			User: authorOrUnknown(authors, ban.UserID), Reason: ban.Reason, CreatedAt: timestamppb.New(ban.CreatedAt),
 		}
-		out[i] = &chatv1.Ban{User: u, Reason: r.Reason, CreatedAt: timestamppb.New(r.CreatedAt)}
 	}
 	return connect.NewResponse(&chatv1.ListBansResponse{Bans: out}), nil
 }

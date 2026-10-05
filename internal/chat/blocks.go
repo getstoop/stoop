@@ -38,11 +38,11 @@ func (s *Service) BlockUser(ctx context.Context, req *connect.Request[chatv1.Blo
 	if req.Msg.UserId == "" || req.Msg.UserId == me {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("pick someone else to block"))
 	}
-	users, err := s.users.GetUsers(ctx, []string{req.Msg.UserId})
+	_, found, err := s.lookupUser(ctx, req.Msg.UserId)
 	if err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
-	if len(users) == 0 {
+	if !found {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
 	if err := s.q.BlockUser(ctx, dbgen.BlockUserParams{BlockerID: me, BlockedID: req.Msg.UserId}); err != nil {
@@ -77,11 +77,7 @@ func (s *Service) ListBlockedUsers(ctx context.Context, _ *connect.Request[chatv
 	}
 	out := make([]*chatv1.MessageAuthor, 0, len(ids))
 	for _, id := range ids {
-		if a := authors[id]; a != nil {
-			out = append(out, a)
-		} else {
-			out = append(out, &chatv1.MessageAuthor{Id: id, Username: "unknown"})
-		}
+		out = append(out, authorOrUnknown(authors, id))
 	}
 	return connect.NewResponse(&chatv1.ListBlockedUsersResponse{Users: out}), nil
 }

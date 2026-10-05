@@ -302,17 +302,11 @@ func (s *Service) roleGrantedBy(ctx context.Context, invite dbgen.Invite) (Role,
 	if granted == RoleMember {
 		return RoleMember, nil
 	}
-	creatorIsInstanceAdmin := false
-	records, err := s.users.GetUsers(ctx, []string{invite.CreatedBy})
+	creatorRecord, _, err := s.lookupUser(ctx, invite.CreatedBy)
 	if err != nil {
 		return "", fmt.Errorf("look up invite creator: %w", err)
 	}
-	for _, r := range records {
-		if r.ID == invite.CreatedBy {
-			creatorIsInstanceAdmin = r.InstanceAdmin
-		}
-	}
-	creator, err := s.actorForUser(ctx, invite.SpaceID, invite.CreatedBy, creatorIsInstanceAdmin)
+	creator, err := s.actorForUser(ctx, invite.SpaceID, invite.CreatedBy, creatorRecord.InstanceAdmin)
 	if err != nil {
 		return "", err
 	}

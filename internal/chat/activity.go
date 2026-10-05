@@ -227,33 +227,33 @@ func (s *Service) MarkActivityRead(ctx context.Context, req *connect.Request[cha
 // toProtoActivityItem renders an activity item; firstAttachment names the
 // message's first file, the preview when it has no text, and muted is the
 // recipient's effective mute for where it happened.
-func toProtoActivityItem(a dbgen.ActivityItem, content *string, firstAttachment string, actor *chatv1.MessageAuthor, muted bool) *chatv1.ActivityItem {
+func toProtoActivityItem(item dbgen.ActivityItem, content *string, firstAttachment string, actor *chatv1.MessageAuthor, muted bool) *chatv1.ActivityItem {
 	if actor == nil {
-		actor = &chatv1.MessageAuthor{Id: a.ActorID, Username: "unknown"}
+		actor = unknownAuthor(item.ActorID)
 	}
 	kind := chatv1.ActivityKind_ACTIVITY_KIND_MENTION
-	switch a.Kind {
+	switch item.Kind {
 	case activityKindReply:
 		kind = chatv1.ActivityKind_ACTIVITY_KIND_REPLY
 	case activityKindDM:
 		kind = chatv1.ActivityKind_ACTIVITY_KIND_DM
 	}
 	out := &chatv1.ActivityItem{
-		Id: a.ID, Kind: kind,
-		ChannelId: a.ChannelID, Actor: actor,
-		CreatedAt: timestamppb.New(a.CreatedAt),
+		Id: item.ID, Kind: kind,
+		ChannelId: item.ChannelID, Actor: actor,
+		CreatedAt: timestamppb.New(item.CreatedAt),
 		Muted:     muted,
 	}
-	if a.SpaceID != nil {
-		out.SpaceId = *a.SpaceID
+	if item.SpaceID != nil {
+		out.SpaceId = *item.SpaceID
 	}
-	if a.MessageID != nil {
-		out.MessageId = *a.MessageID
+	if item.MessageID != nil {
+		out.MessageId = *item.MessageID
 	}
 	if content != nil {
 		out.Preview = text.Truncate(previewText(*content, firstAttachment), previewLen)
 	}
-	out.ReadAt = pbtime.OrNil(a.ReadAt)
+	out.ReadAt = pbtime.OrNil(item.ReadAt)
 	return out
 }
 
