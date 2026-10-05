@@ -30,7 +30,7 @@ func TestDeliveryWhoseHookCannotBeReadIsNotUsedUp(t *testing.T) {
 	hooksSvc := integrations.New(pool, events.NewInProcBus(), quiet)
 	hooksSvc.UsePolicy(outgoingOn{})
 	registry := jobs.NewRegistry()
-	registerDeliveries(registry, hooksSvc)
+	registerDeliveries(registry, hooksSvc, 1)
 	runner := jobs.New(pool, registry, jobs.Config{Workers: 1, Poll: 20 * time.Millisecond, ShutdownGrace: time.Second, Host: "test"}, quiet)
 
 	// A hook id Postgres refuses to parse: the lookup fails, not "no rows".
@@ -74,6 +74,16 @@ func TestDeliveryWhoseHookCannotBeReadIsNotUsedUp(t *testing.T) {
 		lastStart = *row.StartedAt
 		if _, err := pool.Exec(context.Background(), `UPDATE jobs SET not_before = $2 WHERE id = $1`, id, time.Now()); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+// Deliveries leave a quarter of the workers to everything else, and
+// always get one.
+func TestDeliverySlots(t *testing.T) {
+	for workers, want := range map[int]int{1: 1, 2: 1, 4: 3, 16: 12} {
+		if got := deliverySlots(workers); got != want {
+			t.Errorf("deliverySlots(%d) = %d, want %d", workers, got, want)
 		}
 	}
 }

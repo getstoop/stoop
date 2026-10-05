@@ -162,7 +162,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	// health row and /metrics read their rows through one reader.
 	registry := jobs.NewRegistry()
 	registerSweeps(registry, cfg, log, authSvc, chatSvc, filesSvc, integrationsSvc)
-	registerDeliveries(registry, integrationsSvc)
+	registerDeliveries(registry, integrationsSvc, cfg.JobsWorkers)
 	registerImages(registry, filesSvc)
 	jobsSvc := jobs.New(pool, registry, jobs.Config{Workers: cfg.JobsWorkers, Poll: cfg.JobsPoll, Retention: cfg.JobsRetention}, log)
 	filesSvc.UseJobs(jobsSvc)
