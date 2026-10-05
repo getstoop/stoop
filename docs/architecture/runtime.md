@@ -333,8 +333,10 @@ failed attempt, a panic included, goes back to `queued` at the kind's
 backoff ladder's time (5 s, 30 s, 2 min; four attempts by default) and
 is then `discarded`; only the latest attempt's error and timing are
 kept. A performer that failed before doing any of its work returns
-`jobs.NotAttempted(err)`: the row goes back to `queued` with the attempt
-given back, waiting its own age clamped to the ladder (5 s up to 2 min),
+`jobs.NotAttempted(err)`: the row goes back to `queued` and its own
+`max_attempts` rises by one (the attempt count never goes down, so an
+outcome from a lapsed lease can't match a later attempt; a performer is
+shown its real tries), waiting its own age clamped to the ladder (5 s up to 2 min),
 so a lookup that keeps failing is retried ever less often. Within an hour
 of the job's creation that is free; after it, the failure counts as an
 attempt, so a job that always says so still ends. On shutdown it stops leasing, gives in-flight jobs five seconds,

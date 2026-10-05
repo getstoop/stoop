@@ -22,7 +22,8 @@ func (outgoingOn) WebhooksAllowPrivateTargets(context.Context) (bool, error) { r
 func (outgoingOn) PublicURL(context.Context) (string, error)                 { return "", nil }
 
 // A delivery whose hook can't be read is handed back, not tried: it is
-// still queued, no try spent, after more failures than its attempts.
+// still queued, its limit raised each time, after more failures than its
+// attempts.
 func TestDeliveryWhoseHookCannotBeReadIsNotUsedUp(t *testing.T) {
 	pool := dbtest.New(t)
 	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -67,8 +68,8 @@ func TestDeliveryWhoseHookCannotBeReadIsNotUsedUp(t *testing.T) {
 			}
 			time.Sleep(10 * time.Millisecond)
 		}
-		if row.State != string(jobs.StateQueued) || row.Attempt != 0 {
-			t.Fatalf("round %d: state %s attempt %d (%s)", round, row.State, row.Attempt, row.Error)
+		if row.State != string(jobs.StateQueued) || row.MaxAttempts != int32(deliveryAttempts+round) {
+			t.Fatalf("round %d: state %s attempt %d of %d (%s)", round, row.State, row.Attempt, row.MaxAttempts, row.Error)
 		}
 		lastStart = *row.StartedAt
 		if _, err := pool.Exec(context.Background(), `UPDATE jobs SET not_before = $2 WHERE id = $1`, id, time.Now()); err != nil {

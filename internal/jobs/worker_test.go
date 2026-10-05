@@ -29,7 +29,7 @@ func TestStaleAttemptWritesChangeNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	job := service.newJob(stale)
+	job := service.newJob(stale, Options{}.withDefaults())
 	if err := job.Extend(ctx, time.Hour); err != nil {
 		t.Fatal(err)
 	}
