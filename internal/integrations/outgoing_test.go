@@ -787,7 +787,7 @@ func TestOutgoingKeepsNoReply(t *testing.T) {
 			if results := f.drain(t); len(results) != 1 || !results[0].Delivered {
 				t.Fatalf("results = %+v", results)
 			}
-			if logged := f.listDeliveries(t, hook.Id); len(logged) != 1 || logged[0].FinishedAt == nil || logged[0].GetStatusCode() != 200 {
+			if logged := f.listDeliveries(t, hook.Id); len(logged) != 1 || logged[0].FinishedAt == nil || logged[0].GetStatusCode() != 200 || logged[0].GetResponse() != "" {
 				t.Errorf("log: %+v", logged)
 			}
 			var stored string
