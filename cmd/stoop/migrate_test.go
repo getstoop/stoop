@@ -29,11 +29,23 @@ func TestWriteReportJSON(t *testing.T) {
 }
 
 func TestRunMigrateUsage(t *testing.T) {
-	var out bytes.Buffer
-	if code := runMigrate(t.Context(), nil, &out); code != 2 || !strings.Contains(out.String(), "usage: stoop migrate") {
-		t.Errorf("no args: exit %d, %q", code, out.String())
+	console, out, errOut := bufferedStreams()
+	if code := runMigrate(t.Context(), nil, console); code != 2 || !strings.Contains(out.String(), "usage: stoop migrate") || errOut.Len() != 0 {
+		t.Errorf("no args: exit %d, out %q, err %q", code, out.String(), errOut.String())
 	}
-	if code := runMigrate(t.Context(), []string{"--json"}, &out); code != 2 {
+	if code := runMigrate(t.Context(), []string{"--json"}, console); code != 2 {
 		t.Errorf("--json alone: exit %d", code)
+	}
+	console, out, errOut = bufferedStreams()
+	if code := runMigrate(t.Context(), []string{"down"}, console); code != 2 || out.Len() != 0 || !strings.HasPrefix(errOut.String(), "unknown migrate command \"down\"\n\nusage: stoop migrate") {
+		t.Errorf("down: exit %d, out %q, err %q", code, out.String(), errOut.String())
+	}
+}
+
+func TestRunMigrateInvalidConfiguration(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "")
+	console, out, errOut := bufferedStreams()
+	if code := runMigrate(t.Context(), []string{"status"}, console); code != 1 || out.Len() != 0 || !strings.HasPrefix(errOut.String(), "invalid configuration: ") {
+		t.Errorf("exit %d, out %q, err %q", code, out.String(), errOut.String())
 	}
 }

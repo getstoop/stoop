@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/getstoop/stoop/internal/buildinfo"
@@ -12,11 +12,11 @@ func TestRunVersion(t *testing.T) {
 	buildinfo.Version = "v0.3.0"
 	t.Cleanup(func() { buildinfo.Version = prev })
 
-	var out bytes.Buffer
-	if code := runVersion(nil, &out); code != 0 || !bytes.HasPrefix(out.Bytes(), []byte("stoop v0.3.0")) {
+	console, out, errOut := bufferedStreams()
+	if code := runVersion(nil, console); code != 0 || !strings.HasPrefix(out.String(), "stoop v0.3.0") {
 		t.Errorf("plain: exit %d, %q", code, out.String())
 	}
-	if code := runVersion([]string{"--json"}, &out); code != 2 {
-		t.Errorf("unknown flag: exit %d", code)
+	if code := runVersion([]string{"--json"}, console); code != 2 || errOut.String() != "usage: stoop version\n" {
+		t.Errorf("unknown flag: exit %d, %q", code, errOut.String())
 	}
 }
