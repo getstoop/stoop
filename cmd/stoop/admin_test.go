@@ -90,7 +90,7 @@ func TestRunAdminSetting(t *testing.T) {
 	if code, out, _ := run("setting", "reset", "tailscale"); code != 0 || !strings.Contains(out, "restart the server for the tailscale change") {
 		t.Errorf("reset tailscale: exit %d\n%s", code, out)
 	}
-	if code, _, errOut := run("setting", "bogus"); code != 2 || !strings.HasPrefix(errOut, "unknown setting command \"bogus\"\n\nusage: stoop admin setting") {
+	if code, _, errOut := run("setting", "bogus"); code != 2 || errOut != "unknown setting command \"bogus\"\n\n"+settingUsage {
 		t.Errorf("unknown command: exit %d, want 2, %q", code, errOut)
 	}
 	if code, out, errOut := run("promote"); code != 2 || out != "" || errOut != "usage: stoop admin promote <username>\n" {

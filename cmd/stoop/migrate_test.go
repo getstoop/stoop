@@ -37,7 +37,7 @@ func TestRunMigrateUsage(t *testing.T) {
 		t.Errorf("--json alone: exit %d", code)
 	}
 	console, out, errOut = bufferedStreams()
-	if code := runMigrate(t.Context(), []string{"down"}, console); code != 2 || out.Len() != 0 || !strings.HasPrefix(errOut.String(), "unknown migrate command \"down\"\n\nusage: stoop migrate") {
+	if code := runMigrate(t.Context(), []string{"down"}, console); code != 2 || out.Len() != 0 || errOut.String() != "unknown migrate command \"down\"\n\n"+migrateUsage {
 		t.Errorf("down: exit %d, out %q, err %q", code, out.String(), errOut.String())
 	}
 }
