@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/alexedwards/argon2id"
 	"github.com/google/uuid"
@@ -36,6 +37,9 @@ type Options struct {
 	// Stores backs the keyed state auth keeps in memory: desktop sign-in
 	// attempts and lockouts. nil opens an in-process backend of its own.
 	Stores kv.Backend
+	// HashSlots is how many password hashes run at once; 0 is
+	// defaultHashSlots.
+	HashSlots int
 }
 
 type Service struct {
@@ -48,6 +52,9 @@ type Service struct {
 	// an unknown user costs the same time as a wrong password and the
 	// response can't be timed to enumerate accounts.
 	dummyHash string
+	// hashSlots bounds the password hashes running at once (hashing.go).
+	hashSlots chan struct{}
+	hashWait  time.Duration
 	policy    RegistrationPolicy
 	invites   InviteRedeemer
 	providers ProviderSource
@@ -91,8 +98,13 @@ func New(pool *pgxpool.Pool, opts Options) *Service {
 	if stores == nil {
 		stores = kv.NewMemory(nil)
 	}
+	slots := opts.HashSlots
+	if slots <= 0 {
+		slots = defaultHashSlots
+	}
 	return &Service{pool: pool, q: dbgen.New(pool), opts: opts, argon2: params,
 		guard: newLoginGuard(stores), dummyHash: dummy, stateKey: stateKey,
+		hashSlots: make(chan struct{}, slots), hashWait: hashWait,
 		desktop: newDesktopStore(stores)}
 }
 

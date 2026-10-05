@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/alexedwards/argon2id"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/apierr"
@@ -148,9 +147,9 @@ func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.Regi
 		}
 	}
 
-	hash, err := argon2id.CreateHash(req.Msg.Password, s.argon2)
+	hash, err := s.hashPassword(ctx, req.Msg.Password)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, hashFailure("hash password", err)
 	}
 
 	user, err := s.createAccount(ctx, createAccountParams{
