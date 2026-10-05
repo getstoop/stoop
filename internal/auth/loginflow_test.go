@@ -139,9 +139,14 @@ func (f *fakeIdP) signJWT(claims map[string]any) string {
 type fakeProviders struct {
 	cfgs     map[string]auth.ProviderConfig
 	callback string // the app test server's base URL
+	// lookupErr, when set, is what reading any provider fails with.
+	lookupErr error
 }
 
 func (f *fakeProviders) LoginProvider(_ context.Context, id string) (auth.ProviderConfig, error) {
+	if f.lookupErr != nil {
+		return auth.ProviderConfig{}, f.lookupErr
+	}
 	cfg, ok := f.cfgs[id]
 	if !ok {
 		return auth.ProviderConfig{}, connect.NewError(connect.CodeNotFound, errors.New("no such provider"))
@@ -159,9 +164,10 @@ func (f *fakeProviders) CallbackURL(_ context.Context, id string) (string, error
 // social spins up the whole rig: a fake IdP, the auth service, and its
 // LoginHandler on a test server.
 type socialRig struct {
-	svc *auth.Service
-	idp *fakeIdP
-	app *httptest.Server
+	svc       *auth.Service
+	idp       *fakeIdP
+	app       *httptest.Server
+	providers *fakeProviders
 }
 
 func newSocialRig(t *testing.T, svc *auth.Service) *socialRig {
@@ -169,14 +175,15 @@ func newSocialRig(t *testing.T, svc *auth.Service) *socialRig {
 	idp := newFakeIdP(t, "client-1")
 	app := httptest.NewServer(svc.LoginHandler())
 	t.Cleanup(app.Close)
-	svc.UseProviders(&fakeProviders{
+	providers := &fakeProviders{
 		callback: app.URL,
 		cfgs: map[string]auth.ProviderConfig{
 			"sso": {Kind: auth.KindOIDC,
 				Issuer: idp.srv.URL, ClientID: "client-1", ClientSecret: "secret-1"},
 		},
-	})
-	return &socialRig{svc: svc, idp: idp, app: app}
+	}
+	svc.UseProviders(providers)
+	return &socialRig{svc: svc, idp: idp, app: app, providers: providers}
 }
 
 // run drives the browser side: start → IdP → callback, stopping at the
@@ -947,5 +954,46 @@ func TestSocialRegistrationLookupFailures(t *testing.T) {
 	invites.validateErr = errors.New("connection pool closed")
 	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?invite=GOODCODE12"); loc != "/login?error=provider_error" {
 		t.Errorf("failed invite lookup landed on %q", loc)
+	}
+}
+
+// A check that failed is not a signed-out answer: with the database gone,
+// the flow says the server failed rather than that the sign-in or the
+// session was bad, and without a session it still says the latter.
+func TestSocialFlowWithTheDatabaseGone(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
+	svc.UseRegistrationPorts(&fakePolicy{policy: auth.PolicyOpen}, nil)
+	rig := newSocialRig(t, svc)
+	const verifier = "desktop-verifier-0123456789abcdefghijklmnop"
+	_, ada := signIn(t, svc, "ada", "correct horse battery")
+	adaJar, _ := cookiejar.New(nil)
+	appURL, _ := url.Parse(rig.app.URL)
+	adaJar.SetCookies(appURL, []*http.Cookie{{Name: auth.SessionCookieName, Value: ada}})
+
+	rig.providers.lookupErr = errors.New("database is down")
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start"); loc != "/login?error=server_error" {
+		t.Errorf("a failed provider lookup landed on %q", loc)
+	}
+	rig.providers.lookupErr = nil
+
+	// Started while the database was up; finished after it went.
+	_, attempt := rig.linkAttempt(t, ada, s256(verifier))
+	pool.Close()
+	code := handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1&attempt="+attempt)).Get("code")
+	if status, body := rig.preview(t, ada, code, verifier); status != http.StatusServiceUnavailable || body["error"] != "server_error" {
+		t.Errorf("desktop link preview with the database gone = %d, %v", status, body)
+	}
+
+	if loc := rig.run(t, &http.Client{Jar: adaJar}, "/auth/oidc/sso/start?link=1"); loc != "/login?error=server_error" {
+		t.Errorf("link start with the database gone landed on %q", loc)
+	}
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1"); loc != "/login?error=login_state" {
+		t.Errorf("link start with no session landed on %q", loc)
+	}
+	if status, body := rig.postAs(t, ada, "/auth/desktop/start", map[string]any{
+		"provider": "sso", "attemptChallenge": s256(verifier), "attemptMethod": "S256", "link": true,
+	}); status != http.StatusServiceUnavailable || body["error"] != "server_error" {
+		t.Errorf("desktop link start with the database gone = %d, %v", status, body)
 	}
 }

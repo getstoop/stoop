@@ -6,11 +6,13 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/kv"
 )
 
@@ -245,6 +247,11 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 	// cookie; the identity attaches to that account and nothing else.
 	if req.Link {
 		ident, err := s.verifySession(r.Context(), r.Header)
+		if err != nil && !errors.Is(err, authctx.ErrNoSession) {
+			slog.Error("verify session for a desktop link", "err", err)
+			desktopError(w, http.StatusServiceUnavailable, "server_error")
+			return
+		}
 		if err != nil {
 			desktopError(w, http.StatusUnauthorized, "login_state")
 			return
@@ -355,13 +362,12 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 		s.desktopLink(w, r, c, req.Confirm)
 		return
 	}
-	token, ttl, err := s.createSession(r.Context(), c.userID, r.UserAgent())
+	token, err := s.startBrowserSession(w, r, c.userID)
 	if err != nil {
 		slog.Error("create session after desktop sign-in", "err", err)
 		desktopError(w, http.StatusInternalServerError, "server_error")
 		return
 	}
-	http.SetCookie(w, s.sessionCookie(r.Context(), token, ttl))
 	writeDesktopJSON(w, http.StatusOK, map[string]string{
 		"token": token, "target": c.target,
 	})
@@ -379,6 +385,11 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 // so a person does.
 func (s *Service) desktopLink(w http.ResponseWriter, r *http.Request, c desktopCode, confirm bool) {
 	ident, err := s.verifySession(r.Context(), r.Header)
+	if err != nil && !errors.Is(err, authctx.ErrNoSession) {
+		slog.Error("verify session for a desktop link", "err", err)
+		desktopError(w, http.StatusServiceUnavailable, "server_error")
+		return
+	}
 	if err != nil || ident.UserID != c.attempt.linkUserID || ident.SessionID != c.attempt.sessionID {
 		desktopError(w, http.StatusUnauthorized, "login_state")
 		return
