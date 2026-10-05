@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -59,10 +60,10 @@ func runMigrate(ctx context.Context, args []string, console streams) int {
 		writeReport(console.out, report, true, asJSON)
 		return planExit(plan)
 	}
-	if err := plan.Refused(); err != nil {
-		return console.fail(3, err)
-	}
 	if err := db.Migrate(ctx, pool); err != nil {
+		if errors.As(err, new(db.AheadError)) {
+			return console.fail(3, err)
+		}
 		return console.fail(1, err)
 	}
 	if len(plan.Pending) == 0 {

@@ -88,3 +88,13 @@ func (change rename) apply(ctx context.Context, qtx *dbgen.Queries, current dbge
 	}
 	return user, nil
 }
+
+// userByUsername finds an account for the CLI's by-name verbs; usernames
+// are citext, so any case matches.
+func (s *Service) userByUsername(ctx context.Context, username string) (dbgen.User, error) {
+	account, err := s.q.GetUserByUsername(ctx, username)
+	if err != nil {
+		return dbgen.User{}, apierr.NotFoundOr(err, "user")
+	}
+	return account, nil
+}

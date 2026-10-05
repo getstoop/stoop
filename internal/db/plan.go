@@ -23,10 +23,18 @@ type Plan struct {
 // that made this database can no longer start against it.
 func (p Plan) Contract() bool { return p.FloorAfter > p.Floor }
 
+// AheadError is the refusal of a binary too old for the database: a newer
+// release raised the schema floor past this binary's newest migration.
+type AheadError struct{ Floor, Newest int64 }
+
+func (err AheadError) Error() string {
+	return fmt.Sprintf("database was changed by a newer Stoop that needs migration %d or later; this binary knows up to %d: run the newer version, or restore the backup taken before it", err.Floor, err.Newest)
+}
+
 // Refused is why Migrate would refuse this database, or nil.
 func (p Plan) Refused() error {
 	if p.Floor > p.Newest {
-		return fmt.Errorf("database was changed by a newer Stoop that needs migration %d or later; this binary knows up to %d: run the newer version, or restore the backup taken before it", p.Floor, p.Newest)
+		return AheadError{Floor: p.Floor, Newest: p.Newest}
 	}
 	return nil
 }
@@ -70,8 +78,8 @@ func Inspect(ctx context.Context, pool *pgxpool.Pool) (Plan, error) {
 // readApplied is the set of migration versions goose has recorded, empty
 // on a database goose has never touched.
 func readApplied(ctx context.Context, pool *pgxpool.Pool) (map[int64]bool, error) {
-	var exists bool
-	if err := pool.QueryRow(ctx, "SELECT to_regclass('public.goose_db_version') IS NOT NULL").Scan(&exists); err != nil {
+	exists, err := tableExists(ctx, pool, "goose_db_version")
+	if err != nil {
 		return nil, fmt.Errorf("read applied migrations: %w", err)
 	}
 	applied := map[int64]bool{}
@@ -91,4 +99,12 @@ func readApplied(ctx context.Context, pool *pgxpool.Pool) (map[int64]bool, error
 		applied[v] = true
 	}
 	return applied, rows.Err()
+}
+
+// tableExists is whether a table is in the public schema: the tables
+// read here may predate the migration that creates them.
+func tableExists(ctx context.Context, pool *pgxpool.Pool, table string) (bool, error) {
+	var exists bool
+	err := pool.QueryRow(ctx, "SELECT to_regclass($1) IS NOT NULL", "public."+table).Scan(&exists)
+	return exists, err
 }

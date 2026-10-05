@@ -255,11 +255,11 @@ func toSummary(u dbgen.User) AccountSummary {
 // SetRoleByUsername is the CLI recovery path (stoop admin promote/demote):
 // SetAccountRole by name, with its refusals as plain sentences.
 func (s *Service) SetRoleByUsername(ctx context.Context, username string, role authctx.Role) (AccountSummary, error) {
-	u, err := s.q.GetUserByUsername(ctx, username)
+	account, err := s.userByUsername(ctx, username)
 	if err != nil {
-		return AccountSummary{}, apierr.NotFoundOr(err, "user")
+		return AccountSummary{}, err
 	}
-	out, err := s.SetAccountRole(ctx, u.ID, role)
+	out, err := s.SetAccountRole(ctx, account.ID, role)
 	var cerr *connect.Error
 	if errors.As(err, &cerr) {
 		return AccountSummary{}, errors.New(cerr.Message())

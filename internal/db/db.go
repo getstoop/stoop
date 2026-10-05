@@ -8,6 +8,7 @@ import (
 	"embed"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -18,6 +19,8 @@ import (
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
+
+var gooseInUse sync.Mutex
 
 // migrateLockKey is the advisory lock one process holds while it migrates,
 // so two starting together apply each migration once. The files quota lock
@@ -53,15 +56,20 @@ func Connect(ctx context.Context, databaseURL string, poolMax int) (*pgxpool.Poo
 // lock, so a second process starting at the same time waits for this one
 // and then finds nothing to do.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
-	goose.SetBaseFS(migrationsFS)
-	if err := goose.SetDialect("postgres"); err != nil {
-		return err
-	}
 	lock, err := lockMigrations(ctx, pool)
 	if err != nil {
 		return err
 	}
 	defer lock.release()
+	// goose keeps its file system and dialect in package variables; the
+	// advisory lock is per database, so two databases migrating in one
+	// process (parallel tests) take turns here.
+	gooseInUse.Lock()
+	defer gooseInUse.Unlock()
+	goose.SetBaseFS(migrationsFS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
 	if err := checkSchemaFloor(ctx, pool); err != nil {
 		return err
 	}
@@ -111,15 +119,15 @@ func checkSchemaFloor(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 	if last < floor {
-		return fmt.Errorf("database was changed by a newer Stoop that needs migration %d or later; this binary knows up to %d: run the newer version, or restore the backup taken before it", floor, last)
+		return AheadError{Floor: floor, Newest: last}
 	}
 	return nil
 }
 
 // readFloor is schema_floor, or 0 on a database from before it existed.
 func readFloor(ctx context.Context, pool *pgxpool.Pool) (int64, error) {
-	var exists bool
-	if err := pool.QueryRow(ctx, "SELECT to_regclass('public.schema_floor') IS NOT NULL").Scan(&exists); err != nil {
+	exists, err := tableExists(ctx, pool, "schema_floor")
+	if err != nil {
 		return 0, fmt.Errorf("read schema floor: %w", err)
 	}
 	if !exists {

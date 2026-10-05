@@ -78,11 +78,11 @@ func (s *Service) TransferOwnership(ctx context.Context, fromUserID, toUserID st
 // TransferOwnershipByUsername is the CLI's hand-over, with refusals as
 // plain sentences.
 func (s *Service) TransferOwnershipByUsername(ctx context.Context, username string) (AccountSummary, error) {
-	u, err := s.q.GetUserByUsername(ctx, username)
+	account, err := s.userByUsername(ctx, username)
 	if err != nil {
-		return AccountSummary{}, apierr.NotFoundOr(err, "user")
+		return AccountSummary{}, err
 	}
-	out, err := s.TransferOwnership(ctx, "", u.ID)
+	out, err := s.TransferOwnership(ctx, "", account.ID)
 	var cerr *connect.Error
 	if errors.As(err, &cerr) {
 		return AccountSummary{}, errors.New(cerr.Message())

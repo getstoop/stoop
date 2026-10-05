@@ -83,9 +83,9 @@ func (s *Service) resetPassword(ctx context.Context, u dbgen.User) (temporary st
 // ResetPasswordByUsername is ResetPassword for the CLI, where the owner's
 // password can be reset too: whoever runs it holds the host.
 func (s *Service) ResetPasswordByUsername(ctx context.Context, username string) (temporary string, summary AccountSummary, err error) {
-	u, err := s.q.GetUserByUsername(ctx, username)
+	account, err := s.userByUsername(ctx, username)
 	if err != nil {
-		return "", AccountSummary{}, apierr.NotFoundOr(err, "user")
+		return "", AccountSummary{}, err
 	}
-	return s.resetPassword(ctx, u)
+	return s.resetPassword(ctx, account)
 }

@@ -96,21 +96,3 @@ func startable(version string) string {
 	}
 	return version + " and later can start against the database"
 }
-
-// ReleaseAt names the release a migration number belongs to: "0.2.0"
-// exactly, "past 0.2.0" between releases, "" before the first.
-func ReleaseAt(applied int64) string {
-	var newest Release
-	for _, r := range Releases {
-		if r.Migration == applied {
-			return r.Version
-		}
-		if r.Migration < applied {
-			newest = r
-		}
-	}
-	if newest.Version == "" {
-		return ""
-	}
-	return "past " + newest.Version
-}

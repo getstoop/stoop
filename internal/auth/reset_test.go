@@ -41,7 +41,7 @@ func TestResetPassword(t *testing.T) {
 		t.Errorf("temporary password refused: %v", err)
 	}
 	// By username, for the CLI; unknown users are NotFound.
-	if _, _, err := svc.ResetPasswordByUsername(bg, "ada"); err != nil {
+	if _, _, err := svc.ResetPasswordByUsername(bg, "Ada"); err != nil {
 		t.Errorf("by username: %v", err)
 	}
 	if _, _, err := svc.ResetPasswordByUsername(bg, "nobody"); connect.CodeOf(err) != connect.CodeNotFound {

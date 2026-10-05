@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/getstoop/stoop/internal/app"
@@ -109,7 +108,7 @@ func runAdmin(ctx context.Context, args []string, console streams) int {
 		if args[0] == "demote" {
 			role = authctx.RoleMember
 		}
-		account, err := svc.SetRoleByUsername(ctx, strings.ToLower(args[1]), role)
+		account, err := svc.SetRoleByUsername(ctx, args[1], role)
 		if err != nil {
 			return console.fail(1, err)
 		}
@@ -119,7 +118,7 @@ func runAdmin(ctx context.Context, args []string, console streams) int {
 		if !console.oneArgument(args, "stoop admin", "<username>") {
 			return 2
 		}
-		temp, account, err := svc.ResetPasswordByUsername(ctx, strings.ToLower(args[1]))
+		temp, account, err := svc.ResetPasswordByUsername(ctx, args[1])
 		if err != nil {
 			return console.fail(1, err)
 		}
@@ -129,7 +128,7 @@ func runAdmin(ctx context.Context, args []string, console streams) int {
 		if !console.oneArgument(args, "stoop admin", "<username>") {
 			return 2
 		}
-		account, err := svc.TransferOwnershipByUsername(ctx, strings.ToLower(args[1]))
+		account, err := svc.TransferOwnershipByUsername(ctx, args[1])
 		if err != nil {
 			return console.fail(1, err)
 		}
