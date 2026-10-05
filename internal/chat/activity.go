@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,32 @@ const (
 	activityKindDM      = "dm"
 	previewLen          = 140
 )
+
+// recordActivity tells the people a new message concerns: mentions, then
+// the reply target, then DM participants. The message is already saved
+// and published, so a failure here is logged and the send still succeeds.
+func (s *Service) recordActivity(ctx context.Context, msg messageRow, channel dbgen.Channel, participants []string, parent *messageRow, mentioned []string, author *chatv1.MessageAuthor, attachments []FileRecord) {
+	var firstAttachment string
+	if len(attachments) > 0 {
+		firstAttachment = attachments[0].Name
+	}
+	warn := func(step string, err error) {
+		slog.Default().Warn("activity: could not record "+step, "message_id", msg.ID, "err", err)
+	}
+	if err := s.recordMentions(ctx, msg, channel.SpaceID, mentioned, author, firstAttachment); err != nil {
+		warn("mentions", err)
+	}
+	if parent != nil {
+		if err := s.recordReply(ctx, msg, channel.SpaceID, parent.AuthorID, mentioned, author, firstAttachment); err != nil {
+			warn("reply", err)
+		}
+	}
+	if isDM(channel) {
+		if err := s.recordDM(ctx, msg, participants, parent, mentioned, author, firstAttachment); err != nil {
+			warn("dm", err)
+		}
+	}
+}
 
 // recordMentions writes an activity item for each mentioned member and
 // delivers it live. Called after the message is committed.

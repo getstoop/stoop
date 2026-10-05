@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"unicode/utf8"
 
@@ -66,19 +67,29 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	// A reply must point at a message in this channel.
 	var replyTo *string
 	var parent *messageRow
-	if id := req.Msg.ReplyToMessageId; id != "" {
-		p, err := s.q.GetMessage(ctx, id)
+	if replyID := req.Msg.ReplyToMessageId; replyID != "" {
+		found, err := s.q.GetMessage(ctx, replyID)
 		if err != nil {
 			return nil, apierr.NotFoundOr(err, "message")
 		}
-		if p.ChannelID != channel.ID {
+		if found.ChannelID != channel.ID {
 			return nil, connect.NewError(connect.CodeInvalidArgument,
 				errors.New("can only reply to a message in the same channel"))
 		}
-		parent, replyTo = &p, &p.ID
+		parent, replyTo = &found, &found.ID
 	}
 
-	// The message and its attachment links land together: a claim that
+	// Read before anything is written: the event needs the authors.
+	authorIDs := []string{userID}
+	if parent != nil {
+		authorIDs = append(authorIDs, parent.AuthorID)
+	}
+	authors, err := s.resolveAuthors(ctx, authorIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Everything that belongs to the message lands together: a claim that
 	// fails (file already used) must not leave a bare message behind.
 	var row messageRow
 	var linksToFetch []string
@@ -99,58 +110,32 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 				return fmt.Errorf("record links: %w", err)
 			}
 		}
+		for _, mentionedID := range mentioned {
+			if err := qtx.InsertMessageMention(ctx, dbgen.InsertMessageMentionParams{MessageID: row.ID, UserID: mentionedID}); err != nil {
+				return fmt.Errorf("record mention: %w", err)
+			}
+		}
+		// The channel's newest message, and the author has of course read it.
+		if err := qtx.SetChannelLastMessage(ctx, dbgen.SetChannelLastMessageParams{ID: channel.ID, LastMessageID: &row.ID}); err != nil {
+			return fmt.Errorf("bump channel: %w", err)
+		}
+		if err := qtx.UpsertChannelRead(ctx, dbgen.UpsertChannelReadParams{
+			UserID: userID, ChannelID: channel.ID, LastReadMessageID: row.ID,
+		}); err != nil {
+			return fmt.Errorf("mark own message read: %w", err)
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	for _, id := range mentioned {
-		if err := s.q.InsertMessageMention(ctx, dbgen.InsertMessageMentionParams{MessageID: row.ID, UserID: id}); err != nil {
-			return nil, fmt.Errorf("record mention: %w", err)
-		}
-	}
-	// The channel's newest message, and the author has of course read it.
-	if err := s.q.SetChannelLastMessage(ctx, dbgen.SetChannelLastMessageParams{ID: channel.ID, LastMessageID: &row.ID}); err != nil {
-		return nil, fmt.Errorf("bump channel: %w", err)
-	}
-	if err := s.q.UpsertChannelRead(ctx, dbgen.UpsertChannelReadParams{
-		UserID: userID, ChannelID: channel.ID, LastReadMessageID: row.ID,
-	}); err != nil {
-		return nil, fmt.Errorf("mark own message read: %w", err)
-	}
 
-	authorIDs := []string{userID}
-	if parent != nil {
-		authorIDs = append(authorIDs, parent.AuthorID)
-	}
-	authors, err := s.resolveAuthors(ctx, authorIDs)
-	if err != nil {
-		return nil, err
-	}
+	// The message is saved: from here on nothing fails the send.
 	msg := toProtoMessage(row, authors, mentioned, spaceOf(channel))
 	msg.Attachments = toProtoAttachments(attachments)
 	if parent != nil {
 		msg.ReplyTo = replyRef(parent.ID, authors[parent.AuthorID], &parent.Content, s.firstAttachmentName(ctx, parent.ID))
 	}
-	var firstAttachment string
-	if len(attachments) > 0 {
-		firstAttachment = attachments[0].Name
-	}
-	if err := s.recordMentions(ctx, row, channel.SpaceID, mentioned, msg.Author, firstAttachment); err != nil {
-		return nil, err
-	}
-	if parent != nil {
-		if err := s.recordReply(ctx, row, channel.SpaceID, parent.AuthorID, mentioned, msg.Author, firstAttachment); err != nil {
-			return nil, err
-		}
-	}
-	if isDM(channel) {
-		if err := s.recordDM(ctx, row, participants, parent, mentioned, msg.Author, firstAttachment); err != nil {
-			return nil, err
-		}
-		s.reopenDM(ctx, channel)
-	}
-
 	// Cached link previews go out with the message itself; ones still to
 	// be fetched arrive later as MessageUpdated.
 	if s.unfurler != nil {
@@ -158,11 +143,15 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 			msg.LinkPreviews = previews[row.ID]
 		}
 	}
+	if isDM(channel) {
+		s.reopenDM(ctx, channel)
+	}
 	// Everyone who can see the channel receives the event; clients filter
 	// by channel_id. The sender's own client receives it too — one code path.
 	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: msg},
 	}))
+	s.recordActivity(ctx, row, channel, participants, parent, mentioned, msg.Author, attachments)
 	if s.unfurler != nil {
 		s.unfurlLater(row.ID, userID, channel.ID, linksToFetch)
 	}
@@ -373,29 +362,36 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return nil, err
 	}
-	edited, err := s.q.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content})
-	if err != nil {
-		return nil, fmt.Errorf("edit message: %w", err)
-	}
-	row := messageRow(edited)
 	// Mentions are not re-resolved on edit: no new activity, and the
 	// original recipients stay recorded. Links are: the previews follow
-	// the text.
+	// the text, and land with it.
 	var linksToFetch []string
-	if s.unfurler != nil {
-		if linksToFetch, err = s.recordLinks(ctx, s.q, row.ID, extractLinks(content)); err != nil {
-			return nil, fmt.Errorf("record links: %w", err)
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content}); err != nil {
+			return fmt.Errorf("edit message: %w", err)
 		}
-	}
-	out, err := s.loadMessage(ctx, row.ID, spaceOf(channel))
+		if s.unfurler != nil {
+			if linksToFetch, err = s.recordLinks(ctx, qtx, msg.ID, extractLinks(content)); err != nil {
+				return fmt.Errorf("record links: %w", err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
-		Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
-	}))
+	// The edit is saved: a failed reload answers with no message and
+	// sends no event, rather than reporting the save as failed.
+	out, err := s.loadMessage(ctx, msg.ID, spaceOf(channel))
+	if err != nil {
+		slog.Default().Warn("edit: could not reload message", "message_id", msg.ID, "err", err)
+	} else {
+		s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
+		}))
+	}
 	if s.unfurler != nil {
-		s.unfurlLater(row.ID, msg.AuthorID, channel.ID, linksToFetch)
+		s.unfurlLater(msg.ID, msg.AuthorID, channel.ID, linksToFetch)
 	}
 	return connect.NewResponse(&chatv1.EditMessageResponse{Message: out}), nil
 }

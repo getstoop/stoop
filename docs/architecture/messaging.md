@@ -96,24 +96,21 @@ deliberate:
    for kind, owner and space ([files.md](files.md)).
 4. **Resolve mentions** against the channel's people.
 5. **Resolve the reply parent**, which must be a message in the same
-   channel.
-6. **One transaction**: insert the message, insert `message_attachments`,
-   record `message_links`. A claim that fails — the file is already
-   attached to another message, caught by a `UNIQUE` constraint — must not
-   leave a bare message behind.
-7. **After commit**: insert mention rows, bump `channels.last_message_id`,
-   and mark the channel read for the author (who has, self-evidently, read
-   their own message).
+   channel, and the authors the event will carry.
+6. **One transaction**: insert the message, its `message_attachments`,
+   `message_links` and mention rows, bump `channels.last_message_id`, and
+   mark the channel read for the author. A failure here — say a file
+   already attached to another message — saves nothing and fails the send.
+7. **Publish** `MessageCreated` to the channel's audience.
 8. **Record activity**: mentions, then the reply target, then DM
    participants — each step skipping anyone an earlier step already told.
-9. **Publish** `MessageCreated` to the channel's audience.
-10. **Queue the unfurl** for any links, which will republish the message as
-    `MessageUpdated` when previews land.
+9. **Queue the unfurl** for any links, which will republish the message as
+   `MessageUpdated` when previews land.
 
-Steps 7–10 are outside the transaction on purpose. An activity item that
-failed to write should not roll back a message that was successfully sent;
-the message is the thing that matters, and the rest is best-effort
-delivery with a durable record to fall back on.
+After step 6 nothing fails the send: the message is saved, so a failed
+activity write is logged and the request still succeeds. An edit or a
+reaction is the same: if the message cannot be reloaded after the save,
+the request succeeds with no message and no event goes out.
 
 ## Message format
 
