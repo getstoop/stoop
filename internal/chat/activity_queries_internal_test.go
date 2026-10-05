@@ -96,11 +96,17 @@ func TestEveryoneSendQueriesDoNotGrowWithTheSpace(t *testing.T) {
 	largeMentions, largeActivity := sendEveryone(20)
 	t.Logf("mention queries: %d for a space of 3, %d for 20; activity queries: %d and %d",
 		smallMentions, largeMentions, smallActivity, largeActivity)
-	if largeMentions != smallMentions {
-		t.Errorf("mention queries grew with the space: %d for 3 members, %d for 20", smallMentions, largeMentions)
-	}
-	if largeActivity != smallActivity {
-		t.Errorf("activity queries grew with the space: %d for 3 members, %d for 20", smallActivity, largeActivity)
+	// One insert for every mention row; blocks, items and mutes for the
+	// alerts. Exact, so a slower send fails even if its cost stays flat.
+	const wantMentions, wantActivity = 1, 3
+	for _, size := range []struct {
+		members            int
+		mentions, activity int64
+	}{{3, smallMentions, smallActivity}, {20, largeMentions, largeActivity}} {
+		if size.mentions != wantMentions || size.activity != wantActivity {
+			t.Errorf("space of %d: %d mention and %d activity queries, want %d and %d",
+				size.members, size.mentions, size.activity, wantMentions, wantActivity)
+		}
 	}
 
 	var mentionRows, items int
