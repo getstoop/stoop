@@ -99,6 +99,7 @@ brand:
 
 lint:
 	golangci-lint run
+	golangci-lint run --config .golangci-names.yml --new-from-merge-base origin/main
 	scripts/compose-check.sh
 	cd web && pnpm lint && pnpm typecheck && pnpm check:themes && pnpm check:styles && pnpm check:tsx-styles && pnpm check:fields
 

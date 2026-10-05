@@ -10,6 +10,10 @@ linters:
     - misspell
     - unconvert
   settings:
+    staticcheck:
+      # golangci-lint's default set, less ST1005: many errors are sentences
+      # shown to people as they are, and may start with a capital.
+      checks: ["all", "-ST1000", "-ST1003", "-ST1005", "-ST1016", "-ST1020", "-ST1021", "-ST1022"]
     depguard:
       rules:
         # Domain modules must not import each other; cross-module needs go
