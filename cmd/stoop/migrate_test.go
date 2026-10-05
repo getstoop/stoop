@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/getstoop/stoop/internal/db"
+	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
 func TestPlanExit(t *testing.T) {
@@ -47,5 +49,32 @@ func TestRunMigrateInvalidConfiguration(t *testing.T) {
 	console, out, errOut := bufferedStreams()
 	if code := runMigrate(t.Context(), []string{"status"}, console); code != 1 || out.Len() != 0 || !strings.HasPrefix(errOut.String(), "invalid configuration: ") {
 		t.Errorf("exit %d, out %q, err %q", code, out.String(), errOut.String())
+	}
+}
+
+// up refuses a database a newer release contracted with exit 3, the same
+// code plan uses, and applies nothing.
+func TestRunMigrateUpRefusesANewerDatabase(t *testing.T) {
+	databaseURL := dbtest.NewURL(t)
+	pool, err := db.Connect(context.Background(), databaseURL, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	if err := db.Migrate(context.Background(), pool); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(context.Background(), "UPDATE schema_floor SET min_migration = 999999"); err != nil {
+		t.Fatal(err)
+	}
+	newest, err := db.Newest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("STOOP_DATABASE_URL", databaseURL)
+	console, out, errOut := bufferedStreams()
+	want := db.AheadError{Floor: 999999, Newest: newest}.Error() + "\n"
+	if code := runMigrate(t.Context(), []string{"up"}, console); code != 3 || out.Len() != 0 || errOut.String() != want {
+		t.Errorf("exit %d, out %q, err %q, want exit 3 and %q", code, out.String(), errOut.String(), want)
 	}
 }
