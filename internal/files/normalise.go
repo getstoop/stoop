@@ -16,11 +16,7 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 )
 
-// Avatars and icons are normalised off the request: UploadAvatar and
-// UploadSpaceIcon refuse what is cheap to refuse, store the bytes as a
-// pending file and queue a normalise_image job; the job re-encodes the
-// file, readies the row, points the account or space at it and announces
-// the change. See docs/architecture/files.md → Images.
+// The normalise_image job. See docs/architecture/files.md → Images.
 
 // NormaliseImageKind is the job kind internal/app registers for
 // NormaliseImage, with NormaliseImageMaxInFlight as its cap.

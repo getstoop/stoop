@@ -32,12 +32,8 @@ const (
 )
 
 // UploadHandler serves POST /files/upload: a multipart form with a
-// channel_id field and one file part. Bytes are stored as sent — no
-// re-encoding — so the content type is decided by sniffing (never the
-// part's declared type or the filename); anything that isn't a raster
-// image or playable media will be served as a download. The row is a
-// pending attachment until a message claims it via
-// SendMessage.attachment_ids; unclaimed uploads are left for the sweep.
+// channel_id field and one file part. See docs/architecture/files.md →
+// Two upload paths, for one reason.
 func (s *Service) UploadHandler() http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method != http.MethodPost {
