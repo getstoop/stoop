@@ -163,19 +163,19 @@ func (q *Queries) GetMessageWithReply(ctx context.Context, id string) (MessageWi
 	return i, err
 }
 
-const insertMessageMention = `-- name: InsertMessageMention :exec
+const insertMessageMentions = `-- name: InsertMessageMentions :exec
 INSERT INTO message_mentions (message_id, user_id)
-VALUES ($1, $2)
+SELECT $1::uuid, unnest($2::uuid[])
 ON CONFLICT DO NOTHING
 `
 
-type InsertMessageMentionParams struct {
+type InsertMessageMentionsParams struct {
 	MessageID string
-	UserID    string
+	UserIds   []string
 }
 
-func (q *Queries) InsertMessageMention(ctx context.Context, arg InsertMessageMentionParams) error {
-	_, err := q.db.Exec(ctx, insertMessageMention, arg.MessageID, arg.UserID)
+func (q *Queries) InsertMessageMentions(ctx context.Context, arg InsertMessageMentionsParams) error {
+	_, err := q.db.Exec(ctx, insertMessageMentions, arg.MessageID, arg.UserIds)
 	return err
 }
 

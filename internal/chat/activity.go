@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -31,93 +31,54 @@ const (
 // the reply target, then DM participants. The message is already saved
 // and published, so a failure here is logged and the send still succeeds.
 func (s *Service) recordActivity(ctx context.Context, msg messageRow, channel dbgen.Channel, participants []string, parent *messageRow, mentioned []string, author *chatv1.MessageAuthor, attachments []FileRecord) {
-	var firstAttachment string
+	about := alert{msg: msg, spaceID: channel.SpaceID, author: author}
 	if len(attachments) > 0 {
-		firstAttachment = attachments[0].Name
+		about.firstAttachment = attachments[0].Name
 	}
 	warn := func(step string, err error) {
 		slog.Default().Warn("activity: could not record "+step, "message_id", msg.ID, "err", err)
 	}
-	if err := s.recordMentions(ctx, msg, channel.SpaceID, mentioned, author, firstAttachment); err != nil {
+	if err := s.recordMentions(ctx, about, mentioned); err != nil {
 		warn("mentions", err)
 	}
 	if parent != nil {
-		if err := s.recordReply(ctx, msg, channel.SpaceID, parent.AuthorID, mentioned, author, firstAttachment); err != nil {
+		if err := s.recordReply(ctx, about, parent.AuthorID, mentioned); err != nil {
 			warn("reply", err)
 		}
 	}
 	if isDM(channel) {
-		if err := s.recordDM(ctx, msg, participants, parent, mentioned, author, firstAttachment); err != nil {
+		if err := s.recordDM(ctx, about, participants, parent, mentioned); err != nil {
 			warn("dm", err)
 		}
 	}
 }
 
-// recordMentions writes an activity item for each mentioned member and
-// delivers it live. Called after the message is committed.
-func (s *Service) recordMentions(ctx context.Context, msg messageRow, spaceID *string, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
-	mentioned, err := s.withoutBlockers(ctx, msg.AuthorID, mentioned)
-	if err != nil {
-		return err
-	}
-	for _, userID := range mentioned {
-		a, err := s.q.CreateActivityItem(ctx, dbgen.CreateActivityItemParams{
-			ID: rowid.New(), UserID: userID, Kind: activityKindMention,
-			SpaceID: spaceID, ChannelID: msg.ChannelID, MessageID: &msg.ID, ActorID: msg.AuthorID,
-		})
-		if err != nil {
-			return fmt.Errorf("create activity item: %w", err)
-		}
-		muted, err := s.mutedFor(ctx, userID, msg.ChannelID, spaceID)
-		if err != nil {
-			return err
-		}
-		s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
-			Payload: &realtimev1.ServerEvent_ActivityItemCreated{
-				ActivityItemCreated: &realtimev1.ActivityItemCreated{
-					Item: toProtoActivityItem(a, &msg.Content, firstAttachment, author, muted),
-				},
-			},
-		}))
-	}
-	return nil
+// alert is one kind of activity item about a message, for its recipients.
+type alert struct {
+	kind            string
+	msg             messageRow
+	spaceID         *string
+	author          *chatv1.MessageAuthor
+	firstAttachment string
+	// coalesce refreshes a recipient's unread item of the kind in the
+	// channel instead of adding one.
+	coalesce bool
+}
+
+// recordMentions tells each mentioned member.
+func (s *Service) recordMentions(ctx context.Context, about alert, mentioned []string) error {
+	about.kind = activityKindMention
+	return s.notify(ctx, mentioned, about)
 }
 
 // recordReply tells the replied-to author, unless they're the replier or
 // were already @mentioned in the same message (one alert is enough).
-func (s *Service) recordReply(ctx context.Context, msg messageRow, spaceID *string, parentAuthorID string, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
-	if parentAuthorID == msg.AuthorID {
+func (s *Service) recordReply(ctx context.Context, about alert, parentAuthorID string, mentioned []string) error {
+	if parentAuthorID == about.msg.AuthorID || slices.Contains(mentioned, parentAuthorID) {
 		return nil
 	}
-	for _, id := range mentioned {
-		if id == parentAuthorID {
-			return nil
-		}
-	}
-	if allowed, err := s.withoutBlockers(ctx, msg.AuthorID, []string{parentAuthorID}); err != nil {
-		return err
-	} else if len(allowed) == 0 {
-		return nil
-	}
-	a, err := s.q.CreateActivityItem(ctx, dbgen.CreateActivityItemParams{
-		ID: rowid.New(), UserID: parentAuthorID, Kind: activityKindReply,
-		SpaceID: spaceID, ChannelID: msg.ChannelID, MessageID: &msg.ID, ActorID: msg.AuthorID,
-	})
-	if err != nil {
-		return fmt.Errorf("create reply activity item: %w", err)
-	}
-	muted, err := s.mutedFor(ctx, parentAuthorID, msg.ChannelID, spaceID)
-	if err != nil {
-		return err
-	}
-	s.bus.Publish(events.UserTopic(parentAuthorID), events.Stamp(&realtimev1.ServerEvent{
-		Payload: &realtimev1.ServerEvent_ActivityItemCreated{
-			ActivityItemCreated: &realtimev1.ActivityItemCreated{
-				Item: toProtoActivityItem(a, &msg.Content, firstAttachment, author, muted),
-			},
-		},
-	}))
-	return nil
+	about.kind = activityKindReply
+	return s.notify(ctx, []string{parentAuthorID}, about)
 }
 
 // recordDM tells a direct message's other participants about a new
@@ -127,53 +88,79 @@ func (s *Service) recordReply(ctx context.Context, msg messageRow, spaceID *stri
 // (newest preview and time) rather than add rows; once read, the next
 // message starts a new one. The event goes out either way, so a desktop
 // banner still fires per message.
-func (s *Service) recordDM(ctx context.Context, msg messageRow, participants []string, parent *messageRow, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
-	ids, err := s.withoutBlockers(ctx, msg.AuthorID, participants)
-	if err != nil {
-		return err
-	}
-	told := map[string]bool{msg.AuthorID: true}
+func (s *Service) recordDM(ctx context.Context, about alert, participants []string, parent *messageRow, mentioned []string) error {
+	told := map[string]bool{about.msg.AuthorID: true}
 	for _, id := range mentioned {
 		told[id] = true
 	}
-	if parent != nil && parent.AuthorID != msg.AuthorID {
+	if parent != nil && parent.AuthorID != about.msg.AuthorID {
 		told[parent.AuthorID] = true
 	}
-	for _, id := range ids {
-		if told[id] {
-			continue
+	var recipients []string
+	for _, id := range participants {
+		if !told[id] {
+			recipients = append(recipients, id)
 		}
-		var a dbgen.ActivityItem
-		existing, err := s.q.GetUnreadActivityForChannel(ctx, dbgen.GetUnreadActivityForChannelParams{
-			UserID: id, ChannelID: msg.ChannelID, Kind: activityKindDM,
-		})
-		switch {
-		case err == nil:
-			a, err = s.q.RefreshActivityItem(ctx, dbgen.RefreshActivityItemParams{
-				ID: existing.ID, MessageID: &msg.ID, ActorID: msg.AuthorID,
-			})
-		case errors.Is(err, pgx.ErrNoRows):
-			a, err = s.q.CreateActivityItem(ctx, dbgen.CreateActivityItemParams{
-				ID: rowid.New(), UserID: id, Kind: activityKindDM,
-				ChannelID: msg.ChannelID, MessageID: &msg.ID, ActorID: msg.AuthorID,
-			})
-		}
-		if err != nil {
-			return fmt.Errorf("dm activity item: %w", err)
-		}
-		muted, err := s.mutedFor(ctx, id, msg.ChannelID, nil)
-		if err != nil {
-			return err
-		}
-		s.bus.Publish(events.UserTopic(id), events.Stamp(&realtimev1.ServerEvent{
+	}
+	about.kind, about.spaceID, about.coalesce = activityKindDM, nil, true
+	return s.notify(ctx, recipients, about)
+}
+
+// notify writes the alert's activity items for the recipients, less any
+// who blocked the author, and delivers each live with its recipient's
+// mute. Its query count does not grow with the recipients.
+func (s *Service) notify(ctx context.Context, recipients []string, about alert) error {
+	recipients, err := s.withoutBlockers(ctx, about.msg.AuthorID, recipients)
+	if err != nil || len(recipients) == 0 {
+		return err
+	}
+	items, err := s.writeActivityItems(ctx, recipients, about)
+	if err != nil {
+		return err
+	}
+	muted, err := s.mutedAmong(ctx, recipients, about.msg.ChannelID, about.spaceID)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		s.bus.Publish(events.UserTopic(item.UserID), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ActivityItemCreated{
 				ActivityItemCreated: &realtimev1.ActivityItemCreated{
-					Item: toProtoActivityItem(a, &msg.Content, firstAttachment, author, muted),
+					Item: toProtoActivityItem(item, &about.msg.Content, about.firstAttachment, about.author, muted[item.UserID]),
 				},
 			},
 		}))
 	}
 	return nil
+}
+
+func (s *Service) writeActivityItems(ctx context.Context, recipients []string, about alert) ([]dbgen.ActivityItem, error) {
+	ids := make([]string, len(recipients))
+	for index := range recipients {
+		ids[index] = rowid.New()
+	}
+	if !about.coalesce {
+		items, err := s.q.CreateActivityItems(ctx, dbgen.CreateActivityItemsParams{
+			Ids: ids, UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
+			ChannelID: about.msg.ChannelID, MessageID: about.msg.ID, ActorID: about.msg.AuthorID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create %s activity items: %w", about.kind, err)
+		}
+		return items, nil
+	}
+	rows, err := s.q.UpsertUnreadActivityItems(ctx, dbgen.UpsertUnreadActivityItemsParams{
+		Ids: ids, UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
+		ChannelID: about.msg.ChannelID, MessageID: about.msg.ID, ActorID: about.msg.AuthorID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("upsert %s activity items: %w", about.kind, err)
+	}
+	items := make([]dbgen.ActivityItem, len(rows))
+	for index, row := range rows {
+		items[index] = dbgen.ActivityItem(row)
+	}
+	return items, nil
 }
 
 var errActivityNeedsReads = errors.New("reading activity needs reading messages and direct messages as well")
@@ -281,12 +268,16 @@ func toProtoActivityItem(item dbgen.ActivityItem, content *string, firstAttachme
 	return out
 }
 
-// mutedFor is the recipient's effective mute for a channel: their own
+// mutedAmong is each recipient's effective mute for a channel: their own
 // channel row or their own space row. spaceID is nil for a direct message.
-func (s *Service) mutedFor(ctx context.Context, userID, channelID string, spaceID *string) (bool, error) {
-	muted, err := s.q.IsMutedFor(ctx, dbgen.IsMutedForParams{UserID: userID, ChannelID: channelID, SpaceID: spaceID})
+func (s *Service) mutedAmong(ctx context.Context, userIDs []string, channelID string, spaceID *string) (map[string]bool, error) {
+	mutedIDs, err := s.q.MutedAmong(ctx, dbgen.MutedAmongParams{UserIds: userIDs, ChannelID: channelID, SpaceID: spaceID})
 	if err != nil {
-		return false, fmt.Errorf("is muted for: %w", err)
+		return nil, fmt.Errorf("muted among: %w", err)
+	}
+	muted := make(map[string]bool, len(mutedIDs))
+	for _, id := range mutedIDs {
+		muted[id] = true
 	}
 	return muted, nil
 }
