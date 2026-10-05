@@ -10,21 +10,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/proto"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// countingDB counts the queries that touch instance_settings.
+// countingDB counts the queries that touch instance_settings, and the
+// ListSettings reads among them.
 type countingDB struct {
 	pool     *pgxpool.Pool
 	settings atomic.Int64
+	lists    atomic.Int64
 }
 
 func (db *countingDB) count(sql string) {
 	if strings.Contains(sql, "instance_settings") {
 		db.settings.Add(1)
+	}
+	if strings.Contains(sql, "SELECT key, value FROM instance_settings") {
+		db.lists.Add(1)
 	}
 }
 
@@ -89,5 +96,20 @@ func TestStatusAndReachabilityReadSettingsOnce(t *testing.T) {
 	}
 	if got := counter.settings.Swap(0); got != 1 {
 		t.Errorf("reachability: %d settings queries, want 1", got)
+	}
+
+	// A save returns the status read after its writes: one snapshot, with
+	// the value just saved.
+	admin := authctx.WithIdentity(ctx, authctx.Identity{UserID: "casey", Role: authctx.RoleAdmin})
+	counter.lists.Store(0)
+	saved, err := svc.UpdateSettings(admin, connect.NewRequest(&instancev1.UpdateSettingsRequest{InstanceName: proto.String("Ada's stoop")}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := saved.Msg.Status.InstanceName; got != "Ada's stoop" {
+		t.Errorf("UpdateSettings returned the name %q, want the one just saved", got)
+	}
+	if got := counter.lists.Load(); got != 1 {
+		t.Errorf("UpdateSettings: %d ListSettings reads, want 1", got)
 	}
 }
