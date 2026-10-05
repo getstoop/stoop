@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 )
 
@@ -89,4 +90,32 @@ func cloudflareTunnelSetting(enabled bool, token string, current CloudflareTunne
 			errors.New("a Cloudflare Tunnel needs the tunnel's token"))
 	}
 	return CloudflareTunnelSettings{Enabled: enabled, Token: token}, nil
+}
+
+// stageCloudflareTunnel validates a save of the connector's settings and
+// tells the connector once it has committed.
+func (s *Service) stageCloudflareTunnel(msg *instancev1.UpdateReachabilityRequest, current Reachability, save *settingSave) error {
+	in := msg.CloudflareTunnel
+	if in == nil {
+		return nil
+	}
+	tunnel, err := cloudflareTunnelSetting(in.Enabled, in.Token, current.CloudflareTunnel)
+	if err != nil {
+		return err
+	}
+	save.write(keyCloudflareTunnel, tunnel)
+	save.then(func() {
+		if s.tunnel != nil {
+			s.tunnel.Apply(tunnel)
+		}
+	})
+	return nil
+}
+
+func (tunnel CloudflareTunnelSettings) toProto() *instancev1.CloudflareTunnelSettings {
+	return &instancev1.CloudflareTunnelSettings{Enabled: tunnel.Enabled, HasToken: tunnel.Token != ""}
+}
+
+func (status CloudflareTunnelStatus) toProto() *instancev1.CloudflareTunnelStatus {
+	return &instancev1.CloudflareTunnelStatus{Enabled: status.Enabled, State: status.State, Error: status.Error}
 }

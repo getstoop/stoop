@@ -62,3 +62,24 @@ func readSettingOr[T any](ctx context.Context, s *Service, key string, fallback 
 	}
 	return value, nil
 }
+
+// readSetting decodes one JSON-string setting, returning fallback if unset.
+func (s *Service) readSetting(ctx context.Context, key, fallback string) (string, error) {
+	return readSettingOr(ctx, s, key, fallback)
+}
+
+// readBool decodes one JSON-boolean setting, returning fallback if unset.
+func (s *Service) readBool(ctx context.Context, key string, fallback bool) (bool, error) {
+	return readSettingOr(ctx, s, key, fallback)
+}
+
+func (s *Service) readJSON(ctx context.Context, key string, into any) (bool, error) {
+	raw, found, err := s.lookupSetting(ctx, key)
+	if err != nil || !found {
+		return false, err
+	}
+	if err := json.Unmarshal(raw, into); err != nil {
+		return false, fmt.Errorf("decode %s: %w", key, err)
+	}
+	return true, nil
+}

@@ -2,6 +2,8 @@ package instance
 
 import (
 	"context"
+
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 )
 
 // The webhook settings, read by the integrations module through its
@@ -39,7 +41,9 @@ func (s *Service) WebhooksAllowPrivateTargets(ctx context.Context) (bool, error)
 	return s.readBool(ctx, keyWebhooksAllowPrivateTargets, false)
 }
 
-// readBool decodes one JSON-boolean setting, returning fallback if unset.
-func (s *Service) readBool(ctx context.Context, key string, fallback bool) (bool, error) {
-	return readSettingOr(ctx, s, key, fallback)
+func stageWebhooks(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	stageBool(save, keyWebhooksIncoming, msg.WebhooksIncoming)
+	stageBool(save, keyWebhooksOutgoing, msg.WebhooksOutgoing)
+	stageBool(save, keyWebhooksAllowPrivateTargets, msg.WebhooksAllowPrivateTargets)
+	return nil
 }
