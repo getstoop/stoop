@@ -63,10 +63,15 @@ func TestSocketClosesWhenTheCredentialStopsVerifying(t *testing.T) {
 }
 
 // stuckChannels never answers a voice channel lookup before its context
-// ends, like a database that has stopped responding.
-type stuckChannels struct{ noChannels }
+// ends, like a database that has stopped responding, and says when one
+// has started.
+type stuckChannels struct {
+	noChannels
+	started chan struct{}
+}
 
-func (stuckChannels) VoiceChannelSpace(ctx context.Context, _ string) (string, error) {
+func (channels stuckChannels) VoiceChannelSpace(ctx context.Context, _ string) (string, error) {
+	channels.started <- struct{}{}
 	<-ctx.Done()
 	return "", ctx.Err()
 }
@@ -75,7 +80,8 @@ func (stuckChannels) VoiceChannelSpace(ctx context.Context, _ string) (string, e
 // at most the lookup timeout: events published meanwhile still arrive.
 func TestAStuckLookupDoesNotStallTheConnection(t *testing.T) {
 	bus := events.NewInProcBus()
-	gw := NewGateway(bus, &flippingVerifier{}, noMembers{}, stuckChannels{}, []string{"*"}, slog.Default())
+	channels := stuckChannels{started: make(chan struct{}, 1)}
+	gw := NewGateway(bus, &flippingVerifier{}, noMembers{}, channels, []string{"*"}, slog.Default())
 	gw.lookupTimeout = 100 * time.Millisecond
 	srv := httptest.NewServer(gw)
 	defer srv.Close()
@@ -97,7 +103,11 @@ func TestAStuckLookupDoesNotStallTheConnection(t *testing.T) {
 	if err := conn.Write(context.Background(), websocket.MessageBinary, report); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(20 * time.Millisecond) // let the main loop take the report
+	select {
+	case <-channels.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the voice report was never looked up")
+	}
 	bus.Publish(events.UserTopic("alice"), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_Ping{Ping: &realtimev1.Ping{}},
 	}))
