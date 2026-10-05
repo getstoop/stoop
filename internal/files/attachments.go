@@ -26,7 +26,7 @@ const (
 	// Form parsing keeps this much in memory; the rest of a part spools to
 	// a temp file, so a 100 MB upload doesn't sit in RAM.
 	multipartMemory = 1 << 20
-	// Slack for the multipart framing and the channel_id field on top of
+	// Room for the multipart framing and the channel_id field on top of
 	// the file itself.
 	multipartOverhead = 64 << 10
 )
