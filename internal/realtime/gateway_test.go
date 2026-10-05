@@ -667,3 +667,63 @@ func TestRefusedTypingDoesNotStartTheInterval(t *testing.T) {
 	_ = casey.conn.Close(websocket.StatusNormalClosure, "")
 	_ = ada.conn.Close(websocket.StatusNormalClosure, "")
 }
+
+// gatedChannels holds every voice channel lookup until release is closed,
+// and says when one has started.
+type gatedChannels struct {
+	voice   fakeVoiceChannels
+	started chan struct{}
+	release chan struct{}
+}
+
+func (channels gatedChannels) VoiceChannelSpace(ctx context.Context, channelID string) (string, error) {
+	channels.started <- struct{}{}
+	<-channels.release
+	return channels.voice.VoiceChannelSpace(ctx, channelID)
+}
+
+func (gatedChannels) DMParticipants(context.Context, string) ([]string, error) { return nil, nil }
+
+// A voice report still being resolved when the server ends the socket must
+// not leave the person in the channel once the connection is gone. A
+// write failing is an exit that runs the cleanup without closing the
+// socket first, so a reader still resolving the report used to land it
+// after the cleanup.
+func TestVoiceReportInFlightAtTeardownLeavesNoParticipant(t *testing.T) {
+	channels := gatedChannels{voice: fakeVoiceChannels{"v1": "s1"}, started: make(chan struct{}, 1), release: make(chan struct{})}
+	gw, bus, srv := newTestGateway(t, fakeMembers{"casey": {"s1"}}, channels)
+
+	casey := dial(t, srv, "casey")
+	casey.waitFor(presenceOf("casey"))
+	casey.send(voiceEvent("v1", false))
+	select {
+	case <-channels.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the voice report was never looked up")
+	}
+	// The peer vanishes, and the next event the server forwards fails to
+	// write. Give that exit time to run before the lookup finishes.
+	// The first write after the drop can still succeed; the reset makes
+	// the next one fail.
+	_ = casey.conn.CloseNow()
+	for range 3 {
+		bus.Publish("space:s1", events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_Ping{Ping: &realtimev1.Ping{}},
+		}))
+		time.Sleep(100 * time.Millisecond)
+	}
+	close(channels.release)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for gw.ConnectionCount() != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("the connection never closed")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// The report's state, if it lands at all, must go with the connection.
+	time.Sleep(200 * time.Millisecond)
+	if count := gw.VoiceParticipantCount(); count != 0 {
+		t.Fatalf("%d voice participants left after the connection closed", count)
+	}
+}
