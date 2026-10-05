@@ -9,11 +9,9 @@ import (
 	"time"
 )
 
-// LiveKit access tokens are plain HS256 JWTs carrying a "video" grant
-// (https://docs.livekit.io/home/get-started/authentication/). Minting one
-// needs only the standard library, so we don't pull in livekit/protocol
-// (and its dependency tree) for a single claim struct. rooms.go signs
-// LiveKit's room API with the same tokens.
+// LiveKit access tokens, minted with the standard library
+// (https://docs.livekit.io/home/get-started/authentication/). See
+// docs/architecture/voice.md → Tokens.
 
 // videoGrant is the subset of LiveKit's VideoGrant that Stoop issues.
 type videoGrant struct {
