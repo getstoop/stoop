@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -8,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -977,5 +979,30 @@ func TestDeliveryLookupFailuresAreNotSent(t *testing.T) {
 	}
 	if result := f.deliver(t, job, 1); !result.Delivered {
 		t.Errorf("delivery once the reads work: %+v", result)
+	}
+}
+
+// A refusal logs what the receiver said, at info, so an operator can see
+// why; a delivered event logs nothing of it.
+func TestOutgoingLogsARefusedReply(t *testing.T) {
+	for _, test := range []struct {
+		status int
+		logged bool
+	}{{http.StatusInternalServerError, true}, {http.StatusOK, false}} {
+		f, _ := outgoingFixture(t)
+		var logs bytes.Buffer
+		f.svc.log = slog.New(slog.NewTextHandler(&logs, nil))
+		srv := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			writer.WriteHeader(test.status)
+			_, _ = io.WriteString(writer, "receiver says no")
+		}))
+		t.Cleanup(srv.Close)
+		f.createOutgoing(t, srv.URL, []string{EventMessageCreated}, "")
+		f.enqueueMessage(t, "hello")
+		f.drain(t)
+		got := strings.Contains(logs.String(), `msg="webhook delivery refused"`) && strings.Contains(logs.String(), "receiver says no")
+		if got != test.logged {
+			t.Errorf("status %d: reply logged %v, want %v\n%s", test.status, got, test.logged, logs.String())
+		}
 	}
 }
