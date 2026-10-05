@@ -47,9 +47,7 @@ export function DeliveryLog({ webhookId }: { webhookId: string }) {
                 {d.createdAt && timestampDate(d.createdAt).toLocaleString()}
               </span>
             </span>
-            <span>
-              {deliveryText(d)}
-            </span>
+            <span>{deliveryText(d)}</span>
             {state === "failed" ? (
               <button
                 type="button"
