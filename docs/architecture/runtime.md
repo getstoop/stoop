@@ -177,6 +177,8 @@ certificates and no third party in the path.
 
 `tailnet.Manager` owns at most one running node and *reconciles* it with
 the settings in force: start, stop, restart on a hostname or Funnel change.
+A node that stops while still wanted is started again with backoff
+(`restart.Loop`), and reports no address until it is back.
 The node identity lives in the state directory, so a restart keeps the same
 device rather than accumulating machines in the tailnet.
 
