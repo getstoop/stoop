@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -29,19 +28,17 @@ const settingUsage = `usage: stoop admin setting <command>
 // restartNeeded is the groups a running server reads only at start.
 var restartNeeded = []string{"tailscale", "cloudflare-tunnel", "trusted-proxies"}
 
-func runAdminSetting(ctx context.Context, inst *instance.Service, args []string, out io.Writer) int {
+func runAdminSetting(ctx context.Context, inst *instance.Service, args []string, console streams) int {
 	if len(args) == 0 {
-		fmt.Fprint(os.Stderr, settingUsage)
-		return 2
+		return console.failf(2, "%s", settingUsage)
 	}
 	switch args[0] {
 	case "list":
 		fields, err := inst.SettingFields(ctx)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return console.fail(1, err)
 		}
-		writer := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+		writer := tabwriter.NewWriter(console.out, 0, 4, 2, ' ', 0)
 		_, _ = fmt.Fprintln(writer, "NAME\tVALUE\tSAVED")
 		for _, field := range fields {
 			saved := "yes"
@@ -50,59 +47,52 @@ func runAdminSetting(ctx context.Context, inst *instance.Service, args []string,
 			}
 			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\n", field.Name, field.Value, saved)
 		}
-		return flush(writer)
+		return flush(writer, console)
 	case "set":
 		if len(args) < 2 {
-			fmt.Fprint(os.Stderr, settingUsage)
-			return 2
+			return console.failf(2, "%s", settingUsage)
 		}
 		changes := map[string]string{}
 		for _, arg := range args[1:] {
 			name, value, ok := strings.Cut(arg, "=")
 			if !ok {
-				fmt.Fprintf(os.Stderr, "%q is not name=value\n", arg)
-				return 2
+				return console.failf(2, "%q is not name=value\n", arg)
 			}
 			changes[name] = value
 		}
 		if err := inst.SetSettingFields(ctx, changes); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return console.fail(1, err)
 		}
 		names := make([]string, 0, len(changes))
 		for name := range changes {
 			names = append(names, name)
 		}
-		return saved(out, names...)
+		return saved(console.out, names...)
 	case "clear", "reset":
-		if len(args) != 2 {
-			fmt.Fprintf(os.Stderr, "usage: stoop admin setting %s <group>\n", args[0])
+		if !console.oneArgument(args, "stoop admin setting", "<group>") {
 			return 2
 		}
 		if args[0] == "clear" {
 			if err := inst.ClearSetting(ctx, args[1]); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				return 1
+				return console.fail(1, err)
 			}
-			return saved(out, args[1])
+			return saved(console.out, args[1])
 		}
 		existed, err := inst.ResetSetting(ctx, args[1])
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return console.fail(1, err)
 		}
 		if !existed {
-			_, _ = fmt.Fprintf(out, "%s had nothing saved\n", args[1])
+			_, _ = fmt.Fprintf(console.out, "%s had nothing saved\n", args[1])
 			return 0
 		}
 		if slices.Contains(restartNeeded, args[1]) {
-			return saved(out, args[1])
+			return saved(console.out, args[1])
 		}
-		_, _ = fmt.Fprintln(out, "saved\nthe running server uses .env as it was at start; restart it if .env has changed since")
+		_, _ = fmt.Fprintln(console.out, "saved\nthe running server uses .env as it was at start; restart it if .env has changed since")
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "unknown setting command %q\n\n%s", args[0], settingUsage)
-		return 2
+		return console.failf(2, "unknown setting command %q\n\n%s", args[0], settingUsage)
 	}
 }
 

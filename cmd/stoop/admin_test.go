@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"strings"
 	"testing"
@@ -28,9 +27,12 @@ func TestAdminRefusal(t *testing.T) {
 func TestRunAdminLeavesBehindDatabaseAlone(t *testing.T) {
 	databaseURL := dbtest.NewURL(t)
 	t.Setenv("STOOP_DATABASE_URL", databaseURL)
-	var out bytes.Buffer
-	if code := runAdmin(t.Context(), []string{"list"}, &out); code != 3 {
+	console, _, errOut := bufferedStreams()
+	if code := runAdmin(t.Context(), []string{"list"}, console); code != 3 {
 		t.Fatalf("list on an empty database: exit %d, want 3", code)
+	}
+	if !strings.HasPrefix(errOut.String(), "database is at migration 0 and this binary needs ") {
+		t.Errorf("refusal: %q", errOut.String())
 	}
 	pool, err := db.Connect(context.Background(), databaseURL, 1)
 	if err != nil {
@@ -58,34 +60,43 @@ func TestRunAdminSetting(t *testing.T) {
 	pool.Close()
 	t.Setenv("STOOP_DATABASE_URL", databaseURL)
 	t.Setenv("STOOP_PUBLIC_URL", "https://env.example.com")
-	run := func(args ...string) (int, string) {
-		var out bytes.Buffer
-		code := runAdmin(t.Context(), append([]string{"setting"}, args...), &out)
-		return code, out.String()
+	run := func(args ...string) (int, string, string) {
+		console, out, errOut := bufferedStreams()
+		code := runAdmin(t.Context(), args, console)
+		return code, out.String(), errOut.String()
 	}
 
-	if code, out := run("list"); code != 0 || !strings.Contains(out, "https://env.example.com") {
+	if code, out, _ := run("setting", "list"); code != 0 || !strings.Contains(out, "https://env.example.com") {
 		t.Errorf("list: exit %d\n%s", code, out)
 	}
-	if code, out := run("set", "tailscale.enabled=true", "tailscale.hostname=porch"); code != 0 || !strings.Contains(out, "restart") {
+	if code, out, _ := run("setting", "set", "tailscale.enabled=true", "tailscale.hostname=porch"); code != 0 || !strings.Contains(out, "restart") {
 		t.Errorf("set tailscale: exit %d\n%s", code, out)
 	}
-	if code, _ := run("set", "public-url"); code != 2 {
-		t.Errorf("set without =: exit %d, want 2", code)
+	if code, _, errOut := run("setting", "set", "public-url"); code != 2 || errOut != "\"public-url\" is not name=value\n" {
+		t.Errorf("set without =: exit %d, want 2, %q", code, errOut)
 	}
-	if code, _ := run("set", "public-url=chat.example.com"); code != 1 {
-		t.Errorf("set a bare host: exit %d, want 1", code)
+	if code, _, errOut := run("setting", "set", "public-url=chat.example.com"); code != 1 || errOut == "" {
+		t.Errorf("set a bare host: exit %d, want 1, %q", code, errOut)
 	}
-	if code, out := run("clear", "public-url"); code != 0 || out != "saved\n" {
+	if code, out, _ := run("setting", "clear", "public-url"); code != 0 || out != "saved\n" {
 		t.Errorf("clear: exit %d\n%s", code, out)
 	}
-	if code, out := run("reset", "public-url"); code != 0 || !strings.Contains(out, "restart it if .env has changed") {
+	if code, _, errOut := run("setting", "clear"); code != 2 || errOut != "usage: stoop admin setting clear <group>\n" {
+		t.Errorf("clear without a group: exit %d, %q", code, errOut)
+	}
+	if code, out, _ := run("setting", "reset", "public-url"); code != 0 || !strings.Contains(out, "restart it if .env has changed") {
 		t.Errorf("reset: exit %d\n%s", code, out)
 	}
-	if code, out := run("reset", "tailscale"); code != 0 || !strings.Contains(out, "restart the server for the tailscale change") {
+	if code, out, _ := run("setting", "reset", "tailscale"); code != 0 || !strings.Contains(out, "restart the server for the tailscale change") {
 		t.Errorf("reset tailscale: exit %d\n%s", code, out)
 	}
-	if code, _ := run("bogus"); code != 2 {
-		t.Errorf("unknown command: exit %d, want 2", code)
+	if code, _, errOut := run("setting", "bogus"); code != 2 || errOut != "unknown setting command \"bogus\"\n\n"+settingUsage {
+		t.Errorf("unknown command: exit %d, want 2, %q", code, errOut)
+	}
+	if code, out, errOut := run("promote"); code != 2 || out != "" || errOut != "usage: stoop admin promote <username>\n" {
+		t.Errorf("promote without a username: exit %d, out %q, err %q", code, out, errOut)
+	}
+	if code, _, errOut := run("password-login", "everyone", "admins"); code != 2 || errOut != "usage: stoop admin password-login <everyone|admins|off>\n" {
+		t.Errorf("password-login with two values: exit %d, %q", code, errOut)
 	}
 }

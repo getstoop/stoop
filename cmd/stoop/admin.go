@@ -3,15 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"text/tabwriter"
 
 	"github.com/getstoop/stoop/internal/app"
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/instance"
 )
@@ -44,41 +41,29 @@ status 3.
 // adminRefusal is why stoop admin will not run against this database, or
 // nil. Migrating here would change the schema under a running older server,
 // skipping the backup and plan stoop upgrade takes first.
-func adminRefusal(p db.Plan) error {
-	if err := p.Refused(); err != nil {
+func adminRefusal(plan db.Plan) error {
+	if err := plan.Refused(); err != nil {
 		return err
 	}
-	if len(p.Pending) > 0 {
-		return fmt.Errorf("database is at migration %d and this binary needs %d: start this version's server first (stoop upgrade does), or use the stoop that matches the running server", p.Applied, p.Newest)
+	if len(plan.Pending) > 0 {
+		return fmt.Errorf("database is at migration %d and this binary needs %d: start this version's server first (stoop upgrade does), or use the stoop that matches the running server", plan.Applied, plan.Newest)
 	}
 	return nil
 }
 
 // runAdmin implements `stoop admin ...`. It returns the process exit code.
-func runAdmin(ctx context.Context, args []string, out io.Writer) int {
+func runAdmin(ctx context.Context, args []string, console streams) int {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
-		_, _ = fmt.Fprint(out, adminUsage)
+		_, _ = fmt.Fprint(console.out, adminUsage)
 		return 2
 	}
-	cfg, err := config.Load()
+	cfg, pool, plan, err := openDatabase(ctx)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "invalid configuration:", err)
-		return 1
-	}
-	pool, err := db.Connect(ctx, cfg.DatabaseURL, cfg.DatabasePoolMax)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
+		return console.fail(1, err)
 	}
 	defer pool.Close()
-	plan, err := db.Inspect(ctx, pool)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
 	if err := adminRefusal(plan); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 3
+		return console.fail(3, err)
 	}
 	svc := auth.New(pool, auth.Options{})
 
@@ -86,89 +71,78 @@ func runAdmin(ctx context.Context, args []string, out io.Writer) int {
 	case "setting":
 		inst := instance.New(pool, nil)
 		app.UseSettingsEnv(inst, cfg)
-		return runAdminSetting(ctx, inst, args[1:], out)
+		return runAdminSetting(ctx, inst, args[1:], console)
 	case "password-login":
-		if len(args) != 2 {
-			fmt.Fprintln(os.Stderr, "usage: stoop admin password-login <everyone|admins|off>")
+		if !console.oneArgument(args, "stoop admin", "<everyone|admins|off>") {
 			return 2
 		}
 		inst := instance.New(pool, nil)
 		if err := inst.SetPasswordSignIn(ctx, instance.PasswordSignIn(args[1])); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return console.fail(1, err)
 		}
-		_, _ = fmt.Fprintf(out, "password sign-in: %s\n", args[1])
+		_, _ = fmt.Fprintf(console.out, "password sign-in: %s\n", args[1])
 		return 0
 	case "list":
 		accounts, err := svc.ListAccounts(ctx)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return console.fail(1, err)
 		}
-		w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "USERNAME\tROLE\tSTATUS\tCREATED")
-		for _, a := range accounts {
-			role := string(a.Role)
-			if a.IsOwner {
+		writer := tabwriter.NewWriter(console.out, 0, 4, 2, ' ', 0)
+		_, _ = fmt.Fprintln(writer, "USERNAME\tROLE\tSTATUS\tCREATED")
+		for _, account := range accounts {
+			role := string(account.Role)
+			if account.IsOwner {
 				role = "owner"
 			}
 			status := "active"
-			if a.DeactivatedAt != nil {
+			if account.DeactivatedAt != nil {
 				status = "deactivated"
 			}
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", a.Username, role, status, a.CreatedAt.Format("2006-01-02"))
+			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\n", account.Username, role, status, account.CreatedAt.Format("2006-01-02"))
 		}
-		return flush(w)
+		return flush(writer, console)
 	case "promote", "demote":
-		if len(args) != 2 {
-			fmt.Fprintf(os.Stderr, "usage: stoop admin %s <username>\n", args[0])
+		if !console.oneArgument(args, "stoop admin", "<username>") {
 			return 2
 		}
 		role := authctx.RoleAdmin
 		if args[0] == "demote" {
 			role = authctx.RoleMember
 		}
-		a, err := svc.SetRoleByUsername(ctx, strings.ToLower(args[1]), role)
+		account, err := svc.SetRoleByUsername(ctx, strings.ToLower(args[1]), role)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return console.fail(1, err)
 		}
-		_, _ = fmt.Fprintf(out, "%s is now %s\n", a.Username, a.Role)
+		_, _ = fmt.Fprintf(console.out, "%s is now %s\n", account.Username, account.Role)
 		return 0
 	case "reset-password":
-		if len(args) != 2 {
-			fmt.Fprintln(os.Stderr, "usage: stoop admin reset-password <username>")
+		if !console.oneArgument(args, "stoop admin", "<username>") {
 			return 2
 		}
-		temp, a, err := svc.ResetPasswordByUsername(ctx, strings.ToLower(args[1]))
+		temp, account, err := svc.ResetPasswordByUsername(ctx, strings.ToLower(args[1]))
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return console.fail(1, err)
 		}
-		_, _ = fmt.Fprintf(out, "%s's temporary password: %s\n(every session was signed out; they should change it on their profile page)\n", a.Username, temp)
+		_, _ = fmt.Fprintf(console.out, "%s's temporary password: %s\n(every session was signed out; they should change it on their profile page)\n", account.Username, temp)
 		return 0
 	case "transfer-owner":
-		if len(args) != 2 {
-			fmt.Fprintln(os.Stderr, "usage: stoop admin transfer-owner <username>")
+		if !console.oneArgument(args, "stoop admin", "<username>") {
 			return 2
 		}
-		a, err := svc.TransferOwnershipByUsername(ctx, strings.ToLower(args[1]))
+		account, err := svc.TransferOwnershipByUsername(ctx, strings.ToLower(args[1]))
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return console.fail(1, err)
 		}
-		_, _ = fmt.Fprintf(out, "%s now owns this server\n", a.Username)
+		_, _ = fmt.Fprintf(console.out, "%s now owns this server\n", account.Username)
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "unknown admin command %q\n\n%s", args[0], adminUsage)
-		return 2
+		return console.failf(2, "unknown admin command %q\n\n%s", args[0], adminUsage)
 	}
 }
 
-func flush(w *tabwriter.Writer) int {
-	if err := w.Flush(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
+func flush(writer *tabwriter.Writer, console streams) int {
+	if err := writer.Flush(); err != nil {
+		return console.fail(1, err)
 	}
 	return 0
 }
