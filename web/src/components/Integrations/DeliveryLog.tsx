@@ -49,12 +49,6 @@ export function DeliveryLog({ webhookId }: { webhookId: string }) {
             </span>
             <span>
               {deliveryText(d)}
-              {d.response && (
-                <>
-                  <br />
-                  <span className="response">{d.response.split("\n")[0]}</span>
-                </>
-              )}
             </span>
             {state === "failed" ? (
               <button

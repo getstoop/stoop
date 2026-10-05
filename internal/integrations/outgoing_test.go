@@ -768,7 +768,8 @@ func (s *subscriber) has(topic string) bool {
 	return s.sub != nil && s.sub.Has(topic)
 }
 
-func TestOutgoingRecordsAnyReply(t *testing.T) {
+// Whatever the receiver answers is delivered and never stored.
+func TestOutgoingKeepsNoReply(t *testing.T) {
 	replies := map[string]string{
 		"binary":   "\xff\xfe\x80 not text",
 		"nul":      "ok\x00ok",
@@ -786,8 +787,13 @@ func TestOutgoingRecordsAnyReply(t *testing.T) {
 			if results := f.drain(t); len(results) != 1 || !results[0].Delivered {
 				t.Fatalf("results = %+v", results)
 			}
-			if logged := f.listDeliveries(t, hook.Id); len(logged) != 1 || logged[0].FinishedAt == nil || logged[0].GetStatusCode() != 200 || !utf8.ValidString(logged[0].Response) {
+			if logged := f.listDeliveries(t, hook.Id); len(logged) != 1 || logged[0].FinishedAt == nil || logged[0].GetStatusCode() != 200 {
 				t.Errorf("log: %+v", logged)
+			}
+			var stored string
+			if err := f.pool.QueryRow(context.Background(),
+				"SELECT response FROM webhook_deliveries WHERE webhook_id = $1", hook.Id).Scan(&stored); err != nil || stored != "" {
+				t.Errorf("stored reply %q (%v), want none", stored, err)
 			}
 		})
 	}

@@ -163,16 +163,15 @@ func (q *Queries) ListUnfinishedDeliveriesBefore(ctx context.Context, before tim
 const recordDeliveryAttempt = `-- name: RecordDeliveryAttempt :exec
 UPDATE webhook_deliveries
 SET attempts = $1, status_code = $2,
-    response = $3, error = $4,
-    finished_at = $5::timestamptz,
-    body = CASE WHEN $6::boolean THEN NULL ELSE body END
-WHERE id = $7
+    response = '', error = $3,
+    finished_at = $4::timestamptz,
+    body = CASE WHEN $5::boolean THEN NULL ELSE body END
+WHERE id = $6
 `
 
 type RecordDeliveryAttemptParams struct {
 	Attempts   int32
 	StatusCode *int32
-	Response   string
 	Error      string
 	FinishedAt *time.Time
 	Delivered  bool
@@ -181,11 +180,11 @@ type RecordDeliveryAttemptParams struct {
 
 // RecordDeliveryAttempt writes what one try learned; finished_at is set
 // once the delivery is delivered or dead, and a delivered body is not kept.
+// The receiver's reply is not stored; the column goes in STOOP-415.
 func (q *Queries) RecordDeliveryAttempt(ctx context.Context, arg RecordDeliveryAttemptParams) error {
 	_, err := q.db.Exec(ctx, recordDeliveryAttempt,
 		arg.Attempts,
 		arg.StatusCode,
-		arg.Response,
 		arg.Error,
 		arg.FinishedAt,
 		arg.Delivered,
