@@ -12,6 +12,8 @@ const (
 	nextFile    = "docker-compose.yml.next"
 	prevFile    = "docker-compose.yml.prev"
 	envNextFile = "env.example.next"
+	// rollback parks the files it replaces under this suffix; nothing reads them.
+	rolledBack = ".rolledback"
 )
 
 // companions are the rest of the release bundle, mounted by the compose

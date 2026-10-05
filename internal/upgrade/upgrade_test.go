@@ -442,20 +442,164 @@ func TestRollback(t *testing.T) {
 		t.Fatalf("rollback: %v\n%s", err, out.String())
 	}
 	now, _ := os.ReadFile(filepath.Join(u.Dir, composeFile))
-	kept, _ := os.ReadFile(filepath.Join(u.Dir, nextFile))
+	kept, _ := os.ReadFile(filepath.Join(u.Dir, "docker-compose.yml.rolledback"))
 	if string(now) != oldCompose || string(kept) != newCompose {
-		t.Errorf("files after rollback: compose=%q next=%q", now, kept)
+		t.Errorf("files after rollback: compose=%q kept=%q", now, kept)
 	}
 	lk, _ := os.ReadFile(filepath.Join(u.Dir, "livekit.yaml"))
-	if string(lk) != "old livekit\n" {
-		t.Errorf("companion after rollback: %q", lk)
+	lkKept, _ := os.ReadFile(filepath.Join(u.Dir, "livekit.yaml.rolledback"))
+	if string(lk) != "old livekit\n" || string(lkKept) != "new livekit\n" {
+		t.Errorf("companion after rollback: livekit.yaml=%q kept=%q", lk, lkKept)
 	}
-	if !strings.Contains(out.String(), "== back on 0.2.0; the 0.3.0 file is kept as docker-compose.yml.next") {
+	if !strings.Contains(out.String(), "== back on 0.2.0; the 0.3.0 file is kept as docker-compose.yml.rolledback") {
 		t.Errorf("output:\n%s", out.String())
 	}
 	if r.called("docker compose -f docker-compose.yml.prev") {
 		t.Error("rollback ran the older image")
 	}
+}
+
+var compose031 = strings.ReplaceAll(newCompose, "0.3.0", "0.3.1")
+
+// rolledBackInstall is an install upgraded to 0.3.0 and rolled back to
+// 0.2.0, with a 0.3.1 out that ships no livekit-entrypoint.sh.
+func rolledBackInstall(t *testing.T) (*Upgrader, *fakeRunner, *bytes.Buffer) {
+	t.Helper()
+	var u *Upgrader
+	r := happyRunner(t, &u, pendingPlan, "0.3.1")
+	r.script[5].do = func() {
+		dir := filepath.Join(u.Dir, "backups", "20260925-180000-0.2.0-to-0.3.1")
+		_ = os.WriteFile(filepath.Join(dir, "stoop-data.tar"), []byte("tar"), 0o644)
+	}
+	fetch := fakeFetcher{
+		"https://example.test/releases.json": []byte(`{"schema":1,"latest":"0.3.1","releases":[{"version":"0.3.1","files":{
+			"docker-compose.yml":"https://example.test/v0.3.1/docker-compose.yml",
+			"env.example":"https://example.test/v0.3.1/env.example",
+			"livekit.yaml":"https://example.test/v0.3.1/livekit.yaml"}}]}`),
+		"https://example.test/v0.3.1/docker-compose.yml": []byte(compose031),
+		"https://example.test/v0.3.1/env.example":        []byte(newExample),
+		"https://example.test/v0.3.1/livekit.yaml":       []byte("0.3.1 livekit\n"),
+	}
+	u, out := install(t, r, fetch)
+	for name, body := range map[string]string{
+		composeFile:                  newCompose,
+		prevFile:                     oldCompose,
+		"livekit.yaml":               "0.3.0 livekit\n",
+		"livekit.yaml.prev":          "0.2.0 livekit\n",
+		"livekit-entrypoint.sh":      "0.3.0 entrypoint\n",
+		"livekit-entrypoint.sh.prev": "0.2.0 entrypoint\n",
+	} {
+		if err := os.WriteFile(filepath.Join(u.Dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := u.Rollback(context.Background()); err != nil {
+		t.Fatalf("rollback: %v\n%s", err, out.String())
+	}
+	return u, r, out
+}
+
+// wantFiles checks each file's contents; "" is a file that must not exist.
+func wantFiles(t *testing.T, dir string, want map[string]string) {
+	t.Helper()
+	for name, body := range want {
+		got, err := os.ReadFile(filepath.Join(dir, name))
+		if body == "" {
+			if err == nil {
+				t.Errorf("%s should not exist, has %q", name, got)
+			}
+			continue
+		}
+		if string(got) != body {
+			t.Errorf("%s = %q, want %q", name, got, body)
+		}
+	}
+}
+
+func TestUpgradeAfterRollback(t *testing.T) {
+	t.Run("plan only keeps the parked files", func(t *testing.T) {
+		u, _, out := rolledBackInstall(t)
+		u.PlanOnly = true
+		if err := u.Upgrade(context.Background()); err != nil {
+			t.Fatalf("%v\n%s", err, out.String())
+		}
+		wantFiles(t, u.Dir, map[string]string{
+			"docker-compose.yml.rolledback":    newCompose,
+			"livekit.yaml.rolledback":          "0.3.0 livekit\n",
+			"livekit-entrypoint.sh.rolledback": "0.3.0 entrypoint\n",
+		})
+	})
+	t.Run("a compose file given installs only that", func(t *testing.T) {
+		u, _, out := rolledBackInstall(t)
+		u.File = filepath.Join(u.Dir, "new.yml")
+		_ = os.WriteFile(u.File, []byte(compose031), 0o644)
+		if err := u.Upgrade(context.Background()); err != nil {
+			t.Fatalf("%v\n%s", err, out.String())
+		}
+		wantFiles(t, u.Dir, map[string]string{
+			composeFile:             compose031,
+			"livekit.yaml":          "0.2.0 livekit\n",
+			"livekit-entrypoint.sh": "0.2.0 entrypoint\n",
+		})
+	})
+	t.Run("a fetched release installs only its own files", func(t *testing.T) {
+		u, _, out := rolledBackInstall(t)
+		if err := u.Upgrade(context.Background()); err != nil {
+			t.Fatalf("%v\n%s", err, out.String())
+		}
+		wantFiles(t, u.Dir, map[string]string{
+			composeFile:             compose031,
+			"livekit.yaml":          "0.3.1 livekit\n",
+			"livekit-entrypoint.sh": "0.2.0 entrypoint\n",
+		})
+	})
+}
+
+// A rollback by an older stoop parked the 0.3.0 files as .next; an
+// operator following its message passes that compose file back in.
+func TestUpgradeIgnoresStaleNext(t *testing.T) {
+	var u *Upgrader
+	r := happyRunner(t, &u, pendingPlan, "0.3.0")
+	u, out := install(t, r, releaseFetcher())
+	for name, body := range map[string]string{
+		"docker-compose.yml.next":    newCompose,
+		"livekit.yaml.next":          "stale livekit\n",
+		"livekit-entrypoint.sh.next": "stale entrypoint\n",
+		"env.example.next":           "STALE_SETTING=1\n",
+	} {
+		_ = os.WriteFile(filepath.Join(u.Dir, name), []byte(body), 0o644)
+	}
+	u.File = filepath.Join(u.Dir, "docker-compose.yml.next")
+	if err := u.Upgrade(context.Background()); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if strings.Contains(out.String(), "STALE_SETTING") {
+		t.Errorf("a stale env example was read:\n%s", out.String())
+	}
+	wantFiles(t, u.Dir, map[string]string{
+		composeFile:                  newCompose,
+		"livekit.yaml":               "old livekit\n",
+		"livekit-entrypoint.sh":      "",
+		"livekit.yaml.next":          "",
+		"livekit-entrypoint.sh.next": "",
+		"env.example.next":           "",
+	})
+}
+
+func TestResolveErrorLeavesNothingStaged(t *testing.T) {
+	var u *Upgrader
+	r := happyRunner(t, &u, pendingPlan, "0.3.0")
+	u, _ = install(t, r, releaseFetcher())
+	// A directory in the way makes the companion write fail after the
+	// compose file and env example are already staged.
+	blocker := filepath.Join(u.Dir, "livekit.yaml.next")
+	if err := os.MkdirAll(filepath.Join(blocker, "in-the-way"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := u.Upgrade(context.Background()); err == nil {
+		t.Fatal("want the companion write to fail")
+	}
+	wantFiles(t, u.Dir, map[string]string{"docker-compose.yml.next": "", "env.example.next": ""})
 }
 
 func TestRollbackFailsClosed(t *testing.T) {

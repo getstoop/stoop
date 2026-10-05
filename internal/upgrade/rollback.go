@@ -37,15 +37,17 @@ func (u *Upgrader) Rollback(ctx context.Context) error {
 	if err := u.confirm(fmt.Sprintf("Put %s back and restart?", target)); err != nil {
 		return err
 	}
-	if err := os.Rename(u.path(composeFile), u.path(nextFile)); err != nil {
+	parked := composeFile + rolledBack
+	if err := os.Rename(u.path(composeFile), u.path(parked)); err != nil {
 		return err
 	}
 	if err := os.Rename(u.path(prevFile), u.path(composeFile)); err != nil {
 		return err
 	}
 	for _, name := range companions {
+		_ = os.Remove(u.path(name + rolledBack))
 		if _, err := os.Stat(u.path(name + ".prev")); err == nil {
-			_ = os.Rename(u.path(name), u.path(name+".next"))
+			_ = os.Rename(u.path(name), u.path(name+rolledBack))
 			if err := os.Rename(u.path(name+".prev"), u.path(name)); err != nil {
 				return err
 			}
@@ -53,8 +55,8 @@ func (u *Upgrader) Rollback(ctx context.Context) error {
 	}
 	if res := u.composeStreaming(ctx, "up", "-d", "--remove-orphans", "--wait", "--wait-timeout", u.Wait); res.Code != 0 {
 		u.composeStreaming(ctx, "logs", "--tail", "40", "stoop")
-		return fmt.Errorf("%s did not come up healthy; the %s file is kept as %s", target, current, nextFile)
+		return fmt.Errorf("%s did not come up healthy; the %s file is kept as %s", target, current, parked)
 	}
-	u.say("back on %s; the %s file is kept as %s", target, current, nextFile)
+	u.say("back on %s; the %s file is kept as %s", target, current, parked)
 	return nil
 }
