@@ -121,14 +121,32 @@ func (s *Service) liveBot(ctx context.Context, id string) (Bot, error) {
 	if err := s.requireManageWired(ctx); err != nil {
 		return Bot{}, err
 	}
+	return s.activeBot(ctx, id, connect.NewError(connect.CodeFailedPrecondition, errors.New("that bot is deactivated")))
+}
+
+// activeBot is the bot, or refusal when it is deactivated. Each caller
+// words the refusal for its own form.
+func (s *Service) activeBot(ctx context.Context, id string, refusal error) (Bot, error) {
 	bot, err := s.bots.GetBot(ctx, id)
 	if err != nil {
 		return Bot{}, err
 	}
 	if bot.DeactivatedAt != nil {
-		return Bot{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("that bot is deactivated"))
+		return Bot{}, refusal
 	}
 	return bot, nil
+}
+
+// requireBotMember is refusal when the bot is not a member of the space.
+func (s *Service) requireBotMember(ctx context.Context, botID, spaceID string, refusal error) error {
+	member, err := s.spaces.IsSpaceMember(ctx, botID, spaceID)
+	if err != nil {
+		return err
+	}
+	if !member {
+		return refusal
+	}
+	return nil
 }
 
 // DeactivateBot revokes the bot's credentials and disables its hooks.

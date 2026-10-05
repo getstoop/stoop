@@ -58,19 +58,14 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 	var bot Bot
 	newBot := req.Msg.BotUserId == ""
 	if !newBot {
-		if bot, err = s.bots.GetBot(ctx, req.Msg.BotUserId); err != nil {
-			return nil, err
-		}
-		if bot.DeactivatedAt != nil {
-			return nil, apierr.Field(connect.CodeFailedPrecondition, "bot_user_id", errors.New("that bot is deactivated"))
-		}
-		member, err := s.spaces.IsSpaceMember(ctx, bot.ID, spaceID)
+		bot, err = s.activeBot(ctx, req.Msg.BotUserId,
+			apierr.Field(connect.CodeFailedPrecondition, "bot_user_id", errors.New("that bot is deactivated")))
 		if err != nil {
 			return nil, err
 		}
-		if !member {
-			return nil, apierr.Field(connect.CodeFailedPrecondition, "bot_user_id",
-				errors.New("that bot isn't in this space; add it from Server admin → Integrations first"))
+		if err := s.requireBotMember(ctx, bot.ID, spaceID, apierr.Field(connect.CodeFailedPrecondition, "bot_user_id",
+			errors.New("that bot isn't in this space; add it from Server admin → Integrations first"))); err != nil {
+			return nil, err
 		}
 	} else if bot, err = s.newBotNamed(ctx, name); err != nil {
 		return nil, err
@@ -149,10 +144,12 @@ func (s *Service) UpdateIncoming(ctx context.Context, req *connect.Request[integ
 	}
 	if req.Msg.Enabled != nil {
 		if *req.Msg.Enabled {
-			if err := s.requireLiveBot(ctx, hook.BotUserID); err != nil {
+			if _, err := s.activeBot(ctx, hook.BotUserID, errHookBotDeactivated()); err != nil {
 				return nil, err
 			}
-			if err := s.requireBotInSpace(ctx, hook.BotUserID, hook.SpaceID); err != nil {
+			// Adding the bot back to the space is the admin's explicit act.
+			if err := s.requireBotMember(ctx, hook.BotUserID, hook.SpaceID, connect.NewError(connect.CodeFailedPrecondition,
+				errors.New("the bot isn't in this space; add it back from Server admin → Integrations first"))); err != nil {
 				return nil, err
 			}
 		}
@@ -215,7 +212,7 @@ func (s *Service) deleteIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 // the old one. The hook stays on or off as it was. A hook whose token is
 // already gone has no grant to copy and comes back post-only.
 func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook) (string, error) {
-	if err := s.requireLiveBot(ctx, hook.BotUserID); err != nil {
+	if _, err := s.activeBot(ctx, hook.BotUserID, errHookBotDeactivated()); err != nil {
 		return "", err
 	}
 	grants, copied := hookGrants(false), false
@@ -259,30 +256,9 @@ func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 	return url, nil
 }
 
-// requireLiveBot refuses work on a hook whose bot is deactivated.
-func (s *Service) requireLiveBot(ctx context.Context, botID string) error {
-	bot, err := s.bots.GetBot(ctx, botID)
-	if err != nil {
-		return err
-	}
-	if bot.DeactivatedAt != nil {
-		return connect.NewError(connect.CodeFailedPrecondition, errors.New("this hook's bot is deactivated; make a new hook"))
-	}
-	return nil
-}
-
-// requireBotInSpace refuses to turn a hook on while its bot is out of the
-// space; adding the bot back is the admin's explicit act.
-func (s *Service) requireBotInSpace(ctx context.Context, botID, spaceID string) error {
-	member, err := s.spaces.IsSpaceMember(ctx, botID, spaceID)
-	if err != nil {
-		return err
-	}
-	if !member {
-		return connect.NewError(connect.CodeFailedPrecondition,
-			errors.New("the bot isn't in this space; add it back from Server admin → Integrations first"))
-	}
-	return nil
+// errHookBotDeactivated refuses work on a hook whose bot is deactivated.
+func errHookBotDeactivated() error {
+	return connect.NewError(connect.CodeFailedPrecondition, errors.New("this hook's bot is deactivated; make a new hook"))
 }
 
 // disableHooksOfBotInSpace turns off the bot's incoming hooks in a space
