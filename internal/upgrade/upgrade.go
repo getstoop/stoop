@@ -23,8 +23,9 @@ type Options struct {
 	File     string // a compose file already on disk, in place of a download
 	PlanOnly bool
 	Yes      bool
-	Index    string // the release index
-	Wait     string // seconds compose waits for the stack to be healthy
+	// Set by the tests only; New fills the defaults.
+	Index string // the release index
+	Wait  string // seconds compose waits for the stack to be healthy
 }
 
 // Upgrader runs the sequence. New wires the real world; tests fill the
