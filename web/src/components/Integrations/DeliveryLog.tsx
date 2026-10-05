@@ -10,8 +10,8 @@ import {
 } from "../../api/integrations";
 import { useDeliveries } from "../../api/queries";
 
-// An outgoing webhook's last ten deliveries: what, when, how it went, and
-// the first line of the receiver's answer. A failed one can be sent again.
+// An outgoing webhook's last ten deliveries: what, when and how it went.
+// A failed one can be sent again.
 export function DeliveryLog({ webhookId }: { webhookId: string }) {
   const queryClient = useQueryClient();
   const { data: deliveries, isLoading } = useDeliveries(webhookId, true);
@@ -47,9 +47,7 @@ export function DeliveryLog({ webhookId }: { webhookId: string }) {
                 {d.createdAt && timestampDate(d.createdAt).toLocaleString()}
               </span>
             </span>
-            <span>
-              {deliveryText(d)}
-            </span>
+            <span>{deliveryText(d)}</span>
             {state === "failed" ? (
               <button
                 type="button"
