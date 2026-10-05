@@ -23,10 +23,7 @@ func (q quotaOnly) AttachmentRetentionDays(context.Context) (int, error) { retur
 func TestRecordFileHoldsQuotaUnderConcurrency(t *testing.T) {
 	pool := dbtest.New(t)
 	ctx := context.Background()
-	owner := uuid.NewString()
-	if _, err := pool.Exec(ctx, "INSERT INTO users (id, username, display_name, password_hash) VALUES ($1, 'o', 'o', 'x')", owner); err != nil {
-		t.Fatal(err)
-	}
+	owner := dbtest.NewUser(t, pool, "casey", "member")
 	s := &Service{q: dbgen.New(pool), pool: pool, policy: quotaOnly(100)}
 
 	const racers = 6
