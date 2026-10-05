@@ -75,11 +75,15 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	g.connectPresence(ctx, userID, spaceIDs)
 	defer g.disconnectPresence(userID)
 
-	// A read error means the peer is gone.
+	// The reader only decodes; this goroutine applies what it hands over,
+	// so nothing changes this connection's state after the deferred
+	// cleanup. A read error means the peer is gone.
+	clientEvents := make(chan *realtimev1.ClientEvent, clientFrameBurst)
 	go func() {
 		defer cancel()
-		g.readClientEvents(ctx, conn, userID, connID, sub)
+		readClientEvents(ctx, conn, clientEvents)
 	}()
+	lastTyping := map[string]time.Time{}
 
 	if err := g.send(ctx, conn, g.ready(userID, spaceIDs)); err != nil {
 		return
@@ -96,6 +100,8 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			_ = conn.Close(websocket.StatusNormalClosure, "")
 			return
+		case event := <-clientEvents:
+			g.handleClientEvent(ctx, userID, connID, sub, event, lastTyping)
 		case <-pings.C:
 			// The session is checked again with every ping, so one that
 			// expired, or a revocation the bus never carried (the CLI, a
@@ -160,10 +166,12 @@ func (g *Gateway) disconnectPresence(userID string) {
 	}
 }
 
-// readClientEvents handles what the client sends (typing, voice state)
-// until a read fails. Pong control frames are read here too.
-func (g *Gateway) readClientEvents(ctx context.Context, conn *websocket.Conn, userID string, connID uint64, sub *events.Subscription) {
-	lastTyping := map[string]time.Time{}
+// readClientEvents decodes what the client sends and hands it to the
+// connection's main loop until a read fails. Pong control frames are read
+// here too, so it never waits on the main loop: one stuck in a ping would
+// wait on it in turn. A frame that finds the hand-over full is dropped,
+// like one over the rate.
+func readClientEvents(ctx context.Context, conn *websocket.Conn, out chan<- *realtimev1.ClientEvent) {
 	frames := rate.NewLimiter(clientFrameRate, clientFrameBurst)
 	for {
 		_, data, err := conn.Read(ctx)
@@ -177,12 +185,21 @@ func (g *Gateway) readClientEvents(ctx context.Context, conn *websocket.Conn, us
 		if err := proto.Unmarshal(data, event); err != nil {
 			continue
 		}
-		if typing := event.GetTyping(); typing != nil {
-			g.relayTyping(ctx, userID, sub, typing, lastTyping)
+		select {
+		case out <- event:
+		default:
 		}
-		if voiceState := event.GetVoiceState(); voiceState != nil {
-			g.handleVoiceState(ctx, userID, connID, sub, voiceState)
-		}
+	}
+}
+
+// handleClientEvent applies one client event: a typing hint or a voice
+// state report.
+func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID uint64, sub *events.Subscription, event *realtimev1.ClientEvent, lastTyping map[string]time.Time) {
+	if typing := event.GetTyping(); typing != nil {
+		g.relayTyping(ctx, userID, sub, typing, lastTyping)
+	}
+	if voiceState := event.GetVoiceState(); voiceState != nil {
+		g.handleVoiceState(ctx, userID, connID, sub, voiceState)
 	}
 }
 

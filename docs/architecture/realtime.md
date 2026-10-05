@@ -143,16 +143,19 @@ everything it knows comes from four ports: `SessionVerifier` and
    host, `STOOP_PUBLIC_URL`'s host, and `STOOP_ALLOWED_WS_ORIGINS`.
 4. **Register presence.** The first connection for a user announces them
    online to their spaces; the last one to close announces them offline.
-   Intermediate connections change nothing, which is what makes several
+   A later connection announces only a space no other connection has
+   recorded yet (one joined moments ago), which is what makes several
    tabs behave like one person.
 5. **Send `Ready`** — the user's id, their space ids, who is online, who
    is on do not disturb, and everyone currently in a voice channel. One frame that
    seeds all the ephemeral state the client needs, so there is no
    "connected but don't know anything yet" gap.
-6. **Run two loops.** A read loop handles client events; the main loop
-   selects over the subscription, a 30-second ping ticker, and context
-   cancellation. A failed ping (10s timeout) or a read error ends the
-   connection.
+6. **Run two loops.** A read loop decodes client events and hands them
+   to the main loop, which selects over them, the subscription, a
+   30-second ping ticker, and context cancellation. Only the main loop
+   changes the connection's state, so a voice report can't land after a
+   kick or after the cleanup in step 7. A failed ping (10s timeout) or a
+   read error ends the connection.
 7. **On close**, announce the leave from any voice channel, drop presence
    if this was the last connection, and close the subscription.
 
