@@ -996,6 +996,12 @@ func TestSocialFlowWithTheDatabaseGone(t *testing.T) {
 	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1"); loc != "/login?error=login_state" {
 		t.Errorf("link start with no session landed on %q", loc)
 	}
+	// Signed out is the answer before the provider is even read.
+	rig.providers.lookupErr = errors.New("database is down")
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?link=1"); loc != "/login?error=login_state" {
+		t.Errorf("signed-out link start with a failing provider read landed on %q", loc)
+	}
+	rig.providers.lookupErr = nil
 	if status, body := rig.postAs(t, ada, "/auth/desktop/start", map[string]any{
 		"provider": "sso", "attemptChallenge": s256(verifier), "attemptMethod": "S256", "link": true,
 	}); status != http.StatusServiceUnavailable || body["error"] != "server_error" {

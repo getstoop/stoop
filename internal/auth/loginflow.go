@@ -95,12 +95,6 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, redirectURI, failCode := s.loginProvider(ctx, id)
-	if failCode != "" {
-		fail(failCode)
-		return
-	}
-
 	st := loginState{
 		Provider: id,
 		State:    randomToken(),
@@ -110,10 +104,11 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		Redirect: safeRedirectPath(r.URL.Query().Get("redirect")),
 		Exp:      time.Now().Add(loginStateTTL).Unix(),
 	}
-	// Link intent requires a live session now; the callback checks the
-	// same session again so a cookie planted on someone else can't attach
-	// an attacker's identity to their account. A desktop link recorded its
-	// session at /auth/desktop/start — the system browser has none.
+	// Link intent requires a live session now, before anything is looked
+	// up; the callback checks the same session again so a cookie planted
+	// on someone else can't attach an attacker's identity to their
+	// account. A desktop link recorded its session at /auth/desktop/start
+	// — the system browser has none.
 	if link {
 		if att.isLink() {
 			st.LinkUserID, st.SessionID = att.linkUserID, att.sessionID
@@ -133,6 +128,11 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	}
 	st.Attempt = attempt
 
+	p, redirectURI, failCode := s.loginProvider(ctx, id)
+	if failCode != "" {
+		fail(failCode)
+		return
+	}
 	http.SetCookie(w, s.loginCookie(r, s.encodeLoginState(st), loginStateTTL))
 	http.Redirect(w, r, p.authURL(st.State, st.Nonce, st.Verifier, redirectURI), http.StatusFound)
 }
