@@ -32,7 +32,7 @@ func (s *Service) FanOutWebhookEvent(ctx context.Context, ev OutgoingEvent) erro
 	if s.jobs == nil {
 		return nil
 	}
-	if on, err := s.outgoingEnabled(ctx); err != nil || !on {
+	if on, err := s.policy.WebhooksOutgoing(ctx); err != nil || !on {
 		return err
 	}
 	spaceName, instance := s.envelopeNames(ctx, ev.SpaceID)
@@ -88,9 +88,7 @@ func (s *Service) envelopeNames(ctx context.Context, spaceID string) (spaceName,
 	if s.spaces != nil {
 		spaceName, _ = s.spaces.SpaceName(ctx, spaceID)
 	}
-	if s.policy != nil {
-		instance, _ = s.policy.PublicURL(ctx)
-	}
+	instance, _ = s.policy.PublicURL(ctx)
 	return spaceName, instance
 }
 

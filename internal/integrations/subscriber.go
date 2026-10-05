@@ -150,7 +150,7 @@ func (s *Service) enqueue(ctx context.Context, ev OutgoingEvent) error {
 	if s.jobs == nil {
 		return nil
 	}
-	if on, err := s.outgoingEnabled(ctx); err != nil || !on {
+	if on, err := s.policy.WebhooksOutgoing(ctx); err != nil || !on {
 		return err
 	}
 	hooks, err := s.q.ListEnabledOutgoingWebhooksBySpace(ctx, ev.SpaceID)

@@ -17,10 +17,7 @@ import (
 // bearer tokens.
 
 func (s *Service) ListBots(ctx context.Context, _ *connect.Request[integrationsv1.ListBotsRequest]) (*connect.Response[integrationsv1.ListBotsResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	bots, err := s.bots.ListBots(ctx)
@@ -43,10 +40,7 @@ func (s *Service) ListBots(ctx context.Context, _ *connect.Request[integrationsv
 }
 
 func (s *Service) CreateBot(ctx context.Context, req *connect.Request[integrationsv1.CreateBotRequest]) (*connect.Response[integrationsv1.CreateBotResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	bot, err := s.bots.CreateBot(ctx, req.Msg.Username, req.Msg.DisplayName)
@@ -62,10 +56,7 @@ func (s *Service) CreateBot(ctx context.Context, req *connect.Request[integratio
 }
 
 func (s *Service) UpdateBot(ctx context.Context, req *connect.Request[integrationsv1.UpdateBotRequest]) (*connect.Response[integrationsv1.UpdateBotResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	bot, err := s.bots.UpdateBot(ctx, req.Msg.Id, req.Msg.Username, req.Msg.DisplayName, req.Msg.Bio)
@@ -125,30 +116,42 @@ func (s *Service) RemoveBotFromSpace(ctx context.Context, req *connect.Request[i
 	return connect.NewResponse(&integrationsv1.RemoveBotFromSpaceResponse{Bot: out}), nil
 }
 
-// liveBot is the gate and lookup the membership calls share.
+// liveBot is the gate and lookup the calls on one bot share.
 func (s *Service) liveBot(ctx context.Context, id string) (Bot, error) {
-	if err := requireManage(ctx); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return Bot{}, err
 	}
-	if err := s.ready(); err != nil {
-		return Bot{}, err
-	}
+	return s.activeBot(ctx, id, connect.NewError(connect.CodeFailedPrecondition, errors.New("that bot is deactivated")))
+}
+
+// activeBot is the bot, or refusal when it is deactivated. Each caller
+// words the refusal for its own form.
+func (s *Service) activeBot(ctx context.Context, id string, refusal error) (Bot, error) {
 	bot, err := s.bots.GetBot(ctx, id)
 	if err != nil {
 		return Bot{}, err
 	}
 	if bot.DeactivatedAt != nil {
-		return Bot{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("that bot is deactivated"))
+		return Bot{}, refusal
 	}
 	return bot, nil
 }
 
+// requireBotMember is refusal when the bot is not a member of the space.
+func (s *Service) requireBotMember(ctx context.Context, botID, spaceID string, refusal error) error {
+	member, err := s.spaces.IsSpaceMember(ctx, botID, spaceID)
+	if err != nil {
+		return err
+	}
+	if !member {
+		return refusal
+	}
+	return nil
+}
+
 // DeactivateBot revokes the bot's credentials and disables its hooks.
 func (s *Service) DeactivateBot(ctx context.Context, req *connect.Request[integrationsv1.DeactivateBotRequest]) (*connect.Response[integrationsv1.DeactivateBotResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.bots.DeactivateBot(ctx, req.Msg.Id); err != nil {
@@ -160,18 +163,9 @@ func (s *Service) DeactivateBot(ctx context.Context, req *connect.Request[integr
 // CreateBotToken mints a bearer token for an existing bot. The secret is
 // in the response and nowhere else.
 func (s *Service) CreateBotToken(ctx context.Context, req *connect.Request[integrationsv1.CreateBotTokenRequest]) (*connect.Response[integrationsv1.CreateBotTokenResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
-		return nil, err
-	}
-	bot, err := s.bots.GetBot(ctx, req.Msg.BotUserId)
+	bot, err := s.liveBot(ctx, req.Msg.BotUserId)
 	if err != nil {
 		return nil, err
-	}
-	if bot.DeactivatedAt != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("that bot is deactivated"))
 	}
 	grants, ok := accesswire.FromProto(req.Msg.Permissions)
 	if !ok {
@@ -189,10 +183,7 @@ func (s *Service) CreateBotToken(ctx context.Context, req *connect.Request[integ
 
 // RevokeBotToken revokes a bot token and retires a bot left with nothing.
 func (s *Service) RevokeBotToken(ctx context.Context, req *connect.Request[integrationsv1.RevokeBotTokenRequest]) (*connect.Response[integrationsv1.RevokeBotTokenResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	notFound := connect.NewError(connect.CodeNotFound, errors.New("token not found"))

@@ -9,7 +9,7 @@ import (
 )
 
 // deliveryAttempts is how many tries a delivery gets before it is dead,
-// on the dispatcher's default ladder.
+// on integrations.DeliveryBackoff.
 const deliveryAttempts = 4
 
 // deliverySlots is how many of the workers deliveries may hold at once:
@@ -40,7 +40,7 @@ func registerDeliveries(registry *jobs.Registry, hooksSvc *integrations.Service,
 			return jobs.RetryIn(errors.New(result.Error), result.RetryAfter)
 		}
 		return errors.New(result.Error)
-	}, jobs.Options{MaxAttempts: deliveryAttempts, MaxInFlight: deliverySlots(workers)})
+	}, jobs.Options{MaxAttempts: deliveryAttempts, Backoff: integrations.DeliveryBackoff, MaxInFlight: deliverySlots(workers)})
 	jobs.Register(registry, integrations.FanOutWebhookEventKind, func(ctx context.Context, _ *jobs.Job, args integrations.OutgoingEvent) error {
 		return hooksSvc.FanOutWebhookEvent(ctx, args)
 	}, jobs.Options{})

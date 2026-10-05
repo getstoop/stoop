@@ -22,7 +22,7 @@ const maxHookBody = 256 << 10
 func (s *Service) HookHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if on, err := s.incomingEnabled(ctx); err != nil {
+		if on, err := s.policy.WebhooksIncoming(ctx); err != nil {
 			s.log.Error("read webhook policy", "err", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return

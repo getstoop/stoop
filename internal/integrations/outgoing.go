@@ -27,10 +27,7 @@ import (
 const secretPrefix = "stp_whsec_"
 
 func (s *Service) CreateOutgoing(ctx context.Context, req *connect.Request[integrationsv1.CreateOutgoingRequest]) (*connect.Response[integrationsv1.CreateOutgoingResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.requireOutgoing(ctx); err != nil {
@@ -79,10 +76,7 @@ func (s *Service) CreateOutgoing(ctx context.Context, req *connect.Request[integ
 }
 
 func (s *Service) UpdateOutgoing(ctx context.Context, req *connect.Request[integrationsv1.UpdateOutgoingRequest]) (*connect.Response[integrationsv1.UpdateOutgoingResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	hook, err := s.outgoingHook(ctx, req.Msg.Id)
@@ -135,10 +129,7 @@ func (s *Service) UpdateOutgoing(ctx context.Context, req *connect.Request[integ
 // TestWebhook queues a webhook.test delivery so the receiver's wiring can
 // be checked without waiting for an event.
 func (s *Service) TestWebhook(ctx context.Context, req *connect.Request[integrationsv1.TestWebhookRequest]) (*connect.Response[integrationsv1.TestWebhookResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.deliveriesWired(); err != nil {
@@ -260,7 +251,7 @@ func (s *Service) deliveriesWired() error {
 }
 
 func (s *Service) requireOutgoing(ctx context.Context) error {
-	on, err := s.outgoingEnabled(ctx)
+	on, err := s.policy.WebhooksOutgoing(ctx)
 	if err != nil {
 		return err
 	}
@@ -270,13 +261,6 @@ func (s *Service) requireOutgoing(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) outgoingEnabled(ctx context.Context) (bool, error) {
-	if s.policy == nil {
-		return false, nil
-	}
-	return s.policy.WebhooksOutgoing(ctx)
-}
-
 // checkTarget validates the URL and refuses one the egress policy would
 // never reach.
 func (s *Service) checkTarget(ctx context.Context, raw string) (string, error) {
@@ -284,11 +268,9 @@ func (s *Service) checkTarget(ctx context.Context, raw string) (string, error) {
 	if err != nil || netguard.CheckURL(u) != nil {
 		return "", apierr.Field(connect.CodeInvalidArgument, "url", errors.New("the URL must be an http or https address"))
 	}
-	allow := false
-	if s.policy != nil {
-		if allow, err = s.policy.WebhooksAllowPrivateTargets(ctx); err != nil {
-			return "", err
-		}
+	allow, err := s.policy.WebhooksAllowPrivateTargets(ctx)
+	if err != nil {
+		return "", err
 	}
 	if err := (netguard.Policy{AllowPrivate: allow}).CheckHost(ctx, u); err != nil {
 		if errors.Is(err, netguard.ErrNotPublic) {

@@ -170,7 +170,7 @@ type egress struct {
 
 func New(pool *pgxpool.Pool, bus events.Bus, log *slog.Logger) *Service {
 	return &Service{
-		pool: pool, q: dbgen.New(pool), bus: bus, log: log, now: time.Now,
+		pool: pool, q: dbgen.New(pool), bus: bus, log: log, now: time.Now, policy: offPolicy{},
 		egress: egress{
 			public:  netguard.Policy{}.Transport(),
 			private: netguard.Policy{AllowPrivate: true}.Transport(),
@@ -189,7 +189,21 @@ func (s *Service) UseSpaceAccess(a SpaceAccess) { s.spaces = a }
 func (s *Service) UseBotIdentities(b BotIdentities) { s.bots = b }
 
 // UsePolicy wires instance. Without it both directions are off.
-func (s *Service) UsePolicy(p Policy) { s.policy = p }
+func (s *Service) UsePolicy(policy Policy) {
+	if policy == nil {
+		policy = offPolicy{}
+	}
+	s.policy = policy
+}
+
+// offPolicy is the policy before UsePolicy: both directions off, no
+// private targets, no public URL.
+type offPolicy struct{}
+
+func (offPolicy) WebhooksIncoming(context.Context) (bool, error)            { return false, nil }
+func (offPolicy) WebhooksOutgoing(context.Context) (bool, error)            { return false, nil }
+func (offPolicy) WebhooksAllowPrivateTargets(context.Context) (bool, error) { return false, nil }
+func (offPolicy) PublicURL(context.Context) (string, error)                 { return "", nil }
 
 // UseJobs wires the job queue. Without it outgoing hooks deliver nothing.
 func (s *Service) UseJobs(jobs Jobs) { s.jobs = jobs }
@@ -202,11 +216,13 @@ func requireManage(ctx context.Context) error {
 	return apierr.RequireAction(ctx, authctx.InstanceIntegrationsManage)
 }
 
-func (s *Service) incomingEnabled(ctx context.Context) (bool, error) {
-	if s.policy == nil {
-		return false, nil
+// requireManageWired is the gate most management RPCs open with: the
+// grant first, so a caller without it learns nothing about the wiring.
+func (s *Service) requireManageWired(ctx context.Context) error {
+	if err := requireManage(ctx); err != nil {
+		return err
 	}
-	return s.policy.WebhooksIncoming(ctx)
+	return s.ready()
 }
 
 func (s *Service) ready() error {

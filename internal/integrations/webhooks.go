@@ -111,10 +111,7 @@ func (s *Service) requireSpaceRead(ctx context.Context, spaceID string) error {
 }
 
 func (s *Service) DeleteWebhook(ctx context.Context, req *connect.Request[integrationsv1.DeleteWebhookRequest]) (*connect.Response[integrationsv1.DeleteWebhookResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	if err := rowid.Require(req.Msg.Id, "webhook"); err != nil {
@@ -143,10 +140,7 @@ func (s *Service) DeleteWebhook(ctx context.Context, req *connect.Request[integr
 }
 
 func (s *Service) RotateSecret(ctx context.Context, req *connect.Request[integrationsv1.RotateSecretRequest]) (*connect.Response[integrationsv1.RotateSecretResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	hook, err := s.incomingHook(ctx, req.Msg.Id)
