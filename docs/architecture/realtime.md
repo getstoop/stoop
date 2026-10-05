@@ -195,8 +195,9 @@ might one day be. A tab signed out from another tab is therefore told at
 once, and goes to the login page.
 
 **And the session is re-verified with every ping** (every 30 s), with
-the same close code when it no longer verifies; a check that fails keeps
-the socket until the next ping. That is what catches what
+the same close code when it no longer verifies; a check that fails closes
+it with `1013` (try again later), so the client reconnects instead of
+signing out. That is what catches what
 the bus can't carry: a session past its expiry that the sweep has not
 reached, a reset from the CLI (a separate process with no bus), or a
 revocation published in the gap between verifying the upgrade and

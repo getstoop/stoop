@@ -118,12 +118,16 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// expired, or a revocation the bus never carried (the CLI, a
 			// publish that beat the subscription), ends the socket within
 			// a ping.
-			// A check that failed says nothing about the session, so the
-			// socket stays up until the next ping asks again.
+			// A check that failed says nothing about the session, but an
+			// unverified socket must not stay subscribed: close it as
+			// retryable, and the client reconnects rather than signing out.
 			fresh, verifyErr := g.verifier.VerifyRequest(ctx, r.Header)
 			if verifyErr != nil && !errors.Is(verifyErr, authctx.ErrNoSession) {
 				g.log.Warn("re-verify credential", "err", verifyErr)
-			} else if verifyErr != nil || fresh.Credential.ID != sessionID {
+				_ = conn.Close(websocket.StatusTryAgainLater, "cannot verify session")
+				return
+			}
+			if verifyErr != nil || fresh.Credential.ID != sessionID {
 				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
 				return
 			}

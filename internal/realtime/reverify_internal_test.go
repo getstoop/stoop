@@ -67,13 +67,13 @@ func TestUpgradeTellsNoSessionFromAFailedCheck(t *testing.T) {
 	}
 }
 
-// A re-check that fails at a ping leaves the socket open: it says nothing
-// about the session.
-func TestSocketSurvivesAFailedReverify(t *testing.T) {
-	bus := events.NewInProcBus()
+// A re-check that fails at a ping closes the socket as retryable, not as
+// revoked: the session may be fine, but an unverified socket must not stay
+// subscribed.
+func TestFailedReverifyClosesAsRetryable(t *testing.T) {
 	verifier := &flippingVerifier{}
-	gw := NewGateway(bus, verifier, noMembers{}, noChannels{}, []string{"*"}, slog.Default())
-	gw.pingInterval = 20 * time.Millisecond
+	gw := NewGateway(events.NewInProcBus(), verifier, noMembers{}, noChannels{}, []string{"*"}, slog.Default())
+	gw.pingInterval = 50 * time.Millisecond
 	srv := httptest.NewServer(gw)
 	defer srv.Close()
 
@@ -85,36 +85,12 @@ func TestSocketSurvivesAFailedReverify(t *testing.T) {
 	if _, _, err := conn.Read(context.Background()); err != nil { // Ready
 		t.Fatal(err)
 	}
-	// Reading answers the gateway's pings, so the next one comes round.
-	frames := make(chan error, 16)
-	go func() {
-		for {
-			_, _, err := conn.Read(context.Background())
-			frames <- err
-			if err != nil {
-				return
-			}
-		}
-	}()
 	verifier.failing.Store(true)
-	before := verifier.checks.Load()
-	deadline := time.Now().Add(2 * time.Second)
-	for verifier.checks.Load() < before+3 {
-		if time.Now().After(deadline) {
-			t.Fatal("the gateway never re-checked the session")
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	bus.Publish(events.UserTopic("alice"), events.Stamp(&realtimev1.ServerEvent{
-		Payload: &realtimev1.ServerEvent_Ping{Ping: &realtimev1.Ping{}},
-	}))
-	select {
-	case err := <-frames:
-		if err != nil {
-			t.Fatalf("socket ended after a failed re-check: %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("an event published after the failed re-checks never arrived")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_, _, err = conn.Read(ctx)
+	if websocket.CloseStatus(err) != websocket.StatusTryAgainLater {
+		t.Fatalf("socket ended with %v, want close %d", err, websocket.StatusTryAgainLater)
 	}
 }
 
