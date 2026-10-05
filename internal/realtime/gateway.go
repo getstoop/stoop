@@ -141,14 +141,15 @@ func (g *Gateway) subscribe(userID string, spaceIDs []string) *events.Subscripti
 // connection, and a space joined since for a later one (its SpaceJoined
 // then finds it counted). Do not disturb is read again on every connect,
 // which also rebuilds an end timer a restart lost; a change is announced
-// everywhere.
+// everywhere. Both read what is counted after the lookup, so a removal
+// another connection applied meanwhile is not announced.
 func (g *Gateway) connectPresence(ctx context.Context, userID string, spaceIDs []string) {
 	added := g.presence.connect(userID, spaceIDs)
 	if setting, ok := g.lookupDoNotDisturb(ctx, userID); ok && g.applyDoNotDisturb(userID, setting) {
 		g.publishPresence(userID, g.presence.spacesOf(userID), true)
 		return
 	}
-	g.publishPresence(userID, added, true)
+	g.publishPresence(userID, g.presence.countedIn(userID, added), true)
 }
 
 // disconnectPresence counts a closed connection; the last one announces the

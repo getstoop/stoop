@@ -155,6 +155,23 @@ func (p *presence) dndOf(userID string) bool {
 	return false
 }
 
+// countedIn filters spaceIDs down to those the user is still counted in.
+func (p *presence) countedIn(userID string, spaceIDs []string) []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	entry := p.users[userID]
+	if entry == nil {
+		return nil
+	}
+	var counted []string
+	for _, spaceID := range spaceIDs {
+		if _, ok := entry.spaces[spaceID]; ok {
+			counted = append(counted, spaceID)
+		}
+	}
+	return counted
+}
+
 // spacesOf is every space a user's connections are counted in.
 func (p *presence) spacesOf(userID string) []string {
 	p.mu.Lock()

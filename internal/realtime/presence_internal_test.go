@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -53,5 +54,34 @@ func TestJoinRacingASecondConnectionAnnouncesOnce(t *testing.T) {
 	}
 	if announced != 1 {
 		t.Errorf("ada announced online in s2 %d times, want 1", announced)
+	}
+}
+
+// removingLookup stands in for the do not disturb lookup, and removes ada
+// from s2 while it runs, as the other tab applying a MemberRemoved would.
+type removingLookup struct{ presence *presence }
+
+func (lookup removingLookup) DoNotDisturb(context.Context, string) (bool, *time.Time, error) {
+	lookup.presence.removeSpace("ada", "s2")
+	return false, nil, nil
+}
+
+// A removal applied while a connecting tab waits on its lookup is not
+// undone by that tab announcing the person online in the space.
+func TestRemovalDuringConnectIsNotAnnounced(t *testing.T) {
+	bus := events.NewInProcBus()
+	gateway := &Gateway{bus: bus, presence: newPresence(), voice: newVoiceState(), log: slog.Default()}
+	removedSpace := bus.Subscribe(events.SpaceTopic("s2"))
+	defer removedSpace.Close()
+	ctx := context.Background()
+
+	gateway.connectPresence(ctx, "ada", []string{"s1"})
+	gateway.UseDoNotDisturb(removingLookup{gateway.presence})
+	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"})
+
+	for len(removedSpace.Events()) > 0 {
+		if changed := (<-removedSpace.Events()).GetPresenceChanged(); changed != nil && changed.Online {
+			t.Errorf("ada was announced online in s2 after her removal: %+v", changed)
+		}
 	}
 }
