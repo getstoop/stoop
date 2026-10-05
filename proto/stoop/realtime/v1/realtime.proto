@@ -131,8 +131,10 @@ message CredentialRevoked {
 message Ready {
   string user_id = 1;
   repeated string space_ids = 2;
-  reserved 3;
-  reserved "online_user_ids";
+  // The ids in presences, for a tab still running a bundle from before
+  // presences: it reads this on reconnect after an upgrade. Removed the
+  // release after (STOOP-413).
+  repeated string online_user_ids = 3;
   // Everyone currently in a voice channel of the caller's spaces. Kept
   // current by VoiceStateChanged.
   repeated VoiceParticipant voice_participants = 4;

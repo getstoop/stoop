@@ -1016,6 +1016,10 @@ type Ready struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	UserId   string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	SpaceIds []string               `protobuf:"bytes,2,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
+	// The ids in presences, for a tab still running a bundle from before
+	// presences: it reads this on reconnect after an upgrade. Removed the
+	// release after (STOOP-413).
+	OnlineUserIds []string `protobuf:"bytes,3,rep,name=online_user_ids,json=onlineUserIds,proto3" json:"online_user_ids,omitempty"`
 	// Everyone currently in a voice channel of the caller's spaces. Kept
 	// current by VoiceStateChanged.
 	VoiceParticipants []*VoiceParticipant `protobuf:"bytes,4,rep,name=voice_participants,json=voiceParticipants,proto3" json:"voice_participants,omitempty"`
@@ -1067,6 +1071,13 @@ func (x *Ready) GetUserId() string {
 func (x *Ready) GetSpaceIds() []string {
 	if x != nil {
 		return x.SpaceIds
+	}
+	return nil
+}
+
+func (x *Ready) GetOnlineUserIds() []string {
+	if x != nil {
+		return x.OnlineUserIds
 	}
 	return nil
 }
@@ -2341,12 +2352,13 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
 	"channel_id\x18\x02 \x01(\tR\tchannelId\"8\n" +
 	"\x11CredentialRevoked\x12#\n" +
-	"\rcredential_id\x18\x01 \x01(\tR\fcredentialId\"\xe7\x01\n" +
+	"\rcredential_id\x18\x01 \x01(\tR\fcredentialId\"\xf8\x01\n" +
 	"\x05Ready\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
-	"\tspace_ids\x18\x02 \x03(\tR\bspaceIds\x12R\n" +
+	"\tspace_ids\x18\x02 \x03(\tR\bspaceIds\x12&\n" +
+	"\x0fonline_user_ids\x18\x03 \x03(\tR\ronlineUserIds\x12R\n" +
 	"\x12voice_participants\x18\x04 \x03(\v2#.stoop.realtime.v1.VoiceParticipantR\x11voiceParticipants\x12=\n" +
-	"\tpresences\x18\x05 \x03(\v2\x1f.stoop.realtime.v1.UserPresenceR\tpresencesJ\x04\b\x03\x10\x04R\x0fonline_user_ids\"b\n" +
+	"\tpresences\x18\x05 \x03(\v2\x1f.stoop.realtime.v1.UserPresenceR\tpresences\"b\n" +
 	"\x0fPresenceChanged\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06online\x18\x02 \x01(\bR\x06online\x12\x10\n" +
