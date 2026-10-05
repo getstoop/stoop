@@ -3,6 +3,7 @@ package files
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -113,5 +114,34 @@ func TestStalledUploadIsEndedAndReleasesItsSlot(t *testing.T) {
 		if !svc.inflight.acquire("casey") {
 			t.Fatal("the stalled upload kept its slot")
 		}
+	}
+}
+
+type failingSession struct{}
+
+func (failingSession) VerifyRequest(context.Context, http.Header) (authctx.Identity, error) {
+	return authctx.Identity{}, errors.New("database is down")
+}
+
+// A credential that could not be checked is not a missing one: download
+// and upload answer 503, which a client retries, not 401, which signs it
+// out.
+func TestUnverifiableCredentialIsUnavailable(t *testing.T) {
+	svc := &Service{
+		sessions: failingSession{},
+		inflight: newInflight(MaxInflightUploads),
+		log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	download := httptest.NewRecorder()
+	svc.Handler().ServeHTTP(download, httptest.NewRequest(http.MethodGet, "/files/x", nil))
+	if download.Code != http.StatusServiceUnavailable {
+		t.Errorf("download: status %d, want 503", download.Code)
+	}
+	upload := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/files/upload", nil)
+	request.Header.Set("Content-Type", "multipart/form-data; boundary=x")
+	svc.UploadHandler().ServeHTTP(upload, request)
+	if upload.Code != http.StatusServiceUnavailable {
+		t.Errorf("upload: status %d, want 503", upload.Code)
 	}
 }

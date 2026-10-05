@@ -139,7 +139,7 @@ func (f *fakeSessions) VerifyRequest(_ context.Context, h http.Header) (authctx.
 	if id, ok := f.users[h.Get("X-Test-User")]; ok {
 		return id, nil
 	}
-	return authctx.Identity{}, errors.New("no session")
+	return authctx.Identity{}, authctx.ErrNoSession
 }
 
 type fixture struct {
