@@ -553,6 +553,21 @@ func TestUpgradeAfterRollback(t *testing.T) {
 			"livekit-entrypoint.sh": "0.2.0 entrypoint\n",
 		})
 	})
+	t.Run("a second rollback keeps a parked file it does not replace", func(t *testing.T) {
+		u, _, out := rolledBackInstall(t)
+		if err := u.Upgrade(context.Background()); err != nil {
+			t.Fatalf("%v\n%s", err, out.String())
+		}
+		if err := u.Rollback(context.Background()); err != nil {
+			t.Fatalf("%v\n%s", err, out.String())
+		}
+		wantFiles(t, u.Dir, map[string]string{
+			composeFile:                        oldCompose,
+			"docker-compose.yml.rolledback":    compose031,
+			"livekit.yaml.rolledback":          "0.3.1 livekit\n",
+			"livekit-entrypoint.sh.rolledback": "0.3.0 entrypoint\n",
+		})
+	})
 }
 
 // A rollback by an older stoop parked the 0.3.0 files as .next; an

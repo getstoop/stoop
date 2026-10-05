@@ -45,7 +45,6 @@ func (u *Upgrader) Rollback(ctx context.Context) error {
 		return err
 	}
 	for _, name := range companions {
-		_ = os.Remove(u.path(name + rolledBack))
 		if _, err := os.Stat(u.path(name + ".prev")); err == nil {
 			_ = os.Rename(u.path(name), u.path(name+rolledBack))
 			if err := os.Rename(u.path(name+".prev"), u.path(name)); err != nil {
