@@ -144,6 +144,13 @@ timestamp ordering because ids are UUIDv7 — see below. Search reads the
 GIN index on `search` instead
 ([messaging.md](messaging.md#search)).
 
+**`message_with_reply`** is a view: every `messages` column but `search`,
+plus the replied-to message's author, content and first attachment.
+Queries that hand a message to a client read it
+([messaging.md](messaging.md#search)). Postgres refuses to drop or retype
+a column a view reads, so a migration that does either recreates the view
+in the same file.
+
 **`channel_pins`** — `message_id` (the primary key, because a message
 belongs to exactly one channel), `channel_id`, `pinned_by`, `pinned_at`,
 with `(channel_id, pinned_at DESC)` for the list. The three cascades are

@@ -1,9 +1,10 @@
 -- Messages. Owned by the chat module.
 -- Only internal/chat may use these queries.
 --
--- A query that returns a message lists its columns, leaving out
--- messages.search. Keep the lists identical, here and in pins.sql and
--- search.sql; see docs/architecture/messaging.md → Search.
+-- A message goes to a client through the message_with_reply view, which
+-- leaves out messages.search and adds the reply quote. The queries here
+-- that skip the view list the same columns. A new messages column goes in
+-- each list and in the view; see docs/architecture/messaging.md → Search.
 
 -- name: CreateMessage :one
 INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id)
@@ -14,14 +15,10 @@ RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, rep
 SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
 FROM messages WHERE id = $1;
 
--- ListMessagesBefore joins the replied-to message (if any) so the client
--- can render a quote without a second round trip.
+-- ListMessagesBefore carries the replied-to message's quote (if any) so
+-- the client can render it without a second round trip.
 -- name: ListMessagesBefore :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
-    p.author_id AS reply_author_id, p.content AS reply_content,
-    COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
-FROM messages m
-LEFT JOIN messages p ON p.id = m.reply_to_message_id
+SELECT * FROM message_with_reply m
 WHERE m.channel_id = $1
   AND (sqlc.narg('before_id')::uuid IS NULL OR m.id < sqlc.narg('before_id')::uuid)
 ORDER BY m.id DESC
@@ -30,11 +27,7 @@ LIMIT $2;
 -- ListMessagesAfter is the forward counterpart: the oldest `limit` messages
 -- newer than after_id (or from it, when inclusive), oldest-first.
 -- name: ListMessagesAfter :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
-    p.author_id AS reply_author_id, p.content AS reply_content,
-    COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
-FROM messages m
-LEFT JOIN messages p ON p.id = m.reply_to_message_id
+SELECT * FROM message_with_reply m
 WHERE m.channel_id = $1
   AND (m.id > sqlc.arg('after_id')::uuid OR (sqlc.arg('inclusive')::bool AND m.id = sqlc.arg('after_id')::uuid))
 ORDER BY m.id ASC
@@ -43,11 +36,7 @@ LIMIT $2;
 -- GetMessageWithReply is one message with the reply columns, for the
 -- events that resend a message after it changes.
 -- name: GetMessageWithReply :one
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
-    p.author_id AS reply_author_id, p.content AS reply_content,
-    COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
-FROM messages m
-LEFT JOIN messages p ON p.id = m.reply_to_message_id
+SELECT * FROM message_with_reply m
 WHERE m.id = $1;
 
 -- name: InsertMessageMention :exec

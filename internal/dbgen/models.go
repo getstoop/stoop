@@ -211,6 +211,21 @@ type MessageReaction struct {
 	CreatedAt time.Time
 }
 
+type MessageWithReply struct {
+	ID               string
+	ChannelID        string
+	AuthorID         string
+	Content          string
+	CreatedAt        time.Time
+	MentionsEveryone bool
+	ReplyToMessageID *string
+	MentionsHere     bool
+	EditedAt         *time.Time
+	ReplyAuthorID    *string
+	ReplyContent     *string
+	ReplyFirstFileID string
+}
+
 type OutgoingWebhook struct {
 	ID             string
 	SpaceID        string

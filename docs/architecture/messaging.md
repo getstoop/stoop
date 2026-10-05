@@ -399,12 +399,12 @@ cursor. What the code does:
   Postgres maintains it on every insert and update; deletes are hard, so
   nothing stale stays. `simple` means whole lowercased words, no
   stemming, in any language. The column is for this query's `WHERE`
-  and nothing reads it back: it runs larger than the content it indexes,
-  so every query that returns a message lists the other columns rather
-  than `*` or `sqlc.embed`. The lists are kept identical, because the
-  chat module converts between the generated row types (`messageRow` in
-  `chat/messages.go`) and that only compiles while they match. A new
-  `messages` column is added to each list.
+  and nothing reads it back: it runs larger than the content it indexes.
+  A message reaches a client through the `message_with_reply` view
+  (migration 00051), which is every other column plus the reply quote,
+  so listing, search, pins and resent messages share one generated row
+  type. A new `messages` column goes in the view and in the few queries
+  that read `messages` directly.
 - **Parsing** (`search_query.go`). `from:@handle`, `in:#channel`,
   `before:YYYY-MM-DD` and `after:YYYY-MM-DD` come out as filters
   (quoted values allowed, `in:"front steps"`); the rest is websearch
@@ -416,9 +416,9 @@ cursor. What the code does:
   first by position, which covers names from before the naming rule.
 - **The query** (`queries/chat/search.sql`) filters by the space's
   channels first, then the text match, then the date and cursor bounds,
-  and stops after the page. No ranking: recency is the order. Rows carry
-  the same reply columns as `ListMessagesBefore` and hydrate through the
-  same path.
+  and stops after the page. No ranking: recency is the order. Rows come
+  from the view, joined back to `messages` for the vector, and hydrate
+  through the same path as history.
 - **Guards.** Per-user rate limit (`STOOP_SEARCH_RATE_LIMIT`, 30 a minute,
   `ResourceExhausted` with `Retry-After`) and a 2 s statement timeout
   in a read-only transaction (`DeadlineExceeded`). The client words both.
@@ -443,7 +443,7 @@ the code does:
   Concurrent pins into a nearly-full channel can overshoot by a row or
   two under `READ COMMITTED`; nothing downstream cares, and an unpin
   corrects it.
-- **Reading.** `ListChannelPins` carries the same reply columns as
+- **Reading.** `ListChannelPins` reads the same view as
   `ListMessagesBefore` and hydrates through the same path;
   `PinnedMessageIDs` stamps `Message.pinned` on each page of history, so
   the timeline marks a kept message without a join.
