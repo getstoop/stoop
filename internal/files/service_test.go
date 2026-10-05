@@ -137,7 +137,7 @@ func (f *fakeSessions) VerifyRequest(_ context.Context, header http.Header) (aut
 	if id, ok := f.users[header.Get("X-Test-User")]; ok {
 		return id, nil
 	}
-	return authctx.Identity{}, errors.New("no session")
+	return authctx.Identity{}, authctx.ErrNoSession
 }
 
 func testImage(width, height int) *image.NRGBA {

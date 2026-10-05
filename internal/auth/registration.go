@@ -115,18 +115,12 @@ func (s *Service) redeemInvite(ctx context.Context, user dbgen.User, code string
 func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.RegisterRequest]) (*connect.Response[authv1.RegisterResponse], error) {
 	// The handle is normalized to lowercase; the display name keeps the
 	// capitalization the user typed (e.g. "Ada" → handle "ada").
-	username := strings.ToLower(req.Msg.Username)
-	if !usernameRE.MatchString(username) {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "username",
-			errors.New("username must be 3-32 letters, numbers, or _"))
+	username, err := usernameFrom(req.Msg.Username)
+	if err != nil {
+		return nil, err
 	}
-	if reservedUsernames[username] {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "username",
-			fmt.Errorf("%q is reserved; pick another username", username))
-	}
-	if len(req.Msg.Password) < 8 {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "password",
-			errors.New("password must be at least 8 characters"))
+	if err := checkPasswordLength(req.Msg.Password, "password", "password"); err != nil {
+		return nil, err
 	}
 
 	// Policy check before the expensive hash. The count here is only for the
@@ -161,7 +155,7 @@ func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.Regi
 
 	user, err := s.createAccount(ctx, createAccountParams{
 		Username:     username,
-		DisplayName:  req.Msg.Username,
+		DisplayName:  strings.TrimSpace(req.Msg.Username),
 		PasswordHash: &hash,
 	})
 	if err != nil {

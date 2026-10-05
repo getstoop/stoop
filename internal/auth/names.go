@@ -28,6 +28,16 @@ func usernameFrom(raw string) (string, error) {
 	return name, nil
 }
 
+// checkPasswordLength refuses a password shorter than minPasswordLen,
+// naming the field and calling it noun in the refusal.
+func checkPasswordLength(password, field, noun string) error {
+	if len(password) < minPasswordLen {
+		return apierr.Field(connect.CodeInvalidArgument, field,
+			fmt.Errorf("%s must be at least %d characters", noun, minPasswordLen))
+	}
+	return nil
+}
+
 // displayNameFrom trims a requested display name and checks its length.
 func displayNameFrom(raw string) (string, error) {
 	name := strings.TrimSpace(raw)

@@ -46,6 +46,11 @@ func (s *Service) UploadHandler() http.Handler {
 			return
 		}
 		identity, err := s.sessions.VerifyRequest(request.Context(), request.Header)
+		if err != nil && !errors.Is(err, authctx.ErrNoSession) {
+			s.log.Error("verify credential for an upload", "err", err)
+			writeError(writer, http.StatusServiceUnavailable, unverifiedMessage)
+			return
+		}
 		if err != nil {
 			writeError(writer, http.StatusUnauthorized, "authentication required")
 			return
@@ -167,6 +172,10 @@ type uploadResponse struct {
 func tooLargeMessage(limit int64) string {
 	return fmt.Sprintf("file must be %d MB or smaller", limit>>20)
 }
+
+// unverifiedMessage answers a request whose credential could not be
+// checked, which is not the same as having none.
+const unverifiedMessage = "the server can't check your sign-in right now; try again in a moment"
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")

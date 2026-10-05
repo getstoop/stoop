@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -284,5 +285,25 @@ func TestReservedUsernames(t *testing.T) {
 	}
 	if _, err := register(svc, ctx, "Here", ""); codeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("reserved username (case-insensitive): want invalid_argument, got %v", err)
+	}
+}
+
+// Registration checks a username the way the profile and admin renames
+// do: spaces around it are dropped, the handle is lowercased and the
+// display name keeps the case typed. A short password is refused by the
+// same rule the password change uses.
+func TestRegisterNormalisesLikeRename(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	ctx := context.Background()
+	res, err := register(svc, ctx, "  Ada  ", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.User.Username != "ada" || res.User.DisplayName != "Ada" {
+		t.Errorf("registered %q (%q), want ada (Ada)", res.User.Username, res.User.DisplayName)
+	}
+	_, err = svc.Register(ctx, connect.NewRequest(&authv1.RegisterRequest{Username: "bea", Password: "short"}))
+	if codeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "password must be at least 8 characters") {
+		t.Errorf("short password: %v", err)
 	}
 }
