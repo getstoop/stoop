@@ -19,7 +19,6 @@ import (
 
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
-	"github.com/getstoop/stoop/internal/rowid"
 )
 
 const (
@@ -133,8 +132,7 @@ func (s *Service) UploadHandler() http.Handler {
 			return
 		}
 		if err := s.checkQuota(ctx, header.Size); err != nil {
-			if errors.Is(err, ErrStorageFull) {
-				writeError(w, http.StatusInsufficientStorage, "the server's "+err.Error())
+			if writeStorageFull(w, err) {
 				return
 			}
 			s.log.Error("check quota", "err", err)
@@ -144,8 +142,7 @@ func (s *Service) UploadHandler() http.Handler {
 
 		info, err := s.storeAttachment(r, identity.UserID, spaceID, part, header.Size, header.Filename)
 		if err != nil {
-			if errors.Is(err, ErrStorageFull) {
-				writeError(w, http.StatusInsufficientStorage, "the server's "+err.Error())
+			if writeStorageFull(w, err) {
 				return
 			}
 			s.log.Error("store attachment", "err", err)
@@ -177,46 +174,47 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
+// writeStorageFull answers 507 when err is ErrStorageFull and reports
+// whether it did.
+func writeStorageFull(writer http.ResponseWriter, err error) bool {
+	if !errors.Is(err, ErrStorageFull) {
+		return false
+	}
+	writeError(writer, http.StatusInsufficientStorage, "the server's "+err.Error())
+	return true
+}
+
 // storeAttachment sniffs the first bytes for the content type, then
 // streams the whole part into the blob store while hashing it.
-func (s *Service) storeAttachment(r *http.Request, ownerID, spaceID string, part io.ReadSeeker, size int64, filename string) (Info, error) {
-	ctx := r.Context()
+func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID string, part io.ReadSeeker, size int64, filename string) (Info, error) {
+	ctx := request.Context()
 	head := make([]byte, 512)
-	n, err := io.ReadFull(part, head)
+	headLength, err := io.ReadFull(part, head)
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
 		return Info{}, fmt.Errorf("read head: %w", err)
 	}
-	contentType := sniffContentType(head[:n])
+	contentType := sniffContentType(head[:headLength])
 	if _, err := part.Seek(0, io.SeekStart); err != nil {
 		return Info{}, fmt.Errorf("rewind: %w", err)
 	}
 
-	id := rowid.New()
-	key := storageKey(KindAttachment, id)
-	hasher := sha256.New()
-	if err := s.store.Put(ctx, key, io.TeeReader(part, hasher), size, contentType); err != nil {
-		return Info{}, fmt.Errorf("store blob: %w", err)
-	}
 	// A direct message has no space; the file's row says so.
 	var space *string
 	if spaceID != "" {
 		space = &spaceID
 	}
-	f, err := s.recordFile(ctx, dbgen.CreateFileParams{
-		ID: id, Kind: string(KindAttachment), OwnerID: ownerID, SpaceID: space,
-		ContentType: contentType, Size: size, Sha256: hasher.Sum(nil), StorageKey: key,
-		Name: sanitizeFilename(filename),
+	hasher := sha256.New()
+	file, err := s.storeFile(ctx, KindAttachment, io.TeeReader(part, hasher), size, contentType, func(id, key string) (dbgen.File, error) {
+		return s.recordFile(ctx, dbgen.CreateFileParams{
+			ID: id, Kind: string(KindAttachment), OwnerID: ownerID, SpaceID: space,
+			ContentType: contentType, Size: size, Sha256: hasher.Sum(nil), StorageKey: key,
+			Name: sanitizeFilename(filename),
+		})
 	})
 	if err != nil {
-		if derr := s.store.Delete(ctx, key); derr != nil {
-			s.log.Warn("orphan blob after failed insert", "key", key, "err", derr)
-		}
-		if errors.Is(err, ErrStorageFull) {
-			return Info{}, err
-		}
-		return Info{}, fmt.Errorf("record file: %w", err)
+		return Info{}, err
 	}
-	return toInfo(f), nil
+	return toInfo(file), nil
 }
 
 // sanitizeFilename keeps a display name that is safe to render and to

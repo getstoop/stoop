@@ -73,13 +73,13 @@ func (s *Service) NormaliseImage(ctx context.Context, args NormaliseImageArgs, l
 	previous, err := s.pointAt(ctx, file, args)
 	if err != nil {
 		if connect.CodeOf(err) == connect.CodeNotFound {
-			s.discard(ctx, file)
+			s.deleteFile(ctx, file.ID, file.StorageKey)
 			return fmt.Errorf("%w: %w", ErrImageUnusable, err)
 		}
 		return s.failNormalise(ctx, args.FileID, lastAttempt, err)
 	}
 	if previous != file.ID {
-		s.deleteFile(ctx, previous)
+		s.deleteFile(ctx, previous, "")
 	}
 	if args.UserID != "" {
 		s.announceAvatar(ctx, args.UserID, args.UploaderID)
@@ -103,7 +103,7 @@ func (s *Service) readyImage(ctx context.Context, file dbgen.File) (dbgen.File, 
 	}
 	encoded, err := processImage(data, imageSize(Kind(file.Kind)))
 	if err != nil {
-		s.discard(ctx, file)
+		s.deleteFile(ctx, file.ID, file.StorageKey)
 		return dbgen.File{}, fmt.Errorf("%w: %w", ErrImageUnusable, err)
 	}
 	if err := s.store.Put(ctx, file.StorageKey, bytes.NewReader(encoded), int64(len(encoded)), "image/png"); err != nil {
@@ -115,7 +115,7 @@ func (s *Service) readyImage(ctx context.Context, file dbgen.File) (dbgen.File, 
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			s.discard(ctx, file)
+			s.deleteFile(ctx, file.ID, file.StorageKey)
 			return dbgen.File{}, fmt.Errorf("%w: file %s is gone", ErrImageUnusable, file.ID)
 		}
 		return dbgen.File{}, fmt.Errorf("ready file: %w", err)
@@ -186,6 +186,6 @@ func (s *Service) deleteUnlessReferenced(ctx context.Context, fileID string) {
 		return
 	}
 	if !referenced[fileID] {
-		s.deleteFile(ctx, fileID)
+		s.deleteFile(ctx, fileID, "")
 	}
 }

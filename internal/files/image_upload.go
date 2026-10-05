@@ -98,7 +98,7 @@ func (s *Service) queueImage(ctx context.Context, kind Kind, ownerID string, spa
 	}
 	args.FileID = file.ID
 	if _, err := s.jobs.EnqueueInLane(ctx, NormaliseImageKind, args, lane, sequence); err != nil {
-		s.discard(ctx, file)
+		s.deleteFile(ctx, file.ID, file.StorageKey)
 		return "", fmt.Errorf("queue %s: %w", NormaliseImageKind, err)
 	}
 	return file.ID, nil
@@ -112,24 +112,15 @@ func (s *Service) storePendingImage(ctx context.Context, kind Kind, ownerID stri
 	if err := s.checkQuota(ctx, size); err != nil {
 		return dbgen.File{}, quotaError(err)
 	}
-	id := rowid.New()
-	key := storageKey(kind, id)
-	if err := s.store.Put(ctx, key, bytes.NewReader(data), size, contentType); err != nil {
-		return dbgen.File{}, fmt.Errorf("store blob: %w", err)
-	}
-	sum := sha256.Sum256(data)
-	file, err := s.recordPendingFile(ctx, dbgen.CreatePendingFileParams{
-		ID: id, Kind: string(kind), OwnerID: ownerID, SpaceID: spaceID,
-		ContentType: contentType, Size: size, Sha256: sum[:], StorageKey: key,
+	file, err := s.storeFile(ctx, kind, bytes.NewReader(data), size, contentType, func(id, key string) (dbgen.File, error) {
+		sum := sha256.Sum256(data)
+		return s.recordPendingFile(ctx, dbgen.CreatePendingFileParams{
+			ID: id, Kind: string(kind), OwnerID: ownerID, SpaceID: spaceID,
+			ContentType: contentType, Size: size, Sha256: sum[:], StorageKey: key,
+		})
 	})
 	if err != nil {
-		if derr := s.store.Delete(ctx, key); derr != nil {
-			s.log.Warn("orphan blob after failed insert", "key", key, "err", derr)
-		}
-		if errors.Is(err, ErrStorageFull) {
-			return dbgen.File{}, quotaError(err)
-		}
-		return dbgen.File{}, fmt.Errorf("record file: %w", err)
+		return dbgen.File{}, quotaError(err)
 	}
 	return file, nil
 }

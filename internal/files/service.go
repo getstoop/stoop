@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
+	"github.com/getstoop/stoop/internal/rowid"
 )
 
 // Kind is a file's purpose; it decides the size cap, the image treatment,
@@ -197,29 +199,46 @@ func (s *Service) DeleteFiles(ctx context.Context, ids []string) error {
 	return nil
 }
 
-// discard removes a file whose row is known, after a later step failed.
-func (s *Service) discard(ctx context.Context, file dbgen.File) {
-	if _, err := s.q.DeleteFile(ctx, file.ID); err != nil {
-		s.log.Warn("could not delete file row", "file_id", file.ID, "err", err)
+// storeFile writes a new file's blob, then its row through insert. A
+// failed insert removes the blob again; ErrStorageFull passes through
+// unwrapped.
+func (s *Service) storeFile(ctx context.Context, kind Kind, body io.Reader, size int64, contentType string, insert func(id, key string) (dbgen.File, error)) (dbgen.File, error) {
+	id := rowid.New()
+	key := storageKey(kind, id)
+	if err := s.store.Put(ctx, key, body, size, contentType); err != nil {
+		return dbgen.File{}, fmt.Errorf("store blob: %w", err)
 	}
-	if err := s.store.Delete(ctx, file.StorageKey); err != nil {
-		s.log.Warn("could not delete blob", "key", file.StorageKey, "err", err)
+	file, err := insert(id, key)
+	if err != nil {
+		if derr := s.store.Delete(ctx, key); derr != nil {
+			s.log.Warn("orphan blob after failed insert", "key", key, "err", derr)
+		}
+		if errors.Is(err, ErrStorageFull) {
+			return dbgen.File{}, err
+		}
+		return dbgen.File{}, fmt.Errorf("record file: %w", err)
 	}
+	return file, nil
 }
 
-// deleteFile removes a file's row and blob by id. Failures are logged,
-// not returned: the caller has already moved on and an orphan blob is
-// collected by the sweep.
-func (s *Service) deleteFile(ctx context.Context, id string) {
+// deleteFile removes a file's row, then its blob. key is the blob to
+// remove even when the row delete fails; "" leaves that blob to the
+// sweep. Failures are logged, not returned: the caller has already moved
+// on.
+func (s *Service) deleteFile(ctx context.Context, id, key string) {
 	if id == "" {
 		return
 	}
 	file, err := s.q.DeleteFile(ctx, id)
 	if err != nil {
 		s.log.Warn("could not delete file row", "file_id", id, "err", err)
-		return
+		if key == "" {
+			return
+		}
+	} else {
+		key = file.StorageKey
 	}
-	if err := s.store.Delete(ctx, file.StorageKey); err != nil {
-		s.log.Warn("could not delete blob", "key", file.StorageKey, "err", err)
+	if err := s.store.Delete(ctx, key); err != nil {
+		s.log.Warn("could not delete blob", "key", key, "err", err)
 	}
 }
