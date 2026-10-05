@@ -2,12 +2,14 @@ package tailnet
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
 	"net/netip"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -388,6 +390,62 @@ func TestForwarderSurvivesAPortItCannotOpen(t *testing.T) {
 
 	if open := f.open.Load(); open == 0 || open >= int64(media.Ports()) {
 		t.Fatalf("opened %d of %d ports; want some but not the taken one", open, media.Ports())
+	}
+}
+
+// closingNode stands in for a node whose listens stall until it is
+// closed, then fail, as tsnet's do once Close has run.
+type closingNode struct {
+	closed  chan struct{}
+	stalled chan struct{}
+	once    sync.Once
+}
+
+func (n *closingNode) Listen(string, string) (net.Listener, error) {
+	n.once.Do(func() { close(n.stalled) })
+	<-n.closed
+	return nil, errors.New("tsnet: closed")
+}
+
+func (n *closingNode) ListenPacket(string, string) (net.PacketConn, error) {
+	<-n.closed
+	return nil, errors.New("tsnet: closed")
+}
+
+// warnCount counts records at warn or above.
+type warnCount struct{ count atomic.Int64 }
+
+func (w *warnCount) Enabled(context.Context, slog.Level) bool { return true }
+func (w *warnCount) Handle(_ context.Context, record slog.Record) error {
+	if record.Level >= slog.LevelWarn {
+		w.count.Add(1)
+	}
+	return nil
+}
+func (w *warnCount) WithAttrs([]slog.Attr) slog.Handler { return w }
+func (w *warnCount) WithGroup(string) slog.Handler      { return w }
+
+// Serve cancels the forwarder and then closes the node; listens failing
+// because of that close are expected, and the forwarder returns quietly.
+func TestForwarderStopsQuietlyWhenNodeCloses(t *testing.T) {
+	node := &closingNode{closed: make(chan struct{}), stalled: make(chan struct{})}
+	warnings := &warnCount{}
+	media := Media{Host: "127.0.0.1", TCPPort: 1, UDPStart: 50000, UDPEnd: 50100}
+	fwd := newForwarder(media, netip.MustParseAddr("100.64.0.1"), node, slog.New(warnings))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); fwd.Run(ctx) }()
+	<-node.stalled
+	cancel()
+	close(node.closed)
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("forwarder did not return once the node closed")
+	}
+	if got := warnings.count.Load(); got != 0 {
+		t.Errorf("logged %d warnings for a node that was being stopped", got)
 	}
 }
 
