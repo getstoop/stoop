@@ -259,14 +259,15 @@ func TestSetRoleByUsername(t *testing.T) {
 	if _, err := svc.SetRoleByUsername(ctx, "nobody", authctx.RoleAdmin); codeOf(err) != connect.CodeNotFound {
 		t.Errorf("unknown user: want not_found, got %v", err)
 	}
-	a, err := svc.SetRoleByUsername(ctx, "friend", authctx.RoleAdmin)
+	// By name in any case: the CLI passes what the operator typed.
+	a, err := svc.SetRoleByUsername(ctx, "Friend", authctx.RoleAdmin)
 	if err != nil || a.Role != authctx.RoleAdmin {
 		t.Fatalf("promote friend: %v %v", a, err)
 	}
 	if _, err := svc.SetRoleByUsername(ctx, "founder", authctx.RoleMember); err == nil {
 		t.Error("another admin present, but founder still owns the server: demotion should be refused")
 	}
-	if _, err := svc.TransferOwnershipByUsername(ctx, "friend"); err != nil {
+	if _, err := svc.TransferOwnershipByUsername(ctx, "FRIEND"); err != nil {
 		t.Fatal(err)
 	}
 	a, err = svc.SetRoleByUsername(ctx, "founder", authctx.RoleMember)
