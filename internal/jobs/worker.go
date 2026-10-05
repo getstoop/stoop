@@ -28,7 +28,7 @@ func (s *Service) perform(ctx context.Context, row dbgen.Job, tracked *inflight,
 		tracked.remove(row.ID)
 		return
 	}
-	job := s.newJob(row)
+	job := s.newJob(row, entry.opts)
 	var err error
 	if row.Attempt > row.MaxAttempts {
 		err = Discard(errors.New(lapsedLeaseError))
@@ -53,13 +53,22 @@ func (s *Service) perform(ctx context.Context, row dbgen.Job, tracked *inflight,
 	}
 }
 
-func (s *Service) newJob(row dbgen.Job) *Job {
+func (s *Service) newJob(row dbgen.Job, opts Options) *Job {
+	attempt, maxAttempts := tries(row, opts)
 	return &Job{
-		ID: row.ID, Kind: row.Kind, Attempt: int(row.Attempt), MaxAttempts: int(row.MaxAttempts), args: row.Args, now: s.now,
+		ID: row.ID, Kind: row.Kind, Attempt: attempt, MaxAttempts: maxAttempts, args: row.Args, now: s.now,
 		extend: func(ctx context.Context, until time.Time) error {
 			return s.extendLease(ctx, row, until)
 		},
 	}
+}
+
+// tries is the row's attempt and limit less the attempts handed back, each
+// of which raised the row's max_attempts past the kind's, so a performer
+// and the backoff see real tries.
+func tries(row dbgen.Job, opts Options) (attempt, maxAttempts int) {
+	handedBack := min(max(int(row.MaxAttempts)-opts.MaxAttempts, 0), max(int(row.Attempt)-1, 0))
+	return int(row.Attempt) - handedBack, int(row.MaxAttempts) - handedBack
 }
 
 // performRenewing runs the performer while a goroutine renews the lease
@@ -120,6 +129,12 @@ func (s *Service) writeOutcome(ctx context.Context, row dbgen.Job, job *Job, opt
 		changed, writeErr = s.queries.FinishJob(ctx, dbgen.FinishJobParams{
 			State: string(StateSucceeded), Now: now, Error: "", Counters: counters, ID: row.ID, Attempt: row.Attempt,
 		})
+	case handBack(err, now.Sub(row.CreatedAt)):
+		s.log.Warn("job handed back", "kind", row.Kind, "id", row.ID, "attempt", row.Attempt, "err", err)
+		changed, writeErr = s.queries.HandBackJob(ctx, dbgen.HandBackJobParams{
+			Now: now, Error: err.Error(), Counters: counters,
+			NotBefore: now.Add(handBackWait(now.Sub(row.CreatedAt), opts.Backoff)), ID: row.ID, Attempt: row.Attempt,
+		})
 	case isDiscard(err) || row.Attempt >= row.MaxAttempts:
 		s.log.Warn("job attempt failed", "kind", row.Kind, "id", row.ID, "attempt", row.Attempt, "err", err)
 		changed, writeErr = s.queries.FinishJob(ctx, dbgen.FinishJobParams{
@@ -127,7 +142,8 @@ func (s *Service) writeOutcome(ctx context.Context, row dbgen.Job, job *Job, opt
 		})
 	default:
 		s.log.Warn("job attempt failed", "kind", row.Kind, "id", row.ID, "attempt", row.Attempt, "err", err)
-		wait := retryWait(err, int(row.Attempt), opts.Backoff)
+		attempt, _ := tries(row, opts)
+		wait := retryWait(err, attempt, opts.Backoff)
 		changed, writeErr = s.queries.RequeueJob(ctx, dbgen.RequeueJobParams{
 			Now: now, Error: err.Error(), Counters: counters, NotBefore: now.Add(wait), ID: row.ID, Attempt: row.Attempt,
 		})

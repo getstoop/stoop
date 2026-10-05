@@ -33,6 +33,8 @@ type fakeBots struct {
 	creds   map[string]Credential
 	bots    map[string]Bot
 	revoked []string
+	// failMint and failCredentials, when set, are what those calls return.
+	failMint, failCredentials error
 }
 
 func newFakeBots(pool *pgxpool.Pool) *fakeBots {
@@ -103,6 +105,9 @@ func (f *fakeBots) DeactivateBot(ctx context.Context, id string) error {
 
 // MintCredential applies auth's grant rules: at least one, each grantable.
 func (f *fakeBots) MintCredential(ctx context.Context, req MintRequest) (Credential, string, error) {
+	if f.failMint != nil {
+		return Credential{}, "", f.failMint
+	}
 	if len(req.Grants) == 0 {
 		return Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("choose at least one permission"))
 	}
@@ -156,6 +161,9 @@ func (f *fakeBots) RevokeCredential(ctx context.Context, id string) error {
 }
 
 func (f *fakeBots) Credentials(_ context.Context, holderIDs, ids []string) ([]Credential, error) {
+	if f.failCredentials != nil {
+		return nil, f.failCredentials
+	}
 	var out []Credential
 	for _, c := range f.creds {
 		if len(ids) > 0 && !contains(ids, c.ID) {
@@ -200,6 +208,8 @@ type fakeSpaces struct {
 	pool    *pgxpool.Pool
 	channel map[string]string
 	admin   map[string]bool
+	// failAdmin, when set, is what SetBotAdmin returns.
+	failAdmin error
 }
 
 func (f *fakeSpaces) ChannelSpace(_ context.Context, channelID string) (string, error) {
@@ -237,7 +247,19 @@ func (f *fakeSpaces) ListSpaceIDs(ctx context.Context, userID string) ([]string,
 	}
 	return out, rows.Err()
 }
-func (f *fakeSpaces) SetBotAdmin(_ context.Context, spaceID, userID string, admin bool) error {
+
+// SetBotAdmin refuses a bot outside the space, as chat does.
+func (f *fakeSpaces) SetBotAdmin(ctx context.Context, spaceID, userID string, admin bool) error {
+	if f.failAdmin != nil {
+		return f.failAdmin
+	}
+	member, err := f.IsSpaceMember(ctx, userID, spaceID)
+	if err != nil {
+		return err
+	}
+	if !member {
+		return connect.NewError(connect.CodeNotFound, errors.New("the bot is not a member of that space"))
+	}
 	f.admin[spaceID+"/"+userID] = admin
 	return nil
 }
@@ -269,15 +291,21 @@ func (p *fakePoster) Post(ctx context.Context, req PostRequest) (string, error) 
 	return uuid.NewString(), nil
 }
 
-type fakePolicy struct{ incoming, outgoing, private bool }
+type fakePolicy struct {
+	incoming, outgoing, private bool
+	// failOutgoing and failPublicURL, when set, are what those reads return.
+	failOutgoing, failPublicURL error
+}
 
 func (p *fakePolicy) WebhooksIncoming(context.Context) (bool, error) { return p.incoming, nil }
-func (p *fakePolicy) WebhooksOutgoing(context.Context) (bool, error) { return p.outgoing, nil }
+func (p *fakePolicy) WebhooksOutgoing(context.Context) (bool, error) {
+	return p.outgoing, p.failOutgoing
+}
 func (p *fakePolicy) WebhooksAllowPrivateTargets(context.Context) (bool, error) {
 	return p.private, nil
 }
 func (p *fakePolicy) PublicURL(context.Context) (string, error) {
-	return "https://stoop.example.com", nil
+	return "https://stoop.example.com", p.failPublicURL
 }
 
 type fixture struct {
