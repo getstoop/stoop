@@ -99,9 +99,13 @@ turn the hook on again; the admin does, and *Turn on* is refused while
 the bot is out.
 
 Ticking *may notify everyone* on a hook grants `messages.notify_everyone`
-and makes the bot a space admin, since only admins hold it; unticking the
-last such grant returns the bot to member. Rotating a hook mints a new
-credential and revokes the old one.
+and makes the bot a space admin, since only admins hold it; unticking,
+deleting or sweeping away the last such grant returns the bot to member.
+Rotating a hook mints a new credential with the old one's grant and
+revokes the old one; a hook that was off stays off, unless it was off only
+because its token was revoked, which rotating is the remedy for (the grant
+went with the token, so it comes back post-only). A create that fails
+part-way takes back the credential, the admin role and a bot it made.
 
 ## Outgoing
 

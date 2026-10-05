@@ -14,8 +14,8 @@ import (
 // retires bots left with nothing, and turns off the hooks of bots kicked
 // or banned out of their space.
 
-// SweepOrphanHooks revokes hook credentials no hook row points at and
-// reports how many.
+// SweepOrphanHooks revokes hook credentials no hook row points at, settles
+// their bots' space roles, and reports how many.
 func (s *Service) SweepOrphanHooks(ctx context.Context) (int, error) {
 	if s.bots == nil {
 		return 0, nil
@@ -29,29 +29,50 @@ func (s *Service) SweepOrphanHooks(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("list hooks: %w", err)
 	}
 	live := map[string]bool{}
-	for _, h := range hooks {
-		if h.CredentialID != nil {
-			live[*h.CredentialID] = true
+	for _, hook := range hooks {
+		if hook.CredentialID != nil {
+			live[*hook.CredentialID] = true
 		}
 	}
-	n := 0
+	revoked := 0
 	holders := map[string]bool{}
-	for _, c := range creds {
-		if c.Kind != authctx.CredentialIncomingHook || live[c.ID] {
+	for _, cred := range creds {
+		if cred.Kind != authctx.CredentialIncomingHook || live[cred.ID] {
 			continue
 		}
-		if err := s.bots.RevokeCredential(ctx, c.ID); err != nil {
-			return n, err
+		if err := s.bots.RevokeCredential(ctx, cred.ID); err != nil {
+			return revoked, err
 		}
-		n++
-		holders[c.HolderID] = true
+		revoked++
+		holders[cred.HolderID] = true
 	}
-	for id := range holders {
-		if err := s.retireIfIdle(ctx, id); err != nil {
-			return n, err
+	for botID := range holders {
+		if err := s.settleBotAdminEverywhere(ctx, botID); err != nil {
+			return revoked, err
+		}
+		if err := s.retireIfIdle(ctx, botID); err != nil {
+			return revoked, err
 		}
 	}
-	return n, nil
+	return revoked, nil
+}
+
+// settleBotAdminEverywhere settles the bot's role in each of its spaces:
+// an orphaned credential's channel is gone, and with it the space it was in.
+func (s *Service) settleBotAdminEverywhere(ctx context.Context, botID string) error {
+	if s.spaces == nil {
+		return nil
+	}
+	spaceIDs, err := s.spaces.ListSpaceIDs(ctx, botID)
+	if err != nil {
+		return err
+	}
+	for _, spaceID := range spaceIDs {
+		if err := s.settleBotAdmin(ctx, spaceID, botID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SweepRemovedBotHooks turns off hooks whose bot has left the space by a
