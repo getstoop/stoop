@@ -4,15 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"connectrpc.com/connect"
 
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/rowid"
 )
@@ -180,41 +177,23 @@ func (s *Service) RenameAccount(ctx context.Context, userID string, username, di
 	if err := rowid.Require(userID, "user"); err != nil {
 		return AccountSummary{}, err
 	}
-	u, err := s.q.GetUserByID(ctx, userID)
+	current, err := s.q.GetUserByID(ctx, userID)
 	if err != nil {
 		return AccountSummary{}, apierr.NotFoundOr(err, "user")
 	}
-	if username != nil {
-		name := strings.ToLower(strings.TrimSpace(*username))
-		if !usernameRE.MatchString(name) {
-			return AccountSummary{}, apierr.Field(connect.CodeInvalidArgument, "username",
-				errors.New("username must be 3-32 letters, numbers, or _"))
-		}
-		if reservedUsernames[name] {
-			return AccountSummary{}, apierr.Field(connect.CodeInvalidArgument, "username",
-				fmt.Errorf("%q is reserved; pick another username", name))
-		}
-		u, err = s.q.AdminSetUsername(ctx, dbgen.AdminSetUsernameParams{ID: userID, Username: name})
-		if err != nil {
-			if db.HasCode(err, db.UniqueViolation) {
-				return AccountSummary{}, apierr.Field(connect.CodeAlreadyExists, "username",
-					errors.New("username is taken"))
-			}
-			return AccountSummary{}, fmt.Errorf("update username: %w", err)
-		}
+	change, err := renameFrom(username, displayName)
+	if err != nil {
+		return AccountSummary{}, err
 	}
-	if displayName != nil {
-		name := strings.TrimSpace(*displayName)
-		if name == "" || utf8.RuneCountInString(name) > maxDisplayNameLen {
-			return AccountSummary{}, apierr.Field(connect.CodeInvalidArgument, "display_name",
-				fmt.Errorf("display name must be 1-%d characters", maxDisplayNameLen))
-		}
-		u, err = s.q.UpdateUserProfile(ctx, dbgen.UpdateUserProfileParams{ID: userID, DisplayName: &name})
-		if err != nil {
-			return AccountSummary{}, fmt.Errorf("update display name: %w", err)
-		}
+	var renamed dbgen.User
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		renamed, err = change.apply(ctx, qtx, current)
+		return err
+	})
+	if err != nil {
+		return AccountSummary{}, err
 	}
-	return toSummary(u), nil
+	return toSummary(renamed), nil
 }
 
 // ClearAccountProfile empties an account's pronouns and/or bio on an
