@@ -10,57 +10,53 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 )
 
-// activityCountingDB counts the queries that deliver activity: blocks,
-// activity items and mutes.
-type activityCountingDB struct {
-	pool    *pgxpool.Pool
-	queries atomic.Int64
+// sendQueryCounter counts, on every connection of a pool and inside
+// transactions too, the queries that write mention rows and the ones
+// that deliver activity: blocks, activity items and mutes.
+type sendQueryCounter struct {
+	mentions atomic.Int64
+	activity atomic.Int64
 }
 
-func (db *activityCountingDB) count(sql string) {
-	for _, table := range []string{"activity_items", "channel_mutes", "space_mutes", "user_blocks"} {
-		if strings.Contains(sql, table) {
-			db.queries.Add(1)
-			return
-		}
+func (counter *sendQueryCounter) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	switch {
+	case strings.Contains(data.SQL, "INSERT INTO message_mentions"):
+		counter.mentions.Add(1)
+	case strings.Contains(data.SQL, "activity_items"), strings.Contains(data.SQL, "channel_mutes"),
+		strings.Contains(data.SQL, "space_mutes"), strings.Contains(data.SQL, "user_blocks"):
+		counter.activity.Add(1)
 	}
+	return ctx
 }
 
-func (db *activityCountingDB) Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error) {
-	db.count(sql)
-	return db.pool.Exec(ctx, sql, args...)
-}
-
-func (db *activityCountingDB) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
-	db.count(sql)
-	return db.pool.Query(ctx, sql, args...)
-}
-
-func (db *activityCountingDB) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
-	db.count(sql)
-	return db.pool.QueryRow(ctx, sql, args...)
-}
+func (counter *sendQueryCounter) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
 
 type noUsers struct{}
 
 func (noUsers) GetUsers(context.Context, []string) ([]UserRecord, error) { return nil, nil }
 
-// An @everyone costs the same few activity queries however big the space.
-func TestEveryoneActivityQueriesDoNotGrowWithTheSpace(t *testing.T) {
+// An @everyone costs the same few mention and activity queries however
+// big the space.
+func TestEveryoneSendQueriesDoNotGrowWithTheSpace(t *testing.T) {
 	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := New(pool, bus, noUsers{})
 	ctx := context.Background()
+	counter := &sendQueryCounter{}
+	config := pool.Config()
+	config.ConnConfig.Tracer = counter
+	traced, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(traced.Close)
+	svc := New(traced, events.NewInProcBus(), noUsers{})
 
 	addUser := func(name string) string {
 		t.Helper()
@@ -73,8 +69,8 @@ func TestEveryoneActivityQueriesDoNotGrowWithTheSpace(t *testing.T) {
 	casey := authctx.WithIdentity(ctx, authctx.Identity{UserID: addUser("casey"), Role: authctx.RoleMember})
 
 	// sendEveryone posts @everyone in a new space of casey and members-1
-	// others, and counts the activity queries it made.
-	sendEveryone := func(members int) int64 {
+	// others, and counts the queries it made.
+	sendEveryone := func(members int) (mentions, activity int64) {
 		t.Helper()
 		space, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 		if err != nil {
@@ -86,29 +82,32 @@ func TestEveryoneActivityQueriesDoNotGrowWithTheSpace(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		counter := &activityCountingDB{pool: pool}
-		svc.q = dbgen.New(counter)
-		defer func() { svc.q = dbgen.New(pool) }()
+		counter.mentions.Store(0)
+		counter.activity.Store(0)
 		if _, err := svc.SendMessage(casey, connect.NewRequest(&chatv1.SendMessageRequest{
 			ChannelId: space.Msg.DefaultChannel.Id, Content: "@everyone game night",
 		})); err != nil {
 			t.Fatal(err)
 		}
-		return counter.queries.Load()
+		return counter.mentions.Load(), counter.activity.Load()
 	}
 
-	small := sendEveryone(3)
-	large := sendEveryone(20)
-	t.Logf("activity queries: %d for a space of 3, %d for a space of 20", small, large)
-	if large != small {
-		t.Errorf("activity queries grew with the space: %d for 3 members, %d for 20", small, large)
+	smallMentions, smallActivity := sendEveryone(3)
+	largeMentions, largeActivity := sendEveryone(20)
+	t.Logf("mention queries: %d for a space of 3, %d for 20; activity queries: %d and %d",
+		smallMentions, largeMentions, smallActivity, largeActivity)
+	if largeMentions != smallMentions {
+		t.Errorf("mention queries grew with the space: %d for 3 members, %d for 20", smallMentions, largeMentions)
+	}
+	if largeActivity != smallActivity {
+		t.Errorf("activity queries grew with the space: %d for 3 members, %d for 20", smallActivity, largeActivity)
 	}
 
-	var items int
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM activity_items WHERE kind = 'mention'`).Scan(&items); err != nil {
+	var mentionRows, items int
+	if err := pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM message_mentions), (SELECT count(*) FROM activity_items WHERE kind = 'mention')`).Scan(&mentionRows, &items); err != nil {
 		t.Fatal(err)
 	}
-	if want := 2 + 19; items != want {
-		t.Errorf("mention items = %d, want %d", items, want)
+	if want := 2 + 19; mentionRows != want || items != want {
+		t.Errorf("mention rows = %d, items = %d, want %d each", mentionRows, items, want)
 	}
 }

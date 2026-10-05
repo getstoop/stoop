@@ -110,8 +110,8 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 				return fmt.Errorf("record links: %w", err)
 			}
 		}
-		for _, mentionedID := range mentioned {
-			if err := qtx.InsertMessageMention(ctx, dbgen.InsertMessageMentionParams{MessageID: row.ID, UserID: mentionedID}); err != nil {
+		if len(mentioned) > 0 {
+			if err := qtx.InsertMessageMentions(ctx, dbgen.InsertMessageMentionsParams{MessageID: row.ID, UserIds: mentioned}); err != nil {
 				return fmt.Errorf("record mention: %w", err)
 			}
 		}

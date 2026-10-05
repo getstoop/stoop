@@ -50,9 +50,9 @@ FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id
 WHERE m.id = $1;
 
--- name: InsertMessageMention :exec
+-- name: InsertMessageMentions :exec
 INSERT INTO message_mentions (message_id, user_id)
-VALUES ($1, $2)
+SELECT sqlc.arg('message_id')::uuid, unnest(sqlc.arg('user_ids')::uuid[])
 ON CONFLICT DO NOTHING;
 
 -- name: ListMentionsForMessages :many
