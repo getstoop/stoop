@@ -16,6 +16,14 @@ const (
 	rolledBack = ".rolledback"
 )
 
+// The backup directory's two files, and the Postgres major that dumps and
+// restores an operator's own server when the compose file pins none.
+const (
+	dumpFile             = "stoop.dump"
+	uploadsArchive       = "stoop-data.tar"
+	defaultPostgresMajor = "16"
+)
+
 // companions are the rest of the release bundle, mounted by the compose
 // file, so a release that changes one has it in place before starting.
 var companions = []string{"livekit.yaml", "livekit-entrypoint.sh"}

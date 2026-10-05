@@ -19,6 +19,13 @@ type Plan struct {
 	Ahead      []int64     // applied migrations this binary does not carry
 }
 
+// The exit codes of `stoop migrate plan` beside 0, nothing to run;
+// `stoop upgrade` reads them from the target image.
+const (
+	PlanExitPending = 2 // there are migrations to run
+	PlanExitRefused = 3 // this binary is too old for the database
+)
+
 // Contract is whether Pending raises the floor: after it, the release
 // that made this database can no longer start against it.
 func (p Plan) Contract() bool { return p.FloorAfter > p.Floor }

@@ -20,7 +20,7 @@ func (u *Upgrader) plan(ctx context.Context, target string) (db.Report, error) {
 	if i := strings.LastIndex(line, "\n"); i >= 0 {
 		line = line[i+1:]
 	}
-	if err := json.Unmarshal([]byte(line), &report); err != nil || res.Code < 0 || (res.Code != 0 && res.Code != 2 && res.Code != 3) {
+	if err := json.Unmarshal([]byte(line), &report); err != nil || res.Code < 0 || (res.Code != 0 && res.Code != db.PlanExitPending && res.Code != db.PlanExitRefused) {
 		return report, fmt.Errorf("could not read the migration plan (exit %d):\n%s%s", res.Code, res.Stdout, res.Stderr)
 	}
 	db.WriteReport(u.Out, report, true)

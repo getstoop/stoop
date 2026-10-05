@@ -85,17 +85,17 @@ func (u *Upgrader) restoreCommands(backup backupInfo) string {
 		lines = []string{
 			"  docker compose stop stoop",
 			"  docker compose exec -T postgres psql -U stoop -d postgres -c 'DROP DATABASE stoop WITH (FORCE)' -c 'CREATE DATABASE stoop'",
-			"  docker compose exec -T postgres pg_restore -U stoop -d stoop --no-owner < " + dir + "/stoop.dump",
+			"  docker compose exec -T postgres pg_restore -U stoop -d stoop --no-owner < " + dir + "/" + dumpFile,
 		}
 	} else {
 		lines = []string{
 			"  docker compose stop stoop",
-			"  docker run --rm -i --network host -e STOOP_DATABASE_URL postgres:" + u.postgresMajor() + "-alpine sh -c 'pg_restore --clean --if-exists --no-owner -d \"$STOOP_DATABASE_URL\"' < " + dir + "/stoop.dump",
+			"  docker run --rm -i --network host -e STOOP_DATABASE_URL postgres:" + u.postgresMajor() + "-alpine sh -c 'pg_restore --clean --if-exists --no-owner -d \"$STOOP_DATABASE_URL\"' < " + dir + "/" + dumpFile,
 			"    (with STOOP_DATABASE_URL exported from .env first)",
 		}
 	}
 	lines = append(lines,
-		`  docker run --rm --volumes-from "$(docker compose ps -aq stoop)" -v "$PWD/`+dir+`":/backup alpine tar -C /data -xf /backup/stoop-data.tar`,
+		`  docker run --rm --volumes-from "$(docker compose ps -aq stoop)" -v "$PWD/`+dir+`":/backup alpine tar -C /data -xf /backup/`+uploadsArchive,
 		"  mv "+prevFile+" "+composeFile+" && docker compose up -d",
 	)
 	return strings.Join(lines, "\n") + "\n"
