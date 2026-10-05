@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -45,38 +44,21 @@ func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1
 	if err := refuseBotCaller(ctx, "a bot's profile is set by a server admin"); err != nil {
 		return nil, err
 	}
-	name := strings.TrimSpace(req.Msg.DisplayName)
-	if name == "" || utf8.RuneCountInString(name) > maxDisplayNameLen {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "display_name",
-			fmt.Errorf("display name must be 1-%d characters", maxDisplayNameLen))
+	// Every field is checked before anything is written, so a refusal of
+	// one leaves the profile as it was.
+	name, err := displayNameFrom(req.Msg.DisplayName)
+	if err != nil {
+		return nil, err
 	}
 	// Usernames are freely changeable: everything durable binds to the
 	// user id, and provider identities link by (provider, subject).
+	var username *string
 	if req.Msg.Username != nil {
-		username := strings.ToLower(strings.TrimSpace(*req.Msg.Username))
-		if !usernameRE.MatchString(username) {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "username",
-				errors.New("username must be 3-32 letters, numbers, or _"))
+		checked, err := usernameFrom(*req.Msg.Username)
+		if err != nil {
+			return nil, err
 		}
-		if reservedUsernames[username] {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "username",
-				fmt.Errorf("%q is reserved; pick another username", username))
-		}
-		if _, err := s.q.SetUsername(ctx, dbgen.SetUsernameParams{
-			ID: authctx.UserID(ctx), Username: username,
-		}); err != nil {
-			switch {
-			case errors.Is(err, pgx.ErrNoRows):
-				// The only way the row doesn't match: an admin froze it.
-				return nil, apierr.Field(connect.CodeFailedPrecondition, "username",
-					errors.New("an admin has locked your username"))
-			case db.HasCode(err, db.UniqueViolation):
-				return nil, apierr.Field(connect.CodeAlreadyExists, "username",
-					errors.New("username is taken"))
-			default:
-				return nil, fmt.Errorf("set username: %w", err)
-			}
-		}
+		username = &checked
 	}
 	pronouns, err := profileText(req.Msg.Pronouns, "pronouns", maxPronounsLen)
 	if err != nil {
@@ -86,11 +68,34 @@ func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1
 	if err != nil {
 		return nil, err
 	}
-	user, err := s.q.UpdateUserProfile(ctx, dbgen.UpdateUserProfileParams{
-		ID: authctx.UserID(ctx), DisplayName: &name, Pronouns: pronouns, Bio: bio,
+	userID := authctx.UserID(ctx)
+	var user dbgen.User
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if username != nil {
+			if _, err := qtx.SetUsername(ctx, dbgen.SetUsernameParams{ID: userID, Username: *username}); err != nil {
+				switch {
+				case errors.Is(err, pgx.ErrNoRows):
+					// The only way the row doesn't match: an admin froze it.
+					return apierr.Field(connect.CodeFailedPrecondition, "username",
+						errors.New("an admin has locked your username"))
+				case db.HasCode(err, db.UniqueViolation):
+					return apierr.Field(connect.CodeAlreadyExists, "username",
+						errors.New("username is taken"))
+				default:
+					return fmt.Errorf("set username: %w", err)
+				}
+			}
+		}
+		user, err = qtx.UpdateUserProfile(ctx, dbgen.UpdateUserProfileParams{
+			ID: userID, DisplayName: &name, Pronouns: pronouns, Bio: bio,
+		})
+		if err != nil {
+			return fmt.Errorf("update profile: %w", err)
+		}
+		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("update profile: %w", err)
+		return nil, err
 	}
 	return connect.NewResponse(&authv1.UpdateProfileResponse{User: toProtoUser(user)}), nil
 }
