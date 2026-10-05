@@ -287,9 +287,9 @@ func loadFrontDoors(env *envReader, cfg *Config) {
 		}
 	}
 
-	// Compose still passes STOOP_TRUST_PROXY (false by default) for one
-	// release, so an operator who set it true is told instead of silently
-	// trusting nothing (STOOP-406 removes it).
+	// Removed in 0.4.0. Compose loads .env whole, so an operator who
+	// upgrades past 0.4.0 with it still set true is told instead of
+	// silently trusting nothing.
 	if env.bool("STOOP_TRUST_PROXY", false) {
 		env.fail("STOOP_TRUST_PROXY=true is no longer supported: name your proxy's addresses in STOOP_TRUSTED_PROXIES and remove STOOP_TRUST_PROXY")
 	}

@@ -30,7 +30,6 @@ x-stoop-environment: &stoop-environment
   TZ: ${TZ:-UTC}
   STOOP_DATABASE_URL: ${STOOP_DATABASE_URL:-postgres://stoop:${POSTGRES_PASSWORD:-}@postgres:5432/stoop?sslmode=disable}
   STOOP_PUBLIC_URL: ${STOOP_PUBLIC_URL:-}
-  STOOP_TRUST_PROXY: ${STOOP_TRUST_PROXY:-false}
   STOOP_SECURE_COOKIES: ${STOOP_SECURE_COOKIES:-false}
   STOOP_ALLOWED_WS_ORIGINS: ${STOOP_ALLOWED_WS_ORIGINS:-localhost:*}
   STOOP_STORAGE_DIR: /data
