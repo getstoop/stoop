@@ -247,14 +247,10 @@ func (s *Service) SetSettingFields(ctx context.Context, changes map[string]strin
 				})
 			}
 		case "password-sign-in":
-			policy, ok := map[string]instancev1.PasswordSignIn{
-				"everyone": instancev1.PasswordSignIn_PASSWORD_SIGN_IN_EVERYONE,
-				"admins":   instancev1.PasswordSignIn_PASSWORD_SIGN_IN_ADMINS,
-				"off":      instancev1.PasswordSignIn_PASSWORD_SIGN_IN_OFF,
-			}[value]
-			if !ok {
+			if !passwordSignIns.has(PasswordSignIn(value)) {
 				return errors.New("password-sign-in takes everyone, admins, or off")
 			}
+			policy := passwordSignIns.toProto(PasswordSignIn(value))
 			settings.PasswordSignIn = &policy
 		case "instance-name":
 			settings.InstanceName = &value
