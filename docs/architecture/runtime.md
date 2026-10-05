@@ -353,7 +353,7 @@ the `jobs_runner` health row
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `STOOP_JOBS_WORKERS` | `16` | Jobs run at once; `deliver_webhook` is capped at three quarters of them. |
+| `STOOP_JOBS_WORKERS` | `16` | Jobs run at once; `deliver_webhook` is capped at three quarters of them, at least one. Like every cap it counts live leases in the database, so a second dispatcher adds no delivery slots. |
 | `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for when no insert has woken the dispatcher. |
 | `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever. |
 | `STOOP_FILE_SWEEP_INTERVAL` | `6h` | `0` disables the four schedules on it; the Storage tab can still queue a file sweep. |
