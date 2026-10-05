@@ -260,7 +260,7 @@ func (s *Service) deliveriesWired() error {
 }
 
 func (s *Service) requireOutgoing(ctx context.Context) error {
-	on, err := s.outgoingEnabled(ctx)
+	on, err := s.policy.WebhooksOutgoing(ctx)
 	if err != nil {
 		return err
 	}
@@ -270,13 +270,6 @@ func (s *Service) requireOutgoing(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) outgoingEnabled(ctx context.Context) (bool, error) {
-	if s.policy == nil {
-		return false, nil
-	}
-	return s.policy.WebhooksOutgoing(ctx)
-}
-
 // checkTarget validates the URL and refuses one the egress policy would
 // never reach.
 func (s *Service) checkTarget(ctx context.Context, raw string) (string, error) {
@@ -284,11 +277,9 @@ func (s *Service) checkTarget(ctx context.Context, raw string) (string, error) {
 	if err != nil || netguard.CheckURL(u) != nil {
 		return "", apierr.Field(connect.CodeInvalidArgument, "url", errors.New("the URL must be an http or https address"))
 	}
-	allow := false
-	if s.policy != nil {
-		if allow, err = s.policy.WebhooksAllowPrivateTargets(ctx); err != nil {
-			return "", err
-		}
+	allow, err := s.policy.WebhooksAllowPrivateTargets(ctx)
+	if err != nil {
+		return "", err
 	}
 	if err := (netguard.Policy{AllowPrivate: allow}).CheckHost(ctx, u); err != nil {
 		if errors.Is(err, netguard.ErrNotPublic) {

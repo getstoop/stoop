@@ -34,7 +34,7 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 	if err := s.ready(); err != nil {
 		return nil, err
 	}
-	if on, err := s.incomingEnabled(ctx); err != nil {
+	if on, err := s.policy.WebhooksIncoming(ctx); err != nil {
 		return nil, err
 	} else if !on {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("incoming webhooks are turned off on this server"))
@@ -414,12 +414,9 @@ func hookName(raw string) (string, error) {
 }
 
 func (s *Service) hookURL(ctx context.Context, secret string) (string, error) {
-	base := ""
-	if s.policy != nil {
-		var err error
-		if base, err = s.policy.PublicURL(ctx); err != nil {
-			return "", err
-		}
+	base, err := s.policy.PublicURL(ctx)
+	if err != nil {
+		return "", err
 	}
 	return strings.TrimRight(base, "/") + "/hooks/" + secret, nil
 }

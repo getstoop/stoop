@@ -133,7 +133,7 @@ func (s *Service) DeliverWebhook(ctx context.Context, args DeliveryArgs, attempt
 
 // tryDelivery is the attempt and its verdict, before anything is written.
 func (s *Service) tryDelivery(ctx context.Context, args DeliveryArgs, attempt, maxAttempts int) (verdict, error) {
-	on, err := s.outgoingEnabled(ctx)
+	on, err := s.policy.WebhooksOutgoing(ctx)
 	if err != nil {
 		return verdict{}, &notSentError{fmt.Errorf("read the outgoing switch: %w", err)}
 	}
@@ -219,12 +219,9 @@ func (s *Service) post(ctx context.Context, hook dbgen.OutgoingWebhook, args Del
 // egressClient is a client under the operator's private-target policy,
 // never following redirects.
 func (s *Service) egressClient(ctx context.Context) (*http.Client, error) {
-	allow := false
-	if s.policy != nil {
-		var err error
-		if allow, err = s.policy.WebhooksAllowPrivateTargets(ctx); err != nil {
-			return nil, err
-		}
+	allow, err := s.policy.WebhooksAllowPrivateTargets(ctx)
+	if err != nil {
+		return nil, err
 	}
 	transport := s.egress.public
 	if allow {
