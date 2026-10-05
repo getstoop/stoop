@@ -65,29 +65,32 @@ func (s *Service) accessChannel(ctx context.Context, channelID string) (dbgen.Ch
 // writableChannel loads a channel the caller may write in: accessChannel,
 // plus the block rule in a direct message. Every RPC that adds to or
 // changes what the other side sees — send, edit, react — goes through
-// this one, so a kick, a ban or a block stops all three together.
-func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.Channel, error) {
+// this one, so a kick, a ban or a block stops all three together. A
+// direct message's participants come back with it, nil for a space
+// channel, for the rest of the request to use.
+func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.Channel, []string, error) {
 	channel, err := s.accessChannel(ctx, channelID)
 	if err != nil {
-		return dbgen.Channel{}, err
+		return dbgen.Channel{}, nil, err
 	}
 	if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
-		return dbgen.Channel{}, err
+		return dbgen.Channel{}, nil, err
 	}
-	if isDM(channel) {
-		blocked, err := s.dmBlocked(ctx, channel, authctx.UserID(ctx))
-		if err != nil {
-			return dbgen.Channel{}, err
-		}
-		if blocked {
-			ids, err := s.q.ListDMMembers(ctx, channel.ID)
-			if err != nil {
-				return dbgen.Channel{}, fmt.Errorf("list participants: %w", err)
-			}
-			return dbgen.Channel{}, blockRefusal(len(ids), errBlockedGroupSend)
-		}
+	if !isDM(channel) {
+		return channel, nil, nil
 	}
-	return channel, nil
+	participants, err := s.q.ListDMMembers(ctx, channel.ID)
+	if err != nil {
+		return dbgen.Channel{}, nil, fmt.Errorf("list participants: %w", err)
+	}
+	blocked, err := s.dmBlocked(ctx, participants, authctx.UserID(ctx))
+	if err != nil {
+		return dbgen.Channel{}, nil, err
+	}
+	if blocked {
+		return dbgen.Channel{}, nil, blockRefusal(len(participants), errBlockedGroupSend)
+	}
+	return channel, participants, nil
 }
 
 // publishChannel delivers an event to everyone who can see the channel:
@@ -95,16 +98,26 @@ func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.
 // every connection already subscribes to, so the gateway needs no DM
 // bookkeeping).
 func (s *Service) publishChannel(ctx context.Context, channel dbgen.Channel, ev *realtimev1.ServerEvent) {
+	var participants []string
+	if isDM(channel) {
+		ids, err := s.q.ListDMMembers(ctx, channel.ID)
+		if err != nil {
+			slog.Default().Warn("dm: could not list participants for event", "channel_id", channel.ID, "err", err)
+			return
+		}
+		participants = ids
+	}
+	s.publishTo(channel, participants, ev)
+}
+
+// publishTo is publishChannel with a direct message's participants
+// already in hand, as writableChannel returns them.
+func (s *Service) publishTo(channel dbgen.Channel, participants []string, ev *realtimev1.ServerEvent) {
 	if !isDM(channel) {
 		s.bus.Publish(events.SpaceTopic(*channel.SpaceID), ev)
 		return
 	}
-	ids, err := s.q.ListDMMembers(ctx, channel.ID)
-	if err != nil {
-		slog.Default().Warn("dm: could not list participants for event", "channel_id", channel.ID, "err", err)
-		return
-	}
-	for _, id := range ids {
+	for _, id := range participants {
 		s.bus.Publish(events.UserTopic(id), ev)
 	}
 }
@@ -265,15 +278,15 @@ func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]str
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			fmt.Errorf("a conversation holds %d people; make a space for anything bigger", maxDMParticipants))
 	}
-	records, err := s.users.GetUsers(ctx, out)
+	users, err := s.usersByID(ctx, out)
 	if err != nil {
 		return nil, fmt.Errorf("look up users: %w", err)
 	}
-	if len(records) != len(out) {
+	if len(users) != len(out) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
-	for _, r := range records {
-		if r.Kind == authctx.KindBot {
+	for _, user := range users {
+		if user.Kind == authctx.KindBot {
 			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("bots can't be messaged directly"))
 		}
 	}
@@ -358,20 +371,16 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 		return nil, err
 	}
 	out := make([]*chatv1.DirectMessage, len(rows))
-	for i, r := range rows {
-		channel := toProtoChannel(r.Channel)
-		if r.LastReadMessageID != nil {
-			channel.LastReadMessageId = *r.LastReadMessageID
+	for i, row := range rows {
+		channel := toProtoChannel(row.Channel)
+		if row.LastReadMessageID != nil {
+			channel.LastReadMessageId = *row.LastReadMessageID
 		}
-		channel.UnreadCount = int32(r.UnreadCount)
-		channel.Muted = r.Muted
-		dm := &chatv1.DirectMessage{Channel: channel, Closed: r.ClosedAt != nil}
-		for _, uid := range byChannel[r.Channel.ID] {
-			if a := authors[uid]; a != nil {
-				dm.Participants = append(dm.Participants, a)
-			} else {
-				dm.Participants = append(dm.Participants, &chatv1.MessageAuthor{Id: uid, Username: "unknown"})
-			}
+		channel.UnreadCount = int32(row.UnreadCount)
+		channel.Muted = row.Muted
+		dm := &chatv1.DirectMessage{Channel: channel, Closed: row.ClosedAt != nil}
+		for _, participantID := range byChannel[row.Channel.ID] {
+			dm.Participants = append(dm.Participants, authorOrUnknown(authors, participantID))
 		}
 		out[i] = dm
 	}

@@ -45,7 +45,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("message must be 1-%d characters or carry an attachment", maxMessageLen))
 	}
-	channel, err := s.writableChannel(ctx, req.Msg.ChannelId)
+	channel, participants, err := s.writableChannel(ctx, req.Msg.ChannelId)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 
-	res, err := s.resolveMentions(ctx, channel, userID, content)
+	res, err := s.resolveMentions(ctx, channel, participants, userID, content)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		}
 	}
 	if isDM(channel) {
-		if err := s.recordDM(ctx, row, channel, parent, mentioned, msg.Author, firstAttachment); err != nil {
+		if err := s.recordDM(ctx, row, participants, parent, mentioned, msg.Author, firstAttachment); err != nil {
 			return nil, err
 		}
 		s.reopenDM(ctx, channel)
@@ -160,7 +160,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	}
 	// Everyone who can see the channel receives the event; clients filter
 	// by channel_id. The sender's own client receives it too — one code path.
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: msg},
 	}))
 	if s.unfurler != nil {
@@ -364,7 +364,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	// Authorship is not enough: a kicked, banned or blocked author is
 	// still the author, and an edit republishes the message and unfurls
 	// its links.
-	channel, err := s.writableChannel(ctx, msg.ChannelID)
+	channel, participants, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err != nil {
 		return nil, err
 	}
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
 	}))
 	if s.unfurler != nil {
@@ -471,17 +471,13 @@ func (s *Service) firstAttachmentName(ctx context.Context, messageID string) str
 	return records[ids[0]].label()
 }
 
-func toProtoMessage(m messageRow, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
-	author := authors[m.AuthorID]
-	if author == nil {
-		author = &chatv1.MessageAuthor{Id: m.AuthorID, Username: "unknown"}
-	}
+func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
 	out := &chatv1.Message{
-		Id: m.ID, ChannelId: m.ChannelID, Author: author,
-		Content: m.Content, CreatedAt: timestamppb.New(m.CreatedAt),
+		Id: row.ID, ChannelId: row.ChannelID, Author: authorOrUnknown(authors, row.AuthorID),
+		Content: row.Content, CreatedAt: timestamppb.New(row.CreatedAt),
 		MentionUserIds: mentions, SpaceId: spaceID,
-		MentionsEveryone: m.MentionsEveryone, MentionsHere: m.MentionsHere,
+		MentionsEveryone: row.MentionsEveryone, MentionsHere: row.MentionsHere,
 	}
-	out.EditedAt = pbtime.OrNil(m.EditedAt)
+	out.EditedAt = pbtime.OrNil(row.EditedAt)
 	return out
 }

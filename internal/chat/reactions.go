@@ -48,7 +48,7 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "message")
 	}
-	channel, err := s.writableChannel(ctx, msg.ChannelID)
+	channel, participants, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	if err != nil {
 		return nil, err
 	}
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ReactionsChanged{
 			ReactionsChanged: &realtimev1.ReactionsChanged{
 				SpaceId: spaceOf(channel), ChannelId: channel.ID, MessageId: msg.ID,

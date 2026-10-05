@@ -97,11 +97,9 @@ func (s *Service) RemoveBotMember(ctx context.Context, spaceID, userID string) e
 	if Role(role) == RoleOwner {
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("the bot owns that space; transfer it first"))
 	}
-	if err := s.removeMember(ctx, spaceID, userID); err != nil {
+	if err := s.removeFromSpace(ctx, spaceID, userID, true); err != nil {
 		return fmt.Errorf("remove member: %w", err)
 	}
-	s.publishMemberRemoved(spaceID, userID, true)
-	s.evictFromSpaceVoice(ctx, spaceID, userID)
 	return nil
 }
 
