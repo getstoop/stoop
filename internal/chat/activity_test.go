@@ -11,8 +11,6 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -30,9 +28,7 @@ func nextActivityItem(t *testing.T, sub *events.Subscription) *realtimev1.Activi
 // The mute stamp on an activity item is the server's, so a client that
 // has never opened the space still knows not to badge or banner it.
 func TestActivityMuteStamp(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -124,8 +120,7 @@ func TestActivityMuteStamp(t *testing.T) {
 // An activity item previews the message it is about, so a token sees it
 // only with the grant that message needs.
 func TestActivityListFollowsTheReadGrants(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	beaID := authctx.UserID(bea)

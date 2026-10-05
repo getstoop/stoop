@@ -9,9 +9,6 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 // retentionPolicy keeps messages for a fixed number of days.
@@ -23,8 +20,7 @@ func (retentionPolicy) VoiceAvailable() bool                                 { r
 
 // See docs/architecture/messaging.md#message-retention.
 func TestMessageRetention(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	files := &dbFiles{pool: pool}
 	svc.UseFiles(files)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
@@ -116,8 +112,7 @@ func TestMessageRetention(t *testing.T) {
 // An expired attachment keeps its place on the message, nameless, and
 // can't be attached again.
 func TestExpiredAttachmentsOnMessages(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	svc.UseFiles(&dbFiles{pool: pool})
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	sp, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))

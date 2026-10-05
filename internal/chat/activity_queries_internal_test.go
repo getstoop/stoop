@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -58,15 +57,7 @@ func TestEveryoneSendQueriesDoNotGrowWithTheSpace(t *testing.T) {
 	t.Cleanup(traced.Close)
 	svc := New(traced, events.NewInProcBus(), noUsers{})
 
-	addUser := func(name string) string {
-		t.Helper()
-		id := uuid.NewString()
-		if _, err := pool.Exec(ctx, `INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, '', 'member')`, id, name); err != nil {
-			t.Fatal(err)
-		}
-		return id
-	}
-	casey := authctx.WithIdentity(ctx, authctx.Identity{UserID: addUser("casey"), Role: authctx.RoleMember})
+	casey := authctx.WithIdentity(ctx, authctx.Identity{UserID: dbtest.NewUser(t, pool, "casey", "member"), Role: authctx.RoleMember})
 
 	// sendEveryone posts @everyone in a new space of casey and members-1
 	// others, and counts the queries it made.
@@ -77,7 +68,7 @@ func TestEveryoneSendQueriesDoNotGrowWithTheSpace(t *testing.T) {
 			t.Fatal(err)
 		}
 		for index := 1; index < members; index++ {
-			memberID := addUser(fmt.Sprintf("member%d_%d", members, index))
+			memberID := dbtest.NewUser(t, pool, fmt.Sprintf("member%d_%d", members, index), "member")
 			if _, err := pool.Exec(ctx, `INSERT INTO space_members (space_id, user_id, role) VALUES ($1, $2, 'member')`, space.Msg.Space.Id, memberID); err != nil {
 				t.Fatal(err)
 			}

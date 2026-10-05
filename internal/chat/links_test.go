@@ -14,8 +14,6 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 type fakeUnfurler struct {
@@ -60,9 +58,7 @@ func (f *fakePreviewImages) StoreLinkPreviewImage(ctx context.Context, ownerID s
 }
 
 func TestLinkPreviews(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	uf := &fakeUnfurler{fetches: map[string]int{}}
 	imgs := &fakePreviewImages{pool: pool}
 	svc.UseUnfurler(uf, imgs, chat.UnfurlOptions{Inline: true})

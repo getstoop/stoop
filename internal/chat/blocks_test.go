@@ -8,15 +8,10 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func TestBlocks(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
 	aliceID, bobID := authctx.UserID(alice), authctx.UserID(bob)
@@ -85,9 +80,7 @@ func TestBlocks(t *testing.T) {
 // rail keeps a badge the person cannot clear: the conversation is hidden
 // from their list, so there is nothing left to open and mark read.
 func TestBlockClearsTheirActivity(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)

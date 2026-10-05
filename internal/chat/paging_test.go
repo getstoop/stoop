@@ -9,9 +9,6 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 // TestListMessagesModes covers the three ways to page a channel: backwards
@@ -19,8 +16,7 @@ import (
 // one message (around_id), plus the has_older/has_newer hints the client's
 // window model relies on.
 func TestListMessagesModes(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	sp, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	channelID := sp.Msg.DefaultChannel.Id

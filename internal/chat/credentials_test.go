@@ -110,8 +110,7 @@ func TestBoundsReachEveryPath(t *testing.T) {
 // my_permissions is the server's answer for the viewer and the credential
 // they called with.
 func TestMyPermissions(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	member := newUser(t, pool, "member", authctx.RoleMember)
 

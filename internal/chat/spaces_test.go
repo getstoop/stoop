@@ -12,16 +12,12 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func ptr[T any](v T) *T { return &v }
 
 func TestSpaceNames(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	create := func(name string) (*chatv1.Space, error) {
 		res, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: name}))
@@ -75,9 +71,7 @@ func TestSpaceNames(t *testing.T) {
 }
 
 func TestSpaceDescriptionAndWelcome(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 
@@ -160,9 +154,7 @@ func TestSpaceDescriptionAndWelcome(t *testing.T) {
 }
 
 func TestSpaceDefaultChannel(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 
@@ -271,9 +263,7 @@ func TestSpaceDefaultChannel(t *testing.T) {
 // pointing at something that is gone: the column clears itself, and
 // members are told, so their settings page stops offering it.
 func TestDeletingTheDefaultChannelClearsIt(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -362,8 +352,7 @@ func TestDeletingTheDefaultChannelClearsIt(t *testing.T) {
 // it prints, and — the reason the RPC exists — membership reported apart
 // from the admin role that is inherited without it.
 func TestListAllSpacesForAdmin(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	ada := newUser(t, pool, "ada", authctx.RoleMember)
 	admin := newUser(t, pool, "operator", authctx.RoleAdmin)
@@ -458,8 +447,7 @@ func TestListAllSpacesForAdmin(t *testing.T) {
 // A space whose owner deleted their account still lists: the page needs
 // the row more than it needs the name.
 func TestListAllSpacesWithDeletedOwner(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	admin := newUser(t, pool, "operator", authctx.RoleAdmin)
 

@@ -38,9 +38,7 @@ func noEvent(t *testing.T, sub *events.Subscription) {
 }
 
 func TestDirectMessages(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)

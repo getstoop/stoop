@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/db"
@@ -78,4 +79,16 @@ func NewURL(t *testing.T) string {
 		admin.Close()
 	})
 	return u.String()
+}
+
+// NewUser adds a person with no password and returns their id, for a
+// module test that may not import auth. role is "admin" or "member".
+func NewUser(t *testing.T, pool *pgxpool.Pool, username, role string) string {
+	t.Helper()
+	id := uuid.NewString()
+	if _, err := pool.Exec(context.Background(),
+		`INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, '', $3)`, id, username, role); err != nil {
+		t.Fatalf("add user %s: %v", username, err)
+	}
+	return id
 }

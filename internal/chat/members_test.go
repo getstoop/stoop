@@ -13,7 +13,6 @@ import (
 	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -28,9 +27,7 @@ type fixture struct {
 // instance admin who hasn't joined.
 func newFixture(t *testing.T) fixture {
 	t.Helper()
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	f := fixture{svc: svc, bus: bus,
 		owner: newUser(t, pool, "owner", authctx.RoleMember), admin: newUser(t, pool, "admin", authctx.RoleMember),
 		member: newUser(t, pool, "member", authctx.RoleMember), other: newUser(t, pool, "other", authctx.RoleMember),
@@ -310,9 +307,7 @@ func TestSetMemberRoleOwnerSaysTransfer(t *testing.T) {
 }
 
 func TestInstanceAdminJoiningOwnSpaceIsNotAnnounced(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleAdmin)
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	if err != nil {

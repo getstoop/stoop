@@ -8,18 +8,13 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 // Editing and reacting are writes: authorship alone does not carry them
 // past a kick, a ban or a block. See docs/architecture/messaging.md →
 // Edits, deletions, reactions, replies.
 func TestWritesStopAtKickBanAndBlock(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)

@@ -11,7 +11,6 @@ import (
 	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -51,9 +50,7 @@ func openDM(t *testing.T, svc *chat.Service, who context.Context, ids ...string)
 }
 
 func TestGroupDirectMessages(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
@@ -170,9 +167,7 @@ func TestGroupDirectMessages(t *testing.T) {
 }
 
 func TestDirectMessageCapAndBlocks(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	sp, err := svc.CreateSpace(alice, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -271,9 +266,7 @@ func TestDirectMessageCapAndBlocks(t *testing.T) {
 }
 
 func TestDirectMessageCandidates(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
@@ -333,9 +326,7 @@ func authorIDs(authors []*chatv1.MessageAuthor) map[string]bool {
 // person" means nothing in a group, where the block may be with any of
 // several and naming which would be naming them.
 func TestBlockRefusalWording(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
