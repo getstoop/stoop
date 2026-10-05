@@ -17,12 +17,8 @@ import (
 	"github.com/getstoop/stoop/internal/instance"
 )
 
-// metricsHandler answers GET /metrics with the registry in Prometheus text
-// format, for a bearer token that holds instance.read: the same verifier
-// and the same gate as the Connect procedures behind the Diagnostics tab.
-// The health rows, the job list and the build come from this package,
-// which is the only one that knows them all; internal/diag stays a plain
-// registry.
+// metricsHandler answers GET /metrics for a bearer token that holds
+// instance.read. See docs/architecture/diagnostics.md → GET /metrics.
 func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service, queue *queueStats,
 	jobList func(ctx context.Context) ([]diag.JobRecord, error), log *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

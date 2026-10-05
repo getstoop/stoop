@@ -17,10 +17,7 @@ import (
 )
 
 // Handler serves GET /files/{id}: authenticate, authorise per kind, then
-// stream the blob. Content-Type comes from the file row (never sniffed
-// again), nothing is rendered inline unless it is a raster image or
-// playable media, and because a file's bytes never change under its id
-// the response is cacheable forever.
+// stream the blob. See docs/architecture/files.md → Serving.
 func (s *Service) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -78,10 +75,9 @@ func (s *Service) Handler() http.Handler {
 }
 
 // serveBlob writes the file's bytes, or the window a Range header asks
-// for. Raster images and playable media are inline; everything else is a
-// download (in particular SVG never renders on the app origin). The
-// Content-Length and Content-Range come from the row's size — the record
-// of truth, and what the range was resolved against.
+// for, with the headers files.md → Serving lists. Content-Length and
+// Content-Range come from the row's size, which the range was resolved
+// against.
 func (s *Service) serveBlob(w http.ResponseWriter, r *http.Request, f dbgen.File) {
 	h := w.Header()
 	h.Set("Content-Type", f.ContentType)
@@ -126,13 +122,8 @@ func (s *Service) serveBlob(w http.ResponseWriter, r *http.Request, f dbgen.File
 	_, _ = io.Copy(w, rc)
 }
 
-// mayDownload is the per-kind authorisation rule. Avatars are visible to
-// every signed-in user (they appear wherever a name does); space icons
-// and message attachments to whoever chat says may read the space, which
-// includes the credential's grant and bounds. An attachment with no space
-// belongs to a direct message: its uploader and the people in the
-// conversation, and nobody else — not even an admin — and only with a
-// credential that covers dms.read.
+// mayDownload is the per-kind authorisation rule: the table in
+// docs/architecture/files.md → Serving.
 func (s *Service) mayDownload(ctx context.Context, id authctx.Identity, f dbgen.File) (bool, error) {
 	ctx = authctx.WithIdentity(ctx, id)
 	switch Kind(f.Kind) {

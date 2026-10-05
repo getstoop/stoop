@@ -15,12 +15,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// Storage hygiene: the sweep. A self-hosted disk fills quietly — uploads
-// that were never sent, attachments whose channel or space is gone,
-// avatars and icons replaced mid-crash, blobs whose row insert failed — so
-// the sweep walks the files table and the store and removes what nothing
-// points at. Which files are still pointed at is the owning modules'
-// knowledge, asked through ports; files never reads their tables.
+// Storage hygiene: see docs/architecture/files.md → The sweep.
 
 const (
 	// DefaultSweepGrace is how old an unreferenced file must be before the

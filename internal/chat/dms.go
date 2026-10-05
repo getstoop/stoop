@@ -19,28 +19,12 @@ import (
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
-// Direct messages are channels with no space (kind DM), their people in
-// dm_members. The message RPCs don't know the difference: they read the
-// channel through accessChannel and publish through publishChannel, and
-// those two are where a DM and a space channel part ways. A conversation
-// holds two people or ten, and either way it *is* its people — dm_key is
-// the whole set, so opening it is idempotent and membership never changes
-// afterwards. See docs/architecture/messaging.md → Direct messages.
+// Direct messages: see docs/architecture/messaging.md → Direct messages.
+// The message RPCs reach them through channel_access.go.
 
 // maxDMParticipants caps a conversation, the caller included. Past ten the
 // thing being asked for is a space.
 const maxDMParticipants = 10
-
-func isDM(c dbgen.Channel) bool { return c.SpaceID == nil }
-
-// spaceOf is the channel's space id, "" for a direct message. Events and
-// protos carry that "" so clients can tell the two apart.
-func spaceOf(c dbgen.Channel) string {
-	if c.SpaceID == nil {
-		return ""
-	}
-	return *c.SpaceID
-}
 
 // dmKey is the identity of a conversation: everyone in it, in a fixed
 // order. Two people or ten, the same rule — which is what makes "open the
@@ -49,77 +33,6 @@ func dmKey(ids []string) string {
 	sorted := append([]string{}, ids...)
 	slices.Sort(sorted)
 	return strings.Join(sorted, ":")
-}
-
-// accessChannel loads a channel the caller may read: a member of its
-// space, or a participant in the direct message. Membership is checked
-// before the row is read so an outsider learns nothing from the error.
-// A hidden voice channel is not found.
-func (s *Service) accessChannel(ctx context.Context, channelID string) (dbgen.Channel, error) {
-	if err := s.requireChannelMember(ctx, channelID); err != nil {
-		return dbgen.Channel{}, err
-	}
-	return s.memberChannel(ctx, channelID)
-}
-
-// writableChannel loads a channel the caller may write in: accessChannel,
-// plus the block rule in a direct message. Every RPC that adds to or
-// changes what the other side sees — send, edit, react — goes through
-// this one, so a kick, a ban or a block stops all three together. A
-// direct message's participants come back with it, nil for a space
-// channel, for the rest of the request to use.
-func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.Channel, []string, error) {
-	channel, err := s.accessChannel(ctx, channelID)
-	if err != nil {
-		return dbgen.Channel{}, nil, err
-	}
-	if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
-		return dbgen.Channel{}, nil, err
-	}
-	if !isDM(channel) {
-		return channel, nil, nil
-	}
-	participants, err := s.q.ListDMMembers(ctx, channel.ID)
-	if err != nil {
-		return dbgen.Channel{}, nil, fmt.Errorf("list participants: %w", err)
-	}
-	blocked, err := s.dmBlocked(ctx, participants, authctx.UserID(ctx))
-	if err != nil {
-		return dbgen.Channel{}, nil, err
-	}
-	if blocked {
-		return dbgen.Channel{}, nil, blockRefusal(len(participants), errBlockedGroupSend)
-	}
-	return channel, participants, nil
-}
-
-// publishChannel delivers an event to everyone who can see the channel:
-// the space's topic, or each DM participant's personal topic (which
-// every connection already subscribes to, so the gateway needs no DM
-// bookkeeping).
-func (s *Service) publishChannel(ctx context.Context, channel dbgen.Channel, ev *realtimev1.ServerEvent) {
-	var participants []string
-	if isDM(channel) {
-		ids, err := s.q.ListDMMembers(ctx, channel.ID)
-		if err != nil {
-			slog.Default().Warn("dm: could not list participants for event", "channel_id", channel.ID, "err", err)
-			return
-		}
-		participants = ids
-	}
-	s.publishTo(channel, participants, ev)
-}
-
-// publishTo is publishChannel with a direct message's participants
-// already in hand, as writableChannel returns them.
-func (s *Service) publishTo(channel dbgen.Channel, participants []string, ev *realtimev1.ServerEvent) {
-	if !isDM(channel) {
-		s.bus.Publish(events.SpaceTopic(*channel.SpaceID), ev)
-		return
-	}
-	for _, id := range participants {
-		s.bus.Publish(events.UserTopic(id), ev)
-	}
 }
 
 // DMParticipants implements the realtime gateway's channel port: who is
@@ -315,11 +228,8 @@ func blockRefusal(participants int, group *connect.Error) *connect.Error {
 }
 
 // checkNoBlocks refuses a conversation holding anyone who has blocked, or
-// is blocked by, anyone else in it. Every pair is checked, not just the
-// caller's: a conversation nobody can speak in would be worse than a
-// refusal. The cost is that the caller can infer two *other* people have
-// blocked each other, which is stated in messaging.md rather than traded
-// away. Membership never changes, so this is the only moment it is asked.
+// is blocked by, anyone else in it: every pair, not just the caller's
+// (messaging.md → Direct messages).
 func (s *Service) checkNoBlocks(ctx context.Context, everyone []string) error {
 	for i, id := range everyone {
 		others := append(append([]string{}, everyone[:i]...), everyone[i+1:]...)

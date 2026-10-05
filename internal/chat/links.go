@@ -14,12 +14,7 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 )
 
-// Link previews. URLs in a message are recorded at send time; a worker
-// fetches each one's metadata through the Unfurler port (the server
-// fetches, never the reader's browser), stores the preview image through
-// the PreviewImages port, and then republishes the message with its
-// previews as a MessageUpdated event. Previews are cached per URL and
-// shared by every message that links it.
+// Link previews: see docs/architecture/messaging.md → Link previews.
 
 // LinkMeta is what the Unfurler port returns for a URL.
 type LinkMeta struct {

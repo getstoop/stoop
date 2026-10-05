@@ -15,11 +15,10 @@ import (
 	voicev1 "github.com/getstoop/stoop/gen/stoop/voice/v1"
 )
 
-// ICE servers are how voice survives front doors that only carry HTTP
-// (Cloudflare Tunnel, Tailscale Funnel) and networks where LiveKit's media
-// ports can't be reached: the browser relays through TURN instead. The
-// browser uses these instead of LiveKit's own list, so a source must
-// include STUN as well as TURN.
+// ICE servers let the browser relay through TURN where LiveKit's media
+// ports can't be reached. They replace LiveKit's own list, so a source
+// must include STUN as well as TURN (docs/architecture/voice.md → ICE and
+// TURN).
 
 // iceSource yields the servers to hand a joining browser.
 type iceSource interface {

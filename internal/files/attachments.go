@@ -26,18 +26,14 @@ const (
 	// Form parsing keeps this much in memory; the rest of a part spools to
 	// a temp file, so a 100 MB upload doesn't sit in RAM.
 	multipartMemory = 1 << 20
-	// Slack for the multipart framing and the channel_id field on top of
+	// Room for the multipart framing and the channel_id field on top of
 	// the file itself.
 	multipartOverhead = 64 << 10
 )
 
 // UploadHandler serves POST /files/upload: a multipart form with a
-// channel_id field and one file part. Bytes are stored as sent — no
-// re-encoding — so the content type is decided by sniffing (never the
-// part's declared type or the filename); anything that isn't a raster
-// image or playable media will be served as a download. The row is a pending attachment until a message
-// claims it via SendMessage.attachment_ids; unclaimed uploads are left
-// for the GC sweep (phase 4).
+// channel_id field and one file part. See docs/architecture/files.md →
+// Two upload paths, for one reason.
 func (s *Service) UploadHandler() http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method != http.MethodPost {

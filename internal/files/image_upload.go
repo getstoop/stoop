@@ -18,10 +18,8 @@ import (
 )
 
 // Avatars and icons are accepted here and normalised by the
-// normalise_image job (normalise.go): the request refuses what is cheap to
-// refuse, stores the bytes as sent under a pending row and queues the job.
-// The account or space still shows its old image until the job swaps the
-// pointer. See docs/architecture/files.md → Images.
+// normalise_image job (normalise.go). See docs/architecture/files.md →
+// Images.
 
 func (s *Service) UploadAvatar(ctx context.Context, req *connect.Request[filesv1.UploadAvatarRequest]) (*connect.Response[filesv1.UploadAvatarResponse], error) {
 	if id, _ := authctx.From(ctx); id.Kind == authctx.KindBot {

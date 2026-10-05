@@ -105,17 +105,3 @@ func (s *Service) reactionsByMessage(ctx context.Context, messageIDs []string) (
 	}
 	return out, nil
 }
-
-// loadMessage reads one message and hydrates it, for the events that resend
-// a message after it changes.
-func (s *Service) loadMessage(ctx context.Context, messageID, spaceID string) (*chatv1.Message, error) {
-	row, err := s.q.GetMessageWithReply(ctx, messageID)
-	if err != nil {
-		return nil, fmt.Errorf("load message: %w", err)
-	}
-	messages, err := s.hydrateMessages(ctx, spaceID, []dbgen.MessageWithReply{row})
-	if err != nil {
-		return nil, err
-	}
-	return messages[0], nil
-}

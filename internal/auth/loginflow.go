@@ -18,14 +18,9 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
-// The browser side of provider sign-in: /auth/oidc/{provider}/start sends
-// the person to the issuer; /auth/callback/{provider} redeems what comes
-// back and ends in the same opaque session cookie as a password login.
-//
-// Round-trip state (state, nonce, PKCE verifier, invite code, link
-// intent, redirect) rides in a short-lived HMAC-signed cookie: the cookie
-// is simultaneously the browser binding that defeats login-CSRF. The key
-// is per-process; a restart mid-login just means "sign-in expired".
+// The browser side of provider sign-in. Round-trip state rides in a
+// signed cookie that is also the login-CSRF binding: see
+// docs/architecture/identity.md → Provider sign-in (OIDC).
 
 const (
 	loginCookieName = "stoop_login"

@@ -326,6 +326,20 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	return messages, nil
 }
 
+// loadMessage reads one message and hydrates it, for the events that resend
+// a message after it changes.
+func (s *Service) loadMessage(ctx context.Context, messageID, spaceID string) (*chatv1.Message, error) {
+	row, err := s.q.GetMessageWithReply(ctx, messageID)
+	if err != nil {
+		return nil, fmt.Errorf("load message: %w", err)
+	}
+	messages, err := s.hydrateMessages(ctx, spaceID, []dbgen.MessageWithReply{row})
+	if err != nil {
+		return nil, err
+	}
+	return messages[0], nil
+}
+
 func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.EditMessageRequest]) (*connect.Response[chatv1.EditMessageResponse], error) {
 	content := req.Msg.Content
 	if content == "" || utf8.RuneCountInString(content) > maxMessageLen {
