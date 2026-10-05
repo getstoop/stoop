@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,8 +18,6 @@ import (
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/kv"
 	"github.com/getstoop/stoop/internal/ratelimit"
 )
@@ -307,54 +304,6 @@ func (p *fakePolicy) WebhooksAllowPrivateTargets(context.Context) (bool, error) 
 }
 func (p *fakePolicy) PublicURL(context.Context) (string, error) {
 	return "https://stoop.example.com", p.failPublicURL
-}
-
-type fixture struct {
-	pool    *pgxpool.Pool
-	svc     *Service
-	bots    *fakeBots
-	spaces  *fakeSpaces
-	poster  *fakePoster
-	policy  *fakePolicy
-	jobs    *fakeJobs
-	admin   context.Context
-	member  context.Context
-	space   string
-	channel string
-}
-
-func setup(t *testing.T) *fixture {
-	t.Helper()
-	pool := dbtest.New(t)
-	ctx := context.Background()
-	adminID, memberID, spaceID, channelID := uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()
-	for _, q := range []string{
-		`INSERT INTO users (id, username, display_name, role) VALUES ('` + adminID + `', 'casey', 'Casey', 'admin')`,
-		`INSERT INTO users (id, username, display_name, role) VALUES ('` + memberID + `', 'ada', 'Ada', 'member')`,
-		`INSERT INTO spaces (id, name, owner_id) VALUES ('` + spaceID + `', 'Porch', '` + adminID + `')`,
-		`INSERT INTO space_members (space_id, user_id, role) VALUES ('` + spaceID + `', '` + memberID + `', 'member')`,
-		`INSERT INTO channels (id, space_id, name, position) VALUES ('` + channelID + `', '` + spaceID + `', 'general', 0)`,
-	} {
-		if _, err := pool.Exec(ctx, q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	f := &fixture{
-		svc: New(pool, events.NewInProcBus(), slog.Default()), bots: newFakeBots(pool),
-		pool:   pool,
-		spaces: &fakeSpaces{pool: pool, channel: map[string]string{channelID: spaceID}, admin: map[string]bool{}},
-		poster: &fakePoster{}, policy: &fakePolicy{incoming: true, outgoing: true},
-		space: spaceID, channel: channelID,
-	}
-	f.svc.UseBotIdentities(f.bots)
-	f.svc.UseSpaceAccess(f.spaces)
-	f.svc.UsePoster(f.poster)
-	f.svc.UsePolicy(f.policy)
-	f.admin = authctx.WithIdentity(ctx, authctx.Identity{UserID: adminID, Role: authctx.RoleAdmin, Kind: authctx.KindPerson,
-		Credential: authctx.Credential{ID: uuid.NewString(), Kind: authctx.CredentialSession}})
-	f.member = authctx.WithIdentity(ctx, authctx.Identity{UserID: memberID, Role: authctx.RoleMember, Kind: authctx.KindPerson,
-		Credential: authctx.Credential{ID: uuid.NewString(), Kind: authctx.CredentialSession}})
-	return f
 }
 
 func (f *fixture) post(t *testing.T, url, contentType, body string) (int, string) {
