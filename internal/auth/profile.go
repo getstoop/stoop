@@ -105,9 +105,8 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not logged in"))
 	}
-	if len(req.Msg.NewPassword) < minPasswordLen {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "new_password",
-			fmt.Errorf("new password must be at least %d characters", minPasswordLen))
+	if err := checkPasswordLength(req.Msg.NewPassword, "new_password", "new password"); err != nil {
+		return nil, err
 	}
 
 	user, err := s.q.GetUserByID(ctx, id.UserID)
