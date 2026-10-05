@@ -27,6 +27,12 @@ const (
 	PolicyClosed Policy = "closed"
 )
 
+var registrationPolicies = newEnumSetting(map[Policy]instancev1.RegistrationPolicy{
+	PolicyOpen:   instancev1.RegistrationPolicy_REGISTRATION_POLICY_OPEN,
+	PolicyInvite: instancev1.RegistrationPolicy_REGISTRATION_POLICY_INVITE,
+	PolicyClosed: instancev1.RegistrationPolicy_REGISTRATION_POLICY_CLOSED,
+}, instancev1.RegistrationPolicy_REGISTRATION_POLICY_UNSPECIFIED)
+
 const (
 	keyRegistrationPolicy = "registration_policy"
 	keySpaceCreation      = "space_creation"
@@ -58,6 +64,12 @@ const (
 	PasswordOff      PasswordSignIn = "off"
 )
 
+var passwordSignIns = newEnumSetting(map[PasswordSignIn]instancev1.PasswordSignIn{
+	PasswordEveryone: instancev1.PasswordSignIn_PASSWORD_SIGN_IN_EVERYONE,
+	PasswordAdmins:   instancev1.PasswordSignIn_PASSWORD_SIGN_IN_ADMINS,
+	PasswordOff:      instancev1.PasswordSignIn_PASSWORD_SIGN_IN_OFF,
+}, instancev1.PasswordSignIn_PASSWORD_SIGN_IN_EVERYONE)
+
 // UseInstanceNameEnv supplies STOOP_INSTANCE_NAME, for a process that
 // doesn't run Seed (stoop admin).
 func (s *Service) UseInstanceNameEnv(name string) { s.instanceNameEnv = name }
@@ -77,17 +89,11 @@ func (s *Service) PasswordSignIn(ctx context.Context) (string, error) {
 
 // SetPasswordSignIn writes the setting without the provider guard — the
 // CLI's break-glass (`stoop admin password-login everyone`).
-func (s *Service) SetPasswordSignIn(ctx context.Context, v PasswordSignIn) error {
-	switch v {
-	case PasswordEveryone, PasswordAdmins, PasswordOff:
-	default:
-		return fmt.Errorf("password sign-in must be everyone, admins, or off (got %q)", v)
+func (s *Service) SetPasswordSignIn(ctx context.Context, value PasswordSignIn) error {
+	if !passwordSignIns.has(value) {
+		return fmt.Errorf("password sign-in must be everyone, admins, or off (got %q)", value)
 	}
-	raw, _ := json.Marshal(v)
-	if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyPasswordSignIn, Value: raw}); err != nil {
-		return fmt.Errorf("write %s: %w", keyPasswordSignIn, err)
-	}
-	return nil
+	return s.writeSettings(ctx, []settingWrite{{keyPasswordSignIn, value}})
 }
 
 // SpaceCreation is who may create spaces.
@@ -98,11 +104,16 @@ const (
 	SpaceCreationEveryone SpaceCreation = "everyone"
 )
 
+var spaceCreations = newEnumSetting(map[SpaceCreation]instancev1.SpaceCreationPolicy{
+	SpaceCreationAdmins:   instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_ADMINS,
+	SpaceCreationEveryone: instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_EVERYONE,
+}, instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_ADMINS)
+
 // Defaults are the first-boot values; they never override stored settings.
 type Defaults struct {
 	RegistrationPolicy Policy
-	// InstanceNameEnv is STOOP_INSTANCE_NAME. Empty means Seed picks a
-	// random name.
+	// InstanceNameEnv is STOOP_INSTANCE_NAME, the name seeded. Empty means
+	// Seed picks a random name. As a fallback it is UseInstanceNameEnv's.
 	InstanceNameEnv string
 }
 
@@ -119,7 +130,6 @@ func (s *Service) Seed(ctx context.Context, d Defaults) error {
 	if err := s.q.SeedSetting(ctx, dbgen.SeedSettingParams{Key: keySpaceCreation, Value: sc}); err != nil {
 		return fmt.Errorf("seed %s: %w", keySpaceCreation, err)
 	}
-	s.instanceNameEnv = d.InstanceNameEnv
 	name := d.InstanceNameEnv
 	if name == "" {
 		var err error
@@ -280,11 +290,11 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		}
 	}
 	return &instancev1.GetInstanceStatusResponse{
-		NeedsSetup: n == 0, RegistrationPolicy: toProtoPolicy(Policy(p)),
-		SpaceCreation: toProtoSpaceCreation(sc), StorageQuotaBytes: quota,
-		LoginProviders: summaries, PasswordSignIn: toProtoPasswordSignIn(PasswordSignIn(pw)),
+		NeedsSetup: n == 0, RegistrationPolicy: registrationPolicies.toProto(Policy(p)),
+		SpaceCreation: spaceCreations.toProto(sc), StorageQuotaBytes: quota,
+		LoginProviders: summaries, PasswordSignIn: passwordSignIns.toProto(PasswordSignIn(pw)),
 		MaxUploadBytes: maxUpload, InstanceName: name,
-		PersonalTokens:    toProtoPersonalTokens(TokenSetting(tokens)),
+		PersonalTokens:    personalTokenSettings.toProto(TokenSetting(tokens)),
 		WebhooksAvailable: s.webhooksEnv, WebhooksIncoming: incoming, WebhooksOutgoing: outgoing,
 		WebhooksAllowPrivateTargets: private, SelfDeletion: selfDeletion,
 		SessionLifetimeDays:  int32(sessionDays),
@@ -366,20 +376,15 @@ func (s *Service) SaveSettings(ctx context.Context, msg *instancev1.UpdateSettin
 		writes = append(writes, settingWrite{keyInstanceName, name})
 	}
 	if msg.RegistrationPolicy != nil {
-		p, ok := policyFromProto(*msg.RegistrationPolicy)
+		p, ok := registrationPolicies.fromProto(*msg.RegistrationPolicy)
 		if !ok {
 			return connect.NewError(connect.CodeInvalidArgument, errors.New("registration_policy must be open, invite, or closed"))
 		}
 		writes = append(writes, settingWrite{keyRegistrationPolicy, p})
 	}
 	if msg.SpaceCreation != nil {
-		var sc SpaceCreation
-		switch *msg.SpaceCreation {
-		case instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_ADMINS:
-			sc = SpaceCreationAdmins
-		case instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_EVERYONE:
-			sc = SpaceCreationEveryone
-		default:
+		sc, ok := spaceCreations.fromProto(*msg.SpaceCreation)
+		if !ok {
 			return connect.NewError(connect.CodeInvalidArgument, errors.New("space_creation must be admins or everyone"))
 		}
 		writes = append(writes, settingWrite{keySpaceCreation, sc})
@@ -414,7 +419,7 @@ func (s *Service) SaveSettings(ctx context.Context, msg *instancev1.UpdateSettin
 		writes = append(writes, settingWrite{keyMaxUpload, n})
 	}
 	if msg.PasswordSignIn != nil {
-		pw, ok := passwordSignInFromProto(*msg.PasswordSignIn)
+		pw, ok := passwordSignIns.fromProto(*msg.PasswordSignIn)
 		if !ok {
 			return connect.NewError(connect.CodeInvalidArgument, errors.New("password_sign_in must be everyone, admins, or off"))
 		}
@@ -432,9 +437,9 @@ func (s *Service) SaveSettings(ctx context.Context, msg *instancev1.UpdateSettin
 		writes = append(writes, settingWrite{keyPasswordSignIn, pw})
 	}
 	if msg.PersonalTokens != nil {
-		v, err := personalTokensFromProto(*msg.PersonalTokens)
-		if err != nil {
-			return err
+		v, ok := personalTokenSettings.fromProto(*msg.PersonalTokens)
+		if !ok {
+			return connect.NewError(connect.CodeInvalidArgument, errors.New("personal_tokens must be everyone, admins, or off"))
 		}
 		writes = append(writes, settingWrite{keyPersonalTokens, v})
 	}
@@ -448,61 +453,4 @@ func (s *Service) SaveSettings(ctx context.Context, msg *instancev1.UpdateSettin
 		}
 	}
 	return s.writeSettings(ctx, writes)
-}
-
-func toProtoPasswordSignIn(p PasswordSignIn) instancev1.PasswordSignIn {
-	switch p {
-	case PasswordAdmins:
-		return instancev1.PasswordSignIn_PASSWORD_SIGN_IN_ADMINS
-	case PasswordOff:
-		return instancev1.PasswordSignIn_PASSWORD_SIGN_IN_OFF
-	default:
-		return instancev1.PasswordSignIn_PASSWORD_SIGN_IN_EVERYONE
-	}
-}
-
-func passwordSignInFromProto(p instancev1.PasswordSignIn) (PasswordSignIn, bool) {
-	switch p {
-	case instancev1.PasswordSignIn_PASSWORD_SIGN_IN_EVERYONE:
-		return PasswordEveryone, true
-	case instancev1.PasswordSignIn_PASSWORD_SIGN_IN_ADMINS:
-		return PasswordAdmins, true
-	case instancev1.PasswordSignIn_PASSWORD_SIGN_IN_OFF:
-		return PasswordOff, true
-	default:
-		return "", false
-	}
-}
-
-func toProtoSpaceCreation(p SpaceCreation) instancev1.SpaceCreationPolicy {
-	if p == SpaceCreationEveryone {
-		return instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_EVERYONE
-	}
-	return instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_ADMINS
-}
-
-func toProtoPolicy(p Policy) instancev1.RegistrationPolicy {
-	switch p {
-	case PolicyOpen:
-		return instancev1.RegistrationPolicy_REGISTRATION_POLICY_OPEN
-	case PolicyInvite:
-		return instancev1.RegistrationPolicy_REGISTRATION_POLICY_INVITE
-	case PolicyClosed:
-		return instancev1.RegistrationPolicy_REGISTRATION_POLICY_CLOSED
-	default:
-		return instancev1.RegistrationPolicy_REGISTRATION_POLICY_UNSPECIFIED
-	}
-}
-
-func policyFromProto(p instancev1.RegistrationPolicy) (Policy, bool) {
-	switch p {
-	case instancev1.RegistrationPolicy_REGISTRATION_POLICY_OPEN:
-		return PolicyOpen, true
-	case instancev1.RegistrationPolicy_REGISTRATION_POLICY_INVITE:
-		return PolicyInvite, true
-	case instancev1.RegistrationPolicy_REGISTRATION_POLICY_CLOSED:
-		return PolicyClosed, true
-	default:
-		return "", false
-	}
 }

@@ -131,6 +131,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	}); err != nil {
 		return nil, err
 	}
+	instanceSvc.UseInstanceNameEnv(cfg.InstanceName)
 	chatSvc := chat.New(pool, bus, userDirectory{authSvc})
 	// auth ↔ instance/chat is the one cyclic pair of ports; it's closed
 	// with a setter after both sides exist.

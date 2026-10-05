@@ -2,7 +2,6 @@ package instance
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 
@@ -26,33 +25,16 @@ const (
 	TokensOff      TokenSetting = "off"
 )
 
+var personalTokenSettings = newEnumSetting(map[TokenSetting]instancev1.PersonalTokens{
+	TokensEveryone: instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE,
+	TokensAdmins:   instancev1.PersonalTokens_PERSONAL_TOKENS_ADMINS,
+	TokensOff:      instancev1.PersonalTokens_PERSONAL_TOKENS_OFF,
+}, instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE)
+
 // PersonalTokens is the effective setting, everyone when unset. Also the
 // auth module's port.
 func (s *Service) PersonalTokens(ctx context.Context) (string, error) {
 	return s.readSetting(ctx, keyPersonalTokens, string(TokensEveryone))
-}
-
-func personalTokensFromProto(p instancev1.PersonalTokens) (TokenSetting, error) {
-	switch p {
-	case instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE:
-		return TokensEveryone, nil
-	case instancev1.PersonalTokens_PERSONAL_TOKENS_ADMINS:
-		return TokensAdmins, nil
-	case instancev1.PersonalTokens_PERSONAL_TOKENS_OFF:
-		return TokensOff, nil
-	}
-	return "", connect.NewError(connect.CodeInvalidArgument, errors.New("personal_tokens must be everyone, admins, or off"))
-}
-
-func toProtoPersonalTokens(v TokenSetting) instancev1.PersonalTokens {
-	switch v {
-	case TokensAdmins:
-		return instancev1.PersonalTokens_PERSONAL_TOKENS_ADMINS
-	case TokensOff:
-		return instancev1.PersonalTokens_PERSONAL_TOKENS_OFF
-	default:
-		return instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE
-	}
 }
 
 func (s *Service) ListUserTokens(ctx context.Context, req *connect.Request[instancev1.ListUserTokensRequest]) (*connect.Response[instancev1.ListUserTokensResponse], error) {
