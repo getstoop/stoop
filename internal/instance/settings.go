@@ -17,98 +17,6 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// Policy is the registration policy as stored and as exposed through the
-// auth module's RegistrationPolicy port.
-type Policy string
-
-const (
-	PolicyOpen   Policy = "open"
-	PolicyInvite Policy = "invite"
-	PolicyClosed Policy = "closed"
-)
-
-var registrationPolicies = newEnumSetting(map[Policy]instancev1.RegistrationPolicy{
-	PolicyOpen:   instancev1.RegistrationPolicy_REGISTRATION_POLICY_OPEN,
-	PolicyInvite: instancev1.RegistrationPolicy_REGISTRATION_POLICY_INVITE,
-	PolicyClosed: instancev1.RegistrationPolicy_REGISTRATION_POLICY_CLOSED,
-}, instancev1.RegistrationPolicy_REGISTRATION_POLICY_UNSPECIFIED)
-
-const (
-	keyRegistrationPolicy = "registration_policy"
-	keySpaceCreation      = "space_creation"
-	// keyStorageQuota caps total upload storage in bytes; absent or 0 is
-	// unlimited. Read by the files module through its Policy port.
-	keyStorageQuota = "storage_quota_bytes"
-	// keyMaxUpload caps one uploaded file in bytes; absent or 0 means the
-	// operator set no limit
-	keyMaxUpload = "max_upload_bytes"
-	// keyPasswordSignIn: who may use the username/password form. Seeded
-	// from STOOP_PASSWORD_SIGN_IN (seed_env.go).
-	keyPasswordSignIn = "password_sign_in"
-	// keyInstanceName: shown in the browser tab. Seeded from
-	// STOOP_INSTANCE_NAME, or with a random name when that is unset.
-	keyInstanceName = "instance_name"
-	// keySelfDeletion: whether a person may delete their own account. On
-	// unless the operator turns it off. Read by auth through its
-	// DeletionPolicy port.
-	keySelfDeletion = "self_deletion"
-)
-
-// PasswordSignIn is who may sign in (and register) with a password; the
-// auth module consumes it as a string through its PasswordPolicy port.
-type PasswordSignIn string
-
-const (
-	PasswordEveryone PasswordSignIn = "everyone"
-	PasswordAdmins   PasswordSignIn = "admins"
-	PasswordOff      PasswordSignIn = "off"
-)
-
-var passwordSignIns = newEnumSetting(map[PasswordSignIn]instancev1.PasswordSignIn{
-	PasswordEveryone: instancev1.PasswordSignIn_PASSWORD_SIGN_IN_EVERYONE,
-	PasswordAdmins:   instancev1.PasswordSignIn_PASSWORD_SIGN_IN_ADMINS,
-	PasswordOff:      instancev1.PasswordSignIn_PASSWORD_SIGN_IN_OFF,
-}, instancev1.PasswordSignIn_PASSWORD_SIGN_IN_EVERYONE)
-
-// UseInstanceNameEnv supplies STOOP_INSTANCE_NAME, for a process that
-// doesn't run Seed (stoop admin).
-func (s *Service) UseInstanceNameEnv(name string) { s.instanceNameEnv = name }
-
-// UsePasswordSignInEnv supplies STOOP_PASSWORD_SIGN_IN.
-func (s *Service) UsePasswordSignInEnv(v string) { s.passwordEnv = v }
-
-// PasswordSignIn is the setting in force: saved, else environment, else
-// everyone. Also the auth module's port.
-func (s *Service) PasswordSignIn(ctx context.Context) (string, error) {
-	fallback := s.passwordEnv
-	if fallback == "" {
-		fallback = string(PasswordEveryone)
-	}
-	return s.readSetting(ctx, keyPasswordSignIn, fallback)
-}
-
-// SetPasswordSignIn writes the setting without the provider guard — the
-// CLI's break-glass (`stoop admin password-login everyone`).
-func (s *Service) SetPasswordSignIn(ctx context.Context, value PasswordSignIn) error {
-	if !passwordSignIns.has(value) {
-		return fmt.Errorf("password sign-in must be everyone, admins, or off (got %q)", value)
-	}
-	return s.writeSettings(ctx, []settingWrite{{keyPasswordSignIn, value}})
-}
-
-// SpaceCreation is who may create spaces.
-type SpaceCreation string
-
-const (
-	SpaceCreationAdmins   SpaceCreation = "admins"
-	SpaceCreationEveryone SpaceCreation = "everyone"
-)
-
-var spaceCreations = newEnumSetting(map[SpaceCreation]instancev1.SpaceCreationPolicy{
-	SpaceCreationAdmins:   instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_ADMINS,
-	SpaceCreationEveryone: instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_EVERYONE,
-}, instancev1.SpaceCreationPolicy_SPACE_CREATION_POLICY_ADMINS)
-
 // Defaults are the first-boot values; they never override stored settings.
 type Defaults struct {
 	RegistrationPolicy Policy
@@ -142,76 +50,6 @@ func (s *Service) Seed(ctx context.Context, d Defaults) error {
 		return fmt.Errorf("seed %s: %w", keyInstanceName, err)
 	}
 	return nil
-}
-
-// readSetting decodes one JSON-string setting, returning fallback if unset.
-func (s *Service) readSetting(ctx context.Context, key, fallback string) (string, error) {
-	return readSettingOr(ctx, s, key, fallback)
-}
-
-// SpaceCreationPolicy is the current setting.
-func (s *Service) SpaceCreationPolicy(ctx context.Context) (SpaceCreation, error) {
-	v, err := s.readSetting(ctx, keySpaceCreation, string(SpaceCreationAdmins))
-	return SpaceCreation(v), err
-}
-
-// MembersMayCreateSpaces satisfies the chat module's port.
-func (s *Service) MembersMayCreateSpaces(ctx context.Context) (bool, error) {
-	p, err := s.SpaceCreationPolicy(ctx)
-	return p == SpaceCreationEveryone, err
-}
-
-// RegistrationPolicy is the current policy; it also satisfies the auth
-// module's port (which sees it as a string).
-func (s *Service) RegistrationPolicy(ctx context.Context) (string, error) {
-	policy, err := readSettingOr(ctx, s, keyRegistrationPolicy, PolicyInvite)
-	return string(policy), err
-}
-
-// InstanceName is the current setting: saved, else the environment, else
-// "Stoop". The last only happens when the database was wiped under a
-// running server (make dev-reset, the e2e harness): Seed picks the random
-// name at boot, and nothing re-runs it until the next one.
-func (s *Service) InstanceName(ctx context.Context) (string, error) {
-	fallback := s.instanceNameEnv
-	if fallback == "" {
-		fallback = "Stoop"
-	}
-	return s.readSetting(ctx, keyInstanceName, fallback)
-}
-
-// StorageQuotaBytes implements files.Policy: the upload cap, 0 = unlimited.
-func (s *Service) StorageQuotaBytes(ctx context.Context) (int64, error) {
-	return readSettingOr(ctx, s, keyStorageQuota, int64(0))
-}
-
-// UseUploadCeiling supplies the hard per-file cap the files module
-// enforces regardless of settings. It bounds what an operator may save,
-// so the admin page refuses an impossible number instead of storing one
-// that would be silently clamped at upload time.
-func (s *Service) UseUploadCeiling(n int64) { s.uploadCeiling = n }
-
-// MaxUploadBytes implements files.Policy: the operator's cap on one file,
-// 0 = they set none (the caller's own ceiling then applies).
-func (s *Service) MaxUploadBytes(ctx context.Context) (int64, error) {
-	return readSettingOr(ctx, s, keyMaxUpload, int64(0))
-}
-
-// effectiveMaxUpload resolves the setting against the ceiling the way the
-// files module does, so the number on the status is the one an upload
-// will actually be measured against.
-func (s *Service) effectiveMaxUpload(ctx context.Context) (int64, error) {
-	n, err := s.MaxUploadBytes(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if s.uploadCeiling <= 0 {
-		return n, nil
-	}
-	if n <= 0 || n > s.uploadCeiling {
-		return s.uploadCeiling, nil
-	}
-	return n, nil
 }
 
 func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResponse, error) {
@@ -301,12 +139,6 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		MessageRetentionDays: int32(messageDays), AttachmentRetentionDays: int32(attachmentDays),
 		VoiceAvailable: s.VoiceAvailable(),
 	}, nil
-}
-
-// SelfDeletion is whether a person may delete their own account. Also
-// the auth module's port.
-func (s *Service) SelfDeletion(ctx context.Context) (bool, error) {
-	return s.readBool(ctx, keySelfDeletion, true)
 }
 
 func (s *Service) GetInstanceStatus(ctx context.Context, _ *connect.Request[instancev1.GetInstanceStatusRequest]) (*connect.Response[instancev1.GetInstanceStatusResponse], error) {

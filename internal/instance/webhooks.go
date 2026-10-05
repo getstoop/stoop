@@ -38,8 +38,3 @@ func (s *Service) WebhooksOutgoing(ctx context.Context) (bool, error) {
 func (s *Service) WebhooksAllowPrivateTargets(ctx context.Context) (bool, error) {
 	return s.readBool(ctx, keyWebhooksAllowPrivateTargets, false)
 }
-
-// readBool decodes one JSON-boolean setting, returning fallback if unset.
-func (s *Service) readBool(ctx context.Context, key string, fallback bool) (bool, error) {
-	return readSettingOr(ctx, s, key, fallback)
-}
