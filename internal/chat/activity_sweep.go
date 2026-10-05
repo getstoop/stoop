@@ -6,11 +6,8 @@ import (
 	"time"
 )
 
-// Activity retention. Mention, reply and DM items are rows that nobody
-// deletes: once read they are history the activity page can still show,
-// but not forever. The sweep removes read items older than the retention
-// window; unread ones stay however old, so nothing someone hasn't seen is
-// taken from them.
+// Activity retention: read items older than the window go, unread ones
+// never. See docs/architecture/messaging.md → Activity → Retention.
 
 // SweepActivity removes read activity items whose read_at is older than
 // retention and reports how many went. retention <= 0 removes none.

@@ -16,26 +16,8 @@ import (
 	"github.com/getstoop/stoop/internal/kv"
 )
 
-// The desktop app's leg of provider sign-in and account linking. The
-// browser half runs in the system browser (providers refuse an embedded
-// view), and the outcome comes back to the app as a stoop://auth deep
-// link. docs/architecture/desktop.md → Deep links.
-//
-// Two hops, one store entry each: an attempt id, made at
-// /auth/desktop/start and carried through the provider round trip in the
-// login-state cookie, and a code, minted at the callback and redeemed at
-// /auth/desktop/complete. The PKCE pair here binds the app that started
-// the attempt; loginState.Verifier is the unrelated server↔provider one.
-//
-// An attempt is a sign-in or a link. A link records the caller's session
-// at the start, links nothing at the callback, and attaches the identity
-// at /auth/desktop/complete, where that session is on the request.
-//
-// The attempt id travels in an address bar, and the verifier only proves
-// which window started the attempt — not whose identity came back. So an
-// attempt is claimed by its first start, and a link is previewed to the
-// person before it attaches anything.
-// docs/architecture/identity.md → What a stolen attempt id can do.
+// The desktop app's leg of provider sign-in and account linking. See
+// docs/architecture/identity.md → Sign-in from the desktop app.
 
 // desktopReturnPath is a client route (web/src/routes/DesktopAuthReturn.tsx):
 // it builds the link from its own origin and fires it.
@@ -103,9 +85,8 @@ func (d *desktopStore) begin(ctx context.Context, a desktopAttempt) (string, err
 	return id, d.attempts.Set(ctx, id, a, desktopAttemptTTL)
 }
 
-// claim marks the attempt started and returns it. One start per attempt:
-// whoever reads the id out of the browser afterwards finds it spent, so
-// only a live race is left to an attacker who has it.
+// claim marks the attempt started and returns it; a second start is
+// refused (identity.md → What a stolen attempt id can do).
 func (d *desktopStore) claim(ctx context.Context, id, provider string) (desktopAttempt, bool, error) {
 	var claimed desktopAttempt
 	ok := false
@@ -333,10 +314,8 @@ func (s *Service) loginFail(w http.ResponseWriter, r *http.Request, attempt, pro
 }
 
 // desktopReturn hands the browser to the client route that fires the deep
-// link. A same-origin redirect, never one to stoop:// itself: a redirect
-// to a custom scheme is handled inconsistently and leaves an empty tab.
-// The provider rides along so that page can offer to carry on here
-// instead.
+// link; never redirect to stoop:// itself (identity.md → Sign-in from the
+// desktop app, step 3).
 func desktopReturn(w http.ResponseWriter, r *http.Request, q url.Values) {
 	http.Redirect(w, r, desktopReturnPath+"?"+q.Encode(), http.StatusFound)
 }
@@ -373,16 +352,9 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// desktopLink attaches the identity the callback saw. Both bindings the
-// attempt carries are checked here: the shell↔server verifier, checked by
-// redeem, and the session that opened the link, which is on this request
-// because the app calls it from the view it started in. No session is
-// minted — a link keeps the one it has.
-//
-// Two calls, both bound the same way. The first names the identity and
-// attaches nothing, leaving the code live inside its TTL; the second
-// confirms it. Neither binding tells the app whose identity came back,
-// so a person does.
+// desktopLink attaches the identity the callback saw, once the session
+// that opened the link matches and the person has confirmed it
+// (identity.md → Linking from the desktop app).
 func (s *Service) desktopLink(w http.ResponseWriter, r *http.Request, c desktopCode, confirm bool) {
 	ident, err := s.verifySession(r.Context(), r.Header)
 	if err != nil && !errors.Is(err, authctx.ErrNoSession) {

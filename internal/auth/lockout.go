@@ -11,15 +11,10 @@ import (
 	"github.com/getstoop/stoop/internal/kv"
 )
 
-// loginGuard slows password guessing against one account regardless of
-// where the guesses come from — the per-IP limiter can't see a botnet.
-// After lockoutThreshold consecutive failures the username is refused for
-// a delay that doubles per further failure, up to lockoutMax; a correct
-// password clears it. The key is whatever the caller typed, existing
-// account or not, so the response never says which usernames are real.
-//
-// State is a kv store: an entry goes after lockoutIdle without a failure,
-// and the store never holds more than lockoutMaxEntries.
+// loginGuard locks a username after repeated password failures, wherever
+// they come from (docs/architecture/identity.md → Lockout). The key is
+// whatever the caller typed, existing account or not, so the response
+// never says which usernames are real.
 type loginGuard struct {
 	entries kv.Store[loginEntry]
 	now     func() time.Time

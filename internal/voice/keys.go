@@ -9,12 +9,9 @@ import (
 	"strings"
 )
 
-// LiveKit API credentials. Stoop and the LiveKit server must hold the
-// same pair: Stoop signs room tokens with it, LiveKit verifies them.
-// Historically the operator generated a pair and copied it into two files
-// by hand, which is a fine way to end up with working chat and voice that
-// dies at join. Instead the server mints one on first boot, keeps it with
-// the rest of its settings, and writes the file LiveKit reads.
+// LiveKit API credentials: Stoop signs room tokens with the pair, LiveKit
+// verifies them. See docs/architecture/voice.md → Credentials are minted,
+// not configured.
 
 // Keys is a LiveKit API key and its secret.
 type Keys struct {
@@ -52,13 +49,9 @@ func randomString(n int) (string, error) {
 }
 
 // WriteKeyFile writes the pair where a LiveKit server can read it with
-// --key-file. LiveKit refuses a key file that anyone else can read
-// ("key file others permissions must be set to 0"), so the file is 0600
-// and its directory 0700 — a sidecar running as root reads it regardless
-// of owner, which is how the container case works.
-//
-// The write is atomic: a temp file in the same directory, renamed into
-// place, so LiveKit never reads a half-written pair.
+// --key-file, 0600 in a 0700 directory (voice.md → Credentials are
+// minted, not configured). The write is atomic, so LiveKit never reads a
+// half-written pair.
 func WriteKeyFile(path string, k Keys) (err error) {
 	if !k.Valid() {
 		return fmt.Errorf("voice: refusing to write an incomplete key file")

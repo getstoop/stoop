@@ -10,11 +10,8 @@ import (
 	"github.com/getstoop/stoop/internal/jobs"
 )
 
-// The outgoing deliveries, counted only when someone asks: the Health
-// row, the Background work panel and a metrics scrape share one answer,
-// cached so a tab polling every five seconds costs Postgres one count
-// per TTL. It is deliberately not a sampled gauge, so nothing runs the
-// queries while no one is looking.
+// The outgoing deliveries, counted only when someone asks and cached, never
+// sampled (docs/architecture/diagnostics.md → The internal/diag package).
 
 const queueStatsTTL = 10 * time.Second
 

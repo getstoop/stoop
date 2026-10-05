@@ -1,0 +1,23 @@
+# The names rule (docs/agent-workflow.md): a single-letter name is allowed
+# only where Go convention puts one. Run on new code only, against
+# origin/main, by make lint and CI; see STOOP-348.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - varnamelen
+  settings:
+    varnamelen:
+      min-name-length: 2
+      # 1 is the strictest the linter takes: a name used only on the next
+      # line passes.
+      max-distance: 1
+      check-receiver: false
+      ignore-names: [i, j, k]
+      ignore-decls:
+        - t *testing.T
+        - b *testing.B
+        - f *testing.F
+        - w http.ResponseWriter
+        - r *http.Request

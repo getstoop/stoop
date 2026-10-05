@@ -3,7 +3,6 @@ package chat
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -85,44 +84,6 @@ func (s *Service) hiddenChannel(ctx context.Context, channel dbgen.Channel) (boo
 	}
 	on, err := s.voiceOn(ctx, spaceOf(channel))
 	return !on, err
-}
-
-// memberChannel loads a channel for someone already known to be in it. A
-// hidden voice channel is not found.
-func (s *Service) memberChannel(ctx context.Context, channelID string) (dbgen.Channel, error) {
-	channel, err := s.q.GetChannel(ctx, channelID)
-	if err != nil {
-		return dbgen.Channel{}, apierr.NotFoundOr(err, "channel")
-	}
-	hidden, err := s.hiddenChannel(ctx, channel)
-	if err != nil {
-		return dbgen.Channel{}, err
-	}
-	if hidden {
-		return dbgen.Channel{}, connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
-	}
-	return channel, nil
-}
-
-// listChannels is a space's channels as its members see them.
-func (s *Service) listChannels(ctx context.Context, spaceID, userID string) ([]dbgen.ListChannelsBySpaceRow, error) {
-	rows, err := s.q.ListChannelsBySpace(ctx, dbgen.ListChannelsBySpaceParams{
-		SpaceID: spaceID, UserID: userID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("list channels: %w", err)
-	}
-	on, err := s.voiceOn(ctx, spaceID)
-	if err != nil || on {
-		return rows, err
-	}
-	shown := rows[:0]
-	for _, row := range rows {
-		if !isVoice(row.Channel) {
-			shown = append(shown, row)
-		}
-	}
-	return shown, nil
 }
 
 // cleanupCtx detaches this work from the caller, who has already committed

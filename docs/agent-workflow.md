@@ -22,8 +22,11 @@ sections, in this order:
    new dependencies, Biome rules that bite (`aria-hidden` on SVGs, no ARIA
    roles on divs, index keys need a `biome-ignore`), no `console.log`,
    and no single-character names: a variable, parameter or loop index
-   says what it holds (`row`, `index`, `event`). The two exceptions are a
-   Go method receiver and `t *testing.T`.
+   says what it holds (`row`, `member`, `event`). In Go the exceptions
+   are where Go convention puts one: a method receiver, `t`, `b` and `f`
+   for `*testing.T`, `*testing.B` and `*testing.F`, `w` and `r` in an HTTP
+   handler, and `i`, `j`, `k` as loop indices. `make lint` checks new Go
+   code against `origin/main` (`.golangci-names.yml`).
 4. **Tests** — the browser spec to write (`web/e2e-pw/<name>.spec.ts`,
    modelled on an existing spec) and what it must check. Say what the
    spec *cannot* see (pixel alignment, scroll position) and demand a

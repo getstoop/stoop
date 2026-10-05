@@ -14,10 +14,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// Bans. A kick only removes; a banned account is also refused by every
-// way back in — an invite, or JoinSpace by id for an instance admin —
-// until someone with members.manage unbans them. The banned person gets
-// a plain "removed and can't rejoin"; the reason is for admins.
+// Bans: see docs/architecture/permissions.md → Bans.
 
 var errBanned = connect.NewError(connect.CodePermissionDenied,
 	errors.New("you've been removed from this space and can't rejoin"))

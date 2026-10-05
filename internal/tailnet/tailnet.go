@@ -133,10 +133,8 @@ func New(opts Options, log *slog.Logger) *Server {
 	return &Server{opts: opts, log: log, ts: ts}
 }
 
-// Serve joins the tailnet (blocking until the node is authorised — on a
-// first run without an auth key, the login URL is logged), then serves
-// handler over HTTPS on port 443 of the tailnet address (and redirects
-// port 80) until ctx is done.
+// listenTLS opens port 443 on the tailnet (through Funnel when it is on),
+// retrying every 30s until it can or ctx is done.
 func (s *Server) listenTLS(ctx context.Context) (net.Listener, error) {
 	const retry = 30 * time.Second
 	warned := false
@@ -170,6 +168,10 @@ func (s *Server) listenTLS(ctx context.Context) (net.Listener, error) {
 	}
 }
 
+// Serve joins the tailnet (blocking until the node is authorised — on a
+// first run without an auth key, the login URL is logged), then serves
+// handler over HTTPS on port 443 of the tailnet address (and redirects
+// port 80) until ctx is done.
 func (s *Server) Serve(ctx context.Context, handler http.Handler) error {
 	// Closing the node is what unblocks a forwarder stuck opening a
 	// listener, so it is closed before the forwarder is waited for.

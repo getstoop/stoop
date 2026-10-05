@@ -12,18 +12,11 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// Blocks. One person's decision about another: no direct messages in
-// either direction, every conversation they are both in hidden from the
-// blocker's list, and no mention/reply/DM alerts from the blocked person
-// — the ones already in the feed are deleted, not just stopped. Anyone
-// can block anyone; it says nothing to the blocked side beyond a DM being
-// refused, so only the blocker's own view changes.
+// Blocks: see docs/architecture/permissions.md → Blocks and
+// messaging.md → Direct messages.
 
-// The refusals a block produces. None of them says who blocked whom, or
-// which way round; a block is not announced to the side it lands on.
-// "This person" is only true of a conversation with two people in it —
-// in a group the block may be with any of several, and naming which would
-// be naming them.
+// The refusals a block produces. None names anybody: "this person" only
+// where there is exactly one other.
 var (
 	errBlocked = connect.NewError(connect.CodePermissionDenied,
 		errors.New("you can't message this person"))

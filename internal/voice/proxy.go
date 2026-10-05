@@ -7,13 +7,8 @@ import (
 )
 
 // SignalingProxy serves LiveKit's signaling endpoint under SignalingPath on
-// the app origin, so the browser needs one hostname and one certificate.
-// httputil.ReverseProxy passes the WebSocket upgrade through. Media does
-// not come this way: after signaling, WebRTC connects to LiveKit's own
-// ports directly.
-//
-// The proxy is unauthenticated on purpose: LiveKit validates the room token
-// on every connection, and the token is what JoinVoiceChannel gates.
+// the app origin. It is unauthenticated on purpose: see
+// docs/architecture/voice.md → The signaling proxy.
 func (s *Service) SignalingProxy() (http.Handler, error) {
 	if !s.opts.Enabled() {
 		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

@@ -1,7 +1,6 @@
 // Package blob is the storage abstraction behind file uploads: a Store puts,
 // opens, stats, and deletes opaque blobs by key. It is the only package
-// that touches storage; everything else (the files module, phase-2
-// attachments) goes through the interface. The filesystem implementation
+// that touches storage; everything else goes through the interface. The filesystem implementation
 // is the only one; an object-storage backend would be a second Store
 // behind this port, and is not built until someone needs it (STOOP-221).
 package blob
