@@ -2,6 +2,13 @@ package instance
 
 import (
 	"context"
+	"errors"
+	"fmt"
+
+	"connectrpc.com/connect"
+
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 )
 
 const (
@@ -45,4 +52,39 @@ func (s *Service) effectiveMaxUpload(ctx context.Context) (int64, error) {
 		return s.uploadCeiling, nil
 	}
 	return n, nil
+}
+
+// stageStorageLimits validates a save of the storage quota and the
+// per-file cap together, since each bounds the other.
+func (s *Service) stageStorageLimits(ctx context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	quota, err := s.StorageQuotaBytes(ctx)
+	if err != nil {
+		return err
+	}
+	if requested := msg.StorageQuotaBytes; requested != nil {
+		if *requested < 0 {
+			return apierr.Field(connect.CodeInvalidArgument, "storage_quota_bytes", errors.New("the storage limit must be 0 (no limit) or more"))
+		}
+		quota = *requested
+		save.write(keyStorageQuota, *requested)
+	}
+	if msg.MaxUploadBytes != nil {
+		perFile := *msg.MaxUploadBytes
+		if perFile < 0 {
+			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes", errors.New("the size per file must be 0 (no limit) or more"))
+		}
+		if s.uploadCeiling > 0 && perFile > s.uploadCeiling {
+			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
+				fmt.Errorf("the size per file must be %d MB or less", s.uploadCeiling>>20))
+		}
+		// A per-file cap above the total storage limit is a limit that can
+		// never be reached. Judged against the quota in this request when
+		// it sets one.
+		if quota > 0 && perFile > quota {
+			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
+				fmt.Errorf("the size per file is more than the upload storage limit of %d MB", quota>>20))
+		}
+		save.write(keyMaxUpload, perFile)
+	}
+	return nil
 }

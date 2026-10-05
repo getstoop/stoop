@@ -2,6 +2,16 @@ package instance
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"unicode/utf8"
+
+	"connectrpc.com/connect"
+
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
+	"github.com/getstoop/stoop/internal/config"
 )
 
 // keyInstanceName: shown in the browser tab. Seeded from
@@ -22,4 +32,21 @@ func (s *Service) InstanceName(ctx context.Context) (string, error) {
 		fallback = "Stoop"
 	}
 	return s.readSetting(ctx, keyInstanceName, fallback)
+}
+
+// stageInstanceName validates a save of the name, trimmed.
+func stageInstanceName(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	if msg.InstanceName == nil {
+		return nil
+	}
+	name := strings.TrimSpace(*msg.InstanceName)
+	if name == "" {
+		return apierr.Field(connect.CodeInvalidArgument, "instance_name", errors.New("the server name must not be blank"))
+	}
+	if utf8.RuneCountInString(name) > config.MaxInstanceNameRunes {
+		return apierr.Field(connect.CodeInvalidArgument, "instance_name",
+			fmt.Errorf("the server name must be %d characters or fewer", config.MaxInstanceNameRunes))
+	}
+	save.write(keyInstanceName, name)
+	return nil
 }

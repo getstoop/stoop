@@ -2,9 +2,13 @@ package instance
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"connectrpc.com/connect"
+
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 )
 
 // keyPasswordSignIn: who may use the username/password form. Seeded
@@ -47,4 +51,27 @@ func (s *Service) SetPasswordSignIn(ctx context.Context, value PasswordSignIn) e
 		return fmt.Errorf("password sign-in must be everyone, admins, or off (got %q)", value)
 	}
 	return s.writeSettings(ctx, []settingWrite{{keyPasswordSignIn, value}})
+}
+
+func (s *Service) stagePasswordSignIn(ctx context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	if msg.PasswordSignIn == nil {
+		return nil
+	}
+	password, ok := passwordSignIns.fromProto(*msg.PasswordSignIn)
+	if !ok {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("password_sign_in must be everyone, admins, or off"))
+	}
+	// Never save "nobody can log in": below everyone needs a provider.
+	if password != PasswordEveryone {
+		providers, err := s.LoginProviders(ctx)
+		if err != nil {
+			return err
+		}
+		if len(providers) == 0 {
+			return apierr.Field(connect.CodeFailedPrecondition, "password_sign_in",
+				errors.New("add a login provider before restricting password sign-in"))
+		}
+	}
+	save.write(keyPasswordSignIn, password)
+	return nil
 }

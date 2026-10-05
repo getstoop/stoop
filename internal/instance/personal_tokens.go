@@ -2,6 +2,7 @@ package instance
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 
@@ -56,4 +57,16 @@ func (s *Service) RevokeUserToken(ctx context.Context, req *connect.Request[inst
 		return nil, err
 	}
 	return connect.NewResponse(&instancev1.RevokeUserTokenResponse{}), nil
+}
+
+func stagePersonalTokens(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	if msg.PersonalTokens == nil {
+		return nil
+	}
+	setting, ok := personalTokenSettings.fromProto(*msg.PersonalTokens)
+	if !ok {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("personal_tokens must be everyone, admins, or off"))
+	}
+	save.write(keyPersonalTokens, setting)
+	return nil
 }

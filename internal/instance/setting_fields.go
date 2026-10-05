@@ -143,8 +143,10 @@ func (s *Service) SettingFields(ctx context.Context) ([]SettingField, error) {
 
 // SetSettingFields saves name=value changes together, all or nothing.
 // Fields of a group left out keep their value, and a secret left out is
-// kept. The changes must belong to one admin-page form (Hosting, login
-// providers, or the rest), since each form saves in its own transaction.
+// kept: the request starts from the settings in force, and a save ignores
+// its has_* flags. The changes must belong to one admin-page form
+// (Hosting, login providers, or the rest), since each form saves in its
+// own transaction.
 func (s *Service) SetSettingFields(ctx context.Context, changes map[string]string) error {
 	inForce, err := s.Reachability(ctx)
 	if err != nil {
@@ -155,28 +157,25 @@ func (s *Service) SetSettingFields(ctx context.Context, changes map[string]strin
 	var providers []*instancev1.LoginProvider
 	turn := func() *instancev1.TurnRelay {
 		if reach.Turn == nil {
-			reach.Turn = &instancev1.TurnRelay{Urls: inForce.TURN.URLs, Username: inForce.TURN.Username, StunUrls: inForce.TURN.STUNURLs}
+			reach.Turn = inForce.TURN.toProto()
 		}
 		return reach.Turn
 	}
 	cloudflare := func() *instancev1.CloudflareTurn {
 		if reach.Cloudflare == nil {
-			reach.Cloudflare = &instancev1.CloudflareTurn{KeyId: inForce.Cloudflare.KeyID}
+			reach.Cloudflare = inForce.Cloudflare.toProto()
 		}
 		return reach.Cloudflare
 	}
 	tailscale := func() *instancev1.TailscaleSettings {
 		if reach.Tailscale == nil {
-			current := inForce.Tailscale
-			reach.Tailscale = &instancev1.TailscaleSettings{
-				Enabled: current.Enabled, Hostname: current.Hostname, Funnel: current.Funnel, ControlUrl: current.ControlURL,
-			}
+			reach.Tailscale = inForce.Tailscale.toProto()
 		}
 		return reach.Tailscale
 	}
 	tunnel := func() *instancev1.CloudflareTunnelSettings {
 		if reach.CloudflareTunnel == nil {
-			reach.CloudflareTunnel = &instancev1.CloudflareTunnelSettings{Enabled: inForce.CloudflareTunnel.Enabled}
+			reach.CloudflareTunnel = inForce.CloudflareTunnel.toProto()
 		}
 		return reach.CloudflareTunnel
 	}

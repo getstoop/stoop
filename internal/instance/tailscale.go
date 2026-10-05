@@ -2,6 +2,14 @@ package instance
 
 import (
 	"context"
+	"errors"
+	"strings"
+
+	"connectrpc.com/connect"
+
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
+	"github.com/getstoop/stoop/internal/config"
 )
 
 const keyTailscale = "tailscale"
@@ -67,4 +75,50 @@ func validHostname(h string) bool {
 		}
 	}
 	return h != ""
+}
+
+// stageTailscale validates a save of the listener's settings and tells
+// the listener once it has committed.
+func (s *Service) stageTailscale(msg *instancev1.UpdateReachabilityRequest, current Reachability, save *settingSave) error {
+	in := msg.Tailscale
+	if in == nil {
+		return nil
+	}
+	settings := TailscaleSettings{
+		Enabled: in.Enabled, Hostname: strings.TrimSpace(in.Hostname), Funnel: in.Funnel,
+		AuthKey:    keepSecret(strings.TrimSpace(in.AuthKey), current.Tailscale.AuthKey),
+		ControlURL: strings.TrimSpace(in.ControlUrl),
+	}
+	if settings.Hostname != "" && !validHostname(settings.Hostname) {
+		return apierr.Field(connect.CodeInvalidArgument, "tailscale.hostname",
+			errors.New("the node name must be letters, digits, and hyphens"))
+	}
+	if settings.ControlURL != "" {
+		if _, ok := config.HTTPURL(settings.ControlURL); !ok {
+			return apierr.Field(connect.CodeInvalidArgument, "tailscale.control_url",
+				errors.New("the control URL must be an http(s) URL"))
+		}
+	}
+	save.write(keyTailscale, settings)
+	save.then(func() {
+		if s.tailscale != nil {
+			s.tailscale.Apply(settings)
+		}
+	})
+	return nil
+}
+
+func (settings TailscaleSettings) toProto() *instancev1.TailscaleSettings {
+	return &instancev1.TailscaleSettings{
+		Enabled: settings.Enabled, Hostname: settings.Hostname, Funnel: settings.Funnel,
+		HasAuthKey: settings.AuthKey != "", ControlUrl: settings.ControlURL,
+	}
+}
+
+func (status TailscaleStatus) toProto() *instancev1.TailscaleStatus {
+	return &instancev1.TailscaleStatus{
+		Enabled: status.Enabled, State: status.State, LoginUrl: status.LoginURL,
+		Url: status.URL, Funnel: status.Funnel, Error: status.Error,
+		TailnetIp: status.TailnetIP, CarriesVoice: status.CarriesVoice,
+	}
 }

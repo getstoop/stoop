@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/config"
 )
@@ -32,4 +33,20 @@ func validatePublicURL(raw string) (string, error) {
 			errors.New("the public address must look like https://chat.example.com"))
 	}
 	return strings.TrimSuffix(raw, "/"), nil
+}
+
+// stagePublicURL validates a save of the address; empty clears it.
+func stagePublicURL(msg *instancev1.UpdateReachabilityRequest, _ Reachability, save *settingSave) error {
+	if msg.PublicUrl == nil {
+		return nil
+	}
+	publicURL := strings.TrimSpace(*msg.PublicUrl)
+	if publicURL != "" {
+		var err error
+		if publicURL, err = validatePublicURL(publicURL); err != nil {
+			return err
+		}
+	}
+	save.write(keyPublicURL, publicURL)
+	return nil
 }

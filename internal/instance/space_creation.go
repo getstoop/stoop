@@ -2,6 +2,9 @@ package instance
 
 import (
 	"context"
+	"errors"
+
+	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 )
@@ -31,4 +34,16 @@ func (s *Service) SpaceCreationPolicy(ctx context.Context) (SpaceCreation, error
 func (s *Service) MembersMayCreateSpaces(ctx context.Context) (bool, error) {
 	p, err := s.SpaceCreationPolicy(ctx)
 	return p == SpaceCreationEveryone, err
+}
+
+func stageSpaceCreation(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	if msg.SpaceCreation == nil {
+		return nil
+	}
+	policy, ok := spaceCreations.fromProto(*msg.SpaceCreation)
+	if !ok {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("space_creation must be admins or everyone"))
+	}
+	save.write(keySpaceCreation, policy)
+	return nil
 }

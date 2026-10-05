@@ -2,6 +2,8 @@ package instance
 
 import (
 	"context"
+
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 )
 
 // keyLiveKit holds the API key pair Stoop signs room tokens with. It
@@ -49,3 +51,7 @@ type LiveKitReporter interface {
 // UseLiveKit connects the reporter; nil means nothing is known and the
 // admin page shows voice as unconfigured.
 func (s *Service) UseLiveKit(r LiveKitReporter) { s.livekit = r }
+
+func (status LiveKitStatus) toProto() *instancev1.LiveKitStatus {
+	return &instancev1.LiveKitStatus{Running: status.Running, Url: status.URL}
+}

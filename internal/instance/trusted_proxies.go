@@ -2,7 +2,12 @@ package instance
 
 import (
 	"context"
+	"fmt"
 
+	"connectrpc.com/connect"
+
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/trustedproxy"
 )
 
@@ -53,4 +58,25 @@ func (s *Service) TrustsPeer(remoteAddr string) bool {
 		return false
 	}
 	return set.Trusted(remoteAddr)
+}
+
+// stageTrustedProxies validates a save of the list; an empty one trusts
+// nothing.
+func stageTrustedProxies(msg *instancev1.UpdateReachabilityRequest, _ Reachability, save *settingSave) error {
+	if msg.TrustedProxies == nil {
+		return nil
+	}
+	cidrs := trimAll(msg.TrustedProxies.Cidrs)
+	if len(cidrs) > maxTrustedProxies {
+		return apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs",
+			fmt.Errorf("at most %d trusted proxy addresses", maxTrustedProxies))
+	}
+	if _, err := trustedproxy.Parse(cidrs); err != nil {
+		return apierr.Field(connect.CodeInvalidArgument, "trusted_proxies.cidrs", err)
+	}
+	if cidrs == nil {
+		cidrs = []string{}
+	}
+	save.write(keyTrustedProxies, cidrs)
+	return nil
 }

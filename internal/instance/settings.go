@@ -3,17 +3,13 @@ package instance
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
-	"unicode/utf8"
 
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
@@ -174,115 +170,16 @@ func (s *Service) UpdateSettings(ctx context.Context, req *connect.Request[insta
 // stoop admin, which checks no permission.
 func (s *Service) SaveSettings(ctx context.Context, msg *instancev1.UpdateSettingsRequest) error {
 	// Every field is validated before anything is written, so a refused
-	// save changes nothing.
-	var writes []settingWrite
-	if d := msg.SessionLifetimeDays; d != nil {
-		if *d < 0 || *d > config.MaxSessionLifetimeDays {
-			return apierr.Field(connect.CodeInvalidArgument, "session_lifetime_days",
-				errors.New("a sign-in lasts 1-365 days, or 0 to use the server's default"))
-		}
-		writes = append(writes, settingWrite{keySessionLifetime, *d})
-	}
-	if !validRetention(msg.MessageRetentionDays) {
-		return errRetentionRange("message_retention_days")
-	}
-	if !validRetention(msg.AttachmentRetentionDays) {
-		return errRetentionRange("attachment_retention_days")
-	}
-	for key, days := range map[string]*int32{
-		keyMessageRetention: msg.MessageRetentionDays, keyAttachmentRetention: msg.AttachmentRetentionDays,
+	// save changes nothing. The first refusal in this order is reported.
+	save := &settingSave{}
+	for _, stage := range []func(context.Context, *instancev1.UpdateSettingsRequest, *settingSave) error{
+		stageSessionLifetime, stageRetention, stageInstanceName, stageRegistrationPolicy,
+		stageSpaceCreation, s.stageStorageLimits, s.stagePasswordSignIn, stagePersonalTokens,
+		stageWebhooks, stageSelfDeletion,
 	} {
-		if days != nil {
-			writes = append(writes, settingWrite{key, *days})
+		if err := stage(ctx, msg, save); err != nil {
+			return err
 		}
 	}
-	if msg.InstanceName != nil {
-		name := strings.TrimSpace(*msg.InstanceName)
-		if name == "" {
-			return apierr.Field(connect.CodeInvalidArgument, "instance_name", errors.New("the server name must not be blank"))
-		}
-		if utf8.RuneCountInString(name) > config.MaxInstanceNameRunes {
-			return apierr.Field(connect.CodeInvalidArgument, "instance_name",
-				fmt.Errorf("the server name must be %d characters or fewer", config.MaxInstanceNameRunes))
-		}
-		writes = append(writes, settingWrite{keyInstanceName, name})
-	}
-	if msg.RegistrationPolicy != nil {
-		p, ok := registrationPolicies.fromProto(*msg.RegistrationPolicy)
-		if !ok {
-			return connect.NewError(connect.CodeInvalidArgument, errors.New("registration_policy must be open, invite, or closed"))
-		}
-		writes = append(writes, settingWrite{keyRegistrationPolicy, p})
-	}
-	if msg.SpaceCreation != nil {
-		sc, ok := spaceCreations.fromProto(*msg.SpaceCreation)
-		if !ok {
-			return connect.NewError(connect.CodeInvalidArgument, errors.New("space_creation must be admins or everyone"))
-		}
-		writes = append(writes, settingWrite{keySpaceCreation, sc})
-	}
-	quota, err := s.StorageQuotaBytes(ctx)
-	if err != nil {
-		return err
-	}
-	if requested := msg.StorageQuotaBytes; requested != nil {
-		if *requested < 0 {
-			return apierr.Field(connect.CodeInvalidArgument, "storage_quota_bytes", errors.New("the storage limit must be 0 (no limit) or more"))
-		}
-		quota = *requested
-		writes = append(writes, settingWrite{keyStorageQuota, *requested})
-	}
-	if msg.MaxUploadBytes != nil {
-		n := *msg.MaxUploadBytes
-		if n < 0 {
-			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes", errors.New("the size per file must be 0 (no limit) or more"))
-		}
-		if s.uploadCeiling > 0 && n > s.uploadCeiling {
-			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
-				fmt.Errorf("the size per file must be %d MB or less", s.uploadCeiling>>20))
-		}
-		// A per-file cap above the total storage limit is a limit that can
-		// never be reached. Judged against the quota in this request when
-		// it sets one.
-		if quota > 0 && n > quota {
-			return apierr.Field(connect.CodeInvalidArgument, "max_upload_bytes",
-				fmt.Errorf("the size per file is more than the upload storage limit of %d MB", quota>>20))
-		}
-		writes = append(writes, settingWrite{keyMaxUpload, n})
-	}
-	if msg.PasswordSignIn != nil {
-		pw, ok := passwordSignIns.fromProto(*msg.PasswordSignIn)
-		if !ok {
-			return connect.NewError(connect.CodeInvalidArgument, errors.New("password_sign_in must be everyone, admins, or off"))
-		}
-		// Never save "nobody can log in": below everyone needs a provider.
-		if pw != PasswordEveryone {
-			providers, err := s.LoginProviders(ctx)
-			if err != nil {
-				return err
-			}
-			if len(providers) == 0 {
-				return apierr.Field(connect.CodeFailedPrecondition, "password_sign_in",
-					errors.New("add a login provider before restricting password sign-in"))
-			}
-		}
-		writes = append(writes, settingWrite{keyPasswordSignIn, pw})
-	}
-	if msg.PersonalTokens != nil {
-		v, ok := personalTokenSettings.fromProto(*msg.PersonalTokens)
-		if !ok {
-			return connect.NewError(connect.CodeInvalidArgument, errors.New("personal_tokens must be everyone, admins, or off"))
-		}
-		writes = append(writes, settingWrite{keyPersonalTokens, v})
-	}
-	for key, v := range map[string]*bool{
-		keyWebhooksIncoming: msg.WebhooksIncoming, keyWebhooksOutgoing: msg.WebhooksOutgoing,
-		keyWebhooksAllowPrivateTargets: msg.WebhooksAllowPrivateTargets,
-		keySelfDeletion:                msg.SelfDeletion,
-	} {
-		if v != nil {
-			writes = append(writes, settingWrite{key, *v})
-		}
-	}
-	return s.writeSettings(ctx, writes)
+	return s.commit(ctx, save)
 }

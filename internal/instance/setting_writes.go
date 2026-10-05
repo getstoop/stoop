@@ -41,3 +41,37 @@ func (s *Service) writeSettings(ctx context.Context, writes []settingWrite) erro
 	}
 	return tx.Commit(ctx)
 }
+
+// settingSave collects one request's validated writes, and what to do once
+// they have committed (tell a controller, refresh a cache).
+type settingSave struct {
+	writes      []settingWrite
+	afterCommit []func()
+}
+
+func (save *settingSave) write(key string, value any) {
+	save.writes = append(save.writes, settingWrite{key, value})
+}
+
+func (save *settingSave) then(apply func()) {
+	save.afterCommit = append(save.afterCommit, apply)
+}
+
+// commit writes the save in one transaction, then runs its after-commit
+// steps; a failed write runs none.
+func (s *Service) commit(ctx context.Context, save *settingSave) error {
+	if err := s.writeSettings(ctx, save.writes); err != nil {
+		return err
+	}
+	for _, apply := range save.afterCommit {
+		apply()
+	}
+	return nil
+}
+
+// stageBool writes an on/off setting when the request sets it.
+func stageBool(save *settingSave, key string, value *bool) {
+	if value != nil {
+		save.write(key, *value)
+	}
+}

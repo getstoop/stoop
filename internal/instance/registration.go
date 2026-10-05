@@ -2,6 +2,9 @@ package instance
 
 import (
 	"context"
+	"errors"
+
+	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 )
@@ -29,4 +32,16 @@ var registrationPolicies = newEnumSetting(map[Policy]instancev1.RegistrationPoli
 func (s *Service) RegistrationPolicy(ctx context.Context) (string, error) {
 	policy, err := readSettingOr(ctx, s, keyRegistrationPolicy, PolicyInvite)
 	return string(policy), err
+}
+
+func stageRegistrationPolicy(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	if msg.RegistrationPolicy == nil {
+		return nil
+	}
+	policy, ok := registrationPolicies.fromProto(*msg.RegistrationPolicy)
+	if !ok {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("registration_policy must be open, invite, or closed"))
+	}
+	save.write(keyRegistrationPolicy, policy)
+	return nil
 }
