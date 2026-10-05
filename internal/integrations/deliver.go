@@ -39,9 +39,9 @@ const (
 	reasonOff       = "outgoing webhooks are turned off on this server"
 )
 
-// retryLadder is the dispatcher's wait before attempts 2, 3 and 4, kept
-// here only to bound a receiver's Retry-After.
-var retryLadder = []time.Duration{5 * time.Second, 30 * time.Second, 2 * time.Minute}
+// DeliveryBackoff is the wait before attempts 2, 3 and 4. internal/app
+// registers the kind with it, and it bounds a receiver's Retry-After.
+var DeliveryBackoff = []time.Duration{5 * time.Second, 30 * time.Second, 2 * time.Minute}
 
 // DeliveryArgs is what one delivery needs, so the performer never joins
 // against the log.
@@ -288,8 +288,8 @@ func (s *Service) disableOutgoing(ctx context.Context, id, reason string) error 
 // take from this attempt.
 func ladderRemaining(attempt int) time.Duration {
 	var total time.Duration
-	for step := max(attempt-1, 0); step < len(retryLadder); step++ {
-		total += retryLadder[step]
+	for step := max(attempt-1, 0); step < len(DeliveryBackoff); step++ {
+		total += DeliveryBackoff[step]
 	}
 	return total
 }
