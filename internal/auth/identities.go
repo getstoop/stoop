@@ -135,7 +135,7 @@ func (s *Service) verifySession(ctx context.Context, h http.Header) (authctx.Ide
 		return authctx.Identity{}, err
 	}
 	if ident.SessionID == "" {
-		return authctx.Identity{}, errors.New("linking needs a signed-in session")
+		return authctx.Identity{}, refuseSession("linking needs a signed-in session")
 	}
 	return ident, nil
 }
@@ -145,6 +145,10 @@ func (s *Service) verifySession(ctx context.Context, h http.Header) (authctx.Ide
 func (s *Service) linkIdentity(r *http.Request, providerID string, claims Claims, st loginState) (flowResult, *flowErr) {
 	ctx := r.Context()
 	ident, err := s.verifySession(ctx, r.Header)
+	if err != nil && !errors.Is(err, authctx.ErrNoSession) {
+		slog.Error("verify session for link", "err", err)
+		return flowResult{}, &flowErr{code: "provider_error"}
+	}
 	if err != nil || ident.UserID != st.LinkUserID || ident.SessionID != st.SessionID {
 		return flowResult{}, &flowErr{code: "login_state"}
 	}
@@ -174,6 +178,11 @@ func (s *Service) registerSocial(ctx context.Context, providerID string, claims 
 		return flowResult{}, &flowErr{code: "provider_error"}
 	}
 	inviteRequired, err := s.checkRegistrationAllowed(ctx, st.Invite, existing)
+	var refusal *connect.Error
+	if err != nil && !errors.As(err, &refusal) {
+		slog.Error("check registration policy", "err", err)
+		return flowResult{}, &flowErr{code: "provider_error"}
+	}
 	if err != nil {
 		// Closed and missing-invite share an error code, so ask the
 		// policy which story to tell the login page.

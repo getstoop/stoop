@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
@@ -8,6 +8,7 @@ import {
   instanceClient,
   integrationsClient,
 } from "./clients";
+import { isSignedOut } from "./errors";
 import { isLive, useHistoryStore } from "./history";
 
 // Server-state hooks. Query keys are the vocabulary the WS client uses to
@@ -68,13 +69,18 @@ export function useInvitePreview(code: string | undefined) {
 }
 
 // One cached GetMe answers both: the signed-in user, and what they may do
-// on the instance with the credential in use.
-const meQuery = {
+// on the instance with the credential in use. A failure that isn't "signed
+// out" is retried, then tried again on an interval until it answers.
+const meQuery = queryOptions({
   queryKey: ["me"],
   queryFn: async () => authClient.getMe({}),
-  retry: false,
+  retry: (failures, error) => !isSignedOut(error) && failures < 3,
+  refetchInterval: (query) =>
+    query.state.status === "error" && !isSignedOut(query.state.error)
+      ? 15_000
+      : false,
   staleTime: Number.POSITIVE_INFINITY,
-};
+});
 
 export function useMe() {
   return useQuery({ ...meQuery, select: (r) => r.user ?? null });

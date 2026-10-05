@@ -15,9 +15,13 @@ import (
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
-type fakePolicy struct{ policy string }
+// fakePolicy answers policy, or fails with err as an unreadable setting.
+type fakePolicy struct {
+	policy string
+	err    error
+}
 
-func (p *fakePolicy) RegistrationPolicy(context.Context) (string, error) { return p.policy, nil }
+func (p *fakePolicy) RegistrationPolicy(context.Context) (string, error) { return p.policy, p.err }
 
 // fakeInvites accepts one code; redeems join "space-1" and count down uses.
 // failRedeem makes validation pass and redemption fail, the shape of a code
@@ -30,14 +34,19 @@ type fakeInvites struct {
 	uses       int
 	redeemed   []string
 	failRedeem bool
-	barrier    int
-	arrived    int
-	release    chan struct{}
+	// validateErr, when set, is a lookup that failed rather than a refusal.
+	validateErr error
+	barrier     int
+	arrived     int
+	release     chan struct{}
 }
 
 func (f *fakeInvites) ValidateInvite(_ context.Context, code string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.validateErr != nil {
+		return f.validateErr
+	}
 	return f.usable(code)
 }
 

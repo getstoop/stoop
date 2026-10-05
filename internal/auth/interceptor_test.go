@@ -14,13 +14,23 @@ import (
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // interceptedClient serves the auth handler behind the real interceptor and
 // returns a client for it, plus a session token for a fresh account casey.
 func interceptedClient(t *testing.T, procedures map[string]authctx.Rule) (authv1connect.AuthServiceClient, string) {
 	t.Helper()
-	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2, Procedures: procedures})
+	client, token, _ := interceptedRig(t, procedures)
+	return client, token
+}
+
+// interceptedRig is interceptedClient with the pool behind it, for a test
+// that breaks the database.
+func interceptedRig(t *testing.T, procedures map[string]authctx.Rule) (authv1connect.AuthServiceClient, string, *pgxpool.Pool) {
+	t.Helper()
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2, Procedures: procedures})
 	ctx := context.Background()
 	if _, err := svc.Register(ctx, connect.NewRequest(&authv1.RegisterRequest{
 		Username: "casey", Password: "correct horse battery",
@@ -37,7 +47,7 @@ func interceptedClient(t *testing.T, procedures map[string]authctx.Rule) (authv1
 	mux.Handle(authv1connect.NewAuthServiceHandler(svc, connect.WithInterceptors(svc.NewInterceptor())))
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
-	return authv1connect.NewAuthServiceClient(server.Client(), server.URL), login.Msg.Token
+	return authv1connect.NewAuthServiceClient(server.Client(), server.URL), login.Msg.Token, pool
 }
 
 func withToken[T any](request *connect.Request[T], token string) *connect.Request[T] {
@@ -89,5 +99,38 @@ func TestInterceptorAppliesTheTable(t *testing.T) {
 	_, err = client.ListSessions(ctx, withToken(connect.NewRequest(&authv1.ListSessionsRequest{}), token))
 	if connect.CodeOf(err) != connect.CodePermissionDenied || !strings.Contains(err.Error(), "no access rule") {
 		t.Errorf("unlisted ListSessions: %v, want permission denied, no access rule", err)
+	}
+}
+
+// Signed out is an answer about the caller; a credential lookup that fails
+// is not, and neither a listed nor a public procedure may treat it as one.
+func TestInterceptorTellsNoSessionFromAFailedCheck(t *testing.T) {
+	client, token, pool := interceptedRig(t, map[string]authctx.Rule{
+		authv1connect.AuthServiceLoginProcedure: {Public: true},
+		authv1connect.AuthServiceGetMeProcedure: {},
+	})
+	ctx := context.Background()
+	login := func(token string) error {
+		_, err := client.Login(ctx, withToken(connect.NewRequest(&authv1.LoginRequest{
+			Username: "casey", Password: "correct horse battery",
+		}), token))
+		return err
+	}
+
+	_, err := client.GetMe(ctx, withToken(connect.NewRequest(&authv1.GetMeRequest{}), "not-a-token"))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Errorf("GetMe with an unknown token: code %v, want unauthenticated", connect.CodeOf(err))
+	}
+	if err := login("not-a-token"); err != nil {
+		t.Errorf("public Login with an unknown token: %v", err)
+	}
+
+	pool.Close()
+	_, err = client.GetMe(ctx, withToken(connect.NewRequest(&authv1.GetMeRequest{}), token))
+	if connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Errorf("GetMe with the database gone: %v, want unavailable", err)
+	}
+	if err := login(token); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Errorf("public Login with the database gone: %v, want unavailable", err)
 	}
 }

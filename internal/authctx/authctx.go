@@ -5,7 +5,15 @@
 // imports nothing outside the standard library.
 package authctx
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+// ErrNoSession is what a credential check answers when there is no usable
+// credential: none sent, unknown, expired, or the wrong kind. Any other
+// error means the check itself failed, and says nothing about the caller.
+var ErrNoSession = errors.New("no session")
 
 // Role is the instance-level user type. Admins operate the server
 // (settings, users) and inherit admin in every space; see
