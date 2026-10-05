@@ -10,6 +10,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -251,9 +252,8 @@ func TestAddMember(t *testing.T) {
 	operatorID := authctx.UserID(f.operator)
 
 	// Plain members can't add people; space admins can.
-	if err := add(f.member, operatorID); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("member adding: want permission_denied, got %v", err)
-	}
+	err := add(f.member, operatorID)
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "member adding")
 	if err := add(f.admin, operatorID); err != nil {
 		t.Fatalf("admin adding: %v", err)
 	}
@@ -263,13 +263,11 @@ func TestAddMember(t *testing.T) {
 		t.Errorf("added user is not a member: %v", err)
 	}
 	// Already in: said so, not silently ignored.
-	if err := add(f.admin, operatorID); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("adding twice: want already_exists, got %v", err)
-	}
+	err = add(f.admin, operatorID)
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "adding twice")
 	// Unknown account.
-	if err := add(f.admin, "00000000-0000-0000-0000-000000000000"); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("adding unknown user: want not_found, got %v", err)
-	}
+	err = add(f.admin, "00000000-0000-0000-0000-000000000000")
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "adding unknown user")
 	// Banned people stay out.
 	otherID := authctx.UserID(f.other)
 	if _, err := f.svc.BanMember(f.owner, connect.NewRequest(&chatv1.BanMemberRequest{

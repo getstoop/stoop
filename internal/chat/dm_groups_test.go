@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -357,9 +358,7 @@ func TestBlockRefusalWording(t *testing.T) {
 	_, err = svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{
 		ChannelId: group.Channel.Id, Content: "hello",
 	}))
-	if got := connect.CodeOf(err); got != connect.CodePermissionDenied {
-		t.Fatalf("sending across a block in a group: got %v", got)
-	}
+	apierrtest.RequireCode(t, err, connect.CodePermissionDenied, "sending across a block in a group")
 	if msg := err.Error(); !strings.Contains(msg, "this conversation") {
 		t.Errorf("group send refusal should not single anybody out: %q", msg)
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/files"
@@ -186,14 +187,12 @@ func TestSweepFilesEnqueues(t *testing.T) {
 
 	f.queue = nil
 	f.svc = newService(f, f.avatars)
-	if _, err := f.svc.SweepFiles(admin, request()); connect.CodeOf(err) != connect.CodeUnavailable {
-		t.Errorf("no queue: want unavailable, got %v", err)
-	}
+	_, err := f.svc.SweepFiles(admin, request())
+	apierrtest.ExpectCode(t, err, connect.CodeUnavailable, "no queue")
 	queue := &fakeJobQueue{}
 	f.svc.UseJobs(queue)
-	if _, err := f.svc.SweepFiles(member, request()); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("member sweep: want permission_denied, got %v", err)
-	}
+	_, err = f.svc.SweepFiles(member, request())
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "member sweep")
 	res, err := f.svc.SweepFiles(admin, request())
 	if err != nil || res.Msg.JobId != "job-1" {
 		t.Errorf("admin sweep: %v %v", res, err)
@@ -223,9 +222,8 @@ func TestQuota(t *testing.T) {
 		t.Errorf("cumulative: want 507, got %d %v", status, body)
 	}
 	// Images go through the same check.
-	if _, err := f.svc.UploadAvatar(as(f.member), connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 8, 8)})); connect.CodeOf(err) != connect.CodeResourceExhausted {
-		t.Errorf("avatar over quota: want resource_exhausted, got %v", err)
-	}
+	_, err := f.svc.UploadAvatar(as(f.member), connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 8, 8)}))
+	apierrtest.ExpectCode(t, err, connect.CodeResourceExhausted, "avatar over quota")
 }
 
 // Parallel uploads that each fit alone must not all land: whatever the

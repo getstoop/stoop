@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -304,9 +305,8 @@ func expectServedPNG(t *testing.T, res *http.Response, size int) {
 func TestUploadAvatarRefusesBots(t *testing.T) {
 	f := setup(t)
 	ctx := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: f.member, Role: authctx.RoleMember, Kind: authctx.KindBot})
-	if _, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 300, 200)})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("a bot set its own avatar: %v", err)
-	}
+	_, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 300, 200)}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "a bot set its own avatar")
 }
 
 func TestUploadBotAvatar(t *testing.T) {
@@ -319,15 +319,12 @@ func TestUploadBotAvatar(t *testing.T) {
 	defer adminDevices.Close()
 
 	// A member can't; an admin can't aim it at a person.
-	if _, err := svc.UploadBotAvatar(as(f.owner), connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member set a bot's avatar: %v", err)
-	}
-	if _, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.owner, Data: data})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("an admin set a person's avatar: %v", err)
-	}
-	if _, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: "not-an-id", Data: data})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("a junk id: %v", err)
-	}
+	_, err := svc.UploadBotAvatar(as(f.owner), connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member set a bot's avatar")
+	_, err = svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.owner, Data: data}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "an admin set a person's avatar")
+	_, err = svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: "not-an-id", Data: data}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "a junk id")
 
 	res, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data}))
 	if err != nil {
@@ -408,9 +405,7 @@ func TestUploadRejectsBadInput(t *testing.T) {
 	}
 	for name, data := range cases {
 		_, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: data}))
-		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("%s: want InvalidArgument, got %v", name, err)
-		}
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, name)
 	}
 	entries, _ := os.ReadDir(filepath.Join(f.store.Root(), "avatar"))
 	if len(entries) != 0 {
@@ -425,9 +420,7 @@ func TestSpaceIconAuthorisation(t *testing.T) {
 	f := setup(t)
 	// A plain member can't set the icon, and nothing is written.
 	_, err := f.svc.UploadSpaceIcon(as(f.member), connect.NewRequest(&filesv1.UploadSpaceIconRequest{SpaceId: f.space, Data: pngBytes(t, 64, 64)}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("member upload: want PermissionDenied, got %v", err)
-	}
+	apierrtest.RequireCode(t, err, connect.CodePermissionDenied, "member upload")
 	if entries, _ := os.ReadDir(filepath.Join(f.store.Root(), "space_icon")); len(entries) != 0 {
 		t.Fatal("denied upload wrote a blob")
 	}

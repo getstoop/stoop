@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -153,13 +154,11 @@ func TestAttachments(t *testing.T) {
 		"too many":             many,
 	}
 	for name, ids := range cases {
-		if _, err := send(owner, "x", ids...); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("%s: want InvalidArgument, got %v", name, err)
-		}
+		_, err := send(owner, "x", ids...)
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, name)
 	}
-	if _, err := send(owner, ""); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("empty message without attachments: got %v", err)
-	}
+	_, err = send(owner, "")
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "empty message without attachments")
 	if n := countMessages(); n != before {
 		t.Errorf("rejected sends created %d messages", n-before)
 	}

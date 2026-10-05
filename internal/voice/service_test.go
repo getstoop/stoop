@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	voicev1 "github.com/getstoop/stoop/gen/stoop/voice/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -111,9 +112,7 @@ func TestJoinVoiceChannel_Errors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := join(newTestService(tc.opts), tc.ctx, tc.channel)
-			if got := connect.CodeOf(err); got != tc.want {
-				t.Errorf("code = %v (%v), want %v", got, err, tc.want)
-			}
+			apierrtest.ExpectCode(t, err, tc.want, "join")
 		})
 	}
 }

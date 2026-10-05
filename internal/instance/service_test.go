@@ -11,6 +11,7 @@ import (
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/instance"
@@ -350,14 +351,10 @@ func TestClearUserProfile(t *testing.T) {
 	_, err := svc.ClearUserProfile(member, connect.NewRequest(&instancev1.ClearUserProfileRequest{
 		UserId: "m1", Bio: true,
 	}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("member clearing a profile: want permission_denied, got %v", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "member clearing a profile")
 	// Asking for nothing is a mistake worth naming, not a silent no-op.
 	_, err = svc.ClearUserProfile(admin, connect.NewRequest(&instancev1.ClearUserProfileRequest{UserId: "m1"}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("clearing neither field: want invalid_argument, got %v", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "clearing neither field")
 	res, err := svc.ClearUserProfile(admin, connect.NewRequest(&instancev1.ClearUserProfileRequest{
 		UserId: "m1", Bio: true,
 	}))

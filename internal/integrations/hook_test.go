@@ -17,6 +17,7 @@ import (
 	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
@@ -489,14 +490,12 @@ func TestIncomingHookPosts(t *testing.T) {
 
 func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 	f := setup(t)
-	if _, err := f.svc.CreateIncoming(f.member, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "x"})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member created a hook: %v", err)
-	}
+	_, err := f.svc.CreateIncoming(f.member, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "x"}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member created a hook")
 	narrow := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: authctx.UserID(f.admin), Role: authctx.RoleAdmin,
 		Credential: authctx.Credential{Kind: authctx.CredentialPersonalToken, Grants: []authctx.Action{authctx.InstanceRead}}})
-	if _, err := f.svc.CreateIncoming(narrow, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "x"})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("an admin's narrow token created a hook: %v", err)
-	}
+	_, err = f.svc.CreateIncoming(narrow, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "x"}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "an admin's narrow token created a hook")
 
 	made := f.create(t, "UPS", true)
 	if !f.spaces.admin[f.space+"/"+made.Webhook.BotUserId] {
@@ -526,9 +525,8 @@ func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 	if strings.Contains(list.Msg.String(), "stp_incoming_hook_") {
 		t.Error("a listing carried a token")
 	}
-	if _, err := f.svc.ListWebhooks(f.member, connect.NewRequest(&integrationsv1.ListWebhooksRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member listed the whole server: %v", err)
-	}
+	_, err = f.svc.ListWebhooks(f.member, connect.NewRequest(&integrationsv1.ListWebhooksRequest{}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member listed the whole server")
 	all, err := f.svc.ListWebhooks(f.admin, connect.NewRequest(&integrationsv1.ListWebhooksRequest{}))
 	if err != nil || len(all.Msg.Incoming) != 1 {
 		t.Errorf("server-wide list: %v %+v", err, all)
@@ -555,9 +553,8 @@ func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 	if err != nil || len(bots.Msg.Bots) != 1 || bots.Msg.Bots[0].Username != "ups" {
 		t.Errorf("ListBots: %v %+v", err, bots)
 	}
-	if _, err := f.svc.ListBots(f.member, connect.NewRequest(&integrationsv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member listed bots: %v", err)
-	}
+	_, err = f.svc.ListBots(f.member, connect.NewRequest(&integrationsv1.ListBotsRequest{}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member listed bots")
 }
 
 func TestOrphanedHookCredentialsAreSwept(t *testing.T) {
@@ -613,13 +610,11 @@ func TestHooksOfADeactivatedBot(t *testing.T) {
 	if _, err := f.svc.DeactivateBot(f.admin, connect.NewRequest(&integrationsv1.DeactivateBotRequest{Id: made.Webhook.BotUserId})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.svc.RotateSecret(f.admin, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: made.Webhook.Id})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("rotate on a deactivated bot: %v", err)
-	}
+	_, err := f.svc.RotateSecret(f.admin, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: made.Webhook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "rotate on a deactivated bot")
 	on := true
-	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: made.Webhook.Id, Enabled: &on})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("re-enable on a deactivated bot: %v", err)
-	}
+	_, err = f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: made.Webhook.Id, Enabled: &on}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "re-enable on a deactivated bot")
 	if _, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: made.Webhook.Id})); err != nil {
 		t.Errorf("deleting the hook of a deactivated bot: %v", err)
 	}
@@ -631,15 +626,12 @@ func TestBotTokens(t *testing.T) {
 	bot := made.Webhook.BotUserId
 	read := []accessv1.Permission{accessv1.Permission_PERMISSION_SPACE_READ, accessv1.Permission_PERMISSION_MESSAGES_READ}
 
-	if _, err := f.svc.CreateBotToken(f.member, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member minted a bot token: %v", err)
-	}
-	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: authctx.UserID(f.member), Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("a token for a person: %v", err)
-	}
-	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACCOUNT_SECURITY}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("account.security granted: %v", err)
-	}
+	_, err := f.svc.CreateBotToken(f.member, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member minted a bot token")
+	_, err = f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: authctx.UserID(f.member), Name: "x", Permissions: read}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "a token for a person")
+	_, err = f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACCOUNT_SECURITY}}))
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "account.security granted")
 	res, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{
 		BotUserId: bot, Name: "mirror reader", Permissions: read,
 	}))
@@ -661,18 +653,15 @@ func TestBotTokens(t *testing.T) {
 
 	// Revoking: the hook credential is not a token; the token goes; the
 	// bot stays while its hook remains, and retires once that goes too.
-	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: made.Webhook.Id})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("revoking a hook id as a token: %v", err)
-	}
-	if _, err := f.svc.RevokeBotToken(f.member, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member revoked: %v", err)
-	}
+	_, err = f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: made.Webhook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "revoking a hook id as a token")
+	_, err = f.svc.RevokeBotToken(f.member, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member revoked")
 	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("revoking twice: %v", err)
-	}
+	_, err = f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "revoking twice")
 	if f.bots.bots[bot].DeactivatedAt != nil {
 		t.Error("bot retired while its hook remained")
 	}
@@ -692,9 +681,8 @@ func TestBotTokens(t *testing.T) {
 	if f.bots.bots[bot].DeactivatedAt == nil {
 		t.Error("a bot with nothing left should retire")
 	}
-	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("a token for a deactivated bot: %v", err)
-	}
+	_, err = f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "a token for a deactivated bot")
 }
 
 func TestCreateBotWithBio(t *testing.T) {
@@ -727,12 +715,10 @@ func TestBotSpaces(t *testing.T) {
 	add := &integrationsv1.AddBotToSpaceRequest{BotUserId: bot, SpaceId: f.space}
 
 	// Instance admins only; a hook for a bot outside the space is refused.
-	if _, err := f.svc.AddBotToSpace(f.member, connect.NewRequest(add)); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member added a bot to a space: %v", err)
-	}
-	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "alerts", BotUserId: bot})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("a hook widened a bot into a space: %v", err)
-	}
+	_, err = f.svc.AddBotToSpace(f.member, connect.NewRequest(add))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member added a bot to a space")
+	_, err = f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "alerts", BotUserId: bot}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "a hook widened a bot into a space")
 
 	res, err := f.svc.AddBotToSpace(f.admin, connect.NewRequest(add))
 	if err != nil {
@@ -761,9 +747,8 @@ func TestBotSpaces(t *testing.T) {
 	if len(out.Msg.Bot.SpaceIds) != 0 {
 		t.Errorf("space_ids after remove = %v", out.Msg.Bot.SpaceIds)
 	}
-	if _, err := f.svc.RemoveBotFromSpace(f.admin, connect.NewRequest(&integrationsv1.RemoveBotFromSpaceRequest{BotUserId: bot, SpaceId: f.space})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("removing twice: %v", err)
-	}
+	_, err = f.svc.RemoveBotFromSpace(f.admin, connect.NewRequest(&integrationsv1.RemoveBotFromSpaceRequest{BotUserId: bot, SpaceId: f.space}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "removing twice")
 }
 
 func TestRemovedBotHooks(t *testing.T) {
@@ -798,9 +783,8 @@ func TestRemovedBotHooks(t *testing.T) {
 	if code, _ := f.post(t, url, "text/plain", "hi"); code != http.StatusNotFound {
 		t.Errorf("a disabled hook answered %d", code)
 	}
-	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: hookID, Enabled: &on})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("turned on while the bot is out: %v", err)
-	}
+	_, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: hookID, Enabled: &on}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "turned on while the bot is out")
 	if _, err := f.svc.AddBotToSpace(f.admin, connect.NewRequest(&integrationsv1.AddBotToSpaceRequest{BotUserId: bot, SpaceId: f.space})); err != nil {
 		t.Fatal(err)
 	}

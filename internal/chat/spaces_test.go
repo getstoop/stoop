@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -46,9 +48,8 @@ func TestSpaceNames(t *testing.T) {
 		}
 	}
 	for _, name := range []string{"", "   ", "\t\n", "\u200b", "\u200b \u2060", "Porch\x00", strings.Repeat("x", 51)} {
-		if _, err := create(name); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("create %q: code = %v, want InvalidArgument", name, connect.CodeOf(err))
-		}
+		_, err := create(name)
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, fmt.Sprintf("create %q", name))
 	}
 
 	// Two spaces may share a name.
@@ -68,9 +69,8 @@ func TestSpaceNames(t *testing.T) {
 		t.Errorf("rename: name = %v, err = %v, want Back Porch", got.GetName(), err)
 	}
 	for _, name := range []string{"", " ", "\u200b", strings.Repeat("x", 51)} {
-		if _, err := rename(name); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("rename %q: code = %v, want InvalidArgument", name, connect.CodeOf(err))
-		}
+		_, err := rename(name)
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, fmt.Sprintf("rename %q", name))
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -92,13 +93,9 @@ func TestListMessagesModes(t *testing.T) {
 	// A message from another channel (or a bogus id) is NotFound, not a leak.
 	for _, id := range []string{elsewhere.Msg.Message.Id, "00000000-0000-7000-8000-000000000000"} {
 		_, err := svc.ListMessages(owner, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID, AroundId: id}))
-		if connect.CodeOf(err) != connect.CodeNotFound {
-			t.Errorf("around %s: err = %v, want NotFound", id, err)
-		}
+		apierrtest.ExpectCode(t, err, connect.CodeNotFound, fmt.Sprintf("around %s", id))
 	}
 	// The modes don't combine.
 	_, err := svc.ListMessages(owner, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID, BeforeId: ids[5], AfterId: ids[2]}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("before+after: err = %v, want InvalidArgument", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "before+after")
 }

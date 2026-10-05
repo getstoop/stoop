@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -265,21 +267,17 @@ func TestChannelNames(t *testing.T) {
 		}
 	}
 	for _, name := range []string{"", "General", "off topic", "-garden", "_garden", "#garden", "café", "dice🎲", strings.Repeat("x", 33)} {
-		if _, err := create(name); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("create %q: code = %v, want InvalidArgument", name, connect.CodeOf(err))
-		}
+		_, err := create(name)
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, fmt.Sprintf("create %q", name))
 	}
 
 	// Unique within the space, not across spaces.
-	if _, err := create("garden"); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("duplicate create: code = %v, want AlreadyExists", connect.CodeOf(err))
-	}
-	if err := rename(generalID, "garden"); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("duplicate rename: code = %v, want AlreadyExists", connect.CodeOf(err))
-	}
-	if err := rename(generalID, "Lobby"); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("rename to Lobby: code = %v, want InvalidArgument", connect.CodeOf(err))
-	}
+	_, err := create("garden")
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "duplicate create")
+	err = rename(generalID, "garden")
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "duplicate rename")
+	err = rename(generalID, "Lobby")
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "rename to Lobby")
 	if err := rename(generalID, "lobby"); err != nil {
 		t.Errorf("rename to lobby: %v", err)
 	}
@@ -312,9 +310,8 @@ func TestChannelNames(t *testing.T) {
 	if err := tx.Commit(bg); err != nil {
 		t.Fatal(err)
 	}
-	if err := <-waited; connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("create behind the racing insert: code = %v, want AlreadyExists", connect.CodeOf(err))
-	}
+	err = <-waited
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "create behind the racing insert")
 
 	// A name from before the rule stays, blocks its folded twin, and is
 	// still found by in:.
@@ -328,9 +325,8 @@ func TestChannelNames(t *testing.T) {
 	if _, err := pool.Exec(context.Background(), `UPDATE channels SET name = 'Garden2' WHERE id = $1`, generalID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := create("garden2"); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("folded twin of an old name: code = %v, want AlreadyExists", connect.CodeOf(err))
-	}
+	_, err = create("garden2")
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "folded twin of an old name")
 	if _, err := svc.SearchMessages(owner, connect.NewRequest(&chatv1.SearchMessagesRequest{Scope: &chatv1.SearchMessagesRequest_SpaceId{SpaceId: spaceID}, Query: "in:#garden2 hello"})); err != nil {
 		t.Errorf("in:#garden2 against Garden2: %v", err)
 	}
