@@ -53,6 +53,7 @@ type Gateway struct {
 	voice          *voiceState
 	connSeq        atomic.Uint64
 	pingInterval   time.Duration
+	lookupTimeout  time.Duration
 }
 
 func NewGateway(bus events.Bus, verifier SessionVerifier, members MembershipLister, channels ChannelLookup, originPatterns []string, log *slog.Logger) *Gateway {
@@ -66,5 +67,6 @@ func NewGateway(bus events.Bus, verifier SessionVerifier, members MembershipList
 		presence:       newPresence(),
 		voice:          newVoiceState(),
 		pingInterval:   pingInterval,
+		lookupTimeout:  lookupTimeout,
 	}
 }

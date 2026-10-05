@@ -21,6 +21,10 @@ const (
 	pingInterval = 30 * time.Second
 	pingTimeout  = 10 * time.Second
 	writeTimeout = 10 * time.Second
+	// lookupTimeout bounds the port call a client event makes on the main
+	// loop, so a slow database delays the connection's other work by at
+	// most this; the event is then ignored.
+	lookupTimeout = 5 * time.Second
 	// typingInterval is the least time between relayed typing events from
 	// one connection for one channel; faster sends are dropped.
 	typingInterval = 2 * time.Second
@@ -195,6 +199,8 @@ func readClientEvents(ctx context.Context, conn *websocket.Conn, out chan<- *rea
 // handleClientEvent applies one client event: a typing hint or a voice
 // state report.
 func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID uint64, sub *events.Subscription, event *realtimev1.ClientEvent, lastTyping map[string]time.Time) {
+	ctx, cancel := context.WithTimeout(ctx, g.lookupTimeout)
+	defer cancel()
 	if typing := event.GetTyping(); typing != nil {
 		g.relayTyping(ctx, userID, sub, typing, lastTyping)
 	}

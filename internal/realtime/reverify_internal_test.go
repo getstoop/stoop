@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"google.golang.org/protobuf/proto"
 
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/events"
 )
@@ -57,5 +59,52 @@ func TestSocketClosesWhenTheCredentialStopsVerifying(t *testing.T) {
 	_, _, err = conn.Read(ctx)
 	if websocket.CloseStatus(err) != StatusCredentialRevoked {
 		t.Fatalf("socket ended with %v, want close %d", err, StatusCredentialRevoked)
+	}
+}
+
+// stuckChannels never answers a voice channel lookup before its context
+// ends, like a database that has stopped responding.
+type stuckChannels struct{ noChannels }
+
+func (stuckChannels) VoiceChannelSpace(ctx context.Context, _ string) (string, error) {
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+// A client event whose lookup hangs holds the connection's other work for
+// at most the lookup timeout: events published meanwhile still arrive.
+func TestAStuckLookupDoesNotStallTheConnection(t *testing.T) {
+	bus := events.NewInProcBus()
+	gw := NewGateway(bus, &flippingVerifier{}, noMembers{}, stuckChannels{}, []string{"*"}, slog.Default())
+	gw.lookupTimeout = 100 * time.Millisecond
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+
+	conn, _, err := websocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http"), &websocket.DialOptions{HTTPHeader: http.Header{"Authorization": {"Bearer x"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.CloseNow() }()
+	if _, _, err := conn.Read(context.Background()); err != nil { // Ready
+		t.Fatal(err)
+	}
+	report, err := proto.Marshal(&realtimev1.ClientEvent{Payload: &realtimev1.ClientEvent_VoiceState{
+		VoiceState: &realtimev1.VoiceState{ChannelId: "v1"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.Write(context.Background(), websocket.MessageBinary, report); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(20 * time.Millisecond) // let the main loop take the report
+	bus.Publish(events.UserTopic("alice"), events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_Ping{Ping: &realtimev1.Ping{}},
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if _, _, err := conn.Read(ctx); err != nil {
+		t.Fatalf("an event published behind the stuck lookup never arrived: %v", err)
 	}
 }
