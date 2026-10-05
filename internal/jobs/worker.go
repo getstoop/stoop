@@ -38,12 +38,13 @@ func (s *Service) perform(ctx context.Context, row dbgen.Job, tracked *inflight,
 	if !tracked.claim(row.ID) {
 		return
 	}
-	defer tracked.done(row.ID)
 	writeCtx, cancel := context.WithTimeout(context.Background(), outcomeTimeout)
 	defer cancel()
 	if writeErr := s.writeOutcome(writeCtx, row, job, entry.opts, err); writeErr != nil {
 		s.log.Error("job outcome not recorded", "kind", row.Kind, "id", row.ID, "err", writeErr)
 	}
+	// The slot is free before the wake below, so the pass it starts can use it.
+	tracked.done(row.ID)
 	// A finished capped or laned job may free the next one, which no
 	// insert would announce.
 	if entry.opts.MaxInFlight > 0 || row.Lane != nil {
