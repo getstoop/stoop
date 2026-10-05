@@ -39,56 +39,56 @@ const (
 // claims it via SendMessage.attachment_ids; unclaimed uploads are left
 // for the GC sweep (phase 4).
 func (s *Service) UploadHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.Header().Set("Allow", "POST")
-			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodPost {
+			writer.Header().Set("Allow", "POST")
+			writeError(writer, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		identity, err := s.sessions.VerifyRequest(r.Context(), r.Header)
+		identity, err := s.sessions.VerifyRequest(request.Context(), request.Header)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "authentication required")
+			writeError(writer, http.StatusUnauthorized, "authentication required")
 			return
 		}
 		// Taken before the body is read, so refused callers spool nothing.
 		if !s.inflight.acquire(identity.UserID) {
-			writeError(w, http.StatusTooManyRequests, tooManyUploadsMessage)
+			writeError(writer, http.StatusTooManyRequests, tooManyUploadsMessage)
 			return
 		}
 		defer s.inflight.release(identity.UserID)
-		ctx := authctx.WithIdentity(r.Context(), identity)
+		ctx := authctx.WithIdentity(request.Context(), identity)
 		// The operator's per-file cap
 		limit, err := s.maxUploadBytes(ctx)
 		if err != nil {
 			s.log.Error("read upload limit", "err", err)
-			writeError(w, http.StatusInternalServerError, "internal error")
+			writeError(writer, http.StatusInternalServerError, "internal error")
 			return
 		}
-		control := http.NewResponseController(w)
-		body := r.Body
+		control := http.NewResponseController(writer)
+		body := request.Body
 		if s.uploadIdle > 0 {
-			body = idleBody{ReadCloser: r.Body, control: control, idle: s.uploadIdle}
+			body = idleBody{ReadCloser: request.Body, control: control, idle: s.uploadIdle}
 		}
-		r.Body = http.MaxBytesReader(w, body, limit+multipartOverhead)
-		if err := r.ParseMultipartForm(multipartMemory); err != nil {
+		request.Body = http.MaxBytesReader(writer, body, limit+multipartOverhead)
+		if err := request.ParseMultipartForm(multipartMemory); err != nil {
 			var tooBig *http.MaxBytesError
 			switch {
 			case errors.As(err, &tooBig):
-				writeError(w, http.StatusRequestEntityTooLarge, tooLargeMessage(limit))
+				writeError(writer, http.StatusRequestEntityTooLarge, tooLargeMessage(limit))
 			case errors.Is(err, os.ErrDeadlineExceeded):
-				writeError(w, http.StatusRequestTimeout, "the upload stopped arriving; try again")
+				writeError(writer, http.StatusRequestTimeout, "the upload stopped arriving; try again")
 			default:
-				writeError(w, http.StatusBadRequest, "expected a multipart form")
+				writeError(writer, http.StatusBadRequest, "expected a multipart form")
 			}
 			return
 		}
 		// The body is in; nothing below waits on the client.
 		_ = control.SetReadDeadline(time.Time{})
-		defer func() { _ = r.MultipartForm.RemoveAll() }()
+		defer func() { _ = request.MultipartForm.RemoveAll() }()
 
-		channelID := r.FormValue("channel_id")
+		channelID := request.FormValue("channel_id")
 		if _, err := uuid.Parse(channelID); err != nil {
-			writeError(w, http.StatusBadRequest, "channel_id is required")
+			writeError(writer, http.StatusBadRequest, "channel_id is required")
 			return
 		}
 		// Membership, the credential's bounds and an announcement channel
@@ -99,12 +99,12 @@ func (s *Service) UploadHandler() http.Handler {
 			var cerr *connect.Error
 			switch {
 			case connect.CodeOf(err) == connect.CodeNotFound:
-				writeError(w, http.StatusNotFound, "channel not found")
+				writeError(writer, http.StatusNotFound, "channel not found")
 			case errors.As(err, &cerr) && cerr.Code() == connect.CodePermissionDenied:
-				writeError(w, http.StatusForbidden, cerr.Message())
+				writeError(writer, http.StatusForbidden, cerr.Message())
 			default:
 				s.log.Error("resolve channel", "channel_id", channelID, "err", err)
-				writeError(w, http.StatusInternalServerError, "internal error")
+				writeError(writer, http.StatusInternalServerError, "internal error")
 			}
 			return
 		}
@@ -113,45 +113,45 @@ func (s *Service) UploadHandler() http.Handler {
 			action = authctx.DMsPost
 		}
 		if !authctx.CoversChannel(ctx, action, spaceID, channelID) {
-			writeError(w, http.StatusForbidden, authctx.Refusal(ctx, action).Error())
+			writeError(writer, http.StatusForbidden, authctx.Refusal(ctx, action).Error())
 			return
 		}
 
-		part, header, err := r.FormFile("file")
+		part, header, err := request.FormFile("file")
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "expected a file part named \"file\"")
+			writeError(writer, http.StatusBadRequest, "expected a file part named \"file\"")
 			return
 		}
 		defer part.Close() //nolint:errcheck // read-only handle
 		if header.Size <= 0 {
-			writeError(w, http.StatusBadRequest, "the file is empty")
+			writeError(writer, http.StatusBadRequest, "the file is empty")
 			return
 		}
 		if header.Size > limit {
-			writeError(w, http.StatusRequestEntityTooLarge, tooLargeMessage(limit))
+			writeError(writer, http.StatusRequestEntityTooLarge, tooLargeMessage(limit))
 			return
 		}
 		if err := s.checkQuota(ctx, header.Size); err != nil {
-			if writeStorageFull(w, err) {
+			if writeStorageFull(writer, err) {
 				return
 			}
 			s.log.Error("check quota", "err", err)
-			writeError(w, http.StatusInternalServerError, "internal error")
+			writeError(writer, http.StatusInternalServerError, "internal error")
 			return
 		}
 
-		info, err := s.storeAttachment(r, identity.UserID, spaceID, part, header.Size, header.Filename)
+		info, err := s.storeAttachment(request, identity.UserID, spaceID, part, header.Size, header.Filename)
 		if err != nil {
-			if writeStorageFull(w, err) {
+			if writeStorageFull(writer, err) {
 				return
 			}
 			s.log.Error("store attachment", "err", err)
-			writeError(w, http.StatusInternalServerError, "could not store the file")
+			writeError(writer, http.StatusInternalServerError, "could not store the file")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(uploadResponse{
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(writer).Encode(uploadResponse{
 			ID: info.ID, Name: info.Name, ContentType: info.ContentType, Size: info.Size,
 		})
 	})
