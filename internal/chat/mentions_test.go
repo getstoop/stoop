@@ -114,9 +114,9 @@ func TestMentionEveryone(t *testing.T) {
 		t.Errorf("owner @everyone: %+v", res.Msg.Message)
 	}
 	for _, ctx := range []context.Context{bea, cal} {
-		l, _ := svc.ListActivity(ctx, connect.NewRequest(&chatv1.ListActivityRequest{}))
-		if l.Msg.UnreadCount != 1 {
-			t.Errorf("member unread after @everyone = %d", l.Msg.UnreadCount)
+		activity, _ := svc.ListActivity(ctx, connect.NewRequest(&chatv1.ListActivityRequest{}))
+		if activity.Msg.UnreadCount != 1 {
+			t.Errorf("member unread after @everyone = %d", activity.Msg.UnreadCount)
 		}
 	}
 
@@ -128,9 +128,9 @@ func TestMentionEveryone(t *testing.T) {
 	if res.Msg.Message.MentionsEveryone || len(res.Msg.Message.MentionUserIds) != 0 {
 		t.Errorf("member @everyone should be plain text: %+v", res.Msg.Message)
 	}
-	l, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
-	if l.Msg.UnreadCount != 1 {
-		t.Errorf("cal unread after member's @everyone = %d, want still 1", l.Msg.UnreadCount)
+	activity, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
+	if activity.Msg.UnreadCount != 1 {
+		t.Errorf("cal unread after member's @everyone = %d, want still 1", activity.Msg.UnreadCount)
 	}
 
 	// ListMessages carries the flag.
@@ -177,10 +177,10 @@ func TestMentionHere(t *testing.T) {
 	if !res.Msg.Message.MentionsHere || res.Msg.Message.MentionsEveryone || len(res.Msg.Message.MentionUserIds) != 1 || res.Msg.Message.MentionUserIds[0] != authctx.UserID(bea) {
 		t.Errorf("@here: %+v", res.Msg.Message)
 	}
-	b, _ := svc.ListActivity(bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
-	c, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
-	if b.Msg.UnreadCount != 1 || c.Msg.UnreadCount != 0 {
-		t.Errorf("@here notified bea=%d cal=%d, want 1/0", b.Msg.UnreadCount, c.Msg.UnreadCount)
+	beaActivity, _ := svc.ListActivity(bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
+	calActivity, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
+	if beaActivity.Msg.UnreadCount != 1 || calActivity.Msg.UnreadCount != 0 {
+		t.Errorf("@here notified bea=%d cal=%d, want 1/0", beaActivity.Msg.UnreadCount, calActivity.Msg.UnreadCount)
 	}
 	// Member: plain text.
 	res, _ = svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@here nope"}))

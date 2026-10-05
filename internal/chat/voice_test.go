@@ -85,8 +85,8 @@ func TestVoiceRoomsFollowMembership(t *testing.T) {
 		if len(got) != len(want) {
 			t.Fatalf("got %v, want %v", got, want)
 		}
-		for i := range got {
-			if got[i] != want[i] {
+		for index := range got {
+			if got[index] != want[index] {
 				t.Fatalf("got %v, want %v", got, want)
 			}
 		}
@@ -203,9 +203,9 @@ func TestEvictionOutlivesTheCaller(t *testing.T) {
 	if len(rooms.removed) != 2 {
 		t.Errorf("a cancelled caller stopped the eviction: %v", rooms.removed)
 	}
-	for i, err := range rooms.ctxErrs {
+	for index, err := range rooms.ctxErrs {
 		if err != nil {
-			t.Errorf("call %d ran on a cancelled context: %v", i, err)
+			t.Errorf("call %d ran on a cancelled context: %v", index, err)
 		}
 	}
 }

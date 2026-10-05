@@ -14,7 +14,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
-func ptr[T any](v T) *T { return &v }
+func ptr[T any](value T) *T { return &value }
 
 func TestSpaceNames(t *testing.T) {
 	pool, _, svc := newTestService(t)
@@ -385,9 +385,9 @@ func TestListAllSpacesForAdmin(t *testing.T) {
 	}
 	got := map[string]*chatv1.SpaceSummary{}
 	names := make([]string, len(res.Msg.Spaces))
-	for i, sp := range res.Msg.Spaces {
+	for index, sp := range res.Msg.Spaces {
 		got[sp.Name] = sp
-		names[i] = sp.Name
+		names[index] = sp.Name
 	}
 	if len(got) != 3 {
 		t.Fatalf("spaces = %v, want all three", names)
@@ -397,14 +397,14 @@ func TestListAllSpacesForAdmin(t *testing.T) {
 	}
 
 	// Members are counted, owners are resolved through the directory.
-	if n := got["Stoop"].MemberCount; n != 2 {
-		t.Errorf("Stoop member count = %d, want 2", n)
+	if count := got["Stoop"].MemberCount; count != 2 {
+		t.Errorf("Stoop member count = %d, want 2", count)
 	}
-	if n := got["Bodega"].MemberCount; n != 1 {
-		t.Errorf("Bodega member count = %d, want 1", n)
+	if count := got["Bodega"].MemberCount; count != 1 {
+		t.Errorf("Bodega member count = %d, want 1", count)
 	}
-	if u := got["Bodega"].OwnerUsername; u != "ada" {
-		t.Errorf("Bodega owner = %q, want ada", u)
+	if ownerName := got["Bodega"].OwnerUsername; ownerName != "ada" {
+		t.Errorf("Bodega owner = %q, want ada", ownerName)
 	}
 	if got["Bodega"].OwnerId != authctx.UserID(ada) {
 		t.Errorf("Bodega owner id does not match ada")

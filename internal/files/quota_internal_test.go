@@ -24,17 +24,17 @@ func TestRecordFileHoldsQuotaUnderConcurrency(t *testing.T) {
 	pool := dbtest.New(t)
 	ctx := context.Background()
 	owner := dbtest.NewUser(t, pool, "casey", "member")
-	s := &Service{q: dbgen.New(pool), pool: pool, policy: quotaOnly(100)}
+	service := &Service{q: dbgen.New(pool), pool: pool, policy: quotaOnly(100)}
 
 	const racers = 6
 	errs := make([]error, racers)
 	var wg sync.WaitGroup
-	for i := range racers {
+	for index := range racers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			id := uuid.NewString()
-			_, errs[i] = s.recordFile(ctx, dbgen.CreateFileParams{
+			_, errs[index] = service.recordFile(ctx, dbgen.CreateFileParams{
 				ID: id, Kind: string(KindAttachment), OwnerID: owner, ContentType: "text/plain",
 				Size: 60, Sha256: []byte{0}, StorageKey: "attachment/" + id, Name: "f",
 			})
@@ -54,20 +54,20 @@ func TestRecordFileHoldsQuotaUnderConcurrency(t *testing.T) {
 	if landed != 1 {
 		t.Errorf("rows recorded = %d, want 1", landed)
 	}
-	u, err := s.q.StorageUsage(ctx)
+	usage, err := service.q.StorageUsage(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.Bytes > 100 {
-		t.Errorf("usage %d exceeds the quota", u.Bytes)
+	if usage.Bytes > 100 {
+		t.Errorf("usage %d exceeds the quota", usage.Bytes)
 	}
 }
 
 func TestInflightLimit(t *testing.T) {
 	in := newInflight(2)
-	for i := range 2 {
+	for index := range 2 {
 		if !in.acquire("a") {
-			t.Fatalf("acquire %d should pass", i+1)
+			t.Fatalf("acquire %d should pass", index+1)
 		}
 	}
 	if in.acquire("a") {

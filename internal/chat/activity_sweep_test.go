@@ -25,7 +25,7 @@ func TestSweepActivity(t *testing.T) {
 	}
 	// Three mentions of bea: one read long ago, one read just now, one unread.
 	ch := sp.Msg.DefaultChannel.Id
-	for i := 0; i < 3; i++ {
+	for index := 0; index < 3; index++ {
 		if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: ch, Content: "@bea hi"})); err != nil {
 			t.Fatal(err)
 		}
@@ -42,20 +42,20 @@ func TestSweepActivity(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	n, err := svc.SweepActivity(context.Background(), 30*24*time.Hour)
-	if err != nil || n != 1 {
-		t.Fatalf("sweep removed %d (%v), want 1", n, err)
+	removed, err := svc.SweepActivity(context.Background(), 30*24*time.Hour)
+	if err != nil || removed != 1 {
+		t.Fatalf("sweep removed %d (%v), want 1", removed, err)
 	}
 	list, _ = svc.ListActivity(bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
 	ids := map[string]bool{}
-	for _, x := range list.Msg.Items {
-		ids[x.Id] = true
+	for _, item := range list.Msg.Items {
+		ids[item.Id] = true
 	}
 	if ids[old] || !ids[recent] || len(list.Msg.Items) != 2 || list.Msg.UnreadCount != 1 {
 		t.Errorf("after sweep: %d left (unread %d), old present %v, recent present %v", len(list.Msg.Items), list.Msg.UnreadCount, ids[old], ids[recent])
 	}
 	// A zero retention is "keep everything".
-	if n, _ := svc.SweepActivity(context.Background(), 0); n != 0 {
-		t.Errorf("retention 0 removed %d", n)
+	if removed, _ := svc.SweepActivity(context.Background(), 0); removed != 0 {
+		t.Errorf("retention 0 removed %d", removed)
 	}
 }

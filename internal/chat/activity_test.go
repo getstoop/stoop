@@ -19,8 +19,8 @@ import (
 func nextActivityItem(t *testing.T, sub *events.Subscription) *realtimev1.ActivityItemCreated {
 	t.Helper()
 	for {
-		if a := nextEvent(t, sub).GetActivityItemCreated(); a != nil {
-			return a
+		if item := nextEvent(t, sub).GetActivityItemCreated(); item != nil {
+			return item
 		}
 	}
 }

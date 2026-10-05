@@ -61,8 +61,8 @@ func TestSearchMessages(t *testing.T) {
 	}
 	ids := func(res *chatv1.SearchMessagesResponse) []string {
 		out := make([]string, len(res.Messages))
-		for i, m := range res.Messages {
-			out[i] = m.Id
+		for index, message := range res.Messages {
+			out[index] = message.Id
 		}
 		return out
 	}

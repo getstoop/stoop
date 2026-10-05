@@ -23,10 +23,10 @@ func TestListMessagesModes(t *testing.T) {
 	other, _ := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: sp.Msg.Space.Id, Name: "other"}))
 
 	ids := make([]string, 0, 12)
-	for i := range 12 {
-		content := fmt.Sprintf("m%d", i)
+	for index := range 12 {
+		content := fmt.Sprintf("m%d", index)
 		var reply string
-		if i == 11 {
+		if index == 11 {
 			reply = ids[1] // the newest message quotes an early one
 		}
 		res, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{
@@ -50,15 +50,15 @@ func TestListMessagesModes(t *testing.T) {
 	}
 	contents := func(msgs []*chatv1.Message) []string {
 		out := make([]string, len(msgs))
-		for i, m := range msgs {
-			out[i] = m.Content
+		for index, message := range msgs {
+			out[index] = message.Content
 		}
 		return out
 	}
 	expect := func(name string, got *chatv1.ListMessagesResponse, want []string, older, newer bool) {
 		t.Helper()
-		if g := contents(got.Messages); fmt.Sprint(g) != fmt.Sprint(want) {
-			t.Errorf("%s: messages = %v, want %v", name, g, want)
+		if listed := contents(got.Messages); fmt.Sprint(listed) != fmt.Sprint(want) {
+			t.Errorf("%s: messages = %v, want %v", name, listed, want)
 		}
 		if got.HasOlder != older || got.HasNewer != newer {
 			t.Errorf("%s: has_older=%v has_newer=%v, want %v/%v", name, got.HasOlder, got.HasNewer, older, newer)

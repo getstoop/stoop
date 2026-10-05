@@ -133,8 +133,8 @@ func (f *fakeSpaces) ChannelSpaceToPostIn(_ context.Context, userID, channelID s
 
 type fakeSessions struct{ users map[string]authctx.Identity }
 
-func (f *fakeSessions) VerifyRequest(_ context.Context, h http.Header) (authctx.Identity, error) {
-	if id, ok := f.users[h.Get("X-Test-User")]; ok {
+func (f *fakeSessions) VerifyRequest(_ context.Context, header http.Header) (authctx.Identity, error) {
+	if id, ok := f.users[header.Get("X-Test-User")]; ok {
 		return id, nil
 	}
 	return authctx.Identity{}, errors.New("no session")
@@ -142,9 +142,9 @@ func (f *fakeSessions) VerifyRequest(_ context.Context, h http.Header) (authctx.
 
 func testImage(width, height int) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			img.Set(x, y, color.NRGBA{R: uint8(x), G: uint8(y), B: 128, A: 255})
+	for row := 0; row < height; row++ {
+		for column := 0; column < width; column++ {
+			img.Set(column, row, color.NRGBA{R: uint8(column), G: uint8(row), B: 128, A: 255})
 		}
 	}
 	return img
@@ -304,12 +304,12 @@ func TestUploadAvatarStoresAndReplaces(t *testing.T) {
 	if res := f.get(t, id1, "member"); res.StatusCode != http.StatusNotFound {
 		t.Errorf("old id after replace: %d", res.StatusCode)
 	}
-	var n int
-	if err := f.pool.QueryRow(context.Background(), "SELECT count(*) FROM files WHERE owner_id = $1", f.member).Scan(&n); err != nil {
+	var count int
+	if err := f.pool.QueryRow(context.Background(), "SELECT count(*) FROM files WHERE owner_id = $1", f.member).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if n != 1 {
-		t.Errorf("file rows for user = %d, want 1", n)
+	if count != 1 {
+		t.Errorf("file rows for user = %d, want 1", count)
 	}
 }
 

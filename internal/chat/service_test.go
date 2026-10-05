@@ -149,8 +149,8 @@ func TestInviteRoles(t *testing.T) {
 	member := newUser(t, pool, "member", authctx.RoleMember)
 	operator := newUser(t, pool, "operator", authctx.RoleAdmin)
 	joiners := make([]context.Context, 0)
-	for i := range 6 {
-		joiners = append(joiners, newUser(t, pool, fmt.Sprintf("joiner%d", i), authctx.RoleMember))
+	for index := range 6 {
+		joiners = append(joiners, newUser(t, pool, fmt.Sprintf("joiner%d", index), authctx.RoleMember))
 	}
 
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -189,8 +189,8 @@ func TestInviteRoles(t *testing.T) {
 	if got := join(admin, adminInv); got.MyRole != chatv1.SpaceRole_SPACE_ROLE_ADMIN {
 		t.Errorf("admin joiner my_role = %v, want admin", got.MyRole)
 	}
-	if r := memberRole(t, pool, spaceID, admin); r != "admin" {
-		t.Errorf("admin joiner stored role = %q", r)
+	if role := memberRole(t, pool, spaceID, admin); role != "admin" {
+		t.Errorf("admin joiner stored role = %q", role)
 	}
 
 	// Default (unspecified) grants member.
@@ -280,9 +280,9 @@ func TestGetMember(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := res.Msg.Member
-	if m.Username != "owner" || m.Role != chatv1.SpaceRole_SPACE_ROLE_OWNER || !m.InstanceAdmin || m.JoinedAt == nil {
-		t.Errorf("owner as seen by member = %+v", m)
+	seen := res.Msg.Member
+	if seen.Username != "owner" || seen.Role != chatv1.SpaceRole_SPACE_ROLE_OWNER || !seen.InstanceAdmin || seen.JoinedAt == nil {
+		t.Errorf("owner as seen by member = %+v", seen)
 	}
 	// The owner looks up the member.
 	res, err = svc.GetMember(owner, connect.NewRequest(&chatv1.GetMemberRequest{SpaceId: spaceID, UserId: authctx.UserID(member)}))

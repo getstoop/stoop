@@ -71,8 +71,8 @@ func TestBans(t *testing.T) {
 		t.Fatalf("ListBans: %v %v", bans, err)
 	}
 	var found bool
-	for _, b := range bans.Msg.Bans {
-		if b.User.Id == beaID && b.Reason == "spam" && b.User.Username == "bea" {
+	for _, ban := range bans.Msg.Bans {
+		if ban.User.Id == beaID && ban.Reason == "spam" && ban.User.Username == "bea" {
 			found = true
 		}
 	}

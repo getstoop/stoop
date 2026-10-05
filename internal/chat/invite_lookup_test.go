@@ -46,18 +46,18 @@ func TestLookupInvite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lookup without a session: %v", err)
 	}
-	p := res.Msg.Preview
-	if p.SpaceName != "Ravenswood Ave" {
-		t.Errorf("space_name = %q", p.SpaceName)
+	preview := res.Msg.Preview
+	if preview.SpaceName != "Ravenswood Ave" {
+		t.Errorf("space_name = %q", preview.SpaceName)
 	}
-	if p.SpaceDescription != "Neighbours between 4th and 7th." {
-		t.Errorf("space_description = %q", p.SpaceDescription)
+	if preview.SpaceDescription != "Neighbours between 4th and 7th." {
+		t.Errorf("space_description = %q", preview.SpaceDescription)
 	}
-	if p.MemberCount != 1 {
-		t.Errorf("member_count = %d, want 1", p.MemberCount)
+	if preview.MemberCount != 1 {
+		t.Errorf("member_count = %d, want 1", preview.MemberCount)
 	}
-	if p.Role != chatv1.SpaceRole_SPACE_ROLE_MEMBER {
-		t.Errorf("role = %v, want member", p.Role)
+	if preview.Role != chatv1.SpaceRole_SPACE_ROLE_MEMBER {
+		t.Errorf("role = %v, want member", preview.Role)
 	}
 
 	// Joining moves the count the preview reports.

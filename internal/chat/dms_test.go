@@ -91,7 +91,7 @@ func TestDirectMessages(t *testing.T) {
 	}
 	for _, sub := range []*events.Subscription{aliceSub, bobSub} {
 		ev := nextEvent(t, sub)
-		if c := ev.GetChannelCreated(); c == nil || c.Id != dm.Channel.Id {
+		if created := ev.GetChannelCreated(); created == nil || created.Id != dm.Channel.Id {
 			t.Errorf("want ChannelCreated for the DM on both personal topics, got %v", ev.Payload)
 		}
 	}
@@ -125,8 +125,8 @@ func TestDirectMessages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range chans.Msg.Channels {
-		if c.Id == dm.Channel.Id {
+	for _, channel := range chans.Msg.Channels {
+		if channel.Id == dm.Channel.Id {
 			t.Errorf("the DM shows up in the space's channel list")
 		}
 	}
@@ -141,13 +141,13 @@ func TestDirectMessages(t *testing.T) {
 	}
 	// Bob: the message on his topic, and a dm activity item.
 	var gotMessage, gotActivity bool
-	for i := 0; i < 2; i++ {
+	for index := 0; index < 2; index++ {
 		ev := nextEvent(t, bobSub)
-		if m := ev.GetMessageCreated(); m != nil && m.Id == sent.Msg.Message.Id {
+		if message := ev.GetMessageCreated(); message != nil && message.Id == sent.Msg.Message.Id {
 			gotMessage = true
 		}
-		if n := ev.GetActivityItemCreated(); n != nil && n.Item.Kind == chatv1.ActivityKind_ACTIVITY_KIND_DM &&
-			n.Item.ChannelId == dm.Channel.Id && n.Item.SpaceId == "" {
+		if item := ev.GetActivityItemCreated(); item != nil && item.Item.Kind == chatv1.ActivityKind_ACTIVITY_KIND_DM &&
+			item.Item.ChannelId == dm.Channel.Id && item.Item.SpaceId == "" {
 			gotActivity = true
 		}
 	}
@@ -167,9 +167,9 @@ func TestDirectMessages(t *testing.T) {
 		t.Fatal(err)
 	}
 	var refreshed *chatv1.ActivityItem
-	for i := 0; i < 2; i++ {
-		if n := nextEvent(t, bobSub).GetActivityItemCreated(); n != nil {
-			refreshed = n.Item
+	for index := 0; index < 2; index++ {
+		if item := nextEvent(t, bobSub).GetActivityItemCreated(); item != nil {
+			refreshed = item.Item
 		}
 	}
 	if refreshed == nil || refreshed.MessageId != second.Msg.Message.Id || refreshed.Preview != "you there?" {
@@ -180,8 +180,8 @@ func TestDirectMessages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := bobNotes.Msg.Items; len(n) != 1 || n[0].MessageId != second.Msg.Message.Id || bobNotes.Msg.UnreadCount != 1 {
-		t.Errorf("bob's feed after two DMs: want one entry at the newest message, got %d (unread %d)", len(n), bobNotes.Msg.UnreadCount)
+	if items := bobNotes.Msg.Items; len(items) != 1 || items[0].MessageId != second.Msg.Message.Id || bobNotes.Msg.UnreadCount != 1 {
+		t.Errorf("bob's feed after two DMs: want one entry at the newest message, got %d (unread %d)", len(items), bobNotes.Msg.UnreadCount)
 	}
 
 	if _, err := svc.ListMessages(stranger, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: dm.Channel.Id})); code(err) != connect.CodePermissionDenied {

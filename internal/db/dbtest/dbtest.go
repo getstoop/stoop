@@ -65,11 +65,11 @@ func NewURL(t *testing.T) string {
 		t.Fatalf("create test database: %v", err)
 	}
 
-	u, err := url.Parse(baseURL)
+	parsed, err := url.Parse(baseURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	u.Path = "/" + name
+	parsed.Path = "/" + name
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -78,7 +78,7 @@ func NewURL(t *testing.T) string {
 		}
 		admin.Close()
 	})
-	return u.String()
+	return parsed.String()
 }
 
 // NewUser adds a person with no password and returns their id, for a

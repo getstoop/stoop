@@ -40,11 +40,11 @@ func newFixture(t *testing.T) fixture {
 	adminInv, _ := svc.CreateInvite(f.owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: f.spaceID, Role: chatv1.SpaceRole_SPACE_ROLE_ADMIN}))
 	memberInv, _ := svc.CreateInvite(f.owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: f.spaceID}))
 	// Join in a fixed order: ListMembers sorts by role then joined_at.
-	for _, j := range []struct {
+	for _, joiner := range []struct {
 		ctx context.Context
 		inv *chatv1.Invite
 	}{{f.admin, adminInv.Msg.Invite}, {f.member, memberInv.Msg.Invite}, {f.other, memberInv.Msg.Invite}} {
-		if _, err := svc.JoinSpace(j.ctx, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: j.inv.Code})); err != nil {
+		if _, err := svc.JoinSpace(joiner.ctx, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: joiner.inv.Code})); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -70,12 +70,12 @@ func TestListMembers(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := []string{}
-	for _, m := range res.Msg.Members {
-		got = append(got, m.Username+":"+m.Role.String())
+	for _, member := range res.Msg.Members {
+		got = append(got, member.Username+":"+member.Role.String())
 	}
 	want := "[owner:SPACE_ROLE_OWNER admin:SPACE_ROLE_ADMIN member:SPACE_ROLE_MEMBER other:SPACE_ROLE_MEMBER]"
-	if s := stringify(got); s != want {
-		t.Errorf("members = %s, want %s", s, want)
+	if listed := stringify(got); listed != want {
+		t.Errorf("members = %s, want %s", listed, want)
 	}
 	if _, err := f.svc.ListMembers(f.operator, connect.NewRequest(&chatv1.ListMembersRequest{SpaceId: f.spaceID})); code(err) != connect.CodePermissionDenied {
 		t.Errorf("non-member instance admin ListMembers: want permission_denied (read paths need membership), got %v", err)
@@ -84,11 +84,11 @@ func TestListMembers(t *testing.T) {
 
 func stringify(ss []string) string {
 	out := "["
-	for i, s := range ss {
-		if i > 0 {
+	for index, item := range ss {
+		if index > 0 {
 			out += " "
 		}
-		out += s
+		out += item
 	}
 	return out + "]"
 }
@@ -146,7 +146,7 @@ func TestKickLeaveTransfer(t *testing.T) {
 		t.Errorf("admin kicking member: %v", err)
 	}
 	ev := <-sub.Events()
-	if r := ev.GetMemberRemoved(); r == nil || r.UserId != authctx.UserID(f.other) || !r.Kicked {
+	if removed := ev.GetMemberRemoved(); removed == nil || removed.UserId != authctx.UserID(f.other) || !removed.Kicked {
 		t.Errorf("expected MemberRemoved(kicked) event, got %v", ev)
 	}
 	if _, err := f.svc.GetMember(f.owner, connect.NewRequest(&chatv1.GetMemberRequest{SpaceId: f.spaceID, UserId: authctx.UserID(f.other)})); code(err) != connect.CodeNotFound {
@@ -160,7 +160,7 @@ func TestKickLeaveTransfer(t *testing.T) {
 	if _, err := f.svc.LeaveSpace(f.member, connect.NewRequest(&chatv1.LeaveSpaceRequest{SpaceId: f.spaceID})); err != nil {
 		t.Errorf("member leaving: %v", err)
 	}
-	if r := (<-sub.Events()).GetMemberRemoved(); r == nil || r.Kicked {
+	if removed := (<-sub.Events()).GetMemberRemoved(); removed == nil || removed.Kicked {
 		t.Errorf("expected MemberRemoved(left) event")
 	}
 
@@ -208,7 +208,7 @@ func TestUpdateAndDeleteSpace(t *testing.T) {
 	if !res.Msg.Space.MembersCanInvite || res.Msg.Space.Name != "Porch" || res.Msg.Space.MyRole != chatv1.SpaceRole_SPACE_ROLE_ADMIN {
 		t.Errorf("after settings update: %+v", res.Msg.Space)
 	}
-	if u := (<-sub.Events()).GetSpaceUpdated(); u == nil || !u.Space.MembersCanInvite {
+	if updated := (<-sub.Events()).GetSpaceUpdated(); updated == nil || !updated.Space.MembersCanInvite {
 		t.Error("expected SpaceUpdated event")
 	}
 	res, _ = f.svc.UpdateSpace(f.owner, connect.NewRequest(&chatv1.UpdateSpaceRequest{SpaceId: f.spaceID, Name: proto.String("Front Porch")}))
@@ -227,7 +227,7 @@ func TestUpdateAndDeleteSpace(t *testing.T) {
 	if _, err := f.svc.DeleteSpace(f.operator, connect.NewRequest(&chatv1.DeleteSpaceRequest{SpaceId: f.spaceID})); err != nil {
 		t.Fatalf("instance admin DeleteSpace: %v", err)
 	}
-	if d := (<-sub.Events()).GetSpaceDeleted(); d == nil || d.SpaceId != f.spaceID {
+	if deleted := (<-sub.Events()).GetSpaceDeleted(); deleted == nil || deleted.SpaceId != f.spaceID {
 		t.Error("expected SpaceDeleted event")
 	}
 	ls, _ := f.svc.ListSpaces(f.owner, connect.NewRequest(&chatv1.ListSpacesRequest{}))

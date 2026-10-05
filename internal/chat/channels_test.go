@@ -31,15 +31,17 @@ func TestUnreadMarkers(t *testing.T) {
 		}
 		return res.Msg.Channels[0]
 	}
-	unread := func(c *chatv1.Channel) bool { return c.LastMessageId != "" && c.LastMessageId > c.LastReadMessageId }
+	unread := func(channel *chatv1.Channel) bool {
+		return channel.LastMessageId != "" && channel.LastMessageId > channel.LastReadMessageId
+	}
 	spaceUnread := func(ctx context.Context) bool {
 		res, _ := svc.ListSpaces(ctx, connect.NewRequest(&chatv1.ListSpacesRequest{}))
 		return res.Msg.Spaces[0].HasUnread
 	}
 
 	// Empty channel: nothing to read.
-	if c := channelOf(bea); c.LastMessageId != "" || unread(c) || spaceUnread(bea) {
-		t.Errorf("fresh channel should not be unread: %+v", c)
+	if channel := channelOf(bea); channel.LastMessageId != "" || unread(channel) || spaceUnread(bea) {
+		t.Errorf("fresh channel should not be unread: %+v", channel)
 	}
 
 	// Owner posts: unread for bea, read for the author; space flag follows.
@@ -50,11 +52,11 @@ func TestUnreadMarkers(t *testing.T) {
 	if msg.Msg.Message.SpaceId != spaceID {
 		t.Errorf("message space_id = %q", msg.Msg.Message.SpaceId)
 	}
-	if c := channelOf(bea); !unread(c) || c.LastMessageId != msg.Msg.Message.Id {
-		t.Errorf("bea should see unread: %+v", c)
+	if channel := channelOf(bea); !unread(channel) || channel.LastMessageId != msg.Msg.Message.Id {
+		t.Errorf("bea should see unread: %+v", channel)
 	}
-	if c := channelOf(owner); unread(c) {
-		t.Errorf("author's own message must not be unread for them: %+v", c)
+	if channel := channelOf(owner); unread(channel) {
+		t.Errorf("author's own message must not be unread for them: %+v", channel)
 	}
 	if !spaceUnread(bea) || spaceUnread(owner) {
 		t.Error("space has_unread should be true for bea, false for owner")
@@ -70,15 +72,15 @@ func TestUnreadMarkers(t *testing.T) {
 	if ev := (<-sub.Events()).GetChannelRead(); ev == nil || ev.ChannelId != channelID || ev.SpaceId != spaceID {
 		t.Error("expected ChannelRead event on bea's topic")
 	}
-	if c := channelOf(bea); unread(c) || spaceUnread(bea) {
-		t.Errorf("after mark read: %+v", c)
+	if channel := channelOf(bea); unread(channel) || spaceUnread(bea) {
+		t.Errorf("after mark read: %+v", channel)
 	}
 	msg2, _ := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "again"}))
-	if c := channelOf(bea); !unread(c) || c.UnreadCount != 1 {
-		t.Errorf("new post should be unread again with count 1: %+v", c)
+	if channel := channelOf(bea); !unread(channel) || channel.UnreadCount != 1 {
+		t.Errorf("new post should be unread again with count 1: %+v", channel)
 	}
-	if c := channelOf(owner); c.UnreadCount != 0 {
-		t.Errorf("author unread_count = %d", c.UnreadCount)
+	if channel := channelOf(owner); channel.UnreadCount != 0 {
+		t.Errorf("author unread_count = %d", channel.UnreadCount)
 	}
 	// Marking read at an older message doesn't move the marker backwards.
 	if _, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: channelID, MessageId: msg2.Msg.Message.Id})); err != nil {
@@ -88,8 +90,8 @@ func TestUnreadMarkers(t *testing.T) {
 	if _, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: channelID, MessageId: msg.Msg.Message.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if c := channelOf(bea); c.LastReadMessageId != msg2.Msg.Message.Id {
-		t.Errorf("marker moved backwards: %+v", c)
+	if channel := channelOf(bea); channel.LastReadMessageId != msg2.Msg.Message.Id {
+		t.Errorf("marker moved backwards: %+v", channel)
 	}
 }
 

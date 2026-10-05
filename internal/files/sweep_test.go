@@ -46,11 +46,11 @@ func (f *fixture) fileRow(t *testing.T, kind string, age time.Duration) (id, key
 
 func (f *fixture) rowExists(t *testing.T, id string) bool {
 	t.Helper()
-	var n int
-	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM files WHERE id = $1`, id).Scan(&n); err != nil {
+	var count int
+	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM files WHERE id = $1`, id).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	return n == 1
+	return count == 1
 }
 
 func TestSweep(t *testing.T) {
@@ -238,11 +238,11 @@ func TestQuotaParallelUploads(t *testing.T) {
 	const racers = 3 // within one account's in-flight limit
 	statuses := make([]int, racers)
 	var wg sync.WaitGroup
-	for i := range racers {
+	for index := range racers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			statuses[i], _ = f.upload(t, "member", f.spaces.channelID, fmt.Sprintf("p%d.txt", i), bytes.Repeat([]byte("x"), 60))
+			statuses[index], _ = f.upload(t, "member", f.spaces.channelID, fmt.Sprintf("p%d.txt", index), bytes.Repeat([]byte("x"), 60))
 		}()
 	}
 	wg.Wait()
