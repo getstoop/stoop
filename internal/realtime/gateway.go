@@ -6,9 +6,8 @@ package realtime
 
 import (
 	"context"
-	"log/slog"
+	"errors"
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"github.com/coder/websocket"
@@ -24,6 +23,10 @@ const (
 	pingInterval = 30 * time.Second
 	pingTimeout  = 10 * time.Second
 	writeTimeout = 10 * time.Second
+	// lookupTimeout bounds the port call a client event makes on the main
+	// loop, so a slow database delays the connection's other work by at
+	// most this; the event is then ignored.
+	lookupTimeout = 5 * time.Second
 	// typingInterval is the least time between relayed typing events from
 	// one connection for one channel; faster sends are dropped.
 	typingInterval = 2 * time.Second
@@ -34,59 +37,17 @@ const (
 	clientFrameBurst = 20
 )
 
-// SessionVerifier authenticates the WebSocket upgrade from the request
-// headers (cookie or bearer token): who is calling, with what credential.
-// Implemented by the auth module, wired in internal/app.
-type SessionVerifier interface {
-	VerifyRequest(ctx context.Context, h http.Header) (authctx.Identity, error)
-}
-
-// MembershipLister reports which spaces a user belongs to; implemented by
-// the chat module, wired in internal/app.
-type MembershipLister interface {
-	ListSpaceIDs(ctx context.Context, userID string) ([]string, error)
-}
-
-// DoNotDisturbLookup reports whether a person is on do not disturb and when
-// it ends; implemented by the auth module, wired in internal/app.
-type DoNotDisturbLookup interface {
-	DoNotDisturb(ctx context.Context, userID string) (on bool, until *time.Time, err error)
-}
-
-type Gateway struct {
-	bus            events.Bus
-	verifier       SessionVerifier
-	members        MembershipLister
-	channels       ChannelLookup
-	dnd            DoNotDisturbLookup
-	originPatterns []string
-	log            *slog.Logger
-	presence       *presence
-	voice          *voiceState
-	connSeq        atomic.Uint64
-	pingInterval   time.Duration
-}
-
-func NewGateway(bus events.Bus, verifier SessionVerifier, members MembershipLister, channels ChannelLookup, originPatterns []string, log *slog.Logger) *Gateway {
-	return &Gateway{
-		bus:            bus,
-		verifier:       verifier,
-		members:        members,
-		channels:       channels,
-		originPatterns: originPatterns,
-		log:            log,
-		presence:       newPresence(),
-		voice:          newVoiceState(),
-		pingInterval:   pingInterval,
-	}
-}
-
 func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	id, err := g.verifier.VerifyRequest(ctx, r.Header)
-	if err != nil {
+	if errors.Is(err, authctx.ErrNoSession) {
 		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	if err != nil {
+		g.log.Error("verify credential", "err", err)
+		http.Error(w, "the server can't check your sign-in right now", http.StatusServiceUnavailable)
 		return
 	}
 	if !opensSocket(id.Credential.Kind) {
@@ -102,12 +63,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topics := make([]string, 0, len(spaceIDs)+1)
-	topics = append(topics, events.UserTopic(userID))
-	for _, id := range spaceIDs {
-		topics = append(topics, events.SpaceTopic(id))
-	}
-	sub := g.bus.Subscribe(topics...)
+	sub := g.subscribe(userID, spaceIDs)
 	defer sub.Close()
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
@@ -125,62 +81,22 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// connID identifies this connection as the owner of any voice state it
 	// reports, so another tab's disconnect doesn't drop it.
 	connID := g.connSeq.Add(1)
-	defer g.leaveVoice(userID, connID, "")
+	defer func() { g.publishLeft(userID, g.voice.clearOwnedBy(userID, connID)) }()
 
-	// Presence: first connection announces "online" to the user's spaces,
-	// last disconnect announces "offline". Do not disturb is read again on
-	// every connect, which also rebuilds an end timer a restart lost.
-	first := g.presence.connect(userID, spaceIDs)
-	changed := false
-	if s, ok := g.lookupDoNotDisturb(ctx, userID); ok {
-		changed = g.applyDoNotDisturb(userID, s)
-	}
-	if first || changed {
-		g.publishPresence(userID, g.presence.spacesOf(userID), true)
-	}
-	defer func() {
-		if spaces := g.presence.disconnect(userID); spaces != nil {
-			g.publishPresence(userID, spaces, false)
-		}
-	}()
+	g.connectPresence(ctx, userID, spaceIDs)
+	defer g.disconnectPresence(userID)
 
-	// Read loop: client events (typing, voice state) and pong control
-	// frames. A read error means the peer is gone.
+	// The reader only decodes; this goroutine applies what it hands over,
+	// so nothing changes this connection's state after the deferred
+	// cleanup. A read error means the peer is gone.
+	clientEvents := make(chan *realtimev1.ClientEvent, clientFrameBurst)
 	go func() {
 		defer cancel()
-		lastTyping := map[string]time.Time{}
-		frames := rate.NewLimiter(clientFrameRate, clientFrameBurst)
-		for {
-			_, data, err := conn.Read(ctx)
-			if err != nil {
-				return
-			}
-			if !frames.Allow() {
-				continue
-			}
-			ev := &realtimev1.ClientEvent{}
-			if err := proto.Unmarshal(data, ev); err != nil {
-				continue
-			}
-			if t := ev.GetTyping(); t != nil {
-				g.relayTyping(ctx, userID, sub, t, lastTyping)
-			}
-			if vs := ev.GetVoiceState(); vs != nil {
-				g.handleVoiceState(ctx, userID, connID, sub, vs)
-			}
-		}
+		readClientEvents(ctx, conn, clientEvents)
 	}()
+	lastTyping := map[string]time.Time{}
 
-	if err := g.send(ctx, conn, events.Stamp(&realtimev1.ServerEvent{
-		Payload: &realtimev1.ServerEvent_Ready{
-			Ready: &realtimev1.Ready{
-				UserId: userID, SpaceIds: spaceIDs,
-				OnlineUserIds:     g.presence.onlineIn(spaceIDs),
-				Presences:         g.presence.presencesIn(spaceIDs),
-				VoiceParticipants: g.voice.participantsIn(spaceIDs),
-			},
-		},
-	})); err != nil {
+	if err := g.send(ctx, conn, g.ready(userID, spaceIDs)); err != nil {
 		return
 	}
 
@@ -195,12 +111,23 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			_ = conn.Close(websocket.StatusNormalClosure, "")
 			return
+		case event := <-clientEvents:
+			g.handleClientEvent(ctx, userID, connID, sub, event, lastTyping)
 		case <-pings.C:
 			// The session is checked again with every ping, so one that
 			// expired, or a revocation the bus never carried (the CLI, a
 			// publish that beat the subscription), ends the socket within
 			// a ping.
-			if fresh, err := g.verifier.VerifyRequest(ctx, r.Header); err != nil || fresh.Credential.ID != sessionID {
+			// A check that failed says nothing about the session, but an
+			// unverified socket must not stay subscribed: close it as
+			// retryable, and the client reconnects rather than signing out.
+			fresh, verifyErr := g.verifier.VerifyRequest(ctx, r.Header)
+			if verifyErr != nil && !errors.Is(verifyErr, authctx.ErrNoSession) {
+				g.log.Warn("re-verify credential", "err", verifyErr)
+				_ = conn.Close(websocket.StatusTryAgainLater, "cannot verify session")
+				return
+			}
+			if verifyErr != nil || fresh.Credential.ID != sessionID {
 				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
 				return
 			}
@@ -217,83 +144,184 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				_ = conn.Close(websocket.StatusTryAgainLater, "event overflow")
 				return
 			}
-			// Joining a space while connected: start receiving its events
-			// on this same connection.
-			joinedSpace := ""
-			if joined := ev.GetSpaceJoined(); joined != nil {
-				joinedSpace = joined.Space.Id
-				sub.Add(events.SpaceTopic(joinedSpace))
-				g.presence.addSpace(userID, joinedSpace)
-				g.publishPresence(userID, []string{joinedSpace}, true)
-			}
-			// Kicked, left, or the space is gone: stop receiving its events.
-			if removed := ev.GetMemberRemoved(); removed != nil && removed.UserId == userID {
-				g.leaveVoice(userID, 0, removed.SpaceId)
-				sub.Remove(events.SpaceTopic(removed.SpaceId))
-				g.presence.removeSpace(userID, removed.SpaceId)
-			}
-			if deleted := ev.GetSpaceDeleted(); deleted != nil {
-				g.leaveVoice(userID, 0, deleted.SpaceId)
-				sub.Remove(events.SpaceTopic(deleted.SpaceId))
-				g.presence.removeSpace(userID, deleted.SpaceId)
-			}
-			if deleted := ev.GetChannelDeleted(); deleted != nil {
-				g.channelDeleted(deleted.ChannelId)
-			}
-			// Set from any of the person's devices. Every connection hears
-			// it; only the first to apply it finds a change to announce.
-			if dnd := ev.GetDoNotDisturbChanged(); dnd != nil && dnd.UserId == userID {
-				if g.applyDoNotDisturb(userID, dndFrom(dnd)) {
-					g.publishPresence(userID, g.presence.spacesOf(userID), true)
-				}
-			}
-			// A revocation is told only to the socket opened with that
-			// session.
-			if revoked := ev.GetCredentialRevoked(); revoked != nil && revoked.CredentialId != sessionID {
-				continue
-			}
-			if err := g.send(ctx, conn, ev); err != nil {
-				return
-			}
-			// Ready only covered the spaces held at connect time; the new
-			// space's presence and voice state follow its SpaceJoined.
-			if joinedSpace != "" {
-				if err := g.sendSpaceSnapshot(ctx, conn, joinedSpace); err != nil {
-					return
-				}
-			}
-			// The session this socket was opened with is gone: the
-			// client has been told, and must not come back with it.
-			if ev.GetCredentialRevoked() != nil {
-				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
+			if !g.deliver(ctx, conn, userID, sessionID, sub, ev) {
 				return
 			}
 		}
 	}
 }
 
+// subscribe opens the bus subscription for a connection: the person's own
+// topic and each space they belong to.
+func (g *Gateway) subscribe(userID string, spaceIDs []string) *events.Subscription {
+	topics := make([]string, 0, len(spaceIDs)+1)
+	topics = append(topics, events.UserTopic(userID))
+	for _, spaceID := range spaceIDs {
+		topics = append(topics, events.SpaceTopic(spaceID))
+	}
+	return g.bus.Subscribe(topics...)
+}
+
+// connectPresence counts a new connection and announces the person online
+// in each space they are newly counted in: every space for the first
+// connection, and a space joined since for a later one (its SpaceJoined
+// then finds it counted). Do not disturb is read again on every connect,
+// which also rebuilds an end timer a restart lost; a change is announced
+// everywhere. Both read what is counted after the lookup, so a removal
+// another connection applied meanwhile is not announced.
+func (g *Gateway) connectPresence(ctx context.Context, userID string, spaceIDs []string) {
+	added := g.presence.connect(userID, spaceIDs)
+	if setting, ok := g.lookupDoNotDisturb(ctx, userID); ok && g.applyDoNotDisturb(userID, setting) {
+		g.publishPresence(userID, g.presence.spacesOf(userID), true)
+		return
+	}
+	g.publishPresence(userID, g.presence.countedIn(userID, added), true)
+}
+
+// disconnectPresence counts a closed connection; the last one announces the
+// person offline.
+func (g *Gateway) disconnectPresence(userID string) {
+	if spaces := g.presence.disconnect(userID); spaces != nil {
+		g.publishPresence(userID, spaces, false)
+	}
+}
+
+// readClientEvents decodes what the client sends and hands it to the
+// connection's main loop until a read fails. Pong control frames are read
+// here too, so it never waits on the main loop: one stuck in a ping would
+// wait on it in turn. A frame that finds the hand-over full is dropped,
+// like one over the rate.
+func readClientEvents(ctx context.Context, conn *websocket.Conn, out chan<- *realtimev1.ClientEvent) {
+	frames := rate.NewLimiter(clientFrameRate, clientFrameBurst)
+	for {
+		_, data, err := conn.Read(ctx)
+		if err != nil {
+			return
+		}
+		if !frames.Allow() {
+			continue
+		}
+		event := &realtimev1.ClientEvent{}
+		if err := proto.Unmarshal(data, event); err != nil {
+			continue
+		}
+		select {
+		case out <- event:
+		default:
+		}
+	}
+}
+
+// handleClientEvent applies one client event: a typing hint or a voice
+// state report.
+func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID uint64, sub *events.Subscription, event *realtimev1.ClientEvent, lastTyping map[string]time.Time) {
+	ctx, cancel := context.WithTimeout(ctx, g.lookupTimeout)
+	defer cancel()
+	if typing := event.GetTyping(); typing != nil {
+		g.relayTyping(ctx, userID, sub, typing, lastTyping)
+	}
+	if voiceState := event.GetVoiceState(); voiceState != nil {
+		g.handleVoiceState(ctx, userID, connID, sub, voiceState)
+	}
+}
+
+func (g *Gateway) ready(userID string, spaceIDs []string) *realtimev1.ServerEvent {
+	presences := g.presence.presencesIn(spaceIDs)
+	onlineUserIDs := make([]string, len(presences))
+	for index, presence := range presences {
+		onlineUserIDs[index] = presence.UserId
+	}
+	return events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_Ready{
+			Ready: &realtimev1.Ready{
+				UserId: userID, SpaceIds: spaceIDs,
+				OnlineUserIds:     onlineUserIDs,
+				Presences:         presences,
+				VoiceParticipants: g.voice.participantsIn(spaceIDs),
+			},
+		},
+	})
+}
+
+// deliver applies one bus event to the connection and forwards it; false
+// when the socket is done.
+func (g *Gateway) deliver(ctx context.Context, conn *websocket.Conn, userID, sessionID string, sub *events.Subscription, ev *realtimev1.ServerEvent) bool {
+	joinedSpace := g.applyControlEvent(userID, sub, ev)
+	// A revocation is told only to the socket opened with that session.
+	if revoked := ev.GetCredentialRevoked(); revoked != nil && revoked.CredentialId != sessionID {
+		return true
+	}
+	if err := g.send(ctx, conn, ev); err != nil {
+		return false
+	}
+	// Ready only covered the spaces held at connect time; the new space's
+	// presence and voice state follow its SpaceJoined.
+	if joinedSpace != "" {
+		if err := g.sendSpaceSnapshot(ctx, conn, joinedSpace); err != nil {
+			return false
+		}
+	}
+	// The session this socket was opened with is gone: the client has been
+	// told, and must not come back with it.
+	if ev.GetCredentialRevoked() != nil {
+		_ = conn.Close(StatusCredentialRevoked, "credential revoked")
+		return false
+	}
+	return true
+}
+
+// applyControlEvent keeps this connection's subscription, presence and voice
+// state in step with an event before it is forwarded. It returns the space
+// joined, if any, whose snapshot follows the event.
+func (g *Gateway) applyControlEvent(userID string, sub *events.Subscription, ev *realtimev1.ServerEvent) (joinedSpace string) {
+	switch payload := ev.Payload.(type) {
+	case *realtimev1.ServerEvent_SpaceJoined:
+		// Joined while connected: its events arrive on this connection.
+		joinedSpace = payload.SpaceJoined.Space.Id
+		sub.Add(events.SpaceTopic(joinedSpace))
+		// Each of the person's connections hears the join; the first to
+		// record it announces them.
+		if g.presence.addSpace(userID, joinedSpace) {
+			g.publishPresence(userID, []string{joinedSpace}, true)
+		}
+	case *realtimev1.ServerEvent_MemberRemoved:
+		if payload.MemberRemoved.UserId == userID {
+			g.dropSpace(userID, sub, payload.MemberRemoved.SpaceId)
+		}
+	case *realtimev1.ServerEvent_SpaceDeleted:
+		g.dropSpace(userID, sub, payload.SpaceDeleted.SpaceId)
+	case *realtimev1.ServerEvent_ChannelDeleted:
+		g.channelDeleted(payload.ChannelDeleted.ChannelId)
+	case *realtimev1.ServerEvent_DoNotDisturbChanged:
+		// Set from any of the person's devices. Every connection hears it;
+		// only the first to apply it finds a change to announce.
+		if payload.DoNotDisturbChanged.UserId == userID && g.applyDoNotDisturb(userID, dndFrom(payload.DoNotDisturbChanged)) {
+			g.publishPresence(userID, g.presence.spacesOf(userID), true)
+		}
+	}
+	return joinedSpace
+}
+
+// dropSpace stops a connection hearing a space it was removed from or that
+// is gone, and takes the person out of its voice channel.
+func (g *Gateway) dropSpace(userID string, sub *events.Subscription, spaceID string) {
+	g.publishLeft(userID, g.voice.clearInSpace(userID, spaceID))
+	sub.Remove(events.SpaceTopic(spaceID))
+	g.presence.removeSpace(userID, spaceID)
+}
+
 // sendSpaceSnapshot tells one connection who is online and in voice in a
 // space it just joined, as the change events it would have seen had it
 // been subscribed all along.
 func (g *Gateway) sendSpaceSnapshot(ctx context.Context, conn *websocket.Conn, spaceID string) error {
-	ids := []string{spaceID}
-	for _, p := range g.presence.presencesIn(ids) {
-		err := g.send(ctx, conn, events.Stamp(&realtimev1.ServerEvent{
-			Payload: &realtimev1.ServerEvent_PresenceChanged{
-				PresenceChanged: &realtimev1.PresenceChanged{UserId: p.UserId, Online: true, Dnd: p.Dnd},
-			},
-		}))
-		if err != nil {
+	spaceIDs := []string{spaceID}
+	for _, online := range g.presence.presencesIn(spaceIDs) {
+		if err := g.send(ctx, conn, presenceChanged(online.UserId, true, online.Dnd)); err != nil {
 			return err
 		}
 	}
-	for _, p := range g.voice.participantsIn(ids) {
-		err := g.send(ctx, conn, events.Stamp(&realtimev1.ServerEvent{
-			Payload: &realtimev1.ServerEvent_VoiceStateChanged{
-				VoiceStateChanged: &realtimev1.VoiceStateChanged{Participant: p, Joined: true},
-			},
-		}))
-		if err != nil {
+	for _, participant := range g.voice.participantsIn(spaceIDs) {
+		if err := g.send(ctx, conn, voiceStateChanged(participant, true)); err != nil {
 			return err
 		}
 	}
@@ -302,13 +330,17 @@ func (g *Gateway) sendSpaceSnapshot(ctx context.Context, conn *websocket.Conn, s
 
 func (g *Gateway) publishPresence(userID string, spaceIDs []string, online bool) {
 	dnd := online && g.presence.dndOf(userID)
-	for _, s := range spaceIDs {
-		g.bus.Publish(events.SpaceTopic(s), events.Stamp(&realtimev1.ServerEvent{
-			Payload: &realtimev1.ServerEvent_PresenceChanged{
-				PresenceChanged: &realtimev1.PresenceChanged{UserId: userID, Online: online, Dnd: dnd},
-			},
-		}))
+	for _, spaceID := range spaceIDs {
+		g.bus.Publish(events.SpaceTopic(spaceID), presenceChanged(userID, online, dnd))
 	}
+}
+
+func presenceChanged(userID string, online, dnd bool) *realtimev1.ServerEvent {
+	return events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_PresenceChanged{
+			PresenceChanged: &realtimev1.PresenceChanged{UserId: userID, Online: online, Dnd: dnd},
+		},
+	})
 }
 
 // relayTyping rebroadcasts a typing hint — to the space, if the connection

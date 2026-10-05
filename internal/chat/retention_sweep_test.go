@@ -9,9 +9,6 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 // retentionPolicy keeps messages for a fixed number of days.
@@ -23,8 +20,7 @@ func (retentionPolicy) VoiceAvailable() bool                                 { r
 
 // See docs/architecture/messaging.md#message-retention.
 func TestMessageRetention(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	files := &dbFiles{pool: pool}
 	svc.UseFiles(files)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
@@ -66,21 +62,21 @@ func TestMessageRetention(t *testing.T) {
 
 	// Keep forever, or nothing old enough: nothing goes.
 	svc.UseInstancePolicy(retentionPolicy(0))
-	if n, err := svc.SweepMessages(context.Background(), later); err != nil || n != 0 {
-		t.Fatalf("sweep keeping forever: %d %v", n, err)
+	if swept, err := svc.SweepMessages(context.Background(), later); err != nil || swept != 0 {
+		t.Fatalf("sweep keeping forever: %d %v", swept, err)
 	}
 	svc.UseInstancePolicy(retentionPolicy(30))
-	if n, err := svc.SweepMessages(context.Background(), time.Now()); err != nil || n != 0 {
-		t.Fatalf("sweep today: %d %v", n, err)
+	if swept, err := svc.SweepMessages(context.Background(), time.Now()); err != nil || swept != 0 {
+		t.Fatalf("sweep today: %d %v", swept, err)
 	}
 
 	count, err := svc.CountExpiredMessages(context.Background(), later, 30)
 	if err != nil || count != 2 {
 		t.Errorf("count in a month: %d %v, want 2 (the space message and the DM)", count, err)
 	}
-	n, err := svc.SweepMessages(context.Background(), later)
-	if err != nil || n != 2 {
-		t.Fatalf("sweep in a month: %d %v", n, err)
+	swept, err := svc.SweepMessages(context.Background(), later)
+	if err != nil || swept != 2 {
+		t.Fatalf("sweep in a month: %d %v", swept, err)
 	}
 
 	// The pinned reply stays, quoting nothing; the old message's file went
@@ -102,9 +98,9 @@ func TestMessageRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range chs.Msg.Channels {
-		if c.Id == channelID && c.LastMessageId != pinned.Id {
-			t.Errorf("last message = %q, want the pinned reply", c.LastMessageId)
+	for _, channel := range chs.Msg.Channels {
+		if channel.Id == channelID && channel.LastMessageId != pinned.Id {
+			t.Errorf("last message = %q, want the pinned reply", channel.LastMessageId)
 		}
 	}
 	dmMsgs, err := svc.ListMessages(ada, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: dm.Msg.DirectMessage.Channel.Id}))
@@ -116,8 +112,7 @@ func TestMessageRetention(t *testing.T) {
 // An expired attachment keeps its place on the message, nameless, and
 // can't be attached again.
 func TestExpiredAttachmentsOnMessages(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	svc.UseFiles(&dbFiles{pool: pool})
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	sp, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -139,8 +134,8 @@ func TestExpiredAttachmentsOnMessages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a := msgs.Msg.Messages[0].Attachments; len(a) != 1 || !a[0].Expired || a[0].Name != "" || a[0].Size == 0 {
-		t.Errorf("expired attachment on the message: %v", a)
+	if attachments := msgs.Msg.Messages[0].Attachments; len(attachments) != 1 || !attachments[0].Expired || attachments[0].Name != "" || attachments[0].Size == 0 {
+		t.Errorf("expired attachment on the message: %v", attachments)
 	}
 	reply, err := svc.SendMessage(casey, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "that one", ReplyToMessageId: sent.Msg.Message.Id}))
 	if err != nil {

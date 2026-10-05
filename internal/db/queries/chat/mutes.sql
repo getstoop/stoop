@@ -15,9 +15,12 @@ ON CONFLICT DO NOTHING;
 -- name: UnmuteSpace :exec
 DELETE FROM space_mutes WHERE user_id = $1 AND space_id = $2;
 
--- IsMutedFor answers, for one recipient, whether where something
--- happened is effectively muted for them: their own channel row or
--- their own space row. space_id is NULL for a direct message.
--- name: IsMutedFor :one
-SELECT (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = sqlc.arg('user_id')::uuid AND cm.channel_id = sqlc.arg('channel_id')::uuid)
-    OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = sqlc.arg('user_id')::uuid AND sm.space_id = sqlc.narg('space_id')::uuid))::bool;
+-- MutedAmong: which of these recipients have muted where something
+-- happened, by their own channel row or their own space row. space_id is
+-- NULL for a direct message.
+-- name: MutedAmong :many
+SELECT cm.user_id FROM channel_mutes cm
+WHERE cm.channel_id = sqlc.arg('channel_id')::uuid AND cm.user_id = ANY(sqlc.arg('user_ids')::uuid[])
+UNION
+SELECT sm.user_id FROM space_mutes sm
+WHERE sm.space_id = sqlc.narg('space_id')::uuid AND sm.user_id = ANY(sqlc.arg('user_ids')::uuid[]);

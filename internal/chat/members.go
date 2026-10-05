@@ -98,9 +98,9 @@ func (s *Service) AddMember(ctx context.Context, req *connect.Request[chatv1.Add
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "space")
 	}
-	if records, err := s.users.GetUsers(ctx, []string{req.Msg.UserId}); err != nil {
+	if user, found, err := s.lookupUser(ctx, req.Msg.UserId); err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
-	} else if len(records) == 1 && records[0].Kind == authctx.KindBot {
+	} else if found && user.Kind == authctx.KindBot {
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			errors.New("a bot's spaces are set from Server admin → Integrations"))
 	}
@@ -138,11 +138,9 @@ func (s *Service) KickMember(ctx context.Context, req *connect.Request[chatv1.Ki
 	if _, _, err := s.actorAndTarget(ctx, req.Msg.SpaceId, req.Msg.UserId); err != nil {
 		return nil, err
 	}
-	if err := s.removeMember(ctx, req.Msg.SpaceId, req.Msg.UserId); err != nil {
+	if err := s.removeFromSpace(ctx, req.Msg.SpaceId, req.Msg.UserId, true); err != nil {
 		return nil, fmt.Errorf("kick member: %w", err)
 	}
-	s.publishMemberRemoved(req.Msg.SpaceId, req.Msg.UserId, true)
-	s.evictFromSpaceVoice(ctx, req.Msg.SpaceId, req.Msg.UserId)
 	return connect.NewResponse(&chatv1.KickMemberResponse{}), nil
 }
 
@@ -167,12 +165,21 @@ func (s *Service) LeaveSpace(ctx context.Context, req *connect.Request[chatv1.Le
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			errors.New("the owner can't leave; transfer ownership first"))
 	}
-	if err := s.removeMember(ctx, req.Msg.SpaceId, userID); err != nil {
+	if err := s.removeFromSpace(ctx, req.Msg.SpaceId, userID, false); err != nil {
 		return nil, fmt.Errorf("leave space: %w", err)
 	}
-	s.publishMemberRemoved(req.Msg.SpaceId, userID, false)
-	s.evictFromSpaceVoice(ctx, req.Msg.SpaceId, userID)
 	return connect.NewResponse(&chatv1.LeaveSpaceResponse{}), nil
+}
+
+// removeFromSpace removes a member, tells the space, and drops them from
+// its voice channels.
+func (s *Service) removeFromSpace(ctx context.Context, spaceID, userID string, kicked bool) error {
+	if err := s.removeMember(ctx, spaceID, userID); err != nil {
+		return err
+	}
+	s.publishMemberRemoved(spaceID, userID, kicked)
+	s.evictFromSpaceVoice(ctx, spaceID, userID)
+	return nil
 }
 
 // removeMember drops a membership and the same user's mute for the space
@@ -237,17 +244,13 @@ func (s *Service) toProtoMembers(ctx context.Context, rows []dbgen.SpaceMember) 
 	for i, r := range rows {
 		ids[i] = r.UserID
 	}
-	records, err := s.users.GetUsers(ctx, ids)
+	users, err := s.usersByID(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("resolve members: %w", err)
 	}
-	byID := make(map[string]UserRecord, len(records))
-	for _, r := range records {
-		byID[r.ID] = r
-	}
 	out := make([]*chatv1.Member, len(rows))
-	for i, r := range rows {
-		out[i] = toProtoMember(r, byID[r.UserID])
+	for i, member := range rows {
+		out[i] = toProtoMember(member, users[member.UserID])
 	}
 	return out, nil
 }

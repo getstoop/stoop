@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"golang.org/x/oauth2"
 
 	"github.com/getstoop/stoop/internal/authctx"
@@ -93,22 +95,6 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.providers == nil {
-		fail("provider_unknown")
-		return
-	}
-	cfg, err := s.providers.LoginProvider(ctx, id)
-	if err != nil {
-		fail("provider_unknown")
-		return
-	}
-	redirectURI, err := s.providers.CallbackURL(ctx, id)
-	if err != nil || redirectURI == "" {
-		slog.Warn("oidc start without a public URL", "provider", id, "err", err)
-		fail("provider_error")
-		return
-	}
-
 	st := loginState{
 		Provider: id,
 		State:    randomToken(),
@@ -118,15 +104,21 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		Redirect: safeRedirectPath(r.URL.Query().Get("redirect")),
 		Exp:      time.Now().Add(loginStateTTL).Unix(),
 	}
-	// Link intent requires a live session now; the callback checks the
-	// same session again so a cookie planted on someone else can't attach
-	// an attacker's identity to their account. A desktop link recorded its
-	// session at /auth/desktop/start — the system browser has none.
+	// Link intent requires a live session now, before anything is looked
+	// up; the callback checks the same session again so a cookie planted
+	// on someone else can't attach an attacker's identity to their
+	// account. A desktop link recorded its session at /auth/desktop/start
+	// — the system browser has none.
 	if link {
 		if att.isLink() {
 			st.LinkUserID, st.SessionID = att.linkUserID, att.sessionID
 		} else {
 			ident, err := s.verifySession(ctx, r.Header)
+			if err != nil && !errors.Is(err, authctx.ErrNoSession) {
+				slog.Error("verify session for a link", "err", err)
+				fail("server_error")
+				return
+			}
 			if err != nil {
 				fail("login_state")
 				return
@@ -136,10 +128,9 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	}
 	st.Attempt = attempt
 
-	p, err := s.providerFor(ctx, cfg)
-	if err != nil {
-		slog.Warn("oidc discovery failed", "provider", id, "err", err)
-		fail("provider_error")
+	p, redirectURI, failCode := s.loginProvider(ctx, id)
+	if failCode != "" {
+		fail(failCode)
 		return
 	}
 	http.SetCookie(w, s.loginCookie(r, s.encodeLoginState(st), loginStateTTL))
@@ -168,24 +159,13 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	code := r.URL.Query().Get("code")
-	if code == "" || s.providers == nil {
+	if code == "" {
 		fail("provider_error")
 		return
 	}
-	cfg, err := s.providers.LoginProvider(ctx, id)
-	if err != nil {
-		fail("provider_unknown")
-		return
-	}
-	redirectURI, err := s.providers.CallbackURL(ctx, id)
-	if err != nil || redirectURI == "" {
-		fail("provider_error")
-		return
-	}
-	p, err := s.providerFor(ctx, cfg)
-	if err != nil {
-		slog.Warn("oidc discovery failed", "provider", id, "err", err)
-		fail("provider_error")
+	p, redirectURI, failCode := s.loginProvider(ctx, id)
+	if failCode != "" {
+		fail(failCode)
 		return
 	}
 	claims, err := p.exchange(ctx, code, st.Verifier, st.Nonce, redirectURI)
@@ -224,15 +204,63 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	// A link kept the existing session; a login or registration mints one.
 	if res.userID != "" {
-		token, ttl, err := s.createSession(ctx, res.userID, r.UserAgent())
-		if err != nil {
+		if _, err := s.startBrowserSession(w, r, res.userID); err != nil {
 			slog.Error("create session after provider login", "err", err)
 			loginError(w, r, "provider_error")
 			return
 		}
-		http.SetCookie(w, s.sessionCookie(ctx, token, ttl))
 	}
 	http.Redirect(w, r, res.target, http.StatusFound)
+}
+
+// loginProvider is the provider a sign-in round trip goes through and the
+// address it sends the person back to. failCode, when set, is the error
+// the browser is shown instead.
+func (s *Service) loginProvider(ctx context.Context, id string) (p provider, redirectURI, failCode string) {
+	cfg, failCode := s.readLoginProvider(ctx, id)
+	if failCode != "" {
+		return nil, "", failCode
+	}
+	redirectURI, err := s.providers.CallbackURL(ctx, id)
+	if err != nil || redirectURI == "" {
+		slog.Warn("login provider without a callback URL", "provider", id, "err", err)
+		return nil, "", "provider_error"
+	}
+	p, err = s.providerFor(ctx, cfg)
+	if err != nil {
+		slog.Warn("oidc discovery failed", "provider", id, "err", err)
+		return nil, "", "provider_error"
+	}
+	return p, redirectURI, ""
+}
+
+// readLoginProvider is a configured provider's settings; failCode is
+// provider_unknown when there is no such provider and server_error when
+// reading them failed.
+func (s *Service) readLoginProvider(ctx context.Context, id string) (cfg ProviderConfig, failCode string) {
+	if s.providers == nil {
+		return ProviderConfig{}, "provider_unknown"
+	}
+	cfg, err := s.providers.LoginProvider(ctx, id)
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return ProviderConfig{}, "provider_unknown"
+	}
+	if err != nil {
+		slog.Error("read a login provider", "provider", id, "err", err)
+		return ProviderConfig{}, "server_error"
+	}
+	return cfg, ""
+}
+
+// startBrowserSession signs the browser in as userID with a session
+// cookie, and returns the session's token.
+func (s *Service) startBrowserSession(w http.ResponseWriter, r *http.Request, userID string) (string, error) {
+	token, ttl, err := s.createSession(r.Context(), userID, r.UserAgent())
+	if err != nil {
+		return "", err
+	}
+	http.SetCookie(w, s.sessionCookie(r.Context(), token, ttl))
+	return token, nil
 }
 
 func loginError(w http.ResponseWriter, r *http.Request, code string) {

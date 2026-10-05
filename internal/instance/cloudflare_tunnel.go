@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 )
 
@@ -76,35 +77,45 @@ func ParseTunnelToken(token string) (string, error) {
 	return token, nil
 }
 
-// updateCloudflareTunnel saves and applies; a blank token keeps the
-// saved one. The environment's token is never copied into the database:
-// a saved blank falls back to it (see Reachability), so editing .env
-// keeps working.
-func (s *Service) updateCloudflareTunnel(ctx context.Context, enabled bool, token string) error {
+// cloudflareTunnelSetting validates a save of the group; a blank token
+// keeps the one in force.
+func cloudflareTunnelSetting(enabled bool, token string, current CloudflareTunnelSettings) (CloudflareTunnelSettings, error) {
 	token, err := ParseTunnelToken(token)
+	if err != nil {
+		return CloudflareTunnelSettings{}, err
+	}
+	token = keepSecret(token, current.Token)
+	if enabled && token == "" {
+		return CloudflareTunnelSettings{}, apierr.Field(connect.CodeInvalidArgument, "cloudflare_tunnel.token",
+			errors.New("a Cloudflare Tunnel needs the tunnel's token"))
+	}
+	return CloudflareTunnelSettings{Enabled: enabled, Token: token}, nil
+}
+
+// stageCloudflareTunnel validates a save of the connector's settings and
+// tells the connector once it has committed.
+func (s *Service) stageCloudflareTunnel(msg *instancev1.UpdateReachabilityRequest, current Reachability, save *settingSave) error {
+	in := msg.CloudflareTunnel
+	if in == nil {
+		return nil
+	}
+	tunnel, err := cloudflareTunnelSetting(in.Enabled, in.Token, current.CloudflareTunnel)
 	if err != nil {
 		return err
 	}
-	if token == "" {
-		var prev CloudflareTunnelSettings
-		if _, err := s.readJSON(ctx, keyCloudflareTunnel, &prev); err != nil {
-			return err
+	save.write(keyCloudflareTunnel, tunnel)
+	save.then(func() {
+		if s.tunnel != nil {
+			s.tunnel.Apply(tunnel)
 		}
-		token = prev.Token
-	}
-	if enabled && token == "" && s.env.CloudflareTunnel.Token == "" {
-		return apierr.Field(connect.CodeInvalidArgument, "cloudflare_tunnel.token",
-			errors.New("a Cloudflare Tunnel needs the tunnel's token"))
-	}
-	t := CloudflareTunnelSettings{Enabled: enabled, Token: token}
-	if err := s.writeJSON(ctx, keyCloudflareTunnel, t); err != nil {
-		return err
-	}
-	if s.tunnel != nil {
-		if t.Token == "" {
-			t.Token = s.env.CloudflareTunnel.Token
-		}
-		s.tunnel.Apply(t)
-	}
+	})
 	return nil
+}
+
+func (tunnel CloudflareTunnelSettings) toProto() *instancev1.CloudflareTunnelSettings {
+	return &instancev1.CloudflareTunnelSettings{Enabled: tunnel.Enabled, HasToken: tunnel.Token != ""}
+}
+
+func (status CloudflareTunnelStatus) toProto() *instancev1.CloudflareTunnelStatus {
+	return &instancev1.CloudflareTunnelStatus{Enabled: status.Enabled, State: status.State, Error: status.Error}
 }

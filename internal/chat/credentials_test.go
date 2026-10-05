@@ -15,10 +15,10 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 )
 
-func permissionSet(s *chatv1.Space) map[accessv1.Permission]bool {
+func permissionSet(space *chatv1.Space) map[accessv1.Permission]bool {
 	out := map[accessv1.Permission]bool{}
-	for _, p := range s.MyPermissions {
-		out[p] = true
+	for _, permission := range space.MyPermissions {
+		out[permission] = true
 	}
 	return out
 }
@@ -27,8 +27,8 @@ func sameSet(got map[accessv1.Permission]bool, want ...accessv1.Permission) bool
 	if len(got) != len(want) {
 		return false
 	}
-	for _, p := range want {
-		if !got[p] {
+	for _, permission := range want {
+		if !got[permission] {
 			return false
 		}
 	}
@@ -110,8 +110,7 @@ func TestBoundsReachEveryPath(t *testing.T) {
 // my_permissions is the server's answer for the viewer and the credential
 // they called with.
 func TestMyPermissions(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	member := newUser(t, pool, "member", authctx.RoleMember)
 

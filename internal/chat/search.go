@@ -90,13 +90,9 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 	if err != nil {
 		return nil, err
 	}
-	// The hydrator returns oldest-first; results read newest-first.
 	messages, err := s.hydrateMessages(ctx, spaceID, rows)
 	if err != nil {
 		return nil, err
-	}
-	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
-		messages[i], messages[j] = messages[j], messages[i]
 	}
 	return connect.NewResponse(&chatv1.SearchMessagesResponse{
 		Messages: messages, HasOlder: int32(len(rows)) == limit,
@@ -106,7 +102,7 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 // searchWithTimeout runs the search under a statement timeout, so one
 // pathological query cannot hold a connection. A timeout is reported as
 // DeadlineExceeded for the client to word.
-func (s *Service) searchWithTimeout(ctx context.Context, params dbgen.SearchMessagesParams) ([]dbgen.ListMessagesBeforeRow, error) {
+func (s *Service) searchWithTimeout(ctx context.Context, params dbgen.SearchMessagesParams) ([]dbgen.MessageWithReply, error) {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly})
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -125,11 +121,7 @@ func (s *Service) searchWithTimeout(ctx context.Context, params dbgen.SearchMess
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
 	}
-	rows := make([]dbgen.ListMessagesBeforeRow, len(found))
-	for i, r := range found {
-		rows[i] = dbgen.ListMessagesBeforeRow(r)
-	}
-	return rows, nil
+	return found, nil
 }
 
 // memberIDByHandle resolves a from: filter to a member of the space, the

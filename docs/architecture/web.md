@@ -60,7 +60,9 @@ decides so. It also owns the realtime connection's lifecycle (`startRealtime`
 in an effect) and renders the space rail, so the socket exists for exactly
 as long as there is a signed-in session to carry it.
 
-When the session check fails it navigates to `/login`, remembering where the
+When the session check says `Unauthenticated` it navigates to `/login`; any
+other failure is retried, and the shell says it can't reach the server
+meanwhile. It remembers where the
 person was headed — an invite link, say — in `?redirect=`. That location is
 read once rather than subscribed to: the shell stays mounted while the
 transition is in flight, and reacting to the intermediate location would

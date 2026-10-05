@@ -14,8 +14,6 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 type fakeUnfurler struct {
@@ -60,9 +58,7 @@ func (f *fakePreviewImages) StoreLinkPreviewImage(ctx context.Context, ownerID s
 }
 
 func TestLinkPreviews(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	uf := &fakeUnfurler{fetches: map[string]int{}}
 	imgs := &fakePreviewImages{pool: pool}
 	svc.UseUnfurler(uf, imgs, chat.UnfurlOptions{Inline: true})
@@ -86,9 +82,9 @@ func TestLinkPreviews(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, m := range res.Msg.Messages {
-			if m.Id == id {
-				return m.LinkPreviews
+		for _, message := range res.Msg.Messages {
+			if message.Id == id {
+				return message.LinkPreviews
 			}
 		}
 		t.Fatalf("message %s not listed", id)
@@ -96,23 +92,23 @@ func TestLinkPreviews(t *testing.T) {
 	}
 
 	// A link is fetched (inline here), stored, and delivered as MessageUpdated.
-	m := send("read https://example.com/article and `https://example.com/plain`")
-	p := previewsOf(m.Id)
-	if len(p) != 1 || p[0].Title != "An article" || p[0].SiteName != "Example" || p[0].ImageFileId == "" || p[0].ImageWidth != 320 {
-		t.Fatalf("previews = %+v", p)
+	sent := send("read https://example.com/article and `https://example.com/plain`")
+	previews := previewsOf(sent.Id)
+	if len(previews) != 1 || previews[0].Title != "An article" || previews[0].SiteName != "Example" || previews[0].ImageFileId == "" || previews[0].ImageWidth != 320 {
+		t.Fatalf("previews = %+v", previews)
 	}
 	if imgs.stored != 1 || uf.fetches["https://example.com/plain"] != 0 {
 		t.Errorf("image stored %d, code-span link fetched %d times", imgs.stored, uf.fetches["https://example.com/plain"])
 	}
 	var sawUpdate bool
-	for i := 0; i < 8 && !sawUpdate; i++ {
+	for attempt := 0; attempt < 8 && !sawUpdate; attempt++ {
 		select {
 		case ev := <-sub.Events():
-			if u := ev.GetMessageUpdated(); u != nil && u.Id == m.Id && len(u.LinkPreviews) == 1 {
+			if updated := ev.GetMessageUpdated(); updated != nil && updated.Id == sent.Id && len(updated.LinkPreviews) == 1 {
 				sawUpdate = true
 			}
 		default:
-			i = 8
+			attempt = 8
 		}
 	}
 	if !sawUpdate {
@@ -130,14 +126,14 @@ func TestLinkPreviews(t *testing.T) {
 	}
 	// …and on the MessageCreated event, which is what clients render.
 	var createdWithPreview bool
-	for i := 0; i < 16 && !createdWithPreview; i++ {
+	for attempt := 0; attempt < 16 && !createdWithPreview; attempt++ {
 		select {
 		case ev := <-sub.Events():
-			if c := ev.GetMessageCreated(); c != nil && c.Id == m2.Id && len(c.LinkPreviews) == 1 {
+			if created := ev.GetMessageCreated(); created != nil && created.Id == m2.Id && len(created.LinkPreviews) == 1 {
 				createdWithPreview = true
 			}
 		default:
-			i = 16
+			attempt = 16
 		}
 	}
 	if !createdWithPreview {
@@ -151,16 +147,16 @@ func TestLinkPreviews(t *testing.T) {
 	}
 
 	// Editing the text re-resolves links: removing the URL drops the preview.
-	if _, err := svc.EditMessage(owner, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: m.Id, Content: "no links now"})); err != nil {
+	if _, err := svc.EditMessage(owner, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: sent.Id, Content: "no links now"})); err != nil {
 		t.Fatal(err)
 	}
-	if len(previewsOf(m.Id)) != 0 {
+	if len(previewsOf(sent.Id)) != 0 {
 		t.Error("edit removed the link but the preview stayed")
 	}
-	if _, err := svc.EditMessage(owner, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: m.Id, Content: "now https://example.com/plain"})); err != nil {
+	if _, err := svc.EditMessage(owner, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: sent.Id, Content: "now https://example.com/plain"})); err != nil {
 		t.Fatal(err)
 	}
-	if p := previewsOf(m.Id); len(p) != 1 || p[0].Title != "Plain" {
-		t.Errorf("edit added a link but no preview: %+v", p)
+	if previews := previewsOf(sent.Id); len(previews) != 1 || previews[0].Title != "Plain" {
+		t.Errorf("edit added a link but no preview: %+v", previews)
 	}
 }

@@ -88,3 +88,21 @@ func (s *Service) PreviewRetention(ctx context.Context, req *connect.Request[ins
 	}
 	return connect.NewResponse(out), nil
 }
+
+// stageRetention validates a save of either retention period; both are
+// checked before either is written.
+func stageRetention(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	if !validRetention(msg.MessageRetentionDays) {
+		return errRetentionRange("message_retention_days")
+	}
+	if !validRetention(msg.AttachmentRetentionDays) {
+		return errRetentionRange("attachment_retention_days")
+	}
+	if days := msg.MessageRetentionDays; days != nil {
+		save.write(keyMessageRetention, *days)
+	}
+	if days := msg.AttachmentRetentionDays; days != nil {
+		save.write(keyAttachmentRetention, *days)
+	}
+	return nil
+}

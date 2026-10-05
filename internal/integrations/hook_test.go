@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,9 +16,8 @@ import (
 	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/kv"
 	"github.com/getstoop/stoop/internal/ratelimit"
 )
@@ -33,6 +31,8 @@ type fakeBots struct {
 	creds   map[string]Credential
 	bots    map[string]Bot
 	revoked []string
+	// failMint and failCredentials, when set, are what those calls return.
+	failMint, failCredentials error
 }
 
 func newFakeBots(pool *pgxpool.Pool) *fakeBots {
@@ -40,8 +40,8 @@ func newFakeBots(pool *pgxpool.Pool) *fakeBots {
 }
 
 func (f *fakeBots) CreateBot(ctx context.Context, username, displayName string) (Bot, error) {
-	for _, b := range f.bots {
-		if b.Username == username {
+	for _, bot := range f.bots {
+		if bot.Username == username {
 			return Bot{}, connect.NewError(connect.CodeAlreadyExists, errors.New("username is taken"))
 		}
 	}
@@ -49,51 +49,51 @@ func (f *fakeBots) CreateBot(ctx context.Context, username, displayName string) 
 	if _, err := f.pool.Exec(ctx, `INSERT INTO users (id, username, display_name, role, kind) VALUES ($1, $2, $3, 'member', 'bot')`, id, username, displayName); err != nil {
 		return Bot{}, err
 	}
-	b := Bot{ID: id, Username: username, DisplayName: displayName}
-	f.bots[id] = b
-	return b, nil
+	bot := Bot{ID: id, Username: username, DisplayName: displayName}
+	f.bots[id] = bot
+	return bot, nil
 }
 
 func (f *fakeBots) GetBot(_ context.Context, id string) (Bot, error) {
-	b, ok := f.bots[id]
+	bot, ok := f.bots[id]
 	if !ok {
 		return Bot{}, connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
 	}
-	return b, nil
+	return bot, nil
 }
 
 func (f *fakeBots) ListBots(context.Context) ([]Bot, error) {
 	var out []Bot
-	for _, b := range f.bots {
-		out = append(out, b)
+	for _, bot := range f.bots {
+		out = append(out, bot)
 	}
 	return out, nil
 }
 
 func (f *fakeBots) UpdateBot(_ context.Context, id string, username, displayName, bio *string) (Bot, error) {
-	b := f.bots[id]
+	bot := f.bots[id]
 	if username != nil {
-		b.Username = *username
+		bot.Username = *username
 	}
 	if displayName != nil {
-		b.DisplayName = *displayName
+		bot.DisplayName = *displayName
 	}
 	if bio != nil {
-		b.Bio = *bio
+		bot.Bio = *bio
 	}
-	f.bots[id] = b
-	return b, nil
+	f.bots[id] = bot
+	return bot, nil
 }
 
 // DeactivateBot revokes everything the bot holds, as auth does.
 func (f *fakeBots) DeactivateBot(ctx context.Context, id string) error {
-	b := f.bots[id]
-	now := b.CreatedAt
-	b.DeactivatedAt = &now
-	f.bots[id] = b
-	for _, c := range f.creds {
-		if c.HolderID == id {
-			if err := f.RevokeCredential(ctx, c.ID); err != nil {
+	bot := f.bots[id]
+	now := bot.CreatedAt
+	bot.DeactivatedAt = &now
+	f.bots[id] = bot
+	for _, credential := range f.creds {
+		if credential.HolderID == id {
+			if err := f.RevokeCredential(ctx, credential.ID); err != nil {
 				return err
 			}
 		}
@@ -103,15 +103,18 @@ func (f *fakeBots) DeactivateBot(ctx context.Context, id string) error {
 
 // MintCredential applies auth's grant rules: at least one, each grantable.
 func (f *fakeBots) MintCredential(ctx context.Context, req MintRequest) (Credential, string, error) {
+	if f.failMint != nil {
+		return Credential{}, "", f.failMint
+	}
 	if len(req.Grants) == 0 {
 		return Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("choose at least one permission"))
 	}
-	for _, a := range req.Grants {
-		if !a.Grantable() {
+	for _, action := range req.Grants {
+		if !action.Grantable() {
 			return Credential{}, "", connect.NewError(connect.CodeInvalidArgument, errors.New("not grantable"))
 		}
 	}
-	if b := f.bots[req.HolderID]; b.DeactivatedAt != nil {
+	if bot := f.bots[req.HolderID]; bot.DeactivatedAt != nil {
 		return Credential{}, "", connect.NewError(connect.CodeNotFound, errors.New("bot not found"))
 	}
 	id := uuid.NewString()
@@ -120,23 +123,23 @@ func (f *fakeBots) MintCredential(ctx context.Context, req MintRequest) (Credent
 		return Credential{}, "", err
 	}
 	bounded := req.ChannelID != ""
-	c := Credential{ID: id, HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants, Bounded: bounded, Hint: id[len(id)-4:]}
+	credential := Credential{ID: id, HolderID: req.HolderID, Kind: req.Kind, Name: req.Name, Grants: req.Grants, Bounded: bounded, Hint: id[len(id)-4:]}
 	if req.ChannelID != "" {
-		c.ChannelIDs = []string{req.ChannelID}
+		credential.ChannelIDs = []string{req.ChannelID}
 	}
-	f.creds[id] = c
+	f.creds[id] = credential
 	secret := "stp_" + string(req.Kind) + "_" + id
 	f.tokens[secret] = authctx.Identity{
 		UserID: req.HolderID, Role: authctx.RoleMember, Kind: authctx.KindBot,
-		Credential: authctx.Credential{ID: id, Kind: req.Kind, Grants: req.Grants, Bounded: bounded, Channels: c.ChannelIDs},
+		Credential: authctx.Credential{ID: id, Kind: req.Kind, Grants: req.Grants, Bounded: bounded, Channels: credential.ChannelIDs},
 	}
-	return c, secret, nil
+	return credential, secret, nil
 }
 
 func (f *fakeBots) SetCredentialGrants(_ context.Context, id string, grants []authctx.Action) error {
-	c := f.creds[id]
-	c.Grants = grants
-	f.creds[id] = c
+	credential := f.creds[id]
+	credential.Grants = grants
+	f.creds[id] = credential
 	return nil
 }
 
@@ -156,27 +159,30 @@ func (f *fakeBots) RevokeCredential(ctx context.Context, id string) error {
 }
 
 func (f *fakeBots) Credentials(_ context.Context, holderIDs, ids []string) ([]Credential, error) {
+	if f.failCredentials != nil {
+		return nil, f.failCredentials
+	}
 	var out []Credential
-	for _, c := range f.creds {
-		if len(ids) > 0 && !contains(ids, c.ID) {
+	for _, credential := range f.creds {
+		if len(ids) > 0 && !contains(ids, credential.ID) {
 			continue
 		}
-		if len(ids) == 0 && len(holderIDs) > 0 && !contains(holderIDs, c.HolderID) {
+		if len(ids) == 0 && len(holderIDs) > 0 && !contains(holderIDs, credential.HolderID) {
 			continue
 		}
-		out = append(out, c)
+		out = append(out, credential)
 	}
 	return out, nil
 }
 
 func (f *fakeBots) CountCredentials(_ context.Context, holderID string) (int64, error) {
-	var n int64
-	for _, c := range f.creds {
-		if c.HolderID == holderID {
-			n++
+	var count int64
+	for _, credential := range f.creds {
+		if credential.HolderID == holderID {
+			count++
 		}
 	}
-	return n, nil
+	return count, nil
 }
 
 func (f *fakeBots) VerifyHookToken(_ context.Context, token string) (authctx.Identity, error) {
@@ -187,9 +193,9 @@ func (f *fakeBots) VerifyHookToken(_ context.Context, token string) (authctx.Ide
 	return id, nil
 }
 
-func contains(list []string, s string) bool {
-	for _, x := range list {
-		if x == s {
+func contains(list []string, want string) bool {
+	for _, item := range list {
+		if item == want {
 			return true
 		}
 	}
@@ -200,6 +206,8 @@ type fakeSpaces struct {
 	pool    *pgxpool.Pool
 	channel map[string]string
 	admin   map[string]bool
+	// failAdmin, when set, is what SetBotAdmin returns.
+	failAdmin error
 }
 
 func (f *fakeSpaces) ChannelSpace(_ context.Context, channelID string) (string, error) {
@@ -237,7 +245,19 @@ func (f *fakeSpaces) ListSpaceIDs(ctx context.Context, userID string) ([]string,
 	}
 	return out, rows.Err()
 }
-func (f *fakeSpaces) SetBotAdmin(_ context.Context, spaceID, userID string, admin bool) error {
+
+// SetBotAdmin refuses a bot outside the space, as chat does.
+func (f *fakeSpaces) SetBotAdmin(ctx context.Context, spaceID, userID string, admin bool) error {
+	if f.failAdmin != nil {
+		return f.failAdmin
+	}
+	member, err := f.IsSpaceMember(ctx, userID, spaceID)
+	if err != nil {
+		return err
+	}
+	if !member {
+		return connect.NewError(connect.CodeNotFound, errors.New("the bot is not a member of that space"))
+	}
 	f.admin[spaceID+"/"+userID] = admin
 	return nil
 }
@@ -269,63 +289,21 @@ func (p *fakePoster) Post(ctx context.Context, req PostRequest) (string, error) 
 	return uuid.NewString(), nil
 }
 
-type fakePolicy struct{ incoming, outgoing, private bool }
+type fakePolicy struct {
+	incoming, outgoing, private bool
+	// failOutgoing and failPublicURL, when set, are what those reads return.
+	failOutgoing, failPublicURL error
+}
 
 func (p *fakePolicy) WebhooksIncoming(context.Context) (bool, error) { return p.incoming, nil }
-func (p *fakePolicy) WebhooksOutgoing(context.Context) (bool, error) { return p.outgoing, nil }
+func (p *fakePolicy) WebhooksOutgoing(context.Context) (bool, error) {
+	return p.outgoing, p.failOutgoing
+}
 func (p *fakePolicy) WebhooksAllowPrivateTargets(context.Context) (bool, error) {
 	return p.private, nil
 }
 func (p *fakePolicy) PublicURL(context.Context) (string, error) {
-	return "https://stoop.example.com", nil
-}
-
-type fixture struct {
-	pool    *pgxpool.Pool
-	svc     *Service
-	bots    *fakeBots
-	spaces  *fakeSpaces
-	poster  *fakePoster
-	policy  *fakePolicy
-	jobs    *fakeJobs
-	admin   context.Context
-	member  context.Context
-	space   string
-	channel string
-}
-
-func setup(t *testing.T) *fixture {
-	t.Helper()
-	pool := dbtest.New(t)
-	ctx := context.Background()
-	adminID, memberID, spaceID, channelID := uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()
-	for _, q := range []string{
-		`INSERT INTO users (id, username, display_name, role) VALUES ('` + adminID + `', 'casey', 'Casey', 'admin')`,
-		`INSERT INTO users (id, username, display_name, role) VALUES ('` + memberID + `', 'ada', 'Ada', 'member')`,
-		`INSERT INTO spaces (id, name, owner_id) VALUES ('` + spaceID + `', 'Porch', '` + adminID + `')`,
-		`INSERT INTO space_members (space_id, user_id, role) VALUES ('` + spaceID + `', '` + memberID + `', 'member')`,
-		`INSERT INTO channels (id, space_id, name, position) VALUES ('` + channelID + `', '` + spaceID + `', 'general', 0)`,
-	} {
-		if _, err := pool.Exec(ctx, q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	f := &fixture{
-		svc: New(pool, events.NewInProcBus(), slog.Default()), bots: newFakeBots(pool),
-		pool:   pool,
-		spaces: &fakeSpaces{pool: pool, channel: map[string]string{channelID: spaceID}, admin: map[string]bool{}},
-		poster: &fakePoster{}, policy: &fakePolicy{incoming: true, outgoing: true},
-		space: spaceID, channel: channelID,
-	}
-	f.svc.UseBotIdentities(f.bots)
-	f.svc.UseSpaceAccess(f.spaces)
-	f.svc.UsePoster(f.poster)
-	f.svc.UsePolicy(f.policy)
-	f.admin = authctx.WithIdentity(ctx, authctx.Identity{UserID: adminID, Role: authctx.RoleAdmin, Kind: authctx.KindPerson,
-		Credential: authctx.Credential{ID: uuid.NewString(), Kind: authctx.CredentialSession}})
-	f.member = authctx.WithIdentity(ctx, authctx.Identity{UserID: memberID, Role: authctx.RoleMember, Kind: authctx.KindPerson,
-		Credential: authctx.Credential{ID: uuid.NewString(), Kind: authctx.CredentialSession}})
-	return f
+	return "https://stoop.example.com", p.failPublicURL
 }
 
 func (f *fixture) post(t *testing.T, url, contentType, body string) (int, string) {
@@ -338,8 +316,8 @@ func (f *fixture) post(t *testing.T, url, contentType, body string) (int, string
 	mux := http.NewServeMux()
 	mux.Handle("POST /hooks/{token}", f.svc.HookHandler())
 	mux.ServeHTTP(rec, req)
-	b, _ := io.ReadAll(rec.Result().Body)
-	return rec.Code, strings.TrimSpace(string(b))
+	responseBody, _ := io.ReadAll(rec.Result().Body)
+	return rec.Code, strings.TrimSpace(string(responseBody))
 }
 
 func (f *fixture) create(t *testing.T, name string, notify bool) *integrationsv1.CreateIncomingResponse {
@@ -373,10 +351,10 @@ func TestIncomingHookPosts(t *testing.T) {
 	if len(f.poster.posts) != 1 {
 		t.Fatalf("posts = %d", len(f.poster.posts))
 	}
-	p := f.poster.posts[0]
-	if p.req.ChannelID != f.channel || p.req.Content != "disk is full" || p.identity.UserID != made.Webhook.BotUserId ||
-		p.identity.Credential.Kind != authctx.CredentialIncomingHook || !p.identity.Credential.Reaches("", f.channel) {
-		t.Errorf("posted %+v as %+v", p.req, p.identity)
+	post := f.poster.posts[0]
+	if post.req.ChannelID != f.channel || post.req.Content != "disk is full" || post.identity.UserID != made.Webhook.BotUserId ||
+		post.identity.Credential.Kind != authctx.CredentialIncomingHook || !post.identity.Credential.Reaches("", f.channel) {
+		t.Errorf("posted %+v as %+v", post.req, post.identity)
 	}
 
 	// Vendor shapes, and the truncation.
@@ -461,14 +439,12 @@ func TestIncomingHookPosts(t *testing.T) {
 
 func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 	f := setup(t)
-	if _, err := f.svc.CreateIncoming(f.member, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "x"})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member created a hook: %v", err)
-	}
+	_, err := f.svc.CreateIncoming(f.member, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "x"}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member created a hook")
 	narrow := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: authctx.UserID(f.admin), Role: authctx.RoleAdmin,
 		Credential: authctx.Credential{Kind: authctx.CredentialPersonalToken, Grants: []authctx.Action{authctx.InstanceRead}}})
-	if _, err := f.svc.CreateIncoming(narrow, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "x"})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("an admin's narrow token created a hook: %v", err)
-	}
+	_, err = f.svc.CreateIncoming(narrow, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "x"}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "an admin's narrow token created a hook")
 
 	made := f.create(t, "UPS", true)
 	if !f.spaces.admin[f.space+"/"+made.Webhook.BotUserId] {
@@ -498,9 +474,8 @@ func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 	if strings.Contains(list.Msg.String(), "stp_incoming_hook_") {
 		t.Error("a listing carried a token")
 	}
-	if _, err := f.svc.ListWebhooks(f.member, connect.NewRequest(&integrationsv1.ListWebhooksRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member listed the whole server: %v", err)
-	}
+	_, err = f.svc.ListWebhooks(f.member, connect.NewRequest(&integrationsv1.ListWebhooksRequest{}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member listed the whole server")
 	all, err := f.svc.ListWebhooks(f.admin, connect.NewRequest(&integrationsv1.ListWebhooksRequest{}))
 	if err != nil || len(all.Msg.Incoming) != 1 {
 		t.Errorf("server-wide list: %v %+v", err, all)
@@ -527,9 +502,8 @@ func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 	if err != nil || len(bots.Msg.Bots) != 1 || bots.Msg.Bots[0].Username != "ups" {
 		t.Errorf("ListBots: %v %+v", err, bots)
 	}
-	if _, err := f.svc.ListBots(f.member, connect.NewRequest(&integrationsv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member listed bots: %v", err)
-	}
+	_, err = f.svc.ListBots(f.member, connect.NewRequest(&integrationsv1.ListBotsRequest{}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member listed bots")
 }
 
 func TestOrphanedHookCredentialsAreSwept(t *testing.T) {
@@ -547,8 +521,8 @@ func TestOrphanedHookCredentialsAreSwept(t *testing.T) {
 	third := f.create(t, "Alone", false)
 
 	// Nothing to sweep while every hook is in place.
-	if n, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || n != 0 {
-		t.Fatalf("sweep on a clean table: %d, %v", n, err)
+	if swept, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || swept != 0 {
+		t.Fatalf("sweep on a clean table: %d, %v", swept, err)
 	}
 	// Deleting the channel cascades the hook row; the credential lingers
 	// until the sweep.
@@ -558,8 +532,8 @@ func TestOrphanedHookCredentialsAreSwept(t *testing.T) {
 	if status, _ := f.post(t, path(second.Msg.Url), "text/plain", "orphan"); status != http.StatusNotFound {
 		t.Errorf("orphaned hook answered %d", status)
 	}
-	if n, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || n != 1 {
-		t.Fatalf("sweep = %d, %v", n, err)
+	if swept, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || swept != 1 {
+		t.Fatalf("sweep = %d, %v", swept, err)
 	}
 	if len(f.bots.revoked) != 1 || f.bots.bots[first.Webhook.BotUserId].DeactivatedAt != nil {
 		t.Errorf("revoked %v; bot with a live hook left deactivated=%v", f.bots.revoked, f.bots.bots[first.Webhook.BotUserId].DeactivatedAt)
@@ -571,8 +545,8 @@ func TestOrphanedHookCredentialsAreSwept(t *testing.T) {
 	if _, err := f.bots.pool.Exec(context.Background(), `DELETE FROM incoming_webhooks WHERE id = $1`, third.Webhook.Id); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || n != 1 {
-		t.Fatalf("second sweep = %d, %v", n, err)
+	if swept, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || swept != 1 {
+		t.Fatalf("second sweep = %d, %v", swept, err)
 	}
 	if f.bots.bots[third.Webhook.BotUserId].DeactivatedAt == nil {
 		t.Error("a bot whose only hook was orphaned should retire")
@@ -585,13 +559,11 @@ func TestHooksOfADeactivatedBot(t *testing.T) {
 	if _, err := f.svc.DeactivateBot(f.admin, connect.NewRequest(&integrationsv1.DeactivateBotRequest{Id: made.Webhook.BotUserId})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.svc.RotateSecret(f.admin, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: made.Webhook.Id})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("rotate on a deactivated bot: %v", err)
-	}
+	_, err := f.svc.RotateSecret(f.admin, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: made.Webhook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "rotate on a deactivated bot")
 	on := true
-	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: made.Webhook.Id, Enabled: &on})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("re-enable on a deactivated bot: %v", err)
-	}
+	_, err = f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: made.Webhook.Id, Enabled: &on}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "re-enable on a deactivated bot")
 	if _, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: made.Webhook.Id})); err != nil {
 		t.Errorf("deleting the hook of a deactivated bot: %v", err)
 	}
@@ -603,15 +575,12 @@ func TestBotTokens(t *testing.T) {
 	bot := made.Webhook.BotUserId
 	read := []accessv1.Permission{accessv1.Permission_PERMISSION_SPACE_READ, accessv1.Permission_PERMISSION_MESSAGES_READ}
 
-	if _, err := f.svc.CreateBotToken(f.member, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member minted a bot token: %v", err)
-	}
-	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: authctx.UserID(f.member), Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("a token for a person: %v", err)
-	}
-	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACCOUNT_SECURITY}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("account.security granted: %v", err)
-	}
+	_, err := f.svc.CreateBotToken(f.member, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member minted a bot token")
+	_, err = f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: authctx.UserID(f.member), Name: "x", Permissions: read}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "a token for a person")
+	_, err = f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: []accessv1.Permission{accessv1.Permission_PERMISSION_ACCOUNT_SECURITY}}))
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "account.security granted")
 	res, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{
 		BotUserId: bot, Name: "mirror reader", Permissions: read,
 	}))
@@ -633,18 +602,15 @@ func TestBotTokens(t *testing.T) {
 
 	// Revoking: the hook credential is not a token; the token goes; the
 	// bot stays while its hook remains, and retires once that goes too.
-	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: made.Webhook.Id})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("revoking a hook id as a token: %v", err)
-	}
-	if _, err := f.svc.RevokeBotToken(f.member, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member revoked: %v", err)
-	}
+	_, err = f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: made.Webhook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "revoking a hook id as a token")
+	_, err = f.svc.RevokeBotToken(f.member, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member revoked")
 	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("revoking twice: %v", err)
-	}
+	_, err = f.svc.RevokeBotToken(f.admin, connect.NewRequest(&integrationsv1.RevokeBotTokenRequest{TokenId: tok.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "revoking twice")
 	if f.bots.bots[bot].DeactivatedAt != nil {
 		t.Error("bot retired while its hook remained")
 	}
@@ -664,9 +630,8 @@ func TestBotTokens(t *testing.T) {
 	if f.bots.bots[bot].DeactivatedAt == nil {
 		t.Error("a bot with nothing left should retire")
 	}
-	if _, err := f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("a token for a deactivated bot: %v", err)
-	}
+	_, err = f.svc.CreateBotToken(f.admin, connect.NewRequest(&integrationsv1.CreateBotTokenRequest{BotUserId: bot, Name: "x", Permissions: read}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "a token for a deactivated bot")
 }
 
 func TestCreateBotWithBio(t *testing.T) {
@@ -699,12 +664,10 @@ func TestBotSpaces(t *testing.T) {
 	add := &integrationsv1.AddBotToSpaceRequest{BotUserId: bot, SpaceId: f.space}
 
 	// Instance admins only; a hook for a bot outside the space is refused.
-	if _, err := f.svc.AddBotToSpace(f.member, connect.NewRequest(add)); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member added a bot to a space: %v", err)
-	}
-	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "alerts", BotUserId: bot})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("a hook widened a bot into a space: %v", err)
-	}
+	_, err = f.svc.AddBotToSpace(f.member, connect.NewRequest(add))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member added a bot to a space")
+	_, err = f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{ChannelId: f.channel, Name: "alerts", BotUserId: bot}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "a hook widened a bot into a space")
 
 	res, err := f.svc.AddBotToSpace(f.admin, connect.NewRequest(add))
 	if err != nil {
@@ -720,9 +683,9 @@ func TestBotSpaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, b := range bots.Msg.Bots {
-		if b.Id == bot && (len(b.SpaceIds) != 1 || b.SpaceIds[0] != f.space) {
-			t.Errorf("ListBots space_ids = %v", b.SpaceIds)
+	for _, listedBot := range bots.Msg.Bots {
+		if listedBot.Id == bot && (len(listedBot.SpaceIds) != 1 || listedBot.SpaceIds[0] != f.space) {
+			t.Errorf("ListBots space_ids = %v", listedBot.SpaceIds)
 		}
 	}
 
@@ -733,9 +696,8 @@ func TestBotSpaces(t *testing.T) {
 	if len(out.Msg.Bot.SpaceIds) != 0 {
 		t.Errorf("space_ids after remove = %v", out.Msg.Bot.SpaceIds)
 	}
-	if _, err := f.svc.RemoveBotFromSpace(f.admin, connect.NewRequest(&integrationsv1.RemoveBotFromSpaceRequest{BotUserId: bot, SpaceId: f.space})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("removing twice: %v", err)
-	}
+	_, err = f.svc.RemoveBotFromSpace(f.admin, connect.NewRequest(&integrationsv1.RemoveBotFromSpaceRequest{BotUserId: bot, SpaceId: f.space}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "removing twice")
 }
 
 func TestRemovedBotHooks(t *testing.T) {
@@ -750,9 +712,9 @@ func TestRemovedBotHooks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, h := range res.Msg.Incoming {
-			if h.Id == hookID {
-				return h
+		for _, hook := range res.Msg.Incoming {
+			if hook.Id == hookID {
+				return hook
 			}
 		}
 		t.Fatal("hook not listed")
@@ -764,25 +726,24 @@ func TestRemovedBotHooks(t *testing.T) {
 	if _, err := f.svc.RemoveBotFromSpace(f.admin, connect.NewRequest(&integrationsv1.RemoveBotFromSpaceRequest{BotUserId: bot, SpaceId: f.space})); err != nil {
 		t.Fatal(err)
 	}
-	if h := listed(); h.Enabled || h.DisabledReason != "the bot was removed from this space" {
-		t.Errorf("after removal: enabled=%v reason=%q", h.Enabled, h.DisabledReason)
+	if hook := listed(); hook.Enabled || hook.DisabledReason != "the bot was removed from this space" {
+		t.Errorf("after removal: enabled=%v reason=%q", hook.Enabled, hook.DisabledReason)
 	}
 	if code, _ := f.post(t, url, "text/plain", "hi"); code != http.StatusNotFound {
 		t.Errorf("a disabled hook answered %d", code)
 	}
-	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: hookID, Enabled: &on})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("turned on while the bot is out: %v", err)
-	}
+	_, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: hookID, Enabled: &on}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "turned on while the bot is out")
 	if _, err := f.svc.AddBotToSpace(f.admin, connect.NewRequest(&integrationsv1.AddBotToSpaceRequest{BotUserId: bot, SpaceId: f.space})); err != nil {
 		t.Fatal(err)
 	}
-	if h := listed(); h.Enabled {
+	if hook := listed(); hook.Enabled {
 		t.Error("adding the bot back silently re-enabled the hook")
 	}
 	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: hookID, Enabled: &on})); err != nil {
 		t.Fatal(err)
 	}
-	if h := listed(); !h.Enabled {
+	if hook := listed(); !hook.Enabled {
 		t.Error("hook not back on")
 	}
 
@@ -791,20 +752,20 @@ func TestRemovedBotHooks(t *testing.T) {
 	if _, err := f.pool.Exec(context.Background(), `DELETE FROM space_members WHERE space_id = $1 AND user_id = $2`, f.space, bot); err != nil {
 		t.Fatal(err)
 	}
-	if h := listed(); h.Enabled || h.DisabledReason != "the bot was removed from this space" {
-		t.Errorf("after a kick: enabled=%v reason=%q", h.Enabled, h.DisabledReason)
+	if hook := listed(); hook.Enabled || hook.DisabledReason != "the bot was removed from this space" {
+		t.Errorf("after a kick: enabled=%v reason=%q", hook.Enabled, hook.DisabledReason)
 	}
 	row, err := f.svc.q.GetIncomingWebhook(context.Background(), hookID)
 	if err != nil || row.DisabledAt != nil {
 		t.Errorf("row disabled before the sweep: %v %v", row.DisabledAt, err)
 	}
-	if n, err := f.svc.SweepRemovedBotHooks(context.Background()); err != nil || n != 1 {
-		t.Errorf("sweep = %d, %v", n, err)
+	if swept, err := f.svc.SweepRemovedBotHooks(context.Background()); err != nil || swept != 1 {
+		t.Errorf("sweep = %d, %v", swept, err)
 	}
 	if row, err := f.svc.q.GetIncomingWebhook(context.Background(), hookID); err != nil || row.DisabledAt == nil || row.DisabledReason != "the bot was removed from this space" {
 		t.Errorf("row after sweep: %+v %v", row, err)
 	}
-	if n, _ := f.svc.SweepRemovedBotHooks(context.Background()); n != 0 {
-		t.Errorf("second sweep changed %d rows", n)
+	if swept, _ := f.svc.SweepRemovedBotHooks(context.Background()); swept != 0 {
+		t.Errorf("second sweep changed %d rows", swept)
 	}
 }

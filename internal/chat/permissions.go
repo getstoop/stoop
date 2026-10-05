@@ -230,16 +230,8 @@ func callerCredential(ctx context.Context) authctx.Credential {
 // isInstanceAdmin asks the directory about another user. A failed lookup
 // reads as false, which can only withhold.
 func (s *Service) isInstanceAdmin(ctx context.Context, userID string) bool {
-	records, err := s.users.GetUsers(ctx, []string{userID})
-	if err != nil {
-		return false
-	}
-	for _, r := range records {
-		if r.ID == userID {
-			return r.InstanceAdmin
-		}
-	}
-	return false
+	user, _, err := s.lookupUser(ctx, userID)
+	return err == nil && user.InstanceAdmin
 }
 
 // grantableRole validates the role an invite may confer: member or admin,

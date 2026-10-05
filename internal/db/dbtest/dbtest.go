@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/getstoop/stoop/internal/db"
@@ -64,11 +65,11 @@ func NewURL(t *testing.T) string {
 		t.Fatalf("create test database: %v", err)
 	}
 
-	u, err := url.Parse(baseURL)
+	parsed, err := url.Parse(baseURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	u.Path = "/" + name
+	parsed.Path = "/" + name
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -77,5 +78,18 @@ func NewURL(t *testing.T) string {
 		}
 		admin.Close()
 	})
-	return u.String()
+	return parsed.String()
+}
+
+// NewUser adds a person whose password can't be used and returns their
+// id, for a module test that may not import auth. role is "admin" or
+// "member".
+func NewUser(t *testing.T, pool *pgxpool.Pool, username, role string) string {
+	t.Helper()
+	id := uuid.NewString()
+	if _, err := pool.Exec(context.Background(),
+		`INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, '', $3)`, id, username, role); err != nil {
+		t.Fatalf("add user %s: %v", username, err)
+	}
+	return id
 }

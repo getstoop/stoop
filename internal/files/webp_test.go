@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 )
 
 // riffChunk frames one WebP chunk: id, little-endian size, payload,
@@ -67,12 +68,14 @@ func TestAnimatedWebPUploadIsRefusedInTheRequest(t *testing.T) {
 	file := animatedWebP(t)
 
 	_, err := f.svc.UploadAvatar(as(f.member), connect.NewRequest(&filesv1.UploadAvatarRequest{Data: file}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "animated WebP is not supported") {
-		t.Fatalf("avatar: err = %v, want InvalidArgument naming animated WebP", err)
+	apierrtest.RequireCode(t, err, connect.CodeInvalidArgument, "avatar")
+	if !strings.Contains(err.Error(), "animated WebP is not supported") {
+		t.Fatalf("avatar: err = %v, want it to name animated WebP", err)
 	}
 	_, err = f.svc.UploadSpaceIcon(as(f.owner), connect.NewRequest(&filesv1.UploadSpaceIconRequest{SpaceId: f.space, Data: file}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "animated WebP is not supported") {
-		t.Fatalf("icon: err = %v, want InvalidArgument naming animated WebP", err)
+	apierrtest.RequireCode(t, err, connect.CodeInvalidArgument, "icon")
+	if !strings.Contains(err.Error(), "animated WebP is not supported") {
+		t.Fatalf("icon: err = %v, want it to name animated WebP", err)
 	}
 	if len(f.queue.jobs) != 0 {
 		t.Errorf("queued %d jobs, want none", len(f.queue.jobs))

@@ -107,20 +107,11 @@ func (s *Service) ListPinnedMessages(ctx context.Context, req *connect.Request[c
 		return connect.NewResponse(&chatv1.ListPinnedMessagesResponse{}), nil
 	}
 
-	// The messages hydrate through the one path, which reverses the rows
-	// it is given; reverse back so the response reads newest pin first.
-	msgRows := make([]dbgen.ListMessagesBeforeRow, len(rows))
+	msgRows := make([]dbgen.MessageWithReply, len(rows))
 	pinnerIDs := make([]string, len(rows))
-	for i, r := range rows {
-		msgRows[i] = dbgen.ListMessagesBeforeRow{
-			ID: r.ID, ChannelID: r.ChannelID, AuthorID: r.AuthorID, Content: r.Content,
-			CreatedAt: r.CreatedAt, MentionsEveryone: r.MentionsEveryone,
-			ReplyToMessageID: r.ReplyToMessageID, MentionsHere: r.MentionsHere, EditedAt: r.EditedAt,
-			ReplyAuthorID:    r.ReplyAuthorID,
-			ReplyContent:     r.ReplyContent,
-			ReplyFirstFileID: r.ReplyFirstFileID,
-		}
-		pinnerIDs[i] = r.PinnedBy
+	for index, row := range rows {
+		msgRows[index] = row.MessageWithReply
+		pinnerIDs[index] = row.PinnedBy
 	}
 	messages, err := s.hydrateMessages(ctx, spaceOf(channel), msgRows)
 	if err != nil {
@@ -132,11 +123,11 @@ func (s *Service) ListPinnedMessages(ctx context.Context, req *connect.Request[c
 	}
 
 	pins := make([]*chatv1.PinnedMessage, len(rows))
-	for i, r := range rows {
-		pins[i] = &chatv1.PinnedMessage{
-			Message:  messages[len(rows)-1-i],
-			PinnedBy: pinners[r.PinnedBy],
-			PinnedAt: timestamppb.New(r.PinnedAt),
+	for index, row := range rows {
+		pins[index] = &chatv1.PinnedMessage{
+			Message:  messages[index],
+			PinnedBy: pinners[row.PinnedBy],
+			PinnedAt: timestamppb.New(row.PinnedAt),
 		}
 	}
 	return connect.NewResponse(&chatv1.ListPinnedMessagesResponse{Pins: pins}), nil
@@ -161,7 +152,7 @@ func (s *Service) pinnedByMessage(ctx context.Context, messageIDs []string) (map
 
 // pinProto renders one pin for the RPC that made it.
 func (s *Service) pinProto(ctx context.Context, msg messageRow, channel dbgen.Channel, row dbgen.ChannelPin) (*chatv1.PinnedMessage, error) {
-	out, err := s.loadMessage(ctx, msg, spaceOf(channel))
+	out, err := s.loadMessage(ctx, msg.ID, spaceOf(channel))
 	if err != nil {
 		return nil, err
 	}

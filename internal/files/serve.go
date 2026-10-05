@@ -29,6 +29,11 @@ func (s *Service) Handler() http.Handler {
 			return
 		}
 		identity, err := s.sessions.VerifyRequest(r.Context(), r.Header)
+		if err != nil && !errors.Is(err, authctx.ErrNoSession) {
+			s.log.Error("verify credential for a download", "err", err)
+			http.Error(w, unverifiedMessage, http.StatusServiceUnavailable)
+			return
+		}
 		if err != nil {
 			http.Error(w, "authentication required", http.StatusUnauthorized)
 			return

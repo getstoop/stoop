@@ -61,8 +61,9 @@ Postgres major is the one thing the tool refuses to do; see
 [Supported Postgres and LiveKit versions](#supported-postgres-and-livekit-versions).
 
 **Going back.** `./stoop upgrade rollback` puts the previous compose file
-back and restarts. Each release keeps its schema readable by the release
-before it, so this needs no restore, unless the upgrade ran a contract
+back and restarts, keeping the replaced files as `.rolledback`. Each
+release keeps its schema readable by the release before it, so this
+needs no restore, unless the upgrade ran a contract
 migration: the tool says so before it upgrades, and `rollback` refuses
 afterwards and points at the backup it took
 ([Restoring in place](backups.md#restoring-in-place)). Stoop refuses to start

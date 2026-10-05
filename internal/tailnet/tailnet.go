@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -170,7 +171,15 @@ func (s *Server) listenTLS(ctx context.Context) (net.Listener, error) {
 }
 
 func (s *Server) Serve(ctx context.Context, handler http.Handler) error {
-	defer func() { _ = s.ts.Close() }()
+	// Closing the node is what unblocks a forwarder stuck opening a
+	// listener, so it is closed before the forwarder is waited for.
+	fwdCtx, stopFwd := context.WithCancel(ctx)
+	var forwarding sync.WaitGroup
+	defer func() {
+		stopFwd()
+		_ = s.ts.Close()
+		forwarding.Wait()
+	}()
 
 	s.log.Info("tailscale: joining tailnet", "hostname", s.opts.Hostname, "state_dir", s.opts.StateDir)
 	st, err := s.ts.Up(ctx)
@@ -204,7 +213,7 @@ func (s *Server) Serve(ctx context.Context, handler http.Handler) error {
 		} else {
 			s.media.Store(true)
 			defer s.media.Store(false)
-			go newForwarder(s.opts.Media, ip4, s.ts, s.log).Run(ctx)
+			forwarding.Go(func() { newForwarder(s.opts.Media, ip4, s.ts, s.log).Run(fwdCtx) })
 		}
 	}
 

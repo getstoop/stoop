@@ -38,7 +38,7 @@ func TestGatewayCounts(t *testing.T) {
 	if got := g.VoiceRoomCount(); got != 2 {
 		t.Errorf("voice rooms = %d, want 2", got)
 	}
-	g.voice.clear("casey", 3, "")
+	g.voice.clearOwnedBy("casey", 3)
 	if got := g.VoiceRoomCount(); got != 1 {
 		t.Errorf("voice rooms after a leave = %d, want 1", got)
 	}

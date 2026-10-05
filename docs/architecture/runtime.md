@@ -84,24 +84,35 @@ decides and may change at runtime: the registration policy, quotas, login
 providers, how the server is reached. They live in Postgres and are edited
 from `/admin`.
 
-The two tiers meet by one of two rules, and which rule applies is
-deliberate:
+The two tiers meet by one rule: **the environment seeds, the database
+decides.** It covers `STOOP_REGISTRATION`, `STOOP_INSTANCE_NAME`,
+`STOOP_PASSWORD_SIGN_IN`, every reachability group (public URL, trusted
+proxies, TURN, Cloudflare TURN, Tailscale, Cloudflare tunnel) and the
+`STOOP_OIDC_*` login provider.
 
-| Rule | Applies to | Behaviour |
-| ---- | ---------- | --------- |
-| **Seed once** | `STOOP_REGISTRATION` | The environment sets the value on first boot only. After that the database is the source of truth, and changing the variable does nothing. |
-| **Env fallback** | `STOOP_PASSWORD_SIGN_IN`, `STOOP_INSTANCE_NAME`, reachability, login providers | A saved value overrides the environment; *clearing* a saved value falls back to the environment. Nothing is seeded. (`STOOP_INSTANCE_NAME` is the one exception: when it is *unset*, first boot seeds a random name so the tab never just says "Stoop"; when set, it is a plain fallback like the others.) |
-
-The second rule exists so that `.env` stays live for people who never open
-the admin page. An operator who configured everything in Docker Compose and
-never touched the UI keeps working exactly as before; an operator who saves
-something on the Hosting page takes ownership of that field and can hand it
-back by clearing it.
+- At every start, a setting with no row in `instance_settings` is copied
+  from the environment if the environment sets it
+  (`instance.SeedFromEnv`, and `Seed` for the registration policy and
+  name). An unset `STOOP_INSTANCE_NAME` seeds a random name.
+- Once a row exists, it is the setting. Changing the variable does
+  nothing, and `EnvDrift` names each variable that differs so the start
+  logs a warning.
+- Clearing a value on the admin page saves an empty row, never deletes
+  one, so a cleared or switched-off setting stays that way across
+  restarts.
+- A setting is read from the environment directly only while it has no
+  row, which happens when the database is wiped under a running server.
 
 **Secrets are write-only in the API.** `GetReachability` and
 `GetLoginProviders` never return a client secret or a TURN credential;
-saving with a blank secret keeps the stored one, as long as the identifier
-beside it is unchanged.
+saving with a blank secret keeps the one in force. A Cloudflare TURN
+token or a provider's client secret is kept only while the key id or
+client id beside it is unchanged.
+
+**A refused save writes nothing.** `UpdateSettings` and
+`UpdateReachability` validate every field first, then write them in one
+transaction, then apply side effects (the Tailscale node, the tunnel,
+the trusted-proxy cache).
 
 **Every field of `UpdateReachability` is optional, and an unset field is
 left exactly as found.** The admin form leans on this: it keeps a baseline
@@ -151,7 +162,7 @@ All three call `instance.Service.TrustsPeer`, which reads an
 applies to the next request with no restart and **no database read on the
 hot path**.
 
-`STOOP_TRUSTED_PROXIES` is the fallback when no addresses are saved.
+`STOOP_TRUSTED_PROXIES` seeds the list; a saved empty list trusts nothing.
 
 Why this matters twice over: `X-Forwarded-For` from an untrusted peer would
 let a caller mint a fresh rate-limit bucket per made-up address, and
@@ -166,6 +177,8 @@ certificates and no third party in the path.
 
 `tailnet.Manager` owns at most one running node and *reconciles* it with
 the settings in force: start, stop, restart on a hostname or Funnel change.
+A node that stops while still wanted is started again with backoff
+(`restart.Loop`), and reports no address until it is back.
 The node identity lives in the state directory, so a restart keeps the same
 device rather than accumulating machines in the tailnet.
 
@@ -321,7 +334,14 @@ attempt. A
 failed attempt, a panic included, goes back to `queued` at the kind's
 backoff ladder's time (5 s, 30 s, 2 min; four attempts by default) and
 is then `discarded`; only the latest attempt's error and timing are
-kept. On shutdown it stops leasing, gives in-flight jobs five seconds,
+kept. A performer that failed before doing any of its work returns
+`jobs.NotAttempted(err)`: the row goes back to `queued` and its own
+`max_attempts` rises by one (the attempt count never goes down, so an
+outcome from a lapsed lease can't match a later attempt; a performer is
+shown its real tries), waiting its own age clamped to the ladder (5 s up to 2 min),
+so a lookup that keeps failing is retried ever less often. Within an hour
+of the job's creation that is free; after it, the failure counts as an
+attempt, so a job that always says so still ends. On shutdown it stops leasing, gives in-flight jobs five seconds,
 and clears the lease on anything still running without counting the
 attempt, so the next start retries it; the clearing and the wait for
 the cancelled workers are bounded too, so it is back under ten seconds
@@ -409,11 +429,22 @@ demote <username>
 reset-password <username>         temporary password, printed once, sessions revoked
 transfer-owner <username>         make an active admin the server owner
 password-login <everyone|admins|off>
+setting list|set|clear|reset      the settings the environment seeds
 ```
 
 This exists for exactly one situation: the admin page is what you cannot
 reach. `password-login everyone` is the break-glass when an identity
-provider is down.
+provider is down; `setting` is the way back from a bad public URL, tunnel
+token or provider list, since editing `.env` no longer changes a saved
+setting. `setting` saves through the same `Save…` methods as the admin
+page, so it refuses what the page refuses. Tailscale, the tunnel and the
+trusted-proxy cache are applied at start, so a change to those needs a
+restart.
+
+It never migrates. A newer binary would change the schema under the
+running server, without the backup `stoop upgrade` takes, so it refuses
+with exit status 3 when migrations are pending, or when the schema floor
+is past this binary (the same refusal as startup).
 
 `stoop migrate` is the same binary looking at the schema, for the moment
 before an upgrade ([data.md](data.md#upgrades-and-rollback)):

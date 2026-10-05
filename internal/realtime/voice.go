@@ -8,17 +8,6 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 )
 
-// ChannelLookup is the gateway's port onto the chat module's channels,
-// wired in internal/app.
-type ChannelLookup interface {
-	// VoiceChannelSpace resolves a voice channel to its space; "" means
-	// unknown or not voice.
-	VoiceChannelSpace(ctx context.Context, channelID string) (spaceID string, err error)
-	// DMParticipants lists who is in a direct message; nil for any other
-	// channel. Typing in a DM is relayed to them.
-	DMParticipants(ctx context.Context, channelID string) ([]string, error)
-}
-
 // voiceState is the gateway's in-memory view of who is in which voice
 // channel. Like presence it is client-reported and not persisted: the
 // connection that reported it owns it, and it is dropped when that
@@ -66,18 +55,27 @@ func (v *voiceState) set(userID string, conn uint64, spaceID string, vs *realtim
 	return left, now
 }
 
-// clear drops userID's voice state if conn owns it (conn 0 = any) and,
-// when spaceID is non-empty, only if it is in that space. Returns the
-// dropped entry or nil.
-func (v *voiceState) clear(userID string, conn uint64, spaceID string) *voiceEntry {
+// clearOwnedBy drops userID's voice state if conn reported it; nil when
+// there was none or another connection owns it.
+func (v *voiceState) clearOwnedBy(userID string, conn uint64) *voiceEntry {
+	return v.clearIf(userID, func(entry *voiceEntry) bool { return entry.conn == conn })
+}
+
+// clearInSpace drops userID's voice state if it is in spaceID, whichever
+// connection reported it; nil when there was none there.
+func (v *voiceState) clearInSpace(userID, spaceID string) *voiceEntry {
+	return v.clearIf(userID, func(entry *voiceEntry) bool { return entry.spaceID == spaceID })
+}
+
+func (v *voiceState) clearIf(userID string, matches func(*voiceEntry) bool) *voiceEntry {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	e := v.users[userID]
-	if e == nil || (conn != 0 && e.conn != conn) || (spaceID != "" && e.spaceID != spaceID) {
+	entry := v.users[userID]
+	if entry == nil || !matches(entry) {
 		return nil
 	}
 	delete(v.users, userID)
-	return e
+	return entry
 }
 
 // clearChannel drops everyone in channelID; returns who was dropped.
@@ -115,9 +113,7 @@ func (v *voiceState) participantsIn(spaceIDs []string) []*realtimev1.VoicePartic
 // resulting changes to the space(s) involved.
 func (g *Gateway) handleVoiceState(ctx context.Context, userID string, conn uint64, sub *events.Subscription, vs *realtimev1.VoiceState) {
 	if vs.ChannelId == "" {
-		if left := g.voice.clear(userID, conn, ""); left != nil {
-			g.publishVoice(userID, left, false)
-		}
+		g.publishLeft(userID, g.voice.clearOwnedBy(userID, conn))
 		return
 	}
 	spaceID, err := g.channels.VoiceChannelSpace(ctx, vs.ChannelId)
@@ -137,10 +133,10 @@ func (g *Gateway) handleVoiceState(ctx context.Context, userID string, conn uint
 	g.publishVoice(userID, now, true)
 }
 
-// leaveVoice drops the state this connection owns (on disconnect) or the
-// user's state in one space (on kick / leave / space deletion).
-func (g *Gateway) leaveVoice(userID string, conn uint64, spaceID string) {
-	if left := g.voice.clear(userID, conn, spaceID); left != nil {
+// publishLeft announces that userID left the voice channel in left; nothing
+// when left is nil.
+func (g *Gateway) publishLeft(userID string, left *voiceEntry) {
+	if left != nil {
 		g.publishVoice(userID, left, false)
 	}
 }
@@ -153,31 +149,37 @@ func (g *Gateway) channelDeleted(channelID string) {
 	}
 }
 
-func (g *Gateway) publishVoice(userID string, e *voiceEntry, joined bool) {
-	g.bus.Publish(events.SpaceTopic(e.spaceID), events.Stamp(&realtimev1.ServerEvent{
+func (g *Gateway) publishVoice(userID string, entry *voiceEntry, joined bool) {
+	g.bus.Publish(events.SpaceTopic(entry.spaceID), voiceStateChanged(entry.participant(userID), joined))
+}
+
+func voiceStateChanged(participant *realtimev1.VoiceParticipant, joined bool) *realtimev1.ServerEvent {
+	return events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_VoiceStateChanged{
-			VoiceStateChanged: &realtimev1.VoiceStateChanged{
-				Participant: e.participant(userID), Joined: joined,
-			},
+			VoiceStateChanged: &realtimev1.VoiceStateChanged{Participant: participant, Joined: joined},
 		},
-	}))
+	})
 }
 
 // VoiceParticipantCount is how many people are in a voice channel, and
 // VoiceRoomCount how many channels have someone in them. Both feed the
 // Diagnostics tab's gauges.
-func (g *Gateway) VoiceParticipantCount() int {
-	g.voice.mu.Lock()
-	defer g.voice.mu.Unlock()
-	return len(g.voice.users)
+func (g *Gateway) VoiceParticipantCount() int { return g.voice.participantCount() }
+
+func (g *Gateway) VoiceRoomCount() int { return g.voice.roomCount() }
+
+func (v *voiceState) participantCount() int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return len(v.users)
 }
 
-func (g *Gateway) VoiceRoomCount() int {
-	g.voice.mu.Lock()
-	defer g.voice.mu.Unlock()
+func (v *voiceState) roomCount() int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	rooms := map[string]struct{}{}
-	for _, e := range g.voice.users {
-		rooms[e.channel] = struct{}{}
+	for _, entry := range v.users {
+		rooms[entry.channel] = struct{}{}
 	}
 	return len(rooms)
 }

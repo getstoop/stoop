@@ -8,14 +8,10 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func TestReplies(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	sp, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -26,11 +22,11 @@ func TestReplies(t *testing.T) {
 	}
 	other, _ := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: spaceID, Name: "other"}))
 	unread := func(ctx context.Context) (int32, chatv1.ActivityKind) {
-		l, _ := svc.ListActivity(ctx, connect.NewRequest(&chatv1.ListActivityRequest{}))
-		if len(l.Msg.Items) == 0 {
-			return l.Msg.UnreadCount, 0
+		activity, _ := svc.ListActivity(ctx, connect.NewRequest(&chatv1.ListActivityRequest{}))
+		if len(activity.Msg.Items) == 0 {
+			return activity.Msg.UnreadCount, 0
 		}
-		return l.Msg.UnreadCount, l.Msg.Items[0].Kind
+		return activity.Msg.UnreadCount, activity.Msg.Items[0].Kind
 	}
 
 	orig, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "anyone up for pizza?"}))
@@ -45,25 +41,25 @@ func TestReplies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r := rep.Msg.Message.ReplyTo; r == nil || r.MessageId != orig.Msg.Message.Id || r.Author.Username != "owner" || r.Preview != "anyone up for pizza?" {
+	if replyTo := rep.Msg.Message.ReplyTo; replyTo == nil || replyTo.MessageId != orig.Msg.Message.Id || replyTo.Author.Username != "owner" || replyTo.Preview != "anyone up for pizza?" {
 		t.Errorf("reply_to = %+v", rep.Msg.Message.ReplyTo)
 	}
-	if n, kind := unread(owner); n != 1 || kind != chatv1.ActivityKind_ACTIVITY_KIND_REPLY {
-		t.Errorf("owner after reply: unread=%d kind=%v", n, kind)
+	if count, kind := unread(owner); count != 1 || kind != chatv1.ActivityKind_ACTIVITY_KIND_REPLY {
+		t.Errorf("owner after reply: unread=%d kind=%v", count, kind)
 	}
 
 	// Self-reply: no activity. Reply that also @mentions the author: one item, not two.
 	if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "(me)", ReplyToMessageId: orig.Msg.Message.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if n, _ := unread(owner); n != 1 {
-		t.Errorf("self-reply notified: unread=%d", n)
+	if count, _ := unread(owner); count != 1 {
+		t.Errorf("self-reply notified: unread=%d", count)
 	}
 	if _, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@owner see above", ReplyToMessageId: orig.Msg.Message.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if n, kind := unread(owner); n != 2 || kind != chatv1.ActivityKind_ACTIVITY_KIND_MENTION {
-		t.Errorf("reply+mention should add exactly one (mention): unread=%d kind=%v", n, kind)
+	if count, kind := unread(owner); count != 2 || kind != chatv1.ActivityKind_ACTIVITY_KIND_MENTION {
+		t.Errorf("reply+mention should add exactly one (mention): unread=%d kind=%v", count, kind)
 	}
 
 	// Cross-channel reply rejected; unknown parent not found.
@@ -78,5 +74,21 @@ func TestReplies(t *testing.T) {
 	msgs, _ := svc.ListMessages(bea, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID}))
 	if msgs.Msg.Messages[1].ReplyTo == nil || msgs.Msg.Messages[1].ReplyTo.Author.Username != "owner" || msgs.Msg.Messages[0].ReplyTo != nil {
 		t.Errorf("ListMessages reply refs: %+v", msgs.Msg.Messages)
+	}
+
+	// An edit and a reaction resend the reply with its quote.
+	edited, err := svc.EditMessage(bea, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: rep.Msg.Message.Id, Content: "yes!!"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quote := edited.Msg.Message.ReplyTo; quote == nil || quote.Author.Username != "owner" || quote.Preview != "anyone up for pizza?" {
+		t.Errorf("edited reply_to = %+v", quote)
+	}
+	reacted, err := svc.ToggleReaction(owner, connect.NewRequest(&chatv1.ToggleReactionRequest{MessageId: rep.Msg.Message.Id, Emoji: "👍"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quote := reacted.Msg.Message.ReplyTo; quote == nil || quote.Author.Username != "owner" || quote.Preview != "anyone up for pizza?" {
+		t.Errorf("reacted reply_to = %+v", quote)
 	}
 }

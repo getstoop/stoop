@@ -113,22 +113,35 @@ func TestLoginProviders(t *testing.T) {
 		t.Errorf("blank secret with new client id: want invalid_argument, got %v", err)
 	}
 
-	// Clearing the list falls back to the environment.
-	if _, err := up(); err != nil {
-		t.Fatal(err)
-	}
-	got, _ = svc.GetLoginProviders(admin, connect.NewRequest(&instancev1.GetLoginProvidersRequest{}))
-	if len(got.Msg.Providers) != 1 || !got.Msg.Providers[0].FromEnv {
-		t.Errorf("after clear = %+v", got.Msg.Providers)
-	}
-
 	// The public status carries only id, name, and icon.
 	st, err := svc.GetInstanceStatus(ctx, connect.NewRequest(&instancev1.GetInstanceStatusRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(st.Msg.LoginProviders) != 1 || st.Msg.LoginProviders[0].Id != "sso" {
+	if len(st.Msg.LoginProviders) != 1 || st.Msg.LoginProviders[0].Id != "google" {
 		t.Errorf("status providers = %+v", st.Msg.LoginProviders)
+	}
+
+	// Removing the last provider is refused while password sign-in is
+	// restricted, since nobody could sign in.
+	if err := svc.SetPasswordSignIn(ctx, instance.PasswordOff); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := up(); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("clearing with password sign-in off: want failed_precondition, got %v", err)
+	}
+	if err := svc.SetPasswordSignIn(ctx, instance.PasswordEveryone); err != nil {
+		t.Fatal(err)
+	}
+
+	// Clearing the list stays cleared; the environment's provider doesn't
+	// come back.
+	if _, err := up(); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = svc.GetLoginProviders(admin, connect.NewRequest(&instancev1.GetLoginProvidersRequest{}))
+	if len(got.Msg.Providers) != 0 {
+		t.Errorf("after clear = %+v", got.Msg.Providers)
 	}
 }
 

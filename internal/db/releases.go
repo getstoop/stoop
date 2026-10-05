@@ -15,6 +15,7 @@ var Releases = []Release{
 	{"0.1.0", 28},
 	{"0.2.0", 37},
 	{"0.3.0", 42},
+	{"0.4.0", 52},
 }
 
 // OldestStartable is the oldest release that can start against a
@@ -27,4 +28,22 @@ func OldestStartable(floor int64) (Release, bool) {
 		}
 	}
 	return Release{}, false
+}
+
+// ReleaseAt names the release a migration number belongs to: "0.2.0"
+// exactly, "past 0.2.0" between releases, "" before the first.
+func ReleaseAt(applied int64) string {
+	var newest Release
+	for _, release := range Releases {
+		if release.Migration == applied {
+			return release.Version
+		}
+		if release.Migration < applied {
+			newest = release
+		}
+	}
+	if newest.Version == "" {
+		return ""
+	}
+	return "past " + newest.Version
 }

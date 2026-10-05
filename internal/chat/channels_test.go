@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -9,16 +10,12 @@ import (
 	"connectrpc.com/connect"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func TestUnreadMarkers(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	sp, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -34,15 +31,17 @@ func TestUnreadMarkers(t *testing.T) {
 		}
 		return res.Msg.Channels[0]
 	}
-	unread := func(c *chatv1.Channel) bool { return c.LastMessageId != "" && c.LastMessageId > c.LastReadMessageId }
+	unread := func(channel *chatv1.Channel) bool {
+		return channel.LastMessageId != "" && channel.LastMessageId > channel.LastReadMessageId
+	}
 	spaceUnread := func(ctx context.Context) bool {
 		res, _ := svc.ListSpaces(ctx, connect.NewRequest(&chatv1.ListSpacesRequest{}))
 		return res.Msg.Spaces[0].HasUnread
 	}
 
 	// Empty channel: nothing to read.
-	if c := channelOf(bea); c.LastMessageId != "" || unread(c) || spaceUnread(bea) {
-		t.Errorf("fresh channel should not be unread: %+v", c)
+	if channel := channelOf(bea); channel.LastMessageId != "" || unread(channel) || spaceUnread(bea) {
+		t.Errorf("fresh channel should not be unread: %+v", channel)
 	}
 
 	// Owner posts: unread for bea, read for the author; space flag follows.
@@ -53,11 +52,11 @@ func TestUnreadMarkers(t *testing.T) {
 	if msg.Msg.Message.SpaceId != spaceID {
 		t.Errorf("message space_id = %q", msg.Msg.Message.SpaceId)
 	}
-	if c := channelOf(bea); !unread(c) || c.LastMessageId != msg.Msg.Message.Id {
-		t.Errorf("bea should see unread: %+v", c)
+	if channel := channelOf(bea); !unread(channel) || channel.LastMessageId != msg.Msg.Message.Id {
+		t.Errorf("bea should see unread: %+v", channel)
 	}
-	if c := channelOf(owner); unread(c) {
-		t.Errorf("author's own message must not be unread for them: %+v", c)
+	if channel := channelOf(owner); unread(channel) {
+		t.Errorf("author's own message must not be unread for them: %+v", channel)
 	}
 	if !spaceUnread(bea) || spaceUnread(owner) {
 		t.Error("space has_unread should be true for bea, false for owner")
@@ -73,15 +72,15 @@ func TestUnreadMarkers(t *testing.T) {
 	if ev := (<-sub.Events()).GetChannelRead(); ev == nil || ev.ChannelId != channelID || ev.SpaceId != spaceID {
 		t.Error("expected ChannelRead event on bea's topic")
 	}
-	if c := channelOf(bea); unread(c) || spaceUnread(bea) {
-		t.Errorf("after mark read: %+v", c)
+	if channel := channelOf(bea); unread(channel) || spaceUnread(bea) {
+		t.Errorf("after mark read: %+v", channel)
 	}
 	msg2, _ := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "again"}))
-	if c := channelOf(bea); !unread(c) || c.UnreadCount != 1 {
-		t.Errorf("new post should be unread again with count 1: %+v", c)
+	if channel := channelOf(bea); !unread(channel) || channel.UnreadCount != 1 {
+		t.Errorf("new post should be unread again with count 1: %+v", channel)
 	}
-	if c := channelOf(owner); c.UnreadCount != 0 {
-		t.Errorf("author unread_count = %d", c.UnreadCount)
+	if channel := channelOf(owner); channel.UnreadCount != 0 {
+		t.Errorf("author unread_count = %d", channel.UnreadCount)
 	}
 	// Marking read at an older message doesn't move the marker backwards.
 	if _, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: channelID, MessageId: msg2.Msg.Message.Id})); err != nil {
@@ -91,15 +90,13 @@ func TestUnreadMarkers(t *testing.T) {
 	if _, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: channelID, MessageId: msg.Msg.Message.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if c := channelOf(bea); c.LastReadMessageId != msg2.Msg.Message.Id {
-		t.Errorf("marker moved backwards: %+v", c)
+	if channel := channelOf(bea); channel.LastReadMessageId != msg2.Msg.Message.Id {
+		t.Errorf("marker moved backwards: %+v", channel)
 	}
 }
 
 func TestChannelManagement(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	member := newUser(t, pool, "member", authctx.RoleMember)
 	sp, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -200,8 +197,7 @@ func TestChannelManagement(t *testing.T) {
 }
 
 func TestIsVoiceChannel(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	if err != nil {
@@ -242,8 +238,7 @@ func TestIsVoiceChannel(t *testing.T) {
 }
 
 func TestChannelNames(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	sp, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	spaceID, generalID := sp.Msg.Space.Id, sp.Msg.DefaultChannel.Id
@@ -265,21 +260,17 @@ func TestChannelNames(t *testing.T) {
 		}
 	}
 	for _, name := range []string{"", "General", "off topic", "-garden", "_garden", "#garden", "café", "dice🎲", strings.Repeat("x", 33)} {
-		if _, err := create(name); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("create %q: code = %v, want InvalidArgument", name, connect.CodeOf(err))
-		}
+		_, err := create(name)
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, fmt.Sprintf("create %q", name))
 	}
 
 	// Unique within the space, not across spaces.
-	if _, err := create("garden"); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("duplicate create: code = %v, want AlreadyExists", connect.CodeOf(err))
-	}
-	if err := rename(generalID, "garden"); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("duplicate rename: code = %v, want AlreadyExists", connect.CodeOf(err))
-	}
-	if err := rename(generalID, "Lobby"); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("rename to Lobby: code = %v, want InvalidArgument", connect.CodeOf(err))
-	}
+	_, err := create("garden")
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "duplicate create")
+	err = rename(generalID, "garden")
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "duplicate rename")
+	err = rename(generalID, "Lobby")
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "rename to Lobby")
 	if err := rename(generalID, "lobby"); err != nil {
 		t.Errorf("rename to lobby: %v", err)
 	}
@@ -312,9 +303,8 @@ func TestChannelNames(t *testing.T) {
 	if err := tx.Commit(bg); err != nil {
 		t.Fatal(err)
 	}
-	if err := <-waited; connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("create behind the racing insert: code = %v, want AlreadyExists", connect.CodeOf(err))
-	}
+	err = <-waited
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "create behind the racing insert")
 
 	// A name from before the rule stays, blocks its folded twin, and is
 	// still found by in:.
@@ -328,9 +318,8 @@ func TestChannelNames(t *testing.T) {
 	if _, err := pool.Exec(context.Background(), `UPDATE channels SET name = 'Garden2' WHERE id = $1`, generalID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := create("garden2"); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("folded twin of an old name: code = %v, want AlreadyExists", connect.CodeOf(err))
-	}
+	_, err = create("garden2")
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "folded twin of an old name")
 	if _, err := svc.SearchMessages(owner, connect.NewRequest(&chatv1.SearchMessagesRequest{Scope: &chatv1.SearchMessagesRequest_SpaceId{SpaceId: spaceID}, Query: "in:#garden2 hello"})); err != nil {
 		t.Errorf("in:#garden2 against Garden2: %v", err)
 	}

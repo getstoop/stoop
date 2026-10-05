@@ -23,8 +23,9 @@ type Options struct {
 	File     string // a compose file already on disk, in place of a download
 	PlanOnly bool
 	Yes      bool
-	Index    string // the release index
-	Wait     string // seconds compose waits for the stack to be healthy
+	// Set by the tests only; New fills the defaults.
+	Index string // the release index
+	Wait  string // seconds compose waits for the stack to be healthy
 }
 
 // Upgrader runs the sequence. New wires the real world; tests fill the
@@ -59,11 +60,40 @@ func (u *Upgrader) path(name string) string { return filepath.Join(u.Dir, name) 
 func (u *Upgrader) say(format string, args ...any) {
 	_, _ = fmt.Fprintf(u.Out, "== "+format+"\n", args...)
 }
-func (u *Upgrader) compose(ctx context.Context, args ...string) Result {
-	return u.Run.Run(ctx, Cmd{Name: "docker", Args: append([]string{"compose"}, args...)})
+
+// output is where a command's stdout and stderr go; a nil one is captured
+// into the Result.
+type output struct {
+	stdout, stderr io.Writer
 }
-func (u *Upgrader) composeStreaming(ctx context.Context, args ...string) Result {
-	return u.Run.Run(ctx, Cmd{Name: "docker", Args: append([]string{"compose"}, args...), Stdout: u.Out, Stderr: u.Out})
+
+var captured output
+
+func (u *Upgrader) onTerminal() output { return output{stdout: u.Out, stderr: u.Out} }
+
+func (u *Upgrader) compose(ctx context.Context, to output, args ...string) Result {
+	return u.Run.Run(ctx, Cmd{Name: "docker", Args: append([]string{"compose"}, args...), Stdout: to.stdout, Stderr: to.stderr})
+}
+
+// up starts the stack and waits for it to be healthy.
+func (u *Upgrader) up(ctx context.Context) Result {
+	return u.compose(ctx, u.onTerminal(), "up", "-d", "--remove-orphans", "--wait", "--wait-timeout", u.Wait)
+}
+
+func (u *Upgrader) showLogs(ctx context.Context) {
+	u.compose(ctx, u.onTerminal(), "logs", "--tail", "40", "stoop")
+}
+
+// readReport is the db.Report a `migrate ... --json` run printed as its
+// last line.
+func readReport(stdout string) (db.Report, error) {
+	line := strings.TrimSpace(stdout)
+	if cut := strings.LastIndex(line, "\n"); cut >= 0 {
+		line = line[cut+1:]
+	}
+	var report db.Report
+	err := json.Unmarshal([]byte(line), &report)
+	return report, err
 }
 func (u *Upgrader) cleanupNext() {
 	_ = os.Remove(u.path(nextFile))
@@ -91,53 +121,60 @@ func (u *Upgrader) Upgrade(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	target, fetched, done, err := u.resolve(ctx, current)
-	if err != nil || done {
+	// Until switchTo takes them, the staged files are this run's to remove.
+	switched := false
+	defer func() {
+		if !switched {
+			u.cleanupNext()
+		}
+	}()
+	target, err := u.stage(ctx)
+	if err != nil {
+		return err
+	}
+	if target == current {
+		u.say("already on %s; nothing to do", target)
+		return nil
+	}
+	if err := u.checkTarget(current, target); err != nil {
 		return err
 	}
 	u.say("upgrade %s -> %s", current, target)
 	report, err := u.plan(ctx, target)
 	if err != nil {
-		u.cleanupNext()
 		return err
 	}
 	if u.PlanOnly {
-		u.cleanupNext()
 		u.say("plan only; nothing was changed")
 		return nil
 	}
 	if err := u.confirm(fmt.Sprintf("Upgrade to %s? A backup is taken first.", target)); err != nil {
-		u.cleanupNext()
 		return err
 	}
 	backup, err := u.backup(ctx, current, target)
 	if err != nil {
-		u.cleanupNext()
 		return err
 	}
-	return u.switchTo(ctx, current, target, backup, report.Contract, fetched)
+	switched = true
+	return u.switchTo(ctx, switchPlan{current: current, target: target, backup: backup, contract: report.Contract})
 }
 
 // startable asks the running image which release is the oldest that can
 // start against the database now. ok is false when it could not say.
 func (u *Upgrader) startable(ctx context.Context) (oldest string, ok bool) {
-	res := u.compose(ctx, "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "status", "--json")
+	res := u.compose(ctx, captured, "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "status", "--json")
 	if res.Code != 0 {
 		return "", false
 	}
-	line := strings.TrimSpace(res.Stdout)
-	if i := strings.LastIndex(line, "\n"); i >= 0 {
-		line = line[i+1:]
-	}
-	var report db.Report
-	if err := json.Unmarshal([]byte(line), &report); err != nil || report.Startable == "" {
+	report, err := readReport(res.Stdout)
+	if err != nil || report.Startable == "" {
 		return "", false
 	}
 	return report.Startable, true
 }
 
 func (u *Upgrader) preflight(ctx context.Context) (string, error) {
-	if res := u.compose(ctx, "version"); res.Code != 0 {
+	if res := u.compose(ctx, captured, "version"); res.Code != 0 {
 		return "", errors.New("docker compose (v2) is not available")
 	}
 	for _, name := range []string{composeFile, envFile} {
@@ -156,36 +193,43 @@ func (u *Upgrader) preflight(ctx context.Context) (string, error) {
 	return current, nil
 }
 
-// resolve puts the new compose file at nextFile and its env example
-// beside it. done is an upgrade there is nothing to do for.
-func (u *Upgrader) resolve(ctx context.Context, current string) (target string, fetched, done bool, err error) {
+// stage puts the new compose file at nextFile and its env example beside
+// it, and returns the release it pins. It starts by clearing staged files
+// an earlier run left, which includes the .next files a rollback by an
+// older stoop parked.
+func (u *Upgrader) stage(ctx context.Context) (string, error) {
+	var given []byte
 	if u.File != "" {
-		data, err := os.ReadFile(u.File)
-		if err != nil {
-			return "", false, false, err
+		// Read before clearing: the file given may be a stale nextFile.
+		var err error
+		if given, err = os.ReadFile(u.File); err != nil {
+			return "", err
 		}
-		if err := os.WriteFile(u.path(nextFile), data, 0o644); err != nil {
-			return "", false, false, err
+	}
+	u.cleanupNext()
+	if u.File != "" {
+		if err := os.WriteFile(u.path(nextFile), given, 0o644); err != nil {
+			return "", err
 		}
 	} else {
 		to, files, err := u.release(ctx, u.To)
 		if err != nil {
-			return "", false, false, err
+			return "", err
 		}
 		u.say("fetching the %s compose bundle", to)
 		compose, err := u.fetchFile(ctx, files, composeFile)
 		if err != nil {
-			return "", false, false, fmt.Errorf("could not fetch %s for %s: %w", composeFile, to, err)
+			return "", fmt.Errorf("could not fetch %s for %s: %w", composeFile, to, err)
 		}
 		example, err := u.fetchFile(ctx, files, "env.example")
 		if err != nil {
-			return "", false, false, fmt.Errorf("could not fetch env.example for %s: %w", to, err)
+			return "", fmt.Errorf("could not fetch env.example for %s: %w", to, err)
 		}
 		if err := os.WriteFile(u.path(nextFile), compose, 0o644); err != nil {
-			return "", false, false, err
+			return "", err
 		}
 		if err := os.WriteFile(u.path(envNextFile), example, 0o644); err != nil {
-			return "", false, false, err
+			return "", err
 		}
 		// The rest of the bundle; a release from before a file existed has none.
 		for _, name := range companions {
@@ -194,38 +238,38 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 				continue
 			}
 			if err := os.WriteFile(u.path(name+".next"), data, 0o644); err != nil {
-				return "", false, false, err
+				return "", err
 			}
 		}
-		fetched = true
 	}
 	next, err := os.ReadFile(u.path(nextFile))
 	if err != nil {
-		return "", false, false, err
+		return "", err
 	}
-	target = TagOf(string(next))
+	target := TagOf(string(next))
 	if target == "" {
-		u.cleanupNext()
-		return "", false, false, errors.New("cannot read the stoop image tag from the new compose file")
+		return "", errors.New("cannot read the stoop image tag from the new compose file")
 	}
-	if target == current {
-		u.cleanupNext()
-		u.say("already on %s; nothing to do", target)
-		return target, fetched, true, nil
-	}
+	return target, nil
+}
+
+// checkTarget refuses a staged release this tool cannot move to.
+func (u *Upgrader) checkTarget(current, target string) error {
 	if release.Older(target, current) {
-		u.cleanupNext()
-		return "", false, false, fmt.Errorf("%s is older than the installed %s; going back is: stoop upgrade rollback", target, current)
+		return fmt.Errorf("%s is older than the installed %s; going back is: stoop upgrade rollback", target, current)
 	}
 	old, err := os.ReadFile(u.path(composeFile))
 	if err != nil {
-		return "", false, false, err
+		return err
+	}
+	next, err := os.ReadFile(u.path(nextFile))
+	if err != nil {
+		return err
 	}
 	if now, then := PostgresMajor(string(old)), PostgresMajor(string(next)); now != "" && then != "" && now != then {
-		u.cleanupNext()
-		return "", false, false, fmt.Errorf("%s moves Postgres from %s to %s, which this tool does not do: docs/self-hosting/install.md → Supported Postgres and LiveKit versions", target, now, then)
+		return fmt.Errorf("%s moves Postgres from %s to %s, which this tool does not do: docs/self-hosting/install.md → Supported Postgres and LiveKit versions", target, now, then)
 	}
-	return target, fetched, false, nil
+	return nil
 }
 
 func (u *Upgrader) confirm(prompt string) error {

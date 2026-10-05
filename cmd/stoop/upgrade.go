@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/getstoop/stoop/internal/upgrade"
 )
@@ -27,54 +25,53 @@ why: docs/self-hosting/install.md → Upgrading.
 `
 
 // runUpgrade implements `stoop upgrade ...`. It returns the process exit code.
-func runUpgrade(ctx context.Context, args []string, out io.Writer) int {
-	var o upgrade.Options
-	o.Dir = "."
+func runUpgrade(ctx context.Context, args []string, console streams) int {
+	var options upgrade.Options
+	options.Dir = "."
 	rollback := false
 	// upgradeOnly is whether a flag rollback does not take was given,
 	// whatever its value.
 	upgradeOnly := false
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
+	for index := 0; index < len(args); index++ {
+		switch args[index] {
 		case "--plan":
-			o.PlanOnly = true
+			options.PlanOnly = true
 			upgradeOnly = true
 		case "--yes", "-y":
-			o.Yes = true
+			options.Yes = true
 		case "--to", "--file":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprint(out, upgradeUsage)
+			if index+1 >= len(args) {
+				_, _ = fmt.Fprint(console.out, upgradeUsage)
 				return 2
 			}
-			if args[i] == "--to" {
-				o.To = args[i+1]
+			if args[index] == "--to" {
+				options.To = args[index+1]
 			} else {
-				o.File = args[i+1]
+				options.File = args[index+1]
 			}
 			upgradeOnly = true
-			i++
+			index++
 		case "rollback":
 			rollback = true
 		default:
-			_, _ = fmt.Fprint(out, upgradeUsage)
+			_, _ = fmt.Fprint(console.out, upgradeUsage)
 			return 2
 		}
 	}
-	if o.To != "" && o.File != "" {
-		fmt.Fprintln(os.Stderr, "stoop upgrade: --to and --file are alternatives; give one")
-		return 2
+	if options.To != "" && options.File != "" {
+		return console.fail(2, "stoop upgrade: --to and --file are alternatives; give one")
 	}
 	if rollback && upgradeOnly {
-		_, _ = fmt.Fprint(out, upgradeUsage)
+		_, _ = fmt.Fprint(console.out, upgradeUsage)
 		return 2
 	}
-	u := upgrade.New(o)
-	u.Out = out
+	upgrader := upgrade.New(options)
+	upgrader.Out = console.out
 	var err error
 	if rollback {
-		err = u.Rollback(ctx)
+		err = upgrader.Rollback(ctx)
 	} else {
-		err = u.Upgrade(ctx)
+		err = upgrader.Upgrade(ctx)
 	}
 	switch {
 	case err == nil:
@@ -82,7 +79,6 @@ func runUpgrade(ctx context.Context, args []string, out io.Writer) int {
 	case errors.Is(err, upgrade.ErrFailed):
 		return 1
 	default:
-		fmt.Fprintln(os.Stderr, "stoop upgrade:", err)
-		return 1
+		return console.fail(1, "stoop upgrade:", err)
 	}
 }

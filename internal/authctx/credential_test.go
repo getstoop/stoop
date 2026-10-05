@@ -34,6 +34,12 @@ func TestGrantCoversOnlyItsList(t *testing.T) {
 	if (Credential{Grants: []Action{}}).Covers(MessagesRead) {
 		t.Error("an empty grant covers nothing")
 	}
+	if (Credential{Kind: CredentialPersonalToken, Grants: []Action{VoiceJoin}}).Covers(VoiceJoin) {
+		t.Error("a personal token covers voice.join")
+	}
+	if !(Credential{Kind: CredentialBotToken, Grants: []Action{VoiceJoin}}).Covers(VoiceJoin) {
+		t.Error("a bot token should cover voice.join")
+	}
 }
 
 func TestBounds(t *testing.T) {

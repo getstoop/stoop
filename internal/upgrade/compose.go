@@ -12,6 +12,16 @@ const (
 	nextFile    = "docker-compose.yml.next"
 	prevFile    = "docker-compose.yml.prev"
 	envNextFile = "env.example.next"
+	// rollback parks the files it replaces under this suffix; nothing reads them.
+	rolledBack = ".rolledback"
+)
+
+// The backup directory's two files, and the Postgres major that dumps and
+// restores an operator's own server when the compose file pins none.
+const (
+	dumpFile             = "stoop.dump"
+	uploadsArchive       = "stoop-data.tar"
+	defaultPostgresMajor = "16"
 )
 
 // companions are the rest of the release bundle, mounted by the compose

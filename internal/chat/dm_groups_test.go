@@ -8,9 +8,9 @@ import (
 	"connectrpc.com/connect"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -21,12 +21,12 @@ import (
 // joinSpace puts a user in a space through an invite, the way a person does.
 func joinSpace(t *testing.T, svc *chat.Service, owner context.Context, spaceID string, members ...context.Context) {
 	t.Helper()
-	for _, m := range members {
+	for _, member := range members {
 		inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := svc.JoinSpace(m, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+		if _, err := svc.JoinSpace(member, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -34,8 +34,8 @@ func joinSpace(t *testing.T, svc *chat.Service, owner context.Context, spaceID s
 
 func dmIDs(dm *chatv1.DirectMessage) map[string]bool {
 	out := map[string]bool{}
-	for _, p := range dm.Participants {
-		out[p.Id] = true
+	for _, participant := range dm.Participants {
+		out[participant.Id] = true
 	}
 	return out
 }
@@ -50,9 +50,7 @@ func openDM(t *testing.T, svc *chat.Service, who context.Context, ids ...string)
 }
 
 func TestGroupDirectMessages(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
@@ -155,9 +153,9 @@ func TestGroupDirectMessages(t *testing.T) {
 		t.Fatal(err)
 	}
 	var found *chatv1.DirectMessage
-	for _, d := range listed.Msg.DirectMessages {
-		if d.Channel.Id == group.Channel.Id {
-			found = d
+	for _, listedDM := range listed.Msg.DirectMessages {
+		if listedDM.Channel.Id == group.Channel.Id {
+			found = listedDM
 		}
 	}
 	if found == nil {
@@ -169,9 +167,7 @@ func TestGroupDirectMessages(t *testing.T) {
 }
 
 func TestDirectMessageCapAndBlocks(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	sp, err := svc.CreateSpace(alice, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -181,11 +177,11 @@ func TestDirectMessageCapAndBlocks(t *testing.T) {
 
 	others := make([]context.Context, 0, 10)
 	ids := make([]string, 0, 10)
-	for i := 0; i < 10; i++ {
-		u := newUser(t, pool, string(rune('b'+i))+"user", authctx.RoleMember)
-		joinSpace(t, svc, alice, sp.Msg.Space.Id, u)
-		others = append(others, u)
-		ids = append(ids, authctx.UserID(u))
+	for index := 0; index < 10; index++ {
+		user := newUser(t, pool, string(rune('b'+index))+"user", authctx.RoleMember)
+		joinSpace(t, svc, alice, sp.Msg.Space.Id, user)
+		others = append(others, user)
+		ids = append(ids, authctx.UserID(user))
 	}
 
 	// ---- the cap ----
@@ -270,9 +266,7 @@ func TestDirectMessageCapAndBlocks(t *testing.T) {
 }
 
 func TestDirectMessageCandidates(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
@@ -322,8 +316,8 @@ func TestDirectMessageCandidates(t *testing.T) {
 
 func authorIDs(authors []*chatv1.MessageAuthor) map[string]bool {
 	out := map[string]bool{}
-	for _, a := range authors {
-		out[a.Id] = true
+	for _, author := range authors {
+		out[author.Id] = true
 	}
 	return out
 }
@@ -332,9 +326,7 @@ func authorIDs(authors []*chatv1.MessageAuthor) map[string]bool {
 // person" means nothing in a group, where the block may be with any of
 // several and naming which would be naming them.
 func TestBlockRefusalWording(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
@@ -357,9 +349,7 @@ func TestBlockRefusalWording(t *testing.T) {
 	_, err = svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{
 		ChannelId: group.Channel.Id, Content: "hello",
 	}))
-	if got := connect.CodeOf(err); got != connect.CodePermissionDenied {
-		t.Fatalf("sending across a block in a group: got %v", got)
-	}
+	apierrtest.RequireCode(t, err, connect.CodePermissionDenied, "sending across a block in a group")
 	if msg := err.Error(); !strings.Contains(msg, "this conversation") {
 		t.Errorf("group send refusal should not single anybody out: %q", msg)
 	}

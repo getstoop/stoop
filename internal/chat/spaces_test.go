@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -9,17 +10,14 @@ import (
 	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
-func ptr[T any](v T) *T { return &v }
+func ptr[T any](value T) *T { return &value }
 
 func TestSpaceNames(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	create := func(name string) (*chatv1.Space, error) {
 		res, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: name}))
@@ -46,9 +44,8 @@ func TestSpaceNames(t *testing.T) {
 		}
 	}
 	for _, name := range []string{"", "   ", "\t\n", "\u200b", "\u200b \u2060", "Porch\x00", strings.Repeat("x", 51)} {
-		if _, err := create(name); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("create %q: code = %v, want InvalidArgument", name, connect.CodeOf(err))
-		}
+		_, err := create(name)
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, fmt.Sprintf("create %q", name))
 	}
 
 	// Two spaces may share a name.
@@ -68,16 +65,13 @@ func TestSpaceNames(t *testing.T) {
 		t.Errorf("rename: name = %v, err = %v, want Back Porch", got.GetName(), err)
 	}
 	for _, name := range []string{"", " ", "\u200b", strings.Repeat("x", 51)} {
-		if _, err := rename(name); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("rename %q: code = %v, want InvalidArgument", name, connect.CodeOf(err))
-		}
+		_, err := rename(name)
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, fmt.Sprintf("rename %q", name))
 	}
 }
 
 func TestSpaceDescriptionAndWelcome(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 
@@ -160,9 +154,7 @@ func TestSpaceDescriptionAndWelcome(t *testing.T) {
 }
 
 func TestSpaceDefaultChannel(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 
@@ -271,9 +263,7 @@ func TestSpaceDefaultChannel(t *testing.T) {
 // pointing at something that is gone: the column clears itself, and
 // members are told, so their settings page stops offering it.
 func TestDeletingTheDefaultChannelClearsIt(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -362,8 +352,7 @@ func TestDeletingTheDefaultChannelClearsIt(t *testing.T) {
 // it prints, and — the reason the RPC exists — membership reported apart
 // from the admin role that is inherited without it.
 func TestListAllSpacesForAdmin(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	ada := newUser(t, pool, "ada", authctx.RoleMember)
 	admin := newUser(t, pool, "operator", authctx.RoleAdmin)
@@ -396,9 +385,9 @@ func TestListAllSpacesForAdmin(t *testing.T) {
 	}
 	got := map[string]*chatv1.SpaceSummary{}
 	names := make([]string, len(res.Msg.Spaces))
-	for i, sp := range res.Msg.Spaces {
+	for index, sp := range res.Msg.Spaces {
 		got[sp.Name] = sp
-		names[i] = sp.Name
+		names[index] = sp.Name
 	}
 	if len(got) != 3 {
 		t.Fatalf("spaces = %v, want all three", names)
@@ -408,14 +397,14 @@ func TestListAllSpacesForAdmin(t *testing.T) {
 	}
 
 	// Members are counted, owners are resolved through the directory.
-	if n := got["Stoop"].MemberCount; n != 2 {
-		t.Errorf("Stoop member count = %d, want 2", n)
+	if count := got["Stoop"].MemberCount; count != 2 {
+		t.Errorf("Stoop member count = %d, want 2", count)
 	}
-	if n := got["Bodega"].MemberCount; n != 1 {
-		t.Errorf("Bodega member count = %d, want 1", n)
+	if count := got["Bodega"].MemberCount; count != 1 {
+		t.Errorf("Bodega member count = %d, want 1", count)
 	}
-	if u := got["Bodega"].OwnerUsername; u != "ada" {
-		t.Errorf("Bodega owner = %q, want ada", u)
+	if ownerName := got["Bodega"].OwnerUsername; ownerName != "ada" {
+		t.Errorf("Bodega owner = %q, want ada", ownerName)
 	}
 	if got["Bodega"].OwnerId != authctx.UserID(ada) {
 		t.Errorf("Bodega owner id does not match ada")
@@ -458,8 +447,7 @@ func TestListAllSpacesForAdmin(t *testing.T) {
 // A space whose owner deleted their account still lists: the page needs
 // the row more than it needs the name.
 func TestListAllSpacesWithDeletedOwner(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	admin := newUser(t, pool, "operator", authctx.RoleAdmin)
 

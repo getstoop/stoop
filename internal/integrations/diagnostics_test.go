@@ -19,9 +19,9 @@ import (
 func TestDeliveryStats(t *testing.T) {
 	pool := dbtest.New(t)
 	ctx := context.Background()
-	userID, spaceID, hookID := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	userID := dbtest.NewUser(t, pool, "casey", "admin")
+	spaceID, hookID := uuid.NewString(), uuid.NewString()
 	for _, statement := range []string{
-		`INSERT INTO users (id, username, display_name, role) VALUES ('` + userID + `', 'casey', 'Casey', 'admin')`,
 		`INSERT INTO spaces (id, name, owner_id) VALUES ('` + spaceID + `', 'Porch', '` + userID + `')`,
 		`INSERT INTO outgoing_webhooks (id, space_id, url, secret, event_types, name, created_by) VALUES ('` + hookID + `', '` + spaceID + `', 'https://a.example', 'x', '{}', 'a', '` + userID + `')`,
 	} {

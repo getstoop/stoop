@@ -17,7 +17,6 @@ import (
 
 	commonv1 "github.com/getstoop/stoop/gen/stoop/common/v1"
 	"github.com/getstoop/stoop/internal/app"
-	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
@@ -43,33 +42,27 @@ func newHarness(t *testing.T, env ...string) *harness {
 // instance, the way a restart does.
 func newHarnessOn(t *testing.T, databaseURL string, env ...string) *harness {
 	t.Helper()
-	t.Setenv("STOOP_DATABASE_URL", databaseURL)
-	t.Setenv("STOOP_STORAGE_DIR", t.TempDir())
-	t.Setenv("STOOP_REGISTRATION", "open")
-	t.Setenv("STOOP_AUTH_RATE_LIMIT", "0")
-	t.Setenv("STOOP_ALLOWED_WS_ORIGINS", "*")
-	// Deliveries wait for the dispatcher's poll.
-	t.Setenv("STOOP_JOBS_POLL", "100ms")
-	for i := 0; i+1 < len(env); i += 2 {
-		t.Setenv(env[i], env[i+1])
+	defaults := []string{
+		"STOOP_REGISTRATION", "open",
+		"STOOP_AUTH_RATE_LIMIT", "0",
+		"STOOP_ALLOWED_WS_ORIGINS", "*",
+		// Deliveries wait for the dispatcher's poll.
+		"STOOP_JOBS_POLL", "100ms",
 	}
-	cfg, err := config.Load()
+	cfg := app.LoadTestConfig(t, databaseURL, append(defaults, env...)...)
+	application, err := app.New(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := app.New(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	srv := httptest.NewServer(a.Handler())
+	srv := httptest.NewServer(application.Handler())
 	// The pipeline behind the handler (the job dispatcher, outgoing
 	// deliveries) runs until the test ends, then the pool closes.
 	bg, stop := context.WithCancel(context.Background())
-	a.StartBackground(bg)
+	application.StartBackground(bg)
 	t.Cleanup(func() {
 		stop()
 		srv.Close()
-		a.Close()
+		application.Close()
 	})
 	return &harness{t: t, srv: srv}
 }
@@ -84,49 +77,49 @@ type reply struct {
 
 // code is the Connect error code, or "ok".
 func (r reply) code() string {
-	if c, _ := r.body["code"].(string); c != "" {
-		return c
+	if errorCode, _ := r.body["code"].(string); errorCode != "" {
+		return errorCode
 	}
 	return "ok"
 }
 
 func (r reply) message() string {
-	m, _ := r.body["message"].(string)
-	return m
+	text, _ := r.body["message"].(string)
+	return text
 }
 
 // str reads a string at a dotted path in the body, "" when absent.
 func (r reply) str(path string) string {
 	var cur any = r.body
-	for _, k := range strings.Split(path, ".") {
-		m, ok := cur.(map[string]any)
+	for _, key := range strings.Split(path, ".") {
+		object, ok := cur.(map[string]any)
 		if !ok {
 			return ""
 		}
-		cur = m[k]
+		cur = object[key]
 	}
-	s, _ := cur.(string)
-	return s
+	text, _ := cur.(string)
+	return text
 }
 
 // field is the request field a refusal names, from its FieldViolation
 // detail (docs/architecture/contracts.md → Errors); "" when it names none.
 func (r reply) field() string {
-	for _, d := range r.list("details") {
-		m, _ := d.(map[string]any)
-		if m["type"] != "stoop.common.v1.FieldViolation" {
+	for _, detail := range r.list("details") {
+		object, _ := detail.(map[string]any)
+		if object["type"] != "stoop.common.v1.FieldViolation" {
 			continue
 		}
-		raw, _ := m["value"].(string)
+		raw, _ := object["value"].(string)
 		bin, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(raw, "="))
 		if err != nil {
 			return ""
 		}
-		var v commonv1.FieldViolation
-		if proto.Unmarshal(bin, &v) != nil {
+		var violation commonv1.FieldViolation
+		if proto.Unmarshal(bin, &violation) != nil {
 			return ""
 		}
-		return v.Field
+		return violation.Field
 	}
 	return ""
 }
@@ -134,15 +127,15 @@ func (r reply) field() string {
 // list reads an array at a dotted path in the body.
 func (r reply) list(path string) []any {
 	var cur any = r.body
-	for _, k := range strings.Split(path, ".") {
-		m, ok := cur.(map[string]any)
+	for _, key := range strings.Split(path, ".") {
+		object, ok := cur.(map[string]any)
 		if !ok {
 			return nil
 		}
-		cur = m[k]
+		cur = object[key]
 	}
-	l, _ := cur.([]any)
-	return l
+	items, _ := cur.([]any)
+	return items
 }
 
 // rpc calls one Connect procedure ("stoop.chat.v1.ChatService/SendMessage")
@@ -153,15 +146,15 @@ func (h *harness) rpc(token, procedure string, req any) reply {
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	r, err := http.NewRequest(http.MethodPost, h.srv.URL+"/"+procedure, bytes.NewReader(body))
+	request, err := http.NewRequest(http.MethodPost, h.srv.URL+"/"+procedure, bytes.NewReader(body))
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	r.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Type", "application/json")
 	if token != "" {
-		r.Header.Set("Authorization", "Bearer "+token)
+		request.Header.Set("Authorization", "Bearer "+token)
 	}
-	return h.do(r)
+	return h.do(request)
 }
 
 // post sends a raw body to a path, as an appliance would.
@@ -171,34 +164,34 @@ func (h *harness) post(path, contentType, body string, headers ...string) reply 
 	if strings.HasPrefix(path, "/") {
 		url = h.srv.URL + path
 	}
-	r, err := http.NewRequest(http.MethodPost, url, strings.NewReader(body))
+	request, err := http.NewRequest(http.MethodPost, url, strings.NewReader(body))
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	r.Header.Set("Content-Type", contentType)
-	for i := 0; i+1 < len(headers); i += 2 {
-		r.Header.Set(headers[i], headers[i+1])
+	request.Header.Set("Content-Type", contentType)
+	for index := 0; index+1 < len(headers); index += 2 {
+		request.Header.Set(headers[index], headers[index+1])
 	}
-	return h.do(r)
+	return h.do(request)
 }
 
 // get fetches a path as a bearer token, the way an <img> with a session
 // would; "" is anonymous.
 func (h *harness) get(token, path string) reply {
 	h.t.Helper()
-	r, err := http.NewRequest(http.MethodGet, h.srv.URL+path, nil)
+	request, err := http.NewRequest(http.MethodGet, h.srv.URL+path, nil)
 	if err != nil {
 		h.t.Fatal(err)
 	}
 	if token != "" {
-		r.Header.Set("Authorization", "Bearer "+token)
+		request.Header.Set("Authorization", "Bearer "+token)
 	}
-	return h.do(r)
+	return h.do(request)
 }
 
-func (h *harness) do(r *http.Request) reply {
+func (h *harness) do(request *http.Request) reply {
 	h.t.Helper()
-	res, err := http.DefaultClient.Do(r)
+	res, err := http.DefaultClient.Do(request)
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -219,9 +212,9 @@ func (r reply) expect(t *testing.T, code string, contains ...string) reply {
 		t.Errorf("want %s, got %s (%d): %s", code, r.code(), r.status, r.raw)
 		return r
 	}
-	for _, c := range contains {
-		if !strings.Contains(r.message(), c) {
-			t.Errorf("want a message containing %q, got %q", c, r.message())
+	for _, phrase := range contains {
+		if !strings.Contains(r.message(), phrase) {
+			t.Errorf("want a message containing %q, got %q", phrase, r.message())
 		}
 	}
 	return r
@@ -259,8 +252,8 @@ func (h *harness) userID(token string) string {
 // its default channel.
 func (h *harness) space(token, name string) (spaceID, channelID string) {
 	h.t.Helper()
-	r := h.rpc(token, "stoop.chat.v1.ChatService/CreateSpace", map[string]any{"name": name}).expect(h.t, "ok")
-	return r.str("space.id"), r.str("defaultChannel.id")
+	created := h.rpc(token, "stoop.chat.v1.ChatService/CreateSpace", map[string]any{"name": name}).expect(h.t, "ok")
+	return created.str("space.id"), created.str("defaultChannel.id")
 }
 
 // invite mints an invite code for a space.
@@ -314,21 +307,21 @@ func (h *harness) botToken(admin, botID string, permissions ...string) string {
 // id and the URL an appliance would post to.
 func (h *harness) hook(admin, botID, channelID, name string) (id, url string) {
 	h.t.Helper()
-	r := h.rpc(admin, "stoop.integrations.v1.IntegrationService/CreateIncoming", map[string]any{
+	created := h.rpc(admin, "stoop.integrations.v1.IntegrationService/CreateIncoming", map[string]any{
 		"channelId": channelID, "name": name, "botUserId": botID,
 	}).expect(h.t, "ok")
-	url = r.str("url")
+	url = created.str("url")
 	if strings.HasPrefix(url, "/") {
 		url = h.srv.URL + url
 	}
-	return r.str("webhook.id"), url
+	return created.str("webhook.id"), url
 }
 
 // perms turns "messages.read" into the wire's PERMISSION_MESSAGES_READ.
 func perms(actions []string) []string {
 	out := make([]string, len(actions))
-	for i, a := range actions {
-		out[i] = "PERMISSION_" + strings.ToUpper(strings.ReplaceAll(a, ".", "_"))
+	for index, action := range actions {
+		out[index] = "PERMISSION_" + strings.ToUpper(strings.ReplaceAll(action, ".", "_"))
 	}
 	return out
 }
@@ -348,9 +341,9 @@ func (h *harness) list(token, channelID string) reply {
 func (h *harness) spaceNames(token string) []string {
 	h.t.Helper()
 	var out []string
-	for _, s := range h.rpc(token, "stoop.chat.v1.ChatService/ListSpaces", map[string]any{}).expect(h.t, "ok").list("spaces") {
-		if m, ok := s.(map[string]any); ok {
-			out = append(out, fmt.Sprint(m["name"]))
+	for _, space := range h.rpc(token, "stoop.chat.v1.ChatService/ListSpaces", map[string]any{}).expect(h.t, "ok").list("spaces") {
+		if object, ok := space.(map[string]any); ok {
+			out = append(out, fmt.Sprint(object["name"]))
 		}
 	}
 	return out
@@ -361,8 +354,8 @@ func (h *harness) spaceNames(token string) []string {
 func (h *harness) messages(token, channelID string) []map[string]any {
 	h.t.Helper()
 	var out []map[string]any
-	for _, m := range h.list(token, channelID).expect(h.t, "ok").list("messages") {
-		if mm, ok := m.(map[string]any); ok {
+	for _, message := range h.list(token, channelID).expect(h.t, "ok").list("messages") {
+		if mm, ok := message.(map[string]any); ok {
 			out = append(out, mm)
 		}
 	}
@@ -373,9 +366,9 @@ func (h *harness) messages(token, channelID string) []map[string]any {
 // phrase, or fails.
 func (h *harness) message(token, channelID, contains string) map[string]any {
 	h.t.Helper()
-	for _, m := range h.messages(token, channelID) {
-		if c, _ := m["content"].(string); strings.Contains(c, contains) {
-			return m
+	for _, message := range h.messages(token, channelID) {
+		if content, _ := message["content"].(string); strings.Contains(content, contains) {
+			return message
 		}
 	}
 	h.t.Fatalf("no message containing %q", contains)

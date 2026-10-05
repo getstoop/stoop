@@ -139,14 +139,17 @@ func (s *Service) VerifyToken(ctx context.Context, token string) (authctx.Identi
 // it belongs in a hook URL and nowhere else.
 func (s *Service) verify(ctx context.Context, token string, allowHook bool) (authctx.Identity, error) {
 	if token == "" {
-		return authctx.Identity{}, errors.New("missing token")
+		return authctx.Identity{}, refuseSession("missing token")
 	}
 	c, err := s.q.GetCredentialByTokenHash(ctx, hashToken(token))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return authctx.Identity{}, refuseSession("invalid or expired session")
+	}
 	if err != nil {
-		return authctx.Identity{}, errors.New("invalid or expired session")
+		return authctx.Identity{}, fmt.Errorf("look up credential: %w", err)
 	}
 	if c.Kind == string(authctx.CredentialIncomingHook) && !allowHook {
-		return authctx.Identity{}, errors.New("a hook token is not a bearer token")
+		return authctx.Identity{}, refuseSession("a hook token is not a bearer token")
 	}
 	id := authctx.Identity{
 		UserID: c.HolderID, Role: authctx.Role(c.HolderRole), Kind: authctx.IdentityKind(c.HolderKind),
@@ -163,10 +166,10 @@ func (s *Service) verify(ctx context.Context, token string, allowHook bool) (aut
 	if id.Credential.Kind == authctx.CredentialPersonalToken {
 		reason, err := s.tokenBlock(ctx, id.Role)
 		if err != nil {
-			return authctx.Identity{}, err
+			return authctx.Identity{}, fmt.Errorf("personal token policy: %w", err)
 		}
 		if reason != "" {
-			return authctx.Identity{}, errors.New(reason)
+			return authctx.Identity{}, refuseSession(reason)
 		}
 	}
 	// At most once a minute, so a busy client doesn't make every read a write.
@@ -178,6 +181,11 @@ func (s *Service) verify(ctx context.Context, token string, allowHook bool) (aut
 		}
 	}
 	return id, nil
+}
+
+// refuseSession is an answer about the caller, not a failed check.
+func refuseSession(reason string) error {
+	return fmt.Errorf("%s: %w", reason, authctx.ErrNoSession)
 }
 
 // toActions keeps nil as nil: a session's grant, which covers everything.

@@ -8,9 +8,6 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 // voicePolicy is an instance whose voice can be switched.
@@ -23,8 +20,7 @@ func (policy *voicePolicy) VoiceAvailable() bool                          { retu
 // With voice off a voice channel is not listed, counted, searched or
 // created, and it is all back when voice is.
 func TestVoiceOffHidesVoiceChannels(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	policy := &voicePolicy{on: true}
 	svc.UseInstancePolicy(policy)
 
@@ -171,8 +167,7 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 // A space's own switch hides its voice channels and ends its calls,
 // leaves other spaces alone, and is the space admins' to flip.
 func TestSpaceVoiceSwitch(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	rooms := &stubRooms{}
 	svc.UseVoiceRooms(rooms)
 

@@ -24,10 +24,13 @@ SELECT count(*) FROM incoming_webhooks WHERE space_id = $1;
 -- name: RenameIncomingWebhook :exec
 UPDATE incoming_webhooks SET name = $2 WHERE id = $1;
 
--- SetIncomingWebhookCredential rotates the token; the old credential is
--- revoked by auth.
+-- SetIncomingWebhookCredential rotates the token and leaves the on/off
+-- state alone; the old credential is revoked by auth.
 -- name: SetIncomingWebhookCredential :exec
-UPDATE incoming_webhooks SET credential_id = $2, disabled_at = NULL, disabled_reason = '' WHERE id = $1;
+UPDATE incoming_webhooks SET credential_id = $2 WHERE id = $1;
+
+-- name: EnableIncomingWebhook :exec
+UPDATE incoming_webhooks SET disabled_at = NULL, disabled_reason = '' WHERE id = $1;
 
 -- name: DisableIncomingWebhook :exec
 UPDATE incoming_webhooks SET disabled_at = now(), disabled_reason = $2 WHERE id = $1;

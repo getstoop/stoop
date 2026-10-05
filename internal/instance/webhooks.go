@@ -2,13 +2,8 @@ package instance
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 
-	"github.com/jackc/pgx/v5"
-
-	"github.com/getstoop/stoop/internal/dbgen"
+	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 )
 
 // The webhook settings, read by the integrations module through its
@@ -46,26 +41,9 @@ func (s *Service) WebhooksAllowPrivateTargets(ctx context.Context) (bool, error)
 	return s.readBool(ctx, keyWebhooksAllowPrivateTargets, false)
 }
 
-func (s *Service) writeBool(ctx context.Context, key string, v bool) error {
-	raw, _ := json.Marshal(v)
-	if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: key, Value: raw}); err != nil {
-		return fmt.Errorf("write %s: %w", key, err)
-	}
+func stageWebhooks(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	stageBool(save, keyWebhooksIncoming, msg.WebhooksIncoming)
+	stageBool(save, keyWebhooksOutgoing, msg.WebhooksOutgoing)
+	stageBool(save, keyWebhooksAllowPrivateTargets, msg.WebhooksAllowPrivateTargets)
 	return nil
-}
-
-// readBool decodes one JSON-boolean setting, returning fallback if unset.
-func (s *Service) readBool(ctx context.Context, key string, fallback bool) (bool, error) {
-	raw, err := s.q.GetSetting(ctx, key)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return fallback, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("read %s: %w", key, err)
-	}
-	var v bool
-	if err := json.Unmarshal(raw, &v); err != nil {
-		return false, fmt.Errorf("decode %s: %w", key, err)
-	}
-	return v, nil
 }

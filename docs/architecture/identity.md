@@ -221,6 +221,8 @@ in, and expires after 30, 90 or 365 days, or never.
   message's attachment.
 - **No token can make, list or revoke tokens**, change a password or link
   a provider: those need `account.security`, which only a session carries.
+- **It can't join voice.** Who is in a call is reported over `/ws`, which
+  a token can't open; a voice client belongs on a bot token.
 - **There is no space limit.** "This token can do what you can, wherever
   you are" is the whole story. Only a hook is bounded, to its one
   channel.

@@ -68,13 +68,12 @@ func TestReachability(t *testing.T) {
 	if st.Msg.PublicUrl != "https://chat.example.com" {
 		t.Errorf("status public_url = %q", st.Msg.PublicUrl)
 	}
-	// Clearing falls back to the environment; with no env it falls back to
-	// the tailnet address.
+	// Clearing stays cleared, whatever the environment says; the tailnet
+	// address is what's left.
 	res, _ = up(&instancev1.UpdateReachabilityRequest{PublicUrl: ptr("")})
-	if res.Reachability.PublicUrl != "https://env.example.com" {
-		t.Errorf("cleared public url should fall back to env, got %q", res.Reachability.PublicUrl)
+	if res.Reachability.PublicUrl != "" {
+		t.Errorf("cleared public url should stay cleared, got %q", res.Reachability.PublicUrl)
 	}
-	svc.UseReachabilityEnv(instance.ReachabilityEnv{})
 	if pu, _ := svc.PublicURL(ctx); pu != "https://stoop.tailnet.ts.net" {
 		t.Errorf("PublicURL tailnet fallback = %q", pu)
 	}
@@ -243,28 +242,29 @@ func TestTrustedProxies(t *testing.T) {
 		t.Error("a refused save changed the list")
 	}
 
-	// Clearing falls back to the environment.
+	// Clearing trusts nothing, even with STOOP_TRUSTED_PROXIES set.
 	envSet, err := trustedproxy.Parse([]string{"8.8.8.0/24"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := svc.ReachabilityEnvValue()
-	env.TrustedProxies = envSet
-	svc.UseReachabilityEnv(env)
+	svc.UseReachabilityEnv(instance.ReachabilityEnv{
+		Reachability:    instance.Reachability{TrustedProxies: envSet},
+		VoiceConfigured: true,
+	})
 	if _, err := svc.UpdateReachability(admin, connect.NewRequest(&instancev1.UpdateReachabilityRequest{
 		TrustedProxies: &instancev1.TrustedProxies{},
 	})); err != nil {
 		t.Fatal(err)
 	}
-	if !svc.TrustsPeer("8.8.8.8:80") {
-		t.Error("cleared list should fall back to STOOP_TRUSTED_PROXIES")
+	if svc.TrustsPeer("8.8.8.8:80") || svc.TrustsPeer("10.4.4.4:1234") {
+		t.Error("a cleared list should trust nothing")
 	}
 	got, err = svc.GetReachability(admin, connect.NewRequest(&instancev1.GetReachabilityRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cidrs := got.Msg.Reachability.TrustedProxies.Cidrs; len(cidrs) != 1 || cidrs[0] != "8.8.8.0/24" {
-		t.Errorf("the environment's list should be reported, got %v", cidrs)
+	if cidrs := got.Msg.Reachability.TrustedProxies.Cidrs; len(cidrs) != 0 {
+		t.Errorf("a cleared list should be reported empty, got %v", cidrs)
 	}
 
 	// Saving something else leaves the proxies alone.
@@ -273,7 +273,7 @@ func TestTrustedProxies(t *testing.T) {
 	})); err != nil {
 		t.Fatal(err)
 	}
-	if !svc.TrustsPeer("8.8.8.8:80") {
+	if svc.TrustsPeer("8.8.8.8:80") {
 		t.Error("an unrelated save disturbed the trusted proxies")
 	}
 }

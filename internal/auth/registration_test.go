@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -15,9 +16,13 @@ import (
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
-type fakePolicy struct{ policy string }
+// fakePolicy answers policy, or fails with err as an unreadable setting.
+type fakePolicy struct {
+	policy string
+	err    error
+}
 
-func (p *fakePolicy) RegistrationPolicy(context.Context) (string, error) { return p.policy, nil }
+func (p *fakePolicy) RegistrationPolicy(context.Context) (string, error) { return p.policy, p.err }
 
 // fakeInvites accepts one code; redeems join "space-1" and count down uses.
 // failRedeem makes validation pass and redemption fail, the shape of a code
@@ -30,14 +35,19 @@ type fakeInvites struct {
 	uses       int
 	redeemed   []string
 	failRedeem bool
-	barrier    int
-	arrived    int
-	release    chan struct{}
+	// validateErr, when set, is a lookup that failed rather than a refusal.
+	validateErr error
+	barrier     int
+	arrived     int
+	release     chan struct{}
 }
 
 func (f *fakeInvites) ValidateInvite(_ context.Context, code string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.validateErr != nil {
+		return f.validateErr
+	}
 	return f.usable(code)
 }
 
@@ -250,14 +260,15 @@ func TestSetRoleByUsername(t *testing.T) {
 	if _, err := svc.SetRoleByUsername(ctx, "nobody", authctx.RoleAdmin); codeOf(err) != connect.CodeNotFound {
 		t.Errorf("unknown user: want not_found, got %v", err)
 	}
-	a, err := svc.SetRoleByUsername(ctx, "friend", authctx.RoleAdmin)
+	// By name in any case: the CLI passes what the operator typed.
+	a, err := svc.SetRoleByUsername(ctx, "Friend", authctx.RoleAdmin)
 	if err != nil || a.Role != authctx.RoleAdmin {
 		t.Fatalf("promote friend: %v %v", a, err)
 	}
 	if _, err := svc.SetRoleByUsername(ctx, "founder", authctx.RoleMember); err == nil {
 		t.Error("another admin present, but founder still owns the server: demotion should be refused")
 	}
-	if _, err := svc.TransferOwnershipByUsername(ctx, "friend"); err != nil {
+	if _, err := svc.TransferOwnershipByUsername(ctx, "FRIEND"); err != nil {
 		t.Fatal(err)
 	}
 	a, err = svc.SetRoleByUsername(ctx, "founder", authctx.RoleMember)
@@ -274,5 +285,25 @@ func TestReservedUsernames(t *testing.T) {
 	}
 	if _, err := register(svc, ctx, "Here", ""); codeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("reserved username (case-insensitive): want invalid_argument, got %v", err)
+	}
+}
+
+// Registration checks a username the way the profile and admin renames
+// do: spaces around it are dropped, the handle is lowercased and the
+// display name keeps the case typed. A short password is refused by the
+// same rule the password change uses.
+func TestRegisterNormalisesLikeRename(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	ctx := context.Background()
+	res, err := register(svc, ctx, "  Ada  ", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.User.Username != "ada" || res.User.DisplayName != "Ada" {
+		t.Errorf("registered %q (%q), want ada (Ada)", res.User.Username, res.User.DisplayName)
+	}
+	_, err = svc.Register(ctx, connect.NewRequest(&authv1.RegisterRequest{Username: "bea", Password: "short"}))
+	if codeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "password must be at least 8 characters") {
+		t.Errorf("short password: %v", err)
 	}
 }

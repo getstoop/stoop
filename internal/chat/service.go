@@ -224,16 +224,53 @@ func (s *Service) resolveAuthors(ctx context.Context, ids []string) (map[string]
 	if len(ids) == 0 {
 		return map[string]*chatv1.MessageAuthor{}, nil
 	}
-	records, err := s.users.GetUsers(ctx, ids)
+	users, err := s.usersByID(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("resolve authors: %w", err)
 	}
-	authors := make(map[string]*chatv1.MessageAuthor, len(records))
-	for _, r := range records {
-		authors[r.ID] = &chatv1.MessageAuthor{
-			Id: r.ID, Username: r.Username, DisplayName: r.DisplayName, AvatarFileId: r.AvatarFileID,
-			Kind: accesswire.KindToProto(r.Kind), Deleted: r.Deleted,
+	authors := make(map[string]*chatv1.MessageAuthor, len(users))
+	for id, user := range users {
+		authors[id] = &chatv1.MessageAuthor{
+			Id: user.ID, Username: user.Username, DisplayName: user.DisplayName, AvatarFileId: user.AvatarFileID,
+			Kind: accesswire.KindToProto(user.Kind), Deleted: user.Deleted,
 		}
 	}
 	return authors, nil
+}
+
+// authorOrUnknown is the resolved author, or a placeholder for an id the
+// directory did not return.
+func authorOrUnknown(authors map[string]*chatv1.MessageAuthor, id string) *chatv1.MessageAuthor {
+	if author := authors[id]; author != nil {
+		return author
+	}
+	return unknownAuthor(id)
+}
+
+func unknownAuthor(id string) *chatv1.MessageAuthor {
+	return &chatv1.MessageAuthor{Id: id, Username: "unknown"}
+}
+
+// usersByID looks users up through the directory; an id it does not know
+// is absent from the map.
+func (s *Service) usersByID(ctx context.Context, ids []string) (map[string]UserRecord, error) {
+	records, err := s.users.GetUsers(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	users := make(map[string]UserRecord, len(records))
+	for _, record := range records {
+		users[record.ID] = record
+	}
+	return users, nil
+}
+
+// lookupUser is usersByID for one id; found is false when it is unknown.
+func (s *Service) lookupUser(ctx context.Context, id string) (user UserRecord, found bool, err error) {
+	users, err := s.usersByID(ctx, []string{id})
+	if err != nil {
+		return UserRecord{}, false, err
+	}
+	user, found = users[id]
+	return user, found, nil
 }

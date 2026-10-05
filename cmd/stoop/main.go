@@ -31,25 +31,25 @@ func dispatch(ctx context.Context, args []string, out, errOut io.Writer) (code i
 	if len(args) == 0 {
 		return 0, false
 	}
+	console := streams{out: out, errOut: errOut}
 	switch args[0] {
 	case "jobs":
 		return runJobs(ctx), true
 	case "admin":
-		return runAdmin(ctx, args[1:], out), true
+		return runAdmin(ctx, args[1:], console), true
 	case "migrate":
-		return runMigrate(ctx, args[1:], out), true
+		return runMigrate(ctx, args[1:], console), true
 	case "upgrade":
-		return runUpgrade(ctx, args[1:], out), true
+		return runUpgrade(ctx, args[1:], console), true
 	case "health":
 		return runHealth(out), true
 	case "version", "--version", "-v":
-		return runVersion(args[1:], out), true
+		return runVersion(args[1:], console), true
 	case "help", "--help", "-h":
 		_, _ = fmt.Fprint(out, usage)
 		return 0, true
 	}
-	_, _ = fmt.Fprintf(errOut, "stoop: unknown command %q\n\n%s", args[0], usage)
-	return 2, true
+	return console.failf(2, "stoop: unknown command %q\n\n%s", args[0], usage), true
 }
 
 // process is what the server and `stoop jobs` both start from: the

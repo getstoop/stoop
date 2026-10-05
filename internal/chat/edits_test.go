@@ -7,15 +7,10 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func TestEditAndDelete(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	cal := newUser(t, pool, "cal", authctx.RoleMember)
@@ -86,8 +81,8 @@ func TestEditAndDelete(t *testing.T) {
 	if len(msgs.Msg.Messages) != 1 || msgs.Msg.Messages[0].Id != rep.Msg.Message.Id {
 		t.Fatalf("messages after deletes: %+v", msgs.Msg.Messages)
 	}
-	if r := msgs.Msg.Messages[0].ReplyTo; r != nil && r.Preview != "" {
-		t.Errorf("reply to a deleted message should have no preview: %+v", r)
+	if replyTo := msgs.Msg.Messages[0].ReplyTo; replyTo != nil && replyTo.Preview != "" {
+		t.Errorf("reply to a deleted message should have no preview: %+v", replyTo)
 	}
 	if _, err := svc.DeleteMessage(owner, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: m1.Msg.Message.Id})); code(err) != connect.CodeNotFound {
 		t.Errorf("deleting twice: want not_found, got %v", err)

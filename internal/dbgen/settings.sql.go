@@ -9,6 +9,20 @@ import (
 	"context"
 )
 
+const deleteSetting = `-- name: DeleteSetting :execrows
+DELETE FROM instance_settings WHERE key = $1
+`
+
+// DeleteSetting removes a saved value, so the next start seeds it from the
+// environment again (stoop admin setting reset).
+func (q *Queries) DeleteSetting(ctx context.Context, key string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSetting, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getSetting = `-- name: GetSetting :one
 
 SELECT value FROM instance_settings WHERE key = $1
@@ -23,6 +37,36 @@ func (q *Queries) GetSetting(ctx context.Context, key string) ([]byte, error) {
 	return value, err
 }
 
+const listSettings = `-- name: ListSettings :many
+SELECT key, value FROM instance_settings
+`
+
+type ListSettingsRow struct {
+	Key   string
+	Value []byte
+}
+
+// ListSettings is every saved value, for a read that needs many at once.
+func (q *Queries) ListSettings(ctx context.Context) ([]ListSettingsRow, error) {
+	rows, err := q.db.Query(ctx, listSettings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSettingsRow
+	for rows.Next() {
+		var i ListSettingsRow
+		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const seedSetting = `-- name: SeedSetting :exec
 INSERT INTO instance_settings (key, value)
 VALUES ($1, $2)
@@ -34,7 +78,7 @@ type SeedSettingParams struct {
 	Value []byte
 }
 
-// SeedSetting only inserts when the key is absent (first boot).
+// SeedSetting only inserts when the key is absent.
 func (q *Queries) SeedSetting(ctx context.Context, arg SeedSettingParams) error {
 	_, err := q.db.Exec(ctx, seedSetting, arg.Key, arg.Value)
 	return err

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"slices"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -44,7 +46,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("message must be 1-%d characters or carry an attachment", maxMessageLen))
 	}
-	channel, err := s.writableChannel(ctx, req.Msg.ChannelId)
+	channel, participants, err := s.writableChannel(ctx, req.Msg.ChannelId)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +58,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 
-	res, err := s.resolveMentions(ctx, channel, userID, content)
+	res, err := s.resolveMentions(ctx, channel, participants, userID, content)
 	if err != nil {
 		return nil, err
 	}
@@ -65,19 +67,29 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	// A reply must point at a message in this channel.
 	var replyTo *string
 	var parent *messageRow
-	if id := req.Msg.ReplyToMessageId; id != "" {
-		p, err := s.q.GetMessage(ctx, id)
+	if replyID := req.Msg.ReplyToMessageId; replyID != "" {
+		found, err := s.q.GetMessage(ctx, replyID)
 		if err != nil {
 			return nil, apierr.NotFoundOr(err, "message")
 		}
-		if p.ChannelID != channel.ID {
+		if found.ChannelID != channel.ID {
 			return nil, connect.NewError(connect.CodeInvalidArgument,
 				errors.New("can only reply to a message in the same channel"))
 		}
-		parent, replyTo = &p, &p.ID
+		parent, replyTo = &found, &found.ID
 	}
 
-	// The message and its attachment links land together: a claim that
+	// Read before anything is written: the event needs the authors.
+	authorIDs := []string{userID}
+	if parent != nil {
+		authorIDs = append(authorIDs, parent.AuthorID)
+	}
+	authors, err := s.resolveAuthors(ctx, authorIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Everything that belongs to the message lands together: a claim that
 	// fails (file already used) must not leave a bare message behind.
 	var row messageRow
 	var linksToFetch []string
@@ -98,58 +110,32 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 				return fmt.Errorf("record links: %w", err)
 			}
 		}
+		if len(mentioned) > 0 {
+			if err := qtx.InsertMessageMentions(ctx, dbgen.InsertMessageMentionsParams{MessageID: row.ID, UserIds: mentioned}); err != nil {
+				return fmt.Errorf("record mention: %w", err)
+			}
+		}
+		// The channel's newest message, and the author has of course read it.
+		if err := qtx.SetChannelLastMessage(ctx, dbgen.SetChannelLastMessageParams{ID: channel.ID, LastMessageID: &row.ID}); err != nil {
+			return fmt.Errorf("bump channel: %w", err)
+		}
+		if err := qtx.UpsertChannelRead(ctx, dbgen.UpsertChannelReadParams{
+			UserID: userID, ChannelID: channel.ID, LastReadMessageID: row.ID,
+		}); err != nil {
+			return fmt.Errorf("mark own message read: %w", err)
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	for _, id := range mentioned {
-		if err := s.q.InsertMessageMention(ctx, dbgen.InsertMessageMentionParams{MessageID: row.ID, UserID: id}); err != nil {
-			return nil, fmt.Errorf("record mention: %w", err)
-		}
-	}
-	// The channel's newest message, and the author has of course read it.
-	if err := s.q.SetChannelLastMessage(ctx, dbgen.SetChannelLastMessageParams{ID: channel.ID, LastMessageID: &row.ID}); err != nil {
-		return nil, fmt.Errorf("bump channel: %w", err)
-	}
-	if err := s.q.UpsertChannelRead(ctx, dbgen.UpsertChannelReadParams{
-		UserID: userID, ChannelID: channel.ID, LastReadMessageID: row.ID,
-	}); err != nil {
-		return nil, fmt.Errorf("mark own message read: %w", err)
-	}
 
-	authorIDs := []string{userID}
-	if parent != nil {
-		authorIDs = append(authorIDs, parent.AuthorID)
-	}
-	authors, err := s.resolveAuthors(ctx, authorIDs)
-	if err != nil {
-		return nil, err
-	}
+	// The message is saved: from here on nothing fails the send.
 	msg := toProtoMessage(row, authors, mentioned, spaceOf(channel))
 	msg.Attachments = toProtoAttachments(attachments)
 	if parent != nil {
 		msg.ReplyTo = replyRef(parent.ID, authors[parent.AuthorID], &parent.Content, s.firstAttachmentName(ctx, parent.ID))
 	}
-	var firstAttachment string
-	if len(attachments) > 0 {
-		firstAttachment = attachments[0].Name
-	}
-	if err := s.recordMentions(ctx, row, channel.SpaceID, mentioned, msg.Author, firstAttachment); err != nil {
-		return nil, err
-	}
-	if parent != nil {
-		if err := s.recordReply(ctx, row, channel.SpaceID, parent.AuthorID, mentioned, msg.Author, firstAttachment); err != nil {
-			return nil, err
-		}
-	}
-	if isDM(channel) {
-		if err := s.recordDM(ctx, row, channel, parent, mentioned, msg.Author, firstAttachment); err != nil {
-			return nil, err
-		}
-		s.reopenDM(ctx, channel)
-	}
-
 	// Cached link previews go out with the message itself; ones still to
 	// be fetched arrive later as MessageUpdated.
 	if s.unfurler != nil {
@@ -157,11 +143,15 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 			msg.LinkPreviews = previews[row.ID]
 		}
 	}
+	if isDM(channel) {
+		s.reopenDM(ctx, channel)
+	}
 	// Everyone who can see the channel receives the event; clients filter
 	// by channel_id. The sender's own client receives it too — one code path.
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: msg},
 	}))
+	s.recordActivity(ctx, row, channel, participants, parent, mentioned, msg.Author, attachments)
 	if s.unfurler != nil {
 		s.unfurlLater(row.ID, userID, channel.ID, linksToFetch)
 	}
@@ -181,7 +171,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	limit := clampPageSize(req.Msg.Limit, defaultPageSize, maxPageSize)
 
 	var (
-		rows               []dbgen.ListMessagesBeforeRow
+		rows               []dbgen.MessageWithReply
 		hasOlder, hasNewer bool
 	)
 	switch {
@@ -198,7 +188,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
-		rows = newestFirst(after)
+		rows = after
 		hasOlder, hasNewer = true, int32(len(after)) == limit
 
 	case req.Msg.AroundId != "":
@@ -221,7 +211,8 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
-		rows = append(newestFirst(after), before...)
+		slices.Reverse(before)
+		rows = append(before, after...)
 		hasOlder, hasNewer = int32(len(before)) == older, int32(len(after)) == newer
 
 	default:
@@ -237,6 +228,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
 		hasOlder, hasNewer = int32(len(rows)) == limit, before != nil
+		slices.Reverse(rows)
 	}
 
 	messages, err := s.hydrateMessages(ctx, spaceOf(channel), rows)
@@ -248,37 +240,27 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	}), nil
 }
 
-// newestFirst flips an ascending forward page into the newest-first order the
-// hydrator expects. The two sqlc row types are structurally identical.
-func newestFirst(asc []dbgen.ListMessagesAfterRow) []dbgen.ListMessagesBeforeRow {
-	out := make([]dbgen.ListMessagesBeforeRow, len(asc))
-	for i, r := range asc {
-		out[len(asc)-1-i] = dbgen.ListMessagesBeforeRow(r)
-	}
-	return out
-}
-
 // messageRow is a messages row without its search vector, which the
 // queries leave out (queries/chat/messages.sql). The other queries' row
 // types convert to it.
 type messageRow = dbgen.GetMessageRow
 
 // listedMessage is the message in a list row, without the reply columns.
-func listedMessage(r dbgen.ListMessagesBeforeRow) messageRow {
+func listedMessage(row dbgen.MessageWithReply) messageRow {
 	return messageRow{
-		ID: r.ID, ChannelID: r.ChannelID, AuthorID: r.AuthorID, Content: r.Content,
-		CreatedAt: r.CreatedAt, MentionsEveryone: r.MentionsEveryone,
-		ReplyToMessageID: r.ReplyToMessageID, MentionsHere: r.MentionsHere, EditedAt: r.EditedAt,
+		ID: row.ID, ChannelID: row.ChannelID, AuthorID: row.AuthorID, Content: row.Content,
+		CreatedAt: row.CreatedAt, MentionsEveryone: row.MentionsEveryone,
+		ReplyToMessageID: row.ReplyToMessageID, MentionsHere: row.MentionsHere, EditedAt: row.EditedAt,
 	}
 }
 
-// hydrateMessages turns newest-first rows into oldest-first protos with
-// authors, mentions, reactions, attachments, link previews and reply quotes.
-func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.ListMessagesBeforeRow) ([]*chatv1.Message, error) {
+// hydrateMessages turns rows into protos, in the same order, with authors,
+// mentions, reactions, attachments, link previews and reply quotes.
+func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.MessageWithReply) ([]*chatv1.Message, error) {
 	authorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}
-	for _, r := range rows {
-		for _, id := range []*string{&r.AuthorID, r.ReplyAuthorID} {
+	for _, row := range rows {
+		for _, id := range []*string{&row.AuthorID, row.ReplyAuthorID} {
 			if id != nil && *id != "" && !seen[*id] {
 				seen[*id] = true
 				authorIDs = append(authorIDs, *id)
@@ -290,8 +272,8 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		return nil, err
 	}
 	messageIDs := make([]string, len(rows))
-	for i, r := range rows {
-		messageIDs[i] = r.ID
+	for index, row := range rows {
+		messageIDs[index] = row.ID
 	}
 	mentions, err := s.mentionsByMessage(ctx, messageIDs)
 	if err != nil {
@@ -315,9 +297,9 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	}
 	// Quoted messages without text preview as their first attachment.
 	var replyFileIDs []string
-	for _, r := range rows {
-		if r.ReplyFirstFileID != "" {
-			replyFileIDs = append(replyFileIDs, r.ReplyFirstFileID)
+	for _, row := range rows {
+		if row.ReplyFirstFileID != "" {
+			replyFileIDs = append(replyFileIDs, row.ReplyFirstFileID)
 		}
 	}
 	replyFiles, err := s.fileRecords(ctx, replyFileIDs)
@@ -325,22 +307,21 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		return nil, err
 	}
 
-	// Rows come newest-first; return oldest-first for rendering.
 	messages := make([]*chatv1.Message, len(rows))
-	for i, r := range rows {
-		m := toProtoMessage(listedMessage(r), authors, mentions[r.ID], spaceID)
-		m.Reactions = reactions[r.ID]
-		m.Attachments = attachments[r.ID]
-		m.LinkPreviews = previews[r.ID]
-		m.Pinned = pinned[r.ID]
-		if r.ReplyToMessageID != nil {
+	for index, row := range rows {
+		message := toProtoMessage(listedMessage(row), authors, mentions[row.ID], spaceID)
+		message.Reactions = reactions[row.ID]
+		message.Attachments = attachments[row.ID]
+		message.LinkPreviews = previews[row.ID]
+		message.Pinned = pinned[row.ID]
+		if row.ReplyToMessageID != nil {
 			var author *chatv1.MessageAuthor
-			if r.ReplyAuthorID != nil {
-				author = authors[*r.ReplyAuthorID]
+			if row.ReplyAuthorID != nil {
+				author = authors[*row.ReplyAuthorID]
 			}
-			m.ReplyTo = replyRef(*r.ReplyToMessageID, author, r.ReplyContent, replyFiles[r.ReplyFirstFileID].label())
+			message.ReplyTo = replyRef(*row.ReplyToMessageID, author, row.ReplyContent, replyFiles[row.ReplyFirstFileID].label())
 		}
-		messages[len(rows)-1-i] = m
+		messages[index] = message
 	}
 	return messages, nil
 }
@@ -362,7 +343,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	// Authorship is not enough: a kicked, banned or blocked author is
 	// still the author, and an edit republishes the message and unfurls
 	// its links.
-	channel, err := s.writableChannel(ctx, msg.ChannelID)
+	channel, participants, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
 		return nil, err
 	}
@@ -371,29 +352,36 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return nil, err
 	}
-	edited, err := s.q.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content})
-	if err != nil {
-		return nil, fmt.Errorf("edit message: %w", err)
-	}
-	row := messageRow(edited)
 	// Mentions are not re-resolved on edit: no new activity, and the
 	// original recipients stay recorded. Links are: the previews follow
-	// the text.
+	// the text, and land with it.
 	var linksToFetch []string
-	if s.unfurler != nil {
-		if linksToFetch, err = s.recordLinks(ctx, s.q, row.ID, extractLinks(content)); err != nil {
-			return nil, fmt.Errorf("record links: %w", err)
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content}); err != nil {
+			return fmt.Errorf("edit message: %w", err)
 		}
-	}
-	out, err := s.loadMessage(ctx, row, spaceOf(channel))
+		if s.unfurler != nil {
+			if linksToFetch, err = s.recordLinks(ctx, qtx, msg.ID, extractLinks(content)); err != nil {
+				return fmt.Errorf("record links: %w", err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
-		Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
-	}))
+	// The edit is saved: a failed reload answers with no message and
+	// sends no event, rather than reporting the save as failed.
+	out, err := s.loadMessage(ctx, msg.ID, spaceOf(channel))
+	if err != nil {
+		slog.Default().Warn("edit: could not reload message", "message_id", msg.ID, "err", err)
+	} else {
+		s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
+		}))
+	}
 	if s.unfurler != nil {
-		s.unfurlLater(row.ID, msg.AuthorID, channel.ID, linksToFetch)
+		s.unfurlLater(msg.ID, msg.AuthorID, channel.ID, linksToFetch)
 	}
 	return connect.NewResponse(&chatv1.EditMessageResponse{Message: out}), nil
 }
@@ -469,17 +457,13 @@ func (s *Service) firstAttachmentName(ctx context.Context, messageID string) str
 	return records[ids[0]].label()
 }
 
-func toProtoMessage(m messageRow, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
-	author := authors[m.AuthorID]
-	if author == nil {
-		author = &chatv1.MessageAuthor{Id: m.AuthorID, Username: "unknown"}
-	}
+func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
 	out := &chatv1.Message{
-		Id: m.ID, ChannelId: m.ChannelID, Author: author,
-		Content: m.Content, CreatedAt: timestamppb.New(m.CreatedAt),
+		Id: row.ID, ChannelId: row.ChannelID, Author: authorOrUnknown(authors, row.AuthorID),
+		Content: row.Content, CreatedAt: timestamppb.New(row.CreatedAt),
 		MentionUserIds: mentions, SpaceId: spaceID,
-		MentionsEveryone: m.MentionsEveryone, MentionsHere: m.MentionsHere,
+		MentionsEveryone: row.MentionsEveryone, MentionsHere: row.MentionsHere,
 	}
-	out.EditedAt = pbtime.OrNil(m.EditedAt)
+	out.EditedAt = pbtime.OrNil(row.EditedAt)
 	return out
 }

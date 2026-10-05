@@ -11,7 +11,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/jobs"
 )
@@ -25,15 +24,11 @@ const schedulingAllowance = 2 * time.Second
 func newShutdownApp(t *testing.T, listenAddr string) (*App, *pgxpool.Pool) {
 	t.Helper()
 	databaseURL := dbtest.NewURL(t)
-	t.Setenv("STOOP_DATABASE_URL", databaseURL)
-	t.Setenv("STOOP_STORAGE_DIR", t.TempDir())
-	t.Setenv("STOOP_LISTEN_ADDR", listenAddr)
-	t.Setenv("STOOP_JOBS_POLL", "100ms")
-	t.Setenv("STOOP_AUTH_RATE_LIMIT", "0")
-	cfg, err := config.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
+	cfg := LoadTestConfig(t, databaseURL,
+		"STOOP_LISTEN_ADDR", listenAddr,
+		"STOOP_JOBS_POLL", "100ms",
+		"STOOP_AUTH_RATE_LIMIT", "0",
+	)
 	application, err := New(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)

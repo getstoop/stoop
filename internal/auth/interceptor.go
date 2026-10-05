@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -17,8 +18,18 @@ import (
 func (s *Service) NewInterceptor() connect.UnaryInterceptorFunc {
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			rule, known := s.rule(req.Spec().Procedure)
+			procedure := req.Spec().Procedure
+			rule, known := s.rule(procedure)
 			identity, err := s.VerifyToken(ctx, TokenFromHeader(req.Header()))
+			if err != nil && !errors.Is(err, authctx.ErrNoSession) {
+				// The check failed, so who is calling is unknown: neither
+				// signed out nor anonymous. A caller that hung up is not news.
+				if ctx.Err() == nil {
+					slog.Error("verify credential", "procedure", procedure, "err", err)
+				}
+				return nil, connect.NewError(connect.CodeUnavailable,
+					errors.New("the server can't check your sign-in right now; try again in a moment"))
+			}
 			if rule.Public {
 				// Public procedures don't require a session, but they may
 				// behave differently with one (e.g. an admin creating an

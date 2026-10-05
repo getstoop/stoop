@@ -44,3 +44,9 @@ func TestDispatchJobsIsHandled(t *testing.T) {
 		t.Errorf("usage does not list jobs:\n%s", usage)
 	}
 }
+
+// bufferedStreams returns streams that write into the two buffers.
+func bufferedStreams() (streams, *bytes.Buffer, *bytes.Buffer) {
+	var out, errOut bytes.Buffer
+	return streams{out: &out, errOut: &errOut}, &out, &errOut
+}
