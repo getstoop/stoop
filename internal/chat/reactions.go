@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 	"github.com/rivo/uniseg"
@@ -64,9 +65,12 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 		}
 	}
 
+	// The toggle is saved: a failed reload answers with no message and
+	// sends no event, rather than reporting the save as failed.
 	out, err := s.loadMessage(ctx, msg.ID, spaceOf(channel))
 	if err != nil {
-		return nil, err
+		slog.Default().Warn("reaction: could not reload message", "message_id", msg.ID, "err", err)
+		return connect.NewResponse(&chatv1.ToggleReactionResponse{}), nil
 	}
 	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ReactionsChanged{
