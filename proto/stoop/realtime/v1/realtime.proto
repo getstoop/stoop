@@ -131,14 +131,14 @@ message CredentialRevoked {
 message Ready {
   string user_id = 1;
   repeated string space_ids = 2;
-  // Users currently online who share at least one space with the caller
-  // (including the caller). Kept current by PresenceChanged.
-  repeated string online_user_ids = 3;
+  reserved 3;
+  reserved "online_user_ids";
   // Everyone currently in a voice channel of the caller's spaces. Kept
   // current by VoiceStateChanged.
   repeated VoiceParticipant voice_participants = 4;
-  // The same users as online_user_ids, with whether each is on do not
-  // disturb. Kept current by PresenceChanged.
+  // Users currently online who share at least one space with the caller
+  // (including the caller), with whether each is on do not disturb. Kept
+  // current by PresenceChanged.
   repeated UserPresence presences = 5;
 }
 

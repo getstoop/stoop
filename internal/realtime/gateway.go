@@ -214,7 +214,6 @@ func (g *Gateway) ready(userID string, spaceIDs []string) *realtimev1.ServerEven
 		Payload: &realtimev1.ServerEvent_Ready{
 			Ready: &realtimev1.Ready{
 				UserId: userID, SpaceIds: spaceIDs,
-				OnlineUserIds:     g.presence.onlineIn(spaceIDs),
 				Presences:         g.presence.presencesIn(spaceIDs),
 				VoiceParticipants: g.voice.participantsIn(spaceIDs),
 			},
