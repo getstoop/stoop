@@ -68,6 +68,14 @@ SET state = 'queued', leased_until = NULL, finished_at = sqlc.arg(now)::timestam
     error = sqlc.arg(error), counters = sqlc.narg(counters), not_before = sqlc.arg(not_before)::timestamptz
 WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt);
 
+-- HandBackJob requeues an attempt that did no work and gives back the
+-- attempt its lease counted.
+-- name: HandBackJob :execrows
+UPDATE jobs
+SET state = 'queued', leased_until = NULL, attempt = attempt - 1, finished_at = sqlc.arg(now)::timestamptz,
+    error = sqlc.arg(error), counters = sqlc.narg(counters), not_before = sqlc.arg(not_before)::timestamptz
+WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt);
+
 -- ExtendJobLease never moves a deadline earlier: a renewal keeps an
 -- Extend the performer asked for.
 -- name: ExtendJobLease :execrows

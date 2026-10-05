@@ -120,6 +120,12 @@ func (s *Service) writeOutcome(ctx context.Context, row dbgen.Job, job *Job, opt
 		changed, writeErr = s.queries.FinishJob(ctx, dbgen.FinishJobParams{
 			State: string(StateSucceeded), Now: now, Error: "", Counters: counters, ID: row.ID, Attempt: row.Attempt,
 		})
+	case handBack(err, now.Sub(row.CreatedAt)):
+		s.log.Warn("job handed back", "kind", row.Kind, "id", row.ID, "attempt", row.Attempt, "err", err)
+		changed, writeErr = s.queries.HandBackJob(ctx, dbgen.HandBackJobParams{
+			Now: now, Error: err.Error(), Counters: counters,
+			NotBefore: now.Add(handBackWait(now.Sub(row.CreatedAt), opts.Backoff)), ID: row.ID, Attempt: row.Attempt,
+		})
 	case isDiscard(err) || row.Attempt >= row.MaxAttempts:
 		s.log.Warn("job attempt failed", "kind", row.Kind, "id", row.ID, "attempt", row.Attempt, "err", err)
 		changed, writeErr = s.queries.FinishJob(ctx, dbgen.FinishJobParams{

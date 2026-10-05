@@ -153,7 +153,9 @@ The body is `{id, type, ts, instance, space: {id, name}, data}` with
 HMAC-SHA256 with the secret over `<t>.<body>`.
 
 Attempts run at 0 s, 5 s, 30 s and 2 min, the jobs module's default
-ladder, then the delivery is dead. Any 2xx acks. `410 Gone` disables the hook. `429` honours
+ladder, then the delivery is dead. A try that can't read the hook or
+the outgoing switch sends nothing and spends no attempt (`NotSent`, handed
+back to the jobs module). Any 2xx acks. `410 Gone` disables the hook. `429` honours
 `Retry-After` up to the ladder's end. A 3xx is a failure and is never
 followed. Twenty consecutive dead deliveries disable the hook with a
 reason. A dead item keeps its body and can be sent again from the log;

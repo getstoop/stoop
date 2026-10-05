@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -953,5 +954,35 @@ func TestSweepLostDeliveries(t *testing.T) {
 	job := f.jobs.pop(t)
 	if job.args.DeliveryID != again.Msg.Delivery.Id || string(job.args.Body) != `{"id":"`+discarded+`"}` || job.args.Sequence != 2 {
 		t.Errorf("sent again as %+v", job)
+	}
+}
+
+// A failure before the POST is NotSent, so the dispatcher gives the try
+// back; one after it is an ordinary failure.
+func TestDeliveryLookupFailuresAreNotSent(t *testing.T) {
+	f, endpoint := outgoingFixture(t)
+	f.createOutgoing(t, endpoint.srv.URL, []string{"message.created"}, "")
+	f.enqueueMessage(t, "hello")
+	job := f.jobs.pop(t)
+
+	f.policy.failOutgoing = errors.New("settings unreadable")
+	if _, err := f.svc.DeliverWebhook(context.Background(), job.args, 1, testMaxAttempts); err == nil || !NotSent(err) {
+		t.Errorf("an unreadable outgoing switch: %v, NotSent=%v", err, NotSent(err))
+	}
+	f.policy.failOutgoing = nil
+
+	unreadable := job.args
+	unreadable.HookID = "not-a-uuid"
+	if _, err := f.svc.DeliverWebhook(context.Background(), unreadable, 1, testMaxAttempts); err == nil || !NotSent(err) {
+		t.Errorf("an unreadable hook: %v, NotSent=%v", err, NotSent(err))
+	}
+	if len(endpoint.deliveries()) != 0 {
+		t.Errorf("the receiver heard %d posts", len(endpoint.deliveries()))
+	}
+	if NotSent(errors.New("insert failed")) {
+		t.Error("a plain error read as NotSent")
+	}
+	if result := f.deliver(t, job, 1); !result.Delivered {
+		t.Errorf("delivery once the reads work: %+v", result)
 	}
 }

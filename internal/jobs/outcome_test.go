@@ -76,3 +76,46 @@ func TestWrappedErrorsStillMatch(t *testing.T) {
 		t.Error("isDiscard mis-sorted")
 	}
 }
+
+func TestNotAttemptedGivesTheAttemptBack(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	service, registry := newTestService(pool, clock, testConfig())
+	boom := errors.New("lookup failed")
+	Register(registry, "hands-back", func(context.Context, *Job, NoArgs) error { return NotAttempted(boom) }, Options{MaxAttempts: 1})
+	id := mustEnqueue(t, service, "hands-back", nil)
+	startDispatcher(t, service)
+
+	// Past MaxAttempts, still queued: each hand-back returns the attempt,
+	// and the wait grows with the job's age.
+	for round, age := range []time.Duration{0, 6 * time.Second, 12 * time.Second} {
+		row := waitForState(t, pool, id, StateQueued, 0)
+		waitFor(t, "a hand-back", func() bool {
+			row = readJob(t, pool, id)
+			return row.StartedAt != nil && row.StartedAt.Equal(clock.Now()) && row.State == string(StateQueued)
+		})
+		if row.Attempt != 0 || row.Error != "lookup failed" {
+			t.Fatalf("round %d: attempt %d error %q", round, row.Attempt, row.Error)
+		}
+		if want := clock.Now().Add(max(age, 5*time.Second)); !row.NotBefore.Equal(want) {
+			t.Errorf("round %d: not_before = %v, want %v", round, row.NotBefore, want)
+		}
+		clock.Advance(6 * time.Second)
+	}
+
+	// Past the window a hand-back counts, so the job ends.
+	clock.Advance(handBackWindow)
+	waitForState(t, pool, id, StateDiscarded, 1)
+}
+
+func TestHandBackWaitStaysOnTheLadder(t *testing.T) {
+	ladder := []time.Duration{5 * time.Second, 2 * time.Minute}
+	for age, want := range map[time.Duration]time.Duration{0: 5 * time.Second, 40 * time.Second: 40 * time.Second, time.Hour: 2 * time.Minute} {
+		if got := handBackWait(age, ladder); got != want {
+			t.Errorf("age %v: wait %v, want %v", age, got, want)
+		}
+	}
+	if handBack(Discard(NotAttempted(errors.New("x"))), 0) || !handBack(NotAttempted(errors.New("x")), 0) {
+		t.Error("handBack mis-sorted")
+	}
+}

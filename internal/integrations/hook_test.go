@@ -286,10 +286,16 @@ func (p *fakePoster) Post(ctx context.Context, req PostRequest) (string, error) 
 	return uuid.NewString(), nil
 }
 
-type fakePolicy struct{ incoming, outgoing, private bool }
+type fakePolicy struct {
+	incoming, outgoing, private bool
+	// failOutgoing, when set, is what reading the outgoing switch returns.
+	failOutgoing error
+}
 
 func (p *fakePolicy) WebhooksIncoming(context.Context) (bool, error) { return p.incoming, nil }
-func (p *fakePolicy) WebhooksOutgoing(context.Context) (bool, error) { return p.outgoing, nil }
+func (p *fakePolicy) WebhooksOutgoing(context.Context) (bool, error) {
+	return p.outgoing, p.failOutgoing
+}
 func (p *fakePolicy) WebhooksAllowPrivateTargets(context.Context) (bool, error) {
 	return p.private, nil
 }

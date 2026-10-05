@@ -186,6 +186,39 @@ func (q *Queries) GetJobs(ctx context.Context, ids []string) ([]Job, error) {
 	return items, nil
 }
 
+const handBackJob = `-- name: HandBackJob :execrows
+UPDATE jobs
+SET state = 'queued', leased_until = NULL, attempt = attempt - 1, finished_at = $1::timestamptz,
+    error = $2, counters = $3, not_before = $4::timestamptz
+WHERE id = $5 AND attempt = $6
+`
+
+type HandBackJobParams struct {
+	Now       time.Time
+	Error     string
+	Counters  []byte
+	NotBefore time.Time
+	ID        string
+	Attempt   int32
+}
+
+// HandBackJob requeues an attempt that did no work and gives back the
+// attempt its lease counted.
+func (q *Queries) HandBackJob(ctx context.Context, arg HandBackJobParams) (int64, error) {
+	result, err := q.db.Exec(ctx, handBackJob,
+		arg.Now,
+		arg.Error,
+		arg.Counters,
+		arg.NotBefore,
+		arg.ID,
+		arg.Attempt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertJob = `-- name: InsertJob :exec
 
 WITH inserted AS (
