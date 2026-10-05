@@ -6,6 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 )
 
@@ -18,9 +19,7 @@ func callerContext(role authctx.Role, credential authctx.Credential) context.Con
 func TestRequireActionRoleDoesNotHold(t *testing.T) {
 	ctx := callerContext(authctx.RoleMember, authctx.Credential{})
 	err := RequireAction(ctx, authctx.InstanceUsersManage)
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("code = %v, want permission denied", connect.CodeOf(err))
-	}
+	apierrtest.RequireCode(t, err, connect.CodePermissionDenied, "RequireAction")
 	if got := err.(*connect.Error).Message(); got != "instance admin role required" {
 		t.Errorf("message = %q", got)
 	}
@@ -30,9 +29,7 @@ func TestRequireActionCredentialDoesNotCover(t *testing.T) {
 	credential := authctx.Credential{Grants: []authctx.Action{authctx.InstanceRead}}
 	ctx := callerContext(authctx.RoleAdmin, credential)
 	err := RequireAction(ctx, authctx.InstanceUsersManage)
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("code = %v, want permission denied", connect.CodeOf(err))
-	}
+	apierrtest.RequireCode(t, err, connect.CodePermissionDenied, "RequireAction")
 	want := authctx.Refusal(ctx, authctx.InstanceUsersManage).Error()
 	if got := err.(*connect.Error).Message(); got != want {
 		t.Errorf("message = %q, want %q", got, want)

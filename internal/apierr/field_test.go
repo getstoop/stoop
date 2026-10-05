@@ -7,13 +7,12 @@ import (
 	"connectrpc.com/connect"
 
 	commonv1 "github.com/getstoop/stoop/gen/stoop/common/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 )
 
 func TestFieldKeepsTheSentenceAndNamesTheField(t *testing.T) {
 	err := Field(connect.CodeInvalidArgument, "name", errors.New("name is too long"))
-	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
-		t.Fatalf("code = %v", got)
-	}
+	apierrtest.RequireCode(t, err, connect.CodeInvalidArgument, "Field")
 	if got := err.Message(); got != "name is too long" {
 		t.Fatalf("message = %q", got)
 	}
@@ -25,8 +24,8 @@ func TestFieldKeepsTheSentenceAndNamesTheField(t *testing.T) {
 	if derr != nil {
 		t.Fatal(derr)
 	}
-	v, ok := msg.(*commonv1.FieldViolation)
-	if !ok || v.Field != "name" {
+	violation, ok := msg.(*commonv1.FieldViolation)
+	if !ok || violation.Field != "name" {
 		t.Fatalf("detail = %v", msg)
 	}
 }

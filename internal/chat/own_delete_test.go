@@ -9,17 +9,13 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 // Deleting your own message is a posting action in that channel's kind:
 // a token granted only dms.post can't delete in a space, nor the other
 // way round.
 func TestOwnDeleteNeedsTheChannelsPostAction(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
 	bobID, _ := authctx.From(bob)

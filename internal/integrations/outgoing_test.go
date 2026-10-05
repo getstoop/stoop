@@ -25,6 +25,7 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	integrationsv1 "github.com/getstoop/stoop/gen/stoop/integrations/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
@@ -527,9 +528,8 @@ func TestOutgoingRetriesAndDeadLetters(t *testing.T) {
 	if !f.bodyKept(t, dead.Id) {
 		t.Error("a dead delivery lost its body")
 	}
-	if _, err := f.svc.RedeliverDelivery(f.admin, connect.NewRequest(&integrationsv1.RedeliverDeliveryRequest{DeliveryId: logged[1].Id})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("redelivering a success: %v", err)
-	}
+	_, err := f.svc.RedeliverDelivery(f.admin, connect.NewRequest(&integrationsv1.RedeliverDeliveryRequest{DeliveryId: logged[1].Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "redelivering a success")
 	again, err := f.svc.RedeliverDelivery(f.admin, connect.NewRequest(&integrationsv1.RedeliverDeliveryRequest{DeliveryId: dead.Id}))
 	if err != nil {
 		t.Fatal(err)
@@ -594,9 +594,8 @@ func TestOutgoingRetriesAndDeadLetters(t *testing.T) {
 	if results := f.drain(t); len(results) != 1 || !results[0].Dead || results[0].Error != "webhook is disabled" {
 		t.Errorf("results for a disabled hook = %+v", results)
 	}
-	if _, err := f.svc.TestWebhook(f.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("test on a disabled hook: %v", err)
-	}
+	_, err = f.svc.TestWebhook(f.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "test on a disabled hook")
 }
 
 func TestOutgoingTargetsAndAuthorisation(t *testing.T) {
@@ -607,15 +606,12 @@ func TestOutgoingTargetsAndAuthorisation(t *testing.T) {
 			t.Errorf("accepted %q", bad)
 		}
 	}
-	if _, err := f.svc.CreateOutgoing(f.admin, connect.NewRequest(&integrationsv1.CreateOutgoingRequest{SpaceId: f.space, Name: "x", Url: endpoint.srv.URL, EventTypes: []string{EventMessageCreated}})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("a loopback target under the default policy: %v", err)
-	}
-	if _, err := f.svc.CreateOutgoing(f.admin, connect.NewRequest(&integrationsv1.CreateOutgoingRequest{SpaceId: f.space, Name: "x", Url: "https://example.com/hook", EventTypes: []string{"typing"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("unknown event type: %v", err)
-	}
-	if _, err := f.svc.CreateOutgoing(f.member, connect.NewRequest(&integrationsv1.CreateOutgoingRequest{SpaceId: f.space, Name: "x", Url: "https://example.com/hook", EventTypes: []string{EventMessageCreated}})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member created an outgoing hook: %v", err)
-	}
+	_, err := f.svc.CreateOutgoing(f.admin, connect.NewRequest(&integrationsv1.CreateOutgoingRequest{SpaceId: f.space, Name: "x", Url: endpoint.srv.URL, EventTypes: []string{EventMessageCreated}}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "a loopback target under the default policy")
+	_, err = f.svc.CreateOutgoing(f.admin, connect.NewRequest(&integrationsv1.CreateOutgoingRequest{SpaceId: f.space, Name: "x", Url: "https://example.com/hook", EventTypes: []string{"typing"}}))
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "unknown event type")
+	_, err = f.svc.CreateOutgoing(f.member, connect.NewRequest(&integrationsv1.CreateOutgoingRequest{SpaceId: f.space, Name: "x", Url: "https://example.com/hook", EventTypes: []string{EventMessageCreated}}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member created an outgoing hook")
 	f.policy.private = true
 	hook, secret := f.createOutgoing(t, endpoint.srv.URL+"/hook", []string{EventMessageCreated}, "")
 
@@ -650,9 +646,8 @@ func TestOutgoingTargetsAndAuthorisation(t *testing.T) {
 	if f.jobs.pending() != 1 {
 		t.Errorf("queued with outgoing off: %d jobs", f.jobs.pending())
 	}
-	if _, err := f.svc.TestWebhook(f.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id})); connect.CodeOf(err) != connect.CodeUnavailable {
-		t.Errorf("test with outgoing off: %v", err)
-	}
+	_, err = f.svc.TestWebhook(f.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeUnavailable, "test with outgoing off")
 	if results := f.drain(t); len(results) != 1 || !results[0].Dead || results[0].Error != reasonOff {
 		t.Errorf("results with outgoing off = %+v", results)
 	}
@@ -687,12 +682,10 @@ func TestOutgoingTargetsAndAuthorisation(t *testing.T) {
 		t.Fatalf("test delivery: %+v", tested)
 	}
 	verify(t, rot.Msg.Secret, tested[0])
-	if _, err := f.svc.RotateSecret(f.member, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: hook.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member rotated: %v", err)
-	}
-	if _, err := f.svc.ListDeliveries(f.member, connect.NewRequest(&integrationsv1.ListDeliveriesRequest{WebhookId: hook.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member read the log: %v", err)
-	}
+	_, err = f.svc.RotateSecret(f.member, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: hook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member rotated")
+	_, err = f.svc.ListDeliveries(f.member, connect.NewRequest(&integrationsv1.ListDeliveriesRequest{WebhookId: hook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member read the log")
 
 	// Deleting the hook discards its lane; the log rows cascade.
 	f.enqueueMessage(t, "never sent")
@@ -702,12 +695,10 @@ func TestOutgoingTargetsAndAuthorisation(t *testing.T) {
 	if len(f.jobs.discarded) != 1 || f.jobs.discarded[0] != hook.Id || f.jobs.pending() != 0 {
 		t.Errorf("after delete: discarded %v, %d queued", f.jobs.discarded, f.jobs.pending())
 	}
-	if _, err := f.svc.outgoingHook(context.Background(), hook.Id); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("hook after delete: %v", err)
-	}
-	if _, err := f.svc.ListDeliveries(f.admin, connect.NewRequest(&integrationsv1.ListDeliveriesRequest{WebhookId: hook.Id})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("log after delete: %v", err)
-	}
+	_, err = f.svc.outgoingHook(context.Background(), hook.Id)
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "hook after delete")
+	_, err = f.svc.ListDeliveries(f.admin, connect.NewRequest(&integrationsv1.ListDeliveriesRequest{WebhookId: hook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "log after delete")
 }
 
 func TestOutgoingTwentyDeadInARowDisable(t *testing.T) {
@@ -829,9 +820,7 @@ func TestDeliverWebhookWithoutAHook(t *testing.T) {
 func TestDeleteWebhookWithAMalformedIDIsNotFound(t *testing.T) {
 	f, _ := outgoingFixture(t)
 	_, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: "nope"}))
-	if connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("delete nope: %v", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "delete nope")
 }
 
 func TestTestWebhookReturnsTheTestDelivery(t *testing.T) {
@@ -855,12 +844,10 @@ func TestDeliveriesRefusedUntilWired(t *testing.T) {
 	f.policy.private = true
 	endpoint := newReceiver(t)
 	hook, _ := f.createOutgoing(t, endpoint.srv.URL, []string{EventMessageCreated}, "")
-	if _, err := f.svc.TestWebhook(f.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id})); connect.CodeOf(err) != connect.CodeUnavailable {
-		t.Errorf("test without the port: %v", err)
-	}
-	if _, err := f.svc.RedeliverDelivery(f.admin, connect.NewRequest(&integrationsv1.RedeliverDeliveryRequest{DeliveryId: rowid.New()})); connect.CodeOf(err) != connect.CodeUnavailable {
-		t.Errorf("redeliver without the port: %v", err)
-	}
+	_, err := f.svc.TestWebhook(f.admin, connect.NewRequest(&integrationsv1.TestWebhookRequest{Id: hook.Id}))
+	apierrtest.ExpectCode(t, err, connect.CodeUnavailable, "test without the port")
+	_, err = f.svc.RedeliverDelivery(f.admin, connect.NewRequest(&integrationsv1.RedeliverDeliveryRequest{DeliveryId: rowid.New()}))
+	apierrtest.ExpectCode(t, err, connect.CodeUnavailable, "redeliver without the port")
 	out, _ := f.svc.translate(context.Background(), message(f.channel, f.space, "nowhere to go"))
 	if err := f.svc.enqueue(context.Background(), out); err != nil {
 		t.Fatal(err)

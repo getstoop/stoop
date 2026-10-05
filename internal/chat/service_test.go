@@ -2,12 +2,10 @@ package chat_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -16,55 +14,6 @@ import (
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 )
-
-type noDirectory struct{}
-
-func (noDirectory) GetUsers(context.Context, []string) ([]chat.UserRecord, error) { return nil, nil }
-
-// dbDirectory reads users straight from the table, as the auth-backed
-// adapter in internal/app would.
-type dbDirectory struct{ pool *pgxpool.Pool }
-
-func (d dbDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserRecord, error) {
-	rows, err := d.pool.Query(ctx,
-		`SELECT id, username, COALESCE(display_name, ''), role, deleted_at IS NOT NULL
-		 FROM users WHERE id = ANY($1::uuid[])`, ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []chat.UserRecord
-	for rows.Next() {
-		var r chat.UserRecord
-		var role string
-		if err := rows.Scan(&r.ID, &r.Username, &r.DisplayName, &role, &r.Deleted); err != nil {
-			return nil, err
-		}
-		r.InstanceAdmin = role == "admin"
-		out = append(out, r)
-	}
-	return out, rows.Err()
-}
-
-// newUser inserts a user row directly; chat may not import auth.
-func newUser(t *testing.T, pool *pgxpool.Pool, name string, role authctx.Role) context.Context {
-	t.Helper()
-	id := uuid.NewString()
-	_, err := pool.Exec(context.Background(),
-		`INSERT INTO users (id, username, password_hash, role) VALUES ($1, $2, '', $3)`, id, name, string(role))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return authctx.WithIdentity(context.Background(), authctx.Identity{UserID: id, Role: role})
-}
-
-func code(err error) connect.Code {
-	var cerr *connect.Error
-	if errors.As(err, &cerr) {
-		return cerr.Code()
-	}
-	return 0
-}
 
 func TestPermissionsEnforced(t *testing.T) {
 	pool := dbtest.New(t)
@@ -193,16 +142,15 @@ func memberRole(t *testing.T, pool *pgxpool.Pool, spaceID string, ctx context.Co
 }
 
 func TestInviteRoles(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	admin := newUser(t, pool, "admin", authctx.RoleMember)
 	member := newUser(t, pool, "member", authctx.RoleMember)
 	operator := newUser(t, pool, "operator", authctx.RoleAdmin)
 	joiners := make([]context.Context, 0)
-	for i := range 6 {
-		joiners = append(joiners, newUser(t, pool, fmt.Sprintf("joiner%d", i), authctx.RoleMember))
+	for index := range 6 {
+		joiners = append(joiners, newUser(t, pool, fmt.Sprintf("joiner%d", index), authctx.RoleMember))
 	}
 
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -241,8 +189,8 @@ func TestInviteRoles(t *testing.T) {
 	if got := join(admin, adminInv); got.MyRole != chatv1.SpaceRole_SPACE_ROLE_ADMIN {
 		t.Errorf("admin joiner my_role = %v, want admin", got.MyRole)
 	}
-	if r := memberRole(t, pool, spaceID, admin); r != "admin" {
-		t.Errorf("admin joiner stored role = %q", r)
+	if role := memberRole(t, pool, spaceID, admin); role != "admin" {
+		t.Errorf("admin joiner stored role = %q", role)
 	}
 
 	// Default (unspecified) grants member.
@@ -312,8 +260,7 @@ func TestInviteRoles(t *testing.T) {
 }
 
 func TestGetMember(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleAdmin) // also the operator
 	member := newUser(t, pool, "member", authctx.RoleMember)
 	outsider := newUser(t, pool, "outsider", authctx.RoleMember)
@@ -333,9 +280,9 @@ func TestGetMember(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := res.Msg.Member
-	if m.Username != "owner" || m.Role != chatv1.SpaceRole_SPACE_ROLE_OWNER || !m.InstanceAdmin || m.JoinedAt == nil {
-		t.Errorf("owner as seen by member = %+v", m)
+	seen := res.Msg.Member
+	if seen.Username != "owner" || seen.Role != chatv1.SpaceRole_SPACE_ROLE_OWNER || !seen.InstanceAdmin || seen.JoinedAt == nil {
+		t.Errorf("owner as seen by member = %+v", seen)
 	}
 	// The owner looks up the member.
 	res, err = svc.GetMember(owner, connect.NewRequest(&chatv1.GetMemberRequest{SpaceId: spaceID, UserId: authctx.UserID(member)}))

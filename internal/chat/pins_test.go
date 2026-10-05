@@ -8,15 +8,10 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func TestPins(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	outsider := newUser(t, pool, "outsider", authctx.RoleMember)
@@ -99,8 +94,8 @@ func TestPins(t *testing.T) {
 		t.Errorf("second pin changed the pin: %+v", again.Pin)
 	}
 	select {
-	case e := <-sub.Events():
-		t.Errorf("second pin broadcast %T", e.Payload)
+	case event := <-sub.Events():
+		t.Errorf("second pin broadcast %T", event.Payload)
 	default:
 	}
 
@@ -131,10 +126,10 @@ func TestPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, m := range msgs.Msg.Messages {
-		want := m.Id == rules || m.Id == address
-		if m.Pinned != want {
-			t.Errorf("message %q pinned=%v, want %v", m.Content, m.Pinned, want)
+	for _, message := range msgs.Msg.Messages {
+		want := message.Id == rules || message.Id == address
+		if message.Pinned != want {
+			t.Errorf("message %q pinned=%v, want %v", message.Content, message.Pinned, want)
 		}
 	}
 
@@ -170,8 +165,7 @@ func TestPins(t *testing.T) {
 const pinCap = 50
 
 func TestPinCap(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	sp, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	channelID := sp.Msg.DefaultChannel.Id
@@ -183,7 +177,7 @@ func TestPinCap(t *testing.T) {
 		return err
 	}
 	var last string
-	for i := 0; i <= pinCap; i++ {
+	for index := 0; index <= pinCap; index++ {
 		res, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{
 			ChannelId: channelID, Content: "keep me",
 		}))
@@ -191,11 +185,11 @@ func TestPinCap(t *testing.T) {
 			t.Fatal(err)
 		}
 		last = res.Msg.Message.Id
-		if i == pinCap {
+		if index == pinCap {
 			break
 		}
 		if err := pin(last); err != nil {
-			t.Fatalf("pin %d: %v", i, err)
+			t.Fatalf("pin %d: %v", index, err)
 		}
 	}
 	// The one past the cap is refused, and nothing fell off to make room.
@@ -214,8 +208,7 @@ func TestPinCap(t *testing.T) {
 }
 
 func TestPinsAreNotForDMs(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	sp, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
@@ -244,8 +237,8 @@ func TestPinsAreNotForDMs(t *testing.T) {
 
 func pinIDs(pins []*chatv1.PinnedMessage) []string {
 	out := make([]string, len(pins))
-	for i, p := range pins {
-		out[i] = p.Message.Id
+	for index, pin := range pins {
+		out[index] = pin.Message.Id
 	}
 	return out
 }

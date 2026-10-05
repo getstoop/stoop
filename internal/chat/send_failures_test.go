@@ -10,7 +10,6 @@ import (
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -41,9 +40,7 @@ func messageCount(t *testing.T, pool *pgxpool.Pool, channelID string) int {
 // events.
 func mentionSpace(t *testing.T) (*pgxpool.Pool, *chat.Service, context.Context, string, *events.Subscription) {
 	t.Helper()
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	ada := newUser(t, pool, "ada", authctx.RoleMember)
 	created, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))

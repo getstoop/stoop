@@ -8,17 +8,13 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 )
 
 // One message alerting several people: each gets their own mute stamp,
 // a blocker gets nothing, and the preview falls back to the attachment.
 func TestActivityForSeveralRecipients(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	svc.UseFiles(&dbFiles{pool: pool})
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	ada := newUser(t, pool, "ada", authctx.RoleMember)
@@ -108,9 +104,7 @@ func TestActivityForSeveralRecipients(t *testing.T) {
 // one who has read the entry gets a new one, one who hasn't gets theirs
 // refreshed, and both are told live.
 func TestGroupDirectMessageActivityPerParticipant(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
 	ada := newUser(t, pool, "ada", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)

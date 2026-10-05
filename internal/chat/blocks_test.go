@@ -8,15 +8,10 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func TestBlocks(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
 	aliceID, bobID := authctx.UserID(alice), authctx.UserID(bob)
@@ -85,9 +80,7 @@ func TestBlocks(t *testing.T) {
 // rail keeps a badge the person cannot clear: the conversation is hidden
 // from their list, so there is nothing left to open and mark read.
 func TestBlockClearsTheirActivity(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	alice := newUser(t, pool, "alice", authctx.RoleMember)
 	bob := newUser(t, pool, "bob", authctx.RoleMember)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
@@ -122,8 +115,8 @@ func TestBlockClearsTheirActivity(t *testing.T) {
 	})); err != nil {
 		t.Fatal(err)
 	}
-	if n := unread(alice); n != 2 {
-		t.Fatalf("alice's unread before the block: got %d, want 2", n)
+	if count := unread(alice); count != 2 {
+		t.Fatalf("alice's unread before the block: got %d, want 2", count)
 	}
 
 	if _, err := svc.BlockUser(alice, connect.NewRequest(&chatv1.BlockUserRequest{UserId: bobID})); err != nil {
@@ -132,8 +125,8 @@ func TestBlockClearsTheirActivity(t *testing.T) {
 
 	// Both go: bob's own alert because he caused it, and casey's because
 	// it points at a conversation bob is in, which alice can no longer see.
-	if n := unread(alice); n != 0 {
-		t.Errorf("alice's unread after blocking bob: got %d, want 0", n)
+	if count := unread(alice); count != 0 {
+		t.Errorf("alice's unread after blocking bob: got %d, want 0", count)
 	}
 	listed, err := svc.ListActivity(alice, connect.NewRequest(&chatv1.ListActivityRequest{}))
 	if err != nil {
@@ -145,8 +138,8 @@ func TestBlockClearsTheirActivity(t *testing.T) {
 
 	// Nobody else's feed is touched, and casey — who blocked no one — keeps
 	// the conversation.
-	if n := unread(casey); n != 0 {
-		t.Errorf("casey has alerts he should not: %d", n)
+	if count := unread(casey); count != 0 {
+		t.Errorf("casey has alerts he should not: %d", count)
 	}
 	casesDMs, err := svc.ListDirectMessages(casey, connect.NewRequest(&chatv1.ListDirectMessagesRequest{}))
 	if err != nil {

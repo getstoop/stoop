@@ -9,7 +9,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,12 +17,11 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
-	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/files"
 )
@@ -135,97 +133,18 @@ func (f *fakeSpaces) ChannelSpaceToPostIn(_ context.Context, userID, channelID s
 
 type fakeSessions struct{ users map[string]authctx.Identity }
 
-func (f *fakeSessions) VerifyRequest(_ context.Context, h http.Header) (authctx.Identity, error) {
-	if id, ok := f.users[h.Get("X-Test-User")]; ok {
+func (f *fakeSessions) VerifyRequest(_ context.Context, header http.Header) (authctx.Identity, error) {
+	if id, ok := f.users[header.Get("X-Test-User")]; ok {
 		return id, nil
 	}
 	return authctx.Identity{}, errors.New("no session")
 }
 
-type fixture struct {
-	svc     *files.Service
-	store   *blob.FS
-	pool    *pgxpool.Pool
-	owner   string // a member who manages the space
-	member  string
-	other   string // signed in, not a member
-	space   string
-	spaces  *fakeSpaces
-	avatars *fakeAvatars
-	sess    *fakeSessions
-	bus     *events.InProcBus
-	// queue records what the uploads enqueue; nil means none is wired.
-	queue *fakeJobQueue
-}
-
-func setup(t *testing.T) *fixture {
-	t.Helper()
-	pool := dbtest.New(t)
-	ctx := context.Background()
-	store, err := blob.NewFS(filepath.Join(t.TempDir(), "data"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	mk := func(name string) string {
-		id := uuid.NewString()
-		if _, err := pool.Exec(ctx, "INSERT INTO users (id, username, display_name, password_hash) VALUES ($1, $2, $3, 'x')", id, name, name); err != nil {
-			t.Fatal(err)
-		}
-		return id
-	}
-	f := &fixture{pool: pool, store: store, owner: mk("owner"), member: mk("member"), other: mk("other")}
-	f.space = uuid.NewString()
-	if _, err := pool.Exec(ctx, "INSERT INTO spaces (id, name, owner_id) VALUES ($1, 'S', $2)", f.space, f.owner); err != nil {
-		t.Fatal(err)
-	}
-	f.spaces = &fakeSpaces{
-		managers: map[string]bool{f.owner: true},
-		members:  map[string]bool{f.owner: true, f.member: true},
-		spaceID:  f.space,
-		// Any well-formed id: the fake doesn't consult the channels table.
-		channelID: uuid.NewString(),
-	}
-	f.sess = &fakeSessions{users: map[string]authctx.Identity{
-		"owner":  {UserID: f.owner, Role: authctx.RoleMember},
-		"member": {UserID: f.member, Role: authctx.RoleMember},
-		"other":  {UserID: f.other, Role: authctx.RoleMember},
-		"admin":  {UserID: f.other, Role: authctx.RoleAdmin},
-	}}
-	f.bus = events.NewInProcBus()
-	f.queue = &fakeJobQueue{}
-	f.avatars = &fakeAvatars{current: map[string]string{}}
-	f.svc = newService(f, f.avatars)
-	return f
-}
-
-func newService(f *fixture, avatars files.Avatars) *files.Service {
-	svc := files.New(f.pool, f.store, f.bus, avatars, f.spaces, f.sess,
-		slog.New(slog.NewTextHandler(io.Discard, nil)))
-	if f.queue != nil {
-		svc.UseJobs(f.queue)
-	}
-	return svc
-}
-
-// performImage runs the oldest queued normalise_image job against the
-// fixture's service, as the dispatcher would, and fails the test if it
-// fails.
-func (f *fixture) performImage(t *testing.T) {
-	t.Helper()
-	if err := f.queue.perform(t, f.svc, false); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func as(userID string) context.Context {
-	return authctx.WithIdentity(context.Background(), authctx.Identity{UserID: userID, Role: authctx.RoleMember})
-}
-
 func testImage(width, height int) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			img.Set(x, y, color.NRGBA{R: uint8(x), G: uint8(y), B: 128, A: 255})
+	for row := 0; row < height; row++ {
+		for column := 0; column < width; column++ {
+			img.Set(column, row, color.NRGBA{R: uint8(column), G: uint8(row), B: 128, A: 255})
 		}
 	}
 	return img
@@ -304,9 +223,8 @@ func expectServedPNG(t *testing.T, res *http.Response, size int) {
 func TestUploadAvatarRefusesBots(t *testing.T) {
 	f := setup(t)
 	ctx := authctx.WithIdentity(context.Background(), authctx.Identity{UserID: f.member, Role: authctx.RoleMember, Kind: authctx.KindBot})
-	if _, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 300, 200)})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("a bot set its own avatar: %v", err)
-	}
+	_, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 300, 200)}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "a bot set its own avatar")
 }
 
 func TestUploadBotAvatar(t *testing.T) {
@@ -319,15 +237,12 @@ func TestUploadBotAvatar(t *testing.T) {
 	defer adminDevices.Close()
 
 	// A member can't; an admin can't aim it at a person.
-	if _, err := svc.UploadBotAvatar(as(f.owner), connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("a member set a bot's avatar: %v", err)
-	}
-	if _, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.owner, Data: data})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("an admin set a person's avatar: %v", err)
-	}
-	if _, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: "not-an-id", Data: data})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("a junk id: %v", err)
-	}
+	_, err := svc.UploadBotAvatar(as(f.owner), connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data}))
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "a member set a bot's avatar")
+	_, err = svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.owner, Data: data}))
+	apierrtest.ExpectCode(t, err, connect.CodeFailedPrecondition, "an admin set a person's avatar")
+	_, err = svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: "not-an-id", Data: data}))
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "a junk id")
 
 	res, err := svc.UploadBotAvatar(admin, connect.NewRequest(&filesv1.UploadBotAvatarRequest{UserId: f.member, Data: data}))
 	if err != nil {
@@ -389,12 +304,12 @@ func TestUploadAvatarStoresAndReplaces(t *testing.T) {
 	if res := f.get(t, id1, "member"); res.StatusCode != http.StatusNotFound {
 		t.Errorf("old id after replace: %d", res.StatusCode)
 	}
-	var n int
-	if err := f.pool.QueryRow(context.Background(), "SELECT count(*) FROM files WHERE owner_id = $1", f.member).Scan(&n); err != nil {
+	var count int
+	if err := f.pool.QueryRow(context.Background(), "SELECT count(*) FROM files WHERE owner_id = $1", f.member).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if n != 1 {
-		t.Errorf("file rows for user = %d, want 1", n)
+	if count != 1 {
+		t.Errorf("file rows for user = %d, want 1", count)
 	}
 }
 
@@ -408,9 +323,7 @@ func TestUploadRejectsBadInput(t *testing.T) {
 	}
 	for name, data := range cases {
 		_, err := f.svc.UploadAvatar(ctx, connect.NewRequest(&filesv1.UploadAvatarRequest{Data: data}))
-		if connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("%s: want InvalidArgument, got %v", name, err)
-		}
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, name)
 	}
 	entries, _ := os.ReadDir(filepath.Join(f.store.Root(), "avatar"))
 	if len(entries) != 0 {
@@ -425,9 +338,7 @@ func TestSpaceIconAuthorisation(t *testing.T) {
 	f := setup(t)
 	// A plain member can't set the icon, and nothing is written.
 	_, err := f.svc.UploadSpaceIcon(as(f.member), connect.NewRequest(&filesv1.UploadSpaceIconRequest{SpaceId: f.space, Data: pngBytes(t, 64, 64)}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("member upload: want PermissionDenied, got %v", err)
-	}
+	apierrtest.RequireCode(t, err, connect.CodePermissionDenied, "member upload")
 	if entries, _ := os.ReadDir(filepath.Join(f.store.Root(), "space_icon")); len(entries) != 0 {
 		t.Fatal("denied upload wrote a blob")
 	}

@@ -9,15 +9,10 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func TestMentionsAndActivity(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	cal := newUser(t, pool, "cal", authctx.RoleMember)
@@ -97,9 +92,7 @@ func TestMentionsAndActivity(t *testing.T) {
 }
 
 func TestMentionEveryone(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	cal := newUser(t, pool, "cal", authctx.RoleMember)
@@ -121,9 +114,9 @@ func TestMentionEveryone(t *testing.T) {
 		t.Errorf("owner @everyone: %+v", res.Msg.Message)
 	}
 	for _, ctx := range []context.Context{bea, cal} {
-		l, _ := svc.ListActivity(ctx, connect.NewRequest(&chatv1.ListActivityRequest{}))
-		if l.Msg.UnreadCount != 1 {
-			t.Errorf("member unread after @everyone = %d", l.Msg.UnreadCount)
+		activity, _ := svc.ListActivity(ctx, connect.NewRequest(&chatv1.ListActivityRequest{}))
+		if activity.Msg.UnreadCount != 1 {
+			t.Errorf("member unread after @everyone = %d", activity.Msg.UnreadCount)
 		}
 	}
 
@@ -135,9 +128,9 @@ func TestMentionEveryone(t *testing.T) {
 	if res.Msg.Message.MentionsEveryone || len(res.Msg.Message.MentionUserIds) != 0 {
 		t.Errorf("member @everyone should be plain text: %+v", res.Msg.Message)
 	}
-	l, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
-	if l.Msg.UnreadCount != 1 {
-		t.Errorf("cal unread after member's @everyone = %d, want still 1", l.Msg.UnreadCount)
+	activity, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
+	if activity.Msg.UnreadCount != 1 {
+		t.Errorf("cal unread after member's @everyone = %d, want still 1", activity.Msg.UnreadCount)
 	}
 
 	// ListMessages carries the flag.
@@ -162,8 +155,7 @@ func (p fakePresence) OnlineUserIDs(_ context.Context, ids []string) ([]string, 
 }
 
 func TestMentionHere(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	cal := newUser(t, pool, "cal", authctx.RoleMember)
@@ -185,10 +177,10 @@ func TestMentionHere(t *testing.T) {
 	if !res.Msg.Message.MentionsHere || res.Msg.Message.MentionsEveryone || len(res.Msg.Message.MentionUserIds) != 1 || res.Msg.Message.MentionUserIds[0] != authctx.UserID(bea) {
 		t.Errorf("@here: %+v", res.Msg.Message)
 	}
-	b, _ := svc.ListActivity(bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
-	c, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
-	if b.Msg.UnreadCount != 1 || c.Msg.UnreadCount != 0 {
-		t.Errorf("@here notified bea=%d cal=%d, want 1/0", b.Msg.UnreadCount, c.Msg.UnreadCount)
+	beaActivity, _ := svc.ListActivity(bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
+	calActivity, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
+	if beaActivity.Msg.UnreadCount != 1 || calActivity.Msg.UnreadCount != 0 {
+		t.Errorf("@here notified bea=%d cal=%d, want 1/0", beaActivity.Msg.UnreadCount, calActivity.Msg.UnreadCount)
 	}
 	// Member: plain text.
 	res, _ = svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@here nope"}))
