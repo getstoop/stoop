@@ -7,11 +7,9 @@ import (
 	"unicode/utf8"
 )
 
-// Messages are stored as the Markdown subset the web client renders. The
-// server never renders it; the one thing it needs is a plain-text form for
-// previews, and that comes from the same parse the client does, ported
-// from web/src/api/markdown.ts so a preview never says something the
-// message does not. The two test files carry the same cases.
+// The client's Markdown parser (web/src/api/markdown.ts) ported for
+// plain-text previews; the two test files carry the same cases. See
+// docs/architecture/messaging.md → The server's one involvement.
 
 type inlineKind int
 

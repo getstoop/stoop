@@ -124,14 +124,10 @@ func (s *Service) listAllSpaces(ctx context.Context) (*connect.Response[chatv1.L
 	return connect.NewResponse(&chatv1.ListSpacesResponse{Spaces: spaces}), nil
 }
 
-// ListAllSpaces is the server admin's Spaces page: every space with the
-// numbers it shows, whether or not the caller is in it. It reports
-// membership rather than a role, because an instance admin's inherited
-// admin would otherwise read as membership they don't have — and it
-// subscribes them to nothing, since the gateway follows the membership
-// rows. There is no per-space bound to apply: instance.read is an
-// instance action, so a bounded credential fails the check below rather
-// than listing the spaces it reaches.
+// ListAllSpaces is the server admin's Spaces page (permissions.md →
+// Instance user type). It reports membership rather than a role, since an
+// instance admin's inherited admin would read as membership. instance.read
+// is an instance action, so a bounded credential fails the check below.
 func (s *Service) ListAllSpaces(ctx context.Context, _ *connect.Request[chatv1.ListAllSpacesRequest]) (*connect.Response[chatv1.ListAllSpacesResponse], error) {
 	if !authctx.Allows(ctx, authctx.InstanceRead) {
 		return nil, connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(authctx.InstanceRead))

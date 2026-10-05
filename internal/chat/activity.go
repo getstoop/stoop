@@ -83,11 +83,8 @@ func (s *Service) recordReply(ctx context.Context, about alert, parentAuthorID s
 
 // recordDM tells a direct message's other participants about a new
 // message — unless they were already told by a mention or a reply in the
-// same message (one alert is enough). A conversation holds one unread
-// entry in the feed: while it is unread, further messages refresh it
-// (newest preview and time) rather than add rows; once read, the next
-// message starts a new one. The event goes out either way, so a desktop
-// banner still fires per message.
+// same message (one alert is enough). See messaging.md → The DM feed
+// collapses.
 func (s *Service) recordDM(ctx context.Context, about alert, participants []string, parent *messageRow, mentioned []string) error {
 	told := map[string]bool{about.msg.AuthorID: true}
 	for _, id := range mentioned {

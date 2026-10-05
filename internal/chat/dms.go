@@ -19,13 +19,8 @@ import (
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
-// Direct messages are channels with no space (kind DM), their people in
-// dm_members. The message RPCs don't know the difference: they read the
-// channel through accessChannel and publish through publishChannel, and
-// those two are where a DM and a space channel part ways. A conversation
-// holds two people or ten, and either way it *is* its people — dm_key is
-// the whole set, so opening it is idempotent and membership never changes
-// afterwards. See docs/architecture/messaging.md → Direct messages.
+// Direct messages: see docs/architecture/messaging.md → Direct messages.
+// The message RPCs reach them through channel_access.go.
 
 // maxDMParticipants caps a conversation, the caller included. Past ten the
 // thing being asked for is a space.
@@ -233,11 +228,8 @@ func blockRefusal(participants int, group *connect.Error) *connect.Error {
 }
 
 // checkNoBlocks refuses a conversation holding anyone who has blocked, or
-// is blocked by, anyone else in it. Every pair is checked, not just the
-// caller's: a conversation nobody can speak in would be worse than a
-// refusal. The cost is that the caller can infer two *other* people have
-// blocked each other, which is stated in messaging.md rather than traded
-// away. Membership never changes, so this is the only moment it is asked.
+// is blocked by, anyone else in it: every pair, not just the caller's
+// (messaging.md → Direct messages).
 func (s *Service) checkNoBlocks(ctx context.Context, everyone []string) error {
 	for i, id := range everyone {
 		others := append(append([]string{}, everyone[:i]...), everyone[i+1:]...)
