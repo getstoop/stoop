@@ -217,18 +217,11 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 // address it sends the person back to. failCode, when set, is the error
 // the browser is shown instead.
 func (s *Service) loginProvider(ctx context.Context, id string) (p provider, redirectURI, failCode string) {
-	if s.providers == nil {
-		return nil, "", "provider_unknown"
+	cfg, failCode := s.readLoginProvider(ctx, id)
+	if failCode != "" {
+		return nil, "", failCode
 	}
-	cfg, err := s.providers.LoginProvider(ctx, id)
-	if connect.CodeOf(err) == connect.CodeNotFound {
-		return nil, "", "provider_unknown"
-	}
-	if err != nil {
-		slog.Error("read a login provider", "provider", id, "err", err)
-		return nil, "", "server_error"
-	}
-	redirectURI, err = s.providers.CallbackURL(ctx, id)
+	redirectURI, err := s.providers.CallbackURL(ctx, id)
 	if err != nil || redirectURI == "" {
 		slog.Warn("login provider without a callback URL", "provider", id, "err", err)
 		return nil, "", "provider_error"
@@ -239,6 +232,24 @@ func (s *Service) loginProvider(ctx context.Context, id string) (p provider, red
 		return nil, "", "provider_error"
 	}
 	return p, redirectURI, ""
+}
+
+// readLoginProvider is a configured provider's settings; failCode is
+// provider_unknown when there is no such provider and server_error when
+// reading them failed.
+func (s *Service) readLoginProvider(ctx context.Context, id string) (cfg ProviderConfig, failCode string) {
+	if s.providers == nil {
+		return ProviderConfig{}, "provider_unknown"
+	}
+	cfg, err := s.providers.LoginProvider(ctx, id)
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return ProviderConfig{}, "provider_unknown"
+	}
+	if err != nil {
+		slog.Error("read a login provider", "provider", id, "err", err)
+		return ProviderConfig{}, "server_error"
+	}
+	return cfg, ""
 }
 
 // startBrowserSession signs the browser in as userID with a session

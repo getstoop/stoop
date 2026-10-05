@@ -975,6 +975,11 @@ func TestSocialFlowWithTheDatabaseGone(t *testing.T) {
 	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start"); loc != "/login?error=server_error" {
 		t.Errorf("a failed provider lookup landed on %q", loc)
 	}
+	if status, body := rig.postJSON(t, "/auth/desktop/start", map[string]any{
+		"provider": "sso", "attemptChallenge": s256(verifier), "attemptMethod": "S256",
+	}); status != http.StatusServiceUnavailable || body["error"] != "server_error" {
+		t.Errorf("desktop start with a failed provider lookup = %d, %v", status, body)
+	}
 	rig.providers.lookupErr = nil
 
 	// Started while the database was up; finished after it went.

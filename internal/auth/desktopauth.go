@@ -230,12 +230,12 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 		desktopError(w, http.StatusBadRequest, "attempt_invalid")
 		return
 	}
-	if s.providers == nil {
-		desktopError(w, http.StatusNotFound, "provider_unknown")
-		return
-	}
-	if _, err := s.providers.LoginProvider(r.Context(), req.Provider); err != nil {
-		desktopError(w, http.StatusNotFound, "provider_unknown")
+	if _, failCode := s.readLoginProvider(r.Context(), req.Provider); failCode != "" {
+		status := http.StatusServiceUnavailable
+		if failCode == "provider_unknown" {
+			status = http.StatusNotFound
+		}
+		desktopError(w, status, failCode)
 		return
 	}
 	a := desktopAttempt{
