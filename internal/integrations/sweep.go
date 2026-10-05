@@ -2,8 +2,11 @@ package integrations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
+
+	"connectrpc.com/connect"
 
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
@@ -15,7 +18,7 @@ import (
 // or banned out of their space.
 
 // SweepOrphanHooks revokes hook credentials no hook row points at, settles
-// their bots' space roles, and reports how many.
+// their bots' space roles, and reports how many it revoked.
 func (s *Service) SweepOrphanHooks(ctx context.Context) (int, error) {
 	if s.bots == nil {
 		return 0, nil
@@ -34,27 +37,33 @@ func (s *Service) SweepOrphanHooks(ctx context.Context) (int, error) {
 			live[*hook.CredentialID] = true
 		}
 	}
-	revoked := 0
-	holders := map[string]bool{}
+	orphans := map[string][]string{}
 	for _, cred := range creds {
-		if cred.Kind != authctx.CredentialIncomingHook || live[cred.ID] {
+		if cred.Kind == authctx.CredentialIncomingHook && !live[cred.ID] {
+			orphans[cred.HolderID] = append(orphans[cred.HolderID], cred.ID)
+		}
+	}
+	// The role is settled first: it reads only the hook rows, which no
+	// longer count an orphan, and a bot whose role can't be settled keeps
+	// its orphans for the next sweep to find it by.
+	revoked := 0
+	var failed []error
+	for botID, credIDs := range orphans {
+		if err := s.settleBotAdminEverywhere(ctx, botID); err != nil {
+			failed = append(failed, err)
 			continue
 		}
-		if err := s.bots.RevokeCredential(ctx, cred.ID); err != nil {
-			return revoked, err
-		}
-		revoked++
-		holders[cred.HolderID] = true
-	}
-	for botID := range holders {
-		if err := s.settleBotAdminEverywhere(ctx, botID); err != nil {
-			return revoked, err
+		for _, credID := range credIDs {
+			if err := s.bots.RevokeCredential(ctx, credID); err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+				return revoked, errors.Join(append(failed, err)...)
+			}
+			revoked++
 		}
 		if err := s.retireIfIdle(ctx, botID); err != nil {
-			return revoked, err
+			failed = append(failed, err)
 		}
 	}
-	return revoked, nil
+	return revoked, errors.Join(failed...)
 }
 
 // settleBotAdminEverywhere settles the bot's role in each of its spaces:

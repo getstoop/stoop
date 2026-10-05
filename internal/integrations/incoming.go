@@ -104,6 +104,11 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 		return nil, err
 	}
 	credID = cred.ID
+	// The URL comes before the row, so nothing can fail once the hook exists.
+	url, err := s.hookURL(ctx, secret)
+	if err != nil {
+		return nil, err
+	}
 	row, err := s.q.CreateIncomingWebhook(ctx, dbgen.CreateIncomingWebhookParams{
 		ID: rowid.New(), SpaceID: spaceID, ChannelID: req.Msg.ChannelId, BotUserID: bot.ID,
 		CredentialID: &cred.ID, Name: name, CreatedBy: authctx.UserID(ctx),
@@ -112,10 +117,6 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 		return nil, fmt.Errorf("create hook: %w", err)
 	}
 	created = true
-	url, err := s.hookURL(ctx, secret)
-	if err != nil {
-		return nil, err
-	}
 	return connect.NewResponse(&integrationsv1.CreateIncomingResponse{
 		Webhook: toProtoIncoming(row, &cred), Url: url,
 	}), nil
@@ -210,10 +211,10 @@ func (s *Service) deleteIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 			return err
 		}
 	}
-	if err := s.settleBotAdmin(ctx, hook.SpaceID, hook.BotUserID); err != nil {
-		return err
-	}
-	return s.retireIfIdle(ctx, hook.BotUserID)
+	// The hook and its credential are gone, so nothing finds this bot again:
+	// both steps run whatever the other did.
+	roleErr := s.settleBotAdmin(ctx, hook.SpaceID, hook.BotUserID)
+	return errors.Join(roleErr, s.retireIfIdle(ctx, hook.BotUserID))
 }
 
 // rotateIncoming mints a new token with the old one's grant and revokes
@@ -233,6 +234,14 @@ func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 			grants, copied = creds[0].Grants, true
 		}
 	}
+	// With no grant to copy the hook comes back post-only. Its row holds no
+	// credential, so settling now gives the answer it will have after, and
+	// a failure leaves the hook as it was.
+	if !copied {
+		if err := s.settleBotAdmin(ctx, hook.SpaceID, hook.BotUserID); err != nil {
+			return "", err
+		}
+	}
 	cred, secret, err := s.bots.MintCredential(ctx, MintRequest{
 		HolderID: hook.BotUserID, Kind: authctx.CredentialIncomingHook, Name: hook.Name,
 		Grants: grants, ChannelID: hook.ChannelID, CreatedBy: authctx.UserID(ctx),
@@ -240,7 +249,11 @@ func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 	if err != nil {
 		return "", err
 	}
-	if err := s.q.SetIncomingWebhookCredential(ctx, dbgen.SetIncomingWebhookCredentialParams{ID: hook.ID, CredentialID: &cred.ID}); err != nil {
+	url, err := s.hookURL(ctx, secret)
+	if err == nil {
+		err = s.q.SetIncomingWebhookCredential(ctx, dbgen.SetIncomingWebhookCredentialParams{ID: hook.ID, CredentialID: &cred.ID})
+	}
+	if err != nil {
 		_ = s.bots.RevokeCredential(ctx, cred.ID)
 		return "", fmt.Errorf("rotate hook: %w", err)
 	}
@@ -249,12 +262,7 @@ func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 			return "", err
 		}
 	}
-	if !copied {
-		if err := s.settleBotAdmin(ctx, hook.SpaceID, hook.BotUserID); err != nil {
-			return "", err
-		}
-	}
-	return s.hookURL(ctx, secret)
+	return url, nil
 }
 
 // requireLiveBot refuses work on a hook whose bot is deactivated.

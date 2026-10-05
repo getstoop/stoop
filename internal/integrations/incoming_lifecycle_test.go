@@ -222,3 +222,86 @@ func TestRotatingWithAnUnreadableCredentialFails(t *testing.T) {
 		t.Errorf("grants after a refused rotation = %v", cred.Grants)
 	}
 }
+
+func TestACreateWithNoURLLeavesNothingBehind(t *testing.T) {
+	f := setup(t)
+	f.policy.failPublicURL = errors.New("settings unreadable")
+	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
+		ChannelId: f.channel, Name: "Watchtower", NotifyEveryone: true,
+	})); err == nil {
+		t.Fatal("create succeeded without a URL")
+	}
+	for _, bot := range f.bots.bots {
+		if bot.DeactivatedAt == nil {
+			t.Errorf("bot %s left active", bot.Username)
+		}
+		if f.isAdmin(bot.ID) {
+			t.Errorf("bot %s left an admin", bot.Username)
+		}
+	}
+	if hooks := f.countRows(t, `SELECT count(*) FROM incoming_webhooks`); hooks != 0 || len(f.bots.creds) != 0 {
+		t.Errorf("left %d hooks and %d credentials", hooks, len(f.bots.creds))
+	}
+}
+
+func TestADeleteWhoseRoleChangeFailsStillRetiresTheBot(t *testing.T) {
+	f := setup(t)
+	made := f.create(t, "UPS", true)
+	f.spaces.failAdmin = errors.New("chat down")
+	if _, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: made.Webhook.Id})); err == nil {
+		t.Error("the role failure was not reported")
+	}
+	if f.bots.bots[made.Webhook.BotUserId].DeactivatedAt == nil {
+		t.Error("a bot with nothing left stayed active after the role change failed")
+	}
+}
+
+func TestASweepWhoseRoleChangeFailsTriesAgain(t *testing.T) {
+	f := setup(t)
+	other := uuid.NewString()
+	if _, err := f.pool.Exec(context.Background(), `INSERT INTO channels (id, space_id, name, position) VALUES ($1, $2, 'alerts', 1)`, other, f.space); err != nil {
+		t.Fatal(err)
+	}
+	f.spaces.channel[other] = f.space
+	made, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
+		ChannelId: other, Name: "Backups", NotifyEveryone: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bot := made.Msg.Webhook.BotUserId
+	if _, err := f.pool.Exec(context.Background(), `DELETE FROM channels WHERE id = $1`, other); err != nil {
+		t.Fatal(err)
+	}
+
+	f.spaces.failAdmin = errors.New("chat down")
+	if _, err := f.svc.SweepOrphanHooks(context.Background()); err == nil {
+		t.Error("the role failure was not reported")
+	}
+	f.spaces.failAdmin = nil
+	if n, err := f.svc.SweepOrphanHooks(context.Background()); err != nil || n != 1 {
+		t.Fatalf("the next sweep = %d, %v", n, err)
+	}
+	if f.isAdmin(bot) || f.bots.bots[bot].DeactivatedAt == nil {
+		t.Errorf("after the next sweep: admin=%v retired=%v", f.isAdmin(bot), f.bots.bots[bot].DeactivatedAt != nil)
+	}
+}
+
+func TestARotationWhoseRoleChangeFailsChangesNothing(t *testing.T) {
+	f := setup(t)
+	made := f.create(t, "Healthchecks", true)
+	if err := f.bots.RevokeCredential(context.Background(), f.credentialOf(t, made.Webhook.Id)); err != nil {
+		t.Fatal(err)
+	}
+	f.spaces.failAdmin = errors.New("chat down")
+	if _, err := f.svc.RotateSecret(f.admin, connect.NewRequest(&integrationsv1.RotateSecretRequest{Id: made.Webhook.Id})); err == nil {
+		t.Fatal("rotated with the role change failing")
+	}
+	row, err := f.svc.q.GetIncomingWebhook(context.Background(), made.Webhook.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.CredentialID != nil || len(f.bots.creds) != 0 {
+		t.Errorf("a failed rotation saved credential %v; %d credentials held", row.CredentialID, len(f.bots.creds))
+	}
+}

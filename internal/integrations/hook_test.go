@@ -208,6 +208,8 @@ type fakeSpaces struct {
 	pool    *pgxpool.Pool
 	channel map[string]string
 	admin   map[string]bool
+	// failAdmin, when set, is what SetBotAdmin returns.
+	failAdmin error
 }
 
 func (f *fakeSpaces) ChannelSpace(_ context.Context, channelID string) (string, error) {
@@ -248,6 +250,9 @@ func (f *fakeSpaces) ListSpaceIDs(ctx context.Context, userID string) ([]string,
 
 // SetBotAdmin refuses a bot outside the space, as chat does.
 func (f *fakeSpaces) SetBotAdmin(ctx context.Context, spaceID, userID string, admin bool) error {
+	if f.failAdmin != nil {
+		return f.failAdmin
+	}
 	member, err := f.IsSpaceMember(ctx, userID, spaceID)
 	if err != nil {
 		return err
@@ -288,8 +293,8 @@ func (p *fakePoster) Post(ctx context.Context, req PostRequest) (string, error) 
 
 type fakePolicy struct {
 	incoming, outgoing, private bool
-	// failOutgoing, when set, is what reading the outgoing switch returns.
-	failOutgoing error
+	// failOutgoing and failPublicURL, when set, are what those reads return.
+	failOutgoing, failPublicURL error
 }
 
 func (p *fakePolicy) WebhooksIncoming(context.Context) (bool, error) { return p.incoming, nil }
@@ -300,7 +305,7 @@ func (p *fakePolicy) WebhooksAllowPrivateTargets(context.Context) (bool, error) 
 	return p.private, nil
 }
 func (p *fakePolicy) PublicURL(context.Context) (string, error) {
-	return "https://stoop.example.com", nil
+	return "https://stoop.example.com", p.failPublicURL
 }
 
 type fixture struct {
