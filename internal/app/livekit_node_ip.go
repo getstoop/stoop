@@ -12,12 +12,9 @@ import (
 	"github.com/getstoop/stoop/internal/voice"
 )
 
-// Keeping LiveKit's advertised address in step with a tailnet node.
-//
-// LiveKit offers browsers the addresses it can see, and LiveKit only reads it at startup.
-// Stoop writes it into the volume the sidecar already shares for the API key pair; the
-// compose file's entrypoint starts LiveKit with it and restarts on a
-// change.
+// nodeIPPath is where LiveKit's advertised tailnet address is written for
+// the sidecar, beside its key file. See docs/architecture/runtime.md →
+// The embedded Tailscale node.
 func nodeIPPath(cfg config.Config) string {
 	if cfg.LiveKitNodeIPFile != "" {
 		return cfg.LiveKitNodeIPFile
