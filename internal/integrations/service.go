@@ -216,6 +216,15 @@ func requireManage(ctx context.Context) error {
 	return apierr.RequireAction(ctx, authctx.InstanceIntegrationsManage)
 }
 
+// requireManageWired is the gate most management RPCs open with: the
+// grant first, so a caller without it learns nothing about the wiring.
+func (s *Service) requireManageWired(ctx context.Context) error {
+	if err := requireManage(ctx); err != nil {
+		return err
+	}
+	return s.ready()
+}
+
 func (s *Service) ready() error {
 	if s.bots == nil || s.spaces == nil {
 		return connect.NewError(connect.CodeUnavailable, errors.New("integrations are not wired"))

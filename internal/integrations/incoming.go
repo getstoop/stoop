@@ -28,10 +28,7 @@ const (
 )
 
 func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integrationsv1.CreateIncomingRequest]) (*connect.Response[integrationsv1.CreateIncomingResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	if on, err := s.policy.WebhooksIncoming(ctx); err != nil {
@@ -123,10 +120,7 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 }
 
 func (s *Service) UpdateIncoming(ctx context.Context, req *connect.Request[integrationsv1.UpdateIncomingRequest]) (*connect.Response[integrationsv1.UpdateIncomingResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	hook, err := s.incomingHook(ctx, req.Msg.Id)

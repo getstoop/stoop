@@ -27,10 +27,7 @@ import (
 const secretPrefix = "stp_whsec_"
 
 func (s *Service) CreateOutgoing(ctx context.Context, req *connect.Request[integrationsv1.CreateOutgoingRequest]) (*connect.Response[integrationsv1.CreateOutgoingResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.requireOutgoing(ctx); err != nil {
@@ -79,10 +76,7 @@ func (s *Service) CreateOutgoing(ctx context.Context, req *connect.Request[integ
 }
 
 func (s *Service) UpdateOutgoing(ctx context.Context, req *connect.Request[integrationsv1.UpdateOutgoingRequest]) (*connect.Response[integrationsv1.UpdateOutgoingResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	hook, err := s.outgoingHook(ctx, req.Msg.Id)
@@ -135,10 +129,7 @@ func (s *Service) UpdateOutgoing(ctx context.Context, req *connect.Request[integ
 // TestWebhook queues a webhook.test delivery so the receiver's wiring can
 // be checked without waiting for an event.
 func (s *Service) TestWebhook(ctx context.Context, req *connect.Request[integrationsv1.TestWebhookRequest]) (*connect.Response[integrationsv1.TestWebhookResponse], error) {
-	if err := requireManage(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.ready(); err != nil {
+	if err := s.requireManageWired(ctx); err != nil {
 		return nil, err
 	}
 	if err := s.deliveriesWired(); err != nil {
