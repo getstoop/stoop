@@ -76,12 +76,12 @@ func (s *Service) BanMember(ctx context.Context, req *connect.Request[chatv1.Ban
 		return nil, fmt.Errorf("ban: %w", err)
 	}
 	if isMember {
-		if err := s.removeMember(ctx, req.Msg.SpaceId, req.Msg.UserId); err != nil {
+		if err := s.removeFromSpace(ctx, req.Msg.SpaceId, req.Msg.UserId, true); err != nil {
 			return nil, fmt.Errorf("remove member: %w", err)
 		}
-		s.publishMemberRemoved(req.Msg.SpaceId, req.Msg.UserId, true)
+	} else {
+		s.evictFromSpaceVoice(ctx, req.Msg.SpaceId, req.Msg.UserId)
 	}
-	s.evictFromSpaceVoice(ctx, req.Msg.SpaceId, req.Msg.UserId)
 	return connect.NewResponse(&chatv1.BanMemberResponse{}), nil
 }
 
