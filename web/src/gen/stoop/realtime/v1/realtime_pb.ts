@@ -469,8 +469,9 @@ export type Ready = Message<"stoop.realtime.v1.Ready"> & {
   spaceIds: string[];
 
   /**
-   * Users currently online who share at least one space with the caller
-   * (including the caller). Kept current by PresenceChanged.
+   * The ids in presences, for a tab still running a bundle from before
+   * presences: it reads this on reconnect after an upgrade. Removed the
+   * release after (STOOP-413).
    *
    * @generated from field: repeated string online_user_ids = 3;
    */
@@ -485,8 +486,9 @@ export type Ready = Message<"stoop.realtime.v1.Ready"> & {
   voiceParticipants: VoiceParticipant[];
 
   /**
-   * The same users as online_user_ids, with whether each is on do not
-   * disturb. Kept current by PresenceChanged.
+   * Users currently online who share at least one space with the caller
+   * (including the caller), with whether each is on do not disturb. Kept
+   * current by PresenceChanged.
    *
    * @generated from field: repeated stoop.realtime.v1.UserPresence presences = 5;
    */

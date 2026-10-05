@@ -210,12 +210,17 @@ func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID u
 }
 
 func (g *Gateway) ready(userID string, spaceIDs []string) *realtimev1.ServerEvent {
+	presences := g.presence.presencesIn(spaceIDs)
+	onlineUserIDs := make([]string, len(presences))
+	for index, presence := range presences {
+		onlineUserIDs[index] = presence.UserId
+	}
 	return events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_Ready{
 			Ready: &realtimev1.Ready{
 				UserId: userID, SpaceIds: spaceIDs,
-				OnlineUserIds:     g.presence.onlineIn(spaceIDs),
-				Presences:         g.presence.presencesIn(spaceIDs),
+				OnlineUserIds:     onlineUserIDs,
+				Presences:         presences,
 				VoiceParticipants: g.voice.participantsIn(spaceIDs),
 			},
 		},

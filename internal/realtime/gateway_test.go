@@ -184,15 +184,21 @@ func TestPresenceAndTyping(t *testing.T) {
 
 	alice := dial(t, srv, "alice")
 	ready := alice.next(time.Second).GetReady()
-	if ready == nil || len(ready.OnlineUserIds) != 1 || ready.OnlineUserIds[0] != "alice" {
+	if ready == nil || len(ready.Presences) != 1 || ready.Presences[0].UserId != "alice" {
 		t.Fatalf("alice ready = %+v", ready)
 	}
 
 	// bob connects: alice (shares s1) hears he's online; his Ready lists both.
 	bob := dial(t, srv, "bob")
 	bready := bob.next(time.Second).GetReady()
-	if bready == nil || len(bready.OnlineUserIds) != 2 {
+	if bready == nil || len(bready.Presences) != 2 {
 		t.Fatalf("bob ready = %+v", bready)
+	}
+	// A tab from before presences reads the ids alone (STOOP-413).
+	for index, presence := range bready.Presences {
+		if bready.OnlineUserIds[index] != presence.UserId {
+			t.Errorf("online_user_ids = %v, want the ids in presences", bready.OnlineUserIds)
+		}
 	}
 	if ev := alice.waitFor(func(e *realtimev1.ServerEvent) bool {
 		p := e.GetPresenceChanged()
@@ -204,7 +210,7 @@ func TestPresenceAndTyping(t *testing.T) {
 	// carol only shares s2 with bob: alice must not hear about her.
 	carol := dial(t, srv, "carol")
 	cready := carol.next(time.Second).GetReady()
-	if cready == nil || len(cready.OnlineUserIds) != 2 { // bob + carol
+	if cready == nil || len(cready.Presences) != 2 { // bob + carol
 		t.Fatalf("carol ready = %+v", cready)
 	}
 	if ev := alice.next(300 * time.Millisecond); ev != nil {
@@ -263,7 +269,7 @@ func TestJoinWhileConnected(t *testing.T) {
 	alice.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetVoiceStateChanged() != nil })
 
 	bob := dial(t, srv, "bob")
-	if ready := bob.next(time.Second).GetReady(); ready == nil || len(ready.OnlineUserIds) != 0 {
+	if ready := bob.next(time.Second).GetReady(); ready == nil || len(ready.Presences) != 0 {
 		t.Fatalf("bob ready = %+v", ready)
 	}
 

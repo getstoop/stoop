@@ -188,28 +188,19 @@ func (p *presence) spacesOf(userID string) []string {
 }
 
 // presencesIn lists users online in any of the given spaces with whether
-// each is on do not disturb; the same set as onlineIn.
+// each is on do not disturb, read under one lock.
 func (p *presence) presencesIn(spaceIDs []string) []*realtimev1.UserPresence {
-	var out []*realtimev1.UserPresence
-	for _, id := range p.onlineIn(spaceIDs) {
-		out = append(out, &realtimev1.UserPresence{UserId: id, Dnd: p.dndOf(id)})
-	}
-	return out
-}
-
-// onlineIn lists users online in any of the given spaces.
-func (p *presence) onlineIn(spaceIDs []string) []string {
 	want := make(map[string]struct{}, len(spaceIDs))
-	for _, s := range spaceIDs {
-		want[s] = struct{}{}
+	for _, spaceID := range spaceIDs {
+		want[spaceID] = struct{}{}
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	var out []string
-	for id, e := range p.users {
-		for s := range e.spaces {
-			if _, ok := want[s]; ok {
-				out = append(out, id)
+	var out []*realtimev1.UserPresence
+	for userID, entry := range p.users {
+		for spaceID := range entry.spaces {
+			if _, ok := want[spaceID]; ok {
+				out = append(out, &realtimev1.UserPresence{UserId: userID, Dnd: entry.dnd})
 				break
 			}
 		}
