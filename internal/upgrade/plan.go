@@ -2,10 +2,8 @@ package upgrade
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/getstoop/stoop/internal/db"
 )
@@ -14,13 +12,9 @@ import (
 // shows the settings the new release expects that .env lacks.
 func (u *Upgrader) plan(ctx context.Context, target string) (db.Report, error) {
 	u.say("what %s will do to the database", target)
-	res := u.compose(ctx, append(u.fileArgs(nextFile), "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "plan", "--json")...)
-	var report db.Report
-	line := strings.TrimSpace(res.Stdout)
-	if i := strings.LastIndex(line, "\n"); i >= 0 {
-		line = line[i+1:]
-	}
-	if err := json.Unmarshal([]byte(line), &report); err != nil || res.Code < 0 || (res.Code != 0 && res.Code != 2 && res.Code != 3) {
+	res := u.compose(ctx, captured, append(u.fileArgs(nextFile), "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "plan", "--json")...)
+	report, err := readReport(res.Stdout)
+	if err != nil || res.Code < 0 || (res.Code != 0 && res.Code != db.PlanExitPending && res.Code != db.PlanExitRefused) {
 		return report, fmt.Errorf("could not read the migration plan (exit %d):\n%s%s", res.Code, res.Stdout, res.Stderr)
 	}
 	db.WriteReport(u.Out, report, true)

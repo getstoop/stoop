@@ -62,7 +62,7 @@ func runMigrate(ctx context.Context, args []string, console streams) int {
 	}
 	if err := db.Migrate(ctx, pool); err != nil {
 		if errors.As(err, new(db.AheadError)) {
-			return console.fail(3, err)
+			return console.fail(db.PlanExitRefused, err)
 		}
 		return console.fail(1, err)
 	}
@@ -86,13 +86,13 @@ func writeReport(out io.Writer, report db.Report, after, asJSON bool) {
 	_, _ = fmt.Fprintln(out, string(body))
 }
 
-// planExit is plan's exit code: 0 nothing to run, 2 pending, 3 refused.
+// planExit is plan's exit code.
 func planExit(plan db.Plan) int {
 	switch {
 	case plan.Refused() != nil:
-		return 3
+		return db.PlanExitRefused
 	case len(plan.Pending) > 0:
-		return 2
+		return db.PlanExitPending
 	}
 	return 0
 }

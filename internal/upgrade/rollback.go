@@ -52,8 +52,8 @@ func (u *Upgrader) Rollback(ctx context.Context) error {
 			}
 		}
 	}
-	if res := u.composeStreaming(ctx, "up", "-d", "--remove-orphans", "--wait", "--wait-timeout", u.Wait); res.Code != 0 {
-		u.composeStreaming(ctx, "logs", "--tail", "40", "stoop")
+	if res := u.up(ctx); res.Code != 0 {
+		u.showLogs(ctx)
 		return fmt.Errorf("%s did not come up healthy; the %s file is kept as %s", target, current, parked)
 	}
 	u.say("back on %s; the %s file is kept as %s", target, current, parked)
