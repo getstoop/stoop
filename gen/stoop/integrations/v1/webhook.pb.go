@@ -311,12 +311,9 @@ type Delivery struct {
 	Sequence  int64                  `protobuf:"varint,4,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	Attempts  int32                  `protobuf:"varint,5,opt,name=attempts,proto3" json:"attempts,omitempty"`
 	// Unset until a receiver answered.
-	StatusCode *int32 `protobuf:"varint,6,opt,name=status_code,json=statusCode,proto3,oneof" json:"status_code,omitempty"`
-	// No longer set: the receiver's reply is logged, not kept. Removed in
-	// STOOP-415.
-	Response  string                 `protobuf:"bytes,7,opt,name=response,proto3" json:"response,omitempty"`
-	Error     string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	StatusCode *int32                 `protobuf:"varint,6,opt,name=status_code,json=statusCode,proto3,oneof" json:"status_code,omitempty"`
+	Error      string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Set once delivered or dead.
 	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -395,13 +392,6 @@ func (x *Delivery) GetStatusCode() int32 {
 	return 0
 }
 
-func (x *Delivery) GetResponse() string {
-	if x != nil {
-		return x.Response
-	}
-	return ""
-}
-
 func (x *Delivery) GetError() string {
 	if x != nil {
 		return x.Error
@@ -463,7 +453,7 @@ const file_stoop_integrations_v1_webhook_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1a\n" +
 	"\bsequence\x18\v \x01(\x03R\bsequence\x12\x1d\n" +
 	"\n" +
-	"space_name\x18\f \x01(\tR\tspaceName\"\xf6\x02\n" +
+	"space_name\x18\f \x01(\tR\tspaceName\"\xea\x02\n" +
 	"\bDelivery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -473,15 +463,14 @@ const file_stoop_integrations_v1_webhook_proto_rawDesc = "" +
 	"\bsequence\x18\x04 \x01(\x03R\bsequence\x12\x1a\n" +
 	"\battempts\x18\x05 \x01(\x05R\battempts\x12$\n" +
 	"\vstatus_code\x18\x06 \x01(\x05H\x00R\n" +
-	"statusCode\x88\x01\x01\x12\x1a\n" +
-	"\bresponse\x18\a \x01(\tR\bresponse\x12\x14\n" +
+	"statusCode\x88\x01\x01\x12\x14\n" +
 	"\x05error\x18\b \x01(\tR\x05error\x129\n" +
 	"\n" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
 	"\vfinished_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAtB\x0e\n" +
-	"\f_status_codeJ\x04\b\v\x10\fB\xe3\x01\n" +
+	"\f_status_codeJ\x04\b\a\x10\bJ\x04\b\v\x10\fR\bresponseB\xe3\x01\n" +
 	"\x19com.stoop.integrations.v1B\fWebhookProtoP\x01ZBgithub.com/getstoop/stoop/gen/stoop/integrations/v1;integrationsv1\xa2\x02\x03SIX\xaa\x02\x15Stoop.Integrations.V1\xca\x02\x15Stoop\\Integrations\\V1\xe2\x02!Stoop\\Integrations\\V1\\GPBMetadata\xea\x02\x17Stoop::Integrations::V1b\x06proto3"
 
 var (

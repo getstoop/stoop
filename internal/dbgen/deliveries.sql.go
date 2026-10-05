@@ -32,7 +32,7 @@ func (q *Queries) FinishLostDelivery(ctx context.Context, arg FinishLostDelivery
 }
 
 const getDelivery = `-- name: GetDelivery :one
-SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at, job_id FROM webhook_deliveries WHERE id = $1
+SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, error, created_at, job_id FROM webhook_deliveries WHERE id = $1
 `
 
 func (q *Queries) GetDelivery(ctx context.Context, id string) (WebhookDelivery, error) {
@@ -47,7 +47,6 @@ func (q *Queries) GetDelivery(ctx context.Context, id string) (WebhookDelivery, 
 		&i.Attempts,
 		&i.FinishedAt,
 		&i.StatusCode,
-		&i.Response,
 		&i.Error,
 		&i.CreatedAt,
 		&i.JobID,
@@ -87,7 +86,7 @@ func (q *Queries) InsertDelivery(ctx context.Context, arg InsertDeliveryParams) 
 }
 
 const listDeliveriesByWebhook = `-- name: ListDeliveriesByWebhook :many
-SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at, job_id FROM webhook_deliveries WHERE webhook_id = $1 ORDER BY created_at DESC, sequence DESC LIMIT $2
+SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, error, created_at, job_id FROM webhook_deliveries WHERE webhook_id = $1 ORDER BY created_at DESC, sequence DESC LIMIT $2
 `
 
 type ListDeliveriesByWebhookParams struct {
@@ -113,7 +112,6 @@ func (q *Queries) ListDeliveriesByWebhook(ctx context.Context, arg ListDeliverie
 			&i.Attempts,
 			&i.FinishedAt,
 			&i.StatusCode,
-			&i.Response,
 			&i.Error,
 			&i.CreatedAt,
 			&i.JobID,
@@ -163,7 +161,7 @@ func (q *Queries) ListUnfinishedDeliveriesBefore(ctx context.Context, before tim
 const recordDeliveryAttempt = `-- name: RecordDeliveryAttempt :exec
 UPDATE webhook_deliveries
 SET attempts = $1, status_code = $2,
-    response = '', error = $3,
+    error = $3,
     finished_at = $4::timestamptz,
     body = CASE WHEN $5::boolean THEN NULL ELSE body END
 WHERE id = $6
@@ -180,7 +178,6 @@ type RecordDeliveryAttemptParams struct {
 
 // RecordDeliveryAttempt writes what one try learned; finished_at is set
 // once the delivery is delivered or dead, and a delivered body is not kept.
-// The receiver's reply is not stored; the column goes in STOOP-415.
 func (q *Queries) RecordDeliveryAttempt(ctx context.Context, arg RecordDeliveryAttemptParams) error {
 	_, err := q.db.Exec(ctx, recordDeliveryAttempt,
 		arg.Attempts,
