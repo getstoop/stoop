@@ -92,3 +92,15 @@ func TestSubscriptionRemove(t *testing.T) {
 	}
 	sub.Remove("never-subscribed") // must be a harmless no-op
 }
+
+func TestHasIsFalseOnceClosed(t *testing.T) {
+	bus := NewInProcBus()
+	subscription := bus.Subscribe("space:s1")
+	if !subscription.Has("space:s1") {
+		t.Fatal("an open subscription should have its topic")
+	}
+	subscription.Close()
+	if subscription.Has("space:s1") {
+		t.Error("a closed subscription should have no topics")
+	}
+}
