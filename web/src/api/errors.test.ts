@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { describe, expect, it } from "vitest";
 import { FieldViolationSchema } from "../gen/stoop/common/v1/field_violation_pb";
-import { errorText, fieldError, localName } from "./errors";
+import { errorText, fieldError, isSignedOut, localName } from "./errors";
 
 const refusal = (field?: string) =>
   new ConnectError(
@@ -55,5 +55,17 @@ describe("errorText", () => {
     expect(errorText(new Error("That isn't an invite code."))).toBe(
       "That isn't an invite code.",
     );
+  });
+});
+
+describe("isSignedOut", () => {
+  it("is true only for the server saying there is no session", () => {
+    expect(isSignedOut(new ConnectError("no", Code.Unauthenticated))).toBe(
+      true,
+    );
+    expect(isSignedOut(new ConnectError("down", Code.Unavailable))).toBe(false);
+    expect(isSignedOut(new ConnectError("oops", Code.Internal))).toBe(false);
+    expect(isSignedOut(new Error("offline"))).toBe(false);
+    expect(isSignedOut(null)).toBe(false);
   });
 });

@@ -11,6 +11,7 @@ import { unreadCounts } from "../api/activity";
 import { chatClient } from "../api/clients";
 import { dmUnreadTotal, useDirectMessages } from "../api/dms";
 import { startDndBridge } from "../api/dndBridge";
+import { isSignedOut } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { presenceClass, presenceLabel, useDndActive } from "../api/presence";
 import {
@@ -46,14 +47,17 @@ import { useLayoutStore } from "../stores/layout";
 // AppShell guards every authenticated route: it verifies the session, owns
 // the realtime connection's lifecycle, and renders the space rail.
 export function AppShell() {
-  const { data: me, isLoading, isError } = useMe();
+  const { data: me, isLoading, error } = useMe();
+  // Only the server saying there is no session signs a person out; any
+  // other failure is retried by the me query (api/queries.ts).
+  const signedOut = isSignedOut(error);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const router = useRouter();
   const drawerOpen = useLayoutStore((s) => s.drawerOpen);
 
   useEffect(() => {
-    if (!isError) return;
+    if (!signedOut) return;
     // Remember where we were headed (e.g. /join/<code>) so login can bring
     // us back. The location is read once here, not subscribed to: this
     // shell stays mounted while the transition to /login is in flight, and
@@ -67,7 +71,7 @@ export function AppShell() {
       search: wantsRedirect ? { redirect: here } : {},
       replace: true,
     });
-  }, [isError, navigate, router]);
+  }, [signedOut, navigate, router]);
 
   // Keyed on who is signed in rather than on the user object, which do not
   // disturb and profile edits replace without anyone signing in or out.
@@ -95,8 +99,12 @@ export function AppShell() {
     return startDndBridge(queryClient);
   }, [userId, queryClient]);
 
-  if (isLoading || isError || !me) {
-    return <div className="centered muted">Loading…</div>;
+  if (isLoading || signedOut || !me) {
+    return (
+      <div className="centered muted">
+        {error && !signedOut ? "Can't reach the server. Retrying…" : "Loading…"}
+      </div>
+    );
   }
 
   return (
