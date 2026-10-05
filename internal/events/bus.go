@@ -65,10 +65,14 @@ func (s *Subscription) Add(topic string) {
 	s.bus.add(s, topic)
 }
 
-// Has reports whether the subscription currently includes a topic.
+// Has reports whether the subscription currently includes a topic; false
+// once it is closed or dropped.
 func (s *Subscription) Has(topic string) bool {
 	s.bus.mu.Lock()
 	defer s.bus.mu.Unlock()
+	if s.closed {
+		return false
+	}
 	_, ok := s.topics[topic]
 	return ok
 }

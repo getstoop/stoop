@@ -71,12 +71,20 @@ func (p *presence) disconnect(userID string) []string {
 	return spaces
 }
 
-func (p *presence) addSpace(userID, spaceID string) {
+// addSpace counts an online user in one more space; true when they were
+// not already counted there.
+func (p *presence) addSpace(userID, spaceID string) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if e := p.users[userID]; e != nil {
-		e.spaces[spaceID] = struct{}{}
+	entry := p.users[userID]
+	if entry == nil {
+		return false
 	}
+	if _, counted := entry.spaces[spaceID]; counted {
+		return false
+	}
+	entry.spaces[spaceID] = struct{}{}
+	return true
 }
 
 func (p *presence) removeSpace(userID, spaceID string) {
@@ -190,32 +198,41 @@ func (p *presence) onlineIn(spaceIDs []string) []string {
 // OnlineUserIDs filters ids down to those with a live connection. Exposed
 // for the chat module's presence port (@here).
 func (g *Gateway) OnlineUserIDs(_ context.Context, ids []string) ([]string, error) {
-	g.presence.mu.Lock()
-	defer g.presence.mu.Unlock()
-	var out []string
-	for _, id := range ids {
-		if _, ok := g.presence.users[id]; ok {
-			out = append(out, id)
+	return g.presence.onlineAmong(ids), nil
+}
+
+// onlineAmong filters userIDs down to those with a live connection.
+func (p *presence) onlineAmong(userIDs []string) []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var online []string
+	for _, userID := range userIDs {
+		if _, ok := p.users[userID]; ok {
+			online = append(online, userID)
 		}
 	}
-	return out, nil
+	return online
 }
 
 // ConnectionCount is how many WebSocket sessions are open, and
 // OnlineUserCount how many people hold at least one. Both feed the
 // Diagnostics tab's gauges.
-func (g *Gateway) ConnectionCount() int {
-	g.presence.mu.Lock()
-	defer g.presence.mu.Unlock()
-	n := 0
-	for _, e := range g.presence.users {
-		n += e.conns
+func (g *Gateway) ConnectionCount() int { return g.presence.connectionCount() }
+
+func (g *Gateway) OnlineUserCount() int { return g.presence.userCount() }
+
+func (p *presence) connectionCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	connections := 0
+	for _, entry := range p.users {
+		connections += entry.conns
 	}
-	return n
+	return connections
 }
 
-func (g *Gateway) OnlineUserCount() int {
-	g.presence.mu.Lock()
-	defer g.presence.mu.Unlock()
-	return len(g.presence.users)
+func (p *presence) userCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.users)
 }
