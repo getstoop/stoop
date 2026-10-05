@@ -35,9 +35,10 @@ func (s *Service) perform(ctx context.Context, row dbgen.Job, tracked *inflight,
 	} else {
 		err = s.performRenewing(ctx, entry, job, row)
 	}
-	if !tracked.remove(row.ID) {
+	if !tracked.claim(row.ID) {
 		return
 	}
+	defer tracked.done(row.ID)
 	writeCtx, cancel := context.WithTimeout(context.Background(), outcomeTimeout)
 	defer cancel()
 	if writeErr := s.writeOutcome(writeCtx, row, job, entry.opts, err); writeErr != nil {
