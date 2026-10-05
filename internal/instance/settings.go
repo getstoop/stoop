@@ -9,7 +9,6 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
@@ -137,18 +136,7 @@ func (s *Service) Seed(ctx context.Context, d Defaults) error {
 
 // readSetting decodes one JSON-string setting, returning fallback if unset.
 func (s *Service) readSetting(ctx context.Context, key, fallback string) (string, error) {
-	raw, err := s.q.GetSetting(ctx, key)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return fallback, nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("read %s: %w", key, err)
-	}
-	var v string
-	if err := json.Unmarshal(raw, &v); err != nil {
-		return "", fmt.Errorf("decode %s: %w", key, err)
-	}
-	return v, nil
+	return readSettingOr(ctx, s, key, fallback)
 }
 
 // SpaceCreationPolicy is the current setting.
@@ -166,18 +154,8 @@ func (s *Service) MembersMayCreateSpaces(ctx context.Context) (bool, error) {
 // RegistrationPolicy is the current policy; it also satisfies the auth
 // module's port (which sees it as a string).
 func (s *Service) RegistrationPolicy(ctx context.Context) (string, error) {
-	raw, err := s.q.GetSetting(ctx, keyRegistrationPolicy)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return string(PolicyInvite), nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("read %s: %w", keyRegistrationPolicy, err)
-	}
-	var p Policy
-	if err := json.Unmarshal(raw, &p); err != nil {
-		return "", fmt.Errorf("decode %s: %w", keyRegistrationPolicy, err)
-	}
-	return string(p), nil
+	policy, err := readSettingOr(ctx, s, keyRegistrationPolicy, PolicyInvite)
+	return string(policy), err
 }
 
 // InstanceName is the current setting: saved, else the environment, else
@@ -194,18 +172,7 @@ func (s *Service) InstanceName(ctx context.Context) (string, error) {
 
 // StorageQuotaBytes implements files.Policy: the upload cap, 0 = unlimited.
 func (s *Service) StorageQuotaBytes(ctx context.Context) (int64, error) {
-	raw, err := s.q.GetSetting(ctx, keyStorageQuota)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, fmt.Errorf("read %s: %w", keyStorageQuota, err)
-	}
-	var n int64
-	if err := json.Unmarshal(raw, &n); err != nil {
-		return 0, fmt.Errorf("decode %s: %w", keyStorageQuota, err)
-	}
-	return n, nil
+	return readSettingOr(ctx, s, keyStorageQuota, int64(0))
 }
 
 // UseUploadCeiling supplies the hard per-file cap the files module
@@ -217,18 +184,7 @@ func (s *Service) UseUploadCeiling(n int64) { s.uploadCeiling = n }
 // MaxUploadBytes implements files.Policy: the operator's cap on one file,
 // 0 = they set none (the caller's own ceiling then applies).
 func (s *Service) MaxUploadBytes(ctx context.Context) (int64, error) {
-	raw, err := s.q.GetSetting(ctx, keyMaxUpload)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, fmt.Errorf("read %s: %w", keyMaxUpload, err)
-	}
-	var n int64
-	if err := json.Unmarshal(raw, &n); err != nil {
-		return 0, fmt.Errorf("decode %s: %w", keyMaxUpload, err)
-	}
-	return n, nil
+	return readSettingOr(ctx, s, keyMaxUpload, int64(0))
 }
 
 // effectiveMaxUpload resolves the setting against the ceiling the way the
@@ -249,6 +205,10 @@ func (s *Service) effectiveMaxUpload(ctx context.Context) (int64, error) {
 }
 
 func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResponse, error) {
+	ctx, err := s.withSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
 	n, err := s.users.CountUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count users: %w", err)
@@ -340,6 +300,10 @@ func (s *Service) SelfDeletion(ctx context.Context) (bool, error) {
 }
 
 func (s *Service) GetInstanceStatus(ctx context.Context, _ *connect.Request[instancev1.GetInstanceStatusRequest]) (*connect.Response[instancev1.GetInstanceStatusResponse], error) {
+	ctx, err := s.withSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
 	st, err := s.status(ctx)
 	if err != nil {
 		return nil, err

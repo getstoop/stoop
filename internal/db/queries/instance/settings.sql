@@ -4,6 +4,10 @@
 -- name: GetSetting :one
 SELECT value FROM instance_settings WHERE key = $1;
 
+-- ListSettings is every saved value, for a read that needs many at once.
+-- name: ListSettings :many
+SELECT key, value FROM instance_settings;
+
 -- name: UpsertSetting :exec
 INSERT INTO instance_settings (key, value)
 VALUES ($1, $2)

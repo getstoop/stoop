@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
@@ -176,12 +175,9 @@ func (s *Service) UseTailscale(ctx context.Context, c TailscaleController) error
 }
 
 func (s *Service) readJSON(ctx context.Context, key string, into any) (bool, error) {
-	raw, err := s.q.GetSetting(ctx, key)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("read %s: %w", key, err)
+	raw, found, err := s.lookupSetting(ctx, key)
+	if err != nil || !found {
+		return false, err
 	}
 	if err := json.Unmarshal(raw, into); err != nil {
 		return false, fmt.Errorf("decode %s: %w", key, err)
@@ -236,6 +232,10 @@ func keepSecret(typed, current string) string {
 // or the environment for a group with none.
 func (s *Service) Reachability(ctx context.Context) (Reachability, error) {
 	r := s.env.Reachability
+	ctx, err := s.withSettings(ctx)
+	if err != nil {
+		return r, err
+	}
 	var pu string
 	if ok, err := s.readJSON(ctx, keyPublicURL, &pu); err != nil {
 		return r, err
