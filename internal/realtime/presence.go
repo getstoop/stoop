@@ -30,20 +30,25 @@ func newPresence() *presence {
 	return &presence{users: map[string]*presenceEntry{}}
 }
 
-// connect records a connection; true when this made the user online.
-func (p *presence) connect(userID string, spaceIDs []string) bool {
+// connect records a connection. It returns the spaces the user is newly
+// counted in: all of them for their first connection, and for a later one
+// any space joined since that another connection has not recorded yet.
+func (p *presence) connect(userID string, spaceIDs []string) (added []string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	e := p.users[userID]
-	if e == nil {
-		e = &presenceEntry{spaces: map[string]struct{}{}}
-		p.users[userID] = e
+	entry := p.users[userID]
+	if entry == nil {
+		entry = &presenceEntry{spaces: map[string]struct{}{}}
+		p.users[userID] = entry
 	}
-	for _, s := range spaceIDs {
-		e.spaces[s] = struct{}{}
+	for _, spaceID := range spaceIDs {
+		if _, counted := entry.spaces[spaceID]; !counted {
+			entry.spaces[spaceID] = struct{}{}
+			added = append(added, spaceID)
+		}
 	}
-	e.conns++
-	return e.conns == 1
+	entry.conns++
+	return added
 }
 
 // disconnect records a closed connection. When it was the user's last,

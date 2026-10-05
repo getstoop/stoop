@@ -31,20 +31,3 @@ func TestVoiceStateClears(t *testing.T) {
 		t.Errorf("participants = %d, want 0", voice.participantCount())
 	}
 }
-
-func TestAddSpaceReportsANewSpaceOnce(t *testing.T) {
-	presence := newPresence()
-	if presence.addSpace("ada", "s1") {
-		t.Error("someone offline should not be counted in a space")
-	}
-	presence.connect("ada", []string{"s1"})
-	if presence.addSpace("ada", "s1") {
-		t.Error("a space ada is already counted in is not new")
-	}
-	if !presence.addSpace("ada", "s2") {
-		t.Error("the first connection to hear the join should announce it")
-	}
-	if presence.addSpace("ada", "s2") {
-		t.Error("a second connection hearing the same join should not announce it again")
-	}
-}

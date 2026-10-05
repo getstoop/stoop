@@ -136,18 +136,19 @@ func (g *Gateway) subscribe(userID string, spaceIDs []string) *events.Subscripti
 	return g.bus.Subscribe(topics...)
 }
 
-// connectPresence counts a new connection. The first one announces the
-// person online to their spaces. Do not disturb is read again on every
-// connect, which also rebuilds an end timer a restart lost.
+// connectPresence counts a new connection and announces the person online
+// in each space they are newly counted in: every space for the first
+// connection, and a space joined since for a later one (its SpaceJoined
+// then finds it counted). Do not disturb is read again on every connect,
+// which also rebuilds an end timer a restart lost; a change is announced
+// everywhere.
 func (g *Gateway) connectPresence(ctx context.Context, userID string, spaceIDs []string) {
-	first := g.presence.connect(userID, spaceIDs)
-	changed := false
-	if setting, ok := g.lookupDoNotDisturb(ctx, userID); ok {
-		changed = g.applyDoNotDisturb(userID, setting)
-	}
-	if first || changed {
+	added := g.presence.connect(userID, spaceIDs)
+	if setting, ok := g.lookupDoNotDisturb(ctx, userID); ok && g.applyDoNotDisturb(userID, setting) {
 		g.publishPresence(userID, g.presence.spacesOf(userID), true)
+		return
 	}
+	g.publishPresence(userID, added, true)
 }
 
 // disconnectPresence counts a closed connection; the last one announces the
