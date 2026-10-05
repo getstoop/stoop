@@ -25,12 +25,12 @@ func (u *Upgrader) switchTo(ctx context.Context, current, target string, backup 
 		}
 	}
 	running := ""
-	if res := u.composeStreaming(ctx, "up", "-d", "--remove-orphans", "--wait", "--wait-timeout", u.Wait); res.Code == 0 {
-		running = runningVersion(u.compose(ctx, "exec", "-T", "stoop", "stoop", "version").Stdout)
+	if res := u.up(ctx); res.Code == 0 {
+		running = runningVersion(u.compose(ctx, captured, "exec", "-T", "stoop", "stoop", "version").Stdout)
 	}
 	if running != target {
 		_, _ = fmt.Fprintln(u.Out)
-		u.composeStreaming(ctx, "logs", "--tail", "40", "stoop")
+		u.showLogs(ctx)
 		_, _ = fmt.Fprintln(u.Out)
 		if running == "" {
 			running = "nothing"

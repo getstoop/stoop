@@ -37,9 +37,9 @@ func (u *Upgrader) backup(ctx context.Context, current, target string) (backupIn
 		return info, err
 	}
 	var res Result
-	info.Bundled = strings.TrimSpace(u.compose(ctx, "ps", "-q", "postgres").Stdout) != ""
+	info.Bundled = strings.TrimSpace(u.compose(ctx, captured, "ps", "-q", "postgres").Stdout) != ""
 	if info.Bundled {
-		res = u.Run.Run(ctx, Cmd{Name: "docker", Args: []string{"compose", "exec", "-T", "postgres", "pg_dump", "-U", "stoop", "-Fc", "stoop"}, Stdout: dump})
+		res = u.compose(ctx, output{stdout: dump}, "exec", "-T", "postgres", "pg_dump", "-U", "stoop", "-Fc", "stoop")
 	} else {
 		env, _ := os.ReadFile(u.path(envFile))
 		url := envValue(string(env), "STOOP_DATABASE_URL")
@@ -64,7 +64,7 @@ func (u *Upgrader) backup(ctx context.Context, current, target string) (backupIn
 		return info, err
 	}
 
-	id := strings.TrimSpace(u.compose(ctx, "ps", "-q", "stoop").Stdout)
+	id := strings.TrimSpace(u.compose(ctx, captured, "ps", "-q", "stoop").Stdout)
 	if id == "" {
 		return info, errors.New("the stoop container is not running; cannot reach the uploads to back them up")
 	}

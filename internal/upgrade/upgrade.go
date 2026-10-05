@@ -59,11 +59,40 @@ func (u *Upgrader) path(name string) string { return filepath.Join(u.Dir, name) 
 func (u *Upgrader) say(format string, args ...any) {
 	_, _ = fmt.Fprintf(u.Out, "== "+format+"\n", args...)
 }
-func (u *Upgrader) compose(ctx context.Context, args ...string) Result {
-	return u.Run.Run(ctx, Cmd{Name: "docker", Args: append([]string{"compose"}, args...)})
+
+// output is where a command's stdout and stderr go; a nil one is captured
+// into the Result.
+type output struct {
+	stdout, stderr io.Writer
 }
-func (u *Upgrader) composeStreaming(ctx context.Context, args ...string) Result {
-	return u.Run.Run(ctx, Cmd{Name: "docker", Args: append([]string{"compose"}, args...), Stdout: u.Out, Stderr: u.Out})
+
+var captured output
+
+func (u *Upgrader) onTerminal() output { return output{stdout: u.Out, stderr: u.Out} }
+
+func (u *Upgrader) compose(ctx context.Context, to output, args ...string) Result {
+	return u.Run.Run(ctx, Cmd{Name: "docker", Args: append([]string{"compose"}, args...), Stdout: to.stdout, Stderr: to.stderr})
+}
+
+// up starts the stack and waits for it to be healthy.
+func (u *Upgrader) up(ctx context.Context) Result {
+	return u.compose(ctx, u.onTerminal(), "up", "-d", "--remove-orphans", "--wait", "--wait-timeout", u.Wait)
+}
+
+func (u *Upgrader) showLogs(ctx context.Context) {
+	u.compose(ctx, u.onTerminal(), "logs", "--tail", "40", "stoop")
+}
+
+// readReport is the db.Report a `migrate ... --json` run printed as its
+// last line.
+func readReport(stdout string) (db.Report, error) {
+	line := strings.TrimSpace(stdout)
+	if cut := strings.LastIndex(line, "\n"); cut >= 0 {
+		line = line[cut+1:]
+	}
+	var report db.Report
+	err := json.Unmarshal([]byte(line), &report)
+	return report, err
 }
 func (u *Upgrader) cleanupNext() {
 	_ = os.Remove(u.path(nextFile))
@@ -125,23 +154,19 @@ func (u *Upgrader) Upgrade(ctx context.Context) error {
 // startable asks the running image which release is the oldest that can
 // start against the database now. ok is false when it could not say.
 func (u *Upgrader) startable(ctx context.Context) (oldest string, ok bool) {
-	res := u.compose(ctx, "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "status", "--json")
+	res := u.compose(ctx, captured, "run", "--rm", "--no-deps", "-T", "stoop", "migrate", "status", "--json")
 	if res.Code != 0 {
 		return "", false
 	}
-	line := strings.TrimSpace(res.Stdout)
-	if i := strings.LastIndex(line, "\n"); i >= 0 {
-		line = line[i+1:]
-	}
-	var report db.Report
-	if err := json.Unmarshal([]byte(line), &report); err != nil || report.Startable == "" {
+	report, err := readReport(res.Stdout)
+	if err != nil || report.Startable == "" {
 		return "", false
 	}
 	return report.Startable, true
 }
 
 func (u *Upgrader) preflight(ctx context.Context) (string, error) {
-	if res := u.compose(ctx, "version"); res.Code != 0 {
+	if res := u.compose(ctx, captured, "version"); res.Code != 0 {
 		return "", errors.New("docker compose (v2) is not available")
 	}
 	for _, name := range []string{composeFile, envFile} {
