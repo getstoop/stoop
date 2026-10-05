@@ -1,9 +1,12 @@
 -- Activity items. Owned by the chat module.
 -- Only internal/chat may use these queries.
 
--- name: CreateActivityItem :one
+-- CreateActivityItems writes one item of a kind for each recipient of
+-- a message, in one statement (see chat.notify).
+-- name: CreateActivityItems :many
 INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+SELECT unnest(sqlc.arg('ids')::uuid[]), unnest(sqlc.arg('user_ids')::uuid[]), sqlc.arg('kind')::text,
+    sqlc.narg('space_id')::uuid, sqlc.arg('channel_id')::uuid, sqlc.arg('message_id')::uuid, sqlc.arg('actor_id')::uuid
 RETURNING *;
 
 -- ListActivity returns newest first with the message text for a
@@ -32,20 +35,38 @@ WHERE user_id = $1 AND read_at IS NULL AND id = ANY(sqlc.arg('ids')::uuid[]);
 UPDATE activity_items SET read_at = now()
 WHERE user_id = $1 AND read_at IS NULL;
 
--- The unread activity item of one kind for a channel, if any: a DM's
--- alerts coalesce into it instead of piling up (see chat.recordDM).
--- name: GetUnreadActivityForChannel :one
-SELECT * FROM activity_items
-WHERE user_id = $1 AND channel_id = $2 AND kind = $3 AND read_at IS NULL
-ORDER BY id DESC
-LIMIT 1;
-
--- RefreshActivityItem points an existing item at a newer message
--- and stamps it now, so the entry reads as the latest activity.
--- name: RefreshActivityItem :one
-UPDATE activity_items SET message_id = $2, actor_id = $3, created_at = now()
-WHERE id = $1
-RETURNING *;
+-- UpsertUnreadActivityItems is CreateActivityItems for a kind that
+-- coalesces per channel, as a DM's alerts do (see chat.recordDM): a
+-- recipient's newest unread item of the kind there is pointed at the new
+-- message and stamped now; a recipient without one gets a new item.
+-- name: UpsertUnreadActivityItems :many
+WITH recipient AS (
+    SELECT unnest(sqlc.arg('ids')::uuid[]) AS id, unnest(sqlc.arg('user_ids')::uuid[]) AS user_id
+), unread AS (
+    SELECT DISTINCT ON (a.user_id) a.id, a.user_id
+    FROM activity_items a
+    WHERE a.user_id = ANY(sqlc.arg('user_ids')::uuid[])
+      AND a.channel_id = sqlc.arg('channel_id')::uuid
+      AND a.kind = sqlc.arg('kind')::text
+      AND a.read_at IS NULL
+    ORDER BY a.user_id, a.id DESC
+), refreshed AS (
+    UPDATE activity_items a
+    SET message_id = sqlc.arg('message_id')::uuid, actor_id = sqlc.arg('actor_id')::uuid, created_at = now()
+    FROM unread u
+    WHERE a.id = u.id
+    RETURNING a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at
+), created AS (
+    INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
+    SELECT r.id, r.user_id, sqlc.arg('kind')::text, sqlc.narg('space_id')::uuid,
+        sqlc.arg('channel_id')::uuid, sqlc.arg('message_id')::uuid, sqlc.arg('actor_id')::uuid
+    FROM recipient r
+    WHERE NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
+    RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
+)
+SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM refreshed
+UNION ALL
+SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM created;
 
 -- DeleteReadActivityBefore drops read items older than the
 -- retention window; unread ones stay however old (see chat.SweepActivity).

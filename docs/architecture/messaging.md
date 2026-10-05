@@ -236,12 +236,17 @@ Being mentioned in a reply in a DM is one entry, not three.
 list, so a block is applied once, at the point of delivery, rather than in
 each of the three record paths.
 
+**Delivery is batched.** Each of the three goes through `notify`, which
+filters blockers, writes every recipient's item, and reads their mutes in
+one query each, so an `@everyone` costs the same handful of queries in
+any size of space.
+
 ### The DM feed collapses
 
 The activity feed holds **one entry per conversation, not per
 message**. While an entry is unread, further messages refresh its preview
-and timestamp in place (`RefreshActivityItem`); once it has been read, the
-next message starts a new entry.
+and timestamp in place (`UpsertUnreadActivityItems`); once it has been
+read, the next message starts a new entry.
 
 The event still goes out for every message, so a desktop banner fires per
 message unless that DM is on screen and focused. That split is intentional:
