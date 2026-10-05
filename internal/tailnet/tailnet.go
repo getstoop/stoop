@@ -204,7 +204,13 @@ func (s *Server) Serve(ctx context.Context, handler http.Handler) error {
 		} else {
 			s.media.Store(true)
 			defer s.media.Store(false)
-			go newForwarder(s.opts.Media, ip4, s.ts, s.log).Run(ctx)
+			fwdCtx, stopFwd := context.WithCancel(ctx)
+			fwdDone := make(chan struct{})
+			go func() {
+				defer close(fwdDone)
+				newForwarder(s.opts.Media, ip4, s.ts, s.log).Run(fwdCtx)
+			}()
+			defer func() { stopFwd(); <-fwdDone }()
 		}
 	}
 

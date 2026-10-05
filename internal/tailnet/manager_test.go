@@ -2,11 +2,16 @@ package tailnet
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/getstoop/stoop/internal/restart"
 )
 
 type fakeRun struct {
@@ -27,40 +32,40 @@ func (f *fakeRun) PublicURL() string { return "https://" + f.opts.Hostname + ".e
 func TestManager_Reconciles(t *testing.T) {
 	var mu sync.Mutex
 	var started []*fakeRun
-	m := NewManager("/tmp/state", http.NotFoundHandler(), slog.Default())
-	m.newRun = func(o Options, _ *slog.Logger) runner {
+	manager := NewManager("/tmp/state", http.NotFoundHandler(), slog.Default())
+	manager.newRun = func(opts Options, _ *slog.Logger) runner {
 		mu.Lock()
 		defer mu.Unlock()
-		r := &fakeRun{opts: o, stopped: make(chan struct{})}
-		started = append(started, r)
-		return r
+		run := &fakeRun{opts: opts, stopped: make(chan struct{})}
+		started = append(started, run)
+		return run
 	}
 	count := func() int { mu.Lock(); defer mu.Unlock(); return len(started) }
 	last := func() *fakeRun { mu.Lock(); defer mu.Unlock(); return started[len(started)-1] }
 
 	// Applied before Run: nothing starts yet.
-	m.Apply(Settings{Enabled: true, Hostname: "porch"})
+	manager.Apply(Settings{Enabled: true, Hostname: "porch"})
 	if count() != 0 {
 		t.Fatal("must not start before Run")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
-	go func() { m.Run(ctx); close(done) }()
+	go func() { manager.Run(ctx); close(done) }()
 	time.Sleep(50 * time.Millisecond)
 	if count() != 1 || last().opts.Hostname != "porch" || last().opts.StateDir != "/tmp/state" {
 		t.Fatalf("started = %d, opts = %+v", count(), last().opts)
 	}
-	if m.PublicURL() != "https://porch.example.ts.net" {
-		t.Errorf("PublicURL = %q", m.PublicURL())
+	if manager.PublicURL() != "https://porch.example.ts.net" {
+		t.Errorf("PublicURL = %q", manager.PublicURL())
 	}
 
 	// Same settings: no restart. Changed funnel: restart. Disabled: stop.
-	m.Apply(Settings{Enabled: true, Hostname: "porch"})
+	manager.Apply(Settings{Enabled: true, Hostname: "porch"})
 	if count() != 1 {
 		t.Error("identical settings must not restart")
 	}
 	first := last()
-	m.Apply(Settings{Enabled: true, Hostname: "porch", Funnel: true})
+	manager.Apply(Settings{Enabled: true, Hostname: "porch", Funnel: true})
 	select {
 	case <-first.stopped:
 	case <-time.After(time.Second):
@@ -69,23 +74,25 @@ func TestManager_Reconciles(t *testing.T) {
 	if count() != 2 || !last().opts.Funnel {
 		t.Errorf("expected a funnel restart, started = %d", count())
 	}
-	if st, on := m.Status(context.Background()); !on || !st.Funnel {
+	if st, on := manager.Status(context.Background()); !on || !st.Funnel {
 		t.Errorf("status = %+v on=%v", st, on)
 	}
+	// The new node is served once the old one has stopped.
+	waitFor(t, time.Second, "the funnel node", func() bool { return manager.PublicURL() != "" })
 	second := last()
-	m.Apply(Settings{Enabled: false})
+	manager.Apply(Settings{Enabled: false})
 	select {
 	case <-second.stopped:
 	case <-time.After(time.Second):
 		t.Fatal("node not stopped when disabled")
 	}
-	if _, on := m.Status(context.Background()); on || m.PublicURL() != "" {
+	if _, on := manager.Status(context.Background()); on || manager.PublicURL() != "" {
 		t.Error("disabled manager must report stopped and no URL")
 	}
 
 	// Default hostname; shutdown stops the node.
-	m.Apply(Settings{Enabled: true})
-	time.Sleep(20 * time.Millisecond)
+	manager.Apply(Settings{Enabled: true})
+	waitFor(t, time.Second, "the default node", func() bool { return manager.PublicURL() != "" })
 	if last().opts.Hostname != "stoop" {
 		t.Errorf("default hostname = %q", last().opts.Hostname)
 	}
@@ -170,4 +177,153 @@ func TestManager_CarriesMedia(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("manager did not stop")
 	}
+}
+
+// scriptedRun is a node whose Serve returns when its test says so: with
+// fail closed it returns an error even though ctx is live, and it ignores
+// ctx until release is closed, like a node that is slow to stop.
+type scriptedRun struct {
+	url     string
+	serving atomic.Bool
+	fail    chan struct{}
+	release chan struct{}
+	stopped chan struct{}
+}
+
+func newScriptedRun(url string) *scriptedRun {
+	return &scriptedRun{
+		url: url, fail: make(chan struct{}), release: make(chan struct{}), stopped: make(chan struct{}),
+	}
+}
+
+func (r *scriptedRun) Serve(ctx context.Context, _ http.Handler) error {
+	defer close(r.stopped)
+	r.serving.Store(true)
+	select {
+	case <-r.fail:
+		return errors.New("tsnet went away")
+	case <-ctx.Done():
+	}
+	<-r.release
+	return ctx.Err()
+}
+func (r *scriptedRun) Status(context.Context) Status { return Status{State: "running", URL: r.url} }
+func (r *scriptedRun) PublicURL() string             { return r.url }
+
+func scriptedManager(t *testing.T) (*Manager, func() []*scriptedRun) {
+	t.Helper()
+	var mu sync.Mutex
+	var started []*scriptedRun
+	manager := NewManager(t.TempDir(), http.NotFoundHandler(), slog.Default())
+	manager.newRun = func(Options, *slog.Logger) runner {
+		mu.Lock()
+		defer mu.Unlock()
+		run := newScriptedRun(fmt.Sprintf("https://node%d.example.ts.net", len(started)+1))
+		started = append(started, run)
+		return run
+	}
+	runs := func() []*scriptedRun {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]*scriptedRun(nil), started...)
+	}
+	return manager, runs
+}
+
+func runManager(t *testing.T, manager *Manager) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); manager.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+}
+
+func waitFor(t *testing.T, within time.Duration, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(within)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func TestManager_RestartsStoppedNode(t *testing.T) {
+	manager, runs := scriptedManager(t)
+	runManager(t, manager)
+	t.Cleanup(func() {
+		for _, run := range runs() {
+			close(run.release)
+		}
+	})
+	manager.Apply(Settings{Enabled: true, Hostname: "porch"})
+	waitFor(t, time.Second, "the first node", func() bool { return manager.PublicURL() == "https://node1.example.ts.net" })
+
+	first := runs()[0]
+	close(first.fail)
+	<-first.stopped
+
+	waitFor(t, time.Second, "the dead address to go", func() bool { return manager.PublicURL() == "" })
+	status, enabled := manager.Status(context.Background())
+	if !enabled || status.State != "starting" || status.Error != "tsnet went away" {
+		t.Errorf("status while down = %+v, enabled = %v", status, enabled)
+	}
+
+	waitFor(t, restart.BackoffMin+2*time.Second, "a restart", func() bool { return len(runs()) == 2 })
+	waitFor(t, time.Second, "the new address", func() bool { return manager.PublicURL() == "https://node2.example.ts.net" })
+	if status, _ := manager.Status(context.Background()); status.State != "running" || status.Error != "" {
+		t.Errorf("status once back = %+v", status)
+	}
+}
+
+func TestManager_StatusDoesNotWaitForOldNode(t *testing.T) {
+	manager, runs := scriptedManager(t)
+	runManager(t, manager)
+	manager.Apply(Settings{Enabled: true, Hostname: "porch"})
+	waitFor(t, time.Second, "the first node", func() bool { return manager.PublicURL() != "" })
+	old := runs()[0]
+	t.Cleanup(func() {
+		select {
+		case <-old.release:
+		default:
+			close(old.release)
+		}
+		for _, run := range runs()[1:] {
+			close(run.release)
+		}
+	})
+
+	applied := make(chan struct{})
+	go func() {
+		defer close(applied)
+		manager.Apply(Settings{Enabled: true, Hostname: "stoop"})
+	}()
+	time.Sleep(50 * time.Millisecond)
+
+	read := make(chan string)
+	go func() {
+		manager.Status(context.Background())
+		read <- manager.PublicURL()
+	}()
+	select {
+	case url := <-read:
+		if url != "" {
+			t.Errorf("PublicURL while the old node stops = %q", url)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Status and PublicURL blocked on the old node stopping")
+	}
+	<-applied
+
+	// The new node waits for the old one: they share a state dir.
+	time.Sleep(50 * time.Millisecond)
+	if runs()[1].serving.Load() {
+		t.Fatal("new node started before the old one stopped")
+	}
+	close(old.release)
+	waitFor(t, time.Second, "the new node", func() bool { return manager.PublicURL() == "https://node2.example.ts.net" })
 }
