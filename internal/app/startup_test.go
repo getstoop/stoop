@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
@@ -23,13 +22,7 @@ func TestFailedStartupClosesThePool(t *testing.T) {
 	for name, setting := range cases {
 		t.Run(name, func(t *testing.T) {
 			databaseURL := dbtest.NewURL(t)
-			t.Setenv("STOOP_DATABASE_URL", databaseURL)
-			t.Setenv("STOOP_STORAGE_DIR", t.TempDir())
-			t.Setenv(setting[0], setting[1])
-			cfg, err := config.Load()
-			if err != nil {
-				t.Fatal(err)
-			}
+			cfg := LoadTestConfig(t, databaseURL, setting[0], setting[1])
 			if _, err := New(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil))); err == nil {
 				t.Fatalf("%s=%q should fail start-up", setting[0], setting[1])
 			}
