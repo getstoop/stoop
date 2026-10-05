@@ -11,6 +11,7 @@ import (
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/instance"
@@ -22,42 +23,42 @@ type fakeUsers struct {
 }
 
 func newFakeUsers(specs ...instance.UserSummary) *fakeUsers {
-	f := &fakeUsers{users: map[string]*instance.UserSummary{}}
-	for _, u := range specs {
-		u := u
-		f.users[u.ID] = &u
+	fake := &fakeUsers{users: map[string]*instance.UserSummary{}}
+	for _, spec := range specs {
+		summary := spec
+		fake.users[summary.ID] = &summary
 	}
-	return f
+	return fake
 }
 func (f *fakeUsers) CountUsers(context.Context) (int64, error) { return int64(len(f.users)), nil }
 func (f *fakeUsers) CountActiveAdmins(context.Context) (int64, error) {
-	var n int64
-	for _, u := range f.users {
-		if u.Role == authctx.RoleAdmin && u.Kind != authctx.KindBot && u.DeactivatedAt == nil {
-			n++
+	var count int64
+	for _, user := range f.users {
+		if user.Role == authctx.RoleAdmin && user.Kind != authctx.KindBot && user.DeactivatedAt == nil {
+			count++
 		}
 	}
-	return n, nil
+	return count, nil
 }
 func (f *fakeUsers) ListUsers(context.Context) ([]instance.UserSummary, error) {
 	out := []instance.UserSummary{}
-	for _, u := range f.users {
-		out = append(out, *u)
+	for _, user := range f.users {
+		out = append(out, *user)
 	}
 	return out, nil
 }
 func (f *fakeUsers) SetUserRole(_ context.Context, id string, role authctx.Role) (instance.UserSummary, error) {
-	u, ok := f.users[id]
+	user, ok := f.users[id]
 	if !ok {
 		return instance.UserSummary{}, errors.New("not found")
 	}
 	if role == authctx.RoleMember {
-		if err := f.guardLastAdmin(u); err != nil {
+		if err := f.guardLastAdmin(user); err != nil {
 			return instance.UserSummary{}, err
 		}
 	}
-	u.Role = role
-	return *u, nil
+	user.Role = role
+	return *user, nil
 }
 
 // guardLastAdmin mirrors auth's: the port refuses to remove the last
@@ -66,33 +67,33 @@ func (f *fakeUsers) guardLastAdmin(target *instance.UserSummary) error {
 	if target.Role != authctx.RoleAdmin || target.DeactivatedAt != nil {
 		return nil
 	}
-	if n, _ := f.CountActiveAdmins(context.Background()); n <= 1 {
+	if admins, _ := f.CountActiveAdmins(context.Background()); admins <= 1 {
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("that's the last active admin; promote someone else first"))
 	}
 	return nil
 }
 func (f *fakeUsers) ResetUserPassword(_ context.Context, id string) (string, instance.UserSummary, error) {
-	u, ok := f.users[id]
+	user, ok := f.users[id]
 	if !ok {
 		return "", instance.UserSummary{}, errors.New("not found")
 	}
-	return "temp-password", *u, nil
+	return "temp-password", *user, nil
 }
 func (f *fakeUsers) SetUserActive(_ context.Context, id string, active bool) (instance.UserSummary, error) {
-	u, ok := f.users[id]
+	user, ok := f.users[id]
 	if !ok {
 		return instance.UserSummary{}, errors.New("not found")
 	}
 	if active {
-		u.DeactivatedAt = nil
+		user.DeactivatedAt = nil
 	} else {
-		if err := f.guardLastAdmin(u); err != nil {
+		if err := f.guardLastAdmin(user); err != nil {
 			return instance.UserSummary{}, err
 		}
 		now := time.Now()
-		u.DeactivatedAt = &now
+		user.DeactivatedAt = &now
 	}
-	return *u, nil
+	return *user, nil
 }
 
 func as(id string, role authctx.Role) context.Context {
@@ -129,8 +130,8 @@ func TestStatusAndSettings(t *testing.T) {
 	if err := svc.Seed(ctx, instance.Defaults{RegistrationPolicy: instance.PolicyClosed}); err != nil {
 		t.Fatal(err)
 	}
-	if p, _ := svc.RegistrationPolicy(ctx); p != "open" {
-		t.Errorf("after seed, policy = %q, want open (second seed must not override)", p)
+	if policy, _ := svc.RegistrationPolicy(ctx); policy != "open" {
+		t.Errorf("after seed, policy = %q, want open (second seed must not override)", policy)
 	}
 
 	// Admin updates it; a member can't; a new Service on the same DB sees it (persistence).
@@ -146,8 +147,8 @@ func TestStatusAndSettings(t *testing.T) {
 	if res.Msg.Status.RegistrationPolicy != closed {
 		t.Errorf("after update: %+v", res.Msg.Status)
 	}
-	if p, _ := instance.New(pool, users).RegistrationPolicy(ctx); p != "closed" {
-		t.Errorf("persisted policy = %q", p)
+	if policy, _ := instance.New(pool, users).RegistrationPolicy(ctx); policy != "closed" {
+		t.Errorf("persisted policy = %q", policy)
 	}
 	// Space creation defaults to admins; admin can open it up.
 	if ok, _ := svc.MembersMayCreateSpaces(ctx); ok {
@@ -222,14 +223,19 @@ func TestInstanceName(t *testing.T) {
 		t.Errorf("over-length name: %v", err)
 	}
 
-	// STOOP_INSTANCE_NAME fallback: never seeded, so it stays live until
-	// an admin saves something through the UI.
+	// STOOP_INSTANCE_NAME seeds the name; a later change to it doesn't.
 	envSvc := instance.New(dbtest.New(t), users)
 	if err := envSvc.Seed(ctx, instance.Defaults{InstanceNameEnv: "Env Instance"}); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := envSvc.InstanceName(ctx); got != "Env Instance" {
-		t.Errorf("env fallback = %q", got)
+		t.Errorf("seeded from env = %q", got)
+	}
+	if err := envSvc.Seed(ctx, instance.Defaults{InstanceNameEnv: "Renamed In Env"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := envSvc.InstanceName(ctx); got != "Env Instance" {
+		t.Errorf("a changed env replaced the saved name: %q", got)
 	}
 }
 
@@ -295,40 +301,40 @@ func TestUserAdministration(t *testing.T) {
 }
 
 func (f *fakeUsers) RenameUser(_ context.Context, userID string, username, displayName *string) (instance.UserSummary, error) {
-	u, ok := f.users[userID]
+	user, ok := f.users[userID]
 	if !ok {
 		return instance.UserSummary{}, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
 	if username != nil {
-		u.Username = *username
+		user.Username = *username
 	}
 	if displayName != nil {
-		u.DisplayName = *displayName
+		user.DisplayName = *displayName
 	}
-	return *u, nil
+	return *user, nil
 }
 
 func (f *fakeUsers) SetUsernameFrozen(_ context.Context, userID string, frozen bool) (instance.UserSummary, error) {
-	u, ok := f.users[userID]
+	user, ok := f.users[userID]
 	if !ok {
 		return instance.UserSummary{}, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
-	u.UsernameFrozen = frozen
-	return *u, nil
+	user.UsernameFrozen = frozen
+	return *user, nil
 }
 
 func (f *fakeUsers) ClearUserProfile(_ context.Context, userID string, pronouns, bio bool) (instance.UserSummary, error) {
-	u, ok := f.users[userID]
+	user, ok := f.users[userID]
 	if !ok {
 		return instance.UserSummary{}, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
 	}
 	if pronouns {
-		u.Pronouns = ""
+		user.Pronouns = ""
 	}
 	if bio {
-		u.Bio = ""
+		user.Bio = ""
 	}
-	return *u, nil
+	return *user, nil
 }
 
 func TestClearUserProfile(t *testing.T) {
@@ -345,14 +351,10 @@ func TestClearUserProfile(t *testing.T) {
 	_, err := svc.ClearUserProfile(member, connect.NewRequest(&instancev1.ClearUserProfileRequest{
 		UserId: "m1", Bio: true,
 	}))
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("member clearing a profile: want permission_denied, got %v", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "member clearing a profile")
 	// Asking for nothing is a mistake worth naming, not a silent no-op.
 	_, err = svc.ClearUserProfile(admin, connect.NewRequest(&instancev1.ClearUserProfileRequest{UserId: "m1"}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("clearing neither field: want invalid_argument, got %v", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "clearing neither field")
 	res, err := svc.ClearUserProfile(admin, connect.NewRequest(&instancev1.ClearUserProfileRequest{
 		UserId: "m1", Bio: true,
 	}))
@@ -384,7 +386,7 @@ func TestProfileModerationFollowsRank(t *testing.T) {
 		_, err := svc.RenameUser(ctx, connect.NewRequest(&instancev1.RenameUserRequest{UserId: id, DisplayName: &name}))
 		return err
 	}
-	for _, c := range []struct {
+	for _, testCase := range []struct {
 		what string
 		err  error
 		want connect.Code
@@ -398,8 +400,8 @@ func TestProfileModerationFollowsRank(t *testing.T) {
 		{"owner clears an admin", clear(owner, "a2"), 0},
 		{"owner renames an admin", rename(owner, "a1"), 0},
 	} {
-		if got := code(c.err); got != c.want {
-			t.Errorf("%s: want %v, got %v", c.what, c.want, c.err)
+		if got := code(testCase.err); got != testCase.want {
+			t.Errorf("%s: want %v, got %v", testCase.what, testCase.want, testCase.err)
 		}
 	}
 }
@@ -453,8 +455,8 @@ func TestMaxUploadBytes(t *testing.T) {
 		t.Errorf("unset status = %d, want the ceiling %d", st.Msg.MaxUploadBytes, ceiling)
 	}
 
-	set := func(n int64) (*connect.Response[instancev1.UpdateSettingsResponse], error) {
-		return svc.UpdateSettings(admin, connect.NewRequest(&instancev1.UpdateSettingsRequest{MaxUploadBytes: &n}))
+	set := func(limit int64) (*connect.Response[instancev1.UpdateSettingsResponse], error) {
+		return svc.UpdateSettings(admin, connect.NewRequest(&instancev1.UpdateSettingsRequest{MaxUploadBytes: &limit}))
 	}
 	res, err := set(8 << 20)
 	if err != nil {
@@ -464,8 +466,8 @@ func TestMaxUploadBytes(t *testing.T) {
 		t.Errorf("after update = %d, want %d", res.Msg.Status.MaxUploadBytes, 8<<20)
 	}
 	// files reads the operator's raw setting through the port.
-	if n, _ := svc.MaxUploadBytes(ctx); n != 8<<20 {
-		t.Errorf("port = %d, want %d", n, 8<<20)
+	if limit, _ := svc.MaxUploadBytes(ctx); limit != 8<<20 {
+		t.Errorf("port = %d, want %d", limit, 8<<20)
 	}
 	if _, err := set(ceiling + 1); code(err) != connect.CodeInvalidArgument {
 		t.Errorf("above the ceiling: %v", err)

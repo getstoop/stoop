@@ -7,10 +7,8 @@ import (
 	"connectrpc.com/connect"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 // TestListMessagesModes covers the three ways to page a channel: backwards
@@ -18,18 +16,17 @@ import (
 // one message (around_id), plus the has_older/has_newer hints the client's
 // window model relies on.
 func TestListMessagesModes(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	sp, _ := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	channelID := sp.Msg.DefaultChannel.Id
 	other, _ := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: sp.Msg.Space.Id, Name: "other"}))
 
 	ids := make([]string, 0, 12)
-	for i := range 12 {
-		content := fmt.Sprintf("m%d", i)
+	for index := range 12 {
+		content := fmt.Sprintf("m%d", index)
 		var reply string
-		if i == 11 {
+		if index == 11 {
 			reply = ids[1] // the newest message quotes an early one
 		}
 		res, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{
@@ -53,15 +50,15 @@ func TestListMessagesModes(t *testing.T) {
 	}
 	contents := func(msgs []*chatv1.Message) []string {
 		out := make([]string, len(msgs))
-		for i, m := range msgs {
-			out[i] = m.Content
+		for index, message := range msgs {
+			out[index] = message.Content
 		}
 		return out
 	}
 	expect := func(name string, got *chatv1.ListMessagesResponse, want []string, older, newer bool) {
 		t.Helper()
-		if g := contents(got.Messages); fmt.Sprint(g) != fmt.Sprint(want) {
-			t.Errorf("%s: messages = %v, want %v", name, g, want)
+		if listed := contents(got.Messages); fmt.Sprint(listed) != fmt.Sprint(want) {
+			t.Errorf("%s: messages = %v, want %v", name, listed, want)
 		}
 		if got.HasOlder != older || got.HasNewer != newer {
 			t.Errorf("%s: has_older=%v has_newer=%v, want %v/%v", name, got.HasOlder, got.HasNewer, older, newer)
@@ -92,13 +89,9 @@ func TestListMessagesModes(t *testing.T) {
 	// A message from another channel (or a bogus id) is NotFound, not a leak.
 	for _, id := range []string{elsewhere.Msg.Message.Id, "00000000-0000-7000-8000-000000000000"} {
 		_, err := svc.ListMessages(owner, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID, AroundId: id}))
-		if connect.CodeOf(err) != connect.CodeNotFound {
-			t.Errorf("around %s: err = %v, want NotFound", id, err)
-		}
+		apierrtest.ExpectCode(t, err, connect.CodeNotFound, fmt.Sprintf("around %s", id))
 	}
 	// The modes don't combine.
 	_, err := svc.ListMessages(owner, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID, BeforeId: ids[5], AfterId: ids[2]}))
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("before+after: err = %v, want InvalidArgument", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "before+after")
 }

@@ -69,6 +69,20 @@ func (channels *countingChannels) DMParticipants(context.Context, string) ([]str
 	return nil, nil
 }
 
+// newTestGateway serves a gateway on a fresh bus for the test's duration;
+// configure runs before the server starts.
+func newTestGateway(t *testing.T, members fakeMembers, channels realtime.ChannelLookup, configure ...func(*realtime.Gateway)) (*realtime.Gateway, *events.InProcBus, *httptest.Server) {
+	t.Helper()
+	bus := events.NewInProcBus()
+	gateway := realtime.NewGateway(bus, fakeVerifier{}, members, channels, []string{"*"}, slog.Default())
+	for _, apply := range configure {
+		apply(gateway)
+	}
+	server := httptest.NewServer(gateway)
+	t.Cleanup(server.Close)
+	return gateway, bus, server
+}
+
 // client reads frames on a goroutine into a channel so that waiting with
 // a timeout never cancels a Read (which would close the socket).
 type client struct {
@@ -164,26 +178,27 @@ func (c *client) closed(timeout time.Duration) bool {
 }
 
 func TestPresenceAndTyping(t *testing.T) {
-	bus := events.NewInProcBus()
-	gw := realtime.NewGateway(bus, fakeVerifier{}, fakeMembers{
+	gw, _, srv := newTestGateway(t, fakeMembers{
 		"alice": {"s1"}, "bob": {"s1", "s2"}, "carol": {"s2"},
-	}, fakeVoiceChannels{}, []string{"*"}, slog.Default())
-	mux := http.NewServeMux()
-	mux.Handle("/ws", gw)
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	}, fakeVoiceChannels{})
 
 	alice := dial(t, srv, "alice")
 	ready := alice.next(time.Second).GetReady()
-	if ready == nil || len(ready.OnlineUserIds) != 1 || ready.OnlineUserIds[0] != "alice" {
+	if ready == nil || len(ready.Presences) != 1 || ready.Presences[0].UserId != "alice" {
 		t.Fatalf("alice ready = %+v", ready)
 	}
 
 	// bob connects: alice (shares s1) hears he's online; his Ready lists both.
 	bob := dial(t, srv, "bob")
 	bready := bob.next(time.Second).GetReady()
-	if bready == nil || len(bready.OnlineUserIds) != 2 {
+	if bready == nil || len(bready.Presences) != 2 {
 		t.Fatalf("bob ready = %+v", bready)
+	}
+	// A tab from before presences reads the ids alone (STOOP-413).
+	for index, presence := range bready.Presences {
+		if bready.OnlineUserIds[index] != presence.UserId {
+			t.Errorf("online_user_ids = %v, want the ids in presences", bready.OnlineUserIds)
+		}
 	}
 	if ev := alice.waitFor(func(e *realtimev1.ServerEvent) bool {
 		p := e.GetPresenceChanged()
@@ -195,7 +210,7 @@ func TestPresenceAndTyping(t *testing.T) {
 	// carol only shares s2 with bob: alice must not hear about her.
 	carol := dial(t, srv, "carol")
 	cready := carol.next(time.Second).GetReady()
-	if cready == nil || len(cready.OnlineUserIds) != 2 { // bob + carol
+	if cready == nil || len(cready.Presences) != 2 { // bob + carol
 		t.Fatalf("carol ready = %+v", cready)
 	}
 	if ev := alice.next(300 * time.Millisecond); ev != nil {
@@ -242,12 +257,9 @@ func TestPresenceAndTyping(t *testing.T) {
 // Joining a space mid-connection: Ready never covered it, so the joiner
 // is told who is online and in voice there.
 func TestJoinWhileConnected(t *testing.T) {
-	bus := events.NewInProcBus()
-	gw := realtime.NewGateway(bus, fakeVerifier{}, fakeMembers{
+	_, bus, srv := newTestGateway(t, fakeMembers{
 		"alice": {"s1"}, "carol": {"s1"}, "bob": {},
-	}, fakeVoiceChannels{"v1": "s1"}, []string{"*"}, slog.Default())
-	srv := httptest.NewServer(gw)
-	defer srv.Close()
+	}, fakeVoiceChannels{"v1": "s1"})
 
 	alice := dial(t, srv, "alice")
 	alice.next(time.Second)
@@ -257,7 +269,7 @@ func TestJoinWhileConnected(t *testing.T) {
 	alice.waitFor(func(e *realtimev1.ServerEvent) bool { return e.GetVoiceStateChanged() != nil })
 
 	bob := dial(t, srv, "bob")
-	if ready := bob.next(time.Second).GetReady(); ready == nil || len(ready.OnlineUserIds) != 0 {
+	if ready := bob.next(time.Second).GetReady(); ready == nil || len(ready.Presences) != 0 {
 		t.Fatalf("bob ready = %+v", ready)
 	}
 
@@ -324,12 +336,9 @@ func voiceEvent(channelID string, muted bool) *realtimev1.ClientEvent {
 }
 
 func TestVoiceState(t *testing.T) {
-	bus := events.NewInProcBus()
-	gw := realtime.NewGateway(bus, fakeVerifier{}, fakeMembers{
+	_, bus, srv := newTestGateway(t, fakeMembers{
 		"alice": {"s1"}, "bob": {"s1", "s2"}, "carol": {"s2"},
-	}, fakeVoiceChannels{"v1": "s1", "v1b": "s1", "v2": "s2"}, []string{"*"}, slog.Default())
-	srv := httptest.NewServer(gw)
-	defer srv.Close()
+	}, fakeVoiceChannels{"v1": "s1", "v1b": "s1", "v2": "s2"})
 
 	voiceChange := func(user string, joined bool) func(*realtimev1.ServerEvent) bool {
 		return func(e *realtimev1.ServerEvent) bool {
@@ -460,15 +469,9 @@ func dndIn(r *realtimev1.Ready, userID string) (dnd, listed bool) {
 }
 
 func TestDoNotDisturb(t *testing.T) {
-	bus := events.NewInProcBus()
-	gw := realtime.NewGateway(bus, fakeVerifier{}, fakeMembers{
+	_, bus, srv := newTestGateway(t, fakeMembers{
 		"alice": {"s1"}, "bob": {"s1"},
-	}, fakeVoiceChannels{}, []string{"*"}, slog.Default())
-	gw.UseDoNotDisturb(fakeDnd{"alice": true})
-	mux := http.NewServeMux()
-	mux.Handle("/ws", gw)
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	}, fakeVoiceChannels{}, func(gateway *realtime.Gateway) { gateway.UseDoNotDisturb(fakeDnd{"alice": true}) })
 
 	// Alice is already on do not disturb when she connects. It is read on
 	// connect, so her own Ready and bob's both show it.
@@ -526,14 +529,9 @@ func TestDoNotDisturb(t *testing.T) {
 }
 
 func TestVoiceVideoFlags(t *testing.T) {
-	bus := events.NewInProcBus()
-	gw := realtime.NewGateway(bus, fakeVerifier{}, fakeMembers{
+	_, _, srv := newTestGateway(t, fakeMembers{
 		"alice": {"s1"}, "bob": {"s1"},
-	}, fakeVoiceChannels{"v1": "s1"}, []string{"*"}, slog.Default())
-	mux := http.NewServeMux()
-	mux.Handle("/ws", gw)
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
+	}, fakeVoiceChannels{"v1": "s1"})
 
 	alice := dial(t, srv, "alice")
 	alice.next(time.Second) // Ready
@@ -585,11 +583,9 @@ func flood(t *testing.T, sender, watcher *client, user string, frames int, frame
 
 func TestTypingFloodIsThrottled(t *testing.T) {
 	channels := &countingChannels{}
-	gw := realtime.NewGateway(events.NewInProcBus(), fakeVerifier{}, fakeMembers{
+	_, _, srv := newTestGateway(t, fakeMembers{
 		"casey": {"s1"}, "ada": {"s1"},
-	}, channels, []string{"*"}, slog.Default())
-	srv := httptest.NewServer(gw)
-	defer srv.Close()
+	}, channels)
 
 	ada := dial(t, srv, "ada")
 	ada.waitFor(presenceOf("ada"))
@@ -611,11 +607,9 @@ func TestTypingFloodIsThrottled(t *testing.T) {
 
 func TestVoiceStateFloodIsThrottled(t *testing.T) {
 	channels := &countingChannels{voice: fakeVoiceChannels{"v1": "s1"}}
-	gw := realtime.NewGateway(events.NewInProcBus(), fakeVerifier{}, fakeMembers{
+	_, _, srv := newTestGateway(t, fakeMembers{
 		"casey": {"s1"}, "ada": {"s1"},
-	}, channels, []string{"*"}, slog.Default())
-	srv := httptest.NewServer(gw)
-	defer srv.Close()
+	}, channels)
 
 	ada := dial(t, srv, "ada")
 	ada.waitFor(presenceOf("ada"))
@@ -655,11 +649,9 @@ func TestVoiceStateFloodIsThrottled(t *testing.T) {
 // Typing somewhere the sender may not post does not start that channel's
 // interval, so their next, allowed frame there is still relayed.
 func TestRefusedTypingDoesNotStartTheInterval(t *testing.T) {
-	gw := realtime.NewGateway(events.NewInProcBus(), fakeVerifier{}, fakeMembers{
+	_, _, srv := newTestGateway(t, fakeMembers{
 		"casey": {"s1"}, "ada": {"s1"},
-	}, fakeVoiceChannels{}, []string{"*"}, slog.Default())
-	srv := httptest.NewServer(gw)
-	defer srv.Close()
+	}, fakeVoiceChannels{})
 
 	ada := dial(t, srv, "ada")
 	ada.waitFor(presenceOf("ada"))
@@ -680,4 +672,64 @@ func TestRefusedTypingDoesNotStartTheInterval(t *testing.T) {
 	}
 	_ = casey.conn.Close(websocket.StatusNormalClosure, "")
 	_ = ada.conn.Close(websocket.StatusNormalClosure, "")
+}
+
+// gatedChannels holds every voice channel lookup until release is closed,
+// and says when one has started.
+type gatedChannels struct {
+	voice   fakeVoiceChannels
+	started chan struct{}
+	release chan struct{}
+}
+
+func (channels gatedChannels) VoiceChannelSpace(ctx context.Context, channelID string) (string, error) {
+	channels.started <- struct{}{}
+	<-channels.release
+	return channels.voice.VoiceChannelSpace(ctx, channelID)
+}
+
+func (gatedChannels) DMParticipants(context.Context, string) ([]string, error) { return nil, nil }
+
+// A voice report still being resolved when the server ends the socket must
+// not leave the person in the channel once the connection is gone. A
+// write failing is an exit that runs the cleanup without closing the
+// socket first, so a reader still resolving the report used to land it
+// after the cleanup.
+func TestVoiceReportInFlightAtTeardownLeavesNoParticipant(t *testing.T) {
+	channels := gatedChannels{voice: fakeVoiceChannels{"v1": "s1"}, started: make(chan struct{}, 1), release: make(chan struct{})}
+	gw, bus, srv := newTestGateway(t, fakeMembers{"casey": {"s1"}}, channels)
+
+	casey := dial(t, srv, "casey")
+	casey.waitFor(presenceOf("casey"))
+	casey.send(voiceEvent("v1", false))
+	select {
+	case <-channels.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the voice report was never looked up")
+	}
+	// The peer vanishes, and the next event the server forwards fails to
+	// write. Give that exit time to run before the lookup finishes.
+	// The first write after the drop can still succeed; the reset makes
+	// the next one fail.
+	_ = casey.conn.CloseNow()
+	for range 3 {
+		bus.Publish("space:s1", events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_Ping{Ping: &realtimev1.Ping{}},
+		}))
+		time.Sleep(100 * time.Millisecond)
+	}
+	close(channels.release)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for gw.ConnectionCount() != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("the connection never closed")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// The report's state, if it lands at all, must go with the connection.
+	time.Sleep(200 * time.Millisecond)
+	if count := gw.VoiceParticipantCount(); count != 0 {
+		t.Fatalf("%d voice participants left after the connection closed", count)
+	}
 }

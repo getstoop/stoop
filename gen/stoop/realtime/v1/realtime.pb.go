@@ -1016,14 +1016,16 @@ type Ready struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	UserId   string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	SpaceIds []string               `protobuf:"bytes,2,rep,name=space_ids,json=spaceIds,proto3" json:"space_ids,omitempty"`
-	// Users currently online who share at least one space with the caller
-	// (including the caller). Kept current by PresenceChanged.
+	// The ids in presences, for a tab still running a bundle from before
+	// presences: it reads this on reconnect after an upgrade. Removed the
+	// release after (STOOP-413).
 	OnlineUserIds []string `protobuf:"bytes,3,rep,name=online_user_ids,json=onlineUserIds,proto3" json:"online_user_ids,omitempty"`
 	// Everyone currently in a voice channel of the caller's spaces. Kept
 	// current by VoiceStateChanged.
 	VoiceParticipants []*VoiceParticipant `protobuf:"bytes,4,rep,name=voice_participants,json=voiceParticipants,proto3" json:"voice_participants,omitempty"`
-	// The same users as online_user_ids, with whether each is on do not
-	// disturb. Kept current by PresenceChanged.
+	// Users currently online who share at least one space with the caller
+	// (including the caller), with whether each is on do not disturb. Kept
+	// current by PresenceChanged.
 	Presences     []*UserPresence `protobuf:"bytes,5,rep,name=presences,proto3" json:"presences,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

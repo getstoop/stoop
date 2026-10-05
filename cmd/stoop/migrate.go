@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/getstoop/stoop/internal/buildinfo"
-	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db"
 )
 
@@ -28,86 +27,72 @@ docs/self-hosting/install.md → Upgrading.
 `
 
 // runMigrate implements `stoop migrate ...`. It returns the process exit code.
-func runMigrate(ctx context.Context, args []string, out io.Writer) int {
+func runMigrate(ctx context.Context, args []string, console streams) int {
 	asJSON := false
 	var rest []string
-	for _, a := range args {
-		if a == "--json" {
+	for _, arg := range args {
+		if arg == "--json" {
 			asJSON = true
 		} else {
-			rest = append(rest, a)
+			rest = append(rest, arg)
 		}
 	}
 	if len(rest) != 1 || rest[0] == "-h" || rest[0] == "--help" {
-		_, _ = fmt.Fprint(out, migrateUsage)
+		_, _ = fmt.Fprint(console.out, migrateUsage)
 		return 2
 	}
 	switch rest[0] {
 	case "status", "plan", "up":
 	default:
-		fmt.Fprintf(os.Stderr, "unknown migrate command %q\n\n%s", rest[0], migrateUsage)
-		return 2
+		return console.failf(2, "unknown migrate command %q\n\n%s", rest[0], migrateUsage)
 	}
-	cfg, err := config.Load()
+	_, pool, plan, err := openDatabase(ctx)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "invalid configuration:", err)
-		return 1
-	}
-	pool, err := db.Connect(ctx, cfg.DatabaseURL, cfg.DatabasePoolMax)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
+		return console.fail(1, err)
 	}
 	defer pool.Close()
-	plan, err := db.Inspect(ctx, pool)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
 	report := plan.Report(buildinfo.Version)
 	switch rest[0] {
 	case "status":
-		writeReport(out, report, false, asJSON)
+		writeReport(console.out, report, false, asJSON)
 		return 0
 	case "plan":
-		writeReport(out, report, true, asJSON)
+		writeReport(console.out, report, true, asJSON)
 		return planExit(plan)
 	}
-	if err := plan.Refused(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 3
-	}
 	if err := db.Migrate(ctx, pool); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
+		if errors.As(err, new(db.AheadError)) {
+			return console.fail(db.PlanExitRefused, err)
+		}
+		return console.fail(1, err)
 	}
 	if len(plan.Pending) == 0 {
-		_, _ = fmt.Fprintf(out, "nothing to run; database at migration %d\n", plan.Applied)
+		_, _ = fmt.Fprintf(console.out, "nothing to run; database at migration %d\n", plan.Applied)
 	} else {
-		_, _ = fmt.Fprintf(out, "applied %d migrations; database at migration %d\n", len(plan.Pending), plan.Newest)
+		_, _ = fmt.Fprintf(console.out, "applied %d migrations; database at migration %d\n", len(plan.Pending), plan.Newest)
 	}
 	return 0
 }
 
-func writeReport(out io.Writer, r db.Report, after, asJSON bool) {
+func writeReport(out io.Writer, report db.Report, after, asJSON bool) {
 	if !asJSON {
-		db.WriteReport(out, r, after)
+		db.WriteReport(out, report, after)
 		return
 	}
-	body, err := json.Marshal(r)
+	body, err := json.Marshal(report)
 	if err != nil {
 		panic(err)
 	}
 	_, _ = fmt.Fprintln(out, string(body))
 }
 
-// planExit is plan's exit code: 0 nothing to run, 2 pending, 3 refused.
-func planExit(p db.Plan) int {
+// planExit is plan's exit code.
+func planExit(plan db.Plan) int {
 	switch {
-	case p.Refused() != nil:
-		return 3
-	case len(p.Pending) > 0:
-		return 2
+	case plan.Refused() != nil:
+		return db.PlanExitRefused
+	case len(plan.Pending) > 0:
+		return db.PlanExitPending
 	}
 	return 0
 }

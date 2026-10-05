@@ -98,6 +98,13 @@ func (a Action) Known() bool { _, ok := descriptions[a]; return ok }
 // Grantable reports whether a credential other than a session may carry a.
 func (a Action) Grantable() bool { return a.Known() && a != AccountSecurity }
 
+// GrantableTo reports whether a credential of this kind may carry a. A
+// personal token may not join voice: only a session reports who is in a
+// call, and a bot is where a voice client belongs.
+func (a Action) GrantableTo(kind CredentialKind) bool {
+	return a.Grantable() && (a != VoiceJoin || kind != CredentialPersonalToken)
+}
+
 var instanceAdminActions = map[Action]bool{
 	InstanceRead: true, InstanceSettingsManage: true, InstanceUsersManage: true,
 	InstanceFilesManage: true, InstanceIntegrationsManage: true,

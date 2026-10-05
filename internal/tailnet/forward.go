@@ -109,9 +109,13 @@ func (f *forwarder) nodeAddr(port int) string {
 func (f *forwarder) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 
+	// The node is closed once ctx ends, so a listen failing after that is
+	// expected and not logged.
 	if ln, err := f.ln.Listen("tcp", f.nodeAddr(f.media.TCPPort)); err != nil {
-		f.log.Warn("tailscale: cannot carry LiveKit's TCP media port over the tailnet",
-			"port", f.media.TCPPort, "err", err)
+		if ctx.Err() == nil {
+			f.log.Warn("tailscale: cannot carry LiveKit's TCP media port over the tailnet",
+				"port", f.media.TCPPort, "err", err)
+		}
 	} else {
 		wg.Add(1)
 		go func() {
@@ -121,7 +125,7 @@ func (f *forwarder) Run(ctx context.Context) {
 	}
 
 	var firstErr error
-	for port := f.media.UDPStart; port <= f.media.UDPEnd; port++ {
+	for port := f.media.UDPStart; port <= f.media.UDPEnd && ctx.Err() == nil; port++ {
 		pc, err := f.ln.ListenPacket("udp4", f.nodeAddr(port))
 		if err != nil {
 			if firstErr == nil {
@@ -135,6 +139,11 @@ func (f *forwarder) Run(ctx context.Context) {
 			defer wg.Done()
 			newUDPRelay(f, pc, port).run(ctx)
 		}(pc, port)
+	}
+	if ctx.Err() != nil {
+		close(f.ready)
+		wg.Wait()
+		return
 	}
 	if firstErr != nil {
 		f.log.Warn("tailscale: some of LiveKit's UDP media ports would not open on the tailnet",
@@ -175,6 +184,9 @@ func (f *forwarder) pipeTCP(ctx context.Context, from net.Conn) {
 	defer func() { _ = from.Close() }()
 	to, err := f.dialTCP(ctx, f.hostAddr(f.media.TCPPort))
 	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
 		f.log.Warn("tailscale: voice media: cannot reach LiveKit on the host",
 			"addr", f.hostAddr(f.media.TCPPort), "err", err)
 		return

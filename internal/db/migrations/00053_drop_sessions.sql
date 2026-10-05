@@ -1,13 +1,13 @@
 -- +goose Up
 -- Owned by the auth module. Contract: 0.4.0 stopped writing the legacy
 -- sessions table (00049); 0.2.0 to 0.3.x still delete from it, so the
--- floor rises to 0.4.0's last migration and refuses them.
+-- floor rises to 0.4.0's last migration (00052) and refuses them.
 DROP TABLE sessions;
 
-UPDATE schema_floor SET min_migration = 50;
+UPDATE schema_floor SET min_migration = 52;
 
 -- +goose Down
-UPDATE schema_floor SET min_migration = 37;
+UPDATE schema_floor SET min_migration = 46;
 
 CREATE TABLE sessions (
     id         uuid PRIMARY KEY,

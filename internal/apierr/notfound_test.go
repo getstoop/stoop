@@ -7,6 +7,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 )
 
 func TestNotFoundOrNoRows(t *testing.T) {
@@ -15,9 +17,7 @@ func TestNotFoundOrNoRows(t *testing.T) {
 		"wrapped": fmt.Errorf("get hook: %w", pgx.ErrNoRows),
 	} {
 		got := NotFoundOr(err, "webhook")
-		if connect.CodeOf(got) != connect.CodeNotFound {
-			t.Fatalf("%s: code = %v, want not found", name, connect.CodeOf(got))
-		}
+		apierrtest.RequireCode(t, got, connect.CodeNotFound, name)
 		if message := got.(*connect.Error).Message(); message != "webhook not found" {
 			t.Errorf("%s: message = %q", name, message)
 		}

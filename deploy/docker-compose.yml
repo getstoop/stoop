@@ -19,7 +19,7 @@ x-logging: &logging
 # file shipped with; each release candidate moves it. Rolling back one
 # release is editing this line and `up -d`.
 x-stoop-image: &stoop-image
-  image: ghcr.io/getstoop/stoop:0.3.1
+  image: ghcr.io/getstoop/stoop:0.4.0
 
 # Everything in .env reaches the server, so any variable in
 # docs/self-hosting/configuration.md can be set there. The entries below
@@ -47,13 +47,13 @@ x-stoop-environment: &stoop-environment
   STOOP_TURN_USERNAME: ${STOOP_TURN_USERNAME:-}
   STOOP_TURN_CREDENTIAL: ${STOOP_TURN_CREDENTIAL:-}
   STOOP_STUN_URLS: ${STOOP_STUN_URLS:-}
-  STOOP_CLOUDFLARE_TUNNEL: ${STOOP_CLOUDFLARE_TUNNEL:-false}
+  STOOP_CLOUDFLARE_TUNNEL: ${STOOP_CLOUDFLARE_TUNNEL:-}
   STOOP_CLOUDFLARE_TUNNEL_TOKEN: ${STOOP_CLOUDFLARE_TUNNEL_TOKEN:-}
-  STOOP_TAILSCALE: ${STOOP_TAILSCALE:-false}
-  STOOP_TAILSCALE_HOSTNAME: ${STOOP_TAILSCALE_HOSTNAME:-stoop}
+  STOOP_TAILSCALE: ${STOOP_TAILSCALE:-}
+  STOOP_TAILSCALE_HOSTNAME: ${STOOP_TAILSCALE_HOSTNAME:-}
   STOOP_TAILSCALE_AUTHKEY: ${STOOP_TAILSCALE_AUTHKEY:-}
   STOOP_TAILSCALE_CONTROL_URL: ${STOOP_TAILSCALE_CONTROL_URL:-}
-  STOOP_TAILSCALE_FUNNEL: ${STOOP_TAILSCALE_FUNNEL:-false}
+  STOOP_TAILSCALE_FUNNEL: ${STOOP_TAILSCALE_FUNNEL:-}
   # The built-in Tailscale node carries LiveKit's media ports too, so
   # voice rides the tailnet. It needs to know where LiveKit is: the
   # sidecar's name on this network, and the same two port settings the

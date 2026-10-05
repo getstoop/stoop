@@ -101,6 +101,15 @@ func (q *Queries) DisableIncomingWebhook(ctx context.Context, arg DisableIncomin
 	return err
 }
 
+const enableIncomingWebhook = `-- name: EnableIncomingWebhook :exec
+UPDATE incoming_webhooks SET disabled_at = NULL, disabled_reason = '' WHERE id = $1
+`
+
+func (q *Queries) EnableIncomingWebhook(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, enableIncomingWebhook, id)
+	return err
+}
+
 const getIncomingWebhook = `-- name: GetIncomingWebhook :one
 SELECT id, space_id, channel_id, bot_user_id, credential_id, name, created_by, created_at, disabled_at, disabled_reason FROM incoming_webhooks WHERE id = $1
 `
@@ -230,7 +239,7 @@ func (q *Queries) RenameIncomingWebhook(ctx context.Context, arg RenameIncomingW
 }
 
 const setIncomingWebhookCredential = `-- name: SetIncomingWebhookCredential :exec
-UPDATE incoming_webhooks SET credential_id = $2, disabled_at = NULL, disabled_reason = '' WHERE id = $1
+UPDATE incoming_webhooks SET credential_id = $2 WHERE id = $1
 `
 
 type SetIncomingWebhookCredentialParams struct {
@@ -238,8 +247,8 @@ type SetIncomingWebhookCredentialParams struct {
 	CredentialID *string
 }
 
-// SetIncomingWebhookCredential rotates the token; the old credential is
-// revoked by auth.
+// SetIncomingWebhookCredential rotates the token and leaves the on/off
+// state alone; the old credential is revoked by auth.
 func (q *Queries) SetIncomingWebhookCredential(ctx context.Context, arg SetIncomingWebhookCredentialParams) error {
 	_, err := q.db.Exec(ctx, setIncomingWebhookCredential, arg.ID, arg.CredentialID)
 	return err

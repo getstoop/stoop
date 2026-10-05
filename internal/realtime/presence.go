@@ -30,20 +30,25 @@ func newPresence() *presence {
 	return &presence{users: map[string]*presenceEntry{}}
 }
 
-// connect records a connection; true when this made the user online.
-func (p *presence) connect(userID string, spaceIDs []string) bool {
+// connect records a connection. It returns the spaces the user is newly
+// counted in: all of them for their first connection, and for a later one
+// any space joined since that another connection has not recorded yet.
+func (p *presence) connect(userID string, spaceIDs []string) (added []string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	e := p.users[userID]
-	if e == nil {
-		e = &presenceEntry{spaces: map[string]struct{}{}}
-		p.users[userID] = e
+	entry := p.users[userID]
+	if entry == nil {
+		entry = &presenceEntry{spaces: map[string]struct{}{}}
+		p.users[userID] = entry
 	}
-	for _, s := range spaceIDs {
-		e.spaces[s] = struct{}{}
+	for _, spaceID := range spaceIDs {
+		if _, counted := entry.spaces[spaceID]; !counted {
+			entry.spaces[spaceID] = struct{}{}
+			added = append(added, spaceID)
+		}
 	}
-	e.conns++
-	return e.conns == 1
+	entry.conns++
+	return added
 }
 
 // disconnect records a closed connection. When it was the user's last,
@@ -71,12 +76,20 @@ func (p *presence) disconnect(userID string) []string {
 	return spaces
 }
 
-func (p *presence) addSpace(userID, spaceID string) {
+// addSpace counts an online user in one more space; true when they were
+// not already counted there.
+func (p *presence) addSpace(userID, spaceID string) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if e := p.users[userID]; e != nil {
-		e.spaces[spaceID] = struct{}{}
+	entry := p.users[userID]
+	if entry == nil {
+		return false
 	}
+	if _, counted := entry.spaces[spaceID]; counted {
+		return false
+	}
+	entry.spaces[spaceID] = struct{}{}
+	return true
 }
 
 func (p *presence) removeSpace(userID, spaceID string) {
@@ -142,6 +155,23 @@ func (p *presence) dndOf(userID string) bool {
 	return false
 }
 
+// countedIn filters spaceIDs down to those the user is still counted in.
+func (p *presence) countedIn(userID string, spaceIDs []string) []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	entry := p.users[userID]
+	if entry == nil {
+		return nil
+	}
+	var counted []string
+	for _, spaceID := range spaceIDs {
+		if _, ok := entry.spaces[spaceID]; ok {
+			counted = append(counted, spaceID)
+		}
+	}
+	return counted
+}
+
 // spacesOf is every space a user's connections are counted in.
 func (p *presence) spacesOf(userID string) []string {
 	p.mu.Lock()
@@ -158,28 +188,19 @@ func (p *presence) spacesOf(userID string) []string {
 }
 
 // presencesIn lists users online in any of the given spaces with whether
-// each is on do not disturb; the same set as onlineIn.
+// each is on do not disturb, read under one lock.
 func (p *presence) presencesIn(spaceIDs []string) []*realtimev1.UserPresence {
-	var out []*realtimev1.UserPresence
-	for _, id := range p.onlineIn(spaceIDs) {
-		out = append(out, &realtimev1.UserPresence{UserId: id, Dnd: p.dndOf(id)})
-	}
-	return out
-}
-
-// onlineIn lists users online in any of the given spaces.
-func (p *presence) onlineIn(spaceIDs []string) []string {
 	want := make(map[string]struct{}, len(spaceIDs))
-	for _, s := range spaceIDs {
-		want[s] = struct{}{}
+	for _, spaceID := range spaceIDs {
+		want[spaceID] = struct{}{}
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	var out []string
-	for id, e := range p.users {
-		for s := range e.spaces {
-			if _, ok := want[s]; ok {
-				out = append(out, id)
+	var out []*realtimev1.UserPresence
+	for userID, entry := range p.users {
+		for spaceID := range entry.spaces {
+			if _, ok := want[spaceID]; ok {
+				out = append(out, &realtimev1.UserPresence{UserId: userID, Dnd: entry.dnd})
 				break
 			}
 		}
@@ -190,32 +211,41 @@ func (p *presence) onlineIn(spaceIDs []string) []string {
 // OnlineUserIDs filters ids down to those with a live connection. Exposed
 // for the chat module's presence port (@here).
 func (g *Gateway) OnlineUserIDs(_ context.Context, ids []string) ([]string, error) {
-	g.presence.mu.Lock()
-	defer g.presence.mu.Unlock()
-	var out []string
-	for _, id := range ids {
-		if _, ok := g.presence.users[id]; ok {
-			out = append(out, id)
+	return g.presence.onlineAmong(ids), nil
+}
+
+// onlineAmong filters userIDs down to those with a live connection.
+func (p *presence) onlineAmong(userIDs []string) []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var online []string
+	for _, userID := range userIDs {
+		if _, ok := p.users[userID]; ok {
+			online = append(online, userID)
 		}
 	}
-	return out, nil
+	return online
 }
 
 // ConnectionCount is how many WebSocket sessions are open, and
 // OnlineUserCount how many people hold at least one. Both feed the
 // Diagnostics tab's gauges.
-func (g *Gateway) ConnectionCount() int {
-	g.presence.mu.Lock()
-	defer g.presence.mu.Unlock()
-	n := 0
-	for _, e := range g.presence.users {
-		n += e.conns
+func (g *Gateway) ConnectionCount() int { return g.presence.connectionCount() }
+
+func (g *Gateway) OnlineUserCount() int { return g.presence.userCount() }
+
+func (p *presence) connectionCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	connections := 0
+	for _, entry := range p.users {
+		connections += entry.conns
 	}
-	return n
+	return connections
 }
 
-func (g *Gateway) OnlineUserCount() int {
-	g.presence.mu.Lock()
-	defer g.presence.mu.Unlock()
-	return len(g.presence.users)
+func (p *presence) userCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.users)
 }

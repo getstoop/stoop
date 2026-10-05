@@ -64,6 +64,18 @@ type DeliveryResult struct {
 	Error      string
 }
 
+type notSentError struct{ err error }
+
+func (e *notSentError) Error() string { return e.err.Error() }
+func (e *notSentError) Unwrap() error { return e.err }
+
+// NotSent reports whether a DeliverWebhook error came before the POST, so
+// the receiver heard nothing.
+func NotSent(err error) bool {
+	var notSent *notSentError
+	return errors.As(err, &notSent)
+}
+
 // Attempt is what one try learned, as the log keeps it.
 type Attempt struct {
 	StatusCode int
@@ -102,7 +114,8 @@ func sign(secret []byte, at time.Time, body []byte) string {
 
 // DeliverWebhook makes attempt of maxAttempts for one delivery, writes
 // the log row and reports the verdict. The error is for a failure of the
-// module's own (a query failed), which the dispatcher retries.
+// module's own (a query failed), which the dispatcher retries; NotSent
+// tells one from before the POST, which shouldn't use up a try.
 func (s *Service) DeliverWebhook(ctx context.Context, args DeliveryArgs, attempt, maxAttempts int) (DeliveryResult, error) {
 	outcome, err := s.tryDelivery(ctx, args, attempt, maxAttempts)
 	if err != nil {
@@ -123,7 +136,7 @@ func (s *Service) DeliverWebhook(ctx context.Context, args DeliveryArgs, attempt
 func (s *Service) tryDelivery(ctx context.Context, args DeliveryArgs, attempt, maxAttempts int) (verdict, error) {
 	on, err := s.outgoingEnabled(ctx)
 	if err != nil {
-		return verdict{}, err
+		return verdict{}, &notSentError{fmt.Errorf("read the outgoing switch: %w", err)}
 	}
 	if !on {
 		return deadVerdict(reasonOff, false), nil
@@ -133,7 +146,7 @@ func (s *Service) tryDelivery(ctx context.Context, args DeliveryArgs, attempt, m
 		return deadVerdict("webhook is gone", false), nil
 	}
 	if err != nil {
-		return verdict{}, fmt.Errorf("get hook: %w", err)
+		return verdict{}, &notSentError{fmt.Errorf("get hook: %w", err)}
 	}
 	if hook.DisabledAt != nil {
 		return deadVerdict("webhook is disabled", false), nil

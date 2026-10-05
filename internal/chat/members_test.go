@@ -10,9 +10,9 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -27,9 +27,7 @@ type fixture struct {
 // instance admin who hasn't joined.
 func newFixture(t *testing.T) fixture {
 	t.Helper()
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	f := fixture{svc: svc, bus: bus,
 		owner: newUser(t, pool, "owner", authctx.RoleMember), admin: newUser(t, pool, "admin", authctx.RoleMember),
 		member: newUser(t, pool, "member", authctx.RoleMember), other: newUser(t, pool, "other", authctx.RoleMember),
@@ -42,11 +40,11 @@ func newFixture(t *testing.T) fixture {
 	adminInv, _ := svc.CreateInvite(f.owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: f.spaceID, Role: chatv1.SpaceRole_SPACE_ROLE_ADMIN}))
 	memberInv, _ := svc.CreateInvite(f.owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: f.spaceID}))
 	// Join in a fixed order: ListMembers sorts by role then joined_at.
-	for _, j := range []struct {
+	for _, joiner := range []struct {
 		ctx context.Context
 		inv *chatv1.Invite
 	}{{f.admin, adminInv.Msg.Invite}, {f.member, memberInv.Msg.Invite}, {f.other, memberInv.Msg.Invite}} {
-		if _, err := svc.JoinSpace(j.ctx, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: j.inv.Code})); err != nil {
+		if _, err := svc.JoinSpace(joiner.ctx, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: joiner.inv.Code})); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -72,12 +70,12 @@ func TestListMembers(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := []string{}
-	for _, m := range res.Msg.Members {
-		got = append(got, m.Username+":"+m.Role.String())
+	for _, member := range res.Msg.Members {
+		got = append(got, member.Username+":"+member.Role.String())
 	}
 	want := "[owner:SPACE_ROLE_OWNER admin:SPACE_ROLE_ADMIN member:SPACE_ROLE_MEMBER other:SPACE_ROLE_MEMBER]"
-	if s := stringify(got); s != want {
-		t.Errorf("members = %s, want %s", s, want)
+	if listed := stringify(got); listed != want {
+		t.Errorf("members = %s, want %s", listed, want)
 	}
 	if _, err := f.svc.ListMembers(f.operator, connect.NewRequest(&chatv1.ListMembersRequest{SpaceId: f.spaceID})); code(err) != connect.CodePermissionDenied {
 		t.Errorf("non-member instance admin ListMembers: want permission_denied (read paths need membership), got %v", err)
@@ -86,11 +84,11 @@ func TestListMembers(t *testing.T) {
 
 func stringify(ss []string) string {
 	out := "["
-	for i, s := range ss {
-		if i > 0 {
+	for index, item := range ss {
+		if index > 0 {
 			out += " "
 		}
-		out += s
+		out += item
 	}
 	return out + "]"
 }
@@ -148,7 +146,7 @@ func TestKickLeaveTransfer(t *testing.T) {
 		t.Errorf("admin kicking member: %v", err)
 	}
 	ev := <-sub.Events()
-	if r := ev.GetMemberRemoved(); r == nil || r.UserId != authctx.UserID(f.other) || !r.Kicked {
+	if removed := ev.GetMemberRemoved(); removed == nil || removed.UserId != authctx.UserID(f.other) || !removed.Kicked {
 		t.Errorf("expected MemberRemoved(kicked) event, got %v", ev)
 	}
 	if _, err := f.svc.GetMember(f.owner, connect.NewRequest(&chatv1.GetMemberRequest{SpaceId: f.spaceID, UserId: authctx.UserID(f.other)})); code(err) != connect.CodeNotFound {
@@ -162,7 +160,7 @@ func TestKickLeaveTransfer(t *testing.T) {
 	if _, err := f.svc.LeaveSpace(f.member, connect.NewRequest(&chatv1.LeaveSpaceRequest{SpaceId: f.spaceID})); err != nil {
 		t.Errorf("member leaving: %v", err)
 	}
-	if r := (<-sub.Events()).GetMemberRemoved(); r == nil || r.Kicked {
+	if removed := (<-sub.Events()).GetMemberRemoved(); removed == nil || removed.Kicked {
 		t.Errorf("expected MemberRemoved(left) event")
 	}
 
@@ -210,7 +208,7 @@ func TestUpdateAndDeleteSpace(t *testing.T) {
 	if !res.Msg.Space.MembersCanInvite || res.Msg.Space.Name != "Porch" || res.Msg.Space.MyRole != chatv1.SpaceRole_SPACE_ROLE_ADMIN {
 		t.Errorf("after settings update: %+v", res.Msg.Space)
 	}
-	if u := (<-sub.Events()).GetSpaceUpdated(); u == nil || !u.Space.MembersCanInvite {
+	if updated := (<-sub.Events()).GetSpaceUpdated(); updated == nil || !updated.Space.MembersCanInvite {
 		t.Error("expected SpaceUpdated event")
 	}
 	res, _ = f.svc.UpdateSpace(f.owner, connect.NewRequest(&chatv1.UpdateSpaceRequest{SpaceId: f.spaceID, Name: proto.String("Front Porch")}))
@@ -229,7 +227,7 @@ func TestUpdateAndDeleteSpace(t *testing.T) {
 	if _, err := f.svc.DeleteSpace(f.operator, connect.NewRequest(&chatv1.DeleteSpaceRequest{SpaceId: f.spaceID})); err != nil {
 		t.Fatalf("instance admin DeleteSpace: %v", err)
 	}
-	if d := (<-sub.Events()).GetSpaceDeleted(); d == nil || d.SpaceId != f.spaceID {
+	if deleted := (<-sub.Events()).GetSpaceDeleted(); deleted == nil || deleted.SpaceId != f.spaceID {
 		t.Error("expected SpaceDeleted event")
 	}
 	ls, _ := f.svc.ListSpaces(f.owner, connect.NewRequest(&chatv1.ListSpacesRequest{}))
@@ -251,9 +249,8 @@ func TestAddMember(t *testing.T) {
 	operatorID := authctx.UserID(f.operator)
 
 	// Plain members can't add people; space admins can.
-	if err := add(f.member, operatorID); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Errorf("member adding: want permission_denied, got %v", err)
-	}
+	err := add(f.member, operatorID)
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "member adding")
 	if err := add(f.admin, operatorID); err != nil {
 		t.Fatalf("admin adding: %v", err)
 	}
@@ -263,13 +260,11 @@ func TestAddMember(t *testing.T) {
 		t.Errorf("added user is not a member: %v", err)
 	}
 	// Already in: said so, not silently ignored.
-	if err := add(f.admin, operatorID); connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Errorf("adding twice: want already_exists, got %v", err)
-	}
+	err = add(f.admin, operatorID)
+	apierrtest.ExpectCode(t, err, connect.CodeAlreadyExists, "adding twice")
 	// Unknown account.
-	if err := add(f.admin, "00000000-0000-0000-0000-000000000000"); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Errorf("adding unknown user: want not_found, got %v", err)
-	}
+	err = add(f.admin, "00000000-0000-0000-0000-000000000000")
+	apierrtest.ExpectCode(t, err, connect.CodeNotFound, "adding unknown user")
 	// Banned people stay out.
 	otherID := authctx.UserID(f.other)
 	if _, err := f.svc.BanMember(f.owner, connect.NewRequest(&chatv1.BanMemberRequest{
@@ -312,9 +307,7 @@ func TestSetMemberRoleOwnerSaysTransfer(t *testing.T) {
 }
 
 func TestInstanceAdminJoiningOwnSpaceIsNotAnnounced(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleAdmin)
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	if err != nil {

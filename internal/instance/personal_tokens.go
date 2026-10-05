@@ -2,16 +2,13 @@ package instance
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 
 	"connectrpc.com/connect"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // The personal_tokens setting — who may make and use personal tokens — and
@@ -29,40 +26,16 @@ const (
 	TokensOff      TokenSetting = "off"
 )
 
+var personalTokenSettings = newEnumSetting(map[TokenSetting]instancev1.PersonalTokens{
+	TokensEveryone: instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE,
+	TokensAdmins:   instancev1.PersonalTokens_PERSONAL_TOKENS_ADMINS,
+	TokensOff:      instancev1.PersonalTokens_PERSONAL_TOKENS_OFF,
+}, instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE)
+
 // PersonalTokens is the effective setting, everyone when unset. Also the
 // auth module's port.
 func (s *Service) PersonalTokens(ctx context.Context) (string, error) {
 	return s.readSetting(ctx, keyPersonalTokens, string(TokensEveryone))
-}
-
-func (s *Service) setPersonalTokens(ctx context.Context, p instancev1.PersonalTokens) error {
-	var v TokenSetting
-	switch p {
-	case instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE:
-		v = TokensEveryone
-	case instancev1.PersonalTokens_PERSONAL_TOKENS_ADMINS:
-		v = TokensAdmins
-	case instancev1.PersonalTokens_PERSONAL_TOKENS_OFF:
-		v = TokensOff
-	default:
-		return connect.NewError(connect.CodeInvalidArgument, errors.New("personal_tokens must be everyone, admins, or off"))
-	}
-	raw, _ := json.Marshal(v)
-	if err := s.q.UpsertSetting(ctx, dbgen.UpsertSettingParams{Key: keyPersonalTokens, Value: raw}); err != nil {
-		return fmt.Errorf("write %s: %w", keyPersonalTokens, err)
-	}
-	return nil
-}
-
-func toProtoPersonalTokens(v TokenSetting) instancev1.PersonalTokens {
-	switch v {
-	case TokensAdmins:
-		return instancev1.PersonalTokens_PERSONAL_TOKENS_ADMINS
-	case TokensOff:
-		return instancev1.PersonalTokens_PERSONAL_TOKENS_OFF
-	default:
-		return instancev1.PersonalTokens_PERSONAL_TOKENS_EVERYONE
-	}
 }
 
 func (s *Service) ListUserTokens(ctx context.Context, req *connect.Request[instancev1.ListUserTokensRequest]) (*connect.Response[instancev1.ListUserTokensResponse], error) {
@@ -84,4 +57,16 @@ func (s *Service) RevokeUserToken(ctx context.Context, req *connect.Request[inst
 		return nil, err
 	}
 	return connect.NewResponse(&instancev1.RevokeUserTokenResponse{}), nil
+}
+
+func stagePersonalTokens(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	if msg.PersonalTokens == nil {
+		return nil
+	}
+	setting, ok := personalTokenSettings.fromProto(*msg.PersonalTokens)
+	if !ok {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("personal_tokens must be everyone, admins, or off"))
+	}
+	save.write(keyPersonalTokens, setting)
+	return nil
 }

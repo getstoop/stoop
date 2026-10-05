@@ -31,15 +31,15 @@ func (u *Upgrader) backup(ctx context.Context, current, target string) (backupIn
 	}
 	u.say("backing up to %s", info.Dir)
 
-	dumpPath := u.path(filepath.Join(info.Dir, "stoop.dump"))
+	dumpPath := u.path(filepath.Join(info.Dir, dumpFile))
 	dump, err := os.OpenFile(dumpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return info, err
 	}
 	var res Result
-	info.Bundled = strings.TrimSpace(u.compose(ctx, "ps", "-q", "postgres").Stdout) != ""
+	info.Bundled = strings.TrimSpace(u.compose(ctx, captured, "ps", "-q", "postgres").Stdout) != ""
 	if info.Bundled {
-		res = u.Run.Run(ctx, Cmd{Name: "docker", Args: []string{"compose", "exec", "-T", "postgres", "pg_dump", "-U", "stoop", "-Fc", "stoop"}, Stdout: dump})
+		res = u.compose(ctx, output{stdout: dump}, "exec", "-T", "postgres", "pg_dump", "-U", "stoop", "-Fc", "stoop")
 	} else {
 		env, _ := os.ReadFile(u.path(envFile))
 		url := envValue(string(env), "STOOP_DATABASE_URL")
@@ -64,7 +64,7 @@ func (u *Upgrader) backup(ctx context.Context, current, target string) (backupIn
 		return info, err
 	}
 
-	id := strings.TrimSpace(u.compose(ctx, "ps", "-q", "stoop").Stdout)
+	id := strings.TrimSpace(u.compose(ctx, captured, "ps", "-q", "stoop").Stdout)
 	if id == "" {
 		return info, errors.New("the stoop container is not running; cannot reach the uploads to back them up")
 	}
@@ -74,25 +74,24 @@ func (u *Upgrader) backup(ctx context.Context, current, target string) (backupIn
 	}
 	// umask: the archive is written by root inside the container, and must
 	// come out readable by nobody else on the host.
-	res = u.Run.Run(ctx, Cmd{Name: "docker", Args: []string{"run", "--rm", "--volumes-from", id, "-v", abs + ":/backup", "alpine", "sh", "-c", "umask 077 && tar -C /data -cf /backup/stoop-data.tar ."}})
+	res = u.Run.Run(ctx, Cmd{Name: "docker", Args: []string{"run", "--rm", "--volumes-from", id, "-v", abs + ":/backup", "alpine", "sh", "-c", "umask 077 && tar -C /data -cf /backup/" + uploadsArchive + " ."}})
 	if res.Code != 0 {
 		return info, fmt.Errorf("the uploads archive failed (exit %d):\n%s", res.Code, res.Stderr)
 	}
-	if err := nonEmpty(u.path(filepath.Join(info.Dir, "stoop-data.tar")), "the uploads archive"); err != nil {
+	if err := nonEmpty(u.path(filepath.Join(info.Dir, uploadsArchive)), "the uploads archive"); err != nil {
 		return info, err
 	}
 	return info, nil
 }
 
 // postgresMajor is the Postgres major the new compose file pins, for the
-// image that dumps and restores an operator's own server; 16 when it
-// pins none.
+// image that dumps and restores an operator's own server.
 func (u *Upgrader) postgresMajor() string {
 	next, _ := os.ReadFile(u.path(nextFile))
 	if major := PostgresMajor(string(next)); major != "" {
 		return major
 	}
-	return "16"
+	return defaultPostgresMajor
 }
 
 func nonEmpty(path, what string) error {

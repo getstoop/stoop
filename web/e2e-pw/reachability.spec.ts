@@ -13,8 +13,8 @@ declare global {
 // listener, your own relay — with one Save that sends only what changed,
 // so each save below is checked to have left the other settings alone.
 // Invite links follow the saved address, secrets never come back, and
-// clearing falls back. The voice line reports what the saved settings
-// add up to. The relay's effect on a voice join is checked through the
+// a cleared address leaves links on the current origin. The voice line
+// reports what the saved settings add up to. The relay's effect on a voice join is checked through the
 // API (a static relay; no real TURN needed).
 // Ported from web/e2e/reachability.mjs (STOOP-238). The subject is the
 // setup wizard, so this one drives the UI and seeds nothing: a seeded
@@ -144,7 +144,8 @@ test("reaching your server, in setup and on the admin page", async ({
   await A.getByRole("button", { name: "Go to your space" }).click();
 
   // Admin page: same form, saved values shown; a static relay reaches the
-  // voice join through the API; clearing falls back.
+  // voice join through the API; a cleared address leaves links on the
+  // current origin.
   await A.goto("/admin");
   const hosting = A.locator('.settings-tab[data-tab="hosting"]');
   await hosting.waitFor();

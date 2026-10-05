@@ -59,7 +59,8 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 	// A hook never widens where a bot works: an existing bot must already
 	// be in the space; a new bot is made a member of it, and nothing else.
 	var bot Bot
-	if req.Msg.BotUserId != "" {
+	newBot := req.Msg.BotUserId == ""
+	if !newBot {
 		if bot, err = s.bots.GetBot(ctx, req.Msg.BotUserId); err != nil {
 			return nil, err
 		}
@@ -74,10 +75,18 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 			return nil, apierr.Field(connect.CodeFailedPrecondition, "bot_user_id",
 				errors.New("that bot isn't in this space; add it from Server admin → Integrations first"))
 		}
-	} else {
-		if bot, err = s.newBotNamed(ctx, name); err != nil {
-			return nil, err
+	} else if bot, err = s.newBotNamed(ctx, name); err != nil {
+		return nil, err
+	}
+
+	var credID string
+	created := false
+	defer func() {
+		if !created {
+			s.undoCreateIncoming(context.WithoutCancel(ctx), spaceID, bot.ID, credID, newBot)
 		}
+	}()
+	if newBot {
 		if err := s.spaces.AddBotMember(ctx, spaceID, bot.ID); err != nil {
 			return nil, err
 		}
@@ -94,18 +103,20 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 	if err != nil {
 		return nil, err
 	}
+	credID = cred.ID
+	// The URL comes before the row, so nothing can fail once the hook exists.
+	url, err := s.hookURL(ctx, secret)
+	if err != nil {
+		return nil, err
+	}
 	row, err := s.q.CreateIncomingWebhook(ctx, dbgen.CreateIncomingWebhookParams{
 		ID: rowid.New(), SpaceID: spaceID, ChannelID: req.Msg.ChannelId, BotUserID: bot.ID,
 		CredentialID: &cred.ID, Name: name, CreatedBy: authctx.UserID(ctx),
 	})
 	if err != nil {
-		_ = s.bots.RevokeCredential(ctx, cred.ID)
 		return nil, fmt.Errorf("create hook: %w", err)
 	}
-	url, err := s.hookURL(ctx, secret)
-	if err != nil {
-		return nil, err
-	}
+	created = true
 	return connect.NewResponse(&integrationsv1.CreateIncomingResponse{
 		Webhook: toProtoIncoming(row, &cred), Url: url,
 	}), nil
@@ -155,7 +166,7 @@ func (s *Service) UpdateIncoming(ctx context.Context, req *connect.Request[integ
 		case *req.Msg.Enabled && hook.CredentialID == nil:
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this hook's token was revoked; rotate it to re-enable"))
 		case *req.Msg.Enabled:
-			err = s.q.SetIncomingWebhookCredential(ctx, dbgen.SetIncomingWebhookCredentialParams{ID: hook.ID, CredentialID: hook.CredentialID})
+			err = s.q.EnableIncomingWebhook(ctx, hook.ID)
 		default:
 			err = s.q.DisableIncomingWebhook(ctx, dbgen.DisableIncomingWebhookParams{ID: hook.ID, DisabledReason: "turned off by an admin"})
 		}
@@ -170,8 +181,27 @@ func (s *Service) UpdateIncoming(ctx context.Context, req *connect.Request[integ
 	return connect.NewResponse(&integrationsv1.UpdateIncomingResponse{Webhook: out}), nil
 }
 
-// deleteIncoming removes the hook and its credential, and deactivates a
-// bot left with nothing.
+// undoCreateIncoming takes back what a failed CreateIncoming did: the
+// credential, the admin grant, and a bot it made. It logs what it can't.
+func (s *Service) undoCreateIncoming(ctx context.Context, spaceID, botID, credID string, newBot bool) {
+	if credID != "" {
+		if err := s.bots.RevokeCredential(ctx, credID); err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+			s.log.Error("undo hook create: revoke credential", "credential", credID, "err", err)
+		}
+	}
+	if err := s.settleBotAdmin(ctx, spaceID, botID); err != nil {
+		s.log.Error("undo hook create: settle bot admin", "bot", botID, "err", err)
+	}
+	if !newBot {
+		return
+	}
+	if err := s.retireIfIdle(ctx, botID); err != nil {
+		s.log.Error("undo hook create: retire bot", "bot", botID, "err", err)
+	}
+}
+
+// deleteIncoming removes the hook and its credential, settles the bot's
+// space role, and deactivates a bot left with nothing.
 func (s *Service) deleteIncoming(ctx context.Context, hook dbgen.IncomingWebhook) error {
 	if _, err := s.q.DeleteIncomingWebhook(ctx, hook.ID); err != nil {
 		return fmt.Errorf("delete hook: %w", err)
@@ -181,19 +211,35 @@ func (s *Service) deleteIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 			return err
 		}
 	}
-	return s.retireIfIdle(ctx, hook.BotUserID)
+	// The hook and its credential are gone, so nothing finds this bot again:
+	// both steps run whatever the other did.
+	roleErr := s.settleBotAdmin(ctx, hook.SpaceID, hook.BotUserID)
+	return errors.Join(roleErr, s.retireIfIdle(ctx, hook.BotUserID))
 }
 
 // rotateIncoming mints a new token with the old one's grant and revokes
-// the old one.
+// the old one. The hook stays on or off as it was. A hook whose token is
+// already gone has no grant to copy and comes back post-only.
 func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook) (string, error) {
 	if err := s.requireLiveBot(ctx, hook.BotUserID); err != nil {
 		return "", err
 	}
-	grants := hookGrants(false)
+	grants, copied := hookGrants(false), false
 	if hook.CredentialID != nil {
-		if creds, err := s.bots.Credentials(ctx, nil, []string{*hook.CredentialID}); err == nil && len(creds) == 1 {
-			grants = creds[0].Grants
+		creds, err := s.bots.Credentials(ctx, nil, []string{*hook.CredentialID})
+		if err != nil {
+			return "", err
+		}
+		if len(creds) == 1 {
+			grants, copied = creds[0].Grants, true
+		}
+	}
+	// With no grant to copy the hook comes back post-only. Its row holds no
+	// credential, so settling now gives the answer it will have after, and
+	// a failure leaves the hook as it was.
+	if !copied {
+		if err := s.settleBotAdmin(ctx, hook.SpaceID, hook.BotUserID); err != nil {
+			return "", err
 		}
 	}
 	cred, secret, err := s.bots.MintCredential(ctx, MintRequest{
@@ -203,7 +249,11 @@ func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 	if err != nil {
 		return "", err
 	}
-	if err := s.q.SetIncomingWebhookCredential(ctx, dbgen.SetIncomingWebhookCredentialParams{ID: hook.ID, CredentialID: &cred.ID}); err != nil {
+	url, err := s.hookURL(ctx, secret)
+	if err == nil {
+		err = s.q.SetIncomingWebhookCredential(ctx, dbgen.SetIncomingWebhookCredentialParams{ID: hook.ID, CredentialID: &cred.ID})
+	}
+	if err != nil {
 		_ = s.bots.RevokeCredential(ctx, cred.ID)
 		return "", fmt.Errorf("rotate hook: %w", err)
 	}
@@ -212,7 +262,7 @@ func (s *Service) rotateIncoming(ctx context.Context, hook dbgen.IncomingWebhook
 			return "", err
 		}
 	}
-	return s.hookURL(ctx, secret)
+	return url, nil
 }
 
 // requireLiveBot refuses work on a hook whose bot is deactivated.
@@ -272,16 +322,17 @@ func (s *Service) retireIfIdle(ctx context.Context, botID string) error {
 }
 
 // settleBotAdmin makes the bot a space admin while any of its hooks there
-// may notify everyone, and a member once none may.
+// may notify everyone, and a member once none may. A bot no longer in the
+// space is already not an admin there.
 func (s *Service) settleBotAdmin(ctx context.Context, spaceID, botID string) error {
 	hooks, err := s.q.ListIncomingWebhooksBySpace(ctx, spaceID)
 	if err != nil {
 		return fmt.Errorf("list hooks: %w", err)
 	}
 	var ids []string
-	for _, h := range hooks {
-		if h.BotUserID == botID && h.CredentialID != nil {
-			ids = append(ids, *h.CredentialID)
+	for _, hook := range hooks {
+		if hook.BotUserID == botID && hook.CredentialID != nil {
+			ids = append(ids, *hook.CredentialID)
 		}
 	}
 	admin := false
@@ -290,13 +341,17 @@ func (s *Service) settleBotAdmin(ctx context.Context, spaceID, botID string) err
 		if err != nil {
 			return err
 		}
-		for _, c := range creds {
-			for _, g := range c.Grants {
-				admin = admin || g == authctx.MessagesNotifyEveryone
+		for _, cred := range creds {
+			for _, grant := range cred.Grants {
+				admin = admin || grant == authctx.MessagesNotifyEveryone
 			}
 		}
 	}
-	return s.spaces.SetBotAdmin(ctx, spaceID, botID, admin)
+	err = s.spaces.SetBotAdmin(ctx, spaceID, botID, admin)
+	if !admin && connect.CodeOf(err) == connect.CodeNotFound {
+		return nil
+	}
+	return err
 }
 
 // newBotNamed creates a bot for a hook, deriving a free username.

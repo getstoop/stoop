@@ -2,8 +2,11 @@ package integrations
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
+
+	"connectrpc.com/connect"
 
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
@@ -14,8 +17,8 @@ import (
 // retires bots left with nothing, and turns off the hooks of bots kicked
 // or banned out of their space.
 
-// SweepOrphanHooks revokes hook credentials no hook row points at and
-// reports how many.
+// SweepOrphanHooks revokes hook credentials no hook row points at, settles
+// their bots' space roles, and reports how many it revoked.
 func (s *Service) SweepOrphanHooks(ctx context.Context) (int, error) {
 	if s.bots == nil {
 		return 0, nil
@@ -29,29 +32,56 @@ func (s *Service) SweepOrphanHooks(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("list hooks: %w", err)
 	}
 	live := map[string]bool{}
-	for _, h := range hooks {
-		if h.CredentialID != nil {
-			live[*h.CredentialID] = true
+	for _, hook := range hooks {
+		if hook.CredentialID != nil {
+			live[*hook.CredentialID] = true
 		}
 	}
-	n := 0
-	holders := map[string]bool{}
-	for _, c := range creds {
-		if c.Kind != authctx.CredentialIncomingHook || live[c.ID] {
+	orphans := map[string][]string{}
+	for _, cred := range creds {
+		if cred.Kind == authctx.CredentialIncomingHook && !live[cred.ID] {
+			orphans[cred.HolderID] = append(orphans[cred.HolderID], cred.ID)
+		}
+	}
+	// The role is settled first: it reads only the hook rows, which no
+	// longer count an orphan, and a bot whose role can't be settled keeps
+	// its orphans for the next sweep to find it by.
+	revoked := 0
+	var failed []error
+	for botID, credIDs := range orphans {
+		if err := s.settleBotAdminEverywhere(ctx, botID); err != nil {
+			failed = append(failed, err)
 			continue
 		}
-		if err := s.bots.RevokeCredential(ctx, c.ID); err != nil {
-			return n, err
+		for _, credID := range credIDs {
+			if err := s.bots.RevokeCredential(ctx, credID); err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+				return revoked, errors.Join(append(failed, err)...)
+			}
+			revoked++
 		}
-		n++
-		holders[c.HolderID] = true
-	}
-	for id := range holders {
-		if err := s.retireIfIdle(ctx, id); err != nil {
-			return n, err
+		if err := s.retireIfIdle(ctx, botID); err != nil {
+			failed = append(failed, err)
 		}
 	}
-	return n, nil
+	return revoked, errors.Join(failed...)
+}
+
+// settleBotAdminEverywhere settles the bot's role in each of its spaces:
+// an orphaned credential's channel is gone, and with it the space it was in.
+func (s *Service) settleBotAdminEverywhere(ctx context.Context, botID string) error {
+	if s.spaces == nil {
+		return nil
+	}
+	spaceIDs, err := s.spaces.ListSpaceIDs(ctx, botID)
+	if err != nil {
+		return err
+	}
+	for _, spaceID := range spaceIDs {
+		if err := s.settleBotAdmin(ctx, spaceID, botID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SweepRemovedBotHooks turns off hooks whose bot has left the space by a

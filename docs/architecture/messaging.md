@@ -96,24 +96,21 @@ deliberate:
    for kind, owner and space ([files.md](files.md)).
 4. **Resolve mentions** against the channel's people.
 5. **Resolve the reply parent**, which must be a message in the same
-   channel.
-6. **One transaction**: insert the message, insert `message_attachments`,
-   record `message_links`. A claim that fails — the file is already
-   attached to another message, caught by a `UNIQUE` constraint — must not
-   leave a bare message behind.
-7. **After commit**: insert mention rows, bump `channels.last_message_id`,
-   and mark the channel read for the author (who has, self-evidently, read
-   their own message).
+   channel, and the authors the event will carry.
+6. **One transaction**: insert the message, its `message_attachments`,
+   `message_links` and mention rows, bump `channels.last_message_id`, and
+   mark the channel read for the author. A failure here — say a file
+   already attached to another message — saves nothing and fails the send.
+7. **Publish** `MessageCreated` to the channel's audience.
 8. **Record activity**: mentions, then the reply target, then DM
    participants — each step skipping anyone an earlier step already told.
-9. **Publish** `MessageCreated` to the channel's audience.
-10. **Queue the unfurl** for any links, which will republish the message as
-    `MessageUpdated` when previews land.
+9. **Queue the unfurl** for any links, which will republish the message as
+   `MessageUpdated` when previews land.
 
-Steps 7–10 are outside the transaction on purpose. An activity item that
-failed to write should not roll back a message that was successfully sent;
-the message is the thing that matters, and the rest is best-effort
-delivery with a durable record to fall back on.
+After step 6 nothing fails the send: the message is saved, so a failed
+activity write is logged and the request still succeeds. An edit or a
+reaction is the same: if the message cannot be reloaded after the save,
+the request succeeds with no message and no event goes out.
 
 ## Message format
 
@@ -239,12 +236,17 @@ Being mentioned in a reply in a DM is one entry, not three.
 list, so a block is applied once, at the point of delivery, rather than in
 each of the three record paths.
 
+**Delivery is batched.** Each of the three goes through `notify`, which
+filters blockers, writes every recipient's item, and reads their mutes in
+one query each, so an `@everyone` costs the same handful of queries in
+any size of space.
+
 ### The DM feed collapses
 
 The activity feed holds **one entry per conversation, not per
 message**. While an entry is unread, further messages refresh its preview
-and timestamp in place (`RefreshActivityItem`); once it has been read, the
-next message starts a new entry.
+and timestamp in place (`UpsertUnreadActivityItems`); once it has been
+read, the next message starts a new entry.
 
 The event still goes out for every message, so a desktop banner fires per
 message unless that DM is on screen and focused. That split is intentional:
@@ -402,12 +404,12 @@ cursor. What the code does:
   Postgres maintains it on every insert and update; deletes are hard, so
   nothing stale stays. `simple` means whole lowercased words, no
   stemming, in any language. The column is for this query's `WHERE`
-  and nothing reads it back: it runs larger than the content it indexes,
-  so every query that returns a message lists the other columns rather
-  than `*` or `sqlc.embed`. The lists are kept identical, because the
-  chat module converts between the generated row types (`messageRow` in
-  `chat/messages.go`) and that only compiles while they match. A new
-  `messages` column is added to each list.
+  and nothing reads it back: it runs larger than the content it indexes.
+  A message reaches a client through the `message_with_reply` view
+  (migration 00051), which is every other column plus the reply quote,
+  so listing, search, pins and resent messages share one generated row
+  type. A new `messages` column goes in the view and in the few queries
+  that read `messages` directly.
 - **Parsing** (`search_query.go`). `from:@handle`, `in:#channel`,
   `before:YYYY-MM-DD` and `after:YYYY-MM-DD` come out as filters
   (quoted values allowed, `in:"front steps"`); the rest is websearch
@@ -419,9 +421,9 @@ cursor. What the code does:
   first by position, which covers names from before the naming rule.
 - **The query** (`queries/chat/search.sql`) filters by the space's
   channels first, then the text match, then the date and cursor bounds,
-  and stops after the page. No ranking: recency is the order. Rows carry
-  the same reply columns as `ListMessagesBefore` and hydrate through the
-  same path.
+  and stops after the page. No ranking: recency is the order. Rows come
+  from the view, joined back to `messages` for the vector, and hydrate
+  through the same path as history.
 - **Guards.** Per-user rate limit (`STOOP_SEARCH_RATE_LIMIT`, 30 a minute,
   `ResourceExhausted` with `Retry-After`) and a 2 s statement timeout
   in a read-only transaction (`DeadlineExceeded`). The client words both.
@@ -446,7 +448,7 @@ the code does:
   Concurrent pins into a nearly-full channel can overshoot by a row or
   two under `READ COMMITTED`; nothing downstream cares, and an unpin
   corrects it.
-- **Reading.** `ListChannelPins` carries the same reply columns as
+- **Reading.** `ListChannelPins` reads the same view as
   `ListMessagesBefore` and hydrates through the same path;
   `PinnedMessageIDs` stamps `Message.pinned` on each page of history, so
   the timeline marks a kept message without a join.

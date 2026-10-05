@@ -64,19 +64,13 @@ type MintBotCredential struct {
 }
 
 func (s *Service) CreateBot(ctx context.Context, username, displayName string) (Bot, error) {
-	username = strings.ToLower(strings.TrimSpace(username))
-	if !usernameRE.MatchString(username) {
-		return Bot{}, apierr.Field(connect.CodeInvalidArgument, "username",
-			errors.New("username must be 3-32 letters, numbers, or _"))
+	username, err := usernameFrom(username)
+	if err != nil {
+		return Bot{}, err
 	}
-	if reservedUsernames[username] {
-		return Bot{}, apierr.Field(connect.CodeInvalidArgument, "username",
-			fmt.Errorf("%q is reserved; pick another username", username))
-	}
-	displayName = strings.TrimSpace(displayName)
-	if displayName == "" || utf8.RuneCountInString(displayName) > maxDisplayNameLen {
-		return Bot{}, apierr.Field(connect.CodeInvalidArgument, "display_name",
-			fmt.Errorf("display name must be 1-%d characters", maxDisplayNameLen))
+	displayName, err = displayNameFrom(displayName)
+	if err != nil {
+		return Bot{}, err
 	}
 	id := rowid.New()
 	u, err := s.q.CreateBot(ctx, dbgen.CreateBotParams{ID: id, Username: username, DisplayName: displayName})
@@ -118,19 +112,32 @@ func (s *Service) UpdateBot(ctx context.Context, id string, username, displayNam
 	if _, err := s.GetBot(ctx, id); err != nil {
 		return Bot{}, err
 	}
+	current, err := s.q.GetUserByID(ctx, id)
+	if err != nil {
+		return Bot{}, apierr.NotFoundOr(err, "bot")
+	}
+	change, err := renameFrom(username, displayName)
+	if err != nil {
+		return Bot{}, err
+	}
 	text, err := profileText(bio, "bio", maxBioLen)
 	if err != nil {
 		return Bot{}, err
 	}
-	if username != nil || displayName != nil {
-		if _, err := s.RenameAccount(ctx, id, username, displayName); err != nil {
-			return Bot{}, err
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := change.apply(ctx, qtx, current); err != nil {
+			return err
 		}
-	}
-	if text != nil {
-		if _, err := s.q.UpdateUserProfile(ctx, dbgen.UpdateUserProfileParams{ID: id, Bio: text}); err != nil {
-			return Bot{}, fmt.Errorf("update bio: %w", err)
+		if text == nil {
+			return nil
 		}
+		if _, err := qtx.UpdateUserProfile(ctx, dbgen.UpdateUserProfileParams{ID: id, Bio: text}); err != nil {
+			return fmt.Errorf("update bio: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return Bot{}, err
 	}
 	return s.GetBot(ctx, id)
 }

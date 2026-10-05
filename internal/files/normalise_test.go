@@ -11,6 +11,7 @@ import (
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/files"
 )
@@ -260,13 +261,9 @@ func TestUploadWithoutQueueIsUnavailable(t *testing.T) {
 	f.svc = newService(f, f.avatars)
 
 	_, err := f.svc.UploadAvatar(as(f.member), connect.NewRequest(&filesv1.UploadAvatarRequest{Data: pngBytes(t, 40, 40)}))
-	if connect.CodeOf(err) != connect.CodeUnavailable {
-		t.Errorf("avatar: want Unavailable, got %v", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodeUnavailable, "avatar")
 	_, err = f.svc.UploadSpaceIcon(as(f.owner), connect.NewRequest(&filesv1.UploadSpaceIconRequest{SpaceId: f.space, Data: pngBytes(t, 40, 40)}))
-	if connect.CodeOf(err) != connect.CodeUnavailable {
-		t.Errorf("icon: want Unavailable, got %v", err)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodeUnavailable, "icon")
 	var rows int
 	if err := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM files`).Scan(&rows); err != nil {
 		t.Fatal(err)

@@ -248,9 +248,9 @@ the recovery model.
    The order is load-bearing — the headers read the TLS verdict that
    `secureTransport` puts on the context, so HSTS is only promised on a
    request that actually arrived over HTTPS.
-9. **Wire the environment fallbacks** for reachability and login providers,
-   so that saved settings override the environment and clearing a setting
-   falls back to it rather than to nothing.
+9. **Seed from the environment**: hand reachability, login providers and
+   password sign-in their environment values, then `SeedFromEnv` copies
+   each into its row if it has none.
 
 Steps 1 to 4, with the jobs registry, the schedules and link previews,
 are one unexported builder that `app.New` and `app.NewRunner` share;

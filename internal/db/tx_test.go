@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
@@ -49,9 +50,7 @@ func TestInTx(t *testing.T) {
 	if err != refusal {
 		t.Fatalf("InTx returned %v, want the work's own error", err)
 	}
-	if code := connect.CodeOf(err); code != connect.CodePermissionDenied {
-		t.Errorf("code = %v, want %v", code, connect.CodePermissionDenied)
-	}
+	apierrtest.ExpectCode(t, err, connect.CodePermissionDenied, "InTx")
 	if exists("rolled back") {
 		t.Error("work that returned an error was committed")
 	}

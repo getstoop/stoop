@@ -8,15 +8,10 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 func TestReactions(t *testing.T) {
-	pool := dbtest.New(t)
-	bus := events.NewInProcBus()
-	svc := chat.New(pool, bus, dbDirectory{pool})
+	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	outsider := newUser(t, pool, "outsider", authctx.RoleMember)
@@ -44,10 +39,10 @@ func TestReactions(t *testing.T) {
 		}
 		return res.Msg.Message, nil
 	}
-	reactions := func(m *chatv1.Message) map[string][]string {
+	reactions := func(message *chatv1.Message) map[string][]string {
 		out := map[string][]string{}
-		for _, r := range m.Reactions {
-			out[r.Emoji] = r.UserIds
+		for _, reaction := range message.Reactions {
+			out[reaction.Emoji] = reaction.UserIds
 		}
 		return out
 	}
@@ -60,12 +55,12 @@ func TestReactions(t *testing.T) {
 	drain()
 
 	// Toggle on: one group with bea; ReactionsChanged broadcast to the space.
-	m, err := toggle(bea, id, "👍")
+	message, err := toggle(bea, id, "👍")
 	if err != nil {
 		t.Fatalf("toggle on: %v", err)
 	}
-	if got := reactions(m)["👍"]; len(got) != 1 || got[0] != authctx.UserID(bea) {
-		t.Errorf("after bea toggles: %v", reactions(m))
+	if got := reactions(message)["👍"]; len(got) != 1 || got[0] != authctx.UserID(bea) {
+		t.Errorf("after bea toggles: %v", reactions(message))
 	}
 	ev := (<-sub.Events()).GetReactionsChanged()
 	if ev == nil || ev.MessageId != id || ev.ChannelId != channelID || ev.SpaceId != spaceID || len(ev.Reactions) != 1 {
@@ -74,27 +69,27 @@ func TestReactions(t *testing.T) {
 
 	// Two users, same emoji: one group of two, in reaction order; a second
 	// emoji sorts by emoji, not arrival.
-	m, _ = toggle(owner, id, "👍")
-	if got := reactions(m)["👍"]; len(got) != 2 || got[0] != authctx.UserID(bea) || got[1] != authctx.UserID(owner) {
+	message, _ = toggle(owner, id, "👍")
+	if got := reactions(message)["👍"]; len(got) != 2 || got[0] != authctx.UserID(bea) || got[1] != authctx.UserID(owner) {
 		t.Errorf("two users same emoji: %v", got)
 	}
-	m, _ = toggle(owner, id, "🎉")
-	if len(m.Reactions) != 2 || m.Reactions[0].Emoji != "🎉" || m.Reactions[1].Emoji != "👍" {
-		t.Errorf("groups should be ordered by emoji: %+v", m.Reactions)
+	message, _ = toggle(owner, id, "🎉")
+	if len(message.Reactions) != 2 || message.Reactions[0].Emoji != "🎉" || message.Reactions[1].Emoji != "👍" {
+		t.Errorf("groups should be ordered by emoji: %+v", message.Reactions)
 	}
 	drain()
 
 	// Toggle off removes only the caller's row; the last one drops the group.
-	m, _ = toggle(bea, id, "👍")
-	if got := reactions(m)["👍"]; len(got) != 1 || got[0] != authctx.UserID(owner) {
-		t.Errorf("after bea toggles off: %v", reactions(m))
+	message, _ = toggle(bea, id, "👍")
+	if got := reactions(message)["👍"]; len(got) != 1 || got[0] != authctx.UserID(owner) {
+		t.Errorf("after bea toggles off: %v", reactions(message))
 	}
 	if ev := (<-sub.Events()).GetReactionsChanged(); ev == nil || len(ev.Reactions) != 2 || len(ev.Reactions[1].UserIds) != 1 {
 		t.Errorf("ReactionsChanged after bea's removal: %+v", ev)
 	}
-	m, _ = toggle(owner, id, "🎉")
-	if _, ok := reactions(m)["🎉"]; ok || len(m.Reactions) != 1 {
-		t.Errorf("empty group should disappear: %+v", m.Reactions)
+	message, _ = toggle(owner, id, "🎉")
+	if _, ok := reactions(message)["🎉"]; ok || len(message.Reactions) != 1 {
+		t.Errorf("empty group should disappear: %+v", message.Reactions)
 	}
 	if ev := (<-sub.Events()).GetReactionsChanged(); ev == nil || len(ev.Reactions) != 1 {
 		t.Errorf("ReactionsChanged after removal should carry the remaining group: %+v", ev)
@@ -123,8 +118,8 @@ func TestReactions(t *testing.T) {
 		t.Errorf("missing message: want not_found, got %v", err)
 	}
 	select {
-	case e := <-sub.Events():
-		t.Errorf("denied toggles must not broadcast: %+v", e)
+	case event := <-sub.Events():
+		t.Errorf("denied toggles must not broadcast: %+v", event)
 	default:
 	}
 
@@ -155,9 +150,9 @@ func TestReactions(t *testing.T) {
 	if len(want) != 6 || len(first.Reactions) != len(want) {
 		t.Fatalf("listed reactions: %+v (toggle said %+v)", first.Reactions, want)
 	}
-	for i, r := range first.Reactions {
-		if r.Emoji != want[i].Emoji || len(r.UserIds) != 1 {
-			t.Errorf("reaction %d = %q x%d, want %q x1", i, r.Emoji, len(r.UserIds), want[i].Emoji)
+	for index, reaction := range first.Reactions {
+		if reaction.Emoji != want[index].Emoji || len(reaction.UserIds) != 1 {
+			t.Errorf("reaction %d = %q x%d, want %q x1", index, reaction.Emoji, len(reaction.UserIds), want[index].Emoji)
 		}
 	}
 	if len(second.Reactions) != 0 {

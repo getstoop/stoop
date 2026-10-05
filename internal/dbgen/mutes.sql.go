@@ -9,27 +9,6 @@ import (
 	"context"
 )
 
-const isMutedFor = `-- name: IsMutedFor :one
-SELECT (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = $1::uuid AND cm.channel_id = $2::uuid)
-    OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = $1::uuid AND sm.space_id = $3::uuid))::bool
-`
-
-type IsMutedForParams struct {
-	UserID    string
-	ChannelID string
-	SpaceID   *string
-}
-
-// IsMutedFor answers, for one recipient, whether where something
-// happened is effectively muted for them: their own channel row or
-// their own space row. space_id is NULL for a direct message.
-func (q *Queries) IsMutedFor(ctx context.Context, arg IsMutedForParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isMutedFor, arg.UserID, arg.ChannelID, arg.SpaceID)
-	var column_1 bool
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
 const muteChannel = `-- name: MuteChannel :exec
 
 INSERT INTO channel_mutes (user_id, channel_id) VALUES ($1, $2)
@@ -61,6 +40,43 @@ type MuteSpaceParams struct {
 func (q *Queries) MuteSpace(ctx context.Context, arg MuteSpaceParams) error {
 	_, err := q.db.Exec(ctx, muteSpace, arg.UserID, arg.SpaceID)
 	return err
+}
+
+const mutedAmong = `-- name: MutedAmong :many
+SELECT cm.user_id FROM channel_mutes cm
+WHERE cm.channel_id = $1::uuid AND cm.user_id = ANY($2::uuid[])
+UNION
+SELECT sm.user_id FROM space_mutes sm
+WHERE sm.space_id = $3::uuid AND sm.user_id = ANY($2::uuid[])
+`
+
+type MutedAmongParams struct {
+	ChannelID string
+	UserIds   []string
+	SpaceID   *string
+}
+
+// MutedAmong: which of these recipients have muted where something
+// happened, by their own channel row or their own space row. space_id is
+// NULL for a direct message.
+func (q *Queries) MutedAmong(ctx context.Context, arg MutedAmongParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, mutedAmong, arg.ChannelID, arg.UserIds, arg.SpaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const unmuteChannel = `-- name: UnmuteChannel :exec

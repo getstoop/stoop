@@ -2,10 +2,13 @@ package rowid
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 )
 
 func TestNewIsVersion7AndOrdered(t *testing.T) {
@@ -33,9 +36,7 @@ func TestRequire(t *testing.T) {
 	}
 	for _, id := range []string{"nope", ""} {
 		err := Require(id, "user")
-		if connect.CodeOf(err) != connect.CodeNotFound {
-			t.Errorf("Require(%q) code = %v, want not found", id, connect.CodeOf(err))
-		}
+		apierrtest.ExpectCode(t, err, connect.CodeNotFound, fmt.Sprintf("Require(%q)", id))
 		var connectErr *connect.Error
 		if !errors.As(err, &connectErr) || connectErr.Message() != "user not found" {
 			t.Errorf("Require(%q) = %v, want message %q", id, err, "user not found")

@@ -27,13 +27,9 @@ func (q *Queries) GetPin(ctx context.Context, messageID string) (ChannelPin, err
 }
 
 const listChannelPins = `-- name: ListChannelPins :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
-    p.author_id AS reply_author_id, p.content AS reply_content,
-    COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id,
-    pin.pinned_by, pin.pinned_at
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, pin.pinned_by, pin.pinned_at
 FROM channel_pins pin
-JOIN messages m ON m.id = pin.message_id
-LEFT JOIN messages p ON p.id = m.reply_to_message_id
+JOIN message_with_reply m ON m.id = pin.message_id
 WHERE pin.channel_id = $1::uuid
 ORDER BY pin.pinned_at DESC, pin.message_id DESC
 LIMIT $2
@@ -45,25 +41,13 @@ type ListChannelPinsParams struct {
 }
 
 type ListChannelPinsRow struct {
-	ID               string
-	ChannelID        string
-	AuthorID         string
-	Content          string
-	CreatedAt        time.Time
-	MentionsEveryone bool
-	ReplyToMessageID *string
-	MentionsHere     bool
-	EditedAt         *time.Time
-	ReplyAuthorID    *string
-	ReplyContent     *string
-	ReplyFirstFileID string
+	MessageWithReply MessageWithReply
 	PinnedBy         string
 	PinnedAt         time.Time
 }
 
-// ListChannelPins carries the same reply columns as ListMessagesBefore so
-// the rows hydrate through one path (internal/chat/messages.go); keep the
-// two column lists in step.
+// ListChannelPins reads message_with_reply like ListMessagesBefore, so
+// the rows hydrate through one path (internal/chat/messages.go).
 func (q *Queries) ListChannelPins(ctx context.Context, arg ListChannelPinsParams) ([]ListChannelPinsRow, error) {
 	rows, err := q.db.Query(ctx, listChannelPins, arg.ChannelID, arg.Lim)
 	if err != nil {
@@ -74,18 +58,18 @@ func (q *Queries) ListChannelPins(ctx context.Context, arg ListChannelPinsParams
 	for rows.Next() {
 		var i ListChannelPinsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.ChannelID,
-			&i.AuthorID,
-			&i.Content,
-			&i.CreatedAt,
-			&i.MentionsEveryone,
-			&i.ReplyToMessageID,
-			&i.MentionsHere,
-			&i.EditedAt,
-			&i.ReplyAuthorID,
-			&i.ReplyContent,
-			&i.ReplyFirstFileID,
+			&i.MessageWithReply.ID,
+			&i.MessageWithReply.ChannelID,
+			&i.MessageWithReply.AuthorID,
+			&i.MessageWithReply.Content,
+			&i.MessageWithReply.CreatedAt,
+			&i.MessageWithReply.MentionsEveryone,
+			&i.MessageWithReply.ReplyToMessageID,
+			&i.MessageWithReply.MentionsHere,
+			&i.MessageWithReply.EditedAt,
+			&i.MessageWithReply.ReplyAuthorID,
+			&i.MessageWithReply.ReplyContent,
+			&i.MessageWithReply.ReplyFirstFileID,
 			&i.PinnedBy,
 			&i.PinnedAt,
 		); err != nil {

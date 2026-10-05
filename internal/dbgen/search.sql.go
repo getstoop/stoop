@@ -45,14 +45,11 @@ func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInS
 
 const searchMessages = `-- name: SearchMessages :many
 
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
-    p.author_id AS reply_author_id, p.content AS reply_content,
-    COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
-FROM messages m
-LEFT JOIN messages p ON p.id = m.reply_to_message_id
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id FROM message_with_reply m
+JOIN messages indexed ON indexed.id = m.id
 WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = $1::uuid
         AND ($2::bool OR c.kind <> 2))
-  AND m.search @@ (CASE
+  AND indexed.search @@ (CASE
       WHEN $3::text = '' THEN websearch_to_tsquery('simple', $4::text)
       WHEN $4::text = '' THEN to_tsquery('simple', $3::text)
       ELSE websearch_to_tsquery('simple', $4::text) && to_tsquery('simple', $3::text)
@@ -79,29 +76,15 @@ type SearchMessagesParams struct {
 	Lim       int32
 }
 
-type SearchMessagesRow struct {
-	ID               string
-	ChannelID        string
-	AuthorID         string
-	Content          string
-	CreatedAt        time.Time
-	MentionsEveryone bool
-	ReplyToMessageID *string
-	MentionsHere     bool
-	EditedAt         *time.Time
-	ReplyAuthorID    *string
-	ReplyContent     *string
-	ReplyFirstFileID string
-}
-
 // Message search. Owned by the chat module.
 // Only internal/chat may use these queries.
-// SearchMessages: one space's channels, newest first, with the same reply
-// columns as ListMessagesBefore so rows hydrate through one path. `words`
-// is websearch syntax; `prefix` is a quoted lexeme with :* or "" (see
+// SearchMessages: one space's channels, newest first, read from
+// message_with_reply like ListMessagesBefore, joined back to messages
+// for the search vector the view leaves out. `words` is websearch
+// syntax; `prefix` is a quoted lexeme with :* or "" (see
 // internal/chat/search_query.go). Dates bound created_at; the cursor
 // bounds id. Hidden voice channels (kind 2) are left out.
-func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) ([]SearchMessagesRow, error) {
+func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) ([]MessageWithReply, error) {
 	rows, err := q.db.Query(ctx, searchMessages,
 		arg.SpaceID,
 		arg.WithVoice,
@@ -118,9 +101,9 @@ func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) 
 		return nil, err
 	}
 	defer rows.Close()
-	var items []SearchMessagesRow
+	var items []MessageWithReply
 	for rows.Next() {
-		var i SearchMessagesRow
+		var i MessageWithReply
 		if err := rows.Scan(
 			&i.ID,
 			&i.ChannelID,

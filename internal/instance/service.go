@@ -79,10 +79,13 @@ type Service struct {
 	// loginEnv is the STOOP_OIDC_* fallback for login providers; a saved
 	// list overrides it (providers.go).
 	loginEnv []LoginProvider
-	// passwordEnv is the STOOP_PASSWORD_SIGN_IN fallback (settings.go).
+	// passwordEnv is the STOOP_PASSWORD_SIGN_IN fallback (password_sign_in.go).
 	passwordEnv string
+	// envSet reports whether a variable is set rather than defaulted, for
+	// EnvDrift.
+	envSet func(name string) bool
 	// instanceNameEnv is the STOOP_INSTANCE_NAME fallback, set from Seed's
-	// Defaults. Empty unless the operator configured it (settings.go).
+	// Defaults. Empty unless the operator configured it (instance_name.go).
 	instanceNameEnv string
 	// sessionDaysEnv is STOOP_SESSION_LIFETIME_DAYS (session_lifetime.go).
 	sessionDaysEnv int
@@ -92,7 +95,7 @@ type Service struct {
 	// webhooksEnv is STOOP_WEBHOOKS, the floor under the webhook settings.
 	webhooksEnv bool
 	// uploadCeiling is the files module's own hard per-file cap, wired in
-	// internal/app. It bounds the max_upload_bytes setting (settings.go).
+	// internal/app. It bounds the max_upload_bytes setting (storage_limits.go).
 	uploadCeiling int64
 	build         BuildInfo
 	// updates is the release index (update.go); nil when the check is off.

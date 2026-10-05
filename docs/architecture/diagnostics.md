@@ -155,8 +155,8 @@ the two families only it can know, so `diag` stays a plain registry:
 `auth.Service.VerifyToken`, the same path as the interceptor, and the
 identity must pass `authctx.Allows(InstanceRead)`, so both the holder's
 role and the token's grant count. No or an invalid token is `401` with
-`WWW-Authenticate: Bearer`; a token that verifies but lacks the action is
-`403`. The session cookie is not read. Responses are
+`WWW-Authenticate: Bearer`; a check that fails (the database down) is
+`503`; a token that verifies but lacks the action is `403`. The session cookie is not read. Responses are
 `text/plain; version=0.0.4` with `Cache-Control: no-store`. There is no
 config key: a personal token that holds `instance.read` is the switch.
 

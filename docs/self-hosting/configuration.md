@@ -6,6 +6,14 @@ the server. Two are pinned by the compose file itself and ignore what
 `STOOP_DATABASE_URL` defaults to the bundled Postgres; set it only when
 [using your own](install.md#using-your-own-postgres).
 
+Settings that also appear on the admin page (the instance name, password
+sign-in, the `STOOP_OIDC_*` provider, and the public URL, trusted
+proxies, TURN, Cloudflare and Tailscale settings) only pre-configure the
+server. Each is copied into the database the first time the server
+starts with it set. After that, changing the variable does nothing
+(the server logs a warning naming it): change the setting on the admin
+page or with `stoop admin setting`.
+
 | Variable                   | Default                     | Purpose                          |
 | -------------------------- | --------------------------- | -------------------------------- |
 | `STOOP_DATABASE_URL`       | (required)                  | Postgres connection string       |
@@ -13,14 +21,14 @@ the server. Two are pinned by the compose file itself and ignore what
 | `STOOP_LISTEN_ADDR`        | `:8080`                     | HTTP bind address                |
 | `STOOP_PUBLIC_URL`         | (empty)                     | The address people use to reach the server; invite links use it, its host is an allowed WS origin. Defaults to the tailnet address with the built-in Tailscale listener |
 | `STOOP_TRUST_PROXY`        | `false`                     | Removed. `true` refuses to start; name the proxy in `STOOP_TRUSTED_PROXIES` instead |
-| `STOOP_TRUSTED_PROXIES`    | (empty)                     | Comma-separated addresses or CIDR ranges of your reverse proxy or tunnel (`172.18.0.0/16, 192.168.1.5`); only those callers' `X-Forwarded-*` headers are believed. A list saved under Server admin → Hosting → Trusted proxies overrides it |
+| `STOOP_TRUSTED_PROXIES`    | (empty)                     | Comma-separated addresses or CIDR ranges of your reverse proxy or tunnel (`172.18.0.0/16, 192.168.1.5`); only those callers' `X-Forwarded-*` headers are believed. |
 | `STOOP_SECURE_COOKIES`     | `false`                     | Force session cookies Secure on every listener. Rarely needed: TLS listeners and trusted HTTPS proxies get it automatically |
 | `STOOP_ALLOWED_WS_ORIGINS` | `localhost:*,127.0.0.1:*`   | Extra WebSocket origin patterns. The request's own host (and `STOOP_PUBLIC_URL`'s) is always allowed, so this is only needed behind a proxy that rewrites `Host` |
 | `STOOP_AUTH_RATE_LIMIT`    | `20`                        | Sign-in and registration attempts allowed per client address per minute. `0` disables (dev/e2e only). The per-account lockout after 5 wrong passwords is always on |
 | `STOOP_SIGNALING_RATE_LIMIT` | `30`                      | New voice signaling connections per client address per minute (the LiveKit proxy is unauthenticated; this keeps it from being an open relay). `0` disables |
 | `STOOP_SEARCH_RATE_LIMIT`  | `30`                        | Message searches per user per minute. `0` disables |
 | `STOOP_REGISTRATION`       | `invite`                    | Seeds the registration policy on first boot only (`open`, `invite`, `closed`); change it later from the admin page |
-| `STOOP_INSTANCE_NAME`      | (random, e.g. `Chalk Avenue`) | The server's name, shown in the browser tab. Unset, a random two-word name is picked on first boot and kept, so several instances never all call themselves "Stoop". The admin page's saved value overrides it |
+| `STOOP_INSTANCE_NAME`      | (random, e.g. `Chalk Avenue`) | The server's name, shown in the browser tab. Unset, a random two-word name is picked on first boot and kept, so several instances never all call themselves "Stoop" |
 | `STOOP_STORAGE`            | `fs`                        | File storage backend. `fs` is the only one; any other value (including `s3`) refuses to start |
 | `STOOP_STORAGE_DIR`        | `./data`                    | Directory for uploaded files (compose: `/data` on the `stoop-data` volume) |
 | `STOOP_LIVEKIT_KEY_FILE`   | `<STOOP_STORAGE_DIR>/livekit/keys.yaml` | Where to write the LiveKit key pair for a sidecar started with `--key-file`. Written on every boot (minted or from the environment); the file is `0600` in a `0700` directory because LiveKit refuses a key file others can read |
@@ -51,7 +59,7 @@ the server. Two are pinned by the compose file itself and ignore what
 | `STOOP_CLOUDFLARED_PATH`   | (empty)                     | Where `cloudflared` is; empty looks on `PATH`. The Docker image includes it |
 | `STOOP_CLOUDFLARE_TURN_KEY_ID` | (empty)                 | Cloudflare TURN key id; Stoop mints credentials per join (voice through HTTP-only tunnels / CGNAT) |
 | `STOOP_CLOUDFLARE_TURN_API_TOKEN` | (empty)              | Its API token; set together with the key id |
-| `STOOP_TAILSCALE`          | `false`                     | Join a tailnet from inside the binary and serve HTTPS on the tailnet address (see Tailscale, built in). Settings saved on the admin page override these |
+| `STOOP_TAILSCALE`          | `false`                     | Join a tailnet from inside the binary and serve HTTPS on the tailnet address (see Tailscale, built in) |
 | `STOOP_TAILSCALE_HOSTNAME` | `stoop`                     | Node name on the tailnet         |
 | `STOOP_TAILSCALE_AUTHKEY`  | (empty)                     | Pre-authorise the node; otherwise a login URL is logged on first start |
 | `STOOP_TAILSCALE_CONTROL_URL` | (empty)                  | Self-hosted control server (Headscale) |
@@ -61,13 +69,13 @@ the server. Two are pinned by the compose file itself and ignore what
 | `STOOP_LIVEKIT_TCP_PORT`   | `7881`                      | LiveKit's TCP media port. Under compose this one setting also configures and publishes it; with a bare binary, match it to `livekit.yaml` |
 | `STOOP_LIVEKIT_UDP_PORTS`  | `50000-50100`               | LiveKit's UDP media range, as `start-end`. Same as above |
 | `STOOP_LIVEKIT_NODE_IP_FILE` | (empty)                   | File Stoop writes the tailnet address to for the LiveKit sidecar's `NODE_IP`. Defaults to `node-ip` beside `STOOP_LIVEKIT_KEY_FILE`, which is what lands it on the shared volume under compose |
-| `STOOP_OIDC_ISSUER`        | (empty)                     | One OIDC login provider from the environment: the issuer URL exactly as its discovery document states it. The admin page's saved list overrides this |
+| `STOOP_OIDC_ISSUER`        | (empty)                     | One OIDC login provider from the environment: the issuer URL exactly as its discovery document states it |
 | `STOOP_OIDC_CLIENT_ID`     | (empty)                     | The provider's client id; set together with the secret and issuer |
 | `STOOP_OIDC_CLIENT_SECRET` | (empty)                     | The provider's client secret |
 | `STOOP_OIDC_NAME`          | `Continue with single sign-on` | The sign-in button's entire text |
 | `STOOP_OIDC_ID`            | `sso`                       | The provider's stable id; part of the callback URL, and identities link under it |
 | `STOOP_SESSION_LIFETIME_DAYS` | `30`                    | How long a sign-in lasts, 1-365 days. The admin page's saved value overrides it; a change applies to sign-ins from then on |
-| `STOOP_PASSWORD_SIGN_IN`   | `everyone`                  | Who may use the username/password form: `everyone`, `admins`, or `off` (sign in through login providers instead). The admin page's saved value overrides it; admins are always honoured as a fallback |
+| `STOOP_PASSWORD_SIGN_IN`   | `everyone`                  | Who may use the username/password form: `everyone`, `admins`, or `off` (sign in through login providers instead); admins are always honoured as a fallback |
 
 ## Compose settings
 

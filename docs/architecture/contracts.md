@@ -221,7 +221,7 @@ Handlers return `connect.Error`s, and the code is part of the contract:
 | `PermissionDenied` | A valid session that lacks the permission — see [permissions.md](permissions.md). |
 | `NotFound` | Missing, *or* present but invisible to the caller. The two are deliberately not distinguished: an id lookup that answered "exists, but not for you" would be an enumeration oracle. |
 | `ResourceExhausted` | Rate limit (with `Retry-After`) or storage quota. |
-| `Unavailable` | A feature the operator hasn't configured — `JoinVoiceChannel` with no LiveKit. |
+| `Unavailable` | A feature the operator hasn't configured — `JoinVoiceChannel` with no LiveKit — or a credential check that failed (the database down), on any procedure, public ones included. |
 
 The sentence is part of the contract too: it is written for the person
 who made the request, and clients show it as it is (`errorText` in

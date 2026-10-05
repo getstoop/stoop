@@ -117,7 +117,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       // may have missed an event, so it goes again.
       refetchOlderThan(queryClient, Date.now());
       useConnectionStore.getState().setUserId(payload.value.userId);
-      useConnectionStore.getState().setOnline(payload.value.onlineUserIds);
+      useConnectionStore
+        .getState()
+        .setOnline(payload.value.presences.map((presence) => presence.userId));
       useConnectionStore.getState().setPresences(payload.value.presences);
       useVoiceStore.getState().setParticipants(payload.value.voiceParticipants);
       break;

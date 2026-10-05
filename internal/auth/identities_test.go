@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -290,9 +291,14 @@ func TestUsernameFreeze(t *testing.T) {
 	}
 }
 
-type fakePasswordPolicy struct{ policy string }
+// fakePasswordPolicy answers policy, or fails with err as an unreadable
+// setting.
+type fakePasswordPolicy struct {
+	policy string
+	err    error
+}
 
-func (p *fakePasswordPolicy) PasswordSignIn(context.Context) (string, error) { return p.policy, nil }
+func (p *fakePasswordPolicy) PasswordSignIn(context.Context) (string, error) { return p.policy, p.err }
 
 func TestPasswordSignInPolicy(t *testing.T) {
 	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
@@ -331,5 +337,21 @@ func TestPasswordSignInPolicy(t *testing.T) {
 	pw.policy = auth.PasswordEveryone
 	if err := login("member"); err != nil {
 		t.Errorf("everyone: member login: %v", err)
+	}
+}
+
+// A settings read that fails is the server's error, not a closed door.
+func TestRegisterSurfacesAFailedPolicyRead(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	readErr := errors.New("settings unreadable")
+	svc.UsePasswordPolicy(&fakePasswordPolicy{err: readErr})
+	ctx := context.Background()
+
+	if _, err := register(svc, ctx, "casey", ""); err != nil {
+		t.Fatalf("first account: %v", err)
+	}
+	_, err := register(svc, ctx, "ada", "")
+	if !errors.Is(err, readErr) || codeOf(err) == connect.CodePermissionDenied {
+		t.Errorf("registration with the setting unreadable: %v, want the read error", err)
 	}
 }

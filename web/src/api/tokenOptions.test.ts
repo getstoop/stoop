@@ -112,8 +112,15 @@ describe("every grantable permission has a home", () => {
   it("is offered to people or deliberately left out", () => {
     const offered = new Set(TOKEN_OPTIONS.flatMap((o) => o.permissions));
     for (const p of grantable) {
-      expect(offered.has(p) || deliberatelyOut.has(p)).toBe(true);
+      expect(
+        offered.has(p) || deliberatelyOut.has(p) || p === Permission.VOICE_JOIN,
+      ).toBe(true);
     }
+  });
+
+  it("never offers a person's token voice", () => {
+    const offered = new Set(TOKEN_OPTIONS.flatMap((o) => o.permissions));
+    expect(offered.has(Permission.VOICE_JOIN)).toBe(false);
   });
 
   it("names a permission no option covers", () => {
@@ -147,6 +154,11 @@ describe("BOT_TOKEN_OPTIONS", () => {
       expect(offered.has(p)).toBe(false);
     }
     expect(offered.has(Permission.ACTIVITY_READ)).toBe(false);
+  });
+
+  it("offers a bot voice", () => {
+    expect(permissionsFor(["voice"])).toEqual([Permission.VOICE_JOIN]);
+    expect(BOT_TOKEN_OPTIONS.some((o) => o.key === "voice")).toBe(true);
   });
 
   it("describes a bot's token in the bot's words", () => {

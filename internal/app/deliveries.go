@@ -18,6 +18,9 @@ const deliveryAttempts = 4
 func registerDeliveries(registry *jobs.Registry, hooksSvc *integrations.Service) {
 	jobs.Register(registry, integrations.DeliverWebhookKind, func(ctx context.Context, job *jobs.Job, args integrations.DeliveryArgs) error {
 		result, err := hooksSvc.DeliverWebhook(ctx, args, job.Attempt, job.MaxAttempts)
+		if integrations.NotSent(err) {
+			return jobs.NotAttempted(err)
+		}
 		if err != nil {
 			return err
 		}

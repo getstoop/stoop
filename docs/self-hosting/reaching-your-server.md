@@ -23,9 +23,9 @@ No public IPv4 address, or no way to forward ports? Use Cloudflare Tunnel
 with Cloudflare TURN, or Tailscale.
 
 The setup wizard (step 3, "Reaching your server") and **Server admin →
-Hosting** hold the same form. What you save there overrides the
-environment variables, and clearing a value falls back to them. Whatever
-the front door, set these:
+Hosting** hold the same form. The environment variables only fill it in
+the first time the server starts with them set; after that, change these
+settings on the page. Whatever the front door, set these:
 
 - **Public address** (`STOOP_PUBLIC_URL`) — the address people use to
   reach you, e.g. `https://chat.example.com`. Invite links are built from
@@ -147,7 +147,7 @@ traffic in this process.
 The node's identity is kept under `STOOP_STORAGE_DIR/tailscale`, so it
 survives restarts and upgrades. In `.env` the same settings are
 `STOOP_TAILSCALE=true`, `STOOP_TAILSCALE_HOSTNAME` and
-`STOOP_TAILSCALE_AUTHKEY`; what's saved on the page overrides them.
+`STOOP_TAILSCALE_AUTHKEY`; they fill in the page once, as above.
 
 **Funnel.** "Publish this Stoop node to public internet (Funnel)", or
 `STOOP_TAILSCALE_FUNNEL=true`, also publishes the address to the internet

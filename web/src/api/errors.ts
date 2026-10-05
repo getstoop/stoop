@@ -1,4 +1,4 @@
-import { ConnectError } from "@connectrpc/connect";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { FieldViolationSchema } from "../gen/stoop/common/v1/field_violation_pb";
 
 // The message worth showing a person: the server's own words for a
@@ -24,4 +24,10 @@ export function fieldError(
 // "providers[2].clientId".
 export function localName(protoField: string): string {
   return protoField.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+}
+
+// Whether the server said there is no session. Only this answer signs a
+// person out; any other failure is the server or the network.
+export function isSignedOut(err: unknown): boolean {
+  return err instanceof ConnectError && err.code === Code.Unauthenticated;
 }

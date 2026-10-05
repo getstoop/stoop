@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/apierr/apierrtest"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -32,11 +33,11 @@ func (d *dbFiles) GetFiles(ctx context.Context, ids []string) ([]chat.FileRecord
 	defer rows.Close()
 	var out []chat.FileRecord
 	for rows.Next() {
-		var r chat.FileRecord
-		if err := rows.Scan(&r.ID, &r.Kind, &r.OwnerID, &r.SpaceID, &r.Name, &r.ContentType, &r.Size, &r.Expired); err != nil {
+		var record chat.FileRecord
+		if err := rows.Scan(&record.ID, &record.Kind, &record.OwnerID, &record.SpaceID, &record.Name, &record.ContentType, &record.Size, &record.Expired); err != nil {
 			return nil, err
 		}
-		out = append(out, r)
+		out = append(out, record)
 	}
 	return out, rows.Err()
 }
@@ -90,11 +91,11 @@ func TestAttachments(t *testing.T) {
 		return res.Msg.Message, nil
 	}
 	countMessages := func() int {
-		var n int
-		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM messages WHERE channel_id = $1`, channelID).Scan(&n); err != nil {
+		var count int
+		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM messages WHERE channel_id = $1`, channelID).Scan(&count); err != nil {
 			t.Fatal(err)
 		}
-		return n
+		return count
 	}
 
 	// Happy path: text plus a file; attachment-only; both render.
@@ -140,7 +141,7 @@ func TestAttachments(t *testing.T) {
 	wrongSpace := newFile(t, pool, owner, sp2.Msg.Space.Id, "attachment", "elsewhere.txt")
 	avatar := newFile(t, pool, owner, spaceID, "avatar", "")
 	var many []string
-	for i := 0; i < 11; i++ {
+	for index := 0; index < 11; index++ {
 		many = append(many, newFile(t, pool, owner, spaceID, "attachment", "n.txt"))
 	}
 	cases := map[string][]string{
@@ -153,15 +154,13 @@ func TestAttachments(t *testing.T) {
 		"too many":             many,
 	}
 	for name, ids := range cases {
-		if _, err := send(owner, "x", ids...); connect.CodeOf(err) != connect.CodeInvalidArgument {
-			t.Errorf("%s: want InvalidArgument, got %v", name, err)
-		}
+		_, err := send(owner, "x", ids...)
+		apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, name)
 	}
-	if _, err := send(owner, ""); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("empty message without attachments: got %v", err)
-	}
-	if n := countMessages(); n != before {
-		t.Errorf("rejected sends created %d messages", n-before)
+	_, err = send(owner, "")
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "empty message without attachments")
+	if count := countMessages(); count != before {
+		t.Errorf("rejected sends created %d messages", count-before)
 	}
 
 	// Deleting the message deletes its files through the port.

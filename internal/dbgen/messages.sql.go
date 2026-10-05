@@ -55,9 +55,10 @@ type CreateMessageRow struct {
 // Messages. Owned by the chat module.
 // Only internal/chat may use these queries.
 //
-// A query that returns a message lists its columns, leaving out
-// messages.search. Keep the lists identical, here and in pins.sql and
-// search.sql; see docs/architecture/messaging.md → Search.
+// A message goes to a client through the message_with_reply view, which
+// leaves out messages.search and adds the reply quote. The queries here
+// that skip the view list the same columns. A new messages column goes in
+// each list and in the view; see docs/architecture/messaging.md → Search.
 func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (CreateMessageRow, error) {
 	row := q.db.QueryRow(ctx, createMessage,
 		arg.ID,
@@ -135,19 +136,46 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, err
 	return i, err
 }
 
-const insertMessageMention = `-- name: InsertMessageMention :exec
+const getMessageWithReply = `-- name: GetMessageWithReply :one
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id FROM message_with_reply m
+WHERE m.id = $1
+`
+
+// GetMessageWithReply is one message with the reply columns, for the
+// events that resend a message after it changes.
+func (q *Queries) GetMessageWithReply(ctx context.Context, id string) (MessageWithReply, error) {
+	row := q.db.QueryRow(ctx, getMessageWithReply, id)
+	var i MessageWithReply
+	err := row.Scan(
+		&i.ID,
+		&i.ChannelID,
+		&i.AuthorID,
+		&i.Content,
+		&i.CreatedAt,
+		&i.MentionsEveryone,
+		&i.ReplyToMessageID,
+		&i.MentionsHere,
+		&i.EditedAt,
+		&i.ReplyAuthorID,
+		&i.ReplyContent,
+		&i.ReplyFirstFileID,
+	)
+	return i, err
+}
+
+const insertMessageMentions = `-- name: InsertMessageMentions :exec
 INSERT INTO message_mentions (message_id, user_id)
-VALUES ($1, $2)
+SELECT $1::uuid, unnest($2::uuid[])
 ON CONFLICT DO NOTHING
 `
 
-type InsertMessageMentionParams struct {
+type InsertMessageMentionsParams struct {
 	MessageID string
-	UserID    string
+	UserIds   []string
 }
 
-func (q *Queries) InsertMessageMention(ctx context.Context, arg InsertMessageMentionParams) error {
-	_, err := q.db.Exec(ctx, insertMessageMention, arg.MessageID, arg.UserID)
+func (q *Queries) InsertMessageMentions(ctx context.Context, arg InsertMessageMentionsParams) error {
+	_, err := q.db.Exec(ctx, insertMessageMentions, arg.MessageID, arg.UserIds)
 	return err
 }
 
@@ -217,11 +245,7 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 }
 
 const listMessagesAfter = `-- name: ListMessagesAfter :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
-    p.author_id AS reply_author_id, p.content AS reply_content,
-    COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
-FROM messages m
-LEFT JOIN messages p ON p.id = m.reply_to_message_id
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id FROM message_with_reply m
 WHERE m.channel_id = $1
   AND (m.id > $3::uuid OR ($4::bool AND m.id = $3::uuid))
 ORDER BY m.id ASC
@@ -235,24 +259,9 @@ type ListMessagesAfterParams struct {
 	Inclusive bool
 }
 
-type ListMessagesAfterRow struct {
-	ID               string
-	ChannelID        string
-	AuthorID         string
-	Content          string
-	CreatedAt        time.Time
-	MentionsEveryone bool
-	ReplyToMessageID *string
-	MentionsHere     bool
-	EditedAt         *time.Time
-	ReplyAuthorID    *string
-	ReplyContent     *string
-	ReplyFirstFileID string
-}
-
 // ListMessagesAfter is the forward counterpart: the oldest `limit` messages
 // newer than after_id (or from it, when inclusive), oldest-first.
-func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterParams) ([]ListMessagesAfterRow, error) {
+func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterParams) ([]MessageWithReply, error) {
 	rows, err := q.db.Query(ctx, listMessagesAfter,
 		arg.ChannelID,
 		arg.Limit,
@@ -263,9 +272,9 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListMessagesAfterRow
+	var items []MessageWithReply
 	for rows.Next() {
-		var i ListMessagesAfterRow
+		var i MessageWithReply
 		if err := rows.Scan(
 			&i.ID,
 			&i.ChannelID,
@@ -291,11 +300,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 }
 
 const listMessagesBefore = `-- name: ListMessagesBefore :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at,
-    p.author_id AS reply_author_id, p.content AS reply_content,
-    COALESCE((SELECT a.file_id::text FROM message_attachments a WHERE a.message_id = p.id ORDER BY a.position LIMIT 1), '')::text AS reply_first_file_id
-FROM messages m
-LEFT JOIN messages p ON p.id = m.reply_to_message_id
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id FROM message_with_reply m
 WHERE m.channel_id = $1
   AND ($3::uuid IS NULL OR m.id < $3::uuid)
 ORDER BY m.id DESC
@@ -308,32 +313,17 @@ type ListMessagesBeforeParams struct {
 	BeforeID  *string
 }
 
-type ListMessagesBeforeRow struct {
-	ID               string
-	ChannelID        string
-	AuthorID         string
-	Content          string
-	CreatedAt        time.Time
-	MentionsEveryone bool
-	ReplyToMessageID *string
-	MentionsHere     bool
-	EditedAt         *time.Time
-	ReplyAuthorID    *string
-	ReplyContent     *string
-	ReplyFirstFileID string
-}
-
-// ListMessagesBefore joins the replied-to message (if any) so the client
-// can render a quote without a second round trip.
-func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBeforeParams) ([]ListMessagesBeforeRow, error) {
+// ListMessagesBefore carries the replied-to message's quote (if any) so
+// the client can render it without a second round trip.
+func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBeforeParams) ([]MessageWithReply, error) {
 	rows, err := q.db.Query(ctx, listMessagesBefore, arg.ChannelID, arg.Limit, arg.BeforeID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListMessagesBeforeRow
+	var items []MessageWithReply
 	for rows.Next() {
-		var i ListMessagesBeforeRow
+		var i MessageWithReply
 		if err := rows.Scan(
 			&i.ID,
 			&i.ChannelID,

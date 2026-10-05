@@ -7,24 +7,20 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5"
 
 	filesv1 "github.com/getstoop/stoop/gen/stoop/files/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/blob"
-	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// Storage hygiene: the sweep and the quota. A self-hosted disk fills
-// quietly — uploads that were never sent, attachments whose channel or
-// space is gone, avatars and icons replaced mid-crash, blobs whose row
-// insert failed — so the sweep walks the files table and the store and
-// removes what nothing points at, and the quota refuses uploads past a
-// cap the operator sets. Which files are still pointed at is the owning
-// modules' knowledge, asked through ports; files never reads their
-// tables.
+// Storage hygiene: the sweep. A self-hosted disk fills quietly — uploads
+// that were never sent, attachments whose channel or space is gone,
+// avatars and icons replaced mid-crash, blobs whose row insert failed — so
+// the sweep walks the files table and the store and removes what nothing
+// points at. Which files are still pointed at is the owning modules'
+// knowledge, asked through ports; files never reads their tables.
 
 const (
 	// DefaultSweepGrace is how old an unreferenced file must be before the
@@ -36,143 +32,10 @@ const (
 	unclaimedCursor   = "00000000-0000-0000-0000-000000000000"
 )
 
-// Policy is files' port onto the instance module: the operator's quota.
-type Policy interface {
-	// StorageQuotaBytes is the cap on total upload storage; 0 is unlimited.
-	StorageQuotaBytes(ctx context.Context) (int64, error)
-	// MaxUploadBytes is the cap on one uploaded file; 0 means the operator
-	// set none and MaxAttachmentBytes applies.
-	MaxUploadBytes(ctx context.Context) (int64, error)
-	// AttachmentRetentionDays is how long attachments are kept; 0 is
-	// forever (retention.go).
-	AttachmentRetentionDays(ctx context.Context) (int, error)
-}
-
-// UsePolicy wires the quota port. Without one, uploads are unlimited.
-func (s *Service) UsePolicy(p Policy) { s.policy = p }
-
 // UseSweepGrace overrides how old an unreferenced file must be to go.
 func (s *Service) UseSweepGrace(d time.Duration) {
 	if d > 0 {
 		s.grace = d
-	}
-}
-
-// ErrStorageFull is what an upload gets past the quota; the message
-// carries the numbers.
-var ErrStorageFull = errors.New("upload storage is full")
-
-// checkQuota fails with ErrStorageFull if adding size would pass the cap.
-// It is the cheap early answer before any bytes are accepted; recordFile
-// is the one that holds.
-func (s *Service) checkQuota(ctx context.Context, size int64) error {
-	quota, err := s.quota(ctx)
-	if err != nil || quota <= 0 {
-		return err
-	}
-	u, err := s.q.StorageUsage(ctx)
-	if err != nil {
-		return fmt.Errorf("storage usage: %w", err)
-	}
-	return fits(u.Bytes, size, quota)
-}
-
-func (s *Service) quota(ctx context.Context) (int64, error) {
-	if s.policy == nil {
-		return 0, nil
-	}
-	quota, err := s.policy.StorageQuotaBytes(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("read quota: %w", err)
-	}
-	return quota, nil
-}
-
-func fits(used, size, quota int64) error {
-	if used+size > quota {
-		return fmt.Errorf("%w (%s of %s used)", ErrStorageFull, FormatBytes(used), FormatBytes(quota))
-	}
-	return nil
-}
-
-// recordFile inserts the file row under the quota (insertUnderQuota). The
-// caller has already written the blob; on ErrStorageFull it removes it
-// again.
-func (s *Service) recordFile(ctx context.Context, params dbgen.CreateFileParams) (dbgen.File, error) {
-	return s.insertUnderQuota(ctx, params.Size, func(queries *dbgen.Queries) (dbgen.File, error) {
-		return queries.CreateFile(ctx, params)
-	})
-}
-
-// recordPendingFile is recordFile for an avatar or icon stored as sent,
-// which the normalise_image job readies.
-func (s *Service) recordPendingFile(ctx context.Context, params dbgen.CreatePendingFileParams) (dbgen.File, error) {
-	return s.insertUnderQuota(ctx, params.Size, func(queries *dbgen.Queries) (dbgen.File, error) {
-		return queries.CreatePendingFile(ctx, params)
-	})
-}
-
-// insertUnderQuota runs insert, and with a quota set it does so under an
-// advisory lock with the usage summed inside the same transaction, so N
-// uploads that each passed checkQuota while the others were in flight
-// cannot all land.
-func (s *Service) insertUnderQuota(ctx context.Context, size int64, insert func(queries *dbgen.Queries) (dbgen.File, error)) (dbgen.File, error) {
-	quota, err := s.quota(ctx)
-	if err != nil {
-		return dbgen.File{}, err
-	}
-	if quota <= 0 {
-		return insert(s.q)
-	}
-	var file dbgen.File
-	err = db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-		qtx := s.q.WithTx(tx)
-		if err := qtx.LockStorageQuota(ctx); err != nil {
-			return fmt.Errorf("lock quota: %w", err)
-		}
-		usage, err := qtx.StorageUsage(ctx)
-		if err != nil {
-			return fmt.Errorf("storage usage: %w", err)
-		}
-		if err := fits(usage.Bytes, size, quota); err != nil {
-			return err
-		}
-		file, err = insert(qtx)
-		return err
-	})
-	if err != nil {
-		return dbgen.File{}, err
-	}
-	return file, nil
-}
-
-// maxUploadBytes is the cap one attachment is measured against
-func (s *Service) maxUploadBytes(ctx context.Context) (int64, error) {
-	if s.policy == nil {
-		return MaxAttachmentBytes, nil
-	}
-	n, err := s.policy.MaxUploadBytes(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("read upload limit: %w", err)
-	}
-	if n <= 0 || n > MaxAttachmentBytes {
-		return MaxAttachmentBytes, nil
-	}
-	return n, nil
-}
-
-// FormatBytes renders a size for people: "1.2 GB", "350 MB", "12 kB".
-func FormatBytes(n int64) string {
-	const k = 1000
-	switch {
-	case n >= k*k*k:
-		return fmt.Sprintf("%.1f GB", float64(n)/(k*k*k))
-	case n >= k*k:
-		return fmt.Sprintf("%.0f MB", float64(n)/(k*k))
-	case n >= k:
-		return fmt.Sprintf("%.0f kB", float64(n)/k)
-	default:
-		return fmt.Sprintf("%d B", n)
 	}
 }
 

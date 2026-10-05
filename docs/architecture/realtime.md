@@ -132,9 +132,10 @@ everything it knows comes from four ports: `SessionVerifier` and
 
 1. **Authenticate before upgrading.** `SessionVerifier.VerifyRequest` reads
    the same cookie or bearer token the Connect interceptor does and returns
-   the identity with its credential. A failure is a plain `401`, not a
+   the identity with its credential. No session is a plain `401`, not a
    WebSocket close — a client that isn't signed in should find out from
-   HTTP. Anything but a session is a `403`
+   HTTP; a check that fails (the database down) is a `503`. Anything but a
+   session is a `403`
    ([Credentials](#credentials) below).
 2. **Resolve memberships and subscribe**, before the upgrade. The
    subscription exists from the moment the socket does, so nothing
@@ -143,16 +144,19 @@ everything it knows comes from four ports: `SessionVerifier` and
    host, `STOOP_PUBLIC_URL`'s host, and `STOOP_ALLOWED_WS_ORIGINS`.
 4. **Register presence.** The first connection for a user announces them
    online to their spaces; the last one to close announces them offline.
-   Intermediate connections change nothing, which is what makes several
+   A later connection announces only a space no other connection has
+   recorded yet (one joined moments ago), which is what makes several
    tabs behave like one person.
 5. **Send `Ready`** — the user's id, their space ids, who is online, who
    is on do not disturb, and everyone currently in a voice channel. One frame that
    seeds all the ephemeral state the client needs, so there is no
    "connected but don't know anything yet" gap.
-6. **Run two loops.** A read loop handles client events; the main loop
-   selects over the subscription, a 30-second ping ticker, and context
-   cancellation. A failed ping (10s timeout) or a read error ends the
-   connection.
+6. **Run two loops.** A read loop decodes client events and hands them
+   to the main loop, which selects over them, the subscription, a
+   30-second ping ticker, and context cancellation. Only the main loop
+   changes the connection's state, so a voice report can't land after a
+   kick or after the cleanup in step 7. A failed ping (10s timeout) or a
+   read error ends the connection.
 7. **On close**, announce the leave from any voice channel, drop presence
    if this was the last connection, and close the subscription.
 
@@ -191,7 +195,9 @@ might one day be. A tab signed out from another tab is therefore told at
 once, and goes to the login page.
 
 **And the session is re-verified with every ping** (every 30 s), with
-the same close code when it no longer verifies. That is what catches what
+the same close code when it no longer verifies; a check that fails closes
+it with `1013` (try again later), so the client reconnects instead of
+signing out. That is what catches what
 the bus can't carry: a session past its expiry that the sweep has not
 reached, a reset from the CLI (a separate process with no bus), or a
 revocation published in the gap between verifying the upgrade and

@@ -21,48 +21,64 @@ func (q *Queries) CountUnreadActivity(ctx context.Context, userID string) (int64
 	return count, err
 }
 
-const createActivityItem = `-- name: CreateActivityItem :one
+const createActivityItems = `-- name: CreateActivityItems :many
 
 INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+SELECT unnest($1::uuid[]), unnest($2::uuid[]), $3::text,
+    $4::uuid, $5::uuid, $6::uuid, $7::uuid
 RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
 `
 
-type CreateActivityItemParams struct {
-	ID        string
-	UserID    string
+type CreateActivityItemsParams struct {
+	Ids       []string
+	UserIds   []string
 	Kind      string
 	SpaceID   *string
 	ChannelID string
-	MessageID *string
+	MessageID string
 	ActorID   string
 }
 
 // Activity items. Owned by the chat module.
 // Only internal/chat may use these queries.
-func (q *Queries) CreateActivityItem(ctx context.Context, arg CreateActivityItemParams) (ActivityItem, error) {
-	row := q.db.QueryRow(ctx, createActivityItem,
-		arg.ID,
-		arg.UserID,
+// CreateActivityItems writes one item of a kind for each recipient of
+// a message, in one statement (see chat.notify).
+func (q *Queries) CreateActivityItems(ctx context.Context, arg CreateActivityItemsParams) ([]ActivityItem, error) {
+	rows, err := q.db.Query(ctx, createActivityItems,
+		arg.Ids,
+		arg.UserIds,
 		arg.Kind,
 		arg.SpaceID,
 		arg.ChannelID,
 		arg.MessageID,
 		arg.ActorID,
 	)
-	var i ActivityItem
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Kind,
-		&i.SpaceID,
-		&i.ChannelID,
-		&i.MessageID,
-		&i.ActorID,
-		&i.CreatedAt,
-		&i.ReadAt,
-	)
-	return i, err
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ActivityItem
+	for rows.Next() {
+		var i ActivityItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Kind,
+			&i.SpaceID,
+			&i.ChannelID,
+			&i.MessageID,
+			&i.ActorID,
+			&i.CreatedAt,
+			&i.ReadAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const deleteActivityForBlocked = `-- name: DeleteActivityForBlocked :execrows
@@ -105,38 +121,6 @@ func (q *Queries) DeleteReadActivityBefore(ctx context.Context, before time.Time
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const getUnreadActivityForChannel = `-- name: GetUnreadActivityForChannel :one
-SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM activity_items
-WHERE user_id = $1 AND channel_id = $2 AND kind = $3 AND read_at IS NULL
-ORDER BY id DESC
-LIMIT 1
-`
-
-type GetUnreadActivityForChannelParams struct {
-	UserID    string
-	ChannelID string
-	Kind      string
-}
-
-// The unread activity item of one kind for a channel, if any: a DM's
-// alerts coalesce into it instead of piling up (see chat.recordDM).
-func (q *Queries) GetUnreadActivityForChannel(ctx context.Context, arg GetUnreadActivityForChannelParams) (ActivityItem, error) {
-	row := q.db.QueryRow(ctx, getUnreadActivityForChannel, arg.UserID, arg.ChannelID, arg.Kind)
-	var i ActivityItem
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Kind,
-		&i.SpaceID,
-		&i.ChannelID,
-		&i.MessageID,
-		&i.ActorID,
-		&i.CreatedAt,
-		&i.ReadAt,
-	)
-	return i, err
 }
 
 const listActivity = `-- name: ListActivity :many
@@ -226,33 +210,96 @@ func (q *Queries) MarkAllActivityRead(ctx context.Context, userID string) error 
 	return err
 }
 
-const refreshActivityItem = `-- name: RefreshActivityItem :one
-UPDATE activity_items SET message_id = $2, actor_id = $3, created_at = now()
-WHERE id = $1
-RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
+const upsertUnreadActivityItems = `-- name: UpsertUnreadActivityItems :many
+WITH recipient AS (
+    SELECT unnest($1::uuid[]) AS id, unnest($2::uuid[]) AS user_id
+), unread AS (
+    SELECT DISTINCT ON (a.user_id) a.id, a.user_id
+    FROM activity_items a
+    WHERE a.user_id = ANY($2::uuid[])
+      AND a.channel_id = $3::uuid
+      AND a.kind = $4::text
+      AND a.read_at IS NULL
+    ORDER BY a.user_id, a.id DESC
+), refreshed AS (
+    UPDATE activity_items a
+    SET message_id = $5::uuid, actor_id = $6::uuid, created_at = now()
+    FROM unread u
+    WHERE a.id = u.id
+    RETURNING a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at
+), created AS (
+    INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
+    SELECT r.id, r.user_id, $4::text, $7::uuid,
+        $3::uuid, $5::uuid, $6::uuid
+    FROM recipient r
+    WHERE NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
+    RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
+)
+SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM refreshed
+UNION ALL
+SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM created
 `
 
-type RefreshActivityItemParams struct {
-	ID        string
-	MessageID *string
+type UpsertUnreadActivityItemsParams struct {
+	Ids       []string
+	UserIds   []string
+	ChannelID string
+	Kind      string
+	MessageID string
 	ActorID   string
+	SpaceID   *string
 }
 
-// RefreshActivityItem points an existing item at a newer message
-// and stamps it now, so the entry reads as the latest activity.
-func (q *Queries) RefreshActivityItem(ctx context.Context, arg RefreshActivityItemParams) (ActivityItem, error) {
-	row := q.db.QueryRow(ctx, refreshActivityItem, arg.ID, arg.MessageID, arg.ActorID)
-	var i ActivityItem
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Kind,
-		&i.SpaceID,
-		&i.ChannelID,
-		&i.MessageID,
-		&i.ActorID,
-		&i.CreatedAt,
-		&i.ReadAt,
+type UpsertUnreadActivityItemsRow struct {
+	ID        string
+	UserID    string
+	Kind      string
+	SpaceID   *string
+	ChannelID string
+	MessageID *string
+	ActorID   string
+	CreatedAt time.Time
+	ReadAt    *time.Time
+}
+
+// UpsertUnreadActivityItems is CreateActivityItems for a kind that
+// coalesces per channel, as a DM's alerts do (see chat.recordDM): a
+// recipient's newest unread item of the kind there is pointed at the new
+// message and stamped now; a recipient without one gets a new item.
+func (q *Queries) UpsertUnreadActivityItems(ctx context.Context, arg UpsertUnreadActivityItemsParams) ([]UpsertUnreadActivityItemsRow, error) {
+	rows, err := q.db.Query(ctx, upsertUnreadActivityItems,
+		arg.Ids,
+		arg.UserIds,
+		arg.ChannelID,
+		arg.Kind,
+		arg.MessageID,
+		arg.ActorID,
+		arg.SpaceID,
 	)
-	return i, err
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UpsertUnreadActivityItemsRow
+	for rows.Next() {
+		var i UpsertUnreadActivityItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Kind,
+			&i.SpaceID,
+			&i.ChannelID,
+			&i.MessageID,
+			&i.ActorID,
+			&i.CreatedAt,
+			&i.ReadAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

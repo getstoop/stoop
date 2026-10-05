@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -27,6 +28,11 @@ func metricsHandler(authSvc *auth.Service, instanceSvc *instance.Service, queue 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		identity, err := authSvc.VerifyToken(r.Context(), token)
+		if ok && err != nil && !errors.Is(err, authctx.ErrNoSession) {
+			log.Error("metrics: verify credential", "err", err)
+			http.Error(w, "the server can't check this token right now", http.StatusServiceUnavailable)
+			return
+		}
 		if !ok || err != nil {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, "a bearer token is required", http.StatusUnauthorized)

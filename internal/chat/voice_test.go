@@ -9,9 +9,6 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
-	"github.com/getstoop/stoop/internal/chat"
-	"github.com/getstoop/stoop/internal/db/dbtest"
-	"github.com/getstoop/stoop/internal/events"
 )
 
 // stubRooms records what chat asked the SFU to do.
@@ -44,8 +41,7 @@ func (r *stubRooms) note(ctx context.Context) {
 
 // A kick, ban, leave or delete has to reach the SFU, not just the rows.
 func TestVoiceRoomsFollowMembership(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	rooms := &stubRooms{}
 	svc.UseVoiceRooms(rooms)
 
@@ -89,8 +85,8 @@ func TestVoiceRoomsFollowMembership(t *testing.T) {
 		if len(got) != len(want) {
 			t.Fatalf("got %v, want %v", got, want)
 		}
-		for i := range got {
-			if got[i] != want[i] {
+		for index := range got {
+			if got[index] != want[index] {
 				t.Fatalf("got %v, want %v", got, want)
 			}
 		}
@@ -132,8 +128,7 @@ func TestVoiceRoomsFollowMembership(t *testing.T) {
 // The membership change has already committed, so an unreachable sidecar
 // must not fail the kick.
 func TestKickSurvivesAnUnreachableSFU(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	rooms := &stubRooms{err: errors.New("connection refused")}
 	svc.UseVoiceRooms(rooms)
 
@@ -169,8 +164,7 @@ func TestKickSurvivesAnUnreachableSFU(t *testing.T) {
 // Enforcement runs after the commit, so a moderator whose connection drops
 // in that window must not cancel it and leave the member in the call.
 func TestEvictionOutlivesTheCaller(t *testing.T) {
-	pool := dbtest.New(t)
-	svc := chat.New(pool, events.NewInProcBus(), dbDirectory{pool})
+	pool, _, svc := newTestService(t)
 	rooms := &stubRooms{}
 	svc.UseVoiceRooms(rooms)
 
@@ -209,9 +203,9 @@ func TestEvictionOutlivesTheCaller(t *testing.T) {
 	if len(rooms.removed) != 2 {
 		t.Errorf("a cancelled caller stopped the eviction: %v", rooms.removed)
 	}
-	for i, err := range rooms.ctxErrs {
+	for index, err := range rooms.ctxErrs {
 		if err != nil {
-			t.Errorf("call %d ran on a cancelled context: %v", i, err)
+			t.Errorf("call %d ran on a cancelled context: %v", index, err)
 		}
 	}
 }
