@@ -740,26 +740,26 @@ func TestOutgoingTwentyDeadInARowDisable(t *testing.T) {
 // A dead receiver's later deliveries are still queued when the twentieth
 // dies; they must not hold off the disable.
 func TestOutgoingDisablesWithDeliveriesStillQueued(t *testing.T) {
-	f, endpoint := outgoingFixture(t)
-	hook, _ := f.createOutgoing(t, endpoint.srv.URL+"/down", []string{EventMessageCreated}, "")
+	rig, endpoint := outgoingFixture(t)
+	hook, _ := rig.createOutgoing(t, endpoint.srv.URL+"/down", []string{EventMessageCreated}, "")
 	for range (deadToDisable + 5) * testMaxAttempts {
 		endpoint.status = append(endpoint.status, 503)
 	}
 	for index := range deadToDisable + 5 {
-		f.enqueueMessage(t, "down "+strconv.Itoa(index))
+		rig.enqueueMessage(t, "down "+strconv.Itoa(index))
 	}
 	for range deadToDisable {
-		job := f.jobs.pop(t)
+		job := rig.jobs.pop(t)
 		for attempt := 1; attempt <= testMaxAttempts; attempt++ {
-			if result := f.deliver(t, job, attempt); result.Dead {
+			if result := rig.deliver(t, job, attempt); result.Dead {
 				break
 			}
 		}
 	}
-	if f.jobs.pending() != 5 {
-		t.Fatalf("pending = %d, want the 5 later deliveries still queued", f.jobs.pending())
+	if rig.jobs.pending() != 5 {
+		t.Fatalf("pending = %d, want the 5 later deliveries still queued", rig.jobs.pending())
 	}
-	if disabled, reason := f.hook(t, hook.Id); !disabled || !strings.Contains(reason, "20 deliveries in a row") {
+	if disabled, reason := rig.hook(t, hook.Id); !disabled || !strings.Contains(reason, "20 deliveries in a row") {
 		t.Errorf("hook after twenty dead with more queued: %v %q", disabled, reason)
 	}
 }
