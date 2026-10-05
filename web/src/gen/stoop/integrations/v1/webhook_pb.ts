@@ -224,7 +224,8 @@ export type Delivery = Message<"stoop.integrations.v1.Delivery"> & {
   statusCode?: number | undefined;
 
   /**
-   * The first 500 bytes of the last response.
+   * No longer set: the receiver's reply is logged, not kept. Removed in
+   * STOOP-415.
    *
    * @generated from field: string response = 7;
    */

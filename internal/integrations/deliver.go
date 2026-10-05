@@ -79,7 +79,6 @@ func NotSent(err error) bool {
 // Attempt is what one try learned, as the log keeps it.
 type Attempt struct {
 	StatusCode int
-	Response   string
 	Error      string
 }
 
@@ -203,8 +202,14 @@ func (s *Service) post(ctx context.Context, hook dbgen.OutgoingWebhook, args Del
 		return Attempt{Error: cutBytes(err.Error(), responseKeep)}, 0
 	}
 	defer func() { _ = resp.Body.Close() }()
-	head, _ := io.ReadAll(io.LimitReader(resp.Body, responseKeep))
-	tried := Attempt{StatusCode: resp.StatusCode, Response: string(head)}
+	// The reply is the receiver's text: never stored, and logged only when
+	// it refused the delivery, which is when an operator needs it.
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		head, _ := io.ReadAll(io.LimitReader(resp.Body, responseKeep))
+		s.log.Info("webhook delivery refused", "delivery_id", args.DeliveryID, "hook", hook.ID,
+			"status", resp.StatusCode, "reply", string(head))
+	}
+	tried := Attempt{StatusCode: resp.StatusCode}
 	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
 		tried.Error = "redirects are not followed"
 	}
@@ -243,7 +248,7 @@ func (s *Service) egressClient(ctx context.Context) (*http.Client, error) {
 func (s *Service) recordAttempt(ctx context.Context, deliveryID string, attempt int, outcome verdict) error {
 	params := dbgen.RecordDeliveryAttemptParams{
 		ID: deliveryID, Attempts: int32(attempt), StatusCode: statusPtr(outcome.tried.StatusCode),
-		Response: storableText(outcome.tried.Response), Error: storableText(outcome.tried.Error),
+		Error:     storableText(outcome.tried.Error),
 		Delivered: outcome.result.Delivered,
 	}
 	if outcome.result.Delivered || outcome.result.Dead {

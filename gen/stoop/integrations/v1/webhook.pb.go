@@ -312,7 +312,8 @@ type Delivery struct {
 	Attempts  int32                  `protobuf:"varint,5,opt,name=attempts,proto3" json:"attempts,omitempty"`
 	// Unset until a receiver answered.
 	StatusCode *int32 `protobuf:"varint,6,opt,name=status_code,json=statusCode,proto3,oneof" json:"status_code,omitempty"`
-	// The first 500 bytes of the last response.
+	// No longer set: the receiver's reply is logged, not kept. Removed in
+	// STOOP-415.
 	Response  string                 `protobuf:"bytes,7,opt,name=response,proto3" json:"response,omitempty"`
 	Error     string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`

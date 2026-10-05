@@ -33,13 +33,6 @@
   color: var(--warn);
 }
 
-.delivery-row .response {
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .integration-form {
   display: flex;
   flex-direction: column;

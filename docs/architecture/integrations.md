@@ -172,7 +172,9 @@ receiver dedupes on `Stoop-Delivery` and reads a gap off
 
 `webhook_deliveries` is the delivery log the Integrations page reads:
 one row per delivery with the hook, event, sequence, body, attempts,
-status code, response, error and when it finished. The fan-out inserts
+status code, error and when it finished. The receiver's reply is not
+kept: a refusal (a status outside 2xx) logs it at info level with the
+delivery id. The fan-out inserts
 it pending; the performer rewrites it after every attempt and
 clears the body once a receiver accepted. The queue is the jobs module's
 ([runtime.md](runtime.md#background-work)): the job's arguments carry

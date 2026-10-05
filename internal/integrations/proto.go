@@ -107,7 +107,7 @@ func toProtoOutgoing(h dbgen.OutgoingWebhook) *integrationsv1.OutgoingWebhook {
 func toProtoDelivery(row dbgen.WebhookDelivery) *integrationsv1.Delivery {
 	return &integrationsv1.Delivery{
 		Id: row.ID, WebhookId: row.WebhookID, EventType: row.EventType, Sequence: row.Sequence, Attempts: row.Attempts,
-		StatusCode: row.StatusCode, Response: row.Response, Error: row.Error,
+		StatusCode: row.StatusCode, Error: row.Error,
 		CreatedAt: timestamppb.New(row.CreatedAt), FinishedAt: pbtime.OrNil(row.FinishedAt),
 	}
 }
