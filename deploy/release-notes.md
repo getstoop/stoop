@@ -1,5 +1,111 @@
 Stoop 0.4.0
 
+Stoop 0.4.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.3.x. **It cannot be rolled back by
+putting the previous compose file back:** it changes the database in a way
+0.3.x can't read, so going back to 0.3.x means restoring the backup
+`stoop upgrade` takes before it starts.
+
+**What's new.** Voice can be turned off: for the whole server, or by a
+space's admins for their space (Space settings → General). Voice channels
+are then hidden, not deleted. The sweeps and outgoing webhooks run on a
+background job queue, which can run in its own container. A burst of
+messages no longer drops outgoing webhook deliveries (tested at 150
+messages a second with 20 hooks).
+Avatars and space icons are processed in the background. An animated WebP
+is refused beside the picker, with a reason, rather than accepted and then
+discarded. When the server can't reach its database, the web app no
+longer signs you out, and a message that was saved is no longer reported
+as failed. A Tailscale connection that stops is restarted.
+
+**For operators.**
+
+- **Coming from 0.3, add `bundled-livekit` to `COMPOSE_PROFILES` in
+  `.env` before upgrading**, keeping what is already on the line
+  (`COMPOSE_PROFILES=bundled-postgres,bundled-livekit` on the default
+  install). LiveKit is now a compose profile. Without the line, the
+  LiveKit that is running stays on its old version, and the next time the
+  stack is recreated there is none: voice joins fail, and Server admin →
+  Diagnostics shows `livekit` as not answering. `stoop upgrade` does not
+  catch this, because the line is already in `.env`. Take all three
+  bundle files from this release (`docker-compose.yml`, `livekit.yaml`,
+  `livekit-entrypoint.sh`).
+- **Rolling back needs the backup.** `stoop upgrade` says so before it
+  upgrades, and `stoop upgrade rollback` refuses afterwards and points at
+  the backup; see
+  [backups.md → Restoring in place](https://github.com/getstoop/stoop/blob/v0.4.0/docs/self-hosting/backups.md#restoring-in-place).
+  0.3.x will not start against a 0.4.0 database.
+- **`STOOP_TRUST_PROXY=true` refuses to start.** Name your proxy's
+  addresses in `STOOP_TRUSTED_PROXIES` (or under Server admin → Hosting)
+  and remove `STOOP_TRUST_PROXY`.
+- **Settings in `.env` are copied into the database once.** The public
+  URL, trusted proxies, TURN, Cloudflare, Tailscale, login provider,
+  password sign-in and instance name are seeded the first time the server
+  starts with them set. After that, change them on the admin page or with
+  the new `stoop admin setting` command. Changing `.env` does nothing, and
+  the server logs a warning naming the variable. If you cleared one of
+  these fields on the admin page and relied on `.env` to fill it in, set
+  it again: an empty saved value now means empty. See
+  [configuration.md](https://github.com/getstoop/stoop/blob/v0.4.0/docs/self-hosting/configuration.md).
+- **Text-only servers.** `STOOP_VOICE=false`, with `bundled-livekit`
+  taken out of `COMPOSE_PROFILES`, runs without voice; see
+  [voice.md → Running without voice](https://github.com/getstoop/stoop/blob/v0.4.0/docs/self-hosting/voice.md#running-without-voice).
+  The new `.env.example` sets `STOOP_VOICE=true`, so `stoop upgrade` lists
+  it as a setting your `.env` lacks; adding it changes nothing.
+- **Background jobs.** The sweeps and outgoing webhook deliveries run on
+  a job queue inside the server, as before. To run them in their own
+  container, set `STOOP_JOBS=external` and add `jobs` to
+  `COMPOSE_PROFILES`; see
+  [install.md → Running background jobs apart](https://github.com/getstoop/stoop/blob/v0.4.0/docs/self-hosting/install.md#running-background-jobs-apart).
+  The `stoop` service now gets 15 seconds to stop, so in-flight work
+  finishes or is handed back. Server admin → Diagnostics → Health gains a
+  `jobs_runner` row.
+- **`stoop admin` no longer migrates the database.** Run against a
+  database with migrations pending, it refuses with exit status 3. Start
+  the new server (or `stoop migrate up`) first.
+- **`stoop upgrade rollback` keeps the files it replaces as
+  `.rolledback`**, where a later upgrade won't pick them up.
+- **When the server can't check a sign-in, it answers 503**, not 401:
+  the API, the live connection, file downloads and uploads, and provider
+  sign-in, which shows "Sign-in failed — please try again." Only a
+  missing or revoked sign-in is answered as signed out.
+- **API changes for scripts.** A personal token can no longer open the
+  live connection (`/ws` refuses it with 403, as it already refused a bot
+  token) or join voice (a bot token still can). An old personal token that
+  lists the voice grant keeps it, but it does nothing. `stoop version --json` is gone, and `GET /version` no longer
+  carries the migration and floor numbers; `stoop migrate status --json`
+  has them. An upload that stops sending is ended after 30 seconds.
+- **Channel names that differ only by case** are made unique: in each
+  space the oldest keeps its name and later ones get `-2`, `-3`, … added.
+
+**Schema.** Migrations 00043 to 00052 run at startup. Three are contract
+migrations: `00046_delivery_log` replaces the webhook delivery queue
+columns that 0.3.x reads, `00049_sessions_unkept` stops clearing the
+legacy sessions table that only 0.1.0 reads, and
+`00052_floor_after_delivery_log` raises the schema floor to 46. After
+them, 0.4.0 and later can start against the database.
+
+**Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
+`cloudflared` 2026.9.3, all unchanged from 0.3.1.
+
+**Known issues.**
+
+- A few webhook receivers that answer slowly (seconds per delivery) can
+  hold every job worker. Other hooks' deliveries and the sweeps wait until
+  the slow backlog drains; nothing is lost.
+- A webhook whose receiver is down is retried indefinitely instead of
+  being switched off after 20 failed deliveries in a row. A receiver
+  answering `410 Gone` is still switched off at once.
+- Each password sign-in takes about 64 MiB of memory while it checks the
+  password, with no limit on how many run at once: 64 at the same moment
+  took a test server to 3.3 GB.
+
+Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
+security problems go through
+[private reporting](https://github.com/getstoop/stoop/security/advisories/new).
+
+The list below is every change merged since 0.3.1.
+
 Changes since 0.3.1:
 
 - Docs: the release token is named without its permissions (a90b615)
