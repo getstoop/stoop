@@ -233,8 +233,6 @@ func cleanSpaceName(name string) (string, bool) {
 	return name, visible
 }
 
-// toProtoSpace renders a space for one caller; myRole is that caller's
-// effective role in it.
 // toProtoSpace renders a space for one viewer holding cred. A broadcast
 // passes actor{} and carries no role or permissions.
 func toProtoSpace(s dbgen.Space, viewer actor, cred authctx.Credential) *chatv1.Space {

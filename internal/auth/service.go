@@ -1,7 +1,7 @@
-// Package auth owns users and sessions: registration, login, and the
-// interceptor that authenticates every Connect request. It owns the users and
-// sessions tables; other modules learn about users only through exported
-// lookup methods wired as ports in internal/app.
+// Package auth owns who someone is: accounts, sign-in, credentials
+// (sessions and tokens) and the interceptor that authenticates every
+// Connect request. Other modules learn about users only through ports
+// wired in internal/app. See docs/architecture/identity.md.
 package auth
 
 import (

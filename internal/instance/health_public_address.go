@@ -7,7 +7,8 @@ import (
 )
 
 // downDanger is how long a configured tunnel or tailnet may be down
-// before the row turns from warn to danger (docs/proposals/diagnostics.md).
+// before the row turns from warn to danger (docs/architecture/diagnostics.md
+// → The health-check port).
 const downDanger = time.Minute
 
 // PublicAddressCheck is the Health row for how people reach the server,
