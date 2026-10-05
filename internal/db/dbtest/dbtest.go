@@ -81,8 +81,9 @@ func NewURL(t *testing.T) string {
 	return parsed.String()
 }
 
-// NewUser adds a person with no password and returns their id, for a
-// module test that may not import auth. role is "admin" or "member".
+// NewUser adds a person whose password can't be used and returns their
+// id, for a module test that may not import auth. role is "admin" or
+// "member".
 func NewUser(t *testing.T, pool *pgxpool.Pool, username, role string) string {
 	t.Helper()
 	id := uuid.NewString()
