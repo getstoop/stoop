@@ -132,9 +132,10 @@ everything it knows comes from four ports: `SessionVerifier` and
 
 1. **Authenticate before upgrading.** `SessionVerifier.VerifyRequest` reads
    the same cookie or bearer token the Connect interceptor does and returns
-   the identity with its credential. A failure is a plain `401`, not a
+   the identity with its credential. No session is a plain `401`, not a
    WebSocket close — a client that isn't signed in should find out from
-   HTTP. Anything but a session is a `403`
+   HTTP; a check that fails (the database down) is a `503`. Anything but a
+   session is a `403`
    ([Credentials](#credentials) below).
 2. **Resolve memberships and subscribe**, before the upgrade. The
    subscription exists from the moment the socket does, so nothing
@@ -194,7 +195,8 @@ might one day be. A tab signed out from another tab is therefore told at
 once, and goes to the login page.
 
 **And the session is re-verified with every ping** (every 30 s), with
-the same close code when it no longer verifies. That is what catches what
+the same close code when it no longer verifies; a check that fails keeps
+the socket until the next ping. That is what catches what
 the bus can't carry: a session past its expiry that the sweep has not
 reached, a reset from the CLI (a separate process with no bus), or a
 revocation published in the gap between verifying the upgrade and

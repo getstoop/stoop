@@ -19,13 +19,103 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 )
 
-type flippingVerifier struct{ revoked atomic.Bool }
+// flippingVerifier answers for alice's session until revoked (no session)
+// or failing (the check itself fails, as with the database down).
+type flippingVerifier struct {
+	revoked, failing atomic.Bool
+	checks           atomic.Int64
+}
 
 func (v *flippingVerifier) VerifyRequest(context.Context, http.Header) (authctx.Identity, error) {
-	if v.revoked.Load() {
-		return authctx.Identity{}, errors.New("gone")
+	v.checks.Add(1)
+	switch {
+	case v.revoked.Load():
+		return authctx.Identity{}, authctx.ErrNoSession
+	case v.failing.Load():
+		return authctx.Identity{}, errors.New("connection pool closed")
 	}
 	return authctx.Identity{UserID: "alice", Credential: authctx.Credential{ID: "t", Kind: authctx.CredentialSession}}, nil
+}
+
+// The upgrade says signed out only when there is no session; a check that
+// failed is the server's trouble.
+func TestUpgradeTellsNoSessionFromAFailedCheck(t *testing.T) {
+	verifier := &flippingVerifier{}
+	gw := NewGateway(events.NewInProcBus(), verifier, noMembers{}, noChannels{}, []string{"*"}, slog.Default())
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	for _, tc := range []struct {
+		name             string
+		revoked, failing bool
+		want             int
+	}{
+		{"no session", true, false, http.StatusUnauthorized},
+		{"failed check", false, true, http.StatusServiceUnavailable},
+	} {
+		verifier.revoked.Store(tc.revoked)
+		verifier.failing.Store(tc.failing)
+		_, resp, err := websocket.Dial(context.Background(), url, nil)
+		if err == nil || resp == nil || resp.StatusCode != tc.want {
+			status := 0
+			if resp != nil {
+				status = resp.StatusCode
+			}
+			t.Errorf("%s: upgrade answered %d (%v), want %d", tc.name, status, err, tc.want)
+		}
+	}
+}
+
+// A re-check that fails at a ping leaves the socket open: it says nothing
+// about the session.
+func TestSocketSurvivesAFailedReverify(t *testing.T) {
+	bus := events.NewInProcBus()
+	verifier := &flippingVerifier{}
+	gw := NewGateway(bus, verifier, noMembers{}, noChannels{}, []string{"*"}, slog.Default())
+	gw.pingInterval = 20 * time.Millisecond
+	srv := httptest.NewServer(gw)
+	defer srv.Close()
+
+	conn, _, err := websocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http"), &websocket.DialOptions{HTTPHeader: http.Header{"Authorization": {"Bearer x"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.CloseNow() }()
+	if _, _, err := conn.Read(context.Background()); err != nil { // Ready
+		t.Fatal(err)
+	}
+	// Reading answers the gateway's pings, so the next one comes round.
+	frames := make(chan error, 16)
+	go func() {
+		for {
+			_, _, err := conn.Read(context.Background())
+			frames <- err
+			if err != nil {
+				return
+			}
+		}
+	}()
+	verifier.failing.Store(true)
+	before := verifier.checks.Load()
+	deadline := time.Now().Add(2 * time.Second)
+	for verifier.checks.Load() < before+3 {
+		if time.Now().After(deadline) {
+			t.Fatal("the gateway never re-checked the session")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	bus.Publish(events.UserTopic("alice"), events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_Ping{Ping: &realtimev1.Ping{}},
+	}))
+	select {
+	case err := <-frames:
+		if err != nil {
+			t.Fatalf("socket ended after a failed re-check: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("an event published after the failed re-checks never arrived")
+	}
 }
 
 type noMembers struct{}
@@ -40,8 +130,8 @@ func (noChannels) DMParticipants(context.Context, string) ([]string, error)  { r
 // A session that stops verifying (expired, or deleted by the CLI) ends
 // its socket at the next ping.
 func TestSocketClosesWhenTheCredentialStopsVerifying(t *testing.T) {
-	v := &flippingVerifier{}
-	gw := NewGateway(events.NewInProcBus(), v, noMembers{}, noChannels{}, []string{"*"}, slog.Default())
+	verifier := &flippingVerifier{}
+	gw := NewGateway(events.NewInProcBus(), verifier, noMembers{}, noChannels{}, []string{"*"}, slog.Default())
 	gw.pingInterval = 50 * time.Millisecond
 	srv := httptest.NewServer(gw)
 	defer srv.Close()
@@ -53,7 +143,7 @@ func TestSocketClosesWhenTheCredentialStopsVerifying(t *testing.T) {
 	if _, _, err := conn.Read(context.Background()); err != nil { // Ready
 		t.Fatal(err)
 	}
-	v.revoked.Store(true)
+	verifier.revoked.Store(true)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_, _, err = conn.Read(ctx)

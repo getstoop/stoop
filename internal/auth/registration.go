@@ -144,9 +144,13 @@ func (s *Service) Register(ctx context.Context, req *connect.Request[authv1.Regi
 	// Password sign-up follows the password sign-in setting; the first
 	// account (bootstrap) and admin-created accounts are exempt.
 	if existing > 0 && !authctx.Allows(ctx, authctx.InstanceUsersManage) {
-		if err := s.passwordSignInAllowed(ctx, authctx.RoleMember); err != nil {
+		err := s.passwordSignInAllowed(ctx, authctx.RoleMember)
+		if connect.CodeOf(err) == connect.CodePermissionDenied {
 			return nil, connect.NewError(connect.CodePermissionDenied,
 				errors.New("password sign-up is turned off on this server; use a login provider"))
+		}
+		if err != nil {
+			return nil, fmt.Errorf("password sign-in policy: %w", err)
 		}
 	}
 

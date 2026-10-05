@@ -6,6 +6,7 @@ package realtime
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/events"
 )
 
@@ -39,8 +41,13 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	id, err := g.verifier.VerifyRequest(ctx, r.Header)
-	if err != nil {
+	if errors.Is(err, authctx.ErrNoSession) {
 		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+	if err != nil {
+		g.log.Error("verify credential", "err", err)
+		http.Error(w, "the server can't check your sign-in right now", http.StatusServiceUnavailable)
 		return
 	}
 	if !opensSocket(id.Credential.Kind) {
@@ -111,7 +118,12 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// expired, or a revocation the bus never carried (the CLI, a
 			// publish that beat the subscription), ends the socket within
 			// a ping.
-			if fresh, err := g.verifier.VerifyRequest(ctx, r.Header); err != nil || fresh.Credential.ID != sessionID {
+			// A check that failed says nothing about the session, so the
+			// socket stays up until the next ping asks again.
+			fresh, verifyErr := g.verifier.VerifyRequest(ctx, r.Header)
+			if verifyErr != nil && !errors.Is(verifyErr, authctx.ErrNoSession) {
+				g.log.Warn("re-verify credential", "err", verifyErr)
+			} else if verifyErr != nil || fresh.Credential.ID != sessionID {
 				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
 				return
 			}

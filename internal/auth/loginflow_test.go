@@ -925,3 +925,27 @@ func TestSocialDesktopTarget(t *testing.T) {
 		})
 	}
 }
+
+// A policy or invite lookup that fails is a server error on the login
+// page, not a story about the invite.
+func TestSocialRegistrationLookupFailures(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	policy := &fakePolicy{policy: auth.PolicyInvite}
+	invites := &fakeInvites{code: "GOODCODE12", uses: 1}
+	svc.UseRegistrationPorts(policy, invites)
+	rig := newSocialRig(t, svc)
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start"); loc != "/?welcome=1" {
+		t.Fatalf("bootstrap landed on %q", loc)
+	}
+
+	rig.idp.sub = "sub-2"
+	policy.err = errors.New("settings unreadable")
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start"); loc != "/login?error=provider_error" {
+		t.Errorf("unreadable policy landed on %q", loc)
+	}
+	policy.err = nil
+	invites.validateErr = errors.New("connection pool closed")
+	if loc := rig.run(t, &http.Client{}, "/auth/oidc/sso/start?invite=GOODCODE12"); loc != "/login?error=provider_error" {
+		t.Errorf("failed invite lookup landed on %q", loc)
+	}
+}
