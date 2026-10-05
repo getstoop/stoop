@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	DefaultWorkers       = 4
+	DefaultWorkers       = 16
 	DefaultPoll          = 2 * time.Second
 	DefaultShutdownGrace = 5 * time.Second
 	DefaultLease         = 10 * time.Minute

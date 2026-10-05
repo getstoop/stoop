@@ -345,7 +345,7 @@ func loadVoice(env *envReader, cfg *Config) {
 
 func loadJobs(env *envReader, cfg *Config) {
 	cfg.Jobs = env.oneOf("STOOP_JOBS", JobsEmbedded, JobsEmbedded, JobsExternal, JobsChild)
-	cfg.JobsWorkers = env.nonNegativeInt("STOOP_JOBS_WORKERS", 4)
+	cfg.JobsWorkers = env.nonNegativeInt("STOOP_JOBS_WORKERS", 16)
 	if cfg.JobsWorkers < 1 {
 		env.fail("STOOP_JOBS_WORKERS must be at least 1 (got %d)", cfg.JobsWorkers)
 	}

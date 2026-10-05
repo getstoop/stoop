@@ -41,7 +41,7 @@ page or with `stoop admin setting`.
 | `STOOP_WEBHOOKS`           | `true`                      | `false` stops every incoming webhook post and outgoing delivery, whatever the admin settings say; nothing is deleted |
 | `STOOP_WEBHOOK_RATE_LIMIT` | `60`                        | Posts per minute one incoming webhook may make; `0` removes the limit |
 | `STOOP_WEBHOOK_DELIVERY_RETENTION` | `168h`              | How long finished outgoing webhook deliveries are kept in the log; `0` keeps them forever |
-| `STOOP_JOBS_WORKERS`       | `4`                         | How many background jobs run at once |
+| `STOOP_JOBS_WORKERS`       | `16`                        | How many background jobs run at once. Webhook deliveries take at most three quarters of them (with 1, that one); the limit is shared by every jobs process on the database |
 | `STOOP_JOBS_POLL`          | `2s`                        | How often the dispatcher looks for due jobs |
 | `STOOP_JOBS_RETENTION`     | `168h`                      | How long finished job rows are kept for the Background work panel; `0` keeps them forever |
 | `STOOP_JOBS`               | `embedded`                  | Where the job dispatcher runs. `external` runs no jobs in the server, for the `jobs` compose service or your own `stoop jobs`; `child` has the server start and supervise `stoop jobs` itself. See [Running background jobs apart](install.md#running-background-jobs-apart) |

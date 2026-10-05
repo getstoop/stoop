@@ -287,7 +287,7 @@ func TestLoad_Jobs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.JobsWorkers != 4 || cfg.JobsPoll != 2*time.Second || cfg.JobsRetention != 168*time.Hour {
+	if cfg.JobsWorkers != 16 || cfg.JobsPoll != 2*time.Second || cfg.JobsRetention != 168*time.Hour {
 		t.Errorf("defaults = %d, %s, %s", cfg.JobsWorkers, cfg.JobsPoll, cfg.JobsRetention)
 	}
 	t.Setenv("STOOP_JOBS_WORKERS", "2")
