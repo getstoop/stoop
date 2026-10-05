@@ -30,22 +30,7 @@ const (
 	// Slack for the multipart framing and the channel_id field on top of
 	// the file itself.
 	multipartOverhead = 64 << 10
-	// An upload that sends nothing for this long is ended, so a stalled
-	// one gives its slot back.
-	uploadIdle = 30 * time.Second
 )
-
-// idleBody is a request body whose every read must arrive within idle.
-type idleBody struct {
-	io.ReadCloser
-	control *http.ResponseController
-	idle    time.Duration
-}
-
-func (body idleBody) Read(buffer []byte) (int, error) {
-	_ = body.control.SetReadDeadline(time.Now().Add(body.idle))
-	return body.ReadCloser.Read(buffer)
-}
 
 // UploadHandler serves POST /files/upload: a multipart form with a
 // channel_id field and one file part. Bytes are stored as sent — no

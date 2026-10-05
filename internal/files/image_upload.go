@@ -133,39 +133,3 @@ func (s *Service) storePendingImage(ctx context.Context, kind Kind, ownerID stri
 	}
 	return file, nil
 }
-
-// quotaError maps ErrStorageFull onto its Connect code; any other error
-// passes unchanged.
-func quotaError(err error) error {
-	if errors.Is(err, ErrStorageFull) {
-		return connect.NewError(connect.CodeResourceExhausted, err)
-	}
-	return err
-}
-
-// discard removes a file whose row is known, after a later step failed.
-func (s *Service) discard(ctx context.Context, file dbgen.File) {
-	if _, err := s.q.DeleteFile(ctx, file.ID); err != nil {
-		s.log.Warn("could not delete file row", "file_id", file.ID, "err", err)
-	}
-	if err := s.store.Delete(ctx, file.StorageKey); err != nil {
-		s.log.Warn("could not delete blob", "key", file.StorageKey, "err", err)
-	}
-}
-
-// deleteFile removes a file's row and blob by id. Failures are logged,
-// not returned: the caller has already moved on and an orphan blob is
-// collected by the sweep.
-func (s *Service) deleteFile(ctx context.Context, id string) {
-	if id == "" {
-		return
-	}
-	file, err := s.q.DeleteFile(ctx, id)
-	if err != nil {
-		s.log.Warn("could not delete file row", "file_id", id, "err", err)
-		return
-	}
-	if err := s.store.Delete(ctx, file.StorageKey); err != nil {
-		s.log.Warn("could not delete blob", "key", file.StorageKey, "err", err)
-	}
-}
