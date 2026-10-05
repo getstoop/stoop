@@ -202,9 +202,13 @@ func (s *Service) post(ctx context.Context, hook dbgen.OutgoingWebhook, args Del
 		return Attempt{Error: cutBytes(err.Error(), responseKeep)}, 0
 	}
 	defer func() { _ = resp.Body.Close() }()
-	// The reply is the receiver's text: logged for an operator, never stored.
-	head, _ := io.ReadAll(io.LimitReader(resp.Body, responseKeep))
-	s.log.Debug("webhook reply", "delivery_id", args.DeliveryID, "status", resp.StatusCode, "body", string(head))
+	// The reply is the receiver's text: never stored, and logged only when
+	// it refused the delivery, which is when an operator needs it.
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		head, _ := io.ReadAll(io.LimitReader(resp.Body, responseKeep))
+		s.log.Info("webhook delivery refused", "delivery_id", args.DeliveryID, "hook", hook.ID,
+			"status", resp.StatusCode, "reply", string(head))
+	}
 	tried := Attempt{StatusCode: resp.StatusCode}
 	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
 		tried.Error = "redirects are not followed"
