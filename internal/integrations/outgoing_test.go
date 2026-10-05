@@ -737,6 +737,33 @@ func TestOutgoingTwentyDeadInARowDisable(t *testing.T) {
 	}
 }
 
+// A dead receiver's later deliveries are still queued when the twentieth
+// dies; they must not hold off the disable.
+func TestOutgoingDisablesWithDeliveriesStillQueued(t *testing.T) {
+	rig, endpoint := outgoingFixture(t)
+	hook, _ := rig.createOutgoing(t, endpoint.srv.URL+"/down", []string{EventMessageCreated}, "")
+	for range (deadToDisable + 5) * testMaxAttempts {
+		endpoint.status = append(endpoint.status, 503)
+	}
+	for index := range deadToDisable + 5 {
+		rig.enqueueMessage(t, "down "+strconv.Itoa(index))
+	}
+	for range deadToDisable {
+		job := rig.jobs.pop(t)
+		for attempt := 1; attempt <= testMaxAttempts; attempt++ {
+			if result := rig.deliver(t, job, attempt); result.Dead {
+				break
+			}
+		}
+	}
+	if rig.jobs.pending() != 5 {
+		t.Fatalf("pending = %d, want the 5 later deliveries still queued", rig.jobs.pending())
+	}
+	if disabled, reason := rig.hook(t, hook.Id); !disabled || !strings.Contains(reason, "20 deliveries in a row") {
+		t.Errorf("hook after twenty dead with more queued: %v %q", disabled, reason)
+	}
+}
+
 func TestSubscriberQueuesDeliveriesFromTheBus(t *testing.T) {
 	f, endpoint := outgoingFixture(t)
 	f.createOutgoing(t, endpoint.srv.URL+"/bus", []string{EventMessageCreated}, "")
