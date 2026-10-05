@@ -2,11 +2,6 @@ package instance
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-
-	"github.com/jackc/pgx/v5"
 )
 
 // The webhook settings, read by the integrations module through its
@@ -46,16 +41,5 @@ func (s *Service) WebhooksAllowPrivateTargets(ctx context.Context) (bool, error)
 
 // readBool decodes one JSON-boolean setting, returning fallback if unset.
 func (s *Service) readBool(ctx context.Context, key string, fallback bool) (bool, error) {
-	raw, err := s.q.GetSetting(ctx, key)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return fallback, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("read %s: %w", key, err)
-	}
-	var v bool
-	if err := json.Unmarshal(raw, &v); err != nil {
-		return false, fmt.Errorf("decode %s: %w", key, err)
-	}
-	return v, nil
+	return readSettingOr(ctx, s, key, fallback)
 }
