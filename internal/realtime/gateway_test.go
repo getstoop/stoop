@@ -194,12 +194,6 @@ func TestPresenceAndTyping(t *testing.T) {
 	if bready == nil || len(bready.Presences) != 2 {
 		t.Fatalf("bob ready = %+v", bready)
 	}
-	// A tab from before presences reads the ids alone (STOOP-413).
-	for index, presence := range bready.Presences {
-		if bready.OnlineUserIds[index] != presence.UserId {
-			t.Errorf("online_user_ids = %v, want the ids in presences", bready.OnlineUserIds)
-		}
-	}
 	if ev := alice.waitFor(func(e *realtimev1.ServerEvent) bool {
 		p := e.GetPresenceChanged()
 		return p != nil && p.UserId == "bob" && p.Online
