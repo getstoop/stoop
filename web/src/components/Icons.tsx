@@ -102,15 +102,13 @@ export function MessagesIcon() {
     <svg
       width="22"
       height="22"
-      viewBox="0 0 24 24"
+      viewBox="4 4 56 56"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      strokeWidth="4.5"
       aria-hidden="true"
     >
-      <path d="M21 12a8 8 0 0 1-8 8H8l-4 3v-6.5A8 8 0 0 1 13 4a8 8 0 0 1 8 8z" />
+      <path d="M28 8H44A12 12 0 0 1 56 20V28A12 12 0 0 1 44 40H32V48H24V56H8V48H16V20A12 12 0 0 1 28 8Z" />
     </svg>
   );
 }
