@@ -107,18 +107,11 @@ func (s *Service) ListPinnedMessages(ctx context.Context, req *connect.Request[c
 		return connect.NewResponse(&chatv1.ListPinnedMessagesResponse{}), nil
 	}
 
-	msgRows := make([]dbgen.ListMessagesBeforeRow, len(rows))
+	msgRows := make([]dbgen.MessageWithReply, len(rows))
 	pinnerIDs := make([]string, len(rows))
-	for i, r := range rows {
-		msgRows[i] = dbgen.ListMessagesBeforeRow{
-			ID: r.ID, ChannelID: r.ChannelID, AuthorID: r.AuthorID, Content: r.Content,
-			CreatedAt: r.CreatedAt, MentionsEveryone: r.MentionsEveryone,
-			ReplyToMessageID: r.ReplyToMessageID, MentionsHere: r.MentionsHere, EditedAt: r.EditedAt,
-			ReplyAuthorID:    r.ReplyAuthorID,
-			ReplyContent:     r.ReplyContent,
-			ReplyFirstFileID: r.ReplyFirstFileID,
-		}
-		pinnerIDs[i] = r.PinnedBy
+	for index, row := range rows {
+		msgRows[index] = row.MessageWithReply
+		pinnerIDs[index] = row.PinnedBy
 	}
 	messages, err := s.hydrateMessages(ctx, spaceOf(channel), msgRows)
 	if err != nil {
@@ -130,11 +123,11 @@ func (s *Service) ListPinnedMessages(ctx context.Context, req *connect.Request[c
 	}
 
 	pins := make([]*chatv1.PinnedMessage, len(rows))
-	for i, r := range rows {
-		pins[i] = &chatv1.PinnedMessage{
-			Message:  messages[i],
-			PinnedBy: pinners[r.PinnedBy],
-			PinnedAt: timestamppb.New(r.PinnedAt),
+	for index, row := range rows {
+		pins[index] = &chatv1.PinnedMessage{
+			Message:  messages[index],
+			PinnedBy: pinners[row.PinnedBy],
+			PinnedAt: timestamppb.New(row.PinnedAt),
 		}
 	}
 	return connect.NewResponse(&chatv1.ListPinnedMessagesResponse{Pins: pins}), nil

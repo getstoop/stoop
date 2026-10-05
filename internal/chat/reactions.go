@@ -113,7 +113,7 @@ func (s *Service) loadMessage(ctx context.Context, messageID, spaceID string) (*
 	if err != nil {
 		return nil, fmt.Errorf("load message: %w", err)
 	}
-	messages, err := s.hydrateMessages(ctx, spaceID, []dbgen.ListMessagesBeforeRow{dbgen.ListMessagesBeforeRow(row)})
+	messages, err := s.hydrateMessages(ctx, spaceID, []dbgen.MessageWithReply{row})
 	if err != nil {
 		return nil, err
 	}

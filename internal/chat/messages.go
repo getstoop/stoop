@@ -171,7 +171,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	limit := clampPageSize(req.Msg.Limit, defaultPageSize, maxPageSize)
 
 	var (
-		rows               []dbgen.ListMessagesBeforeRow
+		rows               []dbgen.MessageWithReply
 		hasOlder, hasNewer bool
 	)
 	switch {
@@ -188,7 +188,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
-		rows = listedRows(after)
+		rows = after
 		hasOlder, hasNewer = true, int32(len(after)) == limit
 
 	case req.Msg.AroundId != "":
@@ -212,7 +212,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
 		slices.Reverse(before)
-		rows = append(before, listedRows(after)...)
+		rows = append(before, after...)
 		hasOlder, hasNewer = int32(len(before)) == older, int32(len(after)) == newer
 
 	default:
@@ -240,37 +240,27 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	}), nil
 }
 
-// listedRows converts a forward page to the hydrator's row type; the two
-// sqlc row types are structurally identical.
-func listedRows(rows []dbgen.ListMessagesAfterRow) []dbgen.ListMessagesBeforeRow {
-	listed := make([]dbgen.ListMessagesBeforeRow, len(rows))
-	for index, row := range rows {
-		listed[index] = dbgen.ListMessagesBeforeRow(row)
-	}
-	return listed
-}
-
 // messageRow is a messages row without its search vector, which the
 // queries leave out (queries/chat/messages.sql). The other queries' row
 // types convert to it.
 type messageRow = dbgen.GetMessageRow
 
 // listedMessage is the message in a list row, without the reply columns.
-func listedMessage(r dbgen.ListMessagesBeforeRow) messageRow {
+func listedMessage(row dbgen.MessageWithReply) messageRow {
 	return messageRow{
-		ID: r.ID, ChannelID: r.ChannelID, AuthorID: r.AuthorID, Content: r.Content,
-		CreatedAt: r.CreatedAt, MentionsEveryone: r.MentionsEveryone,
-		ReplyToMessageID: r.ReplyToMessageID, MentionsHere: r.MentionsHere, EditedAt: r.EditedAt,
+		ID: row.ID, ChannelID: row.ChannelID, AuthorID: row.AuthorID, Content: row.Content,
+		CreatedAt: row.CreatedAt, MentionsEveryone: row.MentionsEveryone,
+		ReplyToMessageID: row.ReplyToMessageID, MentionsHere: row.MentionsHere, EditedAt: row.EditedAt,
 	}
 }
 
 // hydrateMessages turns rows into protos, in the same order, with authors,
 // mentions, reactions, attachments, link previews and reply quotes.
-func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.ListMessagesBeforeRow) ([]*chatv1.Message, error) {
+func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.MessageWithReply) ([]*chatv1.Message, error) {
 	authorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}
-	for _, r := range rows {
-		for _, id := range []*string{&r.AuthorID, r.ReplyAuthorID} {
+	for _, row := range rows {
+		for _, id := range []*string{&row.AuthorID, row.ReplyAuthorID} {
 			if id != nil && *id != "" && !seen[*id] {
 				seen[*id] = true
 				authorIDs = append(authorIDs, *id)
@@ -282,8 +272,8 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		return nil, err
 	}
 	messageIDs := make([]string, len(rows))
-	for i, r := range rows {
-		messageIDs[i] = r.ID
+	for index, row := range rows {
+		messageIDs[index] = row.ID
 	}
 	mentions, err := s.mentionsByMessage(ctx, messageIDs)
 	if err != nil {
@@ -307,9 +297,9 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	}
 	// Quoted messages without text preview as their first attachment.
 	var replyFileIDs []string
-	for _, r := range rows {
-		if r.ReplyFirstFileID != "" {
-			replyFileIDs = append(replyFileIDs, r.ReplyFirstFileID)
+	for _, row := range rows {
+		if row.ReplyFirstFileID != "" {
+			replyFileIDs = append(replyFileIDs, row.ReplyFirstFileID)
 		}
 	}
 	replyFiles, err := s.fileRecords(ctx, replyFileIDs)
@@ -318,20 +308,20 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	}
 
 	messages := make([]*chatv1.Message, len(rows))
-	for i, r := range rows {
-		m := toProtoMessage(listedMessage(r), authors, mentions[r.ID], spaceID)
-		m.Reactions = reactions[r.ID]
-		m.Attachments = attachments[r.ID]
-		m.LinkPreviews = previews[r.ID]
-		m.Pinned = pinned[r.ID]
-		if r.ReplyToMessageID != nil {
+	for index, row := range rows {
+		message := toProtoMessage(listedMessage(row), authors, mentions[row.ID], spaceID)
+		message.Reactions = reactions[row.ID]
+		message.Attachments = attachments[row.ID]
+		message.LinkPreviews = previews[row.ID]
+		message.Pinned = pinned[row.ID]
+		if row.ReplyToMessageID != nil {
 			var author *chatv1.MessageAuthor
-			if r.ReplyAuthorID != nil {
-				author = authors[*r.ReplyAuthorID]
+			if row.ReplyAuthorID != nil {
+				author = authors[*row.ReplyAuthorID]
 			}
-			m.ReplyTo = replyRef(*r.ReplyToMessageID, author, r.ReplyContent, replyFiles[r.ReplyFirstFileID].label())
+			message.ReplyTo = replyRef(*row.ReplyToMessageID, author, row.ReplyContent, replyFiles[row.ReplyFirstFileID].label())
 		}
-		messages[i] = m
+		messages[index] = message
 	}
 	return messages, nil
 }
