@@ -54,4 +54,4 @@ func Newest() (int64, error) {
 // can say what an upgrade means for rollback without a database in front
 // of it. Expand-only releases leave both alone.
 // See docs/architecture/data.md → Upgrades and rollback.
-const Floor int64 = 46
+const Floor int64 = 52
