@@ -91,6 +91,13 @@ func (u *Upgrader) Upgrade(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Until switchTo takes them, the staged files are this run's to remove.
+	switched := false
+	defer func() {
+		if !switched {
+			u.cleanupNext()
+		}
+	}()
 	target, fetched, done, err := u.resolve(ctx, current)
 	if err != nil || done {
 		return err
@@ -98,23 +105,20 @@ func (u *Upgrader) Upgrade(ctx context.Context) error {
 	u.say("upgrade %s -> %s", current, target)
 	report, err := u.plan(ctx, target)
 	if err != nil {
-		u.cleanupNext()
 		return err
 	}
 	if u.PlanOnly {
-		u.cleanupNext()
 		u.say("plan only; nothing was changed")
 		return nil
 	}
 	if err := u.confirm(fmt.Sprintf("Upgrade to %s? A backup is taken first.", target)); err != nil {
-		u.cleanupNext()
 		return err
 	}
 	backup, err := u.backup(ctx, current, target)
 	if err != nil {
-		u.cleanupNext()
 		return err
 	}
+	switched = true
 	return u.switchTo(ctx, current, target, backup, report.Contract, fetched)
 }
 
@@ -157,14 +161,20 @@ func (u *Upgrader) preflight(ctx context.Context) (string, error) {
 }
 
 // resolve puts the new compose file at nextFile and its env example
-// beside it. done is an upgrade there is nothing to do for.
+// beside it. done is an upgrade there is nothing to do for. It starts by
+// clearing staged files an earlier run left, which includes the .next
+// files a rollback by an older stoop parked.
 func (u *Upgrader) resolve(ctx context.Context, current string) (target string, fetched, done bool, err error) {
+	var given []byte
 	if u.File != "" {
-		data, err := os.ReadFile(u.File)
-		if err != nil {
+		// Read before clearing: the file given may be a stale nextFile.
+		if given, err = os.ReadFile(u.File); err != nil {
 			return "", false, false, err
 		}
-		if err := os.WriteFile(u.path(nextFile), data, 0o644); err != nil {
+	}
+	u.cleanupNext()
+	if u.File != "" {
+		if err := os.WriteFile(u.path(nextFile), given, 0o644); err != nil {
 			return "", false, false, err
 		}
 	} else {
@@ -205,16 +215,13 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 	}
 	target = TagOf(string(next))
 	if target == "" {
-		u.cleanupNext()
 		return "", false, false, errors.New("cannot read the stoop image tag from the new compose file")
 	}
 	if target == current {
-		u.cleanupNext()
 		u.say("already on %s; nothing to do", target)
 		return target, fetched, true, nil
 	}
 	if release.Older(target, current) {
-		u.cleanupNext()
 		return "", false, false, fmt.Errorf("%s is older than the installed %s; going back is: stoop upgrade rollback", target, current)
 	}
 	old, err := os.ReadFile(u.path(composeFile))
@@ -222,7 +229,6 @@ func (u *Upgrader) resolve(ctx context.Context, current string) (target string, 
 		return "", false, false, err
 	}
 	if now, then := PostgresMajor(string(old)), PostgresMajor(string(next)); now != "" && then != "" && now != then {
-		u.cleanupNext()
 		return "", false, false, fmt.Errorf("%s moves Postgres from %s to %s, which this tool does not do: docs/self-hosting/install.md → Supported Postgres and LiveKit versions", target, now, then)
 	}
 	return target, fetched, false, nil
