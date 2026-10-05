@@ -45,7 +45,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("message must be 1-%d characters or carry an attachment", maxMessageLen))
 	}
-	channel, err := s.writableChannel(ctx, req.Msg.ChannelId)
+	channel, participants, err := s.writableChannel(ctx, req.Msg.ChannelId)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 
-	res, err := s.resolveMentions(ctx, channel, userID, content)
+	res, err := s.resolveMentions(ctx, channel, participants, userID, content)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		}
 	}
 	if isDM(channel) {
-		if err := s.recordDM(ctx, row, channel, parent, mentioned, msg.Author, firstAttachment); err != nil {
+		if err := s.recordDM(ctx, row, participants, parent, mentioned, msg.Author, firstAttachment); err != nil {
 			return nil, err
 		}
 		s.reopenDM(ctx, channel)
@@ -160,7 +160,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	}
 	// Everyone who can see the channel receives the event; clients filter
 	// by channel_id. The sender's own client receives it too — one code path.
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: msg},
 	}))
 	if s.unfurler != nil {
@@ -364,7 +364,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	// Authorship is not enough: a kicked, banned or blocked author is
 	// still the author, and an edit republishes the message and unfurls
 	// its links.
-	channel, err := s.writableChannel(ctx, msg.ChannelID)
+	channel, participants, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err != nil {
 		return nil, err
 	}
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
 	}))
 	if s.unfurler != nil {

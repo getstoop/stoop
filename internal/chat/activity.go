@@ -100,12 +100,9 @@ func (s *Service) recordReply(ctx context.Context, msg messageRow, spaceID *stri
 // (newest preview and time) rather than add rows; once read, the next
 // message starts a new one. The event goes out either way, so a desktop
 // banner still fires per message.
-func (s *Service) recordDM(ctx context.Context, msg messageRow, channel dbgen.Channel, parent *messageRow, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
-	ids, err := s.q.ListDMMembers(ctx, channel.ID)
+func (s *Service) recordDM(ctx context.Context, msg messageRow, participants []string, parent *messageRow, mentioned []string, author *chatv1.MessageAuthor, firstAttachment string) error {
+	ids, err := s.withoutBlockers(ctx, msg.AuthorID, participants)
 	if err != nil {
-		return fmt.Errorf("list participants: %w", err)
-	}
-	if ids, err = s.withoutBlockers(ctx, msg.AuthorID, ids); err != nil {
 		return err
 	}
 	told := map[string]bool{msg.AuthorID: true}

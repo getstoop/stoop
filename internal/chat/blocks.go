@@ -87,15 +87,12 @@ func (s *Service) blockedBetween(ctx context.Context, a, b string) (bool, error)
 	return s.q.BlockedEitherWay(ctx, dbgen.BlockedEitherWayParams{BlockerID: a, BlockedID: b})
 }
 
-// dmBlocked: is userID blocked by, or blocking, anyone else in the
-// conversation? One rule for two people or ten — a conversation holding
-// somebody you blocked is one you can neither see nor write in.
-func (s *Service) dmBlocked(ctx context.Context, channel dbgen.Channel, userID string) (bool, error) {
-	ids, err := s.q.ListDMMembers(ctx, channel.ID)
-	if err != nil {
-		return false, fmt.Errorf("list participants: %w", err)
-	}
-	for _, id := range ids {
+// dmBlocked: is userID blocked by, or blocking, anyone else among a
+// conversation's participants? One rule for two people or ten — a
+// conversation holding somebody you blocked is one you can neither see
+// nor write in.
+func (s *Service) dmBlocked(ctx context.Context, participants []string, userID string) (bool, error) {
+	for _, id := range participants {
 		if id == userID {
 			continue
 		}
