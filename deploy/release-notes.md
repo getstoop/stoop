@@ -92,7 +92,7 @@ Changes since 0.4.0:
 - STOOP-374: trim files comments that restate docs/architecture (511b0c1)
 - STOOP-374: trim voice comments that restate docs/architecture (b49e77a)
 - STOOP-374: trim app comments that restate docs/architecture (ae54017)
-- STOOP-374: reword "slack" in the upload size allowance (799cd6a)
+- STOOP-374: reword a comment in the upload size allowance (799cd6a)
 - STOOP-348: lint single-letter names in new Go code; ST1005 off (0c7c122)
 - STOOP-400: count only finished deliveries toward the twenty-dead disable (fff6461)
 - STOOP-400: the new test names its fixture (3df4798)
