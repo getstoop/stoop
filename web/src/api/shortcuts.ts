@@ -52,3 +52,27 @@ export function matchShortcut(e: KeyPress, typing: boolean): ShortcutId | null {
   }
   return null;
 }
+
+// Push to talk is held, not pressed, so it is not in BINDINGS: the hold
+// is watched on keydown and keyup by usePushToTalk. It is the physical
+// key above Tab (KeyboardEvent.code), whatever that key types on this
+// layout. Ctrl on every platform: Cmd+` is macOS's own "next window".
+// With a modifier it types nothing, so it works while typing too.
+export const PUSH_TO_TALK_LABEL = "Ctrl+`";
+
+export interface KeyHold {
+  code: string;
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+}
+
+export function isPushToTalkPress(e: KeyHold): boolean {
+  return e.code === "Backquote" && e.ctrlKey && !e.metaKey && !e.altKey;
+}
+
+// Letting go of either half ends the hold.
+export function isPushToTalkRelease(e: KeyHold): boolean {
+  return e.code === "Backquote" || e.key === "Control";
+}
