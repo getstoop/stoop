@@ -1,5 +1,3 @@
-import { usePushToTalkStore } from "../api/pushToTalk";
-import { PUSH_TO_TALK_LABEL } from "../api/shortcuts";
 import {
   canShareScreen,
   leaveVoice,
@@ -28,7 +26,6 @@ import {
 // always last.
 export function VoiceActions({ extras }: { extras?: React.ReactNode }) {
   const muted = useVoiceStore((s) => s.muted);
-  const pushToTalk = usePushToTalkStore((s) => s.enabled);
   const deafened = useVoiceStore((s) => s.deafened);
   const cameraOn = useVoiceStore((s) => s.cameraOn);
   const screenOn = useVoiceStore((s) => s.screenOn);
@@ -61,30 +58,16 @@ export function VoiceActions({ extras }: { extras?: React.ReactNode }) {
           <ScreenIcon off={!screenOn} />
         </button>
       )}
-      {pushToTalk ? (
-        // Lit while the key is held. Not a toggle in this mode: a click
-        // switches back to an open mic, still shut (toggleMute).
-        <button
-          type="button"
-          className={`icon-button ${muted ? "on" : ""}`}
-          aria-label="Push to talk"
-          title={`Push to talk: hold ${PUSH_TO_TALK_LABEL}. Click for an open mic.`}
-          onClick={() => toggleMute()}
-        >
-          <MicIcon off={muted} />
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={`icon-button ${muted ? "on" : ""}`}
-          aria-pressed={muted}
-          aria-label={muted ? "Unmute" : "Mute"}
-          title={muted ? "Unmute" : "Mute"}
-          onClick={() => toggleMute()}
-        >
-          <MicIcon off={muted} />
-        </button>
-      )}
+      <button
+        type="button"
+        className={`icon-button ${muted ? "on" : ""}`}
+        aria-pressed={muted}
+        aria-label={muted ? "Unmute" : "Mute"}
+        title={muted ? "Unmute" : "Mute"}
+        onClick={() => toggleMute()}
+      >
+        <MicIcon off={muted} />
+      </button>
       <button
         type="button"
         className={`icon-button ${deafened ? "on" : ""}`}

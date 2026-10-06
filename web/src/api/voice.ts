@@ -12,7 +12,6 @@ import type {
 import { trackKey, useVoiceStore } from "../stores/voice";
 import { voiceClient } from "./clients";
 import { socketUrl } from "./origin";
-import { usePushToTalkStore } from "./pushToTalk";
 import { cancelCues, cue } from "./voiceCues";
 import { stopLocalLevel, syncLocalLevel } from "./voiceLevel";
 import { sendClientEvent } from "./ws";
@@ -405,15 +404,6 @@ export async function leaveVoice() {
 
 export async function toggleMute() {
   const store = useVoiceStore.getState();
-  // In push to talk the mic is the key's. Unmuting from anywhere else —
-  // the mic button, the shortcut, the shell's menu — switches back to an
-  // open mic and leaves it shut; the next unmute opens it. Letting go of
-  // the mode closes a held mic (usePushToTalk's cleanup).
-  const ptt = usePushToTalkStore.getState();
-  if (ptt.enabled) {
-    ptt.setEnabled(false);
-    return;
-  }
   const muted = !store.muted;
   store.setMuted(muted);
   // Unmuting while deafened undeafens too (you can't talk to people you
@@ -428,25 +418,6 @@ export async function toggleMute() {
     useVoiceStore.getState().setMuted(true);
   }
   // Unmuting may have opened a device the join never published.
-  await syncMicLevel();
-  reportVoiceState();
-}
-
-// Push to talk opening or shutting the mic (hooks/usePushToTalk.ts).
-// Unlike toggleMute it never undeafens: a key held down while deafened
-// opens nothing, since you can't hear who you would be talking to.
-export async function setTransmitting(open: boolean) {
-  const store = useVoiceStore.getState();
-  if (open) {
-    if (store.deafened || store.connection?.status !== "connected") return;
-    if (!store.muted) return;
-  }
-  store.setMuted(!open);
-  try {
-    await room?.localParticipant.setMicrophoneEnabled(open);
-  } catch {
-    useVoiceStore.getState().setMuted(true);
-  }
   await syncMicLevel();
   reportVoiceState();
 }

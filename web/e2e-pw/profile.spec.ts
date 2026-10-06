@@ -60,22 +60,14 @@ test("the account page, password change and log out", async ({ browser }) => {
 
   // Password, linked accounts, blocked people and log out live under the
   // Security tab; the theme cards under Appearance, do not disturb and the
-  // desktop banners under Notifications, push to talk under Voice, and
-  // everything silenced under Muted. A browser is offered all six: the
-  // desktop shell hides
+  // desktop banners under Notifications, and everything silenced under
+  // Muted. A browser is offered all five: the desktop shell hides
   // Appearance and Notifications because it keeps those itself, and this
   // suite is a browser.
   await expect(
     P.locator(".settings-tab"),
-    "the account page has six tabs",
-  ).toHaveText([
-    "Profile",
-    "Appearance",
-    "Notifications",
-    "Voice",
-    "Muted",
-    "Security",
-  ]);
+    "the account page has five tabs",
+  ).toHaveText(["Profile", "Appearance", "Notifications", "Muted", "Security"]);
   await P.locator('.settings-tab[data-tab="notifications"]').click();
   await expect(P, "the Notifications tab is a URL you can link to").toHaveURL(
     /\?tab=notifications$/,
