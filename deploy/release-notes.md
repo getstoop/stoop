@@ -1,6 +1,73 @@
 Stoop 0.5.0
 
+Stoop 0.5.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.4.x, and `stoop upgrade rollback`
+can take it back to 0.4.x. **It carries two security fixes; anyone whose
+server is reachable from the internet should upgrade.**
+
+**Security.**
+
+- **Sign-in could exhaust a server's memory.** Each password check holds
+  64 MiB while it runs, and nothing limited how many ran at once, even for
+  usernames that don't exist. A burst of sign-in requests could run a
+  server out of memory: 64 at once took a test server to 3.3 GB. Password
+  checks now run at most four at a time (679 MiB in the same test). A
+  request that waits more than 5 seconds is answered "the server is busy;
+  try again in a moment".
+- **One IPv6 host could skip the sign-in rate limit.** The limit kept one
+  allowance per address, and an IPv6 host can change its address on every
+  request. Rate limits now count an IPv6 caller by its /64; IPv4 is
+  unchanged.
+
+**What's new.** A webhook whose receiver is gone for good is switched off
+after 20 failed deliveries in a row, as documented; before, it was retried
+forever. A few slow webhook receivers no longer hold up every other hook
+and the scheduled sweeps. The delivery log no longer shows what a
+receiver answered. The direct-messages button in the rail has a new icon.
+
+**For operators.**
+
+- **Background jobs run on 16 workers by default** (was 4), and webhook
+  deliveries may use at most three quarters of them, so receivers that
+  answer slowly leave the rest for everything else. A waiting delivery
+  holds no database connection. `STOOP_JOBS_WORKERS` still sets the
+  number.
+- **A webhook receiver's reply is no longer stored.** When a receiver
+  refuses a delivery (a status outside 2xx), the server logs the first
+  500 bytes of its reply at info level, with the delivery and hook ids.
+- **The compose file no longer passes `STOOP_TRUST_PROXY`.** It was
+  removed in 0.4.0. Because the server still reads `.env`,
+  `STOOP_TRUST_PROXY=true` there still refuses to start. Name your proxy
+  in `STOOP_TRUSTED_PROXIES` or under Server admin → Hosting.
+- **API changes for scripts.** The realtime `Ready` event no longer
+  carries `online_user_ids`; read `presences`. A browser tab still running
+  the web app from 0.3.x shows nobody online until it is reloaded. A
+  webhook delivery's `response` field is now always empty, and goes away
+  in the next release.
+
+**Schema.** Migration 00053 runs at startup. It is a contract migration:
+it drops the legacy `sessions` table and raises the schema floor to 52.
+0.4.x still starts against the result, so `stoop upgrade rollback` to
+0.4.x works without a restore. 0.3.x and older are refused, as they
+already were after 0.4.0.
+
+**Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
+`cloudflared` 2026.9.3, all unchanged from 0.4.0.
+
+**Known issues.**
+
+- Webhook deliveries can use 12 of the 16 workers. Once 12 or more hooks
+  answer slowly at the same time, they fill those and the other hooks wait
+  until the slow backlog drains. Nothing is lost.
+
+Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
+security problems go through
+[private reporting](https://github.com/getstoop/stoop/security/advisories/new).
+
+The list below is every change merged since 0.4.0.
+
 Changes since 0.4.0:
+
 
 - Proxies: drop STOOP_TRUST_PROXY from compose and config (e27900b)
 - Auth: drop the legacy sessions table, floor to 50 (4911224)
