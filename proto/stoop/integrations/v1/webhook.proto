@@ -59,9 +59,8 @@ message Delivery {
   int32 attempts = 5;
   // Unset until a receiver answered.
   optional int32 status_code = 6;
-  // No longer set: the receiver's reply is logged, not kept. Removed in
-  // STOOP-415.
-  string response = 7;
+  reserved 7;
+  reserved "response";
   string error = 8;
   google.protobuf.Timestamp created_at = 9;
   // Set once delivered or dead.

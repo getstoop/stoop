@@ -9,11 +9,10 @@ VALUES ($1, $2, $3, $4, $5, sqlc.arg(now)::timestamptz);
 
 -- RecordDeliveryAttempt writes what one try learned; finished_at is set
 -- once the delivery is delivered or dead, and a delivered body is not kept.
--- The receiver's reply is not stored; the column goes in STOOP-415.
 -- name: RecordDeliveryAttempt :exec
 UPDATE webhook_deliveries
 SET attempts = sqlc.arg(attempts), status_code = sqlc.narg(status_code),
-    response = '', error = sqlc.arg(error),
+    error = sqlc.arg(error),
     finished_at = sqlc.narg(finished_at)::timestamptz,
     body = CASE WHEN sqlc.arg(delivered)::boolean THEN NULL ELSE body END
 WHERE id = sqlc.arg(id);

@@ -322,7 +322,6 @@ type WebhookDelivery struct {
 	Attempts   int32
 	FinishedAt *time.Time
 	StatusCode *int32
-	Response   string
 	Error      string
 	CreatedAt  time.Time
 	JobID      *string
