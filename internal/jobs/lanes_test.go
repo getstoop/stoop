@@ -101,6 +101,38 @@ func TestLaneRunsOneAtATimeInSequenceOrder(t *testing.T) {
 	}
 }
 
+// The lane whose last job ran quickest goes first: a2 was queued before
+// b2, but lane A's last job took ten seconds and lane B's none, so a slow
+// lane can't keep a quick one waiting.
+func TestQuickLaneGoesFirst(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	cfg := testConfig()
+	cfg.Workers = 1
+	service, registry := newTestService(pool, clock, cfg)
+	blocking := registerBlockingKind(registry, "laned", "a1", "b1", "a2", "b2")
+
+	mustEnqueueInLane(t, service, "laned", "a1", "A", 1)
+	clock.Advance(time.Second)
+	mustEnqueueInLane(t, service, "laned", "b1", "B", 1)
+	clock.Advance(time.Second)
+	mustEnqueueInLane(t, service, "laned", "a2", "A", 2)
+	clock.Advance(time.Second)
+	mustEnqueueInLane(t, service, "laned", "b2", "B", 2)
+	startDispatcher(t, service)
+
+	blocking.waitStarted(t, "a1")
+	clock.Advance(10 * time.Second)
+	blocking.releaseName("a1")
+	blocking.waitStarted(t, "b1")
+	blocking.releaseName("b1")
+	blocking.waitStarted(t, "b2")
+	blocking.expectNotStarted(t, "a2")
+	blocking.releaseName("b2")
+	blocking.waitStarted(t, "a2")
+	blocking.releaseName("a2")
+}
+
 func TestLaneHeadWaitingOnBackoffHoldsTheLane(t *testing.T) {
 	pool := dbtest.New(t)
 	clock := newFakeClock()

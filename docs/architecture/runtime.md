@@ -311,7 +311,9 @@ hook is a lane, and so is a space for its fan-outs; so is one user's
 avatar or one space's icon, so uploads
 apply in the order the server received them. Sweeps have no lane. A
 laned job's finish wakes the dispatcher, so a lane drains at the pace
-of its work, not one head per poll.
+of its work, not one head per poll. Among lane heads, the lane whose last
+job ran quickest is leased first, so a hook whose receiver takes seconds
+can't keep quick hooks waiting for slots.
 
 A kind registered with `Options{MaxInFlight: n}` never has more than
 `n` rows on a live lease (`running`, `leased_until` in the future) across
