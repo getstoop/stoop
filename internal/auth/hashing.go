@@ -42,11 +42,21 @@ func (s *Service) checkPassword(ctx context.Context, password, hash string) (boo
 	return argon2id.ComparePasswordAndHash(password, hash)
 }
 
+// takeHashSlot waits for a free slot. A caller that has gone never gets
+// one: select picks at random among ready cases, so cancellation is
+// checked again once a slot is taken.
 func (s *Service) takeHashSlot(ctx context.Context) (release func(), err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	timer := time.NewTimer(s.hashWait)
 	defer timer.Stop()
 	select {
 	case s.hashSlots <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			<-s.hashSlots
+			return nil, err
+		}
 		return func() { <-s.hashSlots }, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()

@@ -24,6 +24,12 @@ func TestHashSlots(t *testing.T) {
 		t.Errorf("caller gone: got %v, want context.Canceled", err)
 	}
 	release()
+	// With a slot free, a caller that has gone still gets none, every time.
+	for range 100 {
+		if _, err := svc.takeHashSlot(gone); !errors.Is(err, context.Canceled) {
+			t.Fatalf("caller gone, slot free: got %v, want context.Canceled", err)
+		}
+	}
 	again, err := svc.takeHashSlot(context.Background())
 	if err != nil {
 		t.Fatalf("a released slot is free again: %v", err)
