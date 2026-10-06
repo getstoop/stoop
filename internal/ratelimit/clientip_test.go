@@ -36,11 +36,13 @@ func TestClientIP(t *testing.T) {
 		{"garbage where the client should be", "10.0.0.1:5000", "203.0.113.9, foo", named, "10.0.0.1"},
 		{"empty entry", "10.0.0.1:5000", "203.0.113.9, ", named, "10.0.0.1"},
 		{"cloudflare in front of nginx", "10.0.0.1:5000", "203.0.113.9, 2400:cb00::1, 10.0.0.2", named, "203.0.113.9"},
-		{"ipv6 client", "10.0.0.1:5000", "2001:db8::5, 10.0.0.2", named, "2001:db8::5"},
+		{"ipv6 client", "10.0.0.1:5000", "2001:db8::5, 10.0.0.2", named, "2001:db8::/64"},
 		{"v4-mapped client keys as v4", "10.0.0.1:5000", "::ffff:203.0.113.9", named, "203.0.113.9"},
 		{"v4-mapped proxy hop is still ours", "10.0.0.1:5000", "203.0.113.9, ::ffff:10.0.0.2", named, "203.0.113.9"},
 		{"hop carrying a port", "10.0.0.1:5000", "203.0.113.9:41234", named, "203.0.113.9"},
-		{"ipv6 peer, no header", "[2001:db8::1]:80", "", named, "2001:db8::1"},
+		{"ipv6 peer, no header", "[2001:db8::1]:80", "", named, "2001:db8::/64"},
+		{"another address in the same /64 shares its bucket", "[2001:db8::ffff:1]:80", "", named, "2001:db8::/64"},
+		{"a neighbouring /64 has its own", "[2001:db8:0:1::1]:80", "", named, "2001:db8:0:1::/64"},
 		{"unparseable peer is used as-is", "weird", "", named, "weird"},
 		{"proxy adds a second header line", "10.0.0.1:5000", "1.2.3.4\n203.0.113.9", named, "203.0.113.9"},
 		{"second line carries the chain", "10.0.0.1:5000", "1.2.3.4\n203.0.113.9, 10.0.0.2", named, "203.0.113.9"},
@@ -67,7 +69,7 @@ func TestClientIPNilHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := ClientIP("[::1]:80", nil, set.Trusted); got != "::1" {
-		t.Errorf("got %q, want ::1", got)
+	if got := ClientIP("[::1]:80", nil, set.Trusted); got != "::/64" {
+		t.Errorf("got %q, want ::/64", got)
 	}
 }
