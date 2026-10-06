@@ -461,19 +461,12 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
 
   // Muted is a section of its own now. The two the desktop shell takes
   // over are not the shell's here — this suite is a browser — so account
-  // settings must still offer all six, and the frame's own title does
+  // settings must still offer all five, and the frame's own title does
   // the section's heading for it.
   await expect(
     A.locator(".settings-tabs .settings-tab"),
     "a browser is offered every section",
-  ).toHaveText([
-    "Profile",
-    "Appearance",
-    "Notifications",
-    "Voice",
-    "Muted",
-    "Security",
-  ]);
+  ).toHaveText(["Profile", "Appearance", "Notifications", "Muted", "Security"]);
   await expect(
     A.locator(".settings-title"),
     "and the frame heads the page with the section's name",

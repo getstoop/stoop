@@ -4,13 +4,11 @@ import { useEffect } from "react";
 import { type ActivityData, alertingCount } from "../api/activity";
 import { captureState, isCapturing, tabTitle } from "../api/capture";
 import { setBadge, shellOwnsVoiceKeys } from "../api/platform";
-import { usePushToTalkStore } from "../api/pushToTalk";
 import { useInstanceStatus } from "../api/queries";
 import { toggleDeafen, toggleMute } from "../api/voice";
 import { DialogHost } from "../components/DialogHost";
 import { LinkGate } from "../components/LinkGate";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
-import { usePushToTalk } from "../hooks/usePushToTalk";
 import { useShortcut, useShortcutListener } from "../hooks/useShortcut";
 import { useVoiceStore } from "../stores/voice";
 
@@ -26,11 +24,6 @@ export function Root() {
   const inVoice = useVoiceStore((s) => !!s.connection) && !shellOwnsVoiceKeys();
   useShortcut("toggleMute", toggleMute, inVoice);
   useShortcut("toggleDeafen", toggleDeafen, inVoice);
-  // The page's own, even inside the desktop shell: a menu accelerator
-  // has no keyup to end the hold with.
-  const pushToTalk = usePushToTalkStore((s) => s.enabled);
-  const inCall = useVoiceStore((s) => !!s.connection);
-  usePushToTalk(pushToTalk && inCall);
   // index.html's static <title>Stoop</title> is the pre-paint fallback;
   // this takes over once the instance status has loaded, everywhere in
   // the app. It watches the cache rather than useInstanceStatus's data:

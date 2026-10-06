@@ -18,15 +18,13 @@ import { PasswordForm } from "./PasswordForm";
 import { PersonalTokensSection } from "./PersonalTokensSection";
 import { ProfileForm } from "./ProfileForm";
 import { ProfileHeader } from "./ProfileHeader";
-import { PushToTalkSection } from "./PushToTalkSection";
 import { SessionsSection } from "./SessionsSection";
 import { VoiceSoundsSection } from "./VoiceSoundsSection";
 
-// Your account, in six sections under one header: who other people see
+// Your account, in five sections under one header: who other people see
 // (Profile), how Stoop looks to you (Appearance), what is allowed to
-// interrupt you, do not disturb included (Notifications), how your mic
-// behaves in a call (Voice), what you have silenced (Muted), and how you
-// get in and who you keep out (Security).
+// interrupt you, do not disturb included (Notifications), what you have
+// silenced (Muted), and how you get in and who you keep out (Security).
 // Log out is the last entry of the nav.
 //
 // Inside the desktop app, Appearance and — once the app has its own do not
@@ -34,19 +32,12 @@ import { VoiceSoundsSection } from "./VoiceSoundsSection";
 // offered here. That is decided by what the bridge hands over, never by
 // "is this the desktop app".
 
-type Tab =
-  | "profile"
-  | "appearance"
-  | "notifications"
-  | "voice"
-  | "muted"
-  | "security";
+type Tab = "profile" | "appearance" | "notifications" | "muted" | "security";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "profile", label: "Profile" },
   { key: "appearance", label: "Appearance" },
   { key: "notifications", label: "Notifications" },
-  { key: "voice", label: "Voice" },
   { key: "muted", label: "Muted" },
   { key: "security", label: "Security" },
 ];
@@ -56,7 +47,7 @@ export function ProfilePage() {
   const { data: status } = useInstanceStatus();
   const shellTheme = useThemeStore((s) => s.shell);
   const search = useSearch({ strict: false }) as {
-    tab?: Exclude<Tab, "profile">;
+    tab?: "appearance" | "notifications" | "muted" | "security";
     linked?: string;
     error?: string;
   };
@@ -125,11 +116,6 @@ export function ProfilePage() {
           <DoNotDisturbSection />
           <NotificationsSection />
           <VoiceSoundsSection />
-        </section>
-      )}
-      {active === "voice" && (
-        <section className="card">
-          <PushToTalkSection />
         </section>
       )}
       {active === "muted" && <MutesSection />}
