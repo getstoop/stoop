@@ -368,7 +368,10 @@ WHERE j.id IN (
           WHERE o.lane = c.lane AND o.state IN ('queued', 'running')
             AND (o.sequence, o.id) < (c.sequence, c.id)
       ))
-    ORDER BY c.not_before, c.created_at
+    ORDER BY (SELECT o.finished_at - o.started_at FROM jobs o
+              WHERE o.lane = c.lane AND o.finished_at IS NOT NULL
+              ORDER BY o.started_at DESC LIMIT 1) ASC NULLS FIRST,
+             c.not_before, c.created_at
     LIMIT $5
     FOR UPDATE SKIP LOCKED
 )
@@ -387,7 +390,11 @@ type LeaseJobsParams struct {
 // lease is absent or lapsed, skipping the rows it still has in flight. A
 // lapsed lease claimed again is a new attempt. A row with a lane is its
 // lane's head: no other unfinished row in the lane has a lower
-// (sequence, id). A head waiting on its backoff holds the lane.
+// (sequence, id). A head waiting on its backoff holds the lane. The lane
+// whose last finished job ran quickest goes first, so a lane whose jobs
+// are slow (a webhook receiver that takes seconds) can't keep quick ones
+// waiting; rows without a lane, and lanes with nothing finished yet, sort
+// first.
 func (q *Queries) LeaseJobs(ctx context.Context, arg LeaseJobsParams) ([]Job, error) {
 	rows, err := q.db.Query(ctx, leaseJobs,
 		arg.Until,
