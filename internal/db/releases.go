@@ -16,6 +16,7 @@ var Releases = []Release{
 	{"0.2.0", 37},
 	{"0.3.0", 42},
 	{"0.4.0", 52},
+	{"0.5.0", 53},
 }
 
 // OldestStartable is the oldest release that can start against a

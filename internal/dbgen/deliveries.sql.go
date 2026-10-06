@@ -126,6 +126,52 @@ func (q *Queries) ListDeliveriesByWebhook(ctx context.Context, arg ListDeliverie
 	return items, nil
 }
 
+const listFinishedDeliveriesByWebhook = `-- name: ListFinishedDeliveriesByWebhook :many
+SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at, job_id FROM webhook_deliveries
+WHERE webhook_id = $1 AND finished_at IS NOT NULL
+ORDER BY created_at DESC, sequence DESC LIMIT $2
+`
+
+type ListFinishedDeliveriesByWebhookParams struct {
+	WebhookID string
+	Limit     int32
+}
+
+// ListFinishedDeliveriesByWebhook is the newest finished deliveries: a
+// hook's later ones wait behind the one being tried, so they never count.
+func (q *Queries) ListFinishedDeliveriesByWebhook(ctx context.Context, arg ListFinishedDeliveriesByWebhookParams) ([]WebhookDelivery, error) {
+	rows, err := q.db.Query(ctx, listFinishedDeliveriesByWebhook, arg.WebhookID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WebhookDelivery
+	for rows.Next() {
+		var i WebhookDelivery
+		if err := rows.Scan(
+			&i.ID,
+			&i.WebhookID,
+			&i.EventType,
+			&i.Sequence,
+			&i.Body,
+			&i.Attempts,
+			&i.FinishedAt,
+			&i.StatusCode,
+			&i.Response,
+			&i.Error,
+			&i.CreatedAt,
+			&i.JobID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUnfinishedDeliveriesBefore = `-- name: ListUnfinishedDeliveriesBefore :many
 SELECT id, job_id, created_at FROM webhook_deliveries
 WHERE finished_at IS NULL AND created_at < $1::timestamptz

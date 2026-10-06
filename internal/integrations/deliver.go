@@ -260,7 +260,7 @@ func (s *Service) recordAttempt(ctx context.Context, deliveryID string, attempt 
 
 // settleDead disables the hook after too many consecutive dead deliveries.
 func (s *Service) settleDead(ctx context.Context, hookID string) error {
-	recent, err := s.q.ListDeliveriesByWebhook(ctx, dbgen.ListDeliveriesByWebhookParams{WebhookID: hookID, Limit: deadToDisable})
+	recent, err := s.q.ListFinishedDeliveriesByWebhook(ctx, dbgen.ListFinishedDeliveriesByWebhookParams{WebhookID: hookID, Limit: deadToDisable})
 	if err != nil {
 		return fmt.Errorf("list deliveries: %w", err)
 	}
@@ -268,7 +268,7 @@ func (s *Service) settleDead(ctx context.Context, hookID string) error {
 		return nil
 	}
 	for _, row := range recent {
-		if row.FinishedAt == nil || delivered(row) || row.Error == reasonOff {
+		if delivered(row) || row.Error == reasonOff {
 			return nil
 		}
 	}

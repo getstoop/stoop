@@ -7,7 +7,8 @@ import (
 	"strings"
 )
 
-// ClientIP identifies the caller for keying a bucket. remoteAddr is the
+// ClientIP identifies the caller for keying a bucket: an IPv4 address, or
+// an IPv6 caller's /64 (bucketOf). remoteAddr is the
 // TCP peer ("ip:port"); trusts reports whether an address is a proxy
 // whose forwarded headers may be believed, and is asked about each hop.
 //
@@ -16,7 +17,7 @@ import (
 // by the caller and is a lie waiting to happen. See
 // docs/self-hosting/reaching-your-server.md, "Trusted proxies".
 func ClientIP(remoteAddr string, h http.Header, trusts func(addr string) bool) string {
-	peer := peerKey(remoteAddr)
+	peer := bucketOf(peerKey(remoteAddr))
 	if !trusts(remoteAddr) {
 		return peer
 	}
@@ -29,7 +30,7 @@ func ClientIP(remoteAddr string, h http.Header, trusts func(addr string) bool) s
 			return peer
 		}
 		if !trusts(key) {
-			return key
+			return bucketOf(key)
 		}
 	}
 	return peer
@@ -59,4 +60,15 @@ func peerKey(remoteAddr string) string {
 		return host
 	}
 	return remoteAddr
+}
+
+// bucketOf is the bucket for one caller address. An IPv6 host is routinely
+// handed a whole /64, so a bucket per address would limit nothing; IPv4
+// stays per address, as does anything that isn't an address.
+func bucketOf(key string) string {
+	addr, err := netip.ParseAddr(key)
+	if err != nil || addr.Is4() {
+		return key
+	}
+	return netip.PrefixFrom(addr, 64).Masked().String()
 }

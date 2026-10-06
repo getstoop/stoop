@@ -23,6 +23,13 @@ SELECT * FROM webhook_deliveries WHERE id = $1;
 -- name: ListDeliveriesByWebhook :many
 SELECT * FROM webhook_deliveries WHERE webhook_id = $1 ORDER BY created_at DESC, sequence DESC LIMIT $2;
 
+-- ListFinishedDeliveriesByWebhook is the newest finished deliveries: a
+-- hook's later ones wait behind the one being tried, so they never count.
+-- name: ListFinishedDeliveriesByWebhook :many
+SELECT * FROM webhook_deliveries
+WHERE webhook_id = $1 AND finished_at IS NOT NULL
+ORDER BY created_at DESC, sequence DESC LIMIT $2;
+
 -- name: SweepFinishedDeliveries :execrows
 DELETE FROM webhook_deliveries WHERE finished_at IS NOT NULL AND finished_at < sqlc.arg(before)::timestamptz;
 

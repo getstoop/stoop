@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/alexedwards/argon2id"
 	"github.com/jackc/pgx/v5"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
@@ -74,9 +73,9 @@ func (s *Service) Login(ctx context.Context, req *connect.Request[authv1.LoginRe
 	if person && user.PasswordHash != nil {
 		hash = *user.PasswordHash
 	}
-	match, cmpErr := argon2id.ComparePasswordAndHash(req.Msg.Password, hash)
+	match, cmpErr := s.checkPassword(ctx, req.Msg.Password, hash)
 	if cmpErr != nil {
-		return nil, fmt.Errorf("verify password: %w", cmpErr)
+		return nil, hashFailure("verify password", cmpErr)
 	}
 	if !person || user.PasswordHash == nil || !match {
 		if err := s.guard.failure(ctx, handle); err != nil {
