@@ -331,6 +331,31 @@ leave half runs while `switching` is set and asks for nothing.
 The truth table and the window are unit-tested (`api/voiceCues.test.ts`);
 the sound itself is checked by ear on the dev server.
 
+## Push to talk
+
+The other mic mode: the mic stays shut, and holding Ctrl+` opens it.
+It is a choice about this device, so it is kept in localStorage
+(`stoop.pushToTalk`, set under Account → Voice) and never on the server.
+
+- **The hold** (`createHold` in `api/pushToTalk.ts`) opens on the first
+  keydown, ignores the repeats, and shuts 70 ms after the keyup so the
+  last syllable is not clipped. Pressing again inside that tail keeps the
+  mic open.
+- **Anything that could take the keyup away shuts the mic at once**:
+  the window losing focus, the tab hidden, the page going away, the mode
+  turned off, the call left. The failure being guarded against is an open
+  mic nobody knows about.
+- **The key never undeafens.** It drives `setTransmitting`, not
+  `toggleMute`: held while deafened, it opens nothing.
+- **Unmuting from anywhere else leaves push to talk.** The mic button,
+  Cmd/Ctrl+Shift+M and the desktop shell's menu all go through
+  `toggleMute`, which in this mode switches back to an open mic and
+  leaves it shut. The next unmute opens it.
+- **It only works while Stoop has focus.** A page gets no keys otherwise,
+  and the setting says so. A key that works from any app needs the
+  desktop shell's own hook; until then the page handles the key even
+  inside the shell, since a menu accelerator has no keyup.
+
 ## Presence in a voice channel
 
 Who is in which voice channel is **client-reported** over the gateway

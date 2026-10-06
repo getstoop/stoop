@@ -395,6 +395,7 @@ dispatched by one `keydown` listener (`useShortcutListener`, mounted in
 | Cmd/Ctrl+Shift+M | Mute or unmute | `Root`, while in a call |
 | Cmd/Ctrl+Shift+D | Deafen or undeafen | `Root`, while in a call |
 | F | Full screen the stage | `VoiceStage`, while it is on screen |
+| Ctrl+` (held) | Push to talk | `Root`, while in a call with push to talk on |
 
 - **The table owns the key; the component owns the action.** A component
   calls `useShortcut(id, handler)` while it is mounted. A binding nobody
@@ -410,6 +411,12 @@ dispatched by one `keydown` listener (`useShortcutListener`, mounted in
   bridge 4: its Voice menu binds them so they reach the call from any
   server it has open, and the page leaves them unbound
   ([desktop.md](desktop.md)).
+- **Push to talk is held, not pressed**, so it is not in the table: the
+  key is matched in `api/shortcuts.ts` and the hold is watched on keydown
+  and keyup by `usePushToTalk`. It is the physical key above Tab
+  (`event.code`), with Ctrl on every platform, since Cmd+` is macOS's
+  own "next window". It works while typing, because it types nothing.
+  See [voice.md](voice.md#push-to-talk).
 - **A browser tab cannot have** Cmd/Ctrl+N, T, W, L, R, 1–9, or
   Cmd/Ctrl+Shift+N, T, P, I, J. Do not bind them.
 - There is no "only if nothing else took the key" rule yet: Escape
