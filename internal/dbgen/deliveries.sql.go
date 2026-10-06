@@ -127,7 +127,7 @@ func (q *Queries) ListDeliveriesByWebhook(ctx context.Context, arg ListDeliverie
 }
 
 const listFinishedDeliveriesByWebhook = `-- name: ListFinishedDeliveriesByWebhook :many
-SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, response, error, created_at, job_id FROM webhook_deliveries
+SELECT id, webhook_id, event_type, sequence, body, attempts, finished_at, status_code, error, created_at, job_id FROM webhook_deliveries
 WHERE webhook_id = $1 AND finished_at IS NOT NULL
 ORDER BY created_at DESC, sequence DESC LIMIT $2
 `
@@ -157,7 +157,6 @@ func (q *Queries) ListFinishedDeliveriesByWebhook(ctx context.Context, arg ListF
 			&i.Attempts,
 			&i.FinishedAt,
 			&i.StatusCode,
-			&i.Response,
 			&i.Error,
 			&i.CreatedAt,
 			&i.JobID,
