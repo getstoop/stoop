@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
-	"github.com/alexedwards/argon2id"
 	"github.com/jackc/pgx/v5"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
@@ -116,18 +115,18 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 	// An account created via a login provider has no password yet; its
 	// first one is set here with nothing to check against.
 	if user.PasswordHash != nil {
-		match, err := argon2id.ComparePasswordAndHash(req.Msg.CurrentPassword, *user.PasswordHash)
+		match, err := s.checkPassword(ctx, req.Msg.CurrentPassword, *user.PasswordHash)
 		if err != nil {
-			return nil, fmt.Errorf("verify password: %w", err)
+			return nil, hashFailure("verify password", err)
 		}
 		if !match {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "current_password", errors.New("current password is incorrect"))
 		}
 	}
 
-	hash, err := argon2id.CreateHash(req.Msg.NewPassword, s.argon2)
+	hash, err := s.hashPassword(ctx, req.Msg.NewPassword)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, hashFailure("hash password", err)
 	}
 	if err := s.q.UpdateUserPasswordHash(ctx, dbgen.UpdateUserPasswordHashParams{
 		ID: id.UserID, PasswordHash: &hash,

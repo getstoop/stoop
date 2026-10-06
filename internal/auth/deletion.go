@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/alexedwards/argon2id"
 	"github.com/jackc/pgx/v5"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
@@ -123,9 +122,9 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 // count as the person being here.
 func (s *Service) confirmIdentity(ctx context.Context, user dbgen.User, credentialID, password string) error {
 	if user.PasswordHash != nil {
-		match, err := argon2id.ComparePasswordAndHash(password, *user.PasswordHash)
+		match, err := s.checkPassword(ctx, password, *user.PasswordHash)
 		if err != nil {
-			return fmt.Errorf("verify password: %w", err)
+			return hashFailure("verify password", err)
 		}
 		if !match {
 			return apierr.Field(connect.CodeInvalidArgument, "password", errors.New("password is incorrect"))

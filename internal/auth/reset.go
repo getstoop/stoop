@@ -8,7 +8,6 @@ import (
 	"math/big"
 
 	"connectrpc.com/connect"
-	"github.com/alexedwards/argon2id"
 
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/dbgen"
@@ -66,9 +65,9 @@ func (s *Service) resetPassword(ctx context.Context, u dbgen.User) (temporary st
 	if err != nil {
 		return "", AccountSummary{}, err
 	}
-	hash, err := argon2id.CreateHash(temporary, s.argon2)
+	hash, err := s.hashPassword(ctx, temporary)
 	if err != nil {
-		return "", AccountSummary{}, fmt.Errorf("hash password: %w", err)
+		return "", AccountSummary{}, hashFailure("hash password", err)
 	}
 	if err := s.q.UpdateUserPasswordHash(ctx, dbgen.UpdateUserPasswordHashParams{ID: u.ID, PasswordHash: &hash}); err != nil {
 		return "", AccountSummary{}, fmt.Errorf("update password: %w", err)
