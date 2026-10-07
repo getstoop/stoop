@@ -116,8 +116,12 @@ service ChatService {
   // EditMessage replaces the content of the caller's own message.
   rpc EditMessage(EditMessageRequest) returns (EditMessageResponse) {}
   // DeleteMessage removes a message: the author's own, or anyone's with
-  // manage_channels.
+  // messages.moderate. A root whose thread has replies is kept as a
+  // placeholder (Message.deleted) instead.
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse) {}
+  // DeleteThread removes a root and every reply in its thread. Requires
+  // messages.moderate in the channel's space.
+  rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadResponse) {}
   // ToggleReaction adds the caller's reaction if absent and removes it if
   // present. Channel members only. Reactions never notify anyone and never
   // affect unread state.
@@ -485,6 +489,10 @@ message SendMessageRequest {
   // space, at most 10, each usable by one message. content may be empty
   // when attachments are present.
   repeated string attachment_ids = 4;
+  // Optional: post into this root's thread instead of the channel. The root
+  // must be a top-level message in the same channel, not a placeholder;
+  // refused in an announcement channel.
+  string thread_root_id = 5;
 }
 
 message SendMessageResponse {
@@ -505,6 +513,13 @@ message DeleteMessageRequest {
 }
 
 message DeleteMessageResponse {}
+
+message DeleteThreadRequest {
+  // The thread's root.
+  string message_id = 1;
+}
+
+message DeleteThreadResponse {}
 
 message ToggleReactionRequest {
   string message_id = 1;
@@ -529,7 +544,12 @@ message ListMessagesRequest {
   string after_id = 4;
   // Return a window centred on this message, which is included; NotFound if
   // it is not in the channel. Mutually exclusive with before_id and after_id.
+  // A reply that shows only in its thread centres the window on its root
+  // instead, and thread_root_id in the response names the thread.
   string around_id = 5;
+  // Page this root's thread instead of the channel; the root itself is not
+  // included. The same paging parameters apply.
+  string thread_id = 6;
 }
 
 message ListMessagesResponse {
@@ -540,6 +560,9 @@ message ListMessagesResponse {
   // Whether the channel (may) have messages newer than the last returned.
   // False for the newest page, which is the page realtime events extend.
   bool has_newer = 3;
+  // Set when around_id was a reply that shows only in its thread: the
+  // thread to open on it.
+  string thread_root_id = 4;
 }
 
 message SearchMessagesRequest {

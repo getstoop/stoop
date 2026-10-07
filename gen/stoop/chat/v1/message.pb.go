@@ -294,7 +294,18 @@ type Message struct {
 	LinkPreviews []*LinkPreview `protobuf:"bytes,14,rep,name=link_previews,json=linkPreviews,proto3" json:"link_previews,omitempty"`
 	// True while this message is in its channel's pin list. Kept current by
 	// the MessagePinned realtime event.
-	Pinned        bool `protobuf:"varint,15,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	Pinned bool `protobuf:"varint,15,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	// Set on a reply in a thread: the thread's root, a top-level message in
+	// the same channel.
+	ThreadRootId string `protobuf:"bytes,16,opt,name=thread_root_id,json=threadRootId,proto3" json:"thread_root_id,omitempty"`
+	// Set on a root with replies. Kept current by the ThreadChanged event.
+	Thread *ThreadSummary `protobuf:"bytes,17,opt,name=thread,proto3" json:"thread,omitempty"`
+	// A root deleted while its thread had replies, kept as a placeholder:
+	// no content, attachments, reactions or previews.
+	Deleted bool `protobuf:"varint,18,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	// Whether the message shows in the channel's timeline: true for every
+	// top-level message, false for a reply that stays in its thread.
+	InChannel     bool `protobuf:"varint,19,opt,name=in_channel,json=inChannel,proto3" json:"in_channel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -434,6 +445,97 @@ func (x *Message) GetPinned() bool {
 	return false
 }
 
+func (x *Message) GetThreadRootId() string {
+	if x != nil {
+		return x.ThreadRootId
+	}
+	return ""
+}
+
+func (x *Message) GetThread() *ThreadSummary {
+	if x != nil {
+		return x.Thread
+	}
+	return nil
+}
+
+func (x *Message) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+func (x *Message) GetInChannel() bool {
+	if x != nil {
+		return x.InChannel
+	}
+	return false
+}
+
+// ThreadSummary is what the line under a root shows, so it renders with no
+// fetch of the thread.
+type ThreadSummary struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	ReplyCount  int32                  `protobuf:"varint,1,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"`
+	LastReplyAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
+	// The most recent distinct reply authors, newest first, at most three.
+	RecentAuthors []*MessageAuthor `protobuf:"bytes,3,rep,name=recent_authors,json=recentAuthors,proto3" json:"recent_authors,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThreadSummary) Reset() {
+	*x = ThreadSummary{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadSummary) ProtoMessage() {}
+
+func (x *ThreadSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadSummary.ProtoReflect.Descriptor instead.
+func (*ThreadSummary) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ThreadSummary) GetReplyCount() int32 {
+	if x != nil {
+		return x.ReplyCount
+	}
+	return 0
+}
+
+func (x *ThreadSummary) GetLastReplyAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastReplyAt
+	}
+	return nil
+}
+
+func (x *ThreadSummary) GetRecentAuthors() []*MessageAuthor {
+	if x != nil {
+		return x.RecentAuthors
+	}
+	return nil
+}
+
 // LinkPreview is the unfurled metadata of a URL in a message.
 type LinkPreview struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -451,7 +553,7 @@ type LinkPreview struct {
 
 func (x *LinkPreview) Reset() {
 	*x = LinkPreview{}
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[4]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -463,7 +565,7 @@ func (x *LinkPreview) String() string {
 func (*LinkPreview) ProtoMessage() {}
 
 func (x *LinkPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[4]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -476,7 +578,7 @@ func (x *LinkPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkPreview.ProtoReflect.Descriptor instead.
 func (*LinkPreview) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{4}
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *LinkPreview) GetUrl() string {
@@ -551,7 +653,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x18\n" +
-	"\aexpired\x18\x05 \x01(\bR\aexpired\"\x94\x05\n" +
+	"\aexpired\x18\x05 \x01(\bR\aexpired\"\xa9\x06\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -570,7 +672,17 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\treactions\x18\f \x03(\v2\x17.stoop.chat.v1.ReactionR\treactions\x12;\n" +
 	"\vattachments\x18\r \x03(\v2\x19.stoop.chat.v1.AttachmentR\vattachments\x12?\n" +
 	"\rlink_previews\x18\x0e \x03(\v2\x1a.stoop.chat.v1.LinkPreviewR\flinkPreviews\x12\x16\n" +
-	"\x06pinned\x18\x0f \x01(\bR\x06pinned\"\xdc\x01\n" +
+	"\x06pinned\x18\x0f \x01(\bR\x06pinned\x12$\n" +
+	"\x0ethread_root_id\x18\x10 \x01(\tR\fthreadRootId\x124\n" +
+	"\x06thread\x18\x11 \x01(\v2\x1c.stoop.chat.v1.ThreadSummaryR\x06thread\x12\x18\n" +
+	"\adeleted\x18\x12 \x01(\bR\adeleted\x12\x1d\n" +
+	"\n" +
+	"in_channel\x18\x13 \x01(\bR\tinChannel\"\xb5\x01\n" +
+	"\rThreadSummary\x12\x1f\n" +
+	"\vreply_count\x18\x01 \x01(\x05R\n" +
+	"replyCount\x12>\n" +
+	"\rlast_reply_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12C\n" +
+	"\x0erecent_authors\x18\x03 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\rrecentAuthors\"\xdc\x01\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -594,32 +706,36 @@ func file_stoop_chat_v1_message_proto_rawDescGZIP() []byte {
 	return file_stoop_chat_v1_message_proto_rawDescData
 }
 
-var file_stoop_chat_v1_message_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_stoop_chat_v1_message_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_stoop_chat_v1_message_proto_goTypes = []any{
 	(*MessageAuthor)(nil),         // 0: stoop.chat.v1.MessageAuthor
 	(*ReplyRef)(nil),              // 1: stoop.chat.v1.ReplyRef
 	(*Attachment)(nil),            // 2: stoop.chat.v1.Attachment
 	(*Message)(nil),               // 3: stoop.chat.v1.Message
-	(*LinkPreview)(nil),           // 4: stoop.chat.v1.LinkPreview
-	(v1.IdentityKind)(0),          // 5: stoop.access.v1.IdentityKind
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
-	(*Reaction)(nil),              // 7: stoop.chat.v1.Reaction
+	(*ThreadSummary)(nil),         // 4: stoop.chat.v1.ThreadSummary
+	(*LinkPreview)(nil),           // 5: stoop.chat.v1.LinkPreview
+	(v1.IdentityKind)(0),          // 6: stoop.access.v1.IdentityKind
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
+	(*Reaction)(nil),              // 8: stoop.chat.v1.Reaction
 }
 var file_stoop_chat_v1_message_proto_depIdxs = []int32{
-	5, // 0: stoop.chat.v1.MessageAuthor.kind:type_name -> stoop.access.v1.IdentityKind
-	0, // 1: stoop.chat.v1.ReplyRef.author:type_name -> stoop.chat.v1.MessageAuthor
-	0, // 2: stoop.chat.v1.Message.author:type_name -> stoop.chat.v1.MessageAuthor
-	6, // 3: stoop.chat.v1.Message.created_at:type_name -> google.protobuf.Timestamp
-	1, // 4: stoop.chat.v1.Message.reply_to:type_name -> stoop.chat.v1.ReplyRef
-	6, // 5: stoop.chat.v1.Message.edited_at:type_name -> google.protobuf.Timestamp
-	7, // 6: stoop.chat.v1.Message.reactions:type_name -> stoop.chat.v1.Reaction
-	2, // 7: stoop.chat.v1.Message.attachments:type_name -> stoop.chat.v1.Attachment
-	4, // 8: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	6,  // 0: stoop.chat.v1.MessageAuthor.kind:type_name -> stoop.access.v1.IdentityKind
+	0,  // 1: stoop.chat.v1.ReplyRef.author:type_name -> stoop.chat.v1.MessageAuthor
+	0,  // 2: stoop.chat.v1.Message.author:type_name -> stoop.chat.v1.MessageAuthor
+	7,  // 3: stoop.chat.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 4: stoop.chat.v1.Message.reply_to:type_name -> stoop.chat.v1.ReplyRef
+	7,  // 5: stoop.chat.v1.Message.edited_at:type_name -> google.protobuf.Timestamp
+	8,  // 6: stoop.chat.v1.Message.reactions:type_name -> stoop.chat.v1.Reaction
+	2,  // 7: stoop.chat.v1.Message.attachments:type_name -> stoop.chat.v1.Attachment
+	5,  // 8: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
+	4,  // 9: stoop.chat.v1.Message.thread:type_name -> stoop.chat.v1.ThreadSummary
+	7,  // 10: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
+	0,  // 11: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_message_proto_init() }
@@ -634,7 +750,7 @@ func file_stoop_chat_v1_message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_chat_v1_message_proto_rawDesc), len(file_stoop_chat_v1_message_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

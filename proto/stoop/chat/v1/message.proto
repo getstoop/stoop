@@ -80,6 +80,26 @@ message Message {
   // True while this message is in its channel's pin list. Kept current by
   // the MessagePinned realtime event.
   bool pinned = 15;
+  // Set on a reply in a thread: the thread's root, a top-level message in
+  // the same channel.
+  string thread_root_id = 16;
+  // Set on a root with replies. Kept current by the ThreadChanged event.
+  ThreadSummary thread = 17;
+  // A root deleted while its thread had replies, kept as a placeholder:
+  // no content, attachments, reactions or previews.
+  bool deleted = 18;
+  // Whether the message shows in the channel's timeline: true for every
+  // top-level message, false for a reply that stays in its thread.
+  bool in_channel = 19;
+}
+
+// ThreadSummary is what the line under a root shows, so it renders with no
+// fetch of the thread.
+message ThreadSummary {
+  int32 reply_count = 1;
+  google.protobuf.Timestamp last_reply_at = 2;
+  // The most recent distinct reply authors, newest first, at most three.
+  repeated MessageAuthor recent_authors = 3;
 }
 
 // LinkPreview is the unfurled metadata of a URL in a message.

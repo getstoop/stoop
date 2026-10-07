@@ -52,6 +52,7 @@ message ServerEvent {
     SpaceMuted space_muted = 31;
     MessagePinned message_pinned = 32;
     DoNotDisturbChanged do_not_disturb_changed = 33;
+    ThreadChanged thread_changed = 34;
   }
 }
 
@@ -191,6 +192,18 @@ message MessageDeleted {
   string message_id = 1;
   string channel_id = 2;
   string space_id = 3;
+  // Set when the message was a reply in a thread.
+  string thread_root_id = 4;
+}
+
+// ThreadChanged carries a root's full thread summary after a reply is sent
+// or deleted, not a delta, so an out-of-order event cannot leave a wrong
+// count on screen.
+message ThreadChanged {
+  string space_id = 1;
+  string channel_id = 2;
+  string root_message_id = 3;
+  stoop.chat.v1.ThreadSummary thread = 4;
 }
 
 // MessagePinned is broadcast to the space when a message is pinned or
