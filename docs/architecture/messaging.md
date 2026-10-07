@@ -492,7 +492,8 @@ anyone from.
   so clients need one update path rather than two.
 - **Deletions** remove the row and, through the `FileDirectory` port, its
   attachments' files. `messages.moderate` covers other people's; your own
-  are always yours.
+  are always yours. A root whose thread has replies is kept as a
+  placeholder instead ([Threads](#threads)).
 - **Reactions** are `(message_id, user_id, emoji)`. `ToggleReaction` is
   idempotent by construction — the primary key decides whether it is an
   insert or a delete — and publishes `ReactionsChanged` with the message's
@@ -529,6 +530,20 @@ in the root's thread and not in the channel's timeline
   thread in `thread_root_id`, so a `?m=` link to a reply opens in one
   round trip.
 - **Pins.** A reply in a thread can't be pinned yet.
+- **Deleting a reply** recounts its root's summary under a lock on the
+  `threads` row, so a concurrent send's increment and the recount can't
+  miss each other, and publishes `MessageDeleted` with the thread's root
+  and then `ThreadChanged`.
+- **Deleting a root** with replies keeps it as a placeholder
+  (`MakePlaceholder`): `deleted_at` is set and its text, attachments and
+  their files, link rows, reactions, mentions, pin and activity items go.
+  Clients get `MessageUpdated` with `deleted` set. Edits, reactions,
+  quotes and new replies on it are refused; a quote of it reads like a
+  quote of a deleted message. Deleting its last reply deletes it too. A
+  root with no replies is deleted outright, as before.
+- **Delete thread** (`DeleteThread`) is moderation: `messages.moderate`
+  in the space, never in a DM. It deletes the root, and the cascade on
+  `thread_root_id` takes the replies.
 
 ## Direct messages
 
