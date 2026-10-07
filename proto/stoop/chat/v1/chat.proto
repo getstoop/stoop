@@ -116,7 +116,7 @@ service ChatService {
   // EditMessage replaces the content of the caller's own message.
   rpc EditMessage(EditMessageRequest) returns (EditMessageResponse) {}
   // DeleteMessage removes a message: the author's own, or anyone's with
-  // manage_channels. A root whose thread has replies is kept as a
+  // messages.moderate. A root whose thread has replies is kept as a
   // placeholder (Message.deleted) instead.
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse) {}
   // DeleteThread removes a root and every reply in its thread. Requires

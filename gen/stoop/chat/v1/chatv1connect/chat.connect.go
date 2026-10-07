@@ -258,7 +258,7 @@ type ChatServiceClient interface {
 	// EditMessage replaces the content of the caller's own message.
 	EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error)
 	// DeleteMessage removes a message: the author's own, or anyone's with
-	// manage_channels. A root whose thread has replies is kept as a
+	// messages.moderate. A root whose thread has replies is kept as a
 	// placeholder (Message.deleted) instead.
 	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
 	// DeleteThread removes a root and every reply in its thread. Requires
@@ -986,7 +986,7 @@ type ChatServiceHandler interface {
 	// EditMessage replaces the content of the caller's own message.
 	EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error)
 	// DeleteMessage removes a message: the author's own, or anyone's with
-	// manage_channels. A root whose thread has replies is kept as a
+	// messages.moderate. A root whose thread has replies is kept as a
 	// placeholder (Message.deleted) instead.
 	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
 	// DeleteThread removes a root and every reply in its thread. Requires

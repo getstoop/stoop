@@ -2417,7 +2417,7 @@ export const ChatService: GenService<{
   },
   /**
    * DeleteMessage removes a message: the author's own, or anyone's with
-   * manage_channels. A root whose thread has replies is kept as a
+   * messages.moderate. A root whose thread has replies is kept as a
    * placeholder (Message.deleted) instead.
    *
    * @generated from rpc stoop.chat.v1.ChatService.DeleteMessage
