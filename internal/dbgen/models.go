@@ -185,6 +185,9 @@ type Message struct {
 	MentionsHere     bool
 	EditedAt         *time.Time
 	Search           interface{}
+	ThreadRootID     *string
+	InChannel        bool
+	DeletedAt        *time.Time
 }
 
 type MessageAttachment struct {
@@ -212,18 +215,24 @@ type MessageReaction struct {
 }
 
 type MessageWithReply struct {
-	ID               string
-	ChannelID        string
-	AuthorID         string
-	Content          string
-	CreatedAt        time.Time
-	MentionsEveryone bool
-	ReplyToMessageID *string
-	MentionsHere     bool
-	EditedAt         *time.Time
-	ReplyAuthorID    *string
-	ReplyContent     *string
-	ReplyFirstFileID string
+	ID                    string
+	ChannelID             string
+	AuthorID              string
+	Content               string
+	CreatedAt             time.Time
+	MentionsEveryone      bool
+	ReplyToMessageID      *string
+	MentionsHere          bool
+	EditedAt              *time.Time
+	ReplyAuthorID         *string
+	ReplyContent          *string
+	ReplyFirstFileID      string
+	ThreadRootID          *string
+	InChannel             bool
+	DeletedAt             *time.Time
+	ThreadReplyCount      int32
+	ThreadLastReplyAt     *time.Time
+	ThreadRecentAuthorIds []string
 }
 
 type OutgoingWebhook struct {
@@ -277,6 +286,14 @@ type SpaceMute struct {
 	UserID    string
 	SpaceID   string
 	CreatedAt time.Time
+}
+
+type Thread struct {
+	RootMessageID   string
+	ReplyCount      int32
+	LastReplyID     *string
+	LastReplyAt     *time.Time
+	RecentAuthorIds []string
 }
 
 type User struct {
