@@ -35,6 +35,11 @@ func TestE2EThreads(t *testing.T) {
 		t.Errorf("root's thread = %v, want replyCount 2", thread)
 	}
 
+	activity := server.rpc(casey, "stoop.chat.v1.ChatService/ListActivity", map[string]any{}).expect(t, "ok")
+	if items := activity.list("items"); len(items) == 0 || items[0].(map[string]any)["threadRootId"] != root {
+		t.Errorf("casey's activity = %v, want the newest item naming the thread", items)
+	}
+
 	page := server.rpc(casey, "stoop.chat.v1.ChatService/ListMessages", map[string]any{"channelId": garden, "threadId": root}).expect(t, "ok")
 	if replies := page.list("messages"); len(replies) != 2 {
 		t.Errorf("thread page holds %d replies, want 2", len(replies))

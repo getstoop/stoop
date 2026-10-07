@@ -229,8 +229,10 @@ actor and a 140-character preview.
 
 **Each message raises at most one activity item per person.** The ordering
 in `SendMessage` enforces it: mentions first, then the reply target unless
-they were mentioned, then DM participants unless either already told you.
-Being mentioned in a reply in a DM is one entry, not three.
+they were mentioned, then, for a reply in a thread, the root's author and
+earlier repliers, then DM participants, each step skipping anyone an
+earlier one told. Being mentioned in a reply in a DM is one entry, not
+three.
 
 **Blocked people raise nothing.** `withoutBlockers` filters every recipient
 list, so a block is applied once, at the point of delivery, rather than in
@@ -533,6 +535,12 @@ in the root's thread and not in the channel's timeline
   thread in `thread_root_id`, so a `?m=` link to a reply opens in one
   round trip.
 - **Pins.** A reply in a thread can't be pinned yet.
+- **Activity.** A reply tells the root's author and everyone who replied
+  before it, as a `reply` item, after mentions and quote-replies (one
+  item per person), but only those still in the space or conversation.
+  Activity items and search results carry `thread_root_id`, so the
+  client can open the thread. Following,
+  unfollowing and muting a thread come later.
 - **Deleting a reply** recounts its root's summary under a lock on the
   `threads` row, so a concurrent send's increment and the recount can't
   miss each other, and publishes `MessageDeleted` with the thread's root
