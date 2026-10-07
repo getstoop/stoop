@@ -124,7 +124,7 @@ func (q *Queries) DeleteReadActivityBefore(ctx context.Context, before time.Time
 }
 
 const listActivity = `-- name: ListActivity :many
-SELECT a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at, m.content AS message_content,
+SELECT a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at, m.content AS message_content, m.thread_root_id AS message_thread_root_id,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
     (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = a.user_id AND cm.channel_id = a.channel_id)
         OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id))::bool AS muted
@@ -143,10 +143,11 @@ type ListActivityParams struct {
 }
 
 type ListActivityRow struct {
-	ActivityItem       ActivityItem
-	MessageContent     *string
-	MessageFirstFileID string
-	Muted              bool
+	ActivityItem        ActivityItem
+	MessageContent      *string
+	MessageThreadRootID *string
+	MessageFirstFileID  string
+	Muted               bool
 }
 
 // ListActivity returns newest first with the message text for a
@@ -172,6 +173,7 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]L
 			&i.ActivityItem.CreatedAt,
 			&i.ActivityItem.ReadAt,
 			&i.MessageContent,
+			&i.MessageThreadRootID,
 			&i.MessageFirstFileID,
 			&i.Muted,
 		); err != nil {

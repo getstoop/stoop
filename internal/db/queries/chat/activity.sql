@@ -13,7 +13,7 @@ RETURNING *;
 -- preview (NULL if the message has since been deleted), and the
 -- recipient's effective mute for where each item happened.
 -- name: ListActivity :many
-SELECT sqlc.embed(a), m.content AS message_content,
+SELECT sqlc.embed(a), m.content AS message_content, m.thread_root_id AS message_thread_root_id,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
     (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = a.user_id AND cm.channel_id = a.channel_id)
         OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id))::bool AS muted

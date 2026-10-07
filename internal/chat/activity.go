@@ -28,8 +28,9 @@ const (
 )
 
 // recordActivity tells the people a new message concerns: mentions, then
-// the reply target, then DM participants. The message is already saved
-// and published, so a failure here is logged and the send still succeeds.
+// the reply target, then a thread's root author and earlier repliers,
+// then DM participants. The message is already saved and published, so a
+// failure here is logged and the send still succeeds.
 func (s *Service) recordActivity(ctx context.Context, msg messageRow, channel dbgen.Channel, participants []string, parent *messageRow, mentioned []string, author *chatv1.MessageAuthor, attachments []FileRecord) {
 	about := alert{msg: msg, spaceID: channel.SpaceID, author: author}
 	if len(attachments) > 0 {
@@ -41,16 +42,48 @@ func (s *Service) recordActivity(ctx context.Context, msg messageRow, channel db
 	if err := s.recordMentions(ctx, about, mentioned); err != nil {
 		warn("mentions", err)
 	}
+	told := map[string]bool{msg.AuthorID: true}
+	for _, id := range mentioned {
+		told[id] = true
+	}
 	if parent != nil {
 		if err := s.recordReply(ctx, about, parent.AuthorID, mentioned); err != nil {
 			warn("reply", err)
 		}
+		told[parent.AuthorID] = true
+	}
+	if msg.ThreadRootID != nil {
+		threadTold, err := s.recordThreadReply(ctx, about, *msg.ThreadRootID, told)
+		if err != nil {
+			warn("thread reply", err)
+		}
+		for _, id := range threadTold {
+			told[id] = true
+		}
 	}
 	if isDM(channel) {
-		if err := s.recordDM(ctx, about, participants, parent, mentioned); err != nil {
+		if err := s.recordDM(ctx, about, participants, told); err != nil {
 			warn("dm", err)
 		}
 	}
+}
+
+// recordThreadReply tells a thread's root author and earlier repliers
+// about a new reply, as a reply, unless an earlier step already told
+// them. It returns who it told.
+func (s *Service) recordThreadReply(ctx context.Context, about alert, rootID string, told map[string]bool) ([]string, error) {
+	people, err := s.q.ThreadParticipants(ctx, rootID)
+	if err != nil {
+		return nil, fmt.Errorf("thread participants: %w", err)
+	}
+	var recipients []string
+	for _, id := range people {
+		if !told[id] {
+			recipients = append(recipients, id)
+		}
+	}
+	about.kind = activityKindReply
+	return recipients, s.notify(ctx, recipients, about)
 }
 
 // alert is one kind of activity item about a message, for its recipients.
@@ -82,17 +115,10 @@ func (s *Service) recordReply(ctx context.Context, about alert, parentAuthorID s
 }
 
 // recordDM tells a direct message's other participants about a new
-// message — unless they were already told by a mention or a reply in the
-// same message (one alert is enough). See messaging.md → The DM feed
+// message — unless an earlier step already told them about the same
+// message (one alert is enough). See messaging.md → The DM feed
 // collapses.
-func (s *Service) recordDM(ctx context.Context, about alert, participants []string, parent *messageRow, mentioned []string) error {
-	told := map[string]bool{about.msg.AuthorID: true}
-	for _, id := range mentioned {
-		told[id] = true
-	}
-	if parent != nil && parent.AuthorID != about.msg.AuthorID {
-		told[parent.AuthorID] = true
-	}
+func (s *Service) recordDM(ctx context.Context, about alert, participants []string, told map[string]bool) error {
 	var recipients []string
 	for _, id := range participants {
 		if !told[id] {
@@ -123,7 +149,7 @@ func (s *Service) notify(ctx context.Context, recipients []string, about alert) 
 		s.bus.Publish(events.UserTopic(item.UserID), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ActivityItemCreated{
 				ActivityItemCreated: &realtimev1.ActivityItemCreated{
-					Item: toProtoActivityItem(item, &about.msg.Content, about.firstAttachment, about.author, muted[item.UserID]),
+					Item: toProtoActivityItem(item, &about.msg.Content, about.msg.ThreadRootID, about.firstAttachment, about.author, muted[item.UserID]),
 				},
 			},
 		}))
@@ -203,7 +229,7 @@ func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.
 		return nil, err
 	}
 	for i, r := range rows {
-		out[i] = toProtoActivityItem(r.ActivityItem, r.MessageContent, files[r.MessageFirstFileID].label(), actors[r.ActivityItem.ActorID], r.Muted)
+		out[i] = toProtoActivityItem(r.ActivityItem, r.MessageContent, r.MessageThreadRootID, files[r.MessageFirstFileID].label(), actors[r.ActivityItem.ActorID], r.Muted)
 	}
 	unread, err := s.q.CountUnreadActivity(ctx, userID)
 	if err != nil {
@@ -232,10 +258,11 @@ func (s *Service) MarkActivityRead(ctx context.Context, req *connect.Request[cha
 	return connect.NewResponse(&chatv1.MarkActivityReadResponse{UnreadCount: int32(unread)}), nil
 }
 
-// toProtoActivityItem renders an activity item; firstAttachment names the
+// toProtoActivityItem renders an activity item; threadRootID is the
+// message's thread, if it is a reply in one; firstAttachment names the
 // message's first file, the preview when it has no text, and muted is the
 // recipient's effective mute for where it happened.
-func toProtoActivityItem(item dbgen.ActivityItem, content *string, firstAttachment string, actor *chatv1.MessageAuthor, muted bool) *chatv1.ActivityItem {
+func toProtoActivityItem(item dbgen.ActivityItem, content, threadRootID *string, firstAttachment string, actor *chatv1.MessageAuthor, muted bool) *chatv1.ActivityItem {
 	if actor == nil {
 		actor = unknownAuthor(item.ActorID)
 	}
@@ -257,6 +284,9 @@ func toProtoActivityItem(item dbgen.ActivityItem, content *string, firstAttachme
 	}
 	if item.MessageID != nil {
 		out.MessageId = *item.MessageID
+	}
+	if threadRootID != nil {
+		out.ThreadRootId = *threadRootID
 	}
 	if content != nil {
 		out.Preview = text.Truncate(previewText(*content, firstAttachment), previewLen)

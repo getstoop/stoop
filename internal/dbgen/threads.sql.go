@@ -269,3 +269,30 @@ func (q *Queries) RecordThreadReply(ctx context.Context, arg RecordThreadReplyPa
 	)
 	return i, err
 }
+
+const threadParticipants = `-- name: ThreadParticipants :many
+SELECT DISTINCT author_id FROM messages
+WHERE id = $1::uuid OR thread_root_id = $1::uuid
+`
+
+// ThreadParticipants are the root's author and everyone who has replied,
+// for the phase 1 thread notifications.
+func (q *Queries) ThreadParticipants(ctx context.Context, rootID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, threadParticipants, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var author_id string
+		if err := rows.Scan(&author_id); err != nil {
+			return nil, err
+		}
+		items = append(items, author_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

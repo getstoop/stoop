@@ -78,3 +78,9 @@ WHERE id = sqlc.arg(id)::uuid;
 SELECT a.file_id FROM message_attachments a
 JOIN messages m ON m.id = a.message_id
 WHERE m.id = sqlc.arg(root_id)::uuid OR m.thread_root_id = sqlc.arg(root_id)::uuid;
+
+-- ThreadParticipants are the root's author and everyone who has replied,
+-- for the phase 1 thread notifications.
+-- name: ThreadParticipants :many
+SELECT DISTINCT author_id FROM messages
+WHERE id = sqlc.arg(root_id)::uuid OR thread_root_id = sqlc.arg(root_id)::uuid;
