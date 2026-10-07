@@ -36,6 +36,7 @@ import {
 import { LiveIndicator } from "../components/LiveIndicator";
 import { closeDrawerOnLink } from "../components/MenuButton";
 import { NavBackdrop } from "../components/NavBackdrop";
+import { SidePanel } from "../components/SidePanel";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { Tooltip } from "../components/Tooltip";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
@@ -112,6 +113,7 @@ export function AppShell() {
       <SpaceRail />
       <NavBackdrop />
       <Outlet />
+      <SidePanel />
     </div>
   );
 }

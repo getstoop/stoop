@@ -66,6 +66,25 @@
     background: var(--scrim);
   }
 
+  /* The side panel is a screen of its own over the page; Back closes it. */
+  .side-panel {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-side-panel);
+    width: auto;
+    border-left: none;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .side-panel-back {
+    display: inline-flex;
+  }
+
+  .side-panel-close {
+    display: none;
+  }
+
   .menu-button {
     display: inline-flex;
     padding: 4px;
