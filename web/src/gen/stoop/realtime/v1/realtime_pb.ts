@@ -706,8 +706,7 @@ export const MessageDeletedSchema: GenMessage<MessageDeleted> = /*@__PURE__*/
 
 /**
  * ThreadChanged carries a root's full thread summary after a reply is sent
- * or deleted, not a delta, so an out-of-order event cannot leave a wrong
- * count on screen.
+ * or deleted, not a delta, so a missed event is put right by the next one.
  *
  * @generated from message stoop.realtime.v1.ThreadChanged
  */

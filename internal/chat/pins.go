@@ -40,6 +40,10 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 	if err := s.requirePermission(ctx, *channel.SpaceID, authctx.ChannelsManage); err != nil {
 		return nil, err
 	}
+	if req.Msg.Pinned && msg.ThreadRootID != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			errors.New("messages in a thread can't be pinned"))
+	}
 	if req.Msg.Pinned {
 		return s.pin(ctx, msg, channel)
 	}

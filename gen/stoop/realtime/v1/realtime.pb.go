@@ -1545,8 +1545,7 @@ func (x *MessageDeleted) GetThreadRootId() string {
 }
 
 // ThreadChanged carries a root's full thread summary after a reply is sent
-// or deleted, not a delta, so an out-of-order event cannot leave a wrong
-// count on screen.
+// or deleted, not a delta, so a missed event is put right by the next one.
 type ThreadChanged struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`

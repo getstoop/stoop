@@ -50,6 +50,14 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	if err != nil {
 		return nil, err
 	}
+	var threadRoot *messageRow
+	if rootID := req.Msg.ThreadRootId; rootID != "" {
+		root, err := s.threadRootFor(ctx, channel, rootID)
+		if err != nil {
+			return nil, err
+		}
+		threadRoot = &root
+	}
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return nil, err
 	}
@@ -64,7 +72,8 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	}
 	mentioned := res.userIDs
 
-	// A reply must point at a message in this channel.
+	// A reply must point at a message in this channel, and in the same
+	// thread or the same timeline.
 	var replyTo *string
 	var parent *messageRow
 	if replyID := req.Msg.ReplyToMessageId; replyID != "" {
@@ -75,6 +84,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		if found.ChannelID != channel.ID {
 			return nil, connect.NewError(connect.CodeInvalidArgument,
 				errors.New("can only reply to a message in the same channel"))
+		}
+		if err := checkQuote(found, threadRoot); err != nil {
+			return nil, err
 		}
 		parent, replyTo = &found, &found.ID
 	}
@@ -93,10 +105,16 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	// fails (file already used) must not leave a bare message behind.
 	var row messageRow
 	var linksToFetch []string
+	var thread dbgen.Thread
+	var threadRootID *string
+	if threadRoot != nil {
+		threadRootID = &threadRoot.ID
+	}
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
 			MentionsEveryone: res.everyone, MentionsHere: res.here, ReplyToMessageID: replyTo,
+			ThreadRootID: threadRootID, InChannel: threadRoot == nil,
 		})
 		if err != nil {
 			return fmt.Errorf("create message: %w", err)
@@ -114,6 +132,16 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 			if err := qtx.InsertMessageMentions(ctx, dbgen.InsertMessageMentionsParams{MessageID: row.ID, UserIds: mentioned}); err != nil {
 				return fmt.Errorf("record mention: %w", err)
 			}
+		}
+		// A thread reply leaves the channel's newest message and the
+		// author's read marker alone: neither is about the thread.
+		if threadRoot != nil {
+			if thread, err = qtx.RecordThreadReply(ctx, dbgen.RecordThreadReplyParams{
+				RootID: threadRoot.ID, ReplyID: &row.ID, ReplyAt: &row.CreatedAt, AuthorID: userID,
+			}); err != nil {
+				return fmt.Errorf("record thread reply: %w", err)
+			}
+			return nil
 		}
 		// The channel's newest message, and the author has of course read it.
 		if err := qtx.SetChannelLastMessage(ctx, dbgen.SetChannelLastMessageParams{ID: channel.ID, LastMessageID: &row.ID}); err != nil {
@@ -151,6 +179,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: msg},
 	}))
+	if threadRoot != nil {
+		s.publishThreadChanged(ctx, channel, participants, thread)
+	}
 	s.recordActivity(ctx, row, channel, participants, parent, mentioned, msg.Author, attachments)
 	if s.unfurler != nil {
 		s.unfurlLater(row.ID, userID, channel.ID, linksToFetch)
@@ -169,10 +200,15 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	}
 
 	limit := clampPageSize(req.Msg.Limit, defaultPageSize, maxPageSize)
+	page, err := s.pagerFor(ctx, channel, req.Msg.ThreadId)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		rows               []dbgen.MessageWithReply
 		hasOlder, hasNewer bool
+		openThread         string
 	)
 	switch {
 	case req.Msg.BeforeId != "" && req.Msg.AfterId != "",
@@ -182,9 +218,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 
 	case req.Msg.AfterId != "":
 		// Forward paging: the oldest `limit` messages newer than after_id.
-		after, err := s.q.ListMessagesAfter(ctx, dbgen.ListMessagesAfterParams{
-			ChannelID: req.Msg.ChannelId, AfterID: req.Msg.AfterId, Limit: limit,
-		})
+		after, err := page.after(req.Msg.AfterId, false, limit)
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
@@ -192,22 +226,28 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 		hasOlder, hasNewer = true, int32(len(after)) == limit
 
 	case req.Msg.AroundId != "":
-		// A window centred on one message, which must be in this channel.
+		// A window centred on one message, which must be in this channel
+		// (or this thread). A reply that shows only in its thread centres
+		// the channel on its root and names the thread to open.
 		target, err := s.q.GetMessage(ctx, req.Msg.AroundId)
-		if err != nil || target.ChannelID != req.Msg.ChannelId {
+		centre := req.Msg.AroundId
+		switch {
+		case err != nil || target.ChannelID != req.Msg.ChannelId:
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("message not found"))
+		case page.holds(target):
+		case req.Msg.ThreadId == "" && target.ThreadRootID != nil:
+			openThread = *target.ThreadRootID
+			centre = openThread
+		default:
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("message not found"))
 		}
 		older := limit / 2
 		newer := limit - older // includes the target itself
-		before, err := s.q.ListMessagesBefore(ctx, dbgen.ListMessagesBeforeParams{
-			ChannelID: req.Msg.ChannelId, BeforeID: &req.Msg.AroundId, Limit: older,
-		})
+		before, err := page.before(&centre, older)
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
-		after, err := s.q.ListMessagesAfter(ctx, dbgen.ListMessagesAfterParams{
-			ChannelID: req.Msg.ChannelId, AfterID: req.Msg.AroundId, Inclusive: true, Limit: newer,
-		})
+		after, err := page.after(centre, true, newer)
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
@@ -221,9 +261,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 			before = &req.Msg.BeforeId
 		}
 		var err error
-		rows, err = s.q.ListMessagesBefore(ctx, dbgen.ListMessagesBeforeParams{
-			ChannelID: req.Msg.ChannelId, BeforeID: before, Limit: limit,
-		})
+		rows, err = page.before(before, limit)
 		if err != nil {
 			return nil, fmt.Errorf("list messages: %w", err)
 		}
@@ -236,8 +274,45 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 		return nil, err
 	}
 	return connect.NewResponse(&chatv1.ListMessagesResponse{
-		Messages: messages, HasOlder: hasOlder, HasNewer: hasNewer,
+		Messages: messages, HasOlder: hasOlder, HasNewer: hasNewer, ThreadRootId: openThread,
 	}), nil
+}
+
+// pager pages one timeline: a channel's, or one thread's replies.
+type pager struct {
+	before func(beforeID *string, limit int32) ([]dbgen.MessageWithReply, error)
+	after  func(afterID string, inclusive bool, limit int32) ([]dbgen.MessageWithReply, error)
+	holds  func(messageRow) bool
+}
+
+// pagerFor is the channel's timeline, or the thread under rootID when it
+// is set; a root that is not a top-level message in the channel is
+// NotFound, like a message that does not exist.
+func (s *Service) pagerFor(ctx context.Context, channel dbgen.Channel, rootID string) (pager, error) {
+	if rootID == "" {
+		return pager{
+			before: func(beforeID *string, limit int32) ([]dbgen.MessageWithReply, error) {
+				return s.q.ListMessagesBefore(ctx, dbgen.ListMessagesBeforeParams{ChannelID: channel.ID, BeforeID: beforeID, Limit: limit})
+			},
+			after: func(afterID string, inclusive bool, limit int32) ([]dbgen.MessageWithReply, error) {
+				return s.q.ListMessagesAfter(ctx, dbgen.ListMessagesAfterParams{ChannelID: channel.ID, AfterID: afterID, Inclusive: inclusive, Limit: limit})
+			},
+			holds: func(m messageRow) bool { return m.InChannel },
+		}, nil
+	}
+	root, err := s.q.GetMessage(ctx, rootID)
+	if err != nil || root.ChannelID != channel.ID || root.ThreadRootID != nil {
+		return pager{}, connect.NewError(connect.CodeNotFound, errors.New("thread not found"))
+	}
+	return pager{
+		before: func(beforeID *string, limit int32) ([]dbgen.MessageWithReply, error) {
+			return s.q.ListThreadBefore(ctx, dbgen.ListThreadBeforeParams{RootID: root.ID, BeforeID: beforeID, Limit: limit})
+		},
+		after: func(afterID string, inclusive bool, limit int32) ([]dbgen.MessageWithReply, error) {
+			return s.q.ListThreadAfter(ctx, dbgen.ListThreadAfterParams{RootID: root.ID, AfterID: afterID, Inclusive: inclusive, Limit: limit})
+		},
+		holds: func(m messageRow) bool { return m.ThreadRootID != nil && *m.ThreadRootID == root.ID },
+	}, nil
 }
 
 // messageRow is a messages row without its search vector, which the
@@ -251,20 +326,29 @@ func listedMessage(row dbgen.MessageWithReply) messageRow {
 		ID: row.ID, ChannelID: row.ChannelID, AuthorID: row.AuthorID, Content: row.Content,
 		CreatedAt: row.CreatedAt, MentionsEveryone: row.MentionsEveryone,
 		ReplyToMessageID: row.ReplyToMessageID, MentionsHere: row.MentionsHere, EditedAt: row.EditedAt,
+		ThreadRootID: row.ThreadRootID, InChannel: row.InChannel, DeletedAt: row.DeletedAt,
 	}
 }
 
 // hydrateMessages turns rows into protos, in the same order, with authors,
-// mentions, reactions, attachments, link previews and reply quotes.
+// mentions, reactions, attachments, link previews, reply quotes and
+// thread summaries.
 func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.MessageWithReply) ([]*chatv1.Message, error) {
 	authorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}
+	addAuthor := func(id string) {
+		if id != "" && !seen[id] {
+			seen[id] = true
+			authorIDs = append(authorIDs, id)
+		}
+	}
 	for _, row := range rows {
-		for _, id := range []*string{&row.AuthorID, row.ReplyAuthorID} {
-			if id != nil && *id != "" && !seen[*id] {
-				seen[*id] = true
-				authorIDs = append(authorIDs, *id)
-			}
+		addAuthor(row.AuthorID)
+		if row.ReplyAuthorID != nil {
+			addAuthor(*row.ReplyAuthorID)
+		}
+		for _, id := range row.ThreadRecentAuthorIds {
+			addAuthor(id)
 		}
 	}
 	authors, err := s.resolveAuthors(ctx, authorIDs)
@@ -314,6 +398,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		message.Attachments = attachments[row.ID]
 		message.LinkPreviews = previews[row.ID]
 		message.Pinned = pinned[row.ID]
+		message.Thread = toProtoThread(row.ThreadReplyCount, row.ThreadLastReplyAt, row.ThreadRecentAuthorIds, authors)
 		if row.ReplyToMessageID != nil {
 			var author *chatv1.MessageAuthor
 			if row.ReplyAuthorID != nil {
@@ -477,6 +562,10 @@ func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, me
 		Content: row.Content, CreatedAt: timestamppb.New(row.CreatedAt),
 		MentionUserIds: mentions, SpaceId: spaceID,
 		MentionsEveryone: row.MentionsEveryone, MentionsHere: row.MentionsHere,
+		InChannel: row.InChannel, Deleted: row.DeletedAt != nil,
+	}
+	if row.ThreadRootID != nil {
+		out.ThreadRootId = *row.ThreadRootID
 	}
 	out.EditedAt = pbtime.OrNil(row.EditedAt)
 	return out
