@@ -12,10 +12,11 @@ import {
 import { channelsQuery } from "./queries";
 import {
   leaveVoice,
+  mute,
   toggleCamera,
   toggleDeafen,
-  toggleMute,
   toggleScreenShare,
+  unmute,
 } from "./voice";
 
 // Keeps the desktop shell's strip, popover and tray in step with this
@@ -81,10 +82,10 @@ function act(
         show(voice.connection.spaceId, voice.connection.channelId);
       break;
     case "mute":
-      if (!voice.muted) void toggleMute();
+      mute();
       break;
     case "unmute":
-      if (voice.muted) void toggleMute();
+      unmute();
       break;
     case "deafen":
       if (!voice.deafened) void toggleDeafen();
