@@ -53,7 +53,8 @@ export interface Hold {
 
 // The hold, apart from the mic it drives. A press only takes hold when
 // you are muted, so the key never mutes a mic you opened yourself. A
-// press inside the release tail carries on the same hold.
+// press inside the release tail carries on the same hold, unmuting again
+// if the mic went quiet meanwhile (a refused unmute, a click on Mute).
 export function createHold(talk: Talk, tailMs = RELEASE_TAIL_MS): Hold {
   let held = false;
   let tail: ReturnType<typeof setTimeout> | null = null;
@@ -64,6 +65,7 @@ export function createHold(talk: Talk, tailMs = RELEASE_TAIL_MS): Hold {
         clearTimeout(tail);
         tail = null;
         held = true;
+        if (talk.muted()) talk.unmute();
         return;
       }
       if (!talk.muted()) return;

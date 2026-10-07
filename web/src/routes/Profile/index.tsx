@@ -31,9 +31,10 @@ import { VoiceSoundsSection } from "./VoiceSoundsSection";
 //
 // Inside the desktop app, Appearance and — once the app has its own do not
 // disturb switch — Notifications are set in its App settings and not
-// offered here. Voice holds only the page's push to talk listener, which
-// does not run inside the desktop app, so it is not offered there either. That is decided by what the bridge hands over, never by
-// "is this the desktop app".
+// offered here. That is decided by what the bridge hands over, never by
+// "is this the desktop app". Voice is the exception: it holds only the
+// page's push to talk listener, which never runs inside the desktop app
+// (the app listens for the key itself), so it is hidden by isDesktop().
 
 type Tab =
   | "profile"

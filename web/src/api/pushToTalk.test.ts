@@ -103,6 +103,18 @@ describe("createHold", () => {
     expect(calls).toEqual(["unmute", "mute"]);
   });
 
+  it("unmutes again when pressed inside the tail after the mic went quiet", () => {
+    const h = hold();
+    h.press();
+    h.release();
+    muted = true; // the unmute was refused, or Mute was clicked
+    h.press();
+    expect(calls).toEqual(["unmute", "unmute"]);
+    h.release();
+    vi.advanceTimersByTime(RELEASE_TAIL_MS);
+    expect(calls).toEqual(["unmute", "unmute", "mute"]);
+  });
+
   it("mutes when stopped mid-hold or mid-tail, and not after", () => {
     const h = hold();
     h.press();
