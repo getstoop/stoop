@@ -3,12 +3,14 @@ import { Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { type ActivityData, alertingCount } from "../api/activity";
 import { captureState, isCapturing, tabTitle } from "../api/capture";
-import { setBadge, shellOwnsVoiceKeys } from "../api/platform";
+import { isDesktop, setBadge, shellOwnsVoiceKeys } from "../api/platform";
+import { usePushToTalkStore } from "../api/pushToTalk";
 import { useInstanceStatus } from "../api/queries";
 import { toggleDeafen, toggleMute } from "../api/voice";
 import { DialogHost } from "../components/DialogHost";
 import { LinkGate } from "../components/LinkGate";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
+import { usePushToTalk } from "../hooks/usePushToTalk";
 import { useShortcut, useShortcutListener } from "../hooks/useShortcut";
 import { useVoiceStore } from "../stores/voice";
 
@@ -24,6 +26,11 @@ export function Root() {
   const inVoice = useVoiceStore((s) => !!s.connection) && !shellOwnsVoiceKeys();
   useShortcut("toggleMute", toggleMute, inVoice);
   useShortcut("toggleDeafen", toggleDeafen, inVoice);
+  // The page's own listener is for a browser. Inside the desktop app the
+  // shell listens instead, and calls the same mute and unmute.
+  const pushToTalk = usePushToTalkStore((s) => s.enabled) && !isDesktop();
+  const inCall = useVoiceStore((s) => !!s.connection);
+  usePushToTalk(pushToTalk && inCall);
   // index.html's static <title>Stoop</title> is the pre-paint fallback;
   // this takes over once the instance status has loaded, everywhere in
   // the app. It watches the cache rather than useInstanceStatus's data:

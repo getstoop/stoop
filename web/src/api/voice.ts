@@ -422,6 +422,17 @@ export async function toggleMute() {
   reportVoiceState();
 }
 
+// Requests for a state rather than toggles: a request that arrives
+// after the state already changed does nothing. The desktop shell's
+// voice actions and push to talk both come through these.
+export function mute() {
+  if (!useVoiceStore.getState().muted) void toggleMute();
+}
+
+export function unmute() {
+  if (useVoiceStore.getState().muted) void toggleMute();
+}
+
 export async function toggleDeafen() {
   const store = useVoiceStore.getState();
   const deafened = !store.deafened;

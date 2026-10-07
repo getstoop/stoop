@@ -331,6 +331,23 @@ leave half runs while `switching` is set and asks for nothing.
 The truth table and the window are unit-tested (`api/voiceCues.test.ts`);
 the sound itself is checked by ear on the dev server.
 
+## Push to talk
+
+A key listener, on or off (Account → Voice, kept in this browser as
+`stoop.pushToTalk`). While it is on and you are in a call:
+
+- **Muted, holding Ctrl+` unmutes you; letting go mutes you** 50 ms
+  later, so the last syllable is not clipped.
+- **Not muted, the key does nothing**, so it never mutes a mic you
+  opened yourself.
+- **It makes the same `unmute` and `mute` calls as everything else**
+  (`api/voice.ts`, which the desktop shell's voice actions also use), so
+  it inherits what they do: unmuting undeafens.
+- **It only works while Stoop has focus.** A page gets no keys otherwise.
+- **Inside the desktop app the page does not listen**, and the Voice tab
+  is not offered: the shell will hold the key itself, from any app, and
+  send the same `unmute` and `mute` voice actions.
+
 ## Presence in a voice channel
 
 Who is in which voice channel is **client-reported** over the gateway
