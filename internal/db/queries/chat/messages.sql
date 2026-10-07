@@ -69,19 +69,34 @@ UPDATE channels c
 SET last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id AND m.in_channel ORDER BY m.id DESC LIMIT 1)
 WHERE c.id = $1;
 
--- Message retention: messages older than the cutoff id (UUIDv7, so id
--- order is time order), less pinned ones, oldest first.
+-- Message retention: top-level messages older than the cutoff id
+-- (UUIDv7, so id order is time order), less pinned ones, oldest first. A
+-- thread goes by its root's age, so replies are never listed: deleting
+-- the root takes them, however recent.
 -- name: ListExpiredMessages :many
 SELECT m.id, m.channel_id FROM messages m
 WHERE m.id < sqlc.arg(cutoff)::uuid
+  AND m.thread_root_id IS NULL
   AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id)
 ORDER BY m.id
 LIMIT sqlc.arg('limit');
 
+-- CountExpiredMessages is what the sweep would delete: the expired roots
+-- and every reply under them.
 -- name: CountExpiredMessages :one
-SELECT count(*)::bigint FROM messages m
-WHERE m.id < sqlc.arg(cutoff)::uuid
-  AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id);
+WITH expired AS (
+    SELECT m.id FROM messages m
+    WHERE m.id < sqlc.arg(cutoff)::uuid
+      AND m.thread_root_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id)
+)
+SELECT ((SELECT count(*) FROM expired)
+    + (SELECT count(*) FROM messages r WHERE r.thread_root_id IN (SELECT id FROM expired)))::bigint;
+
+-- CountRepliesUnder counts the replies the cascade will take with these
+-- roots.
+-- name: CountRepliesUnder :one
+SELECT count(*)::bigint FROM messages WHERE thread_root_id = ANY(sqlc.arg(ids)::uuid[]);
 
 -- name: DeleteMessagesByIDs :exec
 DELETE FROM messages WHERE id = ANY(sqlc.arg(ids)::uuid[]);

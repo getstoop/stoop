@@ -376,12 +376,15 @@ liveness rule — is in [realtime.md](realtime.md#history-windows).
 `message_retention_days` is an instance setting (0 = forever), read
 through chat's `InstancePolicy`. `internal/chat/retention_sweep.go` runs
 hourly and deletes messages older than the period, pinned ones excepted,
-DMs included. Message ids are UUIDv7, so "older than" is a primary-key
+DMs included. A thread goes by its root's age: an expired root takes
+every reply under it, however recent, since half a thread makes no sense
+on its own, and nothing is kept past the period. A pinned root keeps its
+thread. Replies are never swept on their own age. Message ids are UUIDv7, so "older than" is a primary-key
 range below the smallest id for the cutoff instant (`cutoffID`), with no
 extra index.
 
-Each batch of 1000 lists the messages' attachment files, deletes the
-messages, recomputes `last_message_id` for the channels touched, and
+Each batch of 1000 lists the attachment files of the messages and their
+replies, deletes the messages, recomputes `last_message_id` for the channels touched, and
 deletes the files through the port. Foreign keys do the rest: mentions,
 reactions, attachment links, link rows, pins and activity items cascade,
 and a reply's `reply_to_message_id` goes `NULL`. Read markers have no
