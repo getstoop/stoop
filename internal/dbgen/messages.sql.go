@@ -11,13 +11,33 @@ import (
 )
 
 const countExpiredMessages = `-- name: CountExpiredMessages :one
-SELECT count(*)::bigint FROM messages m
-WHERE m.id < $1::uuid
-  AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id)
+WITH expired AS (
+    SELECT m.id FROM messages m
+    WHERE m.id < $1::uuid
+      AND m.thread_root_id IS NULL
+      AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id)
+)
+SELECT ((SELECT count(*) FROM expired)
+    + (SELECT count(*) FROM messages r WHERE r.thread_root_id IN (SELECT id FROM expired)))::bigint
 `
 
+// CountExpiredMessages is what the sweep would delete: the expired roots
+// and every reply under them.
 func (q *Queries) CountExpiredMessages(ctx context.Context, cutoff string) (int64, error) {
 	row := q.db.QueryRow(ctx, countExpiredMessages, cutoff)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countRepliesUnder = `-- name: CountRepliesUnder :one
+SELECT count(*)::bigint FROM messages WHERE thread_root_id = ANY($1::uuid[])
+`
+
+// CountRepliesUnder counts the replies the cascade will take with these
+// roots.
+func (q *Queries) CountRepliesUnder(ctx context.Context, ids []string) (int64, error) {
+	row := q.db.QueryRow(ctx, countRepliesUnder, ids)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -205,6 +225,7 @@ func (q *Queries) InsertMessageMentions(ctx context.Context, arg InsertMessageMe
 const listExpiredMessages = `-- name: ListExpiredMessages :many
 SELECT m.id, m.channel_id FROM messages m
 WHERE m.id < $1::uuid
+  AND m.thread_root_id IS NULL
   AND NOT EXISTS (SELECT 1 FROM channel_pins p WHERE p.message_id = m.id)
 ORDER BY m.id
 LIMIT $2
@@ -220,8 +241,10 @@ type ListExpiredMessagesRow struct {
 	ChannelID string
 }
 
-// Message retention: messages older than the cutoff id (UUIDv7, so id
-// order is time order), less pinned ones, oldest first.
+// Message retention: top-level messages older than the cutoff id
+// (UUIDv7, so id order is time order), less pinned ones, oldest first. A
+// thread goes by its root's age, so replies are never listed: deleting
+// the root takes them, however recent.
 func (q *Queries) ListExpiredMessages(ctx context.Context, arg ListExpiredMessagesParams) ([]ListExpiredMessagesRow, error) {
 	rows, err := q.db.Query(ctx, listExpiredMessages, arg.Cutoff, arg.Limit)
 	if err != nil {

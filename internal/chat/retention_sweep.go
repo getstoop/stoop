@@ -14,7 +14,8 @@ import (
 
 // Message retention: messages older than the instance's
 // message_retention_days go, pinned ones excepted, with everything that
-// cascades from a message and their attachments' files. No events are
+// cascades from a message and their attachments' files. A thread goes by
+// its root's age, replies and all. No events are
 // published; clients see the gap on their next load. See
 // docs/architecture/messaging.md#message-retention.
 
@@ -75,14 +76,18 @@ func (s *Service) SweepMessages(ctx context.Context, now time.Time) (int64, erro
 			ids[i] = r.ID
 			channels[r.ChannelID] = true
 		}
-		fileIDs, err := s.q.ListAttachmentFileIDsForMessages(ctx, ids)
+		fileIDs, err := s.q.ListThreadFileIDsForRoots(ctx, ids)
 		if err != nil {
 			return removed, fmt.Errorf("list expired attachments: %w", err)
+		}
+		replies, err := s.q.CountRepliesUnder(ctx, ids)
+		if err != nil {
+			return removed, fmt.Errorf("count expired replies: %w", err)
 		}
 		if err := s.q.DeleteMessagesByIDs(ctx, ids); err != nil {
 			return removed, fmt.Errorf("delete expired messages: %w", err)
 		}
-		removed += int64(len(ids))
+		removed += int64(len(ids)) + replies
 		for id := range channels {
 			if err := s.q.RecomputeChannelLastMessage(ctx, id); err != nil {
 				return removed, fmt.Errorf("recompute last message: %w", err)

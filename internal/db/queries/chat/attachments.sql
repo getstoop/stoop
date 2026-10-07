@@ -14,8 +14,12 @@ ORDER BY message_id, position;
 -- name: ListAttachmentFileIDsForMessage :many
 SELECT file_id FROM message_attachments WHERE message_id = $1 ORDER BY position;
 
--- name: ListAttachmentFileIDsForMessages :many
-SELECT file_id FROM message_attachments WHERE message_id = ANY(sqlc.arg(ids)::uuid[]);
+-- ListThreadFileIDsForRoots lists the files of these messages and of every
+-- reply under them, for the retention sweep.
+-- name: ListThreadFileIDsForRoots :many
+SELECT a.file_id FROM message_attachments a
+JOIN messages m ON m.id = a.message_id
+WHERE m.id = ANY(sqlc.arg(ids)::uuid[]) OR m.thread_root_id = ANY(sqlc.arg(ids)::uuid[]);
 
 -- PinnedAttachmentFileIDs: files attached to pinned messages, which
 -- attachment retention keeps. Pins are capped per channel, so the list

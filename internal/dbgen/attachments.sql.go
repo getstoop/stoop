@@ -80,30 +80,6 @@ func (q *Queries) ListAttachmentFileIDsForMessage(ctx context.Context, messageID
 	return items, nil
 }
 
-const listAttachmentFileIDsForMessages = `-- name: ListAttachmentFileIDsForMessages :many
-SELECT file_id FROM message_attachments WHERE message_id = ANY($1::uuid[])
-`
-
-func (q *Queries) ListAttachmentFileIDsForMessages(ctx context.Context, ids []string) ([]string, error) {
-	rows, err := q.db.Query(ctx, listAttachmentFileIDsForMessages, ids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var file_id string
-		if err := rows.Scan(&file_id); err != nil {
-			return nil, err
-		}
-		items = append(items, file_id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listAttachmentsForMessages = `-- name: ListAttachmentsForMessages :many
 SELECT message_id, file_id, position FROM message_attachments
 WHERE message_id = ANY($1::uuid[])
@@ -123,6 +99,34 @@ func (q *Queries) ListAttachmentsForMessages(ctx context.Context, dollar_1 []str
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listThreadFileIDsForRoots = `-- name: ListThreadFileIDsForRoots :many
+SELECT a.file_id FROM message_attachments a
+JOIN messages m ON m.id = a.message_id
+WHERE m.id = ANY($1::uuid[]) OR m.thread_root_id = ANY($1::uuid[])
+`
+
+// ListThreadFileIDsForRoots lists the files of these messages and of every
+// reply under them, for the retention sweep.
+func (q *Queries) ListThreadFileIDsForRoots(ctx context.Context, ids []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listThreadFileIDsForRoots, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var file_id string
+		if err := rows.Scan(&file_id); err != nil {
+			return nil, err
+		}
+		items = append(items, file_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
