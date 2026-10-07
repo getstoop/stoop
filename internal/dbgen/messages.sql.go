@@ -137,7 +137,7 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, err
 }
 
 const getMessageWithReply = `-- name: GetMessageWithReply :one
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
 WHERE m.id = $1
 `
 
@@ -159,6 +159,12 @@ func (q *Queries) GetMessageWithReply(ctx context.Context, id string) (MessageWi
 		&i.ReplyAuthorID,
 		&i.ReplyContent,
 		&i.ReplyFirstFileID,
+		&i.ThreadRootID,
+		&i.InChannel,
+		&i.DeletedAt,
+		&i.ThreadReplyCount,
+		&i.ThreadLastReplyAt,
+		&i.ThreadRecentAuthorIds,
 	)
 	return i, err
 }
@@ -245,7 +251,7 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 }
 
 const listMessagesAfter = `-- name: ListMessagesAfter :many
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
 WHERE m.channel_id = $1
   AND (m.id > $3::uuid OR ($4::bool AND m.id = $3::uuid))
 ORDER BY m.id ASC
@@ -288,6 +294,12 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 			&i.ReplyAuthorID,
 			&i.ReplyContent,
 			&i.ReplyFirstFileID,
+			&i.ThreadRootID,
+			&i.InChannel,
+			&i.DeletedAt,
+			&i.ThreadReplyCount,
+			&i.ThreadLastReplyAt,
+			&i.ThreadRecentAuthorIds,
 		); err != nil {
 			return nil, err
 		}
@@ -300,7 +312,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 }
 
 const listMessagesBefore = `-- name: ListMessagesBefore :many
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
 WHERE m.channel_id = $1
   AND ($3::uuid IS NULL OR m.id < $3::uuid)
 ORDER BY m.id DESC
@@ -337,6 +349,12 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 			&i.ReplyAuthorID,
 			&i.ReplyContent,
 			&i.ReplyFirstFileID,
+			&i.ThreadRootID,
+			&i.InChannel,
+			&i.DeletedAt,
+			&i.ThreadReplyCount,
+			&i.ThreadLastReplyAt,
+			&i.ThreadRecentAuthorIds,
 		); err != nil {
 			return nil, err
 		}

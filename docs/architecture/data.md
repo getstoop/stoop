@@ -127,7 +127,7 @@ unmuted; channel mutes are left alone and go when the channel does.
 
 **`messages`** — `channel_id`, `author_id`, `content`, `created_at`,
 `edited_at`, `reply_to_message_id`, `mentions_everyone`, `mentions_here`,
-and `search`, a stored column Postgres generates from `content`
+`thread_root_id`, `in_channel`, `deleted_at`, and `search`, a stored column Postgres generates from `content`
 (`to_tsvector('simple', content)`) for message search. The index that
 matters for history:
 
@@ -140,8 +140,24 @@ timestamp ordering because ids are UUIDv7 — see below. Search reads the
 GIN index on `search` instead
 ([messaging.md](messaging.md#search)).
 
+Threads add three columns. `thread_root_id` points a reply at its root,
+`ON DELETE CASCADE`, so really deleting a root takes its replies; a root
+deleted while it has replies is kept as a placeholder with `deleted_at`
+set instead. `in_channel` says whether a row shows in the channel's
+timeline: true for every top-level message, false for a reply that stays
+in its thread, and a `CHECK` refuses false without a root.
+`messages_channel_timeline_idx` is `(channel_id, id DESC) WHERE
+in_channel` and `messages_thread_idx` is `(thread_root_id, id DESC)`, so
+a channel page and a thread page are each one range scan.
+
+**`threads`** — one row per root with replies: `reply_count`,
+`last_reply_id`, `last_reply_at` and `recent_author_ids`, the summary
+under the root, kept by the send and delete paths so a page of history
+needs no count per message. It goes with its root.
+
 **`message_with_reply`** is a view: every `messages` column but `search`,
-plus the replied-to message's author, content and first attachment.
+plus the replied-to message's author, content and first attachment, and
+its own thread summary from `threads`.
 Queries that hand a message to a client read it
 ([messaging.md](messaging.md#search)). Postgres refuses to drop or retype
 a column a view reads, so a migration that does either recreates the view
@@ -355,13 +371,15 @@ What it forbids: a contract migration that assumes release N's code ran
 for a while and cleaned something up. If N+1 drops a column, the migration
 that drops it carries whatever copy N's code would have made.
 
-**A long migration resumes.** The compose health check gives startup
+**A long migration may run twice.** The compose health check gives startup
 twenty seconds, and a container killed in the middle of a migration comes
 back and runs it again. A migration that could take longer than that on a
-large install, a rewrite of `messages` or an index over all of it, goes
-in a `-- +goose NO TRANSACTION` file using `CONCURRENTLY` and `IF NOT
-EXISTS`, so the second run picks up where the first stopped. Small DDL
-stays transactional, which is what makes it atomic.
+large install, a rewrite of `messages`, needs a plan for being run
+again from the start. An index over all of `messages` is not one: a
+plain build took a third of a second per million rows on a laptop, and
+nothing else writes during migration. `CONCURRENTLY` is not an option:
+it waits for every open transaction, including a second instance queued
+behind the migration lock, so the two wait on each other forever.
 
 A **patch release carries no migrations.** A fix that needs the schema
 ships as a minor ([releasing.md → Versions](../releasing.md#versions)).
