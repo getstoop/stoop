@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { isAnnouncement } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import {
@@ -11,13 +11,15 @@ import {
 import { errorText } from "../../api/errors";
 import { canDeleteAnyMessage, canPost } from "../../api/permissions";
 import {
+  useInstanceStatus,
   useMe,
   useMessages,
   useSpaces,
   useThreadRoot,
 } from "../../api/queries";
+import { copyShareLink, shareUrl, threadPath } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
-import { TrashIcon } from "../../components/Icons";
+import { CheckIcon, LinkIcon, TrashIcon } from "../../components/Icons";
 import { useCloseSidePanel } from "../../components/SidePanel/context";
 import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
@@ -50,6 +52,14 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   const where = isDM ? channelName : `#${channelName}`;
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { data: instanceStatus } = useInstanceStatus();
+  // The tick that stands in for the link icon once the link is copied.
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   const rootMessage = root.data?.[0];
   // A space that has gone leaves its queries as they were: the spaces
@@ -100,17 +110,34 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
       title="Thread"
       subtitle={where}
       actions={
-        canModerate && (
+        <>
           <button
             type="button"
-            className="icon-button danger"
-            onClick={deleteThread}
-            title="Delete thread"
-            aria-label="Delete thread"
+            className="icon-button"
+            onClick={async () => {
+              const link = shareUrl(
+                threadPath(spaceId, channelId, rootId),
+                instanceStatus?.publicUrl,
+              );
+              if (await copyShareLink(link)) setCopied(true);
+            }}
+            title={copied ? "Copied!" : "Copy link to thread"}
+            aria-label={copied ? "Link copied" : "Copy link to thread"}
           >
-            <TrashIcon />
+            {copied ? <CheckIcon /> : <LinkIcon />}
           </button>
-        )
+          {canModerate && (
+            <button
+              type="button"
+              className="icon-button danger"
+              onClick={deleteThread}
+              title="Delete thread"
+              aria-label="Delete thread"
+            >
+              <TrashIcon />
+            </button>
+          )}
+        </>
       }
       footer={
         canReply && !rootMessage?.deleted ? (

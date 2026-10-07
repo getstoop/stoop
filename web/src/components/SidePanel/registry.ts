@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { threadFromLink } from "../../api/shareLinks";
 import { ThreadView } from "../../routes/Channel/ThreadView";
 
 // What the side panel can show. A kind of content is one entry: its
@@ -11,9 +12,12 @@ export interface PanelDefinition {
     param: string;
     // Other parameters the link reads, removed with it ("m", the reply).
     also?: string[];
-    // The panel's params from the arriving link's search, or null when the
-    // link doesn't make sense.
-    params: (search: URLSearchParams) => Record<string, string> | null;
+    // The panel's params from the arriving link's search and path, or null
+    // when the link doesn't make sense.
+    params: (
+      search: URLSearchParams,
+      pathname: string,
+    ) => Record<string, string> | null;
   };
 }
 
@@ -21,5 +25,8 @@ export type PanelRegistry = Record<string, PanelDefinition>;
 
 // Content lives with its feature; the registry only names it.
 export const panels: PanelRegistry = {
-  thread: { component: ThreadView },
+  thread: {
+    component: ThreadView,
+    link: { param: "t", also: ["m"], params: threadFromLink },
+  },
 };

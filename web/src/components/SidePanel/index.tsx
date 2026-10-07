@@ -28,15 +28,12 @@ export function SidePanel({ registry = panels }: { registry?: PanelRegistry }) {
 
   // A link that names a panel opens it once, then leaves the address.
   useEffect(() => {
-    const found = panelFromLink(search, registry);
+    const found = panelFromLink(search, pathname, registry);
     if (!found) return;
     show(found.panel);
-    const { pathname, hash } = router.history.location;
-    router.history.replace(
-      `${pathname}${found.search}${hash}`,
-      router.history.location.state,
-    );
-  }, [search, registry, show, router]);
+    const { hash, state } = router.history.location;
+    router.history.replace(`${pathname}${found.search}${hash}`, state);
+  }, [search, pathname, registry, show, router]);
 
   const definition = open ? registry[open.kind] : undefined;
 

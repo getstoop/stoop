@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { copyShareLink } from "../../api/shareLinks";
-import { PinIcon } from "../../components/Icons";
+import { LinkIcon, PinIcon } from "../../components/Icons";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 export function MessageActions({
@@ -147,16 +147,6 @@ function ThreadIcon() {
     <svg {...iconProps} aria-hidden="true">
       <path d="M4 5h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
       <path d="M19 9a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2v3l-4-3h-3" />
-    </svg>
-  );
-}
-
-// A chain link: "copy a link to this message".
-function LinkIcon() {
-  return (
-    <svg {...iconProps} aria-hidden="true">
-      <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5" />
-      <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
     </svg>
   );
 }

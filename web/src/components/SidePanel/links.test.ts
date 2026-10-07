@@ -25,25 +25,25 @@ const registry: PanelRegistry = {
 
 describe("panelFromLink", () => {
   it("opens the kind whose parameter the link carries and strips what it read", () => {
-    expect(panelFromLink("?t=r1&m=m2&q=keep", registry)).toEqual({
+    expect(panelFromLink("?t=r1&m=m2&q=keep", "/", registry)).toEqual({
       panel: { kind: "thread", params: { root: "r1", focus: "m2" } },
       search: "?q=keep",
     });
   });
 
   it("leaves an empty search when nothing else was there", () => {
-    expect(panelFromLink("?t=r1", registry)).toEqual({
+    expect(panelFromLink("?t=r1", "/", registry)).toEqual({
       panel: { kind: "thread", params: { root: "r1" } },
       search: "",
     });
   });
 
   it("ignores a link that names no panel", () => {
-    expect(panelFromLink("?m=m2", registry)).toBeNull();
-    expect(panelFromLink("", registry)).toBeNull();
+    expect(panelFromLink("?m=m2", "/", registry)).toBeNull();
+    expect(panelFromLink("", "/", registry)).toBeNull();
   });
 
   it("opens nothing when the kind refuses the link", () => {
-    expect(panelFromLink("?t=", registry)).toBeNull();
+    expect(panelFromLink("?t=", "/", registry)).toBeNull();
   });
 });

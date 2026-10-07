@@ -19,7 +19,8 @@ export function sharedLinkKind(
   search: string,
 ): SharedLinkKind {
   const seg = pathname.split("/").filter((s) => s !== "");
-  const toMessage = new URLSearchParams(search).has("m");
+  const query = new URLSearchParams(search);
+  const toMessage = query.has("m") || query.has("t");
   if (seg.length === 2 && seg[0] === "join") return "invite";
   if (seg[0] === "s") {
     if (seg.length === 2) return "space";
@@ -43,6 +44,52 @@ export function messagePath(
   messageId: string,
 ): string {
   return `${channelPath(spaceId, channelId)}?m=${encodeURIComponent(messageId)}`;
+}
+
+// The search that opens a message where it shows: the channel around it,
+// and for a reply in a thread, that thread as well.
+export function messageSearch(
+  messageId: string,
+  threadRootId?: string,
+): { m?: string; t?: string } {
+  if (!messageId) return {};
+  return threadRootId ? { t: threadRootId, m: messageId } : { m: messageId };
+}
+
+// ?t= opens a thread in the side panel; ?m= with it lands on one reply.
+export function threadPath(
+  spaceId: string,
+  channelId: string,
+  rootId: string,
+  messageId?: string,
+): string {
+  const query = new URLSearchParams({ t: rootId });
+  if (messageId && messageId !== rootId) query.set("m", messageId);
+  return `${channelPath(spaceId, channelId)}?${query}`;
+}
+
+// The thread a link names: its channel from the path, its root from ?t=,
+// and the reply to land on from ?m=. Null for a path that isn't a channel.
+export function threadFromLink(
+  search: URLSearchParams,
+  pathname: string,
+): Record<string, string> | null {
+  const rootId = search.get("t");
+  const seg = pathname.split("/").filter((s) => s !== "");
+  let spaceId: string;
+  let channelId: string;
+  if (seg.length === 4 && seg[0] === "s" && seg[2] === "c") {
+    [, spaceId, , channelId] = seg;
+  } else if (seg.length === 2 && seg[0] === "dm") {
+    [spaceId, channelId] = ["", seg[1]];
+  } else {
+    return null;
+  }
+  if (!rootId) return null;
+  const params: Record<string, string> = { spaceId, channelId, rootId };
+  const focusId = search.get("m");
+  if (focusId) params.focusId = focusId;
+  return params;
 }
 
 export function spacePath(spaceId: string): string {

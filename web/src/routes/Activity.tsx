@@ -6,6 +6,7 @@ import { activityVerb, markActivityRead } from "../api/activity";
 import { chatClient } from "../api/clients";
 import { dayLabel, fullDateTime, sameDay } from "../api/dates";
 import { useActivity, useChannels, useSpaces } from "../api/queries";
+import { messageSearch } from "../api/shareLinks";
 import { Avatar } from "../components/Avatar";
 import { DeletedMark } from "../components/DeletedMark";
 import { MenuButton } from "../components/MenuButton";
@@ -122,13 +123,13 @@ function ActivityRow({ item }: { item: ActivityItem }) {
       navigate({
         to: "/s/$spaceId/c/$channelId",
         params: { spaceId: item.spaceId, channelId: item.channelId },
-        search: item.messageId ? { m: item.messageId } : {},
+        search: messageSearch(item.messageId, item.threadRootId),
       });
     } else {
       navigate({
         to: "/dm/$channelId",
         params: { channelId: item.channelId },
-        search: item.messageId ? { m: item.messageId } : {},
+        search: messageSearch(item.messageId, item.threadRootId),
       });
     }
   };

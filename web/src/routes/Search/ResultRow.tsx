@@ -2,6 +2,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useNavigate } from "@tanstack/react-router";
 import { fullDateTime, shortDateTime } from "../../api/dates";
 import { useChannels, useMe } from "../../api/queries";
+import { messageSearch } from "../../api/shareLinks";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -37,7 +38,7 @@ export function ResultRow({
         navigate({
           to: "/s/$spaceId/c/$channelId",
           params: { spaceId, channelId: message.channelId },
-          search: { m: message.id },
+          search: messageSearch(message.id, message.threadRootId),
         })
       }
     >

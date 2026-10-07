@@ -63,13 +63,15 @@ interface HistoryState {
   loadOlder: (queryClient: QueryClient, t: Timeline) => Promise<number>;
   // Append the page after the window's newest message.
   loadNewer: (queryClient: QueryClient, t: Timeline) => Promise<number>;
-  // Replace the window with one centred on messageId; false if it isn't
-  // in the timeline (deleted, or a bogus link).
+  // Replace the window with one centred on messageId; found is false if
+  // it isn't in the timeline (deleted, or a bogus link). A reply that
+  // shows only in its thread centres a channel on its root instead and
+  // names the thread to open.
   jumpTo: (
     queryClient: QueryClient,
     t: Timeline,
     messageId: string,
-  ) => Promise<boolean>;
+  ) => Promise<{ found: boolean; threadRootId?: string }>;
   // Replace a non-live window with the newest page.
   jumpToLatest: (queryClient: QueryClient, t: Timeline) => Promise<void>;
   // A message was created while the window isn't live.
@@ -199,11 +201,11 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
             limit: HISTORY_PAGE,
           }),
         );
-        if (!first) return false;
+        if (!first) return { found: false };
         queryClient.setQueryData<Message[]>(timelineKey(t), first.messages);
         get().seed(t, first);
         patch(t, { hasOlder: false, landOn: { id: messageId } });
-        return true;
+        return { found: true };
       }
       const res = await page(t, () =>
         chatClient.listMessages({
@@ -212,11 +214,12 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
           limit: HISTORY_PAGE,
         }),
       );
-      if (!res) return false;
+      if (!res) return { found: false };
       queryClient.setQueryData<Message[]>(timelineKey(t), res.messages);
       get().seed(t, res);
-      patch(t, { landOn: { id: messageId } });
-      return true;
+      const threadRootId = res.threadRootId || undefined;
+      patch(t, { landOn: { id: threadRootId ?? messageId } });
+      return { found: true, threadRootId };
     },
 
     jumpToLatest: async (queryClient, t) => {
