@@ -1,12 +1,27 @@
 import { createContext, useContext } from "react";
 import { useSidePanelStore } from "../../stores/sidePanel";
 
-// How content closes the panel: the container's close, which on a narrow
-// screen also pops the history entry the panel added.
-export const SidePanelClose = createContext<(() => void) | null>(null);
+// What the container hands the frame: how to close (on a narrow screen
+// that also pops the history entry the panel added), and whether the
+// panel is on its way out, animating, with left() to call when it is gone.
+interface PanelControls {
+  close: () => void;
+  leaving: boolean;
+  left: () => void;
+}
+
+export const SidePanelControls = createContext<PanelControls | null>(null);
 
 export function useCloseSidePanel(): () => void {
-  const close = useContext(SidePanelClose);
+  const controls = useContext(SidePanelControls);
   const storeClose = useSidePanelStore((s) => s.close);
-  return close ?? storeClose;
+  return controls?.close ?? storeClose;
+}
+
+export function usePanelLeaving(): { leaving: boolean; left: () => void } {
+  const controls = useContext(SidePanelControls);
+  return {
+    leaving: controls?.leaving ?? false,
+    left: controls?.left ?? (() => {}),
+  };
 }

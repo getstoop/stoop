@@ -1,7 +1,11 @@
 import { useRouter, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { takeOpener, useSidePanelStore } from "../../stores/sidePanel";
-import { SidePanelClose } from "./context";
+import { useCallback, useEffect, useState } from "react";
+import {
+  type OpenPanel,
+  takeOpener,
+  useSidePanelStore,
+} from "../../stores/sidePanel";
+import { SidePanelControls } from "./context";
 import { panelFromLink } from "./links";
 import { useNarrowHistory } from "./narrowHistory";
 import { type PanelRegistry, panels } from "./registry";
@@ -46,11 +50,34 @@ export function SidePanel({ registry = panels }: { registry?: PanelRegistry }) {
     if (opener?.isConnected) opener.focus();
   }, [open]);
 
-  if (!open || !definition) return null;
-  const Content = definition.component;
+  // What is on screen: the open panel, or the one that just closed while
+  // it animates out. Kept during render, so a new panel shows at once.
+  const [last, setLast] = useState<OpenPanel | null>(open);
+  if (open && open !== last) setLast(open);
+  const shown = open ?? last;
+  const leaving = !open && last !== null;
+  const left = useCallback(() => setLast(null), []);
+  // With reduced motion there is no animation to wait for; and if one
+  // never reports its end, it still doesn't stay on screen.
+  useEffect(() => {
+    if (!leaving) return;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      left();
+      return;
+    }
+    const timer = setTimeout(left, LEAVE_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [leaving, left]);
+
+  const showing = shown ? registry[shown.kind] : undefined;
+  if (!shown || !showing) return null;
+  const Content = showing.component;
   return (
-    <SidePanelClose.Provider value={close}>
-      <Content key={JSON.stringify(open)} params={open.params} />
-    </SidePanelClose.Provider>
+    <SidePanelControls.Provider value={{ close, leaving, left }}>
+      <Content key={JSON.stringify(shown)} params={shown.params} />
+    </SidePanelControls.Provider>
   );
 }
+
+// Longer than the exit animation (--dur, 180ms) by a margin.
+const LEAVE_FALLBACK_MS = 500;

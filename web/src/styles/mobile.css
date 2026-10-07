@@ -77,6 +77,27 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+  /* A pushed screen: it comes in from the right edge and goes back out. */
+  .side-panel {
+    animation-name: side-panel-push;
+  }
+
+  .side-panel.leaving {
+    animation-name: side-panel-pop;
+  }
+
+  @keyframes side-panel-push {
+    from {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes side-panel-pop {
+    to {
+      transform: translateX(100%);
+    }
+  }
+
   .side-panel-back {
     display: inline-flex;
   }

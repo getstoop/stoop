@@ -1,4 +1,5 @@
 import {
+  type AnimationEvent,
   type KeyboardEvent,
   type ReactNode,
   useEffect,
@@ -6,7 +7,7 @@ import {
   useRef,
 } from "react";
 import { BackIcon, CloseIcon } from "../Icons";
-import { useCloseSidePanel } from "./context";
+import { useCloseSidePanel, usePanelLeaving } from "./context";
 
 interface Props {
   title: ReactNode;
@@ -20,16 +21,22 @@ interface Props {
 
 // The panel's frame, which every kind of content draws itself in: a
 // header with its title and a Close (Back on a narrow screen, by CSS), a
-// scrolling body and an optional footer. Focus moves to the title when it
-// appears, and Escape closes it while focus is inside.
+// scrolling body and an optional footer. It slides in, and out once
+// closed. Focus moves to the title when it appears, and Escape closes it
+// while focus is inside.
 export function SidePanelFrame({ title, subtitle, footer, children }: Props) {
   const close = useCloseSidePanel();
+  const { leaving, left } = usePanelLeaving();
   const titleId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     heading.current?.focus();
   }, []);
+
+  const onAnimationEnd = (event: AnimationEvent) => {
+    if (leaving && event.target === event.currentTarget) left();
+  };
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape" && !event.defaultPrevented) {
@@ -40,9 +47,10 @@ export function SidePanelFrame({ title, subtitle, footer, children }: Props) {
 
   return (
     <aside
-      className="side-panel"
+      className={leaving ? "side-panel leaving" : "side-panel"}
       aria-labelledby={titleId}
       onKeyDown={onKeyDown}
+      onAnimationEnd={onAnimationEnd}
     >
       <header className="side-panel-header">
         <button

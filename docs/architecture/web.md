@@ -394,6 +394,10 @@ not build its own.
   back to whatever opened it when it closes, and Escape closes it while
   focus is inside. `SidePanelUnavailable` is what content shows when it
   can no longer be read.
+- **It slides in and out.** On close the container keeps the last panel on
+  screen, marked `leaving`, until the frame's exit animation ends (a timer
+  stands in if it never reports, and reduced motion skips it). Replacing
+  the content does not animate.
 - **On a phone it is a screen of its own.** `mobile.css` makes it full
   screen and swaps Close for Back, one DOM as everywhere else.
   `narrowHistory.ts` adds one history entry while it is open, so the

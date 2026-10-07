@@ -11,6 +11,26 @@
   min-height: 0;
   border-left: 1px solid var(--border);
   background: var(--surface);
+  animation: side-panel-in var(--dur) var(--ease);
+}
+
+/* Closed: it slides back out before it leaves the page. */
+.side-panel.leaving {
+  animation: side-panel-out var(--dur) var(--ease) forwards;
+}
+
+@keyframes side-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@keyframes side-panel-out {
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
 }
 
 /* The same height and weight as the channel header beside it. */
