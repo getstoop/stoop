@@ -207,6 +207,56 @@ func TestThreadRefusals(t *testing.T) {
 	}
 }
 
+// Replying in a thread doesn't mark the channel read: the replier's read
+// marker stays where it was, and so does their unread count.
+func TestThreadReplyLeavesReadMarkerAlone(t *testing.T) {
+	pool, _, svc := newTestService(t)
+	ada := newUser(t, pool, "ada", authctx.RoleMember)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	sp, err := svc.CreateSpace(ada, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaceID, channelID := sp.Msg.Space.Id, sp.Msg.DefaultChannel.Id
+	inv, _ := svc.CreateInvite(ada, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
+	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+		t.Fatal(err)
+	}
+	send := func(ctx context.Context, content, threadRoot string) *chatv1.Message {
+		t.Helper()
+		res, err := svc.SendMessage(ctx, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: content, ThreadRootId: threadRoot}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Msg.Message
+	}
+	beaChannel := func() (string, int32) {
+		t.Helper()
+		res, err := svc.ListChannels(bea, connect.NewRequest(&chatv1.ListChannelsRequest{SpaceId: spaceID}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, listed := range res.Msg.Channels {
+			if listed.Id == channelID {
+				return listed.LastReadMessageId, listed.UnreadCount
+			}
+		}
+		t.Fatal("channel not listed")
+		return "", 0
+	}
+
+	root := send(bea, "root", "")
+	send(ada, "unread for bea", "")
+	marker, unread := beaChannel()
+	if marker != root.Id || unread != 1 {
+		t.Fatalf("before the reply: marker %s unread %d, want the root and 1", marker, unread)
+	}
+	send(bea, "reply in the thread", root.Id)
+	if after, unreadAfter := beaChannel(); after != marker || unreadAfter != 1 {
+		t.Errorf("after bea's thread reply: marker %s unread %d, want %s and 1", after, unreadAfter, marker)
+	}
+}
+
 // A thread reply in a DM leaves the conversation's unread count alone.
 func TestThreadReplyLeavesDMUnreadAlone(t *testing.T) {
 	pool, _, svc := newTestService(t)
