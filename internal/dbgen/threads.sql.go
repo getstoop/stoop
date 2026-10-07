@@ -271,14 +271,25 @@ func (q *Queries) RecordThreadReply(ctx context.Context, arg RecordThreadReplyPa
 }
 
 const threadParticipants = `-- name: ThreadParticipants :many
-SELECT DISTINCT author_id FROM messages
-WHERE id = $1::uuid OR thread_root_id = $1::uuid
+SELECT DISTINCT m.author_id FROM messages m
+JOIN channels c ON c.id = m.channel_id
+WHERE (m.id = $1::uuid
+       OR (m.thread_root_id = $1::uuid AND m.id < $2::uuid))
+  AND (EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND sm.user_id = m.author_id)
+       OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = m.author_id))
 `
 
-// ThreadParticipants are the root's author and everyone who has replied,
-// for the phase 1 thread notifications.
-func (q *Queries) ThreadParticipants(ctx context.Context, rootID string) ([]string, error) {
-	rows, err := q.db.Query(ctx, threadParticipants, rootID)
+type ThreadParticipantsParams struct {
+	RootID  string
+	ReplyID string
+}
+
+// ThreadParticipants are the root's author and everyone who replied
+// before reply_id, for the phase 1 thread notifications, less anyone no
+// longer in the space (or, for a DM, the conversation): message rows
+// outlive a leave or a kick.
+func (q *Queries) ThreadParticipants(ctx context.Context, arg ThreadParticipantsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, threadParticipants, arg.RootID, arg.ReplyID)
 	if err != nil {
 		return nil, err
 	}

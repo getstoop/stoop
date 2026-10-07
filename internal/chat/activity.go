@@ -68,11 +68,11 @@ func (s *Service) recordActivity(ctx context.Context, msg messageRow, channel db
 	}
 }
 
-// recordThreadReply tells a thread's root author and earlier repliers
-// about a new reply, as a reply, unless an earlier step already told
-// them. It returns who it told.
+// recordThreadReply tells a thread's root author and earlier repliers who
+// are still in the channel about a new reply, as a reply, unless an
+// earlier step already told them. It returns who it told.
 func (s *Service) recordThreadReply(ctx context.Context, about alert, rootID string, told map[string]bool) ([]string, error) {
-	people, err := s.q.ThreadParticipants(ctx, rootID)
+	people, err := s.q.ThreadParticipants(ctx, dbgen.ThreadParticipantsParams{RootID: rootID, ReplyID: about.msg.ID})
 	if err != nil {
 		return nil, fmt.Errorf("thread participants: %w", err)
 	}

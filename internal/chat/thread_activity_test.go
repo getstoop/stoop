@@ -68,6 +68,16 @@ func TestThreadActivity(t *testing.T) {
 		t.Errorf("ada after a mention in the thread = %+v, want a third item, a mention naming the thread", adaItems)
 	}
 
+	// Someone who replied and then left the space hears nothing more.
+	if _, err := svc.KickMember(ada, connect.NewRequest(&chatv1.KickMemberRequest{SpaceId: spaceID, UserId: authctx.UserID(casey)})); err != nil {
+		t.Fatal(err)
+	}
+	before := len(items(casey))
+	send(bea, "it is in my shed", root.Id)
+	if after := len(items(casey)); after != before {
+		t.Errorf("casey, kicked, got %d new items for a later reply; want none", after-before)
+	}
+
 	found, err := svc.SearchMessages(bea, connect.NewRequest(&chatv1.SearchMessagesRequest{
 		Scope: &chatv1.SearchMessagesRequest_SpaceId{SpaceId: spaceID}, Query: "drill",
 	}))

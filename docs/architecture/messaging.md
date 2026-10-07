@@ -536,9 +536,10 @@ in the root's thread and not in the channel's timeline
   round trip.
 - **Pins.** A reply in a thread can't be pinned yet.
 - **Activity.** A reply tells the root's author and everyone who replied
-  before, as a `reply` item, after mentions and quote-replies (one item
-  per person). Activity items carry `thread_root_id`, and so does every
-  message search returns, so the client can open the thread. Following,
+  before it, as a `reply` item, after mentions and quote-replies (one
+  item per person), but only those still in the space or conversation.
+  Activity items and search results carry `thread_root_id`, so the
+  client can open the thread. Following,
   unfollowing and muting a thread come later.
 - **Deleting a reply** recounts its root's summary under a lock on the
   `threads` row, so a concurrent send's increment and the recount can't
