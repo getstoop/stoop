@@ -12,7 +12,8 @@ import (
 const addReaction = `-- name: AddReaction :execrows
 
 INSERT INTO message_reactions (message_id, user_id, emoji)
-VALUES ($1, $2, $3)
+SELECT $1::uuid, $2::uuid, $3::text
+WHERE EXISTS (SELECT 1 FROM messages WHERE id = $1::uuid AND deleted_at IS NULL FOR SHARE)
 ON CONFLICT DO NOTHING
 `
 
@@ -24,6 +25,9 @@ type AddReactionParams struct {
 
 // Emoji reactions. Owned by the chat module.
 // Only internal/chat may use these queries.
+// AddReaction adds nothing to a root kept as a placeholder. The share lock
+// orders it against MakePlaceholder: a reaction either lands first and is
+// cleared with the rest, or waits and finds the message deleted.
 func (q *Queries) AddReaction(ctx context.Context, arg AddReactionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, addReaction, arg.MessageID, arg.UserID, arg.Emoji)
 	if err != nil {

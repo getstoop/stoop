@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -462,6 +463,9 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	var linksToFetch []string
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content}); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return placeholderError()
+			}
 			return fmt.Errorf("edit message: %w", err)
 		}
 		if s.unfurler != nil {

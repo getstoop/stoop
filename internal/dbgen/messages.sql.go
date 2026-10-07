@@ -400,7 +400,7 @@ func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) er
 }
 
 const updateMessageContent = `-- name: UpdateMessageContent :one
-UPDATE messages SET content = $2, edited_at = now() WHERE id = $1
+UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL
 RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
 `
 
@@ -424,6 +424,9 @@ type UpdateMessageContentRow struct {
 	DeletedAt        *time.Time
 }
 
+// UpdateMessageContent never writes onto a root kept as a placeholder: no
+// row comes back, even when the placeholder landed after the caller's
+// check.
 func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageContentParams) (UpdateMessageContentRow, error) {
 	row := q.db.QueryRow(ctx, updateMessageContent, arg.ID, arg.Content)
 	var i UpdateMessageContentRow
