@@ -9,7 +9,13 @@ import {
   integrationsClient,
 } from "./clients";
 import { isSignedOut } from "./errors";
-import { isLive, useHistoryStore } from "./history";
+import {
+  isLive,
+  type Timeline,
+  timelineId,
+  timelineKey,
+  useHistoryStore,
+} from "./history";
 
 // Server-state hooks. Query keys are the vocabulary the WS client uses to
 // apply realtime events, so keep them in sync with src/api/ws.ts.
@@ -134,29 +140,51 @@ export function useChannels(spaceId: string) {
 // The channel's message window (see api/history.ts). `aroundId` opens the
 // window centred on a message instead of the newest page — a deep link;
 // if it isn't in the channel we fall back to the newest page.
-export function useMessages(channelId: string, aroundId?: string) {
+// A timeline's window: a channel's messages, or a thread's replies.
+export function useMessages(timeline: Timeline, aroundId?: string) {
+  const { channelId, rootId = "" } = timeline;
   return useQuery({
-    queryKey: ["messages", channelId],
+    queryKey: timelineKey(timeline),
     queryFn: async ({ client }) => {
+      const t = { channelId, rootId: rootId || undefined };
       // A refetch (focus, invalidation) must not yank a reader who jumped
       // into history back to the newest page; keep their window as is.
-      const have = client.getQueryData<Message[]>(["messages", channelId]);
-      if (have && !isLive(useHistoryStore.getState().channels[channelId])) {
+      const have = client.getQueryData<Message[]>(timelineKey(t));
+      if (have && !isLive(useHistoryStore.getState().channels[timelineId(t)])) {
         return have;
       }
       let res: ListMessagesResponse | undefined;
       if (aroundId) {
         res = await chatClient
-          .listMessages({ channelId, aroundId })
+          .listMessages({ channelId, threadId: rootId, aroundId })
           .catch(() => undefined);
       }
-      res ??= await chatClient.listMessages({ channelId });
+      res ??= await chatClient.listMessages({ channelId, threadId: rootId });
       // A real fetch resets what we know about the window's edges (edits
       // via setQueryData must not).
-      useHistoryStore.getState().seed(channelId, res);
+      useHistoryStore.getState().seed(t, res);
       return res.messages;
     },
     enabled: channelId !== "",
+  });
+}
+
+// A thread's root, kept as a one-message page under its channel's key so
+// the channel's realtime writes (edits, reactions, its summary, a delete)
+// reach it too. An empty page is a root that is gone.
+export function useThreadRoot(channelId: string, rootId: string) {
+  return useQuery({
+    queryKey: ["messages", channelId, rootId, "root"],
+    queryFn: async () => {
+      const res = await chatClient.listMessages({
+        channelId,
+        aroundId: rootId,
+        limit: 1,
+      });
+      return res.messages.filter((m) => m.id === rootId);
+    },
+    enabled: channelId !== "" && rootId !== "",
+    retry: false,
   });
 }
 

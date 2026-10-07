@@ -404,7 +404,11 @@ not build its own.
   device's Back closes it, and going to another page closes it too. On a
   wide screen history is left alone, and Back never closes the panel.
 
-Adding a kind is a registry entry and its component.
+Adding a kind is a registry entry and its component. The first is a
+thread (`routes/Channel/ThreadView.tsx`): its root, fetched as a
+one-message page under the channel's key so realtime writes reach it,
+then its replies through the same `MessageList` as the channel, and a
+`Composer` that replies into it.
 
 ## Accessibility choices worth knowing
 

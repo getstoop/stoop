@@ -19,8 +19,10 @@ export function setReactions(
   messageId: string,
   reactions: Reaction[],
 ) {
-  queryClient.setQueryData<Message[]>(["messages", channelId], (old) =>
-    old?.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+  // Every window of the channel: its own, and any thread's.
+  queryClient.setQueriesData<Message[]>(
+    { queryKey: ["messages", channelId] },
+    (old) => old?.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
   );
 }
 

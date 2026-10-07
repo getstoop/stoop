@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { ThreadView } from "../../routes/Channel/ThreadView";
 
 // What the side panel can show. A kind of content is one entry: its
 // component, which draws itself inside SidePanelFrame, and optionally the
@@ -18,5 +19,7 @@ export interface PanelDefinition {
 
 export type PanelRegistry = Record<string, PanelDefinition>;
 
-// Empty until the first kind lands (the thread view, STOOP-429).
-export const panels: PanelRegistry = {};
+// Content lives with its feature; the registry only names it.
+export const panels: PanelRegistry = {
+  thread: { component: ThreadView },
+};

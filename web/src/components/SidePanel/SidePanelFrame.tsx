@@ -16,6 +16,8 @@ interface Props {
   subtitle?: ReactNode;
   // Below the body and outside its scroll: a thread's message box.
   footer?: ReactNode;
+  // Buttons in the header, before Close.
+  actions?: ReactNode;
   children: ReactNode;
 }
 
@@ -24,7 +26,13 @@ interface Props {
 // scrolling body and an optional footer. It slides in, and out once
 // closed. Focus moves to the title when it appears, and Escape closes it
 // while focus is inside.
-export function SidePanelFrame({ title, subtitle, footer, children }: Props) {
+export function SidePanelFrame({
+  title,
+  subtitle,
+  footer,
+  actions,
+  children,
+}: Props) {
   const close = useCloseSidePanel();
   const { entering, leaving, left } = usePanelMotion();
   const titleId = useId();
@@ -70,6 +78,7 @@ export function SidePanelFrame({ title, subtitle, footer, children }: Props) {
           {title}
         </h2>
         {subtitle && <span className="side-panel-subtitle">{subtitle}</span>}
+        {actions && <span className="side-panel-actions">{actions}</span>}
         <button
           type="button"
           className="icon-button side-panel-close"

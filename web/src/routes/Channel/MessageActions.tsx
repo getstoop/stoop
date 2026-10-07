@@ -14,6 +14,7 @@ export function MessageActions({
   onDelete,
   onReact,
   onTogglePin,
+  onThread,
 }: {
   message: Message;
   // The message's permalink, ready to copy.
@@ -27,6 +28,8 @@ export function MessageActions({
   onDelete: () => void;
   onReact: (anchor: DOMRect) => void;
   onTogglePin: () => void;
+  // Open this message's thread; only on a message that can have one.
+  onThread?: () => void;
 }) {
   // The tick that stands in for the icon once the link is copied.
   const [copied, setCopied] = useState(false);
@@ -67,6 +70,17 @@ export function MessageActions({
           aria-label={message.pinned ? "Unpin" : "Pin"}
         >
           <PinIcon size={15} filled={message.pinned} />
+        </button>
+      )}
+      {onThread && (
+        <button
+          type="button"
+          className="message-action"
+          onClick={onThread}
+          title="Reply in thread"
+          aria-label="Reply in thread"
+        >
+          <ThreadIcon />
         </button>
       )}
       <button
@@ -123,6 +137,16 @@ function ReactIcon() {
       <path d="M8 15c.8 1.2 1.8 1.8 3 1.8s2.2-.6 3-1.8" />
       <path d="M8.5 11h.01M13.5 11h.01" />
       <path d="M19 2v6M16 5h6" />
+    </svg>
+  );
+}
+
+// Two speech bubbles: "a conversation under this message".
+function ThreadIcon() {
+  return (
+    <svg {...iconProps} aria-hidden="true">
+      <path d="M4 5h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+      <path d="M19 9a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2v3l-4-3h-3" />
     </svg>
   );
 }

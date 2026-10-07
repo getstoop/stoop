@@ -75,6 +75,7 @@ export function MessageEditor({
               e.preventDefault();
               save();
             } else if (e.key === "Escape") {
+              e.preventDefault();
               onDone();
             }
           }}

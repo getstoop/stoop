@@ -345,6 +345,13 @@ A channel's messages are **one flat, oldest-first array** at
 pages, not a map of ranges: one array, so every feature that reads the
 cache sees one timeline regardless of how it got filled.
 
+A thread has its own window, `["messages", channelId, rootId]`, filled
+and paged the same way through `ListMessages` with `thread_id`; the store
+calls either a *timeline* (`Timeline` in `history.ts`). Because a thread's
+key sits under its channel's, an edit, a reaction, a delete or a thread's
+new summary is one write to the `["messages", channelId]` prefix, and
+`appendMessage` puts a new message in the timeline it shows in.
+
 `ListMessages` fills it ([messaging.md](messaging.md#history)): the newest
 page on opening a channel, `before_id` on scrolling up, `after_id` on
 scrolling down after a jump, and `around_id` for reply quotes, activity

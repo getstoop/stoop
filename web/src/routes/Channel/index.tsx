@@ -70,7 +70,7 @@ export function ChannelView() {
   // ?m=<messageId>: open the window around that message rather than the
   // newest page (activity, shared links).
   const { m: jumpTarget } = useSearch({ strict: false }) as { m?: string };
-  const { data: messages } = useMessages(channelId, jumpTarget);
+  const { data: messages } = useMessages({ channelId }, jumpTarget);
   // Deleted (or never existed): back to the space's first channel, or
   // the DM list.
   const navigate = useNavigate();
@@ -170,6 +170,7 @@ export function ChannelView() {
             editingId={editingId}
             onEdit={setEditingId}
             onReply={setReplyTo}
+            threadsAllowed={canPost(space, channel) && !isAnnouncement(channel)}
           />
           <TypingIndicator channelId={channelId} spaceId={spaceId} />
           {canPost(space, channel) ? (
