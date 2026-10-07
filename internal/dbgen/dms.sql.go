@@ -122,7 +122,7 @@ const listDMChannelsByUser = `-- name: ListDMChannelsByUser :many
 SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, r.last_read_message_id, d.closed_at,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
-     WHERE m.channel_id = c.id
+     WHERE m.channel_id = c.id AND m.in_channel
        AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
 FROM channels c
 JOIN dm_members d ON d.channel_id = c.id AND d.user_id = $1

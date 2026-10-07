@@ -77,6 +77,15 @@ func TestThreadReplies(t *testing.T) {
 	if lastMessage() != root.Id {
 		t.Error("a thread reply moved the channel's newest message")
 	}
+	channels, err := svc.ListChannels(ada, connect.NewRequest(&chatv1.ListChannelsRequest{SpaceId: spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, listed := range channels.Msg.Channels {
+		if listed.Id == channelID && listed.UnreadCount != 0 {
+			t.Errorf("ada's unread count after a thread reply = %d, want 0", listed.UnreadCount)
+		}
+	}
 
 	// A second reply from ada, quoting bea's inside the thread.
 	second, err := send(ada, &chatv1.SendMessageRequest{
@@ -195,5 +204,39 @@ func TestThreadRefusals(t *testing.T) {
 	}
 	if _, err := svc.ListMessages(ada, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID, ThreadId: root.Id})); err != nil {
 		t.Errorf("reading an existing thread in an announcement channel: %v", err)
+	}
+}
+
+// A thread reply in a DM leaves the conversation's unread count alone.
+func TestThreadReplyLeavesDMUnreadAlone(t *testing.T) {
+	pool, _, svc := newTestService(t)
+	ada := newUser(t, pool, "ada", authctx.RoleMember)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	sp, err := svc.CreateSpace(ada, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv, _ := svc.CreateInvite(ada, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: sp.Msg.Space.Id}))
+	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+		t.Fatal(err)
+	}
+	dm, err := svc.OpenDirectMessage(ada, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{authctx.UserID(bea)}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	channelID := dm.Msg.DirectMessage.Channel.Id
+	root, err := svc.SendMessage(ada, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "root"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "reply", ThreadRootId: root.Msg.Message.Id})); err != nil {
+		t.Fatal(err)
+	}
+	dms, err := svc.ListDirectMessages(ada, connect.NewRequest(&chatv1.ListDirectMessagesRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if listed := dms.Msg.DirectMessages; len(listed) != 1 || listed[0].Channel.UnreadCount != 0 {
+		t.Errorf("ada's DM unread count after a thread reply = %+v, want 0", listed)
 	}
 }
