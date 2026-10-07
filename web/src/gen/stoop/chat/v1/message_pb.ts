@@ -16,7 +16,7 @@ import type { Message as Message$1 } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/message.proto.
  */
 export const file_stoop_chat_v1_message: GenFile = /*@__PURE__*/
-  fileDesc("ChtzdG9vcC9jaGF0L3YxL21lc3NhZ2UucHJvdG8SDXN0b29wLmNoYXQudjEimQEKDU1lc3NhZ2VBdXRob3ISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEisKBGtpbmQYBSABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEg8KB2RlbGV0ZWQYBiABKAgiXQoIUmVwbHlSZWYSEgoKbWVzc2FnZV9pZBgBIAEoCRIsCgZhdXRob3IYAiABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHcHJldmlldxgDIAEoCSJgCgpBdHRhY2htZW50Eg8KB2ZpbGVfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIUCgxjb250ZW50X3R5cGUYAyABKAkSDAoEc2l6ZRgEIAEoAxIPCgdleHBpcmVkGAUgASgIIu8DCgdNZXNzYWdlEgoKAmlkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSLAoGYXV0aG9yGAMgASgLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yEg8KB2NvbnRlbnQYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGAoQbWVudGlvbl91c2VyX2lkcxgGIAMoCRIQCghzcGFjZV9pZBgHIAEoCRIZChFtZW50aW9uc19ldmVyeW9uZRgIIAEoCBIpCghyZXBseV90bxgJIAEoCzIXLnN0b29wLmNoYXQudjEuUmVwbHlSZWYSFQoNbWVudGlvbnNfaGVyZRgKIAEoCBItCgllZGl0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEioKCXJlYWN0aW9ucxgMIAMoCzIXLnN0b29wLmNoYXQudjEuUmVhY3Rpb24SLgoLYXR0YWNobWVudHMYDSADKAsyGS5zdG9vcC5jaGF0LnYxLkF0dGFjaG1lbnQSMQoNbGlua19wcmV2aWV3cxgOIAMoCzIaLnN0b29wLmNoYXQudjEuTGlua1ByZXZpZXcSDgoGcGlubmVkGA8gASgIIpMBCgtMaW5rUHJldmlldxILCgN1cmwYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEQoJc2l0ZV9uYW1lGAQgASgJEhUKDWltYWdlX2ZpbGVfaWQYBSABKAkSEwoLaW1hZ2Vfd2lkdGgYBiABKAUSFAoMaW1hZ2VfaGVpZ2h0GAcgASgFQqsBChFjb20uc3Rvb3AuY2hhdC52MUIMTWVzc2FnZVByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2NoYXQvdjE7Y2hhdHYxogIDU0NYqgINU3Rvb3AuQ2hhdC5WMcoCDVN0b29wXENoYXRcVjHiAhlTdG9vcFxDaGF0XFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkNoYXQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_reaction]);
+  fileDesc("ChtzdG9vcC9jaGF0L3YxL21lc3NhZ2UucHJvdG8SDXN0b29wLmNoYXQudjEimQEKDU1lc3NhZ2VBdXRob3ISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEisKBGtpbmQYBSABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEg8KB2RlbGV0ZWQYBiABKAgiXQoIUmVwbHlSZWYSEgoKbWVzc2FnZV9pZBgBIAEoCRIsCgZhdXRob3IYAiABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHcHJldmlldxgDIAEoCSJgCgpBdHRhY2htZW50Eg8KB2ZpbGVfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIUCgxjb250ZW50X3R5cGUYAyABKAkSDAoEc2l6ZRgEIAEoAxIPCgdleHBpcmVkGAUgASgIItoECgdNZXNzYWdlEgoKAmlkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSLAoGYXV0aG9yGAMgASgLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yEg8KB2NvbnRlbnQYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGAoQbWVudGlvbl91c2VyX2lkcxgGIAMoCRIQCghzcGFjZV9pZBgHIAEoCRIZChFtZW50aW9uc19ldmVyeW9uZRgIIAEoCBIpCghyZXBseV90bxgJIAEoCzIXLnN0b29wLmNoYXQudjEuUmVwbHlSZWYSFQoNbWVudGlvbnNfaGVyZRgKIAEoCBItCgllZGl0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEioKCXJlYWN0aW9ucxgMIAMoCzIXLnN0b29wLmNoYXQudjEuUmVhY3Rpb24SLgoLYXR0YWNobWVudHMYDSADKAsyGS5zdG9vcC5jaGF0LnYxLkF0dGFjaG1lbnQSMQoNbGlua19wcmV2aWV3cxgOIAMoCzIaLnN0b29wLmNoYXQudjEuTGlua1ByZXZpZXcSDgoGcGlubmVkGA8gASgIEhYKDnRocmVhZF9yb290X2lkGBAgASgJEiwKBnRocmVhZBgRIAEoCzIcLnN0b29wLmNoYXQudjEuVGhyZWFkU3VtbWFyeRIPCgdkZWxldGVkGBIgASgIEhIKCmluX2NoYW5uZWwYEyABKAgijQEKDVRocmVhZFN1bW1hcnkSEwoLcmVwbHlfY291bnQYASABKAUSMQoNbGFzdF9yZXBseV9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNAoOcmVjZW50X2F1dGhvcnMYAyADKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3IikwEKC0xpbmtQcmV2aWV3EgsKA3VybBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIRCglzaXRlX25hbWUYBCABKAkSFQoNaW1hZ2VfZmlsZV9pZBgFIAEoCRITCgtpbWFnZV93aWR0aBgGIAEoBRIUCgxpbWFnZV9oZWlnaHQYByABKAVCqwEKEWNvbS5zdG9vcC5jaGF0LnYxQgxNZXNzYWdlUHJvdG9QAVoyZ2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvY2hhdC92MTtjaGF0djGiAgNTQ1iqAg1TdG9vcC5DaGF0LlYxygINU3Rvb3BcQ2hhdFxWMeICGVN0b29wXENoYXRcVjFcR1BCTWV0YWRhdGHqAg9TdG9vcDo6Q2hhdDo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_reaction]);
 
 /**
  * MessageAuthor is a denormalized snapshot of the author, resolved by the
@@ -256,6 +256,37 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
    * @generated from field: bool pinned = 15;
    */
   pinned: boolean;
+
+  /**
+   * Set on a reply in a thread: the thread's root, a top-level message in
+   * the same channel.
+   *
+   * @generated from field: string thread_root_id = 16;
+   */
+  threadRootId: string;
+
+  /**
+   * Set on a root with replies. Kept current by the ThreadChanged event.
+   *
+   * @generated from field: stoop.chat.v1.ThreadSummary thread = 17;
+   */
+  thread?: ThreadSummary | undefined;
+
+  /**
+   * A root deleted while its thread had replies, kept as a placeholder:
+   * no content, attachments, reactions or previews.
+   *
+   * @generated from field: bool deleted = 18;
+   */
+  deleted: boolean;
+
+  /**
+   * Whether the message shows in the channel's timeline: true for every
+   * top-level message, false for a reply that stays in its thread.
+   *
+   * @generated from field: bool in_channel = 19;
+   */
+  inChannel: boolean;
 };
 
 /**
@@ -264,6 +295,38 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
  */
 export const MessageSchema: GenMessage<Message> = /*@__PURE__*/
   messageDesc(file_stoop_chat_v1_message, 3);
+
+/**
+ * ThreadSummary is what the line under a root shows, so it renders with no
+ * fetch of the thread.
+ *
+ * @generated from message stoop.chat.v1.ThreadSummary
+ */
+export type ThreadSummary = Message$1<"stoop.chat.v1.ThreadSummary"> & {
+  /**
+   * @generated from field: int32 reply_count = 1;
+   */
+  replyCount: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_reply_at = 2;
+   */
+  lastReplyAt?: Timestamp | undefined;
+
+  /**
+   * The most recent distinct reply authors, newest first, at most three.
+   *
+   * @generated from field: repeated stoop.chat.v1.MessageAuthor recent_authors = 3;
+   */
+  recentAuthors: MessageAuthor[];
+};
+
+/**
+ * Describes the message stoop.chat.v1.ThreadSummary.
+ * Use `create(ThreadSummarySchema)` to create a new message.
+ */
+export const ThreadSummarySchema: GenMessage<ThreadSummary> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 4);
 
 /**
  * LinkPreview is the unfurled metadata of a URL in a message.
@@ -314,5 +377,5 @@ export type LinkPreview = Message$1<"stoop.chat.v1.LinkPreview"> & {
  * Use `create(LinkPreviewSchema)` to create a new message.
  */
 export const LinkPreviewSchema: GenMessage<LinkPreview> = /*@__PURE__*/
-  messageDesc(file_stoop_chat_v1_message, 4);
+  messageDesc(file_stoop_chat_v1_message, 5);
 

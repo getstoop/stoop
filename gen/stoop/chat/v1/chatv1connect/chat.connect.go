@@ -128,6 +128,9 @@ const (
 	// ChatServiceDeleteMessageProcedure is the fully-qualified name of the ChatService's DeleteMessage
 	// RPC.
 	ChatServiceDeleteMessageProcedure = "/stoop.chat.v1.ChatService/DeleteMessage"
+	// ChatServiceDeleteThreadProcedure is the fully-qualified name of the ChatService's DeleteThread
+	// RPC.
+	ChatServiceDeleteThreadProcedure = "/stoop.chat.v1.ChatService/DeleteThread"
 	// ChatServiceToggleReactionProcedure is the fully-qualified name of the ChatService's
 	// ToggleReaction RPC.
 	ChatServiceToggleReactionProcedure = "/stoop.chat.v1.ChatService/ToggleReaction"
@@ -255,8 +258,12 @@ type ChatServiceClient interface {
 	// EditMessage replaces the content of the caller's own message.
 	EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error)
 	// DeleteMessage removes a message: the author's own, or anyone's with
-	// manage_channels.
+	// manage_channels. A root whose thread has replies is kept as a
+	// placeholder (Message.deleted) instead.
 	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
+	// DeleteThread removes a root and every reply in its thread. Requires
+	// messages.moderate in the channel's space.
+	DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error)
 	// ToggleReaction adds the caller's reaction if absent and removes it if
 	// present. Channel members only. Reactions never notify anyone and never
 	// affect unread state.
@@ -535,6 +542,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("DeleteMessage")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteThread: connect.NewClient[v1.DeleteThreadRequest, v1.DeleteThreadResponse](
+			httpClient,
+			baseURL+ChatServiceDeleteThreadProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("DeleteThread")),
+			connect.WithClientOptions(opts...),
+		),
 		toggleReaction: connect.NewClient[v1.ToggleReactionRequest, v1.ToggleReactionResponse](
 			httpClient,
 			baseURL+ChatServiceToggleReactionProcedure,
@@ -626,6 +639,7 @@ type chatServiceClient struct {
 	listPinnedMessages          *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
 	editMessage                 *connect.Client[v1.EditMessageRequest, v1.EditMessageResponse]
 	deleteMessage               *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
+	deleteThread                *connect.Client[v1.DeleteThreadRequest, v1.DeleteThreadResponse]
 	toggleReaction              *connect.Client[v1.ToggleReactionRequest, v1.ToggleReactionResponse]
 	openDirectMessage           *connect.Client[v1.OpenDirectMessageRequest, v1.OpenDirectMessageResponse]
 	listDirectMessages          *connect.Client[v1.ListDirectMessagesRequest, v1.ListDirectMessagesResponse]
@@ -826,6 +840,11 @@ func (c *chatServiceClient) DeleteMessage(ctx context.Context, req *connect.Requ
 	return c.deleteMessage.CallUnary(ctx, req)
 }
 
+// DeleteThread calls stoop.chat.v1.ChatService.DeleteThread.
+func (c *chatServiceClient) DeleteThread(ctx context.Context, req *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error) {
+	return c.deleteThread.CallUnary(ctx, req)
+}
+
 // ToggleReaction calls stoop.chat.v1.ChatService.ToggleReaction.
 func (c *chatServiceClient) ToggleReaction(ctx context.Context, req *connect.Request[v1.ToggleReactionRequest]) (*connect.Response[v1.ToggleReactionResponse], error) {
 	return c.toggleReaction.CallUnary(ctx, req)
@@ -967,8 +986,12 @@ type ChatServiceHandler interface {
 	// EditMessage replaces the content of the caller's own message.
 	EditMessage(context.Context, *connect.Request[v1.EditMessageRequest]) (*connect.Response[v1.EditMessageResponse], error)
 	// DeleteMessage removes a message: the author's own, or anyone's with
-	// manage_channels.
+	// manage_channels. A root whose thread has replies is kept as a
+	// placeholder (Message.deleted) instead.
 	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
+	// DeleteThread removes a root and every reply in its thread. Requires
+	// messages.moderate in the channel's space.
+	DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error)
 	// ToggleReaction adds the caller's reaction if absent and removes it if
 	// present. Channel members only. Reactions never notify anyone and never
 	// affect unread state.
@@ -1243,6 +1266,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("DeleteMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceDeleteThreadHandler := connect.NewUnaryHandler(
+		ChatServiceDeleteThreadProcedure,
+		svc.DeleteThread,
+		connect.WithSchema(chatServiceMethods.ByName("DeleteThread")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceToggleReactionHandler := connect.NewUnaryHandler(
 		ChatServiceToggleReactionProcedure,
 		svc.ToggleReaction,
@@ -1369,6 +1398,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceEditMessageHandler.ServeHTTP(w, r)
 		case ChatServiceDeleteMessageProcedure:
 			chatServiceDeleteMessageHandler.ServeHTTP(w, r)
+		case ChatServiceDeleteThreadProcedure:
+			chatServiceDeleteThreadHandler.ServeHTTP(w, r)
 		case ChatServiceToggleReactionProcedure:
 			chatServiceToggleReactionHandler.ServeHTTP(w, r)
 		case ChatServiceOpenDirectMessageProcedure:
@@ -1544,6 +1575,10 @@ func (UnimplementedChatServiceHandler) EditMessage(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.DeleteMessage is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.DeleteThread is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) ToggleReaction(context.Context, *connect.Request[v1.ToggleReactionRequest]) (*connect.Response[v1.ToggleReactionResponse], error) {

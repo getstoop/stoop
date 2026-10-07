@@ -35,4 +35,6 @@ message ActivityItem {
   // channel_mutes row OR their own space_mutes row. Computed by the
   // server; the feed itself is never filtered by it.
   bool muted = 10;
+  // Set when the message is a reply in a thread: the thread to open on it.
+  string thread_root_id = 11;
 }

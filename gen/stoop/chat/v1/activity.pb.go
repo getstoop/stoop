@@ -97,7 +97,9 @@ type ActivityItem struct {
 	// The recipient's effective mute for where this happened: their own
 	// channel_mutes row OR their own space_mutes row. Computed by the
 	// server; the feed itself is never filtered by it.
-	Muted         bool `protobuf:"varint,10,opt,name=muted,proto3" json:"muted,omitempty"`
+	Muted bool `protobuf:"varint,10,opt,name=muted,proto3" json:"muted,omitempty"`
+	// Set when the message is a reply in a thread: the thread to open on it.
+	ThreadRootId  string `protobuf:"bytes,11,opt,name=thread_root_id,json=threadRootId,proto3" json:"thread_root_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -202,11 +204,18 @@ func (x *ActivityItem) GetMuted() bool {
 	return false
 }
 
+func (x *ActivityItem) GetThreadRootId() string {
+	if x != nil {
+		return x.ThreadRootId
+	}
+	return ""
+}
+
 var File_stoop_chat_v1_activity_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_activity_proto_rawDesc = "" +
 	"\n" +
-	"\x1cstoop/chat/v1/activity.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bstoop/chat/v1/message.proto\"\xfc\x02\n" +
+	"\x1cstoop/chat/v1/activity.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bstoop/chat/v1/message.proto\"\xa2\x03\n" +
 	"\fActivityItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1b.stoop.chat.v1.ActivityKindR\x04kind\x12\x19\n" +
@@ -221,7 +230,8 @@ const file_stoop_chat_v1_activity_proto_rawDesc = "" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x123\n" +
 	"\aread_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x06readAt\x12\x14\n" +
 	"\x05muted\x18\n" +
-	" \x01(\bR\x05muted*w\n" +
+	" \x01(\bR\x05muted\x12$\n" +
+	"\x0ethread_root_id\x18\v \x01(\tR\fthreadRootId*w\n" +
 	"\fActivityKind\x12\x1d\n" +
 	"\x19ACTIVITY_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15ACTIVITY_KIND_MENTION\x10\x01\x12\x17\n" +
