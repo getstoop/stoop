@@ -17,8 +17,9 @@ export function usePushToTalk(on: boolean) {
     const onDown = (e: KeyboardEvent) => {
       if (!isPushToTalkPress(e)) return;
       e.preventDefault();
-      // A held key repeats keydown; press() only counts the first.
-      hold.press();
+      // A held key repeats keydown. Only a fresh press starts a hold: a
+      // repeat could otherwise undo a Mute clicked while the key is held.
+      if (!e.repeat) hold.press();
     };
     const onUp = (e: KeyboardEvent) => {
       if (isPushToTalkRelease(e)) hold.release();

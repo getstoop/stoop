@@ -12,7 +12,8 @@ import {
 // Push to talk end to end: turned on in account settings and kept across
 // a reload; while muted, holding Ctrl+` unmutes (as the other person in
 // the call sees it) and letting go mutes; while unmuted, the key does
-// nothing. The hold itself (repeats, the release tail) is unit tested in
+// nothing, and a repeat of it never undoes a Mute clicked mid-hold.
+// The hold itself (repeats, the release tail) is unit tested in
 // src/api/pushToTalk.test.ts. Needs LiveKit, and skips itself without it.
 
 // Whether the stage tile with this name carries the muted marker; null
@@ -94,6 +95,33 @@ test("push to talk", async ({ browser, request }) => {
   // Unmuted by hand: the key leaves the mic alone.
   await A.locator('.voice-bar [aria-label="Unmute"]').click();
   await expectTileMuted(B, ada, false, "A unmutes with the button");
+  await hold(A);
+  // Muting with the key still down, then the key repeating, must not
+  // reopen the mic: only a fresh press starts a hold. Clicked from the
+  // page, since a mouse click here would carry the held Ctrl (a right
+  // click on macOS).
+  await A.locator('.voice-bar [aria-label="Mute"]').evaluate((button) =>
+    (button as HTMLButtonElement).click(),
+  );
+  await expect(
+    A.locator('.voice-bar [aria-label="Unmute"]'),
+    "Mute took, with the key still held",
+  ).toHaveCount(1);
+  await A.evaluate(() =>
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        code: "Backquote",
+        key: "`",
+        ctrlKey: true,
+        repeat: true,
+      }),
+    ),
+  );
+  await A.waitForTimeout(500);
+  await expectTileMuted(B, ada, true, "a repeating key does not undo Mute");
+  await letGo(A);
+  await A.locator('.voice-bar [aria-label="Unmute"]').click();
+  await expectTileMuted(B, ada, false, "A unmutes with the button again");
   await hold(A);
   await letGo(A);
   await A.waitForTimeout(500);
