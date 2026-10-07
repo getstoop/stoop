@@ -7,19 +7,22 @@
 -- each list and in the view; see docs/architecture/messaging.md → Search.
 
 -- name: CreateMessage :one
-INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at;
+INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id,
+    thread_root_id, in_channel)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at;
 
 -- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
 FROM messages WHERE id = $1;
 
 -- ListMessagesBefore carries the replied-to message's quote (if any) so
--- the client can render it without a second round trip.
+-- the client can render it without a second round trip. Only rows that
+-- show in the channel: a thread's replies are paged by ListThreadBefore.
 -- name: ListMessagesBefore :many
 SELECT * FROM message_with_reply m
 WHERE m.channel_id = $1
+  AND m.in_channel
   AND (sqlc.narg('before_id')::uuid IS NULL OR m.id < sqlc.narg('before_id')::uuid)
 ORDER BY m.id DESC
 LIMIT $2;
@@ -29,6 +32,7 @@ LIMIT $2;
 -- name: ListMessagesAfter :many
 SELECT * FROM message_with_reply m
 WHERE m.channel_id = $1
+  AND m.in_channel
   AND (m.id > sqlc.arg('after_id')::uuid OR (sqlc.arg('inclusive')::bool AND m.id = sqlc.arg('after_id')::uuid))
 ORDER BY m.id ASC
 LIMIT $2;
@@ -50,16 +54,16 @@ WHERE message_id = ANY($1::uuid[]);
 
 -- name: UpdateMessageContent :one
 UPDATE messages SET content = $2, edited_at = now() WHERE id = $1
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at;
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at;
 
 -- name: DeleteMessage :exec
 DELETE FROM messages WHERE id = $1;
 
 -- RecomputeChannelLastMessage repoints a channel at its newest remaining
--- message after a delete.
+-- message that shows in the channel, after a delete.
 -- name: RecomputeChannelLastMessage :exec
 UPDATE channels c
-SET last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id ORDER BY m.id DESC LIMIT 1)
+SET last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id AND m.in_channel ORDER BY m.id DESC LIMIT 1)
 WHERE c.id = $1;
 
 -- Message retention: messages older than the cutoff id (UUIDv7, so id

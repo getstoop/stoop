@@ -152,6 +152,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageCreated": {
       const m = payload.value;
+      // A reply that stays in its thread is not in the channel's timeline
+      // and does not make the channel unread.
+      if (m.threadRootId && !m.inChannel) break;
       appendMessage(queryClient, m);
       const { userId, activeChannelId } = useConnectionStore.getState();
       const mine = m.author?.id === userId;

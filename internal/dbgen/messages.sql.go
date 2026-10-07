@@ -25,9 +25,10 @@ func (q *Queries) CountExpiredMessages(ctx context.Context, cutoff string) (int6
 
 const createMessage = `-- name: CreateMessage :one
 
-INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
+INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id,
+    thread_root_id, in_channel)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
 `
 
 type CreateMessageParams struct {
@@ -38,6 +39,8 @@ type CreateMessageParams struct {
 	MentionsEveryone bool
 	MentionsHere     bool
 	ReplyToMessageID *string
+	ThreadRootID     *string
+	InChannel        bool
 }
 
 type CreateMessageRow struct {
@@ -50,6 +53,9 @@ type CreateMessageRow struct {
 	ReplyToMessageID *string
 	MentionsHere     bool
 	EditedAt         *time.Time
+	ThreadRootID     *string
+	InChannel        bool
+	DeletedAt        *time.Time
 }
 
 // Messages. Owned by the chat module.
@@ -68,6 +74,8 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 		arg.MentionsEveryone,
 		arg.MentionsHere,
 		arg.ReplyToMessageID,
+		arg.ThreadRootID,
+		arg.InChannel,
 	)
 	var i CreateMessageRow
 	err := row.Scan(
@@ -80,6 +88,9 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
+		&i.ThreadRootID,
+		&i.InChannel,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -103,7 +114,7 @@ func (q *Queries) DeleteMessagesByIDs(ctx context.Context, ids []string) error {
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
 FROM messages WHERE id = $1
 `
 
@@ -117,6 +128,9 @@ type GetMessageRow struct {
 	ReplyToMessageID *string
 	MentionsHere     bool
 	EditedAt         *time.Time
+	ThreadRootID     *string
+	InChannel        bool
+	DeletedAt        *time.Time
 }
 
 func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, error) {
@@ -132,6 +146,9 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, err
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
+		&i.ThreadRootID,
+		&i.InChannel,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -253,6 +270,7 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 const listMessagesAfter = `-- name: ListMessagesAfter :many
 SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
 WHERE m.channel_id = $1
+  AND m.in_channel
   AND (m.id > $3::uuid OR ($4::bool AND m.id = $3::uuid))
 ORDER BY m.id ASC
 LIMIT $2
@@ -314,6 +332,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 const listMessagesBefore = `-- name: ListMessagesBefore :many
 SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
 WHERE m.channel_id = $1
+  AND m.in_channel
   AND ($3::uuid IS NULL OR m.id < $3::uuid)
 ORDER BY m.id DESC
 LIMIT $2
@@ -326,7 +345,8 @@ type ListMessagesBeforeParams struct {
 }
 
 // ListMessagesBefore carries the replied-to message's quote (if any) so
-// the client can render it without a second round trip.
+// the client can render it without a second round trip. Only rows that
+// show in the channel: a thread's replies are paged by ListThreadBefore.
 func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBeforeParams) ([]MessageWithReply, error) {
 	rows, err := q.db.Query(ctx, listMessagesBefore, arg.ChannelID, arg.Limit, arg.BeforeID)
 	if err != nil {
@@ -368,12 +388,12 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 
 const recomputeChannelLastMessage = `-- name: RecomputeChannelLastMessage :exec
 UPDATE channels c
-SET last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id ORDER BY m.id DESC LIMIT 1)
+SET last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id AND m.in_channel ORDER BY m.id DESC LIMIT 1)
 WHERE c.id = $1
 `
 
 // RecomputeChannelLastMessage repoints a channel at its newest remaining
-// message after a delete.
+// message that shows in the channel, after a delete.
 func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, recomputeChannelLastMessage, id)
 	return err
@@ -381,7 +401,7 @@ func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) er
 
 const updateMessageContent = `-- name: UpdateMessageContent :one
 UPDATE messages SET content = $2, edited_at = now() WHERE id = $1
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
 `
 
 type UpdateMessageContentParams struct {
@@ -399,6 +419,9 @@ type UpdateMessageContentRow struct {
 	ReplyToMessageID *string
 	MentionsHere     bool
 	EditedAt         *time.Time
+	ThreadRootID     *string
+	InChannel        bool
+	DeletedAt        *time.Time
 }
 
 func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageContentParams) (UpdateMessageContentRow, error) {
@@ -414,6 +437,9 @@ func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageCon
 		&i.ReplyToMessageID,
 		&i.MentionsHere,
 		&i.EditedAt,
+		&i.ThreadRootID,
+		&i.InChannel,
+		&i.DeletedAt,
 	)
 	return i, err
 }

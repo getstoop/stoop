@@ -35,7 +35,7 @@ ORDER BY channel_id, user_id;
 SELECT sqlc.embed(c), r.last_read_message_id, d.closed_at,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = sqlc.arg(user_id)) AS muted,
     (SELECT count(*) FROM messages m
-     WHERE m.channel_id = c.id
+     WHERE m.channel_id = c.id AND m.in_channel
        AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
 FROM channels c
 JOIN dm_members d ON d.channel_id = c.id AND d.user_id = sqlc.arg(user_id)

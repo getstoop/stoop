@@ -499,9 +499,36 @@ anyone from.
   full reaction set rather than a delta, because a delta that arrived out
   of order would leave a wrong count on screen forever.
 - **Replies** are a nullable `reply_to_message_id` and must point within
-  the same channel. The response carries a `ReplyRef` — the parent's
+  the same channel (and the same thread or timeline, see
+  [Threads](#threads)). The response carries a `ReplyRef` — the parent's
   author, a plain-text excerpt, and its first attachment's name — so the
   quote renders without a second fetch.
+
+## Threads
+
+A thread is the replies under one top-level message, its root. A reply
+is a message with `thread_root_id` set and `in_channel` false, so it is
+in the root's thread and not in the channel's timeline
+([data.md](data.md)).
+
+- **Sending.** `SendMessage` with `thread_root_id`. The root must be a
+  top-level message in the same channel and not a placeholder. One
+  level only: a reply can't be a root. An announcement channel has no
+  threads, for admins too (`threadRootFor` in `chat/threads.go`).
+- **What a reply leaves alone.** The channel's `last_message_id` and the
+  author's read marker, so a thread reply neither bolds the channel nor
+  marks it read.
+- **The summary.** Each send updates the root's `threads` row in the same
+  transaction (`RecordThreadReply`) and publishes `ThreadChanged` with the
+  whole summary, not a delta, as `ReactionsChanged` does.
+- **Quotes.** A quote-reply inside a thread may quote its root or another
+  reply in it; a channel message may only quote messages in the channel.
+- **Paging.** `ListMessages` with `thread_id` pages the replies with the
+  same `before_id`, `after_id` and `around_id`. `around_id` on a reply
+  without `thread_id` centres the channel on its root and names the
+  thread in `thread_root_id`, so a `?m=` link to a reply opens in one
+  round trip.
+- **Pins.** A reply in a thread can't be pinned yet.
 
 ## Direct messages
 
