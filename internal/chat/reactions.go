@@ -49,6 +49,9 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "message")
 	}
+	if msg.DeletedAt != nil {
+		return nil, placeholderError()
+	}
 	channel, participants, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
 		return nil, err
@@ -60,8 +63,14 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 		return nil, fmt.Errorf("add reaction: %w", err)
 	}
 	if added == 0 {
-		if _, err := s.q.RemoveReaction(ctx, dbgen.RemoveReactionParams(params)); err != nil {
+		removed, err := s.q.RemoveReaction(ctx, dbgen.RemoveReactionParams(params))
+		if err != nil {
 			return nil, fmt.Errorf("remove reaction: %w", err)
+		}
+		// Neither added nor there to remove: the message became a
+		// placeholder after the check above.
+		if removed == 0 {
+			return nil, placeholderError()
 		}
 	}
 

@@ -10,6 +10,15 @@ import (
 	"time"
 )
 
+const deleteThreadSummary = `-- name: DeleteThreadSummary :exec
+DELETE FROM threads WHERE root_message_id = $1
+`
+
+func (q *Queries) DeleteThreadSummary(ctx context.Context, rootMessageID string) error {
+	_, err := q.db.Exec(ctx, deleteThreadSummary, rootMessageID)
+	return err
+}
+
 const listThreadAfter = `-- name: ListThreadAfter :many
 SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
 WHERE m.thread_root_id = $1::uuid
@@ -125,6 +134,102 @@ func (q *Queries) ListThreadBefore(ctx context.Context, arg ListThreadBeforePara
 		return nil, err
 	}
 	return items, nil
+}
+
+const listThreadFileIDs = `-- name: ListThreadFileIDs :many
+SELECT a.file_id FROM message_attachments a
+JOIN messages m ON m.id = a.message_id
+WHERE m.id = $1::uuid OR m.thread_root_id = $1::uuid
+`
+
+// ListThreadFileIDs lists the files of a root and every reply under it,
+// for Delete thread.
+func (q *Queries) ListThreadFileIDs(ctx context.Context, rootID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listThreadFileIDs, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var file_id string
+		if err := rows.Scan(&file_id); err != nil {
+			return nil, err
+		}
+		items = append(items, file_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockThread = `-- name: LockThread :one
+SELECT reply_count FROM threads WHERE root_message_id = $1 FOR UPDATE
+`
+
+// LockThread takes a root's summary row for the rest of the transaction,
+// so a delete's recount and a concurrent send's increment can't miss
+// each other. No row means the root has no replies.
+func (q *Queries) LockThread(ctx context.Context, rootMessageID string) (int32, error) {
+	row := q.db.QueryRow(ctx, lockThread, rootMessageID)
+	var reply_count int32
+	err := row.Scan(&reply_count)
+	return reply_count, err
+}
+
+const makePlaceholder = `-- name: MakePlaceholder :exec
+WITH attachments AS (DELETE FROM message_attachments WHERE message_id = $1::uuid),
+links AS (DELETE FROM message_links WHERE message_id = $1::uuid),
+reactions AS (DELETE FROM message_reactions WHERE message_id = $1::uuid),
+mentions AS (DELETE FROM message_mentions WHERE message_id = $1::uuid),
+pins AS (DELETE FROM channel_pins WHERE message_id = $1::uuid),
+activity AS (DELETE FROM activity_items WHERE message_id = $1::uuid)
+UPDATE messages SET content = '', mentions_everyone = false, mentions_here = false,
+    edited_at = NULL, deleted_at = now()
+WHERE id = $1::uuid
+`
+
+// MakePlaceholder keeps a root whose thread still has replies as an empty
+// row: no text, attachments, previews, reactions, mentions, pin or
+// activity. Its files are deleted through the port afterwards.
+func (q *Queries) MakePlaceholder(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, makePlaceholder, id)
+	return err
+}
+
+const recomputeThread = `-- name: RecomputeThread :one
+WITH replies AS (
+    SELECT id, author_id, created_at FROM messages WHERE thread_root_id = $1::uuid
+), latest AS (
+    SELECT id, created_at FROM replies ORDER BY id DESC LIMIT 1
+), authors AS (
+    SELECT author_id, id FROM (
+        SELECT DISTINCT ON (author_id) author_id, id FROM replies ORDER BY author_id, id DESC
+    ) newest_per_author ORDER BY id DESC LIMIT 3
+)
+UPDATE threads SET
+    reply_count = (SELECT count(*) FROM replies),
+    last_reply_id = (SELECT id FROM latest),
+    last_reply_at = (SELECT created_at FROM latest),
+    recent_author_ids = COALESCE((SELECT array_agg(author_id ORDER BY id DESC) FROM authors), '{}')
+WHERE root_message_id = $1::uuid
+RETURNING root_message_id, reply_count, last_reply_id, last_reply_at, recent_author_ids
+`
+
+// RecomputeThread recounts a root's summary from its remaining replies,
+// after one is deleted.
+func (q *Queries) RecomputeThread(ctx context.Context, rootID string) (Thread, error) {
+	row := q.db.QueryRow(ctx, recomputeThread, rootID)
+	var i Thread
+	err := row.Scan(
+		&i.RootMessageID,
+		&i.ReplyCount,
+		&i.LastReplyID,
+		&i.LastReplyAt,
+		&i.RecentAuthorIds,
+	)
+	return i, err
 }
 
 const recordThreadReply = `-- name: RecordThreadReply :one

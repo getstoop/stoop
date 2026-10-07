@@ -52,8 +52,11 @@ ON CONFLICT DO NOTHING;
 SELECT message_id, user_id FROM message_mentions
 WHERE message_id = ANY($1::uuid[]);
 
+-- UpdateMessageContent never writes onto a root kept as a placeholder: no
+-- row comes back, even when the placeholder landed after the caller's
+-- check.
 -- name: UpdateMessageContent :one
-UPDATE messages SET content = $2, edited_at = now() WHERE id = $1
+UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL
 RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at;
 
 -- name: DeleteMessage :exec

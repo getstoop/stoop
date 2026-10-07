@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -180,7 +181,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: msg},
 	}))
 	if threadRoot != nil {
-		s.publishThreadChanged(ctx, channel, participants, thread)
+		if ev := s.threadChanged(ctx, channel, threadRoot.ID, &thread); ev != nil {
+			s.publishTo(channel, participants, ev)
+		}
 	}
 	s.recordActivity(ctx, row, channel, participants, parent, mentioned, msg.Author, attachments)
 	if s.unfurler != nil {
@@ -435,6 +438,9 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "message")
 	}
+	if msg.DeletedAt != nil {
+		return nil, placeholderError()
+	}
 	if msg.AuthorID != authctx.UserID(ctx) {
 		return nil, connect.NewError(connect.CodePermissionDenied,
 			errors.New("you can only edit your own messages"))
@@ -457,6 +463,9 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	var linksToFetch []string
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content}); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return placeholderError()
+			}
 			return fmt.Errorf("edit message: %w", err)
 		}
 		if s.unfurler != nil {
@@ -508,26 +517,17 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {
 		return nil, err
 	}
-	// The link rows cascade with the message; the files themselves are
-	// deleted through the port afterwards.
-	fileIDs, err := s.q.ListAttachmentFileIDsForMessage(ctx, msg.ID)
+	switch {
+	case msg.DeletedAt != nil:
+		// Already a placeholder: it goes with its last reply.
+	case msg.ThreadRootID != nil:
+		err = s.deleteThreadReply(ctx, msg, channel)
+	default:
+		err = s.deleteTopLevel(ctx, msg, channel)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("list attachments: %w", err)
+		return nil, err
 	}
-	if err := s.q.DeleteMessage(ctx, msg.ID); err != nil {
-		return nil, fmt.Errorf("delete message: %w", err)
-	}
-	if err := s.q.RecomputeChannelLastMessage(ctx, channel.ID); err != nil {
-		return nil, fmt.Errorf("recompute channel: %w", err)
-	}
-	s.deleteMessageFiles(ctx, fileIDs)
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
-		Payload: &realtimev1.ServerEvent_MessageDeleted{
-			MessageDeleted: &realtimev1.MessageDeleted{
-				MessageId: msg.ID, ChannelId: channel.ID, SpaceId: spaceOf(channel),
-			},
-		},
-	}))
 	return connect.NewResponse(&chatv1.DeleteMessageResponse{}), nil
 }
 
