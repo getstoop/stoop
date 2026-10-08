@@ -538,6 +538,9 @@ message SendMessageRequest {
   // must be a top-level message in the same channel, not a placeholder;
   // refused in an announcement channel.
   string thread_root_id = 5;
+  // With thread_root_id: the reply shows in the channel's timeline as well
+  // as in the thread (Message.in_channel), one message in both places.
+  bool also_send_to_channel = 6;
 }
 
 message SendMessageResponse {

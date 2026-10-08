@@ -51,6 +51,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	if err != nil {
 		return nil, err
 	}
+	if req.Msg.AlsoSendToChannel {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("also sending to the channel is not available yet"))
+	}
 	var threadRoot *messageRow
 	if rootID := req.Msg.ThreadRootId; rootID != "" {
 		root, err := s.threadRootFor(ctx, channel, rootID)
