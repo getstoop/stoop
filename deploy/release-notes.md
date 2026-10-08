@@ -1,65 +1,29 @@
-Stoop 0.6.0
+Stoop 0.7.0
 
-Stoop 0.6.0 is still a beta: the API and schema may change between minor
-versions. It upgrades in place from 0.5.x, and `stoop upgrade rollback`
-can take it back to 0.5.x. Going below 0.5.0 now needs a backup (see
-**Schema**).
+Changes since 0.6.0:
 
-**What's new.**
-
-- **Push to talk in the browser.** Under Account → Voice, turn it on and,
-  while you are muted in a call, hold **Ctrl+`** (the key above Tab, with
-  Ctrl on every platform) to talk. Letting go mutes you again 50 ms
-  later. While you are unmuted the key does nothing. The choice is kept
-  in that browser, and the key works only while the Stoop tab has focus.
-  Inside the desktop app the page leaves the key to the app, which holds
-  it from any app in its own next release; until then the desktop app
-  has no push to talk.
-- **Quick webhooks no longer wait behind slow ones.** In 0.5.0, once slow
-  receivers filled the delivery slots, every other hook waited for their
-  backlog to drain (that release's known issue). The hook whose last
-  delivery finished quickest now goes first, so a quick receiver keeps
-  getting its deliveries in seconds while slow ones are busy, and slow
-  ones still get the rest.
-
-**For operators.**
-
-- **API change for scripts.** A webhook delivery no longer has a
-  `response` field. It has been empty since 0.5.0; field 7 and the name
-  are reserved.
-
-**Schema.** Migrations 00054 and 00055 run at startup.
-
-- 00054 is a contract migration: it drops `webhook_deliveries.response`,
-  which 0.5.0 stopped writing, and raises the schema floor to 53. 0.5.x
-  still starts against the result, so `stoop upgrade rollback` to 0.5.x
-  works without a restore. 0.4.x and older are refused; going back that
-  far means restoring a backup taken before the upgrade.
-- 00055 adds an index on `jobs (lane, started_at)`. It is add-only.
-
-**Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
-`cloudflared` 2026.9.3, all unchanged from 0.5.0.
-
-**Known issues.**
-
-- The mic button looks the same whether or not push to talk is on;
-  Account → Voice is where to check.
-
-Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
-security problems go through
-[private reporting](https://github.com/getstoop/stoop/security/advisories/new).
-
-The list below is every change merged since 0.5.0, including a first
-attempt at push to talk that was reverted before release.
-
-Changes since 0.5.0:
-
-- STOOP-415: drop webhook_deliveries.response and Delivery.response (7cd1311)
-- STOOP-399: the lane whose last job ran quickest is leased first (990971f)
-- STOOP-415: regenerate after merging main (da3afe1)
-- STOOP-399: index only finished jobs for a lane's last run (0ea93f9)
-- STOOP-126: push to talk, held on Ctrl+` (24e0eb2)
-- Revert "STOOP-126: push to talk, held on Ctrl+`" (f6074c2)
-- STOOP-126: push to talk, a Ctrl+` listener over mute and unmute (3279149)
-- STOOP-126: a press inside the release tail unmutes a mic gone quiet (6e33606)
-- STOOP-126: a held key's repeats never start a hold (36fa35f)
+- STOOP-421: threads schema (c3137ec)
+- STOOP-422: threads contract (203d810)
+- STOOP-422: DeleteMessage needs messages.moderate, not manage_channels (04676bb)
+- STOOP-423: send into a thread, page a thread (e972dd0)
+- STOOP-423: thread replies don't count as unread or join the channel view (7a4a511)
+- STOOP-423: test that a thread reply leaves the read marker alone (d4c40af)
+- STOOP-424: thread delete rules (5548fdd)
+- STOOP-424: edits and reactions refuse a placeholder in the write itself (716f730)
+- STOOP-425: retention sweeps a thread by its root (e009fcd)
+- STOOP-426: thread activity and search (432ced5)
+- STOOP-426: thread notifications only reach current members, for earlier replies (00f53ae)
+- STOOP-427: a reusable side panel (4612480)
+- STOOP-427: the side panel slides in and out (afe08c4)
+- STOOP-427: the side panel opens without jolting the app (f2ad36e)
+- STOOP-427: side panel review fixes (6e7a758)
+- STOOP-428, STOOP-429: threads in the web app (006fc4f)
+- STOOP-429: a thread shows each time with its day, no day dividers (de3dc3f)
+- STOOP-428, STOOP-429: thread review fixes (c897ecb)
+- STOOP-428: specs expect the Reply in thread button (c6fdb66)
+- STOOP-429: a quote of the root jumps to it in a long thread (2221da3)
+- STOOP-430: links that open a thread (0874fab)
+- STOOP-430: open a linked reply's thread from the first answer (8926e02)
+- STOOP-430: thread links land the channel, and a used thread is forgotten (7d923e3)
+- STOOP-431: browser spec for threads (fe3c1f5)
+- STOOP-432: say how retention treats a thread (2616ab0)
