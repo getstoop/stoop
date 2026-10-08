@@ -22,6 +22,14 @@ SELECT EXISTS (
     WHERE c.id = $1 AND (m.user_id IS NOT NULL OR d.user_id IS NOT NULL)
 ) AS is_member;
 
+-- ChannelMembersAmong is which of these people can still read the
+-- channel: members of its space, or participants in the DM.
+-- name: ChannelMembersAmong :many
+SELECT u.id::uuid FROM unnest(sqlc.arg(user_ids)::uuid[]) AS u(id)
+JOIN channels c ON c.id = sqlc.arg(channel_id)::uuid
+WHERE EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND sm.user_id = u.id)
+   OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = u.id);
+
 -- name: ListSpaceIDsByUser :many
 SELECT space_id FROM space_members WHERE user_id = $1;
 

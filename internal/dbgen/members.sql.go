@@ -9,6 +9,40 @@ import (
 	"context"
 )
 
+const channelMembersAmong = `-- name: ChannelMembersAmong :many
+SELECT u.id::uuid FROM unnest($1::uuid[]) AS u(id)
+JOIN channels c ON c.id = $2::uuid
+WHERE EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND sm.user_id = u.id)
+   OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = u.id)
+`
+
+type ChannelMembersAmongParams struct {
+	UserIds   []string
+	ChannelID string
+}
+
+// ChannelMembersAmong is which of these people can still read the
+// channel: members of its space, or participants in the DM.
+func (q *Queries) ChannelMembersAmong(ctx context.Context, arg ChannelMembersAmongParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, channelMembersAmong, arg.UserIds, arg.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var u_id string
+		if err := rows.Scan(&u_id); err != nil {
+			return nil, err
+		}
+		items = append(items, u_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createSpaceMember = `-- name: CreateSpaceMember :exec
 
 INSERT INTO space_members (space_id, user_id, role)
