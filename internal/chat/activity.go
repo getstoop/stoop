@@ -24,7 +24,9 @@ const (
 	activityKindMention = "mention"
 	activityKindReply   = "reply"
 	activityKindDM      = "dm"
-	previewLen          = 140
+	// Thread replies, one unread entry per thread (messaging.md → Threads).
+	activityKindThreadReply = "thread_reply"
+	previewLen              = 140
 )
 
 // recordActivity tells the people a new message concerns: mentions, then
@@ -68,9 +70,9 @@ func (s *Service) recordActivity(ctx context.Context, msg messageRow, channel db
 	}
 }
 
-// recordThreadReply tells a thread's root author and earlier repliers who
-// are still in the channel about a new reply, as a reply, unless an
-// earlier step already told them. It returns who it told.
+// recordThreadReply tells the people in a thread who haven't muted it
+// about a new reply, unless an earlier step already told them, as one
+// thread_reply entry per thread while unread. It returns who it told.
 func (s *Service) recordThreadReply(ctx context.Context, about alert, rootID string, told map[string]bool) ([]string, error) {
 	people, err := s.q.ThreadParticipants(ctx, dbgen.ThreadParticipantsParams{RootID: rootID, ReplyID: about.msg.ID})
 	if err != nil {
@@ -82,7 +84,7 @@ func (s *Service) recordThreadReply(ctx context.Context, about alert, rootID str
 			recipients = append(recipients, id)
 		}
 	}
-	about.kind = activityKindReply
+	about.kind, about.coalesce = activityKindThreadReply, true
 	return recipients, s.notify(ctx, recipients, about)
 }
 
@@ -141,7 +143,7 @@ func (s *Service) notify(ctx context.Context, recipients []string, about alert) 
 	if err != nil {
 		return err
 	}
-	muted, err := s.mutedAmong(ctx, recipients, about.msg.ChannelID, about.spaceID)
+	muted, err := s.mutedAmong(ctx, recipients, about.msg.ChannelID, about.spaceID, about.msg.ThreadRootID)
 	if err != nil {
 		return err
 	}
@@ -172,9 +174,14 @@ func (s *Service) writeActivityItems(ctx context.Context, recipients []string, a
 		}
 		return items, nil
 	}
+	var threadRootID *string
+	if about.kind == activityKindThreadReply {
+		threadRootID = about.msg.ThreadRootID
+	}
 	rows, err := s.q.UpsertUnreadActivityItems(ctx, dbgen.UpsertUnreadActivityItemsParams{
 		Ids: ids, UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
 		ChannelID: about.msg.ChannelID, MessageID: about.msg.ID, ActorID: about.msg.AuthorID,
+		ThreadRootID: threadRootID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("upsert %s activity items: %w", about.kind, err)
@@ -272,6 +279,8 @@ func toProtoActivityItem(item dbgen.ActivityItem, content, threadRootID *string,
 		kind = chatv1.ActivityKind_ACTIVITY_KIND_REPLY
 	case activityKindDM:
 		kind = chatv1.ActivityKind_ACTIVITY_KIND_DM
+	case activityKindThreadReply:
+		kind = chatv1.ActivityKind_ACTIVITY_KIND_THREAD_REPLY
 	}
 	out := &chatv1.ActivityItem{
 		Id: item.ID, Kind: kind,
@@ -297,8 +306,8 @@ func toProtoActivityItem(item dbgen.ActivityItem, content, threadRootID *string,
 
 // mutedAmong is each recipient's effective mute for a channel: their own
 // channel row or their own space row. spaceID is nil for a direct message.
-func (s *Service) mutedAmong(ctx context.Context, userIDs []string, channelID string, spaceID *string) (map[string]bool, error) {
-	mutedIDs, err := s.q.MutedAmong(ctx, dbgen.MutedAmongParams{UserIds: userIDs, ChannelID: channelID, SpaceID: spaceID})
+func (s *Service) mutedAmong(ctx context.Context, userIDs []string, channelID string, spaceID, threadRootID *string) (map[string]bool, error) {
+	mutedIDs, err := s.q.MutedAmong(ctx, dbgen.MutedAmongParams{UserIds: userIDs, ChannelID: channelID, SpaceID: spaceID, ThreadRootID: threadRootID})
 	if err != nil {
 		return nil, fmt.Errorf("muted among: %w", err)
 	}

@@ -16,7 +16,8 @@ RETURNING *;
 SELECT sqlc.embed(a), m.content AS message_content, m.thread_root_id AS message_thread_root_id,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
     (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = a.user_id AND cm.channel_id = a.channel_id)
-        OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id))::bool AS muted
+        OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id)
+        OR EXISTS (SELECT 1 FROM thread_mutes tm WHERE tm.user_id = a.user_id AND tm.root_message_id = m.thread_root_id))::bool AS muted
 FROM activity_items a
 LEFT JOIN messages m ON m.id = a.message_id
 WHERE a.user_id = $1
@@ -36,9 +37,10 @@ UPDATE activity_items SET read_at = now()
 WHERE user_id = $1 AND read_at IS NULL;
 
 -- UpsertUnreadActivityItems is CreateActivityItems for a kind that
--- coalesces per channel, as a DM's alerts do (see chat.recordDM): a
--- recipient's newest unread item of the kind there is pointed at the new
--- message and stamped now; a recipient without one gets a new item.
+-- coalesces per channel, as a DM's alerts do (see chat.recordDM), or per
+-- thread when thread_root_id is set: a recipient's newest unread item of
+-- the kind there is pointed at the new message and stamped now; a
+-- recipient without one gets a new item.
 -- name: UpsertUnreadActivityItems :many
 WITH recipient AS (
     SELECT unnest(sqlc.arg('ids')::uuid[]) AS id, unnest(sqlc.arg('user_ids')::uuid[]) AS user_id
@@ -49,6 +51,9 @@ WITH recipient AS (
       AND a.channel_id = sqlc.arg('channel_id')::uuid
       AND a.kind = sqlc.arg('kind')::text
       AND a.read_at IS NULL
+      AND (sqlc.narg('thread_root_id')::uuid IS NULL
+           OR EXISTS (SELECT 1 FROM messages m
+                      WHERE m.id = a.message_id AND m.thread_root_id = sqlc.narg('thread_root_id')::uuid))
     ORDER BY a.user_id, a.id DESC
 ), refreshed AS (
     UPDATE activity_items a

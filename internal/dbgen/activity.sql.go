@@ -127,7 +127,8 @@ const listActivity = `-- name: ListActivity :many
 SELECT a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at, m.content AS message_content, m.thread_root_id AS message_thread_root_id,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
     (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = a.user_id AND cm.channel_id = a.channel_id)
-        OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id))::bool AS muted
+        OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id)
+        OR EXISTS (SELECT 1 FROM thread_mutes tm WHERE tm.user_id = a.user_id AND tm.root_message_id = m.thread_root_id))::bool AS muted
 FROM activity_items a
 LEFT JOIN messages m ON m.id = a.message_id
 WHERE a.user_id = $1
@@ -222,17 +223,20 @@ WITH recipient AS (
       AND a.channel_id = $3::uuid
       AND a.kind = $4::text
       AND a.read_at IS NULL
+      AND ($5::uuid IS NULL
+           OR EXISTS (SELECT 1 FROM messages m
+                      WHERE m.id = a.message_id AND m.thread_root_id = $5::uuid))
     ORDER BY a.user_id, a.id DESC
 ), refreshed AS (
     UPDATE activity_items a
-    SET message_id = $5::uuid, actor_id = $6::uuid, created_at = now()
+    SET message_id = $6::uuid, actor_id = $7::uuid, created_at = now()
     FROM unread u
     WHERE a.id = u.id
     RETURNING a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at
 ), created AS (
     INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
-    SELECT r.id, r.user_id, $4::text, $7::uuid,
-        $3::uuid, $5::uuid, $6::uuid
+    SELECT r.id, r.user_id, $4::text, $8::uuid,
+        $3::uuid, $6::uuid, $7::uuid
     FROM recipient r
     WHERE NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
     RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
@@ -243,13 +247,14 @@ SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at
 `
 
 type UpsertUnreadActivityItemsParams struct {
-	Ids       []string
-	UserIds   []string
-	ChannelID string
-	Kind      string
-	MessageID string
-	ActorID   string
-	SpaceID   *string
+	Ids          []string
+	UserIds      []string
+	ChannelID    string
+	Kind         string
+	ThreadRootID *string
+	MessageID    string
+	ActorID      string
+	SpaceID      *string
 }
 
 type UpsertUnreadActivityItemsRow struct {
@@ -265,15 +270,17 @@ type UpsertUnreadActivityItemsRow struct {
 }
 
 // UpsertUnreadActivityItems is CreateActivityItems for a kind that
-// coalesces per channel, as a DM's alerts do (see chat.recordDM): a
-// recipient's newest unread item of the kind there is pointed at the new
-// message and stamped now; a recipient without one gets a new item.
+// coalesces per channel, as a DM's alerts do (see chat.recordDM), or per
+// thread when thread_root_id is set: a recipient's newest unread item of
+// the kind there is pointed at the new message and stamped now; a
+// recipient without one gets a new item.
 func (q *Queries) UpsertUnreadActivityItems(ctx context.Context, arg UpsertUnreadActivityItemsParams) ([]UpsertUnreadActivityItemsRow, error) {
 	rows, err := q.db.Query(ctx, upsertUnreadActivityItems,
 		arg.Ids,
 		arg.UserIds,
 		arg.ChannelID,
 		arg.Kind,
+		arg.ThreadRootID,
 		arg.MessageID,
 		arg.ActorID,
 		arg.SpaceID,

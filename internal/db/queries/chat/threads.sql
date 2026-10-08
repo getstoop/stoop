@@ -79,14 +79,25 @@ SELECT a.file_id FROM message_attachments a
 JOIN messages m ON m.id = a.message_id
 WHERE m.id = sqlc.arg(root_id)::uuid OR m.thread_root_id = sqlc.arg(root_id)::uuid;
 
--- ThreadParticipants are the root's author and everyone who replied
--- before reply_id, for the phase 1 thread notifications, less anyone no
--- longer in the space (or, for a DM, the conversation): message rows
--- outlive a leave or a kick.
+-- ThreadParticipants are who a new reply's thread_reply activity goes
+-- to: the people in the thread before reply_id (its root's author,
+-- repliers, and people @mentioned by name, as ThreadViewerStates counts
+-- them), less anyone who muted it and anyone no longer in the space (or,
+-- for a DM, the conversation): message rows outlive a leave or a kick.
 -- name: ThreadParticipants :many
-SELECT DISTINCT m.author_id FROM messages m
-JOIN channels c ON c.id = m.channel_id
-WHERE (m.id = sqlc.arg(root_id)::uuid
-       OR (m.thread_root_id = sqlc.arg(root_id)::uuid AND m.id < sqlc.arg(reply_id)::uuid))
-  AND (EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND sm.user_id = m.author_id)
-       OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = m.author_id));
+WITH thread AS (
+    SELECT m.id, m.channel_id, m.author_id, m.mentions_everyone, m.mentions_here FROM messages m
+    WHERE m.id = sqlc.arg(root_id)::uuid
+       OR (m.thread_root_id = sqlc.arg(root_id)::uuid AND m.id < sqlc.arg(reply_id)::uuid)
+), people AS (
+    SELECT t.author_id AS user_id FROM thread t
+    UNION
+    SELECT mm.user_id FROM message_mentions mm JOIN thread t ON t.id = mm.message_id
+    WHERE NOT t.mentions_everyone AND NOT t.mentions_here
+)
+SELECT p.user_id FROM people p
+JOIN channels c ON c.id = (SELECT channel_id FROM thread WHERE id = sqlc.arg(root_id)::uuid)
+WHERE (EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND sm.user_id = p.user_id)
+       OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = p.user_id))
+  AND NOT EXISTS (SELECT 1 FROM thread_mutes tm
+                  WHERE tm.user_id = p.user_id AND tm.root_message_id = sqlc.arg(root_id)::uuid);

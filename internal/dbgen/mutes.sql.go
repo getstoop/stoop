@@ -48,19 +48,28 @@ WHERE cm.channel_id = $1::uuid AND cm.user_id = ANY($2::uuid[])
 UNION
 SELECT sm.user_id FROM space_mutes sm
 WHERE sm.space_id = $3::uuid AND sm.user_id = ANY($2::uuid[])
+UNION
+SELECT tm.user_id FROM thread_mutes tm
+WHERE tm.root_message_id = $4::uuid AND tm.user_id = ANY($2::uuid[])
 `
 
 type MutedAmongParams struct {
-	ChannelID string
-	UserIds   []string
-	SpaceID   *string
+	ChannelID    string
+	UserIds      []string
+	SpaceID      *string
+	ThreadRootID *string
 }
 
 // MutedAmong: which of these recipients have muted where something
-// happened, by their own channel row or their own space row. space_id is
-// NULL for a direct message.
+// happened, by their own channel, space or thread row. space_id is NULL
+// for a direct message, thread_root_id outside a thread.
 func (q *Queries) MutedAmong(ctx context.Context, arg MutedAmongParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, mutedAmong, arg.ChannelID, arg.UserIds, arg.SpaceID)
+	rows, err := q.db.Query(ctx, mutedAmong,
+		arg.ChannelID,
+		arg.UserIds,
+		arg.SpaceID,
+		arg.ThreadRootID,
+	)
 	if err != nil {
 		return nil, err
 	}
