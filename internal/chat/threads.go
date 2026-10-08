@@ -168,6 +168,11 @@ func (s *Service) deleteThreadReply(ctx context.Context, msg messageRow, channel
 		if err := qtx.DeleteMessage(ctx, msg.ID); err != nil {
 			return fmt.Errorf("delete message: %w", err)
 		}
+		if msg.InChannel {
+			if err := qtx.RecomputeChannelLastMessage(ctx, channel.ID); err != nil {
+				return fmt.Errorf("recompute channel: %w", err)
+			}
+		}
 		recounted, err := qtx.RecomputeThread(ctx, rootID)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("recount thread: %w", err)
@@ -258,4 +263,41 @@ func (s *Service) DeleteThread(ctx context.Context, req *connect.Request[chatv1.
 	s.deleteMessageFiles(ctx, fileIDs)
 	s.publishChannel(ctx, channel, messageDeleted(root.ID, channel, ""))
 	return connect.NewResponse(&chatv1.DeleteThreadResponse{}), nil
+}
+
+// threadRootsOf reads the roots of the rows that are replies also sent to
+// the channel, by id.
+func (s *Service) threadRootsOf(ctx context.Context, rows []dbgen.MessageWithReply) (map[string]dbgen.ThreadRootRefsRow, error) {
+	var ids []string
+	for _, row := range rows {
+		if row.InChannel && row.ThreadRootID != nil {
+			ids = append(ids, *row.ThreadRootID)
+		}
+	}
+	out := map[string]dbgen.ThreadRootRefsRow{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	found, err := s.q.ThreadRootRefs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("thread roots: %w", err)
+	}
+	for _, root := range found {
+		out[root.ID] = root
+	}
+	return out, nil
+}
+
+// threadRootRef is the line on a reply also sent to the channel: its
+// root's author and excerpt, or only the id once the root is a placeholder.
+func (s *Service) threadRootRef(ctx context.Context, rootID string, roots map[string]dbgen.ThreadRootRefsRow, authors map[string]*chatv1.MessageAuthor) *chatv1.ReplyRef {
+	root, ok := roots[rootID]
+	if !ok || root.DeletedAt != nil {
+		return &chatv1.ReplyRef{MessageId: rootID}
+	}
+	file := ""
+	if root.Content == "" { // a root with only files previews its first
+		file = s.firstAttachmentName(ctx, root.ID)
+	}
+	return replyRef(root.ID, authors[root.AuthorID], &root.Content, file)
 }
