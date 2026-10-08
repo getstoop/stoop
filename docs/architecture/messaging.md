@@ -522,8 +522,9 @@ in the root's thread and not in the channel's timeline
   level only: a reply can't be a root. An announcement channel has no
   threads, for admins too (`threadRootFor` in `chat/threads.go`).
 - **What a reply leaves alone.** The channel's `last_message_id` and the
-  author's read marker, so a thread reply neither bolds the channel nor
-  marks it read.
+  author's channel read marker, so a thread reply neither bolds the
+  channel nor marks it read. It moves the author's thread read marker to
+  their reply.
 - **The summary.** Each send updates the root's `threads` row in the same
   transaction (`RecordThreadReply`) and publishes `ThreadChanged` with the
   whole summary, not a delta, as `ReactionsChanged` does.
@@ -539,8 +540,20 @@ in the root's thread and not in the channel's timeline
   before it, as a `reply` item, after mentions and quote-replies (one
   item per person), but only those still in the space or conversation.
   Activity items and search results carry `thread_root_id`, so the
-  client can open the thread. Following,
-  unfollowing and muting a thread come later.
+  client can open the thread.
+- **Who is in a thread.** Its root's author, everyone who replied, and
+  everyone @mentioned by name in the root or a reply (`@everyone` and
+  `@here` don't count). Nothing stores it: `ThreadViewerStates` works it
+  out from the messages, so there is no follow to join or leave.
+- **Mutes and read markers.** `thread_mutes` and `thread_reads` mirror
+  `channel_mutes` and `channel_reads`. A mute stays until it is undone;
+  replying doesn't undo it. `ListMessages` fills the caller's
+  `participating`, `muted` and `unread_count` into each root's summary
+  (`addThreadViewerStates`); `ThreadChanged` never carries them, since
+  every viewer gets the same event. `unread_count` counts others' replies
+  after the marker, and is 0 unless the caller is in the thread and
+  hasn't muted it. `SetThreadMuted` and `MarkThreadRead` tell the
+  person's other devices with `ThreadMuted` and `ThreadRead`.
 - **Deleting a reply** recounts its root's summary under a lock on the
   `threads` row, so a concurrent send's increment and the recount can't
   miss each other, and publishes `MessageDeleted` with the thread's root
