@@ -82,3 +82,28 @@ func TestE2EThreadDeletes(t *testing.T) {
 		t.Errorf("channel after Delete thread = %v, want empty", history)
 	}
 }
+
+// A bot's token replies in a thread through SendMessage, as the web app
+// does (STOOP-437).
+func TestE2EBotTokenRepliesInAThread(t *testing.T) {
+	server := newHarness(t)
+	casey := server.person("casey")
+	stoop, general := server.space(casey, "The Stoop")
+	bot := server.bot(casey, "deploy")
+	server.addBot(casey, bot, stoop)
+	token := server.botToken(casey, bot, "space.read", "messages.read", "messages.post")
+
+	rootID := server.send(casey, general, "deploying 2.4 tonight").expect(t, "ok").str("message.id")
+	reply := server.rpc(token, "stoop.chat.v1.ChatService/SendMessage", map[string]any{
+		"channelId": general, "content": "deploy finished", "threadRootId": rootID,
+	}).expect(t, "ok")
+	if got := reply.str("message.threadRootId"); got != rootID {
+		t.Errorf("the bot's reply names thread %q, want %q", got, rootID)
+	}
+	also := server.rpc(token, "stoop.chat.v1.ChatService/SendMessage", map[string]any{
+		"channelId": general, "content": "rolled back", "threadRootId": rootID, "alsoSendToChannel": true,
+	}).expect(t, "ok")
+	if also.str("message.threadRoot.messageId") != rootID {
+		t.Errorf("an also-sent bot reply = %v, want it to name its thread", also)
+	}
+}
