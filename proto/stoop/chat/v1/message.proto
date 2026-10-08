@@ -89,8 +89,13 @@ message Message {
   // no content, attachments, reactions or previews.
   bool deleted = 18;
   // Whether the message shows in the channel's timeline: true for every
-  // top-level message, false for a reply that stays in its thread.
+  // top-level message and for a reply also sent to the channel, false for
+  // a reply that stays in its thread.
   bool in_channel = 19;
+  // Set on a reply also sent to the channel: its root's author and an
+  // excerpt, for the line in the channel saying which thread it answers.
+  // No author or preview when the root is a placeholder.
+  ReplyRef thread_root = 20;
 }
 
 // ThreadSummary is what the line under a root shows, so it renders with no

@@ -304,8 +304,13 @@ type Message struct {
 	// no content, attachments, reactions or previews.
 	Deleted bool `protobuf:"varint,18,opt,name=deleted,proto3" json:"deleted,omitempty"`
 	// Whether the message shows in the channel's timeline: true for every
-	// top-level message, false for a reply that stays in its thread.
-	InChannel     bool `protobuf:"varint,19,opt,name=in_channel,json=inChannel,proto3" json:"in_channel,omitempty"`
+	// top-level message and for a reply also sent to the channel, false for
+	// a reply that stays in its thread.
+	InChannel bool `protobuf:"varint,19,opt,name=in_channel,json=inChannel,proto3" json:"in_channel,omitempty"`
+	// Set on a reply also sent to the channel: its root's author and an
+	// excerpt, for the line in the channel saying which thread it answers.
+	// No author or preview when the root is a placeholder.
+	ThreadRoot    *ReplyRef `protobuf:"bytes,20,opt,name=thread_root,json=threadRoot,proto3" json:"thread_root,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -471,6 +476,13 @@ func (x *Message) GetInChannel() bool {
 		return x.InChannel
 	}
 	return false
+}
+
+func (x *Message) GetThreadRoot() *ReplyRef {
+	if x != nil {
+		return x.ThreadRoot
+	}
+	return nil
 }
 
 // ThreadSummary is what the line under a root shows, so it renders with no
@@ -684,7 +696,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x18\n" +
-	"\aexpired\x18\x05 \x01(\bR\aexpired\"\xa9\x06\n" +
+	"\aexpired\x18\x05 \x01(\bR\aexpired\"\xe3\x06\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -708,7 +720,9 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x06thread\x18\x11 \x01(\v2\x1c.stoop.chat.v1.ThreadSummaryR\x06thread\x12\x18\n" +
 	"\adeleted\x18\x12 \x01(\bR\adeleted\x12\x1d\n" +
 	"\n" +
-	"in_channel\x18\x13 \x01(\bR\tinChannel\"\x94\x02\n" +
+	"in_channel\x18\x13 \x01(\bR\tinChannel\x128\n" +
+	"\vthread_root\x18\x14 \x01(\v2\x17.stoop.chat.v1.ReplyRefR\n" +
+	"threadRoot\"\x94\x02\n" +
 	"\rThreadSummary\x12\x1f\n" +
 	"\vreply_count\x18\x01 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
@@ -763,13 +777,14 @@ var file_stoop_chat_v1_message_proto_depIdxs = []int32{
 	2,  // 7: stoop.chat.v1.Message.attachments:type_name -> stoop.chat.v1.Attachment
 	5,  // 8: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
 	4,  // 9: stoop.chat.v1.Message.thread:type_name -> stoop.chat.v1.ThreadSummary
-	7,  // 10: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
-	0,  // 11: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	1,  // 10: stoop.chat.v1.Message.thread_root:type_name -> stoop.chat.v1.ReplyRef
+	7,  // 11: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
+	0,  // 12: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_message_proto_init() }

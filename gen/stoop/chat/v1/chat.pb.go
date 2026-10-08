@@ -3624,9 +3624,12 @@ type SendMessageRequest struct {
 	// Optional: post into this root's thread instead of the channel. The root
 	// must be a top-level message in the same channel, not a placeholder;
 	// refused in an announcement channel.
-	ThreadRootId  string `protobuf:"bytes,5,opt,name=thread_root_id,json=threadRootId,proto3" json:"thread_root_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ThreadRootId string `protobuf:"bytes,5,opt,name=thread_root_id,json=threadRootId,proto3" json:"thread_root_id,omitempty"`
+	// With thread_root_id: the reply shows in the channel's timeline as well
+	// as in the thread (Message.in_channel), one message in both places.
+	AlsoSendToChannel bool `protobuf:"varint,6,opt,name=also_send_to_channel,json=alsoSendToChannel,proto3" json:"also_send_to_channel,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SendMessageRequest) Reset() {
@@ -3692,6 +3695,13 @@ func (x *SendMessageRequest) GetThreadRootId() string {
 		return x.ThreadRootId
 	}
 	return ""
+}
+
+func (x *SendMessageRequest) GetAlsoSendToChannel() bool {
+	if x != nil {
+		return x.AlsoSendToChannel
+	}
+	return false
 }
 
 type SendMessageResponse struct {
@@ -5222,14 +5232,15 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\vchannel_ids\x18\x02 \x03(\tR\n" +
 	"channelIds\"M\n" +
 	"\x17ReorderChannelsResponse\x122\n" +
-	"\bchannels\x18\x01 \x03(\v2\x16.stoop.chat.v1.ChannelR\bchannels\"\xc9\x01\n" +
+	"\bchannels\x18\x01 \x03(\v2\x16.stoop.chat.v1.ChannelR\bchannels\"\xfa\x01\n" +
 	"\x12SendMessageRequest\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x01 \x01(\tR\tchannelId\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12-\n" +
 	"\x13reply_to_message_id\x18\x03 \x01(\tR\x10replyToMessageId\x12%\n" +
 	"\x0eattachment_ids\x18\x04 \x03(\tR\rattachmentIds\x12$\n" +
-	"\x0ethread_root_id\x18\x05 \x01(\tR\fthreadRootId\"G\n" +
+	"\x0ethread_root_id\x18\x05 \x01(\tR\fthreadRootId\x12/\n" +
+	"\x14also_send_to_channel\x18\x06 \x01(\bR\x11alsoSendToChannel\"G\n" +
 	"\x13SendMessageResponse\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x16.stoop.chat.v1.MessageR\amessage\"M\n" +
 	"\x12EditMessageRequest\x12\x1d\n" +
