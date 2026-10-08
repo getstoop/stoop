@@ -432,6 +432,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	}
 
 	messages := make([]*chatv1.Message, len(rows))
+	rootRefs := map[string]*chatv1.ReplyRef{}
 	for index, row := range rows {
 		message := toProtoMessage(listedMessage(row), authors, mentions[row.ID], spaceID)
 		message.Reactions = reactions[row.ID]
@@ -440,7 +441,12 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		message.Pinned = pinned[row.ID]
 		message.Thread = toProtoThread(row.ThreadReplyCount, row.ThreadLastReplyAt, row.ThreadRecentAuthorIds, authors)
 		if row.InChannel && row.ThreadRootID != nil {
-			message.ThreadRoot = s.threadRootRef(ctx, *row.ThreadRootID, roots, authors)
+			ref, ok := rootRefs[*row.ThreadRootID]
+			if !ok { // once per root, however many of its replies the page holds
+				ref = s.threadRootRef(ctx, *row.ThreadRootID, roots, authors)
+				rootRefs[*row.ThreadRootID] = ref
+			}
+			message.ThreadRoot = ref
 		}
 		if row.ReplyToMessageID != nil {
 			var author *chatv1.MessageAuthor
