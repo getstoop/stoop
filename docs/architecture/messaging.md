@@ -235,9 +235,12 @@ thread, then DM participants, each step skipping anyone an
 earlier one told. Being mentioned in a reply in a DM is one entry, not
 three.
 
-**Blocked people raise nothing.** `withoutBlockers` filters every recipient
-list, so a block is applied once, at the point of delivery, rather than in
-each of the three record paths.
+**Blocked people raise nothing, and nobody is told about a room they're
+no longer in.** `notify` filters every recipient list through
+`withoutBlockers` and then `ChannelMembersAmong`, so both apply once, at
+the point of delivery, rather than in each record path. A message row
+outlives its author's leave, kick or ban, and a quote of it would
+otherwise hand them the new message's text.
 
 **Delivery is batched.** Each of the three goes through `notify`, which
 filters blockers, writes every recipient's item, and reads their mutes in

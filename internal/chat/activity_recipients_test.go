@@ -155,3 +155,62 @@ func TestGroupDirectMessageActivityPerParticipant(t *testing.T) {
 		t.Errorf("bea had not read: want her one entry refreshed, got %d items, %d unread", len(beaFeed.Items), beaFeed.UnreadCount)
 	}
 }
+
+// Someone no longer in the space is told nothing when their old message
+// is quoted, whether they left, were kicked or were banned (STOOP-438):
+// the quote would hand them the new message's text.
+func TestQuotingAFormerMemberTellsThemNothing(t *testing.T) {
+	pool, _, svc := newTestService(t)
+	casey := newUser(t, pool, "casey", authctx.RoleMember)
+	ada := newUser(t, pool, "ada", authctx.RoleMember)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	dot := newUser(t, pool, "dot", authctx.RoleMember)
+	sp, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spaceID, channelID := sp.Msg.Space.Id, sp.Msg.DefaultChannel.Id
+	joinSpace(t, svc, casey, spaceID, ada, bea, dot)
+	send := func(who context.Context, content, replyTo string) string {
+		t.Helper()
+		res, err := svc.SendMessage(who, connect.NewRequest(&chatv1.SendMessageRequest{
+			ChannelId: channelID, Content: content, ReplyToMessageId: replyTo,
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Msg.Message.Id
+	}
+	items := func(who context.Context) int {
+		t.Helper()
+		res, err := svc.ListActivity(who, connect.NewRequest(&chatv1.ListActivityRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(res.Msg.Items)
+	}
+
+	adaOld := send(ada, "the ladder is in my garage", "")
+	beaOld := send(bea, "I'll water the beds", "")
+	dotOld := send(dot, "seedlings are on the step", "")
+	if _, err := svc.LeaveSpace(ada, connect.NewRequest(&chatv1.LeaveSpaceRequest{SpaceId: spaceID})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.KickMember(casey, connect.NewRequest(&chatv1.KickMemberRequest{SpaceId: spaceID, UserId: authctx.UserID(bea)})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.BanMember(casey, connect.NewRequest(&chatv1.BanMemberRequest{SpaceId: spaceID, UserId: authctx.UserID(dot)})); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, former := range map[string]struct {
+		who      context.Context
+		original string
+	}{"ada (left)": {ada, adaOld}, "bea (kicked)": {bea, beaOld}, "dot (banned)": {dot, dotOld}} {
+		before := items(former.who)
+		send(casey, "quoting you after you went", former.original)
+		if after := items(former.who); after != before {
+			t.Errorf("%s got %d activity items for a quote of their old message", name, after-before)
+		}
+	}
+}

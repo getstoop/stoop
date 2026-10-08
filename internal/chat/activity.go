@@ -132,12 +132,21 @@ func (s *Service) recordDM(ctx context.Context, about alert, participants []stri
 }
 
 // notify writes the alert's activity items for the recipients, less any
-// who blocked the author, and delivers each live with its recipient's
-// mute. Its query count does not grow with the recipients.
+// who blocked the author or can no longer read the channel (a quoted
+// message's author who left), and delivers each live with its
+// recipient's mute. Its query count does not grow with the recipients.
 func (s *Service) notify(ctx context.Context, recipients []string, about alert) error {
 	recipients, err := s.withoutBlockers(ctx, about.msg.AuthorID, recipients)
 	if err != nil || len(recipients) == 0 {
 		return err
+	}
+	if recipients, err = s.q.ChannelMembersAmong(ctx, dbgen.ChannelMembersAmongParams{
+		UserIds: recipients, ChannelID: about.msg.ChannelID,
+	}); err != nil {
+		return fmt.Errorf("check readers: %w", err)
+	}
+	if len(recipients) == 0 {
+		return nil
 	}
 	items, err := s.writeActivityItems(ctx, recipients, about)
 	if err != nil {
