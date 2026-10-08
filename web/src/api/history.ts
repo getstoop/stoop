@@ -189,6 +189,22 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
     },
 
     jumpTo: async (queryClient, t, messageId) => {
+      // A thread's root is not one of its replies: the window that shows
+      // it is the first page, the replies after it, with nothing older.
+      if (t.rootId && messageId === t.rootId) {
+        const first = await page(t, () =>
+          chatClient.listMessages({
+            ...scope(t),
+            afterId: messageId,
+            limit: HISTORY_PAGE,
+          }),
+        );
+        if (!first) return false;
+        queryClient.setQueryData<Message[]>(timelineKey(t), first.messages);
+        get().seed(t, first);
+        patch(t, { hasOlder: false, landOn: { id: messageId } });
+        return true;
+      }
       const res = await page(t, () =>
         chatClient.listMessages({
           ...scope(t),
