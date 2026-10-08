@@ -42,6 +42,13 @@ should use a bot token, made from the same admin page. Never paste a bot
 token into someone else's appliance: a hook URL can only post, a bot
 token can read everything its bot can.
 
+**To reply in a thread** from a script, call `SendMessage` with
+`threadRootId` set to the id of the thread's first message: the `id`
+`SendMessage` returned when you posted it, a message's `id` from
+`ListMessages`, or the `t=` value in a *Copy link to thread* URL. Add
+`"alsoSendToChannel": true` to show the reply in the channel as well. A
+hook URL always posts into the channel.
+
 `STOOP_WEBHOOKS=false` turns the whole feature off without deleting
 anything; the two direction switches on the admin page do the same per
 direction.
