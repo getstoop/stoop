@@ -13,6 +13,9 @@ enum ActivityKind {
   ACTIVITY_KIND_REPLY = 2;
   // Someone sent you a direct message (space_id is empty).
   ACTIVITY_KIND_DM = 3;
+  // Someone replied in a thread you are in and haven't muted. One item
+  // per thread while unread, refreshed by later replies.
+  ACTIVITY_KIND_THREAD_REPLY = 4;
 }
 
 // ActivityItem is something that happened to the recipient. It points at

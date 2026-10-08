@@ -100,6 +100,16 @@ message ThreadSummary {
   google.protobuf.Timestamp last_reply_at = 2;
   // The most recent distinct reply authors, newest first, at most three.
   repeated MessageAuthor recent_authors = 3;
+  // The rest is the caller's own and never set on ThreadChanged, whose
+  // summary is the same for everyone.
+  //
+  // The caller started the thread, replied in it or was mentioned in it.
+  bool participating = 4;
+  // The caller muted the thread; see SetThreadMuted.
+  bool muted = 5;
+  // Replies by others after the caller's read marker. 0 unless
+  // participating and not muted.
+  int32 unread_count = 6;
 }
 
 // LinkPreview is the unfurled metadata of a URL in a message.

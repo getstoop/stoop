@@ -109,6 +109,12 @@ const (
 	// ChatServiceSetSpaceMutedProcedure is the fully-qualified name of the ChatService's SetSpaceMuted
 	// RPC.
 	ChatServiceSetSpaceMutedProcedure = "/stoop.chat.v1.ChatService/SetSpaceMuted"
+	// ChatServiceSetThreadMutedProcedure is the fully-qualified name of the ChatService's
+	// SetThreadMuted RPC.
+	ChatServiceSetThreadMutedProcedure = "/stoop.chat.v1.ChatService/SetThreadMuted"
+	// ChatServiceListThreadMutesProcedure is the fully-qualified name of the ChatService's
+	// ListThreadMutes RPC.
+	ChatServiceListThreadMutesProcedure = "/stoop.chat.v1.ChatService/ListThreadMutes"
 	// ChatServiceSendMessageProcedure is the fully-qualified name of the ChatService's SendMessage RPC.
 	ChatServiceSendMessageProcedure = "/stoop.chat.v1.ChatService/SendMessage"
 	// ChatServiceListMessagesProcedure is the fully-qualified name of the ChatService's ListMessages
@@ -149,6 +155,9 @@ const (
 	// ChatServiceMarkChannelReadProcedure is the fully-qualified name of the ChatService's
 	// MarkChannelRead RPC.
 	ChatServiceMarkChannelReadProcedure = "/stoop.chat.v1.ChatService/MarkChannelRead"
+	// ChatServiceMarkThreadReadProcedure is the fully-qualified name of the ChatService's
+	// MarkThreadRead RPC.
+	ChatServiceMarkThreadReadProcedure = "/stoop.chat.v1.ChatService/MarkThreadRead"
 	// ChatServiceListActivityProcedure is the fully-qualified name of the ChatService's ListActivity
 	// RPC.
 	ChatServiceListActivityProcedure = "/stoop.chat.v1.ChatService/ListActivity"
@@ -241,6 +250,13 @@ type ChatServiceClient interface {
 	SetChannelMuted(context.Context, *connect.Request[v1.SetChannelMutedRequest]) (*connect.Response[v1.SetChannelMutedResponse], error)
 	// SetSpaceMuted sets the caller's own mute for a space they belong to.
 	SetSpaceMuted(context.Context, *connect.Request[v1.SetSpaceMutedRequest]) (*connect.Response[v1.SetSpaceMutedResponse], error)
+	// SetThreadMuted sets the caller's own mute for a thread in a channel
+	// they can read. A muted thread writes them no thread_reply activity and
+	// no banners; mentions and replies to them in it still reach the feed.
+	SetThreadMuted(context.Context, *connect.Request[v1.SetThreadMutedRequest]) (*connect.Response[v1.SetThreadMutedResponse], error)
+	// ListThreadMutes returns the threads the caller muted, newest mute
+	// first, in channels they can still read.
+	ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 	// SearchMessages finds messages by their words within one space the
@@ -297,6 +313,9 @@ type ChatServiceClient interface {
 	// either direction. Instance admins get the same list, not every account.
 	ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error)
 	MarkChannelRead(context.Context, *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error)
+	// MarkThreadRead moves the caller's read marker in a thread to its
+	// newest reply (or to message_id if given). Only forward.
+	MarkThreadRead(context.Context, *connect.Request[v1.MarkThreadReadRequest]) (*connect.Response[v1.MarkThreadReadResponse], error)
 	ListActivity(context.Context, *connect.Request[v1.ListActivityRequest]) (*connect.Response[v1.ListActivityResponse], error)
 	// MarkActivityRead marks the given activity items (or all of them)
 	// read and returns the new unread count.
@@ -500,6 +519,18 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("SetSpaceMuted")),
 			connect.WithClientOptions(opts...),
 		),
+		setThreadMuted: connect.NewClient[v1.SetThreadMutedRequest, v1.SetThreadMutedResponse](
+			httpClient,
+			baseURL+ChatServiceSetThreadMutedProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("SetThreadMuted")),
+			connect.WithClientOptions(opts...),
+		),
+		listThreadMutes: connect.NewClient[v1.ListThreadMutesRequest, v1.ListThreadMutesResponse](
+			httpClient,
+			baseURL+ChatServiceListThreadMutesProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListThreadMutes")),
+			connect.WithClientOptions(opts...),
+		),
 		sendMessage: connect.NewClient[v1.SendMessageRequest, v1.SendMessageResponse](
 			httpClient,
 			baseURL+ChatServiceSendMessageProcedure,
@@ -584,6 +615,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("MarkChannelRead")),
 			connect.WithClientOptions(opts...),
 		),
+		markThreadRead: connect.NewClient[v1.MarkThreadReadRequest, v1.MarkThreadReadResponse](
+			httpClient,
+			baseURL+ChatServiceMarkThreadReadProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("MarkThreadRead")),
+			connect.WithClientOptions(opts...),
+		),
 		listActivity: connect.NewClient[v1.ListActivityRequest, v1.ListActivityResponse](
 			httpClient,
 			baseURL+ChatServiceListActivityProcedure,
@@ -632,6 +669,8 @@ type chatServiceClient struct {
 	reorderChannels             *connect.Client[v1.ReorderChannelsRequest, v1.ReorderChannelsResponse]
 	setChannelMuted             *connect.Client[v1.SetChannelMutedRequest, v1.SetChannelMutedResponse]
 	setSpaceMuted               *connect.Client[v1.SetSpaceMutedRequest, v1.SetSpaceMutedResponse]
+	setThreadMuted              *connect.Client[v1.SetThreadMutedRequest, v1.SetThreadMutedResponse]
+	listThreadMutes             *connect.Client[v1.ListThreadMutesRequest, v1.ListThreadMutesResponse]
 	sendMessage                 *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
 	listMessages                *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
 	searchMessages              *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
@@ -646,6 +685,7 @@ type chatServiceClient struct {
 	setDirectMessageClosed      *connect.Client[v1.SetDirectMessageClosedRequest, v1.SetDirectMessageClosedResponse]
 	listDirectMessageCandidates *connect.Client[v1.ListDirectMessageCandidatesRequest, v1.ListDirectMessageCandidatesResponse]
 	markChannelRead             *connect.Client[v1.MarkChannelReadRequest, v1.MarkChannelReadResponse]
+	markThreadRead              *connect.Client[v1.MarkThreadReadRequest, v1.MarkThreadReadResponse]
 	listActivity                *connect.Client[v1.ListActivityRequest, v1.ListActivityResponse]
 	markActivityRead            *connect.Client[v1.MarkActivityReadRequest, v1.MarkActivityReadResponse]
 }
@@ -805,6 +845,16 @@ func (c *chatServiceClient) SetSpaceMuted(ctx context.Context, req *connect.Requ
 	return c.setSpaceMuted.CallUnary(ctx, req)
 }
 
+// SetThreadMuted calls stoop.chat.v1.ChatService.SetThreadMuted.
+func (c *chatServiceClient) SetThreadMuted(ctx context.Context, req *connect.Request[v1.SetThreadMutedRequest]) (*connect.Response[v1.SetThreadMutedResponse], error) {
+	return c.setThreadMuted.CallUnary(ctx, req)
+}
+
+// ListThreadMutes calls stoop.chat.v1.ChatService.ListThreadMutes.
+func (c *chatServiceClient) ListThreadMutes(ctx context.Context, req *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error) {
+	return c.listThreadMutes.CallUnary(ctx, req)
+}
+
 // SendMessage calls stoop.chat.v1.ChatService.SendMessage.
 func (c *chatServiceClient) SendMessage(ctx context.Context, req *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error) {
 	return c.sendMessage.CallUnary(ctx, req)
@@ -873,6 +923,11 @@ func (c *chatServiceClient) ListDirectMessageCandidates(ctx context.Context, req
 // MarkChannelRead calls stoop.chat.v1.ChatService.MarkChannelRead.
 func (c *chatServiceClient) MarkChannelRead(ctx context.Context, req *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error) {
 	return c.markChannelRead.CallUnary(ctx, req)
+}
+
+// MarkThreadRead calls stoop.chat.v1.ChatService.MarkThreadRead.
+func (c *chatServiceClient) MarkThreadRead(ctx context.Context, req *connect.Request[v1.MarkThreadReadRequest]) (*connect.Response[v1.MarkThreadReadResponse], error) {
+	return c.markThreadRead.CallUnary(ctx, req)
 }
 
 // ListActivity calls stoop.chat.v1.ChatService.ListActivity.
@@ -969,6 +1024,13 @@ type ChatServiceHandler interface {
 	SetChannelMuted(context.Context, *connect.Request[v1.SetChannelMutedRequest]) (*connect.Response[v1.SetChannelMutedResponse], error)
 	// SetSpaceMuted sets the caller's own mute for a space they belong to.
 	SetSpaceMuted(context.Context, *connect.Request[v1.SetSpaceMutedRequest]) (*connect.Response[v1.SetSpaceMutedResponse], error)
+	// SetThreadMuted sets the caller's own mute for a thread in a channel
+	// they can read. A muted thread writes them no thread_reply activity and
+	// no banners; mentions and replies to them in it still reach the feed.
+	SetThreadMuted(context.Context, *connect.Request[v1.SetThreadMutedRequest]) (*connect.Response[v1.SetThreadMutedResponse], error)
+	// ListThreadMutes returns the threads the caller muted, newest mute
+	// first, in channels they can still read.
+	ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 	// SearchMessages finds messages by their words within one space the
@@ -1025,6 +1087,9 @@ type ChatServiceHandler interface {
 	// either direction. Instance admins get the same list, not every account.
 	ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error)
 	MarkChannelRead(context.Context, *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error)
+	// MarkThreadRead moves the caller's read marker in a thread to its
+	// newest reply (or to message_id if given). Only forward.
+	MarkThreadRead(context.Context, *connect.Request[v1.MarkThreadReadRequest]) (*connect.Response[v1.MarkThreadReadResponse], error)
 	ListActivity(context.Context, *connect.Request[v1.ListActivityRequest]) (*connect.Response[v1.ListActivityResponse], error)
 	// MarkActivityRead marks the given activity items (or all of them)
 	// read and returns the new unread count.
@@ -1224,6 +1289,18 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("SetSpaceMuted")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceSetThreadMutedHandler := connect.NewUnaryHandler(
+		ChatServiceSetThreadMutedProcedure,
+		svc.SetThreadMuted,
+		connect.WithSchema(chatServiceMethods.ByName("SetThreadMuted")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceListThreadMutesHandler := connect.NewUnaryHandler(
+		ChatServiceListThreadMutesProcedure,
+		svc.ListThreadMutes,
+		connect.WithSchema(chatServiceMethods.ByName("ListThreadMutes")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceSendMessageHandler := connect.NewUnaryHandler(
 		ChatServiceSendMessageProcedure,
 		svc.SendMessage,
@@ -1308,6 +1385,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("MarkChannelRead")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceMarkThreadReadHandler := connect.NewUnaryHandler(
+		ChatServiceMarkThreadReadProcedure,
+		svc.MarkThreadRead,
+		connect.WithSchema(chatServiceMethods.ByName("MarkThreadRead")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceListActivityHandler := connect.NewUnaryHandler(
 		ChatServiceListActivityProcedure,
 		svc.ListActivity,
@@ -1384,6 +1467,10 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceSetChannelMutedHandler.ServeHTTP(w, r)
 		case ChatServiceSetSpaceMutedProcedure:
 			chatServiceSetSpaceMutedHandler.ServeHTTP(w, r)
+		case ChatServiceSetThreadMutedProcedure:
+			chatServiceSetThreadMutedHandler.ServeHTTP(w, r)
+		case ChatServiceListThreadMutesProcedure:
+			chatServiceListThreadMutesHandler.ServeHTTP(w, r)
 		case ChatServiceSendMessageProcedure:
 			chatServiceSendMessageHandler.ServeHTTP(w, r)
 		case ChatServiceListMessagesProcedure:
@@ -1412,6 +1499,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceListDirectMessageCandidatesHandler.ServeHTTP(w, r)
 		case ChatServiceMarkChannelReadProcedure:
 			chatServiceMarkChannelReadHandler.ServeHTTP(w, r)
+		case ChatServiceMarkThreadReadProcedure:
+			chatServiceMarkThreadReadHandler.ServeHTTP(w, r)
 		case ChatServiceListActivityProcedure:
 			chatServiceListActivityHandler.ServeHTTP(w, r)
 		case ChatServiceMarkActivityReadProcedure:
@@ -1549,6 +1638,14 @@ func (UnimplementedChatServiceHandler) SetSpaceMuted(context.Context, *connect.R
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SetSpaceMuted is not implemented"))
 }
 
+func (UnimplementedChatServiceHandler) SetThreadMuted(context.Context, *connect.Request[v1.SetThreadMutedRequest]) (*connect.Response[v1.SetThreadMutedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SetThreadMuted is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListThreadMutes is not implemented"))
+}
+
 func (UnimplementedChatServiceHandler) SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SendMessage is not implemented"))
 }
@@ -1603,6 +1700,10 @@ func (UnimplementedChatServiceHandler) ListDirectMessageCandidates(context.Conte
 
 func (UnimplementedChatServiceHandler) MarkChannelRead(context.Context, *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.MarkChannelRead is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) MarkThreadRead(context.Context, *connect.Request[v1.MarkThreadReadRequest]) (*connect.Response[v1.MarkThreadReadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.MarkThreadRead is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) ListActivity(context.Context, *connect.Request[v1.ListActivityRequest]) (*connect.Response[v1.ListActivityResponse], error) {

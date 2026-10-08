@@ -481,6 +481,16 @@ type ThreadSummary struct {
 	LastReplyAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_reply_at,json=lastReplyAt,proto3" json:"last_reply_at,omitempty"`
 	// The most recent distinct reply authors, newest first, at most three.
 	RecentAuthors []*MessageAuthor `protobuf:"bytes,3,rep,name=recent_authors,json=recentAuthors,proto3" json:"recent_authors,omitempty"`
+	// The rest is the caller's own and never set on ThreadChanged, whose
+	// summary is the same for everyone.
+	//
+	// The caller started the thread, replied in it or was mentioned in it.
+	Participating bool `protobuf:"varint,4,opt,name=participating,proto3" json:"participating,omitempty"`
+	// The caller muted the thread; see SetThreadMuted.
+	Muted bool `protobuf:"varint,5,opt,name=muted,proto3" json:"muted,omitempty"`
+	// Replies by others after the caller's read marker. 0 unless
+	// participating and not muted.
+	UnreadCount   int32 `protobuf:"varint,6,opt,name=unread_count,json=unreadCount,proto3" json:"unread_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -534,6 +544,27 @@ func (x *ThreadSummary) GetRecentAuthors() []*MessageAuthor {
 		return x.RecentAuthors
 	}
 	return nil
+}
+
+func (x *ThreadSummary) GetParticipating() bool {
+	if x != nil {
+		return x.Participating
+	}
+	return false
+}
+
+func (x *ThreadSummary) GetMuted() bool {
+	if x != nil {
+		return x.Muted
+	}
+	return false
+}
+
+func (x *ThreadSummary) GetUnreadCount() int32 {
+	if x != nil {
+		return x.UnreadCount
+	}
+	return 0
 }
 
 // LinkPreview is the unfurled metadata of a URL in a message.
@@ -677,12 +708,15 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x06thread\x18\x11 \x01(\v2\x1c.stoop.chat.v1.ThreadSummaryR\x06thread\x12\x18\n" +
 	"\adeleted\x18\x12 \x01(\bR\adeleted\x12\x1d\n" +
 	"\n" +
-	"in_channel\x18\x13 \x01(\bR\tinChannel\"\xb5\x01\n" +
+	"in_channel\x18\x13 \x01(\bR\tinChannel\"\x94\x02\n" +
 	"\rThreadSummary\x12\x1f\n" +
 	"\vreply_count\x18\x01 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
 	"\rlast_reply_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12C\n" +
-	"\x0erecent_authors\x18\x03 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\rrecentAuthors\"\xdc\x01\n" +
+	"\x0erecent_authors\x18\x03 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\rrecentAuthors\x12$\n" +
+	"\rparticipating\x18\x04 \x01(\bR\rparticipating\x12\x14\n" +
+	"\x05muted\x18\x05 \x01(\bR\x05muted\x12!\n" +
+	"\funread_count\x18\x06 \x01(\x05R\vunreadCount\"\xdc\x01\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +

@@ -32,6 +32,9 @@ const (
 	ActivityKind_ACTIVITY_KIND_REPLY ActivityKind = 2
 	// Someone sent you a direct message (space_id is empty).
 	ActivityKind_ACTIVITY_KIND_DM ActivityKind = 3
+	// Someone replied in a thread you are in and haven't muted. One item
+	// per thread while unread, refreshed by later replies.
+	ActivityKind_ACTIVITY_KIND_THREAD_REPLY ActivityKind = 4
 )
 
 // Enum value maps for ActivityKind.
@@ -41,12 +44,14 @@ var (
 		1: "ACTIVITY_KIND_MENTION",
 		2: "ACTIVITY_KIND_REPLY",
 		3: "ACTIVITY_KIND_DM",
+		4: "ACTIVITY_KIND_THREAD_REPLY",
 	}
 	ActivityKind_value = map[string]int32{
-		"ACTIVITY_KIND_UNSPECIFIED": 0,
-		"ACTIVITY_KIND_MENTION":     1,
-		"ACTIVITY_KIND_REPLY":       2,
-		"ACTIVITY_KIND_DM":          3,
+		"ACTIVITY_KIND_UNSPECIFIED":  0,
+		"ACTIVITY_KIND_MENTION":      1,
+		"ACTIVITY_KIND_REPLY":        2,
+		"ACTIVITY_KIND_DM":           3,
+		"ACTIVITY_KIND_THREAD_REPLY": 4,
 	}
 )
 
@@ -231,12 +236,13 @@ const file_stoop_chat_v1_activity_proto_rawDesc = "" +
 	"\aread_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x06readAt\x12\x14\n" +
 	"\x05muted\x18\n" +
 	" \x01(\bR\x05muted\x12$\n" +
-	"\x0ethread_root_id\x18\v \x01(\tR\fthreadRootId*w\n" +
+	"\x0ethread_root_id\x18\v \x01(\tR\fthreadRootId*\x97\x01\n" +
 	"\fActivityKind\x12\x1d\n" +
 	"\x19ACTIVITY_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15ACTIVITY_KIND_MENTION\x10\x01\x12\x17\n" +
 	"\x13ACTIVITY_KIND_REPLY\x10\x02\x12\x14\n" +
-	"\x10ACTIVITY_KIND_DM\x10\x03B\xac\x01\n" +
+	"\x10ACTIVITY_KIND_DM\x10\x03\x12\x1e\n" +
+	"\x1aACTIVITY_KIND_THREAD_REPLY\x10\x04B\xac\x01\n" +
 	"\x11com.stoop.chat.v1B\rActivityProtoP\x01Z2github.com/getstoop/stoop/gen/stoop/chat/v1;chatv1\xa2\x02\x03SCX\xaa\x02\rStoop.Chat.V1\xca\x02\rStoop\\Chat\\V1\xe2\x02\x19Stoop\\Chat\\V1\\GPBMetadata\xea\x02\x0fStoop::Chat::V1b\x06proto3"
 
 var (
