@@ -27,6 +27,13 @@ import { applyPinEvent } from "./pins";
 import { myDnd, patchMyDnd } from "./presence";
 import { setReactions } from "./reactions";
 import { refetch, refetchOlderThan } from "./stale";
+import {
+  applyThreadChanged,
+  applyThreadMuted,
+  applyThreadRead,
+  noteMentionInThread,
+  openThreadRootId,
+} from "./threads";
 import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
 import { leaveVoice, reportVoiceState } from "./voice";
 
@@ -159,6 +166,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "messageCreated": {
       const m = payload.value;
       appendMessage(queryClient, m);
+      noteMentionInThread(queryClient, m);
       // A reply that stays in its thread is not in the channel's timeline
       // and does not make the channel unread.
       if (m.threadRootId && !m.inChannel) break;
@@ -237,15 +245,19 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     }
     case "threadChanged": {
-      // The root's summary line: count, last reply, faces.
+      // The root's summary line: count, last reply, faces, and our count.
       const t = payload.value;
-      queryClient.setQueriesData<Message[]>(
-        { queryKey: ["messages", t.channelId] },
-        (old) =>
-          old?.map((x) =>
-            x.id === t.rootMessageId ? { ...x, thread: t.thread } : x,
-          ),
-      );
+      applyThreadChanged(queryClient, t.channelId, t.rootMessageId, t.thread);
+      break;
+    }
+    case "threadMuted": {
+      const t = payload.value;
+      applyThreadMuted(queryClient, t.channelId, t.rootMessageId, t.muted);
+      break;
+    }
+    case "threadRead": {
+      const t = payload.value;
+      applyThreadRead(queryClient, t.channelId, t.rootMessageId);
       break;
     }
     case "messagePinned": {
@@ -330,16 +342,21 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       const item = payload.value.item;
       if (item) {
         receiveActivityItem(queryClient, item);
-        // No banner while reading that DM, while we're on Do not disturb,
-        // or from somewhere we muted — the server stamped that on the item,
-        // so it holds even for a space this tab has never opened.
+        // No banner while reading that DM or thread, while we're on Do not
+        // disturb, or from somewhere we muted — the server stamped that on
+        // the item, so it holds even for a space this tab has never opened.
         const { activeChannelId } = useConnectionStore.getState();
         const reading = item.channelId === activeChannelId && hasAttention();
+        const readingThread =
+          item.threadRootId !== "" &&
+          item.threadRootId === openThreadRootId() &&
+          hasAttention();
         maybeDesktopNotify(
           item,
           activityPath(item),
           myDnd(queryClient) ||
             item.muted ||
+            readingThread ||
             (reading && item.kind === ActivityKind.DM),
         );
       }

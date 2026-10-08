@@ -9,12 +9,23 @@ import { useActivity } from "../api/queries";
 // unread activity items that point here are marked read — however the
 // user got here, including ones that arrive while they're already here.
 // An unfocused or hidden window doesn't count as seen, so desktop alerts
-// still fire for it.
-export function useAutoReadActivity(channelId: string) {
+// still fire for it. Items in a thread are read by its open thread
+// (threadRootId), not by the channel, which doesn't show the replies.
+export function useAutoReadActivity(
+  channelId: string,
+  threadRootId = "",
+  enabled = true,
+) {
   const queryClient = useQueryClient();
   const { data } = useActivity();
   const unreadIds = (data?.items ?? [])
-    .filter((item) => !item.readAt && item.channelId === channelId)
+    .filter(
+      (item) =>
+        enabled &&
+        !item.readAt &&
+        item.channelId === channelId &&
+        item.threadRootId === threadRootId,
+    )
     .map((item) => item.id);
   const key = unreadIds.join(",");
 

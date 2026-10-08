@@ -414,6 +414,15 @@ one-message page under the channel's key so realtime writes reach it,
 then its replies through the same `MessageList` as the channel, and a
 `Composer` that replies into it.
 
+The summary under a root carries the reader's own half (`participating`,
+`muted`, `unreadCount`), which `ThreadChanged` never does, since every
+viewer gets the same event. `api/threads.ts` keeps it: a new summary
+keeps the cached half and adds others' replies to the count of a thread
+the reader is in and hasn't muted, and a first reply works that out from
+the cached root. The open thread marks itself read once the window has
+attention (`useMarkThreadRead`), and reads its own activity items; the
+channel reads only items outside threads.
+
 ## Accessibility choices worth knowing
 
 - Spoilers are `<button>` elements, not styled spans — keyboard reachable

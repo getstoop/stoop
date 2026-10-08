@@ -42,6 +42,7 @@ describe("activityVerb", () => {
     expect(activityVerb(ActivityKind.MENTION)).toBe("mentioned you");
     expect(activityVerb(ActivityKind.REPLY)).toBe("replied to you");
     expect(activityVerb(ActivityKind.DM)).toBe("messaged you");
+    expect(activityVerb(ActivityKind.THREAD_REPLY)).toBe("replied in a thread");
   });
 
   // A kind this build does not know about still reads as something that
@@ -76,6 +77,16 @@ describe("unreadCounts", () => {
       ["random", 1],
       ["welcome", 1],
     ]);
+  });
+
+  it("leaves out thread replies but counts a mention in a thread", () => {
+    const { byChannel } = unreadCounts(
+      data([
+        item("1", { kind: ActivityKind.THREAD_REPLY, threadRootId: "r" }),
+        item("2", { threadRootId: "r" }),
+      ]),
+    );
+    expect(byChannel.get("general")).toBe(1);
   });
 
   it("skips items already read", () => {

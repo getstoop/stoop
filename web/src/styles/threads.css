@@ -34,6 +34,18 @@
   font-weight: 600;
 }
 
+.thread-summary .badge {
+  margin-left: 0;
+}
+
+/* A muted thread's bell, red like a muted space's (channel-sidebar.css),
+   on its summary line and in its panel's header. */
+.thread-muted-icon,
+.icon-button.thread-muted-icon:hover {
+  display: inline-flex;
+  color: var(--danger);
+}
+
 /* The root whose thread is in the side panel. */
 .message.thread-open {
   background: var(--accent-soft);

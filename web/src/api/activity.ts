@@ -39,6 +39,8 @@ export function activityVerb(kind: ActivityKind): string {
       return "replied to you";
     case ActivityKind.DM:
       return "messaged you";
+    case ActivityKind.THREAD_REPLY:
+      return "replied in a thread";
     default:
       return "mentioned you";
   }
@@ -81,14 +83,17 @@ function nowTimestamp() {
 
 // Unread counts grouped by space and by channel, derived from the cache so
 // every badge shares one source of truth. These are notification surfaces,
-// so items the server stamped muted are left out; the feed's own total
-// (`ActivityData.unreadCount`) counts everything.
+// so items the server stamped muted are left out, and so are thread_reply
+// items: a thread's news shows on its summary line, and the red count is
+// for what is addressed to you, a mention in a thread included. The feed's
+// own total (`ActivityData.unreadCount`) counts everything.
 export function unreadCounts(data: ActivityData | undefined) {
   const bySpace = new Map<string, number>();
   const byChannel = new Map<string, number>();
   for (const item of data?.items ?? []) {
     if (item.readAt) continue;
     if (item.muted) continue;
+    if (item.kind === ActivityKind.THREAD_REPLY) continue;
     bySpace.set(item.spaceId, (bySpace.get(item.spaceId) ?? 0) + 1);
     byChannel.set(item.channelId, (byChannel.get(item.channelId) ?? 0) + 1);
   }
