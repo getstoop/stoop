@@ -532,6 +532,13 @@ in the root's thread and not in the channel's timeline
 - **The summary.** Each send updates the root's `threads` row in the same
   transaction (`RecordThreadReply`) and publishes `ThreadChanged` with the
   whole summary, not a delta, as `ReactionsChanged` does.
+- **Also send to channel.** `also_send_to_channel` with `thread_root_id`
+  saves one reply with `in_channel` true, so both timelines page it. It
+  does what a channel message does to the channel (newest message, the
+  author's read marker) and what a reply does to the thread. It carries
+  `thread_root` (the root's author and excerpt, only the id once the root
+  is a placeholder) for the line saying which thread it answers.
+  Deleting it recomputes the channel's newest message as well.
 - **Quotes.** A quote-reply inside a thread may quote its root or another
   reply in it; a channel message may only quote messages in the channel.
 - **Paging.** `ListMessages` with `thread_id` pages the replies with the

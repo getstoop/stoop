@@ -51,8 +51,10 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	if err != nil {
 		return nil, err
 	}
-	if req.Msg.AlsoSendToChannel {
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("also sending to the channel is not available yet"))
+	alsoSend := req.Msg.AlsoSendToChannel
+	if alsoSend && req.Msg.ThreadRootId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument,
+			errors.New("also_send_to_channel needs thread_root_id"))
 	}
 	var threadRoot *messageRow
 	if rootID := req.Msg.ThreadRootId; rootID != "" {
@@ -100,6 +102,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	if parent != nil {
 		authorIDs = append(authorIDs, parent.AuthorID)
 	}
+	if alsoSend {
+		authorIDs = append(authorIDs, threadRoot.AuthorID)
+	}
 	authors, err := s.resolveAuthors(ctx, authorIDs)
 	if err != nil {
 		return nil, err
@@ -119,7 +124,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
 			MentionsEveryone: res.everyone, MentionsHere: res.here, ReplyToMessageID: replyTo,
-			ThreadRootID: threadRootID, InChannel: threadRoot == nil,
+			ThreadRootID: threadRootID, InChannel: threadRoot == nil || alsoSend,
 		})
 		if err != nil {
 			return fmt.Errorf("create message: %w", err)
@@ -139,8 +144,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 			}
 		}
 		// A thread reply leaves the channel's newest message and the
-		// author's channel read marker alone: neither is about the thread.
-		// The author has read the thread up to their own reply.
+		// author's channel read marker alone: neither is about the thread,
+		// unless it is also sent to the channel. The author has read the
+		// thread up to their own reply.
 		if threadRoot != nil {
 			if thread, err = qtx.RecordThreadReply(ctx, dbgen.RecordThreadReplyParams{
 				RootID: threadRoot.ID, ReplyID: &row.ID, ReplyAt: &row.CreatedAt, AuthorID: userID,
@@ -152,7 +158,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 			}); err != nil {
 				return fmt.Errorf("mark thread read: %w", err)
 			}
-			return nil
+			if !alsoSend {
+				return nil
+			}
 		}
 		// The channel's newest message, and the author has of course read it.
 		if err := qtx.SetChannelLastMessage(ctx, dbgen.SetChannelLastMessageParams{ID: channel.ID, LastMessageID: &row.ID}); err != nil {
@@ -174,6 +182,12 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	msg.Attachments = toProtoAttachments(attachments)
 	if parent != nil {
 		msg.ReplyTo = replyRef(parent.ID, authors[parent.AuthorID], &parent.Content, s.firstAttachmentName(ctx, parent.ID))
+	}
+	if alsoSend {
+		roots := map[string]dbgen.ThreadRootRefsRow{threadRoot.ID: {
+			ID: threadRoot.ID, AuthorID: threadRoot.AuthorID, Content: threadRoot.Content,
+		}}
+		msg.ThreadRoot = s.threadRootRef(ctx, threadRoot.ID, roots, authors)
 	}
 	// Cached link previews go out with the message itself; ones still to
 	// be fetched arrive later as MessageUpdated.
@@ -368,6 +382,15 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			addAuthor(id)
 		}
 	}
+	roots, err := s.threadRootsOf(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	for _, root := range roots {
+		if root.DeletedAt == nil {
+			addAuthor(root.AuthorID)
+		}
+	}
 	authors, err := s.resolveAuthors(ctx, authorIDs)
 	if err != nil {
 		return nil, err
@@ -409,6 +432,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	}
 
 	messages := make([]*chatv1.Message, len(rows))
+	rootRefs := map[string]*chatv1.ReplyRef{}
 	for index, row := range rows {
 		message := toProtoMessage(listedMessage(row), authors, mentions[row.ID], spaceID)
 		message.Reactions = reactions[row.ID]
@@ -416,6 +440,14 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		message.LinkPreviews = previews[row.ID]
 		message.Pinned = pinned[row.ID]
 		message.Thread = toProtoThread(row.ThreadReplyCount, row.ThreadLastReplyAt, row.ThreadRecentAuthorIds, authors)
+		if row.InChannel && row.ThreadRootID != nil {
+			ref, ok := rootRefs[*row.ThreadRootID]
+			if !ok { // once per root, however many of its replies the page holds
+				ref = s.threadRootRef(ctx, *row.ThreadRootID, roots, authors)
+				rootRefs[*row.ThreadRootID] = ref
+			}
+			message.ThreadRoot = ref
+		}
 		if row.ReplyToMessageID != nil {
 			var author *chatv1.MessageAuthor
 			if row.ReplyAuthorID != nil {

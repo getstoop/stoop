@@ -318,3 +318,41 @@ func (q *Queries) ThreadParticipants(ctx context.Context, arg ThreadParticipants
 	}
 	return items, nil
 }
+
+const threadRootRefs = `-- name: ThreadRootRefs :many
+SELECT id, author_id, content, deleted_at FROM messages WHERE id = ANY($1::uuid[])
+`
+
+type ThreadRootRefsRow struct {
+	ID        string
+	AuthorID  string
+	Content   string
+	DeletedAt *time.Time
+}
+
+// ThreadRootRefs reads the roots of replies also sent to the channel, for
+// the line saying which thread each answers.
+func (q *Queries) ThreadRootRefs(ctx context.Context, ids []string) ([]ThreadRootRefsRow, error) {
+	rows, err := q.db.Query(ctx, threadRootRefs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ThreadRootRefsRow
+	for rows.Next() {
+		var i ThreadRootRefsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AuthorID,
+			&i.Content,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

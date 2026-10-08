@@ -101,3 +101,8 @@ WHERE (EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND
        OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = p.user_id))
   AND NOT EXISTS (SELECT 1 FROM thread_mutes tm
                   WHERE tm.user_id = p.user_id AND tm.root_message_id = sqlc.arg(root_id)::uuid);
+
+-- ThreadRootRefs reads the roots of replies also sent to the channel, for
+-- the line saying which thread each answers.
+-- name: ThreadRootRefs :many
+SELECT id, author_id, content, deleted_at FROM messages WHERE id = ANY(sqlc.arg(ids)::uuid[]);
