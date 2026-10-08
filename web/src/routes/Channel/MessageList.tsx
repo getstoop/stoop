@@ -79,6 +79,7 @@ export function MessageList({
     () => ({ channelId, rootId: threadRootId }),
     [channelId, threadRootId],
   );
+  const rowIdPrefix = threadRootId ? "thread-msg-" : "msg-";
   const openPanel = useSidePanelStore((s) => s.open);
   const openThread =
     openPanel?.kind === "thread" && openPanel.params.channelId === channelId
@@ -126,10 +127,13 @@ export function MessageList({
   const storeJumpTo = useHistoryStore((s) => s.jumpTo);
   const storeJumpToLatest = useHistoryStore((s) => s.jumpToLatest);
   const anchor = useRef<{ id: string; top: number } | null>(null);
-  const setAnchor = useCallback((id: string | undefined) => {
-    const el = id && document.getElementById(`msg-${id}`);
-    anchor.current = el ? { id, top: el.getBoundingClientRect().top } : null;
-  }, []);
+  const setAnchor = useCallback(
+    (id: string | undefined) => {
+      const el = id && document.getElementById(`${rowIdPrefix}${id}`);
+      anchor.current = el ? { id, top: el.getBoundingClientRect().top } : null;
+    },
+    [rowIdPrefix],
+  );
   const loadOlderAnchored = useCallback(async () => {
     const have = queryClient.getQueryData<Message[]>(timelineKey(timeline));
     setAnchor(have?.[0]?.id);
@@ -154,7 +158,7 @@ export function MessageList({
       const el =
         land === "bottom"
           ? bottomRef.current
-          : document.getElementById(`msg-${land.id}`);
+          : document.getElementById(`${rowIdPrefix}${land.id}`);
       if (!el) return;
       store.landed(timeline);
       anchor.current = null;
@@ -166,7 +170,7 @@ export function MessageList({
     const list = listRef.current;
     if (!a || !list) return;
     anchor.current = null;
-    const el = document.getElementById(`msg-${a.id}`);
+    const el = document.getElementById(`${rowIdPrefix}${a.id}`);
     if (el) list.scrollTop += el.getBoundingClientRect().top - a.top;
   }, [messages]);
   useEffect(() => {
@@ -192,7 +196,7 @@ export function MessageList({
   // Jump to a message and flash it. If it isn't in the window, one round
   // trip replaces the window with a page centred on it.
   const jumpTo = async (id: string) => {
-    const el = document.getElementById(`msg-${id}`);
+    const el = document.getElementById(`${rowIdPrefix}${id}`);
     if (el) {
       flash(el);
       return true;
@@ -351,6 +355,7 @@ export function MessageList({
       threadOpen={!threadRootId && openThread === message.id}
       canStartThread={threadsAllowed}
       withDay={!!threadRootId}
+      rowIdPrefix={rowIdPrefix}
       onJumpTo={jumpTo}
       onCard={(userId, anchor) => setCard({ userId, anchor })}
       onReact={(anchor) => setPicker({ message, anchor })}

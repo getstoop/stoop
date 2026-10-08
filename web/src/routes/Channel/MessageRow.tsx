@@ -30,6 +30,7 @@ export function MessageRow({
   threadOpen,
   canStartThread,
   withDay = false,
+  rowIdPrefix = "msg-",
   onJumpTo,
   onCard,
   onReact,
@@ -56,6 +57,9 @@ export function MessageRow({
   canStartThread: boolean;
   // The time says its day too, where no day separator does (a thread).
   withDay?: boolean;
+  // Element ids are this plus the message id: "msg-" in a channel, and
+  // something else in a thread, whose root is on the page twice.
+  rowIdPrefix?: string;
   onJumpTo: (id: string) => void;
   onCard: (userId: string, anchor: DOMRect) => void;
   onReact: (anchor: DOMRect) => void;
@@ -95,7 +99,7 @@ export function MessageRow({
   if (message.deleted) {
     return (
       <div
-        id={`msg-${message.id}`}
+        id={`${rowIdPrefix}${message.id}`}
         tabIndex={-1}
         className={`${rowClass} deleted-root`}
       >
@@ -112,7 +116,7 @@ export function MessageRow({
 
   return (
     <div
-      id={`msg-${message.id}`}
+      id={`${rowIdPrefix}${message.id}`}
       // Focusable by tap/click (not Tab) so the toolbar shows on touch
       // screens, where there is no hover.
       tabIndex={-1}

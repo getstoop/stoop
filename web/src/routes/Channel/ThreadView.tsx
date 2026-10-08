@@ -52,7 +52,15 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const rootMessage = root.data?.[0];
-  if (root.isError || replies.isError || (root.data && !rootMessage)) {
+  // A space that has gone leaves its queries as they were: the spaces
+  // list is what says so.
+  const spaceGone = !isDM && !!spaces && !space;
+  if (
+    spaceGone ||
+    root.isError ||
+    replies.isError ||
+    (root.data && !rootMessage)
+  ) {
     return (
       <SidePanelFrame title="Thread" subtitle={where}>
         <SidePanelUnavailable message="This thread isn't available any more." />
@@ -61,6 +69,9 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   }
 
   const canReply = canPost(space, channel) && !isAnnouncement(channel);
+  const closedNote = rootMessage?.deleted
+    ? "The message this thread started from was deleted, so it takes no new replies."
+    : "Replies are closed in announcement channels.";
   const canModerate = !isDM && !!space && canDeleteAnyMessage(space);
   const deleteThread = async () => {
     const ok = await confirm({
@@ -102,7 +113,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
         )
       }
       footer={
-        canReply ? (
+        canReply && !rootMessage?.deleted ? (
           <Composer
             channelId={channelId}
             channelName={channelName}
@@ -115,9 +126,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
             threadRootId={rootId}
           />
         ) : (
-          <p className="side-panel-note muted">
-            Replies are closed in announcement channels.
-          </p>
+          <p className="side-panel-note muted">{closedNote}</p>
         )
       }
     >

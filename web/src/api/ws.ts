@@ -218,9 +218,21 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageUpdated": {
       const m = payload.value;
+      // A root deleted while its thread has replies arrives as an update:
+      // quotes of it read as a deleted message's, as after a delete.
       queryClient.setQueriesData<Message[]>(
         { queryKey: ["messages", m.channelId] },
-        (old) => old?.map((x) => (x.id === m.id ? m : x)),
+        (old) =>
+          old?.map((x) =>
+            x.id === m.id
+              ? m
+              : m.deleted && x.replyTo?.messageId === m.id
+                ? {
+                    ...x,
+                    replyTo: { ...x.replyTo, author: undefined, preview: "" },
+                  }
+                : x,
+          ),
       );
       break;
     }
