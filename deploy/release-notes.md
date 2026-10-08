@@ -25,6 +25,15 @@ schema change, and `stoop upgrade rollback` takes it back to 0.8.0.
 **Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
 `cloudflared` 2026.9.3, all unchanged from 0.8.0.
 
+**Known issues**, as in 0.8.0.
+
+- On a phone, picking a channel from the drawer while a thread is open
+  leaves one extra step in the browser's history, so Back stays on the
+  same page once.
+- Threads from 0.7.0 have no record of what you've read, so after the
+  upgrade each one you're in shows every earlier reply by others as new.
+  Opening a thread clears it; Activity isn't affected.
+
 Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
 security problems go through
 [private reporting](https://github.com/getstoop/stoop/security/advisories/new).
