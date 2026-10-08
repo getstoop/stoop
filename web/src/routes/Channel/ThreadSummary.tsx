@@ -1,6 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { fullDateTime, shortDateTime } from "../../api/dates";
 import { Avatar } from "../../components/Avatar";
+import { BellOffIcon } from "../../components/Icons";
 import type { ThreadSummary as Summary } from "../../gen/stoop/chat/v1/message_pb";
 
 // The line under a root that has replies: who replied lately, how many,
@@ -43,7 +44,11 @@ export function ThreadSummary({
         {count} {count === 1 ? "reply" : "replies"}
       </span>
       {unread > 0 && <span className="badge thread-new">{unread} new</span>}
-      {thread.muted && <span className="badge thread-muted">muted</span>}
+      {thread.muted && (
+        <span className="thread-muted-icon" title="Muted" aria-hidden="true">
+          <BellOffIcon size={14} />
+        </span>
+      )}
       {last && (
         <span className="thread-last" title={fullDateTime(last)}>
           Last reply {shortDateTime(last)}

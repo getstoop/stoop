@@ -154,7 +154,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           {summary && (
             <button
               type="button"
-              className="icon-button"
+              className={`icon-button${summary.muted ? " thread-muted-icon" : ""}`}
               onClick={toggleMute}
               title={summary.muted ? "Unmute thread" : "Mute thread"}
               aria-label={summary.muted ? "Unmute thread" : "Mute thread"}
