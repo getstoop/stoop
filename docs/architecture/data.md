@@ -236,6 +236,10 @@ under `storage_key`; this table is the record of truth for everything
 token disables the hook rather than deleting it. `disabled_at`,
 `disabled_reason`.
 
+**`incoming_webhook_threads`** — `(webhook_id, thread_key) →
+root_message_id`: the thread a hook's key posts into. It goes with the
+hook and with the root.
+
 **`outgoing_webhooks`** — a URL somebody else hosts: `url`, the raw
 signing `secret`, `event_types`, an optional `channel_id` filter (SET NULL
 on delete: losing the channel widens the hook and must not destroy its
