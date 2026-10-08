@@ -110,36 +110,3 @@ func TestThreadMutesAndReadsGoWithTheRoot(t *testing.T) {
 		t.Errorf("%d mute or read rows left after deleting the root, want 0", left)
 	}
 }
-
-// Migration 00060: a webhook's thread key goes with its root.
-func TestWebhookThreadKeysGoWithTheRoot(t *testing.T) {
-	pool := dbtest.New(t)
-	ctx := context.Background()
-	insert := func(sql string, args ...any) string {
-		t.Helper()
-		var id string
-		if err := pool.QueryRow(ctx, sql, args...).Scan(&id); err != nil {
-			t.Fatalf("%s: %v", sql, err)
-		}
-		return id
-	}
-	user := insert(`INSERT INTO users (id, username) VALUES (gen_random_uuid(), 'ada') RETURNING id`)
-	space := insert(`INSERT INTO spaces (id, name, owner_id) VALUES (gen_random_uuid(), 'Porch', $1) RETURNING id`, user)
-	channel := insert(`INSERT INTO channels (id, space_id, name) VALUES (gen_random_uuid(), $1, 'general') RETURNING id`, space)
-	hook := insert(`INSERT INTO incoming_webhooks (id, space_id, channel_id, bot_user_id, name, created_by)
-		VALUES (gen_random_uuid(), $1, $2, $3, 'ci', $3) RETURNING id`, space, channel, user)
-	root := insert(`INSERT INTO messages (id, channel_id, author_id, content) VALUES (gen_random_uuid(), $1, $2, 'build 41') RETURNING id`, channel, user)
-	if _, err := pool.Exec(ctx, `INSERT INTO incoming_webhook_threads (webhook_id, thread_key, root_message_id) VALUES ($1, 'build-41', $2)`, hook, root); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pool.Exec(ctx, `DELETE FROM messages WHERE id = $1`, root); err != nil {
-		t.Fatal(err)
-	}
-	var left int
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM incoming_webhook_threads`).Scan(&left); err != nil {
-		t.Fatal(err)
-	}
-	if left != 0 {
-		t.Errorf("%d thread keys left after deleting the root, want 0", left)
-	}
-}

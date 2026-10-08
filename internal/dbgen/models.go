@@ -109,13 +109,6 @@ type IncomingWebhook struct {
 	DisabledReason string
 }
 
-type IncomingWebhookThread struct {
-	WebhookID     string
-	ThreadKey     string
-	RootMessageID string
-	CreatedAt     time.Time
-}
-
 type InstanceSetting struct {
 	Key       string
 	Value     []byte
