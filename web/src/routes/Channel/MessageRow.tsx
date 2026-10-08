@@ -39,6 +39,8 @@ export function MessageRow({
   onDelete,
   onTogglePin,
   onThread,
+  onOpenOrigin,
+  alsoSentTo,
 }: {
   message: Message;
   // Same author within the minute: no avatar or author line.
@@ -69,6 +71,11 @@ export function MessageRow({
   onTogglePin: () => void;
   // Opens its thread; absent inside a thread, where a reply has none.
   onThread?: () => void;
+  // In the channel, a reply also sent there opens its thread from the line
+  // naming it.
+  onOpenOrigin?: () => void;
+  // In its thread, where such a reply was also sent: "#general".
+  alsoSentTo?: string;
 }) {
   const created = message.createdAt
     ? timestampDate(message.createdAt)
@@ -148,6 +155,26 @@ export function MessageRow({
           </span>
         </button>
       )}
+      {message.threadRoot && onOpenOrigin && (
+        <button
+          type="button"
+          className="reply-quote thread-origin"
+          onClick={onOpenOrigin}
+          title="Open the thread"
+        >
+          <span className="reply-arrow">↳</span>
+          <span>replied to a thread:</span>
+          {message.threadRoot.author && (
+            <strong>
+              {message.threadRoot.author.displayName ||
+                message.threadRoot.author.username}
+            </strong>
+          )}
+          <span className="reply-preview">
+            {message.threadRoot.preview || "(message deleted)"}
+          </span>
+        </button>
+      )}
       {!continued && (
         <button
           type="button"
@@ -219,6 +246,11 @@ export function MessageRow({
         {message.editedAt && (
           <span className="edited-marker" title="Edited">
             (edited)
+          </span>
+        )}
+        {alsoSentTo && (
+          <span className="edited-marker also-sent-marker">
+            Also sent to {alsoSentTo}
           </span>
         )}
       </div>

@@ -73,6 +73,8 @@ export function Composer({
   threadRootId?: string;
 }) {
   const timeline = { channelId, rootId: threadRootId };
+  // A thread reply may also show in the channel; reset after each send.
+  const [alsoSend, setAlsoSend] = useState(false);
   const [draft, setDraft] = useState("");
   const [mention, setMention] = useState<{
     start: number;
@@ -303,6 +305,7 @@ export function Composer({
     setAttachError(null);
     const replyToMessageId = replyTo?.id ?? "";
     onCancelReply();
+    setAlsoSend(false);
     try {
       const res = await chatClient.sendMessage({
         channelId,
@@ -310,6 +313,7 @@ export function Composer({
         replyToMessageId,
         attachmentIds,
         threadRootId: threadRootId ?? "",
+        alsoSendToChannel: !!threadRootId && alsoSend,
       });
       // The WS event usually lands first; appendMessage dedupes by ID either
       // way. Sent from inside history, the window is replaced by the newest
@@ -445,6 +449,19 @@ export function Composer({
           autoComplete="off"
         />
       </div>
+      {threadRootId && (
+        <label className="toggle-row composer-also-send">
+          <input
+            type="checkbox"
+            checked={alsoSend}
+            onChange={(e) => setAlsoSend(e.target.checked)}
+          />
+          <span>
+            Also send to{" "}
+            {dm ? (group ? channelName : `@${channelName}`) : `#${channelName}`}
+          </span>
+        </label>
+      )}
       {announcement && (
         <p className="composer-hint">
           Announcement channel: members read and react, only admins post.
