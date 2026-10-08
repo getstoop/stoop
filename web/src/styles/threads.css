@@ -34,6 +34,15 @@
   font-weight: 600;
 }
 
+.thread-summary .badge {
+  margin-left: 0;
+}
+
+.thread-summary .thread-muted {
+  background: none;
+  color: var(--text-muted);
+}
+
 /* The root whose thread is in the side panel. */
 .message.thread-open {
   background: var(--accent-soft);

@@ -1,12 +1,14 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { chatClient } from "../../api/clients";
 import { dmTitle, useDirectMessages } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import { channelsQuery, useMe, useSpaces } from "../../api/queries";
+import { setThreadMuted } from "../../api/threads";
 import { patchChannel, recomputeSpaceUnread } from "../../api/unreads";
 import { DataTable, type TableColumn } from "../../components/DataTable";
+import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { notice } from "../../stores/dialogs";
 
@@ -78,6 +80,23 @@ export function MutesSection() {
       .map((channel) => ({ space, channel })),
   );
   const mutedDms = dms?.filter((d) => d.channel?.muted) ?? [];
+  const { data: mutedThreads } = useQuery({
+    queryKey: ["threadMutes"],
+    queryFn: async () => (await chatClient.listThreadMutes({})).threads,
+  });
+  // Where a muted thread is, from the lists already loaded above.
+  const threadPlace = (spaceId: string, channelId: string) => {
+    if (!spaceId) {
+      const dm = dms?.find((d) => d.channel?.id === channelId);
+      return dm ? dmTitle(dm, me?.id) : "direct message";
+    }
+    const index = openSpaces.findIndex((s) => s.id === spaceId);
+    const space = spaces?.find((s) => s.id === spaceId);
+    const channel = channelLists[index]?.data?.find((c) => c.id === channelId);
+    // A muted space's channels aren't loaded here; its name will do.
+    if (!channel) return space?.name ?? "a space";
+    return `${space?.name ?? "a space"} › # ${channel.name}`;
+  };
 
   const unmuteSpace = async (space: Space) => {
     try {
@@ -113,6 +132,13 @@ export function MutesSection() {
       what: `the conversation with ${dmTitle(d, me?.id)}`,
       onUnmute: () => unmuteChannel(queryClient, "", d.channel?.id ?? ""),
     })),
+    ...(mutedThreads ?? []).map((t) => ({
+      id: t.root?.id ?? "",
+      label: threadExcerpt(t.root),
+      note: `thread · ${threadPlace(t.spaceId, t.channelId)}`,
+      what: "the thread",
+      onUnmute: () => unmuteThread(queryClient, t.channelId, t.root?.id ?? ""),
+    })),
   ];
   // The table wants the same array until what is muted changes.
   const key = rows.map((r) => `${r.id}:${r.label}`).join("|");
@@ -134,6 +160,26 @@ export function MutesSection() {
       />
     </section>
   );
+}
+
+// A muted thread is named by its first message.
+function threadExcerpt(root: Message | undefined) {
+  if (!root || root.deleted) return "Original message deleted";
+  const who = root.author?.displayName || root.author?.username || "?";
+  const text = root.content.replace(/\s+/g, " ").trim();
+  return `${who}: ${text.length > 60 ? `${text.slice(0, 60)}…` : text}`;
+}
+
+async function unmuteThread(
+  queryClient: QueryClient,
+  channelId: string,
+  rootId: string,
+) {
+  try {
+    await setThreadMuted(queryClient, channelId, rootId, false);
+  } catch (err) {
+    notice({ title: "Couldn't unmute the thread", body: errorText(err) });
+  }
 }
 
 // The same patches the channel row's menu makes, so the rail and the

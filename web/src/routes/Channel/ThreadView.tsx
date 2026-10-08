@@ -18,12 +18,21 @@ import {
   useThreadRoot,
 } from "../../api/queries";
 import { copyShareLink, shareUrl, threadPath } from "../../api/shareLinks";
+import { setThreadMuted } from "../../api/threads";
 import { removeMessageFromCache } from "../../api/ws";
-import { CheckIcon, LinkIcon, TrashIcon } from "../../components/Icons";
+import {
+  BellIcon,
+  BellOffIcon,
+  CheckIcon,
+  LinkIcon,
+  TrashIcon,
+} from "../../components/Icons";
 import { useCloseSidePanel } from "../../components/SidePanel/context";
 import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
+import { useAutoReadActivity } from "../../hooks/useAutoRead";
+import { useMarkThreadRead } from "../../hooks/useMarkThreadRead";
 import { confirm, notice } from "../../stores/dialogs";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
@@ -62,6 +71,9 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   }, [copied]);
 
   const rootMessage = root.data?.[0];
+  const summary = rootMessage?.thread;
+  useMarkThreadRead(channelId, rootId, summary?.unreadCount ?? 0);
+  useAutoReadActivity(channelId, rootId);
   // A space that has gone leaves its queries as they were: the spaces
   // list is what says so.
   const spaceGone = !isDM && !!spaces && !space;
@@ -99,6 +111,19 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
       notice({ title: "Couldn't delete the thread", body: errorText(err) });
     }
   };
+  const toggleMute = async () => {
+    const muted = !summary?.muted;
+    try {
+      await setThreadMuted(queryClient, channelId, rootId, muted);
+    } catch (err) {
+      notice({
+        title: muted
+          ? "Couldn't mute the thread"
+          : "Couldn't unmute the thread",
+        body: errorText(err),
+      });
+    }
+  };
   const editLast = () => {
     const mine = replies.data?.filter((m) => m.author?.id === me?.id) ?? [];
     const last = mine[mine.length - 1];
@@ -126,6 +151,18 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           >
             {copied ? <CheckIcon /> : <LinkIcon />}
           </button>
+          {summary && (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={toggleMute}
+              title={summary.muted ? "Unmute thread" : "Mute thread"}
+              aria-label={summary.muted ? "Unmute thread" : "Mute thread"}
+              aria-pressed={summary.muted}
+            >
+              {summary.muted ? <BellOffIcon /> : <BellIcon />}
+            </button>
+          )}
           {canModerate && (
             <button
               type="button"

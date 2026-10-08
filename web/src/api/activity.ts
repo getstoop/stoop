@@ -39,6 +39,8 @@ export function activityVerb(kind: ActivityKind): string {
       return "replied to you";
     case ActivityKind.DM:
       return "messaged you";
+    case ActivityKind.THREAD_REPLY:
+      return "replied in a thread";
     default:
       return "mentioned you";
   }

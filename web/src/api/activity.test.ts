@@ -42,6 +42,7 @@ describe("activityVerb", () => {
     expect(activityVerb(ActivityKind.MENTION)).toBe("mentioned you");
     expect(activityVerb(ActivityKind.REPLY)).toBe("replied to you");
     expect(activityVerb(ActivityKind.DM)).toBe("messaged you");
+    expect(activityVerb(ActivityKind.THREAD_REPLY)).toBe("replied in a thread");
   });
 
   // A kind this build does not know about still reads as something that
