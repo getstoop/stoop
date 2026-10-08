@@ -66,6 +66,46 @@
     background: var(--scrim);
   }
 
+  /* The side panel is a screen of its own over the page; Back closes it. */
+  .side-panel {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-side-panel);
+    width: auto;
+    border-left: none;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* A pushed screen: it comes in from the right edge and goes back out. */
+  .side-panel {
+    animation-name: side-panel-push;
+  }
+
+  .side-panel.leaving {
+    animation-name: side-panel-pop;
+  }
+
+  @keyframes side-panel-push {
+    from {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes side-panel-pop {
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  .side-panel-back {
+    display: inline-flex;
+  }
+
+  .side-panel-close {
+    display: none;
+  }
+
   .menu-button {
     display: inline-flex;
     padding: 4px;

@@ -134,6 +134,7 @@ The stores, and what each is for:
 | `voice` | The LiveKit room, the track registry keyed by participant and source, participants from the gateway, mute/deafen/camera/screen flags. |
 | `history` (in `api/history.ts`) | Per-channel window metadata: `hasOlder`, `hasNewer`, `loading`, `pendingNewer`, and where to land after a jump. |
 | `layout` | `drawerOpen`. That is the entire mobile navigation state. |
+| `sidePanel` | What the side panel shows, or nothing, saved per tab ([The side panel](#the-side-panel)). |
 | `dialogs` | The promise-shaped `confirm` / `prompt` / `notice` queue. |
 
 `connection.activeChannelId` deserves a note: it is what lets a realtime
@@ -371,6 +372,39 @@ smaller, and the composer overlay inherits the same size so its glyph
 metrics stay matched to the textarea. Everything else in
 `styles/mobile.css` is spacing, in one media query, so there is one place
 to look for what changes below 768px.
+
+## The side panel
+
+`components/SidePanel` is the right-hand column any page can open. It
+shows one kind of content at a time, and is shared so each feature does
+not build its own.
+
+- **Where it is.** `AppShell` renders it after the route, so it sits beside
+  space channels, DMs and any later page.
+- **Its state belongs to the app, not the URL.** `stores/sidePanel.ts` holds
+  the open kind and its params and saves them per tab in `sessionStorage`.
+  The panel stays open across channel and space changes until it is closed
+  or replaced, and a reload keeps it.
+- **A link only opens it.** A kind can claim a search parameter in the
+  registry (`components/SidePanel/registry.ts`). When a link carries it, the
+  panel opens and the parameter leaves the address bar (`links.ts`).
+- **Content draws itself in `SidePanelFrame`.** The frame has the title,
+  a subtitle naming where the content came from, Close, the scrolling
+  body and an optional footer. Focus moves to the title when it opens and
+  back to whatever opened it when it closes, and Escape closes it while
+  focus is inside. `SidePanelUnavailable` is what content shows when it
+  can no longer be read.
+- **It slides in and out.** On close the container keeps the last panel on
+  screen, marked `leaving`, until the frame's exit animation ends (a timer
+  stands in if it never reports, and reduced motion skips it). Replacing
+  the content does not animate.
+- **On a phone it is a screen of its own.** `mobile.css` makes it full
+  screen and swaps Close for Back, one DOM as everywhere else.
+  `narrowHistory.ts` adds one history entry while it is open, so the
+  device's Back closes it, and going to another page closes it too. On a
+  wide screen history is left alone, and Back never closes the panel.
+
+Adding a kind is a registry entry and its component.
 
 ## Accessibility choices worth knowing
 

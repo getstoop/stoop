@@ -42,6 +42,8 @@
      settings nav. */
   --rail-w: 68px;
   --sidebar-w: 244px;
+  /* The right-hand side panel (components/SidePanel). */
+  --side-panel-w: 380px;
 
   /* Motion. fast: hover washes, colour, opacity. base: anything that
      moves or resizes. base.css turns both off under reduced motion. */
@@ -56,6 +58,9 @@
   /* Stacking, for anything fixed or absolute that escapes its parent.
      A component's own stacking (a toolbar over its row) uses 1 or 2. */
   --z-sticky: 10;
+  /* The side panel's full-screen form on a phone: over the page, under
+     the drawer, so the drawer can still be opened. */
+  --z-side-panel: 15;
   --z-drawer-backdrop: 19;
   --z-drawer: 20;
   --z-popover: 30;

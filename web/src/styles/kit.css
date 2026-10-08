@@ -73,3 +73,32 @@ body[data-ground="canvas"] {
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* A page with room for the side panel beside it, as AppShell lays it out. */
+.kit-page-with-panel {
+  display: flex;
+  height: 520px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.kit-page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.kit-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.kit-panel-footer {
+  padding: 0 16px 16px;
+}
