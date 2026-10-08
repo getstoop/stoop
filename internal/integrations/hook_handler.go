@@ -73,8 +73,8 @@ func (s *Service) HookHandler() http.Handler {
 			return
 		}
 		key := strings.TrimSpace(r.URL.Query().Get("thread"))
-		if utf8.RuneCountInString(key) > maxThreadKeyRunes {
-			http.Error(w, fmt.Sprintf("a thread key is at most %d characters", maxThreadKeyRunes), http.StatusBadRequest)
+		if !utf8.ValidString(key) || utf8.RuneCountInString(key) > maxThreadKeyRunes {
+			http.Error(w, fmt.Sprintf("a thread key is text of at most %d characters", maxThreadKeyRunes), http.StatusBadRequest)
 			return
 		}
 		if err := s.postToHook(authctx.WithIdentity(ctx, id), hook, key, post); err != nil {
@@ -114,8 +114,10 @@ func hookFailure(err error) (int, string) {
 const maxThreadKeyRunes = 100
 
 // postToHook posts into the hook's channel, or, with a thread key, into
-// the thread the key's first post started. A key whose root was deleted
-// starts a new thread. docs/architecture/integrations.md → Incoming.
+// the thread the key's first post started. When chat won't take the reply
+// (the root went, became a placeholder, or the channel has no threads)
+// the post lands in the channel and the key moves to it.
+// docs/architecture/integrations.md → Incoming.
 func (s *Service) postToHook(ctx context.Context, hook dbgen.IncomingWebhook, key, content string) error {
 	req := PostRequest{ChannelID: hook.ChannelID, Content: content}
 	if key == "" {
@@ -127,11 +129,14 @@ func (s *Service) postToHook(ctx context.Context, hook dbgen.IncomingWebhook, ke
 	case err == nil:
 		req.ThreadRootID = root
 		_, err := s.poster.Post(ctx, req)
-		// Chat refuses a root kept as a placeholder: start the thread again.
-		if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		switch connect.CodeOf(err) {
+		case connect.CodeFailedPrecondition, connect.CodeNotFound:
+			// Post without the thread; a channel the bot can't reach
+			// refuses that too, with its own answer.
+			req.ThreadRootID = ""
+		default:
 			return err
 		}
-		req.ThreadRootID = ""
 	case !errors.Is(err, pgx.ErrNoRows):
 		return fmt.Errorf("read thread key: %w", err)
 	}

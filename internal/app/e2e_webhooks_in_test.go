@@ -235,6 +235,7 @@ func TestE2EIncomingHookThreads(t *testing.T) {
 	server.message(casey, general, "build 42 started") // its own thread's root
 
 	server.post(url+"?thread="+strings.Repeat("k", 101), "text/plain", "too long a key").expectStatus(t, http.StatusBadRequest)
+	server.post(url+"?thread=%FF", "text/plain", "not text").expectStatus(t, http.StatusBadRequest)
 
 	// Deleted with a reply, the root stays as a placeholder that takes no
 	// replies: the key starts again.
@@ -248,5 +249,25 @@ func TestE2EIncomingHookThreads(t *testing.T) {
 	retriedID, _ := retried["id"].(string)
 	if got := replies(retriedID); len(got) != 1 {
 		t.Errorf("the new build 41 thread holds %d replies, want 1", len(got))
+	}
+}
+
+// An announcement channel has no threads: keyed posts are all delivered,
+// each in the channel, rather than lost.
+func TestE2EIncomingHookThreadsInAnnouncements(t *testing.T) {
+	server := newHarness(t)
+	casey := server.person("casey")
+	stoop, general := server.space(casey, "The Stoop")
+	server.rpc(casey, "stoop.chat.v1.ChatService/UpdateChannel", map[string]any{
+		"channelId": general, "postPolicy": "CHANNEL_POST_POLICY_ADMINS",
+	}).expect(t, "ok")
+	bot := server.bot(casey, "alerts")
+	server.addBot(casey, bot, stoop)
+	_, url := server.hook(casey, bot, general, "Alerts")
+	for _, alert := range []string{"nas disk at 90%", "nas disk at 95%"} {
+		server.post(url+"?thread=nas", "text/plain", alert).expectStatus(t, http.StatusOK)
+		if message := server.message(casey, general, alert); message["threadRootId"] != nil {
+			t.Errorf("%q went into a thread in an announcement channel", alert)
+		}
 	}
 }

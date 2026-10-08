@@ -14,7 +14,9 @@ curl -d 'disk is full' https://chat.example.com/hooks/stp_hook_…
 To keep related posts together, add `?thread=` and any name up to 100
 characters, such as a build number or a service. The first post with a
 name starts a thread in the channel and later ones reply in it; if that
-thread's first message is deleted, the next post starts a new one.
+thread's first message is deleted, the next post starts a new one. In an
+announcement channel, which has no threads, each post lands in the
+channel.
 
 ```sh
 curl -d 'tests passed' 'https://chat.example.com/hooks/stp_hook_…?thread=build-41'
