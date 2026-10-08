@@ -99,6 +99,13 @@ service ChatService {
   rpc SetChannelMuted(SetChannelMutedRequest) returns (SetChannelMutedResponse) {}
   // SetSpaceMuted sets the caller's own mute for a space they belong to.
   rpc SetSpaceMuted(SetSpaceMutedRequest) returns (SetSpaceMutedResponse) {}
+  // SetThreadMuted sets the caller's own mute for a thread in a channel
+  // they can read. A muted thread writes them no thread_reply activity and
+  // no banners; mentions and replies to them in it still reach the feed.
+  rpc SetThreadMuted(SetThreadMutedRequest) returns (SetThreadMutedResponse) {}
+  // ListThreadMutes returns the threads the caller muted, newest mute
+  // first, in channels they can still read.
+  rpc ListThreadMutes(ListThreadMutesRequest) returns (ListThreadMutesResponse) {}
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {}
   // SearchMessages finds messages by their words within one space the
@@ -155,6 +162,9 @@ service ChatService {
   // either direction. Instance admins get the same list, not every account.
   rpc ListDirectMessageCandidates(ListDirectMessageCandidatesRequest) returns (ListDirectMessageCandidatesResponse) {}
   rpc MarkChannelRead(MarkChannelReadRequest) returns (MarkChannelReadResponse) {}
+  // MarkThreadRead moves the caller's read marker in a thread to its
+  // newest reply (or to reply_id if given). Only forward.
+  rpc MarkThreadRead(MarkThreadReadRequest) returns (MarkThreadReadResponse) {}
   rpc ListActivity(ListActivityRequest) returns (ListActivityResponse) {}
   // MarkActivityRead marks the given activity items (or all of them)
   // read and returns the new unread count.
@@ -224,6 +234,18 @@ message MarkChannelReadRequest {
 }
 
 message MarkChannelReadResponse {
+  // The marker after the call.
+  string last_read_message_id = 1;
+}
+
+message MarkThreadReadRequest {
+  // The thread's root.
+  string message_id = 1;
+  // Optional: mark read up to this reply instead of the newest.
+  string reply_id = 2;
+}
+
+message MarkThreadReadResponse {
   // The marker after the call.
   string last_read_message_id = 1;
 }
@@ -441,6 +463,29 @@ message SetSpaceMutedRequest {
 
 message SetSpaceMutedResponse {
   Space space = 1;
+}
+
+message SetThreadMutedRequest {
+  // The thread's root.
+  string message_id = 1;
+  bool muted = 2;
+}
+
+message SetThreadMutedResponse {}
+
+message ListThreadMutesRequest {}
+
+message ListThreadMutesResponse {
+  repeated MutedThread threads = 1;
+}
+
+// MutedThread is one row of Profile → Muted.
+message MutedThread {
+  // Empty for a direct message.
+  string space_id = 1;
+  string channel_id = 2;
+  // The root, for its author and an excerpt (a placeholder when deleted).
+  Message root = 3;
 }
 
 message ListChannelsRequest {

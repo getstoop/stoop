@@ -53,6 +53,8 @@ message ServerEvent {
     MessagePinned message_pinned = 32;
     DoNotDisturbChanged do_not_disturb_changed = 33;
     ThreadChanged thread_changed = 34;
+    ThreadMuted thread_muted = 35;
+    ThreadRead thread_read = 36;
   }
 }
 
@@ -233,6 +235,15 @@ message ChannelMuted {
   bool muted = 3;
 }
 
+// ThreadMuted is delivered on the user's personal topic when they mute or
+// unmute a thread, so their other devices follow.
+message ThreadMuted {
+  string space_id = 1;
+  string channel_id = 2;
+  string root_message_id = 3;
+  bool muted = 4;
+}
+
 // SpaceMuted is delivered on the user's personal topic when they mute or
 // unmute a space, so their other devices follow.
 message SpaceMuted {
@@ -255,6 +266,15 @@ message ChannelRead {
   string space_id = 1;
   string channel_id = 2;
   string last_read_message_id = 3;
+}
+
+// ThreadRead is delivered on the reader's personal topic when their read
+// marker in a thread moves, so their other devices clear its count too.
+message ThreadRead {
+  string space_id = 1;
+  string channel_id = 2;
+  string root_message_id = 3;
+  string last_read_message_id = 4;
 }
 
 // ActivityItemCreated is delivered on the recipient's personal topic.

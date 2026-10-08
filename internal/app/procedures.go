@@ -132,6 +132,9 @@ var procedures = map[string]authctx.Rule{
 	chatv1connect.ChatServiceSetChannelMutedProcedure:  needs(authctx.PreferencesManage),
 	chatv1connect.ChatServiceSetSpaceMutedProcedure:    needs(authctx.PreferencesManage),
 	chatv1connect.ChatServiceMarkChannelReadProcedure:  needs(authctx.PreferencesManage),
+	chatv1connect.ChatServiceSetThreadMutedProcedure:   needs(authctx.PreferencesManage),
+	chatv1connect.ChatServiceListThreadMutesProcedure:  needs(authctx.PreferencesManage),
+	chatv1connect.ChatServiceMarkThreadReadProcedure:   needs(authctx.PreferencesManage),
 
 	chatv1connect.ChatServiceCreateChannelProcedure:    needs(authctx.ChannelsManage),
 	chatv1connect.ChatServiceListChannelsProcedure:     needs(authctx.SpaceRead),
