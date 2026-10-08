@@ -423,6 +423,12 @@ the cached root. The open thread marks itself read once the window has
 attention (`useMarkThreadRead`), and reads its own activity items; the
 channel reads only items outside threads.
 
+A reply also sent to the channel is one message in both timelines
+(`appendMessage` routes it to both). In the channel it carries a line
+naming its thread (`Message.thread_root`) that opens the thread on it;
+in the thread it is tagged "Also sent to #channel". The thread's box
+offers the choice as a checkbox, cleared after each send.
+
 ## Accessibility choices worth knowing
 
 - Spoilers are `<button>` elements, not styled spans — keyboard reachable

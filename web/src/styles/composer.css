@@ -134,6 +134,13 @@
 
 /* ---- Announcement channels ---- */
 
+/* Under a thread's box: send the reply to the channel too. */
+.composer label.composer-also-send {
+  margin: 6px 4px 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 .composer-hint {
   margin: 6px 4px 0;
   font-size: var(--text-sm);

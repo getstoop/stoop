@@ -381,13 +381,16 @@ export function MessageList({
         (!!spaceForPerms && canDeleteAnyMessage(spaceForPerms))
       }
       canPin={
-        !threadRootId && !!spaceForPerms && canManageChannels(spaceForPerms)
+        !threadRootId &&
+        !message.threadRootId &&
+        !!spaceForPerms &&
+        canManageChannels(spaceForPerms)
       }
       editing={editingId === message.id}
       usernames={usernames}
       myUsername={me?.username}
       threadOpen={!threadRootId && openThread === message.id}
-      canStartThread={threadsAllowed}
+      canStartThread={threadsAllowed && !message.threadRootId}
       withDay={!!threadRootId}
       rowIdPrefix={rowIdPrefix}
       onJumpTo={jumpTo}
@@ -408,6 +411,24 @@ export function MessageList({
                 channelId,
                 rootId: message.id,
               })
+      }
+      onOpenOrigin={
+        threadRootId || !message.threadRootId
+          ? undefined
+          : () =>
+              openSidePanel("thread", {
+                spaceId,
+                channelId,
+                rootId: message.threadRootId,
+                focusId: message.id,
+              })
+      }
+      alsoSentTo={
+        threadRootId && message.inChannel && message.id !== threadRootId
+          ? dm
+            ? "the conversation"
+            : `#${channelName}`
+          : undefined
       }
     />
   );
