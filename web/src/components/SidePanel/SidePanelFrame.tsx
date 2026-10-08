@@ -31,7 +31,7 @@ export function SidePanelFrame({ title, subtitle, footer, children }: Props) {
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    heading.current?.focus();
+    heading.current?.focus({ preventScroll: true });
   }, []);
 
   const onAnimationEnd = (event: AnimationEvent) => {

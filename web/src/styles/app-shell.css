@@ -3,6 +3,9 @@
 .app-shell {
   display: flex;
   height: 100%;
+  /* Nothing sliding in (the side panel) may widen the page: a moment's
+     overflow brings up scrollbars and shifts the whole app. */
+  overflow: clip;
 }
 
 /* Inside the desktop shell (html[data-shell], stamped by index.html) the
