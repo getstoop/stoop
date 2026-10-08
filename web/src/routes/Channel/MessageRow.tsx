@@ -1,5 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { fullDateTime } from "../../api/dates";
+import { dayAndTime, fullDateTime } from "../../api/dates";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -29,6 +29,7 @@ export function MessageRow({
   myUsername,
   threadOpen,
   canStartThread,
+  withDay = false,
   onJumpTo,
   onCard,
   onReact,
@@ -53,6 +54,8 @@ export function MessageRow({
   threadOpen: boolean;
   // The toolbar offers to start a thread (not in an announcement channel).
   canStartThread: boolean;
+  // The time says its day too, where no day separator does (a thread).
+  withDay?: boolean;
   onJumpTo: (id: string) => void;
   onCard: (userId: string, anchor: DOMRect) => void;
   onReact: (anchor: DOMRect) => void;
@@ -63,15 +66,15 @@ export function MessageRow({
   // Opens its thread; absent inside a thread, where a reply has none.
   onThread?: () => void;
 }) {
-  const time = message.createdAt
-    ? timestampDate(message.createdAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
-  const fullTime = message.createdAt
-    ? fullDateTime(timestampDate(message.createdAt))
+  const created = message.createdAt
+    ? timestampDate(message.createdAt)
     : undefined;
+  const time = !created
+    ? ""
+    : withDay
+      ? dayAndTime(created)
+      : created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const fullTime = created ? fullDateTime(created) : undefined;
   const authorName =
     message.author?.displayName || message.author?.username || "?";
   const summary = message.thread && onThread && (

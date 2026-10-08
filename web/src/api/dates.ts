@@ -31,6 +31,13 @@ export function dayLabel(d: Date, now: Date = new Date()): string {
   });
 }
 
+// A message's time where there are no day separators to carry the date
+// (a thread): "Today at 7:04 PM", "Monday at 7:06 PM".
+export function dayAndTime(d: Date, now: Date = new Date()): string {
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `${dayLabel(d, now)} at ${time}`;
+}
+
 // The hover title on a timestamp: the whole thing, unambiguously.
 export function fullDateTime(d: Date): string {
   return d.toLocaleString([], {

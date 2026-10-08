@@ -350,6 +350,7 @@ export function MessageList({
       myUsername={me?.username}
       threadOpen={!threadRootId && openThread === message.id}
       canStartThread={threadsAllowed}
+      withDay={!!threadRootId}
       onJumpTo={jumpTo}
       onCard={(userId, anchor) => setCard({ userId, anchor })}
       onReact={(anchor) => setPicker({ message, anchor })}
@@ -423,8 +424,9 @@ export function MessageList({
         )}
         {messages.map((message, i) => (
           <Fragment key={message.id}>
-            {message.createdAt &&
-              startsDay(message, messages[i - 1] ?? threadRoot) && (
+            {!threadRoot &&
+              message.createdAt &&
+              startsDay(message, messages[i - 1]) && (
                 <div className="day-divider eyebrow">
                   <span>{dayLabel(timestampDate(message.createdAt))}</span>
                 </div>
