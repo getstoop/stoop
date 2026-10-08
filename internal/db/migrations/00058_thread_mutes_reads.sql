@@ -18,6 +18,11 @@ CREATE TABLE thread_reads (
     PRIMARY KEY (user_id, root_message_id)
 );
 
+-- Deleting a root (Delete thread, the retention sweep) finds its rows by
+-- root; the primary keys lead with the person.
+CREATE INDEX thread_mutes_root_idx ON thread_mutes (root_message_id);
+CREATE INDEX thread_reads_root_idx ON thread_reads (root_message_id);
+
 -- +goose Down
 DROP TABLE thread_reads;
 DROP TABLE thread_mutes;
