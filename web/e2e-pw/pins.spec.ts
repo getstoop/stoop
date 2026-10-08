@@ -76,7 +76,7 @@ test("pinned messages", async ({ browser }) => {
   await expect(
     message(B, 0).locator(".message-action"),
     "a member's actions on someone else's message stop at Reply",
-  ).toHaveCount(3);
+  ).toHaveCount(4);
   await expect(pinAction(B, 0, "Pin"), "and none of them is Pin").toHaveCount(
     0,
   );
