@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { dayLabel, fullDateTime, sameDay, shortDateTime } from "./dates";
+import {
+  dayAndTime,
+  dayLabel,
+  fullDateTime,
+  sameDay,
+  shortDateTime,
+} from "./dates";
 
 // Local-time constructor throughout: the helpers read local getters, so
 // building dates this way keeps the suite honest in any TZ.
@@ -27,6 +33,20 @@ describe("sameDay", () => {
 
   it("separates the same day number in different months", () => {
     expect(sameDay(at(2026, 8, 11), at(2026, 9, 11))).toBe(false);
+  });
+});
+
+describe("dayAndTime", () => {
+  it("puts the day before the time", () => {
+    const now = at(2026, 9, 11, 12, 0);
+    const time = (d: Date) =>
+      d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    const today = at(2026, 9, 11, 19, 4);
+    const monday = at(2026, 9, 6, 19, 6);
+    expect(dayAndTime(today, now)).toBe(`Today at ${time(today)}`);
+    expect(dayAndTime(monday, now)).toBe(
+      `${dayLabel(monday, now)} at ${time(monday)}`,
+    );
   });
 });
 

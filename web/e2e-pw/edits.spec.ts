@@ -33,24 +33,39 @@ test("message actions, editing and deleting", async ({ browser }) => {
   await B.locator(".message-content", { hasText: "helo wrld" }).waitFor();
   await say(A, "owner here");
 
-  // Actions visible (Add reaction, Copy link and Reply for everyone): B
+  // Actions visible (Add reaction, Copy link, Reply in thread and Reply
+  // for everyone): B
   // (member) sees Edit/Delete on her own, not on A's; A (owner) sees
   // Delete on B's, and Pin on any of them (manage_channels).
   await expect
     .poll(() => actions(B, 0), {
       message: "member: own message has Reply/Edit/Delete",
     })
-    .toEqual(["Add reaction", "Copy link", "Reply", "Edit", "Delete"]);
+    .toEqual([
+      "Add reaction",
+      "Copy link",
+      "Reply in thread",
+      "Reply",
+      "Edit",
+      "Delete",
+    ]);
   await expect
     .poll(() => actions(B, 1), {
       message: "member: someone else's has only Reply",
     })
-    .toEqual(["Add reaction", "Copy link", "Reply"]);
+    .toEqual(["Add reaction", "Copy link", "Reply in thread", "Reply"]);
   await expect
     .poll(() => actions(A, 0), {
       message: "owner: another's message has Pin/Reply/Delete (no Edit)",
     })
-    .toEqual(["Add reaction", "Copy link", "Pin", "Reply", "Delete"]);
+    .toEqual([
+      "Add reaction",
+      "Copy link",
+      "Pin",
+      "Reply in thread",
+      "Reply",
+      "Delete",
+    ]);
 
   // B edits: inline editor, Enter saves, (edited) marker, A sees it live.
   await clickAction(B, 0, "Edit");

@@ -1,0 +1,50 @@
+/* ---- Threads: the line under a root that opens its thread, the root
+   whose thread is open, and a root kept as a placeholder. The thread
+   itself is a side panel (side-panel.css); docs/architecture/messaging.md
+   → Threads. ---- */
+
+.thread-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+
+.thread-summary:hover,
+.thread-summary.open {
+  border-color: var(--border);
+  background: var(--panel);
+}
+
+.thread-faces {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.thread-count {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* The root whose thread is in the side panel. */
+.message.thread-open {
+  background: var(--accent-soft);
+}
+
+.avatar.placeholder-avatar {
+  border: 1px dashed var(--border);
+  background: none;
+}
+
+.deleted-body {
+  color: var(--text-muted);
+  font-style: italic;
+}

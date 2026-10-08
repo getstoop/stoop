@@ -64,8 +64,18 @@
   white-space: nowrap;
 }
 
+.side-panel-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
 .side-panel-close {
   margin-left: auto;
+}
+
+.side-panel-actions + .side-panel-close {
+  margin-left: 0;
 }
 
 /* Back is the phone's way out; on a wide screen Close is. */
@@ -92,4 +102,11 @@
 
 .side-panel-unavailable p {
   margin: 0;
+}
+
+/* In place of the message box where a thread takes no replies. */
+.side-panel-note {
+  margin: 0;
+  padding: 12px 16px 16px;
+  font-size: var(--text-ui);
 }

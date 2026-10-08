@@ -28,8 +28,10 @@ export function markPinned(
   messageId: string,
   pinned: boolean,
 ) {
-  queryClient.setQueryData<Message[]>(["messages", channelId], (old) =>
-    old?.map((m) => (m.id === messageId ? { ...m, pinned } : m)),
+  // Every window of the channel, a thread's root included.
+  queryClient.setQueriesData<Message[]>(
+    { queryKey: ["messages", channelId] },
+    (old) => old?.map((m) => (m.id === messageId ? { ...m, pinned } : m)),
   );
 }
 

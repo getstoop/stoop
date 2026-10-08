@@ -13,7 +13,13 @@ import {
 import { useConnectionStore } from "../stores/connection";
 import { useVoiceStore } from "../stores/voice";
 import { receiveActivityItem } from "./activity";
-import { isLive, useHistoryStore } from "./history";
+import {
+  isLive,
+  type Timeline,
+  timelineId,
+  timelineKey,
+  useHistoryStore,
+} from "./history";
 import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
 import { socketUrl } from "./origin";
@@ -152,10 +158,10 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageCreated": {
       const m = payload.value;
+      appendMessage(queryClient, m);
       // A reply that stays in its thread is not in the channel's timeline
       // and does not make the channel unread.
       if (m.threadRootId && !m.inChannel) break;
-      appendMessage(queryClient, m);
       const { userId, activeChannelId } = useConnectionStore.getState();
       const mine = m.author?.id === userId;
       const reading = m.channelId === activeChannelId && hasAttention();
@@ -212,8 +218,33 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageUpdated": {
       const m = payload.value;
-      queryClient.setQueryData<Message[]>(["messages", m.channelId], (old) =>
-        old?.map((x) => (x.id === m.id ? m : x)),
+      // A root deleted while its thread has replies arrives as an update:
+      // quotes of it read as a deleted message's, as after a delete.
+      queryClient.setQueriesData<Message[]>(
+        { queryKey: ["messages", m.channelId] },
+        (old) =>
+          old?.map((x) =>
+            x.id === m.id
+              ? m
+              : m.deleted && x.replyTo?.messageId === m.id
+                ? {
+                    ...x,
+                    replyTo: { ...x.replyTo, author: undefined, preview: "" },
+                  }
+                : x,
+          ),
+      );
+      break;
+    }
+    case "threadChanged": {
+      // The root's summary line: count, last reply, faces.
+      const t = payload.value;
+      queryClient.setQueriesData<Message[]>(
+        { queryKey: ["messages", t.channelId] },
+        (old) =>
+          old?.map((x) =>
+            x.id === t.rootMessageId ? { ...x, thread: t.thread } : x,
+          ),
       );
       break;
     }
@@ -405,28 +436,49 @@ function leaveVoiceIn(spaceId: string) {
   if (useVoiceStore.getState().connection?.spaceId === spaceId) leaveVoice();
 }
 
-// Drops a message from the cache and blanks the quote on any reply to it
-// (the server does the same on the next fetch).
+// Drops a message from every window of its channel and blanks the quote
+// on any reply to it (the server does the same on the next fetch). A root
+// that goes takes its thread's window with it.
 export function removeMessageFromCache(
   queryClient: QueryClient,
   channelId: string,
   messageId: string,
 ) {
-  queryClient.setQueryData<Message[]>(["messages", channelId], (old) =>
-    old
-      ?.filter((x) => x.id !== messageId)
-      .map((x) =>
-        x.replyTo?.messageId === messageId
-          ? { ...x, replyTo: { ...x.replyTo, author: undefined, preview: "" } }
-          : x,
-      ),
+  queryClient.removeQueries({
+    queryKey: ["messages", channelId, messageId],
+    exact: true,
+  });
+  queryClient.setQueriesData<Message[]>(
+    { queryKey: ["messages", channelId] },
+    (old) =>
+      old
+        ?.filter((x) => x.id !== messageId)
+        .map((x) =>
+          x.replyTo?.messageId === messageId
+            ? {
+                ...x,
+                replyTo: { ...x.replyTo, author: undefined, preview: "" },
+              }
+            : x,
+        ),
   );
 }
 
 // Also used by the send-message mutation, so delivery via RPC response and
-// via the WS event converge on the same deduped cache write.
+// via the WS event converge on the same deduped cache write. A message
+// goes to the timeline it shows in: its channel's, its thread's, or both.
 export function appendMessage(queryClient: QueryClient, message: Message) {
-  const key = ["messages", message.channelId];
+  const { channelId, threadRootId } = message;
+  if (message.inChannel || !threadRootId) {
+    appendTo(queryClient, { channelId }, message);
+  }
+  if (threadRootId) {
+    appendTo(queryClient, { channelId, rootId: threadRootId }, message);
+  }
+}
+
+function appendTo(queryClient: QueryClient, t: Timeline, message: Message) {
+  const key = timelineKey(t);
   const current = queryClient.getQueryData<Message[]>(key);
   if (current === undefined) {
     // The channel's history isn't in the cache yet. A load in flight may
@@ -441,8 +493,8 @@ export function appendMessage(queryClient: QueryClient, message: Message) {
   // history): the message belongs beyond its edge, so count it on the
   // "Jump to latest" pill rather than splicing it in out of order.
   const history = useHistoryStore.getState();
-  if (!isLive(history.channels[message.channelId])) {
-    history.noteArrival(message.channelId);
+  if (!isLive(history.channels[timelineId(t)])) {
+    history.noteArrival(t);
     return;
   }
   queryClient.setQueryData<Message[]>(key, [...current, message]);

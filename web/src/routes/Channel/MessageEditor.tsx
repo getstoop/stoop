@@ -49,8 +49,10 @@ export function MessageEditor({
       });
       if (res.message) {
         const m = res.message;
-        queryClient.setQueryData<Message[]>(["messages", m.channelId], (old) =>
-          old?.map((x) => (x.id === m.id ? m : x)),
+        // Every window of the channel: a thread's replies and root too.
+        queryClient.setQueriesData<Message[]>(
+          { queryKey: ["messages", m.channelId] },
+          (old) => old?.map((x) => (x.id === m.id ? m : x)),
         );
       }
       onDone();
@@ -75,6 +77,7 @@ export function MessageEditor({
               e.preventDefault();
               save();
             } else if (e.key === "Escape") {
+              e.preventDefault();
               onDone();
             }
           }}

@@ -6,14 +6,20 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { chatClient } from "../../api/clients";
-import { dayLabel, fullDateTime, sameDay } from "../../api/dates";
+import { dayLabel, sameDay } from "../../api/dates";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
-import { isLive, useHistoryStore } from "../../api/history";
+import {
+  isLive,
+  timelineId,
+  timelineKey,
+  useHistoryStore,
+} from "../../api/history";
 import { canDeleteAnyMessage, canManageChannels } from "../../api/permissions";
 import { setMessagePinned } from "../../api/pins";
 import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
@@ -21,20 +27,12 @@ import { toggleReaction } from "../../api/reactions";
 import { historyRetentionNote } from "../../api/retention";
 import { messagePath, shareUrl } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
-import { Attachments } from "../../components/Attachments";
-import { Avatar } from "../../components/Avatar";
-import { BotMark } from "../../components/BotMark";
-import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiPicker } from "../../components/EmojiPicker";
-import { PinIcon } from "../../components/Icons";
-import { LinkPreviews } from "../../components/LinkPreviews";
-import { MessageBody } from "../../components/MessageBody";
-import { ReactionBar } from "../../components/ReactionBar";
 import { UserCard } from "../../components/UserCard";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { confirm, notice } from "../../stores/dialogs";
-import { MessageActions } from "./MessageActions";
-import { MessageEditor } from "./MessageEditor";
+import { openSidePanel, useSidePanelStore } from "../../stores/sidePanel";
+import { MessageRow } from "./MessageRow";
 
 export function MessageList({
   messages,
@@ -48,6 +46,8 @@ export function MessageList({
   editingId,
   onEdit,
   onReply,
+  threadRoot,
+  threadsAllowed = false,
 }: {
   messages: Message[];
   spaceId: string;
@@ -67,8 +67,24 @@ export function MessageList({
   editingId: string | null;
   onEdit: (id: string | null) => void;
   onReply: (m: Message) => void;
+  // Show this root's thread instead of the channel; the root sits above
+  // the oldest reply once there is nothing older.
+  threadRoot?: Message;
+  // Messages here may start a thread (never in an announcement channel).
+  threadsAllowed?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const threadRootId = threadRoot?.id;
+  const timeline = useMemo(
+    () => ({ channelId, rootId: threadRootId }),
+    [channelId, threadRootId],
+  );
+  const rowIdPrefix = threadRootId ? "thread-msg-" : "msg-";
+  const openPanel = useSidePanelStore((s) => s.open);
+  const openThread =
+    openPanel?.kind === "thread" && openPanel.params.channelId === channelId
+      ? openPanel.params.rootId
+      : undefined;
   const { data: spacesForPerms } = useSpaces();
   const spaceForPerms = spacesForPerms?.find((s) => s.id === spaceId);
   // The permalink each message offers to copy. An ordinary https:// link,
@@ -88,7 +104,9 @@ export function MessageList({
     if (!ok) return;
     try {
       await chatClient.deleteMessage({ messageId: m.id });
-      removeMessageFromCache(queryClient, m.channelId, m.id);
+      // A root with replies stays as a placeholder; the server's update
+      // for it fills the row in.
+      if (!m.thread) removeMessageFromCache(queryClient, m.channelId, m.id);
     } catch (err) {
       notice({ title: "Couldn't delete the message", body: errorText(err) });
     }
@@ -102,27 +120,30 @@ export function MessageList({
   const topRef = useRef<HTMLDivElement>(null);
   const footRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const history = useHistoryStore((s) => s.channels[channelId]);
+  const history = useHistoryStore((s) => s.channels[timelineId(timeline)]);
   const live = isLive(history);
   const loadOlder = useHistoryStore((s) => s.loadOlder);
   const loadNewer = useHistoryStore((s) => s.loadNewer);
   const storeJumpTo = useHistoryStore((s) => s.jumpTo);
   const storeJumpToLatest = useHistoryStore((s) => s.jumpToLatest);
   const anchor = useRef<{ id: string; top: number } | null>(null);
-  const setAnchor = useCallback((id: string | undefined) => {
-    const el = id && document.getElementById(`msg-${id}`);
-    anchor.current = el ? { id, top: el.getBoundingClientRect().top } : null;
-  }, []);
+  const setAnchor = useCallback(
+    (id: string | undefined) => {
+      const el = id && document.getElementById(`${rowIdPrefix}${id}`);
+      anchor.current = el ? { id, top: el.getBoundingClientRect().top } : null;
+    },
+    [rowIdPrefix],
+  );
   const loadOlderAnchored = useCallback(async () => {
-    const have = queryClient.getQueryData<Message[]>(["messages", channelId]);
+    const have = queryClient.getQueryData<Message[]>(timelineKey(timeline));
     setAnchor(have?.[0]?.id);
-    return loadOlder(queryClient, channelId);
-  }, [loadOlder, queryClient, channelId, setAnchor]);
+    return loadOlder(queryClient, timeline);
+  }, [loadOlder, queryClient, timeline, setAnchor]);
   const loadNewerAnchored = useCallback(async () => {
-    const have = queryClient.getQueryData<Message[]>(["messages", channelId]);
+    const have = queryClient.getQueryData<Message[]>(timelineKey(timeline));
     setAnchor(have?.[have.length - 1]?.id);
-    return loadNewer(queryClient, channelId);
-  }, [loadNewer, queryClient, channelId, setAnchor]);
+    return loadNewer(queryClient, timeline);
+  }, [loadNewer, queryClient, timeline, setAnchor]);
   const flash = (el: HTMLElement) => {
     el.scrollIntoView({ block: "center" });
     el.classList.add("flash");
@@ -131,15 +152,15 @@ export function MessageList({
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs after every window change
   useLayoutEffect(() => {
     const store = useHistoryStore.getState();
-    const land = store.channels[channelId]?.landOn;
+    const land = store.channels[timelineId(timeline)]?.landOn;
     if (land) {
       // A jump replaced the window: land where it asked, once that's rendered.
       const el =
         land === "bottom"
           ? bottomRef.current
-          : document.getElementById(`msg-${land.id}`);
+          : document.getElementById(`${rowIdPrefix}${land.id}`);
       if (!el) return;
-      store.landed(channelId);
+      store.landed(timeline);
       anchor.current = null;
       if (land === "bottom") el.scrollIntoView();
       else flash(el);
@@ -149,7 +170,7 @@ export function MessageList({
     const list = listRef.current;
     if (!a || !list) return;
     anchor.current = null;
-    const el = document.getElementById(`msg-${a.id}`);
+    const el = document.getElementById(`${rowIdPrefix}${a.id}`);
     if (el) list.scrollTop += el.getBoundingClientRect().top - a.top;
   }, [messages]);
   useEffect(() => {
@@ -175,12 +196,12 @@ export function MessageList({
   // Jump to a message and flash it. If it isn't in the window, one round
   // trip replaces the window with a page centred on it.
   const jumpTo = async (id: string) => {
-    const el = document.getElementById(`msg-${id}`);
+    const el = document.getElementById(`${rowIdPrefix}${id}`);
     if (el) {
       flash(el);
       return true;
     }
-    return storeJumpTo(queryClient, channelId, id);
+    return storeJumpTo(queryClient, timeline, id);
   };
   // A deep link: land on the message as soon as the window holds it (the
   // query opened around it), or fetch that window. The param is then
@@ -194,6 +215,9 @@ export function MessageList({
     void jumpTo(jumpTarget).then((ok) => {
       if (!ok) bottomRef.current?.scrollIntoView();
     });
+    // A thread's link was read by the side panel; only a channel's sits
+    // in the address.
+    if (threadRootId) return;
     if (spaceId) {
       navigate({
         to: "/s/$spaceId/c/$channelId",
@@ -259,7 +283,7 @@ export function MessageList({
   const jumpToLatest = async () => {
     setUnseen(0);
     if (live) bottomRef.current?.scrollIntoView();
-    else await storeJumpToLatest(queryClient, channelId);
+    else await storeJumpToLatest(queryClient, timeline);
   };
   const seenNewest = useRef<string | undefined>(undefined);
   // biome-ignore lint/correctness/useExhaustiveDependencies: react to a message arriving at the end (not to history being prepended)
@@ -310,208 +334,114 @@ export function MessageList({
     !!prev.createdAt &&
     sameMinute(timestampDate(prev.createdAt), timestampDate(m.createdAt));
 
+  // One message's row: in the timeline, and a thread's root above it.
+  const row = (message: Message, continued: boolean) => (
+    <MessageRow
+      message={message}
+      continued={continued}
+      spaceId={spaceId}
+      link={shareUrl(messagePath(spaceId, channelId, message.id), linkOrigin)}
+      mine={me?.id === message.author?.id}
+      canDelete={
+        me?.id === message.author?.id ||
+        (!!spaceForPerms && canDeleteAnyMessage(spaceForPerms))
+      }
+      canPin={
+        !threadRootId && !!spaceForPerms && canManageChannels(spaceForPerms)
+      }
+      editing={editingId === message.id}
+      usernames={usernames}
+      myUsername={me?.username}
+      threadOpen={!threadRootId && openThread === message.id}
+      canStartThread={threadsAllowed}
+      withDay={!!threadRootId}
+      rowIdPrefix={rowIdPrefix}
+      onJumpTo={jumpTo}
+      onCard={(userId, anchor) => setCard({ userId, anchor })}
+      onReact={(anchor) => setPicker({ message, anchor })}
+      onReply={() => onReply(message)}
+      onEdit={onEdit}
+      onDelete={() => remove(message)}
+      onTogglePin={() =>
+        setMessagePinned(queryClient, message, !message.pinned)
+      }
+      onThread={
+        threadRootId
+          ? undefined
+          : () =>
+              openSidePanel("thread", {
+                spaceId,
+                channelId,
+                rootId: message.id,
+              })
+      }
+    />
+  );
+
   return (
     <div className="message-list-wrap">
       <div className="message-list" ref={listRef}>
         <div ref={topRef} className="history-sentinel" aria-hidden="true" />
         {/* Always rendered so the row's height is reserved: swapping its
-          contents can't shift the view while a page is in flight. */}
-        <div
-          className={`history-head ${history && !history.hasOlder ? "history-start" : ""}`}
-          data-state={
-            history && !history.hasOlder
-              ? "start"
-              : history?.loading
-                ? "loading"
-                : "idle"
-          }
-        >
-          {history && !history.hasOlder ? (
-            <span>
-              {group
-                ? "Beginning of this conversation"
-                : dm
-                  ? `Beginning of your conversation with ${channelName}`
-                  : `Beginning of #${channelName}`}
-              {retentionNote && (
-                <>
-                  {" · "}
-                  <strong>{retentionNote}</strong>
-                </>
-              )}
-            </span>
-          ) : history?.loading ? (
-            "Loading earlier messages…"
-          ) : null}
-        </div>
+          contents can't shift the view while a page is in flight. A
+          thread's start is its root instead. */}
+        {!(threadRoot && history && !history.hasOlder) && (
+          <div
+            className={`history-head ${history && !history.hasOlder ? "history-start" : ""}`}
+            data-state={
+              history && !history.hasOlder
+                ? "start"
+                : history?.loading
+                  ? "loading"
+                  : "idle"
+            }
+          >
+            {history && !history.hasOlder ? (
+              <span>
+                {group
+                  ? "Beginning of this conversation"
+                  : dm
+                    ? `Beginning of your conversation with ${channelName}`
+                    : `Beginning of #${channelName}`}
+                {retentionNote && (
+                  <>
+                    {" · "}
+                    <strong>{retentionNote}</strong>
+                  </>
+                )}
+              </span>
+            ) : history?.loading ? (
+              "Loading earlier messages…"
+            ) : null}
+          </div>
+        )}
+        {threadRoot && history && !history.hasOlder && (
+          <>
+            {row(threadRoot, false)}
+            <div className="day-divider eyebrow thread-divider">
+              <span>
+                {replyCountLabel(
+                  threadRoot.thread?.replyCount ?? messages.length,
+                )}
+              </span>
+            </div>
+          </>
+        )}
         {messages.map((message, i) => (
           <Fragment key={message.id}>
-            {message.createdAt && startsDay(message, messages[i - 1]) && (
-              <div className="day-divider eyebrow">
-                <span>{dayLabel(timestampDate(message.createdAt))}</span>
-              </div>
-            )}
+            {!threadRoot &&
+              message.createdAt &&
+              startsDay(message, messages[i - 1]) && (
+                <div className="day-divider eyebrow">
+                  <span>{dayLabel(timestampDate(message.createdAt))}</span>
+                </div>
+              )}
             {message.id === firstNewId && (
               <div ref={dividerRef} className="new-divider eyebrow">
                 <span>New messages</span>
               </div>
             )}
-            <div
-              id={`msg-${message.id}`}
-              // Focusable by tap/click (not Tab) so the toolbar shows on
-              // touch screens, where there is no hover.
-              tabIndex={-1}
-              className={`message ${continues(message, messages[i - 1]) ? "continued" : ""}`}
-            >
-              {message.pinned && (
-                <div className="pinned-marker eyebrow">
-                  <PinIcon size={11} />
-                  Pinned
-                </div>
-              )}
-              {message.replyTo && (
-                <button
-                  type="button"
-                  className="reply-quote"
-                  onClick={() => jumpTo(message.replyTo?.messageId ?? "")}
-                  title="Jump to the original message"
-                >
-                  <span className="reply-arrow">↩</span>
-                  <strong>
-                    {message.replyTo.author?.displayName ||
-                      message.replyTo.author?.username ||
-                      "deleted"}
-                    <BotMark kind={message.replyTo.author?.kind} />
-                    <DeletedMark deleted={message.replyTo.author?.deleted} />
-                  </strong>
-                  <span className="reply-preview">
-                    {message.replyTo.preview || "(message deleted)"}
-                  </span>
-                </button>
-              )}
-              {!continues(message, messages[i - 1]) && (
-                <button
-                  type="button"
-                  className="message-avatar"
-                  aria-label={`${message.author?.displayName || message.author?.username} — profile`}
-                  onClick={(e) =>
-                    message.author &&
-                    setCard({
-                      userId: message.author.id,
-                      anchor: e.currentTarget.getBoundingClientRect(),
-                    })
-                  }
-                >
-                  <Avatar
-                    name={
-                      message.author?.displayName ||
-                      message.author?.username ||
-                      "?"
-                    }
-                    fileId={message.author?.avatarFileId}
-                    kind={message.author?.kind}
-                    size="medium"
-                  />
-                </button>
-              )}
-              <div className="message-meta">
-                <button
-                  type="button"
-                  className="message-author"
-                  onClick={(e) =>
-                    message.author &&
-                    setCard({
-                      userId: message.author.id,
-                      anchor: e.currentTarget.getBoundingClientRect(),
-                    })
-                  }
-                >
-                  {message.author?.displayName || message.author?.username}
-                  <BotMark kind={message.author?.kind} />
-                  <DeletedMark deleted={message.author?.deleted} />
-                </button>
-                <span
-                  className="message-time"
-                  title={
-                    message.createdAt
-                      ? fullDateTime(timestampDate(message.createdAt))
-                      : undefined
-                  }
-                >
-                  {message.createdAt
-                    ? timestampDate(message.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : ""}
-                </span>
-              </div>
-              <div className="message-toolbar">
-                {continues(message, messages[i - 1]) && (
-                  <span
-                    className="message-time"
-                    title={
-                      message.createdAt
-                        ? fullDateTime(timestampDate(message.createdAt))
-                        : undefined
-                    }
-                  >
-                    {message.createdAt
-                      ? timestampDate(message.createdAt).toLocaleTimeString(
-                          [],
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )
-                      : ""}
-                  </span>
-                )}
-                <MessageActions
-                  message={message}
-                  link={shareUrl(
-                    messagePath(spaceId, channelId, message.id),
-                    linkOrigin,
-                  )}
-                  mine={me?.id === message.author?.id}
-                  canDelete={
-                    me?.id === message.author?.id ||
-                    (!!spaceForPerms && canDeleteAnyMessage(spaceForPerms))
-                  }
-                  canPin={!!spaceForPerms && canManageChannels(spaceForPerms)}
-                  onReply={() => onReply(message)}
-                  onEdit={() => onEdit(message.id)}
-                  onDelete={() => remove(message)}
-                  onReact={(anchor) => setPicker({ message, anchor })}
-                  onTogglePin={() =>
-                    setMessagePinned(queryClient, message, !message.pinned)
-                  }
-                />
-              </div>
-              {editingId === message.id ? (
-                <MessageEditor message={message} onDone={() => onEdit(null)} />
-              ) : null}
-              <div
-                className="message-content"
-                hidden={editingId === message.id}
-              >
-                <MessageBody
-                  content={message.content}
-                  usernames={usernames}
-                  mentionsEveryone={message.mentionsEveryone}
-                  mentionsHere={message.mentionsHere}
-                  myUsername={me?.username}
-                />
-                <Attachments attachments={message.attachments} />
-                <LinkPreviews previews={message.linkPreviews} />
-                {message.editedAt && (
-                  <span className="edited-marker" title="Edited">
-                    (edited)
-                  </span>
-                )}
-              </div>
-              <ReactionBar message={message} spaceId={spaceId} />
-            </div>
+            {row(message, continues(message, messages[i - 1]))}
           </Fragment>
         ))}
         {/* The window's newer edge: a sentinel that pages forward while
@@ -561,4 +491,9 @@ function sameMinute(a: Date, b: Date): boolean {
     a.getHours() === b.getHours() &&
     a.getMinutes() === b.getMinutes()
   );
+}
+
+function replyCountLabel(count: number): string {
+  if (count === 0) return "No replies yet";
+  return `${count} ${count === 1 ? "reply" : "replies"}`;
 }

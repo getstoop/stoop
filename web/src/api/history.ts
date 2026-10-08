@@ -5,7 +5,8 @@ import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import { chatClient } from "./clients";
 
 // The timeline shows one contiguous *window* of a channel's messages: the
-// flat ["messages", channelId] array. Usually it's the newest page and grows
+// flat ["messages", channelId] array (a thread's: ["messages", channelId,
+// rootId], see Timeline). Usually it's the newest page and grows
 // as history is paged in above and realtime appends below ("live"). Jumping
 // to a message that isn't loaded replaces the window with one centred on it;
 // from there the reader pages forward until the window reaches the newest
@@ -15,6 +16,22 @@ import { chatClient } from "./clients";
 
 export const HISTORY_PAGE = 50;
 export const WINDOW_CAP = 300;
+
+// A timeline is a channel's messages, or one thread's replies inside it
+// (rootId set). Each has its own window, cached under its own key; the
+// thread's sits under the channel's, so a write to every window of a
+// channel is one prefix (["messages", channelId]).
+export interface Timeline {
+  channelId: string;
+  rootId?: string;
+}
+
+export const timelineKey = (t: Timeline) =>
+  t.rootId ? ["messages", t.channelId, t.rootId] : ["messages", t.channelId];
+
+// The history store's key: a channel's id, or channel/root for a thread.
+export const timelineId = (t: Timeline) =>
+  t.rootId ? `${t.channelId}/${t.rootId}` : t.channelId;
 
 export interface ChannelHistory {
   // The server said there may be messages beyond the window's edges.
@@ -38,38 +55,43 @@ const IDLE: ChannelHistory = {
 };
 
 interface HistoryState {
+  // By timelineId.
   channels: Record<string, ChannelHistory>;
   // The base query delivered a fresh window; take the server's edge hints.
-  seed: (channelId: string, res: ListMessagesResponse) => void;
+  seed: (t: Timeline, res: ListMessagesResponse) => void;
   // Prepend the page before the window's oldest message.
-  loadOlder: (queryClient: QueryClient, channelId: string) => Promise<number>;
+  loadOlder: (queryClient: QueryClient, t: Timeline) => Promise<number>;
   // Append the page after the window's newest message.
-  loadNewer: (queryClient: QueryClient, channelId: string) => Promise<number>;
+  loadNewer: (queryClient: QueryClient, t: Timeline) => Promise<number>;
   // Replace the window with one centred on messageId; false if it isn't
-  // in the channel (deleted, or a bogus link).
+  // in the timeline (deleted, or a bogus link).
   jumpTo: (
     queryClient: QueryClient,
-    channelId: string,
+    t: Timeline,
     messageId: string,
   ) => Promise<boolean>;
   // Replace a non-live window with the newest page.
-  jumpToLatest: (queryClient: QueryClient, channelId: string) => Promise<void>;
+  jumpToLatest: (queryClient: QueryClient, t: Timeline) => Promise<void>;
   // A message was created while the window isn't live.
-  noteArrival: (channelId: string) => void;
+  noteArrival: (t: Timeline) => void;
   // The timeline scrolled to landOn.
-  landed: (channelId: string) => void;
+  landed: (t: Timeline) => void;
 }
 
 export const isLive = (h: ChannelHistory | undefined) => !h?.hasNewer;
 
-const key = (channelId: string) => ["messages", channelId];
+// The listMessages request for a timeline, before its paging fields.
+const scope = (t: Timeline) => ({
+  channelId: t.channelId,
+  threadId: t.rootId ?? "",
+});
 
 export const useHistoryStore = create<HistoryState>((set, get) => {
-  const patch = (channelId: string, p: Partial<ChannelHistory>) =>
+  const patch = (t: Timeline, p: Partial<ChannelHistory>) =>
     set((s) => ({
       channels: {
         ...s.channels,
-        [channelId]: { ...(s.channels[channelId] ?? IDLE), ...p },
+        [timelineId(t)]: { ...(s.channels[timelineId(t)] ?? IDLE), ...p },
       },
     }));
   const fromResponse = (res: ListMessagesResponse): ChannelHistory => ({
@@ -80,42 +102,42 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
   });
   // Runs one page fetch, guarded against overlap; returns the page or null.
   const page = async (
-    channelId: string,
+    t: Timeline,
     fetch: () => Promise<ListMessagesResponse>,
   ) => {
-    const cur = get().channels[channelId] ?? IDLE;
+    const cur = get().channels[timelineId(t)] ?? IDLE;
     if (cur.loading) return null;
-    patch(channelId, { loading: true });
+    patch(t, { loading: true });
     try {
       return await fetch();
     } catch {
       return null;
     } finally {
-      patch(channelId, { loading: false });
+      patch(t, { loading: false });
     }
   };
 
   return {
     channels: {},
-    seed: (channelId, res) =>
+    seed: (t, res) =>
       set((s) => ({
-        channels: { ...s.channels, [channelId]: fromResponse(res) },
+        channels: { ...s.channels, [timelineId(t)]: fromResponse(res) },
       })),
 
-    loadOlder: async (queryClient, channelId) => {
-      const cur = get().channels[channelId] ?? IDLE;
-      const have = queryClient.getQueryData<Message[]>(key(channelId));
+    loadOlder: async (queryClient, t) => {
+      const cur = get().channels[timelineId(t)] ?? IDLE;
+      const have = queryClient.getQueryData<Message[]>(timelineKey(t));
       if (!cur.hasOlder || !have?.length) return 0;
-      const res = await page(channelId, () =>
+      const res = await page(t, () =>
         chatClient.listMessages({
-          channelId,
+          ...scope(t),
           beforeId: have[0].id,
           limit: HISTORY_PAGE,
         }),
       );
       if (!res) return 0;
       let pruned = false;
-      queryClient.setQueryData<Message[]>(key(channelId), (old) => {
+      queryClient.setQueryData<Message[]>(timelineKey(t), (old) => {
         if (!old) return old;
         const seen = new Set(old.map((m) => m.id));
         let next = [...res.messages.filter((m) => !seen.has(m.id)), ...old];
@@ -125,7 +147,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
         }
         return next;
       });
-      patch(channelId, {
+      patch(t, {
         hasOlder: res.hasOlder,
         // Dropping the newest rows means the window no longer ends at the
         // newest message; arrivals count on the pill from here.
@@ -134,20 +156,20 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
       return res.messages.length;
     },
 
-    loadNewer: async (queryClient, channelId) => {
-      const cur = get().channels[channelId] ?? IDLE;
-      const have = queryClient.getQueryData<Message[]>(key(channelId));
+    loadNewer: async (queryClient, t) => {
+      const cur = get().channels[timelineId(t)] ?? IDLE;
+      const have = queryClient.getQueryData<Message[]>(timelineKey(t));
       if (!cur.hasNewer || !have?.length) return 0;
-      const res = await page(channelId, () =>
+      const res = await page(t, () =>
         chatClient.listMessages({
-          channelId,
+          ...scope(t),
           afterId: have[have.length - 1].id,
           limit: HISTORY_PAGE,
         }),
       );
       if (!res) return 0;
       let pruned = false;
-      queryClient.setQueryData<Message[]>(key(channelId), (old) => {
+      queryClient.setQueryData<Message[]>(timelineKey(t), (old) => {
         if (!old) return old;
         const seen = new Set(old.map((m) => m.id));
         let next = [...old, ...res.messages.filter((m) => !seen.has(m.id))];
@@ -157,7 +179,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
         }
         return next;
       });
-      patch(channelId, {
+      patch(t, {
         hasNewer: res.hasNewer,
         ...(pruned ? { hasOlder: true } : {}),
         // Back at the newest message: everything that arrived is now loaded.
@@ -166,42 +188,58 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
       return res.messages.length;
     },
 
-    jumpTo: async (queryClient, channelId, messageId) => {
-      const res = await page(channelId, () =>
+    jumpTo: async (queryClient, t, messageId) => {
+      // A thread's root is not one of its replies: the window that shows
+      // it is the first page, the replies after it, with nothing older.
+      if (t.rootId && messageId === t.rootId) {
+        const first = await page(t, () =>
+          chatClient.listMessages({
+            ...scope(t),
+            afterId: messageId,
+            limit: HISTORY_PAGE,
+          }),
+        );
+        if (!first) return false;
+        queryClient.setQueryData<Message[]>(timelineKey(t), first.messages);
+        get().seed(t, first);
+        patch(t, { hasOlder: false, landOn: { id: messageId } });
+        return true;
+      }
+      const res = await page(t, () =>
         chatClient.listMessages({
-          channelId,
+          ...scope(t),
           aroundId: messageId,
           limit: HISTORY_PAGE,
         }),
       );
       if (!res) return false;
-      queryClient.setQueryData<Message[]>(key(channelId), res.messages);
-      get().seed(channelId, res);
-      patch(channelId, { landOn: { id: messageId } });
+      queryClient.setQueryData<Message[]>(timelineKey(t), res.messages);
+      get().seed(t, res);
+      patch(t, { landOn: { id: messageId } });
       return true;
     },
 
-    jumpToLatest: async (queryClient, channelId) => {
-      if (isLive(get().channels[channelId])) return;
-      const res = await page(channelId, () =>
-        chatClient.listMessages({ channelId, limit: HISTORY_PAGE }),
+    jumpToLatest: async (queryClient, t) => {
+      if (isLive(get().channels[timelineId(t)])) return;
+      const res = await page(t, () =>
+        chatClient.listMessages({ ...scope(t), limit: HISTORY_PAGE }),
       );
       if (!res) return;
-      queryClient.setQueryData<Message[]>(key(channelId), res.messages);
-      get().seed(channelId, res);
-      patch(channelId, { landOn: "bottom" });
+      queryClient.setQueryData<Message[]>(timelineKey(t), res.messages);
+      get().seed(t, res);
+      patch(t, { landOn: "bottom" });
     },
 
-    landed: (channelId) => patch(channelId, { landOn: undefined }),
+    landed: (t) => patch(t, { landOn: undefined }),
 
-    noteArrival: (channelId) =>
+    noteArrival: (t) =>
       set((s) => {
-        const cur = s.channels[channelId];
+        const cur = s.channels[timelineId(t)];
         if (!cur?.hasNewer) return s;
         return {
           channels: {
             ...s.channels,
-            [channelId]: { ...cur, pendingNewer: cur.pendingNewer + 1 },
+            [timelineId(t)]: { ...cur, pendingNewer: cur.pendingNewer + 1 },
           },
         };
       }),

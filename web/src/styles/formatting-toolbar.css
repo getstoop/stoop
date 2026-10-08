@@ -19,6 +19,12 @@
   line-height: 18px;
 }
 
+/* In the side panel's narrow column the tools sit closer, on one line. */
+.side-panel .format-button {
+  min-width: 0;
+  padding: 4px 6px;
+}
+
 .format-button:hover,
 .format-button:focus-visible {
   background: var(--raised);

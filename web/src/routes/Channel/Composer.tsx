@@ -18,7 +18,7 @@ import {
   MAX_ATTACHMENTS,
   uploadAttachment,
 } from "../../api/files";
-import { isLive, useHistoryStore } from "../../api/history";
+import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import { filterMembers, mentionQueryAt } from "../../api/mentions";
 import { canMentionEveryone } from "../../api/permissions";
 import { useInstanceStatus, useSpaces } from "../../api/queries";
@@ -55,6 +55,7 @@ export function Composer({
   replyTo,
   onCancelReply,
   onEditLast,
+  threadRootId,
 }: {
   channelId: string;
   channelName?: string;
@@ -68,7 +69,10 @@ export function Composer({
   onCancelReply: () => void;
   // Up arrow in an empty box: edit the caller's last message here.
   onEditLast: () => void;
+  // Reply into this root's thread instead of the channel.
+  threadRootId?: string;
 }) {
+  const timeline = { channelId, rootId: threadRootId };
   const [draft, setDraft] = useState("");
   const [mention, setMention] = useState<{
     start: number;
@@ -191,7 +195,9 @@ export function Composer({
   // Typing hint: at most one ping every few seconds while there's text.
   const lastTypingRef = useRef(0);
   const pingTyping = (value: string) => {
-    if (!value.trim()) return;
+    // Typing hints are per channel: one from a thread would read as typing
+    // in the channel.
+    if (threadRootId || !value.trim()) return;
     const now = Date.now();
     if (now - lastTypingRef.current < 2500) return;
     lastTypingRef.current = now;
@@ -238,7 +244,9 @@ export function Composer({
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (onShortcut(e)) return;
+    // Escape handled here is spent: it doesn't also close the side panel.
     if (e.key === "Escape" && !mention && !shortcode && replyTo) {
+      e.preventDefault();
       onCancelReply();
       return;
     }
@@ -274,6 +282,7 @@ export function Composer({
       if (mention) pick(candidates[selected]);
       else pickEmoji(suggestions[selected]);
     } else if (e.key === "Escape") {
+      e.preventDefault();
       setMention(null);
       setShortcode(null);
     }
@@ -300,16 +309,17 @@ export function Composer({
         content,
         replyToMessageId,
         attachmentIds,
+        threadRootId: threadRootId ?? "",
       });
       // The WS event usually lands first; appendMessage dedupes by ID either
       // way. Sent from inside history, the window is replaced by the newest
       // page so the message is seen where it landed.
       if (res.message) {
         const h = useHistoryStore.getState();
-        if (isLive(h.channels[channelId])) {
+        if (isLive(h.channels[timelineId(timeline)])) {
           appendMessage(queryClient, res.message);
         } else {
-          await h.jumpToLatest(queryClient, channelId);
+          await h.jumpToLatest(queryClient, timeline);
         }
       }
     } catch (err) {
@@ -419,15 +429,17 @@ export function Composer({
             setShortcode(null);
           }}
           placeholder={
-            channelName
-              ? dm
-                ? group
-                  ? `Message ${channelName}`
-                  : `Message @${channelName}`
-                : announcement
-                  ? `Announce in #${channelName}`
-                  : `Message #${channelName}`
-              : "Message"
+            threadRootId
+              ? "Reply in thread"
+              : channelName
+                ? dm
+                  ? group
+                    ? `Message ${channelName}`
+                    : `Message @${channelName}`
+                  : announcement
+                    ? `Announce in #${channelName}`
+                    : `Message #${channelName}`
+                : "Message"
           }
           maxLength={4000}
           autoComplete="off"
