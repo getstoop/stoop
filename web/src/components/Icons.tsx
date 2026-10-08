@@ -40,11 +40,11 @@ export function WifiIcon() {
   );
 }
 
-export function BellIcon() {
+export function BellIcon({ size = 22 }: { size?: number }) {
   return (
     <svg
-      width="22"
-      height="22"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -113,11 +113,11 @@ export function MessagesIcon() {
   );
 }
 
-export function BellOffIcon() {
+export function BellOffIcon({ size = 22 }: { size?: number }) {
   return (
     <svg
-      width="22"
-      height="22"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

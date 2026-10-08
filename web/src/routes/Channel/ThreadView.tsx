@@ -160,7 +160,11 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
               aria-label={summary.muted ? "Unmute thread" : "Mute thread"}
               aria-pressed={summary.muted}
             >
-              {summary.muted ? <BellOffIcon /> : <BellIcon />}
+              {summary.muted ? (
+                <BellOffIcon size={16} />
+              ) : (
+                <BellIcon size={16} />
+              )}
             </button>
           )}
           {canModerate && (
