@@ -19,7 +19,7 @@ x-logging: &logging
 # file shipped with; each release candidate moves it. Rolling back one
 # release is editing this line and `up -d`.
 x-stoop-image: &stoop-image
-  image: ghcr.io/getstoop/stoop:0.8.0
+  image: ghcr.io/getstoop/stoop:0.8.1
 
 # Everything in .env reaches the server, so any variable in
 # docs/self-hosting/configuration.md can be set there. The entries below
