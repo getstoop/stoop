@@ -228,9 +228,23 @@ export function MessageList({
   useEffect(() => {
     if (!jumpTarget || jumped === jumpTarget || messages.length === 0) return;
     setJumped(jumpTarget);
-    void jumpTo(jumpTarget).then((ok) => {
-      if (!ok) bottomRef.current?.scrollIntoView();
-    });
+    // The first window already came centred on a reply's root: land there
+    // and open the thread at the reply, without asking the server again.
+    const thread =
+      useHistoryStore.getState().channels[timelineId(timeline)]?.aroundThread;
+    if (thread && thread !== jumpTarget) {
+      void jumpTo(thread);
+      openSidePanel("thread", {
+        spaceId,
+        channelId,
+        rootId: thread,
+        focusId: jumpTarget,
+      });
+    } else {
+      void jumpTo(jumpTarget).then((ok) => {
+        if (!ok) bottomRef.current?.scrollIntoView();
+      });
+    }
     // A thread's link was read by the side panel; only a channel's sits
     // in the address.
     if (threadRootId) return;

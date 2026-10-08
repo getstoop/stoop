@@ -45,6 +45,9 @@ export interface ChannelHistory {
   // After a jump replaces the window: where the timeline should land once
   // it has rendered. Cleared by the timeline via landed().
   landOn?: { id: string } | "bottom";
+  // The window was fetched around a reply that shows only in its thread:
+  // the server centred it on this root, the thread to open.
+  aroundThread?: string;
 }
 
 const IDLE: ChannelHistory = {
@@ -101,6 +104,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
     hasNewer: res.hasNewer,
     loading: false,
     pendingNewer: 0,
+    aroundThread: res.threadRootId || undefined,
   });
   // Runs one page fetch, guarded against overlap; returns the page or null.
   const page = async (
