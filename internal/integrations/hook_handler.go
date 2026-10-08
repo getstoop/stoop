@@ -1,15 +1,20 @@
 package integrations
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/text"
 )
 
@@ -67,7 +72,12 @@ func (s *Service) HookHandler() http.Handler {
 			http.Error(w, "nothing to post", http.StatusBadRequest)
 			return
 		}
-		if _, err := s.poster.Post(authctx.WithIdentity(ctx, id), PostRequest{ChannelID: hook.ChannelID, Content: post}); err != nil {
+		key := strings.TrimSpace(r.URL.Query().Get("thread"))
+		if utf8.RuneCountInString(key) > maxThreadKeyRunes {
+			http.Error(w, fmt.Sprintf("a thread key is at most %d characters", maxThreadKeyRunes), http.StatusBadRequest)
+			return
+		}
+		if err := s.postToHook(authctx.WithIdentity(ctx, id), hook, key, post); err != nil {
 			status, msg := hookFailure(err)
 			if status == http.StatusInternalServerError {
 				s.log.Error("hook post failed", "hook", hook.ID, "err", err)
@@ -98,4 +108,43 @@ func hookFailure(err error) (int, string) {
 	default:
 		return http.StatusInternalServerError, "internal error " + strconv.Itoa(int(cerr.Code()))
 	}
+}
+
+// maxThreadKeyRunes bounds ?thread=, a build number or a service name.
+const maxThreadKeyRunes = 100
+
+// postToHook posts into the hook's channel, or, with a thread key, into
+// the thread the key's first post started. A key whose root was deleted
+// starts a new thread. docs/architecture/integrations.md → Incoming.
+func (s *Service) postToHook(ctx context.Context, hook dbgen.IncomingWebhook, key, content string) error {
+	req := PostRequest{ChannelID: hook.ChannelID, Content: content}
+	if key == "" {
+		_, err := s.poster.Post(ctx, req)
+		return err
+	}
+	root, err := s.q.GetIncomingWebhookThread(ctx, dbgen.GetIncomingWebhookThreadParams{WebhookID: hook.ID, ThreadKey: key})
+	switch {
+	case err == nil:
+		req.ThreadRootID = root
+		_, err := s.poster.Post(ctx, req)
+		// Chat refuses a root kept as a placeholder: start the thread again.
+		if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			return err
+		}
+		req.ThreadRootID = ""
+	case !errors.Is(err, pgx.ErrNoRows):
+		return fmt.Errorf("read thread key: %w", err)
+	}
+	messageID, err := s.poster.Post(ctx, req)
+	if err != nil {
+		return err
+	}
+	// The post stands either way; a key that isn't saved starts another
+	// thread next time.
+	if err := s.q.SetIncomingWebhookThread(ctx, dbgen.SetIncomingWebhookThreadParams{
+		WebhookID: hook.ID, ThreadKey: key, RootMessageID: messageID,
+	}); err != nil {
+		s.log.Error("save hook thread key", "hook", hook.ID, "err", err)
+	}
+	return nil
 }

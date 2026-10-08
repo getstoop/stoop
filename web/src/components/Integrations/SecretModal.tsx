@@ -61,6 +61,12 @@ export function SecretModal({
           {secret.kind === "signing" ? "Verifying it" : "Try it"}
           <pre className="token-example">{example}</pre>
         </div>
+        {secret.kind === "hook" && (
+          <p className="hint">
+            Add <code>?thread=build-41</code> to keep posts with the same name
+            in one thread.
+          </p>
+        )}
       </div>
     </Modal>
   );

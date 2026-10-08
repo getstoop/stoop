@@ -37,3 +37,14 @@ UPDATE incoming_webhooks SET disabled_at = now(), disabled_reason = $2 WHERE id 
 
 -- name: DeleteIncomingWebhook :one
 DELETE FROM incoming_webhooks WHERE id = $1 RETURNING *;
+
+-- GetIncomingWebhookThread is the root a hook's thread key posts into.
+-- name: GetIncomingWebhookThread :one
+SELECT root_message_id FROM incoming_webhook_threads WHERE webhook_id = $1 AND thread_key = $2;
+
+-- SetIncomingWebhookThread points a key at the root its first post made,
+-- or at a new one once the old root was deleted.
+-- name: SetIncomingWebhookThread :exec
+INSERT INTO incoming_webhook_threads (webhook_id, thread_key, root_message_id) VALUES ($1, $2, $3)
+ON CONFLICT (webhook_id, thread_key) DO UPDATE
+SET root_message_id = EXCLUDED.root_message_id, created_at = now();

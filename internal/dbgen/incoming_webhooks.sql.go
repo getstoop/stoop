@@ -154,6 +154,23 @@ func (q *Queries) GetIncomingWebhookByCredential(ctx context.Context, credential
 	return i, err
 }
 
+const getIncomingWebhookThread = `-- name: GetIncomingWebhookThread :one
+SELECT root_message_id FROM incoming_webhook_threads WHERE webhook_id = $1 AND thread_key = $2
+`
+
+type GetIncomingWebhookThreadParams struct {
+	WebhookID string
+	ThreadKey string
+}
+
+// GetIncomingWebhookThread is the root a hook's thread key posts into.
+func (q *Queries) GetIncomingWebhookThread(ctx context.Context, arg GetIncomingWebhookThreadParams) (string, error) {
+	row := q.db.QueryRow(ctx, getIncomingWebhookThread, arg.WebhookID, arg.ThreadKey)
+	var root_message_id string
+	err := row.Scan(&root_message_id)
+	return root_message_id, err
+}
+
 const listIncomingWebhooks = `-- name: ListIncomingWebhooks :many
 SELECT id, space_id, channel_id, bot_user_id, credential_id, name, created_by, created_at, disabled_at, disabled_reason FROM incoming_webhooks ORDER BY space_id, created_at, id
 `
@@ -251,5 +268,24 @@ type SetIncomingWebhookCredentialParams struct {
 // state alone; the old credential is revoked by auth.
 func (q *Queries) SetIncomingWebhookCredential(ctx context.Context, arg SetIncomingWebhookCredentialParams) error {
 	_, err := q.db.Exec(ctx, setIncomingWebhookCredential, arg.ID, arg.CredentialID)
+	return err
+}
+
+const setIncomingWebhookThread = `-- name: SetIncomingWebhookThread :exec
+INSERT INTO incoming_webhook_threads (webhook_id, thread_key, root_message_id) VALUES ($1, $2, $3)
+ON CONFLICT (webhook_id, thread_key) DO UPDATE
+SET root_message_id = EXCLUDED.root_message_id, created_at = now()
+`
+
+type SetIncomingWebhookThreadParams struct {
+	WebhookID     string
+	ThreadKey     string
+	RootMessageID string
+}
+
+// SetIncomingWebhookThread points a key at the root its first post made,
+// or at a new one once the old root was deleted.
+func (q *Queries) SetIncomingWebhookThread(ctx context.Context, arg SetIncomingWebhookThreadParams) error {
+	_, err := q.db.Exec(ctx, setIncomingWebhookThread, arg.WebhookID, arg.ThreadKey, arg.RootMessageID)
 	return err
 }

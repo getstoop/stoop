@@ -81,6 +81,15 @@ blocks, mentions and the `@everyone` refusal apply as they do to anyone.
 `username`, `icon_emoji`, `icon_url` and `blocks` are accepted and
 ignored. Text over the message limit is cut to fit with an ellipsis.
 
+`?thread=<key>` (at most 100 characters) threads a hook's posts:
+`incoming_webhook_threads` maps the hook and key to the root its first
+post made, and later posts send with that `thread_root_id`. When chat
+refuses the root as a placeholder, or the row went with a deleted root,
+the post starts a new thread and the key moves to it. Two first posts
+with a new key at the same moment both land in the channel and the key
+keeps the later one. A bot or a personal token replies in a thread through
+`SendMessage` like any client.
+
 | Situation | Answer |
 | --- | --- |
 | Posted | `200 ok` |

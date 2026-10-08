@@ -28,6 +28,8 @@ import (
 type PostRequest struct {
 	ChannelID string
 	Content   string
+	// Optional: reply in this root's thread.
+	ThreadRootID string
 }
 
 // Poster is integrations' port onto chat: post with the identity and

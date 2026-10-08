@@ -26,7 +26,7 @@ func (p hookPoster) Post(ctx context.Context, req integrations.PostRequest) (str
 		return "", connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(authctx.MessagesPost))
 	}
 	res, err := p.chat.SendMessage(ctx, connect.NewRequest(&chatv1.SendMessageRequest{
-		ChannelId: req.ChannelID, Content: req.Content,
+		ChannelId: req.ChannelID, Content: req.Content, ThreadRootId: req.ThreadRootID,
 	}))
 	if err != nil {
 		return "", err

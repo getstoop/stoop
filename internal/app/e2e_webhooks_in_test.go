@@ -200,3 +200,53 @@ func TestE2EIntegrationsAreTheInstanceAdmins(t *testing.T) {
 	}
 	h.rpc(casey, "stoop.integrations.v1.IntegrationService/CreateIncoming", map[string]any{"channelId": general, "name": "one too many", "botUserId": bot}).expect(t, "resource_exhausted")
 }
+
+// ?thread=<key> on a hook's URL: the first post with a key starts a
+// thread, later ones reply in it, and a key whose root was deleted starts
+// a new one (STOOP-437).
+func TestE2EIncomingHookThreads(t *testing.T) {
+	server := newHarness(t)
+	casey := server.person("casey")
+	stoop, general := server.space(casey, "The Stoop")
+	bot := server.bot(casey, "builds")
+	server.addBot(casey, bot, stoop)
+	_, url := server.hook(casey, bot, general, "CI")
+	replies := func(rootID string) []any {
+		t.Helper()
+		return server.rpc(casey, "stoop.chat.v1.ChatService/ListMessages", map[string]any{
+			"channelId": general, "threadId": rootID,
+		}).expect(t, "ok").list("messages")
+	}
+
+	server.post(url+"?thread=build-41", "text/plain", "build 41 started").expectStatus(t, http.StatusOK)
+	root := server.message(casey, general, "build 41 started")
+	server.post(url+"?thread=build-41", "text/plain", "build 41 tests passed").expectStatus(t, http.StatusOK)
+	server.post(url+"?thread=build-42", "text/plain", "build 42 started").expectStatus(t, http.StatusOK)
+
+	rootID, _ := root["id"].(string)
+	if got := replies(rootID); len(got) != 1 {
+		t.Fatalf("build 41's thread holds %d replies, want 1", len(got))
+	}
+	for _, message := range server.messages(casey, general) {
+		if content, _ := message["content"].(string); strings.Contains(content, "tests passed") {
+			t.Error("a keyed reply showed in the channel")
+		}
+	}
+	server.message(casey, general, "build 42 started") // its own thread's root
+
+	server.post(url+"?thread="+strings.Repeat("k", 101), "text/plain", "too long a key").expectStatus(t, http.StatusBadRequest)
+
+	// Deleted with a reply, the root stays as a placeholder that takes no
+	// replies: the key starts again.
+	server.rpc(casey, "stoop.chat.v1.ChatService/DeleteMessage", map[string]any{"messageId": rootID}).expect(t, "ok")
+	server.post(url+"?thread=build-41", "text/plain", "build 41 retried").expectStatus(t, http.StatusOK)
+	retried := server.message(casey, general, "build 41 retried")
+	if retried["threadRootId"] != nil {
+		t.Errorf("the post after the root went is %v, want a new top-level message", retried)
+	}
+	server.post(url+"?thread=build-41", "text/plain", "build 41 passed again").expectStatus(t, http.StatusOK)
+	retriedID, _ := retried["id"].(string)
+	if got := replies(retriedID); len(got) != 1 {
+		t.Errorf("the new build 41 thread holds %d replies, want 1", len(got))
+	}
+}
