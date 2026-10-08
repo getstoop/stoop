@@ -223,13 +223,23 @@ const dmIndexRoute = createRoute({
   component: DMIndex,
 });
 
+// ?m=<id> opens a channel around a message; ?t=<root> opens that thread in
+// the side panel, which then takes both out of the address
+// (components/SidePanel/links.ts).
+function channelSearch(search: Record<string, unknown>): {
+  m?: string;
+  t?: string;
+} {
+  const text = (value: unknown) =>
+    typeof value === "string" && value !== "" ? value : undefined;
+  return { m: text(search.m), t: text(search.t) };
+}
+
 const dmChannelRoute = createRoute({
   getParentRoute: () => dmRoute,
   path: "/$channelId",
   component: ChannelView,
-  validateSearch: (search: Record<string, unknown>): { m?: string } => ({
-    m: typeof search.m === "string" && search.m !== "" ? search.m : undefined,
-  }),
+  validateSearch: channelSearch,
 });
 
 const spaceRoute = createRoute({
@@ -288,10 +298,8 @@ const channelRoute = createRoute({
   path: "/c/$channelId",
   component: ChannelView,
   // ?m=<messageId> opens the channel around that message (activity,
-  // shared links) instead of at the newest one.
-  validateSearch: (search: Record<string, unknown>): { m?: string } => ({
-    m: typeof search.m === "string" && search.m !== "" ? search.m : undefined,
-  }),
+  // shared links) instead of at the newest one; ?t=<rootId> opens a thread.
+  validateSearch: channelSearch,
 });
 
 const routeTree = rootRoute.addChildren([

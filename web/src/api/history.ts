@@ -45,6 +45,9 @@ export interface ChannelHistory {
   // After a jump replaces the window: where the timeline should land once
   // it has rendered. Cleared by the timeline via landed().
   landOn?: { id: string } | "bottom";
+  // The window was fetched around a reply that shows only in its thread:
+  // the server centred it on this root, the thread to open.
+  aroundThread?: string;
 }
 
 const IDLE: ChannelHistory = {
@@ -63,19 +66,24 @@ interface HistoryState {
   loadOlder: (queryClient: QueryClient, t: Timeline) => Promise<number>;
   // Append the page after the window's newest message.
   loadNewer: (queryClient: QueryClient, t: Timeline) => Promise<number>;
-  // Replace the window with one centred on messageId; false if it isn't
-  // in the timeline (deleted, or a bogus link).
+  // Replace the window with one centred on messageId; found is false if
+  // it isn't in the timeline (deleted, or a bogus link). A reply that
+  // shows only in its thread centres a channel on its root instead and
+  // names the thread to open.
   jumpTo: (
     queryClient: QueryClient,
     t: Timeline,
     messageId: string,
-  ) => Promise<boolean>;
+  ) => Promise<{ found: boolean; threadRootId?: string }>;
   // Replace a non-live window with the newest page.
   jumpToLatest: (queryClient: QueryClient, t: Timeline) => Promise<void>;
   // A message was created while the window isn't live.
   noteArrival: (t: Timeline) => void;
   // The timeline scrolled to landOn.
   landed: (t: Timeline) => void;
+  // The thread a fetch around a reply named, once: reading it clears it,
+  // so a later jump in the same window can't open it again.
+  takeAroundThread: (t: Timeline) => string | undefined;
 }
 
 export const isLive = (h: ChannelHistory | undefined) => !h?.hasNewer;
@@ -99,6 +107,7 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
     hasNewer: res.hasNewer,
     loading: false,
     pendingNewer: 0,
+    aroundThread: res.threadRootId || undefined,
   });
   // Runs one page fetch, guarded against overlap; returns the page or null.
   const page = async (
@@ -199,11 +208,11 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
             limit: HISTORY_PAGE,
           }),
         );
-        if (!first) return false;
+        if (!first) return { found: false };
         queryClient.setQueryData<Message[]>(timelineKey(t), first.messages);
         get().seed(t, first);
         patch(t, { hasOlder: false, landOn: { id: messageId } });
-        return true;
+        return { found: true };
       }
       const res = await page(t, () =>
         chatClient.listMessages({
@@ -212,11 +221,17 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
           limit: HISTORY_PAGE,
         }),
       );
-      if (!res) return false;
+      if (!res) return { found: false };
       queryClient.setQueryData<Message[]>(timelineKey(t), res.messages);
       get().seed(t, res);
-      patch(t, { landOn: { id: messageId } });
-      return true;
+      const threadRootId = res.threadRootId || undefined;
+      // The caller opens the thread from the answer; nothing is left to
+      // take later.
+      patch(t, {
+        landOn: { id: threadRootId ?? messageId },
+        aroundThread: undefined,
+      });
+      return { found: true, threadRootId };
     },
 
     jumpToLatest: async (queryClient, t) => {
@@ -231,6 +246,12 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
     },
 
     landed: (t) => patch(t, { landOn: undefined }),
+
+    takeAroundThread: (t) => {
+      const thread = get().channels[timelineId(t)]?.aroundThread;
+      if (thread) patch(t, { aroundThread: undefined });
+      return thread;
+    },
 
     noteArrival: (t) =>
       set((s) => {

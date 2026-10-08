@@ -10,6 +10,8 @@ import {
   shareOrigin,
   shareUrl,
   spacePath,
+  threadFromLink,
+  threadPath,
 } from "./shareLinks";
 
 const SPACE = "spc_porch";
@@ -24,6 +26,51 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("thread links", () => {
+  it("builds a thread link, with the reply when there is one", () => {
+    expect(threadPath(SPACE, CHANNEL, "root1")).toBe(
+      `/s/${SPACE}/c/${CHANNEL}?t=root1`,
+    );
+    expect(threadPath(SPACE, CHANNEL, "root1", MESSAGE)).toBe(
+      `/s/${SPACE}/c/${CHANNEL}?t=root1&m=${MESSAGE}`,
+    );
+    expect(threadPath("", DM, "root1", "root1")).toBe(`/dm/${DM}?t=root1`);
+  });
+
+  it("reads a thread link back, in a space and in a DM", () => {
+    expect(
+      threadFromLink(
+        new URLSearchParams(`t=root1&m=${MESSAGE}`),
+        `/s/${SPACE}/c/${CHANNEL}`,
+      ),
+    ).toEqual({
+      spaceId: SPACE,
+      channelId: CHANNEL,
+      rootId: "root1",
+      focusId: MESSAGE,
+    });
+    expect(threadFromLink(new URLSearchParams("t=root1"), `/dm/${DM}`)).toEqual(
+      {
+        spaceId: "",
+        channelId: DM,
+        rootId: "root1",
+      },
+    );
+  });
+
+  it("refuses a link that isn't a channel's", () => {
+    expect(
+      threadFromLink(new URLSearchParams("t=root1"), `/s/${SPACE}`),
+    ).toBeNull();
+  });
+
+  it("counts as a message link for the hand-off", () => {
+    expect(sharedLinkKind(`/s/${SPACE}/c/${CHANNEL}`, "?t=root1")).toBe(
+      "message",
+    );
+  });
 });
 
 describe("sharedLinkKind", () => {

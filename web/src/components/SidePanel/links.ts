@@ -6,13 +6,14 @@ import type { PanelRegistry } from "./registry";
 // stops describing it, since the panel's state belongs to the app.
 export function panelFromLink(
   search: string,
+  pathname: string,
   registry: PanelRegistry,
 ): { panel: OpenPanel; search: string } | null {
   const query = new URLSearchParams(search);
   for (const [kind, definition] of Object.entries(registry)) {
     const link = definition.link;
     if (!link || !query.has(link.param)) continue;
-    const params = link.params(query);
+    const params = link.params(query, pathname);
     for (const key of [link.param, ...(link.also ?? [])]) query.delete(key);
     const rest = query.toString();
     if (!params) return null;

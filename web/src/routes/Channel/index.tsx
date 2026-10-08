@@ -69,7 +69,22 @@ export function ChannelView() {
   const isGroup = !!dm && dmIsGroup(dm);
   // ?m=<messageId>: open the window around that message rather than the
   // newest page (activity, shared links).
-  const { m: jumpTarget } = useSearch({ strict: false }) as { m?: string };
+  // A thread link opens the channel at its root, which ?t= names (the
+  // server centres a bare ?m= reply's window there too); the side panel
+  // opens the thread itself.
+  const { m, t } = useSearch({ strict: false }) as { m?: string; t?: string };
+  // Held for the channel it arrived in: the side panel takes a thread
+  // link's ?t= and ?m= out of the address before the window may have
+  // loaded, and the channel must still land on the root.
+  const [arrival, setArrival] = useState<{
+    channelId: string;
+    id: string;
+  } | null>(null);
+  const linked = t ?? m;
+  if (linked && (arrival?.id !== linked || arrival.channelId !== channelId)) {
+    setArrival({ channelId, id: linked });
+  }
+  const jumpTarget = arrival?.channelId === channelId ? arrival.id : undefined;
   const { data: messages } = useMessages({ channelId }, jumpTarget);
   // Deleted (or never existed): back to the space's first channel, or
   // the DM list.

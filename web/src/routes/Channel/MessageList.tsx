@@ -25,7 +25,7 @@ import { setMessagePinned } from "../../api/pins";
 import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { toggleReaction } from "../../api/reactions";
 import { historyRetentionNote } from "../../api/retention";
-import { messagePath, shareUrl } from "../../api/shareLinks";
+import { messagePath, shareUrl, threadPath } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
 import { EmojiPicker } from "../../components/EmojiPicker";
 import { UserCard } from "../../components/UserCard";
@@ -201,8 +201,24 @@ export function MessageList({
       flash(el);
       return true;
     }
-    return storeJumpTo(queryClient, timeline, id);
+    const { found, threadRootId: thread } = await storeJumpTo(
+      queryClient,
+      timeline,
+      id,
+    );
+    // A reply in a thread: the channel lands on its root, and the thread
+    // opens at the reply.
+    if (thread) {
+      openSidePanel("thread", {
+        spaceId,
+        channelId,
+        rootId: thread,
+        focusId: id,
+      });
+    }
+    return found;
   };
+
   // A deep link: land on the message as soon as the window holds it (the
   // query opened around it), or fetch that window. The param is then
   // dropped so leaving and returning opens the channel as usual.
@@ -212,9 +228,22 @@ export function MessageList({
   useEffect(() => {
     if (!jumpTarget || jumped === jumpTarget || messages.length === 0) return;
     setJumped(jumpTarget);
-    void jumpTo(jumpTarget).then((ok) => {
-      if (!ok) bottomRef.current?.scrollIntoView();
-    });
+    // The first window already came centred on a reply's root: land there
+    // and open the thread at the reply, without asking the server again.
+    const thread = useHistoryStore.getState().takeAroundThread(timeline);
+    if (thread && thread !== jumpTarget) {
+      void jumpTo(thread);
+      openSidePanel("thread", {
+        spaceId,
+        channelId,
+        rootId: thread,
+        focusId: jumpTarget,
+      });
+    } else {
+      void jumpTo(jumpTarget).then((ok) => {
+        if (!ok) bottomRef.current?.scrollIntoView();
+      });
+    }
     // A thread's link was read by the side panel; only a channel's sits
     // in the address.
     if (threadRootId) return;
@@ -340,7 +369,12 @@ export function MessageList({
       message={message}
       continued={continued}
       spaceId={spaceId}
-      link={shareUrl(messagePath(spaceId, channelId, message.id), linkOrigin)}
+      link={shareUrl(
+        threadRootId && message.id !== threadRootId
+          ? threadPath(spaceId, channelId, threadRootId, message.id)
+          : messagePath(spaceId, channelId, message.id),
+        linkOrigin,
+      )}
       mine={me?.id === message.author?.id}
       canDelete={
         me?.id === message.author?.id ||

@@ -81,12 +81,12 @@ loop, nesting the redirect parameter each time.
     /join/$code      ?space=<name>
     /dm
       /                         conversation list
-      /$channelId    ?m=<id>    ChannelView with an empty space
+      /$channelId    ?m=<id> ?t=<root>  ChannelView with an empty space
     /s/$spaceId/settings   ?tab=about|channels|members|banned|integrations|owner
     /s/$spaceId
       /                         space index
       /search        ?q=<words>  message search
-      /c/$channelId  ?m=<id>    ChannelView
+      /c/$channelId  ?m=<id> ?t=<root>  ChannelView
 ```
 
 Two things are worth pulling out.
@@ -103,7 +103,11 @@ would leave someone stuck on the form after a successful sign-in.
 
 **`?m=<id>` is the deep link into history.** An activity row, a shared link,
 or a reply quote opens the channel *around* that message in one round trip
-— see [messaging.md](messaging.md#history).
+— see [messaging.md](messaging.md#history). For a reply that shows only in
+its thread the server centres the channel on the root and names the
+thread, and the timeline opens it in the side panel at that reply.
+`?t=<root>` (with `?m=` for one reply) is a thread's own link: the side
+panel opens it and then takes both out of the address.
 
 **The kit workspace is not a route.** Storybook (`make storybook`) is its
 own dev server over the same Vite config; no app module imports a story,
