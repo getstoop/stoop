@@ -155,6 +155,11 @@ a channel page and a thread page are each one range scan.
 under the root, kept by the send and delete paths so a page of history
 needs no count per message. It goes with its root.
 
+**`thread_mutes`** and **`thread_reads`** — `(user_id, root_message_id)`,
+the thread twins of `channel_mutes` and `channel_reads`; both go with the
+root. Who is in a thread is not stored: it comes from the thread's
+messages.
+
 **`message_with_reply`** is a view: every `messages` column but `search`,
 plus the replied-to message's author, content and first attachment, and
 its own thread summary from `threads`.

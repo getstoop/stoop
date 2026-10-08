@@ -296,6 +296,19 @@ type Thread struct {
 	RecentAuthorIds []string
 }
 
+type ThreadMute struct {
+	UserID        string
+	RootMessageID string
+	CreatedAt     time.Time
+}
+
+type ThreadRead struct {
+	UserID            string
+	RootMessageID     string
+	LastReadMessageID string
+	UpdatedAt         time.Time
+}
+
 type User struct {
 	ID              string
 	Username        string

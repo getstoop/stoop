@@ -71,3 +71,42 @@ func TestThreadsSchema(t *testing.T) {
 		t.Errorf("%d rows left after deleting the root, want 0", left)
 	}
 }
+
+// Migration 00058: a thread's mutes and read markers go with its root.
+func TestThreadMutesAndReadsGoWithTheRoot(t *testing.T) {
+	pool := dbtest.New(t)
+	ctx := context.Background()
+	var user, channel, root string
+	if err := pool.QueryRow(ctx, `INSERT INTO users (id, username) VALUES (gen_random_uuid(), 'ada') RETURNING id`).Scan(&user); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx,
+		`INSERT INTO channels (id, space_id, name, kind, dm_key) VALUES (gen_random_uuid(), NULL, '', 3, $1) RETURNING id`,
+		user).Scan(&channel); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx,
+		`INSERT INTO messages (id, channel_id, author_id, content) VALUES (gen_random_uuid(), $1, $2, 'hi') RETURNING id`,
+		channel, user).Scan(&root); err != nil {
+		t.Fatal(err)
+	}
+	for _, sql := range []string{
+		`INSERT INTO thread_mutes (user_id, root_message_id) VALUES ($1, $2)`,
+		`INSERT INTO thread_reads (user_id, root_message_id, last_read_message_id) VALUES ($1, $2, $2)`,
+	} {
+		if _, err := pool.Exec(ctx, sql, user, root); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM messages WHERE id = $1`, root); err != nil {
+		t.Fatal(err)
+	}
+	var left int
+	if err := pool.QueryRow(ctx,
+		`SELECT (SELECT count(*) FROM thread_mutes) + (SELECT count(*) FROM thread_reads)`).Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 {
+		t.Errorf("%d mute or read rows left after deleting the root, want 0", left)
+	}
+}
