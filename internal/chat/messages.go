@@ -107,6 +107,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	var row messageRow
 	var linksToFetch []string
 	var thread dbgen.Thread
+	var threadMarker string
 	var threadRootID *string
 	if threadRoot != nil {
 		threadRootID = &threadRoot.ID
@@ -135,12 +136,18 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 			}
 		}
 		// A thread reply leaves the channel's newest message and the
-		// author's read marker alone: neither is about the thread.
+		// author's channel read marker alone: neither is about the thread.
+		// The author has read the thread up to their own reply.
 		if threadRoot != nil {
 			if thread, err = qtx.RecordThreadReply(ctx, dbgen.RecordThreadReplyParams{
 				RootID: threadRoot.ID, ReplyID: &row.ID, ReplyAt: &row.CreatedAt, AuthorID: userID,
 			}); err != nil {
 				return fmt.Errorf("record thread reply: %w", err)
+			}
+			if threadMarker, err = qtx.MarkThreadRead(ctx, dbgen.MarkThreadReadParams{
+				UserID: userID, RootMessageID: threadRoot.ID, LastReadMessageID: row.ID,
+			}); err != nil {
+				return fmt.Errorf("mark thread read: %w", err)
 			}
 			return nil
 		}
@@ -184,6 +191,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		if ev := s.threadChanged(ctx, channel, threadRoot.ID, &thread); ev != nil {
 			s.publishTo(channel, participants, ev)
 		}
+		s.publishThreadRead(userID, channel, threadRoot.ID, threadMarker)
 	}
 	s.recordActivity(ctx, row, channel, participants, parent, mentioned, msg.Author, attachments)
 	if s.unfurler != nil {
@@ -274,6 +282,9 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 
 	messages, err := s.hydrateMessages(ctx, spaceOf(channel), rows)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.addThreadViewerStates(ctx, messages); err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&chatv1.ListMessagesResponse{
