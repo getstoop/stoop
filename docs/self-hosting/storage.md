@@ -57,6 +57,9 @@ tab, under **Retention**. Leave a field blank to keep things forever.
 
 - **Delete messages after** (1-3650 days): older messages are deleted
   everywhere, direct messages included, with their reactions and files.
+  A thread goes by the age of the message it started from: its replies
+  are deleted with it, however recent, pinned ones included. Pinning
+  that first message keeps the whole thread.
 - **Delete attachments after** (1-3650 days): older files are deleted
   with their names. The message stays and shows "Expired attachment" and
   the size. Expired files stop counting towards the storage limit.
