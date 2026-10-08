@@ -8,6 +8,8 @@ interface PanelControls {
   close: () => void;
   leaving: boolean;
   left: () => void;
+  // It came from closed, so it slides in; replaced content doesn't.
+  entering: boolean;
 }
 
 export const SidePanelControls = createContext<PanelControls | null>(null);
@@ -18,9 +20,14 @@ export function useCloseSidePanel(): () => void {
   return controls?.close ?? storeClose;
 }
 
-export function usePanelLeaving(): { leaving: boolean; left: () => void } {
+export function usePanelMotion(): {
+  entering: boolean;
+  leaving: boolean;
+  left: () => void;
+} {
   const controls = useContext(SidePanelControls);
   return {
+    entering: controls?.entering ?? true,
     leaving: controls?.leaving ?? false,
     left: controls?.left ?? (() => {}),
   };

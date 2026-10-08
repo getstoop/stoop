@@ -24,7 +24,16 @@ export function useNarrowHistory(open: OpenPanel | null): () => void {
       entryPath.current = null;
       return;
     }
-    if (!narrow || entryPath.current) return;
+    if (!narrow) {
+      // Wide again with the panel open (a resize, a rotation): it is a
+      // column now, so its entry goes and the panel stays.
+      if (entryPath.current) {
+        entryPath.current = null;
+        if (isPanelEntry(router.history.location.state)) router.history.back();
+      }
+      return;
+    }
+    if (entryPath.current) return;
     const location = router.history.location;
     entryPath.current = location.pathname;
     router.history.push(location.href, { ...location.state, [ENTRY]: true });
@@ -36,7 +45,8 @@ export function useNarrowHistory(open: OpenPanel | null): () => void {
         if (!entryPath.current) return;
         const ours = isPanelEntry(location.state);
         const leftPage =
-          action.type === "PUSH" && location.pathname !== entryPath.current;
+          (action.type === "PUSH" || action.type === "REPLACE") &&
+          location.pathname !== entryPath.current;
         const backedOut =
           (action.type === "BACK" || action.type === "GO") && !ours;
         if (leftPage || backedOut) {

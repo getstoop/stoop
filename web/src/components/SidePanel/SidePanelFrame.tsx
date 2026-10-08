@@ -7,7 +7,7 @@ import {
   useRef,
 } from "react";
 import { BackIcon, CloseIcon } from "../Icons";
-import { useCloseSidePanel, usePanelLeaving } from "./context";
+import { useCloseSidePanel, usePanelMotion } from "./context";
 
 interface Props {
   title: ReactNode;
@@ -26,7 +26,7 @@ interface Props {
 // while focus is inside.
 export function SidePanelFrame({ title, subtitle, footer, children }: Props) {
   const close = useCloseSidePanel();
-  const { leaving, left } = usePanelLeaving();
+  const { entering, leaving, left } = usePanelMotion();
   const titleId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
 
@@ -47,7 +47,7 @@ export function SidePanelFrame({ title, subtitle, footer, children }: Props) {
 
   return (
     <aside
-      className={leaving ? "side-panel leaving" : "side-panel"}
+      className={`side-panel${leaving ? " leaving" : entering ? "" : " replaced"}`}
       aria-labelledby={titleId}
       onKeyDown={onKeyDown}
       onAnimationEnd={onAnimationEnd}

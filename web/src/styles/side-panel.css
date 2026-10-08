@@ -14,6 +14,11 @@
   animation: side-panel-in var(--dur) var(--ease);
 }
 
+/* Replacing what an open panel shows doesn't slide it in again. */
+.side-panel.replaced {
+  animation: none;
+}
+
 /* Closed: it slides back out before it leaves the page. */
 .side-panel.leaving {
   animation: side-panel-out var(--dur) var(--ease) forwards;
