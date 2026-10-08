@@ -215,7 +215,8 @@ reply and direct message, newest first, with a read state. *Notification*
 means only the ways Stoop asks for attention about it — desktop banners,
 bold channel names, badges — and those are the reader's to turn off.
 
-The feed is complete by design. Nothing a person configures filters it,
+The feed is complete by design. Nothing a person configures filters what
+is addressed to them,
 because a feed with gaps is a feed they can't trust: a mention in a room
 they muted is still in their activity, and still lights the activity pill
 on the rail. That pill is a dot rather than a count — the number changes
@@ -223,14 +224,14 @@ too often to be worth reading there, and the page header carries it.
 Retention still sweeps *read* items (below); "complete" means "not
 filtered by settings", not "kept forever".
 
-Three kinds: `mention`, `reply`, `dm`. Each points at where it happened
+Four kinds: `mention`, `reply`, `dm`, `thread_reply`. Each points at where it happened
 (space, channel, message) so the client can navigate there, and carries the
 actor and a 140-character preview.
 
 **Each message raises at most one activity item per person.** The ordering
 in `SendMessage` enforces it: mentions first, then the reply target unless
-they were mentioned, then, for a reply in a thread, the root's author and
-earlier repliers, then DM participants, each step skipping anyone an
+they were mentioned, then, for a reply in a thread, the people in the
+thread, then DM participants, each step skipping anyone an
 earlier one told. Being mentioned in a reply in a DM is one entry, not
 three.
 
@@ -283,7 +284,9 @@ channel in it: a channel is *effectively muted* when it has its own mute
 or its space is muted, and with two states a channel cannot be louder
 than its space. Both are preferences, so membership or read access is the
 only gate. A mute owns every attention surface; the activity feed is the
-one thing it never touches.
+one thing it never touches, apart from a thread mute stopping that
+thread's `thread_reply` items, which are its unread signal
+([Threads](#threads)). `SetThreadMuted` is the third mute, on a thread.
 
 | Surface | Unmuted | Muted |
 | --- | --- | --- |
@@ -294,6 +297,7 @@ one thing it never touches.
 | Space pill mention count badge | yes | no |
 | DMs pill dot and badge (for a muted DM) | yes | no |
 | Activity item written | yes | yes |
+| `thread_reply` item (thread mute) | yes | no |
 | Activity pill dot | shows for it | shows for it |
 | Space header muted icon (space mute) | none | red muted bell |
 | Mark-read on open, jump from the feed | works | works |
@@ -536,11 +540,16 @@ in the root's thread and not in the channel's timeline
   thread in `thread_root_id`, so a `?m=` link to a reply opens in one
   round trip.
 - **Pins.** A reply in a thread can't be pinned yet.
-- **Activity.** A reply tells the root's author and everyone who replied
-  before it, as a `reply` item, after mentions and quote-replies (one
-  item per person), but only those still in the space or conversation.
-  Activity items and search results carry `thread_root_id`, so the
-  client can open the thread.
+- **Activity.** A reply tells the people in the thread (below) who
+  haven't muted it and are still in the space or conversation, after
+  mentions and quote-replies (one item per person). It is a
+  `thread_reply` item, one per thread while unread, refreshed by later
+  replies as the DM feed collapses (`UpsertUnreadActivityItems` with a
+  thread root). A `thread_reply` item is a thread's unread signal, not
+  something addressed to you, so a thread mute stops it; a mention or a
+  quote-reply in a muted thread is still written, marked muted, as in a
+  muted channel. Activity items and search results carry
+  `thread_root_id`, so the client can open the thread.
 - **Who is in a thread.** Its root's author, everyone who replied, and
   everyone @mentioned by name in the root or a reply (`@everyone` and
   `@here` don't count). Nothing stores it: `ThreadViewerStates` works it
