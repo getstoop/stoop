@@ -227,20 +227,29 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "messageUpdated": {
       const m = payload.value;
       // A root deleted while its thread has replies arrives as an update:
-      // quotes of it read as a deleted message's, as after a delete.
+      // quotes of it, and the line on its replies also sent to the
+      // channel, read as a deleted message's.
       queryClient.setQueriesData<Message[]>(
         { queryKey: ["messages", m.channelId] },
         (old) =>
-          old?.map((x) =>
-            x.id === m.id
-              ? m
-              : m.deleted && x.replyTo?.messageId === m.id
-                ? {
-                    ...x,
-                    replyTo: { ...x.replyTo, author: undefined, preview: "" },
-                  }
-                : x,
-          ),
+          old?.map((x) => {
+            if (x.id === m.id) return m;
+            if (!m.deleted) return x;
+            let next = x;
+            if (x.replyTo?.messageId === m.id) {
+              next = {
+                ...next,
+                replyTo: { ...x.replyTo, author: undefined, preview: "" },
+              };
+            }
+            if (x.threadRoot?.messageId === m.id) {
+              next = {
+                ...next,
+                threadRoot: { ...x.threadRoot, author: undefined, preview: "" },
+              };
+            }
+            return next;
+          }),
       );
       break;
     }
@@ -465,11 +474,13 @@ export function removeMessageFromCache(
     queryKey: ["messages", channelId, messageId],
     exact: true,
   });
+  // A root really deleted (Delete thread) takes its replies, including
+  // any also sent to the channel.
   queryClient.setQueriesData<Message[]>(
     { queryKey: ["messages", channelId] },
     (old) =>
       old
-        ?.filter((x) => x.id !== messageId)
+        ?.filter((x) => x.id !== messageId && x.threadRootId !== messageId)
         .map((x) =>
           x.replyTo?.messageId === messageId
             ? {
