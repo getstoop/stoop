@@ -548,8 +548,11 @@ in the root's thread and not in the channel's timeline
   thread root). A `thread_reply` item is a thread's unread signal, not
   something addressed to you, so a thread mute stops it; a mention or a
   quote-reply in a muted thread is still written, marked muted, as in a
-  muted channel. Activity items and search results carry
-  `thread_root_id`, so the client can open the thread.
+  muted channel. It lights the activity pill and the summary's "new"
+  count but no red badge on the channel or space, which counts what is
+  addressed to you; a mention in a thread still does. Activity items and
+  search results carry `thread_root_id`, so the client can open the
+  thread.
 - **Who is in a thread.** Its root's author, everyone who replied, and
   everyone @mentioned by name in the root or a reply (`@everyone` and
   `@here` don't count). Nothing stores it: `ThreadViewerStates` works it

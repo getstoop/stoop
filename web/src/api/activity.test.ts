@@ -79,6 +79,16 @@ describe("unreadCounts", () => {
     ]);
   });
 
+  it("leaves out thread replies but counts a mention in a thread", () => {
+    const { byChannel } = unreadCounts(
+      data([
+        item("1", { kind: ActivityKind.THREAD_REPLY, threadRootId: "r" }),
+        item("2", { threadRootId: "r" }),
+      ]),
+    );
+    expect(byChannel.get("general")).toBe(1);
+  });
+
   it("skips items already read", () => {
     const { bySpace } = unreadCounts(
       data([item("1", { readAt: stamp(10) }), item("2")]),
