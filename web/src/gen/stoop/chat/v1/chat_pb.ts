@@ -2688,7 +2688,7 @@ export const ChatService: GenService<{
   },
   /**
    * MarkThreadRead moves the caller's read marker in a thread to its
-   * newest reply (or to message_id if given). Only forward.
+   * newest reply (or to reply_id if given). Only forward.
    *
    * @generated from rpc stoop.chat.v1.ChatService.MarkThreadRead
    */

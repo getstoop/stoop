@@ -314,7 +314,7 @@ type ChatServiceClient interface {
 	ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error)
 	MarkChannelRead(context.Context, *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error)
 	// MarkThreadRead moves the caller's read marker in a thread to its
-	// newest reply (or to message_id if given). Only forward.
+	// newest reply (or to reply_id if given). Only forward.
 	MarkThreadRead(context.Context, *connect.Request[v1.MarkThreadReadRequest]) (*connect.Response[v1.MarkThreadReadResponse], error)
 	ListActivity(context.Context, *connect.Request[v1.ListActivityRequest]) (*connect.Response[v1.ListActivityResponse], error)
 	// MarkActivityRead marks the given activity items (or all of them)
@@ -1088,7 +1088,7 @@ type ChatServiceHandler interface {
 	ListDirectMessageCandidates(context.Context, *connect.Request[v1.ListDirectMessageCandidatesRequest]) (*connect.Response[v1.ListDirectMessageCandidatesResponse], error)
 	MarkChannelRead(context.Context, *connect.Request[v1.MarkChannelReadRequest]) (*connect.Response[v1.MarkChannelReadResponse], error)
 	// MarkThreadRead moves the caller's read marker in a thread to its
-	// newest reply (or to message_id if given). Only forward.
+	// newest reply (or to reply_id if given). Only forward.
 	MarkThreadRead(context.Context, *connect.Request[v1.MarkThreadReadRequest]) (*connect.Response[v1.MarkThreadReadResponse], error)
 	ListActivity(context.Context, *connect.Request[v1.ListActivityRequest]) (*connect.Response[v1.ListActivityResponse], error)
 	// MarkActivityRead marks the given activity items (or all of them)
