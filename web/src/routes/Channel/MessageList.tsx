@@ -230,8 +230,7 @@ export function MessageList({
     setJumped(jumpTarget);
     // The first window already came centred on a reply's root: land there
     // and open the thread at the reply, without asking the server again.
-    const thread =
-      useHistoryStore.getState().channels[timelineId(timeline)]?.aroundThread;
+    const thread = useHistoryStore.getState().takeAroundThread(timeline);
     if (thread && thread !== jumpTarget) {
       void jumpTo(thread);
       openSidePanel("thread", {

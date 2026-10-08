@@ -81,6 +81,9 @@ interface HistoryState {
   noteArrival: (t: Timeline) => void;
   // The timeline scrolled to landOn.
   landed: (t: Timeline) => void;
+  // The thread a fetch around a reply named, once: reading it clears it,
+  // so a later jump in the same window can't open it again.
+  takeAroundThread: (t: Timeline) => string | undefined;
 }
 
 export const isLive = (h: ChannelHistory | undefined) => !h?.hasNewer;
@@ -222,7 +225,12 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
       queryClient.setQueryData<Message[]>(timelineKey(t), res.messages);
       get().seed(t, res);
       const threadRootId = res.threadRootId || undefined;
-      patch(t, { landOn: { id: threadRootId ?? messageId } });
+      // The caller opens the thread from the answer; nothing is left to
+      // take later.
+      patch(t, {
+        landOn: { id: threadRootId ?? messageId },
+        aroundThread: undefined,
+      });
       return { found: true, threadRootId };
     },
 
@@ -238,6 +246,12 @@ export const useHistoryStore = create<HistoryState>((set, get) => {
     },
 
     landed: (t) => patch(t, { landOn: undefined }),
+
+    takeAroundThread: (t) => {
+      const thread = get().channels[timelineId(t)]?.aroundThread;
+      if (thread) patch(t, { aroundThread: undefined });
+      return thread;
+    },
 
     noteArrival: (t) =>
       set((s) => {
