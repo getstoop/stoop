@@ -5,6 +5,7 @@ import {
   applyThreadChanged,
   applyThreadMuted,
   applyThreadRead,
+  noteMentionInThread,
 } from "./threads";
 
 // The RPC client reads the page's origin; these tests never call it.
@@ -77,6 +78,27 @@ describe("applyThreadChanged", () => {
       recentAuthors: [{ id: ME }],
     } as Partial<ThreadSummary>);
     expect(read()?.unreadCount).toBe(3);
+  });
+
+  it("counts me in when a reply names me, not when it says @here", () => {
+    const named = setup(root({ thread: summary() }));
+    noteMentionInThread(named.queryClient, {
+      threadRootId: "root",
+      mentionUserIds: [ME],
+      mentionsEveryone: false,
+      mentionsHere: false,
+    } as unknown as Message);
+    named.change({ replyCount: 2 });
+    expect(named.read()).toMatchObject({ participating: true, unreadCount: 1 });
+    const here = setup(root({ thread: summary() }));
+    noteMentionInThread(here.queryClient, {
+      threadRootId: "root",
+      mentionUserIds: [ME],
+      mentionsEveryone: false,
+      mentionsHere: true,
+    } as unknown as Message);
+    here.change({ replyCount: 2 });
+    expect(here.read()?.participating).toBe(false);
   });
 
   it("joins me to the thread when I reply", () => {

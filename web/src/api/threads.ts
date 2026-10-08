@@ -40,6 +40,27 @@ function cachedRoot(
   return found;
 }
 
+// Threads a new reply named this person in, by root: MessageCreated lands
+// before its ThreadChanged, which then counts them in (the server counts
+// a named mention as taking part; @everyone and @here don't).
+const namedIn = new Set<string>();
+
+export function noteMentionInThread(
+  queryClient: QueryClient,
+  message: Message,
+) {
+  const me = queryClient.getQueryData<GetMeResponse>(["me"])?.user?.id;
+  if (
+    message.threadRootId &&
+    me &&
+    !message.mentionsEveryone &&
+    !message.mentionsHere &&
+    message.mentionUserIds.includes(me)
+  ) {
+    namedIn.add(message.threadRootId);
+  }
+}
+
 // A new summary from ThreadChanged, keeping this person's half. A reply
 // by someone else adds to the count of a thread they are in and haven't
 // muted; reading it (MarkThreadRead → ThreadRead) clears it.
@@ -70,10 +91,12 @@ export function applyThreadChanged(
   if (next && previous) {
     const added = next.replyCount - previous.replyCount;
     const byMe = next.recentAuthors[0]?.id === me;
-    const counts = previous.participating && !previous.muted;
+    const participating =
+      previous.participating || (added > 0 && byMe) || namedIn.has(rootId);
+    const counts = participating && !previous.muted;
     merged = {
       ...next,
-      participating: previous.participating || (added > 0 && byMe),
+      participating,
       muted: previous.muted,
       unreadCount: Math.min(
         next.replyCount,
@@ -81,6 +104,7 @@ export function applyThreadChanged(
       ),
     };
   }
+  namedIn.delete(rootId);
   queryClient.setQueriesData<Message[]>(
     { queryKey: ["messages", channelId] },
     (old) => old?.map((m) => (m.id === rootId ? { ...m, thread: merged } : m)),

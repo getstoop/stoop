@@ -72,8 +72,10 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
 
   const rootMessage = root.data?.[0];
   const summary = rootMessage?.thread;
-  useMarkThreadRead(channelId, rootId, summary?.unreadCount ?? 0);
-  useAutoReadActivity(channelId, rootId);
+  // Nothing is read until the replies are on screen.
+  const shown = !!replies.data && !replies.isError;
+  useMarkThreadRead(channelId, rootId, shown ? summary : undefined);
+  useAutoReadActivity(channelId, rootId, shown);
   // A space that has gone leaves its queries as they were: the spaces
   // list is what says so.
   const spaceGone = !isDM && !!spaces && !space;

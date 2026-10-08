@@ -80,7 +80,7 @@ export function MutesSection() {
       .map((channel) => ({ space, channel })),
   );
   const mutedDms = dms?.filter((d) => d.channel?.muted) ?? [];
-  const { data: mutedThreads } = useQuery({
+  const { data: mutedThreads, isError: threadsFailed } = useQuery({
     queryKey: ["threadMutes"],
     queryFn: async () => (await chatClient.listThreadMutes({})).threads,
   });
@@ -141,7 +141,7 @@ export function MutesSection() {
     })),
   ];
   // The table wants the same array until what is muted changes.
-  const key = rows.map((r) => `${r.id}:${r.label}`).join("|");
+  const key = rows.map((r) => `${r.id}:${r.label}:${r.note}`).join("|");
   // biome-ignore lint/correctness/useExhaustiveDependencies: key stands in for rows
   const stableRows = useMemo(() => rows, [key]);
 
@@ -158,6 +158,11 @@ export function MutesSection() {
         noun={["mute", "mutes"]}
         empty="You haven't muted anything."
       />
+      {threadsFailed && (
+        <p className="error" role="alert">
+          Couldn't load your muted threads.
+        </p>
+      )}
     </section>
   );
 }

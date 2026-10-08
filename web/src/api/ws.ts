@@ -31,6 +31,7 @@ import {
   applyThreadChanged,
   applyThreadMuted,
   applyThreadRead,
+  noteMentionInThread,
   openThreadRootId,
 } from "./threads";
 import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
@@ -165,6 +166,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "messageCreated": {
       const m = payload.value;
       appendMessage(queryClient, m);
+      noteMentionInThread(queryClient, m);
       // A reply that stays in its thread is not in the channel's timeline
       // and does not make the channel unread.
       if (m.threadRootId && !m.inChannel) break;
