@@ -77,6 +77,18 @@ func (s *Service) HookHandler() http.Handler {
 			http.Error(w, fmt.Sprintf("a thread key is text of at most %d characters", maxThreadKeyRunes), http.StatusBadRequest)
 			return
 		}
+		if key != "" {
+			threads, err := s.spaces.ChannelTakesThreads(ctx, hook.ChannelID)
+			if err != nil {
+				status, msg := hookFailure(err)
+				http.Error(w, msg, status)
+				return
+			}
+			if !threads {
+				http.Error(w, "this is an announcement channel, which has no threads; post without ?thread=", http.StatusBadRequest)
+				return
+			}
+		}
 		if err := s.postToHook(authctx.WithIdentity(ctx, id), hook, key, post); err != nil {
 			status, msg := hookFailure(err)
 			if status == http.StatusInternalServerError {
@@ -115,9 +127,9 @@ const maxThreadKeyRunes = 100
 
 // postToHook posts into the hook's channel, or, with a thread key, into
 // the thread the key's first post started. When chat won't take the reply
-// (the root went, became a placeholder, or the channel has no threads)
-// the post lands in the channel and the key moves to it.
-// docs/architecture/integrations.md → Incoming.
+// because the root went or became a placeholder, the post starts a new
+// thread and the key moves to it. docs/architecture/integrations.md →
+// Incoming.
 func (s *Service) postToHook(ctx context.Context, hook dbgen.IncomingWebhook, key, content string) error {
 	req := PostRequest{ChannelID: hook.ChannelID, Content: content}
 	if key == "" {
@@ -131,7 +143,7 @@ func (s *Service) postToHook(ctx context.Context, hook dbgen.IncomingWebhook, ke
 		_, err := s.poster.Post(ctx, req)
 		switch connect.CodeOf(err) {
 		case connect.CodeFailedPrecondition, connect.CodeNotFound:
-			// Post without the thread; a channel the bot can't reach
+			// Start the thread again; a channel the bot can't reach
 			// refuses that too, with its own answer.
 			req.ThreadRootID = ""
 		default:

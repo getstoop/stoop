@@ -84,10 +84,11 @@ ignored. Text over the message limit is cut to fit with an ellipsis.
 `?thread=<key>` (text, at most 100 characters) threads a hook's posts:
 `incoming_webhook_threads` maps the hook and key to the root its first
 post made, and later posts send with that `thread_root_id`. When chat
-won't take the reply (the root was deleted, is a placeholder, or the
-channel is an announcement channel, which has no threads but takes
-bots' posts) the post lands in the channel and the key moves to it, so
-an alert is never lost to its grouping. Two first posts
+won't take the reply because the root was deleted or is a placeholder,
+the post starts a new thread and the key moves to it. An announcement
+channel has no threads for anyone, so a keyed post there is a `400`
+(`ChannelTakesThreads` on the `SpaceAccess` port), even though a bot may
+post there without a key. Two first posts
 with a new key at the same moment both land in the channel and the key
 keeps the later one. A bot or a personal token replies in a thread through
 `SendMessage` like any client.

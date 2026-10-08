@@ -40,6 +40,14 @@ func (s *Service) ChannelSpace(ctx context.Context, channelID string) (string, e
 	return *channel.SpaceID, nil
 }
 
+func (s *Service) ChannelTakesThreads(ctx context.Context, channelID string) (bool, error) {
+	channel, err := s.q.GetChannel(ctx, channelID)
+	if err != nil {
+		return false, apierr.NotFoundOr(err, "channel")
+	}
+	return channel.PostPolicy != postPolicyAdmins, nil
+}
+
 func (s *Service) SpaceName(ctx context.Context, spaceID string) (string, error) {
 	space, err := s.q.GetSpace(ctx, spaceID)
 	if err != nil {

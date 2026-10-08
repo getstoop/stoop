@@ -218,6 +218,9 @@ func (f *fakeSpaces) ChannelSpace(_ context.Context, channelID string) (string, 
 	return sp, nil
 }
 func (f *fakeSpaces) SpaceName(context.Context, string) (string, error) { return "Porch", nil }
+func (f *fakeSpaces) ChannelTakesThreads(context.Context, string) (bool, error) {
+	return true, nil
+}
 func (f *fakeSpaces) AddBotMember(ctx context.Context, spaceID, userID string) error {
 	_, err := f.pool.Exec(ctx, `INSERT INTO space_members (space_id, user_id, role) VALUES ($1, $2, 'member') ON CONFLICT DO NOTHING`, spaceID, userID)
 	return err

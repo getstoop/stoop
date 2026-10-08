@@ -45,6 +45,9 @@ type SpaceAccess interface {
 	// ChannelSpace returns the channel's space id, or a Connect NotFound.
 	ChannelSpace(ctx context.Context, channelID string) (string, error)
 	SpaceName(ctx context.Context, spaceID string) (string, error)
+	// ChannelTakesThreads is false for an announcement channel, where
+	// nobody starts or replies in a thread.
+	ChannelTakesThreads(ctx context.Context, channelID string) (bool, error)
 	AddBotMember(ctx context.Context, spaceID, userID string) error
 	// RemoveBotMember takes the bot out of the space as a kick would.
 	RemoveBotMember(ctx context.Context, spaceID, userID string) error

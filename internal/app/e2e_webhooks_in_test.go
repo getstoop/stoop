@@ -252,8 +252,8 @@ func TestE2EIncomingHookThreads(t *testing.T) {
 	}
 }
 
-// An announcement channel has no threads: keyed posts are all delivered,
-// each in the channel, rather than lost.
+// An announcement channel has no threads, for a hook as for a person: a
+// keyed post is refused with the reason, and a plain one still lands.
 func TestE2EIncomingHookThreadsInAnnouncements(t *testing.T) {
 	server := newHarness(t)
 	casey := server.person("casey")
@@ -264,10 +264,11 @@ func TestE2EIncomingHookThreadsInAnnouncements(t *testing.T) {
 	bot := server.bot(casey, "alerts")
 	server.addBot(casey, bot, stoop)
 	_, url := server.hook(casey, bot, general, "Alerts")
-	for _, alert := range []string{"nas disk at 90%", "nas disk at 95%"} {
-		server.post(url+"?thread=nas", "text/plain", alert).expectStatus(t, http.StatusOK)
-		if message := server.message(casey, general, alert); message["threadRootId"] != nil {
-			t.Errorf("%q went into a thread in an announcement channel", alert)
+	server.post(url+"?thread=nas", "text/plain", "nas disk at 90%").expectStatus(t, http.StatusBadRequest)
+	server.post(url, "text/plain", "nas disk at 95%").expectStatus(t, http.StatusOK)
+	for _, message := range server.messages(casey, general) {
+		if content, _ := message["content"].(string); strings.Contains(content, "90%") {
+			t.Error("a refused keyed post was posted anyway")
 		}
 	}
 }
