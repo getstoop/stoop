@@ -10,7 +10,7 @@ import (
 )
 
 const listThreadMutes = `-- name: ListThreadMutes :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, c.space_id AS root_space_id
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy
 FROM thread_mutes tm
 JOIN message_with_reply m ON m.id = tm.root_message_id
 JOIN channels c ON c.id = m.channel_id
@@ -23,11 +23,12 @@ LIMIT 200
 
 type ListThreadMutesRow struct {
 	MessageWithReply MessageWithReply
-	RootSpaceID      *string
+	Channel          Channel
 }
 
 // ListThreadMutes is Profile → Muted's threads, newest mute first, in
-// channels the person can still read.
+// channels the person is still a member of; the caller drops hidden voice
+// channels, as accessChannel does.
 func (q *Queries) ListThreadMutes(ctx context.Context, userID string) ([]ListThreadMutesRow, error) {
 	rows, err := q.db.Query(ctx, listThreadMutes, userID)
 	if err != nil {
@@ -56,7 +57,16 @@ func (q *Queries) ListThreadMutes(ctx context.Context, userID string) ([]ListThr
 			&i.MessageWithReply.ThreadReplyCount,
 			&i.MessageWithReply.ThreadLastReplyAt,
 			&i.MessageWithReply.ThreadRecentAuthorIds,
-			&i.RootSpaceID,
+			&i.Channel.ID,
+			&i.Channel.SpaceID,
+			&i.Channel.Name,
+			&i.Channel.Kind,
+			&i.Channel.Position,
+			&i.Channel.CreatedAt,
+			&i.Channel.LastMessageID,
+			&i.Channel.DmKey,
+			&i.Channel.Topic,
+			&i.Channel.PostPolicy,
 		); err != nil {
 			return nil, err
 		}

@@ -66,7 +66,7 @@ func TestThreadMutesAndReads(t *testing.T) {
 	}
 
 	root := send(ada, "@everyone who has the ladder?", "")
-	send(bea, "mine, in the garage", root.Id)
+	beaFirst := send(bea, "mine, in the garage", root.Id)
 	beaSecond := send(bea, "@cara you borrowed it last", root.Id)
 
 	expect("ada (started it)", ada, root.Id, true, false, 2)
@@ -94,6 +94,13 @@ func TestThreadMutesAndReads(t *testing.T) {
 	}
 	if back.Msg.LastReadMessageId != beaSecond.Id {
 		t.Errorf("cara's marker = %s", back.Msg.LastReadMessageId)
+	}
+	back, err = svc.MarkThreadRead(cara, connect.NewRequest(&chatv1.MarkThreadReadRequest{MessageId: root.Id, ReplyId: beaFirst.Id}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.Msg.LastReadMessageId != beaSecond.Id {
+		t.Errorf("marking an earlier reply moved cara's marker back to %s", back.Msg.LastReadMessageId)
 	}
 
 	// Replying reads the thread up to your own reply.
@@ -157,5 +164,50 @@ func TestThreadMutesAndReads(t *testing.T) {
 	}
 	if len(left.Msg.Threads) != 0 {
 		t.Errorf("bea still lists %d muted threads after leaving", len(left.Msg.Threads))
+	}
+}
+
+// A muted thread in a voice channel leaves Profile → Muted while voice is
+// off, as the channel does, and comes back with it.
+func TestThreadMutesHideWithVoiceOff(t *testing.T) {
+	pool, _, svc := newTestService(t)
+	policy := &voicePolicy{on: true}
+	svc.UseInstancePolicy(policy)
+	ada := newUser(t, pool, "ada", authctx.RoleMember)
+	sp, err := svc.CreateSpace(ada, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	voice, err := svc.CreateChannel(ada, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: sp.Msg.Space.Id, Name: "hangout", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := svc.SendMessage(ada, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: voice.Msg.Channel.Id, Content: "game at nine"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SetThreadMuted(ada, connect.NewRequest(&chatv1.SetThreadMutedRequest{MessageId: root.Msg.Message.Id, Muted: true})); err != nil {
+		t.Fatal(err)
+	}
+	listed := func() int {
+		t.Helper()
+		res, err := svc.ListThreadMutes(ada, connect.NewRequest(&chatv1.ListThreadMutesRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(res.Msg.Threads)
+	}
+	if got := listed(); got != 1 {
+		t.Errorf("voice on: %d muted threads listed, want 1", got)
+	}
+	policy.on = false
+	if got := listed(); got != 0 {
+		t.Errorf("voice off: %d muted threads listed, want 0", got)
+	}
+	policy.on = true
+	if got := listed(); got != 1 {
+		t.Errorf("voice back on: %d muted threads listed, want 1", got)
 	}
 }

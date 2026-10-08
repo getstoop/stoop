@@ -52,22 +52,26 @@ func (s *Service) ListThreadMutes(ctx context.Context, _ *connect.Request[chatv1
 	if err != nil {
 		return nil, fmt.Errorf("list thread mutes: %w", err)
 	}
-	roots := make([]dbgen.MessageWithReply, len(rows))
-	for index, row := range rows {
-		roots[index] = row.MessageWithReply
+	var roots []dbgen.MessageWithReply
+	var channels []dbgen.Channel
+	for _, row := range rows {
+		hidden, err := s.hiddenChannel(ctx, row.Channel)
+		if err != nil {
+			return nil, err
+		}
+		if !hidden {
+			roots = append(roots, row.MessageWithReply)
+			channels = append(channels, row.Channel)
+		}
 	}
 	messages, err := s.hydrateMessages(ctx, "", roots)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*chatv1.MutedThread, len(rows))
-	for index, row := range rows {
-		spaceID := ""
-		if row.RootSpaceID != nil {
-			spaceID = *row.RootSpaceID
-		}
-		messages[index].SpaceId = spaceID
-		out[index] = &chatv1.MutedThread{SpaceId: spaceID, ChannelId: row.MessageWithReply.ChannelID, Root: messages[index]}
+	out := make([]*chatv1.MutedThread, len(roots))
+	for index, channel := range channels {
+		messages[index].SpaceId = spaceOf(channel)
+		out[index] = &chatv1.MutedThread{SpaceId: spaceOf(channel), ChannelId: channel.ID, Root: messages[index]}
 	}
 	return connect.NewResponse(&chatv1.ListThreadMutesResponse{Threads: out}), nil
 }
