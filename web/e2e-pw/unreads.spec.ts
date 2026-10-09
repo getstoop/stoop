@@ -59,15 +59,20 @@ test("unread markers, dividers and the space dot", async ({ browser }) => {
     channelLink(A, "general"),
     "A: opening the channel clears bold",
   ).not.toHaveClass(/unread/);
-  await expect(A.locator(".new-divider")).toHaveText("New messages");
+  // The first unread message is also the channel's first today, so the
+  // day separator and the unread line are one divider.
+  await expect(
+    A.locator(".new-divider"),
+    "A: one divider names the day and the unread line",
+  ).toHaveText("Today · New messages");
   await expect(
     A.locator(".new-divider + * .message-content"),
     "A: divider sits before the first unread message",
   ).toHaveText("anyone here?");
   await expect(
     A.locator(".day-divider"),
-    "one day separator, reading 'Today'",
-  ).toHaveText("Today");
+    "no separate day separator beside it",
+  ).toHaveCount(0);
   await expect(
     A.locator(".message-time").first(),
     "timestamps carry the full date on hover",
@@ -85,7 +90,7 @@ test("unread markers, dividers and the space dot", async ({ browser }) => {
   await expect(
     A.locator(".new-divider"),
     "A: divider stays put while reading",
-  ).toHaveText("New messages");
+  ).toHaveText("Today · New messages");
 
   await channelLink(A, "random").click();
   await channelLink(A, "general").click();

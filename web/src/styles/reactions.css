@@ -11,14 +11,14 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 0 8px;
+  padding: 2px 8px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--raised);
   color: var(--text-muted);
   font: inherit;
   font-size: var(--text-sm);
-  /* off-scale: the chip's height; it has no vertical padding */
+  /* off-scale: the chip's line box, inside 2px of vertical padding */
   line-height: 18px;
 }
 

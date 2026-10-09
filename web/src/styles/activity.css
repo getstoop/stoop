@@ -67,6 +67,17 @@
   margin-top: 12px;
 }
 
+/* A day divider stands in for the bottom border of the row above it:
+   that row drops its border and the divider's rule is pulled up over
+   the list gap onto the line where the border was. */
+.activity-list li:has(+ .day-divider) > .activity-row {
+  border-bottom-color: transparent;
+}
+
+.activity-list .day-divider:not(:first-child) {
+  margin-top: calc(-0.5lh - 4px);
+}
+
 .channel-name {
   flex: 1;
   min-width: 0;

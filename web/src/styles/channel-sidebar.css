@@ -97,6 +97,15 @@
   opacity: 0.6;
 }
 
+/* The unread line doubling as the day divider keeps the day's spacing. */
+.new-divider.starts-day {
+  margin-top: 14px;
+}
+
+.new-divider.starts-day:first-child {
+  margin-top: 0;
+}
+
 .day-divider {
   display: flex;
   align-items: center;
