@@ -3,7 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { inviteGone, inviteLink } from "../../api/invites";
-import { useInstanceStatus, useMe } from "../../api/queries";
+import { useEmailSettings, useInstanceStatus, useMe } from "../../api/queries";
 import { CopyButton } from "../../components/CopyButton";
 import { isLoopback } from "./loopback";
 import type { CreatedSpace } from "./SpaceStep";
@@ -34,6 +34,7 @@ export function InviteStep({
 }) {
   const { data: instanceStatus } = useInstanceStatus();
   const { data: me } = useMe();
+  const emailHost = useEmailSettings().data?.smtp?.host;
   const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
   const code = progress.invite;
@@ -141,6 +142,10 @@ export function InviteStep({
               ) : s.id === "space" ? (
                 <>
                   Space <strong>{space.name}</strong>
+                </>
+              ) : s.id === "email" && emailHost ? (
+                <>
+                  Email via <strong>{emailHost}</strong>
                 </>
               ) : (
                 s.title

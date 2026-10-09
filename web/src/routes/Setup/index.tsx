@@ -5,6 +5,7 @@ import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { AccountStep } from "./AccountStep";
 import { AddressStep } from "./AddressStep";
+import { EmailStep } from "./EmailStep";
 import { InviteStep } from "./InviteStep";
 import { clearProgress, loadProgress, saveProgress } from "./progress";
 import { RemoteStep } from "./RemoteStep";
@@ -165,6 +166,13 @@ export function SetupPage() {
                 onDone={() => mark("voice", "done")}
                 onBack={goBack}
                 onLater={() => mark("voice", "skipped")}
+              />
+            )}
+            {current.id === "email" && (
+              <EmailStep
+                onDone={() => mark("email", "done")}
+                onBack={goBack}
+                onLater={() => mark("email", "skipped")}
               />
             )}
             {current.id === "invite" && (

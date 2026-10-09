@@ -64,7 +64,8 @@ test("reaching your server, in setup and on the admin page", async ({
   await A.getByLabel("Space name").fill("Stoop HQ");
   await A.locator('button[type="submit"]').click();
 
-  // Remote access, then the address; voice is left for Server admin.
+  // Remote access, then the address; voice and email are left for Server
+  // admin.
   const current = A.locator(".setup-where strong");
   await expect(current, "remote access comes first").toHaveText(
     /Remote access/,
@@ -84,13 +85,14 @@ test("reaching your server, in setup and on the admin page", async ({
     "a status poll doesn't overwrite an unsaved edit",
   ).toHaveValue("https://chat.example.test/");
   await A.getByRole("button", { name: "Continue" }).click();
-  await expect(
-    current,
-    "voice, when there is voice, then the invite",
-  ).toHaveText(/Voice and video|Invite people/);
+  await expect(current, "voice, when there is voice, then email").toHaveText(
+    /Voice and video|Email/,
+  );
   if ((await current.innerText()).includes("Voice")) {
     await A.getByRole("button", { name: "Set up later" }).click();
   }
+  await expect(current, "email, then the invite").toHaveText(/Email/);
+  await A.getByRole("button", { name: "Set up later" }).click();
 
   // Step 4: the invite link uses the saved public address.
   await expect(

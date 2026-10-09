@@ -7,6 +7,7 @@ export type StepId =
   | "remote"
   | "address"
   | "voice"
+  | "email"
   | "invite";
 
 // What the server knows that decides which steps apply.
@@ -34,6 +35,7 @@ export const STEPS: readonly Step[] = [
     optional: true,
     shown: (ctx) => ctx.voiceAvailable,
   },
+  { id: "email", title: "Email", optional: true },
   { id: "invite", title: "Invite people" },
 ];
 
