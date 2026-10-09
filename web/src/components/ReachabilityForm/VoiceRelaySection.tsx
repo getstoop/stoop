@@ -1,15 +1,17 @@
 import type { Reachability } from "../../gen/stoop/instance/v1/reachability_pb";
-import { Field } from "../Field";
-import { LearnMore } from "../LearnMore";
 import { SettingRow } from "../SettingRow";
 import { Switch } from "../Switch";
-import type {
-  Fields,
-  ReachErrors,
-  Secrets,
-  SetField,
-  SetSecrets,
+import { CloudflareRelayFields } from "./CloudflareRelayFields";
+import {
+  clearCloudflareRelay,
+  clearOwnRelay,
+  type Fields,
+  type ReachErrors,
+  type Secrets,
+  type SetField,
+  type SetSecrets,
 } from "./fields";
+import { OwnRelayFields } from "./OwnRelayFields";
 
 // Carries voice audio for browsers that can't reach LiveKit's media ports
 // directly. Two ways to answer the same question, so they share a
@@ -88,47 +90,20 @@ function CloudflareRelay({
           checked={fields.cloudflareTurnEnabled}
           onChange={(e) => {
             set("cloudflareTurnEnabled", e.target.checked);
-            // Unticking means "not using Cloudflare's relay", so the key
-            // goes with it — one left behind would still be saved, and
-            // the relay still live.
-            if (!e.target.checked) {
-              set("cfKey", "");
-              setSecrets((s) => ({ ...s, cfToken: "" }));
-            }
+            if (!e.target.checked) clearCloudflareRelay(set, setSecrets);
           }}
         />
         Cloudflare's TURN relay
       </label>
       {fields.cloudflareTurnEnabled && (
-        <>
-          <div className="reach-relay">
-            <Field label="Key id" error={errors["cloudflare.keyId"]}>
-              <input
-                value={fields.cfKey}
-                onChange={(e) => set("cfKey", e.target.value)}
-                autoComplete="off"
-              />
-            </Field>
-            <Field label="API token" error={errors["cloudflare.apiToken"]}>
-              <input
-                type="password"
-                value={secrets.cfToken}
-                onChange={(e) =>
-                  setSecrets((s) => ({ ...s, cfToken: e.target.value }))
-                }
-                placeholder={hasApiToken ? "(saved — leave blank to keep)" : ""}
-                autoComplete="off"
-              />
-            </Field>
-          </div>
-          <LearnMore>
-            <p className="hint">
-              Cloudflare dashboard → Realtime → TURN mints the pair; the free
-              tier carries 1 TB a month. Stoop signs its own short-lived
-              credentials from the key, so the token never reaches a browser.
-            </p>
-          </LearnMore>
-        </>
+        <CloudflareRelayFields
+          fields={fields}
+          errors={errors}
+          set={set}
+          secrets={secrets}
+          setSecrets={setSecrets}
+          hasApiToken={hasApiToken}
+        />
       )}
     </div>
   );
@@ -160,57 +135,20 @@ function OwnRelay({
           checked={show}
           onChange={(e) => {
             setShow(e.target.checked);
-            // Unticking means "no relay of my own", so the addresses go
-            // with it — ones left behind would still be what a browser
-            // was handed for voice.
-            if (!e.target.checked) {
-              set("turnUrls", "");
-              set("stunUrls", "");
-              set("turnUser", "");
-              setSecrets((s) => ({ ...s, turnCred: "" }));
-            }
+            if (!e.target.checked) clearOwnRelay(set, setSecrets);
           }}
         />
         A TURN relay I run myself
       </label>
       {show && (
-        <>
-          <Field
-            label="TURN URLs (comma-separated)"
-            error={errors["turn.urls"]}
-          >
-            <input
-              value={fields.turnUrls}
-              onChange={(e) => set("turnUrls", e.target.value)}
-              placeholder="turns:turn.example.com:5349, turn:turn.example.com:3478?transport=udp"
-            />
-          </Field>
-          <Field label="STUN URLs" error={errors["turn.stunUrls"]}>
-            <input
-              value={fields.stunUrls}
-              onChange={(e) => set("stunUrls", e.target.value)}
-              placeholder="stun:turn.example.com:3478"
-            />
-          </Field>
-          <Field label="Username" error={errors["turn.username"]}>
-            <input
-              value={fields.turnUser}
-              onChange={(e) => set("turnUser", e.target.value)}
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Credential" error={errors["turn.credential"]}>
-            <input
-              type="password"
-              value={secrets.turnCred}
-              onChange={(e) =>
-                setSecrets((s) => ({ ...s, turnCred: e.target.value }))
-              }
-              placeholder={hasCredential ? "(saved — leave blank to keep)" : ""}
-              autoComplete="off"
-            />
-          </Field>
-        </>
+        <OwnRelayFields
+          fields={fields}
+          errors={errors}
+          set={set}
+          secrets={secrets}
+          setSecrets={setSecrets}
+          hasCredential={hasCredential}
+        />
       )}
     </div>
   );

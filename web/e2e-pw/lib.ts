@@ -174,3 +174,19 @@ export async function acceptDialog(page: Page, answer?: string) {
   }
   await page.locator(`${DIALOG} .modal-actions .primary`).click();
 }
+
+// Setup's reachability steps (remote access, address, voice when the
+// server has it) all left for Server admin: from the space step to the
+// invite step.
+export async function skipReachability(page: Page) {
+  const current = page.locator(".setup-where strong");
+  await expect(current).toHaveText(/Remote access/);
+  await page.getByRole("button", { name: "Set up later" }).click();
+  await expect(current).toHaveText(/Address/);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(current).toHaveText(/Voice and video|Invite people/);
+  if ((await current.innerText()).includes("Voice")) {
+    await page.getByRole("button", { name: "Set up later" }).click();
+  }
+  await expect(current).toHaveText(/Invite people/);
+}

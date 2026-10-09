@@ -1,4 +1,6 @@
-import { type Progress, STEPS } from "./steps";
+import { type Access, type Progress, STEPS } from "./steps";
+
+const ACCESS: readonly Access[] = ["home", "proxy", "tunnel", "tailscale"];
 
 // Setup progress is kept in this browser, so a reload picks up where it
 // left off. Lost with the browser's data, which costs nothing: every
@@ -24,7 +26,8 @@ export function parseProgress(raw: string | null): Progress | null {
       typeof s.name === "string"
         ? { id: s.id, channelId: s.channelId, name: s.name }
         : undefined;
-    return { steps, space };
+    const access = ACCESS.find((a) => a === value.access);
+    return { steps, space, access };
   } catch {
     return null;
   }

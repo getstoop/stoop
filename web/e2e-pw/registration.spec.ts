@@ -1,5 +1,12 @@
 import type { Page } from "@playwright/test";
-import { acceptDialog, expect, pastGate, reload, test } from "./lib";
+import {
+  acceptDialog,
+  expect,
+  pastGate,
+  reload,
+  skipReachability,
+  test,
+} from "./lib";
 
 const atPath = (p: Page, want: string, message: string) =>
   expect.poll(() => new URL(p.url()).pathname, { message }).toBe(want);
@@ -32,8 +39,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   await A.locator('button[type="submit"]').click();
   await A.getByLabel("Space name").fill("Stoop HQ");
   await A.locator('button[type="submit"]').click();
-  // Setup step 3 (reaching your server) is skippable.
-  await A.locator("button.reach-continue").click();
+  await skipReachability(A);
   const link = await A.locator(".link-box code").innerText();
   await A.getByRole("button", { name: "Go to your space" }).click();
   await expect(

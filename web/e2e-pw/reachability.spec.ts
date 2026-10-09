@@ -64,37 +64,16 @@ test("reaching your server, in setup and on the admin page", async ({
   await A.getByLabel("Space name").fill("Stoop HQ");
   await A.locator('button[type="submit"]').click();
 
-  // Step 3: one section per way in; nothing is chosen for you.
-  const save = A.locator("button.reach-save");
-  const saved = A.locator(".reach-saved");
-  const publicUrl = A.locator('input[placeholder="https://chat.example.com"]');
-  await expect(
-    A.locator(".setup-where strong"),
-    "step 3 is reaching your server",
-  ).toContainText("Reaching your server");
-  for (const section of [
-    ".reach-cloudflare",
-    ".reach-tailscale",
-    ".reach-own-relay",
-  ]) {
-    await expect(
-      A.locator(section),
-      `${section} has its own section, nothing to choose between`,
-    ).toBeVisible();
-  }
-  await expect(
-    A.locator("button.reach-continue"),
-    "step is skippable",
-  ).toHaveText("Skip for now");
-
-  // Public address + a Cloudflare TURN key; secrets are write-only.
-  await expect(
-    A.locator(".reach-voice"),
-    "the voice line starts with no relay in place",
-  ).toContainText(/direct only|isn't configured/);
-  await expect(save, "Save is disabled until something changes").toBeDisabled();
+  // Remote access, then the address; voice is left for Server admin.
+  const current = A.locator(".setup-where strong");
+  await expect(current, "remote access comes first").toHaveText(
+    /Remote access/,
+  );
+  await A.getByRole("radio", { name: /Only my home network/ }).check();
+  await A.getByRole("button", { name: "Continue" }).click();
+  await expect(current, "then the address").toHaveText(/Address/);
+  const publicUrl = A.getByLabel("Public address");
   await publicUrl.fill("https://chat.example.test/");
-  await expect(save, "Save wakes up once a field changes").toBeEnabled();
   // The page polls this endpoint on a timer to keep the Tailscale and
   // LiveKit status live. Seeding the fields from a poll on top of someone
   // mid-edit would eat what they typed, so it must not: unsaved changes
@@ -104,37 +83,14 @@ test("reaching your server, in setup and on the admin page", async ({
     publicUrl,
     "a status poll doesn't overwrite an unsaved edit",
   ).toHaveValue("https://chat.example.test/");
-  await save.click();
-  await expect(saved, "the public address saves on its own").toHaveText(
-    "Saved.",
-  );
+  await A.getByRole("button", { name: "Continue" }).click();
   await expect(
-    save,
-    "Save goes back to disabled once there's nothing left to save",
-  ).toBeDisabled();
-
-  await A.locator(".reach-cloudflare .reach-check input").check();
-  await A.locator('.reach-relay input:not([type="password"])').fill("cf-key-1");
-  await A.locator('.reach-relay input[type="password"]').fill("cf-token-1");
-  await save.click();
-  await expect(saved, "saved").toHaveText("Saved.");
-  await expect(
-    A.locator(".reach-voice"),
-    "the voice line notices the relay",
-  ).toContainText(/works from anywhere|isn't configured/);
-  await expect(
-    A.locator('.reach-relay input[type="password"]'),
-    "API token is not echoed back",
-  ).toHaveValue("");
-  await expect(
-    A.locator('.reach-relay input[type="password"]'),
-    "and the placeholder says it's saved",
-  ).toHaveAttribute("placeholder", /saved/);
-  await expect(
-    A.locator("button.reach-continue"),
-    "skip button becomes Continue after saving",
-  ).toHaveText("Continue");
-  await A.locator("button.reach-continue").click();
+    current,
+    "voice, when there is voice, then the invite",
+  ).toHaveText(/Voice and video|Invite people/);
+  if ((await current.innerText()).includes("Voice")) {
+    await A.getByRole("button", { name: "Set up later" }).click();
+  }
 
   // Step 4: the invite link uses the saved public address.
   await expect(
@@ -168,6 +124,43 @@ test("reaching your server, in setup and on the admin page", async ({
     adminUrl,
     "admin page shows the saved public address",
   ).toHaveValue("https://chat.example.test");
+
+  // A Cloudflare TURN key; secrets are write-only.
+  await expect(
+    section.locator(".reach-voice"),
+    "the voice line starts with no relay in place",
+  ).toContainText(/direct only|isn't configured/);
+  await expect(
+    adminSave,
+    "Save is disabled until something changes",
+  ).toBeDisabled();
+  await cloudflare.check();
+  await cfKey.fill("cf-key-1");
+  await expect(adminSave, "Save wakes up once a field changes").toBeEnabled();
+  await section
+    .locator('.reach-relay input[type="password"]')
+    .fill("cf-token-1");
+  await adminSave.click();
+  await expect(adminSaved, "saved").toHaveText("Saved.");
+  await expect(
+    adminSave,
+    "Save goes back to disabled once there's nothing left to save",
+  ).toBeDisabled();
+  await expect(
+    section.locator(".reach-voice"),
+    "the voice line notices the relay",
+  ).toContainText(/works from anywhere|isn't configured/);
+  await expect(
+    section.locator('.reach-relay input[type="password"]'),
+    "API token is not echoed back",
+  ).toHaveValue("");
+  await expect(
+    section.locator('.reach-relay input[type="password"]'),
+    "and the placeholder says it's saved",
+  ).toHaveAttribute("placeholder", /saved/);
+
+  await A.goto("/admin");
+  await hosting.click();
   await expect(
     cloudflare,
     "a saved key ticks the Cloudflare box on load",

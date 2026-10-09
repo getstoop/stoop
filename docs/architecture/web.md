@@ -286,9 +286,10 @@ which is how its nav takes the sidebar's place.
   ([Tables](#tables)).
 
 The Hosting form is
-the same rows with `stack` for the groups that hold several controls;
-it also serves the setup wizard, where the rows fall to one column
-because the two columns belong to `.settings-content`.
+the same rows with `stack` for the groups that hold several controls.
+The setup wizard shows each group's fields on a screen of its own
+(`TunnelFields`, `TailscaleFields` and the relay fields), sharing the
+form's draft through `useReachabilityDraft`.
 
 ## Tables
 

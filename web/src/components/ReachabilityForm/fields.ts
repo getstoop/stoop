@@ -137,6 +137,20 @@ export function withTunnelProxy(proxies: string, on: boolean): string {
   return (on ? [...rest, ...TUNNEL_PROXIES] : rest).join(", ");
 }
 
+// Turning a relay off takes its settings with it: ones left behind would
+// still be saved, and the relay still live.
+export function clearCloudflareRelay(set: SetField, setSecrets: SetSecrets) {
+  set("cfKey", "");
+  setSecrets((s) => ({ ...s, cfToken: "" }));
+}
+
+export function clearOwnRelay(set: SetField, setSecrets: SetSecrets) {
+  set("turnUrls", "");
+  set("stunUrls", "");
+  set("turnUser", "");
+  setSecrets((s) => ({ ...s, turnCred: "" }));
+}
+
 export type Update = Parameters<typeof instanceClient.updateReachability>[0];
 
 // changesFrom builds the request: one entry per group whose values differ
