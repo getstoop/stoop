@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { useVoiceAvailable } from "../../api/queries";
 import { ReachabilityForm } from "../../components/ReachabilityForm";
+import type { StepState } from "./steps";
 
-// Step 3: how people reach the server. Skippable; it is also in Server admin.
-export function ReachStep({ onDone }: { onDone: () => void }) {
+// How people reach the server. Skippable; it is also in Server admin.
+// Done once anything was saved, skipped otherwise.
+export function ReachStep({ onDone }: { onDone: (state: StepState) => void }) {
   const voiceAvailable = useVoiceAvailable();
+  const [saved, setSaved] = useState(false);
   return (
     <div className="login-card bare">
       <p>
@@ -15,7 +19,10 @@ export function ReachStep({ onDone }: { onDone: () => void }) {
         {voiceAvailable ? " and voice knows how to get through" : ""}. You can
         change all of this later under Server admin.
       </p>
-      <ReachabilityForm onSkip={onDone} />
+      <ReachabilityForm
+        onSaved={() => setSaved(true)}
+        onSkip={() => onDone(saved ? "done" : "skipped")}
+      />
     </div>
   );
 }

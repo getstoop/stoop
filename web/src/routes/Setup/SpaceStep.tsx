@@ -5,6 +5,7 @@ import { useVoiceAvailable } from "../../api/queries";
 import { MAX_SPACE_NAME } from "../../api/spaces";
 import { Field } from "../../components/Field";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { WizardActions } from "./WizardActions";
 
 export type CreatedSpace = { id: string; channelId: string; name: string };
 
@@ -60,9 +61,7 @@ export function SpaceStep({
           required
         />
       </Field>
-      <button type="submit" className="primary" disabled={busy}>
-        Create space
-      </button>
+      <WizardActions label="Create space" busy={busy} />
     </form>
   );
 }

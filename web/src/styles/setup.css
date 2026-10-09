@@ -1,32 +1,100 @@
 /* ---- First-run setup ---- */
 
 .setup-card {
-  width: min(440px, 92vw);
+  width: min(480px, 92vw);
 }
 
-.setup-steps {
+/* A step's form fills the card rather than taking a login card's width. */
+.setup-card .login-card.bare {
+  width: auto;
+}
+
+.setup-progress {
   display: flex;
-  gap: 6px;
-  margin: 0 0 4px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* One segment per step; only the current one is named, under them. */
+.setup-bar {
+  display: flex;
+  gap: 4px;
+  margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.setup-bar li {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+
+.setup-bar li.done {
+  background: var(--ok);
+}
+
+.setup-bar li.current {
+  background: var(--accent);
+}
+
+.setup-card .setup-where {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
-.setup-steps li {
-  flex: 1;
-  padding-top: 8px;
-  border-top: 2px solid var(--border);
-}
-
-.setup-steps li.done {
-  border-top-color: var(--ok);
-}
-
-.setup-steps li.current {
-  border-top-color: var(--accent);
+.setup-where strong {
   color: var(--text);
+}
+
+.setup-optional {
+  margin-left: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setup-actions-gap {
+  flex: 1;
+}
+
+.setup-summary {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-ui);
+}
+
+.setup-summary li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.setup-summary li + li {
+  border-top: 1px solid var(--border);
+}
+
+.setup-mark {
+  width: 16px;
+  color: var(--text-muted);
+}
+
+.setup-mark.done {
+  color: var(--ok);
 }
 
 .setup-card p {

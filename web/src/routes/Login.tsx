@@ -2,11 +2,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../api/clients";
-import { errorText } from "../api/errors";
+import { errorText, isSignedOut } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { loginErrorText } from "../api/loginErrors";
 import { roleLabel } from "../api/permissions";
-import { useInstanceStatus, useInvitePreview } from "../api/queries";
+import { useInstanceStatus, useInvitePreview, useMe } from "../api/queries";
 import { Field } from "../components/Field";
 import { LoginProviders } from "../components/LoginProviders";
 import { SpaceIcon } from "../components/SpaceIcon";
@@ -67,6 +67,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: status, isLoading: statusLoading } = useInstanceStatus();
+  const { data: me, error: meError } = useMe();
 
   // A fresh instance has no one to log in as: walk the visitor through
   // first-run setup instead.
@@ -75,6 +76,12 @@ export function LoginPage() {
   }
   if (status?.needsSetup) {
     return <Navigate to="/setup" replace />;
+  }
+  // Already signed in: nothing to do here. A revoked session keeps its
+  // cached user beside the signed-out error, and the app sends that tab
+  // here, so the error has to win or the two bounce for ever.
+  if (me && !isSignedOut(meError)) {
+    return <Navigate to={redirect ?? "/"} replace />;
   }
   const policy = status?.registrationPolicy ?? RegistrationPolicy.INVITE;
   // Password sign-in can be restricted to admins or turned off in favour

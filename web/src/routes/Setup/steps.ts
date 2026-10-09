@@ -1,0 +1,56 @@
+// The wizard's steps, in order. Adding a step is one entry here plus its
+// screen in index.tsx; the indicator, Back, and resume read this list.
+
+export type StepId = "account" | "space" | "reach" | "invite";
+
+export type Step = {
+  id: StepId;
+  title: string;
+  // Can be left for later; it is all in Server admin.
+  optional?: boolean;
+  // Creates something, so there is no going back to it.
+  once?: boolean;
+};
+
+export const STEPS: readonly Step[] = [
+  { id: "account", title: "Your account", once: true },
+  { id: "space", title: "Your space", once: true },
+  { id: "reach", title: "Reaching your server", optional: true },
+  { id: "invite", title: "Invite people" },
+];
+
+export type StepState = "done" | "skipped";
+
+export type Progress = {
+  steps: Partial<Record<StepId, StepState>>;
+  space?: { id: string; channelId: string; name: string };
+};
+
+export const NO_PROGRESS: Progress = { steps: {} };
+
+// The first step not yet done or skipped; the last one when all are.
+export function nextStep(steps: readonly Step[], progress: Progress): Step {
+  return (
+    steps.find((s) => progress.steps[s.id] === undefined) ??
+    steps[steps.length - 1]
+  );
+}
+
+// Where Back goes from a step: the one before it, unless that one
+// created something.
+export function previousStep(
+  steps: readonly Step[],
+  id: StepId,
+): Step | undefined {
+  const i = steps.findIndex((s) => s.id === id);
+  const prev = i > 0 ? steps[i - 1] : undefined;
+  return prev && !prev.once ? prev : undefined;
+}
+
+// The space setup made is gone (deleted since): forget it, so a resumed
+// wizard asks for a space again.
+export function forgetSpace(progress: Progress): Progress {
+  const steps = { ...progress.steps };
+  delete steps.space;
+  return { ...progress, steps, space: undefined };
+}

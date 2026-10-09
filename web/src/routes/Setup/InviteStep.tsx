@@ -1,5 +1,5 @@
-import { Navigate, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { Navigate } from "@tanstack/react-router";
+import { type ReactNode, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { inviteLink } from "../../api/invites";
@@ -12,9 +12,14 @@ import type { CreatedSpace } from "./SpaceStep";
 // the space's Invite panel.
 const ONBOARDING_INVITE_SECONDS = 7 * 24 * 60 * 60;
 
-// Step 4: an invite link to hand out.
-export function InviteStep({ space }: { space: CreatedSpace | null }) {
-  const navigate = useNavigate();
+// An invite link to hand out. The step's actions come in as children.
+export function InviteStep({
+  space,
+  children,
+}: {
+  space: CreatedSpace | null;
+  children: ReactNode;
+}) {
   const { data: instanceStatus } = useInstanceStatus();
   const [link, setLink] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,13 +44,6 @@ export function InviteStep({ space }: { space: CreatedSpace | null }) {
       .catch((err) => setError(errorText(err)));
   }
 
-  const go = () =>
-    navigate({
-      to: "/s/$spaceId/c/$channelId",
-      params: { spaceId: space.id, channelId: space.channelId },
-      replace: true,
-    });
-
   return (
     <div className="login-card bare">
       <p>
@@ -68,9 +66,7 @@ export function InviteStep({ space }: { space: CreatedSpace | null }) {
       ) : (
         <p className="muted">Creating your invite…</p>
       )}
-      <button type="button" className="primary" onClick={go}>
-        Go to your space
-      </button>
+      {children}
     </div>
   );
 }
