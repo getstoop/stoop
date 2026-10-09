@@ -172,3 +172,15 @@ func TestDeliverHonoursCancel(t *testing.T) {
 		t.Fatalf("Deliver = %v after %s; want a prompt refusal", err, time.Since(started))
 	}
 }
+
+func TestDeliverDeadlineIsNotBlamedOnAField(t *testing.T) {
+	trustFake(t)
+	host, port := mailtest.Silent(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	err := Deliver(ctx, Server{Host: host, Port: port, Security: SecurityNone, FromAddress: "stoop@example.net"}, message)
+	var refusal *Refusal
+	if !errors.As(err, &refusal) || refusal.Field != "" || !strings.Contains(refusal.Message, "stopped answering") {
+		t.Fatalf("Deliver = %#v; want a form-level \"stopped answering\"", err)
+	}
+}

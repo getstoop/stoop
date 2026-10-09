@@ -53,6 +53,9 @@ func (s *Service) SendTestEmail(ctx context.Context, req *connect.Request[instan
 	if err := s.allowTestEmail(ctx); err != nil {
 		return nil, err
 	}
+	if req.Msg.GetSmtp() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("smtp settings are required"))
+	}
 	saved, err := s.SMTPSettings(ctx)
 	if err != nil {
 		return nil, err
@@ -130,7 +133,10 @@ func (s *Service) mailServer(ctx context.Context, smtp SMTP) (mail.Server, error
 
 func (s *Service) deliver(ctx context.Context, server mail.Server, msg mail.Message) error {
 	err := mail.Deliver(ctx, server, msg)
-	s.recordSend(ctx, err)
+	// A send the caller gave up on says nothing about the server.
+	if !errors.Is(ctx.Err(), context.Canceled) {
+		s.recordSend(ctx, err)
+	}
 	return err
 }
 
