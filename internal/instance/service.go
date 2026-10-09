@@ -81,6 +81,8 @@ type Service struct {
 	loginEnv []LoginProvider
 	// passwordEnv is the STOOP_PASSWORD_SIGN_IN fallback (password_sign_in.go).
 	passwordEnv string
+	// smtpEnv is STOOP_SMTP_*, the seed for the smtp row (email.go).
+	smtpEnv SMTP
 	// envSet reports whether a variable is set rather than defaulted, for
 	// EnvDrift.
 	envSet func(name string) bool
@@ -112,6 +114,8 @@ type Service struct {
 	// trusted is read on every HTTP request (TrustsPeer), so it is kept
 	// in memory and swapped on save rather than read from the database.
 	trusted atomic.Pointer[trustedproxy.Set]
+	// testEmailThrottle limits SendTestEmail per account (email_send.go).
+	testEmailThrottle Throttle
 }
 
 func New(pool *pgxpool.Pool, users UserAdmin) *Service {

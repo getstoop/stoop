@@ -56,12 +56,6 @@ type Sender interface {
 	Send(ctx context.Context, msg Message) error
 }
 
-// Deliver sends msg through server: one connection, no cap, no record.
-// A failure the server's settings explain is a *Refusal.
-func Deliver(ctx context.Context, server Server, msg Message) error {
-	panic("mail.Deliver: not built yet")
-}
-
 // Refusal is a failed send tied to the setting that explains it.
 type Refusal struct {
 	// "host", "port", "security", "username", "password", "from_address",
@@ -77,6 +71,9 @@ type Refusal struct {
 
 func (r *Refusal) Error() string { return r.Message }
 func (r *Refusal) Unwrap() error { return r.Err }
+
+// ErrNotConfigured is a send with email off or no server saved.
+var ErrNotConfigured = errors.New("email is not set up")
 
 // ErrHourlyLimit is the cap reached; a *HourlyLimitError says until when.
 var ErrHourlyLimit = errors.New("hourly email limit reached")
