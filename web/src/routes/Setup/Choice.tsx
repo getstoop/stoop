@@ -4,6 +4,8 @@ export type ChoiceOption<T extends string> = {
   value: T;
   title: string;
   hint: string;
+  // Offered but not available here; the hint says why.
+  disabled?: boolean;
   // Shown under the option while it is picked.
   body?: ReactNode;
 };
@@ -34,6 +36,7 @@ export function Choice<T extends string>({
               name={name}
               value={o.value}
               checked={value === o.value}
+              disabled={o.disabled}
               onChange={() => onChange(o.value)}
             />
             <span className="setup-choice-text">

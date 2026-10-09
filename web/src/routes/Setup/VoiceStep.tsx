@@ -1,16 +1,15 @@
 import { type FormEvent, useState } from "react";
 import { LearnMore } from "../../components/LearnMore";
+import { CloudflareRelayFields } from "../../components/ReachabilityForm/CloudflareRelayFields";
 import {
   clearCloudflareRelay,
   clearOwnRelay,
   list,
 } from "../../components/ReachabilityForm/fields";
+import { OwnRelayFields } from "../../components/ReachabilityForm/OwnRelayFields";
 import { useReachabilityDraft } from "../../components/ReachabilityForm/useReachabilityDraft";
-import {
-  CloudflareRelayFields,
-  OwnRelayFields,
-} from "../../components/ReachabilityForm/VoiceRelaySection";
 import { Choice } from "./Choice";
+import { isLoopback } from "./loopback";
 import type { Access } from "./steps";
 import { WizardActions } from "./WizardActions";
 
@@ -59,27 +58,15 @@ export function VoiceStep({
 
   const running = data?.livekit?.running ?? false;
   const tunnel = access === "tunnel";
-  const ready = access === "home" || access === "tailscale";
+  const funnel = access === "tailscale" && fields.tsFunnel;
+  const ready = !funnel && (access === "home" || access === "tailscale");
+  const copy = voiceCopy(access, funnel, plainHttp(fields.publicUrl));
   return (
     <form className="login-card bare" ref={form.formRef} onSubmit={submit}>
       <p>
-        <strong>
-          {tunnel
-            ? "Voice needs a relay behind a tunnel."
-            : ready
-              ? "Voice is ready on your network."
-              : "Calls from outside need a way in."}
-        </strong>
+        <strong>{copy.title}</strong>
       </p>
-      <p className="hint">
-        {tunnel
-          ? "The tunnel carries chat, not call audio. A relay carries the audio."
-          : access === "tailscale"
-            ? "Calls ride your tailnet."
-            : ready
-              ? "Nothing to set up for calls at home."
-              : "A relay carries call audio for people outside your network."}
-      </p>
+      <p className="hint">{copy.hint}</p>
       <p className="setup-status" data-state={running ? "ok" : "bad"}>
         <span className="setup-dot" aria-hidden="true" />
         LiveKit {running ? "running" : "not running"}
@@ -158,4 +145,55 @@ export function VoiceStep({
       />
     </form>
   );
+}
+
+// Browsers only hand a page the microphone over HTTPS or on this machine.
+function plainHttp(publicUrl: string): boolean {
+  try {
+    const url = new URL(publicUrl.trim() || window.location.origin);
+    return url.protocol === "http:" && !isLoopback(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function voiceCopy(
+  access: Access | undefined,
+  funnel: boolean,
+  http: boolean,
+): { title: string; hint: string } {
+  if (access === "tunnel") {
+    return {
+      title: "Voice needs a relay behind a tunnel.",
+      hint: "The tunnel carries chat, not call audio. A relay carries the audio.",
+    };
+  }
+  if (funnel) {
+    return {
+      title: "Calls from off the tailnet need a relay.",
+      hint: "Funnel carries chat, not call audio. A relay carries it for everyone else.",
+    };
+  }
+  if (access === "tailscale") {
+    return {
+      title: "Voice is ready on your tailnet.",
+      hint: "Calls ride your tailnet.",
+    };
+  }
+  if (http) {
+    return {
+      title: "Voice is listen-only over plain HTTP.",
+      hint: "Browsers only allow the microphone over HTTPS or on this machine.",
+    };
+  }
+  if (access === "home") {
+    return {
+      title: "Voice is ready on your network.",
+      hint: "Nothing to set up for calls at home.",
+    };
+  }
+  return {
+    title: "Calls from outside need a way in.",
+    hint: "A relay carries call audio for people outside your network.",
+  };
 }

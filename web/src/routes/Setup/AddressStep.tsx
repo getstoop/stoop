@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Field } from "../../components/Field";
 import { LearnMore } from "../../components/LearnMore";
 import { list, TUNNEL_PROXIES } from "../../components/ReachabilityForm/fields";
@@ -19,16 +19,23 @@ export function AddressStep({
   onBack?: () => void;
 }) {
   const [filled, setFilled] = useState(false);
+  const [touched, setTouched] = useState(false);
   const draft = useReachabilityDraft((seeded) => {
     if (filled || seeded.publicUrl !== "") return;
     setFilled(true);
-    const node = draft.data?.tailscale?.url;
-    if (access === "tailscale" && node) set("publicUrl", node);
-    else if ((access === "home" || access === "proxy") && !onLoopback()) {
+    if ((access === "home" || access === "proxy") && !onLoopback()) {
       set("publicUrl", window.location.origin);
     }
   });
   const { fields, set, form } = draft;
+
+  // A node still joining has no URL yet; the status poll brings it, and
+  // an address nobody has typed in takes it then.
+  const node = draft.data?.tailscale?.url;
+  useEffect(() => {
+    if (access !== "tailscale" || !node || touched) return;
+    if (fields.publicUrl === "") set("publicUrl", node);
+  }, [access, node, touched, fields.publicUrl, set]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,7 +67,10 @@ export function AddressStep({
       >
         <input
           value={fields.publicUrl}
-          onChange={(e) => set("publicUrl", e.target.value)}
+          onChange={(e) => {
+            setTouched(true);
+            set("publicUrl", e.target.value);
+          }}
           placeholder={
             access === "home"
               ? "http://192.168.1.20:8080"
