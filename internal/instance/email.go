@@ -174,39 +174,39 @@ func (smtp SMTP) validate() error {
 	}
 	switch {
 	case smtp.Host == "" && smtp.Enabled:
-		return refuse("host", "enter the SMTP server's hostname")
+		return refuse("host", "Enter the SMTP server's host name.")
 	case smtp.Host != "" && !validHost(smtp.Host):
-		return refuse("host", "enter a hostname or IPv4 address, with no scheme or port")
+		return refuse("host", "Enter a host name or IPv4 address, with no scheme or port.")
 	}
 	if smtp.Port < 1 || smtp.Port > 65535 {
-		return refuse("port", "the port must be between 1 and 65535")
+		return refuse("port", "Enter a port from 1 to 65535.")
 	}
 	if !smtpSecurities.has(smtp.Security) {
-		return refuse("security", "pick STARTTLS, TLS or none")
+		return refuse("security", "Pick STARTTLS, TLS or None.")
 	}
 	if smtp.Security == mail.SecurityNone && smtp.Username != "" {
-		return refuse("security", "pick STARTTLS or TLS to sign in; a password is never sent unencrypted")
+		return refuse("security", "Pick STARTTLS or TLS to sign in: a password is never sent unencrypted.")
 	}
 	switch {
 	case smtp.Username != "" && smtp.Password == "":
-		return refuse("password", "enter the password for this server and username")
+		return refuse("password", "Enter the password for this server and username.")
 	case smtp.Username == "" && smtp.Password != "":
-		return refuse("password", "a password needs a username")
+		return refuse("password", "A password needs a username.")
 	}
 	switch {
 	case smtp.FromAddress == "" && smtp.Enabled:
-		return refuse("from_address", "enter the address emails are sent from")
+		return refuse("from_address", "Enter the address email is sent from.")
 	case smtp.FromAddress != "" && !bareAddress(smtp.FromAddress):
-		return refuse("from_address", "enter one address, like stoop@example.com")
+		return refuse("from_address", "Enter one address, like stoop@example.com.")
 	}
 	if utf8.RuneCountInString(smtp.FromName) > maxFromNameRunes {
-		return refuse("from_name", "the sender name must be %d characters or fewer", maxFromNameRunes)
+		return refuse("from_name", "Keep the name to %d characters.", maxFromNameRunes)
 	}
 	if strings.ContainsAny(smtp.FromName, "\r\n") {
-		return refuse("from_name", "the sender name must be one line")
+		return refuse("from_name", "Keep the name to one line.")
 	}
 	if smtp.HourlyLimit < 0 || smtp.HourlyLimit > config.MaxSMTPHourlyLimit {
-		return refuse("hourly_limit", "the hourly limit must be between 0 and %d", config.MaxSMTPHourlyLimit)
+		return refuse("hourly_limit", "Enter a number from 0 to %d.", config.MaxSMTPHourlyLimit)
 	}
 	return nil
 }
