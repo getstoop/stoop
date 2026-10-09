@@ -7,8 +7,9 @@ the server. Two are pinned by the compose file itself and ignore what
 [using your own](install.md#using-your-own-postgres).
 
 Settings that also appear on the admin page (the instance name, password
-sign-in, the `STOOP_OIDC_*` provider, and the public URL, trusted
-proxies, TURN, Cloudflare and Tailscale settings) only pre-configure the
+sign-in, the `STOOP_OIDC_*` provider, the `STOOP_SMTP_*` email server,
+and the public URL, trusted proxies, TURN, Cloudflare and Tailscale
+settings) only pre-configure the
 server. Each is copied into the database the first time the server
 starts with it set. After that, changing the variable does nothing
 (the server logs a warning naming it): change the setting on the admin
@@ -76,6 +77,14 @@ page or with `stoop admin setting`.
 | `STOOP_OIDC_ID`            | `sso`                       | The provider's stable id; part of the callback URL, and identities link under it |
 | `STOOP_SESSION_LIFETIME_DAYS` | `30`                    | How long a sign-in lasts, 1-365 days. The admin page's saved value overrides it; a change applies to sign-ins from then on |
 | `STOOP_PASSWORD_SIGN_IN`   | `everyone`                  | Who may use the username/password form: `everyone`, `admins`, or `off` (sign in through login providers instead); admins are always honoured as a fallback |
+| `STOOP_SMTP_HOST`          | (empty)                     | The SMTP server Stoop sends email through, a hostname or IP; needs `STOOP_SMTP_FROM` |
+| `STOOP_SMTP_PORT`          | (by security)               | `587` for `starttls`, `465` for `tls`, `25` for `none` |
+| `STOOP_SMTP_SECURITY`      | `starttls`                  | `starttls`, `tls`, or `none` (a local relay without sign-in) |
+| `STOOP_SMTP_USERNAME`      | (empty)                     | Sign-in to the SMTP server; set together with the password |
+| `STOOP_SMTP_PASSWORD`      | (empty)                     | |
+| `STOOP_SMTP_FROM`          | (empty)                     | The address emails are sent from, e.g. `stoop@example.com` |
+| `STOOP_SMTP_FROM_NAME`     | (the server's name)         | The sender name shown with that address |
+| `STOOP_SMTP_HOURLY_LIMIT`  | `100`                       | Most emails sent in one clock hour, 0-100000; `0` is no cap |
 
 ## Compose settings
 

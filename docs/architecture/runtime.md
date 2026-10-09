@@ -87,8 +87,8 @@ from `/admin`.
 The two tiers meet by one rule: **the environment seeds, the database
 decides.** It covers `STOOP_REGISTRATION`, `STOOP_INSTANCE_NAME`,
 `STOOP_PASSWORD_SIGN_IN`, every reachability group (public URL, trusted
-proxies, TURN, Cloudflare TURN, Tailscale, Cloudflare tunnel) and the
-`STOOP_OIDC_*` login provider.
+proxies, TURN, Cloudflare TURN, Tailscale, Cloudflare tunnel), the
+`STOOP_OIDC_*` login provider and the `STOOP_SMTP_*` email server.
 
 - At every start, a setting with no row in `instance_settings` is copied
   from the environment if the environment sets it
@@ -104,7 +104,8 @@ proxies, TURN, Cloudflare TURN, Tailscale, Cloudflare tunnel) and the
   row, which happens when the database is wiped under a running server.
 
 **Secrets are write-only in the API.** `GetReachability` and
-`GetLoginProviders` never return a client secret or a TURN credential;
+`GetLoginProviders` never return a client secret or a TURN credential,
+nor `GetEmailSettings` the SMTP password;
 saving with a blank secret keeps the one in force. A Cloudflare TURN
 token or a provider's client secret is kept only while the key id or
 client id beside it is unchanged.

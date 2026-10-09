@@ -31,6 +31,7 @@ func (s *Service) SeedFromEnv(ctx context.Context) error {
 		{keyTrustedProxies, !env.TrustedProxies.Empty(), env.TrustedProxies.Strings()},
 		{keyLoginProviders, len(s.loginEnv) > 0, s.loginEnv},
 		{keyPasswordSignIn, s.passwordEnv != "", s.passwordEnv},
+		{keySMTP, s.smtpEnv.Host != "", s.smtpEnv},
 	}
 	for _, seed := range seeds {
 		if !seed.set {

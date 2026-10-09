@@ -107,6 +107,20 @@ func (s *Service) EnvDrift(ctx context.Context) ([]string, error) {
 	}
 	differs("STOOP_PASSWORD_SIGN_IN", saved, password == s.passwordEnv)
 
+	smtp := SMTP{HourlyLimit: DefaultHourlyLimit}
+	if saved, err = s.readJSON(ctx, keySMTP, &smtp); err != nil {
+		return nil, err
+	}
+	smtpEnv := s.smtpEnv
+	differs("STOOP_SMTP_HOST", saved, smtp.Host == smtpEnv.Host)
+	differs("STOOP_SMTP_PORT", saved, smtp.Port == smtpEnv.Port)
+	differs("STOOP_SMTP_SECURITY", saved, smtp.Security == smtpEnv.Security)
+	differs("STOOP_SMTP_USERNAME", saved, smtp.Username == smtpEnv.Username)
+	differs("STOOP_SMTP_PASSWORD", saved, smtp.Password == smtpEnv.Password)
+	differs("STOOP_SMTP_FROM", saved, smtp.FromAddress == smtpEnv.FromAddress)
+	differs("STOOP_SMTP_FROM_NAME", saved, smtp.FromName == smtpEnv.FromName)
+	differs("STOOP_SMTP_HOURLY_LIMIT", saved, smtp.HourlyLimit == smtpEnv.HourlyLimit)
+
 	var name string
 	if saved, err = s.readJSON(ctx, keyInstanceName, &name); err != nil {
 		return nil, err
