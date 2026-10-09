@@ -41,7 +41,12 @@ export function EmailStep({
   }
 
   return (
-    <form className="login-card bare" ref={form.formRef} onSubmit={submit}>
+    <form
+      className="login-card bare"
+      ref={form.formRef}
+      onSubmit={submit}
+      noValidate
+    >
       <p>
         <strong>Can Stoop send email?</strong>
       </p>
