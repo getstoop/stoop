@@ -47,7 +47,11 @@ func registerSweeps(registry *jobs.Registry, cfg config.Config, log *slog.Logger
 	}, jobs.Options{})
 	jobs.Register(registry, auth.SweepCredentialsKind, func(ctx context.Context, job *jobs.Job, _ jobs.NoArgs) error {
 		expired, err := authSvc.SweepCredentials(ctx)
-		job.Record(jobs.Counters{"credentials_expired": expired})
+		if err != nil {
+			return err
+		}
+		links, err := authSvc.SweepEmailTokens(ctx)
+		job.Record(jobs.Counters{"credentials_expired": expired, "email_links_removed": links})
 		return err
 	}, jobs.Options{})
 	jobs.Register(registry, integrations.SweepHooksKind, func(ctx context.Context, job *jobs.Job, _ jobs.NoArgs) error {

@@ -56,6 +56,18 @@ func (s *Service) UseSMTPEnv(smtp SMTP) {
 	s.smtpEnv = smtp
 }
 
+// EmailEnabled reports whether the server can send email: switched on
+// with a host saved.
+func (s *Service) EmailEnabled(ctx context.Context) (bool, error) {
+	smtp, err := s.SMTPSettings(ctx)
+	if err != nil {
+		return false, err
+	}
+	return smtp.on(), nil
+}
+
+func (smtp SMTP) on() bool { return smtp.Enabled && smtp.Host != "" }
+
 // SMTPSettings is the saved server; a row without hourly_limit reads as
 // DefaultHourlyLimit. With no row, it is the environment's.
 func (s *Service) SMTPSettings(ctx context.Context) (SMTP, error) {

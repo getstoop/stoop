@@ -16,7 +16,7 @@ import (
 // expires once it would have refilled completely, so memory stays
 // proportional to recent distinct clients rather than to history.
 type Limiter struct {
-	perMinute int
+	perSecond float64
 	burst     int
 	buckets   kv.Store[bucket]
 	now       func() time.Time
@@ -36,11 +36,21 @@ const maxBuckets = 100_000
 // name. perMinute <= 0 disables limiting: Allow always returns true. That
 // is the dev/e2e setting, not a production one.
 func New(backend kv.Backend, name string, perMinute, burst int) *Limiter {
+	return newLimiter(backend, name, float64(perMinute)/60, burst)
+}
+
+// NewPer allows events per period for each key, all of them at once if
+// they come together.
+func NewPer(backend kv.Backend, name string, events int, period time.Duration) *Limiter {
+	return newLimiter(backend, name, float64(events)/period.Seconds(), events)
+}
+
+func newLimiter(backend kv.Backend, name string, perSecond float64, burst int) *Limiter {
 	if burst < 1 {
 		burst = 1
 	}
 	return &Limiter{
-		perMinute: perMinute,
+		perSecond: perSecond,
 		burst:     burst,
 		buckets:   kv.Open[bucket](backend, name, maxBuckets),
 		now:       time.Now,
@@ -48,7 +58,7 @@ func New(backend kv.Backend, name string, perMinute, burst int) *Limiter {
 }
 
 // Enabled reports whether the limiter throttles anything.
-func (l *Limiter) Enabled() bool { return l != nil && l.perMinute > 0 }
+func (l *Limiter) Enabled() bool { return l != nil && l.perSecond > 0 }
 
 // Allow consumes one token for key and reports whether it was available.
 // An error means the store could not answer; callers refuse the request.
@@ -56,7 +66,7 @@ func (l *Limiter) Allow(ctx context.Context, key string) (bool, error) {
 	if !l.Enabled() {
 		return true, nil
 	}
-	perSecond := float64(l.perMinute) / 60
+	perSecond := l.perSecond
 	refill := time.Duration(float64(l.burst) / perSecond * float64(time.Second))
 	allowed := false
 	err := l.buckets.Update(ctx, key, func(b bucket, found bool) (bucket, time.Duration, bool) {
