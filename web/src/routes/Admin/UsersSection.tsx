@@ -110,7 +110,7 @@ export function UsersSection({ meId }: { meId: string }) {
         search={{
           placeholder: "Filter by name or @username",
           label: "Filter accounts",
-          text: (u) => `${u.displayName} @${u.username}`,
+          text: (u) => `${u.displayName} @${u.username} ${u.email}`,
         }}
         noun={["account", "accounts"]}
         empty="No accounts yet."

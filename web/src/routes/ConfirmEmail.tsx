@@ -5,7 +5,7 @@ import { authClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { useInstanceStatus, useMe } from "../api/queries";
 
-const EXPIRED = "This link has expired or was already used.";
+const NO_TOKEN = "Open the link from your email again.";
 
 // Where an email's confirmation link lands, signed in or not. Nothing is
 // sent until Confirm, so a mail scanner opening the link confirms nothing.
@@ -14,11 +14,11 @@ export function ConfirmEmailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: status } = useInstanceStatus();
-  const { data: me } = useMe();
+  const { data: me, isPending: meLoading } = useMe();
   const [token] = useState(search.token);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(token ? null : EXPIRED);
+  const [error, setError] = useState<string | null>(token ? null : NO_TOKEN);
 
   // The token stays in memory only, out of the address bar and history.
   useEffect(() => {
@@ -49,7 +49,7 @@ export function ConfirmEmailPage() {
         {done ? (
           <>
             <p className="login-subtitle">Email address confirmed.</p>
-            {me ? (
+            {meLoading ? null : me ? (
               <Link className="link" to="/">
                 Open Stoop
               </Link>

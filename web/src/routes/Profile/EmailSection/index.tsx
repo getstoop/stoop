@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { useEffect, useState } from "react";
 import { authClient } from "../../../api/clients";
 import { errorText } from "../../../api/errors";
 import { useMyEmail } from "../../../api/queries";
@@ -20,8 +21,16 @@ export function EmailSection({ hasPassword }: { hasPassword: boolean }) {
   const [open, setOpen] = useState<"address" | "remove" | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const state = emailState(email);
   const actions = emailActions(state);
+
+  // A note or refusal is about the state it was given in; when the state
+  // moves (a link confirmed in another tab), it goes.
+  useEffect(() => {
+    setNote(null);
+    setError(null);
+  }, [state]);
 
   const showEmail = async (next: MyEmail | undefined) => {
     if (next) {
@@ -34,13 +43,22 @@ export function EmailSection({ hasPassword }: { hasPassword: boolean }) {
     }
   };
 
+  // One call at a time: a second Resend would revoke the first link.
   const run = async (action: () => Promise<void>) => {
+    if (busy) return;
     setNote(null);
     setError(null);
+    setBusy(true);
     try {
       await action();
     } catch (err) {
       setError(errorText(err));
+      // Refused because the state changed elsewhere: show what is there now.
+      if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
+        await queryClient.invalidateQueries({ queryKey: ["me"] });
+      }
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -128,12 +146,22 @@ export function EmailSection({ hasPassword }: { hasPassword: boolean }) {
               </button>
             )}
             {actions.includes("resend") && (
-              <button type="button" className="chip" onClick={resend}>
+              <button
+                type="button"
+                className="chip"
+                onClick={resend}
+                disabled={busy}
+              >
                 Resend
               </button>
             )}
             {actions.includes("cancel") && (
-              <button type="button" className="chip" onClick={cancel}>
+              <button
+                type="button"
+                className="chip"
+                onClick={cancel}
+                disabled={busy}
+              >
                 Cancel
               </button>
             )}
