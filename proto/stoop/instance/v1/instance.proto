@@ -4,6 +4,7 @@ package stoop.instance.v1;
 
 import "stoop/auth/v1/auth.proto";
 import "stoop/instance/v1/diagnostics.proto";
+import "stoop/instance/v1/email.proto";
 import "stoop/instance/v1/providers.proto";
 import "stoop/instance/v1/reachability.proto";
 import "stoop/instance/v1/user.proto";
@@ -66,6 +67,14 @@ service InstanceService {
   // override the server's environment; an empty list falls back to it.
   // Instance admins only.
   rpc UpdateLoginProviders(UpdateLoginProvidersRequest) returns (UpdateLoginProvidersResponse) {}
+  // GetEmailSettings reports the SMTP settings, the password elided.
+  // Instance admins only.
+  rpc GetEmailSettings(GetEmailSettingsRequest) returns (GetEmailSettingsResponse) {}
+  // UpdateEmailSettings saves the SMTP settings. Instance admins only.
+  rpc UpdateEmailSettings(UpdateEmailSettingsRequest) returns (UpdateEmailSettingsResponse) {}
+  // SendTestEmail sends one message with the settings given, saved or
+  // not; a refusal names the field it is about. Instance admins only.
+  rpc SendTestEmail(SendTestEmailRequest) returns (SendTestEmailResponse) {}
   // GetBuildInfo reports which Stoop this is. Instance admins only: an
   // exact version tells a stranger which bugs to try.
   rpc GetBuildInfo(GetBuildInfoRequest) returns (GetBuildInfoResponse) {}
@@ -190,6 +199,8 @@ message GetInstanceStatusResponse {
   // voice off (STOOP_VOICE=false) or no LiveKit is configured; voice
   // channels are then not listed and cannot be created.
   bool voice_available = 19;
+  // Whether Stoop can send email: an SMTP host is saved and turned on.
+  bool email_enabled = 20;
 }
 
 message UpdateSettingsRequest {
