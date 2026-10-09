@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { inviteLink } from "../../api/invites";
+import { inviteGone, inviteLink } from "../../api/invites";
 import { useInstanceStatus, useInvitePreview, useMe } from "../../api/queries";
 import { CopyButton } from "../../components/CopyButton";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
@@ -16,9 +16,10 @@ export function FirstRunCard({ channelId }: { channelId: string }) {
   const { data: status } = useInstanceStatus();
   const [progress, setProgress] = useState(loadProgress);
   // The invite may have expired or been revoked since setup made it.
-  const { isSuccess: inviteWorks, isError: inviteDead } = useInvitePreview(
+  const { isSuccess: inviteWorks, error: inviteError } = useInvitePreview(
     progress?.invite,
   );
+  const inviteDead = inviteGone(inviteError);
 
   const space = progress?.space;
   if (
