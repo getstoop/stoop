@@ -1,4 +1,4 @@
-import { expect, menuItems, pastGate, say, test } from "./lib";
+import { expect, menuItems, pastGate, reload, say, test } from "./lib";
 
 declare global {
   interface Window {
@@ -141,6 +141,23 @@ test("the first-run wizard and the first invited member", async ({
   );
   await expect(A.locator(".space-name"), "space rendered").toHaveText(
     "Stoop HQ",
+  );
+
+  // The space opens with the invite again and what was left for later,
+  // until the admin dismisses it.
+  const firstRun = A.locator(".first-run");
+  await expect(
+    firstRun.locator(".link-box code"),
+    "the first-run card repeats the invite link",
+  ).toHaveText(link);
+  await expect(firstRun, "and lists what was skipped").toContainText(
+    "Remote access skipped",
+  );
+  await firstRun.getByRole("button", { name: "Dismiss" }).click();
+  await expect(firstRun, "dismissed").toHaveCount(0);
+  await reload(A);
+  await expect(A.locator(".first-run"), "and it stays dismissed").toHaveCount(
+    0,
   );
 
   // Admin sees the Invite chip and the invite from setup listed.
