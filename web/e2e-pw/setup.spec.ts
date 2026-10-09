@@ -25,14 +25,12 @@ test("the first-run wizard and the first invited member", async ({
   await expect(card, "step 1 explains the admin account").toContainText(
     "server admin",
   );
-  await expect(card, "step 1 is the account step").toContainText(
-    "1. Your account",
-  );
+  await expect(card, "step 1 is the account step").toContainText("Step 1 of 4");
 
   await A.locator('input[autocomplete="username"]').fill(`ada${suffix}`);
   await A.locator('input[type="password"]').fill(password);
   await A.locator('button[type="submit"]').click();
-  const current = A.locator(".setup-steps .current");
+  const current = A.locator(".setup-where strong");
   await expect(current, "advances to step 2").toHaveText(/Your space/);
 
   await A.locator('input[placeholder="The Porch"]').fill("Stoop HQ");
@@ -40,6 +38,16 @@ test("the first-run wizard and the first invited member", async ({
   await expect(current, "advances to step 3 (reaching your server)").toHaveText(
     /Reaching your server/,
   );
+
+  // A reload part-way through picks up where it left off.
+  await A.reload();
+  await pastGate(A);
+  await expect(A, "reload stays on /setup").toHaveURL(/\/setup$/);
+  await expect(card, "the wizard welcomes the admin back").toContainText(
+    "Welcome back",
+  );
+  await A.getByRole("button", { name: "Continue setup" }).click();
+  await expect(current, "resumes at step 3").toHaveText(/Reaching your server/);
   await expect(
     A.locator(".reach-address"),
     "step 3 offers the address",

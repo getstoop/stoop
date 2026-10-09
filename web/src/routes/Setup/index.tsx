@@ -1,65 +1,130 @@
-import { Navigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { useInstanceStatus } from "../../api/queries";
+import { Navigate, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useInstanceStatus, useMe } from "../../api/queries";
+import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { AccountStep } from "./AccountStep";
 import { InviteStep } from "./InviteStep";
+import { clearProgress, loadProgress, saveProgress } from "./progress";
 import { ReachStep } from "./ReachStep";
-import { type CreatedSpace, SpaceStep } from "./SpaceStep";
+import { ResumeStep } from "./ResumeStep";
+import { SpaceStep } from "./SpaceStep";
+import {
+  NO_PROGRESS,
+  nextStep,
+  type Progress,
+  previousStep,
+  STEPS,
+  type StepId,
+  type StepState,
+} from "./steps";
+import { WizardActions } from "./WizardActions";
+import { WizardProgress } from "./WizardProgress";
 
-// First-run setup for a fresh instance. Four steps on one card: the admin
-// account (the first account operates the server), the first space, how
-// people will reach the server (skippable; it's also on the admin page),
-// and an invite link to hand out. Reached only while the instance has no
-// users.
+// First-run setup for a fresh instance, one step at a time on one card
+// (the list is in steps.ts). Reached while the instance has no users,
+// and again by the admin who started it until they finish, since the
+// progress is kept in this browser (progress.ts).
 
-type Step = 1 | 2 | 3 | 4;
-
-const STEPS = [
-  "Your account",
-  "Your space",
-  "Reaching your server",
-  "Invite people",
-];
+type View = "decide" | "resume" | "steps";
 
 export function SetupPage() {
-  const { data: status, isLoading } = useInstanceStatus();
-  const [step, setStep] = useState<Step>(1);
-  const [space, setSpace] = useState<CreatedSpace | null>(null);
+  const { data: status, isLoading: statusLoading } = useInstanceStatus();
+  const { data: me, isLoading: meLoading } = useMe();
+  const navigate = useNavigate();
+  const [progress, setProgress] = useState<Progress>(
+    () => loadProgress() ?? NO_PROGRESS,
+  );
+  const [view, setView] = useState<View>("decide");
+  const [currentId, setCurrentId] = useState<StepId | null>(null);
 
-  if (isLoading) {
+  const canResume =
+    me?.role === InstanceRole.ADMIN &&
+    progress.steps.account !== undefined &&
+    progress.steps.invite === undefined;
+
+  useEffect(() => {
+    if (view !== "decide" || statusLoading || meLoading) return;
+    if (status?.needsSetup) {
+      // A record left by an earlier instance on this address.
+      clearProgress();
+      setProgress(NO_PROGRESS);
+      setView("steps");
+    } else if (canResume) {
+      setView("resume");
+    }
+  }, [view, statusLoading, meLoading, status, canResume]);
+
+  if (view === "decide") {
+    if (!statusLoading && !meLoading && !status?.needsSetup && !canResume) {
+      return <Navigate to="/login" replace />;
+    }
     return <div className="login-page muted">Loading…</div>;
   }
-  // Someone else already set the instance up (or this tab is stale).
-  if (step === 1 && status && !status.needsSetup) {
-    return <Navigate to="/login" replace />;
-  }
+
+  const current = currentId
+    ? (STEPS.find((s) => s.id === currentId) ?? nextStep(STEPS, progress))
+    : nextStep(STEPS, progress);
+  const back = previousStep(STEPS, current.id);
+
+  const mark = (id: StepId, state: StepState, extra?: Partial<Progress>) => {
+    const next = {
+      ...progress,
+      ...extra,
+      steps: { ...progress.steps, [id]: state },
+    };
+    setProgress(next);
+    saveProgress(next);
+    setCurrentId(null);
+  };
+
+  const goToSpace = () => {
+    const space = progress.space;
+    if (!space) return navigate({ to: "/", replace: true });
+    return navigate({
+      to: "/s/$spaceId/c/$channelId",
+      params: { spaceId: space.id, channelId: space.channelId },
+      replace: true,
+    });
+  };
 
   return (
     <div className="login-page">
       <div className="login-card setup-card">
         <h1>Stoop</h1>
-        <ol className="setup-steps">
-          {STEPS.map((label, i) => {
-            const n = (i + 1) as Step;
-            const cls = n < step ? "done" : n === step ? "current" : "";
-            return (
-              <li key={label} className={cls}>
-                {n}. {label}
-              </li>
-            );
-          })}
-        </ol>
-        {step === 1 && <AccountStep onDone={() => setStep(2)} />}
-        {step === 2 && (
-          <SpaceStep
-            onDone={(created) => {
-              setSpace(created);
-              setStep(3);
-            }}
+        <WizardProgress steps={STEPS} current={current} progress={progress} />
+        {view === "resume" ? (
+          <ResumeStep
+            username={me?.username ?? ""}
+            steps={STEPS}
+            progress={progress}
+            onContinue={() => setView("steps")}
+            onLater={goToSpace}
           />
+        ) : (
+          <>
+            {current.id === "account" && (
+              <AccountStep onDone={() => mark("account", "done")} />
+            )}
+            {current.id === "space" && (
+              <SpaceStep onDone={(space) => mark("space", "done", { space })} />
+            )}
+            {current.id === "reach" && (
+              <ReachStep onDone={(state) => mark("reach", state)} />
+            )}
+            {current.id === "invite" && (
+              <InviteStep space={progress.space ?? null}>
+                <WizardActions
+                  label="Go to your space"
+                  onBack={back && (() => setCurrentId(back.id))}
+                  onNext={() => {
+                    mark("invite", "done");
+                    goToSpace();
+                  }}
+                />
+              </InviteStep>
+            )}
+          </>
         )}
-        {step === 3 && <ReachStep onDone={() => setStep(4)} />}
-        {step === 4 && <InviteStep space={space} />}
       </div>
     </div>
   );

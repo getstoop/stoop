@@ -109,7 +109,8 @@ const desktopReturnRoute = createRoute({
   }),
 });
 
-// First-run setup on a fresh instance; redirects to /login once set up.
+// First-run setup: on a fresh instance, and for the admin who started it
+// until they finish (routes/Setup/progress.ts).
 const setupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/setup",

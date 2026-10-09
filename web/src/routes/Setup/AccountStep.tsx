@@ -4,6 +4,7 @@ import { authClient } from "../../api/clients";
 import { Field } from "../../components/Field";
 import { LoginProviders } from "../../components/LoginProviders";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { WizardActions } from "./WizardActions";
 
 // Step 1: the first account, which operates the server.
 export function AccountStep({ onDone }: { onDone: () => void }) {
@@ -62,9 +63,7 @@ export function AccountStep({ onDone }: { onDone: () => void }) {
           {form.formError}
         </p>
       )}
-      <button type="submit" className="primary" disabled={busy}>
-        Create admin account
-      </button>
+      <WizardActions label="Create admin account" busy={busy} />
     </form>
   );
 }

@@ -69,7 +69,7 @@ test("reaching your server, in setup and on the admin page", async ({
   const saved = A.locator(".reach-saved");
   const publicUrl = A.locator('input[placeholder="https://chat.example.com"]');
   await expect(
-    A.locator(".setup-steps .current"),
+    A.locator(".setup-where strong"),
     "step 3 is reaching your server",
   ).toContainText("Reaching your server");
   for (const section of [
