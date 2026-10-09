@@ -47,7 +47,7 @@ func TestSMTPValidate(t *testing.T) {
 	}{
 		{"a complete server", func(*SMTP) {}, ""},
 		{"an IPv4 host", func(smtp *SMTP) { smtp.Host = "192.168.1.20" }, ""},
-		{"an IPv6 host", func(smtp *SMTP) { smtp.Host = "fd00::25" }, ""},
+		{"an IPv6 host", func(smtp *SMTP) { smtp.Host = "fd00::25" }, "smtp.host"},
 		{"a relay without sign-in", func(smtp *SMTP) {
 			smtp.Security, smtp.Port, smtp.Username, smtp.Password = mail.SecurityNone, 25, "", ""
 		}, ""},
@@ -114,6 +114,16 @@ func TestSMTPFromProto(t *testing.T) {
 	}
 	if got = smtpFromProto(&instancev1.SmtpSettings{}, current); got.Username != "" || got.Password != "" {
 		t.Errorf("clearing the username kept the password: %+v", got)
+	}
+	moved := smtpFromProto(&instancev1.SmtpSettings{Host: "smtp.attacker.example", Username: current.Username}, current)
+	if moved.Password != "" {
+		t.Errorf("a new host kept the saved password")
+	}
+	if err := moved.validate(); err == nil {
+		t.Errorf("a new host with no password passed validate")
+	}
+	if renamed := smtpFromProto(&instancev1.SmtpSettings{Host: current.Host, Username: "bea@example.net"}, current); renamed.Password != "" {
+		t.Errorf("a new username kept the saved password")
 	}
 
 	for security, port := range map[instancev1.SmtpSecurity]int{
