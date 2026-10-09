@@ -154,7 +154,7 @@
 }
 
 .setup-choice input {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   accent-color: var(--accent);
 }
 
@@ -192,4 +192,9 @@
 
 .setup-status[data-state="ok"] .setup-dot {
   background: var(--ok);
+}
+
+.setup-choice:has(input:disabled) {
+  opacity: var(--disabled);
+  cursor: default;
 }

@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from "react";
-import { TunnelFields } from "../../components/ReachabilityForm/CloudflareTunnelSection";
 import { withTunnelProxy } from "../../components/ReachabilityForm/fields";
-import { TailscaleFields } from "../../components/ReachabilityForm/TailscaleSection";
+import { TailscaleFields } from "../../components/ReachabilityForm/TailscaleFields";
+import { TunnelFields } from "../../components/ReachabilityForm/TunnelFields";
 import { useReachabilityDraft } from "../../components/ReachabilityForm/useReachabilityDraft";
 import { Choice } from "./Choice";
 import type { Access } from "./steps";
@@ -75,12 +75,11 @@ export function RemoteStep({
           {
             value: "tunnel",
             title: "Cloudflare Tunnel",
-            hint: "A public hostname, no ports opened on your router.",
-            body: missing ? (
-              <p className="hint">
-                cloudflared isn't installed on this server.
-              </p>
-            ) : (
+            hint: missing
+              ? "cloudflared isn't installed on this server."
+              : "A public hostname, no ports opened on your router.",
+            disabled: missing,
+            body: (
               <TunnelFields
                 fields={fields}
                 errors={form.errors}
