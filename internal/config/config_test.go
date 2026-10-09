@@ -374,6 +374,8 @@ func TestLoad_SMTP(t *testing.T) {
 		{"STOOP_SMTP_SECURITY", "ssl", "STOOP_SMTP_SECURITY"},
 		{"STOOP_SMTP_HOURLY_LIMIT", "100001", "STOOP_SMTP_HOURLY_LIMIT"},
 		{"STOOP_SMTP_USERNAME", "casey", "STOOP_SMTP_PASSWORD"},
+		{"STOOP_SMTP_FROM_NAME", "Stoop\nBcc: ada@example.com", "STOOP_SMTP_FROM_NAME"},
+		{"STOOP_SMTP_FROM_NAME", strings.Repeat("a", 81), "STOOP_SMTP_FROM_NAME"},
 	} {
 		t.Run(variable.name, func(t *testing.T) {
 			t.Setenv("STOOP_SMTP_FROM", "stoop@example.net")

@@ -126,16 +126,18 @@ func smtpFromProto(in *instancev1.SmtpSettings, current SMTP) SMTP {
 	if port == 0 {
 		port = mail.DefaultPort(security)
 	}
+	host := strings.TrimSpace(in.Host)
 	username := strings.TrimSpace(in.Username)
-	password := keepSecret(in.Password, current.Password)
-	// Clearing the username clears the saved password; a typed one stays
-	// for validate to refuse.
-	if username == "" && in.Password == "" {
-		password = ""
+	// The saved password goes only to the server and account it was saved
+	// for: a new host or username needs it typed again, or a test send
+	// could hand it to any server. Clearing the username clears it.
+	password := in.Password
+	if password == "" && host == current.Host && username == current.Username {
+		password = current.Password
 	}
 	return SMTP{
 		Enabled:     in.Enabled,
-		Host:        strings.TrimSpace(in.Host),
+		Host:        host,
 		Port:        port,
 		Security:    security,
 		Username:    username,
@@ -174,7 +176,7 @@ func (smtp SMTP) validate() error {
 	case smtp.Host == "" && smtp.Enabled:
 		return refuse("host", "enter the SMTP server's hostname")
 	case smtp.Host != "" && !validHost(smtp.Host):
-		return refuse("host", "enter a hostname or IP address, with no scheme or port")
+		return refuse("host", "enter a hostname or IPv4 address, with no scheme or port")
 	}
 	if smtp.Port < 1 || smtp.Port > 65535 {
 		return refuse("port", "the port must be between 1 and 65535")
@@ -187,7 +189,7 @@ func (smtp SMTP) validate() error {
 	}
 	switch {
 	case smtp.Username != "" && smtp.Password == "":
-		return refuse("password", "enter the password for this username")
+		return refuse("password", "enter the password for this server and username")
 	case smtp.Username == "" && smtp.Password != "":
 		return refuse("password", "a password needs a username")
 	}
@@ -209,8 +211,14 @@ func (smtp SMTP) validate() error {
 	return nil
 }
 
+// validHost takes a hostname or an IPv4 address. An IPv6 literal can't be
+// dialled as host:port without brackets, and a bracketed one isn't a TLS
+// server name.
 func validHost(host string) bool {
-	return net.ParseIP(host) != nil || (len(host) <= 253 && hostnamePattern.MatchString(host))
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.To4() != nil
+	}
+	return len(host) <= 253 && hostnamePattern.MatchString(host)
 }
 
 // bareAddress reports whether address is one address with no name or
