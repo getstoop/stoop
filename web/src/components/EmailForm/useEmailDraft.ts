@@ -68,17 +68,20 @@ export function useEmailDraft() {
   };
 
   // True when saved (or there was nothing to save); a refusal lands on
-  // its field and gives false.
-  const save = async (): Promise<boolean> => {
-    if (!dirty) return true;
+  // its field and gives false. `changes` are applied first, for a caller
+  // that sets a field and saves in one go (the setup step turns email on).
+  const save = async (changes?: Partial<EmailFields>): Promise<boolean> => {
+    const next = { ...fields, ...changes };
+    if (!isDirty(next, baseline, password)) return true;
     form.begin();
     if (!checkNumbers()) return false;
     setBusy(true);
     try {
       await instanceClient.updateEmailSettings({
-        smtp: settingsFrom(fields, password),
+        smtp: settingsFrom(next, password),
       });
-      setBaseline(normalize(fields));
+      setFields(next);
+      setBaseline(normalize(next));
       setPassword("");
       seeded.current = null;
       await queryClient.invalidateQueries({ queryKey: ["email-settings"] });

@@ -37,7 +37,7 @@ export function TestEmailRow({
                 e.preventDefault();
                 if (to.trim() !== "" && !testing) send();
               }}
-              placeholder="casey@example.com"
+              placeholder="you@example.com"
             />
             <button
               type="button"
