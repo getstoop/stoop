@@ -32,7 +32,7 @@ func (s *Service) ConfirmEmail(ctx context.Context, req *connect.Request[authv1.
 	err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		link, err := qtx.GetConfirmableEmailToken(ctx, dbgen.GetConfirmableEmailTokenParams{
-			TokenHash: hashToken(token), Purpose: tokenPurposeConfirmEmail,
+			TokenHash: hashToken(token), Purpose: confirmEmailPurpose,
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errEmailLinkSpent
@@ -57,7 +57,7 @@ func (s *Service) ConfirmEmail(ctx context.Context, req *connect.Request[authv1.
 			return fmt.Errorf("use link: %w", err)
 		}
 		if err := qtx.DeleteOtherEmailTokens(ctx, dbgen.DeleteOtherEmailTokensParams{
-			UserID: link.UserID, Purpose: tokenPurposeConfirmEmail, KeepID: link.ID,
+			UserID: link.UserID, Purpose: confirmEmailPurpose, KeepID: link.ID,
 		}); err != nil {
 			return fmt.Errorf("revoke other links: %w", err)
 		}

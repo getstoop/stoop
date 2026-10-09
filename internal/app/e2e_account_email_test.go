@@ -33,20 +33,7 @@ func emailHarness(t *testing.T) (*harness, *pgxpool.Pool, string) {
 		"enabled": true, "host": "smtp.example.net", "security": "SMTP_SECURITY_STARTTLS",
 		"fromAddress": "stoop@example.net", "hourlyLimit": 100,
 	}}).expect(t, "ok")
-	requireSendEmailKind(t, instance)
 	return instance, pool, casey
-}
-
-// requireSendEmailKind skips until send_email is registered: that lands
-// on account-email-sending, beside this branch.
-func requireSendEmailKind(t *testing.T, instance *harness) {
-	t.Helper()
-	probe := instance.person("probe")
-	answer := instance.rpc(probe, accountAuth+"RequestEmailChange", map[string]any{"address": "probe@example.com", "password": password})
-	if strings.Contains(answer.message(), "unknown job kind") {
-		t.Skip("send_email is not registered on this branch")
-	}
-	answer.expect(t, "ok")
 }
 
 // storeConfirmLink stores a link for the address the way the send_email job

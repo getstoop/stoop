@@ -59,20 +59,9 @@ func TestE2EConfirmEmailJob(t *testing.T) {
 	if len(received.To) != 1 || received.To[0] != "ada@example.com" {
 		t.Fatalf("sent to %v, want ada@example.com", received.To)
 	}
-	parsed, err := netmail.ReadMessage(strings.NewReader(received.Data))
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := parsed.Body
-	if strings.EqualFold(parsed.Header.Get("Content-Transfer-Encoding"), "quoted-printable") {
-		body = quotedprintable.NewReader(body)
-	}
-	text, err := io.ReadAll(body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	match := confirmLink.FindStringSubmatch(string(text))
-	if match == nil || !strings.Contains(string(text), "@ada on") {
+	_, text := readEmail(t, received)
+	match := confirmLink.FindStringSubmatch(text)
+	if match == nil || !strings.Contains(text, "@ada on") {
 		t.Fatalf("no confirmation link for @ada in %q", text)
 	}
 	token := match[1]
@@ -122,4 +111,22 @@ func TestE2EConfirmEmailJob(t *testing.T) {
 	if leaks != 0 {
 		t.Errorf("the raw token is stored in %d rows", leaks)
 	}
+}
+
+// readEmail is a received message's subject and decoded text.
+func readEmail(t *testing.T, received mailtest.Received) (subject, text string) {
+	t.Helper()
+	parsed, err := netmail.ReadMessage(strings.NewReader(received.Data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := parsed.Body
+	if strings.EqualFold(parsed.Header.Get("Content-Transfer-Encoding"), "quoted-printable") {
+		body = quotedprintable.NewReader(body)
+	}
+	decoded, err := io.ReadAll(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return parsed.Header.Get("Subject"), string(decoded)
 }

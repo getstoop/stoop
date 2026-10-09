@@ -43,11 +43,6 @@ func (s *Service) UseEmailPorts(jobs EmailJobs, enabled func(ctx context.Context
 // RequestEmailChange and ResendEmailConfirmation.
 func (s *Service) UseEmailThrottle(throttle Throttle) { s.emailThrottle = throttle }
 
-var errEmailNotBuilt = errors.New("account email is not built yet")
-
-// tokenPurposeConfirmEmail is email_tokens.purpose for a confirmation link.
-const tokenPurposeConfirmEmail = "confirm_email"
-
 const maxEmailAddressLen = 254
 
 // emailThrottleRetryAfter is how long one more request takes to come back
@@ -166,7 +161,7 @@ func (s *Service) RequestEmailChange(ctx context.Context, req *connect.Request[a
 		if err := qtx.SetPendingEmail(ctx, dbgen.SetPendingEmailParams{ID: userID, Address: address}); err != nil {
 			return fmt.Errorf("set pending email: %w", err)
 		}
-		if err := qtx.DeleteUserEmailTokens(ctx, dbgen.DeleteUserEmailTokensParams{UserID: userID, Purpose: tokenPurposeConfirmEmail}); err != nil {
+		if err := qtx.DeleteUserEmailTokens(ctx, dbgen.DeleteUserEmailTokensParams{UserID: userID, Purpose: confirmEmailPurpose}); err != nil {
 			return fmt.Errorf("revoke old links: %w", err)
 		}
 		return s.queueConfirmEmail(ctx, tx, userID)
@@ -211,7 +206,7 @@ func (s *Service) CancelEmailChange(ctx context.Context, _ *connect.Request[auth
 		if err := qtx.ClearPendingEmail(ctx, userID); err != nil {
 			return fmt.Errorf("clear pending email: %w", err)
 		}
-		if err := qtx.DeleteUserEmailTokens(ctx, dbgen.DeleteUserEmailTokensParams{UserID: userID, Purpose: tokenPurposeConfirmEmail}); err != nil {
+		if err := qtx.DeleteUserEmailTokens(ctx, dbgen.DeleteUserEmailTokensParams{UserID: userID, Purpose: confirmEmailPurpose}); err != nil {
 			return fmt.Errorf("revoke links: %w", err)
 		}
 		var err error
