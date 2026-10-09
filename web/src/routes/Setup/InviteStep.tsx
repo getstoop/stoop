@@ -35,31 +35,46 @@ export function InviteStep({
   const { data: instanceStatus } = useInstanceStatus();
   const { data: me } = useMe();
   const [error, setError] = useState<string | null>(null);
-  const minting = useRef(false);
+  const busy = useRef(false);
   const code = progress.invite;
+  // The saved code once the server has said it still works.
+  const [usable, setUsable] = useState<string | null>(null);
 
+  // Reuse the invite setup made while it still works; mint a new one when
+  // there is none, or it has expired or been revoked since.
   useEffect(() => {
-    if (!space || code || minting.current) return;
-    minting.current = true;
-    chatClient
-      .createInvite({
-        spaceId: space.id,
-        expiresIn: { seconds: BigInt(ONBOARDING_INVITE_SECONDS) },
-      })
-      .then((res) => {
-        if (res.invite) onMinted(res.invite.code);
-      })
-      .catch((err) => setError(errorText(err)));
-  }, [space, code, onMinted]);
+    if (!space || busy.current || (code && usable === code)) return;
+    busy.current = true;
+    const mint = () =>
+      chatClient
+        .createInvite({
+          spaceId: space.id,
+          expiresIn: { seconds: BigInt(ONBOARDING_INVITE_SECONDS) },
+        })
+        .then((res) => {
+          if (!res.invite) return;
+          setUsable(res.invite.code);
+          onMinted(res.invite.code);
+        });
+    (code
+      ? chatClient.lookupInvite({ code }).then(() => setUsable(code), mint)
+      : mint()
+    )
+      .catch((err) => setError(errorText(err)))
+      .finally(() => {
+        busy.current = false;
+      });
+  }, [space, code, usable, onMinted]);
 
   if (!space) {
     return <Navigate to="/" replace />;
   }
 
   // Built from the address saved now, so a fix on the Address step shows.
-  const link = code
-    ? inviteLink(code, space.name, instanceStatus?.publicUrl)
-    : null;
+  const link =
+    code && usable === code
+      ? inviteLink(code, space.name, instanceStatus?.publicUrl)
+      : null;
   const before = steps.slice(
     0,
     steps.findIndex((s) => s.id === "invite"),
