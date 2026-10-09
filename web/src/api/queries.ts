@@ -92,6 +92,10 @@ export function useMe() {
   return useQuery({ ...meQuery, select: (r) => r.user ?? null });
 }
 
+export function useMyEmail() {
+  return useQuery({ ...meQuery, select: (r) => r.email });
+}
+
 export function useMyPermissions() {
   return useQuery({ ...meQuery, select: (r) => r.permissions });
 }

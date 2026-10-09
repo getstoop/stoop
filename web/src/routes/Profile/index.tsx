@@ -10,6 +10,7 @@ import { AppearanceSection } from "./AppearanceSection";
 import { BlockedSection } from "./BlockedSection";
 import { DeleteAccountSection } from "./DeleteAccountSection";
 import { DoNotDisturbSection } from "./DoNotDisturbSection";
+import { EmailSection } from "./EmailSection";
 import { LinkedAccountsSection } from "./LinkedAccountsSection";
 import { LogoutButton } from "./LogoutButton";
 import { MutesSection } from "./MutesSection";
@@ -26,7 +27,8 @@ import { VoiceSoundsSection } from "./VoiceSoundsSection";
 // (Profile), how Stoop looks to you (Appearance), what is allowed to
 // interrupt you, do not disturb included (Notifications), how your mic
 // behaves in a call (Voice), what you have silenced (Muted), and how you
-// get in and who you keep out (Security).
+// get in and who you keep out (Security, where the email address
+// lives too).
 // Log out is the last entry of the nav.
 //
 // Inside the desktop app, Appearance and — once the app has its own do not
@@ -138,6 +140,9 @@ export function ProfilePage() {
       {active === "muted" && <MutesSection />}
       {active === "security" && (
         <>
+          {status?.emailEnabled && (
+            <EmailSection hasPassword={me.hasPassword} />
+          )}
           {passwordsAllowed && <PasswordForm hasPassword={me.hasPassword} />}
           <LinkedAccountsSection />
           <SessionsSection />

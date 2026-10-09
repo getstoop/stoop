@@ -38,6 +38,13 @@ export function UsersSection({ meId }: { meId: string }) {
         ),
       },
       {
+        id: "email",
+        header: "Email",
+        accessorFn: (u) => u.email,
+        meta: { width: "22%" },
+        cell: ({ row: { original: u } }) => u.email,
+      },
+      {
         id: "role",
         header: "Role",
         accessorFn: (u) => -rank(u),
@@ -103,7 +110,7 @@ export function UsersSection({ meId }: { meId: string }) {
         search={{
           placeholder: "Filter by name or @username",
           label: "Filter accounts",
-          text: (u) => `${u.displayName} @${u.username}`,
+          text: (u) => `${u.displayName} @${u.username} ${u.email}`,
         }}
         noun={["account", "accounts"]}
         empty="No accounts yet."
