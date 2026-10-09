@@ -144,6 +144,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	authSvc.UseBus(bus)
 	instanceSvc.UseSessionLifetimeEnv(cfg.SessionLifetimeDays)
 	instanceSvc.UseWebhooksEnv(cfg.Webhooks)
+	instanceSvc.UseTestEmailThrottle(ratelimit.New(stores, "ratelimit_test_email", 5, 5))
 	chatSvc.UseInstancePolicy(instanceSvc)
 	chatSvc.UseSearchThrottle(ratelimit.New(stores, "ratelimit_search", cfg.SearchRateLimit, cfg.SearchRateLimit))
 	filesSvc := files.New(pool, store, bus, authSvc, chatSvc, identityVerifier{authSvc}, log)
