@@ -81,6 +81,17 @@ type DmMember struct {
 	ClosedAt  *time.Time
 }
 
+type EmailToken struct {
+	ID        string
+	UserID    string
+	Purpose   string
+	TokenHash []byte
+	Address   string
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+}
+
 type File struct {
 	ID          string
 	Kind        string
@@ -310,23 +321,27 @@ type ThreadRead struct {
 }
 
 type User struct {
-	ID              string
-	Username        string
-	DisplayName     string
-	PasswordHash    *string
-	CreatedAt       time.Time
-	Role            string
-	DeactivatedAt   *time.Time
-	AvatarFileID    *string
-	UsernamePending bool
-	UsernameFrozen  bool
-	Pronouns        string
-	Bio             string
-	Kind            string
-	Dnd             bool
-	DndUntil        *time.Time
-	DeletedAt       *time.Time
-	IsOwner         bool
+	ID               string
+	Username         string
+	DisplayName      string
+	PasswordHash     *string
+	CreatedAt        time.Time
+	Role             string
+	DeactivatedAt    *time.Time
+	AvatarFileID     *string
+	UsernamePending  bool
+	UsernameFrozen   bool
+	Pronouns         string
+	Bio              string
+	Kind             string
+	Dnd              bool
+	DndUntil         *time.Time
+	DeletedAt        *time.Time
+	IsOwner          bool
+	Email            *string
+	EmailConfirmedAt *time.Time
+	PendingEmail     *string
+	PendingEmailAt   *time.Time
 }
 
 type UserBlock struct {

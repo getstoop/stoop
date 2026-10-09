@@ -53,6 +53,20 @@ const (
 	// AuthServiceChangePasswordProcedure is the fully-qualified name of the AuthService's
 	// ChangePassword RPC.
 	AuthServiceChangePasswordProcedure = "/stoop.auth.v1.AuthService/ChangePassword"
+	// AuthServiceRequestEmailChangeProcedure is the fully-qualified name of the AuthService's
+	// RequestEmailChange RPC.
+	AuthServiceRequestEmailChangeProcedure = "/stoop.auth.v1.AuthService/RequestEmailChange"
+	// AuthServiceResendEmailConfirmationProcedure is the fully-qualified name of the AuthService's
+	// ResendEmailConfirmation RPC.
+	AuthServiceResendEmailConfirmationProcedure = "/stoop.auth.v1.AuthService/ResendEmailConfirmation"
+	// AuthServiceCancelEmailChangeProcedure is the fully-qualified name of the AuthService's
+	// CancelEmailChange RPC.
+	AuthServiceCancelEmailChangeProcedure = "/stoop.auth.v1.AuthService/CancelEmailChange"
+	// AuthServiceRemoveEmailProcedure is the fully-qualified name of the AuthService's RemoveEmail RPC.
+	AuthServiceRemoveEmailProcedure = "/stoop.auth.v1.AuthService/RemoveEmail"
+	// AuthServiceConfirmEmailProcedure is the fully-qualified name of the AuthService's ConfirmEmail
+	// RPC.
+	AuthServiceConfirmEmailProcedure = "/stoop.auth.v1.AuthService/ConfirmEmail"
 	// AuthServiceListIdentitiesProcedure is the fully-qualified name of the AuthService's
 	// ListIdentities RPC.
 	AuthServiceListIdentitiesProcedure = "/stoop.auth.v1.AuthService/ListIdentities"
@@ -102,6 +116,20 @@ type AuthServiceClient interface {
 	// via a login provider) sets its first one here; current_password is
 	// ignored in that case.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
+	// RequestEmailChange sets the caller's pending email address and sends
+	// it a confirmation link. The current password is required when the
+	// account has one. The reply is the same whether or not another account
+	// has the address. Refused while email is off.
+	RequestEmailChange(context.Context, *connect.Request[v1.RequestEmailChangeRequest]) (*connect.Response[v1.RequestEmailChangeResponse], error)
+	// ResendEmailConfirmation sends the pending address a fresh link.
+	ResendEmailConfirmation(context.Context, *connect.Request[v1.ResendEmailConfirmationRequest]) (*connect.Response[v1.ResendEmailConfirmationResponse], error)
+	// CancelEmailChange drops the pending address and its links.
+	CancelEmailChange(context.Context, *connect.Request[v1.CancelEmailChangeRequest]) (*connect.Response[v1.CancelEmailChangeResponse], error)
+	// RemoveEmail clears the caller's confirmed and pending addresses.
+	RemoveEmail(context.Context, *connect.Request[v1.RemoveEmailRequest]) (*connect.Response[v1.RemoveEmailResponse], error)
+	// ConfirmEmail turns a pending address into the account's address. No
+	// sign-in needed: the link's token is the proof.
+	ConfirmEmail(context.Context, *connect.Request[v1.ConfirmEmailRequest]) (*connect.Response[v1.ConfirmEmailResponse], error)
 	// ListIdentities lists the caller's linked sign-in providers.
 	ListIdentities(context.Context, *connect.Request[v1.ListIdentitiesRequest]) (*connect.Response[v1.ListIdentitiesResponse], error)
 	// UnlinkIdentity removes one linked provider. Refused when it is the
@@ -189,6 +217,36 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("ChangePassword")),
 			connect.WithClientOptions(opts...),
 		),
+		requestEmailChange: connect.NewClient[v1.RequestEmailChangeRequest, v1.RequestEmailChangeResponse](
+			httpClient,
+			baseURL+AuthServiceRequestEmailChangeProcedure,
+			connect.WithSchema(authServiceMethods.ByName("RequestEmailChange")),
+			connect.WithClientOptions(opts...),
+		),
+		resendEmailConfirmation: connect.NewClient[v1.ResendEmailConfirmationRequest, v1.ResendEmailConfirmationResponse](
+			httpClient,
+			baseURL+AuthServiceResendEmailConfirmationProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ResendEmailConfirmation")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelEmailChange: connect.NewClient[v1.CancelEmailChangeRequest, v1.CancelEmailChangeResponse](
+			httpClient,
+			baseURL+AuthServiceCancelEmailChangeProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CancelEmailChange")),
+			connect.WithClientOptions(opts...),
+		),
+		removeEmail: connect.NewClient[v1.RemoveEmailRequest, v1.RemoveEmailResponse](
+			httpClient,
+			baseURL+AuthServiceRemoveEmailProcedure,
+			connect.WithSchema(authServiceMethods.ByName("RemoveEmail")),
+			connect.WithClientOptions(opts...),
+		),
+		confirmEmail: connect.NewClient[v1.ConfirmEmailRequest, v1.ConfirmEmailResponse](
+			httpClient,
+			baseURL+AuthServiceConfirmEmailProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ConfirmEmail")),
+			connect.WithClientOptions(opts...),
+		),
 		listIdentities: connect.NewClient[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse](
 			httpClient,
 			baseURL+AuthServiceListIdentitiesProcedure,
@@ -242,22 +300,27 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	register            *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
-	login               *connect.Client[v1.LoginRequest, v1.LoginResponse]
-	logout              *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-	getMe               *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
-	updateProfile       *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
-	setDoNotDisturb     *connect.Client[v1.SetDoNotDisturbRequest, v1.SetDoNotDisturbResponse]
-	getUserProfile      *connect.Client[v1.GetUserProfileRequest, v1.GetUserProfileResponse]
-	changePassword      *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
-	listIdentities      *connect.Client[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse]
-	unlinkIdentity      *connect.Client[v1.UnlinkIdentityRequest, v1.UnlinkIdentityResponse]
-	deleteAccount       *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
-	listSessions        *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
-	revokeOtherSessions *connect.Client[v1.RevokeOtherSessionsRequest, v1.RevokeOtherSessionsResponse]
-	createPersonalToken *connect.Client[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse]
-	listPersonalTokens  *connect.Client[v1.ListPersonalTokensRequest, v1.ListPersonalTokensResponse]
-	revokePersonalToken *connect.Client[v1.RevokePersonalTokenRequest, v1.RevokePersonalTokenResponse]
+	register                *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
+	login                   *connect.Client[v1.LoginRequest, v1.LoginResponse]
+	logout                  *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
+	getMe                   *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	updateProfile           *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
+	setDoNotDisturb         *connect.Client[v1.SetDoNotDisturbRequest, v1.SetDoNotDisturbResponse]
+	getUserProfile          *connect.Client[v1.GetUserProfileRequest, v1.GetUserProfileResponse]
+	changePassword          *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
+	requestEmailChange      *connect.Client[v1.RequestEmailChangeRequest, v1.RequestEmailChangeResponse]
+	resendEmailConfirmation *connect.Client[v1.ResendEmailConfirmationRequest, v1.ResendEmailConfirmationResponse]
+	cancelEmailChange       *connect.Client[v1.CancelEmailChangeRequest, v1.CancelEmailChangeResponse]
+	removeEmail             *connect.Client[v1.RemoveEmailRequest, v1.RemoveEmailResponse]
+	confirmEmail            *connect.Client[v1.ConfirmEmailRequest, v1.ConfirmEmailResponse]
+	listIdentities          *connect.Client[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse]
+	unlinkIdentity          *connect.Client[v1.UnlinkIdentityRequest, v1.UnlinkIdentityResponse]
+	deleteAccount           *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
+	listSessions            *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
+	revokeOtherSessions     *connect.Client[v1.RevokeOtherSessionsRequest, v1.RevokeOtherSessionsResponse]
+	createPersonalToken     *connect.Client[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse]
+	listPersonalTokens      *connect.Client[v1.ListPersonalTokensRequest, v1.ListPersonalTokensResponse]
+	revokePersonalToken     *connect.Client[v1.RevokePersonalTokenRequest, v1.RevokePersonalTokenResponse]
 }
 
 // Register calls stoop.auth.v1.AuthService.Register.
@@ -298,6 +361,31 @@ func (c *authServiceClient) GetUserProfile(ctx context.Context, req *connect.Req
 // ChangePassword calls stoop.auth.v1.AuthService.ChangePassword.
 func (c *authServiceClient) ChangePassword(ctx context.Context, req *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return c.changePassword.CallUnary(ctx, req)
+}
+
+// RequestEmailChange calls stoop.auth.v1.AuthService.RequestEmailChange.
+func (c *authServiceClient) RequestEmailChange(ctx context.Context, req *connect.Request[v1.RequestEmailChangeRequest]) (*connect.Response[v1.RequestEmailChangeResponse], error) {
+	return c.requestEmailChange.CallUnary(ctx, req)
+}
+
+// ResendEmailConfirmation calls stoop.auth.v1.AuthService.ResendEmailConfirmation.
+func (c *authServiceClient) ResendEmailConfirmation(ctx context.Context, req *connect.Request[v1.ResendEmailConfirmationRequest]) (*connect.Response[v1.ResendEmailConfirmationResponse], error) {
+	return c.resendEmailConfirmation.CallUnary(ctx, req)
+}
+
+// CancelEmailChange calls stoop.auth.v1.AuthService.CancelEmailChange.
+func (c *authServiceClient) CancelEmailChange(ctx context.Context, req *connect.Request[v1.CancelEmailChangeRequest]) (*connect.Response[v1.CancelEmailChangeResponse], error) {
+	return c.cancelEmailChange.CallUnary(ctx, req)
+}
+
+// RemoveEmail calls stoop.auth.v1.AuthService.RemoveEmail.
+func (c *authServiceClient) RemoveEmail(ctx context.Context, req *connect.Request[v1.RemoveEmailRequest]) (*connect.Response[v1.RemoveEmailResponse], error) {
+	return c.removeEmail.CallUnary(ctx, req)
+}
+
+// ConfirmEmail calls stoop.auth.v1.AuthService.ConfirmEmail.
+func (c *authServiceClient) ConfirmEmail(ctx context.Context, req *connect.Request[v1.ConfirmEmailRequest]) (*connect.Response[v1.ConfirmEmailResponse], error) {
+	return c.confirmEmail.CallUnary(ctx, req)
 }
 
 // ListIdentities calls stoop.auth.v1.AuthService.ListIdentities.
@@ -363,6 +451,20 @@ type AuthServiceHandler interface {
 	// via a login provider) sets its first one here; current_password is
 	// ignored in that case.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
+	// RequestEmailChange sets the caller's pending email address and sends
+	// it a confirmation link. The current password is required when the
+	// account has one. The reply is the same whether or not another account
+	// has the address. Refused while email is off.
+	RequestEmailChange(context.Context, *connect.Request[v1.RequestEmailChangeRequest]) (*connect.Response[v1.RequestEmailChangeResponse], error)
+	// ResendEmailConfirmation sends the pending address a fresh link.
+	ResendEmailConfirmation(context.Context, *connect.Request[v1.ResendEmailConfirmationRequest]) (*connect.Response[v1.ResendEmailConfirmationResponse], error)
+	// CancelEmailChange drops the pending address and its links.
+	CancelEmailChange(context.Context, *connect.Request[v1.CancelEmailChangeRequest]) (*connect.Response[v1.CancelEmailChangeResponse], error)
+	// RemoveEmail clears the caller's confirmed and pending addresses.
+	RemoveEmail(context.Context, *connect.Request[v1.RemoveEmailRequest]) (*connect.Response[v1.RemoveEmailResponse], error)
+	// ConfirmEmail turns a pending address into the account's address. No
+	// sign-in needed: the link's token is the proof.
+	ConfirmEmail(context.Context, *connect.Request[v1.ConfirmEmailRequest]) (*connect.Response[v1.ConfirmEmailResponse], error)
 	// ListIdentities lists the caller's linked sign-in providers.
 	ListIdentities(context.Context, *connect.Request[v1.ListIdentitiesRequest]) (*connect.Response[v1.ListIdentitiesResponse], error)
 	// UnlinkIdentity removes one linked provider. Refused when it is the
@@ -446,6 +548,36 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("ChangePassword")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceRequestEmailChangeHandler := connect.NewUnaryHandler(
+		AuthServiceRequestEmailChangeProcedure,
+		svc.RequestEmailChange,
+		connect.WithSchema(authServiceMethods.ByName("RequestEmailChange")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceResendEmailConfirmationHandler := connect.NewUnaryHandler(
+		AuthServiceResendEmailConfirmationProcedure,
+		svc.ResendEmailConfirmation,
+		connect.WithSchema(authServiceMethods.ByName("ResendEmailConfirmation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceCancelEmailChangeHandler := connect.NewUnaryHandler(
+		AuthServiceCancelEmailChangeProcedure,
+		svc.CancelEmailChange,
+		connect.WithSchema(authServiceMethods.ByName("CancelEmailChange")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceRemoveEmailHandler := connect.NewUnaryHandler(
+		AuthServiceRemoveEmailProcedure,
+		svc.RemoveEmail,
+		connect.WithSchema(authServiceMethods.ByName("RemoveEmail")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceConfirmEmailHandler := connect.NewUnaryHandler(
+		AuthServiceConfirmEmailProcedure,
+		svc.ConfirmEmail,
+		connect.WithSchema(authServiceMethods.ByName("ConfirmEmail")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceListIdentitiesHandler := connect.NewUnaryHandler(
 		AuthServiceListIdentitiesProcedure,
 		svc.ListIdentities,
@@ -512,6 +644,16 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceGetUserProfileHandler.ServeHTTP(w, r)
 		case AuthServiceChangePasswordProcedure:
 			authServiceChangePasswordHandler.ServeHTTP(w, r)
+		case AuthServiceRequestEmailChangeProcedure:
+			authServiceRequestEmailChangeHandler.ServeHTTP(w, r)
+		case AuthServiceResendEmailConfirmationProcedure:
+			authServiceResendEmailConfirmationHandler.ServeHTTP(w, r)
+		case AuthServiceCancelEmailChangeProcedure:
+			authServiceCancelEmailChangeHandler.ServeHTTP(w, r)
+		case AuthServiceRemoveEmailProcedure:
+			authServiceRemoveEmailHandler.ServeHTTP(w, r)
+		case AuthServiceConfirmEmailProcedure:
+			authServiceConfirmEmailHandler.ServeHTTP(w, r)
 		case AuthServiceListIdentitiesProcedure:
 			authServiceListIdentitiesHandler.ServeHTTP(w, r)
 		case AuthServiceUnlinkIdentityProcedure:
@@ -567,6 +709,26 @@ func (UnimplementedAuthServiceHandler) GetUserProfile(context.Context, *connect.
 
 func (UnimplementedAuthServiceHandler) ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.ChangePassword is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) RequestEmailChange(context.Context, *connect.Request[v1.RequestEmailChangeRequest]) (*connect.Response[v1.RequestEmailChangeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.RequestEmailChange is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ResendEmailConfirmation(context.Context, *connect.Request[v1.ResendEmailConfirmationRequest]) (*connect.Response[v1.ResendEmailConfirmationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.ResendEmailConfirmation is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) CancelEmailChange(context.Context, *connect.Request[v1.CancelEmailChangeRequest]) (*connect.Response[v1.CancelEmailChangeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.CancelEmailChange is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) RemoveEmail(context.Context, *connect.Request[v1.RemoveEmailRequest]) (*connect.Response[v1.RemoveEmailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.RemoveEmail is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ConfirmEmail(context.Context, *connect.Request[v1.ConfirmEmailRequest]) (*connect.Response[v1.ConfirmEmailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.ConfirmEmail is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) ListIdentities(context.Context, *connect.Request[v1.ListIdentitiesRequest]) (*connect.Response[v1.ListIdentitiesResponse], error) {

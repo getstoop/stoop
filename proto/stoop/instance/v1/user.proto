@@ -35,4 +35,6 @@ message InstanceUser {
   google.protobuf.Timestamp deleted_at = 13;
   // The server owner: an admin nobody can demote, deactivate or reset.
   bool owner = 14;
+  // The confirmed email address; empty when none.
+  string email = 15;
 }

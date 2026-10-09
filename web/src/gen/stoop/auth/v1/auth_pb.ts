@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/auth/v1/auth.proto.
  */
 export const file_stoop_auth_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("ChhzdG9vcC9hdXRoL3YxL2F1dGgucHJvdG8SDXN0b29wLmF1dGgudjEi/gIKBFVzZXISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBHJvbGUYBSABKA4yGy5zdG9vcC5hdXRoLnYxLkluc3RhbmNlUm9sZRIWCg5hdmF0YXJfZmlsZV9pZBgGIAEoCRIUCgxoYXNfcGFzc3dvcmQYByABKAgSGAoQdXNlcm5hbWVfcGVuZGluZxgIIAEoCBIXCg91c2VybmFtZV9mcm96ZW4YCSABKAgSEAoIcHJvbm91bnMYCiABKAkSCwoDYmlvGAsgASgJEisKBGtpbmQYDCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEgsKA2RuZBgNIAEoCBItCglkbmRfdW50aWwYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkoKD1JlZ2lzdGVyUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRITCgtpbnZpdGVfY29kZRgDIAEoCSJOChBSZWdpc3RlclJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISFwoPam9pbmVkX3NwYWNlX2lkGAIgASgJIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSJBCg1Mb2dpblJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISDQoFdG9rZW4YAiABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiZAoNR2V0TWVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyEjAKC3Blcm1pc3Npb25zGAIgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24ijgEKFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EhQKDGRpc3BsYXlfbmFtZRgBIAEoCRIVCgh1c2VybmFtZRgCIAEoCUgAiAEBEhUKCHByb25vdW5zGAMgASgJSAGIAQESEAoDYmlvGAQgASgJSAKIAQFCCwoJX3VzZXJuYW1lQgsKCV9wcm9ub3Vuc0IGCgRfYmlvIjoKFVVwZGF0ZVByb2ZpbGVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyIk8KFlNldERvTm90RGlzdHVyYlJlcXVlc3QSCgoCb24YASABKAgSKQoFdW50aWwYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjwKF1NldERvTm90RGlzdHVyYlJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXIixQEKDVB1YmxpY1Byb2ZpbGUSCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEhAKCHByb25vdW5zGAUgASgJEgsKA2JpbxgGIAEoCRIrCgRraW5kGAcgASgOMh0uc3Rvb3AuYWNjZXNzLnYxLklkZW50aXR5S2luZBILCgNkbmQYCCABKAgSDwoHZGVsZXRlZBgJIAEoCCIoChVHZXRVc2VyUHJvZmlsZVJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSJHChZHZXRVc2VyUHJvZmlsZVJlc3BvbnNlEi0KB3Byb2ZpbGUYASABKAsyHC5zdG9vcC5hdXRoLnYxLlB1YmxpY1Byb2ZpbGUiZwoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0EhgKEGN1cnJlbnRfcGFzc3dvcmQYASABKAkSFAoMbmV3X3Bhc3N3b3JkGAIgASgJEh4KFnJldm9rZV9wZXJzb25hbF90b2tlbnMYAyABKAgiGAoWQ2hhbmdlUGFzc3dvcmRSZXNwb25zZSJbCghJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRINCgVlbWFpbBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIXChVMaXN0SWRlbnRpdGllc1JlcXVlc3QiRQoWTGlzdElkZW50aXRpZXNSZXNwb25zZRIrCgppZGVudGl0aWVzGAEgAygLMhcuc3Rvb3AuYXV0aC52MS5JZGVudGl0eSIpChVVbmxpbmtJZGVudGl0eVJlcXVlc3QSEAoIcHJvdmlkZXIYASABKAkiGAoWVW5saW5rSWRlbnRpdHlSZXNwb25zZSIoChREZWxldGVBY2NvdW50UmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCSIXChVEZWxldGVBY2NvdW50UmVzcG9uc2UizAEKB1Nlc3Npb24SCgoCaWQYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgp1c2VyX2FnZW50GAUgASgJEg8KB2N1cnJlbnQYBiABKAgiFQoTTGlzdFNlc3Npb25zUmVxdWVzdCJAChRMaXN0U2Vzc2lvbnNSZXNwb25zZRIoCghzZXNzaW9ucxgBIAMoCzIWLnN0b29wLmF1dGgudjEuU2Vzc2lvbiIcChpSZXZva2VPdGhlclNlc3Npb25zUmVxdWVzdCIuChtSZXZva2VPdGhlclNlc3Npb25zUmVzcG9uc2USDwoHcmV2b2tlZBgBIAEoBSKsAgoNUGVyc29uYWxUb2tlbhIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEjAKC3Blcm1pc3Npb25zGAMgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24SLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRoaW50GAkgASgJEg8KB2Jsb2NrZWQYCiABKAhKBAgEEAVKBAgFEAZSB2xpbWl0ZWRSCXNwYWNlX2lkcyKVAQoaQ3JlYXRlUGVyc29uYWxUb2tlblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIwCgtwZXJtaXNzaW9ucxgCIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEhcKD2V4cGlyZXNfaW5fZGF5cxgFIAEoBUoECAMQBEoECAQQBVIHbGltaXRlZFIJc3BhY2VfaWRzIloKG0NyZWF0ZVBlcnNvbmFsVG9rZW5SZXNwb25zZRIrCgV0b2tlbhgBIAEoCzIcLnN0b29wLmF1dGgudjEuUGVyc29uYWxUb2tlbhIOCgZzZWNyZXQYAiABKAkiGwoZTGlzdFBlcnNvbmFsVG9rZW5zUmVxdWVzdCJKChpMaXN0UGVyc29uYWxUb2tlbnNSZXNwb25zZRIsCgZ0b2tlbnMYASADKAsyHC5zdG9vcC5hdXRoLnYxLlBlcnNvbmFsVG9rZW4iLgoaUmV2b2tlUGVyc29uYWxUb2tlblJlcXVlc3QSEAoIdG9rZW5faWQYASABKAkiHQobUmV2b2tlUGVyc29uYWxUb2tlblJlc3BvbnNlKmAKDEluc3RhbmNlUm9sZRIdChlJTlNUQU5DRV9ST0xFX1VOU1BFQ0lGSUVEEAASGAoUSU5TVEFOQ0VfUk9MRV9NRU1CRVIQARIXChNJTlNUQU5DRV9ST0xFX0FETUlOEAIy7QsKC0F1dGhTZXJ2aWNlEk0KCFJlZ2lzdGVyEh4uc3Rvb3AuYXV0aC52MS5SZWdpc3RlclJlcXVlc3QaHy5zdG9vcC5hdXRoLnYxLlJlZ2lzdGVyUmVzcG9uc2UiABJECgVMb2dpbhIbLnN0b29wLmF1dGgudjEuTG9naW5SZXF1ZXN0Ghwuc3Rvb3AuYXV0aC52MS5Mb2dpblJlc3BvbnNlIgASRwoGTG9nb3V0Ehwuc3Rvb3AuYXV0aC52MS5Mb2dvdXRSZXF1ZXN0Gh0uc3Rvb3AuYXV0aC52MS5Mb2dvdXRSZXNwb25zZSIAEkQKBUdldE1lEhsuc3Rvb3AuYXV0aC52MS5HZXRNZVJlcXVlc3QaHC5zdG9vcC5hdXRoLnYxLkdldE1lUmVzcG9uc2UiABJcCg1VcGRhdGVQcm9maWxlEiMuc3Rvb3AuYXV0aC52MS5VcGRhdGVQcm9maWxlUmVxdWVzdBokLnN0b29wLmF1dGgudjEuVXBkYXRlUHJvZmlsZVJlc3BvbnNlIgASYgoPU2V0RG9Ob3REaXN0dXJiEiUuc3Rvb3AuYXV0aC52MS5TZXREb05vdERpc3R1cmJSZXF1ZXN0GiYuc3Rvb3AuYXV0aC52MS5TZXREb05vdERpc3R1cmJSZXNwb25zZSIAEl8KDkdldFVzZXJQcm9maWxlEiQuc3Rvb3AuYXV0aC52MS5HZXRVc2VyUHJvZmlsZVJlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLkdldFVzZXJQcm9maWxlUmVzcG9uc2UiABJfCg5DaGFuZ2VQYXNzd29yZBIkLnN0b29wLmF1dGgudjEuQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlIgASXwoOTGlzdElkZW50aXRpZXMSJC5zdG9vcC5hdXRoLnYxLkxpc3RJZGVudGl0aWVzUmVxdWVzdBolLnN0b29wLmF1dGgudjEuTGlzdElkZW50aXRpZXNSZXNwb25zZSIAEl8KDlVubGlua0lkZW50aXR5EiQuc3Rvb3AuYXV0aC52MS5VbmxpbmtJZGVudGl0eVJlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLlVubGlua0lkZW50aXR5UmVzcG9uc2UiABJcCg1EZWxldGVBY2NvdW50EiMuc3Rvb3AuYXV0aC52MS5EZWxldGVBY2NvdW50UmVxdWVzdBokLnN0b29wLmF1dGgudjEuRGVsZXRlQWNjb3VudFJlc3BvbnNlIgASWQoMTGlzdFNlc3Npb25zEiIuc3Rvb3AuYXV0aC52MS5MaXN0U2Vzc2lvbnNSZXF1ZXN0GiMuc3Rvb3AuYXV0aC52MS5MaXN0U2Vzc2lvbnNSZXNwb25zZSIAEm4KE1Jldm9rZU90aGVyU2Vzc2lvbnMSKS5zdG9vcC5hdXRoLnYxLlJldm9rZU90aGVyU2Vzc2lvbnNSZXF1ZXN0Giouc3Rvb3AuYXV0aC52MS5SZXZva2VPdGhlclNlc3Npb25zUmVzcG9uc2UiABJuChNDcmVhdGVQZXJzb25hbFRva2VuEikuc3Rvb3AuYXV0aC52MS5DcmVhdGVQZXJzb25hbFRva2VuUmVxdWVzdBoqLnN0b29wLmF1dGgudjEuQ3JlYXRlUGVyc29uYWxUb2tlblJlc3BvbnNlIgASawoSTGlzdFBlcnNvbmFsVG9rZW5zEiguc3Rvb3AuYXV0aC52MS5MaXN0UGVyc29uYWxUb2tlbnNSZXF1ZXN0Gikuc3Rvb3AuYXV0aC52MS5MaXN0UGVyc29uYWxUb2tlbnNSZXNwb25zZSIAEm4KE1Jldm9rZVBlcnNvbmFsVG9rZW4SKS5zdG9vcC5hdXRoLnYxLlJldm9rZVBlcnNvbmFsVG9rZW5SZXF1ZXN0Giouc3Rvb3AuYXV0aC52MS5SZXZva2VQZXJzb25hbFRva2VuUmVzcG9uc2UiAEKoAQoRY29tLnN0b29wLmF1dGgudjFCCUF1dGhQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9hdXRoL3YxO2F1dGh2MaICA1NBWKoCDVN0b29wLkF1dGguVjHKAg1TdG9vcFxBdXRoXFYx4gIZU3Rvb3BcQXV0aFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpBdXRoOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
+  fileDesc("ChhzdG9vcC9hdXRoL3YxL2F1dGgucHJvdG8SDXN0b29wLmF1dGgudjEi/gIKBFVzZXISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBHJvbGUYBSABKA4yGy5zdG9vcC5hdXRoLnYxLkluc3RhbmNlUm9sZRIWCg5hdmF0YXJfZmlsZV9pZBgGIAEoCRIUCgxoYXNfcGFzc3dvcmQYByABKAgSGAoQdXNlcm5hbWVfcGVuZGluZxgIIAEoCBIXCg91c2VybmFtZV9mcm96ZW4YCSABKAgSEAoIcHJvbm91bnMYCiABKAkSCwoDYmlvGAsgASgJEisKBGtpbmQYDCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEgsKA2RuZBgNIAEoCBItCglkbmRfdW50aWwYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkoKD1JlZ2lzdGVyUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRITCgtpbnZpdGVfY29kZRgDIAEoCSJOChBSZWdpc3RlclJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISFwoPam9pbmVkX3NwYWNlX2lkGAIgASgJIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSJBCg1Mb2dpblJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISDQoFdG9rZW4YAiABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiiwEKDUdldE1lUmVzcG9uc2USIQoEdXNlchgBIAEoCzITLnN0b29wLmF1dGgudjEuVXNlchIwCgtwZXJtaXNzaW9ucxgCIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEiUKBWVtYWlsGAMgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIjMKB015RW1haWwSDwoHYWRkcmVzcxgBIAEoCRIXCg9wZW5kaW5nX2FkZHJlc3MYAiABKAkijgEKFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EhQKDGRpc3BsYXlfbmFtZRgBIAEoCRIVCgh1c2VybmFtZRgCIAEoCUgAiAEBEhUKCHByb25vdW5zGAMgASgJSAGIAQESEAoDYmlvGAQgASgJSAKIAQFCCwoJX3VzZXJuYW1lQgsKCV9wcm9ub3Vuc0IGCgRfYmlvIjoKFVVwZGF0ZVByb2ZpbGVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyIk8KFlNldERvTm90RGlzdHVyYlJlcXVlc3QSCgoCb24YASABKAgSKQoFdW50aWwYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjwKF1NldERvTm90RGlzdHVyYlJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXIixQEKDVB1YmxpY1Byb2ZpbGUSCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEhAKCHByb25vdW5zGAUgASgJEgsKA2JpbxgGIAEoCRIrCgRraW5kGAcgASgOMh0uc3Rvb3AuYWNjZXNzLnYxLklkZW50aXR5S2luZBILCgNkbmQYCCABKAgSDwoHZGVsZXRlZBgJIAEoCCIoChVHZXRVc2VyUHJvZmlsZVJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSJHChZHZXRVc2VyUHJvZmlsZVJlc3BvbnNlEi0KB3Byb2ZpbGUYASABKAsyHC5zdG9vcC5hdXRoLnYxLlB1YmxpY1Byb2ZpbGUiPgoZUmVxdWVzdEVtYWlsQ2hhbmdlUmVxdWVzdBIPCgdhZGRyZXNzGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJIkMKGlJlcXVlc3RFbWFpbENoYW5nZVJlc3BvbnNlEiUKBWVtYWlsGAEgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIiAKHlJlc2VuZEVtYWlsQ29uZmlybWF0aW9uUmVxdWVzdCIhCh9SZXNlbmRFbWFpbENvbmZpcm1hdGlvblJlc3BvbnNlIhoKGENhbmNlbEVtYWlsQ2hhbmdlUmVxdWVzdCJCChlDYW5jZWxFbWFpbENoYW5nZVJlc3BvbnNlEiUKBWVtYWlsGAEgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIiYKElJlbW92ZUVtYWlsUmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCSIVChNSZW1vdmVFbWFpbFJlc3BvbnNlIiQKE0NvbmZpcm1FbWFpbFJlcXVlc3QSDQoFdG9rZW4YASABKAkiFgoUQ29uZmlybUVtYWlsUmVzcG9uc2UiZwoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0EhgKEGN1cnJlbnRfcGFzc3dvcmQYASABKAkSFAoMbmV3X3Bhc3N3b3JkGAIgASgJEh4KFnJldm9rZV9wZXJzb25hbF90b2tlbnMYAyABKAgiGAoWQ2hhbmdlUGFzc3dvcmRSZXNwb25zZSJbCghJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRINCgVlbWFpbBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIXChVMaXN0SWRlbnRpdGllc1JlcXVlc3QiRQoWTGlzdElkZW50aXRpZXNSZXNwb25zZRIrCgppZGVudGl0aWVzGAEgAygLMhcuc3Rvb3AuYXV0aC52MS5JZGVudGl0eSIpChVVbmxpbmtJZGVudGl0eVJlcXVlc3QSEAoIcHJvdmlkZXIYASABKAkiGAoWVW5saW5rSWRlbnRpdHlSZXNwb25zZSIoChREZWxldGVBY2NvdW50UmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCSIXChVEZWxldGVBY2NvdW50UmVzcG9uc2UizAEKB1Nlc3Npb24SCgoCaWQYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgp1c2VyX2FnZW50GAUgASgJEg8KB2N1cnJlbnQYBiABKAgiFQoTTGlzdFNlc3Npb25zUmVxdWVzdCJAChRMaXN0U2Vzc2lvbnNSZXNwb25zZRIoCghzZXNzaW9ucxgBIAMoCzIWLnN0b29wLmF1dGgudjEuU2Vzc2lvbiIcChpSZXZva2VPdGhlclNlc3Npb25zUmVxdWVzdCIuChtSZXZva2VPdGhlclNlc3Npb25zUmVzcG9uc2USDwoHcmV2b2tlZBgBIAEoBSKsAgoNUGVyc29uYWxUb2tlbhIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEjAKC3Blcm1pc3Npb25zGAMgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24SLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRoaW50GAkgASgJEg8KB2Jsb2NrZWQYCiABKAhKBAgEEAVKBAgFEAZSB2xpbWl0ZWRSCXNwYWNlX2lkcyKVAQoaQ3JlYXRlUGVyc29uYWxUb2tlblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIwCgtwZXJtaXNzaW9ucxgCIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEhcKD2V4cGlyZXNfaW5fZGF5cxgFIAEoBUoECAMQBEoECAQQBVIHbGltaXRlZFIJc3BhY2VfaWRzIloKG0NyZWF0ZVBlcnNvbmFsVG9rZW5SZXNwb25zZRIrCgV0b2tlbhgBIAEoCzIcLnN0b29wLmF1dGgudjEuUGVyc29uYWxUb2tlbhIOCgZzZWNyZXQYAiABKAkiGwoZTGlzdFBlcnNvbmFsVG9rZW5zUmVxdWVzdCJKChpMaXN0UGVyc29uYWxUb2tlbnNSZXNwb25zZRIsCgZ0b2tlbnMYASADKAsyHC5zdG9vcC5hdXRoLnYxLlBlcnNvbmFsVG9rZW4iLgoaUmV2b2tlUGVyc29uYWxUb2tlblJlcXVlc3QSEAoIdG9rZW5faWQYASABKAkiHQobUmV2b2tlUGVyc29uYWxUb2tlblJlc3BvbnNlKmAKDEluc3RhbmNlUm9sZRIdChlJTlNUQU5DRV9ST0xFX1VOU1BFQ0lGSUVEEAASGAoUSU5TVEFOQ0VfUk9MRV9NRU1CRVIQARIXChNJTlNUQU5DRV9ST0xFX0FETUlOEAIy8w8KC0F1dGhTZXJ2aWNlEk0KCFJlZ2lzdGVyEh4uc3Rvb3AuYXV0aC52MS5SZWdpc3RlclJlcXVlc3QaHy5zdG9vcC5hdXRoLnYxLlJlZ2lzdGVyUmVzcG9uc2UiABJECgVMb2dpbhIbLnN0b29wLmF1dGgudjEuTG9naW5SZXF1ZXN0Ghwuc3Rvb3AuYXV0aC52MS5Mb2dpblJlc3BvbnNlIgASRwoGTG9nb3V0Ehwuc3Rvb3AuYXV0aC52MS5Mb2dvdXRSZXF1ZXN0Gh0uc3Rvb3AuYXV0aC52MS5Mb2dvdXRSZXNwb25zZSIAEkQKBUdldE1lEhsuc3Rvb3AuYXV0aC52MS5HZXRNZVJlcXVlc3QaHC5zdG9vcC5hdXRoLnYxLkdldE1lUmVzcG9uc2UiABJcCg1VcGRhdGVQcm9maWxlEiMuc3Rvb3AuYXV0aC52MS5VcGRhdGVQcm9maWxlUmVxdWVzdBokLnN0b29wLmF1dGgudjEuVXBkYXRlUHJvZmlsZVJlc3BvbnNlIgASYgoPU2V0RG9Ob3REaXN0dXJiEiUuc3Rvb3AuYXV0aC52MS5TZXREb05vdERpc3R1cmJSZXF1ZXN0GiYuc3Rvb3AuYXV0aC52MS5TZXREb05vdERpc3R1cmJSZXNwb25zZSIAEl8KDkdldFVzZXJQcm9maWxlEiQuc3Rvb3AuYXV0aC52MS5HZXRVc2VyUHJvZmlsZVJlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLkdldFVzZXJQcm9maWxlUmVzcG9uc2UiABJfCg5DaGFuZ2VQYXNzd29yZBIkLnN0b29wLmF1dGgudjEuQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlIgASawoSUmVxdWVzdEVtYWlsQ2hhbmdlEiguc3Rvb3AuYXV0aC52MS5SZXF1ZXN0RW1haWxDaGFuZ2VSZXF1ZXN0Gikuc3Rvb3AuYXV0aC52MS5SZXF1ZXN0RW1haWxDaGFuZ2VSZXNwb25zZSIAEnoKF1Jlc2VuZEVtYWlsQ29uZmlybWF0aW9uEi0uc3Rvb3AuYXV0aC52MS5SZXNlbmRFbWFpbENvbmZpcm1hdGlvblJlcXVlc3QaLi5zdG9vcC5hdXRoLnYxLlJlc2VuZEVtYWlsQ29uZmlybWF0aW9uUmVzcG9uc2UiABJoChFDYW5jZWxFbWFpbENoYW5nZRInLnN0b29wLmF1dGgudjEuQ2FuY2VsRW1haWxDaGFuZ2VSZXF1ZXN0Giguc3Rvb3AuYXV0aC52MS5DYW5jZWxFbWFpbENoYW5nZVJlc3BvbnNlIgASVgoLUmVtb3ZlRW1haWwSIS5zdG9vcC5hdXRoLnYxLlJlbW92ZUVtYWlsUmVxdWVzdBoiLnN0b29wLmF1dGgudjEuUmVtb3ZlRW1haWxSZXNwb25zZSIAElkKDENvbmZpcm1FbWFpbBIiLnN0b29wLmF1dGgudjEuQ29uZmlybUVtYWlsUmVxdWVzdBojLnN0b29wLmF1dGgudjEuQ29uZmlybUVtYWlsUmVzcG9uc2UiABJfCg5MaXN0SWRlbnRpdGllcxIkLnN0b29wLmF1dGgudjEuTGlzdElkZW50aXRpZXNSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5MaXN0SWRlbnRpdGllc1Jlc3BvbnNlIgASXwoOVW5saW5rSWRlbnRpdHkSJC5zdG9vcC5hdXRoLnYxLlVubGlua0lkZW50aXR5UmVxdWVzdBolLnN0b29wLmF1dGgudjEuVW5saW5rSWRlbnRpdHlSZXNwb25zZSIAElwKDURlbGV0ZUFjY291bnQSIy5zdG9vcC5hdXRoLnYxLkRlbGV0ZUFjY291bnRSZXF1ZXN0GiQuc3Rvb3AuYXV0aC52MS5EZWxldGVBY2NvdW50UmVzcG9uc2UiABJZCgxMaXN0U2Vzc2lvbnMSIi5zdG9vcC5hdXRoLnYxLkxpc3RTZXNzaW9uc1JlcXVlc3QaIy5zdG9vcC5hdXRoLnYxLkxpc3RTZXNzaW9uc1Jlc3BvbnNlIgASbgoTUmV2b2tlT3RoZXJTZXNzaW9ucxIpLnN0b29wLmF1dGgudjEuUmV2b2tlT3RoZXJTZXNzaW9uc1JlcXVlc3QaKi5zdG9vcC5hdXRoLnYxLlJldm9rZU90aGVyU2Vzc2lvbnNSZXNwb25zZSIAEm4KE0NyZWF0ZVBlcnNvbmFsVG9rZW4SKS5zdG9vcC5hdXRoLnYxLkNyZWF0ZVBlcnNvbmFsVG9rZW5SZXF1ZXN0Giouc3Rvb3AuYXV0aC52MS5DcmVhdGVQZXJzb25hbFRva2VuUmVzcG9uc2UiABJrChJMaXN0UGVyc29uYWxUb2tlbnMSKC5zdG9vcC5hdXRoLnYxLkxpc3RQZXJzb25hbFRva2Vuc1JlcXVlc3QaKS5zdG9vcC5hdXRoLnYxLkxpc3RQZXJzb25hbFRva2Vuc1Jlc3BvbnNlIgASbgoTUmV2b2tlUGVyc29uYWxUb2tlbhIpLnN0b29wLmF1dGgudjEuUmV2b2tlUGVyc29uYWxUb2tlblJlcXVlc3QaKi5zdG9vcC5hdXRoLnYxLlJldm9rZVBlcnNvbmFsVG9rZW5SZXNwb25zZSIAQqgBChFjb20uc3Rvb3AuYXV0aC52MUIJQXV0aFByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2F1dGgvdjE7YXV0aHYxogIDU0FYqgINU3Rvb3AuQXV0aC5WMcoCDVN0b29wXEF1dGhcVjHiAhlTdG9vcFxBdXRoXFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkF1dGg6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
 
 /**
  * @generated from message stoop.auth.v1.User
@@ -283,6 +283,13 @@ export type GetMeResponse = Message<"stoop.auth.v1.GetMeResponse"> & {
    * @generated from field: repeated stoop.access.v1.Permission permissions = 2;
    */
   permissions: Permission[];
+
+  /**
+   * The caller's own email addresses; never on User, which others see.
+   *
+   * @generated from field: stoop.auth.v1.MyEmail email = 3;
+   */
+  email?: MyEmail | undefined;
 };
 
 /**
@@ -291,6 +298,32 @@ export type GetMeResponse = Message<"stoop.auth.v1.GetMeResponse"> & {
  */
 export const GetMeResponseSchema: GenMessage<GetMeResponse> = /*@__PURE__*/
   messageDesc(file_stoop_auth_v1_auth, 8);
+
+/**
+ * @generated from message stoop.auth.v1.MyEmail
+ */
+export type MyEmail = Message<"stoop.auth.v1.MyEmail"> & {
+  /**
+   * Confirmed; empty when none.
+   *
+   * @generated from field: string address = 1;
+   */
+  address: string;
+
+  /**
+   * Waiting for its confirmation link; empty when none.
+   *
+   * @generated from field: string pending_address = 2;
+   */
+  pendingAddress: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.MyEmail.
+ * Use `create(MyEmailSchema)` to create a new message.
+ */
+export const MyEmailSchema: GenMessage<MyEmail> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 9);
 
 /**
  * @generated from message stoop.auth.v1.UpdateProfileRequest
@@ -332,7 +365,7 @@ export type UpdateProfileRequest = Message<"stoop.auth.v1.UpdateProfileRequest">
  * Use `create(UpdateProfileRequestSchema)` to create a new message.
  */
 export const UpdateProfileRequestSchema: GenMessage<UpdateProfileRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 9);
+  messageDesc(file_stoop_auth_v1_auth, 10);
 
 /**
  * @generated from message stoop.auth.v1.UpdateProfileResponse
@@ -349,7 +382,7 @@ export type UpdateProfileResponse = Message<"stoop.auth.v1.UpdateProfileResponse
  * Use `create(UpdateProfileResponseSchema)` to create a new message.
  */
 export const UpdateProfileResponseSchema: GenMessage<UpdateProfileResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 10);
+  messageDesc(file_stoop_auth_v1_auth, 11);
 
 /**
  * @generated from message stoop.auth.v1.SetDoNotDisturbRequest
@@ -374,7 +407,7 @@ export type SetDoNotDisturbRequest = Message<"stoop.auth.v1.SetDoNotDisturbReque
  * Use `create(SetDoNotDisturbRequestSchema)` to create a new message.
  */
 export const SetDoNotDisturbRequestSchema: GenMessage<SetDoNotDisturbRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 11);
+  messageDesc(file_stoop_auth_v1_auth, 12);
 
 /**
  * @generated from message stoop.auth.v1.SetDoNotDisturbResponse
@@ -391,7 +424,7 @@ export type SetDoNotDisturbResponse = Message<"stoop.auth.v1.SetDoNotDisturbResp
  * Use `create(SetDoNotDisturbResponseSchema)` to create a new message.
  */
 export const SetDoNotDisturbResponseSchema: GenMessage<SetDoNotDisturbResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 12);
+  messageDesc(file_stoop_auth_v1_auth, 13);
 
 /**
  * PublicProfile is one user as anyone signed in may see them: identity
@@ -461,7 +494,7 @@ export type PublicProfile = Message<"stoop.auth.v1.PublicProfile"> & {
  * Use `create(PublicProfileSchema)` to create a new message.
  */
 export const PublicProfileSchema: GenMessage<PublicProfile> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 13);
+  messageDesc(file_stoop_auth_v1_auth, 14);
 
 /**
  * @generated from message stoop.auth.v1.GetUserProfileRequest
@@ -478,7 +511,7 @@ export type GetUserProfileRequest = Message<"stoop.auth.v1.GetUserProfileRequest
  * Use `create(GetUserProfileRequestSchema)` to create a new message.
  */
 export const GetUserProfileRequestSchema: GenMessage<GetUserProfileRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 14);
+  messageDesc(file_stoop_auth_v1_auth, 15);
 
 /**
  * @generated from message stoop.auth.v1.GetUserProfileResponse
@@ -495,7 +528,166 @@ export type GetUserProfileResponse = Message<"stoop.auth.v1.GetUserProfileRespon
  * Use `create(GetUserProfileResponseSchema)` to create a new message.
  */
 export const GetUserProfileResponseSchema: GenMessage<GetUserProfileResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 15);
+  messageDesc(file_stoop_auth_v1_auth, 16);
+
+/**
+ * @generated from message stoop.auth.v1.RequestEmailChangeRequest
+ */
+export type RequestEmailChangeRequest = Message<"stoop.auth.v1.RequestEmailChangeRequest"> & {
+  /**
+   * @generated from field: string address = 1;
+   */
+  address: string;
+
+  /**
+   * Required when the account has a password.
+   *
+   * @generated from field: string password = 2;
+   */
+  password: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.RequestEmailChangeRequest.
+ * Use `create(RequestEmailChangeRequestSchema)` to create a new message.
+ */
+export const RequestEmailChangeRequestSchema: GenMessage<RequestEmailChangeRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 17);
+
+/**
+ * @generated from message stoop.auth.v1.RequestEmailChangeResponse
+ */
+export type RequestEmailChangeResponse = Message<"stoop.auth.v1.RequestEmailChangeResponse"> & {
+  /**
+   * @generated from field: stoop.auth.v1.MyEmail email = 1;
+   */
+  email?: MyEmail | undefined;
+};
+
+/**
+ * Describes the message stoop.auth.v1.RequestEmailChangeResponse.
+ * Use `create(RequestEmailChangeResponseSchema)` to create a new message.
+ */
+export const RequestEmailChangeResponseSchema: GenMessage<RequestEmailChangeResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 18);
+
+/**
+ * @generated from message stoop.auth.v1.ResendEmailConfirmationRequest
+ */
+export type ResendEmailConfirmationRequest = Message<"stoop.auth.v1.ResendEmailConfirmationRequest"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.ResendEmailConfirmationRequest.
+ * Use `create(ResendEmailConfirmationRequestSchema)` to create a new message.
+ */
+export const ResendEmailConfirmationRequestSchema: GenMessage<ResendEmailConfirmationRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 19);
+
+/**
+ * @generated from message stoop.auth.v1.ResendEmailConfirmationResponse
+ */
+export type ResendEmailConfirmationResponse = Message<"stoop.auth.v1.ResendEmailConfirmationResponse"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.ResendEmailConfirmationResponse.
+ * Use `create(ResendEmailConfirmationResponseSchema)` to create a new message.
+ */
+export const ResendEmailConfirmationResponseSchema: GenMessage<ResendEmailConfirmationResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 20);
+
+/**
+ * @generated from message stoop.auth.v1.CancelEmailChangeRequest
+ */
+export type CancelEmailChangeRequest = Message<"stoop.auth.v1.CancelEmailChangeRequest"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.CancelEmailChangeRequest.
+ * Use `create(CancelEmailChangeRequestSchema)` to create a new message.
+ */
+export const CancelEmailChangeRequestSchema: GenMessage<CancelEmailChangeRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 21);
+
+/**
+ * @generated from message stoop.auth.v1.CancelEmailChangeResponse
+ */
+export type CancelEmailChangeResponse = Message<"stoop.auth.v1.CancelEmailChangeResponse"> & {
+  /**
+   * @generated from field: stoop.auth.v1.MyEmail email = 1;
+   */
+  email?: MyEmail | undefined;
+};
+
+/**
+ * Describes the message stoop.auth.v1.CancelEmailChangeResponse.
+ * Use `create(CancelEmailChangeResponseSchema)` to create a new message.
+ */
+export const CancelEmailChangeResponseSchema: GenMessage<CancelEmailChangeResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 22);
+
+/**
+ * @generated from message stoop.auth.v1.RemoveEmailRequest
+ */
+export type RemoveEmailRequest = Message<"stoop.auth.v1.RemoveEmailRequest"> & {
+  /**
+   * Required when the account has a password.
+   *
+   * @generated from field: string password = 1;
+   */
+  password: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.RemoveEmailRequest.
+ * Use `create(RemoveEmailRequestSchema)` to create a new message.
+ */
+export const RemoveEmailRequestSchema: GenMessage<RemoveEmailRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 23);
+
+/**
+ * @generated from message stoop.auth.v1.RemoveEmailResponse
+ */
+export type RemoveEmailResponse = Message<"stoop.auth.v1.RemoveEmailResponse"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.RemoveEmailResponse.
+ * Use `create(RemoveEmailResponseSchema)` to create a new message.
+ */
+export const RemoveEmailResponseSchema: GenMessage<RemoveEmailResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 24);
+
+/**
+ * @generated from message stoop.auth.v1.ConfirmEmailRequest
+ */
+export type ConfirmEmailRequest = Message<"stoop.auth.v1.ConfirmEmailRequest"> & {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.ConfirmEmailRequest.
+ * Use `create(ConfirmEmailRequestSchema)` to create a new message.
+ */
+export const ConfirmEmailRequestSchema: GenMessage<ConfirmEmailRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 25);
+
+/**
+ * @generated from message stoop.auth.v1.ConfirmEmailResponse
+ */
+export type ConfirmEmailResponse = Message<"stoop.auth.v1.ConfirmEmailResponse"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.ConfirmEmailResponse.
+ * Use `create(ConfirmEmailResponseSchema)` to create a new message.
+ */
+export const ConfirmEmailResponseSchema: GenMessage<ConfirmEmailResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 26);
 
 /**
  * @generated from message stoop.auth.v1.ChangePasswordRequest
@@ -527,7 +719,7 @@ export type ChangePasswordRequest = Message<"stoop.auth.v1.ChangePasswordRequest
  * Use `create(ChangePasswordRequestSchema)` to create a new message.
  */
 export const ChangePasswordRequestSchema: GenMessage<ChangePasswordRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 16);
+  messageDesc(file_stoop_auth_v1_auth, 27);
 
 /**
  * @generated from message stoop.auth.v1.ChangePasswordResponse
@@ -540,7 +732,7 @@ export type ChangePasswordResponse = Message<"stoop.auth.v1.ChangePasswordRespon
  * Use `create(ChangePasswordResponseSchema)` to create a new message.
  */
 export const ChangePasswordResponseSchema: GenMessage<ChangePasswordResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 17);
+  messageDesc(file_stoop_auth_v1_auth, 28);
 
 /**
  * Identity is one linked sign-in provider on the caller's account.
@@ -573,7 +765,7 @@ export type Identity = Message<"stoop.auth.v1.Identity"> & {
  * Use `create(IdentitySchema)` to create a new message.
  */
 export const IdentitySchema: GenMessage<Identity> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 18);
+  messageDesc(file_stoop_auth_v1_auth, 29);
 
 /**
  * @generated from message stoop.auth.v1.ListIdentitiesRequest
@@ -586,7 +778,7 @@ export type ListIdentitiesRequest = Message<"stoop.auth.v1.ListIdentitiesRequest
  * Use `create(ListIdentitiesRequestSchema)` to create a new message.
  */
 export const ListIdentitiesRequestSchema: GenMessage<ListIdentitiesRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 19);
+  messageDesc(file_stoop_auth_v1_auth, 30);
 
 /**
  * @generated from message stoop.auth.v1.ListIdentitiesResponse
@@ -603,7 +795,7 @@ export type ListIdentitiesResponse = Message<"stoop.auth.v1.ListIdentitiesRespon
  * Use `create(ListIdentitiesResponseSchema)` to create a new message.
  */
 export const ListIdentitiesResponseSchema: GenMessage<ListIdentitiesResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 20);
+  messageDesc(file_stoop_auth_v1_auth, 31);
 
 /**
  * @generated from message stoop.auth.v1.UnlinkIdentityRequest
@@ -620,7 +812,7 @@ export type UnlinkIdentityRequest = Message<"stoop.auth.v1.UnlinkIdentityRequest
  * Use `create(UnlinkIdentityRequestSchema)` to create a new message.
  */
 export const UnlinkIdentityRequestSchema: GenMessage<UnlinkIdentityRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 21);
+  messageDesc(file_stoop_auth_v1_auth, 32);
 
 /**
  * @generated from message stoop.auth.v1.UnlinkIdentityResponse
@@ -633,7 +825,7 @@ export type UnlinkIdentityResponse = Message<"stoop.auth.v1.UnlinkIdentityRespon
  * Use `create(UnlinkIdentityResponseSchema)` to create a new message.
  */
 export const UnlinkIdentityResponseSchema: GenMessage<UnlinkIdentityResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 22);
+  messageDesc(file_stoop_auth_v1_auth, 33);
 
 /**
  * @generated from message stoop.auth.v1.DeleteAccountRequest
@@ -652,7 +844,7 @@ export type DeleteAccountRequest = Message<"stoop.auth.v1.DeleteAccountRequest">
  * Use `create(DeleteAccountRequestSchema)` to create a new message.
  */
 export const DeleteAccountRequestSchema: GenMessage<DeleteAccountRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 23);
+  messageDesc(file_stoop_auth_v1_auth, 34);
 
 /**
  * @generated from message stoop.auth.v1.DeleteAccountResponse
@@ -665,7 +857,7 @@ export type DeleteAccountResponse = Message<"stoop.auth.v1.DeleteAccountResponse
  * Use `create(DeleteAccountResponseSchema)` to create a new message.
  */
 export const DeleteAccountResponseSchema: GenMessage<DeleteAccountResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 24);
+  messageDesc(file_stoop_auth_v1_auth, 35);
 
 /**
  * Session is one place a person is signed in. Never the token.
@@ -715,7 +907,7 @@ export type Session = Message<"stoop.auth.v1.Session"> & {
  * Use `create(SessionSchema)` to create a new message.
  */
 export const SessionSchema: GenMessage<Session> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 25);
+  messageDesc(file_stoop_auth_v1_auth, 36);
 
 /**
  * @generated from message stoop.auth.v1.ListSessionsRequest
@@ -728,7 +920,7 @@ export type ListSessionsRequest = Message<"stoop.auth.v1.ListSessionsRequest"> &
  * Use `create(ListSessionsRequestSchema)` to create a new message.
  */
 export const ListSessionsRequestSchema: GenMessage<ListSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 26);
+  messageDesc(file_stoop_auth_v1_auth, 37);
 
 /**
  * @generated from message stoop.auth.v1.ListSessionsResponse
@@ -745,7 +937,7 @@ export type ListSessionsResponse = Message<"stoop.auth.v1.ListSessionsResponse">
  * Use `create(ListSessionsResponseSchema)` to create a new message.
  */
 export const ListSessionsResponseSchema: GenMessage<ListSessionsResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 27);
+  messageDesc(file_stoop_auth_v1_auth, 38);
 
 /**
  * @generated from message stoop.auth.v1.RevokeOtherSessionsRequest
@@ -758,7 +950,7 @@ export type RevokeOtherSessionsRequest = Message<"stoop.auth.v1.RevokeOtherSessi
  * Use `create(RevokeOtherSessionsRequestSchema)` to create a new message.
  */
 export const RevokeOtherSessionsRequestSchema: GenMessage<RevokeOtherSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 28);
+  messageDesc(file_stoop_auth_v1_auth, 39);
 
 /**
  * @generated from message stoop.auth.v1.RevokeOtherSessionsResponse
@@ -777,7 +969,7 @@ export type RevokeOtherSessionsResponse = Message<"stoop.auth.v1.RevokeOtherSess
  * Use `create(RevokeOtherSessionsResponseSchema)` to create a new message.
  */
 export const RevokeOtherSessionsResponseSchema: GenMessage<RevokeOtherSessionsResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 29);
+  messageDesc(file_stoop_auth_v1_auth, 40);
 
 /**
  * PersonalToken is one of a person's tokens, as its holder or an admin sees
@@ -840,7 +1032,7 @@ export type PersonalToken = Message<"stoop.auth.v1.PersonalToken"> & {
  * Use `create(PersonalTokenSchema)` to create a new message.
  */
 export const PersonalTokenSchema: GenMessage<PersonalToken> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 30);
+  messageDesc(file_stoop_auth_v1_auth, 41);
 
 /**
  * @generated from message stoop.auth.v1.CreatePersonalTokenRequest
@@ -874,7 +1066,7 @@ export type CreatePersonalTokenRequest = Message<"stoop.auth.v1.CreatePersonalTo
  * Use `create(CreatePersonalTokenRequestSchema)` to create a new message.
  */
 export const CreatePersonalTokenRequestSchema: GenMessage<CreatePersonalTokenRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 31);
+  messageDesc(file_stoop_auth_v1_auth, 42);
 
 /**
  * @generated from message stoop.auth.v1.CreatePersonalTokenResponse
@@ -898,7 +1090,7 @@ export type CreatePersonalTokenResponse = Message<"stoop.auth.v1.CreatePersonalT
  * Use `create(CreatePersonalTokenResponseSchema)` to create a new message.
  */
 export const CreatePersonalTokenResponseSchema: GenMessage<CreatePersonalTokenResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 32);
+  messageDesc(file_stoop_auth_v1_auth, 43);
 
 /**
  * @generated from message stoop.auth.v1.ListPersonalTokensRequest
@@ -911,7 +1103,7 @@ export type ListPersonalTokensRequest = Message<"stoop.auth.v1.ListPersonalToken
  * Use `create(ListPersonalTokensRequestSchema)` to create a new message.
  */
 export const ListPersonalTokensRequestSchema: GenMessage<ListPersonalTokensRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 33);
+  messageDesc(file_stoop_auth_v1_auth, 44);
 
 /**
  * @generated from message stoop.auth.v1.ListPersonalTokensResponse
@@ -928,7 +1120,7 @@ export type ListPersonalTokensResponse = Message<"stoop.auth.v1.ListPersonalToke
  * Use `create(ListPersonalTokensResponseSchema)` to create a new message.
  */
 export const ListPersonalTokensResponseSchema: GenMessage<ListPersonalTokensResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 34);
+  messageDesc(file_stoop_auth_v1_auth, 45);
 
 /**
  * @generated from message stoop.auth.v1.RevokePersonalTokenRequest
@@ -945,7 +1137,7 @@ export type RevokePersonalTokenRequest = Message<"stoop.auth.v1.RevokePersonalTo
  * Use `create(RevokePersonalTokenRequestSchema)` to create a new message.
  */
 export const RevokePersonalTokenRequestSchema: GenMessage<RevokePersonalTokenRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 35);
+  messageDesc(file_stoop_auth_v1_auth, 46);
 
 /**
  * @generated from message stoop.auth.v1.RevokePersonalTokenResponse
@@ -958,7 +1150,7 @@ export type RevokePersonalTokenResponse = Message<"stoop.auth.v1.RevokePersonalT
  * Use `create(RevokePersonalTokenResponseSchema)` to create a new message.
  */
 export const RevokePersonalTokenResponseSchema: GenMessage<RevokePersonalTokenResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 36);
+  messageDesc(file_stoop_auth_v1_auth, 47);
 
 /**
  * InstanceRole is a user's server-level type. Admins operate the instance
@@ -1080,6 +1272,60 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof ChangePasswordRequestSchema;
     output: typeof ChangePasswordResponseSchema;
+  },
+  /**
+   * RequestEmailChange sets the caller's pending email address and sends
+   * it a confirmation link. The current password is required when the
+   * account has one. The reply is the same whether or not another account
+   * has the address. Refused while email is off.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.RequestEmailChange
+   */
+  requestEmailChange: {
+    methodKind: "unary";
+    input: typeof RequestEmailChangeRequestSchema;
+    output: typeof RequestEmailChangeResponseSchema;
+  },
+  /**
+   * ResendEmailConfirmation sends the pending address a fresh link.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.ResendEmailConfirmation
+   */
+  resendEmailConfirmation: {
+    methodKind: "unary";
+    input: typeof ResendEmailConfirmationRequestSchema;
+    output: typeof ResendEmailConfirmationResponseSchema;
+  },
+  /**
+   * CancelEmailChange drops the pending address and its links.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.CancelEmailChange
+   */
+  cancelEmailChange: {
+    methodKind: "unary";
+    input: typeof CancelEmailChangeRequestSchema;
+    output: typeof CancelEmailChangeResponseSchema;
+  },
+  /**
+   * RemoveEmail clears the caller's confirmed and pending addresses.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.RemoveEmail
+   */
+  removeEmail: {
+    methodKind: "unary";
+    input: typeof RemoveEmailRequestSchema;
+    output: typeof RemoveEmailResponseSchema;
+  },
+  /**
+   * ConfirmEmail turns a pending address into the account's address. No
+   * sign-in needed: the link's token is the proof.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.ConfirmEmail
+   */
+  confirmEmail: {
+    methodKind: "unary";
+    input: typeof ConfirmEmailRequestSchema;
+    output: typeof ConfirmEmailResponseSchema;
   },
   /**
    * ListIdentities lists the caller's linked sign-in providers.
