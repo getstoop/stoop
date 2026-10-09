@@ -28,7 +28,11 @@ export function TestEmailRow({
           <div className="card-row">
             <input
               {...controlAttrs(control)}
-              type="email"
+              // Not type="email": the browser would check it on Save too,
+              // and the test address is no part of the settings.
+              type="text"
+              inputMode="email"
+              autoComplete="off"
               value={to}
               onChange={(e) => setTo(e.target.value)}
               // Enter tries the test, not the form's own submit.

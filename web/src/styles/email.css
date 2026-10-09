@@ -11,3 +11,12 @@
   padding-top: 12px;
   border-top: 1px solid var(--border);
 }
+
+/* Holds the form's controls so a save in flight disables them all. */
+.email-fieldset {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
