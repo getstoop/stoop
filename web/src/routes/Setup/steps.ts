@@ -76,10 +76,10 @@ export function previousStep(
   return prev && !prev.once ? prev : undefined;
 }
 
-// The space setup made is gone (deleted since): forget it, so a resumed
-// wizard asks for a space again.
+// The space setup made is gone (deleted since): forget it and its
+// invite, so a resumed wizard asks for a space again.
 export function forgetSpace(progress: Progress): Progress {
   const steps = { ...progress.steps };
   delete steps.space;
-  return { ...progress, steps, space: undefined };
+  return { ...progress, steps, space: undefined, invite: undefined };
 }

@@ -128,8 +128,10 @@ describe("forgetSpace", () => {
     const progress = forgetSpace({
       steps: { account: "done", space: "done", remote: "skipped" },
       space: { id: "gone", channelId: "c1", name: "The Porch" },
+      invite: "AbCdEfGhJk",
     });
     expect(progress.space).toBeUndefined();
+    expect(progress.invite).toBeUndefined();
     expect(nextStep(STEPS, progress).id).toBe("space");
     expect(progress.steps.remote).toBe("skipped");
   });
