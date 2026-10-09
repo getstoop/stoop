@@ -1,3 +1,4 @@
+import { SummaryRow } from "./SummaryRow";
 import type { Progress, Step } from "./steps";
 import { WizardActions } from "./WizardActions";
 
@@ -26,23 +27,17 @@ export function ResumeStep({
         {steps
           .filter((s) => progress.steps[s.id] !== undefined)
           .map((s) => (
-            <li key={s.id}>
-              <span className="setup-mark done" aria-hidden="true">
-                ✓
-              </span>
+            <SummaryRow key={s.id} mark="done">
               {s.title}
               {s.id === "space" && progress.space && (
                 <strong>{progress.space.name}</strong>
               )}
-            </li>
+            </SummaryRow>
           ))}
         {left.length > 0 && (
-          <li>
-            <span className="setup-mark" aria-hidden="true">
-              →
-            </span>
+          <SummaryRow mark="left">
             {left.map((s) => s.title).join(", ")}
-          </li>
+          </SummaryRow>
         )}
       </ul>
       <WizardActions

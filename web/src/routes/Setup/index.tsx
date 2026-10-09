@@ -93,14 +93,21 @@ export function SetupPage() {
   const back = previousStep(steps, current.id);
   const goBack = back && (() => setCurrentId(back.id));
 
+  // Changes go onto the latest progress, not the copy this render saw: an
+  // invite can come back after the step it belongs to was finished.
+  const keep = (change: (p: Progress) => Progress) =>
+    setProgress((p) => {
+      const next = change(p);
+      saveProgress(next);
+      return next;
+    });
+
   const mark = (id: StepId, state: StepState, extra?: Partial<Progress>) => {
-    const next = {
-      ...progress,
+    keep((p) => ({
+      ...p,
       ...extra,
-      steps: { ...progress.steps, [id]: state },
-    };
-    setProgress(next);
-    saveProgress(next);
+      steps: { ...p.steps, [id]: state },
+    }));
     // On to the step after this one, even when it was done before: Back
     // then Continue walks forward rather than jumping ahead.
     const i = steps.findIndex((s) => s.id === id);
@@ -161,9 +168,15 @@ export function SetupPage() {
               />
             )}
             {current.id === "invite" && (
-              <InviteStep space={progress.space ?? null}>
+              <InviteStep
+                space={progress.space ?? null}
+                steps={steps}
+                progress={progress}
+                onMinted={(invite) => keep((p) => ({ ...p, invite }))}
+                onGoTo={setCurrentId}
+              >
                 <WizardActions
-                  label="Go to your space"
+                  label={`Go to ${progress.space?.name ?? "your space"}`}
                   onBack={goBack}
                   onNext={() => {
                     mark("invite", "done");

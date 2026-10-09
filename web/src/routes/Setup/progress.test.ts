@@ -15,11 +15,13 @@ describe("parseProgress", () => {
       steps: { account: "done", space: "done", remote: "skipped" },
       space,
       access: "tunnel",
+      invite: "AbCdEfGh12",
     });
     expect(parseProgress(raw)).toEqual({
       steps: { account: "done", space: "done", remote: "skipped" },
       space,
       access: "tunnel",
+      invite: "AbCdEfGh12",
     });
   });
 
@@ -31,13 +33,20 @@ describe("parseProgress", () => {
       steps: { account: "done" },
       space: undefined,
       access: undefined,
+      invite: undefined,
     });
   });
 
-  it("drops a malformed space or access", () => {
-    const raw = JSON.stringify({ steps: {}, space: { id: 1 }, access: "vpn" });
+  it("drops a malformed space, access or invite", () => {
+    const raw = JSON.stringify({
+      steps: {},
+      space: { id: 1 },
+      access: "vpn",
+      invite: 42,
+    });
     expect(parseProgress(raw)?.space).toBeUndefined();
     expect(parseProgress(raw)?.access).toBeUndefined();
+    expect(parseProgress(raw)?.invite).toBeUndefined();
   });
 
   it("treats nothing or garbage as no record", () => {
@@ -119,8 +128,10 @@ describe("forgetSpace", () => {
     const progress = forgetSpace({
       steps: { account: "done", space: "done", remote: "skipped" },
       space: { id: "gone", channelId: "c1", name: "The Porch" },
+      invite: "AbCdEfGhJk",
     });
     expect(progress.space).toBeUndefined();
+    expect(progress.invite).toBeUndefined();
     expect(nextStep(STEPS, progress).id).toBe("space");
     expect(progress.steps.remote).toBe("skipped");
   });

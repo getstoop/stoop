@@ -27,7 +27,11 @@ export function parseProgress(raw: string | null): Progress | null {
         ? { id: s.id, channelId: s.channelId, name: s.name }
         : undefined;
     const access = ACCESS.find((a) => a === value.access);
-    return { steps, space, access };
+    const invite =
+      typeof value.invite === "string" && value.invite !== ""
+        ? value.invite
+        : undefined;
+    return { steps, space, access, invite };
   } catch {
     return null;
   }

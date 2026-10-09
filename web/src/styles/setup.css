@@ -88,6 +88,10 @@
   border-top: 1px solid var(--border);
 }
 
+.setup-summary-action {
+  margin-left: auto;
+}
+
 .setup-mark {
   width: 16px;
   color: var(--text-muted);

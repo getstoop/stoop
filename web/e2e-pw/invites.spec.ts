@@ -51,7 +51,7 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   await A.getByLabel("Space name").fill(`First ${suffix}`);
   await A.locator('button[type="submit"]').click();
   await skipReachability(A);
-  await A.locator("button.primary").click();
+  await A.getByRole("button", { name: `Go to First ${suffix}` }).click();
   await expect(A, "A completes setup and lands in a space").toHaveURL(
     /\/s\/[^/]+\/c\/[^/]+$/,
   );

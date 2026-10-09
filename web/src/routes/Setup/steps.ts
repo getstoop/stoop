@@ -51,6 +51,8 @@ export type Progress = {
   steps: Partial<Record<StepId, StepState>>;
   space?: { id: string; channelId: string; name: string };
   access?: Access;
+  // The invite code the last step minted, so it mints only once.
+  invite?: string;
 };
 
 export const NO_PROGRESS: Progress = { steps: {} };
@@ -74,10 +76,10 @@ export function previousStep(
   return prev && !prev.once ? prev : undefined;
 }
 
-// The space setup made is gone (deleted since): forget it, so a resumed
-// wizard asks for a space again.
+// The space setup made is gone (deleted since): forget it and its
+// invite, so a resumed wizard asks for a space again.
 export function forgetSpace(progress: Progress): Progress {
   const steps = { ...progress.steps };
   delete steps.space;
-  return { ...progress, steps, space: undefined };
+  return { ...progress, steps, space: undefined, invite: undefined };
 }
