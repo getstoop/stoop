@@ -75,3 +75,11 @@ export function previousStep(
   const prev = i > 0 ? steps[i - 1] : undefined;
   return prev && !prev.once ? prev : undefined;
 }
+
+// The space setup made is gone (deleted since): forget it, so a resumed
+// wizard asks for a space again.
+export function forgetSpace(progress: Progress): Progress {
+  const steps = { ...progress.steps };
+  delete steps.space;
+  return { ...progress, steps, space: undefined };
+}
