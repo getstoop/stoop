@@ -38,6 +38,13 @@ export function UsersSection({ meId }: { meId: string }) {
         ),
       },
       {
+        id: "email",
+        header: "Email",
+        accessorFn: (u) => u.email,
+        meta: { width: "22%" },
+        cell: ({ row: { original: u } }) => u.email,
+      },
+      {
         id: "role",
         header: "Role",
         accessorFn: (u) => -rank(u),

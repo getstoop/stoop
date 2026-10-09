@@ -7,6 +7,7 @@ import { ActivityPage } from "./routes/Activity";
 import { AdminPage } from "./routes/Admin";
 import { AppShell } from "./routes/AppShell";
 import { ChannelView } from "./routes/Channel";
+import { ConfirmEmailPage } from "./routes/ConfirmEmail";
 import { DesktopAuthCompletePage } from "./routes/DesktopAuthComplete";
 import { DesktopAuthReturnPage } from "./routes/DesktopAuthReturn";
 import { DMLayout } from "./routes/DirectMessages";
@@ -106,6 +107,20 @@ const desktopReturnRoute = createRoute({
     // A link rather than a sign-in: different wording, and failures go
     // back to the profile page.
     link: search.link === "1" ? "1" : undefined,
+  }),
+});
+
+// Where an email's confirmation link lands; public, so it works signed
+// in or out.
+const confirmEmailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/confirm-email",
+  component: ConfirmEmailPage,
+  validateSearch: (search: Record<string, unknown>): { token?: string } => ({
+    token:
+      typeof search.token === "string" && search.token !== ""
+        ? search.token.slice(0, 512)
+        : undefined,
   }),
 });
 
@@ -310,6 +325,7 @@ const routeTree = rootRoute.addChildren([
   setupRoute,
   desktopAuthRoute,
   desktopReturnRoute,
+  confirmEmailRoute,
   appRoute.addChildren([
     homeRoute,
     adminRoute,

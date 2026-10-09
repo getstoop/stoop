@@ -73,6 +73,7 @@ loop, nesting the redirect parameter each time.
 /setup                          public, first-run
 /auth/desktop/complete          public, the desktop sign-in hand-off
 /auth/desktop/return            public, back to the desktop app
+/confirm-email   ?token=<t>     public, an email's confirmation link
 └── app (AppShell — auth guard)
     /                           home
     /admin           ?tab=accounts|spaces|hosting|login|storage|integrations
