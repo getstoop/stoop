@@ -147,7 +147,9 @@ and deactivating from that tab is what an admin does instead.
 
 ## Forgotten passwords
 
-Nobody can reset their own password yet, even with [email](email.md) set up. If a login
+Nobody can reset their own password yet. With [email](email.md) set up,
+people can add and confirm an address under Profile → Security, which
+reset will use when it arrives. If a login
 provider is linked, "Continue with …" still works. Otherwise a server admin
 resets it for them: Server admin → Accounts → **Reset password** sets a
 temporary password, shows it once (copy it and pass it on), and signs the

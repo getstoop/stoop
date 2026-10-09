@@ -1,8 +1,8 @@
 # Email
 
-Stoop can send mail through an SMTP server you choose. It is optional, and
-nothing in Stoop sends mail yet; setting it up now means it is ready when
-features that use it arrive.
+Stoop can send mail through an SMTP server you choose. It is optional.
+Today it lets people confirm an email address on their account; password
+reset will use it next.
 
 ## Setting it up
 
@@ -42,6 +42,13 @@ Any SMTP server works:
 
 A relay with a self-signed certificate is not supported over STARTTLS or
 TLS.
+
+## Addresses on accounts
+
+With email on, people can add an address under **Profile → Security** and
+confirm it from a link. The link points at the server's public address, so
+set that too (**Server admin → Hosting**); without it, asking for a link is
+refused.
 
 ## Trying it without a provider
 
