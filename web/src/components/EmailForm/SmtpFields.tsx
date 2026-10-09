@@ -20,7 +20,14 @@ export function SmtpFields({
   const { fields, set, setSecurity, password, setPassword, hasPassword } =
     draft;
   const errors = draft.form.errors;
-  const keepsPassword = hasPassword && fields.username.trim() !== "";
+  // The saved password is kept only for the server and account it was
+  // saved for; past either change the server asks for it again.
+  const saved = draft.data?.smtp;
+  const keepsPassword =
+    hasPassword &&
+    fields.username.trim() !== "" &&
+    fields.host.trim() === saved?.host &&
+    fields.username.trim() === saved?.username;
   return (
     <>
       <EmailGroup
