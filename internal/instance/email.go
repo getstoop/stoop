@@ -43,3 +43,21 @@ func (s *Service) GetEmailSettings(ctx context.Context, _ *connect.Request[insta
 func (s *Service) UpdateEmailSettings(ctx context.Context, req *connect.Request[instancev1.UpdateEmailSettingsRequest]) (*connect.Response[instancev1.UpdateEmailSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("email settings are not built yet"))
 }
+
+// smtpFromProto is the settings a save or a test sends; a blank password
+// keeps current's.
+func smtpFromProto(in *instancev1.SmtpSettings, current SMTP) SMTP {
+	panic("smtpFromProto: not built yet")
+}
+
+// toProto is the settings as the API shows them: the password only as set
+// or not.
+func (smtp SMTP) toProto() *instancev1.SmtpSettings {
+	panic("SMTP.toProto: not built yet")
+}
+
+// validate applies the save rules; a refusal names its field (smtp.host,
+// smtp.port, …).
+func (smtp SMTP) validate() error {
+	return nil
+}
