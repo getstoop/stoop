@@ -22,7 +22,7 @@ import {
 // tried with a test send. The admin tab and the setup step each hold one.
 export function useEmailDraft() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useEmailSettings();
+  const { data, isLoading, error } = useEmailSettings();
   const [fields, setFields] = useState<EmailFields>(EMPTY);
   const [baseline, setBaseline] = useState<EmailFields>(EMPTY);
   const [password, setPassword] = useState("");
@@ -124,6 +124,7 @@ export function useEmailDraft() {
   return {
     data,
     isLoading,
+    loadError: error ? errorText(error) : null,
     fields,
     set,
     setSecurity,
