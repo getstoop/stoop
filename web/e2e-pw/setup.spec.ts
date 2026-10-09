@@ -115,8 +115,14 @@ test("the first-run wizard and the first invited member", async ({
     await A.getByRole("button", { name: "Set up later" }).click();
   }
   await expect(current, "then email").toHaveText(/Email/);
-  await A.getByRole("button", { name: "Set up later" }).click();
+  // This time email is set up: Continue saves it on, nothing is sent.
+  await A.getByLabel("Host", { exact: true }).fill("smtp.example.net");
+  await A.getByLabel("From address", { exact: true }).fill("stoop@example.net");
+  await A.getByRole("button", { name: "Continue" }).click();
   await expect(current, "back at the invite").toHaveText(/Invite people/);
+  await expect(summary, "the summary names the email host").toContainText(
+    "Email via smtp.example.net",
+  );
 
   const link = await A.locator(".link-box code").innerText();
   expect(link, "the invite is minted once").toBe(first);
