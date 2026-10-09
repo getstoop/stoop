@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net"
 	"net/url"
 	"regexp"
 )
@@ -19,6 +20,18 @@ const (
 )
 
 var providerIDPattern = regexp.MustCompile(`^[a-z0-9_-]{2,32}$`)
+
+var hostnamePattern = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*\.?$`)
+
+// SMTPHost reports whether host is a hostname or an IPv4 address. An IPv6
+// literal can't be dialled as host:port without brackets, and a bracketed
+// one isn't a TLS server name.
+func SMTPHost(host string) bool {
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.To4() != nil
+	}
+	return len(host) <= 253 && hostnamePattern.MatchString(host)
+}
 
 // HTTPURL parses raw and reports whether it is an http or https address with a host.
 func HTTPURL(raw string) (*url.URL, bool) {
