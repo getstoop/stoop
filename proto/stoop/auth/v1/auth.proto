@@ -31,6 +31,20 @@ service AuthService {
   // via a login provider) sets its first one here; current_password is
   // ignored in that case.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {}
+  // RequestEmailChange sets the caller's pending email address and sends
+  // it a confirmation link. The current password is required when the
+  // account has one. The reply is the same whether or not another account
+  // has the address. Refused while email is off.
+  rpc RequestEmailChange(RequestEmailChangeRequest) returns (RequestEmailChangeResponse) {}
+  // ResendEmailConfirmation sends the pending address a fresh link.
+  rpc ResendEmailConfirmation(ResendEmailConfirmationRequest) returns (ResendEmailConfirmationResponse) {}
+  // CancelEmailChange drops the pending address and its links.
+  rpc CancelEmailChange(CancelEmailChangeRequest) returns (CancelEmailChangeResponse) {}
+  // RemoveEmail clears the caller's confirmed and pending addresses.
+  rpc RemoveEmail(RemoveEmailRequest) returns (RemoveEmailResponse) {}
+  // ConfirmEmail turns a pending address into the account's address. No
+  // sign-in needed: the link's token is the proof.
+  rpc ConfirmEmail(ConfirmEmailRequest) returns (ConfirmEmailResponse) {}
   // ListIdentities lists the caller's linked sign-in providers.
   rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse) {}
   // UnlinkIdentity removes one linked provider. Refused when it is the
@@ -142,6 +156,15 @@ message GetMeResponse {
   // narrowed to the credential they called with. Space actions arrive on
   // each Space as my_permissions.
   repeated stoop.access.v1.Permission permissions = 2;
+  // The caller's own email addresses; never on User, which others see.
+  MyEmail email = 3;
+}
+
+message MyEmail {
+  // Confirmed; empty when none.
+  string address = 1;
+  // Waiting for its confirmation link; empty when none.
+  string pending_address = 2;
 }
 
 message UpdateProfileRequest {
@@ -199,6 +222,39 @@ message GetUserProfileRequest {
 message GetUserProfileResponse {
   PublicProfile profile = 1;
 }
+
+message RequestEmailChangeRequest {
+  string address = 1;
+  // Required when the account has a password.
+  string password = 2;
+}
+
+message RequestEmailChangeResponse {
+  MyEmail email = 1;
+}
+
+message ResendEmailConfirmationRequest {}
+
+message ResendEmailConfirmationResponse {}
+
+message CancelEmailChangeRequest {}
+
+message CancelEmailChangeResponse {
+  MyEmail email = 1;
+}
+
+message RemoveEmailRequest {
+  // Required when the account has a password.
+  string password = 1;
+}
+
+message RemoveEmailResponse {}
+
+message ConfirmEmailRequest {
+  string token = 1;
+}
+
+message ConfirmEmailResponse {}
 
 message ChangePasswordRequest {
   string current_password = 1;

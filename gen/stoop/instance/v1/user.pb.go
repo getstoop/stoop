@@ -53,7 +53,9 @@ type InstanceUser struct {
 	// and cannot be brought back.
 	DeletedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
 	// The server owner: an admin nobody can demote, deactivate or reset.
-	Owner         bool `protobuf:"varint,14,opt,name=owner,proto3" json:"owner,omitempty"`
+	Owner bool `protobuf:"varint,14,opt,name=owner,proto3" json:"owner,omitempty"`
+	// The confirmed email address; empty when none.
+	Email         string `protobuf:"bytes,15,opt,name=email,proto3" json:"email,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,11 +188,18 @@ func (x *InstanceUser) GetOwner() bool {
 	return false
 }
 
+func (x *InstanceUser) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
 var File_stoop_instance_v1_user_proto protoreflect.FileDescriptor
 
 const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x1cstoop/instance/v1/user.proto\x12\x11stoop.instance.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x18stoop/auth/v1/auth.proto\"\xbc\x04\n" +
+	"\x1cstoop/instance/v1/user.proto\x12\x11stoop.instance.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x18stoop/auth/v1/auth.proto\"\xd2\x04\n" +
 	"\fInstanceUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -208,7 +217,8 @@ const file_stoop_instance_v1_user_proto_rawDesc = "" +
 	"\x04kind\x18\f \x01(\x0e2\x1d.stoop.access.v1.IdentityKindR\x04kind\x129\n" +
 	"\n" +
 	"deleted_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\x12\x14\n" +
-	"\x05owner\x18\x0e \x01(\bR\x05ownerB\xc4\x01\n" +
+	"\x05owner\x18\x0e \x01(\bR\x05owner\x12\x14\n" +
+	"\x05email\x18\x0f \x01(\tR\x05emailB\xc4\x01\n" +
 	"\x15com.stoop.instance.v1B\tUserProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/instance/v1;instancev1\xa2\x02\x03SIX\xaa\x02\x11Stoop.Instance.V1\xca\x02\x11Stoop\\Instance\\V1\xe2\x02\x1dStoop\\Instance\\V1\\GPBMetadata\xea\x02\x13Stoop::Instance::V1b\x06proto3"
 
 var (

@@ -120,6 +120,12 @@ func (s *Service) Enqueue(ctx context.Context, kind string, args any) (string, e
 	return s.EnqueueAt(ctx, kind, args, s.now())
 }
 
+// EnqueueTx is Enqueue inside the caller's transaction: the job exists
+// only if the caller commits.
+func (s *Service) EnqueueTx(ctx context.Context, tx pgx.Tx, kind string, args any) (string, error) {
+	return s.insertJob(ctx, s.queries.WithTx(tx), kind, args, s.now(), nil, nil)
+}
+
 // EnqueueAt queues kind for at.
 func (s *Service) EnqueueAt(ctx context.Context, kind string, args any, at time.Time) (string, error) {
 	return s.insertJob(ctx, s.queries, kind, args, at, nil, nil)
