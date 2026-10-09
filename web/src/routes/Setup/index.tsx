@@ -1,6 +1,7 @@
 import { Navigate, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useInstanceStatus, useMe } from "../../api/queries";
+import { isSignedOut } from "../../api/errors";
+import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { AccountStep } from "./AccountStep";
 import { InviteStep } from "./InviteStep";
@@ -9,6 +10,7 @@ import { ReachStep } from "./ReachStep";
 import { ResumeStep } from "./ResumeStep";
 import { SpaceStep } from "./SpaceStep";
 import {
+  forgetSpace,
   NO_PROGRESS,
   nextStep,
   type Progress,
@@ -29,7 +31,7 @@ type View = "decide" | "resume" | "steps";
 
 export function SetupPage() {
   const { data: status, isLoading: statusLoading } = useInstanceStatus();
-  const { data: me, isLoading: meLoading } = useMe();
+  const { data: me, isLoading: meLoading, error: meError } = useMe();
   const navigate = useNavigate();
   const [progress, setProgress] = useState<Progress>(
     () => loadProgress() ?? NO_PROGRESS,
@@ -37,10 +39,14 @@ export function SetupPage() {
   const [view, setView] = useState<View>("decide");
   const [currentId, setCurrentId] = useState<StepId | null>(null);
 
+  // A revoked session keeps its cached user beside the signed-out error;
+  // that is a sign-in, not a resume.
   const canResume =
     me?.role === InstanceRole.ADMIN &&
+    !isSignedOut(meError) &&
     progress.steps.account !== undefined &&
     progress.steps.invite === undefined;
+  const { data: spaces, isLoading: spacesLoading } = useSpaces(canResume);
 
   useEffect(() => {
     if (view !== "decide" || statusLoading || meLoading) return;
@@ -49,10 +55,25 @@ export function SetupPage() {
       clearProgress();
       setProgress(NO_PROGRESS);
       setView("steps");
-    } else if (canResume) {
+    } else if (canResume && !spacesLoading) {
+      const space = progress.space;
+      if (space && spaces && !spaces.some((s) => s.id === space.id)) {
+        const next = forgetSpace(progress);
+        setProgress(next);
+        saveProgress(next);
+      }
       setView("resume");
     }
-  }, [view, statusLoading, meLoading, status, canResume]);
+  }, [
+    view,
+    statusLoading,
+    meLoading,
+    status,
+    canResume,
+    spacesLoading,
+    spaces,
+    progress,
+  ]);
 
   if (view === "decide") {
     if (!statusLoading && !meLoading && !status?.needsSetup && !canResume) {
