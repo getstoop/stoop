@@ -413,6 +413,9 @@ func loadSMTP(env *envReader, cfg *Config) {
 	if cfg.SMTPSecurity == "none" && cfg.SMTPUsername != "" {
 		env.fail("STOOP_SMTP_SECURITY=none sends the password unencrypted; use starttls or tls")
 	}
+	if utf8.RuneCountInString(cfg.SMTPFromName) > 80 || strings.ContainsAny(cfg.SMTPFromName, "\r\n") {
+		env.fail("STOOP_SMTP_FROM_NAME must be one line of 80 characters or fewer")
+	}
 	if cfg.SMTPHost != "" && cfg.SMTPFrom == "" {
 		env.fail("STOOP_SMTP_HOST needs STOOP_SMTP_FROM")
 	}

@@ -33,6 +33,8 @@ func TestE2ESendTestEmail(t *testing.T) {
 		t.Errorf("test email = %+v", got)
 	}
 
+	stoop.rpc(casey, send, map[string]any{"to": "ada@example.com"}).expect(t, "invalid_argument", "smtp settings are required")
+
 	refused := mailtest.Start(t, mailtest.Options{RefuseRcpt: 550})
 	refusal := stoop.rpc(casey, send, form(refused)).expect(t, "invalid_argument", "refused this recipient (550)")
 	if got := refusal.field(); got != "to" {
