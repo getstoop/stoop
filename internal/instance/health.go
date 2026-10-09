@@ -27,7 +27,7 @@ const (
 type HealthCheck struct {
 	Name string
 	// FixTab is the admin tab that changes the setting: "hosting",
-	// "storage", "integrations" or empty.
+	// "email", "storage", "integrations" or empty.
 	FixTab string
 	Run    func(ctx context.Context) (CheckState, string)
 }

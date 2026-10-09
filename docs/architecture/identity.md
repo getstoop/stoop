@@ -11,12 +11,10 @@ Two design commitments shape everything below:
 participate in every space you belong to; a space never has an identity
 of its own.
 
-**No email.** Stoop has no mail transport and does not want one — an
-operator running a Pi should not have to configure SMTP or sign up for a
-sending service to have a working chat server. That single decision removes
-email verification, password-reset links, and magic links from the design,
-and it is why account recovery is an admin action or a CLI command rather
-than a self-service flow.
+**Email is optional.** A server works with no mail set up; an admin can
+connect an SMTP server ([email.md](email.md)). Nothing sends mail yet:
+accounts have no email address, and account recovery is an admin action or
+a CLI command rather than a self-service flow.
 
 ## Accounts
 
@@ -589,7 +587,8 @@ avatar.
 
 ## Recovery
 
-There is no "forgot password" email, because there is no email.
+There is no "forgot password" email yet: accounts have no address to send
+it to.
 
 - An instance admin can reset any account's password from the admin page,
   except the owner's; the temporary password is shown once.

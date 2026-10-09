@@ -124,6 +124,7 @@ one its reasoning, its enforcement, and what it costs.
 | [runtime.md](runtime.md) | Process model, configuration precedence, front doors, security headers, background work, and how a build is produced. |
 | [diagnostics.md](diagnostics.md) | The Diagnostics tab and its panels, the `internal/diag` instruments, the health-check port, the sampler, and `GET /metrics`. |
 | [desktop.md](desktop.md) | The contract the desktop shell relies on: `GET /version`, `window.stoop`, deep links, sessions, and what lives in which repository. |
+| [email.md](email.md) | The SMTP settings, `internal/mail`, the hourly cap, the test send and its refusals, and the rules for features that will send mail. |
 | [integrations.md](integrations.md) | Bots and their credentials, incoming webhooks and their adapters, outgoing webhooks, deliveries as jobs, egress, and the switches. |
 
 Related documents outside this directory: [../vision.md](../vision.md) for

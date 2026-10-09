@@ -13,4 +13,5 @@ for voice. Without LiveKit, Stoop is a text-only chat server.
 - [Storage and retention](storage.md)
 - [Backups](backups.md)
 - [Webhooks and diagnostics](webhooks-and-diagnostics.md)
+- [Email](email.md)
 - [Accounts and security](accounts-and-security.md)
