@@ -22,10 +22,10 @@ Pick a front door:
 No public IPv4 address, or no way to forward ports? Use Cloudflare Tunnel
 with Cloudflare TURN, or Tailscale.
 
-The setup wizard (step 3, "Reaching your server") and **Server admin →
-Hosting** hold the same form. The environment variables only fill it in
-the first time the server starts with them set; after that, change these
-settings on the page. Whatever the front door, set these:
+The setup wizard asks for these one screen at a time (Remote access,
+Address, Voice and video); **Server admin → Hosting** has them all on one
+page. The environment variables only fill these in the first time the
+server starts with them set; after that, change them on the page. Whatever the front door, set these:
 
 - **Public address** (`STOOP_PUBLIC_URL`) — the address people use to
   reach you, e.g. `https://chat.example.com`. Invite links are built from
@@ -89,8 +89,9 @@ includes it.
 1. In Cloudflare's dashboard (Zero Trust → Networks → Tunnels), create a
    tunnel and copy its token (the `eyJ…` string at the end of the install
    command it shows).
-2. In the setup wizard or **Server admin → Hosting → Cloudflare Tunnel**,
-   tick "Run a Cloudflare Tunnel", paste the token and save. This also adds
+2. Pick Cloudflare Tunnel on the setup wizard's Remote access screen, or
+   tick "Run a Cloudflare Tunnel" in **Server admin → Hosting → Cloudflare
+   Tunnel**; paste the token and save. This also adds
    `127.0.0.1` and `::1` to Trusted proxies, which is where the connector
    calls from.
 3. Back in Cloudflare, give the tunnel a public hostname whose service is
@@ -128,8 +129,8 @@ your tailnet can reach it: invite your people to the tailnet, or
 1. Once per tailnet: enable **HTTPS Certificates** under
    [DNS settings](https://login.tailscale.com/admin/dns). Without it the
    node joins but browsers can't connect (Stoop logs a warning saying so).
-2. In the setup wizard or **Server admin → Hosting → Tailscale**, tick
-   "Join my tailnet", optionally with a node name (default `stoop`) and an
+2. Pick Tailscale on the setup wizard's Remote access screen, or tick
+   "Join my tailnet" in **Server admin → Hosting → Tailscale**, optionally with a node name (default `stoop`) and an
    auth key from
    [the keys page](https://login.tailscale.com/admin/settings/keys).
    Without a key the page shows a login link to open once. The listener

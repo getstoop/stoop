@@ -25,7 +25,9 @@ test("the first-run wizard and the first invited member", async ({
   await expect(card, "step 1 explains the admin account").toContainText(
     "runs the server",
   );
-  await expect(card, "step 1 is the account step").toContainText("Step 1 of 4");
+  await expect(card, "step 1 is the account step").toContainText(
+    /Step 1 of [56]/,
+  );
 
   await A.locator('input[autocomplete="username"]').fill(`ada${suffix}`);
   await A.locator('input[type="password"]').fill("short");
@@ -35,7 +37,7 @@ test("the first-run wizard and the first invited member", async ({
     "a short password is refused beside the field",
   ).toHaveText("At least 8 characters.");
   await expect(card, "and the wizard stays on step 1").toContainText(
-    "Step 1 of 4",
+    /Step 1 of [56]/,
   );
 
   await A.locator('input[type="password"]').fill(password);
@@ -45,8 +47,8 @@ test("the first-run wizard and the first invited member", async ({
 
   await A.getByLabel("Space name").fill("Stoop HQ");
   await A.locator('button[type="submit"]').click();
-  await expect(current, "advances to step 3 (reaching your server)").toHaveText(
-    /Reaching your server/,
+  await expect(current, "advances to remote access").toHaveText(
+    /Remote access/,
   );
 
   // A reload part-way through picks up where it left off.
@@ -57,27 +59,30 @@ test("the first-run wizard and the first invited member", async ({
     "Welcome back",
   );
   await A.getByRole("button", { name: "Continue setup" }).click();
-  await expect(current, "resumes at step 3").toHaveText(/Reaching your server/);
-  await expect(
-    A.locator(".reach-address"),
-    "step 3 offers the address",
-  ).toBeVisible();
-  await expect(
-    A.locator(".reach-proxies"),
-    "step 3 offers the proxies",
-  ).toBeVisible();
-  await expect(
-    A.locator(".reach-cloudflare"),
-    "step 3 offers Cloudflare",
-  ).toBeVisible();
-  await expect(
-    A.locator(".reach-tailscale"),
-    "step 3 offers Tailscale",
-  ).toBeVisible();
+  await expect(current, "resumes at remote access").toHaveText(/Remote access/);
+  for (const option of [
+    "Only my home network",
+    "My own reverse proxy",
+    "Cloudflare Tunnel",
+    "Tailscale",
+  ]) {
+    await expect(
+      A.getByRole("radio", { name: new RegExp(option) }),
+      `remote access offers ${option}`,
+    ).toBeVisible();
+  }
 
-  // Skippable: the same form lives on the admin page.
-  await A.locator("button.reach-continue").click();
-  await expect(current, "advances to step 4").toHaveText(/Invite people/);
+  // Every reachability step can be left for Server admin.
+  await A.getByRole("button", { name: "Set up later" }).click();
+  await expect(current, "advances to the address").toHaveText(/Address/);
+  await A.getByRole("button", { name: "Continue" }).click();
+  if (await card.getByText("Step 5 of 6").isVisible()) {
+    await expect(current, "voice comes next when voice is on").toHaveText(
+      /Voice and video/,
+    );
+    await A.getByRole("button", { name: "Set up later" }).click();
+  }
+  await expect(current, "advances to the invite").toHaveText(/Invite people/);
 
   const link = await A.locator(".link-box code").innerText();
   const minted = new URL(link);

@@ -1,4 +1,4 @@
-import { expect, test } from "./lib";
+import { expect, skipReachability, test } from "./lib";
 
 // Login providers: the admin tab saves an OIDC provider, the login page
 // grows a "Continue with X" button, errors surface, and the profile shows
@@ -19,7 +19,7 @@ test("configuring an OIDC login provider", async ({ browser }) => {
   await P.locator('button[type="submit"]').click();
   await P.getByLabel("Space name").fill("Stoop HQ");
   await P.locator('button[type="submit"]').click();
-  await P.locator("button.reach-continue").click();
+  await skipReachability(P);
   await P.locator("button.primary").click();
   await expect(P).toHaveURL(/\/s\/[^/]+\/c\/[^/]+$/);
 

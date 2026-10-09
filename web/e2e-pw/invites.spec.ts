@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { acceptDialog, expect, pastGate, test } from "./lib";
+import { acceptDialog, expect, pastGate, skipReachability, test } from "./lib";
 
 // Invites end to end: setup mints the instance, the owner creates a link,
 // someone arrives on it and signs up into the space, a member can't
@@ -50,8 +50,7 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   await credentials(A, `webA${suffix}`);
   await A.getByLabel("Space name").fill(`First ${suffix}`);
   await A.locator('button[type="submit"]').click();
-  // Setup step 3 (reaching your server) is skippable.
-  await A.locator("button.reach-continue").click();
+  await skipReachability(A);
   await A.locator("button.primary").click();
   await expect(A, "A completes setup and lands in a space").toHaveURL(
     /\/s\/[^/]+\/c\/[^/]+$/,
