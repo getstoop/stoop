@@ -19,12 +19,13 @@ enum CheckState {
 }
 
 message HealthCheck {
-  // postgres · livekit · storage · public_address · webhooks · jobs · jobs_runner
+  // postgres · livekit · storage · public_address · email · webhooks · jobs ·
+  // jobs_runner
   string name = 1;
   CheckState state = 2;
   // The one line on the row, written by the check.
   string detail = 3;
-  // "hosting", "storage", "integrations" or empty.
+  // "hosting", "email", "storage", "integrations" or empty.
   string fix_tab = 4;
   google.protobuf.Timestamp checked_at = 5;
 }

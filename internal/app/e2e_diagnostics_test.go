@@ -24,7 +24,7 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 		t.Errorf("no serverStartedAt: %s", r.raw)
 	}
 	rows, order := healthRows(r)
-	if strings.Join(order, ",") != "postgres,livekit,storage,public_address,webhooks,jobs,jobs_runner" {
+	if strings.Join(order, ",") != "postgres,livekit,storage,public_address,email,webhooks,jobs,jobs_runner" {
 		t.Errorf("check order = %v", order)
 	}
 	if pg := rows["postgres"]; pg["state"] != "CHECK_STATE_OK" || !strings.Contains(pg["detail"].(string), "pool") || pg["checkedAt"] == "" {
@@ -38,6 +38,9 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 	}
 	if pa := rows["public_address"]; pa["state"] != "CHECK_STATE_OFF" || pa["fixTab"] != "hosting" {
 		t.Errorf("public_address = %v", pa)
+	}
+	if em := rows["email"]; em["state"] != "CHECK_STATE_OFF" || em["fixTab"] != "email" {
+		t.Errorf("email = %v", em)
 	}
 	// Nothing has been hooked up on a fresh instance, so the queue is off,
 	// not empty; the schedules exist and none is due yet.

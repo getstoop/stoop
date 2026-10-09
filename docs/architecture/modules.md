@@ -34,7 +34,7 @@ A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `eventrelay`, `restart`,
 `db`, `dbgen`, `config`,
 `authctx`, `accesswire`, `apierr`, `rowid`, `text`, `pbtime`, `release`, `diag`, `blob`,
-`unfurl`, `kv`, `netguard`, `ratelimit`, `trustedproxy`, `tailnet`, `cftunnel`,
+`unfurl`, `kv`, `mail`, `netguard`, `ratelimit`, `trustedproxy`, `tailnet`, `cftunnel`,
 `buildinfo`, `webui`.
 
 A helper two modules both write earns a support package when it has

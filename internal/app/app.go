@@ -305,6 +305,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *App, err 
 		newLiveKitCheck(cfg.Voice, voiceOpts, livekit),
 		newStorageCheck(store.Root(), filesSvc),
 		instanceSvc.PublicAddressCheck(),
+		instanceSvc.EmailCheck(),
 		newWebhooksCheck(queue),
 		newJobsCheck(jobList),
 		newJobsRunnerCheck(jobsSvc.Dispatchers),

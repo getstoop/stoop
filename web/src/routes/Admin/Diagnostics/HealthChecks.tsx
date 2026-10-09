@@ -22,9 +22,10 @@ const BADGE: Record<CheckState, { className: string; label: string }> = {
 
 const FIX_TABS: Record<
   string,
-  { tab: "hosting" | "storage" | "integrations"; label: string }
+  { tab: "hosting" | "email" | "storage" | "integrations"; label: string }
 > = {
   hosting: { tab: "hosting", label: "see Hosting" },
+  email: { tab: "email", label: "see Email" },
   storage: { tab: "storage", label: "see Storage" },
   integrations: { tab: "integrations", label: "see Integrations" },
 };

@@ -137,12 +137,13 @@ func (JobOutcome) EnumDescriptor() ([]byte, []int) {
 
 type HealthCheck struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// postgres · livekit · storage · public_address · webhooks · jobs · jobs_runner
+	// postgres · livekit · storage · public_address · email · webhooks · jobs ·
+	// jobs_runner
 	Name  string     `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	State CheckState `protobuf:"varint,2,opt,name=state,proto3,enum=stoop.instance.v1.CheckState" json:"state,omitempty"`
 	// The one line on the row, written by the check.
 	Detail string `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
-	// "hosting", "storage", "integrations" or empty.
+	// "hosting", "email", "storage", "integrations" or empty.
 	FixTab        string                 `protobuf:"bytes,4,opt,name=fix_tab,json=fixTab,proto3" json:"fix_tab,omitempty"`
 	CheckedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
