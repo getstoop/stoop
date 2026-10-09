@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { parseProgress } from "./progress";
-import { nextStep, previousStep, STEPS, visibleSteps } from "./steps";
+import {
+  forgetSpace,
+  nextStep,
+  previousStep,
+  STEPS,
+  visibleSteps,
+} from "./steps";
 
 describe("parseProgress", () => {
   it("reads back what was saved", () => {
@@ -114,5 +120,19 @@ describe("visibleSteps", () => {
       "invite",
     ]);
     expect(visibleSteps({ voiceAvailable: true })).toHaveLength(6);
+  });
+});
+
+describe("forgetSpace", () => {
+  it("sends a resumed wizard back to the space step", () => {
+    const progress = forgetSpace({
+      steps: { account: "done", space: "done", remote: "skipped" },
+      space: { id: "gone", channelId: "c1", name: "The Porch" },
+      invite: "AbCdEfGhJk",
+    });
+    expect(progress.space).toBeUndefined();
+    expect(progress.invite).toBeUndefined();
+    expect(nextStep(STEPS, progress).id).toBe("space");
+    expect(progress.steps.remote).toBe("skipped");
   });
 });
