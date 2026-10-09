@@ -66,31 +66,56 @@ export function CloudflareTunnelSection({
         </p>
       )}
       {fields.tunnelEnabled && (
-        <>
-          <Field label="Tunnel token" error={errors["cloudflareTunnel.token"]}>
-            <input
-              type="password"
-              value={secrets.tunnelToken}
-              onChange={(e) =>
-                setSecrets((s) => ({ ...s, tunnelToken: e.target.value }))
-              }
-              placeholder={
-                data?.reachability?.cloudflareTunnel?.hasToken
-                  ? "(saved — leave blank to keep)"
-                  : "eyJ…"
-              }
-              autoComplete="off"
-            />
-          </Field>
-          {status && <CloudflareTunnelStatusBlock status={status} />}
-          {status?.state === "running" && fields.publicUrl.trim() === "" && (
-            <p className="hint">
-              Put the tunnel's hostname in Public address, so invite links use
-              it.
-            </p>
-          )}
-        </>
+        <TunnelFields
+          fields={fields}
+          errors={errors}
+          secrets={secrets}
+          setSecrets={setSecrets}
+          data={data}
+        />
       )}
     </SettingRow>
+  );
+}
+
+// The token and how the tunnel is doing. Setup shows it on its own.
+export function TunnelFields({
+  fields,
+  errors,
+  secrets,
+  setSecrets,
+  data,
+}: {
+  fields: Fields;
+  errors: ReachErrors;
+  secrets: Secrets;
+  setSecrets: SetSecrets;
+  data: GetReachabilityResponse | undefined;
+}) {
+  const status = data?.cloudflareTunnel;
+  return (
+    <>
+      <Field label="Tunnel token" error={errors["cloudflareTunnel.token"]}>
+        <input
+          type="password"
+          value={secrets.tunnelToken}
+          onChange={(e) =>
+            setSecrets((s) => ({ ...s, tunnelToken: e.target.value }))
+          }
+          placeholder={
+            data?.reachability?.cloudflareTunnel?.hasToken
+              ? "(saved — leave blank to keep)"
+              : "eyJ…"
+          }
+          autoComplete="off"
+        />
+      </Field>
+      {status && <CloudflareTunnelStatusBlock status={status} />}
+      {status?.state === "running" && fields.publicUrl.trim() === "" && (
+        <p className="hint">
+          Put the tunnel's hostname in Public address, so invite links use it.
+        </p>
+      )}
+    </>
   );
 }

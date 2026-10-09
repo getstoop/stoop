@@ -1,24 +1,10 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useRef, useState } from "react";
-import { instanceClient } from "../../api/clients";
-import { useReachability } from "../../api/queries";
-import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { type FormEvent, useState } from "react";
 import { AddressSection } from "./AddressSection";
 import { CloudflareTunnelSection } from "./CloudflareTunnelSection";
-import {
-  changesFrom,
-  EMPTY,
-  type Fields,
-  fieldsFrom,
-  list,
-  NO_SECRETS,
-  normalize,
-  REACH_FIELDS,
-  type Secrets,
-  type SetField,
-} from "./fields";
+import { list } from "./fields";
 import { LiveKitSection } from "./LiveKitSection";
 import { TailscaleSection } from "./TailscaleSection";
+import { useReachabilityDraft } from "./useReachabilityDraft";
 import { VoiceRelaySection } from "./VoiceRelaySection";
 import { voiceStatus } from "./voiceStatus";
 
@@ -30,61 +16,31 @@ export function ReachabilityForm({
   // When given, a "Skip for now" button appears (the wizard).
   onSkip?: () => void;
 }) {
-  const queryClient = useQueryClient();
-  const { data, isLoading } = useReachability(true);
-  const [fields, setFields] = useState<Fields>(EMPTY);
-  const [baseline, setBaseline] = useState<Fields>(EMPTY);
-  const [secrets, setSecrets] = useState<Secrets>(NO_SECRETS);
   const [showOwnRelay, setShowOwnRelay] = useState(false);
   const [customControl, setCustomControl] = useState(false);
-  const form = useFieldErrors(REACH_FIELDS);
-  const [saved, setSaved] = useState(false);
-  const [busy, setBusy] = useState(false);
-  // Signature of the last settings taken from the server, so a poll that
-  // brings back what we already have doesn't re-run the seeding.
-  const seeded = useRef<string | null>(null);
-
-  const set: SetField = (key, value) =>
-    setFields((f) => ({ ...f, [key]: value }));
-
-  const changes = changesFrom(fields, baseline, secrets);
-  const dirty = Object.keys(changes).length > 0;
-
-  // Seed the fields from what's in force. The query polls while a
-  // Tailscale node comes up, so this re-seeds only when the server
-  // reports something new — and never on top of unsaved edits.
-  useEffect(() => {
-    const r = data?.reachability;
-    if (!r) return;
-    const next = fieldsFrom(r);
-    const sig = JSON.stringify(next);
-    if (sig === seeded.current) return;
-    if (seeded.current !== null && dirty) return;
-    seeded.current = sig;
-    setFields(next);
-    setBaseline(next);
+  const {
+    data,
+    isLoading,
+    fields,
+    set,
+    secrets,
+    setSecrets,
+    form,
+    dirty,
+    busy,
+    save,
+  } = useReachabilityDraft((next) => {
     if (list(next.turnUrls).length > 0) setShowOwnRelay(true);
     setCustomControl(next.tsControlUrl !== "");
-  }, [data, dirty]);
+  });
+  const [saved, setSaved] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    setBusy(true);
-    form.begin();
     setSaved(false);
-    try {
-      await instanceClient.updateReachability(changes);
-      setBaseline(normalize(fields));
-      setSecrets(NO_SECRETS);
-      seeded.current = null;
-      await queryClient.invalidateQueries({ queryKey: ["reachability"] });
-      await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
+    if (await save()) {
       setSaved(true);
       onSaved?.();
-    } catch (err) {
-      form.fail(err);
-    } finally {
-      setBusy(false);
     }
   };
 

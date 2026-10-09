@@ -48,86 +48,119 @@ export function TailscaleSection({
         Join my tailnet
       </label>
       {fields.tsEnabled && (
-        <>
-          <label className="reach-check">
-            <Switch
-              checked={fields.tsFunnel}
-              onChange={(e) => set("tsFunnel", e.target.checked)}
-            />
-            Publish this Stoop node to public internet (Funnel)
-          </label>
-          {fields.tsFunnel && (
-            <p className="hint reach-check-hint">
-              Tailscale won't actually publish it until the <code>funnel</code>{" "}
-              node attribute is in your tailnet policy; until then the node
-              stays private and the status below says why.
-            </p>
-          )}
-          <label className="reach-check">
-            <Switch
-              checked={customControl}
-              onChange={(e) => {
-                setCustomControl(e.target.checked);
-                // Unticking means "back to Tailscale's own control
-                // plane", so the address goes with it — a URL left
-                // behind would still be what the node dialled.
-                if (!e.target.checked) set("tsControlUrl", "");
-              }}
-            />
-            I run a custom control server
-          </label>
-          {customControl && (
-            <div className="reach-control-url">
-              <Field label="Control URL" error={errors["tailscale.controlUrl"]}>
-                <input
-                  value={fields.tsControlUrl}
-                  onChange={(e) => set("tsControlUrl", e.target.value)}
-                  placeholder="https://headscale.example.com"
-                  inputMode="url"
-                />
-              </Field>
-            </div>
-          )}
-          <Field
-            label="Node name"
-            error={errors["tailscale.hostname"]}
-            hint={
-              <>
-                The address becomes https://&lt;name&gt;.&lt;tailnet&gt;.ts.net.
-              </>
-            }
-          >
-            <input
-              value={fields.tsHostname}
-              onChange={(e) => set("tsHostname", e.target.value)}
-              placeholder="stoop"
-              autoComplete="off"
-            />
-          </Field>
-          <Field label="Auth key" error={errors["tailscale.authKey"]}>
-            <input
-              type="password"
-              value={secrets.tsAuthKey}
-              onChange={(e) =>
-                setSecrets((s) => ({ ...s, tsAuthKey: e.target.value }))
-              }
-              placeholder={
-                data?.reachability?.tailscale?.hasAuthKey
-                  ? "(saved — leave blank to keep)"
-                  : "tskey-auth-… — or authorise via the login link"
-              }
-              autoComplete="off"
-            />
-          </Field>
-          {data?.tailscale && (
-            <TailscaleStatusBlock
-              status={data.tailscale}
-              voiceConfigured={data.voiceConfigured}
-            />
-          )}
-        </>
+        <TailscaleFields
+          fields={fields}
+          errors={errors}
+          set={set}
+          secrets={secrets}
+          setSecrets={setSecrets}
+          customControl={customControl}
+          setCustomControl={setCustomControl}
+          data={data}
+        />
       )}
     </SettingRow>
+  );
+}
+
+// Everything under "Join my tailnet": Funnel, the control server, the
+// node's name and key, and its status. Setup shows it on its own.
+export function TailscaleFields({
+  fields,
+  errors,
+  set,
+  secrets,
+  setSecrets,
+  customControl,
+  setCustomControl,
+  data,
+}: {
+  fields: Fields;
+  errors: ReachErrors;
+  set: SetField;
+  secrets: Secrets;
+  setSecrets: SetSecrets;
+  customControl: boolean;
+  setCustomControl: (on: boolean) => void;
+  data: GetReachabilityResponse | undefined;
+}) {
+  return (
+    <>
+      <label className="reach-check">
+        <Switch
+          checked={fields.tsFunnel}
+          onChange={(e) => set("tsFunnel", e.target.checked)}
+        />
+        Publish this Stoop node to public internet (Funnel)
+      </label>
+      {fields.tsFunnel && (
+        <p className="hint reach-check-hint">
+          Tailscale won't actually publish it until the <code>funnel</code> node
+          attribute is in your tailnet policy; until then the node stays private
+          and the status below says why.
+        </p>
+      )}
+      <label className="reach-check">
+        <Switch
+          checked={customControl}
+          onChange={(e) => {
+            setCustomControl(e.target.checked);
+            // Unticking means "back to Tailscale's own control
+            // plane", so the address goes with it — a URL left
+            // behind would still be what the node dialled.
+            if (!e.target.checked) set("tsControlUrl", "");
+          }}
+        />
+        I run a custom control server
+      </label>
+      {customControl && (
+        <div className="reach-control-url">
+          <Field label="Control URL" error={errors["tailscale.controlUrl"]}>
+            <input
+              value={fields.tsControlUrl}
+              onChange={(e) => set("tsControlUrl", e.target.value)}
+              placeholder="https://headscale.example.com"
+              inputMode="url"
+            />
+          </Field>
+        </div>
+      )}
+      <Field
+        label="Node name"
+        error={errors["tailscale.hostname"]}
+        hint={
+          <>The address becomes https://&lt;name&gt;.&lt;tailnet&gt;.ts.net.</>
+        }
+      >
+        <input
+          value={fields.tsHostname}
+          onChange={(e) => set("tsHostname", e.target.value)}
+          placeholder="stoop"
+          autoComplete="off"
+        />
+      </Field>
+      <Field label="Auth key" error={errors["tailscale.authKey"]}>
+        <input
+          type="password"
+          value={secrets.tsAuthKey}
+          onChange={(e) =>
+            setSecrets((s) => ({ ...s, tsAuthKey: e.target.value }))
+          }
+          placeholder={
+            data?.reachability?.tailscale?.hasAuthKey
+              ? "(saved — leave blank to keep)"
+              : "tskey-auth-… — or authorise via the login link"
+          }
+          autoComplete="off"
+        />
+      </Field>
+      {data?.tailscale && (
+        <TailscaleStatusBlock
+          status={data.tailscale}
+          voiceConfigured={data.voiceConfigured}
+        />
+      )}
+    </>
   );
 }
 
