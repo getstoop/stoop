@@ -44,7 +44,7 @@ const recentSignIn = 10 * time.Minute
 // DeleteAccount is the caller deleting their own account. The row stays,
 // so their messages keep their author and the username stays held;
 // everything that was theirs to show goes, and so do their sessions,
-// tokens and provider links. The spaces they owned are handed on first,
+// tokens, provider links and email addresses. The spaces they owned are handed on first,
 // so a failure there leaves an account that can still be used.
 func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1.DeleteAccountRequest]) (*connect.Response[authv1.DeleteAccountResponse], error) {
 	id, ok := authctx.From(ctx)
@@ -103,6 +103,9 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 	if _, err := s.underAdminGuard(ctx, id.UserID, func(qtx *dbgen.Queries) (dbgen.User, error) {
 		if err := qtx.DeleteUserIdentities(ctx, id.UserID); err != nil {
 			return dbgen.User{}, fmt.Errorf("unlink identities: %w", err)
+		}
+		if err := clearEmail(ctx, qtx, id.UserID); err != nil {
+			return dbgen.User{}, err
 		}
 		return qtx.DeleteAccount(ctx, id.UserID)
 	}); err != nil {

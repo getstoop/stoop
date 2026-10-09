@@ -218,6 +218,7 @@ func (s *Service) registerSocial(ctx context.Context, providerID string, claims 
 		slog.Error("create account from provider login", "err", err)
 		return flowResult{}, &flowErr{code: "provider_error"}
 	}
+	s.adoptProviderEmail(ctx, user.ID, claims)
 
 	target := "/?welcome=1"
 	if st.Invite != "" && s.invites != nil {
@@ -308,4 +309,21 @@ func randomSuffix(base string) string {
 		base = base[:32-len(suffix)]
 	}
 	return base + suffix
+}
+
+// adoptProviderEmail gives a new provider account the provider's address
+// as confirmed when the provider verified it and no account holds it. A
+// failure leaves the account without one.
+func (s *Service) adoptProviderEmail(ctx context.Context, userID string, claims Claims) {
+	if !claims.EmailVerified {
+		return
+	}
+	address, err := emailAddressFrom(claims.Email)
+	if err != nil {
+		return
+	}
+	err = s.q.AdoptProviderEmail(ctx, dbgen.AdoptProviderEmailParams{ID: userID, Address: address})
+	if err != nil && !db.HasCode(err, db.UniqueViolation) {
+		slog.Error("adopt provider email", "user_id", userID, "err", err)
+	}
 }

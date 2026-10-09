@@ -35,6 +35,7 @@ type UserSummary struct {
 	Pronouns       string
 	Bio            string
 	PersonalTokens int
+	Email          string
 }
 
 // UserAdmin is instance's port onto the auth module, wired in internal/app.

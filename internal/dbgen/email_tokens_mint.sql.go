@@ -58,20 +58,3 @@ func (q *Queries) GetEmailRecipient(ctx context.Context, id string) (GetEmailRec
 	err := row.Scan(&i.Username, &i.PendingEmail, &i.Deactivated)
 	return i, err
 }
-
-const revokeUnusedEmailTokens = `-- name: RevokeUnusedEmailTokens :exec
-DELETE FROM email_tokens
-WHERE user_id = $1 AND purpose = $2 AND used_at IS NULL
-`
-
-type RevokeUnusedEmailTokensParams struct {
-	UserID  string
-	Purpose string
-}
-
-// RevokeUnusedEmailTokens removes the user's unused tokens of a purpose,
-// so only the newest link works.
-func (q *Queries) RevokeUnusedEmailTokens(ctx context.Context, arg RevokeUnusedEmailTokensParams) error {
-	_, err := q.db.Exec(ctx, revokeUnusedEmailTokens, arg.UserID, arg.Purpose)
-	return err
-}

@@ -38,6 +38,8 @@ type AccountSummary struct {
 	// IsOwner: the server owner, whom no admin can demote, deactivate or
 	// reset.
 	IsOwner bool
+	// Email is the confirmed address; empty when none.
+	Email string
 }
 
 func (s *Service) ListAccounts(ctx context.Context) ([]AccountSummary, error) {
@@ -249,6 +251,7 @@ func toSummary(u dbgen.User) AccountSummary {
 		Pronouns:       u.Pronouns,
 		Bio:            u.Bio,
 		IsOwner:        u.IsOwner,
+		Email:          deref(u.Email),
 	}
 }
 

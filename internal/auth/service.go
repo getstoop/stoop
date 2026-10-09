@@ -74,8 +74,11 @@ type Service struct {
 	desktop *desktopStore
 	// emailJobs queues send_email jobs and emailEnabled says whether the
 	// instance can send at all (account_email.go).
-	emailJobs    EmailJobs
-	emailEnabled func(ctx context.Context) (bool, error)
+	emailJobs     EmailJobs
+	emailEnabled  func(ctx context.Context) (bool, error)
+	emailThrottle Throttle
+	// linkBase is the public URL links are built on (account_email.go).
+	linkBase func(ctx context.Context) (string, error)
 }
 
 func New(pool *pgxpool.Pool, opts Options) *Service {

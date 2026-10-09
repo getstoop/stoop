@@ -236,5 +236,6 @@ func toProtoUser(u UserSummary) *instancev1.InstanceUser {
 	out.Bio = u.Bio
 	out.PersonalTokenCount = int32(u.PersonalTokens)
 	out.Kind = accesswire.KindToProto(u.Kind)
+	out.Email = u.Email
 	return out
 }

@@ -113,21 +113,48 @@ func TestBuildConfirmEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 	secondToken := linkToken(t, second)
+	// Until the second message is sent, the first link still works: a
+	// send that fails must not kill the link the person already has.
+	if stored = emailTokens(t, pool, adaID); secondToken == firstToken || len(stored) != 2 {
+		t.Errorf("after a second build: %d tokens stored, want both until it is sent", len(stored))
+	}
+	if second.OnSent == nil {
+		t.Fatal("a confirmation has no OnSent to retire the older links")
+	}
+	if err := second.OnSent(ctx); err != nil {
+		t.Fatal(err)
+	}
 	stored = emailTokens(t, pool, adaID)
 	sum = sha256.Sum256([]byte(secondToken))
-	if secondToken == firstToken || len(stored) != 1 || string(stored[0].hash) != string(sum[:]) {
-		t.Errorf("after a second build: %d tokens stored, want only the newest", len(stored))
+	if len(stored) != 1 || string(stored[0].hash) != string(sum[:]) {
+		t.Errorf("after sending: %d tokens stored, want only the newest", len(stored))
 	}
 
-	// A used token is kept: only unused ones are revoked.
-	if _, err := pool.Exec(ctx, `UPDATE email_tokens SET used_at = now() WHERE user_id = $1`, adaID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := svc.BuildConfirmEmail(ctx, args, emailSite); err != nil {
-		t.Fatal(err)
-	}
-	if stored = emailTokens(t, pool, adaID); len(stored) != 2 {
-		t.Errorf("%d tokens after a used one, want 2", len(stored))
+	// Two sent at once, finishing in either order: the newer link survives.
+	for _, newerFirst := range []bool{false, true} {
+		older, err := svc.BuildConfirmEmail(ctx, args, emailSite)
+		if err != nil {
+			t.Fatal(err)
+		}
+		newer, err := svc.BuildConfirmEmail(ctx, args, emailSite)
+		if err != nil {
+			t.Fatal(err)
+		}
+		first, second := older, newer
+		if newerFirst {
+			first, second = newer, older
+		}
+		if err := first.OnSent(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if err := second.OnSent(ctx); err != nil {
+			t.Fatal(err)
+		}
+		stored = emailTokens(t, pool, adaID)
+		sum = sha256.Sum256([]byte(linkToken(t, newer)))
+		if len(stored) != 1 || string(stored[0].hash) != string(sum[:]) {
+			t.Errorf("two at once (newer first: %v): %d tokens, want only the newer link", newerFirst, len(stored))
+		}
 	}
 }
 

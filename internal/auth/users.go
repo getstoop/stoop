@@ -27,6 +27,7 @@ func (s *Service) GetMe(ctx context.Context, _ *connect.Request[authv1.GetMeRequ
 	}
 	return connect.NewResponse(&authv1.GetMeResponse{
 		User: toProtoUser(user), Permissions: accesswire.ToProto(myActions(ctx)),
+		Email: myEmail(user),
 	}), nil
 }
 
