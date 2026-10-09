@@ -20,7 +20,7 @@ test("configuring an OIDC login provider", async ({ browser }) => {
   await P.getByLabel("Space name").fill("Stoop HQ");
   await P.locator('button[type="submit"]').click();
   await skipReachability(P);
-  await P.locator("button.primary").click();
+  await P.getByRole("button", { name: "Go to Stoop HQ" }).click();
   await expect(P).toHaveURL(/\/s\/[^/]+\/c\/[^/]+$/);
 
   // ---- Admin: add a Google provider from the preset -----------------------

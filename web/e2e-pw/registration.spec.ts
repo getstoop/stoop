@@ -41,7 +41,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   await A.locator('button[type="submit"]').click();
   await skipReachability(A);
   const link = await A.locator(".link-box code").innerText();
-  await A.getByRole("button", { name: "Go to your space" }).click();
+  await A.getByRole("button", { name: "Go to Stoop HQ" }).click();
   await expect(
     A.locator('a[title="Server admin"]'),
     "admin sees the gear pill",

@@ -83,8 +83,33 @@ test("the first-run wizard and the first invited member", async ({
     await A.getByRole("button", { name: "Set up later" }).click();
   }
   await expect(current, "advances to the invite").toHaveText(/Invite people/);
+  const summary = card.locator(".setup-summary");
+  await expect(summary, "the summary names the account").toContainText(
+    `Account ada${suffix}`,
+  );
+  await expect(summary, "and the skipped remote access").toContainText(
+    "Remote access skipped",
+  );
+
+  // On localhost the link only opens here; setting an address and coming
+  // back shows the same invite, not a second one.
+  const first = await A.locator(".link-box code").innerText();
+  await expect(
+    card.locator(".callout.warn"),
+    "a localhost link is called out",
+  ).toContainText("only opens on this machine");
+  await A.getByRole("button", { name: "Set an address" }).click();
+  await expect(current, "Set an address goes to the address").toHaveText(
+    /Address/,
+  );
+  await A.getByRole("button", { name: "Continue" }).click();
+  if ((await current.innerText()).includes("Voice")) {
+    await A.getByRole("button", { name: "Set up later" }).click();
+  }
+  await expect(current, "back at the invite").toHaveText(/Invite people/);
 
   const link = await A.locator(".link-box code").innerText();
+  expect(link, "the invite is minted once").toBe(first);
   const minted = new URL(link);
   expect(minted.origin, "the invite link points at this server").toBe(
     new URL(A.url()).origin,
@@ -110,8 +135,8 @@ test("the first-run wizard and the first invited member", async ({
     })
     .toBe(link);
 
-  await A.getByRole("button", { name: "Go to your space" }).click();
-  await expect(A, "Go to your space lands in #general").toHaveURL(
+  await A.getByRole("button", { name: "Go to Stoop HQ" }).click();
+  await expect(A, "Go to the space lands in #general").toHaveURL(
     /\/s\/[^/]+\/c\/[^/]+$/,
   );
   await expect(A.locator(".space-name"), "space rendered").toHaveText(

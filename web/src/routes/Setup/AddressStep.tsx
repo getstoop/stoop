@@ -3,12 +3,9 @@ import { Field } from "../../components/Field";
 import { LearnMore } from "../../components/LearnMore";
 import { list, TUNNEL_PROXIES } from "../../components/ReachabilityForm/fields";
 import { useReachabilityDraft } from "../../components/ReachabilityForm/useReachabilityDraft";
+import { onLoopback } from "./loopback";
 import type { Access } from "./steps";
 import { WizardActions } from "./WizardActions";
-
-const LOOPBACK = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/;
-
-export const onLoopback = () => LOOPBACK.test(window.location.hostname);
 
 // The address invite links are built from, and whatever forwards
 // requests here. Starts from what the remote access step picked.

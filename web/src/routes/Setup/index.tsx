@@ -72,14 +72,17 @@ export function SetupPage() {
   const back = previousStep(steps, current.id);
   const goBack = back && (() => setCurrentId(back.id));
 
+  const keep = (next: Progress) => {
+    setProgress(next);
+    saveProgress(next);
+  };
+
   const mark = (id: StepId, state: StepState, extra?: Partial<Progress>) => {
-    const next = {
+    keep({
       ...progress,
       ...extra,
       steps: { ...progress.steps, [id]: state },
-    };
-    setProgress(next);
-    saveProgress(next);
+    });
     // On to the step after this one, even when it was done before: Back
     // then Continue walks forward rather than jumping ahead.
     const i = steps.findIndex((s) => s.id === id);
@@ -140,9 +143,15 @@ export function SetupPage() {
               />
             )}
             {current.id === "invite" && (
-              <InviteStep space={progress.space ?? null}>
+              <InviteStep
+                space={progress.space ?? null}
+                steps={steps}
+                progress={progress}
+                onMinted={(invite) => keep({ ...progress, invite })}
+                onGoTo={setCurrentId}
+              >
                 <WizardActions
-                  label="Go to your space"
+                  label={`Go to ${progress.space?.name ?? "your space"}`}
                   onBack={goBack}
                   onNext={() => {
                     mark("invite", "done");

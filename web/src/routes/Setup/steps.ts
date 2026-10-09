@@ -51,6 +51,8 @@ export type Progress = {
   steps: Partial<Record<StepId, StepState>>;
   space?: { id: string; channelId: string; name: string };
   access?: Access;
+  // The invite code the last step minted, so it mints only once.
+  invite?: string;
 };
 
 export const NO_PROGRESS: Progress = { steps: {} };

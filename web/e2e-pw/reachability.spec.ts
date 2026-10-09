@@ -97,7 +97,7 @@ test("reaching your server, in setup and on the admin page", async ({
     A.locator(".link-box code"),
     "invite link uses the public address",
   ).toHaveText(/^https:\/\/chat\.example\.test\/join\//);
-  await A.getByRole("button", { name: "Go to your space" }).click();
+  await A.getByRole("button", { name: "Go to Stoop HQ" }).click();
 
   // Admin page: same form, saved values shown; a static relay reaches the
   // voice join through the API; a cleared address leaves links on the
