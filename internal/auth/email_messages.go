@@ -50,9 +50,7 @@ func (s *Service) BuildConfirmEmail(ctx context.Context, args mail.JobArgs, site
 		// Older links die only once this one is on its way, so a send that
 		// fails leaves the link the person already has working.
 		OnSent: func(ctx context.Context) error {
-			return s.q.DeleteOtherEmailTokens(ctx, dbgen.DeleteOtherEmailTokensParams{
-				UserID: args.UserID, Purpose: confirmEmailPurpose, KeepID: tokenID,
-			})
+			return s.q.DeleteOlderEmailTokens(ctx, tokenID)
 		},
 	}, nil
 }

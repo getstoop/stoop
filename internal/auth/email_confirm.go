@@ -30,6 +30,17 @@ func (s *Service) ConfirmEmail(ctx context.Context, req *connect.Request[authv1.
 	}
 	err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
+		owner, err := qtx.EmailTokenOwner(ctx, dbgen.EmailTokenOwnerParams{TokenHash: hashToken(token), Purpose: confirmEmailPurpose})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errEmailLinkSpent
+		}
+		if err != nil {
+			return fmt.Errorf("look up link: %w", err)
+		}
+		// The account before the link, as every other address change does.
+		if _, err := qtx.LockUserEmail(ctx, owner); err != nil {
+			return fmt.Errorf("lock account: %w", err)
+		}
 		link, err := qtx.GetConfirmableEmailToken(ctx, dbgen.GetConfirmableEmailTokenParams{
 			TokenHash: hashToken(token), Purpose: confirmEmailPurpose,
 		})

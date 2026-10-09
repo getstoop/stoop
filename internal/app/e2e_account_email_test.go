@@ -164,3 +164,15 @@ func TestE2EAccountEmailNeedsPublicURL(t *testing.T) {
 	instance.rpc(casey, accountAuth+"RequestEmailChange", map[string]any{"address": "casey@example.com", "password": password}).
 		expect(t, "failed_precondition", "can't send links yet")
 }
+
+// Asking again for the address already waiting keeps the link already
+// delivered: only the new send, once out, retires it.
+func TestE2EAccountEmailSameAddressKeepsLink(t *testing.T) {
+	instance, pool, _ := emailHarness(t)
+	ada := instance.person("ada")
+	adaID := instance.userID(ada)
+	instance.rpc(ada, accountAuth+"RequestEmailChange", map[string]any{"address": "ada@example.com", "password": password}).expect(t, "ok")
+	token := storeConfirmLink(t, pool, adaID, "ada@example.com")
+	instance.rpc(ada, accountAuth+"RequestEmailChange", map[string]any{"address": "ADA@example.com", "password": password}).expect(t, "ok")
+	instance.rpc("", accountAuth+"ConfirmEmail", map[string]any{"token": token}).expect(t, "ok")
+}
