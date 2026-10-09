@@ -1,7 +1,7 @@
 -- +goose Up
 -- Owned by the auth module. An optional email address per account:
 -- email holds a confirmed address only, pending_email one waiting for its
--- link. See docs/proposals/account-email.md.
+-- link. See docs/architecture/identity.md → Email address.
 ALTER TABLE users
     ADD COLUMN email              citext,
     ADD COLUMN email_confirmed_at timestamptz,
