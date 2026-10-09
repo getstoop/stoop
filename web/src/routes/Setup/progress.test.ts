@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { parseProgress } from "./progress";
-import { nextStep, previousStep, STEPS } from "./steps";
+import { nextStep, previousStep, STEPS, visibleSteps } from "./steps";
 
 describe("parseProgress", () => {
   it("reads back what was saved", () => {
     const space = { id: "s1", channelId: "c1", name: "The Porch" };
     const raw = JSON.stringify({
-      steps: { account: "done", space: "done", reach: "skipped" },
+      steps: { account: "done", space: "done", remote: "skipped" },
       space,
+      access: "tunnel",
     });
     expect(parseProgress(raw)).toEqual({
-      steps: { account: "done", space: "done", reach: "skipped" },
+      steps: { account: "done", space: "done", remote: "skipped" },
       space,
+      access: "tunnel",
     });
   });
 
@@ -22,12 +24,14 @@ describe("parseProgress", () => {
     expect(parseProgress(raw)).toEqual({
       steps: { account: "done" },
       space: undefined,
+      access: undefined,
     });
   });
 
-  it("drops a malformed space", () => {
-    const raw = JSON.stringify({ steps: {}, space: { id: 1 } });
+  it("drops a malformed space or access", () => {
+    const raw = JSON.stringify({ steps: {}, space: { id: 1 }, access: "vpn" });
     expect(parseProgress(raw)?.space).toBeUndefined();
+    expect(parseProgress(raw)?.access).toBeUndefined();
   });
 
   it("treats nothing or garbage as no record", () => {
@@ -43,10 +47,16 @@ describe("nextStep", () => {
     expect(nextStep(STEPS, { steps: {} }).id).toBe("account");
     expect(
       nextStep(STEPS, { steps: { account: "done", space: "done" } }).id,
-    ).toBe("reach");
+    ).toBe("remote");
     expect(
       nextStep(STEPS, {
-        steps: { account: "done", space: "done", reach: "skipped" },
+        steps: {
+          account: "done",
+          space: "done",
+          remote: "skipped",
+          address: "done",
+          voice: "skipped",
+        },
       }).id,
     ).toBe("invite");
   });
@@ -57,7 +67,9 @@ describe("nextStep", () => {
         steps: {
           account: "done",
           space: "done",
-          reach: "done",
+          remote: "done",
+          address: "done",
+          voice: "done",
           invite: "done",
         },
       }).id,
@@ -69,10 +81,29 @@ describe("previousStep", () => {
   it("never goes back onto a step that created something", () => {
     expect(previousStep(STEPS, "account")).toBeUndefined();
     expect(previousStep(STEPS, "space")).toBeUndefined();
-    expect(previousStep(STEPS, "reach")).toBeUndefined();
+    expect(previousStep(STEPS, "remote")).toBeUndefined();
   });
 
   it("goes back to a settings step", () => {
-    expect(previousStep(STEPS, "invite")?.id).toBe("reach");
+    expect(previousStep(STEPS, "address")?.id).toBe("remote");
+    expect(previousStep(STEPS, "invite")?.id).toBe("voice");
+  });
+
+  it("skips a step that isn't shown", () => {
+    const steps = visibleSteps({ voiceAvailable: false });
+    expect(previousStep(steps, "invite")?.id).toBe("address");
+  });
+});
+
+describe("visibleSteps", () => {
+  it("leaves voice out when the server has none", () => {
+    expect(visibleSteps({ voiceAvailable: false }).map((s) => s.id)).toEqual([
+      "account",
+      "space",
+      "remote",
+      "address",
+      "invite",
+    ]);
+    expect(visibleSteps({ voiceAvailable: true })).toHaveLength(6);
   });
 });
