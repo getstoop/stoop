@@ -45,6 +45,12 @@
   justify-self: start;
 }
 
+/* Not configured: a quiet mark, never a warning. */
+.badge.off {
+  background: var(--raised);
+  color: var(--text-muted);
+}
+
 /* The check's line, cut with an ellipsis; the way to the fix stays. */
 .health-detail {
   display: flex;
