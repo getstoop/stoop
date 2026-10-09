@@ -5,10 +5,12 @@ import { Switch } from "../Switch";
 import { CloudflareTunnelStatusBlock } from "./CloudflareTunnelStatusBlock";
 import {
   type Fields,
+  list,
   type ReachErrors,
   type Secrets,
   type SetField,
   type SetSecrets,
+  TUNNEL_PROXIES,
   withTunnelProxy,
 } from "./fields";
 
@@ -30,6 +32,10 @@ export function CloudflareTunnelSection({
   data: GetReachabilityResponse | undefined;
 }) {
   const status = data?.cloudflareTunnel;
+  const proxies = list(fields.proxies);
+  const proxiesAdded =
+    fields.tunnelEnabled &&
+    TUNNEL_PROXIES.every((proxy) => proxies.includes(proxy));
   return (
     <SettingRow
       className="reach-group reach-tunnel"
@@ -48,6 +54,12 @@ export function CloudflareTunnelSection({
         />
         Run a Cloudflare Tunnel
       </label>
+      {proxiesAdded && (
+        <p className="hint reach-check-hint">
+          Added 127.0.0.1 and ::1 to Trusted proxies: cloudflared runs on this
+          machine.
+        </p>
+      )}
       {status?.state === "missing" && (
         <p className="hint reach-check-hint">
           cloudflared isn't installed on this server.
