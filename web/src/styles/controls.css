@@ -165,6 +165,12 @@ button.link {
   background: var(--danger-soft);
 }
 
+/* Not configured or switched off: a quiet mark, never a warning. */
+.badge.off {
+  background: var(--raised);
+  color: var(--text-muted);
+}
+
 /* The bot glyph after a name (BotMark): the size of the text it follows,
    quiet, never a badge. */
 /* "(deleted)" after the name of an account its owner deleted. */
