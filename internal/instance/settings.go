@@ -138,7 +138,7 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		SessionLifetimeDays:  int32(sessionDays),
 		MessageRetentionDays: int32(messageDays), AttachmentRetentionDays: int32(attachmentDays),
 		VoiceAvailable: s.VoiceAvailable(),
-		EmailEnabled:   smtp.Enabled && smtp.Host != "",
+		EmailEnabled:   smtp.on(),
 	}, nil
 }
 

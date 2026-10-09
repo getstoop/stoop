@@ -110,6 +110,7 @@ func toUserSummary(u auth.AccountSummary) instance.UserSummary {
 		DeletedAt: u.DeletedAt, IsOwner: u.IsOwner,
 		UsernameFrozen: u.UsernameFrozen, HasPassword: u.HasPassword,
 		Pronouns: u.Pronouns, Bio: u.Bio, PersonalTokens: u.PersonalTokens,
+		Email: u.Email,
 	}
 }
 

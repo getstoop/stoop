@@ -68,6 +68,29 @@ func TestLimiterBurstThenRefill(t *testing.T) {
 	}
 }
 
+func TestLimiterPerPeriod(t *testing.T) {
+	at := time.Unix(1_700_000_000, 0)
+	now := func() time.Time { return at }
+	limiter := NewPer(kv.NewMemory(now), "test", 3, time.Hour)
+	limiter.now = now
+	for request := range 3 {
+		if !allow(t, limiter, "a") {
+			t.Fatalf("request %d within the hour's three should pass", request)
+		}
+	}
+	if allow(t, limiter, "a") {
+		t.Fatal("a 4th within the hour must be throttled")
+	}
+	at = at.Add(19 * time.Minute)
+	if allow(t, limiter, "a") {
+		t.Fatal("one comes back after 20 minutes, not 19")
+	}
+	at = at.Add(time.Minute)
+	if !allow(t, limiter, "a") {
+		t.Fatal("one comes back after 20 minutes")
+	}
+}
+
 func TestLimiterDisabled(t *testing.T) {
 	limiter := newTestLimiter(0, 0)
 	if limiter.Enabled() {

@@ -27,6 +27,7 @@ type ProviderConfig struct {
 type Claims struct {
 	Subject           string
 	Email             string
+	EmailVerified     bool
 	PreferredUsername string
 	Name              string
 }

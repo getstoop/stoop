@@ -85,9 +85,10 @@ func (o *oidcProvider) exchange(ctx context.Context, code, verifier, nonce, redi
 	}
 
 	var c struct {
-		Email             string `json:"email"`
-		PreferredUsername string `json:"preferred_username"`
-		Name              string `json:"name"`
+		Email             string    `json:"email"`
+		EmailVerified     claimBool `json:"email_verified"`
+		PreferredUsername string    `json:"preferred_username"`
+		Name              string    `json:"name"`
 	}
 	if err := idToken.Claims(&c); err != nil {
 		return Claims{}, fmt.Errorf("decode claims: %w", err)
@@ -97,13 +98,14 @@ func (o *oidcProvider) exchange(ctx context.Context, code, verifier, nonce, redi
 	if c.PreferredUsername == "" && c.Email == "" {
 		if info, err := o.p.UserInfo(ctx, oauth2.StaticTokenSource(tok)); err == nil {
 			var u struct {
-				Email             string `json:"email"`
-				PreferredUsername string `json:"preferred_username"`
-				Name              string `json:"name"`
+				Email             string    `json:"email"`
+				EmailVerified     claimBool `json:"email_verified"`
+				PreferredUsername string    `json:"preferred_username"`
+				Name              string    `json:"name"`
 			}
 			if err := info.Claims(&u); err == nil {
 				if c.Email == "" {
-					c.Email = u.Email
+					c.Email, c.EmailVerified = u.Email, u.EmailVerified
 				}
 				if c.PreferredUsername == "" {
 					c.PreferredUsername = u.PreferredUsername
@@ -117,9 +119,18 @@ func (o *oidcProvider) exchange(ctx context.Context, code, verifier, nonce, redi
 	return Claims{
 		Subject:           idToken.Subject,
 		Email:             c.Email,
+		EmailVerified:     bool(c.EmailVerified),
 		PreferredUsername: c.PreferredUsername,
 		Name:              c.Name,
 	}, nil
+}
+
+// claimBool reads a boolean claim some issuers send as the string "true".
+type claimBool bool
+
+func (b *claimBool) UnmarshalJSON(raw []byte) error {
+	*b = claimBool(string(raw) == "true" || string(raw) == `"true"`)
+	return nil
 }
 
 // oidcCache lives on the Service so tests get a fresh one per instance.
