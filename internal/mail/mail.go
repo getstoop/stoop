@@ -1,6 +1,6 @@
 // Package mail sends email through an SMTP server. It knows nothing of
 // settings or the database: the caller passes the server to use. See
-// docs/proposals/email.md.
+// docs/architecture/email.md.
 package mail
 
 import (

@@ -3,7 +3,7 @@ syntax = "proto3";
 package stoop.instance.v1;
 
 // The SMTP server Stoop sends mail through. Configured by an instance
-// admin; seeded once from STOOP_SMTP_*. See docs/proposals/email.md.
+// admin; seeded once from STOOP_SMTP_*. See docs/architecture/email.md.
 
 enum SmtpSecurity {
   SMTP_SECURITY_UNSPECIFIED = 0;

@@ -16,7 +16,7 @@ import (
 )
 
 // classify ties a failed send to the setting that explains it
-// (docs/proposals/email.md → Refusals, field by field).
+// (docs/architecture/email.md → The test send).
 func classify(ctx context.Context, server Server, watch *connWatch, err error) *Refusal {
 	host := server.Host
 	refuse := func(field string, code int, format string, args ...any) *Refusal {
