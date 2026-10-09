@@ -340,6 +340,14 @@ export function useReachability(enabled: boolean) {
   });
 }
 
+// Instance admins only: the SMTP server, the password left out.
+export function useEmailSettings() {
+  return useQuery({
+    queryKey: ["email-settings"],
+    queryFn: async () => instanceClient.getEmailSettings({}),
+  });
+}
+
 // Instance admins only: the Diagnostics tab's Health panel. Polled while
 // the tab is open and the page is in front; each panel has its own key
 // so one failing does not blank the others.

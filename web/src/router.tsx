@@ -146,6 +146,7 @@ const adminRoute = createRoute({
       | "spaces"
       | "hosting"
       | "login"
+      | "email"
       | "storage"
       | "integrations"
       | "diagnostics";
@@ -155,6 +156,7 @@ const adminRoute = createRoute({
       search.tab === "spaces" ||
       search.tab === "hosting" ||
       search.tab === "login" ||
+      search.tab === "email" ||
       search.tab === "storage" ||
       search.tab === "integrations" ||
       search.tab === "diagnostics"

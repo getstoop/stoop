@@ -7,6 +7,7 @@ import { CheckState } from "../../gen/stoop/instance/v1/diagnostics_pb";
 import { AboutSection } from "./AboutSection";
 import { CleanupSection } from "./CleanupSection";
 import { Diagnostics } from "./Diagnostics";
+import { EmailSection } from "./EmailSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { LoginProvidersSection } from "./LoginProvidersSection";
 import { OutdatedNotice } from "./OutdatedNotice";
@@ -23,7 +24,8 @@ import { UsersSection } from "./UsersSection";
 
 // Server administration: who may create accounts and spaces, which build
 // this is, the account list, every space on the server, how people reach
-// the server, sign-in, the upload disk, and how the server is doing.
+// the server, sign-in, outgoing email, the upload disk, and how the server
+// is doing.
 // Instance admins only; everyone else is sent home.
 
 type Tab =
@@ -32,6 +34,7 @@ type Tab =
   | "spaces"
   | "hosting"
   | "login"
+  | "email"
   | "storage"
   | "integrations"
   | "diagnostics";
@@ -42,6 +45,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "spaces", label: "Spaces" },
   { key: "hosting", label: "Hosting" },
   { key: "login", label: "Login" },
+  { key: "email", label: "Email" },
   { key: "storage", label: "Storage" },
   { key: "integrations", label: "Integrations" },
   { key: "diagnostics", label: "Diagnostics" },
@@ -110,6 +114,7 @@ export function AdminPage() {
           <LoginProvidersSection />
         </>
       )}
+      {active === "email" && <EmailSection />}
       {active === "integrations" && <IntegrationsSection />}
       {active === "diagnostics" && <Diagnostics />}
       {active === "storage" && (
