@@ -165,6 +165,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	registerSweeps(registry, cfg, log, authSvc, chatSvc, filesSvc, integrationsSvc)
 	registerDeliveries(registry, integrationsSvc, cfg.JobsWorkers)
 	registerImages(registry, filesSvc)
+	registerEmail(registry, authSvc, instanceSvc)
 	jobsSvc := jobs.New(pool, registry, jobs.Config{Workers: cfg.JobsWorkers, Poll: cfg.JobsPoll, Retention: cfg.JobsRetention}, log)
 	filesSvc.UseJobs(jobsSvc)
 	integrationsSvc.UseJobs(deliveryJobs{jobsSvc})
