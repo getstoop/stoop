@@ -2,7 +2,7 @@ import { Navigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { inviteLink } from "../../api/invites";
+import { inviteGone, inviteLink } from "../../api/invites";
 import { useInstanceStatus, useMe } from "../../api/queries";
 import { CopyButton } from "../../components/CopyButton";
 import { isLoopback } from "./loopback";
@@ -41,7 +41,8 @@ export function InviteStep({
   const [usable, setUsable] = useState<string | null>(null);
 
   // Reuse the invite setup made while it still works; mint a new one when
-  // there is none, or it has expired or been revoked since.
+  // there is none, or the server says it is gone. Any other failure is
+  // shown and the saved code kept, so a blip doesn't leave a spare invite.
   useEffect(() => {
     if (!space || busy.current || (code && usable === code)) return;
     busy.current = true;
@@ -57,7 +58,13 @@ export function InviteStep({
           onMinted(res.invite.code);
         });
     (code
-      ? chatClient.lookupInvite({ code }).then(() => setUsable(code), mint)
+      ? chatClient.lookupInvite({ code }).then(
+          () => setUsable(code),
+          (err) => {
+            if (inviteGone(err)) return mint();
+            throw err;
+          },
+        )
       : mint()
     )
       .catch((err) => setError(errorText(err)))
@@ -85,7 +92,9 @@ export function InviteStep({
       <p>
         <strong>Invite your people to {space.name}.</strong>
       </p>
-      <p className="hint">Anyone with this link can join for 7 days.</p>
+      <p className="hint">
+        Anyone with this link can join. It expires 7 days after it was made.
+      </p>
       {link ? (
         <div className="link-box">
           <code title={link}>{link}</code>
