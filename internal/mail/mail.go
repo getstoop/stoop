@@ -49,6 +49,10 @@ type Message struct {
 	Text    string
 	// Optional; sent as multipart/alternative with Text.
 	HTML string
+	// Optional; not sent. The send_email job runs it once the server has
+	// accepted the message, for what may only happen after a send (a new
+	// link replacing the old ones).
+	OnSent func(ctx context.Context) error
 }
 
 // Sender delivers a message through the configured server.

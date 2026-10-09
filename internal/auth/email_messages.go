@@ -36,7 +36,7 @@ func (s *Service) BuildConfirmEmail(ctx context.Context, args mail.JobArgs, site
 		return mail.Message{}, mail.ErrNoPublicURL
 	}
 	address := *recipient.PendingEmail
-	token, err := s.mintConfirmEmailToken(ctx, args.UserID, address, time.Now())
+	token, tokenID, err := s.mintConfirmEmailToken(ctx, args.UserID, address, time.Now())
 	if err != nil {
 		return mail.Message{}, err
 	}
@@ -47,6 +47,13 @@ func (s *Service) BuildConfirmEmail(ctx context.Context, args mail.JobArgs, site
 		Text: "Someone asked to use this address for @" + recipient.Username + " on " + site.InstanceName + ".\n\n" +
 			"To confirm it, open this link within 24 hours:\n\n" + link + "\n\n" +
 			"If that wasn't you, ignore this email and nothing will change.\n",
+		// Older links die only once this one is on its way, so a send that
+		// fails leaves the link the person already has working.
+		OnSent: func(ctx context.Context) error {
+			return s.q.DeleteOtherEmailTokens(ctx, dbgen.DeleteOtherEmailTokensParams{
+				UserID: args.UserID, Purpose: confirmEmailPurpose, KeepID: tokenID,
+			})
+		},
 	}, nil
 }
 
@@ -63,7 +70,7 @@ func (s *Service) BuildEmailChanged(ctx context.Context, args mail.JobArgs, site
 	return mail.Message{
 		To:      args.OldAddress,
 		Subject: "Your email on " + site.InstanceName + " was changed",
-		Text: "The email address for @" + recipient.Username + " on " + site.InstanceName + " was changed to a different address.\n\n" +
+		Text: "The email address for @" + recipient.Username + " on " + site.InstanceName + " was changed or removed.\n\n" +
 			"If you did this, there's nothing to do. If you didn't, sign in and change your password, or ask an admin for help.\n",
 	}, nil
 }
@@ -81,22 +88,18 @@ func (s *Service) emailRecipient(ctx context.Context, userID string) (dbgen.GetE
 	return recipient, err
 }
 
-// mintConfirmEmailToken revokes the user's unused confirmation tokens and
-// stores the hash of a new one for address; the raw token is returned
-// for the link and kept nowhere else.
-func (s *Service) mintConfirmEmailToken(ctx context.Context, userID, address string, now time.Time) (string, error) {
-	token := randomToken()
-	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if err := qtx.RevokeUnusedEmailTokens(ctx, dbgen.RevokeUnusedEmailTokensParams{UserID: userID, Purpose: confirmEmailPurpose}); err != nil {
-			return err
-		}
-		return qtx.CreateEmailToken(ctx, dbgen.CreateEmailTokenParams{
-			ID: rowid.New(), UserID: userID, Purpose: confirmEmailPurpose,
-			TokenHash: hashToken(token), Address: address, ExpiresAt: now.Add(confirmEmailLifetime),
-		})
+// mintConfirmEmailToken stores the hash of a new confirmation token for
+// address; the raw token is returned for the link and kept nowhere else.
+// Older links stay until the message is sent (see BuildConfirmEmail).
+func (s *Service) mintConfirmEmailToken(ctx context.Context, userID, address string, now time.Time) (token, tokenID string, err error) {
+	token = randomToken()
+	tokenID = rowid.New()
+	err = s.q.CreateEmailToken(ctx, dbgen.CreateEmailTokenParams{
+		ID: tokenID, UserID: userID, Purpose: confirmEmailPurpose,
+		TokenHash: hashToken(token), Address: address, ExpiresAt: now.Add(confirmEmailLifetime),
 	})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return token, nil
+	return token, tokenID, nil
 }

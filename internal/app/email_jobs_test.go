@@ -87,3 +87,27 @@ func TestSendEmailBuildOutcome(t *testing.T) {
 		}
 	}
 }
+
+// What a message does after its send (retiring older links) happens only
+// when the server took it.
+func TestSendEmailRunsOnSentOnlyAfterASend(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		sendErr error
+		wantRan bool
+	}{
+		{"accepted", nil, true},
+		{"refused", &mail.Refusal{Code: 451, Message: "try again later"}, false},
+		{"hourly cap", &mail.HourlyLimitError{Limit: 100, Until: time.Now().Add(time.Hour)}, false},
+	} {
+		ran := false
+		builders := map[string]mail.Builder{mail.TemplateConfirmEmail: func(context.Context, mail.JobArgs, mail.Site) (mail.Message, error) {
+			return mail.Message{To: "ada@example.com", OnSent: func(context.Context) error { ran = true; return nil }}, nil
+		}}
+		instance := &fakeEmailInstance{publicURL: "https://chat.example.com", sendErr: test.sendErr}
+		_ = sendEmail(context.Background(), builders, instance, mail.JobArgs{Template: mail.TemplateConfirmEmail, UserID: "u"})
+		if ran != test.wantRan {
+			t.Errorf("%s: OnSent ran = %v, want %v", test.name, ran, test.wantRan)
+		}
+	}
+}
