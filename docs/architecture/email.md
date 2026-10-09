@@ -14,8 +14,10 @@ address, from name, hourly limit. Seeded once from `STOOP_SMTP_*` like the
 other environment-backed settings ([runtime.md](runtime.md)); after that
 the row is the setting.
 
-- The password is write-only: `GetEmailSettings` returns `has_password`,
-  and a blank password on a save or a test keeps the saved one.
+- The password is write-only: `GetEmailSettings` returns `has_password`.
+  A blank password on a save or a test keeps the saved one only while the
+  host and username are unchanged; changing either needs it typed again,
+  so a test can't hand the saved password to another server.
 - `none` with a username is refused: a password is never sent unencrypted.
 - A port of 0 takes the mode's default (587, 465, 25).
 - A blank from name sends the instance name.
