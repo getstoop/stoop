@@ -46,5 +46,9 @@ func TestE2ESendTestEmail(t *testing.T) {
 		t.Errorf("refused sender: field = %q, want smtp.from_address", got)
 	}
 
+	// Five tries a minute per admin; this is casey's fifth, then the sixth.
+	stoop.rpc(casey, send, form(fake)).expect(t, "ok")
+	stoop.rpc(casey, send, form(fake)).expect(t, "resource_exhausted", "Too many test emails")
+
 	stoop.rpc(ada, send, form(fake)).expect(t, "permission_denied")
 }

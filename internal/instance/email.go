@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	netmail "net/mail"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -164,8 +162,6 @@ func (smtp SMTP) toProto() *instancev1.SmtpSettings {
 	}
 }
 
-var hostnamePattern = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*\.?$`)
-
 // validate applies the save rules; a refusal names its field (smtp.host,
 // smtp.port, …).
 func (smtp SMTP) validate() error {
@@ -175,7 +171,7 @@ func (smtp SMTP) validate() error {
 	switch {
 	case smtp.Host == "" && smtp.Enabled:
 		return refuse("host", "Enter the SMTP server's host name.")
-	case smtp.Host != "" && !validHost(smtp.Host):
+	case smtp.Host != "" && !config.SMTPHost(smtp.Host):
 		return refuse("host", "Enter a host name or IPv4 address, with no scheme or port.")
 	}
 	if smtp.Port < 1 || smtp.Port > 65535 {
@@ -209,16 +205,6 @@ func (smtp SMTP) validate() error {
 		return refuse("hourly_limit", "Enter a number from 0 to %d.", config.MaxSMTPHourlyLimit)
 	}
 	return nil
-}
-
-// validHost takes a hostname or an IPv4 address. An IPv6 literal can't be
-// dialled as host:port without brackets, and a bracketed one isn't a TLS
-// server name.
-func validHost(host string) bool {
-	if ip := net.ParseIP(host); ip != nil {
-		return ip.To4() != nil
-	}
-	return len(host) <= 253 && hostnamePattern.MatchString(host)
 }
 
 // bareAddress reports whether address is one address with no name or

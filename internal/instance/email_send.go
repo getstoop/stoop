@@ -103,10 +103,10 @@ func (s *Service) allowTestEmail(ctx context.Context) error {
 	}
 	allowed, err := s.testEmailThrottle.Allow(ctx, authctx.UserID(ctx))
 	if err != nil {
-		return connect.NewError(connect.CodeUnavailable, errors.New("test email is unavailable right now; try again in a moment"))
+		return connect.NewError(connect.CodeUnavailable, errors.New("Test email is unavailable right now. Try again in a moment."))
 	}
 	if !allowed {
-		err := connect.NewError(connect.CodeResourceExhausted, errors.New("too many test emails; try again in a minute"))
+		err := connect.NewError(connect.CodeResourceExhausted, errors.New("Too many test emails. Try again in a minute."))
 		err.Meta().Set("Retry-After", "60")
 		return err
 	}
