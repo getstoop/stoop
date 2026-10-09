@@ -482,23 +482,35 @@ export function MessageList({
             </div>
           </>
         )}
-        {messages.map((message, i) => (
-          <Fragment key={message.id}>
-            {!threadRoot &&
-              message.createdAt &&
-              startsDay(message, messages[i - 1]) && (
+        {messages.map((message, i) => {
+          const day =
+            !threadRoot &&
+            message.createdAt &&
+            startsDay(message, messages[i - 1])
+              ? dayLabel(timestampDate(message.createdAt))
+              : null;
+          const isNew = message.id === firstNewId;
+          return (
+            <Fragment key={message.id}>
+              {/* When the unread line falls on a day boundary the two
+                share one divider, in the unread line's colour. */}
+              {day && !isNew && (
                 <div className="day-divider eyebrow">
-                  <span>{dayLabel(timestampDate(message.createdAt))}</span>
+                  <span>{day}</span>
                 </div>
               )}
-            {message.id === firstNewId && (
-              <div ref={dividerRef} className="new-divider eyebrow">
-                <span>New messages</span>
-              </div>
-            )}
-            {row(message, continues(message, messages[i - 1]))}
-          </Fragment>
-        ))}
+              {isNew && (
+                <div
+                  ref={dividerRef}
+                  className={`new-divider eyebrow${day ? " starts-day" : ""}`}
+                >
+                  <span>{day ? `${day} · New messages` : "New messages"}</span>
+                </div>
+              )}
+              {row(message, continues(message, messages[i - 1]))}
+            </Fragment>
+          );
+        })}
         {/* The window's newer edge: a sentinel that pages forward while
           the window isn't live. Always in the DOM so the observer is stable. */}
         <div ref={footRef} className="history-foot" data-live={live}>
