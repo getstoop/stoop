@@ -1,5 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { authClient } from "../../../api/clients";
 import { errorText } from "../../../api/errors";
@@ -27,10 +27,30 @@ export function EmailSection({ hasPassword }: { hasPassword: boolean }) {
 
   // A note or refusal is about the state it was given in; when the state
   // moves (a link confirmed in another tab), it goes.
-  useEffect(() => {
+  const [shownFor, setShownFor] = useState(state);
+  if (shownFor !== state) {
+    setShownFor(state);
     setNote(null);
     setError(null);
-  }, [state]);
+  }
+
+  // While a link is out, coming back to this tab may follow a confirmation
+  // somewhere else: read the address again.
+  const waiting = state === "pending" || state === "changing";
+  useEffect(() => {
+    if (!waiting) return;
+    const refresh = () => {
+      if (document.visibilityState === "visible") {
+        void queryClient.invalidateQueries({ queryKey: ["me"] });
+      }
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [waiting, queryClient]);
 
   const showEmail = async (next: MyEmail | undefined) => {
     if (next) {
