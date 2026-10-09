@@ -9,7 +9,8 @@ import { Switch } from "../../components/Switch";
 // the setup wizard's Email step.
 export function EmailSection() {
   const draft = useEmailDraft();
-  const { data, isLoading, fields, set, form, dirty, busy, save } = draft;
+  const { data, isLoading, loadError, fields, set, form, dirty, busy, save } =
+    draft;
   const [saved, setSaved] = useState(false);
   const savedHost = data?.smtp?.host ?? "";
 
@@ -28,40 +29,51 @@ export function EmailSection() {
       </p>
       {isLoading ? (
         <p className="muted">Loading…</p>
+      ) : loadError ? (
+        // No form: one built on defaults could save them over the server.
+        <p className="error" role="alert">
+          Could not read the email settings: {loadError}
+        </p>
       ) : (
         <form className="email-form" ref={form.formRef} onSubmit={submit}>
-          {savedHost === "" && (
-            <p className="hint">
-              Nothing in Stoop sends email until a host is saved here.
-            </p>
-          )}
-          <SettingRow
-            id="email-enabled"
-            title="Send email"
-            description="Off keeps the settings and sends nothing."
-          >
-            <Switch
+          <fieldset className="email-fieldset" disabled={busy}>
+            {savedHost === "" && (
+              <p className="hint">
+                Nothing in Stoop sends email until a host is saved here.
+              </p>
+            )}
+            <SettingRow
               id="email-enabled"
-              checked={fields.enabled}
-              onChange={(e) => set("enabled", e.target.checked)}
-            />
-          </SettingRow>
+              title="Send email"
+              description="Off keeps the settings and sends nothing."
+            >
+              <Switch
+                id="email-enabled"
+                checked={fields.enabled}
+                onChange={(e) => set("enabled", e.target.checked)}
+              />
+            </SettingRow>
 
-          <SmtpFields draft={draft} />
+            <SmtpFields draft={draft} />
 
-          {form.formError && (
-            <p className="error" role="alert">
-              {form.formError}
-            </p>
-          )}
-          <div className="setting-actions">
-            <button type="submit" className="primary" disabled={busy || !dirty}>
-              Save
-            </button>
-            {saved && !dirty && <span className="hint">Saved.</span>}
-          </div>
+            {form.formError && (
+              <p className="error" role="alert">
+                {form.formError}
+              </p>
+            )}
+            <div className="setting-actions">
+              <button
+                type="submit"
+                className="primary"
+                disabled={busy || !dirty}
+              >
+                Save
+              </button>
+              {saved && !dirty && <span className="hint">Saved.</span>}
+            </div>
 
-          <TestEmailRow draft={draft} />
+            <TestEmailRow draft={draft} />
+          </fieldset>
         </form>
       )}
     </section>

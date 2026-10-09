@@ -38,6 +38,8 @@ func classify(ctx context.Context, server Server, watch *connWatch, err error) *
 		// The deadline closes the connection, so err is only "use of closed
 		// network connection"; the context says why.
 		return refuse("", 0, "%s:%d stopped answering.", host, server.Port)
+	case errors.As(err, &dnsErr) && dnsErr.IsTimeout:
+		return refuse("", 0, "Looking up %s timed out.", host)
 	case errors.As(err, &dnsErr):
 		return refuse("host", 0, "Can't find %s.", host)
 	case errors.As(err, &hostnameErr):

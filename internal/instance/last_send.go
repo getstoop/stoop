@@ -13,6 +13,8 @@ import (
 // the database because `stoop jobs` can be its own process.
 const keyLastSend = "smtp_last_send"
 
+const recordTimeout = 5 * time.Second
+
 // SendOutcome is how the last send went; a zero At is nothing sent yet.
 type SendOutcome struct {
 	At    time.Time `json:"at"`
@@ -38,7 +40,11 @@ func (s *Service) recordSend(ctx context.Context, sendErr error) {
 	case sendErr != nil:
 		outcome.Error = sendErr.Error()
 	}
-	if err := s.writeJSON(context.WithoutCancel(ctx), keyLastSend, outcome); err != nil {
+	// Detached from the request so a caller leaving still records it, but
+	// bounded so a busy database can't hold up a send that has finished.
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordTimeout)
+	defer cancel()
+	if err := s.writeJSON(writeCtx, keyLastSend, outcome); err != nil {
 		slog.Error("record email outcome", "err", err)
 	}
 }
