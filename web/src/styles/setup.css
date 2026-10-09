@@ -202,3 +202,27 @@
   opacity: var(--disabled);
   cursor: default;
 }
+
+/* After setup, at the top of the space it made. */
+.first-run {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 520px;
+  margin: 4px 0 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.first-run p {
+  margin: 0;
+}
+
+.first-run .link,
+.first-run a.setup-summary-action {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  text-decoration: underline;
+}

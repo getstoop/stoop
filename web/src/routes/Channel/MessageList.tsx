@@ -32,6 +32,7 @@ import { UserCard } from "../../components/UserCard";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { confirm, notice } from "../../stores/dialogs";
 import { openSidePanel, useSidePanelStore } from "../../stores/sidePanel";
+import { FirstRunCard } from "./FirstRunCard";
 import { MessageRow } from "./MessageRow";
 
 export function MessageList({
@@ -469,6 +470,9 @@ export function MessageList({
               "Loading earlier messages…"
             ) : null}
           </div>
+        )}
+        {!threadRoot && history && !history.hasOlder && (
+          <FirstRunCard channelId={channelId} />
         )}
         {threadRoot && history && !history.hasOlder && (
           <>

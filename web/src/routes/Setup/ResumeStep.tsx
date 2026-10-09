@@ -27,7 +27,10 @@ export function ResumeStep({
         {steps
           .filter((s) => progress.steps[s.id] !== undefined)
           .map((s) => (
-            <SummaryRow key={s.id} mark="done">
+            <SummaryRow
+              key={s.id}
+              mark={progress.steps[s.id] === "skipped" ? "skipped" : "done"}
+            >
               {s.title}
               {s.id === "space" && progress.space && (
                 <strong>{progress.space.name}</strong>
