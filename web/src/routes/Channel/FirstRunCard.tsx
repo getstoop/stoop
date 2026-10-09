@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { inviteLink } from "../../api/invites";
-import { useInstanceStatus, useMe } from "../../api/queries";
+import { useInstanceStatus, useInvitePreview, useMe } from "../../api/queries";
 import { CopyButton } from "../../components/CopyButton";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { clearProgress, loadProgress } from "../Setup/progress";
@@ -15,6 +15,10 @@ export function FirstRunCard({ channelId }: { channelId: string }) {
   const { data: me } = useMe();
   const { data: status } = useInstanceStatus();
   const [progress, setProgress] = useState(loadProgress);
+  // The invite may have expired or been revoked since setup made it.
+  const { isSuccess: inviteWorks, isError: inviteDead } = useInvitePreview(
+    progress?.invite,
+  );
 
   const space = progress?.space;
   if (
@@ -40,10 +44,17 @@ export function FirstRunCard({ channelId }: { channelId: string }) {
         <strong>Your server is up. Bring people in.</strong>
       </p>
       <p className="hint">Only you see this.</p>
-      <div className="link-box">
-        <code title={link}>{link}</code>
-        <CopyButton text={link} />
-      </div>
+      {inviteWorks && (
+        <div className="link-box">
+          <code title={link}>{link}</code>
+          <CopyButton text={link} />
+        </div>
+      )}
+      {inviteDead && (
+        <p className="hint">
+          Setup's invite no longer works. Make a new one from Invite people.
+        </p>
+      )}
       {skipped.length > 0 && (
         <ul className="setup-summary">
           {skipped.map((s) => (
