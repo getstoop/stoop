@@ -56,4 +56,11 @@ func TestE2EAccountEmailRoundTrip(t *testing.T) {
 	if strings.Contains(text, "casey@example.net") || strings.Contains(text, "confirm-email") {
 		t.Errorf("the notice shows the new address or a link: %q", text)
 	}
+
+	// Removing the address tells it too.
+	stoop.rpc(casey, accountAuth+"RemoveEmail", map[string]any{"password": password}).expect(t, "ok")
+	removed := fake.Next(t)
+	if subject, _ := readEmail(t, removed); len(removed.To) != 1 || removed.To[0] != "casey@example.net" || !strings.Contains(subject, "was changed") {
+		t.Fatalf("removal notice = to %v, subject %q", removed.To, subject)
+	}
 }

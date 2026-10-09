@@ -12,7 +12,6 @@ import (
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
-	"github.com/getstoop/stoop/internal/mail"
 )
 
 // errEmailLinkSpent covers a bad, used, expired or superseded link alike.
@@ -64,12 +63,7 @@ func (s *Service) ConfirmEmail(ctx context.Context, req *connect.Request[authv1.
 		if link.PreviousEmail == nil || strings.EqualFold(*link.PreviousEmail, link.Address) {
 			return nil
 		}
-		if _, err := s.emailJobs.EnqueueTx(ctx, tx, mail.SendEmailKind, mail.JobArgs{
-			Template: mail.TemplateEmailChanged, UserID: link.UserID, OldAddress: *link.PreviousEmail,
-		}); err != nil {
-			return fmt.Errorf("queue change notice: %w", err)
-		}
-		return nil
+		return s.queueEmailChanged(ctx, tx, link.UserID, link.PreviousEmail)
 	})
 	if err != nil {
 		return nil, err

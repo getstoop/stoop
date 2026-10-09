@@ -22,7 +22,7 @@ const accountAuth = "stoop.auth.v1.AuthService/"
 func emailHarness(t *testing.T) (*harness, *pgxpool.Pool, string) {
 	t.Helper()
 	databaseURL := dbtest.NewURL(t)
-	instance := newHarnessOn(t, databaseURL)
+	instance := newHarnessOn(t, databaseURL, "STOOP_PUBLIC_URL", "https://chat.example.com")
 	pool, err := pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
 		t.Fatal(err)
@@ -150,4 +150,17 @@ func TestE2EAccountEmailOff(t *testing.T) {
 	casey := instance.person("casey")
 	instance.rpc(casey, accountAuth+"RequestEmailChange", map[string]any{"address": "casey@example.com", "password": password}).
 		expect(t, "failed_precondition", "doesn't send email")
+}
+
+// No public URL, no link to send: the request is refused instead of
+// leaving an address waiting for a link that never comes.
+func TestE2EAccountEmailNeedsPublicURL(t *testing.T) {
+	instance := newHarnessOn(t, dbtest.NewURL(t))
+	casey := instance.person("casey")
+	instance.rpc(casey, email+"UpdateEmailSettings", map[string]any{"smtp": map[string]any{
+		"enabled": true, "host": "smtp.example.net", "security": "SMTP_SECURITY_STARTTLS",
+		"fromAddress": "stoop@example.net", "hourlyLimit": 100,
+	}}).expect(t, "ok")
+	instance.rpc(casey, accountAuth+"RequestEmailChange", map[string]any{"address": "casey@example.com", "password": password}).
+		expect(t, "failed_precondition", "can't send links yet")
 }

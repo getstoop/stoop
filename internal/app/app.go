@@ -170,6 +170,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	filesSvc.UseJobs(jobsSvc)
 	integrationsSvc.UseJobs(deliveryJobs{jobsSvc})
 	authSvc.UseEmailPorts(jobsSvc, instanceSvc.EmailEnabled)
+	authSvc.UseLinkBase(instanceSvc.PublicURL)
 	authSvc.UseEmailThrottle(ratelimit.NewPer(stores, "ratelimit_email_change", 3, time.Hour))
 	if err := scheduleSweeps(ctx, jobsSvc, cfg); err != nil {
 		return nil, err

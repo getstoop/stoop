@@ -87,17 +87,32 @@ func (s *Service) checkAccountPassword(ctx context.Context, user dbgen.User, pas
 }
 
 // requireEmailOn refuses while the instance can't send email.
+// UseLinkBase wires the public URL links are built on.
+func (s *Service) UseLinkBase(base func(ctx context.Context) (string, error)) { s.linkBase = base }
+
+// requireEmailOn refuses a request for a link the server can't send: email
+// off, or no public URL to build the link on.
 func (s *Service) requireEmailOn(ctx context.Context) error {
-	if s.emailEnabled != nil {
-		enabled, err := s.emailEnabled(ctx)
+	if s.emailEnabled == nil {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("This server doesn't send email."))
+	}
+	enabled, err := s.emailEnabled(ctx)
+	if err != nil {
+		return fmt.Errorf("read email setting: %w", err)
+	}
+	if !enabled {
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("This server doesn't send email."))
+	}
+	if s.linkBase != nil {
+		base, err := s.linkBase(ctx)
 		if err != nil {
-			return fmt.Errorf("read email setting: %w", err)
+			return fmt.Errorf("read public URL: %w", err)
 		}
-		if enabled {
-			return nil
+		if base == "" {
+			return connect.NewError(connect.CodeFailedPrecondition, errors.New("This server can't send links yet. Ask an admin to set its public address."))
 		}
 	}
-	return connect.NewError(connect.CodeFailedPrecondition, errors.New("This server doesn't send email."))
+	return nil
 }
 
 func (s *Service) allowEmailSend(ctx context.Context, userID string) error {
@@ -119,6 +134,20 @@ func (s *Service) allowEmailSend(ctx context.Context, userID string) error {
 
 func myEmail(user dbgen.User) *authv1.MyEmail {
 	return &authv1.MyEmail{Address: deref(user.Email), PendingAddress: deref(user.PendingEmail)}
+}
+
+// queueEmailChanged tells oldAddress, if there was one, that the account's
+// address changed or went.
+func (s *Service) queueEmailChanged(ctx context.Context, tx pgx.Tx, userID string, oldAddress *string) error {
+	if oldAddress == nil || *oldAddress == "" {
+		return nil
+	}
+	if _, err := s.emailJobs.EnqueueTx(ctx, tx, mail.SendEmailKind, mail.JobArgs{
+		Template: mail.TemplateEmailChanged, UserID: userID, OldAddress: *oldAddress,
+	}); err != nil {
+		return fmt.Errorf("queue change notice: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) queueConfirmEmail(ctx context.Context, tx pgx.Tx, userID string) error {
@@ -230,7 +259,13 @@ func (s *Service) RemoveEmail(ctx context.Context, req *connect.Request[authv1.R
 	if err := s.checkAccountPassword(ctx, user, req.Msg.Password); err != nil {
 		return nil, err
 	}
-	if err := s.inTx(ctx, func(qtx *dbgen.Queries) error { return clearEmail(ctx, qtx, userID) }); err != nil {
+	err = db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := clearEmail(ctx, s.q.WithTx(tx), userID); err != nil {
+			return err
+		}
+		return s.queueEmailChanged(ctx, tx, userID, user.Email)
+	})
+	if err != nil {
 		return nil, err
 	}
 	return connect.NewResponse(&authv1.RemoveEmailResponse{}), nil

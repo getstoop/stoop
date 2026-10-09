@@ -77,6 +77,8 @@ type Service struct {
 	emailJobs     EmailJobs
 	emailEnabled  func(ctx context.Context) (bool, error)
 	emailThrottle Throttle
+	// linkBase is the public URL links are built on (account_email.go).
+	linkBase func(ctx context.Context) (string, error)
 }
 
 func New(pool *pgxpool.Pool, opts Options) *Service {

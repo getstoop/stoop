@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/getstoop/stoop/internal/auth"
@@ -63,7 +64,17 @@ func sendEmail(ctx context.Context, builders map[string]mail.Builder, instance e
 	case err != nil:
 		return err
 	}
-	return emailSendOutcome(instance.Send(ctx, msg), time.Now())
+	if err := instance.Send(ctx, msg); err != nil {
+		return emailSendOutcome(err, time.Now())
+	}
+	// The message is out: what follows it can't undo that, so a failure
+	// here is logged, not retried (a retry would send it again).
+	if msg.OnSent != nil {
+		if err := msg.OnSent(ctx); err != nil {
+			slog.Error("after sending email", "template", args.Template, "err", err)
+		}
+	}
+	return nil
 }
 
 // emailSendOutcome maps a send's result: a cap waits for its window, a
