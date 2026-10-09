@@ -55,8 +55,8 @@ export function CloudflareTunnelSection({
       </label>
       {proxiesAdded && (
         <p className="hint reach-check-hint">
-          Added 127.0.0.1 and ::1 to Trusted proxies: cloudflared runs on this
-          machine.
+          We added localhost to the trusted proxies to support the Cloudflare
+          Tunnel.
         </p>
       )}
       {status?.state === "missing" && (
