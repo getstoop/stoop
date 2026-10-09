@@ -30,7 +30,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   await A.locator('input[autocomplete="username"]').fill(`ada${suffix}`);
   await A.locator('input[type="password"]').fill(password);
   await A.locator('button[type="submit"]').click();
-  await A.locator('input[placeholder="The Porch"]').fill("Stoop HQ");
+  await A.getByLabel("Space name").fill("Stoop HQ");
   await A.locator('button[type="submit"]').click();
   // Setup step 3 (reaching your server) is skippable.
   await A.locator("button.reach-continue").click();

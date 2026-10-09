@@ -4,6 +4,7 @@ import { chatClient } from "../../api/clients";
 import { useVoiceAvailable } from "../../api/queries";
 import { MAX_SPACE_NAME } from "../../api/spaces";
 import { Field } from "../../components/Field";
+import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { WizardActions } from "./WizardActions";
 
@@ -23,12 +24,26 @@ export function SpaceStep({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    setBusy(true);
     form.begin();
+    if (!name.trim()) {
+      form.set("name", "Name your space.");
+      return;
+    }
+    setBusy(true);
     try {
       const res = await chatClient.createSpace({ name });
       if (!res.space || !res.defaultChannel) {
         throw new Error("space was created without a default channel");
+      }
+      if (voiceAvailable) {
+        // Not worth stopping setup over; it can be added from the sidebar.
+        await chatClient
+          .createChannel({
+            spaceId: res.space.id,
+            name: "lounge",
+            kind: ChannelKind.VOICE,
+          })
+          .catch(() => {});
       }
       await queryClient.invalidateQueries({ queryKey: ["spaces"] });
       onDone({
@@ -44,19 +59,30 @@ export function SpaceStep({
   };
 
   return (
-    <form className="login-card bare" ref={form.formRef} onSubmit={submit}>
+    <form
+      className="login-card bare"
+      ref={form.formRef}
+      onSubmit={submit}
+      noValidate
+    >
       <p>
         <strong>Create your first space.</strong>
       </p>
       <p className="hint">
-        A space is where your people hang out — it holds channels for text
-        {voiceAvailable ? " and voice" : ""}. You can make more later.
+        A space holds your channels. You can make more later.
       </p>
-      <Field label="Space name" error={form.errors.name}>
+      <Field
+        label="Space name"
+        error={form.errors.name}
+        hint={
+          voiceAvailable
+            ? "It starts with #general and a voice channel, lounge."
+            : "It starts with #general."
+        }
+      >
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="The Porch"
           maxLength={MAX_SPACE_NAME}
           required
         />
