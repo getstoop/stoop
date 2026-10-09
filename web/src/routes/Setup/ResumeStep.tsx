@@ -1,3 +1,4 @@
+import { useEmailSettings } from "../../api/queries";
 import { SummaryRow } from "./SummaryRow";
 import type { Progress, Step } from "./steps";
 import { WizardActions } from "./WizardActions";
@@ -16,6 +17,7 @@ export function ResumeStep({
   onContinue: () => void;
   onLater: () => void;
 }) {
+  const emailHost = useEmailSettings().data?.smtp?.host;
   const left = steps.filter((s) => progress.steps[s.id] === undefined);
   return (
     <div className="login-card bare">
@@ -35,6 +37,14 @@ export function ResumeStep({
               {s.id === "space" && progress.space && (
                 <strong>{progress.space.name}</strong>
               )}
+              {s.id === "email" &&
+                progress.steps.email === "done" &&
+                emailHost && (
+                  <>
+                    {" "}
+                    via <strong>{emailHost}</strong>
+                  </>
+                )}
             </SummaryRow>
           ))}
         {left.length > 0 && (

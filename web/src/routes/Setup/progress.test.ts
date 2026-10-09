@@ -27,13 +27,21 @@ describe("parseProgress", () => {
 
   it("drops unknown steps and states", () => {
     const raw = JSON.stringify({
-      steps: { account: "done", email: "done", space: "maybe" },
+      steps: { account: "done", sms: "done", space: "maybe" },
     });
     expect(parseProgress(raw)).toEqual({
       steps: { account: "done" },
       space: undefined,
       access: undefined,
       invite: undefined,
+    });
+  });
+
+  it("reads back the email step", () => {
+    const raw = JSON.stringify({ steps: { voice: "done", email: "skipped" } });
+    expect(parseProgress(raw)?.steps).toEqual({
+      voice: "done",
+      email: "skipped",
     });
   });
 
@@ -73,7 +81,34 @@ describe("nextStep", () => {
           voice: "skipped",
         },
       }).id,
+    ).toBe("email");
+    expect(
+      nextStep(STEPS, {
+        steps: {
+          account: "done",
+          space: "done",
+          remote: "skipped",
+          address: "done",
+          voice: "skipped",
+          email: "skipped",
+        },
+      }).id,
     ).toBe("invite");
+  });
+
+  it("has email to do after a record saved before it existed", () => {
+    const saved = parseProgress(
+      JSON.stringify({
+        steps: {
+          account: "done",
+          space: "done",
+          remote: "done",
+          address: "done",
+          voice: "done",
+        },
+      }),
+    );
+    expect(saved && nextStep(STEPS, saved).id).toBe("email");
   });
 
   it("stays on the last step once everything is done", () => {
@@ -85,6 +120,7 @@ describe("nextStep", () => {
           remote: "done",
           address: "done",
           voice: "done",
+          email: "done",
           invite: "done",
         },
       }).id,
@@ -101,25 +137,38 @@ describe("previousStep", () => {
 
   it("goes back to a settings step", () => {
     expect(previousStep(STEPS, "address")?.id).toBe("remote");
-    expect(previousStep(STEPS, "invite")?.id).toBe("voice");
+    expect(previousStep(STEPS, "email")?.id).toBe("voice");
+    expect(previousStep(STEPS, "invite")?.id).toBe("email");
   });
 
   it("skips a step that isn't shown", () => {
     const steps = visibleSteps({ voiceAvailable: false });
-    expect(previousStep(steps, "invite")?.id).toBe("address");
+    expect(previousStep(steps, "email")?.id).toBe("address");
   });
 });
 
 describe("visibleSteps", () => {
+  it("puts email between voice and the invite, voice or not", () => {
+    expect(visibleSteps({ voiceAvailable: true }).map((s) => s.id)).toEqual([
+      "account",
+      "space",
+      "remote",
+      "address",
+      "voice",
+      "email",
+      "invite",
+    ]);
+  });
+
   it("leaves voice out when the server has none", () => {
     expect(visibleSteps({ voiceAvailable: false }).map((s) => s.id)).toEqual([
       "account",
       "space",
       "remote",
       "address",
+      "email",
       "invite",
     ]);
-    expect(visibleSteps({ voiceAvailable: true })).toHaveLength(6);
   });
 });
 

@@ -26,7 +26,7 @@ test("the first-run wizard and the first invited member", async ({
     "runs the server",
   );
   await expect(card, "step 1 is the account step").toContainText(
-    /Step 1 of [56]/,
+    /Step 1 of [67]/,
   );
 
   await A.locator('input[autocomplete="username"]').fill(`ada${suffix}`);
@@ -37,7 +37,7 @@ test("the first-run wizard and the first invited member", async ({
     "a short password is refused beside the field",
   ).toHaveText("At least 8 characters.");
   await expect(card, "and the wizard stays on step 1").toContainText(
-    /Step 1 of [56]/,
+    /Step 1 of [67]/,
   );
 
   await A.locator('input[type="password"]').fill(password);
@@ -76,12 +76,19 @@ test("the first-run wizard and the first invited member", async ({
   await A.getByRole("button", { name: "Set up later" }).click();
   await expect(current, "advances to the address").toHaveText(/Address/);
   await A.getByRole("button", { name: "Continue" }).click();
-  if (await card.getByText("Step 5 of 6").isVisible()) {
+  if (await card.getByText("Step 5 of 7").isVisible()) {
     await expect(current, "voice comes next when voice is on").toHaveText(
       /Voice and video/,
     );
     await A.getByRole("button", { name: "Set up later" }).click();
   }
+  await expect(current, "email comes before the invite").toHaveText(/Email/);
+  await A.getByRole("button", { name: "Continue" }).click();
+  await expect(
+    card.locator(".field-error"),
+    "Continue with no host is refused beside the field",
+  ).toHaveText("Enter a host, or set this up later.");
+  await A.getByRole("button", { name: "Set up later" }).click();
   await expect(current, "advances to the invite").toHaveText(/Invite people/);
   const summary = card.locator(".setup-summary");
   await expect(summary, "the summary names the account").toContainText(
@@ -90,6 +97,7 @@ test("the first-run wizard and the first invited member", async ({
   await expect(summary, "and the skipped remote access").toContainText(
     "Remote access skipped",
   );
+  await expect(summary, "and the skipped email").toContainText("Email skipped");
 
   // On localhost the link only opens here; setting an address and coming
   // back shows the same invite, not a second one.
@@ -106,7 +114,15 @@ test("the first-run wizard and the first invited member", async ({
   if ((await current.innerText()).includes("Voice")) {
     await A.getByRole("button", { name: "Set up later" }).click();
   }
+  await expect(current, "then email").toHaveText(/Email/);
+  // This time email is set up: Continue saves it on, nothing is sent.
+  await A.getByLabel("Host", { exact: true }).fill("smtp.example.net");
+  await A.getByLabel("From address", { exact: true }).fill("stoop@example.net");
+  await A.getByRole("button", { name: "Continue" }).click();
   await expect(current, "back at the invite").toHaveText(/Invite people/);
+  await expect(summary, "the summary names the email host").toContainText(
+    "Email via smtp.example.net",
+  );
 
   const link = await A.locator(".link-box code").innerText();
   expect(link, "the invite is minted once").toBe(first);
