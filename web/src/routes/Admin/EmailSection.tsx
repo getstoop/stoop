@@ -35,7 +35,12 @@ export function EmailSection() {
           Could not read the email settings: {loadError}
         </p>
       ) : (
-        <form className="email-form" ref={form.formRef} onSubmit={submit}>
+        <form
+          className="email-form"
+          ref={form.formRef}
+          onSubmit={submit}
+          noValidate
+        >
           <fieldset className="email-fieldset" disabled={busy}>
             {savedHost === "" && (
               <p className="hint">

@@ -34,15 +34,31 @@ export function useEmailDraft() {
   const [testError, setTestError] = useState<string | null>(null);
   const seeded = useRef<string | null>(null);
 
-  const set: SetEmailField = (key, value) =>
-    setFields((f) => ({ ...f, [key]: value }));
+  // A test's outcome describes the settings it was sent with; any change
+  // makes it stale.
+  const clearTest = () => {
+    setAcceptedBy(null);
+    setTestError(null);
+  };
 
-  const setSecurity = (security: EmailFields["security"]) =>
+  const set: SetEmailField = (key, value) => {
+    clearTest();
+    setFields((f) => ({ ...f, [key]: value }));
+  };
+
+  const setSecurity = (security: EmailFields["security"]) => {
+    clearTest();
     setFields((f) => ({
       ...f,
       security,
       port: portAfterSecurity(f.port, f.security, security),
     }));
+  };
+
+  const changePassword = (value: string) => {
+    clearTest();
+    setPassword(value);
+  };
 
   const dirty = isDirty(fields, baseline, password);
 
@@ -77,14 +93,19 @@ export function useEmailDraft() {
     if (!checkNumbers()) return false;
     setBusy(true);
     try {
-      await instanceClient.updateEmailSettings({
+      const res = await instanceClient.updateEmailSettings({
         smtp: settingsFrom(next, password),
       });
-      setFields(next);
-      setBaseline(normalize(next));
+      // The reply is what is saved now: seed from it and put it in the
+      // cache, so no refetch can bring the old settings back.
+      const saved = fieldsFrom(res.smtp);
+      seeded.current = JSON.stringify(saved);
+      setFields(saved);
+      setBaseline(saved);
       setPassword("");
-      seeded.current = null;
-      await queryClient.invalidateQueries({ queryKey: ["email-settings"] });
+      queryClient.setQueryData(["email-settings"], (old: typeof data) =>
+        old ? { ...old, smtp: res.smtp } : old,
+      );
       await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
       return true;
     } catch (err) {
@@ -129,7 +150,7 @@ export function useEmailDraft() {
     set,
     setSecurity,
     password,
-    setPassword,
+    setPassword: changePassword,
     hasPassword: data?.smtp?.hasPassword ?? false,
     form,
     dirty,
