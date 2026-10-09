@@ -17,7 +17,7 @@ test("configuring an OIDC login provider", async ({ browser }) => {
   await P.locator('input[autocomplete="username"]').fill(user);
   await P.locator('input[type="password"]').fill(password);
   await P.locator('button[type="submit"]').click();
-  await P.locator('input[placeholder="The Porch"]').fill("Stoop HQ");
+  await P.getByLabel("Space name").fill("Stoop HQ");
   await P.locator('button[type="submit"]').click();
   await P.locator("button.reach-continue").click();
   await P.locator("button.primary").click();

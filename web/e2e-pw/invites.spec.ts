@@ -48,7 +48,7 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   await A.goto("/");
   await expect(A, "a fresh instance opens on setup").toHaveURL(/\/setup$/);
   await credentials(A, `webA${suffix}`);
-  await A.locator('input[placeholder="The Porch"]').fill(`First ${suffix}`);
+  await A.getByLabel("Space name").fill(`First ${suffix}`);
   await A.locator('button[type="submit"]').click();
   // Setup step 3 (reaching your server) is skippable.
   await A.locator("button.reach-continue").click();

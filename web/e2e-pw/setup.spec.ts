@@ -23,17 +23,27 @@ test("the first-run wizard and the first invited member", async ({
   await expect(A, "fresh instance: / lands on /setup").toHaveURL(/\/setup$/);
   const card = A.locator(".setup-card");
   await expect(card, "step 1 explains the admin account").toContainText(
-    "server admin",
+    "runs the server",
   );
   await expect(card, "step 1 is the account step").toContainText("Step 1 of 4");
 
   await A.locator('input[autocomplete="username"]').fill(`ada${suffix}`);
+  await A.locator('input[type="password"]').fill("short");
+  await A.locator('button[type="submit"]').click();
+  await expect(
+    card.locator(".field-error"),
+    "a short password is refused beside the field",
+  ).toHaveText("At least 8 characters.");
+  await expect(card, "and the wizard stays on step 1").toContainText(
+    "Step 1 of 4",
+  );
+
   await A.locator('input[type="password"]').fill(password);
   await A.locator('button[type="submit"]').click();
   const current = A.locator(".setup-where strong");
   await expect(current, "advances to step 2").toHaveText(/Your space/);
 
-  await A.locator('input[placeholder="The Porch"]').fill("Stoop HQ");
+  await A.getByLabel("Space name").fill("Stoop HQ");
   await A.locator('button[type="submit"]').click();
   await expect(current, "advances to step 3 (reaching your server)").toHaveText(
     /Reaching your server/,

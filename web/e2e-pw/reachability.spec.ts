@@ -61,7 +61,7 @@ test("reaching your server, in setup and on the admin page", async ({
   await A.locator('input[autocomplete="username"]').fill(`ada${suffix}`);
   await A.locator('input[type="password"]').fill("correct horse battery");
   await A.locator('button[type="submit"]').click();
-  await A.locator('input[placeholder="The Porch"]').fill("Stoop HQ");
+  await A.getByLabel("Space name").fill("Stoop HQ");
   await A.locator('button[type="submit"]').click();
 
   // Step 3: one section per way in; nothing is chosen for you.
