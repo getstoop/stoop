@@ -11,10 +11,10 @@ Two design commitments shape everything below:
 participate in every space you belong to; a space never has an identity
 of its own.
 
-**Email is optional.** A server works with no mail set up; an admin can
-connect an SMTP server ([email.md](email.md)). Nothing sends mail yet:
-accounts have no email address, and account recovery is an admin action or
-a CLI command rather than a self-service flow.
+**Email is optional.** A server works with no mail set up. With an SMTP
+server connected ([email.md](email.md)), a person can add and confirm an
+email address (below). Nothing uses the address yet: account recovery is
+still an admin action or a CLI command.
 
 ## Accounts
 
@@ -116,6 +116,39 @@ Clearing a profile and renaming an account (`RenameUser`) go **down the
 ranks only**: the owner over admins, admins over members. Admins can't do
 it to each other, nobody can do it to the owner, and your own is the
 profile page's.
+
+### Email address
+
+Optional, one per account: `users.email` holds a confirmed address,
+`users.pending_email` one waiting for its link. The confirmed address stays
+in force until a new one is confirmed.
+
+- **Unique among confirmed addresses only** (a partial unique index on
+  `citext`). Nothing says an address is taken: `RequestEmailChange` answers
+  the same either way, and only `ConfirmEmail`, reached with a valid token
+  from that inbox, can say "already in use".
+- **Changing or removing it needs the current password** when the account
+  has one, and the old address is told. A stolen session can't quietly
+  redirect what reset will use.
+- **Only the person and admins see it:** `GetMe` (`MyEmail`) and the admin
+  account list. Never `User`, events or member lists.
+- **Asking for a link** is refused while email is off or the server has no
+  public URL, and is limited to 3 an hour per account (request and resend
+  together).
+- **Provider sign-up** takes the provider's `email` as confirmed when
+  `email_verified` is true and no account holds it. Existing accounts are
+  never changed.
+- **Deleting an account** frees its address; deactivating keeps it.
+
+**Links.** `email_tokens` stores only the SHA-256 of each token, with its
+purpose, address and a 24-hour expiry. The `send_email` job mints the token
+when it sends ([email.md](email.md#the-send_email-job)), so the raw token
+lives only in the email. `ConfirmEmail` is public: it matches the hash and
+the purpose, unused and unexpired, against the account's current pending
+address, then marks it used and drops the account's other links. The page
+at `/confirm-email` confirms on a button press, never on load, so a mail
+scanner that opens links confirms nothing. The credential sweep deletes
+tokens a day past expiry or use.
 
 ## Passwords
 

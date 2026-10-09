@@ -1,9 +1,9 @@
 # Email
 
 Stoop sends mail through one SMTP server an instance admin chooses. It is
-optional: with none set up, nothing changes. Nothing sends mail yet; the
-features that will (password reset, address verification, invites) build on
-what is here. The operator's view is
+optional: with none set up, nothing changes. Today it sends the test
+email and the account-address confirmations and notices; password reset
+and invites will build on the same job. The operator's view is
 [../self-hosting/email.md](../self-hosting/email.md).
 
 ## Settings
@@ -70,10 +70,36 @@ host is the admin's choice, so it is not passed through `netguard`.
 dials the server: a sign-in on every refresh could trip a provider's
 limits.
 
-## For features that send mail
+## The send_email job
 
-- Send through a job, never inline in a request: a slow or down server
-  must not hold up a sign-in or a reset form.
-- Job arguments name a template and its inputs, never the rendered body:
-  a reset link holds a secret, and finished jobs stay in the table.
-- Retry connection failures, 4xx replies and the cap; discard 5xx replies.
+Everything except the test goes out through one job kind, `send_email`
+(`internal/app/email_jobs.go`). Its arguments name the message and who it
+is for (`mail.JobArgs`: `template`, `user_id`, `old_address`), never the
+finished email: a link's token is made when the job runs, so it is never
+stored with the job.
+
+| Template | Built by | Sends |
+| --- | --- | --- |
+| `confirm_email` | auth | a link to confirm the pending address |
+| `email_changed` | auth | a notice to the old address after a change or removal |
+
+The job looks up the template's `mail.Builder`, runs it with the public URL
+and instance name, and sends through the instance's capped sender. A
+builder may set `Message.OnSent`, which runs only once the server has
+accepted the message; confirmation uses it to retire older links, so a
+send that fails leaves the link already delivered working.
+
+| Outcome | Job |
+| --- | --- |
+| Sent, or `mail.ErrNothingToSend` | done |
+| Connection failed, 4xx reply, other errors | retry: 1 min, 5 min, 30 min; 5 attempts |
+| Hourly cap | retry at the window's end (counts as an attempt) |
+| 5xx reply, email off, no public URL, unknown template | discard |
+
+At most two run at once across all email. A confirmation held behind the
+cap for five windows is discarded; the person presses Resend.
+
+A new message is a template constant, a builder in the module that owns
+its content, and one line in the job's builder map. It keeps to the same
+rules: arguments are ids, never content, and anything secret is made by
+the builder.
