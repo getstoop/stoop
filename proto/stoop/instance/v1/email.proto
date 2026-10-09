@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package stoop.instance.v1;
+
+// The SMTP server Stoop sends mail through. Configured by an instance
+// admin; seeded once from STOOP_SMTP_*. See docs/proposals/email.md.
+
+enum SmtpSecurity {
+  SMTP_SECURITY_UNSPECIFIED = 0;
+  // Plain connection upgraded with STARTTLS; refused if not offered.
+  SMTP_SECURITY_STARTTLS = 1;
+  // TLS from the first byte (port 465).
+  SMTP_SECURITY_TLS = 2;
+  // No encryption: a relay on the local network, without sign-in.
+  SMTP_SECURITY_NONE = 3;
+}
+
+message SmtpSettings {
+  bool enabled = 1;
+  string host = 2;
+  // 0 takes the security mode's default: 587, 465 or 25.
+  uint32 port = 3;
+  SmtpSecurity security = 4;
+  string username = 5;
+  // Write-only: never returned. has_password reports whether one is set.
+  // Blank on a save or a test keeps the saved one.
+  string password = 6;
+  bool has_password = 7;
+  string from_address = 8;
+  // Blank sends the instance name.
+  string from_name = 9;
+  // Emails a clock hour may send; 0 is no cap.
+  uint32 hourly_limit = 10;
+}
+
+message GetEmailSettingsRequest {}
+
+message GetEmailSettingsResponse {
+  SmtpSettings smtp = 1;
+}
+
+message UpdateEmailSettingsRequest {
+  SmtpSettings smtp = 1;
+}
+
+message UpdateEmailSettingsResponse {
+  SmtpSettings smtp = 1;
+}
+
+message SendTestEmailRequest {
+  // The settings to try, saved or not.
+  SmtpSettings smtp = 1;
+  string to = 2;
+}
+
+message SendTestEmailResponse {
+  // The host that accepted the message.
+  string accepted_by = 1;
+}

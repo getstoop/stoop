@@ -364,3 +364,42 @@ func TestLoad_ReportsEveryBadVariable(t *testing.T) {
 		t.Errorf("a refused STOOP_TAILSCALE should not also blame the funnel, got %v", err)
 	}
 }
+
+func TestLoad_SMTP(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	t.Setenv("STOOP_SMTP_HOST", "smtp.example.net")
+	for _, variable := range []struct{ name, value, names string }{
+		{"STOOP_SMTP_FROM", "Stoop <stoop@example.net>", "STOOP_SMTP_FROM"},
+		{"STOOP_SMTP_PORT", "70000", "STOOP_SMTP_PORT"},
+		{"STOOP_SMTP_SECURITY", "ssl", "STOOP_SMTP_SECURITY"},
+		{"STOOP_SMTP_HOURLY_LIMIT", "100001", "STOOP_SMTP_HOURLY_LIMIT"},
+		{"STOOP_SMTP_USERNAME", "casey", "STOOP_SMTP_PASSWORD"},
+		{"STOOP_SMTP_FROM_NAME", "Stoop\nBcc: ada@example.com", "STOOP_SMTP_FROM_NAME"},
+		{"STOOP_SMTP_FROM_NAME", strings.Repeat("a", 81), "STOOP_SMTP_FROM_NAME"},
+		{"STOOP_SMTP_HOST", "smtp://smtp.example.net", "STOOP_SMTP_HOST"},
+		{"STOOP_SMTP_HOST", "smtp.example.net:587", "STOOP_SMTP_HOST"},
+	} {
+		t.Run(variable.name, func(t *testing.T) {
+			t.Setenv("STOOP_SMTP_FROM", "stoop@example.net")
+			t.Setenv(variable.name, variable.value)
+			if _, err := Load(); err == nil || !strings.Contains(err.Error(), variable.names) {
+				t.Errorf("%s=%s: got %v, want a refusal naming %s", variable.name, variable.value, err, variable.names)
+			}
+		})
+	}
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_SMTP_FROM") {
+		t.Errorf("a host without a from address: %v", err)
+	}
+	t.Setenv("STOOP_SMTP_FROM", "stoop@example.net")
+	t.Setenv("STOOP_SMTP_USERNAME", "casey")
+	t.Setenv("STOOP_SMTP_PASSWORD", "hunter22")
+	t.Setenv("STOOP_SMTP_SECURITY", "none")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_SMTP_SECURITY=none") {
+		t.Errorf("a password in the clear: %v", err)
+	}
+	t.Setenv("STOOP_SMTP_SECURITY", "")
+	cfg, err := Load()
+	if err != nil || cfg.SMTPSecurity != "starttls" || cfg.SMTPPort != 0 || cfg.SMTPHourlyLimit != 100 {
+		t.Errorf("cfg = %+v, err = %v", cfg, err)
+	}
+}

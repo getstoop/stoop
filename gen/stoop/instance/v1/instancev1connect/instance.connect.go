@@ -78,6 +78,15 @@ const (
 	// InstanceServiceUpdateLoginProvidersProcedure is the fully-qualified name of the InstanceService's
 	// UpdateLoginProviders RPC.
 	InstanceServiceUpdateLoginProvidersProcedure = "/stoop.instance.v1.InstanceService/UpdateLoginProviders"
+	// InstanceServiceGetEmailSettingsProcedure is the fully-qualified name of the InstanceService's
+	// GetEmailSettings RPC.
+	InstanceServiceGetEmailSettingsProcedure = "/stoop.instance.v1.InstanceService/GetEmailSettings"
+	// InstanceServiceUpdateEmailSettingsProcedure is the fully-qualified name of the InstanceService's
+	// UpdateEmailSettings RPC.
+	InstanceServiceUpdateEmailSettingsProcedure = "/stoop.instance.v1.InstanceService/UpdateEmailSettings"
+	// InstanceServiceSendTestEmailProcedure is the fully-qualified name of the InstanceService's
+	// SendTestEmail RPC.
+	InstanceServiceSendTestEmailProcedure = "/stoop.instance.v1.InstanceService/SendTestEmail"
 	// InstanceServiceGetBuildInfoProcedure is the fully-qualified name of the InstanceService's
 	// GetBuildInfo RPC.
 	InstanceServiceGetBuildInfoProcedure = "/stoop.instance.v1.InstanceService/GetBuildInfo"
@@ -164,6 +173,14 @@ type InstanceServiceClient interface {
 	// override the server's environment; an empty list falls back to it.
 	// Instance admins only.
 	UpdateLoginProviders(context.Context, *connect.Request[v1.UpdateLoginProvidersRequest]) (*connect.Response[v1.UpdateLoginProvidersResponse], error)
+	// GetEmailSettings reports the SMTP settings, the password elided.
+	// Instance admins only.
+	GetEmailSettings(context.Context, *connect.Request[v1.GetEmailSettingsRequest]) (*connect.Response[v1.GetEmailSettingsResponse], error)
+	// UpdateEmailSettings saves the SMTP settings. Instance admins only.
+	UpdateEmailSettings(context.Context, *connect.Request[v1.UpdateEmailSettingsRequest]) (*connect.Response[v1.UpdateEmailSettingsResponse], error)
+	// SendTestEmail sends one message with the settings given, saved or
+	// not; a refusal names the field it is about. Instance admins only.
+	SendTestEmail(context.Context, *connect.Request[v1.SendTestEmailRequest]) (*connect.Response[v1.SendTestEmailResponse], error)
 	// GetBuildInfo reports which Stoop this is. Instance admins only: an
 	// exact version tells a stranger which bugs to try.
 	GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error)
@@ -291,6 +308,24 @@ func NewInstanceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(instanceServiceMethods.ByName("UpdateLoginProviders")),
 			connect.WithClientOptions(opts...),
 		),
+		getEmailSettings: connect.NewClient[v1.GetEmailSettingsRequest, v1.GetEmailSettingsResponse](
+			httpClient,
+			baseURL+InstanceServiceGetEmailSettingsProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("GetEmailSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		updateEmailSettings: connect.NewClient[v1.UpdateEmailSettingsRequest, v1.UpdateEmailSettingsResponse](
+			httpClient,
+			baseURL+InstanceServiceUpdateEmailSettingsProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("UpdateEmailSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		sendTestEmail: connect.NewClient[v1.SendTestEmailRequest, v1.SendTestEmailResponse](
+			httpClient,
+			baseURL+InstanceServiceSendTestEmailProcedure,
+			connect.WithSchema(instanceServiceMethods.ByName("SendTestEmail")),
+			connect.WithClientOptions(opts...),
+		),
 		getBuildInfo: connect.NewClient[v1.GetBuildInfoRequest, v1.GetBuildInfoResponse](
 			httpClient,
 			baseURL+InstanceServiceGetBuildInfoProcedure,
@@ -365,6 +400,9 @@ type instanceServiceClient struct {
 	updateReachability   *connect.Client[v1.UpdateReachabilityRequest, v1.UpdateReachabilityResponse]
 	getLoginProviders    *connect.Client[v1.GetLoginProvidersRequest, v1.GetLoginProvidersResponse]
 	updateLoginProviders *connect.Client[v1.UpdateLoginProvidersRequest, v1.UpdateLoginProvidersResponse]
+	getEmailSettings     *connect.Client[v1.GetEmailSettingsRequest, v1.GetEmailSettingsResponse]
+	updateEmailSettings  *connect.Client[v1.UpdateEmailSettingsRequest, v1.UpdateEmailSettingsResponse]
+	sendTestEmail        *connect.Client[v1.SendTestEmailRequest, v1.SendTestEmailResponse]
 	getBuildInfo         *connect.Client[v1.GetBuildInfoRequest, v1.GetBuildInfoResponse]
 	getUpdate            *connect.Client[v1.GetUpdateRequest, v1.GetUpdateResponse]
 	listUserTokens       *connect.Client[v1.ListUserTokensRequest, v1.ListUserTokensResponse]
@@ -449,6 +487,21 @@ func (c *instanceServiceClient) GetLoginProviders(ctx context.Context, req *conn
 // UpdateLoginProviders calls stoop.instance.v1.InstanceService.UpdateLoginProviders.
 func (c *instanceServiceClient) UpdateLoginProviders(ctx context.Context, req *connect.Request[v1.UpdateLoginProvidersRequest]) (*connect.Response[v1.UpdateLoginProvidersResponse], error) {
 	return c.updateLoginProviders.CallUnary(ctx, req)
+}
+
+// GetEmailSettings calls stoop.instance.v1.InstanceService.GetEmailSettings.
+func (c *instanceServiceClient) GetEmailSettings(ctx context.Context, req *connect.Request[v1.GetEmailSettingsRequest]) (*connect.Response[v1.GetEmailSettingsResponse], error) {
+	return c.getEmailSettings.CallUnary(ctx, req)
+}
+
+// UpdateEmailSettings calls stoop.instance.v1.InstanceService.UpdateEmailSettings.
+func (c *instanceServiceClient) UpdateEmailSettings(ctx context.Context, req *connect.Request[v1.UpdateEmailSettingsRequest]) (*connect.Response[v1.UpdateEmailSettingsResponse], error) {
+	return c.updateEmailSettings.CallUnary(ctx, req)
+}
+
+// SendTestEmail calls stoop.instance.v1.InstanceService.SendTestEmail.
+func (c *instanceServiceClient) SendTestEmail(ctx context.Context, req *connect.Request[v1.SendTestEmailRequest]) (*connect.Response[v1.SendTestEmailResponse], error) {
+	return c.sendTestEmail.CallUnary(ctx, req)
 }
 
 // GetBuildInfo calls stoop.instance.v1.InstanceService.GetBuildInfo.
@@ -553,6 +606,14 @@ type InstanceServiceHandler interface {
 	// override the server's environment; an empty list falls back to it.
 	// Instance admins only.
 	UpdateLoginProviders(context.Context, *connect.Request[v1.UpdateLoginProvidersRequest]) (*connect.Response[v1.UpdateLoginProvidersResponse], error)
+	// GetEmailSettings reports the SMTP settings, the password elided.
+	// Instance admins only.
+	GetEmailSettings(context.Context, *connect.Request[v1.GetEmailSettingsRequest]) (*connect.Response[v1.GetEmailSettingsResponse], error)
+	// UpdateEmailSettings saves the SMTP settings. Instance admins only.
+	UpdateEmailSettings(context.Context, *connect.Request[v1.UpdateEmailSettingsRequest]) (*connect.Response[v1.UpdateEmailSettingsResponse], error)
+	// SendTestEmail sends one message with the settings given, saved or
+	// not; a refusal names the field it is about. Instance admins only.
+	SendTestEmail(context.Context, *connect.Request[v1.SendTestEmailRequest]) (*connect.Response[v1.SendTestEmailResponse], error)
 	// GetBuildInfo reports which Stoop this is. Instance admins only: an
 	// exact version tells a stranger which bugs to try.
 	GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error)
@@ -676,6 +737,24 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(instanceServiceMethods.ByName("UpdateLoginProviders")),
 		connect.WithHandlerOptions(opts...),
 	)
+	instanceServiceGetEmailSettingsHandler := connect.NewUnaryHandler(
+		InstanceServiceGetEmailSettingsProcedure,
+		svc.GetEmailSettings,
+		connect.WithSchema(instanceServiceMethods.ByName("GetEmailSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServiceUpdateEmailSettingsHandler := connect.NewUnaryHandler(
+		InstanceServiceUpdateEmailSettingsProcedure,
+		svc.UpdateEmailSettings,
+		connect.WithSchema(instanceServiceMethods.ByName("UpdateEmailSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	instanceServiceSendTestEmailHandler := connect.NewUnaryHandler(
+		InstanceServiceSendTestEmailProcedure,
+		svc.SendTestEmail,
+		connect.WithSchema(instanceServiceMethods.ByName("SendTestEmail")),
+		connect.WithHandlerOptions(opts...),
+	)
 	instanceServiceGetBuildInfoHandler := connect.NewUnaryHandler(
 		InstanceServiceGetBuildInfoProcedure,
 		svc.GetBuildInfo,
@@ -762,6 +841,12 @@ func NewInstanceServiceHandler(svc InstanceServiceHandler, opts ...connect.Handl
 			instanceServiceGetLoginProvidersHandler.ServeHTTP(w, r)
 		case InstanceServiceUpdateLoginProvidersProcedure:
 			instanceServiceUpdateLoginProvidersHandler.ServeHTTP(w, r)
+		case InstanceServiceGetEmailSettingsProcedure:
+			instanceServiceGetEmailSettingsHandler.ServeHTTP(w, r)
+		case InstanceServiceUpdateEmailSettingsProcedure:
+			instanceServiceUpdateEmailSettingsHandler.ServeHTTP(w, r)
+		case InstanceServiceSendTestEmailProcedure:
+			instanceServiceSendTestEmailHandler.ServeHTTP(w, r)
 		case InstanceServiceGetBuildInfoProcedure:
 			instanceServiceGetBuildInfoHandler.ServeHTTP(w, r)
 		case InstanceServiceGetUpdateProcedure:
@@ -847,6 +932,18 @@ func (UnimplementedInstanceServiceHandler) GetLoginProviders(context.Context, *c
 
 func (UnimplementedInstanceServiceHandler) UpdateLoginProviders(context.Context, *connect.Request[v1.UpdateLoginProvidersRequest]) (*connect.Response[v1.UpdateLoginProvidersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.UpdateLoginProviders is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) GetEmailSettings(context.Context, *connect.Request[v1.GetEmailSettingsRequest]) (*connect.Response[v1.GetEmailSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.GetEmailSettings is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) UpdateEmailSettings(context.Context, *connect.Request[v1.UpdateEmailSettingsRequest]) (*connect.Response[v1.UpdateEmailSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.UpdateEmailSettings is not implemented"))
+}
+
+func (UnimplementedInstanceServiceHandler) SendTestEmail(context.Context, *connect.Request[v1.SendTestEmailRequest]) (*connect.Response[v1.SendTestEmailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.instance.v1.InstanceService.SendTestEmail is not implemented"))
 }
 
 func (UnimplementedInstanceServiceHandler) GetBuildInfo(context.Context, *connect.Request[v1.GetBuildInfoRequest]) (*connect.Response[v1.GetBuildInfoResponse], error) {

@@ -4,6 +4,7 @@
 package config
 
 import (
+	"net/mail"
 	"net/url"
 	"os"
 	"strings"
@@ -201,6 +202,17 @@ type Config struct {
 	// than call every instance "Stoop". The admin page's saved value
 	// overrides either.
 	InstanceName string
+	// SMTP* seed the server Stoop sends mail through. The admin page's
+	// saved value overrides them. SMTPPort 0 takes the security mode's
+	// default.
+	SMTPHost        string
+	SMTPPort        int
+	SMTPSecurity    string
+	SMTPUsername    string
+	SMTPPassword    string
+	SMTPFrom        string
+	SMTPFromName    string
+	SMTPHourlyLimit int
 	// DevWebURL is STOOP_DEV_WEB_URL: a Vite dev server to serve the web
 	// app from instead of the embedded build. `make dev` sets it, and only
 	// it should — the script policy is relaxed for hot reload.
@@ -266,6 +278,7 @@ func Load() (Config, error) {
 	loadVoice(env, &cfg)
 	loadJobs(env, &cfg)
 	loadOIDC(env, &cfg)
+	loadSMTP(env, &cfg)
 
 	if err := env.err(); err != nil {
 		return Config{}, err
@@ -377,5 +390,41 @@ func loadOIDC(env *envReader, cfg *Config) {
 	}
 	if !ValidProviderID(cfg.OIDCID) {
 		env.fail("STOOP_OIDC_ID must be 2-32 of a-z, 0-9, -, _ (got %q)", cfg.OIDCID)
+	}
+}
+
+// loadSMTP reads the mail server. The admin page holds the full rules;
+// these refuse what would seed a row the page would refuse.
+func loadSMTP(env *envReader, cfg *Config) {
+	cfg.SMTPHost = strings.TrimSpace(os.Getenv("STOOP_SMTP_HOST"))
+	cfg.SMTPPort = env.port("STOOP_SMTP_PORT", 0)
+	cfg.SMTPSecurity = env.oneOf("STOOP_SMTP_SECURITY", "starttls", "starttls", "tls", "none")
+	cfg.SMTPUsername = strings.TrimSpace(os.Getenv("STOOP_SMTP_USERNAME"))
+	cfg.SMTPPassword = os.Getenv("STOOP_SMTP_PASSWORD")
+	cfg.SMTPFrom = strings.TrimSpace(os.Getenv("STOOP_SMTP_FROM"))
+	cfg.SMTPFromName = strings.TrimSpace(os.Getenv("STOOP_SMTP_FROM_NAME"))
+	cfg.SMTPHourlyLimit = env.nonNegativeInt("STOOP_SMTP_HOURLY_LIMIT", DefaultSMTPHourlyLimit)
+	if cfg.SMTPHourlyLimit > MaxSMTPHourlyLimit {
+		env.fail("STOOP_SMTP_HOURLY_LIMIT must be %d or less (got %d)", MaxSMTPHourlyLimit, cfg.SMTPHourlyLimit)
+	}
+	if (cfg.SMTPUsername == "") != (cfg.SMTPPassword == "") {
+		env.fail("STOOP_SMTP_USERNAME and STOOP_SMTP_PASSWORD must be set together")
+	}
+	if cfg.SMTPSecurity == "none" && cfg.SMTPUsername != "" {
+		env.fail("STOOP_SMTP_SECURITY=none sends the password unencrypted; use starttls or tls")
+	}
+	if utf8.RuneCountInString(cfg.SMTPFromName) > 80 || strings.ContainsAny(cfg.SMTPFromName, "\r\n") {
+		env.fail("STOOP_SMTP_FROM_NAME must be one line of 80 characters or fewer")
+	}
+	if cfg.SMTPHost != "" && !SMTPHost(cfg.SMTPHost) {
+		env.fail("STOOP_SMTP_HOST must be a host name or IPv4 address, with no scheme or port (got %q)", cfg.SMTPHost)
+	}
+	if cfg.SMTPHost != "" && cfg.SMTPFrom == "" {
+		env.fail("STOOP_SMTP_HOST needs STOOP_SMTP_FROM")
+	}
+	if cfg.SMTPFrom != "" {
+		if parsed, err := mail.ParseAddress(cfg.SMTPFrom); err != nil || parsed.Name != "" || parsed.Address != cfg.SMTPFrom {
+			env.fail("STOOP_SMTP_FROM must be one address like stoop@example.com (got %q)", cfg.SMTPFrom)
+		}
 	}
 }

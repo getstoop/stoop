@@ -3,13 +3,14 @@ package app
 import (
 	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/instance"
+	"github.com/getstoop/stoop/internal/mail"
 )
 
 // UseSettingsEnv hands the instance module what the environment sets for
-// the settings it seeds (SeedFromEnv): reachability, the login provider and
-// password sign-in. The tailnet address is the last-resort public URL,
-// supplied separately. Shared with stoop admin, so it sees .env as the
-// server does.
+// the settings it seeds (SeedFromEnv): reachability, the login provider,
+// password sign-in and the mail server. The tailnet address is the
+// last-resort public URL, supplied separately. Shared with stoop admin, so
+// it sees .env as the server does.
 func UseSettingsEnv(inst *instance.Service, cfg config.Config) {
 	inst.UseReachabilityEnv(instance.ReachabilityEnv{Reachability: instance.Reachability{
 		PublicURL: cfg.PublicURL,
@@ -36,4 +37,9 @@ func UseSettingsEnv(inst *instance.Service, cfg config.Config) {
 	}
 	inst.UsePasswordSignInEnv(cfg.PasswordSignIn)
 	inst.UseInstanceNameEnv(cfg.InstanceName)
+	inst.UseSMTPEnv(instance.SMTP{
+		Host: cfg.SMTPHost, Port: cfg.SMTPPort, Security: mail.Security(cfg.SMTPSecurity),
+		Username: cfg.SMTPUsername, Password: cfg.SMTPPassword,
+		FromAddress: cfg.SMTPFrom, FromName: cfg.SMTPFromName, HourlyLimit: cfg.SMTPHourlyLimit,
+	})
 }

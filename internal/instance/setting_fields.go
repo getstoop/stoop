@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
+	"github.com/getstoop/stoop/internal/mail"
 )
 
 // The environment-seeded settings as stoop admin setting names them: a
@@ -37,6 +38,7 @@ var SettingGroups = []SettingGroup{
 	{"login-providers", keyLoginProviders, true},
 	{"password-sign-in", keyPasswordSignIn, false},
 	{"instance-name", keyInstanceName, false},
+	{"smtp", keySMTP, true},
 }
 
 func settingGroup(name string) (SettingGroup, error) {
@@ -62,7 +64,7 @@ type SettingField struct {
 // secretPlaceholder is how list shows a saved secret.
 const secretPlaceholder = "(set)"
 
-var secretFields = []string{"turn.credential", "cloudflare-turn.api-token", "tailscale.auth-key", "cloudflare-tunnel.token"}
+var secretFields = []string{"turn.credential", "cloudflare-turn.api-token", "tailscale.auth-key", "cloudflare-tunnel.token", "smtp.password"}
 
 func secretShown(secret string) string {
 	if secret == "" {
@@ -100,6 +102,10 @@ func (s *Service) SettingFields(ctx context.Context) ([]SettingField, error) {
 	if err != nil {
 		return nil, err
 	}
+	smtp, err := s.SMTPSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
 	saved := map[string]bool{}
 	for _, group := range SettingGroups {
 		var raw json.RawMessage
@@ -129,6 +135,15 @@ func (s *Service) SettingFields(ctx context.Context) ([]SettingField, error) {
 		{"login-providers", "", string(providersJSON), false},
 		{"password-sign-in", "", password, false},
 		{"instance-name", "", name, false},
+		{"smtp", "enabled", strconv.FormatBool(smtp.Enabled), false},
+		{"smtp", "host", smtp.Host, false},
+		{"smtp", "port", strconv.Itoa(smtp.Port), false},
+		{"smtp", "security", string(smtp.Security), false},
+		{"smtp", "username", smtp.Username, false},
+		{"smtp", "password", secretShown(smtp.Password), true},
+		{"smtp", "from-address", smtp.FromAddress, false},
+		{"smtp", "from-name", smtp.FromName, false},
+		{"smtp", "hourly-limit", strconv.Itoa(smtp.HourlyLimit), false},
 	}
 	out := make([]SettingField, 0, len(fields))
 	for _, field := range fields {
@@ -145,8 +160,8 @@ func (s *Service) SettingFields(ctx context.Context) ([]SettingField, error) {
 // Fields of a group left out keep their value, and a secret left out is
 // kept: the request starts from the settings in force, and a save ignores
 // its has_* flags. The changes must belong to one admin-page form
-// (Hosting, login providers, or the rest), since each form saves in its
-// own transaction.
+// (Hosting, login providers, Email, or the rest), since each form saves
+// in its own transaction.
 func (s *Service) SetSettingFields(ctx context.Context, changes map[string]string) error {
 	inForce, err := s.Reachability(ctx)
 	if err != nil {
@@ -178,6 +193,17 @@ func (s *Service) SetSettingFields(ctx context.Context, changes map[string]strin
 			reach.CloudflareTunnel = inForce.CloudflareTunnel.toProto()
 		}
 		return reach.CloudflareTunnel
+	}
+	var email *instancev1.SmtpSettings
+	smtp := func() (*instancev1.SmtpSettings, error) {
+		if email == nil {
+			current, err := s.SMTPSettings(ctx)
+			if err != nil {
+				return nil, err
+			}
+			email = current.toProto()
+		}
+		return email, nil
 	}
 	names := make([]string, 0, len(changes))
 	for name := range changes {
@@ -254,24 +280,35 @@ func (s *Service) SetSettingFields(ctx context.Context, changes map[string]strin
 		case "instance-name":
 			settings.InstanceName = &value
 		default:
-			return fmt.Errorf("no setting %q", name)
+			if !strings.HasPrefix(name, "smtp.") {
+				return fmt.Errorf("no setting %q", name)
+			}
+			form, err := smtp()
+			if err != nil {
+				return err
+			}
+			if err := setSMTPField(form, name, value, flag); err != nil {
+				return err
+			}
 		}
 	}
 	forms := 0
 	for _, touched := range []bool{
 		providers != nil, settings.PasswordSignIn != nil || settings.InstanceName != nil,
-		reachChanged(reach),
+		reachChanged(reach), email != nil,
 	} {
 		if touched {
 			forms++
 		}
 	}
 	if forms > 1 {
-		return errors.New("set Hosting fields, login-providers, and the other settings in separate commands")
+		return errors.New("set Hosting fields, login-providers, smtp, and the other settings in separate commands")
 	}
 	switch {
 	case providers != nil:
 		return s.SaveLoginProviders(ctx, providers)
+	case email != nil:
+		return s.SaveEmail(ctx, email)
 	case reachChanged(reach):
 		return s.SaveReachability(ctx, reach)
 	}
@@ -295,6 +332,9 @@ func (s *Service) ClearSetting(ctx context.Context, name string) error {
 	}
 	if group.key == keyLoginProviders {
 		return s.SaveLoginProviders(ctx, nil)
+	}
+	if group.key == keySMTP {
+		return s.SaveEmail(ctx, &instancev1.SmtpSettings{HourlyLimit: DefaultHourlyLimit})
 	}
 	empty := ""
 	reach := &instancev1.UpdateReachabilityRequest{}
@@ -350,4 +390,43 @@ func (s *Service) ResetSetting(ctx context.Context, name string) (bool, error) {
 
 func splitComma(value string) []string {
 	return trimAll(strings.Split(value, ","))
+}
+
+// setSMTPField applies one smtp.<field>=value to the Email form.
+func setSMTPField(form *instancev1.SmtpSettings, name, value string, flag bool) error {
+	number := func() (uint32, error) {
+		parsed, err := strconv.ParseUint(value, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("%s takes a whole number", name)
+		}
+		return uint32(parsed), nil
+	}
+	var err error
+	switch name {
+	case "smtp.enabled":
+		form.Enabled = flag
+	case "smtp.host":
+		form.Host = value
+	case "smtp.port":
+		form.Port, err = number()
+	case "smtp.security":
+		security, ok := smtpSecurities.wire[mail.Security(value)]
+		if !ok {
+			return errors.New("smtp.security takes starttls, tls, or none")
+		}
+		form.Security = security
+	case "smtp.username":
+		form.Username = value
+	case "smtp.password":
+		form.Password = value
+	case "smtp.from-address":
+		form.FromAddress = value
+	case "smtp.from-name":
+		form.FromName = value
+	case "smtp.hourly-limit":
+		form.HourlyLimit, err = number()
+	default:
+		return fmt.Errorf("no setting %q", name)
+	}
+	return err
 }

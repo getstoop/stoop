@@ -174,7 +174,7 @@ stoop admin setting clear <group>
 stoop admin setting reset <group>
 ```
 
-`setting` changes what the Hosting page and login providers hold: the
+`setting` changes what the Hosting page, login providers and Email hold: the
 way back from a wrong public URL or tunnel token. `setting list` shows
 every name. `reset` forgets the saved value, so `.env` applies again.
 Restart the server after changing Tailscale, the tunnel or trusted
