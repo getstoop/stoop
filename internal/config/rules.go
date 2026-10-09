@@ -12,6 +12,10 @@ const (
 	MaxSessionLifetimeDays = 365
 	// DefaultSessionLifetimeDays applies when nothing else sets a lifetime.
 	DefaultSessionLifetimeDays = 30
+	// DefaultSMTPHourlyLimit is the outbound email cap when none is set;
+	// MaxSMTPHourlyLimit is the highest one allowed.
+	DefaultSMTPHourlyLimit = 100
+	MaxSMTPHourlyLimit     = 100000
 )
 
 var providerIDPattern = regexp.MustCompile(`^[a-z0-9_-]{2,32}$`)

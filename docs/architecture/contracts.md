@@ -22,7 +22,7 @@ proto/stoop/
   chat/v1/{chat,space,channel,message,member,reaction,invite,activity,pin}.proto
   common/v1/field_violation.proto   an error detail, attached by any service (see Errors)
   files/v1/files.proto
-  instance/v1/{instance,providers,reachability,user}.proto
+  instance/v1/{instance,email,providers,reachability,user}.proto
   integrations/v1/{integrations,webhook,bot}.proto
   realtime/v1/realtime.proto
   voice/v1/voice.proto
@@ -97,6 +97,7 @@ people who joined.
 | `TransferOwnership` | The owner only, to an active admin. See [identity.md](identity.md#the-server-owner). |
 | `GetReachability` / `UpdateReachability` | Admins. Public URL, TURN relay, Cloudflare TURN, Tailscale, trusted proxies. |
 | `GetLoginProviders` / `UpdateLoginProviders` | Admins. The OIDC provider list, replaced whole. |
+| `GetEmailSettings` / `UpdateEmailSettings` | Admins. The SMTP server, saved whole; the password is never returned. |
 | `GetBuildInfo` | Admins. Version, commit, build time, Go version — admin-only because an exact version tells a stranger which bugs to try. |
 | `GetUpdate` | Admins. The newest release in the release index, whether it is newer than this server, and whether this server is older than the oldest supported release; empty when `STOOP_UPDATE_CHECK` is off. See [runtime.md](runtime.md#the-update-check). |
 | `GetHealth` / `GetLiveStats` / `GetDatabaseStats` / `GetRequestStats` / `ListJobs` | Admins. The Diagnostics tab, read-only, polled every 5 s while it is open. See [diagnostics.md](diagnostics.md). |
