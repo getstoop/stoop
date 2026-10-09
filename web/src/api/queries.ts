@@ -96,10 +96,11 @@ export function useMyPermissions() {
   return useQuery({ ...meQuery, select: (r) => r.permissions });
 }
 
-export function useSpaces() {
+export function useSpaces(enabled = true) {
   return useQuery({
     queryKey: ["spaces"],
     queryFn: async () => (await chatClient.listSpaces({})).spaces,
+    enabled,
   });
 }
 
