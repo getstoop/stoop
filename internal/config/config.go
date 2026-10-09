@@ -416,6 +416,9 @@ func loadSMTP(env *envReader, cfg *Config) {
 	if utf8.RuneCountInString(cfg.SMTPFromName) > 80 || strings.ContainsAny(cfg.SMTPFromName, "\r\n") {
 		env.fail("STOOP_SMTP_FROM_NAME must be one line of 80 characters or fewer")
 	}
+	if cfg.SMTPHost != "" && !SMTPHost(cfg.SMTPHost) {
+		env.fail("STOOP_SMTP_HOST must be a host name or IPv4 address, with no scheme or port (got %q)", cfg.SMTPHost)
+	}
 	if cfg.SMTPHost != "" && cfg.SMTPFrom == "" {
 		env.fail("STOOP_SMTP_HOST needs STOOP_SMTP_FROM")
 	}
