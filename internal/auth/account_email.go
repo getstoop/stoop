@@ -187,11 +187,19 @@ func (s *Service) RequestEmailChange(ctx context.Context, req *connect.Request[a
 	// Whether another account holds the address is only said by the link.
 	err = db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
-		if err := qtx.SetPendingEmail(ctx, dbgen.SetPendingEmailParams{ID: userID, Address: address}); err != nil {
-			return fmt.Errorf("set pending email: %w", err)
+		current, err := qtx.LockUserEmail(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("lock account: %w", err)
 		}
-		if err := qtx.DeleteUserEmailTokens(ctx, dbgen.DeleteUserEmailTokensParams{UserID: userID, Purpose: confirmEmailPurpose}); err != nil {
-			return fmt.Errorf("revoke old links: %w", err)
+		// Asking again for the address already waiting is a resend: the
+		// link already delivered keeps working until the new one is sent.
+		if current.PendingEmail == nil || !strings.EqualFold(*current.PendingEmail, address) {
+			if err := qtx.SetPendingEmail(ctx, dbgen.SetPendingEmailParams{ID: userID, Address: address}); err != nil {
+				return fmt.Errorf("set pending email: %w", err)
+			}
+			if err := qtx.DeleteUserEmailTokens(ctx, dbgen.DeleteUserEmailTokensParams{UserID: userID, Purpose: confirmEmailPurpose}); err != nil {
+				return fmt.Errorf("revoke old links: %w", err)
+			}
 		}
 		return s.queueConfirmEmail(ctx, tx, userID)
 	})
@@ -260,10 +268,17 @@ func (s *Service) RemoveEmail(ctx context.Context, req *connect.Request[authv1.R
 		return nil, err
 	}
 	err = db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-		if err := clearEmail(ctx, s.q.WithTx(tx), userID); err != nil {
+		qtx := s.q.WithTx(tx)
+		// Read under the lock: a confirmation that just landed decides
+		// which address is removed, and so which one is told.
+		current, err := qtx.LockUserEmail(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("lock account: %w", err)
+		}
+		if err := clearEmail(ctx, qtx, userID); err != nil {
 			return err
 		}
-		return s.queueEmailChanged(ctx, tx, userID, user.Email)
+		return s.queueEmailChanged(ctx, tx, userID, current.Email)
 	})
 	if err != nil {
 		return nil, err

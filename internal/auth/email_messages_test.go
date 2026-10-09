@@ -129,6 +129,33 @@ func TestBuildConfirmEmail(t *testing.T) {
 	if len(stored) != 1 || string(stored[0].hash) != string(sum[:]) {
 		t.Errorf("after sending: %d tokens stored, want only the newest", len(stored))
 	}
+
+	// Two sent at once, finishing in either order: the newer link survives.
+	for _, newerFirst := range []bool{false, true} {
+		older, err := svc.BuildConfirmEmail(ctx, args, emailSite)
+		if err != nil {
+			t.Fatal(err)
+		}
+		newer, err := svc.BuildConfirmEmail(ctx, args, emailSite)
+		if err != nil {
+			t.Fatal(err)
+		}
+		first, second := older, newer
+		if newerFirst {
+			first, second = newer, older
+		}
+		if err := first.OnSent(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if err := second.OnSent(ctx); err != nil {
+			t.Fatal(err)
+		}
+		stored = emailTokens(t, pool, adaID)
+		sum = sha256.Sum256([]byte(linkToken(t, newer)))
+		if len(stored) != 1 || string(stored[0].hash) != string(sum[:]) {
+			t.Errorf("two at once (newer first: %v): %d tokens, want only the newer link", newerFirst, len(stored))
+		}
+	}
 }
 
 // Nothing to confirm finishes the job; no public address refuses it,

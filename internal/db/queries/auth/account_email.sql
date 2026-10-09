@@ -1,6 +1,12 @@
 -- Account email addresses on users. Owned by the auth module.
 -- Only internal/auth may use these queries.
 
+-- LockUserEmail reads the account's addresses and locks its row. Every
+-- path that changes addresses or their links locks the account first, then
+-- the links, so two of them can't wait on each other.
+-- name: LockUserEmail :one
+SELECT email, pending_email FROM users WHERE id = $1 FOR UPDATE;
+
 -- name: SetPendingEmail :exec
 UPDATE users SET pending_email = sqlc.arg(address)::citext, pending_email_at = now()
 WHERE id = sqlc.arg(id)::uuid;
