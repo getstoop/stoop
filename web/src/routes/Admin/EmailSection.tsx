@@ -12,7 +12,6 @@ export function EmailSection() {
   const { data, isLoading, fields, set, form, dirty, busy, save } = draft;
   const [saved, setSaved] = useState(false);
   const savedHost = data?.smtp?.host ?? "";
-  const on = (data?.smtp?.enabled ?? false) && savedHost !== "";
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -22,10 +21,7 @@ export function EmailSection() {
 
   return (
     <section className="card email-section">
-      <h3>
-        Email
-        {data && !on && <span className="badge off">Off</span>}
-      </h3>
+      <h3>Email</h3>
       <p className="hint">
         The SMTP server Stoop sends mail through. Any provider's SMTP relay
         works, or one you run.
