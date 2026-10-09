@@ -1,5 +1,6 @@
 // Helpers shared by the invite modal and the join flows.
 
+import { Code, ConnectError } from "@connectrpc/connect";
 import { serverOrigin } from "./origin";
 
 // Accepts a bare code, a pasted /join/<code> link, or either with stray
@@ -27,4 +28,15 @@ export function inviteLink(
   if (spaceName)
     url.searchParams.set("space", spaceName.slice(0, MAX_SPACE_HINT));
   return url.toString();
+}
+
+// Whether a lookup failed because the invite itself is gone (unknown,
+// revoked, expired or used up), rather than for a reason worth retrying.
+export function inviteGone(err: unknown): boolean {
+  return (
+    err instanceof ConnectError &&
+    (err.code === Code.NotFound ||
+      err.code === Code.FailedPrecondition ||
+      err.code === Code.ResourceExhausted)
+  );
 }
