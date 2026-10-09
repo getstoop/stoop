@@ -52,7 +52,12 @@ export function RemoveForm({
         <button type="submit" className="primary danger" disabled={busy}>
           {busy ? "Removing…" : "Remove address"}
         </button>
-        <button type="button" className="chip" onClick={onClose}>
+        <button
+          type="button"
+          className="chip"
+          onClick={onClose}
+          disabled={busy}
+        >
           Keep it
         </button>
       </div>

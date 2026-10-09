@@ -19,6 +19,21 @@ func (q *Queries) DeleteAllUserEmailTokens(ctx context.Context, userID string) e
 	return err
 }
 
+const deleteOlderEmailTokens = `-- name: DeleteOlderEmailTokens :exec
+DELETE FROM email_tokens old
+USING email_tokens kept
+WHERE kept.id = $1::uuid
+  AND old.user_id = kept.user_id AND old.purpose = kept.purpose
+  AND (old.created_at, old.id) < (kept.created_at, kept.id)
+`
+
+// DeleteOlderEmailTokens retires the links made before keep_id, never
+// after it: of two links sent at once, the newer one survives.
+func (q *Queries) DeleteOlderEmailTokens(ctx context.Context, keepID string) error {
+	_, err := q.db.Exec(ctx, deleteOlderEmailTokens, keepID)
+	return err
+}
+
 const deleteOtherEmailTokens = `-- name: DeleteOtherEmailTokens :exec
 DELETE FROM email_tokens
 WHERE user_id = $1::uuid AND purpose = $2::text AND id <> $3::uuid
@@ -49,8 +64,29 @@ func (q *Queries) DeleteUserEmailTokens(ctx context.Context, arg DeleteUserEmail
 	return err
 }
 
-const getConfirmableEmailToken = `-- name: GetConfirmableEmailToken :one
+const emailTokenOwner = `-- name: EmailTokenOwner :one
 
+SELECT user_id FROM email_tokens
+WHERE token_hash = $1::bytea AND purpose = $2::text
+`
+
+type EmailTokenOwnerParams struct {
+	TokenHash []byte
+	Purpose   string
+}
+
+// Using and clearing email link tokens. Owned by the auth module.
+// Only internal/auth may use these queries.
+// EmailTokenOwner is the account a token belongs to, unlocked: confirming
+// locks that account first (LockUserEmail), then the token.
+func (q *Queries) EmailTokenOwner(ctx context.Context, arg EmailTokenOwnerParams) (string, error) {
+	row := q.db.QueryRow(ctx, emailTokenOwner, arg.TokenHash, arg.Purpose)
+	var user_id string
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
+const getConfirmableEmailToken = `-- name: GetConfirmableEmailToken :one
 SELECT t.id, t.user_id, t.address, u.email AS previous_email
 FROM email_tokens t
 JOIN users u ON u.id = t.user_id
@@ -60,7 +96,7 @@ WHERE t.token_hash = $1::bytea
   AND t.expires_at > now()
   AND u.deactivated_at IS NULL
   AND u.pending_email = t.address
-FOR UPDATE OF t, u
+FOR UPDATE OF t
 `
 
 type GetConfirmableEmailTokenParams struct {
@@ -75,10 +111,9 @@ type GetConfirmableEmailTokenRow struct {
 	PreviousEmail *string
 }
 
-// Using and clearing email link tokens. Owned by the auth module.
-// Only internal/auth may use these queries.
 // GetConfirmableEmailToken is a live token whose address is still the
-// account's pending one, on an active account. Both rows are locked.
+// account's pending one, on an active account. The token is locked; the
+// account already is.
 func (q *Queries) GetConfirmableEmailToken(ctx context.Context, arg GetConfirmableEmailTokenParams) (GetConfirmableEmailTokenRow, error) {
 	row := q.db.QueryRow(ctx, getConfirmableEmailToken, arg.TokenHash, arg.Purpose)
 	var i GetConfirmableEmailTokenRow

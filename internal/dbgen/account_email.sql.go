@@ -79,8 +79,29 @@ func (q *Queries) EmailConfirmedElsewhere(ctx context.Context, arg EmailConfirme
 	return exists, err
 }
 
-const setPendingEmail = `-- name: SetPendingEmail :exec
+const lockUserEmail = `-- name: LockUserEmail :one
 
+SELECT email, pending_email FROM users WHERE id = $1 FOR UPDATE
+`
+
+type LockUserEmailRow struct {
+	Email        *string
+	PendingEmail *string
+}
+
+// Account email addresses on users. Owned by the auth module.
+// Only internal/auth may use these queries.
+// LockUserEmail reads the account's addresses and locks its row. Every
+// path that changes addresses or their links locks the account first, then
+// the links, so two of them can't wait on each other.
+func (q *Queries) LockUserEmail(ctx context.Context, id string) (LockUserEmailRow, error) {
+	row := q.db.QueryRow(ctx, lockUserEmail, id)
+	var i LockUserEmailRow
+	err := row.Scan(&i.Email, &i.PendingEmail)
+	return i, err
+}
+
+const setPendingEmail = `-- name: SetPendingEmail :exec
 UPDATE users SET pending_email = $1::citext, pending_email_at = now()
 WHERE id = $2::uuid
 `
@@ -90,8 +111,6 @@ type SetPendingEmailParams struct {
 	ID      string
 }
 
-// Account email addresses on users. Owned by the auth module.
-// Only internal/auth may use these queries.
 func (q *Queries) SetPendingEmail(ctx context.Context, arg SetPendingEmailParams) error {
 	_, err := q.db.Exec(ctx, setPendingEmail, arg.Address, arg.ID)
 	return err

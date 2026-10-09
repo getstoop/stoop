@@ -66,7 +66,12 @@ export function AddressForm({
         <button type="submit" className="primary" disabled={busy}>
           {busy ? "Sending…" : "Send link"}
         </button>
-        <button type="button" className="chip" onClick={onClose}>
+        <button
+          type="button"
+          className="chip"
+          onClick={onClose}
+          disabled={busy}
+        >
           Cancel
         </button>
       </div>
