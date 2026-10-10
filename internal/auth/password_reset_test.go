@@ -207,8 +207,8 @@ func TestRequestPasswordResetRepliesAlike(t *testing.T) {
 	}
 }
 
-// Past three an hour the job sends nothing, and every attempt counts, so
-// a retry can't slip past the limit.
+// Past three an hour the job sends nothing; a retry of a job that took
+// its share does not take another.
 func TestBuildPasswordResetLimit(t *testing.T) {
 	svc, pool, _ := emailService(t)
 	svc.UsePasswordResetThrottle(&allowN{left: 3})
@@ -223,8 +223,10 @@ func TestBuildPasswordResetLimit(t *testing.T) {
 	if sent != 3 {
 		t.Errorf("%d sent, want 3", sent)
 	}
-	if _, err := svc.BuildPasswordReset(context.Background(), args, emailSite); !errors.Is(err, mail.ErrNothingToSend) {
-		t.Errorf("a retry over the limit: err = %v, want ErrNothingToSend", err)
+	retry := emailSite
+	retry.Attempt = 2
+	if _, err := svc.BuildPasswordReset(context.Background(), args, retry); err != nil {
+		t.Errorf("a retry over the limit: err = %v, want it sent", err)
 	}
 }
 
