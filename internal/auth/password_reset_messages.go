@@ -45,8 +45,10 @@ func (s *Service) BuildPasswordReset(ctx context.Context, args mail.JobArgs, sit
 	if site.PublicURL == "" {
 		return mail.Message{}, mail.ErrNoPublicURL
 	}
+	// Every attempt counts: an attempt that failed before this point can't
+	// be told from one that spent it, and a retry must not skip the limit.
 	// A job queued by user id took its limit when it was asked for.
-	if args.Email != "" && site.Attempt <= 1 && !s.allowPasswordResetEmail(ctx, userID) {
+	if args.Email != "" && !s.allowPasswordResetEmail(ctx, userID) {
 		return mail.Message{}, mail.ErrNothingToSend
 	}
 	address := *recipient.Email
@@ -74,7 +76,13 @@ func (s *Service) BuildPasswordChanged(ctx context.Context, args mail.JobArgs, s
 	if err != nil {
 		return mail.Message{}, err
 	}
-	if recipient.Email == nil || *recipient.Email == "" {
+	// The address recorded at the reset; a job from before that was
+	// recorded falls back to the account's current one.
+	to := args.Email
+	if to == "" && recipient.Email != nil {
+		to = *recipient.Email
+	}
+	if to == "" {
 		return mail.Message{}, mail.ErrNothingToSend
 	}
 	at := args.At
@@ -85,6 +93,6 @@ func (s *Service) BuildPasswordChanged(ctx context.Context, args mail.JobArgs, s
 	if err != nil {
 		return mail.Message{}, err
 	}
-	msg.To = *recipient.Email
+	msg.To = to
 	return msg, nil
 }

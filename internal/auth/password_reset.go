@@ -172,7 +172,8 @@ func (s *Service) CompletePasswordReset(ctx context.Context, req *connect.Reques
 			return fmt.Errorf("look up link: %w", err)
 		}
 		// The account before the link, as every address change does.
-		if _, err := qtx.LockUserEmail(ctx, owner); err != nil {
+		account, err := qtx.LockUserEmail(ctx, owner)
+		if err != nil {
 			return fmt.Errorf("lock account: %w", err)
 		}
 		link, err := qtx.LockPasswordResetToken(ctx, tokenHash)
@@ -214,7 +215,9 @@ func (s *Service) CompletePasswordReset(ctx context.Context, req *connect.Reques
 			}
 		}
 		if _, err := s.emailJobs.EnqueueTx(ctx, tx, mail.SendEmailKind, mail.JobArgs{
-			Template: mail.TemplatePasswordChanged, UserID: link.UserID, At: time.Now().UTC(),
+			// The address the reset was made through, fixed now: a later
+			// change or removal must not redirect or drop the notice.
+			Template: mail.TemplatePasswordChanged, UserID: link.UserID, Email: deref(account.Email), At: time.Now().UTC(),
 		}); err != nil {
 			return fmt.Errorf("queue change notice: %w", err)
 		}

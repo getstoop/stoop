@@ -207,8 +207,8 @@ func TestRequestPasswordResetRepliesAlike(t *testing.T) {
 	}
 }
 
-// Past three an hour the job sends nothing; a retry of a job that took
-// its share does not take another.
+// Past three an hour the job sends nothing, and every attempt counts, so
+// a retry can't slip past the limit.
 func TestBuildPasswordResetLimit(t *testing.T) {
 	svc, pool, _ := emailService(t)
 	svc.UsePasswordResetThrottle(&allowN{left: 3})
@@ -223,10 +223,8 @@ func TestBuildPasswordResetLimit(t *testing.T) {
 	if sent != 3 {
 		t.Errorf("%d sent, want 3", sent)
 	}
-	retry := emailSite
-	retry.Attempt = 2
-	if _, err := svc.BuildPasswordReset(context.Background(), args, retry); err != nil {
-		t.Errorf("a retry over the limit: err = %v, want it sent", err)
+	if _, err := svc.BuildPasswordReset(context.Background(), args, emailSite); !errors.Is(err, mail.ErrNothingToSend) {
+		t.Errorf("a retry over the limit: err = %v, want ErrNothingToSend", err)
 	}
 }
 
@@ -490,5 +488,18 @@ func TestBuildPasswordChanged(t *testing.T) {
 	adaID := emailUser(t, pool, "ada", "ada@example.com")
 	if _, err := svc.BuildPasswordChanged(ctx, mail.JobArgs{Template: mail.TemplatePasswordChanged, UserID: adaID}, emailSite); !errors.Is(err, mail.ErrNothingToSend) {
 		t.Errorf("no confirmed address: err = %v, want ErrNothingToSend", err)
+	}
+}
+
+// The "password changed" notice goes to the address the reset was made
+// through, even if the account's address went or changed since.
+func TestBuildPasswordChangedUsesTheRecordedAddress(t *testing.T) {
+	svc, pool, _ := emailService(t)
+	caseyID := resetAccount(t, pool, "casey", "member", "person", "")
+	msg, err := svc.BuildPasswordChanged(context.Background(), mail.JobArgs{
+		Template: mail.TemplatePasswordChanged, UserID: caseyID, Email: "casey@example.com", At: time.Now(),
+	}, emailSite)
+	if err != nil || msg.To != "casey@example.com" {
+		t.Errorf("notice to %q, err %v; want casey@example.com", msg.To, err)
 	}
 }

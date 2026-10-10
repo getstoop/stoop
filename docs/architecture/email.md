@@ -84,7 +84,7 @@ cleared; a discarded one keeps them until the jobs sweep removes the row.
 | `confirm_email` | auth | a link to confirm the pending address |
 | `email_changed` | auth | a notice to the old address after a change or removal, with when (`at`; a job without it says the send time) |
 | `password_reset` | auth | a link to set a new password, to the confirmed address asked for (`email`), when that account may have one |
-| `password_changed` | auth | a notice to the confirmed address after a reset, with when (`at`) |
+| `password_changed` | auth | a notice to the address the reset was made through (`email`, recorded at the reset), with when (`at`) |
 
 The job looks up the template's `mail.Builder`, runs it with the public URL
 and instance name, and sends through the instance's capped sender. A
