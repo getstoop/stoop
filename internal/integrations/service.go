@@ -44,6 +44,9 @@ type SpaceAccess interface {
 	ChannelSpace(ctx context.Context, channelID string) (string, error)
 	SpaceName(ctx context.Context, spaceID string) (string, error)
 	AddBotMember(ctx context.Context, spaceID, userID string) error
+	// AddBotToChannel puts a bot that is in the space into one of its
+	// text channels; already in, or a voice channel, is fine.
+	AddBotToChannel(ctx context.Context, channelID, userID string) error
 	// RemoveBotMember takes the bot out of the space as a kick would.
 	RemoveBotMember(ctx context.Context, spaceID, userID string) error
 	// ListSpaceIDs is the spaces the user is a member of.

@@ -83,6 +83,10 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 			return nil, err
 		}
 	}
+	// A bot posts only where it is in the channel, like anyone.
+	if err := s.spaces.AddBotToChannel(ctx, req.Msg.ChannelId, bot.ID); err != nil {
+		return nil, err
+	}
 	if req.Msg.NotifyEveryone {
 		if err := s.spaces.SetBotAdmin(ctx, spaceID, bot.ID, true); err != nil {
 			return nil, err
