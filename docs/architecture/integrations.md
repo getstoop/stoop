@@ -69,7 +69,10 @@ space role, so a hook needn't be made an admin to feed one.
 `POST /hooks/{token}` verifies the token, coerces the body, puts the bot
 and the hook's credential on the context and calls chat's `SendMessage`
 through the `Poster` port, after the app adapter runs the credential gate
-the interceptor would have. There is no second write path: membership,
+the interceptor would have. A bot posts only in a text channel it is in,
+like anyone ([messaging.md](messaging.md#channel-membership)):
+`CreateIncoming` puts the hook's bot in the hook's channel, and a bot
+token calls `JoinChannel` for itself. There is no second write path: membership,
 blocks, mentions and the `@channel` refusal apply as they do to anyone.
 
 | Body | Read from |

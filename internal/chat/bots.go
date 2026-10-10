@@ -106,6 +106,26 @@ func (s *Service) Member(ctx context.Context, spaceID, userID string) (*chatv1.M
 	return members[0], nil
 }
 
+// AddBotToChannel puts a bot that is in the space into one of its text
+// channels, for a webhook that will post there. Already in is fine, and
+// a voice channel has nobody to join.
+func (s *Service) AddBotToChannel(ctx context.Context, channelID, userID string) error {
+	channel, err := s.q.GetChannel(ctx, channelID)
+	if err != nil {
+		return apierr.NotFoundOr(err, "channel")
+	}
+	if !hasMembers(channel) {
+		return nil
+	}
+	addedBy := authctx.UserID(ctx)
+	added, err := addMembers(ctx, s.q, channel, []string{userID}, &addedBy, channel.LastMessageID)
+	if err != nil {
+		return fmt.Errorf("add bot to channel: %w", err)
+	}
+	s.publishChannelJoined(channel, added)
+	return nil
+}
+
 // SetBotAdmin sets or clears a bot's admin role in a space.
 func (s *Service) SetBotAdmin(ctx context.Context, spaceID, userID string, admin bool) error {
 	role := RoleMember
