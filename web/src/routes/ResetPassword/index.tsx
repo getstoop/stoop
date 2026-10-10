@@ -88,6 +88,15 @@ export function ResetPasswordPage() {
           <p className="error" role="alert">
             {errorText(reset.error)}
           </p>
+          {/* The token is only in memory now, so a reload would lose it. */}
+          <button
+            type="button"
+            className="primary"
+            disabled={reset.isFetching}
+            onClick={() => void reset.refetch()}
+          >
+            {reset.isFetching ? "Loading…" : "Try again"}
+          </button>
         </div>
       ) : reset.data ? (
         <NewPasswordForm
