@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import { chatClient } from "../../api/clients";
-import { usePeople } from "../../api/dms";
+import { useChannelRecord, usePeople } from "../../api/dms";
 import {
   isInlineImage,
   MAX_ATTACHMENT_BYTES,
@@ -19,9 +19,18 @@ import {
   uploadAttachment,
 } from "../../api/files";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
-import { filterMembers, mentionQueryAt } from "../../api/mentions";
+import {
+  filterMembers,
+  mentionNotes,
+  mentionQueryAt,
+} from "../../api/mentions";
 import { canMentionEveryone } from "../../api/permissions";
-import { useInstanceStatus, useSpaces } from "../../api/queries";
+import {
+  useChannelMembers,
+  useInstanceStatus,
+  useMe,
+  useSpaces,
+} from "../../api/queries";
 import {
   replaceShortcodes,
   type Shortcode,
@@ -40,10 +49,12 @@ import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { MentionPicker } from "../../components/MentionPicker";
+import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoGrow } from "../../hooks/useAutoGrow";
 import { useFormatting } from "../../hooks/useFormatting";
+import { useConnectionStore } from "../../stores/connection";
 
 export function Composer({
   channelId,
@@ -184,6 +195,24 @@ export function Composer({
           !!space && canMentionEveryone(space),
         )
       : [];
+
+  // In a space's text channel the picker says who a broadcast reaches and
+  // who a name would bring in.
+  const { channel: record } = useChannelRecord(spaceId, channelId);
+  const listed = !!record && spaceId !== "" && record.kind === ChannelKind.TEXT;
+  const { data: inside } = useChannelMembers(channelId, listed && !!mention);
+  const online = useConnectionStore((state) => state.online);
+  const { data: me } = useMe();
+  const notes =
+    listed && inside
+      ? mentionNotes(
+          candidates,
+          record.name,
+          new Set(inside.map((member) => member.userId)),
+          online,
+          me?.id ?? "",
+        )
+      : undefined;
 
   const suggestions = shortcode ? searchShortcodes(shortcode.query) : [];
 
@@ -349,6 +378,7 @@ export function Composer({
     >
       <MentionPicker
         candidates={candidates}
+        notes={notes}
         selected={selected}
         onPick={pick}
       />

@@ -7,10 +7,13 @@ import { BotIcon } from "./Icons";
 // Autocomplete list shown above the composer while typing @handle.
 export function MentionPicker({
   candidates,
+  notes,
   selected,
   onPick,
 }: {
   candidates: Member[];
+  // A line for the end of a row, by userId (api/mentions.ts).
+  notes?: Map<string, string>;
   selected: number;
   onPick: (m: Member) => void;
 }) {
@@ -40,6 +43,9 @@ export function MentionPicker({
               <BotMark kind={m.kind} />
             </span>
             <span className="muted small">@{m.username}</span>
+            {notes?.has(m.userId) && (
+              <span className="mention-note">{notes.get(m.userId)}</span>
+            )}
           </button>
         </li>
       ))}

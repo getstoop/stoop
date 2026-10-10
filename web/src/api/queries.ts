@@ -232,6 +232,17 @@ export function useMembers(spaceId: string) {
   });
 }
 
+// Who is in a text channel. Kept in step by the two membership events
+// (api/membership.ts).
+export function useChannelMembers(channelId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["channel-members", channelId],
+    queryFn: async () =>
+      (await chatClient.listChannelMembers({ channelId })).members,
+    enabled: enabled && channelId !== "",
+  });
+}
+
 // Instance admins only.
 export function useInstanceUsers(enabled: boolean) {
   return useQuery({
