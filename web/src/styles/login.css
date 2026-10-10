@@ -49,6 +49,11 @@
   color: var(--text);
 }
 
+/* What happened, in body colour: "Check your email." */
+.login-lead {
+  margin: 0;
+}
+
 /* The way out under the card's main action, an anchor or a button.link. */
 .login-card .link {
   color: var(--text-muted);

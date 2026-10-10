@@ -12,10 +12,12 @@ import { DesktopAuthCompletePage } from "./routes/DesktopAuthComplete";
 import { DesktopAuthReturnPage } from "./routes/DesktopAuthReturn";
 import { DMLayout } from "./routes/DirectMessages";
 import { DMIndex } from "./routes/DirectMessages/DMIndex";
+import { ForgotPasswordPage } from "./routes/ForgotPassword";
 import { HomePage } from "./routes/Home";
 import { JoinPage } from "./routes/Join";
 import { LoginPage } from "./routes/Login";
 import { ProfilePage } from "./routes/Profile";
+import { ResetPasswordPage } from "./routes/ResetPassword";
 import { Root } from "./routes/Root";
 import { SearchPage } from "./routes/Search";
 import { SetupPage } from "./routes/Setup";
@@ -116,6 +118,26 @@ const confirmEmailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/confirm-email",
   component: ConfirmEmailPage,
+  validateSearch: (search: Record<string, unknown>): { token?: string } => ({
+    token:
+      typeof search.token === "string" && search.token !== ""
+        ? search.token.slice(0, 512)
+        : undefined,
+  }),
+});
+
+// Asking for a reset link, and where the email's link lands; public, so
+// they work signed in or out.
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: ForgotPasswordPage,
+});
+
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reset-password",
+  component: ResetPasswordPage,
   validateSearch: (search: Record<string, unknown>): { token?: string } => ({
     token:
       typeof search.token === "string" && search.token !== ""
@@ -326,6 +348,8 @@ const routeTree = rootRoute.addChildren([
   desktopAuthRoute,
   desktopReturnRoute,
   confirmEmailRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   appRoute.addChildren([
     homeRoute,
     adminRoute,
