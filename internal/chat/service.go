@@ -154,6 +154,9 @@ func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID st
 	if err != nil {
 		return "", err
 	}
+	if err := s.requireInChannel(ctx, userID, channel); err != nil {
+		return "", err
+	}
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return "", err
 	}

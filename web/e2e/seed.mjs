@@ -81,7 +81,9 @@ export async function seed({
   for (const name of rest) {
     const { channel } = await rpc(
       "chat.v1.ChatService/CreateChannel",
-      { spaceId: made.id, name, kind: "CHANNEL_KIND_TEXT" },
+      // Required, so everyone the spec brings into the space is in every
+      // seeded channel, whenever and however they arrive.
+      { spaceId: made.id, name, kind: "CHANNEL_KIND_TEXT", required: true },
       owner,
     );
     made_channels[name] = channel.id;

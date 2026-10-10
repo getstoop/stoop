@@ -23,6 +23,32 @@ space.
 - A **message** is content, an author, a channel, and optional replies,
   attachments, reactions, mentions and links.
 
+### Channel membership
+
+A text channel has a list of people in it (`channel_members`). Being in a
+channel is a subscription, not a boundary:
+
+| | In the channel | In the space only |
+| --- | --- | --- |
+| Read, page, search, follow a link | yes | yes |
+| Send, edit, react, upload | yes | `FailedPrecondition` |
+| Delete their own message | yes | yes |
+| Channel can be unread; space lights for it | yes | no |
+| A reply to them or in their thread raises activity | yes | no |
+
+`JoinChannel` and `LeaveChannel` are the person's own; `AddChannelMembers`
+needs `channels.manage`. Joining marks the channel read to its newest
+message. Leaving also removes the person's mute on the channel.
+
+A **required** channel has everyone in the space in it and can't be left.
+`CreateSpaceMember` adds a new member to the space's required channels in
+the statement that adds them, and turning required on adds everyone.
+A space's default channel is always set and always required: it can't be
+cleared, and it can't be deleted until another is chosen.
+
+Voice channels and direct messages have no membership. `Channel.joined`
+is true for them.
+
 ### Channel names
 
 A space channel's name is an identifier, because search addresses a
@@ -89,8 +115,8 @@ deliberate:
 
 1. **Validate.** Content is 1–4000 characters, *or* empty with at least one
    attachment.
-2. **Authorise** via `writableChannel` — channel membership, plus the block
-   rule in a DM — then `requirePostPolicy` for an
+2. **Authorise** via `writableChannel` — the space, being in a text
+   channel, plus the block rule in a DM — then `requirePostPolicy` for an
    [announcement channel](#announcement-channels).
 3. **Claim attachments** — check each id through the `FileDirectory` port
    for kind, owner and space ([files.md](files.md)).
@@ -235,8 +261,8 @@ thread, then DM participants, each step skipping anyone an
 earlier one told. Being mentioned in a reply in a DM is one entry, not
 three.
 
-**Blocked people raise nothing, and nobody is told about a room they're
-no longer in.** `notify` filters every recipient list through
+**Blocked people raise nothing, and nobody is told about a channel they're
+not in.** `notify` filters every recipient list through
 `withoutBlockers` and then `ChannelMembersAmong`, so both apply once, at
 the point of delivery, rather than in each record path. A message row
 outlives its author's leave, kick or ban, and a quote of it would
@@ -274,7 +300,8 @@ they have seen. It only moves forward.
 Because ids are UUIDv7 and therefore ordered, **"unread" is an id
 comparison** — `channels.last_message_id > channel_reads.last_read_message_id`
 — not a count and not a scan. The space rail's dot, the channel's bold, and
-the "anything new?" query are all that one comparison.
+the "anything new?" query are all that one comparison. A text channel the
+person is not in is never unread for them.
 
 `ChannelRead` is published to the reader's own `user:` topic so their other
 devices stay in step.

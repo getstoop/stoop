@@ -34,6 +34,9 @@ func TestSearchMessages(t *testing.T) {
 	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := svc.JoinChannel(bea, connect.NewRequest(&chatv1.JoinChannelRequest{ChannelId: garden.Msg.Channel.Id})); err != nil {
+		t.Fatal(err)
+	}
 	// A second space the outsider owns, with the same words in it.
 	other, _ := svc.CreateSpace(outsider, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Elsewhere"}))
 

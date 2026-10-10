@@ -186,6 +186,7 @@ SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file
           AND c.last_message_id IS NOT NULL
           AND (r.last_read_message_id IS NULL OR c.last_message_id > r.last_read_message_id)
           AND NOT EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = m.user_id)
+          AND (c.kind <> 1 OR EXISTS (SELECT 1 FROM channel_members own WHERE own.channel_id = c.id AND own.user_id = m.user_id))
     ) AS has_unread
 FROM spaces s
 JOIN space_members m ON m.space_id = s.id
@@ -206,7 +207,7 @@ type ListSpacesByUserRow struct {
 }
 
 // ListSpacesByUser also returns the caller's role in each space, whether
-// any channel there has messages newer than their read marker, and their
+// any channel they are in there has messages newer than their read marker, and their
 // own mute for the space. has_unread does not know about space mutes; the
 // client derives the effective state from both flags. Hidden voice
 // channels (kind 2) don't count.

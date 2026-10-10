@@ -38,7 +38,7 @@ func (s *Service) accessChannel(ctx context.Context, channelID string) (dbgen.Ch
 }
 
 // writableChannel loads a channel the caller may write in: accessChannel,
-// plus the block rule in a direct message. Every RPC that adds to or
+// plus being in a text channel, or the block rule in a direct message. Every RPC that adds to or
 // changes what the other side sees — send, edit, react — goes through
 // this one, so a kick, a ban or a block stops all three together. A
 // direct message's participants come back with it, nil for a space
@@ -52,7 +52,7 @@ func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.
 		return dbgen.Channel{}, nil, err
 	}
 	if !isDM(channel) {
-		return channel, nil, nil
+		return channel, nil, s.requireInChannel(ctx, authctx.UserID(ctx), channel)
 	}
 	participants, err := s.q.ListDMMembers(ctx, channel.ID)
 	if err != nil {

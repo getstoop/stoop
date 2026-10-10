@@ -73,6 +73,12 @@ func TestEveryoneSendQueriesDoNotGrowWithTheSpace(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		// Rows written past CreateSpaceMember miss the required channel.
+		if _, err := pool.Exec(ctx, `INSERT INTO channel_members (channel_id, space_id, user_id)
+			SELECT $1, space_id, user_id FROM space_members WHERE space_id = $2 ON CONFLICT DO NOTHING`,
+			space.Msg.DefaultChannel.Id, space.Msg.Space.Id); err != nil {
+			t.Fatal(err)
+		}
 		counter.mentions.Store(0)
 		counter.activity.Store(0)
 		if _, err := svc.SendMessage(casey, connect.NewRequest(&chatv1.SendMessageRequest{
