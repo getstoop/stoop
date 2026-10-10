@@ -121,6 +121,10 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 	if err != nil {
 		return nil, err
 	}
+	publicURL, err := s.PublicURL(ctx)
+	if err != nil {
+		return nil, err
+	}
 	summaries := make([]*instancev1.LoginProviderSummary, len(providers))
 	for i, lp := range providers {
 		summaries[i] = &instancev1.LoginProviderSummary{
@@ -139,6 +143,8 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		MessageRetentionDays: int32(messageDays), AttachmentRetentionDays: int32(attachmentDays),
 		VoiceAvailable: s.VoiceAvailable(),
 		EmailEnabled:   smtp.on(),
+		// Reset links are built on the public URL.
+		PasswordResetAvailable: smtp.on() && publicURL != "",
 	}, nil
 }
 

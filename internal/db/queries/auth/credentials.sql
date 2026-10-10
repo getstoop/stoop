@@ -40,6 +40,12 @@ DELETE FROM credentials
 WHERE holder_id = sqlc.arg(holder_id) AND kind = 'session' AND credentials.id <> sqlc.arg(id)
 RETURNING id, holder_id;
 
+-- DeleteUserSessions signs a person out everywhere (used after a password
+-- reset).
+-- name: DeleteUserSessions :many
+DELETE FROM credentials WHERE holder_id = $1 AND kind = 'session'
+RETURNING id, holder_id;
+
 -- ListSessions is one person's live sessions, most recently used first.
 -- name: ListSessions :many
 SELECT id, created_at, last_used_at, expires_at, user_agent
