@@ -135,7 +135,14 @@ export function ChannelMenu({
         onSelect: () => setAnnouncement(channel, !on, queryClient, true),
       });
     }
-    items.push({ label: "Delete channel", onSelect: remove, danger: true });
+    const isDefault = channel.id === space.defaultChannelId;
+    items.push({
+      label: "Delete channel",
+      onSelect: remove,
+      danger: true,
+      disabled: isDefault,
+      title: isDefault ? "Choose another default channel first" : undefined,
+    });
   }
 
   return (

@@ -14,6 +14,7 @@ export function ChannelTable({
   kind,
   channels,
   total,
+  defaultChannelId,
   onEdit,
   onDelete,
   onReorder,
@@ -24,6 +25,8 @@ export function ChannelTable({
   channels: Channel[] | undefined;
   // Every channel in the space: the last one can't be deleted.
   total: number;
+  // The space's default channel can't be deleted.
+  defaultChannelId: string;
   onEdit: (channel: Channel) => void;
   onDelete: (channel: Channel) => void;
   onReorder: (channelIds: string[]) => void;
@@ -34,8 +37,8 @@ export function ChannelTable({
 
   // The cells read this render's state and handlers through a ref, so
   // the columns stay stable.
-  const latest = useRef({ total, onEdit, onDelete });
-  latest.current = { total, onEdit, onDelete };
+  const latest = useRef({ total, defaultChannelId, onEdit, onDelete });
+  latest.current = { total, defaultChannelId, onEdit, onDelete };
 
   const columns = useMemo<TableColumn<Channel>[]>(() => {
     // The column says which channels are announcement channels; the row's
@@ -102,11 +105,13 @@ export function ChannelTable({
                 {
                   label: "Delete",
                   danger: true,
-                  disabled: v.total <= 1,
+                  disabled: v.total <= 1 || c.id === v.defaultChannelId,
                   title:
                     v.total <= 1
                       ? "A space needs at least one channel"
-                      : "Delete channel",
+                      : c.id === v.defaultChannelId
+                        ? "Choose another default channel first"
+                        : "Delete channel",
                   onSelect: () => v.onDelete(c),
                 },
               ]}
