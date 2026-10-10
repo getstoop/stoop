@@ -1,5 +1,93 @@
 Stoop 0.9.0
 
+Stoop 0.9.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.8.x, and `stoop upgrade rollback`
+can take it back to 0.8.x, 0.7.x, 0.6.x or 0.5.x. Going below 0.5.0
+needs a backup, as before.
+
+**What's new.**
+
+- **Email.** Stoop can send mail through an SMTP server you choose. It
+  is optional and off until you set it up, under Server admin → Email or
+  with the `STOOP_SMTP_*` variables before the first start. The page
+  sends a test before you save, and a refused test says which field is
+  wrong. See the new [email guide](https://github.com/getstoop/stoop/blob/v0.9.0/docs/self-hosting/email.md).
+- **An email address on your account.** With email on, people can add an
+  address under Profile → Security and confirm it from a link. It is
+  optional, and only the person and the server's admins see it. Changing
+  or removing it asks for the current password, and the old address is
+  told.
+- **Forgot password?** With email on and a public URL saved, the sign-in
+  page offers a reset link to anyone with a confirmed address. The link
+  works once, for an hour. Setting the new password signs every device
+  out. The page never says whether an address has an account.
+- **A new first-run setup.** Setup asks one thing per screen: account,
+  space, remote access, address, voice and video, email, invite. A
+  reload picks up where it stopped. With voice on, the space starts
+  with a voice channel, lounge, beside #general. The new space opens
+  with the invite link and a list of what was skipped. Server admin →
+  Hosting is unchanged.
+- **Smaller things.** When the first unread message is also the first of
+  its day, the channel shows one "Today · New messages" divider, not
+  two.
+
+**For operators.**
+
+- **Nothing changes until you set up email.** An upgraded server sends
+  no mail and shows no Email section or reset link.
+- **Password reset has no switch of its own.** It is on whenever email
+  is set up and the server has a public URL. Password sign-in still
+  decides who can use it: with *Server admins only*, only admins get a
+  link; with *Off*, nobody does.
+- **The hourly cap.** Stoop sends at most 100 emails in a clock hour by
+  default, tests included. Change it on the Email page; 0 is no cap.
+- **Server admin → Accounts shows confirmed addresses**, and
+  Diagnostics → Health has an Email row with the last send's error.
+- **Login providers.** A new account made through a provider takes the
+  provider's address as confirmed, when the provider says it is verified
+  and no account holds it. Existing accounts are not changed.
+- **`STOOP_SMTP_*` variables** (`HOST`, `PORT`, `SECURITY`, `USERNAME`,
+  `PASSWORD`, `FROM`, `FROM_NAME`, `HOURLY_LIMIT`) are read once, like
+  the other admin-page settings. `stoop admin setting` covers the Email
+  group too.
+- **API additions for scripts.** `GetEmailSettings`,
+  `UpdateEmailSettings` and `SendTestEmail` on the instance service;
+  `RequestEmailChange`, `ResendEmailConfirmation`, `CancelEmailChange`,
+  `RemoveEmail`, `ConfirmEmail`, `RequestPasswordReset`,
+  `GetPasswordReset` and `CompletePasswordReset` on the auth service.
+  `GetMe` carries the caller's `email`, the admin account list carries
+  `email`, and the instance status carries `email_enabled` and
+  `password_reset_available`. Nothing was removed.
+
+**Schema.** Migrations 00060 and 00061 run at startup. Both only add, and
+the schema floor stays at 53.
+
+- 00060 adds four email columns to `users`, with a unique index on
+  confirmed addresses, and the `email_tokens` table.
+- 00061 lets `email_tokens` hold password reset links.
+
+After a rollback to 0.8.x the email settings and addresses stay in the
+database, unused: no mail is sent, and links already sent don't open.
+
+**Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
+`cloudflared` 2026.9.3, all unchanged from 0.8.1.
+
+**Known issues.**
+
+- A mail relay with a self-signed certificate is not supported over
+  STARTTLS or TLS.
+- Gmail works with an app password. Outlook.com and Microsoft 365 need a
+  mail provider's relay; Stoop does not sign in to them directly.
+- On the new space's first-run card, "Set up" beside a skipped Email
+  step opens Hosting. Email is its own tab in Server admin.
+- On a phone, picking a channel from the drawer while a thread is open
+  leaves one extra step in the browser's history, so Back stays on the
+  same page once.
+
+Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
+security problems go through
+[private reporting](https://github.com/getstoop/stoop/security/advisories/new).
+
 Changes since 0.8.1:
 
 - Build release: ask again for a merge's pull request (d5b92ed)
