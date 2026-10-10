@@ -110,6 +110,14 @@ list can answer "anything new?" without touching `messages`.
 channel, which is what let group conversations arrive with no migration at
 all. `closed_at` is one person taking the conversation off their own list.
 
+**`channel_members`** — `(channel_id, user_id)`, who is in a text channel,
+with `added_by`. A required channel (`channels.required`) holds a row for
+every member of its space: `CreateSpaceMember` adds them in the statement
+that adds the member. The foreign key onto `space_members` takes a
+person's rows when they leave the space, by any path. A new space's
+first channel is its default and is required. Voice channels and direct
+messages have no rows here.
+
 **`channel_reads`** — `(user_id, channel_id) → last_read_message_id`, only
 ever moving forward. Because message ids are time-ordered, "unread" is an
 id comparison against `channels.last_message_id`, not a count.

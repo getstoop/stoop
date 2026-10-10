@@ -31,6 +31,15 @@ type Channel struct {
 	DmKey         *string
 	Topic         string
 	PostPolicy    string
+	Required      bool
+}
+
+type ChannelMember struct {
+	ChannelID string
+	SpaceID   string
+	UserID    string
+	AddedBy   *string
+	AddedAt   time.Time
 }
 
 type ChannelMute struct {
@@ -199,6 +208,7 @@ type Message struct {
 	ThreadRootID     *string
 	InChannel        bool
 	DeletedAt        *time.Time
+	MentionsChannel  bool
 }
 
 type MessageAttachment struct {
@@ -244,6 +254,7 @@ type MessageWithReply struct {
 	ThreadReplyCount      int32
 	ThreadLastReplyAt     *time.Time
 	ThreadRecentAuthorIds []string
+	MentionsChannel       bool
 }
 
 type OutgoingWebhook struct {

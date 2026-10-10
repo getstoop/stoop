@@ -20,7 +20,7 @@ func (q *Queries) DeleteThreadSummary(ctx context.Context, rootMessageID string)
 }
 
 const listThreadAfter = `-- name: ListThreadAfter :many
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, mentions_channel FROM message_with_reply m
 WHERE m.thread_root_id = $1::uuid
   AND (m.id > $2::uuid OR ($3::bool AND m.id = $2::uuid))
 ORDER BY m.id ASC
@@ -67,6 +67,7 @@ func (q *Queries) ListThreadAfter(ctx context.Context, arg ListThreadAfterParams
 			&i.ThreadReplyCount,
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
+			&i.MentionsChannel,
 		); err != nil {
 			return nil, err
 		}
@@ -80,7 +81,7 @@ func (q *Queries) ListThreadAfter(ctx context.Context, arg ListThreadAfterParams
 
 const listThreadBefore = `-- name: ListThreadBefore :many
 
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, mentions_channel FROM message_with_reply m
 WHERE m.thread_root_id = $1::uuid
   AND ($2::uuid IS NULL OR m.id < $2::uuid)
 ORDER BY m.id DESC
@@ -125,6 +126,7 @@ func (q *Queries) ListThreadBefore(ctx context.Context, arg ListThreadBeforePara
 			&i.ThreadReplyCount,
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
+			&i.MentionsChannel,
 		); err != nil {
 			return nil, err
 		}

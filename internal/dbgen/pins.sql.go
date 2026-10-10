@@ -27,7 +27,7 @@ func (q *Queries) GetPin(ctx context.Context, messageID string) (ChannelPin, err
 }
 
 const listChannelPins = `-- name: ListChannelPins :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, pin.pinned_by, pin.pinned_at
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, m.mentions_channel, pin.pinned_by, pin.pinned_at
 FROM channel_pins pin
 JOIN message_with_reply m ON m.id = pin.message_id
 WHERE pin.channel_id = $1::uuid
@@ -76,6 +76,7 @@ func (q *Queries) ListChannelPins(ctx context.Context, arg ListChannelPinsParams
 			&i.MessageWithReply.ThreadReplyCount,
 			&i.MessageWithReply.ThreadLastReplyAt,
 			&i.MessageWithReply.ThreadRecentAuthorIds,
+			&i.MessageWithReply.MentionsChannel,
 			&i.PinnedBy,
 			&i.PinnedAt,
 		); err != nil {

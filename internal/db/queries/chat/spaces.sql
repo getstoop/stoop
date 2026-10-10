@@ -6,6 +6,11 @@ INSERT INTO spaces (id, name, owner_id)
 VALUES ($1, $2, $3)
 RETURNING *;
 
+-- name: SetSpaceDefaultChannel :one
+UPDATE spaces SET default_channel_id = sqlc.arg(channel_id)::uuid
+WHERE id = sqlc.arg(id)::uuid
+RETURNING *;
+
 -- name: GetSpace :one
 SELECT * FROM spaces WHERE id = $1;
 
