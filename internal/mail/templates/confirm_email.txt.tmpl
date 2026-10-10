@@ -1,0 +1,13 @@
+{{define "subject"}}Confirm your email for {{.Site.InstanceName}}{{end}}
+
+{{define "body" -}}
+Confirm your email address
+
+@{{.Data.Username}} asked to use this address on {{.Site.InstanceName}}. Once it's confirmed, you can use it to get back into your account if you forget your password.
+
+Confirm it by opening this link:
+
+{{.Data.Link}}
+
+The link works once and expires in 24 hours. If you didn't ask for this, ignore this email and nothing will change.
+{{end}}

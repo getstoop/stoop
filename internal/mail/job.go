@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"errors"
+	"time"
 )
 
 // SendEmailKind is the background job that sends one email. Its
@@ -22,6 +23,9 @@ type JobArgs struct {
 	Template   string `json:"template"`
 	UserID     string `json:"user_id"`
 	OldAddress string `json:"old_address,omitempty"`
+	// When the change a notice reports happened; zero on a job queued
+	// before it was recorded.
+	At time.Time `json:"at,omitzero"`
 }
 
 // Site is what a message needs from the instance.

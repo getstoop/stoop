@@ -3,8 +3,11 @@ package app_test
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"io"
 	"log/slog"
+	"mime"
+	"mime/multipart"
 	"mime/quotedprintable"
 	netmail "net/mail"
 	"regexp"
@@ -59,12 +62,16 @@ func TestE2EConfirmEmailJob(t *testing.T) {
 	if len(received.To) != 1 || received.To[0] != "ada@example.com" {
 		t.Fatalf("sent to %v, want ada@example.com", received.To)
 	}
-	_, text := readEmail(t, received)
+	_, parts := readEmailParts(t, received)
+	text := parts["text/plain"]
 	match := confirmLink.FindStringSubmatch(text)
-	if match == nil || !strings.Contains(text, "@ada on") {
+	if match == nil || !strings.Contains(text, "@ada asked to use this address on") {
 		t.Fatalf("no confirmation link for @ada in %q", text)
 	}
 	token := match[1]
+	if !strings.Contains(parts["text/html"], `href="`+match[0]+`"`) {
+		t.Errorf("the HTML part lacks the link: %q", parts["text/html"])
+	}
 
 	var state, args, lastError string
 	deadline := time.Now().Add(10 * time.Second)
@@ -113,20 +120,56 @@ func TestE2EConfirmEmailJob(t *testing.T) {
 	}
 }
 
-// readEmail is a received message's subject and decoded text.
+// readEmail is a received message's subject and decoded text part.
 func readEmail(t *testing.T, received mailtest.Received) (subject, text string) {
+	t.Helper()
+	subject, parts := readEmailParts(t, received)
+	return subject, parts["text/plain"]
+}
+
+// readEmailParts is a received message's subject and its decoded parts
+// by media type.
+func readEmailParts(t *testing.T, received mailtest.Received) (subject string, parts map[string]string) {
 	t.Helper()
 	parsed, err := netmail.ReadMessage(strings.NewReader(received.Data))
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := parsed.Body
-	if strings.EqualFold(parsed.Header.Get("Content-Transfer-Encoding"), "quoted-printable") {
+	parts = map[string]string{}
+	mediaType, params, err := mime.ParseMediaType(parsed.Header.Get("Content-Type"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(mediaType, "multipart/") {
+		parts[mediaType] = decodeEmailBody(t, parsed.Header.Get("Content-Transfer-Encoding"), parsed.Body)
+		return parsed.Header.Get("Subject"), parts
+	}
+	reader := multipart.NewReader(parsed.Body, params["boundary"])
+	for {
+		part, err := reader.NextRawPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		partType, _, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		parts[partType] = decodeEmailBody(t, part.Header.Get("Content-Transfer-Encoding"), part)
+	}
+	return parsed.Header.Get("Subject"), parts
+}
+
+func decodeEmailBody(t *testing.T, encoding string, body io.Reader) string {
+	t.Helper()
+	if strings.EqualFold(encoding, "quoted-printable") {
 		body = quotedprintable.NewReader(body)
 	}
 	decoded, err := io.ReadAll(body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return parsed.Header.Get("Subject"), string(decoded)
+	return string(decoded)
 }

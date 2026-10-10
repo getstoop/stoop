@@ -78,23 +78,33 @@ func (s *Service) SendTestEmail(ctx context.Context, req *connect.Request[instan
 	if err != nil {
 		return nil, err
 	}
+	msg, err := s.testEmail(ctx, server.Host)
+	if err != nil {
+		return nil, err
+	}
+	msg.To = to.Address
 	// The saved cap: trying a form doesn't raise it.
 	if err := s.takeSendSlot(ctx, saved.HourlyLimit, time.Now()); err != nil {
 		return nil, sendError(err)
 	}
-	name, err := s.InstanceName(ctx)
-	if err != nil {
-		return nil, err
-	}
-	err = s.deliver(ctx, server, mail.Message{
-		To:      to.Address,
-		Subject: "Test email from " + name,
-		Text:    "This is a test email from " + name + ".\nIf you can read it, email from Stoop works.\n",
-	})
-	if err != nil {
+	if err := s.deliver(ctx, server, msg); err != nil {
 		return nil, sendError(err)
 	}
 	return connect.NewResponse(&instancev1.SendTestEmailResponse{AcceptedBy: server.Host}), nil
+}
+
+// testEmail names the server the test goes through and when it was sent.
+func (s *Service) testEmail(ctx context.Context, host string) (mail.Message, error) {
+	name, err := s.InstanceName(ctx)
+	if err != nil {
+		return mail.Message{}, err
+	}
+	publicURL, err := s.PublicURL(ctx)
+	if err != nil {
+		return mail.Message{}, err
+	}
+	return mail.Render(mail.TemplateSMTPTest, mail.SMTPTestData{Host: host, SentAt: time.Now()},
+		mail.Site{PublicURL: publicURL, InstanceName: name})
 }
 
 func (s *Service) allowTestEmail(ctx context.Context) error {

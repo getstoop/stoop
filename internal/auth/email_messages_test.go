@@ -86,13 +86,16 @@ func TestBuildConfirmEmail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.To != "ada@example.com" || first.Subject != "Confirm your email for Example Stoop" || first.HTML != "" {
+	if first.To != "ada@example.com" || first.Subject != "Confirm your email for Example Stoop" {
 		t.Errorf("message = %+v", first)
 	}
-	if !strings.Contains(first.Text, "@ada on Example Stoop") {
+	if !strings.Contains(first.Text, "@ada asked to use this address on Example Stoop.") {
 		t.Errorf("text = %q", first.Text)
 	}
 	firstToken := linkToken(t, first)
+	if link := "https://chat.example.com/confirm-email?token=" + firstToken; !strings.Contains(first.HTML, `href="`+link+`"`) {
+		t.Errorf("the HTML part lacks the link: %q", first.HTML)
+	}
 	if len(firstToken) != 43 {
 		t.Errorf("token %q is %d characters, want 43", firstToken, len(firstToken))
 	}
@@ -197,23 +200,38 @@ func TestBuildConfirmEmailRefusals(t *testing.T) {
 	}
 }
 
-// The notice goes to the old address and carries no link.
+// The notice goes to the old address, says when, and carries no
+// confirmation link.
 func TestBuildEmailChanged(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
 	ctx := context.Background()
 	adaID := emailUser(t, pool, "ada", "")
+	changedAt := time.Date(2026, time.October, 9, 22, 14, 0, 0, time.UTC)
 
-	msg, err := svc.BuildEmailChanged(ctx, mail.JobArgs{Template: mail.TemplateEmailChanged, UserID: adaID, OldAddress: "ada@example.net"}, emailSite)
+	msg, err := svc.BuildEmailChanged(ctx, mail.JobArgs{Template: mail.TemplateEmailChanged, UserID: adaID, OldAddress: "ada@example.net", At: changedAt}, emailSite)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if msg.To != "ada@example.net" || msg.Subject != "Your email on Example Stoop was changed" {
+	if msg.To != "ada@example.net" || msg.Subject != "Your email address on Example Stoop was changed" || msg.OnSent != nil {
 		t.Errorf("message = %+v", msg)
 	}
-	if !strings.Contains(msg.Text, "@ada on Example Stoop") || strings.Contains(msg.Text, "http") {
+	for _, part := range []string{msg.Text, msg.HTML} {
+		if !strings.Contains(part, "@ada on Example Stoop was changed or removed on 9 October 2026 at 22:14 UTC.") ||
+			strings.Contains(part, "confirm-email") || strings.Contains(part, "token") {
+			t.Errorf("part = %q", part)
+		}
+	}
+
+	// A job queued before the time was recorded says when it is sent.
+	msg, err = svc.BuildEmailChanged(ctx, mail.JobArgs{Template: mail.TemplateEmailChanged, UserID: adaID, OldAddress: "ada@example.net"}, emailSite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(msg.Text, "January 0001") {
 		t.Errorf("text = %q", msg.Text)
 	}
+
 	if _, err := svc.BuildEmailChanged(ctx, mail.JobArgs{Template: mail.TemplateEmailChanged, UserID: adaID}, emailSite); !errors.Is(err, mail.ErrNothingToSend) {
 		t.Errorf("no old address: err = %v, want ErrNothingToSend", err)
 	}

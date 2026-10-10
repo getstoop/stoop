@@ -41,18 +41,17 @@ func (s *Service) BuildConfirmEmail(ctx context.Context, args mail.JobArgs, site
 		return mail.Message{}, err
 	}
 	link := strings.TrimRight(site.PublicURL, "/") + "/confirm-email?token=" + token
-	return mail.Message{
-		To:      address,
-		Subject: "Confirm your email for " + site.InstanceName,
-		Text: "Someone asked to use this address for @" + recipient.Username + " on " + site.InstanceName + ".\n\n" +
-			"To confirm it, open this link within 24 hours:\n\n" + link + "\n\n" +
-			"If that wasn't you, ignore this email and nothing will change.\n",
-		// Older links die only once this one is on its way, so a send that
-		// fails leaves the link the person already has working.
-		OnSent: func(ctx context.Context) error {
-			return s.q.DeleteOlderEmailTokens(ctx, tokenID)
-		},
-	}, nil
+	msg, err := mail.Render(mail.TemplateConfirmEmail, mail.ConfirmEmailData{Username: recipient.Username, Link: link}, site)
+	if err != nil {
+		return mail.Message{}, err
+	}
+	msg.To = address
+	// Older links die only once this one is on its way, so a send that
+	// fails leaves the link the person already has working.
+	msg.OnSent = func(ctx context.Context) error {
+		return s.q.DeleteOlderEmailTokens(ctx, tokenID)
+	}
+	return msg, nil
 }
 
 // BuildEmailChanged tells the old address that the account's address
@@ -65,12 +64,17 @@ func (s *Service) BuildEmailChanged(ctx context.Context, args mail.JobArgs, site
 	if err != nil {
 		return mail.Message{}, err
 	}
-	return mail.Message{
-		To:      args.OldAddress,
-		Subject: "Your email on " + site.InstanceName + " was changed",
-		Text: "The email address for @" + recipient.Username + " on " + site.InstanceName + " was changed or removed.\n\n" +
-			"If you did this, there's nothing to do. If you didn't, sign in and change your password, or ask an admin for help.\n",
-	}, nil
+	// A job queued before At was recorded says when it is sent.
+	at := args.At
+	if at.IsZero() {
+		at = time.Now()
+	}
+	msg, err := mail.Render(mail.TemplateEmailChanged, mail.EmailChangedData{Username: recipient.Username, At: at}, site)
+	if err != nil {
+		return mail.Message{}, err
+	}
+	msg.To = args.OldAddress
+	return msg, nil
 }
 
 // emailRecipient reads the user a message is about; one that no longer
