@@ -9,8 +9,7 @@ import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 
 // Where the space puts someone who arrives without a channel of their
 // own: a new member following an invite, or anyone opening /s/{id} with
-// nothing after it. Unset — "First channel" — is what every space did
-// before this setting existed.
+// nothing after it. A space always has one, and everyone is in it.
 export function DefaultChannelRow({
   space,
   channels,
@@ -20,12 +19,7 @@ export function DefaultChannelRow({
 }) {
   const queryClient = useQueryClient();
   const choices = defaultChannelChoices(channels);
-  // A default naming a channel that isn't here is one that was deleted
-  // without us hearing the event yet. Show it as unset, which is where
-  // arrivals are already going.
-  const current = choices.some((c) => c.id === space.defaultChannelId)
-    ? space.defaultChannelId
-    : "";
+  const current = space.defaultChannelId;
   // The value comes from the server, so without somewhere to hold the
   // pick it would snap back to the old channel until the save lands.
   // Holding it also closes the control while one save is in flight, so
@@ -53,7 +47,7 @@ export function DefaultChannelRow({
     <SettingRow
       id="default-channel"
       title="New members start in"
-      description="Where an invite lands someone, and where the space opens when no channel is chosen."
+      description="Where an invite lands someone. Everyone in the space is in this channel."
       error={error}
     >
       <select
@@ -63,7 +57,6 @@ export function DefaultChannelRow({
         disabled={pending !== null}
         onChange={(e) => choose(e.target.value)}
       >
-        <option value="">First channel</option>
         {choices.map((c) => (
           <option key={c.id} value={c.id}>
             # {c.name}
