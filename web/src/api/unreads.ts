@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { patchDirectMessage } from "./dms";
 import { isMuted } from "./mutes";
@@ -14,17 +14,24 @@ export function badgeCount(n: number): string {
   return n > 99 ? "99+" : String(n);
 }
 
+// A text channel has a list of people the caller may not be on; a voice
+// channel and a direct message have none, so the caller is always in.
+export function inChannel(c: Channel): boolean {
+  return c.kind !== ChannelKind.TEXT || c.joined;
+}
+
 export function isUnread(c: Channel): boolean {
   return c.lastMessageId !== "" && c.lastMessageId > c.lastReadMessageId;
 }
 
-// Unread and not effectively muted: what bolds a row and dots a pill.
+// Unread, in the channel and not effectively muted: what bolds a row and
+// dots a pill.
 export function isAlerting(
   queryClient: QueryClient,
   spaceId: string,
   c: Channel,
 ): boolean {
-  return isUnread(c) && !isMuted(queryClient, spaceId, c.id);
+  return inChannel(c) && isUnread(c) && !isMuted(queryClient, spaceId, c.id);
 }
 
 export function patchChannel(

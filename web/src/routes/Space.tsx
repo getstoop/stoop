@@ -29,7 +29,7 @@ import {
   shareUrl,
   spacePath,
 } from "../api/shareLinks";
-import { badgeCount, isAlerting } from "../api/unreads";
+import { badgeCount, inChannel, isAlerting } from "../api/unreads";
 import { welcomeSeen } from "../api/welcome";
 import { ChannelGlyph } from "../components/ChannelGlyph";
 import { ChannelGroupHeading } from "../components/ChannelGroupHeading";
@@ -64,8 +64,9 @@ export function SpaceLayout() {
   const [aboutOpen, setAboutOpen] = useState(false);
 
   const space = spaces?.find((s) => s.id === spaceId);
+  // The list holds every channel; the sidebar shows the ones they are in.
   const textChannels =
-    channels?.filter((c) => c.kind !== ChannelKind.VOICE) ?? [];
+    channels?.filter((c) => c.kind !== ChannelKind.VOICE && inChannel(c)) ?? [];
   const manage = !!space && canManageChannels(space);
   const voiceChannels =
     channels?.filter((c) => c.kind === ChannelKind.VOICE) ?? [];
