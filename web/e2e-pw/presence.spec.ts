@@ -96,7 +96,7 @@ test("who is online, who is typing, and who @here reaches", async ({
   await expect(
     A.locator(".mention-picker"),
     "picker offers @here",
-  ).toContainText("Everyone online right now");
+  ).toContainText("Everyone here who is online");
   await A.keyboard.press("Enter");
   await composer(A).pressSequentially("standup in 5", { delay: 20 });
   await A.keyboard.press("Enter");
