@@ -38,14 +38,17 @@ func (q *Queries) CreateEmailToken(ctx context.Context, arg CreateEmailTokenPara
 
 const getEmailRecipient = `-- name: GetEmailRecipient :one
 
-SELECT username, pending_email, (deactivated_at IS NOT NULL)::bool AS deactivated
+SELECT username, email, pending_email, kind, role, (deactivated_at IS NOT NULL)::bool AS deactivated
 FROM users
 WHERE id = $1
 `
 
 type GetEmailRecipientRow struct {
 	Username     string
+	Email        *string
 	PendingEmail *string
+	Kind         string
+	Role         string
 	Deactivated  bool
 }
 
@@ -55,6 +58,13 @@ type GetEmailRecipientRow struct {
 func (q *Queries) GetEmailRecipient(ctx context.Context, id string) (GetEmailRecipientRow, error) {
 	row := q.db.QueryRow(ctx, getEmailRecipient, id)
 	var i GetEmailRecipientRow
-	err := row.Scan(&i.Username, &i.PendingEmail, &i.Deactivated)
+	err := row.Scan(
+		&i.Username,
+		&i.Email,
+		&i.PendingEmail,
+		&i.Kind,
+		&i.Role,
+		&i.Deactivated,
+	)
 	return i, err
 }

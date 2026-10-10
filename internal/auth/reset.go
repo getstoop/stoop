@@ -14,10 +14,10 @@ import (
 	"github.com/getstoop/stoop/internal/rowid"
 )
 
-// Lost passwords. There is no email, so no self-service reset: an
-// instance admin (or `stoop admin reset-password` for a locked-out admin)
-// sets a temporary password that is shown once, and every session of the
-// account is revoked. The person changes it on their profile page.
+// Lost passwords, reset by an admin: an instance admin (or `stoop admin
+// reset-password` for a locked-out admin) sets a temporary password that
+// is shown once, and every session of the account is revoked. The person
+// changes it on their profile page. Reset by email is password_reset.go.
 
 // tempPasswordAlphabet leaves out characters that are easy to misread
 // when a password is read out or copied by hand (0/O, 1/l/I).
@@ -69,8 +69,8 @@ func (s *Service) resetPassword(ctx context.Context, u dbgen.User) (temporary st
 	if err != nil {
 		return "", AccountSummary{}, hashFailure("hash password", err)
 	}
-	if err := s.q.UpdateUserPasswordHash(ctx, dbgen.UpdateUserPasswordHashParams{ID: u.ID, PasswordHash: &hash}); err != nil {
-		return "", AccountSummary{}, fmt.Errorf("update password: %w", err)
+	if err := s.setPasswordHash(ctx, u.ID, hash); err != nil {
+		return "", AccountSummary{}, err
 	}
 	if err := s.revokeAll(ctx, u.ID); err != nil {
 		return "", AccountSummary{}, err

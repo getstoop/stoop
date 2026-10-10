@@ -201,6 +201,10 @@ message GetInstanceStatusResponse {
   bool voice_available = 19;
   // Whether Stoop can send email: an SMTP host is saved and turned on.
   bool email_enabled = 20;
+  // Whether the login page offers "Forgot password?": email is on and the
+  // server has a public URL to build reset links on. Password sign-in's
+  // own setting still decides whose accounts it works for.
+  bool password_reset_available = 21;
 }
 
 message UpdateSettingsRequest {

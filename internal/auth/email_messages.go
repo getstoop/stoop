@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -36,7 +37,7 @@ func (s *Service) BuildConfirmEmail(ctx context.Context, args mail.JobArgs, site
 		return mail.Message{}, mail.ErrNoPublicURL
 	}
 	address := *recipient.PendingEmail
-	token, tokenID, err := s.mintConfirmEmailToken(ctx, args.UserID, address, time.Now())
+	token, tokenID, err := s.mintEmailToken(ctx, args.UserID, confirmEmailPurpose, address, time.Now().Add(confirmEmailLifetime))
 	if err != nil {
 		return mail.Message{}, err
 	}
@@ -49,7 +50,7 @@ func (s *Service) BuildConfirmEmail(ctx context.Context, args mail.JobArgs, site
 	// Older links die only once this one is on its way, so a send that
 	// fails leaves the link the person already has working.
 	msg.OnSent = func(ctx context.Context) error {
-		return s.q.DeleteOlderEmailTokens(ctx, tokenID)
+		return s.retireOlderEmailTokens(ctx, args.UserID, tokenID)
 	}
 	return msg, nil
 }
@@ -90,15 +91,26 @@ func (s *Service) emailRecipient(ctx context.Context, userID string) (dbgen.GetE
 	return recipient, err
 }
 
-// mintConfirmEmailToken stores the hash of a new confirmation token for
-// address; the raw token is returned for the link and kept nowhere else.
-// Older links stay until the message is sent (see BuildConfirmEmail).
-func (s *Service) mintConfirmEmailToken(ctx context.Context, userID, address string, now time.Time) (token, tokenID string, err error) {
+// retireOlderEmailTokens deletes the links made before tokenID, locking
+// the account first as every path that touches its links does.
+func (s *Service) retireOlderEmailTokens(ctx context.Context, userID, tokenID string) error {
+	return s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockUserEmail(ctx, userID); err != nil {
+			return fmt.Errorf("lock account: %w", err)
+		}
+		return qtx.DeleteOlderEmailTokens(ctx, tokenID)
+	})
+}
+
+// mintEmailToken stores the hash of a new link token for address; the
+// raw token is returned for the link and kept nowhere else. Older links
+// stay until the message is sent (see BuildConfirmEmail).
+func (s *Service) mintEmailToken(ctx context.Context, userID, purpose, address string, expires time.Time) (token, tokenID string, err error) {
 	token = randomToken()
 	tokenID = rowid.New()
 	err = s.q.CreateEmailToken(ctx, dbgen.CreateEmailTokenParams{
-		ID: tokenID, UserID: userID, Purpose: confirmEmailPurpose,
-		TokenHash: hashToken(token), Address: address, ExpiresAt: now.Add(confirmEmailLifetime),
+		ID: tokenID, UserID: userID, Purpose: purpose,
+		TokenHash: hashToken(token), Address: address, ExpiresAt: expires,
 	})
 	if err != nil {
 		return "", "", err

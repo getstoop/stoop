@@ -45,6 +45,16 @@ service AuthService {
   // ConfirmEmail turns a pending address into the account's address. No
   // sign-in needed: the link's token is the proof.
   rpc ConfirmEmail(ConfirmEmailRequest) returns (ConfirmEmailResponse) {}
+  // RequestPasswordReset sends a reset link to the account with this
+  // confirmed address, if there is one that may use a password. The reply
+  // is the same either way. No sign-in needed.
+  rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse) {}
+  // GetPasswordReset says whose password a reset link is for, without
+  // using it up. No sign-in needed: the token is the proof.
+  rpc GetPasswordReset(GetPasswordResetRequest) returns (GetPasswordResetResponse) {}
+  // CompletePasswordReset sets a new password with a reset link, signs every
+  // session out (and personal tokens when asked), and uses the link up.
+  rpc CompletePasswordReset(CompletePasswordResetRequest) returns (CompletePasswordResetResponse) {}
   // ListIdentities lists the caller's linked sign-in providers.
   rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse) {}
   // UnlinkIdentity removes one linked provider. Refused when it is the
@@ -255,6 +265,31 @@ message ConfirmEmailRequest {
 }
 
 message ConfirmEmailResponse {}
+
+message RequestPasswordResetRequest {
+  string email = 1;
+}
+
+message RequestPasswordResetResponse {}
+
+message GetPasswordResetRequest {
+  string token = 1;
+}
+
+message GetPasswordResetResponse {
+  string username = 1;
+}
+
+message CompletePasswordResetRequest {
+  string token = 1;
+  // At least 8 characters.
+  string new_password = 2;
+  // Also revoke every personal token the account holds. Sessions are
+  // signed out either way.
+  bool revoke_personal_tokens = 3;
+}
+
+message CompletePasswordResetResponse {}
 
 message ChangePasswordRequest {
   string current_password = 1;

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/auth/v1/auth.proto.
  */
 export const file_stoop_auth_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("ChhzdG9vcC9hdXRoL3YxL2F1dGgucHJvdG8SDXN0b29wLmF1dGgudjEi/gIKBFVzZXISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBHJvbGUYBSABKA4yGy5zdG9vcC5hdXRoLnYxLkluc3RhbmNlUm9sZRIWCg5hdmF0YXJfZmlsZV9pZBgGIAEoCRIUCgxoYXNfcGFzc3dvcmQYByABKAgSGAoQdXNlcm5hbWVfcGVuZGluZxgIIAEoCBIXCg91c2VybmFtZV9mcm96ZW4YCSABKAgSEAoIcHJvbm91bnMYCiABKAkSCwoDYmlvGAsgASgJEisKBGtpbmQYDCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEgsKA2RuZBgNIAEoCBItCglkbmRfdW50aWwYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkoKD1JlZ2lzdGVyUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRITCgtpbnZpdGVfY29kZRgDIAEoCSJOChBSZWdpc3RlclJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISFwoPam9pbmVkX3NwYWNlX2lkGAIgASgJIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSJBCg1Mb2dpblJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISDQoFdG9rZW4YAiABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiiwEKDUdldE1lUmVzcG9uc2USIQoEdXNlchgBIAEoCzITLnN0b29wLmF1dGgudjEuVXNlchIwCgtwZXJtaXNzaW9ucxgCIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEiUKBWVtYWlsGAMgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIjMKB015RW1haWwSDwoHYWRkcmVzcxgBIAEoCRIXCg9wZW5kaW5nX2FkZHJlc3MYAiABKAkijgEKFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EhQKDGRpc3BsYXlfbmFtZRgBIAEoCRIVCgh1c2VybmFtZRgCIAEoCUgAiAEBEhUKCHByb25vdW5zGAMgASgJSAGIAQESEAoDYmlvGAQgASgJSAKIAQFCCwoJX3VzZXJuYW1lQgsKCV9wcm9ub3Vuc0IGCgRfYmlvIjoKFVVwZGF0ZVByb2ZpbGVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyIk8KFlNldERvTm90RGlzdHVyYlJlcXVlc3QSCgoCb24YASABKAgSKQoFdW50aWwYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjwKF1NldERvTm90RGlzdHVyYlJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXIixQEKDVB1YmxpY1Byb2ZpbGUSCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEhAKCHByb25vdW5zGAUgASgJEgsKA2JpbxgGIAEoCRIrCgRraW5kGAcgASgOMh0uc3Rvb3AuYWNjZXNzLnYxLklkZW50aXR5S2luZBILCgNkbmQYCCABKAgSDwoHZGVsZXRlZBgJIAEoCCIoChVHZXRVc2VyUHJvZmlsZVJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSJHChZHZXRVc2VyUHJvZmlsZVJlc3BvbnNlEi0KB3Byb2ZpbGUYASABKAsyHC5zdG9vcC5hdXRoLnYxLlB1YmxpY1Byb2ZpbGUiPgoZUmVxdWVzdEVtYWlsQ2hhbmdlUmVxdWVzdBIPCgdhZGRyZXNzGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJIkMKGlJlcXVlc3RFbWFpbENoYW5nZVJlc3BvbnNlEiUKBWVtYWlsGAEgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIiAKHlJlc2VuZEVtYWlsQ29uZmlybWF0aW9uUmVxdWVzdCIhCh9SZXNlbmRFbWFpbENvbmZpcm1hdGlvblJlc3BvbnNlIhoKGENhbmNlbEVtYWlsQ2hhbmdlUmVxdWVzdCJCChlDYW5jZWxFbWFpbENoYW5nZVJlc3BvbnNlEiUKBWVtYWlsGAEgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIiYKElJlbW92ZUVtYWlsUmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCSIVChNSZW1vdmVFbWFpbFJlc3BvbnNlIiQKE0NvbmZpcm1FbWFpbFJlcXVlc3QSDQoFdG9rZW4YASABKAkiFgoUQ29uZmlybUVtYWlsUmVzcG9uc2UiZwoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0EhgKEGN1cnJlbnRfcGFzc3dvcmQYASABKAkSFAoMbmV3X3Bhc3N3b3JkGAIgASgJEh4KFnJldm9rZV9wZXJzb25hbF90b2tlbnMYAyABKAgiGAoWQ2hhbmdlUGFzc3dvcmRSZXNwb25zZSJbCghJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRINCgVlbWFpbBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIXChVMaXN0SWRlbnRpdGllc1JlcXVlc3QiRQoWTGlzdElkZW50aXRpZXNSZXNwb25zZRIrCgppZGVudGl0aWVzGAEgAygLMhcuc3Rvb3AuYXV0aC52MS5JZGVudGl0eSIpChVVbmxpbmtJZGVudGl0eVJlcXVlc3QSEAoIcHJvdmlkZXIYASABKAkiGAoWVW5saW5rSWRlbnRpdHlSZXNwb25zZSIoChREZWxldGVBY2NvdW50UmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCSIXChVEZWxldGVBY2NvdW50UmVzcG9uc2UizAEKB1Nlc3Npb24SCgoCaWQYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgp1c2VyX2FnZW50GAUgASgJEg8KB2N1cnJlbnQYBiABKAgiFQoTTGlzdFNlc3Npb25zUmVxdWVzdCJAChRMaXN0U2Vzc2lvbnNSZXNwb25zZRIoCghzZXNzaW9ucxgBIAMoCzIWLnN0b29wLmF1dGgudjEuU2Vzc2lvbiIcChpSZXZva2VPdGhlclNlc3Npb25zUmVxdWVzdCIuChtSZXZva2VPdGhlclNlc3Npb25zUmVzcG9uc2USDwoHcmV2b2tlZBgBIAEoBSKsAgoNUGVyc29uYWxUb2tlbhIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEjAKC3Blcm1pc3Npb25zGAMgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24SLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRoaW50GAkgASgJEg8KB2Jsb2NrZWQYCiABKAhKBAgEEAVKBAgFEAZSB2xpbWl0ZWRSCXNwYWNlX2lkcyKVAQoaQ3JlYXRlUGVyc29uYWxUb2tlblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIwCgtwZXJtaXNzaW9ucxgCIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEhcKD2V4cGlyZXNfaW5fZGF5cxgFIAEoBUoECAMQBEoECAQQBVIHbGltaXRlZFIJc3BhY2VfaWRzIloKG0NyZWF0ZVBlcnNvbmFsVG9rZW5SZXNwb25zZRIrCgV0b2tlbhgBIAEoCzIcLnN0b29wLmF1dGgudjEuUGVyc29uYWxUb2tlbhIOCgZzZWNyZXQYAiABKAkiGwoZTGlzdFBlcnNvbmFsVG9rZW5zUmVxdWVzdCJKChpMaXN0UGVyc29uYWxUb2tlbnNSZXNwb25zZRIsCgZ0b2tlbnMYASADKAsyHC5zdG9vcC5hdXRoLnYxLlBlcnNvbmFsVG9rZW4iLgoaUmV2b2tlUGVyc29uYWxUb2tlblJlcXVlc3QSEAoIdG9rZW5faWQYASABKAkiHQobUmV2b2tlUGVyc29uYWxUb2tlblJlc3BvbnNlKmAKDEluc3RhbmNlUm9sZRIdChlJTlNUQU5DRV9ST0xFX1VOU1BFQ0lGSUVEEAASGAoUSU5TVEFOQ0VfUk9MRV9NRU1CRVIQARIXChNJTlNUQU5DRV9ST0xFX0FETUlOEAIy8w8KC0F1dGhTZXJ2aWNlEk0KCFJlZ2lzdGVyEh4uc3Rvb3AuYXV0aC52MS5SZWdpc3RlclJlcXVlc3QaHy5zdG9vcC5hdXRoLnYxLlJlZ2lzdGVyUmVzcG9uc2UiABJECgVMb2dpbhIbLnN0b29wLmF1dGgudjEuTG9naW5SZXF1ZXN0Ghwuc3Rvb3AuYXV0aC52MS5Mb2dpblJlc3BvbnNlIgASRwoGTG9nb3V0Ehwuc3Rvb3AuYXV0aC52MS5Mb2dvdXRSZXF1ZXN0Gh0uc3Rvb3AuYXV0aC52MS5Mb2dvdXRSZXNwb25zZSIAEkQKBUdldE1lEhsuc3Rvb3AuYXV0aC52MS5HZXRNZVJlcXVlc3QaHC5zdG9vcC5hdXRoLnYxLkdldE1lUmVzcG9uc2UiABJcCg1VcGRhdGVQcm9maWxlEiMuc3Rvb3AuYXV0aC52MS5VcGRhdGVQcm9maWxlUmVxdWVzdBokLnN0b29wLmF1dGgudjEuVXBkYXRlUHJvZmlsZVJlc3BvbnNlIgASYgoPU2V0RG9Ob3REaXN0dXJiEiUuc3Rvb3AuYXV0aC52MS5TZXREb05vdERpc3R1cmJSZXF1ZXN0GiYuc3Rvb3AuYXV0aC52MS5TZXREb05vdERpc3R1cmJSZXNwb25zZSIAEl8KDkdldFVzZXJQcm9maWxlEiQuc3Rvb3AuYXV0aC52MS5HZXRVc2VyUHJvZmlsZVJlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLkdldFVzZXJQcm9maWxlUmVzcG9uc2UiABJfCg5DaGFuZ2VQYXNzd29yZBIkLnN0b29wLmF1dGgudjEuQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlIgASawoSUmVxdWVzdEVtYWlsQ2hhbmdlEiguc3Rvb3AuYXV0aC52MS5SZXF1ZXN0RW1haWxDaGFuZ2VSZXF1ZXN0Gikuc3Rvb3AuYXV0aC52MS5SZXF1ZXN0RW1haWxDaGFuZ2VSZXNwb25zZSIAEnoKF1Jlc2VuZEVtYWlsQ29uZmlybWF0aW9uEi0uc3Rvb3AuYXV0aC52MS5SZXNlbmRFbWFpbENvbmZpcm1hdGlvblJlcXVlc3QaLi5zdG9vcC5hdXRoLnYxLlJlc2VuZEVtYWlsQ29uZmlybWF0aW9uUmVzcG9uc2UiABJoChFDYW5jZWxFbWFpbENoYW5nZRInLnN0b29wLmF1dGgudjEuQ2FuY2VsRW1haWxDaGFuZ2VSZXF1ZXN0Giguc3Rvb3AuYXV0aC52MS5DYW5jZWxFbWFpbENoYW5nZVJlc3BvbnNlIgASVgoLUmVtb3ZlRW1haWwSIS5zdG9vcC5hdXRoLnYxLlJlbW92ZUVtYWlsUmVxdWVzdBoiLnN0b29wLmF1dGgudjEuUmVtb3ZlRW1haWxSZXNwb25zZSIAElkKDENvbmZpcm1FbWFpbBIiLnN0b29wLmF1dGgudjEuQ29uZmlybUVtYWlsUmVxdWVzdBojLnN0b29wLmF1dGgudjEuQ29uZmlybUVtYWlsUmVzcG9uc2UiABJfCg5MaXN0SWRlbnRpdGllcxIkLnN0b29wLmF1dGgudjEuTGlzdElkZW50aXRpZXNSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5MaXN0SWRlbnRpdGllc1Jlc3BvbnNlIgASXwoOVW5saW5rSWRlbnRpdHkSJC5zdG9vcC5hdXRoLnYxLlVubGlua0lkZW50aXR5UmVxdWVzdBolLnN0b29wLmF1dGgudjEuVW5saW5rSWRlbnRpdHlSZXNwb25zZSIAElwKDURlbGV0ZUFjY291bnQSIy5zdG9vcC5hdXRoLnYxLkRlbGV0ZUFjY291bnRSZXF1ZXN0GiQuc3Rvb3AuYXV0aC52MS5EZWxldGVBY2NvdW50UmVzcG9uc2UiABJZCgxMaXN0U2Vzc2lvbnMSIi5zdG9vcC5hdXRoLnYxLkxpc3RTZXNzaW9uc1JlcXVlc3QaIy5zdG9vcC5hdXRoLnYxLkxpc3RTZXNzaW9uc1Jlc3BvbnNlIgASbgoTUmV2b2tlT3RoZXJTZXNzaW9ucxIpLnN0b29wLmF1dGgudjEuUmV2b2tlT3RoZXJTZXNzaW9uc1JlcXVlc3QaKi5zdG9vcC5hdXRoLnYxLlJldm9rZU90aGVyU2Vzc2lvbnNSZXNwb25zZSIAEm4KE0NyZWF0ZVBlcnNvbmFsVG9rZW4SKS5zdG9vcC5hdXRoLnYxLkNyZWF0ZVBlcnNvbmFsVG9rZW5SZXF1ZXN0Giouc3Rvb3AuYXV0aC52MS5DcmVhdGVQZXJzb25hbFRva2VuUmVzcG9uc2UiABJrChJMaXN0UGVyc29uYWxUb2tlbnMSKC5zdG9vcC5hdXRoLnYxLkxpc3RQZXJzb25hbFRva2Vuc1JlcXVlc3QaKS5zdG9vcC5hdXRoLnYxLkxpc3RQZXJzb25hbFRva2Vuc1Jlc3BvbnNlIgASbgoTUmV2b2tlUGVyc29uYWxUb2tlbhIpLnN0b29wLmF1dGgudjEuUmV2b2tlUGVyc29uYWxUb2tlblJlcXVlc3QaKi5zdG9vcC5hdXRoLnYxLlJldm9rZVBlcnNvbmFsVG9rZW5SZXNwb25zZSIAQqgBChFjb20uc3Rvb3AuYXV0aC52MUIJQXV0aFByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2F1dGgvdjE7YXV0aHYxogIDU0FYqgINU3Rvb3AuQXV0aC5WMcoCDVN0b29wXEF1dGhcVjHiAhlTdG9vcFxBdXRoXFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkF1dGg6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
+  fileDesc("ChhzdG9vcC9hdXRoL3YxL2F1dGgucHJvdG8SDXN0b29wLmF1dGgudjEi/gIKBFVzZXISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEikKBHJvbGUYBSABKA4yGy5zdG9vcC5hdXRoLnYxLkluc3RhbmNlUm9sZRIWCg5hdmF0YXJfZmlsZV9pZBgGIAEoCRIUCgxoYXNfcGFzc3dvcmQYByABKAgSGAoQdXNlcm5hbWVfcGVuZGluZxgIIAEoCBIXCg91c2VybmFtZV9mcm96ZW4YCSABKAgSEAoIcHJvbm91bnMYCiABKAkSCwoDYmlvGAsgASgJEisKBGtpbmQYDCABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEgsKA2RuZBgNIAEoCBItCglkbmRfdW50aWwYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkoKD1JlZ2lzdGVyUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRITCgtpbnZpdGVfY29kZRgDIAEoCSJOChBSZWdpc3RlclJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISFwoPam9pbmVkX3NwYWNlX2lkGAIgASgJIjIKDExvZ2luUmVxdWVzdBIQCgh1c2VybmFtZRgBIAEoCRIQCghwYXNzd29yZBgCIAEoCSJBCg1Mb2dpblJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXISDQoFdG9rZW4YAiABKAkiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSIOCgxHZXRNZVJlcXVlc3QiiwEKDUdldE1lUmVzcG9uc2USIQoEdXNlchgBIAEoCzITLnN0b29wLmF1dGgudjEuVXNlchIwCgtwZXJtaXNzaW9ucxgCIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEiUKBWVtYWlsGAMgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIjMKB015RW1haWwSDwoHYWRkcmVzcxgBIAEoCRIXCg9wZW5kaW5nX2FkZHJlc3MYAiABKAkijgEKFFVwZGF0ZVByb2ZpbGVSZXF1ZXN0EhQKDGRpc3BsYXlfbmFtZRgBIAEoCRIVCgh1c2VybmFtZRgCIAEoCUgAiAEBEhUKCHByb25vdW5zGAMgASgJSAGIAQESEAoDYmlvGAQgASgJSAKIAQFCCwoJX3VzZXJuYW1lQgsKCV9wcm9ub3Vuc0IGCgRfYmlvIjoKFVVwZGF0ZVByb2ZpbGVSZXNwb25zZRIhCgR1c2VyGAEgASgLMhMuc3Rvb3AuYXV0aC52MS5Vc2VyIk8KFlNldERvTm90RGlzdHVyYlJlcXVlc3QSCgoCb24YASABKAgSKQoFdW50aWwYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjwKF1NldERvTm90RGlzdHVyYlJlc3BvbnNlEiEKBHVzZXIYASABKAsyEy5zdG9vcC5hdXRoLnYxLlVzZXIixQEKDVB1YmxpY1Byb2ZpbGUSCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEhAKCHByb25vdW5zGAUgASgJEgsKA2JpbxgGIAEoCRIrCgRraW5kGAcgASgOMh0uc3Rvb3AuYWNjZXNzLnYxLklkZW50aXR5S2luZBILCgNkbmQYCCABKAgSDwoHZGVsZXRlZBgJIAEoCCIoChVHZXRVc2VyUHJvZmlsZVJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSJHChZHZXRVc2VyUHJvZmlsZVJlc3BvbnNlEi0KB3Byb2ZpbGUYASABKAsyHC5zdG9vcC5hdXRoLnYxLlB1YmxpY1Byb2ZpbGUiPgoZUmVxdWVzdEVtYWlsQ2hhbmdlUmVxdWVzdBIPCgdhZGRyZXNzGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJIkMKGlJlcXVlc3RFbWFpbENoYW5nZVJlc3BvbnNlEiUKBWVtYWlsGAEgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIiAKHlJlc2VuZEVtYWlsQ29uZmlybWF0aW9uUmVxdWVzdCIhCh9SZXNlbmRFbWFpbENvbmZpcm1hdGlvblJlc3BvbnNlIhoKGENhbmNlbEVtYWlsQ2hhbmdlUmVxdWVzdCJCChlDYW5jZWxFbWFpbENoYW5nZVJlc3BvbnNlEiUKBWVtYWlsGAEgASgLMhYuc3Rvb3AuYXV0aC52MS5NeUVtYWlsIiYKElJlbW92ZUVtYWlsUmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCSIVChNSZW1vdmVFbWFpbFJlc3BvbnNlIiQKE0NvbmZpcm1FbWFpbFJlcXVlc3QSDQoFdG9rZW4YASABKAkiFgoUQ29uZmlybUVtYWlsUmVzcG9uc2UiLAobUmVxdWVzdFBhc3N3b3JkUmVzZXRSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJIh4KHFJlcXVlc3RQYXNzd29yZFJlc2V0UmVzcG9uc2UiKAoXR2V0UGFzc3dvcmRSZXNldFJlcXVlc3QSDQoFdG9rZW4YASABKAkiLAoYR2V0UGFzc3dvcmRSZXNldFJlc3BvbnNlEhAKCHVzZXJuYW1lGAEgASgJImMKHENvbXBsZXRlUGFzc3dvcmRSZXNldFJlcXVlc3QSDQoFdG9rZW4YASABKAkSFAoMbmV3X3Bhc3N3b3JkGAIgASgJEh4KFnJldm9rZV9wZXJzb25hbF90b2tlbnMYAyABKAgiHwodQ29tcGxldGVQYXNzd29yZFJlc2V0UmVzcG9uc2UiZwoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0EhgKEGN1cnJlbnRfcGFzc3dvcmQYASABKAkSFAoMbmV3X3Bhc3N3b3JkGAIgASgJEh4KFnJldm9rZV9wZXJzb25hbF90b2tlbnMYAyABKAgiGAoWQ2hhbmdlUGFzc3dvcmRSZXNwb25zZSJbCghJZGVudGl0eRIQCghwcm92aWRlchgBIAEoCRINCgVlbWFpbBgCIAEoCRIuCgpjcmVhdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIXChVMaXN0SWRlbnRpdGllc1JlcXVlc3QiRQoWTGlzdElkZW50aXRpZXNSZXNwb25zZRIrCgppZGVudGl0aWVzGAEgAygLMhcuc3Rvb3AuYXV0aC52MS5JZGVudGl0eSIpChVVbmxpbmtJZGVudGl0eVJlcXVlc3QSEAoIcHJvdmlkZXIYASABKAkiGAoWVW5saW5rSWRlbnRpdHlSZXNwb25zZSIoChREZWxldGVBY2NvdW50UmVxdWVzdBIQCghwYXNzd29yZBgBIAEoCSIXChVEZWxldGVBY2NvdW50UmVzcG9uc2UizAEKB1Nlc3Npb24SCgoCaWQYASABKAkSLgoKY3JlYXRlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgp1c2VyX2FnZW50GAUgASgJEg8KB2N1cnJlbnQYBiABKAgiFQoTTGlzdFNlc3Npb25zUmVxdWVzdCJAChRMaXN0U2Vzc2lvbnNSZXNwb25zZRIoCghzZXNzaW9ucxgBIAMoCzIWLnN0b29wLmF1dGgudjEuU2Vzc2lvbiIcChpSZXZva2VPdGhlclNlc3Npb25zUmVxdWVzdCIuChtSZXZva2VPdGhlclNlc3Npb25zUmVzcG9uc2USDwoHcmV2b2tlZBgBIAEoBSKsAgoNUGVyc29uYWxUb2tlbhIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEjAKC3Blcm1pc3Npb25zGAMgAygOMhsuc3Rvb3AuYWNjZXNzLnYxLlBlcm1pc3Npb24SLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMbGFzdF91c2VkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRoaW50GAkgASgJEg8KB2Jsb2NrZWQYCiABKAhKBAgEEAVKBAgFEAZSB2xpbWl0ZWRSCXNwYWNlX2lkcyKVAQoaQ3JlYXRlUGVyc29uYWxUb2tlblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIwCgtwZXJtaXNzaW9ucxgCIAMoDjIbLnN0b29wLmFjY2Vzcy52MS5QZXJtaXNzaW9uEhcKD2V4cGlyZXNfaW5fZGF5cxgFIAEoBUoECAMQBEoECAQQBVIHbGltaXRlZFIJc3BhY2VfaWRzIloKG0NyZWF0ZVBlcnNvbmFsVG9rZW5SZXNwb25zZRIrCgV0b2tlbhgBIAEoCzIcLnN0b29wLmF1dGgudjEuUGVyc29uYWxUb2tlbhIOCgZzZWNyZXQYAiABKAkiGwoZTGlzdFBlcnNvbmFsVG9rZW5zUmVxdWVzdCJKChpMaXN0UGVyc29uYWxUb2tlbnNSZXNwb25zZRIsCgZ0b2tlbnMYASADKAsyHC5zdG9vcC5hdXRoLnYxLlBlcnNvbmFsVG9rZW4iLgoaUmV2b2tlUGVyc29uYWxUb2tlblJlcXVlc3QSEAoIdG9rZW5faWQYASABKAkiHQobUmV2b2tlUGVyc29uYWxUb2tlblJlc3BvbnNlKmAKDEluc3RhbmNlUm9sZRIdChlJTlNUQU5DRV9ST0xFX1VOU1BFQ0lGSUVEEAASGAoUSU5TVEFOQ0VfUk9MRV9NRU1CRVIQARIXChNJTlNUQU5DRV9ST0xFX0FETUlOEAIywxIKC0F1dGhTZXJ2aWNlEk0KCFJlZ2lzdGVyEh4uc3Rvb3AuYXV0aC52MS5SZWdpc3RlclJlcXVlc3QaHy5zdG9vcC5hdXRoLnYxLlJlZ2lzdGVyUmVzcG9uc2UiABJECgVMb2dpbhIbLnN0b29wLmF1dGgudjEuTG9naW5SZXF1ZXN0Ghwuc3Rvb3AuYXV0aC52MS5Mb2dpblJlc3BvbnNlIgASRwoGTG9nb3V0Ehwuc3Rvb3AuYXV0aC52MS5Mb2dvdXRSZXF1ZXN0Gh0uc3Rvb3AuYXV0aC52MS5Mb2dvdXRSZXNwb25zZSIAEkQKBUdldE1lEhsuc3Rvb3AuYXV0aC52MS5HZXRNZVJlcXVlc3QaHC5zdG9vcC5hdXRoLnYxLkdldE1lUmVzcG9uc2UiABJcCg1VcGRhdGVQcm9maWxlEiMuc3Rvb3AuYXV0aC52MS5VcGRhdGVQcm9maWxlUmVxdWVzdBokLnN0b29wLmF1dGgudjEuVXBkYXRlUHJvZmlsZVJlc3BvbnNlIgASYgoPU2V0RG9Ob3REaXN0dXJiEiUuc3Rvb3AuYXV0aC52MS5TZXREb05vdERpc3R1cmJSZXF1ZXN0GiYuc3Rvb3AuYXV0aC52MS5TZXREb05vdERpc3R1cmJSZXNwb25zZSIAEl8KDkdldFVzZXJQcm9maWxlEiQuc3Rvb3AuYXV0aC52MS5HZXRVc2VyUHJvZmlsZVJlcXVlc3QaJS5zdG9vcC5hdXRoLnYxLkdldFVzZXJQcm9maWxlUmVzcG9uc2UiABJfCg5DaGFuZ2VQYXNzd29yZBIkLnN0b29wLmF1dGgudjEuQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlIgASawoSUmVxdWVzdEVtYWlsQ2hhbmdlEiguc3Rvb3AuYXV0aC52MS5SZXF1ZXN0RW1haWxDaGFuZ2VSZXF1ZXN0Gikuc3Rvb3AuYXV0aC52MS5SZXF1ZXN0RW1haWxDaGFuZ2VSZXNwb25zZSIAEnoKF1Jlc2VuZEVtYWlsQ29uZmlybWF0aW9uEi0uc3Rvb3AuYXV0aC52MS5SZXNlbmRFbWFpbENvbmZpcm1hdGlvblJlcXVlc3QaLi5zdG9vcC5hdXRoLnYxLlJlc2VuZEVtYWlsQ29uZmlybWF0aW9uUmVzcG9uc2UiABJoChFDYW5jZWxFbWFpbENoYW5nZRInLnN0b29wLmF1dGgudjEuQ2FuY2VsRW1haWxDaGFuZ2VSZXF1ZXN0Giguc3Rvb3AuYXV0aC52MS5DYW5jZWxFbWFpbENoYW5nZVJlc3BvbnNlIgASVgoLUmVtb3ZlRW1haWwSIS5zdG9vcC5hdXRoLnYxLlJlbW92ZUVtYWlsUmVxdWVzdBoiLnN0b29wLmF1dGgudjEuUmVtb3ZlRW1haWxSZXNwb25zZSIAElkKDENvbmZpcm1FbWFpbBIiLnN0b29wLmF1dGgudjEuQ29uZmlybUVtYWlsUmVxdWVzdBojLnN0b29wLmF1dGgudjEuQ29uZmlybUVtYWlsUmVzcG9uc2UiABJxChRSZXF1ZXN0UGFzc3dvcmRSZXNldBIqLnN0b29wLmF1dGgudjEuUmVxdWVzdFBhc3N3b3JkUmVzZXRSZXF1ZXN0Gisuc3Rvb3AuYXV0aC52MS5SZXF1ZXN0UGFzc3dvcmRSZXNldFJlc3BvbnNlIgASZQoQR2V0UGFzc3dvcmRSZXNldBImLnN0b29wLmF1dGgudjEuR2V0UGFzc3dvcmRSZXNldFJlcXVlc3QaJy5zdG9vcC5hdXRoLnYxLkdldFBhc3N3b3JkUmVzZXRSZXNwb25zZSIAEnQKFUNvbXBsZXRlUGFzc3dvcmRSZXNldBIrLnN0b29wLmF1dGgudjEuQ29tcGxldGVQYXNzd29yZFJlc2V0UmVxdWVzdBosLnN0b29wLmF1dGgudjEuQ29tcGxldGVQYXNzd29yZFJlc2V0UmVzcG9uc2UiABJfCg5MaXN0SWRlbnRpdGllcxIkLnN0b29wLmF1dGgudjEuTGlzdElkZW50aXRpZXNSZXF1ZXN0GiUuc3Rvb3AuYXV0aC52MS5MaXN0SWRlbnRpdGllc1Jlc3BvbnNlIgASXwoOVW5saW5rSWRlbnRpdHkSJC5zdG9vcC5hdXRoLnYxLlVubGlua0lkZW50aXR5UmVxdWVzdBolLnN0b29wLmF1dGgudjEuVW5saW5rSWRlbnRpdHlSZXNwb25zZSIAElwKDURlbGV0ZUFjY291bnQSIy5zdG9vcC5hdXRoLnYxLkRlbGV0ZUFjY291bnRSZXF1ZXN0GiQuc3Rvb3AuYXV0aC52MS5EZWxldGVBY2NvdW50UmVzcG9uc2UiABJZCgxMaXN0U2Vzc2lvbnMSIi5zdG9vcC5hdXRoLnYxLkxpc3RTZXNzaW9uc1JlcXVlc3QaIy5zdG9vcC5hdXRoLnYxLkxpc3RTZXNzaW9uc1Jlc3BvbnNlIgASbgoTUmV2b2tlT3RoZXJTZXNzaW9ucxIpLnN0b29wLmF1dGgudjEuUmV2b2tlT3RoZXJTZXNzaW9uc1JlcXVlc3QaKi5zdG9vcC5hdXRoLnYxLlJldm9rZU90aGVyU2Vzc2lvbnNSZXNwb25zZSIAEm4KE0NyZWF0ZVBlcnNvbmFsVG9rZW4SKS5zdG9vcC5hdXRoLnYxLkNyZWF0ZVBlcnNvbmFsVG9rZW5SZXF1ZXN0Giouc3Rvb3AuYXV0aC52MS5DcmVhdGVQZXJzb25hbFRva2VuUmVzcG9uc2UiABJrChJMaXN0UGVyc29uYWxUb2tlbnMSKC5zdG9vcC5hdXRoLnYxLkxpc3RQZXJzb25hbFRva2Vuc1JlcXVlc3QaKS5zdG9vcC5hdXRoLnYxLkxpc3RQZXJzb25hbFRva2Vuc1Jlc3BvbnNlIgASbgoTUmV2b2tlUGVyc29uYWxUb2tlbhIpLnN0b29wLmF1dGgudjEuUmV2b2tlUGVyc29uYWxUb2tlblJlcXVlc3QaKi5zdG9vcC5hdXRoLnYxLlJldm9rZVBlcnNvbmFsVG9rZW5SZXNwb25zZSIAQqgBChFjb20uc3Rvb3AuYXV0aC52MUIJQXV0aFByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2F1dGgvdjE7YXV0aHYxogIDU0FYqgINU3Rvb3AuQXV0aC5WMcoCDVN0b29wXEF1dGhcVjHiAhlTdG9vcFxBdXRoXFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkF1dGg6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stoop_access_v1_access]);
 
 /**
  * @generated from message stoop.auth.v1.User
@@ -690,6 +690,115 @@ export const ConfirmEmailResponseSchema: GenMessage<ConfirmEmailResponse> = /*@_
   messageDesc(file_stoop_auth_v1_auth, 26);
 
 /**
+ * @generated from message stoop.auth.v1.RequestPasswordResetRequest
+ */
+export type RequestPasswordResetRequest = Message<"stoop.auth.v1.RequestPasswordResetRequest"> & {
+  /**
+   * @generated from field: string email = 1;
+   */
+  email: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.RequestPasswordResetRequest.
+ * Use `create(RequestPasswordResetRequestSchema)` to create a new message.
+ */
+export const RequestPasswordResetRequestSchema: GenMessage<RequestPasswordResetRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 27);
+
+/**
+ * @generated from message stoop.auth.v1.RequestPasswordResetResponse
+ */
+export type RequestPasswordResetResponse = Message<"stoop.auth.v1.RequestPasswordResetResponse"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.RequestPasswordResetResponse.
+ * Use `create(RequestPasswordResetResponseSchema)` to create a new message.
+ */
+export const RequestPasswordResetResponseSchema: GenMessage<RequestPasswordResetResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 28);
+
+/**
+ * @generated from message stoop.auth.v1.GetPasswordResetRequest
+ */
+export type GetPasswordResetRequest = Message<"stoop.auth.v1.GetPasswordResetRequest"> & {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.GetPasswordResetRequest.
+ * Use `create(GetPasswordResetRequestSchema)` to create a new message.
+ */
+export const GetPasswordResetRequestSchema: GenMessage<GetPasswordResetRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 29);
+
+/**
+ * @generated from message stoop.auth.v1.GetPasswordResetResponse
+ */
+export type GetPasswordResetResponse = Message<"stoop.auth.v1.GetPasswordResetResponse"> & {
+  /**
+   * @generated from field: string username = 1;
+   */
+  username: string;
+};
+
+/**
+ * Describes the message stoop.auth.v1.GetPasswordResetResponse.
+ * Use `create(GetPasswordResetResponseSchema)` to create a new message.
+ */
+export const GetPasswordResetResponseSchema: GenMessage<GetPasswordResetResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 30);
+
+/**
+ * @generated from message stoop.auth.v1.CompletePasswordResetRequest
+ */
+export type CompletePasswordResetRequest = Message<"stoop.auth.v1.CompletePasswordResetRequest"> & {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token: string;
+
+  /**
+   * At least 8 characters.
+   *
+   * @generated from field: string new_password = 2;
+   */
+  newPassword: string;
+
+  /**
+   * Also revoke every personal token the account holds. Sessions are
+   * signed out either way.
+   *
+   * @generated from field: bool revoke_personal_tokens = 3;
+   */
+  revokePersonalTokens: boolean;
+};
+
+/**
+ * Describes the message stoop.auth.v1.CompletePasswordResetRequest.
+ * Use `create(CompletePasswordResetRequestSchema)` to create a new message.
+ */
+export const CompletePasswordResetRequestSchema: GenMessage<CompletePasswordResetRequest> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 31);
+
+/**
+ * @generated from message stoop.auth.v1.CompletePasswordResetResponse
+ */
+export type CompletePasswordResetResponse = Message<"stoop.auth.v1.CompletePasswordResetResponse"> & {
+};
+
+/**
+ * Describes the message stoop.auth.v1.CompletePasswordResetResponse.
+ * Use `create(CompletePasswordResetResponseSchema)` to create a new message.
+ */
+export const CompletePasswordResetResponseSchema: GenMessage<CompletePasswordResetResponse> = /*@__PURE__*/
+  messageDesc(file_stoop_auth_v1_auth, 32);
+
+/**
  * @generated from message stoop.auth.v1.ChangePasswordRequest
  */
 export type ChangePasswordRequest = Message<"stoop.auth.v1.ChangePasswordRequest"> & {
@@ -719,7 +828,7 @@ export type ChangePasswordRequest = Message<"stoop.auth.v1.ChangePasswordRequest
  * Use `create(ChangePasswordRequestSchema)` to create a new message.
  */
 export const ChangePasswordRequestSchema: GenMessage<ChangePasswordRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 27);
+  messageDesc(file_stoop_auth_v1_auth, 33);
 
 /**
  * @generated from message stoop.auth.v1.ChangePasswordResponse
@@ -732,7 +841,7 @@ export type ChangePasswordResponse = Message<"stoop.auth.v1.ChangePasswordRespon
  * Use `create(ChangePasswordResponseSchema)` to create a new message.
  */
 export const ChangePasswordResponseSchema: GenMessage<ChangePasswordResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 28);
+  messageDesc(file_stoop_auth_v1_auth, 34);
 
 /**
  * Identity is one linked sign-in provider on the caller's account.
@@ -765,7 +874,7 @@ export type Identity = Message<"stoop.auth.v1.Identity"> & {
  * Use `create(IdentitySchema)` to create a new message.
  */
 export const IdentitySchema: GenMessage<Identity> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 29);
+  messageDesc(file_stoop_auth_v1_auth, 35);
 
 /**
  * @generated from message stoop.auth.v1.ListIdentitiesRequest
@@ -778,7 +887,7 @@ export type ListIdentitiesRequest = Message<"stoop.auth.v1.ListIdentitiesRequest
  * Use `create(ListIdentitiesRequestSchema)` to create a new message.
  */
 export const ListIdentitiesRequestSchema: GenMessage<ListIdentitiesRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 30);
+  messageDesc(file_stoop_auth_v1_auth, 36);
 
 /**
  * @generated from message stoop.auth.v1.ListIdentitiesResponse
@@ -795,7 +904,7 @@ export type ListIdentitiesResponse = Message<"stoop.auth.v1.ListIdentitiesRespon
  * Use `create(ListIdentitiesResponseSchema)` to create a new message.
  */
 export const ListIdentitiesResponseSchema: GenMessage<ListIdentitiesResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 31);
+  messageDesc(file_stoop_auth_v1_auth, 37);
 
 /**
  * @generated from message stoop.auth.v1.UnlinkIdentityRequest
@@ -812,7 +921,7 @@ export type UnlinkIdentityRequest = Message<"stoop.auth.v1.UnlinkIdentityRequest
  * Use `create(UnlinkIdentityRequestSchema)` to create a new message.
  */
 export const UnlinkIdentityRequestSchema: GenMessage<UnlinkIdentityRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 32);
+  messageDesc(file_stoop_auth_v1_auth, 38);
 
 /**
  * @generated from message stoop.auth.v1.UnlinkIdentityResponse
@@ -825,7 +934,7 @@ export type UnlinkIdentityResponse = Message<"stoop.auth.v1.UnlinkIdentityRespon
  * Use `create(UnlinkIdentityResponseSchema)` to create a new message.
  */
 export const UnlinkIdentityResponseSchema: GenMessage<UnlinkIdentityResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 33);
+  messageDesc(file_stoop_auth_v1_auth, 39);
 
 /**
  * @generated from message stoop.auth.v1.DeleteAccountRequest
@@ -844,7 +953,7 @@ export type DeleteAccountRequest = Message<"stoop.auth.v1.DeleteAccountRequest">
  * Use `create(DeleteAccountRequestSchema)` to create a new message.
  */
 export const DeleteAccountRequestSchema: GenMessage<DeleteAccountRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 34);
+  messageDesc(file_stoop_auth_v1_auth, 40);
 
 /**
  * @generated from message stoop.auth.v1.DeleteAccountResponse
@@ -857,7 +966,7 @@ export type DeleteAccountResponse = Message<"stoop.auth.v1.DeleteAccountResponse
  * Use `create(DeleteAccountResponseSchema)` to create a new message.
  */
 export const DeleteAccountResponseSchema: GenMessage<DeleteAccountResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 35);
+  messageDesc(file_stoop_auth_v1_auth, 41);
 
 /**
  * Session is one place a person is signed in. Never the token.
@@ -907,7 +1016,7 @@ export type Session = Message<"stoop.auth.v1.Session"> & {
  * Use `create(SessionSchema)` to create a new message.
  */
 export const SessionSchema: GenMessage<Session> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 36);
+  messageDesc(file_stoop_auth_v1_auth, 42);
 
 /**
  * @generated from message stoop.auth.v1.ListSessionsRequest
@@ -920,7 +1029,7 @@ export type ListSessionsRequest = Message<"stoop.auth.v1.ListSessionsRequest"> &
  * Use `create(ListSessionsRequestSchema)` to create a new message.
  */
 export const ListSessionsRequestSchema: GenMessage<ListSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 37);
+  messageDesc(file_stoop_auth_v1_auth, 43);
 
 /**
  * @generated from message stoop.auth.v1.ListSessionsResponse
@@ -937,7 +1046,7 @@ export type ListSessionsResponse = Message<"stoop.auth.v1.ListSessionsResponse">
  * Use `create(ListSessionsResponseSchema)` to create a new message.
  */
 export const ListSessionsResponseSchema: GenMessage<ListSessionsResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 38);
+  messageDesc(file_stoop_auth_v1_auth, 44);
 
 /**
  * @generated from message stoop.auth.v1.RevokeOtherSessionsRequest
@@ -950,7 +1059,7 @@ export type RevokeOtherSessionsRequest = Message<"stoop.auth.v1.RevokeOtherSessi
  * Use `create(RevokeOtherSessionsRequestSchema)` to create a new message.
  */
 export const RevokeOtherSessionsRequestSchema: GenMessage<RevokeOtherSessionsRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 39);
+  messageDesc(file_stoop_auth_v1_auth, 45);
 
 /**
  * @generated from message stoop.auth.v1.RevokeOtherSessionsResponse
@@ -969,7 +1078,7 @@ export type RevokeOtherSessionsResponse = Message<"stoop.auth.v1.RevokeOtherSess
  * Use `create(RevokeOtherSessionsResponseSchema)` to create a new message.
  */
 export const RevokeOtherSessionsResponseSchema: GenMessage<RevokeOtherSessionsResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 40);
+  messageDesc(file_stoop_auth_v1_auth, 46);
 
 /**
  * PersonalToken is one of a person's tokens, as its holder or an admin sees
@@ -1032,7 +1141,7 @@ export type PersonalToken = Message<"stoop.auth.v1.PersonalToken"> & {
  * Use `create(PersonalTokenSchema)` to create a new message.
  */
 export const PersonalTokenSchema: GenMessage<PersonalToken> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 41);
+  messageDesc(file_stoop_auth_v1_auth, 47);
 
 /**
  * @generated from message stoop.auth.v1.CreatePersonalTokenRequest
@@ -1066,7 +1175,7 @@ export type CreatePersonalTokenRequest = Message<"stoop.auth.v1.CreatePersonalTo
  * Use `create(CreatePersonalTokenRequestSchema)` to create a new message.
  */
 export const CreatePersonalTokenRequestSchema: GenMessage<CreatePersonalTokenRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 42);
+  messageDesc(file_stoop_auth_v1_auth, 48);
 
 /**
  * @generated from message stoop.auth.v1.CreatePersonalTokenResponse
@@ -1090,7 +1199,7 @@ export type CreatePersonalTokenResponse = Message<"stoop.auth.v1.CreatePersonalT
  * Use `create(CreatePersonalTokenResponseSchema)` to create a new message.
  */
 export const CreatePersonalTokenResponseSchema: GenMessage<CreatePersonalTokenResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 43);
+  messageDesc(file_stoop_auth_v1_auth, 49);
 
 /**
  * @generated from message stoop.auth.v1.ListPersonalTokensRequest
@@ -1103,7 +1212,7 @@ export type ListPersonalTokensRequest = Message<"stoop.auth.v1.ListPersonalToken
  * Use `create(ListPersonalTokensRequestSchema)` to create a new message.
  */
 export const ListPersonalTokensRequestSchema: GenMessage<ListPersonalTokensRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 44);
+  messageDesc(file_stoop_auth_v1_auth, 50);
 
 /**
  * @generated from message stoop.auth.v1.ListPersonalTokensResponse
@@ -1120,7 +1229,7 @@ export type ListPersonalTokensResponse = Message<"stoop.auth.v1.ListPersonalToke
  * Use `create(ListPersonalTokensResponseSchema)` to create a new message.
  */
 export const ListPersonalTokensResponseSchema: GenMessage<ListPersonalTokensResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 45);
+  messageDesc(file_stoop_auth_v1_auth, 51);
 
 /**
  * @generated from message stoop.auth.v1.RevokePersonalTokenRequest
@@ -1137,7 +1246,7 @@ export type RevokePersonalTokenRequest = Message<"stoop.auth.v1.RevokePersonalTo
  * Use `create(RevokePersonalTokenRequestSchema)` to create a new message.
  */
 export const RevokePersonalTokenRequestSchema: GenMessage<RevokePersonalTokenRequest> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 46);
+  messageDesc(file_stoop_auth_v1_auth, 52);
 
 /**
  * @generated from message stoop.auth.v1.RevokePersonalTokenResponse
@@ -1150,7 +1259,7 @@ export type RevokePersonalTokenResponse = Message<"stoop.auth.v1.RevokePersonalT
  * Use `create(RevokePersonalTokenResponseSchema)` to create a new message.
  */
 export const RevokePersonalTokenResponseSchema: GenMessage<RevokePersonalTokenResponse> = /*@__PURE__*/
-  messageDesc(file_stoop_auth_v1_auth, 47);
+  messageDesc(file_stoop_auth_v1_auth, 53);
 
 /**
  * InstanceRole is a user's server-level type. Admins operate the instance
@@ -1326,6 +1435,40 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof ConfirmEmailRequestSchema;
     output: typeof ConfirmEmailResponseSchema;
+  },
+  /**
+   * RequestPasswordReset sends a reset link to the account with this
+   * confirmed address, if there is one that may use a password. The reply
+   * is the same either way. No sign-in needed.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.RequestPasswordReset
+   */
+  requestPasswordReset: {
+    methodKind: "unary";
+    input: typeof RequestPasswordResetRequestSchema;
+    output: typeof RequestPasswordResetResponseSchema;
+  },
+  /**
+   * GetPasswordReset says whose password a reset link is for, without
+   * using it up. No sign-in needed: the token is the proof.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.GetPasswordReset
+   */
+  getPasswordReset: {
+    methodKind: "unary";
+    input: typeof GetPasswordResetRequestSchema;
+    output: typeof GetPasswordResetResponseSchema;
+  },
+  /**
+   * CompletePasswordReset sets a new password with a reset link, signs every
+   * session out (and personal tokens when asked), and uses the link up.
+   *
+   * @generated from rpc stoop.auth.v1.AuthService.CompletePasswordReset
+   */
+  completePasswordReset: {
+    methodKind: "unary";
+    input: typeof CompletePasswordResetRequestSchema;
+    output: typeof CompletePasswordResetResponseSchema;
   },
   /**
    * ListIdentities lists the caller's linked sign-in providers.

@@ -50,18 +50,21 @@ const maxEmailAddressLen = 254
 const emailThrottleRetryAfter = 20 * time.Minute
 
 // emailAddressFrom is one bare address, trimmed, or a refusal on "address".
-func emailAddressFrom(raw string) (string, error) {
+func emailAddressFrom(raw string) (string, error) { return emailAddressIn(raw, "address") }
+
+// emailAddressIn is emailAddressFrom with the refusal on field.
+func emailAddressIn(raw, field string) (string, error) {
 	address := strings.TrimSpace(raw)
 	if address == "" {
-		return "", apierr.Field(connect.CodeInvalidArgument, "address", errors.New("Enter an email address."))
+		return "", apierr.Field(connect.CodeInvalidArgument, field, errors.New("Enter an email address."))
 	}
 	if len(address) > maxEmailAddressLen {
-		return "", apierr.Field(connect.CodeInvalidArgument, "address",
+		return "", apierr.Field(connect.CodeInvalidArgument, field,
 			fmt.Errorf("An email address is at most %d characters.", maxEmailAddressLen))
 	}
 	parsed, err := netmail.ParseAddress(address)
 	if err != nil || parsed.Name != "" || parsed.Address != address {
-		return "", apierr.Field(connect.CodeInvalidArgument, "address",
+		return "", apierr.Field(connect.CodeInvalidArgument, field,
 			errors.New("Enter one email address, like casey@example.com."))
 	}
 	return address, nil

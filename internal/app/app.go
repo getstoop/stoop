@@ -172,6 +172,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	authSvc.UseEmailPorts(jobsSvc, instanceSvc.EmailEnabled)
 	authSvc.UseLinkBase(instanceSvc.PublicURL)
 	authSvc.UseEmailThrottle(ratelimit.NewPer(stores, "ratelimit_email_change", 3, time.Hour))
+	authSvc.UsePasswordResetThrottle(ratelimit.NewPer(stores, "ratelimit_password_reset", 3, time.Hour))
 	if err := scheduleSweeps(ctx, jobsSvc, cfg); err != nil {
 		return nil, err
 	}
@@ -331,10 +332,11 @@ func newHandler(cfg config.Config, log *slog.Logger, shared *modules, voiceSvc *
 	stores, authSvc, instanceSvc, chatSvc := shared.stores, shared.auth, shared.instance, shared.chat
 	filesSvc, integrationsSvc := shared.files, shared.hooks
 
-	// Anonymous-endpoint throttles. Login, Register and the invite lookup
-	// are the only Connect procedures worth guessing at; the signaling
-	// proxy is the only plain handler without a session check. Both are per client IP, so behind
-	// a proxy it must be a trusted proxy or every user shares a bucket.
+	// Anonymous-endpoint throttles. Login, Register, the invite lookup and
+	// asking for a reset link are the Connect procedures worth guessing at;
+	// the signaling proxy is the only plain handler without a session
+	// check. Both are per client IP, so behind a proxy it must be a
+	// trusted proxy or every user shares a bucket.
 	authLimiter := ratelimit.New(stores, "ratelimit_auth", cfg.AuthRateLimit, cfg.AuthRateLimit)
 	signalingLimiter := ratelimit.New(stores, "ratelimit_signaling", cfg.SignalingRateLimit, cfg.SignalingRateLimit)
 	if !authLimiter.Enabled() || !signalingLimiter.Enabled() {
@@ -353,6 +355,7 @@ func newHandler(cfg config.Config, log *slog.Logger, shared *modules, voiceSvc *
 			ratelimit.Interceptor(authLimiter, instanceSvc.TrustsPeer,
 				authv1connect.AuthServiceLoginProcedure,
 				authv1connect.AuthServiceRegisterProcedure,
+				authv1connect.AuthServiceRequestPasswordResetProcedure,
 				chatv1connect.ChatServiceLookupInviteProcedure),
 			authSvc.NewInterceptor()),
 	)

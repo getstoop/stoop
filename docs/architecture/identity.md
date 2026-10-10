@@ -129,7 +129,7 @@ in force until a new one is confirmed.
   from that inbox, can say "already in use".
 - **Changing or removing it needs the current password** when the account
   has one, and the old address is told. A stolen session can't quietly
-  redirect what reset will use.
+  redirect where reset links go.
 - **Only the person and admins see it:** `GetMe` (`MyEmail`) and the admin
   account list. Never `User`, events or member lists.
 - **Asking for a link** is refused while email is off or the server has no
@@ -145,7 +145,8 @@ purpose, address and a 24-hour expiry. The `send_email` job mints the token
 when it sends ([email.md](email.md#the-send_email-job)), so the raw token
 lives only in the email. `ConfirmEmail` is public: it matches the hash and
 the purpose, unused and unexpired, against the account's current pending
-address, then marks it used and drops the account's other links. The page
+address, then marks it used and drops the account's other confirmation links and
+its reset links, which went to the old address. The page
 at `/confirm-email` confirms on a button press, never on load, so a mail
 scanner that opens links confirms nothing. The credential sweep deletes
 tokens a day past expiry or use.
@@ -575,7 +576,7 @@ welcome second layer and never a substitute.
 
 | Surface | Knob | Response |
 | ------- | ---- | -------- |
-| `Login`, `Register`, `LookupInvite` | `STOOP_AUTH_RATE_LIMIT` (per IP per minute) | `ResourceExhausted` + `Retry-After` |
+| `Login`, `Register`, `LookupInvite`, `RequestPasswordReset` | `STOOP_AUTH_RATE_LIMIT` (per IP per minute) | `ResourceExhausted` + `Retry-After` |
 | `/auth/…` OIDC routes | Same bucket | Redirect to an error |
 | `/livekit` signaling | `STOOP_SIGNALING_RATE_LIMIT` | `429` |
 
@@ -620,8 +621,35 @@ avatar.
 
 ## Recovery
 
-There is no "forgot password" email yet: accounts have no address to send
-it to.
+**By email.** `RequestPasswordReset` takes an address and, for any
+well-formed one, queues one `password_reset` job carrying it (trimmed,
+lowercased) and returns. It is refused only while email is off or there is
+no public URL, which says nothing about accounts. The reply and the work
+are the same whatever the address; the job decides. It sends only when the
+address is the confirmed one of an active person (not a bot), within 3
+reset emails an hour for that account, and `password_sign_in` lets the
+account use a password: `everyone`, or `admins` for an instance admin;
+`off` gives nobody a link, admins included. Otherwise it ends without
+sending.
+
+- The link (`/reset-password?token=…`) is an `email_tokens` row with
+  purpose `reset_password`, minted when the job sends, expiring in an
+  hour. Sending it retires the account's older reset links, never its
+  confirmation links.
+- It is live while unused, unexpired, the account active, its address
+  still the account's confirmed one, and `password_sign_in` still lets the
+  account's current role use a password. `GetPasswordReset` returns the
+  username without using it; every dead link gets the same message.
+- `CompletePasswordReset` locks the account, then the link, re-checks all
+  of that, sets the hash (a provider-only account gets its first
+  password), uses the link and drops the account's other reset links,
+  signs out every session (personal tokens only when asked), clears the
+  handle's lockout, and queues a `password_changed` notice. It doesn't
+  sign in.
+- A password change, an admin's reset, a newly confirmed address and a
+  removed address each delete the account's reset links.
+
+**By an admin.**
 
 - An instance admin can reset any account's password from the admin page,
   except the owner's; the temporary password is shown once.

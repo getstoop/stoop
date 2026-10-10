@@ -77,6 +77,8 @@ type Service struct {
 	emailJobs     EmailJobs
 	emailEnabled  func(ctx context.Context) (bool, error)
 	emailThrottle Throttle
+	// resetThrottle limits reset emails per account (password_reset.go).
+	resetThrottle Throttle
 	// linkBase is the public URL links are built on (account_email.go).
 	linkBase func(ctx context.Context) (string, error)
 }

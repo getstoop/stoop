@@ -14,8 +14,10 @@ const SendEmailKind = "send_email"
 
 // The messages a send_email job can carry.
 const (
-	TemplateConfirmEmail = "confirm_email"
-	TemplateEmailChanged = "email_changed"
+	TemplateConfirmEmail    = "confirm_email"
+	TemplateEmailChanged    = "email_changed"
+	TemplatePasswordReset   = "password_reset"
+	TemplatePasswordChanged = "password_changed"
 )
 
 // JobArgs are a send_email job's arguments.
@@ -23,15 +25,20 @@ type JobArgs struct {
 	Template   string `json:"template"`
 	UserID     string `json:"user_id"`
 	OldAddress string `json:"old_address,omitempty"`
+	// Email is the address a password reset was asked for; the builder
+	// finds the account, so the request does the same work for any address.
+	Email string `json:"email,omitempty"`
 	// When the change a notice reports happened; zero on a job queued
 	// before it was recorded.
 	At time.Time `json:"at,omitzero"`
 }
 
-// Site is what a message needs from the instance.
+// Site is what a message needs from the instance, and which attempt of
+// the job this is (from 1): a builder that spends a limit spends it once.
 type Site struct {
 	PublicURL    string
 	InstanceName string
+	Attempt      int
 }
 
 // Builder writes one message for a send_email job.

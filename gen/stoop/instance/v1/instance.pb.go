@@ -334,9 +334,13 @@ type GetInstanceStatusResponse struct {
 	// channels are then not listed and cannot be created.
 	VoiceAvailable bool `protobuf:"varint,19,opt,name=voice_available,json=voiceAvailable,proto3" json:"voice_available,omitempty"`
 	// Whether Stoop can send email: an SMTP host is saved and turned on.
-	EmailEnabled  bool `protobuf:"varint,20,opt,name=email_enabled,json=emailEnabled,proto3" json:"email_enabled,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	EmailEnabled bool `protobuf:"varint,20,opt,name=email_enabled,json=emailEnabled,proto3" json:"email_enabled,omitempty"`
+	// Whether the login page offers "Forgot password?": email is on and the
+	// server has a public URL to build reset links on. Password sign-in's
+	// own setting still decides whose accounts it works for.
+	PasswordResetAvailable bool `protobuf:"varint,21,opt,name=password_reset_available,json=passwordResetAvailable,proto3" json:"password_reset_available,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *GetInstanceStatusResponse) Reset() {
@@ -505,6 +509,13 @@ func (x *GetInstanceStatusResponse) GetVoiceAvailable() bool {
 func (x *GetInstanceStatusResponse) GetEmailEnabled() bool {
 	if x != nil {
 		return x.EmailEnabled
+	}
+	return false
+}
+
+func (x *GetInstanceStatusResponse) GetPasswordResetAvailable() bool {
+	if x != nil {
+		return x.PasswordResetAvailable
 	}
 	return false
 }
@@ -2254,7 +2265,7 @@ var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
 const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\n" +
 	" stoop/instance/v1/instance.proto\x12\x11stoop.instance.v1\x1a\x18stoop/auth/v1/auth.proto\x1a#stoop/instance/v1/diagnostics.proto\x1a\x1dstoop/instance/v1/email.proto\x1a!stoop/instance/v1/providers.proto\x1a$stoop/instance/v1/reachability.proto\x1a\x1cstoop/instance/v1/user.proto\"\x1a\n" +
-	"\x18GetInstanceStatusRequest\"\xd3\b\n" +
+	"\x18GetInstanceStatusRequest\"\x8d\t\n" +
 	"\x19GetInstanceStatusResponse\x12\x1f\n" +
 	"\vneeds_setup\x18\x01 \x01(\bR\n" +
 	"needsSetup\x12V\n" +
@@ -2278,7 +2289,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x16message_retention_days\x18\x11 \x01(\x05R\x14messageRetentionDays\x12:\n" +
 	"\x19attachment_retention_days\x18\x12 \x01(\x05R\x17attachmentRetentionDays\x12'\n" +
 	"\x0fvoice_available\x18\x13 \x01(\bR\x0evoiceAvailable\x12#\n" +
-	"\remail_enabled\x18\x14 \x01(\bR\femailEnabled\"\xcd\t\n" +
+	"\remail_enabled\x18\x14 \x01(\bR\femailEnabled\x128\n" +
+	"\x18password_reset_available\x18\x15 \x01(\bR\x16passwordResetAvailable\"\xcd\t\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
 	"\x0espace_creation\x18\x02 \x01(\x0e2&.stoop.instance.v1.SpaceCreationPolicyH\x01R\rspaceCreation\x88\x01\x01\x123\n" +
