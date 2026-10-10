@@ -27,6 +27,10 @@ describe("fileUrl", () => {
     expect(fileUrl("a/b")).toBe("/files/a%2Fb");
     expect(fileUrl("a b?c#d")).toBe("/files/a%20b%3Fc%23d");
   });
+
+  it("carries an invite code for a signed-out page", () => {
+    expect(fileUrl("f_abc123", "a&b")).toBe("/files/f_abc123?invite=a%26b");
+  });
 });
 
 describe("isInlineImage", () => {

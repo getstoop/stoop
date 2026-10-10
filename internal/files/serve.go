@@ -32,6 +32,9 @@ func (s *Service) Handler() http.Handler {
 			return
 		}
 		if err != nil {
+			if code := r.URL.Query().Get("invite"); code != "" && s.serveInviteIcon(w, r, code) {
+				return
+			}
 			http.Error(w, "authentication required", http.StatusUnauthorized)
 			return
 		}
@@ -72,6 +75,40 @@ func (s *Service) Handler() http.Handler {
 
 		s.serveBlob(w, r, file)
 	})
+}
+
+// serveInviteIcon serves a space's icon to someone not signed in who holds
+// a usable invite to that space, and reports whether it answered. Every
+// other case is left to the caller's 401, so the route says nothing about
+// which files or codes exist. See docs/architecture/files.md → Serving.
+func (s *Service) serveInviteIcon(w http.ResponseWriter, r *http.Request, code string) bool {
+	id := r.PathValue("id")
+	if _, err := uuid.Parse(id); err != nil {
+		return false
+	}
+	shown, err := s.spaces.InviteShowsIcon(r.Context(), code, id)
+	if err != nil {
+		s.log.Error("check an invite for its space icon", "file_id", id, "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return true
+	}
+	if !shown {
+		return false
+	}
+	file, err := s.q.GetFile(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false
+		}
+		s.log.Error("look up file", "file_id", id, "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return true
+	}
+	if file.Pending || Kind(file.Kind) != KindSpaceIcon {
+		return false
+	}
+	s.serveBlob(w, r, file)
+	return true
 }
 
 // serveBlob writes the file's bytes, or the window a Range header asks

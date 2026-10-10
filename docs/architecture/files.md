@@ -142,9 +142,14 @@ authorisation: nothing serves bytes the job has not finished.
 | ---- | ---------- |
 | `avatar` | Any signed-in user, with any credential. The same line drawn for profiles. |
 | `link_preview` | Any signed-in user. The bytes are a public page's own preview image, fetched by the server; gating them per message would mean a membership check per card. |
-| `space_icon` | The space's members, and instance admins. |
+| `space_icon` | The space's members, and instance admins. Also anyone not signed in who sends a usable invite to that space as `?invite=`, so the invite page can show it. |
 | `attachment` (space) | The space's members, and instance admins — as chat's `MayReadSpace` decides, which includes the credential's grant and bounds (`messages.read` in that space). |
 | `attachment` (DM) | The uploader and the DM's participants — **no admin bypass** — with a credential that covers `dms.read`. |
+
+The invite rule gives away nothing the code doesn't already: `LookupInvite`
+answers the same code with the space's name, description and icon id. A
+wrong code, a spent one, or a file that isn't that space's icon gets the
+same 401 as no code at all.
 
 Both handlers take the session cookie or a bearer credential (a personal
 token), through the same `SessionVerifier` port as `/ws`. An upload needs

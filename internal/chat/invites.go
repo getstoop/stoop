@@ -209,6 +209,23 @@ func (s *Service) LookupInvite(ctx context.Context, req *connect.Request[chatv1.
 	return connect.NewResponse(&chatv1.LookupInviteResponse{Preview: preview}), nil
 }
 
+// InviteShowsIcon reports whether code is a usable invite to the space
+// whose icon is fileID. Exposed for the files module, which serves that
+// icon to the invite page before sign-in.
+func (s *Service) InviteShowsIcon(ctx context.Context, code, fileID string) (bool, error) {
+	row, err := s.q.LookupInviteByCode(ctx, strings.TrimSpace(code))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if inviteUsable(row.Invite, time.Now()) != nil {
+		return false, nil
+	}
+	return row.SpaceIconFileID != nil && *row.SpaceIconFileID == fileID, nil
+}
+
 // inviteUsable reports whether an invite could be redeemed at now,
 // explaining a refusal the way a redemption would.
 func inviteUsable(inv dbgen.Invite, now time.Time) error {

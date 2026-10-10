@@ -169,7 +169,7 @@ export function LoginPage() {
               {errorText(inviteError)}
             </p>
           ) : (
-            preview && <InviteHero preview={preview} />
+            preview && <InviteHero preview={preview} code={linkCode} />
           ))}
         {invited && !inviteError && (
           <p className="login-subtitle invite-next">
@@ -317,7 +317,13 @@ export function LoginPage() {
 
 // What the code is an invitation to, from the server rather than the
 // link: the space's face, its size, and the role redeeming it grants.
-function InviteHero({ preview }: { preview: InvitePreview }) {
+function InviteHero({
+  preview,
+  code,
+}: {
+  preview: InvitePreview;
+  code: string;
+}) {
   return (
     <div className="invite-hero">
       <header className="invite-hero-head">
@@ -325,6 +331,7 @@ function InviteHero({ preview }: { preview: InvitePreview }) {
           <SpaceIcon
             name={preview.spaceName}
             fileId={preview.spaceIconFileId}
+            inviteCode={code}
           />
         </span>
         <div>

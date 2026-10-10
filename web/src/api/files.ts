@@ -18,8 +18,9 @@ export { filesClient };
 // A path, not an absolute URL: it lands in src and href attributes on
 // the page the server itself served, and the browser suite reads it
 // back that way.
-export function fileUrl(fileId: string): string {
-  return `/files/${encodeURIComponent(fileId)}`;
+export function fileUrl(fileId: string, inviteCode?: string): string {
+  const path = `/files/${encodeURIComponent(fileId)}`;
+  return inviteCode ? `${path}?invite=${encodeURIComponent(inviteCode)}` : path;
 }
 
 // Reads a picked file into bytes for the upload RPC, refusing oversize
