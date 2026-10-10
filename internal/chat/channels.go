@@ -72,11 +72,42 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 			return nil, err
 		}
 	}
-	channel, err := s.q.CreateChannel(ctx, dbgen.CreateChannelParams{
-		ID: rowid.New(), SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind),
+	text := kind == chatv1.ChannelKind_CHANNEL_KIND_TEXT
+	if req.Msg.Required && !text {
+		return nil, apierr.Field(connect.CodeInvalidArgument, "required", errRequiredNeedsText)
+	}
+	// The channel and its first people land together: the creator, and
+	// everyone in the space or whoever was named.
+	creator := authctx.UserID(ctx)
+	var channel dbgen.Channel
+	var memberCount int
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		channel, err = qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
+			ID: rowid.New(), SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind), Required: req.Msg.Required,
+		})
+		if err != nil {
+			return err
+		}
+		if !text {
+			return nil
+		}
+		var added []string
+		if req.Msg.Required {
+			added, err = qtx.AddEveryoneToChannel(ctx, dbgen.AddEveryoneToChannelParams{ChannelID: channel.ID, AddedBy: &creator})
+		} else {
+			added, err = qtx.AddChannelMembers(ctx, dbgen.AddChannelMembersParams{
+				ChannelID: channel.ID, UserIds: append([]string{creator}, req.Msg.MemberIds...), AddedBy: &creator,
+			})
+		}
+		memberCount = len(added)
+		return err
 	})
 	if db.HasCode(err, db.UniqueViolation) {
 		return nil, errChannelNameTaken
+	}
+	if db.HasCode(err, db.InvalidTextRepresentation) {
+		return nil, apierr.Field(connect.CodeInvalidArgument, "member_ids", errors.New("not a user id"))
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create channel: %w", err)
@@ -88,7 +119,9 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 		},
 	}))
 
-	return connect.NewResponse(&chatv1.CreateChannelResponse{Channel: toProtoChannel(channel)}), nil
+	out := toProtoChannel(channel)
+	out.Joined, out.MemberCount = true, int32(memberCount)
+	return connect.NewResponse(&chatv1.CreateChannelResponse{Channel: out}), nil
 }
 
 func (s *Service) ListChannels(ctx context.Context, req *connect.Request[chatv1.ListChannelsRequest]) (*connect.Response[chatv1.ListChannelsResponse], error) {
@@ -107,6 +140,8 @@ func (s *Service) ListChannels(ctx context.Context, req *connect.Request[chatv1.
 		}
 		channels[i].UnreadCount = int32(r.UnreadCount)
 		channels[i].Muted = r.Muted
+		channels[i].Joined = r.Joined
+		channels[i].MemberCount = int32(r.MemberCount)
 	}
 	return connect.NewResponse(&chatv1.ListChannelsResponse{Channels: channels}), nil
 }
@@ -176,8 +211,30 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 		}
 		policy = &p
 	}
-	row, err := s.q.UpdateChannel(ctx, dbgen.UpdateChannelParams{
-		ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy,
+	requiring := req.Msg.Required != nil && *req.Msg.Required && !channel.Required
+	if req.Msg.Required != nil {
+		if channel.Kind != int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT) {
+			return nil, apierr.Field(connect.CodeInvalidArgument, "required", errRequiredNeedsText)
+		}
+		if !*req.Msg.Required && channel.Required {
+			if err := s.refuseDefaultChannel(ctx, channel, "required", errDefaultStaysRequired); err != nil {
+				return nil, err
+			}
+		}
+	}
+	// Everyone joins in the transaction that makes the channel required.
+	// No event names them: ChannelUpdated says it is required, which is
+	// everyone.
+	var row dbgen.Channel
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		row, err = qtx.UpdateChannel(ctx, dbgen.UpdateChannelParams{
+			ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy, Required: req.Msg.Required,
+		})
+		if err != nil || !requiring {
+			return err
+		}
+		return addEveryone(ctx, qtx, row, authctx.UserID(ctx))
 	})
 	if db.HasCode(err, db.UniqueViolation) {
 		return nil, errChannelNameTaken
@@ -211,30 +268,12 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			errors.New("a space needs at least one channel"))
 	}
-	// Clearing the landing channel and deleting it belong in one
-	// transaction. Reading the space first and comparing afterwards would
-	// leave a window in which another admin moves the default: we would
-	// either miss a clear that happened or announce one that did not. The
-	// conditional UPDATE decides and reports in a single statement, and
-	// holds the space's row lock until the delete commits.
-	var cleared dbgen.Space
-	var wasDefault bool
-	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		var err error
-		cleared, err = qtx.ClearSpaceDefaultChannel(ctx, dbgen.ClearSpaceDefaultChannelParams{
-			ID: spaceOf(channel), ChannelID: channel.ID,
-		})
-		wasDefault = err == nil
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("clear default channel: %w", err)
-		}
-		if err := qtx.DeleteChannel(ctx, channel.ID); err != nil {
-			return fmt.Errorf("delete channel: %w", err)
-		}
-		return nil
-	})
+	deleted, err := s.q.DeleteChannel(ctx, channel.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("delete channel: %w", err)
+	}
+	if deleted == 0 {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errDefaultChannelDelete)
 	}
 
 	s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
@@ -244,16 +283,6 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	}))
 	if isVoice(channel) {
 		s.closeVoiceRooms(ctx, channel.ID)
-	}
-	// Only when this delete is what cleared it, and carrying the row that
-	// was actually written: members whose settings page is open would
-	// otherwise go on being offered a channel that is gone.
-	if wasDefault {
-		s.bus.Publish(events.SpaceTopic(cleared.ID), events.Stamp(&realtimev1.ServerEvent{
-			Payload: &realtimev1.ServerEvent_SpaceUpdated{
-				SpaceUpdated: &realtimev1.SpaceUpdated{Space: toProtoSpace(cleared, actor{}, authctx.Credential{})},
-			},
-		}))
 	}
 	return connect.NewResponse(&chatv1.DeleteChannelResponse{}), nil
 }
@@ -385,6 +414,7 @@ func toProtoChannel(c dbgen.Channel) *chatv1.Channel {
 		Kind: chatv1.ChannelKind(c.Kind), Position: c.Position,
 		CreatedAt: timestamppb.New(c.CreatedAt), Topic: c.Topic,
 		PostPolicy: chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_EVERYONE,
+		Required:   c.Required,
 	}
 	if c.PostPolicy == postPolicyAdmins {
 		out.PostPolicy = chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_ADMINS

@@ -9,41 +9,6 @@ import (
 	"context"
 )
 
-const clearSpaceDefaultChannel = `-- name: ClearSpaceDefaultChannel :one
-UPDATE spaces SET default_channel_id = NULL
-WHERE id = $1::uuid
-  AND default_channel_id = $2::uuid
-RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id, voice_enabled
-`
-
-type ClearSpaceDefaultChannelParams struct {
-	ID        string
-	ChannelID string
-}
-
-// Clears the landing channel, but only while it is still the channel
-// being deleted. Returning a row is how the caller learns it cleared
-// anything: reading the space and comparing would leave a window for
-// another admin's edit between the read and the delete. The UPDATE takes
-// the space's row lock, so a concurrent UpdateSpaceSettings waits.
-func (q *Queries) ClearSpaceDefaultChannel(ctx context.Context, arg ClearSpaceDefaultChannelParams) (Space, error) {
-	row := q.db.QueryRow(ctx, clearSpaceDefaultChannel, arg.ID, arg.ChannelID)
-	var i Space
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.OwnerID,
-		&i.CreatedAt,
-		&i.MembersCanInvite,
-		&i.IconFileID,
-		&i.Description,
-		&i.Welcome,
-		&i.DefaultChannelID,
-		&i.VoiceEnabled,
-	)
-	return i, err
-}
-
 const createSpace = `-- name: CreateSpace :one
 
 INSERT INTO spaces (id, name, owner_id)
@@ -354,29 +319,22 @@ SET name = COALESCE($2, name),
     voice_enabled = COALESCE($4, voice_enabled),
     description = COALESCE($5, description),
     welcome = COALESCE($6, welcome),
-    default_channel_id = CASE WHEN $7::boolean
-        THEN $8::uuid
-        ELSE default_channel_id END
+    default_channel_id = COALESCE($7::uuid, default_channel_id)
 WHERE id = $1
 RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id, voice_enabled
 `
 
 type UpdateSpaceSettingsParams struct {
-	ID                string
-	Name              *string
-	MembersCanInvite  *bool
-	VoiceEnabled      *bool
-	Description       *string
-	Welcome           *string
-	SetDefaultChannel bool
-	DefaultChannelID  *string
+	ID               string
+	Name             *string
+	MembersCanInvite *bool
+	VoiceEnabled     *bool
+	Description      *string
+	Welcome          *string
+	DefaultChannelID *string
 }
 
-// Every column here is COALESCE'd so an unset parameter leaves it alone,
-// except default_channel_id: it is nullable, so NULL is a value a caller
-// can mean ("go back to the first channel") and COALESCE could not tell
-// that apart from "don't touch it". A separate boolean says whether to
-// write the column at all.
+// Every column is COALESCE'd so an unset parameter leaves it alone.
 func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettingsParams) (Space, error) {
 	row := q.db.QueryRow(ctx, updateSpaceSettings,
 		arg.ID,
@@ -385,7 +343,6 @@ func (q *Queries) UpdateSpaceSettings(ctx context.Context, arg UpdateSpaceSettin
 		arg.VoiceEnabled,
 		arg.Description,
 		arg.Welcome,
-		arg.SetDefaultChannel,
 		arg.DefaultChannelID,
 	)
 	var i Space

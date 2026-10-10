@@ -48,4 +48,14 @@ message Channel {
   // EVERYONE for a direct message and a voice channel. Written with
   // manage_channels.
   ChannelPostPolicy post_policy = 12;
+  // The caller is in this channel: it is in their sidebar, can be unread
+  // for them, and @channel reaches them. Always true for a voice channel
+  // and a direct message, which have no membership. Their own state;
+  // never set on broadcast events.
+  bool joined = 13;
+  // Everyone in the space is in this channel and nobody can leave it.
+  // Text channels only. Written with manage_channels.
+  bool required = 14;
+  // How many people are in a text channel. Set by ListChannels only.
+  int32 member_count = 15;
 }

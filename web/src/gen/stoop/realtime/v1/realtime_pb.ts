@@ -22,7 +22,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/realtime/v1/realtime.proto.
  */
 export const file_stoop_realtime_v1_realtime: GenFile = /*@__PURE__*/
-  fileDesc("CiBzdG9vcC9yZWFsdGltZS92MS9yZWFsdGltZS5wcm90bxIRc3Rvb3AucmVhbHRpbWUudjEitw4KC1NlcnZlckV2ZW50EhAKCGV2ZW50X2lkGAEgASgJEiYKAnRzGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIpCgVyZWFkeRgDIAEoCzIYLnN0b29wLnJlYWx0aW1lLnYxLlJlYWR5SAASJwoEcGluZxgEIAEoCzIXLnN0b29wLnJlYWx0aW1lLnYxLlBpbmdIABJCChJjcmVkZW50aWFsX3Jldm9rZWQYBSABKAsyJC5zdG9vcC5yZWFsdGltZS52MS5DcmVkZW50aWFsUmV2b2tlZEgAEjEKD21lc3NhZ2VfY3JlYXRlZBgKIAEoCzIWLnN0b29wLmNoYXQudjEuTWVzc2FnZUgAEjwKD21lc3NhZ2VfZGVsZXRlZBgLIAEoCzIhLnN0b29wLnJlYWx0aW1lLnYxLk1lc3NhZ2VEZWxldGVkSAASMQoPY2hhbm5lbF9jcmVhdGVkGAwgASgLMhYuc3Rvb3AuY2hhdC52MS5DaGFubmVsSAASNgoMc3BhY2Vfam9pbmVkGA0gASgLMh4uc3Rvb3AucmVhbHRpbWUudjEuU3BhY2VKb2luZWRIABJDChNtZW1iZXJfcm9sZV9jaGFuZ2VkGA4gASgLMiQuc3Rvb3AucmVhbHRpbWUudjEuTWVtYmVyUm9sZUNoYW5nZWRIABI6Cg5tZW1iZXJfcmVtb3ZlZBgPIAEoCzIgLnN0b29wLnJlYWx0aW1lLnYxLk1lbWJlclJlbW92ZWRIABI4Cg1zcGFjZV91cGRhdGVkGBAgASgLMh8uc3Rvb3AucmVhbHRpbWUudjEuU3BhY2VVcGRhdGVkSAASOAoNc3BhY2VfZGVsZXRlZBgRIAEoCzIfLnN0b29wLnJlYWx0aW1lLnYxLlNwYWNlRGVsZXRlZEgAEjgKDW1lbWJlcl9qb2luZWQYEiABKAsyHy5zdG9vcC5yZWFsdGltZS52MS5NZW1iZXJKb2luZWRIABJHChVhY3Rpdml0eV9pdGVtX2NyZWF0ZWQYEyABKAsyJi5zdG9vcC5yZWFsdGltZS52MS5BY3Rpdml0eUl0ZW1DcmVhdGVkSAASNgoMY2hhbm5lbF9yZWFkGBQgASgLMh4uc3Rvb3AucmVhbHRpbWUudjEuQ2hhbm5lbFJlYWRIABI+ChBwcmVzZW5jZV9jaGFuZ2VkGBUgASgLMiIuc3Rvb3AucmVhbHRpbWUudjEuUHJlc2VuY2VDaGFuZ2VkSAASNAoLdXNlcl90eXBpbmcYFiABKAsyHS5zdG9vcC5yZWFsdGltZS52MS5Vc2VyVHlwaW5nSAASMQoPbWVzc2FnZV91cGRhdGVkGBcgASgLMhYuc3Rvb3AuY2hhdC52MS5NZXNzYWdlSAASMQoPY2hhbm5lbF91cGRhdGVkGBggASgLMhYuc3Rvb3AuY2hhdC52MS5DaGFubmVsSAASPAoPY2hhbm5lbF9kZWxldGVkGBkgASgLMiEuc3Rvb3AucmVhbHRpbWUudjEuQ2hhbm5lbERlbGV0ZWRIABJCChJjaGFubmVsc19yZW9yZGVyZWQYGiABKAsyJC5zdG9vcC5yZWFsdGltZS52MS5DaGFubmVsc1Jlb3JkZXJlZEgAEkAKEXJlYWN0aW9uc19jaGFuZ2VkGBsgASgLMiMuc3Rvb3AucmVhbHRpbWUudjEuUmVhY3Rpb25zQ2hhbmdlZEgAEjoKDm1lbWJlcl91cGRhdGVkGBwgASgLMiAuc3Rvb3AucmVhbHRpbWUudjEuTWVtYmVyVXBkYXRlZEgAEkMKE3ZvaWNlX3N0YXRlX2NoYW5nZWQYHSABKAsyJC5zdG9vcC5yZWFsdGltZS52MS5Wb2ljZVN0YXRlQ2hhbmdlZEgAEjgKDWNoYW5uZWxfbXV0ZWQYHiABKAsyHy5zdG9vcC5yZWFsdGltZS52MS5DaGFubmVsTXV0ZWRIABI0CgtzcGFjZV9tdXRlZBgfIAEoCzIdLnN0b29wLnJlYWx0aW1lLnYxLlNwYWNlTXV0ZWRIABI6Cg5tZXNzYWdlX3Bpbm5lZBggIAEoCzIgLnN0b29wLnJlYWx0aW1lLnYxLk1lc3NhZ2VQaW5uZWRIABJIChZkb19ub3RfZGlzdHVyYl9jaGFuZ2VkGCEgASgLMiYuc3Rvb3AucmVhbHRpbWUudjEuRG9Ob3REaXN0dXJiQ2hhbmdlZEgAEjoKDnRocmVhZF9jaGFuZ2VkGCIgASgLMiAuc3Rvb3AucmVhbHRpbWUudjEuVGhyZWFkQ2hhbmdlZEgAEjYKDHRocmVhZF9tdXRlZBgjIAEoCzIeLnN0b29wLnJlYWx0aW1lLnYxLlRocmVhZE11dGVkSAASNAoLdGhyZWFkX3JlYWQYJCABKAsyHS5zdG9vcC5yZWFsdGltZS52MS5UaHJlYWRSZWFkSABCCQoHcGF5bG9hZCK2AQoLQ2xpZW50RXZlbnQSJwoEcG9uZxgDIAEoCzIXLnN0b29wLnJlYWx0aW1lLnYxLlBvbmdIABIrCgZ0eXBpbmcYCiABKAsyGS5zdG9vcC5yZWFsdGltZS52MS5UeXBpbmdIABI0Cgt2b2ljZV9zdGF0ZRgLIAEoCzIdLnN0b29wLnJlYWx0aW1lLnYxLlZvaWNlU3RhdGVIAEIJCgdwYXlsb2FkSgQIDBANUgpzZXRfc3RhdHVzIjoKDFVzZXJQcmVzZW5jZRIPCgd1c2VyX2lkGAEgASgJEgsKA2RuZBgDIAEoCEoECAIQA1IGc3RhdHVzImkKClZvaWNlU3RhdGUSEgoKY2hhbm5lbF9pZBgBIAEoCRINCgVtdXRlZBgCIAEoCBIQCghkZWFmZW5lZBgDIAEoCBIOCgZjYW1lcmEYBCABKAgSFgoOc2NyZWVuX3NoYXJpbmcYBSABKAgikgEKEFZvaWNlUGFydGljaXBhbnQSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIPCgd1c2VyX2lkGAMgASgJEg0KBW11dGVkGAQgASgIEhAKCGRlYWZlbmVkGAUgASgIEg4KBmNhbWVyYRgGIAEoCBIWCg5zY3JlZW5fc2hhcmluZxgHIAEoCCJdChFWb2ljZVN0YXRlQ2hhbmdlZBI4CgtwYXJ0aWNpcGFudBgBIAEoCzIjLnN0b29wLnJlYWx0aW1lLnYxLlZvaWNlUGFydGljaXBhbnQSDgoGam9pbmVkGAIgASgIIi4KBlR5cGluZxIQCghzcGFjZV9pZBgBIAEoCRISCgpjaGFubmVsX2lkGAIgASgJIioKEUNyZWRlbnRpYWxSZXZva2VkEhUKDWNyZWRlbnRpYWxfaWQYASABKAkitwEKBVJlYWR5Eg8KB3VzZXJfaWQYASABKAkSEQoJc3BhY2VfaWRzGAIgAygJEj8KEnZvaWNlX3BhcnRpY2lwYW50cxgEIAMoCzIjLnN0b29wLnJlYWx0aW1lLnYxLlZvaWNlUGFydGljaXBhbnQSMgoJcHJlc2VuY2VzGAUgAygLMh8uc3Rvb3AucmVhbHRpbWUudjEuVXNlclByZXNlbmNlSgQIAxAEUg9vbmxpbmVfdXNlcl9pZHMiTQoPUHJlc2VuY2VDaGFuZ2VkEg8KB3VzZXJfaWQYASABKAkSDgoGb25saW5lGAIgASgIEgsKA2RuZBgEIAEoCEoECAMQBFIGc3RhdHVzIkMKClVzZXJUeXBpbmcSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIPCgd1c2VyX2lkGAMgASgJIgYKBFBpbmciBgoEUG9uZyI2Cg5DaGFubmVsRGVsZXRlZBIQCghzcGFjZV9pZBgBIAEoCRISCgpjaGFubmVsX2lkGAIgASgJIk8KEUNoYW5uZWxzUmVvcmRlcmVkEhAKCHNwYWNlX2lkGAEgASgJEigKCGNoYW5uZWxzGAIgAygLMhYuc3Rvb3AuY2hhdC52MS5DaGFubmVsIngKEFJlYWN0aW9uc0NoYW5nZWQSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgJEioKCXJlYWN0aW9ucxgEIAMoCzIXLnN0b29wLmNoYXQudjEuUmVhY3Rpb24iYgoOTWVzc2FnZURlbGV0ZWQSEgoKbWVzc2FnZV9pZBgBIAEoCRISCgpjaGFubmVsX2lkGAIgASgJEhAKCHNwYWNlX2lkGAMgASgJEhYKDnRocmVhZF9yb290X2lkGAQgASgJInwKDVRocmVhZENoYW5nZWQSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIXCg9yb290X21lc3NhZ2VfaWQYAyABKAkSLAoGdGhyZWFkGAQgASgLMhwuc3Rvb3AuY2hhdC52MS5UaHJlYWRTdW1tYXJ5IrkBCg1NZXNzYWdlUGlubmVkEhAKCHNwYWNlX2lkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSEgoKbWVzc2FnZV9pZBgDIAEoCRIOCgZwaW5uZWQYBCABKAgSLwoJcGlubmVkX2J5GAUgASgLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yEi0KCXBpbm5lZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiMgoLU3BhY2VKb2luZWQSIwoFc3BhY2UYASABKAsyFC5zdG9vcC5jaGF0LnYxLlNwYWNlIkMKDENoYW5uZWxNdXRlZBIQCghzcGFjZV9pZBgBIAEoCRISCgpjaGFubmVsX2lkGAIgASgJEg0KBW11dGVkGAMgASgIIlsKC1RocmVhZE11dGVkEhAKCHNwYWNlX2lkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSFwoPcm9vdF9tZXNzYWdlX2lkGAMgASgJEg0KBW11dGVkGAQgASgIIi0KClNwYWNlTXV0ZWQSEAoIc3BhY2VfaWQYASABKAkSDQoFbXV0ZWQYAiABKAgiXgoTRG9Ob3REaXN0dXJiQ2hhbmdlZBIPCgd1c2VyX2lkGAEgASgJEgsKA2RuZBgCIAEoCBIpCgV1bnRpbBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiUQoLQ2hhbm5lbFJlYWQSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIcChRsYXN0X3JlYWRfbWVzc2FnZV9pZBgDIAEoCSJpCgpUaHJlYWRSZWFkEhAKCHNwYWNlX2lkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSFwoPcm9vdF9tZXNzYWdlX2lkGAMgASgJEhwKFGxhc3RfcmVhZF9tZXNzYWdlX2lkGAQgASgJIkAKE0FjdGl2aXR5SXRlbUNyZWF0ZWQSKQoEaXRlbRgBIAEoCzIbLnN0b29wLmNoYXQudjEuQWN0aXZpdHlJdGVtIjEKDE1lbWJlckpvaW5lZBIQCghzcGFjZV9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJIl4KEU1lbWJlclJvbGVDaGFuZ2VkEhAKCHNwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSJgoEcm9sZRgDIAEoDjIYLnN0b29wLmNoYXQudjEuU3BhY2VSb2xlIjIKDU1lbWJlclVwZGF0ZWQSEAoIc3BhY2VfaWQYASABKAkSDwoHdXNlcl9pZBgCIAEoCSJCCg1NZW1iZXJSZW1vdmVkEhAKCHNwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSDgoGa2lja2VkGAMgASgIIjMKDFNwYWNlVXBkYXRlZBIjCgVzcGFjZRgBIAEoCzIULnN0b29wLmNoYXQudjEuU3BhY2UiIAoMU3BhY2VEZWxldGVkEhAKCHNwYWNlX2lkGAEgASgJQsgBChVjb20uc3Rvb3AucmVhbHRpbWUudjFCDVJlYWx0aW1lUHJvdG9QAVo6Z2l0aHViLmNvbS9nZXRzdG9vcC9zdG9vcC9nZW4vc3Rvb3AvcmVhbHRpbWUvdjE7cmVhbHRpbWV2MaICA1NSWKoCEVN0b29wLlJlYWx0aW1lLlYxygIRU3Rvb3BcUmVhbHRpbWVcVjHiAh1TdG9vcFxSZWFsdGltZVxWMVxHUEJNZXRhZGF0YeoCE1N0b29wOjpSZWFsdGltZTo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_stoop_chat_v1_channel, file_stoop_chat_v1_message, file_stoop_chat_v1_reaction, file_stoop_chat_v1_activity, file_stoop_chat_v1_space]);
+  fileDesc("CiBzdG9vcC9yZWFsdGltZS92MS9yZWFsdGltZS5wcm90bxIRc3Rvb3AucmVhbHRpbWUudjEixQ8KC1NlcnZlckV2ZW50EhAKCGV2ZW50X2lkGAEgASgJEiYKAnRzGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIpCgVyZWFkeRgDIAEoCzIYLnN0b29wLnJlYWx0aW1lLnYxLlJlYWR5SAASJwoEcGluZxgEIAEoCzIXLnN0b29wLnJlYWx0aW1lLnYxLlBpbmdIABJCChJjcmVkZW50aWFsX3Jldm9rZWQYBSABKAsyJC5zdG9vcC5yZWFsdGltZS52MS5DcmVkZW50aWFsUmV2b2tlZEgAEjEKD21lc3NhZ2VfY3JlYXRlZBgKIAEoCzIWLnN0b29wLmNoYXQudjEuTWVzc2FnZUgAEjwKD21lc3NhZ2VfZGVsZXRlZBgLIAEoCzIhLnN0b29wLnJlYWx0aW1lLnYxLk1lc3NhZ2VEZWxldGVkSAASMQoPY2hhbm5lbF9jcmVhdGVkGAwgASgLMhYuc3Rvb3AuY2hhdC52MS5DaGFubmVsSAASNgoMc3BhY2Vfam9pbmVkGA0gASgLMh4uc3Rvb3AucmVhbHRpbWUudjEuU3BhY2VKb2luZWRIABJDChNtZW1iZXJfcm9sZV9jaGFuZ2VkGA4gASgLMiQuc3Rvb3AucmVhbHRpbWUudjEuTWVtYmVyUm9sZUNoYW5nZWRIABI6Cg5tZW1iZXJfcmVtb3ZlZBgPIAEoCzIgLnN0b29wLnJlYWx0aW1lLnYxLk1lbWJlclJlbW92ZWRIABI4Cg1zcGFjZV91cGRhdGVkGBAgASgLMh8uc3Rvb3AucmVhbHRpbWUudjEuU3BhY2VVcGRhdGVkSAASOAoNc3BhY2VfZGVsZXRlZBgRIAEoCzIfLnN0b29wLnJlYWx0aW1lLnYxLlNwYWNlRGVsZXRlZEgAEjgKDW1lbWJlcl9qb2luZWQYEiABKAsyHy5zdG9vcC5yZWFsdGltZS52MS5NZW1iZXJKb2luZWRIABJHChVhY3Rpdml0eV9pdGVtX2NyZWF0ZWQYEyABKAsyJi5zdG9vcC5yZWFsdGltZS52MS5BY3Rpdml0eUl0ZW1DcmVhdGVkSAASNgoMY2hhbm5lbF9yZWFkGBQgASgLMh4uc3Rvb3AucmVhbHRpbWUudjEuQ2hhbm5lbFJlYWRIABI+ChBwcmVzZW5jZV9jaGFuZ2VkGBUgASgLMiIuc3Rvb3AucmVhbHRpbWUudjEuUHJlc2VuY2VDaGFuZ2VkSAASNAoLdXNlcl90eXBpbmcYFiABKAsyHS5zdG9vcC5yZWFsdGltZS52MS5Vc2VyVHlwaW5nSAASMQoPbWVzc2FnZV91cGRhdGVkGBcgASgLMhYuc3Rvb3AuY2hhdC52MS5NZXNzYWdlSAASMQoPY2hhbm5lbF91cGRhdGVkGBggASgLMhYuc3Rvb3AuY2hhdC52MS5DaGFubmVsSAASPAoPY2hhbm5lbF9kZWxldGVkGBkgASgLMiEuc3Rvb3AucmVhbHRpbWUudjEuQ2hhbm5lbERlbGV0ZWRIABJCChJjaGFubmVsc19yZW9yZGVyZWQYGiABKAsyJC5zdG9vcC5yZWFsdGltZS52MS5DaGFubmVsc1Jlb3JkZXJlZEgAEkAKEXJlYWN0aW9uc19jaGFuZ2VkGBsgASgLMiMuc3Rvb3AucmVhbHRpbWUudjEuUmVhY3Rpb25zQ2hhbmdlZEgAEjoKDm1lbWJlcl91cGRhdGVkGBwgASgLMiAuc3Rvb3AucmVhbHRpbWUudjEuTWVtYmVyVXBkYXRlZEgAEkMKE3ZvaWNlX3N0YXRlX2NoYW5nZWQYHSABKAsyJC5zdG9vcC5yZWFsdGltZS52MS5Wb2ljZVN0YXRlQ2hhbmdlZEgAEjgKDWNoYW5uZWxfbXV0ZWQYHiABKAsyHy5zdG9vcC5yZWFsdGltZS52MS5DaGFubmVsTXV0ZWRIABI0CgtzcGFjZV9tdXRlZBgfIAEoCzIdLnN0b29wLnJlYWx0aW1lLnYxLlNwYWNlTXV0ZWRIABI6Cg5tZXNzYWdlX3Bpbm5lZBggIAEoCzIgLnN0b29wLnJlYWx0aW1lLnYxLk1lc3NhZ2VQaW5uZWRIABJIChZkb19ub3RfZGlzdHVyYl9jaGFuZ2VkGCEgASgLMiYuc3Rvb3AucmVhbHRpbWUudjEuRG9Ob3REaXN0dXJiQ2hhbmdlZEgAEjoKDnRocmVhZF9jaGFuZ2VkGCIgASgLMiAuc3Rvb3AucmVhbHRpbWUudjEuVGhyZWFkQ2hhbmdlZEgAEjYKDHRocmVhZF9tdXRlZBgjIAEoCzIeLnN0b29wLnJlYWx0aW1lLnYxLlRocmVhZE11dGVkSAASNAoLdGhyZWFkX3JlYWQYJCABKAsyHS5zdG9vcC5yZWFsdGltZS52MS5UaHJlYWRSZWFkSAASRwoVY2hhbm5lbF9tZW1iZXJfam9pbmVkGCUgASgLMiYuc3Rvb3AucmVhbHRpbWUudjEuQ2hhbm5lbE1lbWJlckpvaW5lZEgAEkMKE2NoYW5uZWxfbWVtYmVyX2xlZnQYJiABKAsyJC5zdG9vcC5yZWFsdGltZS52MS5DaGFubmVsTWVtYmVyTGVmdEgAQgkKB3BheWxvYWQitgEKC0NsaWVudEV2ZW50EicKBHBvbmcYAyABKAsyFy5zdG9vcC5yZWFsdGltZS52MS5Qb25nSAASKwoGdHlwaW5nGAogASgLMhkuc3Rvb3AucmVhbHRpbWUudjEuVHlwaW5nSAASNAoLdm9pY2Vfc3RhdGUYCyABKAsyHS5zdG9vcC5yZWFsdGltZS52MS5Wb2ljZVN0YXRlSABCCQoHcGF5bG9hZEoECAwQDVIKc2V0X3N0YXR1cyI6CgxVc2VyUHJlc2VuY2USDwoHdXNlcl9pZBgBIAEoCRILCgNkbmQYAyABKAhKBAgCEANSBnN0YXR1cyJpCgpWb2ljZVN0YXRlEhIKCmNoYW5uZWxfaWQYASABKAkSDQoFbXV0ZWQYAiABKAgSEAoIZGVhZmVuZWQYAyABKAgSDgoGY2FtZXJhGAQgASgIEhYKDnNjcmVlbl9zaGFyaW5nGAUgASgIIpIBChBWb2ljZVBhcnRpY2lwYW50EhAKCHNwYWNlX2lkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSDwoHdXNlcl9pZBgDIAEoCRINCgVtdXRlZBgEIAEoCBIQCghkZWFmZW5lZBgFIAEoCBIOCgZjYW1lcmEYBiABKAgSFgoOc2NyZWVuX3NoYXJpbmcYByABKAgiXQoRVm9pY2VTdGF0ZUNoYW5nZWQSOAoLcGFydGljaXBhbnQYASABKAsyIy5zdG9vcC5yZWFsdGltZS52MS5Wb2ljZVBhcnRpY2lwYW50Eg4KBmpvaW5lZBgCIAEoCCIuCgZUeXBpbmcSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCSIqChFDcmVkZW50aWFsUmV2b2tlZBIVCg1jcmVkZW50aWFsX2lkGAEgASgJIrcBCgVSZWFkeRIPCgd1c2VyX2lkGAEgASgJEhEKCXNwYWNlX2lkcxgCIAMoCRI/ChJ2b2ljZV9wYXJ0aWNpcGFudHMYBCADKAsyIy5zdG9vcC5yZWFsdGltZS52MS5Wb2ljZVBhcnRpY2lwYW50EjIKCXByZXNlbmNlcxgFIAMoCzIfLnN0b29wLnJlYWx0aW1lLnYxLlVzZXJQcmVzZW5jZUoECAMQBFIPb25saW5lX3VzZXJfaWRzIk0KD1ByZXNlbmNlQ2hhbmdlZBIPCgd1c2VyX2lkGAEgASgJEg4KBm9ubGluZRgCIAEoCBILCgNkbmQYBCABKAhKBAgDEARSBnN0YXR1cyJDCgpVc2VyVHlwaW5nEhAKCHNwYWNlX2lkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSDwoHdXNlcl9pZBgDIAEoCSIGCgRQaW5nIgYKBFBvbmciNgoOQ2hhbm5lbERlbGV0ZWQSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCSJMChNDaGFubmVsTWVtYmVySm9pbmVkEhAKCHNwYWNlX2lkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSDwoHdXNlcl9pZBgDIAEoCSJKChFDaGFubmVsTWVtYmVyTGVmdBIQCghzcGFjZV9pZBgBIAEoCRISCgpjaGFubmVsX2lkGAIgASgJEg8KB3VzZXJfaWQYAyABKAkiTwoRQ2hhbm5lbHNSZW9yZGVyZWQSEAoIc3BhY2VfaWQYASABKAkSKAoIY2hhbm5lbHMYAiADKAsyFi5zdG9vcC5jaGF0LnYxLkNoYW5uZWwieAoQUmVhY3Rpb25zQ2hhbmdlZBIQCghzcGFjZV9pZBgBIAEoCRISCgpjaGFubmVsX2lkGAIgASgJEhIKCm1lc3NhZ2VfaWQYAyABKAkSKgoJcmVhY3Rpb25zGAQgAygLMhcuc3Rvb3AuY2hhdC52MS5SZWFjdGlvbiJiCg5NZXNzYWdlRGVsZXRlZBISCgptZXNzYWdlX2lkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSEAoIc3BhY2VfaWQYAyABKAkSFgoOdGhyZWFkX3Jvb3RfaWQYBCABKAkifAoNVGhyZWFkQ2hhbmdlZBIQCghzcGFjZV9pZBgBIAEoCRISCgpjaGFubmVsX2lkGAIgASgJEhcKD3Jvb3RfbWVzc2FnZV9pZBgDIAEoCRIsCgZ0aHJlYWQYBCABKAsyHC5zdG9vcC5jaGF0LnYxLlRocmVhZFN1bW1hcnkiuQEKDU1lc3NhZ2VQaW5uZWQSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRISCgptZXNzYWdlX2lkGAMgASgJEg4KBnBpbm5lZBgEIAEoCBIvCglwaW5uZWRfYnkYBSABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISLQoJcGlubmVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIyCgtTcGFjZUpvaW5lZBIjCgVzcGFjZRgBIAEoCzIULnN0b29wLmNoYXQudjEuU3BhY2UiQwoMQ2hhbm5lbE11dGVkEhAKCHNwYWNlX2lkGAEgASgJEhIKCmNoYW5uZWxfaWQYAiABKAkSDQoFbXV0ZWQYAyABKAgiWwoLVGhyZWFkTXV0ZWQSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIXCg9yb290X21lc3NhZ2VfaWQYAyABKAkSDQoFbXV0ZWQYBCABKAgiLQoKU3BhY2VNdXRlZBIQCghzcGFjZV9pZBgBIAEoCRINCgVtdXRlZBgCIAEoCCJeChNEb05vdERpc3R1cmJDaGFuZ2VkEg8KB3VzZXJfaWQYASABKAkSCwoDZG5kGAIgASgIEikKBXVudGlsGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJRCgtDaGFubmVsUmVhZBIQCghzcGFjZV9pZBgBIAEoCRISCgpjaGFubmVsX2lkGAIgASgJEhwKFGxhc3RfcmVhZF9tZXNzYWdlX2lkGAMgASgJImkKClRocmVhZFJlYWQSEAoIc3BhY2VfaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIXCg9yb290X21lc3NhZ2VfaWQYAyABKAkSHAoUbGFzdF9yZWFkX21lc3NhZ2VfaWQYBCABKAkiQAoTQWN0aXZpdHlJdGVtQ3JlYXRlZBIpCgRpdGVtGAEgASgLMhsuc3Rvb3AuY2hhdC52MS5BY3Rpdml0eUl0ZW0iMQoMTWVtYmVySm9pbmVkEhAKCHNwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkiXgoRTWVtYmVyUm9sZUNoYW5nZWQSEAoIc3BhY2VfaWQYASABKAkSDwoHdXNlcl9pZBgCIAEoCRImCgRyb2xlGAMgASgOMhguc3Rvb3AuY2hhdC52MS5TcGFjZVJvbGUiMgoNTWVtYmVyVXBkYXRlZBIQCghzcGFjZV9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJIkIKDU1lbWJlclJlbW92ZWQSEAoIc3BhY2VfaWQYASABKAkSDwoHdXNlcl9pZBgCIAEoCRIOCgZraWNrZWQYAyABKAgiMwoMU3BhY2VVcGRhdGVkEiMKBXNwYWNlGAEgASgLMhQuc3Rvb3AuY2hhdC52MS5TcGFjZSIgCgxTcGFjZURlbGV0ZWQSEAoIc3BhY2VfaWQYASABKAlCyAEKFWNvbS5zdG9vcC5yZWFsdGltZS52MUINUmVhbHRpbWVQcm90b1ABWjpnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9yZWFsdGltZS92MTtyZWFsdGltZXYxogIDU1JYqgIRU3Rvb3AuUmVhbHRpbWUuVjHKAhFTdG9vcFxSZWFsdGltZVxWMeICHVN0b29wXFJlYWx0aW1lXFYxXEdQQk1ldGFkYXRh6gITU3Rvb3A6OlJlYWx0aW1lOjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_chat_v1_channel, file_stoop_chat_v1_message, file_stoop_chat_v1_reaction, file_stoop_chat_v1_activity, file_stoop_chat_v1_space]);
 
 /**
  * ServerEvent is pushed from the server to connected clients.
@@ -227,6 +227,18 @@ export type ServerEvent = Message<"stoop.realtime.v1.ServerEvent"> & {
      */
     value: ThreadRead;
     case: "threadRead";
+  } | {
+    /**
+     * @generated from field: stoop.realtime.v1.ChannelMemberJoined channel_member_joined = 37;
+     */
+    value: ChannelMemberJoined;
+    case: "channelMemberJoined";
+  } | {
+    /**
+     * @generated from field: stoop.realtime.v1.ChannelMemberLeft channel_member_left = 38;
+     */
+    value: ChannelMemberLeft;
+    case: "channelMemberLeft";
   } | { case: undefined; value?: undefined };
 };
 
@@ -624,6 +636,68 @@ export const ChannelDeletedSchema: GenMessage<ChannelDeleted> = /*@__PURE__*/
   messageDesc(file_stoop_realtime_v1_realtime, 13);
 
 /**
+ * ChannelMemberJoined: someone is now in a text channel. Sent to the
+ * space, so the person's other devices and anyone looking at the
+ * channel's people hear the same event. Turning required on is a
+ * ChannelUpdated instead.
+ *
+ * @generated from message stoop.realtime.v1.ChannelMemberJoined
+ */
+export type ChannelMemberJoined = Message<"stoop.realtime.v1.ChannelMemberJoined"> & {
+  /**
+   * @generated from field: string space_id = 1;
+   */
+  spaceId: string;
+
+  /**
+   * @generated from field: string channel_id = 2;
+   */
+  channelId: string;
+
+  /**
+   * @generated from field: string user_id = 3;
+   */
+  userId: string;
+};
+
+/**
+ * Describes the message stoop.realtime.v1.ChannelMemberJoined.
+ * Use `create(ChannelMemberJoinedSchema)` to create a new message.
+ */
+export const ChannelMemberJoinedSchema: GenMessage<ChannelMemberJoined> = /*@__PURE__*/
+  messageDesc(file_stoop_realtime_v1_realtime, 14);
+
+/**
+ * ChannelMemberLeft: someone left a text channel. Leaving the space is
+ * MemberRemoved.
+ *
+ * @generated from message stoop.realtime.v1.ChannelMemberLeft
+ */
+export type ChannelMemberLeft = Message<"stoop.realtime.v1.ChannelMemberLeft"> & {
+  /**
+   * @generated from field: string space_id = 1;
+   */
+  spaceId: string;
+
+  /**
+   * @generated from field: string channel_id = 2;
+   */
+  channelId: string;
+
+  /**
+   * @generated from field: string user_id = 3;
+   */
+  userId: string;
+};
+
+/**
+ * Describes the message stoop.realtime.v1.ChannelMemberLeft.
+ * Use `create(ChannelMemberLeftSchema)` to create a new message.
+ */
+export const ChannelMemberLeftSchema: GenMessage<ChannelMemberLeft> = /*@__PURE__*/
+  messageDesc(file_stoop_realtime_v1_realtime, 15);
+
+/**
  * ChannelsReordered carries the space's channels in their new order.
  *
  * @generated from message stoop.realtime.v1.ChannelsReordered
@@ -645,7 +719,7 @@ export type ChannelsReordered = Message<"stoop.realtime.v1.ChannelsReordered"> &
  * Use `create(ChannelsReorderedSchema)` to create a new message.
  */
 export const ChannelsReorderedSchema: GenMessage<ChannelsReordered> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 14);
+  messageDesc(file_stoop_realtime_v1_realtime, 16);
 
 /**
  * ReactionsChanged carries a message's full reaction list after a toggle;
@@ -680,7 +754,7 @@ export type ReactionsChanged = Message<"stoop.realtime.v1.ReactionsChanged"> & {
  * Use `create(ReactionsChangedSchema)` to create a new message.
  */
 export const ReactionsChangedSchema: GenMessage<ReactionsChanged> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 15);
+  messageDesc(file_stoop_realtime_v1_realtime, 17);
 
 /**
  * @generated from message stoop.realtime.v1.MessageDeleted
@@ -714,7 +788,7 @@ export type MessageDeleted = Message<"stoop.realtime.v1.MessageDeleted"> & {
  * Use `create(MessageDeletedSchema)` to create a new message.
  */
 export const MessageDeletedSchema: GenMessage<MessageDeleted> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 16);
+  messageDesc(file_stoop_realtime_v1_realtime, 18);
 
 /**
  * ThreadChanged carries a root's full thread summary after a reply is sent
@@ -749,7 +823,7 @@ export type ThreadChanged = Message<"stoop.realtime.v1.ThreadChanged"> & {
  * Use `create(ThreadChangedSchema)` to create a new message.
  */
 export const ThreadChangedSchema: GenMessage<ThreadChanged> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 17);
+  messageDesc(file_stoop_realtime_v1_realtime, 19);
 
 /**
  * MessagePinned is broadcast to the space when a message is pinned or
@@ -799,7 +873,7 @@ export type MessagePinned = Message<"stoop.realtime.v1.MessagePinned"> & {
  * Use `create(MessagePinnedSchema)` to create a new message.
  */
 export const MessagePinnedSchema: GenMessage<MessagePinned> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 18);
+  messageDesc(file_stoop_realtime_v1_realtime, 20);
 
 /**
  * SpaceJoined is delivered on the joining user's personal topic; the gateway
@@ -819,7 +893,7 @@ export type SpaceJoined = Message<"stoop.realtime.v1.SpaceJoined"> & {
  * Use `create(SpaceJoinedSchema)` to create a new message.
  */
 export const SpaceJoinedSchema: GenMessage<SpaceJoined> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 19);
+  messageDesc(file_stoop_realtime_v1_realtime, 21);
 
 /**
  * ChannelMuted is delivered on the user's personal topic when they mute
@@ -849,7 +923,7 @@ export type ChannelMuted = Message<"stoop.realtime.v1.ChannelMuted"> & {
  * Use `create(ChannelMutedSchema)` to create a new message.
  */
 export const ChannelMutedSchema: GenMessage<ChannelMuted> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 20);
+  messageDesc(file_stoop_realtime_v1_realtime, 22);
 
 /**
  * ThreadMuted is delivered on the user's personal topic when they mute or
@@ -884,7 +958,7 @@ export type ThreadMuted = Message<"stoop.realtime.v1.ThreadMuted"> & {
  * Use `create(ThreadMutedSchema)` to create a new message.
  */
 export const ThreadMutedSchema: GenMessage<ThreadMuted> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 21);
+  messageDesc(file_stoop_realtime_v1_realtime, 23);
 
 /**
  * SpaceMuted is delivered on the user's personal topic when they mute or
@@ -909,7 +983,7 @@ export type SpaceMuted = Message<"stoop.realtime.v1.SpaceMuted"> & {
  * Use `create(SpaceMutedSchema)` to create a new message.
  */
 export const SpaceMutedSchema: GenMessage<SpaceMuted> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 22);
+  messageDesc(file_stoop_realtime_v1_realtime, 24);
 
 /**
  * DoNotDisturbChanged is delivered on the person's own topic when they turn
@@ -941,7 +1015,7 @@ export type DoNotDisturbChanged = Message<"stoop.realtime.v1.DoNotDisturbChanged
  * Use `create(DoNotDisturbChangedSchema)` to create a new message.
  */
 export const DoNotDisturbChangedSchema: GenMessage<DoNotDisturbChanged> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 23);
+  messageDesc(file_stoop_realtime_v1_realtime, 25);
 
 /**
  * ChannelRead is delivered on the reader's personal topic when their read
@@ -971,7 +1045,7 @@ export type ChannelRead = Message<"stoop.realtime.v1.ChannelRead"> & {
  * Use `create(ChannelReadSchema)` to create a new message.
  */
 export const ChannelReadSchema: GenMessage<ChannelRead> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 24);
+  messageDesc(file_stoop_realtime_v1_realtime, 26);
 
 /**
  * ThreadRead is delivered on the reader's personal topic when their read
@@ -1006,7 +1080,7 @@ export type ThreadRead = Message<"stoop.realtime.v1.ThreadRead"> & {
  * Use `create(ThreadReadSchema)` to create a new message.
  */
 export const ThreadReadSchema: GenMessage<ThreadRead> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 25);
+  messageDesc(file_stoop_realtime_v1_realtime, 27);
 
 /**
  * ActivityItemCreated is delivered on the recipient's personal topic.
@@ -1025,7 +1099,7 @@ export type ActivityItemCreated = Message<"stoop.realtime.v1.ActivityItemCreated
  * Use `create(ActivityItemCreatedSchema)` to create a new message.
  */
 export const ActivityItemCreatedSchema: GenMessage<ActivityItemCreated> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 26);
+  messageDesc(file_stoop_realtime_v1_realtime, 28);
 
 /**
  * MemberJoined is broadcast to the space when someone new joins (the joiner
@@ -1050,7 +1124,7 @@ export type MemberJoined = Message<"stoop.realtime.v1.MemberJoined"> & {
  * Use `create(MemberJoinedSchema)` to create a new message.
  */
 export const MemberJoinedSchema: GenMessage<MemberJoined> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 27);
+  messageDesc(file_stoop_realtime_v1_realtime, 29);
 
 /**
  * MemberRoleChanged is broadcast to the space when a member's role changes
@@ -1080,7 +1154,7 @@ export type MemberRoleChanged = Message<"stoop.realtime.v1.MemberRoleChanged"> &
  * Use `create(MemberRoleChangedSchema)` to create a new message.
  */
 export const MemberRoleChangedSchema: GenMessage<MemberRoleChanged> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 28);
+  messageDesc(file_stoop_realtime_v1_realtime, 30);
 
 /**
  * MemberUpdated is broadcast to each of a user's spaces when their profile
@@ -1105,7 +1179,7 @@ export type MemberUpdated = Message<"stoop.realtime.v1.MemberUpdated"> & {
  * Use `create(MemberUpdatedSchema)` to create a new message.
  */
 export const MemberUpdatedSchema: GenMessage<MemberUpdated> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 29);
+  messageDesc(file_stoop_realtime_v1_realtime, 31);
 
 /**
  * MemberRemoved is broadcast to the space when a member is kicked or
@@ -1138,7 +1212,7 @@ export type MemberRemoved = Message<"stoop.realtime.v1.MemberRemoved"> & {
  * Use `create(MemberRemovedSchema)` to create a new message.
  */
 export const MemberRemovedSchema: GenMessage<MemberRemoved> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 30);
+  messageDesc(file_stoop_realtime_v1_realtime, 32);
 
 /**
  * SpaceUpdated is broadcast when the space's name or settings change.
@@ -1158,7 +1232,7 @@ export type SpaceUpdated = Message<"stoop.realtime.v1.SpaceUpdated"> & {
  * Use `create(SpaceUpdatedSchema)` to create a new message.
  */
 export const SpaceUpdatedSchema: GenMessage<SpaceUpdated> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 31);
+  messageDesc(file_stoop_realtime_v1_realtime, 33);
 
 /**
  * SpaceDeleted is broadcast to the space; the gateway drops every
@@ -1178,5 +1252,5 @@ export type SpaceDeleted = Message<"stoop.realtime.v1.SpaceDeleted"> & {
  * Use `create(SpaceDeletedSchema)` to create a new message.
  */
 export const SpaceDeletedSchema: GenMessage<SpaceDeleted> = /*@__PURE__*/
-  messageDesc(file_stoop_realtime_v1_realtime, 32);
+  messageDesc(file_stoop_realtime_v1_realtime, 34);
 

@@ -103,10 +103,8 @@ type Space struct {
 	// this space" after that. Members only — never on an invite.
 	Welcome string `protobuf:"bytes,10,opt,name=welcome,proto3" json:"welcome,omitempty"`
 	// The channel someone lands in when they arrive without one of their
-	// own choosing — an invite, or /s/{id} with no channel. Empty means
-	// whichever channel sorts first, and it empties itself if the channel
-	// is deleted, so clients must still fall back when it names a channel
-	// they don't have.
+	// own choosing — an invite, or /s/{id} with no channel. Always set,
+	// and always a required text channel.
 	DefaultChannelId string `protobuf:"bytes,11,opt,name=default_channel_id,json=defaultChannelId,proto3" json:"default_channel_id,omitempty"`
 	// The caller muted this space: no unread bold or dot, no mention
 	// badges anywhere in it, no desktop alerts (mentions still reach

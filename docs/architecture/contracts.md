@@ -71,7 +71,8 @@ Grouped by what they touch rather than declaration order:
 - **Invites** — `CreateInvite`, `ListInvites`, `RevokeInvite`,
   `LookupInvite` (**public**)
 - **Channels** — `CreateChannel`, `ListChannels`, `UpdateChannel`,
-  `DeleteChannel`, `ReorderChannels`, `SetChannelMuted`, `SetSpaceMuted`
+  `DeleteChannel`, `ReorderChannels`, `SetChannelMuted`, `SetSpaceMuted`,
+  `JoinChannel`, `LeaveChannel`, `ListChannelMembers`, `AddChannelMembers`
 - **Messages** — `SendMessage`, `ListMessages`, `SearchMessages`,
   `EditMessage`, `DeleteMessage`, `ToggleReaction`, `SetMessagePinned`,
   `ListPinnedMessages`

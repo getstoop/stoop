@@ -11,10 +11,13 @@ SELECT * FROM channels WHERE id = $1;
 
 -- ListChannelsBySpace includes the caller's read marker, how many
 -- messages are newer than it (all of them if they've never opened it),
--- and whether they muted it.
+-- whether they muted it, whether they are in it (a voice channel has no
+-- membership, so always), and how many people are.
 -- name: ListChannelsBySpace :many
 SELECT sqlc.embed(c), r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = sqlc.arg(user_id)) AS muted,
+    (c.kind <> 1 OR EXISTS (SELECT 1 FROM channel_members mine WHERE mine.channel_id = c.id AND mine.user_id = sqlc.arg(user_id)))::boolean AS joined,
+    (SELECT count(*) FROM channel_members everyone WHERE everyone.channel_id = c.id) AS member_count,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
        AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
@@ -39,12 +42,18 @@ SET last_read_message_id = GREATEST(channel_reads.last_read_message_id, EXCLUDED
 UPDATE channels
 SET name = COALESCE(sqlc.narg('name'), name),
     topic = COALESCE(sqlc.narg('topic'), topic),
-    post_policy = COALESCE(sqlc.narg('post_policy'), post_policy)
+    post_policy = COALESCE(sqlc.narg('post_policy'), post_policy),
+    required = COALESCE(sqlc.narg('required'), required)
 WHERE id = $1
 RETURNING *;
 
--- name: DeleteChannel :exec
-DELETE FROM channels WHERE id = $1;
+-- DeleteChannel leaves a space's default channel alone: no rows means it
+-- is one. Deciding in the statement leaves no window for another admin
+-- to make it the default between a check and the delete.
+-- name: DeleteChannel :execrows
+DELETE FROM channels c
+WHERE c.id = $1
+  AND NOT EXISTS (SELECT 1 FROM spaces s WHERE s.default_channel_id = c.id);
 
 -- CountChannelsInSpace leaves voice channels (kind 2) out when they are
 -- hidden.

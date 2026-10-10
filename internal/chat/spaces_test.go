@@ -247,22 +247,25 @@ func TestSpaceDefaultChannel(t *testing.T) {
 		t.Errorf("member setting the default: code = %v, want PermissionDenied", code(err))
 	}
 
-	// Empty is a real answer: back to whichever channel sorts first.
-	res, err = svc.UpdateSpace(owner, connect.NewRequest(&chatv1.UpdateSpaceRequest{
+	// A space always has a default: clearing it is refused, and the
+	// choice stands.
+	if _, err := svc.UpdateSpace(owner, connect.NewRequest(&chatv1.UpdateSpaceRequest{
 		SpaceId: spaceID, DefaultChannelId: ptr(""),
-	}))
+	})); code(err) != connect.CodeInvalidArgument {
+		t.Errorf("clearing the default: code = %v, want InvalidArgument", code(err))
+	}
+	list, err = svc.ListSpaces(owner, connect.NewRequest(&chatv1.ListSpacesRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Msg.Space.DefaultChannelId != "" {
-		t.Errorf("default = %q, want it cleared", res.Msg.Space.DefaultChannelId)
+	if got := list.Msg.Spaces[0].DefaultChannelId; got != tools.Msg.Channel.Id {
+		t.Errorf("default = %q after a refused clear, want #tools", got)
 	}
 }
 
-// Deleting the channel a space points at must not leave the space
-// pointing at something that is gone: the column clears itself, and
-// members are told, so their settings page stops offering it.
-func TestDeletingTheDefaultChannelClearsIt(t *testing.T) {
+// A space's default channel can't be deleted: an admin chooses another
+// default first, and then it goes like any channel.
+func TestTheDefaultChannelCannotBeDeleted(t *testing.T) {
 	pool, bus, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 
@@ -277,80 +280,36 @@ func TestDeletingTheDefaultChannelClearsIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := svc.DeleteChannel(owner, connect.NewRequest(&chatv1.DeleteChannelRequest{
+		ChannelId: general,
+	})); code(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("deleting the default: code = %v, want FailedPrecondition", code(err))
+	}
+
+	sub := bus.Subscribe("space:" + spaceID)
+	defer sub.Close()
 	if _, err := svc.UpdateSpace(owner, connect.NewRequest(&chatv1.UpdateSpaceRequest{
 		SpaceId: spaceID, DefaultChannelId: ptr(tools.Msg.Channel.Id),
 	})); err != nil {
 		t.Fatal(err)
 	}
-
-	sub := bus.Subscribe("space:" + spaceID)
-	defer sub.Close()
+	// Choosing #tools made it required, and the space hears both.
+	if ev := (<-sub.Events()).GetChannelUpdated(); ev == nil || ev.Id != tools.Msg.Channel.Id || !ev.Required {
+		t.Fatal("expected ChannelUpdated saying #tools is required")
+	}
+	if ev := (<-sub.Events()).GetSpaceUpdated(); ev == nil || ev.Space.DefaultChannelId != tools.Msg.Channel.Id {
+		t.Fatal("expected SpaceUpdated naming #tools")
+	}
 	if _, err := svc.DeleteChannel(owner, connect.NewRequest(&chatv1.DeleteChannelRequest{
-		ChannelId: tools.Msg.Channel.Id,
+		ChannelId: general,
 	})); err != nil {
-		t.Fatal(err)
+		t.Fatalf("deleting the old default: %v", err)
 	}
-	if ev := (<-sub.Events()).GetChannelDeleted(); ev == nil || ev.ChannelId != tools.Msg.Channel.Id {
-		t.Fatal("expected ChannelDeleted for #tools")
-	}
-	ev := (<-sub.Events()).GetSpaceUpdated()
-	if ev == nil || ev.Space.DefaultChannelId != "" {
-		t.Fatal("expected SpaceUpdated saying the default is gone")
-	}
-	list, err := svc.ListSpaces(owner, connect.NewRequest(&chatv1.ListSpacesRequest{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := list.Msg.Spaces[0].DefaultChannelId; got != "" {
-		t.Errorf("default = %q after its channel was deleted, want empty", got)
-	}
-	// The event must carry the row the clear actually wrote, not a
-	// snapshot taken beforehand and edited to look right.
-	if ev.Space.Id != list.Msg.Spaces[0].Id || ev.Space.Name != list.Msg.Spaces[0].Name {
-		t.Errorf("event carried %q/%q, want the persisted %q/%q",
-			ev.Space.Id, ev.Space.Name, list.Msg.Spaces[0].Id, list.Msg.Spaces[0].Name)
-	}
-
-	// Deleting a channel that was never the default says nothing about
-	// the space: only ChannelDeleted goes out, and the default stands.
-	if _, err := svc.UpdateSpace(owner, connect.NewRequest(&chatv1.UpdateSpaceRequest{
-		SpaceId: spaceID, DefaultChannelId: ptr(general),
-	})); err != nil {
-		t.Fatal(err)
-	}
-	<-sub.Events() // SpaceUpdated from that edit
-	spare, err := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{
-		SpaceId: spaceID, Name: "spare",
-	}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	<-sub.Events() // ChannelCreated
-	if _, err := svc.DeleteChannel(owner, connect.NewRequest(&chatv1.DeleteChannelRequest{
-		ChannelId: spare.Msg.Channel.Id,
-	})); err != nil {
-		t.Fatal(err)
-	}
-	if ev := (<-sub.Events()).GetChannelDeleted(); ev == nil {
-		t.Fatal("expected ChannelDeleted for #spare")
-	}
-	select {
-	case ev := <-sub.Events():
-		t.Errorf("deleting an ordinary channel published %T as well", ev.Payload)
-	default:
-	}
-	list, err = svc.ListSpaces(owner, connect.NewRequest(&chatv1.ListSpacesRequest{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := list.Msg.Spaces[0].DefaultChannelId; got != general {
-		t.Errorf("default = %q, want #general untouched", got)
+	if ev := (<-sub.Events()).GetChannelDeleted(); ev == nil || ev.ChannelId != general {
+		t.Fatal("expected ChannelDeleted for #general")
 	}
 }
 
-// The server admin's Spaces page: every space on the server, the numbers
-// it prints, and — the reason the RPC exists — membership reported apart
-// from the admin role that is inherited without it.
 func TestListAllSpacesForAdmin(t *testing.T) {
 	pool, _, svc := newTestService(t)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)

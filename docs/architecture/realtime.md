@@ -222,7 +222,7 @@ the server side.
 | 11 | `message_deleted` | space / user | |
 | 23 | `message_updated` | space / user | Edits, and link previews arriving after the fact. |
 | 12 | `channel_created` | space / user | To each participant for a new or reopened DM. |
-| 24 | `channel_updated` | space | Rename, topic, post policy. |
+| 24 | `channel_updated` | space | Rename, topic, post policy, required. |
 | 25 | `channel_deleted` | space | |
 | 26 | `channels_reordered` | space | |
 | 30 | `channel_muted` | user | Keeps a person's other devices in step. |
@@ -241,6 +241,8 @@ the server side.
 | 22 | `user_typing` | space / user | |
 | 27 | `reactions_changed` | space / user | |
 | 32 | `message_pinned` | space | Ids, the flag, who and when; not the list. |
+| 37 | `channel_member_joined` | space | Someone is now in a text channel: a join, an add. Not sent for a channel becoming required, which is a `channel_updated`. |
+| 38 | `channel_member_left` | space | Someone left a text channel. Leaving the space is `member_removed`. |
 | 29 | `voice_state_changed` | space | Join, leave, mute, camera, screen share. |
 
 ### ClientEvent
