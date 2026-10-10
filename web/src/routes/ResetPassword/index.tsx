@@ -45,15 +45,16 @@ export function ResetPasswordPage() {
     setDone(true);
   };
 
-  const spent =
-    spentLater || !token || (reset.isError && isSpentLink(reset.error));
+  const spent = spentLater || (reset.isError && isSpentLink(reset.error));
 
   return (
     <div className="login-page">
       {done ? (
         <div className="login-card">
           <h1>{instanceName}</h1>
-          <p className="login-lead">Your password was changed.</p>
+          <p className="login-lead">
+            The password for @{reset.data?.username} was changed.
+          </p>
           <p className="login-subtitle">
             Every device was signed out. Sign in with your new password.
           </p>
@@ -64,6 +65,14 @@ export function ResetPasswordPage() {
           >
             Sign in
           </button>
+        </div>
+      ) : !token ? (
+        <div className="login-card">
+          <h1>{instanceName}</h1>
+          <p className="login-subtitle">Open the link from your email again.</p>
+          <Link className="link" to="/forgot-password">
+            Send a new link
+          </Link>
         </div>
       ) : spent ? (
         <div className="login-card">

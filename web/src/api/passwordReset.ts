@@ -16,14 +16,24 @@ export function passwordFormShown(
   );
 }
 
-// "Forgot password?" sits beside the password of a sign-in form, and only
-// when the server can send the link.
-export function forgotLinkShown(
+// Whether this server can reset a password by email at all: it can send
+// links, and password sign-in isn't off (then nobody's password is reset,
+// admins included).
+export function resetOffered(
   resetAvailable: boolean,
+  passwordSignIn: PasswordSignIn,
+): boolean {
+  return resetAvailable && passwordSignIn !== PasswordSignIn.OFF;
+}
+
+// "Forgot password?" sits beside the password of a sign-in form, and only
+// when a reset can be offered.
+export function forgotLinkShown(
+  offered: boolean,
   formShown: boolean,
   mode: "login" | "register",
 ): boolean {
-  return resetAvailable && formShown && mode === "login";
+  return offered && formShown && mode === "login";
 }
 
 // The server's own words for an address it would refuse, checked before

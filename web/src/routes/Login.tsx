@@ -5,7 +5,11 @@ import { authClient } from "../api/clients";
 import { errorText, isSignedOut } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { loginErrorText } from "../api/loginErrors";
-import { forgotLinkShown, passwordFormShown } from "../api/passwordReset";
+import {
+  forgotLinkShown,
+  passwordFormShown,
+  resetOffered,
+} from "../api/passwordReset";
 import { roleLabel } from "../api/permissions";
 import { useInstanceStatus, useInvitePreview, useMe } from "../api/queries";
 import { Field } from "../components/Field";
@@ -100,7 +104,7 @@ export function LoginPage() {
   // a create-account form with no way out.
   const effectiveMode = canRegister ? mode : "login";
   const showForgotLink = forgotLinkShown(
-    status?.passwordResetAvailable ?? false,
+    resetOffered(status?.passwordResetAvailable ?? false, passwordSignIn),
     showPasswordForm,
     effectiveMode,
   );

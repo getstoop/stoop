@@ -2,15 +2,16 @@ import { Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../api/clients";
 import { errorText, fieldError } from "../api/errors";
-import { emailAddressError } from "../api/passwordReset";
+import { emailAddressError, resetOffered } from "../api/passwordReset";
 import { useInstanceStatus } from "../api/queries";
 import { Field } from "../components/Field";
+import { PasswordSignIn } from "../gen/stoop/instance/v1/instance_pb";
 import { useFieldErrors } from "../hooks/useFieldErrors";
 
 // Asks for a reset link by email. The reply is the same whether or not an
 // account has the address, so the page says the same either way.
 export function ForgotPasswordPage() {
-  const { data: status, isLoading } = useInstanceStatus();
+  const { data: status, isLoading, error: statusError } = useInstanceStatus();
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -67,7 +68,28 @@ export function ForgotPasswordPage() {
     );
   }
 
-  if (!status?.passwordResetAvailable) {
+  if (statusError) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1>{instanceName}</h1>
+          <p className="error" role="alert">
+            {errorText(statusError)}
+          </p>
+          <Link className="link" to="/login">
+            Back to sign in
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    !resetOffered(
+      status?.passwordResetAvailable ?? false,
+      status?.passwordSignIn ?? PasswordSignIn.EVERYONE,
+    )
+  ) {
     return (
       <div className="login-page">
         <div className="login-card">

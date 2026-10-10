@@ -8,6 +8,7 @@ import {
   isSpentLink,
   PASSWORDS_DIFFER,
   passwordFormShown,
+  resetOffered,
 } from "./passwordReset";
 
 describe("passwordFormShown", () => {
@@ -26,6 +27,21 @@ describe("passwordFormShown", () => {
 
   it("shows when there is no provider to fall back to", () => {
     expect(passwordFormShown(PasswordSignIn.OFF, false, 0)).toBe(true);
+  });
+});
+
+describe("resetOffered", () => {
+  it("is offered when links can be sent and passwords are in use", () => {
+    expect(resetOffered(true, PasswordSignIn.EVERYONE)).toBe(true);
+    expect(resetOffered(true, PasswordSignIn.ADMINS)).toBe(true);
+  });
+
+  it("is never offered with password sign-in off, admins included", () => {
+    expect(resetOffered(true, PasswordSignIn.OFF)).toBe(false);
+  });
+
+  it("is not offered when the server cannot send links", () => {
+    expect(resetOffered(false, PasswordSignIn.EVERYONE)).toBe(false);
   });
 });
 
