@@ -13,9 +13,9 @@ export function initials(name: string): string {
 // The uploaded image as a background on the same element the initials
 // use, so each context's size and rounding apply unchanged. Fit is inline
 // so no context's `background:` shorthand can reset it. SpaceIcon shares it.
-export function imageStyle(fileId: string): CSSProperties {
+export function imageStyle(fileId: string, inviteCode?: string): CSSProperties {
   return {
-    backgroundImage: `url(${fileUrl(fileId)})`,
+    backgroundImage: `url(${fileUrl(fileId, inviteCode)})`,
     backgroundSize: "cover",
     backgroundPosition: "center",
   };

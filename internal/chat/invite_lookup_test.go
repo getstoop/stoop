@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -108,5 +109,36 @@ func TestLookupInvite(t *testing.T) {
 	}
 	if _, err := svc.LookupInvite(anon, connect.NewRequest(&chatv1.LookupInviteRequest{Code: revoke})); code(err) != connect.CodeFailedPrecondition {
 		t.Errorf("revoked code: code = %v, want FailedPrecondition", code(err))
+	}
+
+	// The files module's rule for the invite page: a usable code shows its
+	// own space's icon and nothing else.
+	iconID, otherID := uuid.NewString(), uuid.NewString()
+	for _, id := range []string{iconID, otherID} {
+		if _, err := pool.Exec(anon, `INSERT INTO files (id, kind, owner_id, content_type, size, sha256, storage_key, name)
+			VALUES ($1, 'space_icon', $2, 'image/png', 1, '\x00', $3, 'icon')`, id, authctx.UserID(owner), "space_icon/"+id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := svc.SetSpaceIcon(anon, spaceID, iconID); err != nil {
+		t.Fatal(err)
+	}
+	for name, check := range map[string]struct {
+		code, file string
+		want       bool
+	}{
+		"usable code, its icon":   {adminCode, iconID, true},
+		"usable code, padded":     {" " + adminCode + " ", iconID, true},
+		"usable code, other file": {adminCode, otherID, false},
+		"revoked code":            {revoke, iconID, false},
+		"unknown code":            {"nosuchcode", iconID, false},
+	} {
+		got, err := svc.InviteShowsIcon(anon, check.code, check.file)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got != check.want {
+			t.Errorf("%s: shown = %v, want %v", name, got, check.want)
+		}
 	}
 }

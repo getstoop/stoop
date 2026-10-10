@@ -70,6 +70,11 @@ type fakeSpaces struct {
 	referenced map[string]bool // file ids chat "still points at" (sweep)
 	pinned     []string        // files on pinned messages (retention)
 	setIconErr error           // what SetSpaceIcon answers when set
+	invite     string          // a usable invite code to the space
+}
+
+func (f *fakeSpaces) InviteShowsIcon(_ context.Context, code, fileID string) (bool, error) {
+	return f.invite != "" && code == f.invite && fileID == f.icon, nil
 }
 
 func (f *fakeSpaces) PinnedFileIDs(context.Context) ([]string, error) { return f.pinned, nil }
@@ -180,6 +185,15 @@ func (f *fixture) blobExists(t *testing.T, key string) bool {
 func (f *fixture) get(t *testing.T, id, user string) *http.Response {
 	t.Helper()
 	return f.fetch(t, http.MethodGet, id, user)
+}
+
+// getWithInvite is a GET from someone not signed in, carrying an invite code.
+func (f *fixture) getWithInvite(t *testing.T, id, code string) *http.Response {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/files/"+id+"?invite="+code, nil)
+	rec := httptest.NewRecorder()
+	f.svc.Handler().ServeHTTP(rec, req)
+	return rec.Result()
 }
 
 func (f *fixture) fetch(t *testing.T, method, id, user string) *http.Response {
@@ -368,6 +382,24 @@ func TestSpaceIconAuthorisation(t *testing.T) {
 			t.Errorf("GET icon as %q: %d, want %d", user, got, want)
 		}
 	}
+
+	// Not signed in: the icon loads only with a usable invite to its space,
+	// and every other case reads as a plain 401.
+	f.spaces.invite = "goodcode"
+	expectServedPNG(t, f.getWithInvite(t, id, "goodcode"), files.SpaceIconSize)
+	avatar, _ := f.fileRow(t, "avatar", 0)
+	for name, got := range map[string]int{
+		"wrong code":        f.getWithInvite(t, id, "badcode").StatusCode,
+		"another file":      f.getWithInvite(t, avatar, "goodcode").StatusCode,
+		"unknown id":        f.getWithInvite(t, uuid.NewString(), "goodcode").StatusCode,
+		"malformed id":      f.getWithInvite(t, "not-a-uuid", "goodcode").StatusCode,
+		"no invite to show": f.getWithInvite(t, id, "").StatusCode,
+	} {
+		if got != http.StatusUnauthorized {
+			t.Errorf("signed out, %s: %d, want 401", name, got)
+		}
+	}
+
 	if got := f.get(t, uuid.NewString(), "owner").StatusCode; got != http.StatusNotFound {
 		t.Errorf("unknown id: %d", got)
 	}

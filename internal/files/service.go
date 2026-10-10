@@ -69,6 +69,9 @@ type Spaces interface {
 	// MayReadSpace reports whether the caller in ctx may read the space's
 	// messages, and so its icon and attachments.
 	MayReadSpace(ctx context.Context, spaceID string) (bool, error)
+	// InviteShowsIcon reports whether code is a usable invite to the space
+	// whose icon is fileID. The download rule for someone not signed in.
+	InviteShowsIcon(ctx context.Context, code, fileID string) (bool, error)
 	// ListSpaceIDs is used to tell a user's spaces about a new avatar.
 	ListSpaceIDs(ctx context.Context, userID string) ([]string, error)
 	// ChannelSpaceToPostIn returns the channel's space id ("" for a
