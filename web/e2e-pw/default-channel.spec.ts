@@ -80,8 +80,8 @@ test("the channel a space opens in", async ({ browser, request }) => {
   ).toHaveCount(0);
   await expect(
     chosen(A),
-    "a space that has never chosen one shows the fallback",
-  ).toHaveText("First channel");
+    "a new space's default is its first channel",
+  ).toHaveText("# general");
 
   // ---- Choose #tools, and B lands there rather than in #general
   const saved = A.waitForResponse((r) => r.url().includes("/UpdateSpace"));
