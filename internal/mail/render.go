@@ -87,11 +87,13 @@ func newSiteView(site Site) siteView {
 
 func parseTemplates() map[string]messageTemplates {
 	funcs := map[string]any{"when": formatWhen, "day": formatDay, "clock": formatClock}
+	htmlFuncs := map[string]any{"when": formatWhen, "day": formatDay, "clock": formatClock,
+		"outlookOpen": func() htmltemplate.HTML { return outlookOpen }, "outlookClose": func() htmltemplate.HTML { return outlookClose }}
 	parsed := make(map[string]messageTemplates, len(messageData))
 	for name := range messageData {
 		text := texttemplate.Must(texttemplate.New(name).Funcs(funcs).Option("missingkey=error").
 			ParseFS(templateFiles, "templates/"+textLayout, "templates/"+name+".txt.tmpl"))
-		html := htmltemplate.Must(htmltemplate.New(name).Funcs(funcs).Option("missingkey=error").
+		html := htmltemplate.Must(htmltemplate.New(name).Funcs(htmlFuncs).Option("missingkey=error").
 			ParseFS(templateFiles, "templates/"+htmlLayout, "templates/"+name+".html.tmpl"))
 		parsed[name] = messageTemplates{text: text, html: html}
 	}
@@ -106,3 +108,12 @@ func formatDay(at time.Time) string { return at.UTC().Format("2 January 2006") }
 
 // formatClock is "22:14 UTC".
 func formatClock(at time.Time) string { return at.UTC().Format("15:04") + " UTC" }
+
+// Outlook on Windows ignores max-width, so the card would stretch across
+// the window; only it reads these conditional comments, which give it a
+// fixed 560px table. html/template drops comments written in a template,
+// so they come in as values.
+const (
+	outlookOpen  = `<!--[if mso]><table role="presentation" width="560" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->`
+	outlookClose = `<!--[if mso]></td></tr></table><![endif]-->`
+)

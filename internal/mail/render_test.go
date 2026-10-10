@@ -80,6 +80,19 @@ func TestRenderEscapes(t *testing.T) {
 	}
 }
 
+// A public URL that isn't http(s) never becomes a working href. Saving
+// one is refused elsewhere; this holds even if one got through.
+func TestRenderNeutralisesScriptURL(t *testing.T) {
+	site := mail.Site{PublicURL: "javascript://x/%0aalert(1)", InstanceName: "Brownstone"}
+	msg, err := mail.Render(mail.TemplateConfirmEmail, mail.ConfirmEmailData{Username: "casey", Link: "javascript://x/%0aalert(1)"}, site)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(msg.HTML, `href="javascript:`) {
+		t.Errorf("a javascript: URL reached an href:\n%s", msg.HTML)
+	}
+}
+
 // A name with a line break can't add a header.
 func TestRenderSubjectIsOneLine(t *testing.T) {
 	site := mail.Site{PublicURL: "https://chat.example.com", InstanceName: "Brownstone\r\nBcc: ada@example.net"}

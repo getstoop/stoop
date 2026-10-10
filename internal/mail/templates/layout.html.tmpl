@@ -14,12 +14,18 @@
   .link { color: #e2725b !important; }
   .button { background: #e2725b !important; color: #141517 !important; }
 }
+@media (max-width: 480px) {
+  .card { padding: 20px !important; font-size: 16px !important; }
+  .button-table { width: 100% !important; }
+  a.button { display: block !important; text-align: center !important; padding: 14px 20px !important; }
+}
 </style>
 </head>
 <body class="page" style="margin:0;padding:0;background:#f6f4f0;">
 <table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6f4f0;">
 <tr>
 <td align="center" style="padding:32px 12px;">
+{{outlookOpen}}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
 <tr>
 <td class="card" style="background:#ffffff;border:1px solid #d9d5cd;border-radius:8px;padding:32px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1f1d1a;">
@@ -31,6 +37,7 @@
 <td class="muted" align="center" style="padding:16px 8px 0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#6b675f;">Sent by {{.Site.InstanceName}}{{with .Site.Host}} ({{.}}){{end}}. {{block "footer" .}}You're receiving this because of activity on your account.{{end}}</td>
 </tr>
 </table>
+{{outlookClose}}
 </td>
 </tr>
 </table>
