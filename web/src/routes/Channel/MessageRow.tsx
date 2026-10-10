@@ -239,6 +239,7 @@ export function MessageRow({
           usernames={usernames}
           mentionsEveryone={message.mentionsEveryone}
           mentionsHere={message.mentionsHere}
+          mentionsChannel={message.mentionsChannel}
           myUsername={myUsername}
         />
         <Attachments attachments={message.attachments} />

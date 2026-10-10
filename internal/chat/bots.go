@@ -18,7 +18,7 @@ import (
 // port. Configuring integrations is instance.integrations.manage, checked
 // there; nothing here consults a space permission.
 
-// mayNotifyEveryone is the @everyone gate: the credential covers it in
+// mayNotifyEveryone is the @channel and @here gate: the credential covers it in
 // this channel and the author's role holds it.
 func (s *Service) mayNotifyEveryone(ctx context.Context, channel dbgen.Channel) bool {
 	if !authctx.CoversChannel(ctx, authctx.MessagesNotifyEveryone, spaceOf(channel), channel.ID) {

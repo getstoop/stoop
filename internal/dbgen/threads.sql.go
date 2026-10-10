@@ -187,7 +187,7 @@ reactions AS (DELETE FROM message_reactions WHERE message_id = $1::uuid),
 mentions AS (DELETE FROM message_mentions WHERE message_id = $1::uuid),
 pins AS (DELETE FROM channel_pins WHERE message_id = $1::uuid),
 activity AS (DELETE FROM activity_items WHERE message_id = $1::uuid)
-UPDATE messages SET content = '', mentions_everyone = false, mentions_here = false,
+UPDATE messages SET content = '', mentions_everyone = false, mentions_here = false, mentions_channel = false,
     edited_at = NULL, deleted_at = now()
 WHERE id = $1::uuid
 `
@@ -274,14 +274,14 @@ func (q *Queries) RecordThreadReply(ctx context.Context, arg RecordThreadReplyPa
 
 const threadParticipants = `-- name: ThreadParticipants :many
 WITH thread AS (
-    SELECT m.id, m.channel_id, m.author_id, m.mentions_everyone, m.mentions_here FROM messages m
+    SELECT m.id, m.channel_id, m.author_id, (m.mentions_everyone OR m.mentions_here OR m.mentions_channel) AS broadcast FROM messages m
     WHERE m.id = $1::uuid
        OR (m.thread_root_id = $1::uuid AND m.id < $2::uuid)
 ), people AS (
     SELECT t.author_id AS user_id FROM thread t
     UNION
     SELECT mm.user_id FROM message_mentions mm JOIN thread t ON t.id = mm.message_id
-    WHERE NOT t.mentions_everyone AND NOT t.mentions_here
+    WHERE NOT t.broadcast
 )
 SELECT p.user_id FROM people p
 JOIN channels c ON c.id = (SELECT channel_id FROM thread WHERE id = $1::uuid)

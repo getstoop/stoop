@@ -104,6 +104,30 @@ func (q *Queries) IsInChannel(ctx context.Context, arg IsInChannelParams) (bool,
 	return is_in, err
 }
 
+const listChannelMemberIDs = `-- name: ListChannelMemberIDs :many
+SELECT user_id FROM channel_members WHERE channel_id = $1
+`
+
+func (q *Queries) ListChannelMemberIDs(ctx context.Context, channelID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listChannelMemberIDs, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listChannelMembers = `-- name: ListChannelMembers :many
 SELECT sm.space_id, sm.user_id, sm.joined_at, sm.role FROM space_members sm
 JOIN channel_members cm ON cm.space_id = sm.space_id AND cm.user_id = sm.user_id

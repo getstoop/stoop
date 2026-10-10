@@ -58,12 +58,13 @@ message Message {
   // The channel's space, so clients can update per-space state from a
   // realtime event without a lookup.
   string space_id = 7;
-  // True when the message @mentioned everyone (and the author was allowed
-  // to); mention_user_ids then lists every other member.
+  // Messages from before @channel replaced @everyone: true when the
+  // message @mentioned everyone in the space. Never set on a new message.
   bool mentions_everyone = 8;
   // Set when this message is a reply.
   ReplyRef reply_to = 9;
-  // True when the message @mentioned everyone currently online (@here).
+  // True when the message @mentioned everyone in the channel who was
+  // online (@here).
   bool mentions_here = 10;
   // Set once the author has edited the message.
   google.protobuf.Timestamp edited_at = 11;
@@ -96,6 +97,9 @@ message Message {
   // excerpt, for the line in the channel saying which thread it answers.
   // No author or preview when the root is a placeholder.
   ReplyRef thread_root = 20;
+  // True when the message @mentioned everyone in the channel (@channel)
+  // and the author was allowed to; mention_user_ids then lists them.
+  bool mentions_channel = 21;
 }
 
 // ThreadSummary is what the line under a root shows, so it renders with no

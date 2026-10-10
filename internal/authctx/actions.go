@@ -60,7 +60,7 @@ var descriptions = map[Action]string{
 	SpaceRead:              "see this space",
 	MessagesRead:           "read messages",
 	MessagesPost:           "post messages",
-	MessagesNotifyEveryone: "mention everyone in this space",
+	MessagesNotifyEveryone: "notify a whole channel with @channel and @here",
 	MessagesModerate:       "delete other people's messages",
 	VoiceJoin:              "join voice",
 	InvitesCreate:          "create invites for this space",

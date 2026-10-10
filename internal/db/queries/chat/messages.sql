@@ -7,13 +7,13 @@
 -- each list and in the view; see docs/architecture/messaging.md → Search.
 
 -- name: CreateMessage :one
-INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id,
+INSERT INTO messages (id, channel_id, author_id, content, mentions_channel, mentions_here, reply_to_message_id,
     thread_root_id, in_channel)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at;
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, mentions_channel;
 
 -- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, mentions_channel
 FROM messages WHERE id = $1;
 
 -- ListMessagesBefore carries the replied-to message's quote (if any) so
@@ -57,7 +57,7 @@ WHERE message_id = ANY($1::uuid[]);
 -- check.
 -- name: UpdateMessageContent :one
 UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at;
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, mentions_channel;
 
 -- name: DeleteMessage :exec
 DELETE FROM messages WHERE id = $1;

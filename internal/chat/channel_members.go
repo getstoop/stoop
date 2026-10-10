@@ -167,6 +167,9 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 // addMembers puts people in a channel and moves the read marker of those
 // it added to readUpTo, when there is one. It returns who was added.
 func addMembers(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel, userIDs []string, addedBy, readUpTo *string) ([]string, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
 	added, err := qtx.AddChannelMembers(ctx, dbgen.AddChannelMembersParams{
 		ChannelID: channel.ID, UserIds: userIDs, AddedBy: addedBy,
 	})

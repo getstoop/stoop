@@ -210,27 +210,36 @@ which is a different mechanism for a genuinely different thing.
 ## Mentions
 
 `@handle` is matched at a word boundary against auth's username rules
-(3–32 of `[a-z0-9_]`), case-insensitively, and resolved to **people in the
-channel** — a space's members, or a DM's participants — excluding the
-author.
+(3–32 of `[a-z0-9_]`), case-insensitively, and resolved among **the
+space's members**, or a DM's participants, excluding the author.
 
 Handles that don't resolve are silently ignored. **A mention is an address,
 not a permission**: writing `@casey` in a space Casey isn't in does not
 reach them, and does not error either, because a typo shouldn't fail a
 message.
 
-`@everyone` and `@here` are reserved usernames (auth refuses to register
-them) and require the `mention_everyone` permission. Without it the token
-is plain text — not an error, just words. `@everyone` wins if both appear.
-In a DM both are plain text, since addressing "everyone" in a conversation
-with one other person is meaningless.
+**A mention by name brings the person into a text channel.** Someone in
+the space but not the channel is added to it in the send's transaction
+(`mentionedOutsiders`), with their read marker at what was newest before
+the message, so the channel arrives in their sidebar unread with its
+badge. Someone who blocked the author is not added. An edit adds nobody:
+mentions are not re-resolved on edit.
 
-`@here` resolves through the `PresenceLister` port to the members who have
-a live connection right now. It is the only place chat consults the
-gateway.
+`@channel` and `@here` are reserved usernames (auth refuses to register
+them) and require the `mention_everyone` permission. Without it the token
+is plain text — not an error, just words. `@channel` wins if both appear.
+`@channel` reaches everyone in the channel; in a voice channel, which has
+no list of its own, that is the space. In a DM both are plain text, since
+addressing a conversation with one other person is meaningless.
+`messages.mentions_everyone` marks messages from older releases that
+addressed a whole space; nothing writes it, and `@everyone` is plain text.
+
+`@here` resolves through the `PresenceLister` port to the people in the
+channel who have a live connection right now. It is the only place chat
+consults the gateway.
 
 **Recipients are materialised** into `message_mentions` at send time, even
-for `@everyone`. Activity delivery then has one shape regardless of how
+for `@channel`. Activity delivery then has one shape regardless of how
 the mention was written, and a later membership change doesn't retroactively
 rewrite who was addressed.
 
@@ -270,7 +279,7 @@ otherwise hand them the new message's text.
 
 **Delivery is batched.** Each of the three goes through `notify`, which
 filters blockers, writes every recipient's item, and reads their mutes in
-one query each, so an `@everyone` costs the same handful of queries in
+one query each, so an `@channel` costs the same handful of queries in
 any size of space.
 
 ### The DM feed collapses
@@ -381,7 +390,7 @@ tables leave room for, none of it started:
 - **Push.** When banners leave the browser, the server already stamps
   the effective mute on every item; the tables hold what a push sender
   needs.
-- **Suppressing `@everyone` separately** is a candidate level, not a new
+- **Suppressing `@channel` separately** is a candidate level, not a new
   table.
 
 ## History
@@ -591,7 +600,7 @@ in the root's thread and not in the channel's timeline
   search results carry `thread_root_id`, so the client can open the
   thread.
 - **Who is in a thread.** Its root's author, everyone who replied, and
-  everyone @mentioned by name in the root or a reply (`@everyone` and
+  everyone @mentioned by name in the root or a reply (`@channel` and
   `@here` don't count). Nothing stores it: `ThreadViewerStates` works it
   out from the messages, so there is no follow to join or leave.
 - **Mutes and read markers.** `thread_mutes` and `thread_reads` mirror
@@ -642,7 +651,7 @@ carrying a `UNIQUE` constraint. That key is the whole model:
 
 DMs have no manager: they are never renamed, reordered or deleted, and each
 person deletes only their own messages. Mentions resolve against
-participants; `@everyone` and `@here` are plain text.
+participants; `@channel` and `@here` are plain text.
 
 **Who may open one:** people who share a space, or an instance admin with
 anyone — checked between the caller and each person named. It follows that

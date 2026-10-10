@@ -185,7 +185,7 @@ module, which is what lets the list be one query with no paging
 ([messaging.md](messaging.md#pins)).
 
 **`message_mentions`** — `(message_id, user_id)`. Recipients of
-`@everyone` and `@here` are *materialised* here at send time, not
+`@channel` and `@here` are *materialised* here at send time, not
 recomputed at read time, so activity delivery has one shape regardless
 of how the mention was written and a later membership change doesn't
 retroactively change who was mentioned.

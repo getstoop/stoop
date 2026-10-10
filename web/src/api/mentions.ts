@@ -18,22 +18,24 @@ export function mentionQueryAt(
   return { start: at, query };
 }
 
-export const EVERYONE = "everyone";
+export const CHANNEL = "channel";
 export const HERE = "here";
+// Messages from before @channel replaced it still carry this one.
+export const EVERYONE = "everyone";
 
-// Candidates for the picker: members matching the prefix, plus @everyone
-// first when the caller may use it.
+// Candidates for the picker: members matching the prefix, plus @channel
+// and @here first when the caller may use them.
 export function filterMembers(
   members: Member[],
   query: string,
-  includeEveryone = false,
+  includeBroadcast = false,
 ): Member[] {
   const q = query.toLowerCase();
   const out: Member[] = [];
-  if (includeEveryone) {
+  if (includeBroadcast) {
     for (const [handle, label] of [
-      [EVERYONE, "Everyone in this space"],
-      [HERE, "Everyone online right now"],
+      [CHANNEL, "Everyone in this channel"],
+      [HERE, "Everyone here who is online"],
     ]) {
       if (handle.startsWith(q)) {
         out.push({
@@ -65,15 +67,18 @@ export function splitMentions(
   usernames: Set<string>,
   everyone = false,
   here = false,
+  channel = false,
 ): { text: string; mention?: string }[] {
   const out: { text: string; mention?: string }[] = [];
   let last = 0;
   for (const m of content.matchAll(MENTION_TOKEN)) {
     const handle = m[2];
     const lower = handle.toLowerCase();
-    const isEveryone =
-      (everyone && lower === EVERYONE) || (here && lower === HERE);
-    if (!HANDLE.test(handle) || (!usernames.has(lower) && !isEveryone))
+    const isBroadcast =
+      (everyone && lower === EVERYONE) ||
+      (here && lower === HERE) ||
+      (channel && lower === CHANNEL);
+    if (!HANDLE.test(handle) || (!usernames.has(lower) && !isBroadcast))
       continue;
     const tokenStart = (m.index ?? 0) + m[1].length;
     if (tokenStart > last) out.push({ text: content.slice(last, tokenStart) });

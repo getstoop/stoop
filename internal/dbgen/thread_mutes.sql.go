@@ -141,7 +141,7 @@ SELECT r.id AS root_id,
      OR EXISTS (SELECT 1 FROM message_mentions mm JOIN messages m ON m.id = mm.message_id
                 WHERE mm.user_id = $1::uuid
                   AND (m.id = r.id OR m.thread_root_id = r.id)
-                  AND NOT m.mentions_everyone AND NOT m.mentions_here))::bool AS participating,
+                  AND NOT m.mentions_everyone AND NOT m.mentions_here AND NOT m.mentions_channel))::bool AS participating,
     EXISTS (SELECT 1 FROM thread_mutes tm
             WHERE tm.user_id = $1::uuid AND tm.root_message_id = r.id)::bool AS muted,
     (SELECT count(*) FROM messages m

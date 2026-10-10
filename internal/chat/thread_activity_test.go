@@ -58,7 +58,7 @@ func TestThreadActivity(t *testing.T) {
 		return out
 	}
 
-	root := send(ada, "@everyone who has the ladder?", "")
+	root := send(ada, "@channel who has the ladder?", "")
 	first := send(bea, "mine", root.Id)
 	got := threadItems(ada)
 	if len(got) != 1 || got[0].MessageId != first.Id || got[0].ThreadRootId != root.Id {
@@ -78,7 +78,7 @@ func TestThreadActivity(t *testing.T) {
 		t.Errorf("after casey's reply: bea %d, casey %d thread items; want 1, 0", len(threadItems(bea)), len(threadItems(casey)))
 	}
 	if len(items(dot)) != 1 {
-		t.Errorf("dot, in only through @everyone, has %d items; want just the @everyone mention", len(items(dot)))
+		t.Errorf("dot, in only through @channel, has %d items; want just the @channel mention", len(items(dot)))
 	}
 
 	// A reply that mentions dot by name is a mention for her, and puts her

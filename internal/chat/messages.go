@@ -77,6 +77,12 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 	mentioned := res.userIDs
+	// Someone mentioned by name who is not in the channel joins it with
+	// the message, so the channel and its badge reach them together.
+	brought, err := s.mentionedOutsiders(ctx, channel, userID, res.named)
+	if err != nil {
+		return nil, err
+	}
 
 	// A reply must point at a message in this channel, and in the same
 	// thread or the same timeline.
@@ -123,13 +129,18 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
-			MentionsEveryone: res.everyone, MentionsHere: res.here, ReplyToMessageID: replyTo,
+			MentionsChannel: res.channel, MentionsHere: res.here, ReplyToMessageID: replyTo,
 			ThreadRootID: threadRootID, InChannel: threadRoot == nil || alsoSend,
 		})
 		if err != nil {
 			return fmt.Errorf("create message: %w", err)
 		}
 		row = messageRow(created)
+		// Their marker stops at what was newest before this message, so
+		// it arrives unread.
+		if brought, err = addMembers(ctx, qtx, channel, brought, &userID, channel.LastMessageID); err != nil {
+			return fmt.Errorf("bring in mentioned people: %w", err)
+		}
 		if err := insertAttachments(ctx, qtx, row.ID, attachments); err != nil {
 			return err
 		}
@@ -210,6 +221,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		}
 		s.publishThreadRead(userID, channel, threadRoot.ID, threadMarker)
 	}
+	s.publishChannelJoined(channel, brought)
 	s.recordActivity(ctx, row, channel, participants, parent, mentioned, msg.Author, attachments)
 	if s.unfurler != nil {
 		s.unfurlLater(row.ID, userID, channel.ID, linksToFetch)
@@ -358,6 +370,7 @@ func listedMessage(row dbgen.MessageWithReply) messageRow {
 		CreatedAt: row.CreatedAt, MentionsEveryone: row.MentionsEveryone,
 		ReplyToMessageID: row.ReplyToMessageID, MentionsHere: row.MentionsHere, EditedAt: row.EditedAt,
 		ThreadRootID: row.ThreadRootID, InChannel: row.InChannel, DeletedAt: row.DeletedAt,
+		MentionsChannel: row.MentionsChannel,
 	}
 }
 
@@ -607,7 +620,7 @@ func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, me
 		Id: row.ID, ChannelId: row.ChannelID, Author: authorOrUnknown(authors, row.AuthorID),
 		Content: row.Content, CreatedAt: timestamppb.New(row.CreatedAt),
 		MentionUserIds: mentions, SpaceId: spaceID,
-		MentionsEveryone: row.MentionsEveryone, MentionsHere: row.MentionsHere,
+		MentionsEveryone: row.MentionsEveryone, MentionsHere: row.MentionsHere, MentionsChannel: row.MentionsChannel,
 		InChannel: row.InChannel, Deleted: row.DeletedAt != nil,
 	}
 	if row.ThreadRootID != nil {
