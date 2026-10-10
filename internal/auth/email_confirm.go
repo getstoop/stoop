@@ -71,6 +71,10 @@ func (s *Service) ConfirmEmail(ctx context.Context, req *connect.Request[authv1.
 		}); err != nil {
 			return fmt.Errorf("revoke other links: %w", err)
 		}
+		// Reset links went to the address this one replaces.
+		if err := qtx.DeleteUserEmailTokens(ctx, dbgen.DeleteUserEmailTokensParams{UserID: link.UserID, Purpose: resetPasswordPurpose}); err != nil {
+			return fmt.Errorf("revoke reset links: %w", err)
+		}
 		if link.PreviousEmail == nil || strings.EqualFold(*link.PreviousEmail, link.Address) {
 			return nil
 		}

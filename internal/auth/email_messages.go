@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -49,7 +50,7 @@ func (s *Service) BuildConfirmEmail(ctx context.Context, args mail.JobArgs, site
 	// Older links die only once this one is on its way, so a send that
 	// fails leaves the link the person already has working.
 	msg.OnSent = func(ctx context.Context) error {
-		return s.q.DeleteOlderEmailTokens(ctx, tokenID)
+		return s.retireOlderEmailTokens(ctx, args.UserID, tokenID)
 	}
 	return msg, nil
 }
@@ -88,6 +89,17 @@ func (s *Service) emailRecipient(ctx context.Context, userID string) (dbgen.GetE
 		return dbgen.GetEmailRecipientRow{}, mail.ErrNothingToSend
 	}
 	return recipient, err
+}
+
+// retireOlderEmailTokens deletes the links made before tokenID, locking
+// the account first as every path that touches its links does.
+func (s *Service) retireOlderEmailTokens(ctx context.Context, userID, tokenID string) error {
+	return s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockUserEmail(ctx, userID); err != nil {
+			return fmt.Errorf("lock account: %w", err)
+		}
+		return qtx.DeleteOlderEmailTokens(ctx, tokenID)
+	})
 }
 
 // mintEmailToken stores the hash of a new link token for address; the

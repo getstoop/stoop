@@ -69,8 +69,8 @@ func (s *Service) resetPassword(ctx context.Context, u dbgen.User) (temporary st
 	if err != nil {
 		return "", AccountSummary{}, hashFailure("hash password", err)
 	}
-	if err := s.q.UpdateUserPasswordHash(ctx, dbgen.UpdateUserPasswordHashParams{ID: u.ID, PasswordHash: &hash}); err != nil {
-		return "", AccountSummary{}, fmt.Errorf("update password: %w", err)
+	if err := s.setPasswordHash(ctx, u.ID, hash); err != nil {
+		return "", AccountSummary{}, err
 	}
 	if err := s.revokeAll(ctx, u.ID); err != nil {
 		return "", AccountSummary{}, err

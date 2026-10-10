@@ -3,14 +3,14 @@
 
 -- PasswordResetAccount is the account whose confirmed address this is.
 -- name: PasswordResetAccount :one
-SELECT id, role, kind, (deactivated_at IS NOT NULL)::bool AS deactivated
+SELECT id
 FROM users
 WHERE email = sqlc.arg(address)::citext;
 
 -- GetPasswordResetToken is a live reset link whose address is still the
 -- account's confirmed one, on an active person's account.
 -- name: GetPasswordResetToken :one
-SELECT t.id, t.user_id, u.username
+SELECT t.id, t.user_id, u.username, u.role
 FROM email_tokens t
 JOIN users u ON u.id = t.user_id
 WHERE t.token_hash = sqlc.arg(token_hash)::bytea
@@ -24,7 +24,7 @@ WHERE t.token_hash = sqlc.arg(token_hash)::bytea
 -- LockPasswordResetToken is GetPasswordResetToken with the link locked;
 -- the account already is (LockUserEmail).
 -- name: LockPasswordResetToken :one
-SELECT t.id, t.user_id, u.username
+SELECT t.id, t.user_id, u.username, u.role
 FROM email_tokens t
 JOIN users u ON u.id = t.user_id
 WHERE t.token_hash = sqlc.arg(token_hash)::bytea
