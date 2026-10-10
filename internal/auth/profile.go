@@ -128,10 +128,8 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 	if err != nil {
 		return nil, hashFailure("hash password", err)
 	}
-	if err := s.q.UpdateUserPasswordHash(ctx, dbgen.UpdateUserPasswordHashParams{
-		ID: id.UserID, PasswordHash: &hash,
-	}); err != nil {
-		return nil, fmt.Errorf("update password: %w", err)
+	if err := s.setPasswordHash(ctx, id.UserID, hash); err != nil {
+		return nil, err
 	}
 	// Anyone holding an old session (a stolen cookie, a forgotten laptop)
 	// is signed out; the caller's own session stays valid.

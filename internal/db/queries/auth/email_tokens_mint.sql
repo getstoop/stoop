@@ -3,7 +3,7 @@
 
 -- GetEmailRecipient is what a send_email builder needs about the user.
 -- name: GetEmailRecipient :one
-SELECT username, email, pending_email, kind, (deactivated_at IS NOT NULL)::bool AS deactivated
+SELECT username, email, pending_email, kind, role, (deactivated_at IS NOT NULL)::bool AS deactivated
 FROM users
 WHERE id = $1;
 

@@ -1,9 +1,11 @@
 package auth_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/proto"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/auth"
@@ -79,25 +82,29 @@ func resetLinkToken(t *testing.T, svc *auth.Service, userID string) string {
 	return token
 }
 
-func queuedFor(jobs *recordedJobs, template string) []string {
-	var users []string
-	for _, args := range jobs.queued() {
-		if args.Template == template {
-			users = append(users, args.UserID)
-		}
+// buildRequested builds the reset email for a job queued by
+// RequestPasswordReset: its recipient, or "" when nothing is sent.
+func buildRequested(t *testing.T, svc *auth.Service, args mail.JobArgs) string {
+	t.Helper()
+	msg, err := svc.BuildPasswordReset(context.Background(), args, emailSite)
+	if errors.Is(err, mail.ErrNothingToSend) {
+		return ""
 	}
-	return users
+	if err != nil {
+		t.Fatal(err)
+	}
+	return msg.To
 }
 
-// A link is queued only for a confirmed address of an active person who
-// may sign in with a password; every other address gets the same reply
-// and nothing is queued.
+// Every well-formed address gets the same reply and exactly one job,
+// carrying the address alone; the job sends only to the confirmed address
+// of an active person who may sign in with a password.
 func TestRequestPasswordResetEligibility(t *testing.T) {
 	svc, pool, jobs := emailService(t)
 	policy := &fakePasswordPolicy{policy: auth.PasswordEveryone}
 	svc.UsePasswordPolicy(policy)
-	caseyID := resetAccount(t, pool, "casey", "member", "person", "casey@example.com")
-	adaID := resetAccount(t, pool, "ada", "admin", "person", "ada@example.com")
+	resetAccount(t, pool, "casey", "member", "person", "casey@example.com")
+	resetAccount(t, pool, "ada", "admin", "person", "ada@example.com")
 	beaID := resetAccount(t, pool, "bea", "member", "person", "bea@example.com")
 	if _, err := pool.Exec(context.Background(), `UPDATE users SET deactivated_at = now() WHERE id = $1`, beaID); err != nil {
 		t.Fatal(err)
@@ -107,16 +114,16 @@ func TestRequestPasswordResetEligibility(t *testing.T) {
 
 	for _, test := range []struct {
 		name, policy, address string
-		want                  string
+		wantJob, wantTo       string
 	}{
-		{"no account", auth.PasswordEveryone, "nobody@example.com", ""},
-		{"confirmed, any case, trimmed", auth.PasswordEveryone, "  CASEY@Example.com ", caseyID},
-		{"pending address only", auth.PasswordEveryone, "pending@example.com", ""},
-		{"deactivated", auth.PasswordEveryone, "bea@example.com", ""},
-		{"bot", auth.PasswordEveryone, "bot@example.net", ""},
-		{"admins only, member", auth.PasswordAdmins, "casey@example.com", ""},
-		{"admins only, admin", auth.PasswordAdmins, "ada@example.com", adaID},
-		{"passwords off, admin", auth.PasswordOff, "ada@example.com", ""},
+		{"no account", auth.PasswordEveryone, "nobody@example.com", "nobody@example.com", ""},
+		{"confirmed, any case, trimmed", auth.PasswordEveryone, "  CASEY@Example.com ", "casey@example.com", "casey@example.com"},
+		{"pending address only", auth.PasswordEveryone, "pending@example.com", "pending@example.com", ""},
+		{"deactivated", auth.PasswordEveryone, "bea@example.com", "bea@example.com", ""},
+		{"bot", auth.PasswordEveryone, "bot@example.net", "bot@example.net", ""},
+		{"admins only, member", auth.PasswordAdmins, "casey@example.com", "casey@example.com", ""},
+		{"admins only, admin", auth.PasswordAdmins, "ada@example.com", "ada@example.com", "ada@example.com"},
+		{"passwords off, admin", auth.PasswordOff, "ada@example.com", "ada@example.com", ""},
 	} {
 		policy.policy = test.policy
 		before := len(jobs.queued())
@@ -125,16 +132,20 @@ func TestRequestPasswordResetEligibility(t *testing.T) {
 			continue
 		}
 		queued := jobs.queued()[before:]
-		switch {
-		case test.want == "" && len(queued) != 0:
-			t.Errorf("%s: queued %+v, want nothing", test.name, queued)
-		case test.want != "" && (len(queued) != 1 || queued[0].UserID != test.want || queued[0].Template != mail.TemplatePasswordReset):
-			t.Errorf("%s: queued %+v, want one reset for %s", test.name, queued, test.want)
+		want := mail.JobArgs{Template: mail.TemplatePasswordReset, Email: test.wantJob}
+		if len(queued) != 1 || queued[0] != want {
+			t.Errorf("%s: queued %+v, want %+v", test.name, queued, want)
+			continue
+		}
+		if to := buildRequested(t, svc, queued[0]); to != test.wantTo {
+			t.Errorf("%s: sent to %q, want %q", test.name, to, test.wantTo)
 		}
 	}
 
-	if err := requestReset(svc, "   "); connect.CodeOf(err) != connect.CodeInvalidArgument || fieldOf(err) != "email" {
-		t.Errorf("blank address: err = %v, want invalid_argument on email", err)
+	for _, malformed := range []string{"   ", "casey", "Casey <casey@example.com>"} {
+		if err := requestReset(svc, malformed); connect.CodeOf(err) != connect.CodeInvalidArgument || fieldOf(err) != "email" {
+			t.Errorf("%q: err = %v, want invalid_argument on email", malformed, err)
+		}
 	}
 	svc.UseLinkBase(func(context.Context) (string, error) { return "", nil })
 	if err := requestReset(svc, "casey@example.com"); connect.CodeOf(err) != connect.CodeFailedPrecondition {
@@ -147,18 +158,75 @@ func TestRequestPasswordResetEligibility(t *testing.T) {
 	}
 }
 
-// Past three an hour the reply is still success; nothing more is queued.
-func TestRequestPasswordResetLimitIsSilent(t *testing.T) {
+// The reply is the same bytes for an unknown, an ineligible, an
+// over-the-limit and an eligible address; only the eligible one is sent.
+func TestRequestPasswordResetRepliesAlike(t *testing.T) {
 	svc, pool, jobs := emailService(t)
-	svc.UsePasswordResetThrottle(&allowN{left: 3})
-	caseyID := resetAccount(t, pool, "casey", "member", "person", "casey@example.com")
-	for range 4 {
-		if err := requestReset(svc, "casey@example.com"); err != nil {
+	svc.UsePasswordResetThrottle(&perKeyLimit{limit: 1, used: map[string]int{}})
+	resetAccount(t, pool, "casey", "member", "person", "casey@example.com")
+	resetAccount(t, pool, "backup_bot", "member", "bot", "bot@example.net")
+	adaID := resetAccount(t, pool, "ada", "member", "person", "ada@example.com")
+	if _, err := svc.BuildPasswordReset(context.Background(),
+		mail.JobArgs{Template: mail.TemplatePasswordReset, Email: "ada@example.com"}, emailSite); err != nil {
+		t.Fatalf("ada's first reset: %v", err)
+	}
+
+	var replies [][]byte
+	for _, test := range []struct{ name, address, wantTo string }{
+		{"unknown", "nobody@example.com", ""},
+		{"ineligible", "bot@example.net", ""},
+		{"over the limit", "ada@example.com", ""},
+		{"eligible", "casey@example.com", "casey@example.com"},
+	} {
+		before := len(jobs.queued())
+		res, err := svc.RequestPasswordReset(context.Background(),
+			connect.NewRequest(&authv1.RequestPasswordResetRequest{Email: test.address}))
+		if err != nil {
+			t.Fatalf("%s: %v", test.name, err)
+		}
+		reply, err := proto.Marshal(res.Msg)
+		if err != nil {
 			t.Fatal(err)
 		}
+		replies = append(replies, append(reply, []byte(fmt.Sprint(res.Header()))...))
+		queued := jobs.queued()[before:]
+		if len(queued) != 1 {
+			t.Fatalf("%s: %d jobs queued, want 1", test.name, len(queued))
+		}
+		if to := buildRequested(t, svc, queued[0]); to != test.wantTo {
+			t.Errorf("%s: sent to %q, want %q", test.name, to, test.wantTo)
+		}
 	}
-	if got := queuedFor(jobs, mail.TemplatePasswordReset); len(got) != 3 || got[0] != caseyID {
-		t.Errorf("queued %v, want three for casey", got)
+	for i, reply := range replies[1:] {
+		if !bytes.Equal(reply, replies[0]) {
+			t.Errorf("reply %d = %q, want %q", i+1, reply, replies[0])
+		}
+	}
+	if got := countTokens(t, pool, adaID); got != 1 {
+		t.Errorf("ada has %d links, want only the first", got)
+	}
+}
+
+// Past three an hour the job sends nothing; a retry of a job that took
+// its share does not take another.
+func TestBuildPasswordResetLimit(t *testing.T) {
+	svc, pool, _ := emailService(t)
+	svc.UsePasswordResetThrottle(&allowN{left: 3})
+	resetAccount(t, pool, "casey", "member", "person", "casey@example.com")
+	args := mail.JobArgs{Template: mail.TemplatePasswordReset, Email: "casey@example.com"}
+	var sent int
+	for range 4 {
+		if buildRequested(t, svc, args) != "" {
+			sent++
+		}
+	}
+	if sent != 3 {
+		t.Errorf("%d sent, want 3", sent)
+	}
+	retry := emailSite
+	retry.Attempt = 2
+	if _, err := svc.BuildPasswordReset(context.Background(), args, retry); err != nil {
+		t.Errorf("a retry over the limit: err = %v, want it sent", err)
 	}
 }
 

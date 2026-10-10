@@ -31,53 +31,53 @@ const (
 // UsePasswordResetThrottle wires the per-account limit on reset emails.
 func (s *Service) UsePasswordResetThrottle(throttle Throttle) { s.resetThrottle = throttle }
 
+// RequestPasswordReset queues one job for any well-formed address and
+// returns: the job decides whether there is an account to send to, so
+// the reply and the work done never say whether the address has one.
 func (s *Service) RequestPasswordReset(ctx context.Context, req *connect.Request[authv1.RequestPasswordResetRequest]) (*connect.Response[authv1.RequestPasswordResetResponse], error) {
 	if err := s.requireEmailOn(ctx); err != nil {
 		return nil, err
 	}
-	address := strings.TrimSpace(req.Msg.Email)
-	if address == "" {
-		return nil, apierr.Field(connect.CodeInvalidArgument, "email", errors.New("Enter an email address."))
-	}
-	userID, err := s.passwordResetAccount(ctx, address)
+	address, err := emailAddressIn(req.Msg.Email, "email")
 	if err != nil {
 		return nil, err
 	}
-	// Every refusal from here on answers as a sent link does, so the
-	// reply never says whether the address has an account.
-	if userID != "" && s.allowPasswordResetEmail(ctx, userID) {
-		if err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-			_, err := s.emailJobs.EnqueueTx(ctx, tx, mail.SendEmailKind, mail.JobArgs{
-				Template: mail.TemplatePasswordReset, UserID: userID,
-			})
-			return err
-		}); err != nil {
-			return nil, fmt.Errorf("queue reset link: %w", err)
-		}
+	if err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		_, err := s.emailJobs.EnqueueTx(ctx, tx, mail.SendEmailKind, mail.JobArgs{
+			Template: mail.TemplatePasswordReset, Email: strings.ToLower(address),
+		})
+		return err
+	}); err != nil {
+		return nil, fmt.Errorf("queue reset link: %w", err)
 	}
 	return connect.NewResponse(&authv1.RequestPasswordResetResponse{}), nil
 }
 
-// passwordResetAccount is the account a reset link for address goes to,
-// or "" when none may have one: no account holds it as its confirmed
-// address, the account is a bot or deactivated, or password sign-in is
-// not open to it.
-func (s *Service) passwordResetAccount(ctx context.Context, address string) (string, error) {
-	account, err := s.q.PasswordResetAccount(ctx, address)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil
+// passwordResetEligible says whether an account may have a reset link
+// now: an active person whom password_sign_in lets use a password.
+func (s *Service) passwordResetEligible(ctx context.Context, deactivated bool, kind, role string) (bool, error) {
+	if deactivated || kind != string(authctx.KindPerson) {
+		return false, nil
 	}
-	if err != nil {
-		return "", fmt.Errorf("look up address: %w", err)
-	}
-	if account.Deactivated || account.Kind != string(authctx.KindPerson) {
-		return "", nil
-	}
-	allowed, err := s.passwordResetAllowed(ctx, authctx.Role(account.Role))
-	if err != nil || !allowed {
-		return "", err
-	}
-	return account.ID, nil
+	return s.passwordResetAllowed(ctx, authctx.Role(role))
+}
+
+// setPasswordHash sets the account's password and retires its reset
+// links, which no longer make sense: a password change by the person or
+// an admin.
+func (s *Service) setPasswordHash(ctx context.Context, userID, hash string) error {
+	return s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockUserEmail(ctx, userID); err != nil {
+			return fmt.Errorf("lock account: %w", err)
+		}
+		if err := qtx.UpdateUserPasswordHash(ctx, dbgen.UpdateUserPasswordHashParams{ID: userID, PasswordHash: &hash}); err != nil {
+			return fmt.Errorf("update password: %w", err)
+		}
+		if err := qtx.DeleteUserEmailTokens(ctx, dbgen.DeleteUserEmailTokensParams{UserID: userID, Purpose: resetPasswordPurpose}); err != nil {
+			return fmt.Errorf("revoke reset links: %w", err)
+		}
+		return nil
+	})
 }
 
 // passwordResetAllowed follows password_sign_in without the admins'
@@ -100,8 +100,7 @@ func (s *Service) passwordResetAllowed(ctx context.Context, role authctx.Role) (
 }
 
 // allowPasswordResetEmail takes one of the account's reset emails for
-// the hour. Over the limit, or with the limiter down, nothing is sent and
-// the caller still hears success.
+// the hour. Over the limit, or with the limiter down, nothing is sent.
 func (s *Service) allowPasswordResetEmail(ctx context.Context, userID string) bool {
 	if s.resetThrottle == nil {
 		return true
@@ -135,6 +134,14 @@ func (s *Service) livePasswordResetLink(ctx context.Context, token string) (dbge
 	}
 	if err != nil {
 		return dbgen.GetPasswordResetTokenRow{}, fmt.Errorf("look up link: %w", err)
+	}
+	// The query holds the account to an active person; the policy is read now.
+	allowed, err := s.passwordResetAllowed(ctx, authctx.Role(link.Role))
+	if err != nil {
+		return dbgen.GetPasswordResetTokenRow{}, err
+	}
+	if !allowed {
+		return dbgen.GetPasswordResetTokenRow{}, errEmailLinkSpent
 	}
 	return link, nil
 }
@@ -174,6 +181,13 @@ func (s *Service) CompletePasswordReset(ctx context.Context, req *connect.Reques
 		}
 		if err != nil {
 			return fmt.Errorf("look up link: %w", err)
+		}
+		allowed, err := s.passwordResetAllowed(ctx, authctx.Role(link.Role))
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return errEmailLinkSpent
 		}
 		username = link.Username
 		if err := qtx.UpdateUserPasswordHash(ctx, dbgen.UpdateUserPasswordHashParams{ID: link.UserID, PasswordHash: &hash}); err != nil {

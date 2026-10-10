@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -17,7 +18,7 @@ var resetLink = regexp.MustCompile(`https://chat\.example\.com/reset-password\?t
 // The whole round: a confirmed address asks for a reset, the link from the
 // email names the account and sets a new password, every old session is
 // signed out, the link is spent, and the address is told. An address with
-// no account gets the same reply and no email.
+// no account gets the same reply, a job of its own, and no email.
 func TestE2EPasswordResetRoundTrip(t *testing.T) {
 	databaseURL := dbtest.NewURL(t)
 	stoop := newHarnessOn(t, databaseURL, "STOOP_PUBLIC_URL", "https://chat.example.com")
@@ -84,20 +85,31 @@ func TestE2EPasswordResetRoundTrip(t *testing.T) {
 		}
 	}
 
-	// The unknown address queued nothing: the confirmation, the reset and
-	// the notice are every email job. A finished job's args are cleared,
-	// so they are counted by kind.
+	// Each request queued one job, the unknown address's included, and a
+	// finished job keeps no address.
 	pool, err := pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	var emailJobs int
-	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM jobs WHERE kind = 'send_email'`).Scan(&emailJobs); err != nil {
-		t.Fatal(err)
-	}
-	if emailJobs != 3 {
-		t.Errorf("%d send_email jobs, want 3", emailJobs)
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		var total, cleared int
+		if err := pool.QueryRow(context.Background(),
+			`SELECT count(*), count(*) FILTER (WHERE state = 'succeeded' AND args = '{}'::jsonb) FROM jobs WHERE kind = 'send_email'`).
+			Scan(&total, &cleared); err != nil {
+			t.Fatal(err)
+		}
+		if total != 4 {
+			t.Fatalf("%d send_email jobs, want 4", total)
+		}
+		if cleared == total {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%d of %d send_email jobs finished with their args cleared", cleared, total)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 

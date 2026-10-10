@@ -10,7 +10,7 @@ import (
 )
 
 const getPasswordResetToken = `-- name: GetPasswordResetToken :one
-SELECT t.id, t.user_id, u.username
+SELECT t.id, t.user_id, u.username, u.role
 FROM email_tokens t
 JOIN users u ON u.id = t.user_id
 WHERE t.token_hash = $1::bytea
@@ -26,6 +26,7 @@ type GetPasswordResetTokenRow struct {
 	ID       string
 	UserID   string
 	Username string
+	Role     string
 }
 
 // GetPasswordResetToken is a live reset link whose address is still the
@@ -33,12 +34,17 @@ type GetPasswordResetTokenRow struct {
 func (q *Queries) GetPasswordResetToken(ctx context.Context, tokenHash []byte) (GetPasswordResetTokenRow, error) {
 	row := q.db.QueryRow(ctx, getPasswordResetToken, tokenHash)
 	var i GetPasswordResetTokenRow
-	err := row.Scan(&i.ID, &i.UserID, &i.Username)
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Username,
+		&i.Role,
+	)
 	return i, err
 }
 
 const lockPasswordResetToken = `-- name: LockPasswordResetToken :one
-SELECT t.id, t.user_id, u.username
+SELECT t.id, t.user_id, u.username, u.role
 FROM email_tokens t
 JOIN users u ON u.id = t.user_id
 WHERE t.token_hash = $1::bytea
@@ -55,6 +61,7 @@ type LockPasswordResetTokenRow struct {
 	ID       string
 	UserID   string
 	Username string
+	Role     string
 }
 
 // LockPasswordResetToken is GetPasswordResetToken with the link locked;
@@ -62,35 +69,28 @@ type LockPasswordResetTokenRow struct {
 func (q *Queries) LockPasswordResetToken(ctx context.Context, tokenHash []byte) (LockPasswordResetTokenRow, error) {
 	row := q.db.QueryRow(ctx, lockPasswordResetToken, tokenHash)
 	var i LockPasswordResetTokenRow
-	err := row.Scan(&i.ID, &i.UserID, &i.Username)
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Username,
+		&i.Role,
+	)
 	return i, err
 }
 
 const passwordResetAccount = `-- name: PasswordResetAccount :one
 
-SELECT id, role, kind, (deactivated_at IS NOT NULL)::bool AS deactivated
+SELECT id
 FROM users
 WHERE email = $1::citext
 `
 
-type PasswordResetAccountRow struct {
-	ID          string
-	Role        string
-	Kind        string
-	Deactivated bool
-}
-
 // Password reset by email. Owned by the auth module.
 // Only internal/auth may use these queries.
 // PasswordResetAccount is the account whose confirmed address this is.
-func (q *Queries) PasswordResetAccount(ctx context.Context, address string) (PasswordResetAccountRow, error) {
+func (q *Queries) PasswordResetAccount(ctx context.Context, address string) (string, error) {
 	row := q.db.QueryRow(ctx, passwordResetAccount, address)
-	var i PasswordResetAccountRow
-	err := row.Scan(
-		&i.ID,
-		&i.Role,
-		&i.Kind,
-		&i.Deactivated,
-	)
-	return i, err
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
