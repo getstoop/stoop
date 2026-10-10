@@ -11,8 +11,8 @@ import {
 } from "./lib";
 
 // Where a space puts someone who arrives without a channel of their own:
-// the channel it chooses, the first-channel fallback when it has chosen
-// none, and what happens once the chosen channel is deleted (STOOP-109).
+// its default channel, which a space always has, which can be changed and
+// which can't be deleted while it is the default (STOOP-109, STOOP-467).
 // Ported from web/e2e/default-channel.mjs (STOOP-238).
 const SELECT = 'select[name="default-channel"]';
 
@@ -67,9 +67,10 @@ test("the channel a space opens in", async ({ browser, request }) => {
   }
 
   await settings(A);
-  await expect(options(A).first(), "unset is the first option").toHaveText(
-    "First channel",
-  );
+  await expect(
+    options(A).filter({ hasText: "First channel" }),
+    "there is no unset choice",
+  ).toHaveCount(0);
   await expect(
     options(A).filter({ hasText: "tools" }),
     "a text channel is on offer",
@@ -105,30 +106,35 @@ test("the channel a space opens in", async ({ browser, request }) => {
     "so does /s/{id} with nothing after it",
   ).toHaveText("tools");
 
-  // ---- Delete the chosen channel. The space must not be left pointing at
-  // something that is gone.
+  // ---- The default channel can't be deleted until another is chosen.
   await settings(A);
-  await A.locator(".dt-row", { hasText: "# tools" })
-    .locator(".dots-menu-button")
-    .click();
+  const rowMenu = (name: string) =>
+    A.locator(".dt-row", { hasText: `# ${name}` }).locator(".dots-menu-button");
+  await rowMenu("tools").click();
+  await expect(
+    A.getByRole("menuitem", { name: "Delete" }),
+    "the default channel's Delete is off",
+  ).toHaveAttribute("aria-disabled", "true");
+  await A.keyboard.press("Escape");
+
+  const moved = A.waitForResponse((r) => r.url().includes("/UpdateSpace"));
+  await A.locator(SELECT).selectOption({ label: "# general" });
+  await moved;
+  await rowMenu("tools").click();
   await A.getByRole("menuitem", { name: "Delete" }).click();
   await acceptDialog(A);
-  await expect(
-    chosen(A),
-    "deleting the chosen channel returns the space to the fallback",
-  ).toHaveText("First channel");
   await expect(
     options(A).filter({ hasText: "tools" }),
     "the deleted channel is no longer on offer",
   ).toHaveCount(0);
+  await expect(chosen(A), "the default stands").toHaveText("# general");
 
-  // A member who was never told stays honest too: C arrives on the same
-  // invite and lands in #general, not in a channel that no longer exists.
+  // C arrives on the same invite and lands in the default.
   const C = await newPage();
   await register(C, `casey${suffix}`);
   await expect(
     C.locator(".channel-title"),
-    "after the deletion an invite falls back to the first channel",
+    "an invite lands a new member in the new default",
   ).toHaveText("general");
 
   // ---- The setting is out of a plain member's reach: settings bounce

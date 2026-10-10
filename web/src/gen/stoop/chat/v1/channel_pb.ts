@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/channel.proto.
  */
 export const file_stoop_chat_v1_channel: GenFile = /*@__PURE__*/
-  fileDesc("ChtzdG9vcC9jaGF0L3YxL2NoYW5uZWwucHJvdG8SDXN0b29wLmNoYXQudjEiwwIKB0NoYW5uZWwSCgoCaWQYASABKAkSEAoIc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIoCgRraW5kGAQgASgOMhouc3Rvb3AuY2hhdC52MS5DaGFubmVsS2luZBIQCghwb3NpdGlvbhgFIAEoBRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9sYXN0X21lc3NhZ2VfaWQYByABKAkSHAoUbGFzdF9yZWFkX21lc3NhZ2VfaWQYCCABKAkSFAoMdW5yZWFkX2NvdW50GAkgASgFEg0KBW11dGVkGAogASgIEg0KBXRvcGljGAsgASgJEjUKC3Bvc3RfcG9saWN5GAwgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeSpvCgtDaGFubmVsS2luZBIcChhDSEFOTkVMX0tJTkRfVU5TUEVDSUZJRUQQABIVChFDSEFOTkVMX0tJTkRfVEVYVBABEhYKEkNIQU5ORUxfS0lORF9WT0lDRRACEhMKD0NIQU5ORUxfS0lORF9ETRADKnoKEUNoYW5uZWxQb3N0UG9saWN5EiMKH0NIQU5ORUxfUE9TVF9QT0xJQ1lfVU5TUEVDSUZJRUQQABIgChxDSEFOTkVMX1BPU1RfUE9MSUNZX0VWRVJZT05FEAESHgoaQ0hBTk5FTF9QT1NUX1BPTElDWV9BRE1JTlMQAkKrAQoRY29tLnN0b29wLmNoYXQudjFCDENoYW5uZWxQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("ChtzdG9vcC9jaGF0L3YxL2NoYW5uZWwucHJvdG8SDXN0b29wLmNoYXQudjEi+wIKB0NoYW5uZWwSCgoCaWQYASABKAkSEAoIc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIoCgRraW5kGAQgASgOMhouc3Rvb3AuY2hhdC52MS5DaGFubmVsS2luZBIQCghwb3NpdGlvbhgFIAEoBRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9sYXN0X21lc3NhZ2VfaWQYByABKAkSHAoUbGFzdF9yZWFkX21lc3NhZ2VfaWQYCCABKAkSFAoMdW5yZWFkX2NvdW50GAkgASgFEg0KBW11dGVkGAogASgIEg0KBXRvcGljGAsgASgJEjUKC3Bvc3RfcG9saWN5GAwgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeRIOCgZqb2luZWQYDSABKAgSEAoIcmVxdWlyZWQYDiABKAgSFAoMbWVtYmVyX2NvdW50GA8gASgFKm8KC0NoYW5uZWxLaW5kEhwKGENIQU5ORUxfS0lORF9VTlNQRUNJRklFRBAAEhUKEUNIQU5ORUxfS0lORF9URVhUEAESFgoSQ0hBTk5FTF9LSU5EX1ZPSUNFEAISEwoPQ0hBTk5FTF9LSU5EX0RNEAMqegoRQ2hhbm5lbFBvc3RQb2xpY3kSIwofQ0hBTk5FTF9QT1NUX1BPTElDWV9VTlNQRUNJRklFRBAAEiAKHENIQU5ORUxfUE9TVF9QT0xJQ1lfRVZFUllPTkUQARIeChpDSEFOTkVMX1BPU1RfUE9MSUNZX0FETUlOUxACQqsBChFjb20uc3Rvb3AuY2hhdC52MUIMQ2hhbm5lbFByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2NoYXQvdjE7Y2hhdHYxogIDU0NYqgINU3Rvb3AuQ2hhdC5WMcoCDVN0b29wXENoYXRcVjHiAhlTdG9vcFxDaGF0XFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkNoYXQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message stoop.chat.v1.Channel
@@ -98,6 +98,31 @@ export type Channel = Message<"stoop.chat.v1.Channel"> & {
    * @generated from field: stoop.chat.v1.ChannelPostPolicy post_policy = 12;
    */
   postPolicy: ChannelPostPolicy;
+
+  /**
+   * The caller is in this channel: it is in their sidebar, can be unread
+   * for them, and @channel reaches them. Always true for a voice channel
+   * and a direct message, which have no membership. Their own state;
+   * never set on broadcast events.
+   *
+   * @generated from field: bool joined = 13;
+   */
+  joined: boolean;
+
+  /**
+   * Everyone in the space is in this channel and nobody can leave it.
+   * Text channels only. Written with manage_channels.
+   *
+   * @generated from field: bool required = 14;
+   */
+  required: boolean;
+
+  /**
+   * How many people are in a text channel. Set by ListChannels only.
+   *
+   * @generated from field: int32 member_count = 15;
+   */
+  memberCount: number;
 };
 
 /**

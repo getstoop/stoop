@@ -68,10 +68,14 @@ func TestJoiningASpaceJoinsItsRequiredChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for name, who := range map[string]context.Context{"owner": owner, "invited": invited, "added": added, "operator": operator} {
+	for name, who := range map[string]context.Context{"invited": invited, "added": added, "operator": operator} {
 		if names := channelsOf(t, pool, who); len(names) != 1 || names[0] != "general" {
 			t.Errorf("%s is in %v, want [general]", name, names)
 		}
+	}
+	// The owner made #garden, so is in it.
+	if names := channelsOf(t, pool, owner); len(names) != 2 {
+		t.Errorf("owner is in %v, want [garden general]", names)
 	}
 
 	if _, err := svc.KickMember(owner, connect.NewRequest(&chatv1.KickMemberRequest{SpaceId: spaceID, UserId: authctx.UserID(invited)})); err != nil {

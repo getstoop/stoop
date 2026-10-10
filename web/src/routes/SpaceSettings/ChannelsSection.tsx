@@ -86,6 +86,7 @@ export function ChannelsSection({ space }: { space: Space }) {
 
   const table = {
     total: channels?.length ?? 0,
+    defaultChannelId: space.defaultChannelId,
     onEdit: setEditing,
     onDelete: remove,
     rowError: (c: Channel) =>

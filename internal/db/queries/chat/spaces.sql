@@ -55,11 +55,7 @@ ORDER BY m.joined_at;
 -- name: UpdateSpaceOwner :exec
 UPDATE spaces SET owner_id = $2 WHERE id = $1;
 
--- Every column here is COALESCE'd so an unset parameter leaves it alone,
--- except default_channel_id: it is nullable, so NULL is a value a caller
--- can mean ("go back to the first channel") and COALESCE could not tell
--- that apart from "don't touch it". A separate boolean says whether to
--- write the column at all.
+-- Every column is COALESCE'd so an unset parameter leaves it alone.
 -- name: UpdateSpaceSettings :one
 UPDATE spaces
 SET name = COALESCE(sqlc.narg('name'), name),
@@ -67,21 +63,8 @@ SET name = COALESCE(sqlc.narg('name'), name),
     voice_enabled = COALESCE(sqlc.narg('voice_enabled'), voice_enabled),
     description = COALESCE(sqlc.narg('description'), description),
     welcome = COALESCE(sqlc.narg('welcome'), welcome),
-    default_channel_id = CASE WHEN sqlc.arg('set_default_channel')::boolean
-        THEN sqlc.narg('default_channel_id')::uuid
-        ELSE default_channel_id END
+    default_channel_id = COALESCE(sqlc.narg('default_channel_id')::uuid, default_channel_id)
 WHERE id = $1
-RETURNING *;
-
--- Clears the landing channel, but only while it is still the channel
--- being deleted. Returning a row is how the caller learns it cleared
--- anything: reading the space and comparing would leave a window for
--- another admin's edit between the read and the delete. The UPDATE takes
--- the space's row lock, so a concurrent UpdateSpaceSettings waits.
--- name: ClearSpaceDefaultChannel :one
-UPDATE spaces SET default_channel_id = NULL
-WHERE id = sqlc.arg('id')::uuid
-  AND default_channel_id = sqlc.arg('channel_id')::uuid
 RETURNING *;
 
 -- name: DeleteSpace :exec

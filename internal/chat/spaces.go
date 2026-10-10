@@ -334,32 +334,57 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 		}
 		patch.Welcome = &w
 	}
+	var newDefault *dbgen.Channel
 	if req.Msg.DefaultChannelId != nil {
-		// Present but empty means "clear it", which the column can hold
-		// and COALESCE could not express; hence the separate flag.
-		patch.SetDefaultChannel = true
-		if id := *req.Msg.DefaultChannelId; id != "" {
-			channel, err := s.q.GetChannel(ctx, id)
-			if err != nil {
-				return nil, apierr.NotFoundOr(err, "channel")
-			}
-			// A channel from another space would send arrivals somewhere
-			// they may not be able to read; a voice channel would drop
-			// them into a call they never asked to join.
-			if spaceOf(channel) != req.Msg.SpaceId {
-				return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
-					errors.New("that channel is not in this space"))
-			}
-			if channel.Kind != int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT) {
-				return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
-					errors.New("only a text channel can be the default"))
-			}
-			patch.DefaultChannelID = &id
+		id := *req.Msg.DefaultChannelId
+		if id == "" {
+			return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
+				errors.New("a space needs a default channel"))
 		}
+		channel, err := s.q.GetChannel(ctx, id)
+		if err != nil {
+			return nil, apierr.NotFoundOr(err, "channel")
+		}
+		// A channel from another space would send arrivals somewhere
+		// they may not be able to read; a voice channel would drop
+		// them into a call they never asked to join.
+		if spaceOf(channel) != req.Msg.SpaceId {
+			return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
+				errors.New("that channel is not in this space"))
+		}
+		if channel.Kind != int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT) {
+			return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
+				errors.New("only a text channel can be the default"))
+		}
+		patch.DefaultChannelID = &id
+		newDefault = &channel
 	}
-	space, err := s.q.UpdateSpaceSettings(ctx, patch)
+	// A channel chosen as the default becomes required with the choice.
+	var space dbgen.Space
+	var madeRequired *dbgen.Channel
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		if space, err = qtx.UpdateSpaceSettings(ctx, patch); err != nil {
+			return err
+		}
+		if newDefault == nil || newDefault.Required {
+			return nil
+		}
+		required := true
+		row, err := qtx.UpdateChannel(ctx, dbgen.UpdateChannelParams{ID: newDefault.ID, Required: &required})
+		if err != nil {
+			return fmt.Errorf("require default channel: %w", err)
+		}
+		madeRequired = &row
+		return addEveryone(ctx, qtx, row, authctx.UserID(ctx))
+	})
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "space")
+	}
+	if madeRequired != nil {
+		s.bus.Publish(events.SpaceTopic(space.ID), events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_ChannelUpdated{ChannelUpdated: toProtoChannel(*madeRequired)},
+		}))
 	}
 	a, err := s.actorFor(ctx, space.ID)
 	if err != nil {

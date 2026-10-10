@@ -100,6 +100,17 @@ const (
 	// ChatServiceDeleteChannelProcedure is the fully-qualified name of the ChatService's DeleteChannel
 	// RPC.
 	ChatServiceDeleteChannelProcedure = "/stoop.chat.v1.ChatService/DeleteChannel"
+	// ChatServiceJoinChannelProcedure is the fully-qualified name of the ChatService's JoinChannel RPC.
+	ChatServiceJoinChannelProcedure = "/stoop.chat.v1.ChatService/JoinChannel"
+	// ChatServiceLeaveChannelProcedure is the fully-qualified name of the ChatService's LeaveChannel
+	// RPC.
+	ChatServiceLeaveChannelProcedure = "/stoop.chat.v1.ChatService/LeaveChannel"
+	// ChatServiceListChannelMembersProcedure is the fully-qualified name of the ChatService's
+	// ListChannelMembers RPC.
+	ChatServiceListChannelMembersProcedure = "/stoop.chat.v1.ChatService/ListChannelMembers"
+	// ChatServiceAddChannelMembersProcedure is the fully-qualified name of the ChatService's
+	// AddChannelMembers RPC.
+	ChatServiceAddChannelMembersProcedure = "/stoop.chat.v1.ChatService/AddChannelMembers"
 	// ChatServiceReorderChannelsProcedure is the fully-qualified name of the ChatService's
 	// ReorderChannels RPC.
 	ChatServiceReorderChannelsProcedure = "/stoop.chat.v1.ChatService/ReorderChannels"
@@ -233,15 +244,30 @@ type ChatServiceClient interface {
 	// DeleteSpace removes the space and everything in it. Owner or instance
 	// admin only.
 	DeleteSpace(context.Context, *connect.Request[v1.DeleteSpaceRequest]) (*connect.Response[v1.DeleteSpaceResponse], error)
-	// CreateChannel requires manage_channels (admin+).
+	// CreateChannel requires manage_channels (admin+). The caller is in the
+	// channel it makes.
 	CreateChannel(context.Context, *connect.Request[v1.CreateChannelRequest]) (*connect.Response[v1.CreateChannelResponse], error)
+	// ListChannels returns every channel of a space the caller belongs to,
+	// joined or not.
 	ListChannels(context.Context, *connect.Request[v1.ListChannelsRequest]) (*connect.Response[v1.ListChannelsResponse], error)
-	// UpdateChannel changes a channel's name and/or topic. Requires
-	// manage_channels.
+	// UpdateChannel changes a channel's name, topic, post policy or whether
+	// it is required. Requires manage_channels.
 	UpdateChannel(context.Context, *connect.Request[v1.UpdateChannelRequest]) (*connect.Response[v1.UpdateChannelResponse], error)
 	// DeleteChannel removes a channel and its messages. Requires
-	// manage_channels; a space always keeps at least one channel.
+	// manage_channels; a space's default channel can't be deleted.
 	DeleteChannel(context.Context, *connect.Request[v1.DeleteChannelRequest]) (*connect.Response[v1.DeleteChannelResponse], error)
+	// JoinChannel puts the caller in a text channel of a space they belong
+	// to, and marks it read up to its newest message.
+	JoinChannel(context.Context, *connect.Request[v1.JoinChannelRequest]) (*connect.Response[v1.JoinChannelResponse], error)
+	// LeaveChannel takes the caller out of a text channel. A required
+	// channel can't be left.
+	LeaveChannel(context.Context, *connect.Request[v1.LeaveChannelRequest]) (*connect.Response[v1.LeaveChannelResponse], error)
+	// ListChannelMembers lists who is in a text channel, for any member of
+	// its space.
+	ListChannelMembers(context.Context, *connect.Request[v1.ListChannelMembersRequest]) (*connect.Response[v1.ListChannelMembersResponse], error)
+	// AddChannelMembers puts people or bots already in the space into a text
+	// channel. Requires manage_channels.
+	AddChannelMembers(context.Context, *connect.Request[v1.AddChannelMembersRequest]) (*connect.Response[v1.AddChannelMembersResponse], error)
 	// ReorderChannels sets the sidebar order from the given full list of the
 	// space's channel IDs. Requires manage_channels.
 	ReorderChannels(context.Context, *connect.Request[v1.ReorderChannelsRequest]) (*connect.Response[v1.ReorderChannelsResponse], error)
@@ -501,6 +527,30 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("DeleteChannel")),
 			connect.WithClientOptions(opts...),
 		),
+		joinChannel: connect.NewClient[v1.JoinChannelRequest, v1.JoinChannelResponse](
+			httpClient,
+			baseURL+ChatServiceJoinChannelProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("JoinChannel")),
+			connect.WithClientOptions(opts...),
+		),
+		leaveChannel: connect.NewClient[v1.LeaveChannelRequest, v1.LeaveChannelResponse](
+			httpClient,
+			baseURL+ChatServiceLeaveChannelProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("LeaveChannel")),
+			connect.WithClientOptions(opts...),
+		),
+		listChannelMembers: connect.NewClient[v1.ListChannelMembersRequest, v1.ListChannelMembersResponse](
+			httpClient,
+			baseURL+ChatServiceListChannelMembersProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListChannelMembers")),
+			connect.WithClientOptions(opts...),
+		),
+		addChannelMembers: connect.NewClient[v1.AddChannelMembersRequest, v1.AddChannelMembersResponse](
+			httpClient,
+			baseURL+ChatServiceAddChannelMembersProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("AddChannelMembers")),
+			connect.WithClientOptions(opts...),
+		),
 		reorderChannels: connect.NewClient[v1.ReorderChannelsRequest, v1.ReorderChannelsResponse](
 			httpClient,
 			baseURL+ChatServiceReorderChannelsProcedure,
@@ -666,6 +716,10 @@ type chatServiceClient struct {
 	listChannels                *connect.Client[v1.ListChannelsRequest, v1.ListChannelsResponse]
 	updateChannel               *connect.Client[v1.UpdateChannelRequest, v1.UpdateChannelResponse]
 	deleteChannel               *connect.Client[v1.DeleteChannelRequest, v1.DeleteChannelResponse]
+	joinChannel                 *connect.Client[v1.JoinChannelRequest, v1.JoinChannelResponse]
+	leaveChannel                *connect.Client[v1.LeaveChannelRequest, v1.LeaveChannelResponse]
+	listChannelMembers          *connect.Client[v1.ListChannelMembersRequest, v1.ListChannelMembersResponse]
+	addChannelMembers           *connect.Client[v1.AddChannelMembersRequest, v1.AddChannelMembersResponse]
 	reorderChannels             *connect.Client[v1.ReorderChannelsRequest, v1.ReorderChannelsResponse]
 	setChannelMuted             *connect.Client[v1.SetChannelMutedRequest, v1.SetChannelMutedResponse]
 	setSpaceMuted               *connect.Client[v1.SetSpaceMutedRequest, v1.SetSpaceMutedResponse]
@@ -828,6 +882,26 @@ func (c *chatServiceClient) UpdateChannel(ctx context.Context, req *connect.Requ
 // DeleteChannel calls stoop.chat.v1.ChatService.DeleteChannel.
 func (c *chatServiceClient) DeleteChannel(ctx context.Context, req *connect.Request[v1.DeleteChannelRequest]) (*connect.Response[v1.DeleteChannelResponse], error) {
 	return c.deleteChannel.CallUnary(ctx, req)
+}
+
+// JoinChannel calls stoop.chat.v1.ChatService.JoinChannel.
+func (c *chatServiceClient) JoinChannel(ctx context.Context, req *connect.Request[v1.JoinChannelRequest]) (*connect.Response[v1.JoinChannelResponse], error) {
+	return c.joinChannel.CallUnary(ctx, req)
+}
+
+// LeaveChannel calls stoop.chat.v1.ChatService.LeaveChannel.
+func (c *chatServiceClient) LeaveChannel(ctx context.Context, req *connect.Request[v1.LeaveChannelRequest]) (*connect.Response[v1.LeaveChannelResponse], error) {
+	return c.leaveChannel.CallUnary(ctx, req)
+}
+
+// ListChannelMembers calls stoop.chat.v1.ChatService.ListChannelMembers.
+func (c *chatServiceClient) ListChannelMembers(ctx context.Context, req *connect.Request[v1.ListChannelMembersRequest]) (*connect.Response[v1.ListChannelMembersResponse], error) {
+	return c.listChannelMembers.CallUnary(ctx, req)
+}
+
+// AddChannelMembers calls stoop.chat.v1.ChatService.AddChannelMembers.
+func (c *chatServiceClient) AddChannelMembers(ctx context.Context, req *connect.Request[v1.AddChannelMembersRequest]) (*connect.Response[v1.AddChannelMembersResponse], error) {
+	return c.addChannelMembers.CallUnary(ctx, req)
 }
 
 // ReorderChannels calls stoop.chat.v1.ChatService.ReorderChannels.
@@ -1007,15 +1081,30 @@ type ChatServiceHandler interface {
 	// DeleteSpace removes the space and everything in it. Owner or instance
 	// admin only.
 	DeleteSpace(context.Context, *connect.Request[v1.DeleteSpaceRequest]) (*connect.Response[v1.DeleteSpaceResponse], error)
-	// CreateChannel requires manage_channels (admin+).
+	// CreateChannel requires manage_channels (admin+). The caller is in the
+	// channel it makes.
 	CreateChannel(context.Context, *connect.Request[v1.CreateChannelRequest]) (*connect.Response[v1.CreateChannelResponse], error)
+	// ListChannels returns every channel of a space the caller belongs to,
+	// joined or not.
 	ListChannels(context.Context, *connect.Request[v1.ListChannelsRequest]) (*connect.Response[v1.ListChannelsResponse], error)
-	// UpdateChannel changes a channel's name and/or topic. Requires
-	// manage_channels.
+	// UpdateChannel changes a channel's name, topic, post policy or whether
+	// it is required. Requires manage_channels.
 	UpdateChannel(context.Context, *connect.Request[v1.UpdateChannelRequest]) (*connect.Response[v1.UpdateChannelResponse], error)
 	// DeleteChannel removes a channel and its messages. Requires
-	// manage_channels; a space always keeps at least one channel.
+	// manage_channels; a space's default channel can't be deleted.
 	DeleteChannel(context.Context, *connect.Request[v1.DeleteChannelRequest]) (*connect.Response[v1.DeleteChannelResponse], error)
+	// JoinChannel puts the caller in a text channel of a space they belong
+	// to, and marks it read up to its newest message.
+	JoinChannel(context.Context, *connect.Request[v1.JoinChannelRequest]) (*connect.Response[v1.JoinChannelResponse], error)
+	// LeaveChannel takes the caller out of a text channel. A required
+	// channel can't be left.
+	LeaveChannel(context.Context, *connect.Request[v1.LeaveChannelRequest]) (*connect.Response[v1.LeaveChannelResponse], error)
+	// ListChannelMembers lists who is in a text channel, for any member of
+	// its space.
+	ListChannelMembers(context.Context, *connect.Request[v1.ListChannelMembersRequest]) (*connect.Response[v1.ListChannelMembersResponse], error)
+	// AddChannelMembers puts people or bots already in the space into a text
+	// channel. Requires manage_channels.
+	AddChannelMembers(context.Context, *connect.Request[v1.AddChannelMembersRequest]) (*connect.Response[v1.AddChannelMembersResponse], error)
 	// ReorderChannels sets the sidebar order from the given full list of the
 	// space's channel IDs. Requires manage_channels.
 	ReorderChannels(context.Context, *connect.Request[v1.ReorderChannelsRequest]) (*connect.Response[v1.ReorderChannelsResponse], error)
@@ -1271,6 +1360,30 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("DeleteChannel")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceJoinChannelHandler := connect.NewUnaryHandler(
+		ChatServiceJoinChannelProcedure,
+		svc.JoinChannel,
+		connect.WithSchema(chatServiceMethods.ByName("JoinChannel")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceLeaveChannelHandler := connect.NewUnaryHandler(
+		ChatServiceLeaveChannelProcedure,
+		svc.LeaveChannel,
+		connect.WithSchema(chatServiceMethods.ByName("LeaveChannel")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceListChannelMembersHandler := connect.NewUnaryHandler(
+		ChatServiceListChannelMembersProcedure,
+		svc.ListChannelMembers,
+		connect.WithSchema(chatServiceMethods.ByName("ListChannelMembers")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceAddChannelMembersHandler := connect.NewUnaryHandler(
+		ChatServiceAddChannelMembersProcedure,
+		svc.AddChannelMembers,
+		connect.WithSchema(chatServiceMethods.ByName("AddChannelMembers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceReorderChannelsHandler := connect.NewUnaryHandler(
 		ChatServiceReorderChannelsProcedure,
 		svc.ReorderChannels,
@@ -1461,6 +1574,14 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceUpdateChannelHandler.ServeHTTP(w, r)
 		case ChatServiceDeleteChannelProcedure:
 			chatServiceDeleteChannelHandler.ServeHTTP(w, r)
+		case ChatServiceJoinChannelProcedure:
+			chatServiceJoinChannelHandler.ServeHTTP(w, r)
+		case ChatServiceLeaveChannelProcedure:
+			chatServiceLeaveChannelHandler.ServeHTTP(w, r)
+		case ChatServiceListChannelMembersProcedure:
+			chatServiceListChannelMembersHandler.ServeHTTP(w, r)
+		case ChatServiceAddChannelMembersProcedure:
+			chatServiceAddChannelMembersHandler.ServeHTTP(w, r)
 		case ChatServiceReorderChannelsProcedure:
 			chatServiceReorderChannelsHandler.ServeHTTP(w, r)
 		case ChatServiceSetChannelMutedProcedure:
@@ -1624,6 +1745,22 @@ func (UnimplementedChatServiceHandler) UpdateChannel(context.Context, *connect.R
 
 func (UnimplementedChatServiceHandler) DeleteChannel(context.Context, *connect.Request[v1.DeleteChannelRequest]) (*connect.Response[v1.DeleteChannelResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.DeleteChannel is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) JoinChannel(context.Context, *connect.Request[v1.JoinChannelRequest]) (*connect.Response[v1.JoinChannelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.JoinChannel is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) LeaveChannel(context.Context, *connect.Request[v1.LeaveChannelRequest]) (*connect.Response[v1.LeaveChannelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.LeaveChannel is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListChannelMembers(context.Context, *connect.Request[v1.ListChannelMembersRequest]) (*connect.Response[v1.ListChannelMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListChannelMembers is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) AddChannelMembers(context.Context, *connect.Request[v1.AddChannelMembersRequest]) (*connect.Response[v1.AddChannelMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.AddChannelMembers is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) ReorderChannels(context.Context, *connect.Request[v1.ReorderChannelsRequest]) (*connect.Response[v1.ReorderChannelsResponse], error) {

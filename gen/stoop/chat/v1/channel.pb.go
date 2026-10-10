@@ -154,7 +154,17 @@ type Channel struct {
 	Topic string `protobuf:"bytes,11,opt,name=topic,proto3" json:"topic,omitempty"`
 	// EVERYONE for a direct message and a voice channel. Written with
 	// manage_channels.
-	PostPolicy    ChannelPostPolicy `protobuf:"varint,12,opt,name=post_policy,json=postPolicy,proto3,enum=stoop.chat.v1.ChannelPostPolicy" json:"post_policy,omitempty"`
+	PostPolicy ChannelPostPolicy `protobuf:"varint,12,opt,name=post_policy,json=postPolicy,proto3,enum=stoop.chat.v1.ChannelPostPolicy" json:"post_policy,omitempty"`
+	// The caller is in this channel: it is in their sidebar, can be unread
+	// for them, and @channel reaches them. Always true for a voice channel
+	// and a direct message, which have no membership. Their own state;
+	// never set on broadcast events.
+	Joined bool `protobuf:"varint,13,opt,name=joined,proto3" json:"joined,omitempty"`
+	// Everyone in the space is in this channel and nobody can leave it.
+	// Text channels only. Written with manage_channels.
+	Required bool `protobuf:"varint,14,opt,name=required,proto3" json:"required,omitempty"`
+	// How many people are in a text channel. Set by ListChannels only.
+	MemberCount   int32 `protobuf:"varint,15,opt,name=member_count,json=memberCount,proto3" json:"member_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -273,11 +283,32 @@ func (x *Channel) GetPostPolicy() ChannelPostPolicy {
 	return ChannelPostPolicy_CHANNEL_POST_POLICY_UNSPECIFIED
 }
 
+func (x *Channel) GetJoined() bool {
+	if x != nil {
+		return x.Joined
+	}
+	return false
+}
+
+func (x *Channel) GetRequired() bool {
+	if x != nil {
+		return x.Required
+	}
+	return false
+}
+
+func (x *Channel) GetMemberCount() int32 {
+	if x != nil {
+		return x.MemberCount
+	}
+	return 0
+}
+
 var File_stoop_chat_v1_channel_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	"\n" +
-	"\x1bstoop/chat/v1/channel.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x03\n" +
+	"\x1bstoop/chat/v1/channel.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x91\x04\n" +
 	"\aChannel\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x12\n" +
@@ -293,7 +324,10 @@ const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	" \x01(\bR\x05muted\x12\x14\n" +
 	"\x05topic\x18\v \x01(\tR\x05topic\x12A\n" +
 	"\vpost_policy\x18\f \x01(\x0e2 .stoop.chat.v1.ChannelPostPolicyR\n" +
-	"postPolicy*o\n" +
+	"postPolicy\x12\x16\n" +
+	"\x06joined\x18\r \x01(\bR\x06joined\x12\x1a\n" +
+	"\brequired\x18\x0e \x01(\bR\brequired\x12!\n" +
+	"\fmember_count\x18\x0f \x01(\x05R\vmemberCount*o\n" +
 	"\vChannelKind\x12\x1c\n" +
 	"\x18CHANNEL_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CHANNEL_KIND_TEXT\x10\x01\x12\x16\n" +

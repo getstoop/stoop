@@ -73,13 +73,21 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 	return i, err
 }
 
-const deleteChannel = `-- name: DeleteChannel :exec
-DELETE FROM channels WHERE id = $1
+const deleteChannel = `-- name: DeleteChannel :execrows
+DELETE FROM channels c
+WHERE c.id = $1
+  AND NOT EXISTS (SELECT 1 FROM spaces s WHERE s.default_channel_id = c.id)
 `
 
-func (q *Queries) DeleteChannel(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, deleteChannel, id)
-	return err
+// DeleteChannel leaves a space's default channel alone: no rows means it
+// is one. Deciding in the statement leaves no window for another admin
+// to make it the default between a check and the delete.
+func (q *Queries) DeleteChannel(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteChannel, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getChannel = `-- name: GetChannel :one
@@ -141,6 +149,8 @@ func (q *Queries) ListChannelIDsByKind(ctx context.Context, arg ListChannelIDsBy
 const listChannelsBySpace = `-- name: ListChannelsBySpace :many
 SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.required, r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
+    (c.kind <> 1 OR EXISTS (SELECT 1 FROM channel_members mine WHERE mine.channel_id = c.id AND mine.user_id = $1))::boolean AS joined,
+    (SELECT count(*) FROM channel_members everyone WHERE everyone.channel_id = c.id) AS member_count,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
        AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
@@ -159,12 +169,15 @@ type ListChannelsBySpaceRow struct {
 	Channel           Channel
 	LastReadMessageID *string
 	Muted             bool
+	Joined            bool
+	MemberCount       int64
 	UnreadCount       int64
 }
 
 // ListChannelsBySpace includes the caller's read marker, how many
 // messages are newer than it (all of them if they've never opened it),
-// and whether they muted it.
+// whether they muted it, whether they are in it (a voice channel has no
+// membership, so always), and how many people are.
 func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpaceParams) ([]ListChannelsBySpaceRow, error) {
 	rows, err := q.db.Query(ctx, listChannelsBySpace, arg.UserID, arg.SpaceID)
 	if err != nil {
@@ -188,6 +201,8 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 			&i.Channel.Required,
 			&i.LastReadMessageID,
 			&i.Muted,
+			&i.Joined,
+			&i.MemberCount,
 			&i.UnreadCount,
 		); err != nil {
 			return nil, err
@@ -233,7 +248,8 @@ const updateChannel = `-- name: UpdateChannel :one
 UPDATE channels
 SET name = COALESCE($2, name),
     topic = COALESCE($3, topic),
-    post_policy = COALESCE($4, post_policy)
+    post_policy = COALESCE($4, post_policy),
+    required = COALESCE($5, required)
 WHERE id = $1
 RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, required
 `
@@ -243,6 +259,7 @@ type UpdateChannelParams struct {
 	Name       *string
 	Topic      *string
 	PostPolicy *string
+	Required   *bool
 }
 
 func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (Channel, error) {
@@ -251,6 +268,7 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		arg.Name,
 		arg.Topic,
 		arg.PostPolicy,
+		arg.Required,
 	)
 	var i Channel
 	err := row.Scan(

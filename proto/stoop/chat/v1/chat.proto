@@ -82,15 +82,30 @@ service ChatService {
   // DeleteSpace removes the space and everything in it. Owner or instance
   // admin only.
   rpc DeleteSpace(DeleteSpaceRequest) returns (DeleteSpaceResponse) {}
-  // CreateChannel requires manage_channels (admin+).
+  // CreateChannel requires manage_channels (admin+). The caller is in the
+  // channel it makes.
   rpc CreateChannel(CreateChannelRequest) returns (CreateChannelResponse) {}
+  // ListChannels returns every channel of a space the caller belongs to,
+  // joined or not.
   rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse) {}
-  // UpdateChannel changes a channel's name and/or topic. Requires
-  // manage_channels.
+  // UpdateChannel changes a channel's name, topic, post policy or whether
+  // it is required. Requires manage_channels.
   rpc UpdateChannel(UpdateChannelRequest) returns (UpdateChannelResponse) {}
   // DeleteChannel removes a channel and its messages. Requires
-  // manage_channels; a space always keeps at least one channel.
+  // manage_channels; a space's default channel can't be deleted.
   rpc DeleteChannel(DeleteChannelRequest) returns (DeleteChannelResponse) {}
+  // JoinChannel puts the caller in a text channel of a space they belong
+  // to, and marks it read up to its newest message.
+  rpc JoinChannel(JoinChannelRequest) returns (JoinChannelResponse) {}
+  // LeaveChannel takes the caller out of a text channel. A required
+  // channel can't be left.
+  rpc LeaveChannel(LeaveChannelRequest) returns (LeaveChannelResponse) {}
+  // ListChannelMembers lists who is in a text channel, for any member of
+  // its space.
+  rpc ListChannelMembers(ListChannelMembersRequest) returns (ListChannelMembersResponse) {}
+  // AddChannelMembers puts people or bots already in the space into a text
+  // channel. Requires manage_channels.
+  rpc AddChannelMembers(AddChannelMembersRequest) returns (AddChannelMembersResponse) {}
   // ReorderChannels sets the sidebar order from the given full list of the
   // space's channel IDs. Requires manage_channels.
   rpc ReorderChannels(ReorderChannelsRequest) returns (ReorderChannelsResponse) {}
@@ -378,8 +393,8 @@ message UpdateSpaceRequest {
   optional bool members_can_invite = 3;
   optional string description = 4;
   optional string welcome = 5;
-  // A text channel in this space, or empty to go back to whichever
-  // channel sorts first.
+  // A text channel in this space. It becomes required. Empty is refused:
+  // a space always has a default channel.
   optional string default_channel_id = 6;
   // Turning it off ends the space's calls and hides its voice channels;
   // nothing is deleted.
@@ -441,6 +456,11 @@ message CreateChannelRequest {
   string space_id = 1;
   string name = 2;
   ChannelKind kind = 3;
+  // Text channels only: everyone in the space is in it.
+  bool required = 4;
+  // Text channels only: space members to add beside the caller. Ignored
+  // when required.
+  repeated string member_ids = 5;
 }
 
 message CreateChannelResponse {
@@ -503,6 +523,41 @@ message UpdateChannelRequest {
   optional string topic = 3;
   // Text channels only; UNSPECIFIED is refused.
   optional ChannelPostPolicy post_policy = 4;
+  // Text channels only. Turning it on adds everyone in the space; turning
+  // it off removes nobody. A space's default channel stays required.
+  optional bool required = 5;
+}
+
+message JoinChannelRequest {
+  string channel_id = 1;
+}
+
+message JoinChannelResponse {
+  Channel channel = 1;
+}
+
+message LeaveChannelRequest {
+  string channel_id = 1;
+}
+
+message LeaveChannelResponse {}
+
+message ListChannelMembersRequest {
+  string channel_id = 1;
+}
+
+message ListChannelMembersResponse {
+  repeated Member members = 1;
+}
+
+message AddChannelMembersRequest {
+  string channel_id = 1;
+  repeated string user_ids = 2;
+}
+
+message AddChannelMembersResponse {
+  // Who was added; people already in the channel are left out.
+  repeated string added_user_ids = 1;
 }
 
 message UpdateChannelResponse {

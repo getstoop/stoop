@@ -90,10 +90,8 @@ export type Space = Message<"stoop.chat.v1.Space"> & {
 
   /**
    * The channel someone lands in when they arrive without one of their
-   * own choosing — an invite, or /s/{id} with no channel. Empty means
-   * whichever channel sorts first, and it empties itself if the channel
-   * is deleted, so clients must still fall back when it names a channel
-   * they don't have.
+   * own choosing — an invite, or /s/{id} with no channel. Always set,
+   * and always a required text channel.
    *
    * @generated from field: string default_channel_id = 11;
    */

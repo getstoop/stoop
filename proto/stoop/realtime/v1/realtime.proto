@@ -55,6 +55,8 @@ message ServerEvent {
     ThreadChanged thread_changed = 34;
     ThreadMuted thread_muted = 35;
     ThreadRead thread_read = 36;
+    ChannelMemberJoined channel_member_joined = 37;
+    ChannelMemberLeft channel_member_left = 38;
   }
 }
 
@@ -173,6 +175,24 @@ message Pong {}
 message ChannelDeleted {
   string space_id = 1;
   string channel_id = 2;
+}
+
+// ChannelMemberJoined: someone is now in a text channel. Sent to the
+// space, so the person's other devices and anyone looking at the
+// channel's people hear the same event. Turning required on is a
+// ChannelUpdated instead.
+message ChannelMemberJoined {
+  string space_id = 1;
+  string channel_id = 2;
+  string user_id = 3;
+}
+
+// ChannelMemberLeft: someone left a text channel. Leaving the space is
+// MemberRemoved.
+message ChannelMemberLeft {
+  string space_id = 1;
+  string channel_id = 2;
+  string user_id = 3;
 }
 
 // ChannelsReordered carries the space's channels in their new order.

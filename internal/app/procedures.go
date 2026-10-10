@@ -147,12 +147,17 @@ var procedures = map[string]authctx.Rule{
 	chatv1connect.ChatServiceListThreadMutesProcedure:  needs(authctx.PreferencesManage),
 	chatv1connect.ChatServiceMarkThreadReadProcedure:   needs(authctx.PreferencesManage),
 
-	chatv1connect.ChatServiceCreateChannelProcedure:    needs(authctx.ChannelsManage),
-	chatv1connect.ChatServiceListChannelsProcedure:     needs(authctx.SpaceRead),
-	chatv1connect.ChatServiceUpdateChannelProcedure:    needs(authctx.ChannelsManage),
-	chatv1connect.ChatServiceDeleteChannelProcedure:    needs(authctx.ChannelsManage),
-	chatv1connect.ChatServiceReorderChannelsProcedure:  needs(authctx.ChannelsManage),
-	chatv1connect.ChatServiceSetMessagePinnedProcedure: needs(authctx.ChannelsManage),
+	chatv1connect.ChatServiceCreateChannelProcedure:      needs(authctx.ChannelsManage),
+	chatv1connect.ChatServiceListChannelsProcedure:       needs(authctx.SpaceRead),
+	chatv1connect.ChatServiceUpdateChannelProcedure:      needs(authctx.ChannelsManage),
+	chatv1connect.ChatServiceDeleteChannelProcedure:      needs(authctx.ChannelsManage),
+	chatv1connect.ChatServiceReorderChannelsProcedure:    needs(authctx.ChannelsManage),
+	chatv1connect.ChatServiceSetMessagePinnedProcedure:   needs(authctx.ChannelsManage),
+	chatv1connect.ChatServiceAddChannelMembersProcedure:  needs(authctx.ChannelsManage),
+	chatv1connect.ChatServiceListChannelMembersProcedure: needs(authctx.SpaceRead),
+	// Joining exists to post, so a credential that can't post can't join.
+	chatv1connect.ChatServiceJoinChannelProcedure:  needs(authctx.MessagesPost),
+	chatv1connect.ChatServiceLeaveChannelProcedure: needs(authctx.MessagesPost),
 
 	chatv1connect.ChatServiceSendMessageProcedure:        needs(authctx.MessagesPost, authctx.DMsPost),
 	chatv1connect.ChatServiceEditMessageProcedure:        needs(authctx.MessagesPost, authctx.DMsPost),
