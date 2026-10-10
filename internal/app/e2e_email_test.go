@@ -30,6 +30,10 @@ func TestE2EEmailSettings(t *testing.T) {
 	if !strings.Contains(status.raw, `"emailEnabled":true`) {
 		t.Errorf("status: %s", status.raw)
 	}
+	// No public URL to build reset links on.
+	if strings.Contains(status.raw, "passwordResetAvailable") {
+		t.Errorf("status offers password reset without a public URL: %s", status.raw)
+	}
 
 	refused := map[string]any{
 		"enabled": true, "host": "mail.example.com", "security": "SMTP_SECURITY_NONE",

@@ -32,8 +32,10 @@ type emailInstance interface {
 // instance's sender. See docs/architecture/email.md.
 func registerEmail(registry *jobs.Registry, authSvc *auth.Service, instance emailInstance) {
 	builders := map[string]mail.Builder{
-		mail.TemplateConfirmEmail: authSvc.BuildConfirmEmail,
-		mail.TemplateEmailChanged: authSvc.BuildEmailChanged,
+		mail.TemplateConfirmEmail:    authSvc.BuildConfirmEmail,
+		mail.TemplateEmailChanged:    authSvc.BuildEmailChanged,
+		mail.TemplatePasswordReset:   authSvc.BuildPasswordReset,
+		mail.TemplatePasswordChanged: authSvc.BuildPasswordChanged,
 	}
 	jobs.Register(registry, mail.SendEmailKind, func(ctx context.Context, _ *jobs.Job, args mail.JobArgs) error {
 		return sendEmail(ctx, builders, instance, args)

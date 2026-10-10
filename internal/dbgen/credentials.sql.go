@@ -292,6 +292,38 @@ func (q *Queries) DeleteUserPersonalTokens(ctx context.Context, holderID string)
 	return items, nil
 }
 
+const deleteUserSessions = `-- name: DeleteUserSessions :many
+DELETE FROM credentials WHERE holder_id = $1 AND kind = 'session'
+RETURNING id, holder_id
+`
+
+type DeleteUserSessionsRow struct {
+	ID       string
+	HolderID string
+}
+
+// DeleteUserSessions signs a person out everywhere (used after a password
+// reset).
+func (q *Queries) DeleteUserSessions(ctx context.Context, holderID string) ([]DeleteUserSessionsRow, error) {
+	rows, err := q.db.Query(ctx, deleteUserSessions, holderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeleteUserSessionsRow
+	for rows.Next() {
+		var i DeleteUserSessionsRow
+		if err := rows.Scan(&i.ID, &i.HolderID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCredentialByTokenHash = `-- name: GetCredentialByTokenHash :one
 SELECT c.id, c.holder_id, c.kind, c.grants, c.bounded, c.last_used_at,
        u.role AS holder_role, u.kind AS holder_kind,

@@ -147,11 +147,16 @@ and deactivating from that tab is what an admin does instead.
 
 ## Forgotten passwords
 
-Nobody can reset their own password yet. With [email](email.md) set up,
-people can add and confirm an address under Profile → Security, which
-reset will use when it arrives. If a login
-provider is linked, "Continue with …" still works. Otherwise a server admin
-resets it for them: Server admin → Accounts → **Reset password** sets a
+With [email](email.md) set up and a public URL saved, the sign-in page
+shows **Forgot password?**. Someone who has confirmed an address under
+Profile → Security gets a link that works once, for an hour. Setting the
+new password signs every device out; personal tokens keep working unless
+they tick the box. The reply never says whether an address has an
+account. Password sign-in still decides who can use it: with *Server
+admins only*, only admins get a link; with *Off*, nobody does.
+
+If a login provider is linked, "Continue with …" still works. Otherwise a
+server admin resets it for them: Server admin → Accounts → **Reset password** sets a
 temporary password, shows it once (copy it and pass it on), and signs the
 account out everywhere; the person then picks a new one on their profile
 page. If the admin is the one locked out, use the CLI below.

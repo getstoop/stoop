@@ -1,8 +1,8 @@
 # Email
 
 Stoop can send mail through an SMTP server you choose. It is optional.
-Today it lets people confirm an email address on their account; password
-reset will use it next.
+It lets people confirm an email address on their account and reset a
+forgotten password with it. Reset links also need the server's public URL.
 
 ## Setting it up
 

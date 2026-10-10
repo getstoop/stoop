@@ -14,16 +14,19 @@ import (
 var update = flag.Bool("update", false, "rewrite the golden files in testdata")
 
 var (
-	goldenSite = mail.Site{PublicURL: "https://chat.example.com/", InstanceName: "Brownstone"}
-	goldenTime = time.Date(2026, time.October, 9, 22, 14, 0, 0, time.UTC)
-	goldenLink = "https://chat.example.com/confirm-email?token=Xq3vR8kL2mN7pQ4sT9wY1zA6bC0dE5fG3hJ8kM2nP7q"
+	goldenSite      = mail.Site{PublicURL: "https://chat.example.com/", InstanceName: "Brownstone"}
+	goldenTime      = time.Date(2026, time.October, 9, 22, 14, 0, 0, time.UTC)
+	goldenLink      = "https://chat.example.com/confirm-email?token=Xq3vR8kL2mN7pQ4sT9wY1zA6bC0dE5fG3hJ8kM2nP7q"
+	goldenResetLink = "https://chat.example.com/reset-password?token=Pq7mR8kL2mN7pQ4sT9wY1zA6bC0dE5fG3hJ8kM2nXv"
 )
 
 // goldenMessages is every template with the data the golden files show.
 var goldenMessages = map[string]any{
-	mail.TemplateConfirmEmail: mail.ConfirmEmailData{Username: "casey", Link: goldenLink},
-	mail.TemplateEmailChanged: mail.EmailChangedData{Username: "casey", At: goldenTime},
-	mail.TemplateSMTPTest:     mail.SMTPTestData{Host: "smtp.example.net", SentAt: goldenTime},
+	mail.TemplateConfirmEmail:    mail.ConfirmEmailData{Username: "casey", Link: goldenLink},
+	mail.TemplateEmailChanged:    mail.EmailChangedData{Username: "casey", At: goldenTime},
+	mail.TemplatePasswordReset:   mail.PasswordResetData{Username: "casey", Link: goldenResetLink},
+	mail.TemplatePasswordChanged: mail.PasswordChangedData{Username: "casey", At: goldenTime},
+	mail.TemplateSMTPTest:        mail.SMTPTestData{Host: "smtp.example.net", SentAt: goldenTime},
 }
 
 func TestRenderGolden(t *testing.T) {

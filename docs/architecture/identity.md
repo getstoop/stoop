@@ -129,7 +129,7 @@ in force until a new one is confirmed.
   from that inbox, can say "already in use".
 - **Changing or removing it needs the current password** when the account
   has one, and the old address is told. A stolen session can't quietly
-  redirect what reset will use.
+  redirect where reset links go.
 - **Only the person and admins see it:** `GetMe` (`MyEmail`) and the admin
   account list. Never `User`, events or member lists.
 - **Asking for a link** is refused while email is off or the server has no
@@ -575,7 +575,7 @@ welcome second layer and never a substitute.
 
 | Surface | Knob | Response |
 | ------- | ---- | -------- |
-| `Login`, `Register`, `LookupInvite` | `STOOP_AUTH_RATE_LIMIT` (per IP per minute) | `ResourceExhausted` + `Retry-After` |
+| `Login`, `Register`, `LookupInvite`, `RequestPasswordReset` | `STOOP_AUTH_RATE_LIMIT` (per IP per minute) | `ResourceExhausted` + `Retry-After` |
 | `/auth/…` OIDC routes | Same bucket | Redirect to an error |
 | `/livekit` signaling | `STOOP_SIGNALING_RATE_LIMIT` | `429` |
 
@@ -620,8 +620,29 @@ avatar.
 
 ## Recovery
 
-There is no "forgot password" email yet: accounts have no address to send
-it to.
+**By email.** `RequestPasswordReset` takes an address and queues a
+`password_reset` email only when it is the confirmed address of an active
+person (not a bot) and `password_sign_in` lets that account use a password:
+`everyone`, or `admins` for an instance admin; `off` gives nobody a link,
+admins included. It is refused only while email is off or there is no
+public URL, which says nothing about accounts. Otherwise the reply is the
+same whatever the address, including past the limit of 3 reset emails an
+hour per account, which skips silently.
+
+- The link (`/reset-password?token=…`) is an `email_tokens` row with
+  purpose `reset_password`, minted when the job sends, expiring in an
+  hour. Sending it retires the account's older reset links, never its
+  confirmation links.
+- It is live while unused, unexpired, the account active, and its address
+  still the account's confirmed one. `GetPasswordReset` returns the
+  username without using it; every dead link gets the same message.
+- `CompletePasswordReset` locks the account, then the link, sets the hash
+  (a provider-only account gets its first password), uses the link and
+  drops the account's other reset links, signs out every session (personal
+  tokens only when asked), clears the handle's lockout, and queues a
+  `password_changed` notice. It doesn't sign in.
+
+**By an admin.**
 
 - An instance admin can reset any account's password from the admin page,
   except the owner's; the temporary password is shown once.
