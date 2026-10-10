@@ -45,10 +45,10 @@ func (q *Queries) CountRepliesUnder(ctx context.Context, ids []string) (int64, e
 
 const createMessage = `-- name: CreateMessage :one
 
-INSERT INTO messages (id, channel_id, author_id, content, mentions_everyone, mentions_here, reply_to_message_id,
+INSERT INTO messages (id, channel_id, author_id, content, mentions_channel, mentions_here, reply_to_message_id,
     thread_root_id, in_channel)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, mentions_channel
 `
 
 type CreateMessageParams struct {
@@ -56,7 +56,7 @@ type CreateMessageParams struct {
 	ChannelID        string
 	AuthorID         string
 	Content          string
-	MentionsEveryone bool
+	MentionsChannel  bool
 	MentionsHere     bool
 	ReplyToMessageID *string
 	ThreadRootID     *string
@@ -76,6 +76,7 @@ type CreateMessageRow struct {
 	ThreadRootID     *string
 	InChannel        bool
 	DeletedAt        *time.Time
+	MentionsChannel  bool
 }
 
 // Messages. Owned by the chat module.
@@ -91,7 +92,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 		arg.ChannelID,
 		arg.AuthorID,
 		arg.Content,
-		arg.MentionsEveryone,
+		arg.MentionsChannel,
 		arg.MentionsHere,
 		arg.ReplyToMessageID,
 		arg.ThreadRootID,
@@ -111,6 +112,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 		&i.ThreadRootID,
 		&i.InChannel,
 		&i.DeletedAt,
+		&i.MentionsChannel,
 	)
 	return i, err
 }
@@ -134,7 +136,7 @@ func (q *Queries) DeleteMessagesByIDs(ctx context.Context, ids []string) error {
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
+SELECT id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, mentions_channel
 FROM messages WHERE id = $1
 `
 
@@ -151,6 +153,7 @@ type GetMessageRow struct {
 	ThreadRootID     *string
 	InChannel        bool
 	DeletedAt        *time.Time
+	MentionsChannel  bool
 }
 
 func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, error) {
@@ -169,6 +172,7 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, err
 		&i.ThreadRootID,
 		&i.InChannel,
 		&i.DeletedAt,
+		&i.MentionsChannel,
 	)
 	return i, err
 }
@@ -427,7 +431,7 @@ func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) er
 
 const updateMessageContent = `-- name: UpdateMessageContent :one
 UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
+RETURNING id, channel_id, author_id, content, created_at, mentions_everyone, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, mentions_channel
 `
 
 type UpdateMessageContentParams struct {
@@ -448,6 +452,7 @@ type UpdateMessageContentRow struct {
 	ThreadRootID     *string
 	InChannel        bool
 	DeletedAt        *time.Time
+	MentionsChannel  bool
 }
 
 // UpdateMessageContent never writes onto a root kept as a placeholder: no
@@ -469,6 +474,7 @@ func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageCon
 		&i.ThreadRootID,
 		&i.InChannel,
 		&i.DeletedAt,
+		&i.MentionsChannel,
 	)
 	return i, err
 }

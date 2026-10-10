@@ -123,8 +123,8 @@ func TestE2EIncomingHookNotifyEveryone(t *testing.T) {
 	}
 
 	_, quiet := h.hook(casey, bot, general, "quiet")
-	h.post(quiet, "text/plain", "@everyone quiet").expectStatus(t, http.StatusOK)
-	if h.message(casey, general, "quiet")["mentionsEveryone"] == true {
+	h.post(quiet, "text/plain", "@channel quiet").expectStatus(t, http.StatusOK)
+	if h.message(casey, general, "quiet")["mentionsChannel"] == true {
 		t.Error("a hook without the grant pinged everyone")
 	}
 	if role() != "SPACE_ROLE_MEMBER" {
@@ -141,13 +141,13 @@ func TestE2EIncomingHookNotifyEveryone(t *testing.T) {
 	if role() != "SPACE_ROLE_ADMIN" {
 		t.Errorf("bot role after a notify hook = %s", role())
 	}
-	h.post(loudURL, "text/plain", "@everyone loud").expectStatus(t, http.StatusOK)
-	if h.message(casey, general, "loud")["mentionsEveryone"] != true {
+	h.post(loudURL, "text/plain", "@channel loud").expectStatus(t, http.StatusOK)
+	if h.message(casey, general, "loud")["mentionsChannel"] != true {
 		t.Error("grant plus role didn't ping everyone")
 	}
 	// The quiet hook's bot is now admin, but its own grant still lacks it.
-	h.post(quiet, "text/plain", "@everyone still quiet").expectStatus(t, http.StatusOK)
-	if h.message(casey, general, "still quiet")["mentionsEveryone"] == true {
+	h.post(quiet, "text/plain", "@channel still quiet").expectStatus(t, http.StatusOK)
+	if h.message(casey, general, "still quiet")["mentionsChannel"] == true {
 		t.Error("the grant gate didn't hold once the bot was admin")
 	}
 	h.rpc(casey, "stoop.integrations.v1.IntegrationService/UpdateIncoming", map[string]any{"id": loud.str("webhook.id"), "notifyEveryone": false}).expect(t, "ok")

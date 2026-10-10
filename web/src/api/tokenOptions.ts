@@ -60,7 +60,7 @@ const ALL_OPTIONS: TokenOption[] = [
   },
   {
     key: "everyone",
-    label: "Mention everyone",
+    label: "Use @channel and @here",
     group: "space",
     permissions: [Permission.MESSAGES_NOTIFY_EVERYONE],
   },

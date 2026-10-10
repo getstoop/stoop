@@ -151,7 +151,7 @@ export function NewIncomingModal({
           <span>
             May notify everyone
             <span className="hint">
-              Lets @everyone and @here in its posts ping the space. This makes
+              Lets @channel and @here in its posts ping the channel. This makes
               the bot a space admin, since only admins may; the webhook itself
               can still only post.
             </span>

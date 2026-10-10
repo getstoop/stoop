@@ -66,6 +66,7 @@ export function PinRow({
             usernames={usernames}
             mentionsEveryone={message.mentionsEveryone}
             mentionsHere={message.mentionsHere}
+            mentionsChannel={message.mentionsChannel}
             myUsername={me?.username}
           />
         </span>

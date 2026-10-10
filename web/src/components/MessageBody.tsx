@@ -5,7 +5,7 @@ import {
   type ListItem,
   parseMarkdown,
 } from "../api/markdown";
-import { EVERYONE, HERE, splitMentions } from "../api/mentions";
+import { CHANNEL, EVERYONE, HERE, splitMentions } from "../api/mentions";
 
 // Renders a message's Markdown as React nodes. Text runs still go through
 // splitMentions so @handles highlight inside formatting; `highlight`
@@ -15,6 +15,7 @@ export function MessageBody({
   usernames,
   mentionsEveryone,
   mentionsHere,
+  mentionsChannel,
   myUsername,
   highlight,
 }: {
@@ -22,34 +23,41 @@ export function MessageBody({
   usernames: Set<string>;
   mentionsEveryone: boolean;
   mentionsHere: boolean;
+  mentionsChannel: boolean;
   myUsername?: string;
   highlight?: RegExp | null;
 }) {
   const me = myUsername?.toLowerCase();
   const text = (s: string): ReactNode =>
-    splitMentions(s, usernames, mentionsEveryone, mentionsHere).map(
-      (part, i) =>
-        part.mention ? (
-          <span
-            // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-            key={i}
-            className={`mention ${
-              me &&
-              (
-                part.mention === me ||
-                  part.mention === EVERYONE ||
-                  part.mention === HERE
-              )
-                ? "me"
-                : ""
-            }`}
-          >
-            {part.text}
-          </span>
-        ) : (
+    splitMentions(
+      s,
+      usernames,
+      mentionsEveryone,
+      mentionsHere,
+      mentionsChannel,
+    ).map((part, i) =>
+      part.mention ? (
+        <span
           // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-          <Fragment key={i}>{marked(part.text, highlight)}</Fragment>
-        ),
+          key={i}
+          className={`mention ${
+            me &&
+            (
+              part.mention === me ||
+                part.mention === EVERYONE ||
+                part.mention === HERE ||
+                part.mention === CHANNEL
+            )
+              ? "me"
+              : ""
+          }`}
+        >
+          {part.text}
+        </span>
+      ) : (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+        <Fragment key={i}>{marked(part.text, highlight)}</Fragment>
+      ),
     );
 
   const inline = (nodes: Inline[]): ReactNode =>

@@ -273,12 +273,13 @@ type Message struct {
 	// The channel's space, so clients can update per-space state from a
 	// realtime event without a lookup.
 	SpaceId string `protobuf:"bytes,7,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	// True when the message @mentioned everyone (and the author was allowed
-	// to); mention_user_ids then lists every other member.
+	// Messages from before @channel replaced @everyone: true when the
+	// message @mentioned everyone in the space. Never set on a new message.
 	MentionsEveryone bool `protobuf:"varint,8,opt,name=mentions_everyone,json=mentionsEveryone,proto3" json:"mentions_everyone,omitempty"`
 	// Set when this message is a reply.
 	ReplyTo *ReplyRef `protobuf:"bytes,9,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
-	// True when the message @mentioned everyone currently online (@here).
+	// True when the message @mentioned everyone in the channel who was
+	// online (@here).
 	MentionsHere bool `protobuf:"varint,10,opt,name=mentions_here,json=mentionsHere,proto3" json:"mentions_here,omitempty"`
 	// Set once the author has edited the message.
 	EditedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=edited_at,json=editedAt,proto3" json:"edited_at,omitempty"`
@@ -310,9 +311,12 @@ type Message struct {
 	// Set on a reply also sent to the channel: its root's author and an
 	// excerpt, for the line in the channel saying which thread it answers.
 	// No author or preview when the root is a placeholder.
-	ThreadRoot    *ReplyRef `protobuf:"bytes,20,opt,name=thread_root,json=threadRoot,proto3" json:"thread_root,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ThreadRoot *ReplyRef `protobuf:"bytes,20,opt,name=thread_root,json=threadRoot,proto3" json:"thread_root,omitempty"`
+	// True when the message @mentioned everyone in the channel (@channel)
+	// and the author was allowed to; mention_user_ids then lists them.
+	MentionsChannel bool `protobuf:"varint,21,opt,name=mentions_channel,json=mentionsChannel,proto3" json:"mentions_channel,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Message) Reset() {
@@ -483,6 +487,13 @@ func (x *Message) GetThreadRoot() *ReplyRef {
 		return x.ThreadRoot
 	}
 	return nil
+}
+
+func (x *Message) GetMentionsChannel() bool {
+	if x != nil {
+		return x.MentionsChannel
+	}
+	return false
 }
 
 // ThreadSummary is what the line under a root shows, so it renders with no
@@ -696,7 +707,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x18\n" +
-	"\aexpired\x18\x05 \x01(\bR\aexpired\"\xe3\x06\n" +
+	"\aexpired\x18\x05 \x01(\bR\aexpired\"\x8e\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -722,7 +733,8 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
 	"in_channel\x18\x13 \x01(\bR\tinChannel\x128\n" +
 	"\vthread_root\x18\x14 \x01(\v2\x17.stoop.chat.v1.ReplyRefR\n" +
-	"threadRoot\"\x94\x02\n" +
+	"threadRoot\x12)\n" +
+	"\x10mentions_channel\x18\x15 \x01(\bR\x0fmentionsChannel\"\x94\x02\n" +
 	"\rThreadSummary\x12\x1f\n" +
 	"\vreply_count\x18\x01 \x01(\x05R\n" +
 	"replyCount\x12>\n" +

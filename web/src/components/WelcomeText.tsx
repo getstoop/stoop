@@ -14,6 +14,7 @@ export function WelcomeText({ text }: { text: string }) {
         usernames={NO_MENTIONS}
         mentionsEveryone={false}
         mentionsHere={false}
+        mentionsChannel={false}
       />
     </div>
   );

@@ -46,3 +46,6 @@ FROM unnest(sqlc.arg(user_ids)::uuid[]) AS u(id)
 ON CONFLICT (user_id, channel_id) DO UPDATE
 SET last_read_message_id = GREATEST(channel_reads.last_read_message_id, EXCLUDED.last_read_message_id),
     updated_at = now();
+
+-- name: ListChannelMemberIDs :many
+SELECT user_id FROM channel_members WHERE channel_id = $1;

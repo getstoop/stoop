@@ -231,13 +231,13 @@ func TestDirectMessages(t *testing.T) {
 
 	// ---- mentions and replies in a DM: one alert, not two ----
 	reply, err := svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{
-		ChannelId: dm.Channel.Id, Content: "@alice hi back @everyone", ReplyToMessageId: sent.Msg.Message.Id,
+		ChannelId: dm.Channel.Id, Content: "@alice hi back @channel", ReplyToMessageId: sent.Msg.Message.Id,
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reply.Msg.Message.MentionsEveryone || len(reply.Msg.Message.MentionUserIds) != 1 {
-		t.Errorf("DM mentions: everyone=%v ids=%v", reply.Msg.Message.MentionsEveryone, reply.Msg.Message.MentionUserIds)
+	if reply.Msg.Message.MentionsChannel || len(reply.Msg.Message.MentionUserIds) != 1 {
+		t.Errorf("DM mentions: everyone=%v ids=%v", reply.Msg.Message.MentionsChannel, reply.Msg.Message.MentionUserIds)
 	}
 	notes, err := svc.ListActivity(alice, connect.NewRequest(&chatv1.ListActivityRequest{}))
 	if err != nil {

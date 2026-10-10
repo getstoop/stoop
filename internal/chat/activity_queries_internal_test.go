@@ -42,7 +42,7 @@ type noUsers struct{}
 
 func (noUsers) GetUsers(context.Context, []string) ([]UserRecord, error) { return nil, nil }
 
-// An @everyone costs the same few mention and activity queries however
+// An @channel costs the same few mention and activity queries however
 // big the space.
 func TestEveryoneSendQueriesDoNotGrowWithTheSpace(t *testing.T) {
 	pool := dbtest.New(t)
@@ -59,7 +59,7 @@ func TestEveryoneSendQueriesDoNotGrowWithTheSpace(t *testing.T) {
 
 	casey := authctx.WithIdentity(ctx, authctx.Identity{UserID: dbtest.NewUser(t, pool, "casey", "member"), Role: authctx.RoleMember})
 
-	// sendEveryone posts @everyone in a new space of casey and members-1
+	// sendEveryone posts @channel in a new space of casey and members-1
 	// others, and counts the queries it made.
 	sendEveryone := func(members int) (mentions, activity int64) {
 		t.Helper()
@@ -82,7 +82,7 @@ func TestEveryoneSendQueriesDoNotGrowWithTheSpace(t *testing.T) {
 		counter.mentions.Store(0)
 		counter.activity.Store(0)
 		if _, err := svc.SendMessage(casey, connect.NewRequest(&chatv1.SendMessageRequest{
-			ChannelId: space.Msg.DefaultChannel.Id, Content: "@everyone game night",
+			ChannelId: space.Msg.DefaultChannel.Id, Content: "@channel game night",
 		})); err != nil {
 			t.Fatal(err)
 		}

@@ -94,16 +94,16 @@ describe("filterMembers", () => {
     ]);
   });
 
-  it("leaves out @everyone and @here unless the caller may use them", () => {
-    expect(filterMembers(members, "e").map((m) => m.username)).toEqual([]);
-    expect(filterMembers(members, "e", true).map((m) => m.username)).toEqual([
-      "everyone",
+  it("leaves out @channel and @here unless the caller may use them", () => {
+    expect(filterMembers(members, "h").map((m) => m.username)).toEqual([]);
+    expect(filterMembers(members, "h", true).map((m) => m.username)).toEqual([
+      "here",
     ]);
   });
 
-  it("puts @everyone and @here ahead of the members", () => {
+  it("puts @channel and @here ahead of the members", () => {
     expect(filterMembers(members, "", true).map((m) => m.username)).toEqual([
-      "everyone",
+      "channel",
       "here",
       "casey",
       "ada",
@@ -113,9 +113,9 @@ describe("filterMembers", () => {
   });
 
   it("labels the two broadcast rows for the picker", () => {
-    const [everyone, here] = filterMembers([], "", true);
-    expect(everyone.displayName).toBe("Everyone in this space");
-    expect(here.displayName).toBe("Everyone online right now");
+    const [channel, here] = filterMembers([], "", true);
+    expect(channel.displayName).toBe("Everyone in this channel");
+    expect(here.displayName).toBe("Everyone here who is online");
   });
 
   it("lists a member once even when both names match", () => {
@@ -125,7 +125,7 @@ describe("filterMembers", () => {
   it("caps the picker at eight rows", () => {
     const many = Array.from({ length: 20 }, (_, i) => member(`ada${i}`));
     expect(filterMembers(many, "ada")).toHaveLength(8);
-    // @everyone and @here spend two of the eight.
+    // @channel and @here spend two of the eight.
     expect(filterMembers(many, "", true).slice(2)).toHaveLength(6);
   });
 });
@@ -200,7 +200,7 @@ describe("splitMentions", () => {
     ]);
   });
 
-  it("mentions @everyone and @here only when the message carries them", () => {
+  it("mentions an old @everyone and @here only when the message carries them", () => {
     expect(splitMentions("@everyone", known)).toEqual([{ text: "@everyone" }]);
     expect(splitMentions("@everyone", known, true)).toEqual([
       { text: "@everyone", mention: "everyone" },
@@ -208,6 +208,13 @@ describe("splitMentions", () => {
     expect(splitMentions("@here", known, true)).toEqual([{ text: "@here" }]);
     expect(splitMentions("@here", known, false, true)).toEqual([
       { text: "@here", mention: "here" },
+    ]);
+  });
+
+  it("mentions @channel only when the message carries it", () => {
+    expect(splitMentions("@channel", known)).toEqual([{ text: "@channel" }]);
+    expect(splitMentions("@channel", known, false, false, true)).toEqual([
+      { text: "@channel", mention: "channel" },
     ]);
   });
 

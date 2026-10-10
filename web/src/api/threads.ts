@@ -42,8 +42,15 @@ function cachedRoot(
 
 // Threads a new reply named this person in, by root: MessageCreated lands
 // before its ThreadChanged, which then counts them in (the server counts
-// a named mention as taking part; @everyone and @here don't).
+// a named mention as taking part; @channel and @here don't).
 const namedIn = new Set<string>();
+
+// A message that addressed a whole room names nobody.
+function broadcast(message: Message): boolean {
+  return (
+    message.mentionsChannel || message.mentionsHere || message.mentionsEveryone
+  );
+}
 
 export function noteMentionInThread(
   queryClient: QueryClient,
@@ -53,8 +60,7 @@ export function noteMentionInThread(
   if (
     message.threadRootId &&
     me &&
-    !message.mentionsEveryone &&
-    !message.mentionsHere &&
+    !broadcast(message) &&
     message.mentionUserIds.includes(me)
   ) {
     namedIn.add(message.threadRootId);
@@ -73,17 +79,14 @@ export function applyThreadChanged(
   const root = cachedRoot(queryClient, channelId, rootId);
   const me = queryClient.getQueryData<GetMeResponse>(["me"])?.user?.id;
   // A first reply has no summary to carry: the root says whether we
-  // started it or were named in it (@everyone and @here don't count).
+  // started it or were named in it (@channel and @here don't count).
   const previous =
     root?.thread ??
     (root && {
       replyCount: 0,
       participating:
         root.author?.id === me ||
-        (!root.mentionsEveryone &&
-          !root.mentionsHere &&
-          !!me &&
-          root.mentionUserIds.includes(me)),
+        (!broadcast(root) && !!me && root.mentionUserIds.includes(me)),
       muted: false,
       unreadCount: 0,
     });

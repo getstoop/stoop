@@ -106,36 +106,36 @@ func TestMentionEveryone(t *testing.T) {
 	}
 
 	// Owner: everyone but the author is mentioned and notified.
-	res, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@everyone game night"}))
+	res, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@channel game night"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Msg.Message.MentionsEveryone || len(res.Msg.Message.MentionUserIds) != 2 {
-		t.Errorf("owner @everyone: %+v", res.Msg.Message)
+	if !res.Msg.Message.MentionsChannel || len(res.Msg.Message.MentionUserIds) != 2 {
+		t.Errorf("owner @channel: %+v", res.Msg.Message)
 	}
 	for _, ctx := range []context.Context{bea, cal} {
 		activity, _ := svc.ListActivity(ctx, connect.NewRequest(&chatv1.ListActivityRequest{}))
 		if activity.Msg.UnreadCount != 1 {
-			t.Errorf("member unread after @everyone = %d", activity.Msg.UnreadCount)
+			t.Errorf("member unread after @channel = %d", activity.Msg.UnreadCount)
 		}
 	}
 
 	// Member: plain text, nobody notified.
-	res, err = svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@everyone ignore me"}))
+	res, err = svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@channel ignore me"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Msg.Message.MentionsEveryone || len(res.Msg.Message.MentionUserIds) != 0 {
-		t.Errorf("member @everyone should be plain text: %+v", res.Msg.Message)
+	if res.Msg.Message.MentionsChannel || len(res.Msg.Message.MentionUserIds) != 0 {
+		t.Errorf("member @channel should be plain text: %+v", res.Msg.Message)
 	}
 	activity, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
 	if activity.Msg.UnreadCount != 1 {
-		t.Errorf("cal unread after member's @everyone = %d, want still 1", activity.Msg.UnreadCount)
+		t.Errorf("cal unread after member's @channel = %d, want still 1", activity.Msg.UnreadCount)
 	}
 
 	// ListMessages carries the flag.
 	msgs, _ := svc.ListMessages(cal, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID}))
-	if !msgs.Msg.Messages[0].MentionsEveryone || msgs.Msg.Messages[1].MentionsEveryone {
+	if !msgs.Msg.Messages[0].MentionsChannel || msgs.Msg.Messages[1].MentionsChannel {
 		t.Errorf("ListMessages mentions_everyone flags wrong: %+v", msgs.Msg.Messages)
 	}
 }
@@ -174,7 +174,7 @@ func TestMentionHere(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Msg.Message.MentionsHere || res.Msg.Message.MentionsEveryone || len(res.Msg.Message.MentionUserIds) != 1 || res.Msg.Message.MentionUserIds[0] != authctx.UserID(bea) {
+	if !res.Msg.Message.MentionsHere || res.Msg.Message.MentionsChannel || len(res.Msg.Message.MentionUserIds) != 1 || res.Msg.Message.MentionUserIds[0] != authctx.UserID(bea) {
 		t.Errorf("@here: %+v", res.Msg.Message)
 	}
 	beaActivity, _ := svc.ListActivity(bea, connect.NewRequest(&chatv1.ListActivityRequest{}))

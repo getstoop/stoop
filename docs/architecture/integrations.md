@@ -70,7 +70,7 @@ space role, so a hook needn't be made an admin to feed one.
 and the hook's credential on the context and calls chat's `SendMessage`
 through the `Poster` port, after the app adapter runs the credential gate
 the interceptor would have. There is no second write path: membership,
-blocks, mentions and the `@everyone` refusal apply as they do to anyone.
+blocks, mentions and the `@channel` refusal apply as they do to anyone.
 
 | Body | Read from |
 | --- | --- |

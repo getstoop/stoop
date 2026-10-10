@@ -10,7 +10,7 @@ declare global {
 
 // @mentions: the picker, the desktop banner, the badges on the activity
 // pill, the space pill and the channel, the activity timeline, and
-// @everyone — which the owner has and a member doesn't.
+// @channel — which the owner has and a member doesn't.
 // Ported from web/e2e/mentions.mjs (STOOP-238).
 test("mentions notify, badge and read", async ({ browser }) => {
   const { suffix, tokens } = await seed();
@@ -189,42 +189,42 @@ test("mentions notify, badge and read", async ({ browser }) => {
   ).toHaveCount(4);
   await expect(activityDot(A), "self-mention doesn't notify").toHaveCount(0);
 
-  // @everyone: the owner can (the picker offers it, B is notified); a
+  // @channel: the owner can (the picker offers it, B is notified); a
   // member can't (it stays plain text).
   await A.locator(".space-rail-list a.space-pill").click();
   await B.locator(".space-pill.avatar").click(); // B looks away
-  await type(A, "@ever");
-  await expect(picker(A), "owner's picker offers @everyone").toContainText(
-    "Everyone in this space",
+  await type(A, "@chan");
+  await expect(picker(A), "owner's picker offers @channel").toContainText(
+    "Everyone in this channel",
   );
   await A.keyboard.press("Enter");
   await type(A, "game night");
   await A.keyboard.press("Enter");
-  await expect(activityDot(B), "B is notified by @everyone").toBeVisible();
+  await expect(activityDot(B), "B is notified by @channel").toBeVisible();
   await B.locator(".space-rail-list a.space-pill").click();
   await expect(
-    B.locator(".mention.me").filter({ hasText: "@everyone" }),
-    "B sees the @everyone token highlighted",
+    B.locator(".mention.me").filter({ hasText: "@channel" }),
+    "B sees the @channel token highlighted",
   ).toHaveCount(1);
 
   await A.locator(".space-pill.avatar").click(); // A looks away
-  await type(B, "@ever");
+  await type(B, "@chan");
   // The keystrokes have landed, so the picker has had its chance.
-  await expect(composer(B)).toHaveValue("@ever");
+  await expect(composer(B)).toHaveValue("@chan");
   await expect(
     picker(B).filter({ hasText: "Everyone" }),
-    "member's picker doesn't offer @everyone",
+    "member's picker doesn't offer @channel",
   ).toHaveCount(0);
   await B.keyboard.press("Escape");
-  await type(B, "yone please");
+  await type(B, "nel please");
   await B.keyboard.press("Enter");
   await expect(
-    B.locator(".mention").filter({ hasText: /^@everyone$/ }),
-    "member's @everyone renders as plain text",
+    B.locator(".mention").filter({ hasText: /^@channel$/ }),
+    "member's @channel renders as plain text",
   ).toHaveCount(1);
   await expect(
     activityDot(A),
-    "member's @everyone doesn't notify the owner",
+    "member's @channel doesn't notify the owner",
   ).toHaveCount(0);
 
   // Mark all read from the timeline, after a mention arrives while A is
