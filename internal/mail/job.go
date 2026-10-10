@@ -14,8 +14,10 @@ const SendEmailKind = "send_email"
 
 // The messages a send_email job can carry.
 const (
-	TemplateConfirmEmail = "confirm_email"
-	TemplateEmailChanged = "email_changed"
+	TemplateConfirmEmail    = "confirm_email"
+	TemplateEmailChanged    = "email_changed"
+	TemplatePasswordReset   = "password_reset"
+	TemplatePasswordChanged = "password_changed"
 )
 
 // JobArgs are a send_email job's arguments.

@@ -67,6 +67,15 @@ const (
 	// AuthServiceConfirmEmailProcedure is the fully-qualified name of the AuthService's ConfirmEmail
 	// RPC.
 	AuthServiceConfirmEmailProcedure = "/stoop.auth.v1.AuthService/ConfirmEmail"
+	// AuthServiceRequestPasswordResetProcedure is the fully-qualified name of the AuthService's
+	// RequestPasswordReset RPC.
+	AuthServiceRequestPasswordResetProcedure = "/stoop.auth.v1.AuthService/RequestPasswordReset"
+	// AuthServiceGetPasswordResetProcedure is the fully-qualified name of the AuthService's
+	// GetPasswordReset RPC.
+	AuthServiceGetPasswordResetProcedure = "/stoop.auth.v1.AuthService/GetPasswordReset"
+	// AuthServiceCompletePasswordResetProcedure is the fully-qualified name of the AuthService's
+	// CompletePasswordReset RPC.
+	AuthServiceCompletePasswordResetProcedure = "/stoop.auth.v1.AuthService/CompletePasswordReset"
 	// AuthServiceListIdentitiesProcedure is the fully-qualified name of the AuthService's
 	// ListIdentities RPC.
 	AuthServiceListIdentitiesProcedure = "/stoop.auth.v1.AuthService/ListIdentities"
@@ -130,6 +139,16 @@ type AuthServiceClient interface {
 	// ConfirmEmail turns a pending address into the account's address. No
 	// sign-in needed: the link's token is the proof.
 	ConfirmEmail(context.Context, *connect.Request[v1.ConfirmEmailRequest]) (*connect.Response[v1.ConfirmEmailResponse], error)
+	// RequestPasswordReset sends a reset link to the account with this
+	// confirmed address, if there is one that may use a password. The reply
+	// is the same either way. No sign-in needed.
+	RequestPasswordReset(context.Context, *connect.Request[v1.RequestPasswordResetRequest]) (*connect.Response[v1.RequestPasswordResetResponse], error)
+	// GetPasswordReset says whose password a reset link is for, without
+	// using it up. No sign-in needed: the token is the proof.
+	GetPasswordReset(context.Context, *connect.Request[v1.GetPasswordResetRequest]) (*connect.Response[v1.GetPasswordResetResponse], error)
+	// CompletePasswordReset sets a new password with a reset link, signs every
+	// session out (and personal tokens when asked), and uses the link up.
+	CompletePasswordReset(context.Context, *connect.Request[v1.CompletePasswordResetRequest]) (*connect.Response[v1.CompletePasswordResetResponse], error)
 	// ListIdentities lists the caller's linked sign-in providers.
 	ListIdentities(context.Context, *connect.Request[v1.ListIdentitiesRequest]) (*connect.Response[v1.ListIdentitiesResponse], error)
 	// UnlinkIdentity removes one linked provider. Refused when it is the
@@ -247,6 +266,24 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("ConfirmEmail")),
 			connect.WithClientOptions(opts...),
 		),
+		requestPasswordReset: connect.NewClient[v1.RequestPasswordResetRequest, v1.RequestPasswordResetResponse](
+			httpClient,
+			baseURL+AuthServiceRequestPasswordResetProcedure,
+			connect.WithSchema(authServiceMethods.ByName("RequestPasswordReset")),
+			connect.WithClientOptions(opts...),
+		),
+		getPasswordReset: connect.NewClient[v1.GetPasswordResetRequest, v1.GetPasswordResetResponse](
+			httpClient,
+			baseURL+AuthServiceGetPasswordResetProcedure,
+			connect.WithSchema(authServiceMethods.ByName("GetPasswordReset")),
+			connect.WithClientOptions(opts...),
+		),
+		completePasswordReset: connect.NewClient[v1.CompletePasswordResetRequest, v1.CompletePasswordResetResponse](
+			httpClient,
+			baseURL+AuthServiceCompletePasswordResetProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CompletePasswordReset")),
+			connect.WithClientOptions(opts...),
+		),
 		listIdentities: connect.NewClient[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse](
 			httpClient,
 			baseURL+AuthServiceListIdentitiesProcedure,
@@ -313,6 +350,9 @@ type authServiceClient struct {
 	cancelEmailChange       *connect.Client[v1.CancelEmailChangeRequest, v1.CancelEmailChangeResponse]
 	removeEmail             *connect.Client[v1.RemoveEmailRequest, v1.RemoveEmailResponse]
 	confirmEmail            *connect.Client[v1.ConfirmEmailRequest, v1.ConfirmEmailResponse]
+	requestPasswordReset    *connect.Client[v1.RequestPasswordResetRequest, v1.RequestPasswordResetResponse]
+	getPasswordReset        *connect.Client[v1.GetPasswordResetRequest, v1.GetPasswordResetResponse]
+	completePasswordReset   *connect.Client[v1.CompletePasswordResetRequest, v1.CompletePasswordResetResponse]
 	listIdentities          *connect.Client[v1.ListIdentitiesRequest, v1.ListIdentitiesResponse]
 	unlinkIdentity          *connect.Client[v1.UnlinkIdentityRequest, v1.UnlinkIdentityResponse]
 	deleteAccount           *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
@@ -386,6 +426,21 @@ func (c *authServiceClient) RemoveEmail(ctx context.Context, req *connect.Reques
 // ConfirmEmail calls stoop.auth.v1.AuthService.ConfirmEmail.
 func (c *authServiceClient) ConfirmEmail(ctx context.Context, req *connect.Request[v1.ConfirmEmailRequest]) (*connect.Response[v1.ConfirmEmailResponse], error) {
 	return c.confirmEmail.CallUnary(ctx, req)
+}
+
+// RequestPasswordReset calls stoop.auth.v1.AuthService.RequestPasswordReset.
+func (c *authServiceClient) RequestPasswordReset(ctx context.Context, req *connect.Request[v1.RequestPasswordResetRequest]) (*connect.Response[v1.RequestPasswordResetResponse], error) {
+	return c.requestPasswordReset.CallUnary(ctx, req)
+}
+
+// GetPasswordReset calls stoop.auth.v1.AuthService.GetPasswordReset.
+func (c *authServiceClient) GetPasswordReset(ctx context.Context, req *connect.Request[v1.GetPasswordResetRequest]) (*connect.Response[v1.GetPasswordResetResponse], error) {
+	return c.getPasswordReset.CallUnary(ctx, req)
+}
+
+// CompletePasswordReset calls stoop.auth.v1.AuthService.CompletePasswordReset.
+func (c *authServiceClient) CompletePasswordReset(ctx context.Context, req *connect.Request[v1.CompletePasswordResetRequest]) (*connect.Response[v1.CompletePasswordResetResponse], error) {
+	return c.completePasswordReset.CallUnary(ctx, req)
 }
 
 // ListIdentities calls stoop.auth.v1.AuthService.ListIdentities.
@@ -465,6 +520,16 @@ type AuthServiceHandler interface {
 	// ConfirmEmail turns a pending address into the account's address. No
 	// sign-in needed: the link's token is the proof.
 	ConfirmEmail(context.Context, *connect.Request[v1.ConfirmEmailRequest]) (*connect.Response[v1.ConfirmEmailResponse], error)
+	// RequestPasswordReset sends a reset link to the account with this
+	// confirmed address, if there is one that may use a password. The reply
+	// is the same either way. No sign-in needed.
+	RequestPasswordReset(context.Context, *connect.Request[v1.RequestPasswordResetRequest]) (*connect.Response[v1.RequestPasswordResetResponse], error)
+	// GetPasswordReset says whose password a reset link is for, without
+	// using it up. No sign-in needed: the token is the proof.
+	GetPasswordReset(context.Context, *connect.Request[v1.GetPasswordResetRequest]) (*connect.Response[v1.GetPasswordResetResponse], error)
+	// CompletePasswordReset sets a new password with a reset link, signs every
+	// session out (and personal tokens when asked), and uses the link up.
+	CompletePasswordReset(context.Context, *connect.Request[v1.CompletePasswordResetRequest]) (*connect.Response[v1.CompletePasswordResetResponse], error)
 	// ListIdentities lists the caller's linked sign-in providers.
 	ListIdentities(context.Context, *connect.Request[v1.ListIdentitiesRequest]) (*connect.Response[v1.ListIdentitiesResponse], error)
 	// UnlinkIdentity removes one linked provider. Refused when it is the
@@ -578,6 +643,24 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("ConfirmEmail")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceRequestPasswordResetHandler := connect.NewUnaryHandler(
+		AuthServiceRequestPasswordResetProcedure,
+		svc.RequestPasswordReset,
+		connect.WithSchema(authServiceMethods.ByName("RequestPasswordReset")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceGetPasswordResetHandler := connect.NewUnaryHandler(
+		AuthServiceGetPasswordResetProcedure,
+		svc.GetPasswordReset,
+		connect.WithSchema(authServiceMethods.ByName("GetPasswordReset")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceCompletePasswordResetHandler := connect.NewUnaryHandler(
+		AuthServiceCompletePasswordResetProcedure,
+		svc.CompletePasswordReset,
+		connect.WithSchema(authServiceMethods.ByName("CompletePasswordReset")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceListIdentitiesHandler := connect.NewUnaryHandler(
 		AuthServiceListIdentitiesProcedure,
 		svc.ListIdentities,
@@ -654,6 +737,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceRemoveEmailHandler.ServeHTTP(w, r)
 		case AuthServiceConfirmEmailProcedure:
 			authServiceConfirmEmailHandler.ServeHTTP(w, r)
+		case AuthServiceRequestPasswordResetProcedure:
+			authServiceRequestPasswordResetHandler.ServeHTTP(w, r)
+		case AuthServiceGetPasswordResetProcedure:
+			authServiceGetPasswordResetHandler.ServeHTTP(w, r)
+		case AuthServiceCompletePasswordResetProcedure:
+			authServiceCompletePasswordResetHandler.ServeHTTP(w, r)
 		case AuthServiceListIdentitiesProcedure:
 			authServiceListIdentitiesHandler.ServeHTTP(w, r)
 		case AuthServiceUnlinkIdentityProcedure:
@@ -729,6 +818,18 @@ func (UnimplementedAuthServiceHandler) RemoveEmail(context.Context, *connect.Req
 
 func (UnimplementedAuthServiceHandler) ConfirmEmail(context.Context, *connect.Request[v1.ConfirmEmailRequest]) (*connect.Response[v1.ConfirmEmailResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.ConfirmEmail is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) RequestPasswordReset(context.Context, *connect.Request[v1.RequestPasswordResetRequest]) (*connect.Response[v1.RequestPasswordResetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.RequestPasswordReset is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) GetPasswordReset(context.Context, *connect.Request[v1.GetPasswordResetRequest]) (*connect.Response[v1.GetPasswordResetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.GetPasswordReset is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) CompletePasswordReset(context.Context, *connect.Request[v1.CompletePasswordResetRequest]) (*connect.Response[v1.CompletePasswordResetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.CompletePasswordReset is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) ListIdentities(context.Context, *connect.Request[v1.ListIdentitiesRequest]) (*connect.Response[v1.ListIdentitiesResponse], error) {
