@@ -20,6 +20,12 @@ import {
   timelineKey,
   useHistoryStore,
 } from "./history";
+import {
+  applyMemberJoined,
+  applyMemberLeft,
+  applyRequired,
+  knownOutside,
+} from "./membership";
 import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
 import { socketUrl } from "./origin";
@@ -34,7 +40,12 @@ import {
   noteMentionInThread,
   openThreadRootId,
 } from "./threads";
-import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
+import {
+  inChannel,
+  patchChannel,
+  recomputeSpaceUnread,
+  setSpaceUnread,
+} from "./unreads";
 import { leaveVoice, reportVoiceState } from "./voice";
 
 // The realtime client: one WebSocket carrying binary ServerEvent frames.
@@ -174,14 +185,21 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       const mine = m.author?.id === userId;
       const reading = m.channelId === activeChannelId && hasAttention();
       // The channel's newest message moved; if it's ours (or we're looking
-      // right at it) the read marker follows, otherwise it goes bold.
+      // right at it) the read marker follows, otherwise it goes bold. A
+      // channel we are not in only notes the new message.
       patchChannel(queryClient, m.spaceId, m.channelId, (c) => ({
         lastMessageId: m.id,
-        ...(mine || reading
-          ? { lastReadMessageId: m.id, unreadCount: 0 }
-          : { unreadCount: c.unreadCount + 1 }),
+        ...(!inChannel(c)
+          ? {}
+          : mine || reading
+            ? { lastReadMessageId: m.id, unreadCount: 0 }
+            : { unreadCount: c.unreadCount + 1 }),
       }));
-      if (!mine && !reading) {
+      if (
+        !mine &&
+        !reading &&
+        !knownOutside(queryClient, m.spaceId, m.channelId)
+      ) {
         const muted = isMuted(queryClient, m.spaceId, m.channelId);
         if (muted === undefined) {
           // The channel list isn't loaded, so we can't tell whether the
@@ -301,12 +319,28 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
                 position: c.position,
                 topic: c.topic,
                 postPolicy: c.postPolicy,
+                required: c.required,
               }
             : x,
         ),
       );
+      if (c.required) applyRequired(queryClient, c.spaceId, c.id);
       break;
     }
+    case "channelMemberJoined":
+      applyMemberJoined(
+        queryClient,
+        payload.value,
+        useConnectionStore.getState().userId,
+      );
+      break;
+    case "channelMemberLeft":
+      applyMemberLeft(
+        queryClient,
+        payload.value,
+        useConnectionStore.getState().userId,
+      );
+      break;
     case "channelDeleted":
       queryClient.setQueryData<Channel[]>(
         ["channels", payload.value.spaceId],

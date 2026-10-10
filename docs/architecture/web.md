@@ -161,6 +161,10 @@ are testable and reusable:
   forms.
 - `unreads.ts` — the unread/badge derivations, which route an empty space
   id to the DM list instead of a space's channels.
+- `membership.ts` — keeps the channels cache in step with who is in a
+  channel. The cache holds every channel of a space with the caller's own
+  `joined`; the sidebar shows the joined ones, and only those can be
+  unread (`inChannel` in `unreads.ts`).
 - `mutes.ts` — the one place the effective mute is derived for the
   room-shaped surfaces. The wire carries raw per-space and per-channel
   flags; `isMuted` combines them, and the dimmed rows, the bolding in
