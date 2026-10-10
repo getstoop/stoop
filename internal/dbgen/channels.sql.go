@@ -153,7 +153,8 @@ SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_messag
     (SELECT count(*) FROM channel_members everyone WHERE everyone.channel_id = c.id) AS member_count,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
-       AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
+       AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)
+       AND (c.kind <> 1 OR EXISTS (SELECT 1 FROM channel_members own WHERE own.channel_id = c.id AND own.user_id = $1))) AS unread_count
 FROM channels c
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = $1
 WHERE c.space_id = $2::uuid
@@ -177,7 +178,8 @@ type ListChannelsBySpaceRow struct {
 // ListChannelsBySpace includes the caller's read marker, how many
 // messages are newer than it (all of them if they've never opened it),
 // whether they muted it, whether they are in it (a voice channel has no
-// membership, so always), and how many people are.
+// membership, so always), and how many people are. A text channel they
+// are not in has nothing unread.
 func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpaceParams) ([]ListChannelsBySpaceRow, error) {
 	rows, err := q.db.Query(ctx, listChannelsBySpace, arg.UserID, arg.SpaceID)
 	if err != nil {

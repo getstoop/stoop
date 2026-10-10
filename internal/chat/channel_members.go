@@ -22,12 +22,29 @@ var (
 	errDefaultChannelDelete = errors.New("this is the space's default channel; choose another default first")
 	errRequiredChannelLeave = errors.New("everyone in the space is in this channel")
 	errJoinNeedsText        = errors.New("only a text channel has members")
+	errNotInChannel         = errors.New("join this channel to post in it")
 )
 
 // hasMembers is whether a channel keeps a list of people: a space's text
 // channel. A voice channel and a direct message do not.
 func hasMembers(channel dbgen.Channel) bool {
 	return !isDM(channel) && channel.Kind == int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT)
+}
+
+// requireInChannel refuses someone who is not in a text channel. Reading
+// needs only the space; writing needs the channel.
+func (s *Service) requireInChannel(ctx context.Context, userID string, channel dbgen.Channel) error {
+	if !hasMembers(channel) {
+		return nil
+	}
+	in, err := s.q.IsInChannel(ctx, dbgen.IsInChannelParams{ChannelID: channel.ID, UserID: userID})
+	if err != nil {
+		return fmt.Errorf("check channel membership: %w", err)
+	}
+	if !in {
+		return connect.NewError(connect.CodeFailedPrecondition, errNotInChannel)
+	}
+	return nil
 }
 
 // JoinChannel puts the caller in a text channel of a space they belong
@@ -60,8 +77,9 @@ func (s *Service) JoinChannel(ctx context.Context, req *connect.Request[chatv1.J
 	return connect.NewResponse(&chatv1.JoinChannelResponse{Channel: out}), nil
 }
 
-// LeaveChannel takes the caller out of a text channel. Leaving one they
-// are not in is not an error.
+// LeaveChannel takes the caller out of a text channel, and drops their
+// mute on it: a mention brings the channel back, and it should come back
+// audible. Leaving one they are not in is not an error.
 func (s *Service) LeaveChannel(ctx context.Context, req *connect.Request[chatv1.LeaveChannelRequest]) (*connect.Response[chatv1.LeaveChannelResponse], error) {
 	channel, err := s.accessChannel(ctx, req.Msg.ChannelId)
 	if err != nil {
@@ -71,11 +89,23 @@ func (s *Service) LeaveChannel(ctx context.Context, req *connect.Request[chatv1.
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errRequiredChannelLeave)
 	}
 	userID := authctx.UserID(ctx)
-	removed, err := s.q.RemoveChannelMember(ctx, dbgen.RemoveChannelMemberParams{ChannelID: channel.ID, UserID: userID})
+	var removed int64
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		if removed, err = qtx.RemoveChannelMember(ctx, dbgen.RemoveChannelMemberParams{ChannelID: channel.ID, UserID: userID}); err != nil {
+			return err
+		}
+		return qtx.UnmuteChannel(ctx, dbgen.UnmuteChannelParams{UserID: userID, ChannelID: channel.ID})
+	})
 	if err != nil {
 		return nil, fmt.Errorf("leave channel: %w", err)
 	}
 	if removed > 0 {
+		s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_ChannelMuted{
+				ChannelMuted: &realtimev1.ChannelMuted{SpaceId: spaceOf(channel), ChannelId: channel.ID},
+			},
+		}))
 		s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ChannelMemberLeft{
 				ChannelMemberLeft: &realtimev1.ChannelMemberLeft{SpaceId: spaceOf(channel), ChannelId: channel.ID, UserId: userID},

@@ -63,6 +63,9 @@ func TestReplies(t *testing.T) {
 	}
 
 	// Cross-channel reply rejected; unknown parent not found.
+	if _, err := svc.JoinChannel(bea, connect.NewRequest(&chatv1.JoinChannelRequest{ChannelId: other.Msg.Channel.Id})); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: other.Msg.Channel.Id, Content: "x", ReplyToMessageId: orig.Msg.Message.Id})); code(err) != connect.CodeInvalidArgument {
 		t.Errorf("cross-channel reply: want invalid_argument, got %v", err)
 	}

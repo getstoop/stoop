@@ -177,6 +177,10 @@ func TestChannelManagement(t *testing.T) {
 	}
 
 	// Delete: member denied; owner OK with event; messages go with it.
+	if _, err := svc.JoinChannel(member, connect.NewRequest(&chatv1.JoinChannelRequest{ChannelId: random.Msg.Channel.Id})); err != nil {
+		t.Fatal(err)
+	}
+	<-sub.Events()
 	if _, err := svc.SendMessage(member, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: random.Msg.Channel.Id, Content: "bye"})); err != nil {
 		t.Fatal(err)
 	}

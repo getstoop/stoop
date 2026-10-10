@@ -12,7 +12,8 @@ SELECT * FROM channels WHERE id = $1;
 -- ListChannelsBySpace includes the caller's read marker, how many
 -- messages are newer than it (all of them if they've never opened it),
 -- whether they muted it, whether they are in it (a voice channel has no
--- membership, so always), and how many people are.
+-- membership, so always), and how many people are. A text channel they
+-- are not in has nothing unread.
 -- name: ListChannelsBySpace :many
 SELECT sqlc.embed(c), r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = sqlc.arg(user_id)) AS muted,
@@ -20,7 +21,8 @@ SELECT sqlc.embed(c), r.last_read_message_id,
     (SELECT count(*) FROM channel_members everyone WHERE everyone.channel_id = c.id) AS member_count,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
-       AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
+       AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)
+       AND (c.kind <> 1 OR EXISTS (SELECT 1 FROM channel_members own WHERE own.channel_id = c.id AND own.user_id = sqlc.arg(user_id)))) AS unread_count
 FROM channels c
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = sqlc.arg(user_id)
 WHERE c.space_id = sqlc.arg(space_id)::uuid
