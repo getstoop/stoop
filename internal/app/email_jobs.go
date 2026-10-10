@@ -38,13 +38,13 @@ func registerEmail(registry *jobs.Registry, authSvc *auth.Service, instance emai
 		mail.TemplatePasswordChanged: authSvc.BuildPasswordChanged,
 	}
 	jobs.Register(registry, mail.SendEmailKind, func(ctx context.Context, job *jobs.Job, args mail.JobArgs) error {
-		return sendEmail(ctx, builders, instance, args, job.Attempt)
+		return sendEmail(ctx, builders, instance, args)
 	}, jobs.Options{MaxAttempts: emailAttempts, Backoff: emailBackoff, MaxInFlight: emailSendSlots})
 }
 
 // sendEmail builds the job's message now and sends it, mapping the
 // result onto the dispatcher's outcomes.
-func sendEmail(ctx context.Context, builders map[string]mail.Builder, instance emailInstance, args mail.JobArgs, attempt int) error {
+func sendEmail(ctx context.Context, builders map[string]mail.Builder, instance emailInstance, args mail.JobArgs) error {
 	build, ok := builders[args.Template]
 	if !ok {
 		return jobs.Discard(fmt.Errorf("unknown email template %q", args.Template))
@@ -57,7 +57,7 @@ func sendEmail(ctx context.Context, builders map[string]mail.Builder, instance e
 	if err != nil {
 		return err
 	}
-	msg, err := build(ctx, args, mail.Site{PublicURL: publicURL, InstanceName: name, Attempt: attempt})
+	msg, err := build(ctx, args, mail.Site{PublicURL: publicURL, InstanceName: name})
 	switch {
 	case errors.Is(err, mail.ErrNothingToSend):
 		return nil
