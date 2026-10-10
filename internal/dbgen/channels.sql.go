@@ -31,9 +31,9 @@ func (q *Queries) CountChannelsInSpace(ctx context.Context, arg CountChannelsInS
 
 const createChannel = `-- name: CreateChannel :one
 
-INSERT INTO channels (id, space_id, name, kind, position)
-VALUES ($1, $2::uuid, $3, $4, $5)
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy
+INSERT INTO channels (id, space_id, name, kind, position, required)
+VALUES ($1, $2::uuid, $3, $4, $5, $6)
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, required
 `
 
 type CreateChannelParams struct {
@@ -42,6 +42,7 @@ type CreateChannelParams struct {
 	Name     string
 	Kind     int16
 	Position int32
+	Required bool
 }
 
 // Channels within a space. Owned by the chat module.
@@ -53,6 +54,7 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		arg.Name,
 		arg.Kind,
 		arg.Position,
+		arg.Required,
 	)
 	var i Channel
 	err := row.Scan(
@@ -66,6 +68,7 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		&i.DmKey,
 		&i.Topic,
 		&i.PostPolicy,
+		&i.Required,
 	)
 	return i, err
 }
@@ -80,7 +83,7 @@ func (q *Queries) DeleteChannel(ctx context.Context, id string) error {
 }
 
 const getChannel = `-- name: GetChannel :one
-SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy FROM channels WHERE id = $1
+SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, required FROM channels WHERE id = $1
 `
 
 func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
@@ -97,6 +100,7 @@ func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
 		&i.DmKey,
 		&i.Topic,
 		&i.PostPolicy,
+		&i.Required,
 	)
 	return i, err
 }
@@ -135,7 +139,7 @@ func (q *Queries) ListChannelIDsByKind(ctx context.Context, arg ListChannelIDsBy
 }
 
 const listChannelsBySpace = `-- name: ListChannelsBySpace :many
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, r.last_read_message_id,
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.required, r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
@@ -181,6 +185,7 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 			&i.Channel.DmKey,
 			&i.Channel.Topic,
 			&i.Channel.PostPolicy,
+			&i.Channel.Required,
 			&i.LastReadMessageID,
 			&i.Muted,
 			&i.UnreadCount,
@@ -230,7 +235,7 @@ SET name = COALESCE($2, name),
     topic = COALESCE($3, topic),
     post_policy = COALESCE($4, post_policy)
 WHERE id = $1
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, required
 `
 
 type UpdateChannelParams struct {
@@ -259,6 +264,7 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		&i.DmKey,
 		&i.Topic,
 		&i.PostPolicy,
+		&i.Required,
 	)
 	return i, err
 }

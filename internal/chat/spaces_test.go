@@ -163,8 +163,8 @@ func TestSpaceDefaultChannel(t *testing.T) {
 		t.Fatal(err)
 	}
 	spaceID := sp.Msg.Space.Id
-	if sp.Msg.Space.DefaultChannelId != "" {
-		t.Errorf("a new space starts without one, got %q", sp.Msg.Space.DefaultChannelId)
+	if sp.Msg.Space.DefaultChannelId != sp.Msg.DefaultChannel.Id {
+		t.Errorf("a new space's default = %q, want its first channel", sp.Msg.Space.DefaultChannelId)
 	}
 
 	tools, err := svc.CreateChannel(owner, connect.NewRequest(&chatv1.CreateChannelRequest{

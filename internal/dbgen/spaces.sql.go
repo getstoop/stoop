@@ -279,6 +279,35 @@ func (q *Queries) ListSpacesByUser(ctx context.Context, arg ListSpacesByUserPara
 	return items, nil
 }
 
+const setSpaceDefaultChannel = `-- name: SetSpaceDefaultChannel :one
+UPDATE spaces SET default_channel_id = $1::uuid
+WHERE id = $2::uuid
+RETURNING id, name, owner_id, created_at, members_can_invite, icon_file_id, description, welcome, default_channel_id, voice_enabled
+`
+
+type SetSpaceDefaultChannelParams struct {
+	ChannelID string
+	ID        string
+}
+
+func (q *Queries) SetSpaceDefaultChannel(ctx context.Context, arg SetSpaceDefaultChannelParams) (Space, error) {
+	row := q.db.QueryRow(ctx, setSpaceDefaultChannel, arg.ChannelID, arg.ID)
+	var i Space
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.OwnerID,
+		&i.CreatedAt,
+		&i.MembersCanInvite,
+		&i.IconFileID,
+		&i.Description,
+		&i.Welcome,
+		&i.DefaultChannelID,
+		&i.VoiceEnabled,
+	)
+	return i, err
+}
+
 const setSpaceIcon = `-- name: SetSpaceIcon :exec
 UPDATE spaces SET icon_file_id = $2 WHERE id = $1
 `

@@ -2,8 +2,8 @@
 -- Only internal/chat may use these queries.
 
 -- name: CreateChannel :one
-INSERT INTO channels (id, space_id, name, kind, position)
-VALUES (sqlc.arg(id), sqlc.arg(space_id)::uuid, sqlc.arg(name), sqlc.arg(kind), sqlc.arg(position))
+INSERT INTO channels (id, space_id, name, kind, position, required)
+VALUES (sqlc.arg(id), sqlc.arg(space_id)::uuid, sqlc.arg(name), sqlc.arg(kind), sqlc.arg(position), sqlc.arg(required))
 RETURNING *;
 
 -- name: GetChannel :one

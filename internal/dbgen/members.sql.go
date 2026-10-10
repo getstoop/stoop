@@ -45,8 +45,16 @@ func (q *Queries) ChannelMembersAmong(ctx context.Context, arg ChannelMembersAmo
 
 const createSpaceMember = `-- name: CreateSpaceMember :exec
 
-INSERT INTO space_members (space_id, user_id, role)
-VALUES ($1, $2, $3)
+WITH added AS (
+    INSERT INTO space_members (space_id, user_id, role)
+    VALUES ($1::uuid, $2::uuid, $3)
+    ON CONFLICT DO NOTHING
+    RETURNING space_id, user_id
+)
+INSERT INTO channel_members (channel_id, space_id, user_id)
+SELECT c.id, c.space_id, added.user_id
+FROM added
+JOIN channels c ON c.space_id = added.space_id AND c.required
 ON CONFLICT DO NOTHING
 `
 
@@ -58,6 +66,8 @@ type CreateSpaceMemberParams struct {
 
 // Space membership and roles. Owned by the chat module.
 // Only internal/chat may use these queries.
+// CreateSpaceMember also puts the person in the space's required
+// channels, so no path into a space can leave them out.
 func (q *Queries) CreateSpaceMember(ctx context.Context, arg CreateSpaceMemberParams) error {
 	_, err := q.db.Exec(ctx, createSpaceMember, arg.SpaceID, arg.UserID, arg.Role)
 	return err

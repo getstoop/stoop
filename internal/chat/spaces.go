@@ -52,17 +52,24 @@ func (s *Service) CreateSpace(ctx context.Context, req *connect.Request[chatv1.C
 		if err != nil {
 			return fmt.Errorf("create space: %w", err)
 		}
+		// The first channel is the space's default, and so required. It is
+		// made before the owner joins: joining a space is what puts a
+		// person in its required channels.
+		channel, err = qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
+			ID: rowid.New(), SpaceID: space.ID, Name: defaultChannelName,
+			Kind: int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT), Position: 0, Required: true,
+		})
+		if err != nil {
+			return fmt.Errorf("create default channel: %w", err)
+		}
 		if err := qtx.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
 			SpaceID: space.ID, UserID: userID, Role: string(RoleOwner),
 		}); err != nil {
 			return fmt.Errorf("add owner as member: %w", err)
 		}
-		channel, err = qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
-			ID: rowid.New(), SpaceID: space.ID, Name: defaultChannelName,
-			Kind: int16(chatv1.ChannelKind_CHANNEL_KIND_TEXT), Position: 0,
-		})
+		space, err = qtx.SetSpaceDefaultChannel(ctx, dbgen.SetSpaceDefaultChannelParams{ID: space.ID, ChannelID: channel.ID})
 		if err != nil {
-			return fmt.Errorf("create default channel: %w", err)
+			return fmt.Errorf("set default channel: %w", err)
 		}
 		return nil
 	})
