@@ -89,6 +89,10 @@ const EXTRAS = [
 
 // Two spaces sharing a user pool: priya and nina are in both, and the
 // gaming space is owned by someone who is not the server admin.
+//
+// A space's first channel is its default, so everyone is in it. The other
+// text channels name their `people`, unevenly on purpose: every account
+// has channels it is in and channels it is not, casey included.
 const SPACES = [
   {
     name: "The Stoop",
@@ -105,10 +109,27 @@ const SPACES = [
     ].join("\n"),
     channels: [
       { name: "general", topic: "Porch talk: anything and everything about the block." },
-      { name: "stoop-sale", topic: "Free on the curb, yard sales, and hand-me-downs." },
-      { name: "lost-and-found", topic: "Lost cats, found keys, and parcels the courier guessed at." },
-      { name: "block-watch", topic: "Broken streetlights, odd cars, and open 311 tickets." },
-      { name: "garden", topic: "The corner lot: watering rota, seedlings, and tomato bragging." },
+      {
+        name: "stoop-sale",
+        topic: "Free on the curb, yard sales, and hand-me-downs.",
+        people: ["casey", "marisol", "dave", "priya", "tomas", "nina",
+          "omar", "lena", "kwame", "sofia", "jonas", "marta", "yuki", "ana"],
+      },
+      {
+        name: "lost-and-found",
+        topic: "Lost cats, found keys, and parcels the courier guessed at.",
+        people: ["casey", "dave", "tomas", "ravi", "ines", "hugo", "freya", "mateo"],
+      },
+      {
+        name: "block-watch",
+        topic: "Broken streetlights, odd cars, and open 311 tickets.",
+        people: ["dave", "tomas", "marisol", "amara", "leo", "zara"],
+      },
+      {
+        name: "garden",
+        topic: "The corner lot: watering rota, seedlings, and tomato bragging.",
+        people: ["casey", "marisol", "priya", "nina", "lena", "kwame", "sofia", "felix", "noor"],
+      },
       { name: "front-steps", kind: "CHANNEL_KIND_VOICE", topic: "Open mic on the steps. Someone is usually out here." },
     ],
     members: [
@@ -136,10 +157,26 @@ const SPACES = [
     ].join("\n"),
     channels: [
       { name: "general", topic: "Between-match chatter and general noise." },
-      { name: "lfg", topic: "Looking for a group: what you're playing, and when." },
-      { name: "patch-notes", topic: "Balance changes, updates, and the arguing that follows." },
-      { name: "screenshots", topic: "Clips, screenshots, and 3 a.m. victory posts." },
-      { name: "retro", topic: "Cartridges, emulators, and CRT nonsense." },
+      {
+        name: "lfg",
+        topic: "Looking for a group: what you're playing, and when.",
+        people: ["jules", "kenji", "casey", "priya", "nina"],
+      },
+      {
+        name: "patch-notes",
+        topic: "Balance changes, updates, and the arguing that follows.",
+        people: ["jules", "kenji", "nina"],
+      },
+      {
+        name: "screenshots",
+        topic: "Clips, screenshots, and 3 a.m. victory posts.",
+        people: ["jules", "casey", "priya"],
+      },
+      {
+        name: "retro",
+        topic: "Cartridges, emulators, and CRT nonsense.",
+        people: ["nina", "kenji"],
+      },
       { name: "game-night", kind: "CHANNEL_KIND_VOICE", topic: "Fridays at eight. Mics optional, complaining mandatory." },
     ],
     members: [
@@ -233,11 +270,13 @@ async function seedSpace(space, ids, token) {
   const [first, ...rest] = space.channels;
   await rpc("chat.v1.ChatService/UpdateChannel",
     { channelId: defaultChannel.id, name: first.name, topic: first.topic }, token);
+  const channelIds = {};
   for (const spec of rest) {
     const { channel } = await rpc("chat.v1.ChatService/CreateChannel",
       { spaceId: created.id, name: spec.name, kind: spec.kind ?? "CHANNEL_KIND_TEXT" }, token);
     await rpc("chat.v1.ChatService/UpdateChannel",
       { channelId: channel.id, topic: spec.topic }, token);
+    channelIds[spec.name] = channel.id;
   }
 
   for (const member of space.members) {
@@ -247,6 +286,20 @@ async function seedSpace(space, ids, token) {
     if (member.role === "admin") {
       await rpc("chat.v1.ChatService/SetMemberRole",
         { spaceId: created.id, userId: ids[member.username], role: "SPACE_ROLE_ADMIN" }, token);
+    }
+  }
+
+  // Who is in each channel. The admin made them all and so is in them
+  // all; a channel that does not name the admin is one the admin leaves.
+  for (const spec of rest) {
+    if (!spec.people) continue;
+    const channelId = channelIds[spec.name];
+    await rpc("chat.v1.ChatService/AddChannelMembers", {
+      channelId,
+      userIds: spec.people.filter((u) => u !== ADMIN).map((u) => ids[u]),
+    }, token);
+    if (!spec.people.includes(ADMIN)) {
+      await rpc("chat.v1.ChatService/LeaveChannel", { channelId }, token);
     }
   }
 
@@ -317,7 +370,10 @@ function summary() {
     `${EXTRAS.map((u) => u.username).join(", ")}.`);
   for (const space of SPACES) {
     const channels = space.channels
-      .map((c) => (c.kind === "CHANNEL_KIND_VOICE" ? `🔊 ${c.name}` : `#${c.name}`))
+      .map((c, index) => {
+        if (c.kind === "CHANNEL_KIND_VOICE") return `🔊 ${c.name}`;
+        return `#${c.name} (${index === 0 ? "everyone" : c.people.length})`;
+      })
       .join("  ");
     lines.push("");
     lines.push(`  ${space.name} — ${space.description}`);

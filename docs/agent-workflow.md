@@ -108,7 +108,9 @@ sections, in this order:
 
 - **The browser suite is Playwright** (`web/e2e-pw/*.spec.ts`,
   `npx playwright test`). `web/e2e/seed.mjs` builds an instance over RPC
-  (`seed()`, `joinSpace()`), typed by `seed.d.mts`. Both the specs and
+  (`seed()`, `joinSpace()`), typed by `seed.d.mts`. The channels `seed()`
+  makes are required, so everyone a spec brings into the space is in all
+  of them; a spec about joining and leaving makes its own channel. Both the specs and
   that directory are typechecked (`tsconfig.e2e.json`) and linted.
 
   `fill()` sets a value in one event; anything whose subject is typing
@@ -186,7 +188,9 @@ sections, in this order:
 - **`make dev-reset` wipes the dev database** and seeds the cast: eight
   named accounts plus eighteen extras in The Stoop, password `password1`,
   `casey` the server admin, in "The Stoop" and "Basement Arcade". It
-  prints who they are. The server must be up on `STOOP_URL` (the seed goes
+  prints who they are. Everyone is in each space's first channel; the
+  other text channels hold some of the cast each, so every account has
+  channels it has not joined. The server must be up on `STOOP_URL` (the seed goes
   through the API); it checks first and refuses before wiping anything.
   The maintainer often tries a change live on that instance, so say so
   before running it. `node scripts/dev-reset.mjs --append` only adds
