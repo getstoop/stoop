@@ -45,10 +45,10 @@ func (s *Service) BuildPasswordReset(ctx context.Context, args mail.JobArgs, sit
 	if site.PublicURL == "" {
 		return mail.Message{}, mail.ErrNoPublicURL
 	}
-	// Every attempt counts: an attempt that failed before this point can't
-	// be told from one that spent it, and a retry must not skip the limit.
-	// A job queued by user id took its limit when it was asked for.
-	if args.Email != "" && !s.allowPasswordResetEmail(ctx, userID) {
+	// Only the first attempt counts, so a send failure's retries can't use
+	// up the hour. One that failed before here goes uncounted; requests
+	// are limited per IP too.
+	if args.Email != "" && site.Attempt <= 1 && !s.allowPasswordResetEmail(ctx, userID) {
 		return mail.Message{}, mail.ErrNothingToSend
 	}
 	address := *recipient.Email
