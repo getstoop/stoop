@@ -1,49 +1,160 @@
-Stoop 0.8.1
+Stoop 0.9.0
 
-Stoop 0.8.1 is a security fix. It upgrades in place from 0.8.0 with no
-schema change, and `stoop upgrade rollback` takes it back to 0.8.0.
+Stoop 0.9.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.8.x, and `stoop upgrade rollback`
+can take it back to 0.8.x, 0.7.x, 0.6.x or 0.5.x. Going below 0.5.0
+needs a backup, as before.
 
-**Fixed.**
+**What's new.**
 
-- **Removed members could still read quoted replies.** Someone who had
-  left a space, or been kicked or banned from it, still got a "replied
-  to you" entry in Activity, with a desktop banner, whenever anyone
-  quote-replied to one of their old messages. The entry's preview
-  carried the new message's text, so they could keep reading parts of
-  the conversation. Activity now reaches only people who can still read
-  the channel. Every earlier release has this problem; upgrading closes
-  it.
+- **Email.** Stoop can send mail through an SMTP server you choose. It
+  is optional and off until you set it up, under Server admin → Email or
+  with the `STOOP_SMTP_*` variables before the first start. The page
+  sends a test before you save, and a refused test says which field is
+  wrong. See the new [email guide](https://github.com/getstoop/stoop/blob/v0.9.0/docs/self-hosting/email.md).
+- **An email address on your account.** With email on, people can add an
+  address under Profile → Security and confirm it from a link. It is
+  optional, and only the person and the server's admins see it. Changing
+  or removing it asks for the current password, and the old address is
+  told.
+- **Forgot password?** With email on and a public URL saved, the sign-in
+  page offers a reset link to anyone with a confirmed address. The link
+  works once, for an hour. Setting the new password signs every device
+  out. The page never says whether an address has an account.
+- **A new first-run setup.** Setup asks one thing per screen: account,
+  space, remote access, address, voice and video, email, invite. A
+  reload picks up where it stopped. With voice on, the space starts
+  with a voice channel, lounge, beside #general. The new space opens
+  with the invite link and a list of what was skipped. Server admin →
+  Hosting is unchanged.
+- **Smaller things.** When the first unread message is also the first of
+  its day, the channel shows one "Today · New messages" divider, not
+  two.
 
 **For operators.**
 
-- **Bots and scripts can reply in threads.** This already worked through
-  `SendMessage`; the webhook guide now says how, and where a script
-  finds a thread's id. Incoming webhooks still post into the channel.
+- **Nothing changes until you set up email.** An upgraded server sends
+  no mail and shows no Email section or reset link.
+- **Password reset has no switch of its own.** It is on whenever email
+  is set up and the server has a public URL. Password sign-in still
+  decides who can use it: with *Server admins only*, only admins get a
+  link; with *Off*, nobody does.
+- **The hourly cap.** Stoop sends at most 100 emails in a clock hour by
+  default, tests included. Change it on the Email page; 0 is no cap.
+- **Server admin → Accounts shows confirmed addresses**, and
+  Diagnostics → Health has an Email row with the last send's error.
+- **Login providers.** A new account made through a provider takes the
+  provider's address as confirmed, when the provider says it is verified
+  and no account holds it. Existing accounts are not changed.
+- **`STOOP_SMTP_*` variables** (`HOST`, `PORT`, `SECURITY`, `USERNAME`,
+  `PASSWORD`, `FROM`, `FROM_NAME`, `HOURLY_LIMIT`) are read once, like
+  the other admin-page settings. `stoop admin setting` covers the Email
+  group too.
+- **API additions for scripts.** `GetEmailSettings`,
+  `UpdateEmailSettings` and `SendTestEmail` on the instance service;
+  `RequestEmailChange`, `ResendEmailConfirmation`, `CancelEmailChange`,
+  `RemoveEmail`, `ConfirmEmail`, `RequestPasswordReset`,
+  `GetPasswordReset` and `CompletePasswordReset` on the auth service.
+  `GetMe` carries the caller's `email`, the admin account list carries
+  `email`, and the instance status carries `email_enabled` and
+  `password_reset_available`. Nothing was removed.
 
-**Schema.** No migrations. 0.8.0 and 0.8.1 share schema 59.
+**Schema.** Migrations 00060 and 00061 run at startup. Both only add, and
+the schema floor stays at 53.
+
+- 00060 adds four email columns to `users`, with a unique index on
+  confirmed addresses, and the `email_tokens` table.
+- 00061 lets `email_tokens` hold password reset links.
+
+After a rollback to 0.8.x the email settings and addresses stay in the
+database, unused: no mail is sent, and links already sent don't open.
 
 **Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
-`cloudflared` 2026.9.3, all unchanged from 0.8.0.
+`cloudflared` 2026.9.3, all unchanged from 0.8.1.
 
-**Known issues**, as in 0.8.0.
+**Known issues.**
 
+- A mail relay with a self-signed certificate is not supported over
+  STARTTLS or TLS.
+- Gmail works with an app password. Outlook.com and Microsoft 365 need a
+  mail provider's relay; Stoop does not sign in to them directly.
+- On the new space's first-run card, "Set up" beside a skipped Email
+  step opens Hosting. Email is its own tab in Server admin.
 - On a phone, picking a channel from the drawer while a thread is open
   leaves one extra step in the browser's history, so Back stays on the
   same page once.
-- Threads from 0.7.0 have no record of what you've read, so after the
-  upgrade each one you're in shows every earlier reply by others as new.
-  Opening a thread clears it; Activity isn't affected.
 
 Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
 security problems go through
 [private reporting](https://github.com/getstoop/stoop/security/advisories/new).
 
-The list below includes a database change for webhooks that was added
-and reverted before release; it is not in 0.8.1.
+Changes since 0.8.1:
 
-Changes since 0.8.0:
-
-- STOOP-437: incoming webhook thread keys schema (c71e9c8)
-- Revert "STOOP-437: incoming webhook thread keys schema" (d3b1900)
-- STOOP-437: bots and scripts reply in threads through SendMessage (00884df)
-- STOOP-438: activity reaches only people still in the room (7d68322)
+- Build release: ask again for a merge's pull request (d5b92ed)
+- Web: divider and reaction-chip polish (ad27de5)
+- E2E: unreads expects the merged day and unread divider (7a109ea)
+- Web: say when the tunnel adds trusted proxies (b985dd3)
+- Web: setup wizard frame, and resume after a reload (2979068)
+- Web: /login only sends on a session that isn't signed out (b1ee4a6)
+- Web: setup account and space steps check inline and add a voice channel (19050ef)
+- Web: share the reachability form's state and section bodies (cd36027)
+- Web: setup asks remote access, address and voice on their own screens (e590bb0)
+- E2E and docs: setup's reachability on three screens (cfe4a6c)
+- Web: setup's invite step warns about a local link and mints once (800829d)
+- Web: the space setup made opens with the invite and what was skipped (51f43b7)
+- Web: setup resumes only for a live session, and forgets a deleted space (5fc3ec3)
+- Web: forgetting a deleted space forgets its invite too (af7f9d0)
+- Web: the shared reachability fields get a file each (1e34baa)
+- Web: setup's reachability screens handle Funnel, plain HTTP, a late node, no cloudflared (e18a4d3)
+- Web: setup's invite survives a late reply and is replaced once dead (7299eff)
+- Web: the first-run card says when setup's invite no longer works (18153f4)
+- Web: setup replaces only an invite the server says is gone (bd7be0f)
+- Web: the first-run card calls an invite dead only when the server does (9b48b73)
+- Web: reword the tunnel's trusted-proxies notice (1067277)
+- Docs: propose SMTP email setup and sending (a77074e)
+- Email: the contract (5d717a5)
+- Email: stubs settings and sending share (ea27928)
+- Web: the Email admin tab and its shared form (a470433)
+- Web: save takes field changes; neutral test placeholder (03b0870)
+- Web: an optional Email step in first-run setup (9037f3f)
+- Email: SMTP settings (943c31f)
+- Email: the sender, the hourly cap and SendTestEmail (b649704)
+- Email: the health row and the docs (171952a)
+- Email: a saved password goes only to its own server (e27a084)
+- Email: a deadline is no answer, not a wrong field (99cadf0)
+- Email: refusals read as sentences, like the rest of the form (32c9e1e)
+- Web: drop the Email tab's Off badge (9bf0577)
+- Email: STOOP_SMTP_HOST gets the admin page's host rule (57f0df7)
+- Email: a slow lookup or a busy database doesn't mislead (03f1436)
+- Web: the Email tab can't save over settings it couldn't read (e79ee0b)
+- Web: the Email step can't save over settings it couldn't read (3bc22fa)
+- Docs: when a blank SMTP password keeps the saved one (7bdce4a)
+- Web: the Email form shows what was saved, and when a password is kept (258f2e7)
+- Web: the Email step's refusals land under their fields too (7fadb07)
+- Docs: drop the built email proposal (7293fcb)
+- Point the email comments at docs/architecture/email.md (6c91670)
+- Docs: propose account email addresses and the send_email job (a44a80c)
+- Account email: the contract (42eee90)
+- Web: the profile's Email section and the confirm page (944f2e1)
+- Account email: the send_email job and confirmation tokens (6723fef)
+- Account email: addresses, confirmation and the RPCs (10e7d64)
+- Account email: the round trip, request to confirmed (e510f17)
+- Web: one email action at a time, and a reload that doesn't say expired (0799d76)
+- Account email: a failed send leaves the link you have working (6bafac3)
+- Docs: account email addresses and the send_email job (a90311a)
+- Account email: account first, then links, and the newer link wins (8f71fb3)
+- Web: the Email section catches up with another tab, and forms can't be closed mid-send (2540b1c)
+- Docs: drop the built account email proposal (96ece6f)
+- Docs: drop the built account email proposal (a1d4493)
+- Email: render messages from templates (fe152eb)
+- Email: phone layout as designed, and a fixed width for Outlook (49e3623)
+- Password reset: the contract (776fde5)
+- Web: password reset pages (d709788)
+- Web: a link spent while the form was open shows the spent card (d155db1)
+- Password reset: the server (696b2e8)
+- Web: no reset offered while password sign-in is off; name the account when done (3ccd3e4)
+- Password reset: same work for every address, policy checked at use (427733e)
+- Password reset: the notice keeps its address, and retries can't skip the limit (19ba2b2)
+- Web: retry a failed reset-link lookup without losing the token (59eac37)
+- Password reset: only a job's first attempt counts against the limit (d6263af)
+- Password reset: check the limit on a job's first attempt only (6a61f14)
