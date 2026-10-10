@@ -81,7 +81,7 @@ func TestSendEmailBuildOutcome(t *testing.T) {
 	} {
 		instance := &fakeEmailInstance{publicURL: "https://chat.example.com"}
 		builders := map[string]mail.Builder{"confirm_email": builderReturning(test.buildErr)}
-		got := sendEmail(context.Background(), builders, instance, mail.JobArgs{Template: test.template})
+		got := sendEmail(context.Background(), builders, instance, mail.JobArgs{Template: test.template}, 1)
 		if !reflect.DeepEqual(got, test.want) || len(instance.sent) != test.sends {
 			t.Errorf("%s: got %#v after %d sends, want %#v after %d", test.name, got, len(instance.sent), test.want, test.sends)
 		}
@@ -105,7 +105,7 @@ func TestSendEmailRunsOnSentOnlyAfterASend(t *testing.T) {
 			return mail.Message{To: "ada@example.com", OnSent: func(context.Context) error { ran = true; return nil }}, nil
 		}}
 		instance := &fakeEmailInstance{publicURL: "https://chat.example.com", sendErr: test.sendErr}
-		_ = sendEmail(context.Background(), builders, instance, mail.JobArgs{Template: mail.TemplateConfirmEmail, UserID: "u"})
+		_ = sendEmail(context.Background(), builders, instance, mail.JobArgs{Template: mail.TemplateConfirmEmail, UserID: "u"}, 1)
 		if ran != test.wantRan {
 			t.Errorf("%s: OnSent ran = %v, want %v", test.name, ran, test.wantRan)
 		}

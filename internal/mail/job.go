@@ -33,10 +33,12 @@ type JobArgs struct {
 	At time.Time `json:"at,omitzero"`
 }
 
-// Site is what a message needs from the instance.
+// Site is what a message needs from the instance, and which attempt of
+// the job this is (from 1): a builder that spends a limit spends it once.
 type Site struct {
 	PublicURL    string
 	InstanceName string
+	Attempt      int
 }
 
 // Builder writes one message for a send_email job.
