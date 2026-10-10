@@ -192,7 +192,9 @@ func (f *fixture) getWithInvite(t *testing.T, id, code string) *http.Response {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, "/files/"+id+"?invite="+code, nil)
 	rec := httptest.NewRecorder()
-	f.svc.Handler().ServeHTTP(rec, req)
+	mux := http.NewServeMux()
+	mux.Handle("GET /files/{id}", f.svc.Handler())
+	mux.ServeHTTP(rec, req)
 	return rec.Result()
 }
 
