@@ -29,8 +29,15 @@ func TestE2ESendTestEmail(t *testing.T) {
 	if got := sent.str("acceptedBy"); got != fake.Host {
 		t.Errorf("acceptedBy = %q, want %q", got, fake.Host)
 	}
-	if got := fake.Next(t); !strings.Contains(got.Data, "Subject: Test email from") || got.To[0] != "ada@example.com" {
-		t.Errorf("test email = %+v", got)
+	received := fake.Next(t)
+	subject, parts := readEmailParts(t, received)
+	if !strings.HasPrefix(subject, "Test email from ") || received.To[0] != "ada@example.com" {
+		t.Errorf("test email = %+v", received)
+	}
+	for _, part := range []string{parts["text/plain"], parts["text/html"]} {
+		if !strings.Contains(part, "can send email through "+fake.Host+".") {
+			t.Errorf("the test email doesn't name the server it went through: %q", part)
+		}
 	}
 
 	stoop.rpc(casey, send, map[string]any{"to": "ada@example.com"}).expect(t, "invalid_argument", "smtp settings are required")

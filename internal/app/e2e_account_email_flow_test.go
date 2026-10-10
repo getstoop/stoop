@@ -49,12 +49,14 @@ func TestE2EAccountEmailRoundTrip(t *testing.T) {
 	}
 
 	notice := fake.Next(t)
-	subject, text := readEmail(t, notice)
+	subject, parts := readEmailParts(t, notice)
 	if len(notice.To) != 1 || notice.To[0] != "casey@example.com" || !strings.Contains(subject, "was changed") {
 		t.Fatalf("notice = to %v, subject %q", notice.To, subject)
 	}
-	if strings.Contains(text, "casey@example.net") || strings.Contains(text, "confirm-email") {
-		t.Errorf("the notice shows the new address or a link: %q", text)
+	for _, part := range []string{parts["text/plain"], parts["text/html"]} {
+		if !strings.Contains(part, "@casey on") || strings.Contains(part, "casey@example.net") || strings.Contains(part, "confirm-email") {
+			t.Errorf("the notice doesn't name @casey, or shows the new address or a link: %q", part)
+		}
 	}
 
 	// Removing the address tells it too.

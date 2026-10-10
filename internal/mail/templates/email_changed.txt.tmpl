@@ -1,0 +1,11 @@
+{{define "subject"}}Your email address on {{.Site.InstanceName}} was changed{{end}}
+
+{{define "body" -}}
+Your email address was changed
+
+The email address for @{{.Data.Username}} on {{.Site.InstanceName}} was changed or removed on {{when .Data.At}}. This address won't receive messages for the account any more.
+
+If you did this, there's nothing to do.
+
+If you didn't, sign in{{with .Site.URL}} at {{.}}{{end}} and change your password, then tell an admin of {{.Site.InstanceName}}.
+{{end}}

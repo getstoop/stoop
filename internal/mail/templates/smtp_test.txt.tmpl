@@ -1,0 +1,11 @@
+{{define "subject"}}Test email from {{.Site.InstanceName}}{{end}}
+
+{{define "body" -}}
+Email works
+
+This is a test from {{.Site.InstanceName}}'s email settings. If you're reading it, {{.Site.InstanceName}} can send email through {{.Data.Host}}.
+
+Sent at {{clock .Data.SentAt}} on {{day .Data.SentAt}}.
+{{end}}
+
+{{define "footer"}}An admin sent this test from Server admin → Email.{{end}}

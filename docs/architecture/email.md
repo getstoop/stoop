@@ -74,14 +74,14 @@ limits.
 
 Everything except the test goes out through one job kind, `send_email`
 (`internal/app/email_jobs.go`). Its arguments name the message and who it
-is for (`mail.JobArgs`: `template`, `user_id`, `old_address`), never the
+is for (`mail.JobArgs`: `template`, `user_id`, `old_address`, `at`), never the
 finished email: a link's token is made when the job runs, so it is never
 stored with the job.
 
 | Template | Built by | Sends |
 | --- | --- | --- |
 | `confirm_email` | auth | a link to confirm the pending address |
-| `email_changed` | auth | a notice to the old address after a change or removal |
+| `email_changed` | auth | a notice to the old address after a change or removal, with when (`at`; a job without it says the send time) |
 
 The job looks up the template's `mail.Builder`, runs it with the public URL
 and instance name, and sends through the instance's capped sender. A
@@ -99,7 +99,33 @@ send that fails leaves the link already delivered working.
 At most two run at once across all email. A confirmation held behind the
 cap for five windows is discarded; the person presses Resend.
 
-A new message is a template constant, a builder in the module that owns
+A new message is a template (below), a builder in the module that owns
 its content, and one line in the job's builder map. It keeps to the same
 rules: arguments are ids, never content, and anything secret is made by
 the builder.
+
+## Templates
+
+Every message, the test included, is rendered by `mail.Render(name, data,
+site)` from `internal/mail/templates/` (embedded): it returns the subject,
+text and HTML, and the caller sets `To` and `OnSent`.
+
+- `layout.txt.tmpl` and `layout.html.tmpl` hold the instance name, the
+  card and the footer. Each message has `<name>.txt.tmpl` (defines
+  `subject` and `body`) and `<name>.html.tmpl` (defines `body`); either
+  may define `footer` to replace the default second sentence.
+- A message renders only with its own data struct (`mail.ConfirmEmailData`,
+  …, listed in `internal/mail/message_data.go`); anything else, or a
+  field the template doesn't find, is an error.
+- To add one: the two template files, a data struct and its line in
+  `messageData`, a name constant, the builder, and its line in the job's
+  map.
+- HTML goes through `html/template`, so every value is escaped; text
+  through `text/template`, as typed. The subject is folded to one line.
+- The HTML is table-based with inline light colours and a
+  `prefers-color-scheme: dark` block. No images, no remote assets, no
+  tracking: the only URLs are the links themselves, and a button's link
+  is also printed in full.
+- Golden files in `internal/mail/testdata/` hold each message as sent;
+  after changing a template, `go test ./internal/mail/... -update` and
+  read the diff.

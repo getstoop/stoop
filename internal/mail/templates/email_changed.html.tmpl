@@ -1,0 +1,6 @@
+{{define "body" -}}
+<h1 style="margin:0 0 18px;font-size:22px;line-height:1.3;">Your email address was changed</h1>
+<p style="margin:0 0 18px;">The email address for @{{.Data.Username}} on {{.Site.InstanceName}} was changed or removed on {{when .Data.At}}. This address won't receive messages for the account any more.</p>
+<p style="margin:0 0 18px;"><strong>If you did this,</strong> there's nothing to do.</p>
+<p style="margin:0;"><strong>If you didn't,</strong> sign in{{if .Site.URL}} at <a class="link" href="{{.Site.URL}}" style="color:#b5482f;">{{.Site.Host}}</a>{{end}} and change your password, then tell an admin of {{.Site.InstanceName}}.</p>
+{{- end}}

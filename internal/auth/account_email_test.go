@@ -255,7 +255,12 @@ func TestConfirmEmail(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := jobs.queued()
-	if last := got[len(got)-1]; last != (mail.JobArgs{Template: mail.TemplateEmailChanged, UserID: caseyID, OldAddress: "casey@example.com"}) {
+	last := got[len(got)-1]
+	if last.At.IsZero() || time.Since(last.At) > time.Minute {
+		t.Errorf("notice queued with At %v, want the time of the change", last.At)
+	}
+	last.At = time.Time{}
+	if last != (mail.JobArgs{Template: mail.TemplateEmailChanged, UserID: caseyID, OldAddress: "casey@example.com"}) {
 		t.Errorf("last queued %v", last)
 	}
 

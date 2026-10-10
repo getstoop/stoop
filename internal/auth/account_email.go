@@ -143,7 +143,7 @@ func (s *Service) queueEmailChanged(ctx context.Context, tx pgx.Tx, userID strin
 		return nil
 	}
 	if _, err := s.emailJobs.EnqueueTx(ctx, tx, mail.SendEmailKind, mail.JobArgs{
-		Template: mail.TemplateEmailChanged, UserID: userID, OldAddress: *oldAddress,
+		Template: mail.TemplateEmailChanged, UserID: userID, OldAddress: *oldAddress, At: time.Now().UTC(),
 	}); err != nil {
 		return fmt.Errorf("queue change notice: %w", err)
 	}
