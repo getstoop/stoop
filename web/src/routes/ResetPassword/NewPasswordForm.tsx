@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
-import { confirmPasswordError } from "../../api/passwordReset";
+import { fieldError } from "../../api/errors";
+import { confirmPasswordError, isSpentLink } from "../../api/passwordReset";
 import { Field } from "../../components/Field";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 
@@ -11,11 +12,14 @@ export function NewPasswordForm({
   instanceName,
   username,
   onDone,
+  onSpent,
 }: {
   token: string;
   instanceName: string;
   username: string;
   onDone: () => void;
+  // The link was used up or expired after the page opened.
+  onSpent: () => void;
 }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -40,8 +44,12 @@ export function NewPasswordForm({
       });
       onDone();
     } catch (err) {
-      form.fail(err);
       setBusy(false);
+      if (isSpentLink(err) && !fieldError(err)) {
+        onSpent();
+        return;
+      }
+      form.fail(err);
     }
   };
 

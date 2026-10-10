@@ -16,6 +16,7 @@ export function ResetPasswordPage() {
   const { data: status } = useInstanceStatus();
   const [token] = useState(search.token);
   const [done, setDone] = useState(false);
+  const [spentLater, setSpentLater] = useState(false);
   const instanceName = status?.instanceName || "Stoop";
 
   // The token stays in memory only, out of the address bar and history.
@@ -44,7 +45,8 @@ export function ResetPasswordPage() {
     setDone(true);
   };
 
-  const spent = !token || (reset.isError && isSpentLink(reset.error));
+  const spent =
+    spentLater || !token || (reset.isError && isSpentLink(reset.error));
 
   return (
     <div className="login-page">
@@ -84,6 +86,7 @@ export function ResetPasswordPage() {
           instanceName={instanceName}
           username={reset.data.username}
           onDone={finish}
+          onSpent={() => setSpentLater(true)}
         />
       ) : (
         <div className="muted">Loading…</div>
