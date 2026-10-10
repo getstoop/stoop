@@ -12,7 +12,7 @@ import {
 } from "react";
 import { chatClient } from "../../api/clients";
 import { dayLabel, sameDay } from "../../api/dates";
-import { usePeople } from "../../api/dms";
+import { useChannelRecord, usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import {
   isLive,
@@ -26,6 +26,7 @@ import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { toggleReaction } from "../../api/reactions";
 import { historyRetentionNote } from "../../api/retention";
 import { messagePath, shareUrl, threadPath } from "../../api/shareLinks";
+import { inChannel } from "../../api/unreads";
 import { removeMessageFromCache } from "../../api/ws";
 import { EmojiPicker } from "../../components/EmojiPicker";
 import { UserCard } from "../../components/UserCard";
@@ -86,6 +87,9 @@ export function MessageList({
     openPanel?.kind === "thread" && openPanel.params.channelId === channelId
       ? openPanel.params.rootId
       : undefined;
+  // Someone in the space but not this channel reads it and writes nothing.
+  const { channel: record } = useChannelRecord(spaceId, channelId);
+  const canWrite = !record || inChannel(record);
   const { data: spacesForPerms } = useSpaces();
   const spaceForPerms = spacesForPerms?.find((s) => s.id === spaceId);
   // The permalink each message offers to copy. An ordinary https:// link,
@@ -387,11 +391,12 @@ export function MessageList({
         !!spaceForPerms &&
         canManageChannels(spaceForPerms)
       }
+      canWrite={canWrite}
       editing={editingId === message.id}
       usernames={usernames}
       myUsername={me?.username}
       threadOpen={!threadRootId && openThread === message.id}
-      canStartThread={threadsAllowed && !message.threadRootId}
+      canStartThread={threadsAllowed && canWrite && !message.threadRootId}
       withDay={!!threadRootId}
       rowIdPrefix={rowIdPrefix}
       onJumpTo={jumpTo}

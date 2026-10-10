@@ -4,6 +4,7 @@ import {
   CHANNEL_NAME_HINT,
   editChannelTopic,
   isAnnouncement,
+  leaveChannel,
   setAnnouncement,
 } from "../api/channels";
 import { chatClient } from "../api/clients";
@@ -111,6 +112,19 @@ export function ChannelMenu({
           });
           await queryClient.invalidateQueries({ queryKey: ["dms"] });
         }),
+    });
+  }
+  // Their own to undo: the channel list has it, and a mention brings it
+  // back. A required channel has everyone in it.
+  if (
+    spaceId &&
+    channel.kind === ChannelKind.TEXT &&
+    channel.joined &&
+    !channel.required
+  ) {
+    items.push({
+      label: "Leave channel",
+      onSelect: () => run(() => leaveChannel(queryClient, channel)),
     });
   }
   // The one way to read a topic on a phone, where the header hides it.

@@ -24,6 +24,7 @@ export function MessageRow({
   mine,
   canDelete,
   canPin,
+  canWrite,
   editing,
   usernames,
   myUsername,
@@ -50,6 +51,7 @@ export function MessageRow({
   mine: boolean;
   canDelete: boolean;
   canPin: boolean;
+  canWrite: boolean;
   editing: boolean;
   usernames: Set<string>;
   myUsername?: string;
@@ -222,6 +224,7 @@ export function MessageRow({
           mine={mine}
           canDelete={canDelete}
           canPin={canPin}
+          canWrite={canWrite}
           onReply={onReply}
           onEdit={() => onEdit(message.id)}
           onDelete={onDelete}
@@ -255,7 +258,7 @@ export function MessageRow({
           </span>
         )}
       </div>
-      <ReactionBar message={message} spaceId={spaceId} />
+      <ReactionBar message={message} spaceId={spaceId} readOnly={!canWrite} />
       {summary}
     </div>
   );

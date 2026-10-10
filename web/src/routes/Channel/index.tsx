@@ -10,6 +10,7 @@ import {
 } from "../../api/dms";
 import { canPost } from "../../api/permissions";
 import { useMe, useMessages, useSpaces } from "../../api/queries";
+import { inChannel } from "../../api/unreads";
 import { joinVoice } from "../../api/voice";
 import { ChannelGlyph } from "../../components/ChannelGlyph";
 import { ChannelTopic } from "../../components/ChannelTopic";
@@ -26,6 +27,7 @@ import { useConnectionStore } from "../../stores/connection";
 import { useVoiceStore } from "../../stores/voice";
 import { DMTitle } from "../DirectMessages/DMTitle";
 import { Composer } from "./Composer";
+import { JoinBar } from "./JoinBar";
 import { MessageList } from "./MessageList";
 import { PostingClosed } from "./PostingClosed";
 
@@ -105,7 +107,13 @@ export function ChannelView() {
     afterId: string;
   } | null>(null);
   if (channel && divider?.channelId !== channelId) {
-    setDivider({ channelId, afterId: channel.lastReadMessageId });
+    // Nothing is new in a channel they have not joined.
+    setDivider({
+      channelId,
+      afterId: inChannel(channel)
+        ? channel.lastReadMessageId
+        : channel.lastMessageId,
+    });
   }
   useAutoReadActivity(channelId);
   useMarkChannelRead(spaceId, channelId);
@@ -188,7 +196,9 @@ export function ChannelView() {
             threadsAllowed={canPost(space, channel) && !isAnnouncement(channel)}
           />
           <TypingIndicator channelId={channelId} spaceId={spaceId} />
-          {canPost(space, channel) ? (
+          {channel && !inChannel(channel) ? (
+            <JoinBar channel={channel} />
+          ) : canPost(space, channel) ? (
             <Composer
               channelId={channelId}
               channelName={title}

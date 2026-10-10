@@ -173,3 +173,32 @@
   color: var(--text);
   font-weight: 600;
 }
+
+/* In place of the composer for someone who has not joined the channel. */
+.join-bar {
+  margin: 0 16px 16px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+}
+
+.join-bar p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.join-bar strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.join-bar button {
+  flex: none;
+}

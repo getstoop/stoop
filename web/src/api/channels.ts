@@ -8,6 +8,7 @@ import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice, prompt } from "../stores/dialogs";
 import { chatClient } from "./clients";
 import { errorText } from "./errors";
+import { patchChannel, recomputeSpaceUnread } from "./unreads";
 
 // The channels a space may point new arrivals at. Voice is excluded here
 // and again on the server: landing someone in a voice channel would open
@@ -76,6 +77,35 @@ export async function editChannelTopic(
       });
     },
   });
+}
+
+// Join a text channel. The cache follows the answer at once; the
+// channel_member_joined event that follows counts the caller in.
+export async function joinChannel(
+  queryClient: QueryClient,
+  channel: Channel,
+): Promise<void> {
+  const res = await chatClient.joinChannel({ channelId: channel.id });
+  patchChannel(queryClient, channel.spaceId, channel.id, () => ({
+    joined: true,
+    unreadCount: 0,
+    lastReadMessageId:
+      res.channel?.lastReadMessageId ?? channel.lastReadMessageId,
+  }));
+}
+
+// Leave a text channel. It stays listed, no longer theirs.
+export async function leaveChannel(
+  queryClient: QueryClient,
+  channel: Channel,
+): Promise<void> {
+  await chatClient.leaveChannel({ channelId: channel.id });
+  patchChannel(queryClient, channel.spaceId, channel.id, () => ({
+    joined: false,
+    muted: false,
+    unreadCount: 0,
+  }));
+  recomputeSpaceUnread(queryClient, channel.spaceId);
 }
 
 // Only admins, the owner and bots post in an announcement channel.

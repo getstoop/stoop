@@ -11,9 +11,12 @@ import type { Message } from "../gen/stoop/chat/v1/message_pb";
 export function ReactionBar({
   message,
   spaceId,
+  readOnly = false,
 }: {
   message: Message;
   spaceId: string;
+  // Someone who can't react here still sees who did.
+  readOnly?: boolean;
 }) {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
@@ -38,6 +41,7 @@ export function ReactionBar({
             title={`${listNames(names)} reacted with ${emojiName(r.emoji)}`}
             aria-label={`${r.emoji} ${r.userIds.length}, ${listNames(names)}`}
             aria-pressed={mine}
+            disabled={readOnly}
             onClick={() =>
               me && toggleReaction(queryClient, message, r.emoji, me.id)
             }
