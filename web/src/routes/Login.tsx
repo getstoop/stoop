@@ -5,6 +5,7 @@ import { authClient } from "../api/clients";
 import { errorText, isSignedOut } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { loginErrorText } from "../api/loginErrors";
+import { forgotLinkShown, passwordFormShown } from "../api/passwordReset";
 import { roleLabel } from "../api/permissions";
 import { useInstanceStatus, useInvitePreview, useMe } from "../api/queries";
 import { Field } from "../components/Field";
@@ -84,16 +85,13 @@ export function LoginPage() {
     return <Navigate to={redirect ?? "/"} replace />;
   }
   const policy = status?.registrationPolicy ?? RegistrationPolicy.INVITE;
-  // Password sign-in can be restricted to admins or turned off in favour
-  // of login providers; the form then hides unless asked for explicitly
-  // (?password=1 — the admins' fallback). Never hide it when there are no
-  // providers to fall back to.
   const passwordSignIn = status?.passwordSignIn ?? PasswordSignIn.EVERYONE;
   const providers = status?.loginProviders ?? [];
-  const showPasswordForm =
-    passwordSignIn === PasswordSignIn.EVERYONE ||
-    forcePassword === "1" ||
-    providers.length === 0;
+  const showPasswordForm = passwordFormShown(
+    passwordSignIn,
+    forcePassword === "1",
+    providers.length,
+  );
   const canRegister =
     policy !== RegistrationPolicy.CLOSED &&
     passwordSignIn === PasswordSignIn.EVERYONE;
@@ -101,6 +99,11 @@ export function LoginPage() {
   // A closed server can only be logged in to; never strand an invitee on
   // a create-account form with no way out.
   const effectiveMode = canRegister ? mode : "login";
+  const showForgotLink = forgotLinkShown(
+    status?.passwordResetAvailable ?? false,
+    showPasswordForm,
+    effectiveMode,
+  );
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -230,7 +233,17 @@ export function LoginPage() {
                 required
               />
             </Field>
-            <Field label="Password" error={form.errors.password}>
+            <Field
+              label="Password"
+              error={form.errors.password}
+              counter={
+                showForgotLink && (
+                  <Link className="link" to="/forgot-password">
+                    Forgot password?
+                  </Link>
+                )
+              }
+            >
               <input
                 type="password"
                 value={password}
