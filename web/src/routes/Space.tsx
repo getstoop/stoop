@@ -35,7 +35,7 @@ import { ChannelGlyph } from "../components/ChannelGlyph";
 import { ChannelGroupHeading } from "../components/ChannelGroupHeading";
 import { ChannelMenu } from "../components/ChannelMenu";
 import { DotsMenu, type MenuItem } from "../components/DotsMenu";
-import { BellOffIcon } from "../components/Icons";
+import { BellOffIcon, ListIcon } from "../components/Icons";
 import { InviteModal } from "../components/InviteModal";
 import { MembersPanel } from "../components/MembersPanel";
 import { closeDrawerOnLink } from "../components/MenuButton";
@@ -53,7 +53,10 @@ import { useLayoutStore } from "../stores/layout";
 // Space layout: channel sidebar on the left, the active channel (via
 // Outlet) on the right.
 export function SpaceLayout() {
-  const { spaceId } = useParams({ strict: false }) as { spaceId: string };
+  const { spaceId, channelId } = useParams({ strict: false }) as {
+    spaceId: string;
+    channelId?: string;
+  };
   const { data: spaces } = useSpaces();
   const { data: channels } = useChannels(spaceId);
   const { data: activity } = useActivity();
@@ -67,6 +70,11 @@ export function SpaceLayout() {
   // The list holds every channel; the sidebar shows the ones they are in.
   const textChannels =
     channels?.filter((c) => c.kind !== ChannelKind.VOICE && inChannel(c)) ?? [];
+  // A channel they are looking at without being in has no row of its own;
+  // the way back to the list stands in for it.
+  const viewingOutside = !!channels?.some(
+    (c) => c.id === channelId && !inChannel(c),
+  );
   const manage = !!space && canManageChannels(space);
   const voiceChannels =
     channels?.filter((c) => c.kind === ChannelKind.VOICE) ?? [];
@@ -273,6 +281,19 @@ export function SpaceLayout() {
               <ChannelMenu channel={channel} space={space} />
             </div>
           ))}
+          <div className="channel-row">
+            <Link
+              to="/s/$spaceId/channels"
+              params={{ spaceId }}
+              className={`channel-link browse-link ${viewingOutside ? "active" : ""}`}
+              activeProps={{ className: "channel-link browse-link active" }}
+            >
+              <span className="channel-hash">
+                <ListIcon />
+              </span>
+              <span className="channel-name">Browse channels</span>
+            </Link>
+          </div>
           {(voiceChannels.length > 0 || addVoice) && (
             <ChannelGroupHeading
               label="Voice channels"

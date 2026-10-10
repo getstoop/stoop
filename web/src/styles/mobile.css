@@ -200,6 +200,14 @@
     padding: 0 8px calc(8px + env(safe-area-inset-bottom));
   }
 
+  .channel-browser-scroll {
+    padding: 12px 8px;
+  }
+
+  .channel-browser-count {
+    display: none;
+  }
+
   .posting-closed,
   .join-bar {
     margin: 0 8px calc(8px + env(safe-area-inset-bottom));

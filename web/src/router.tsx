@@ -7,6 +7,7 @@ import { ActivityPage } from "./routes/Activity";
 import { AdminPage } from "./routes/Admin";
 import { AppShell } from "./routes/AppShell";
 import { ChannelView } from "./routes/Channel";
+import { ChannelsPage } from "./routes/Channels";
 import { ConfirmEmailPage } from "./routes/ConfirmEmail";
 import { DesktopAuthCompletePage } from "./routes/DesktopAuthComplete";
 import { DesktopAuthReturnPage } from "./routes/DesktopAuthReturn";
@@ -333,6 +334,13 @@ const spaceSearchRoute = createRoute({
   }),
 });
 
+// Every text channel in the space, to find one and join it.
+const spaceChannelsRoute = createRoute({
+  getParentRoute: () => spaceRoute,
+  path: "/channels",
+  component: ChannelsPage,
+});
+
 const channelRoute = createRoute({
   getParentRoute: () => spaceRoute,
   path: "/c/$channelId",
@@ -358,7 +366,12 @@ const routeTree = rootRoute.addChildren([
     joinRoute,
     dmRoute.addChildren([dmIndexRoute, dmChannelRoute]),
     spaceSettingsRoute,
-    spaceRoute.addChildren([spaceIndexRoute, spaceSearchRoute, channelRoute]),
+    spaceRoute.addChildren([
+      spaceIndexRoute,
+      spaceSearchRoute,
+      spaceChannelsRoute,
+      channelRoute,
+    ]),
   ]),
 ]);
 
