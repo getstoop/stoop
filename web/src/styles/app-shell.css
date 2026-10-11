@@ -19,8 +19,14 @@
 }
 
 [data-shell] .channel-sidebar,
-[data-shell] .settings-nav {
+[data-shell] .settings-nav,
+[data-shell] .activity-page {
   border-top-left-radius: var(--radius-lg);
+}
+
+/* No sidebar on this page, so the page itself covers the corner. */
+[data-shell] .activity-page {
+  background: var(--surface);
 }
 
 .space-rail {

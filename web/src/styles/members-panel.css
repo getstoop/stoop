@@ -21,7 +21,9 @@
   padding: 0 8px;
 }
 
-.members-search > input {
+/* Focused too: the kit's focused input would put its own padding back. */
+.members-search > input,
+.members-search > input:focus-visible {
   padding: 4px 0;
   font-size: var(--text-ui);
 }

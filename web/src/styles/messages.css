@@ -11,7 +11,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  /* off-scale: the sidebar header's height, so the two rules meet */
+  min-height: 51px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
