@@ -228,6 +228,11 @@ func TestE2ELinkPreviewsKeptOnAnUpgradedServer(t *testing.T) {
 	if again := newHarnessOn(t, databaseURL); linkPreviewsOn(t, again) {
 		t.Error("link previews came back on at a later restart")
 	}
+	// Even if the decision were made again, a saved choice stands.
+	forgetLinkPreviewDefault(t, databaseURL)
+	if again := newHarnessOn(t, databaseURL); linkPreviewsOn(t, again) {
+		t.Error("deciding again overwrote the admin's saved choice")
+	}
 }
 
 // An upgraded server whose environment says off is left off.

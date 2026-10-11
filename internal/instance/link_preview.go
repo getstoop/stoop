@@ -11,6 +11,7 @@ import (
 	instancev1 "github.com/getstoop/stoop/gen/stoop/instance/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/config"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // The link preview settings: link_previews, whether links in messages
@@ -80,8 +81,10 @@ func (s *Service) KeepLinkPreviewsOn(ctx context.Context) error {
 			return err
 		}
 		if accounts > 0 {
-			if err := s.writeJSON(ctx, keyLinkPreviews, true); err != nil {
-				return err
+			// Only where there is still no row: a choice saved since the
+			// read above is the admin's and stands.
+			if err := s.q.SeedSetting(ctx, dbgen.SeedSettingParams{Key: keyLinkPreviews, Value: []byte("true")}); err != nil {
+				return fmt.Errorf("seed %s: %w", keyLinkPreviews, err)
 			}
 		}
 	}
