@@ -133,13 +133,13 @@
 
 .message-toolbar {
   position: absolute;
-  top: -12px;
+  top: -16px;
   right: 16px;
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 6px;
+  gap: 4px;
+  padding: 2px 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel);
@@ -155,7 +155,13 @@
 }
 
 .message-toolbar .message-action {
+  padding: 4px;
   opacity: 1;
+}
+
+.message-toolbar .message-action svg {
+  width: 18px;
+  height: 18px;
 }
 
 .message-action:hover {
