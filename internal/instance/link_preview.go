@@ -56,6 +56,38 @@ func stageLinkPreviewProxy(msg *instancev1.UpdateSettingsRequest, save *settingS
 // nothing is saved.
 func (s *Service) UseLinkPreviewsEnv(enabled bool) { s.linkPreviewsEnv = enabled }
 
+// keyLinkPreviewsSettled marks that KeepLinkPreviewsOn has decided.
+const keyLinkPreviewsSettled = "link_previews_default_settled"
+
+// KeepLinkPreviewsOn saves link_previews as on for a server that had
+// accounts before previews became off by default, so an upgrade takes no
+// cards away. It decides once, on the first start with that default: a
+// new server has no accounts then and stays off. A saved value or a set
+// STOOP_LINK_PREVIEWS is left alone. Called after UseEnvSet.
+func (s *Service) KeepLinkPreviewsOn(ctx context.Context) error {
+	var settled bool
+	if ok, err := s.readJSON(ctx, keyLinkPreviewsSettled, &settled); err != nil || ok {
+		return err
+	}
+	var saved bool
+	hasRow, err := s.readJSON(ctx, keyLinkPreviews, &saved)
+	if err != nil {
+		return err
+	}
+	if !hasRow && (s.envSet == nil || !s.envSet("STOOP_LINK_PREVIEWS")) {
+		accounts, err := s.users.CountUsers(ctx)
+		if err != nil {
+			return err
+		}
+		if accounts > 0 {
+			if err := s.writeJSON(ctx, keyLinkPreviews, true); err != nil {
+				return err
+			}
+		}
+	}
+	return s.writeJSON(ctx, keyLinkPreviewsSettled, true)
+}
+
 // LinkPreviews is the effective setting: saved, else environment.
 func (s *Service) LinkPreviews(ctx context.Context) (bool, error) {
 	return s.readBool(ctx, keyLinkPreviews, s.linkPreviewsEnv)

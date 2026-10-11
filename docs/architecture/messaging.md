@@ -746,7 +746,11 @@ back to a direct one. SOCKS5 without credentials is the only kind taken.
 `STOOP_UNFURL_ALLOW_PRIVATE` relaxes this for development and for the
 browser spec, which serves its own page to unfurl. It is logged loudly at
 startup, because it is exactly the setting that turns the server into a
-probe of the operator's LAN. The `link_previews` setting (else
-`STOOP_LINK_PREVIEWS`, else on) turns the feature off, for operators who
-would rather the server made no outbound requests at all: links posted
-while it is off are not recorded, and cards already fetched stay.
+probe of the operator's LAN.
+
+Previews are **off unless turned on**: the `link_previews` setting, else
+`STOOP_LINK_PREVIEWS`, else off, because every fetch shows a linked site
+the server's address. Links posted while it is off are not recorded, and
+cards already fetched stay. A server that had accounts before this
+default has the setting saved as on at its first start with it
+(`KeepLinkPreviewsOn`), so an upgrade takes no cards away.

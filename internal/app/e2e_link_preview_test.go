@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -8,6 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/getstoop/stoop/internal/db/dbtest"
 	"github.com/getstoop/stoop/internal/netguard/socks5test"
 )
 
@@ -22,7 +26,7 @@ func TestE2ELinkPreviewHTMLCap(t *testing.T) {
 		fetched.Store(r.URL.Path, true)
 	}))
 	defer site.Close()
-	server := newHarness(t, "STOOP_UNFURL_ALLOW_PRIVATE", "true", "STOOP_LINK_PREVIEW_HTML_MB", "1")
+	server := newHarness(t, "STOOP_LINK_PREVIEWS", "true", "STOOP_UNFURL_ALLOW_PRIVATE", "true", "STOOP_LINK_PREVIEW_HTML_MB", "1")
 	casey := server.person("casey")
 	_, channelID := server.space(casey, "Porch")
 	status := "stoop.instance.v1.InstanceService/GetInstanceStatus"
@@ -117,7 +121,7 @@ func TestE2ELinkPreviewProxy(t *testing.T) {
 	relay := socks5test.Start(t)
 	relay.Route("203.0.113.7:80", site.Listener.Addr().String())
 	// A plain-http resolver is only taken with private fetches allowed.
-	server := newHarness(t, "STOOP_UNFURL_ALLOW_PRIVATE", "true", "STOOP_LINK_PREVIEW_RESOLVER", resolver)
+	server := newHarness(t, "STOOP_LINK_PREVIEWS", "true", "STOOP_UNFURL_ALLOW_PRIVATE", "true", "STOOP_LINK_PREVIEW_RESOLVER", resolver)
 	casey := server.person("casey")
 	ada := server.person("ada")
 	_, channelID := server.space(casey, "Porch")
@@ -166,5 +170,74 @@ func TestE2ELinkPreviewProxy(t *testing.T) {
 	server.rpc(casey, update, map[string]any{"linkPreviewProxy": ""}).expect(t, "ok")
 	if got := server.rpc(casey, read, map[string]any{}).expect(t, "ok").str("linkPreviewProxy"); got != "" {
 		t.Errorf("cleared proxy reads back as %q", got)
+	}
+}
+
+const instanceStatus = "stoop.instance.v1.InstanceService/GetInstanceStatus"
+
+func linkPreviewsOn(t *testing.T, server *harness) bool {
+	t.Helper()
+	on, _ := server.rpc("", instanceStatus, map[string]any{}).expect(t, "ok").body["linkPreviews"].(bool)
+	return on
+}
+
+// forgetLinkPreviewDefault puts a database back to how a server from
+// before previews were off by default left it: nothing decided.
+func forgetLinkPreviewDefault(t *testing.T, databaseURL string) {
+	t.Helper()
+	pool, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	if _, err := pool.Exec(context.Background(), "DELETE FROM instance_settings WHERE key = 'link_previews_default_settled'"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A new server has link previews off, and they stay off once it has
+// accounts and restarts.
+func TestE2ELinkPreviewsOffOnANewServer(t *testing.T) {
+	t.Setenv("STOOP_LINK_PREVIEWS", "")
+	databaseURL := dbtest.NewURL(t)
+	first := newHarnessOn(t, databaseURL)
+	if linkPreviewsOn(t, first) {
+		t.Error("a new server has link previews on")
+	}
+	first.person("casey")
+	if second := newHarnessOn(t, databaseURL); linkPreviewsOn(t, second) {
+		t.Error("link previews came on at the restart after setup")
+	}
+}
+
+// A server that had accounts before the default changed keeps its
+// previews on through the upgrade.
+func TestE2ELinkPreviewsKeptOnAnUpgradedServer(t *testing.T) {
+	t.Setenv("STOOP_LINK_PREVIEWS", "")
+	databaseURL := dbtest.NewURL(t)
+	before := newHarnessOn(t, databaseURL)
+	casey := before.person("casey")
+	forgetLinkPreviewDefault(t, databaseURL)
+
+	upgraded := newHarnessOn(t, databaseURL)
+	if !linkPreviewsOn(t, upgraded) {
+		t.Fatal("an upgraded server with accounts lost its link previews")
+	}
+	// Turned off afterwards, it stays off across a restart.
+	upgraded.rpc(casey, "stoop.instance.v1.InstanceService/UpdateSettings", map[string]any{"linkPreviews": false}).expect(t, "ok")
+	if again := newHarnessOn(t, databaseURL); linkPreviewsOn(t, again) {
+		t.Error("link previews came back on at a later restart")
+	}
+}
+
+// An upgraded server whose environment says off is left off.
+func TestE2ELinkPreviewsUpgradeRespectsTheEnvironment(t *testing.T) {
+	databaseURL := dbtest.NewURL(t)
+	t.Setenv("STOOP_LINK_PREVIEWS", "")
+	before := newHarnessOn(t, databaseURL)
+	before.person("casey")
+	forgetLinkPreviewDefault(t, databaseURL)
+	if upgraded := newHarnessOn(t, databaseURL, "STOOP_LINK_PREVIEWS", "false"); linkPreviewsOn(t, upgraded) {
+		t.Error("an upgrade turned previews on against STOOP_LINK_PREVIEWS=false")
 	}
 }
