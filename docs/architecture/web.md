@@ -141,6 +141,7 @@ The stores, and what each is for:
 | `layout` | `drawerOpen`. That is the entire mobile navigation state. |
 | `sidePanel` | What the side panel shows, or nothing, saved per tab ([The side panel](#the-side-panel)). |
 | `dialogs` | The promise-shaped `confirm` / `prompt` / `notice` queue. |
+| `announcer` | The sentence a screen reader is told about a change that only shows on screen; `announce()` sets it and `components/Announcer.tsx` is the hidden live region that speaks it. |
 
 `connection.activeChannelId` deserves a note: it is what lets a realtime
 handler tell "a message arrived in the channel I am reading" from "a

@@ -327,7 +327,8 @@ has a row, dimmed and last in the list so no other row moves, until the
 reader goes elsewhere. A muted space hides nothing: only a channel's own
 mute does (`sidebarTextChannels` in `mutes.ts`). A thread from a muted
 channel shows its own mute button as muted and disabled, with a tooltip
-saying the channel is why. Voice channels and conversations stay
+saying the channel is why. Muting or unmuting a text channel is
+announced to screen readers, since the row's move is only visible. Voice channels and conversations stay
 listed, dimmed.
 
 Two neighbouring mechanisms are not mutes. **Do not disturb** is a

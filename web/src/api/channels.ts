@@ -5,6 +5,7 @@ import {
   ChannelPostPolicy,
 } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
+import { announce } from "../stores/announcer";
 import { confirm, notice, prompt } from "../stores/dialogs";
 import { chatClient } from "./clients";
 import { errorText } from "./errors";
@@ -123,9 +124,17 @@ export async function setChannelMuted(
     channelId: channel.id,
     muted,
   });
-  patchChannel(queryClient, channel.spaceId, channel.id, {
-    muted: res.channel?.muted ?? muted,
-  });
+  const now = res.channel?.muted ?? muted;
+  patchChannel(queryClient, channel.spaceId, channel.id, { muted: now });
+  // A text channel's row leaves or rejoins the sidebar, which a screen
+  // reader would otherwise not hear about.
+  if (channel.spaceId && channel.kind !== ChannelKind.VOICE) {
+    announce(
+      now
+        ? `#${channel.name} muted. Find it under Muted channels.`
+        : `#${channel.name} unmuted.`,
+    );
+  }
   recomputeSpaceUnread(queryClient, channel.spaceId);
   // The mute stamps on items already in the feed are now stale.
   queryClient.invalidateQueries({ queryKey: ["activity"] });
