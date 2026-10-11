@@ -3,6 +3,7 @@ import { useState } from "react";
 import { defaultChannelChoices } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
+import { Select } from "../../components/Select";
 import { SettingRow } from "../../components/SettingRow";
 import type { Channel } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
@@ -56,7 +57,7 @@ export function DefaultChannelRow({
       description="Where an invite lands someone, and where the space opens when no channel is chosen."
       error={error}
     >
-      <select
+      <Select
         id="default-channel"
         name="default-channel"
         value={pending ?? current}
@@ -69,7 +70,7 @@ export function DefaultChannelRow({
             # {c.name}
           </option>
         ))}
-      </select>
+      </Select>
     </SettingRow>
   );
 }

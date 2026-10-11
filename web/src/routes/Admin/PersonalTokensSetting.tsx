@@ -3,6 +3,7 @@ import { useState } from "react";
 import { instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useInstanceStatus } from "../../api/queries";
+import { Select } from "../../components/Select";
 import { SettingRow } from "../../components/SettingRow";
 import { PersonalTokens } from "../../gen/stoop/instance/v1/instance_pb";
 
@@ -55,7 +56,7 @@ export function PersonalTokensSetting() {
         description={OPTIONS.find((o) => o.value === current)?.hint}
         error={error}
       >
-        <select
+        <Select
           id="personal-tokens"
           name="personal-tokens"
           value={current}
@@ -67,7 +68,7 @@ export function PersonalTokensSetting() {
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
       </SettingRow>
     </section>
   );

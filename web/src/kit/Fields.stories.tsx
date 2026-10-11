@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Select } from "../components/Select";
 import { Switch } from "../components/Switch";
 
 // The bare controls fields.css styles. A control with a label is a
@@ -26,11 +27,11 @@ export const Controls: StoryObj = {
         aria-label="Invalid text"
       />
       <input type="text" placeholder="A placeholder" aria-label="Empty" />
-      <select defaultValue="invite" aria-label="Select">
+      <Select defaultValue="invite" aria-label="Select">
         <option value="invite">Invite only</option>
         <option value="open">Anyone with the link</option>
         <option value="closed">Closed</option>
-      </select>
+      </Select>
       <textarea
         rows={2}
         placeholder="What is this place for?"

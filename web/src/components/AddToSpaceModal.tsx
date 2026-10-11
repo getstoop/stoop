@@ -4,6 +4,7 @@ import { useSpaces } from "../api/queries";
 import { useFieldErrors } from "../hooks/useFieldErrors";
 import { Field } from "./Field";
 import { Modal } from "./Modal";
+import { Select } from "./Select";
 
 // Admin page → Accounts → "Add to space": drop an existing account into
 // one of the spaces you're in, no invite needed. Lists the caller's own
@@ -78,7 +79,7 @@ export function AddToSpaceModal({
             hint="They join as a member right away, no invite link needed. Only spaces you belong to are listed."
             error={form.errors.spaceId}
           >
-            <select
+            <Select
               value={chosen}
               onChange={(e) => setSpaceId(e.target.value)}
               // biome-ignore lint/a11y/noAutofocus: the one field in a small dialog
@@ -89,7 +90,7 @@ export function AddToSpaceModal({
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         )}
       </form>

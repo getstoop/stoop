@@ -14,7 +14,7 @@
   align-items: start;
 }
 
-.invite-fields :where(select) {
+.invite-fields :where(.select) {
   width: 100%;
 }
 

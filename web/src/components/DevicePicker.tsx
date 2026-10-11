@@ -1,5 +1,6 @@
 import { type DeviceKind, switchCamera, switchMicrophone } from "../api/voice";
 import { useDevices } from "../hooks/useDevices";
+import { Select } from "./Select";
 
 // A microphone or camera picker for the voice bar. Only shown when there
 // is a choice to make; labels exist once the permission has been granted,
@@ -17,7 +18,7 @@ export function DevicePicker({
   const label = kind === "audioinput" ? "Microphone" : "Camera";
   const pick = kind === "audioinput" ? switchMicrophone : switchCamera;
   return (
-    <select
+    <Select
       className="voice-mic-select"
       aria-label={label}
       title={label}
@@ -29,6 +30,6 @@ export function DevicePicker({
           {d.label || label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }

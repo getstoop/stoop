@@ -4,7 +4,8 @@
 // (docs/architecture/design-system.md → Fields). This refuses the two
 // hand-built shapes they replaced: className="field" outside Field.tsx,
 // and a <label> with neither htmlFor nor a class of its own (a toggle
-// row, a picker row), which is words wrapped round a control.
+// row, a picker row), which is words wrapped round a control. A dropdown
+// is a <Select>, so a bare <select> outside Select.tsx is refused too.
 // Run by `make lint`, beside check-tsx-styles.mjs.
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -14,6 +15,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = join(root, "web/src");
 const SKIP = join(src, "gen");
 const FIELD = join(src, "components/Field.tsx");
+const SELECT = join(src, "components/Select.tsx");
 
 function* tsxFiles(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -27,11 +29,12 @@ function* tsxFiles(dir) {
 const RULES = [
   [/className="field(?:"| )/, 'className="field": use <Field>'],
   [/<label\s*>/, "a bare <label>: use <Field>, or give a toggle row its class"],
+  [/<select\b/, "a bare <select>: use <Select>"],
 ];
 
 let failed = 0;
 for (const file of tsxFiles(src)) {
-  if (file === FIELD) continue;
+  if (file === FIELD || file === SELECT) continue;
   readFileSync(file, "utf8")
     .split("\n")
     .forEach((line, i) => {
