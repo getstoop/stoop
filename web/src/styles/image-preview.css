@@ -7,17 +7,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* off-scale: clears the 28px buttons at 12px from each edge */
-  padding: 56px;
   background: var(--scrim-deep);
 }
 
-/* Its own size, shrunk to fit the window. */
+/* The image's own box, so the arrows can sit beside its edges. */
+.image-preview-frame {
+  position: relative;
+}
+
+/* Its own size, shrunk to leave 56px a side for the buttons. */
 .image-preview img {
   display: block;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  max-width: calc(100vw - 112px);
+  max-height: calc(100dvh - 112px);
   border-radius: var(--radius-md);
 }
 
@@ -48,9 +50,9 @@
 }
 
 .image-preview-previous {
-  left: 12px;
+  right: calc(100% + 12px);
 }
 
 .image-preview-next {
-  right: 12px;
+  left: calc(100% + 12px);
 }
