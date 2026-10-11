@@ -78,4 +78,6 @@
   --warn-soft: color-mix(in srgb, var(--warn) 20%, transparent);
   --danger-soft: color-mix(in srgb, var(--danger) 18%, transparent);
   --danger-border: color-mix(in srgb, var(--danger) 45%, var(--border));
+  /* The scrim behind an image preview: the theme's, all but opaque. */
+  --scrim-deep: rgb(from var(--scrim) r g b / 0.97);
 }

@@ -1,0 +1,56 @@
+/* ---- Image preview: an attached image over a scrim. ---- */
+
+.image-preview {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* off-scale: clears the buttons, 12px from the top and 24px from the sides */
+  padding: 56px 80px;
+  background: var(--scrim-deep);
+}
+
+/* Its own size, shrunk to fit the window. */
+.image-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+
+.image-preview-close,
+.image-preview-download,
+.image-preview-step {
+  position: absolute;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.image-preview-close {
+  left: 12px;
+  padding: 4px;
+}
+
+.image-preview-download {
+  right: 12px;
+}
+
+.image-preview-step {
+  top: 50%;
+  padding: 8px;
+  transform: translateY(-50%);
+}
+
+.image-preview-previous {
+  left: 24px;
+}
+
+.image-preview-next {
+  right: 24px;
+}

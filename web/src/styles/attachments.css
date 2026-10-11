@@ -20,8 +20,11 @@
   background: var(--panel);
 }
 
-.attachment-image > a {
+.attachment-image > button {
   display: block;
+  padding: 0;
+  border: none;
+  background: none;
 }
 
 .attachment-image img {
