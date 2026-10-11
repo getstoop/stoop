@@ -22,6 +22,9 @@ func TestPolicyAllows(t *testing.T) {
 		{"100.65.98.12", false, true, false}, {"fd00::1", false, true, false}, {"::ffff:10.0.0.1", false, true, false},
 		{"169.254.169.254", false, false, true}, {"169.254.1.1", false, false, true}, {"fe80::1", false, false, true},
 		{"224.0.0.1", false, false, true}, {"0.0.0.0", false, false, true},
+		// An IPv4 address inside an IPv6 one, private or not.
+		{"::127.0.0.1", false, false, true}, {"::192.168.1.1", false, false, true}, {"::8.8.8.8", false, false, true},
+		{"64:ff9b::7f00:1", false, false, true}, {"64:ff9b:1::a00:1", false, false, true}, {"2002:c0a8:101::1", false, false, true},
 	}
 	closed, open := Policy{}, Policy{AllowPrivate: true}
 	for _, c := range cases {
