@@ -173,3 +173,38 @@
   color: var(--text);
   font-weight: 600;
 }
+
+/* The field, and beside it the send button an on-screen keyboard needs. */
+.composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.composer-row .composer-input {
+  flex: 1;
+  min-width: 0;
+}
+
+button.composer-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: var(--radius-lg);
+}
+
+.message-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+
+.message-editor-actions button.primary {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+}

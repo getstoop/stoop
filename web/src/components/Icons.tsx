@@ -455,3 +455,79 @@ export function LinkIcon() {
     </svg>
   );
 }
+
+// Three rows, each led by a dot.
+export function BulletListIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M10 5h11M10 12h11M10 19h11" />
+      <circle cx="4" cy="5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="4" cy="19" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+// Three rows, each led by its number.
+export function NumberedListIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M10 5h11M10 12h11M10 19h11" />
+      <g
+        fill="currentColor"
+        stroke="none"
+        fontSize="8"
+        fontWeight="700"
+        textAnchor="middle"
+      >
+        <text x="4" y="7.9">
+          1
+        </text>
+        <text x="4" y="14.9">
+          2
+        </text>
+        <text x="4" y="21.9">
+          3
+        </text>
+      </g>
+    </svg>
+  );
+}
+
+// Send a message: an arrow pointing up.
+export function SendIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 20V5" />
+      <path d="m5 12 7-7 7 7" />
+    </svg>
+  );
+}
