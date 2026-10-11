@@ -140,11 +140,13 @@
   margin: 6px 4px 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
+  cursor: pointer;
 }
 
 /* One short line: centred on it, without the toggle row's first-line nudge. */
 .composer label.composer-also-send input[type="checkbox"] {
   margin: 0;
+  cursor: pointer;
 }
 
 .composer-hint {
