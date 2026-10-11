@@ -143,12 +143,54 @@
   cursor: pointer;
 }
 
-/* One short line: centred on it, without the toggle row's first-line nudge. */
+.composer label.composer-also-send:hover {
+  color: var(--text);
+}
+
+/* One short line: centred on it, without the toggle row's first-line
+   nudge. Drawn like the switch: the native box is kept for the label and
+   the keyboard, and the global focus ring applies. */
 .composer label.composer-also-send input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  flex: none;
   width: 16px;
   height: 16px;
   margin: 0;
+  border: 1px solid color-mix(in srgb, var(--border) 50%, var(--text-muted));
+  border-radius: var(--radius-sm);
+  background: var(--panel);
   cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+/* The tick: two sides of a small box, turned. */
+.composer label.composer-also-send input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  opacity: 0;
+  transform: rotate(45deg);
+}
+
+.composer label.composer-also-send:hover input[type="checkbox"] {
+  border-color: var(--text-muted);
+}
+
+.composer label.composer-also-send input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.composer label.composer-also-send input[type="checkbox"]:checked::before {
+  opacity: 1;
 }
 
 .composer-hint {
