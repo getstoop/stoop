@@ -162,7 +162,9 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           >
             {copied ? <CheckIcon /> : <LinkIcon />}
           </button>
-          {summary && (
+          {/* A muted channel already silences its threads, and the bell
+              beside its name says so. */}
+          {summary && !muted && (
             <button
               type="button"
               className={`icon-button${summary.muted ? " thread-muted-icon" : ""}`}

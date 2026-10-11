@@ -325,7 +325,10 @@ the list in the side panel (`components/MutedChannels`), where a name
 opens the channel and Unmute puts its row back. The channel being read
 has a row, dimmed and last in the list so no other row moves, until the
 reader goes elsewhere. A muted space hides nothing: only a channel's own
-mute does (`sidebarTextChannels` in `mutes.ts`). Voice channels and conversations stay listed, dimmed.
+mute does (`sidebarTextChannels` in `mutes.ts`). A thread from a muted
+channel shows the muted bell after the channel's name in its header and
+offers no thread mute of its own. Voice channels and conversations stay
+listed, dimmed.
 
 Two neighbouring mechanisms are not mutes. **Do not disturb** is a
 choice on the account that holds every banner, on every device, on top of mutes
