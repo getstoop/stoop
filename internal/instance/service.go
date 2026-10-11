@@ -92,6 +92,8 @@ type Service struct {
 	instanceNameEnv string
 	// sessionDaysEnv is STOOP_SESSION_LIFETIME_DAYS (session_lifetime.go).
 	sessionDaysEnv int
+	// linkPreviewHTMLEnv is STOOP_LINK_PREVIEW_HTML_MB (link_preview.go).
+	linkPreviewHTMLEnv int
 	// retention counts what the retention settings would delete, for
 	// PreviewRetention (retention.go).
 	retention RetentionCounter

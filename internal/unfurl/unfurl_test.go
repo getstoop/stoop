@@ -35,6 +35,8 @@ func TestParseHTML(t *testing.T) {
 	}
 }
 
+const maxHTMLBytes = 1 << 20
+
 func TestFetch_LocalServerRefusedUnlessAllowed(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -46,6 +48,12 @@ func TestFetch_LocalServerRefusedUnlessAllowed(t *testing.T) {
 		case "/big":
 			w.Header().Set("Content-Type", "text/html")
 			_, _ = w.Write([]byte("<title>big</title>" + strings.Repeat("a", maxHTMLBytes+10)))
+		case "/late-title":
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte("<head><!--" + strings.Repeat("a", maxHTMLBytes) + "--><title>late</title>"))
+		case "/big.zip":
+			w.Header().Set("Content-Type", "application/zip")
+			_, _ = w.Write([]byte("PK\x03\x04" + strings.Repeat("a", maxHTMLBytes+10)))
 		case "/big.gif":
 			w.Header().Set("Content-Type", "image/gif")
 			_, _ = w.Write([]byte("GIF89a" + strings.Repeat("a", maxHTMLBytes+10)))
@@ -61,38 +69,48 @@ func TestFetch_LocalServerRefusedUnlessAllowed(t *testing.T) {
 	ctx := context.Background()
 
 	// The default fetcher must refuse loopback — that's the SSRF guard.
-	if _, err := New(Options{}).Fetch(ctx, srv.URL+"/page"); !errors.Is(err, netguard.ErrNotPublic) {
+	if _, err := New(Options{}).Fetch(ctx, srv.URL+"/page", maxHTMLBytes); !errors.Is(err, netguard.ErrNotPublic) {
 		t.Fatalf("loopback fetch should be refused, got %v", err)
 	}
-	if _, err := New(Options{}).Fetch(ctx, "ftp://example.com/x"); !errors.Is(err, netguard.ErrBadScheme) {
+	if _, err := New(Options{}).Fetch(ctx, "ftp://example.com/x", maxHTMLBytes); !errors.Is(err, netguard.ErrBadScheme) {
 		t.Errorf("ftp should be refused, got %v", err)
 	}
-	if _, err := New(Options{}).Fetch(ctx, "http://user:pw@example.com/"); !errors.Is(err, netguard.ErrBadScheme) {
+	if _, err := New(Options{}).Fetch(ctx, "http://user:pw@example.com/", maxHTMLBytes); !errors.Is(err, netguard.ErrBadScheme) {
 		t.Errorf("userinfo should be refused, got %v", err)
 	}
 
 	f := New(Options{AllowPrivate: true})
-	p, err := f.Fetch(ctx, srv.URL+"/page")
+	page, err := f.Fetch(ctx, srv.URL+"/page", maxHTMLBytes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Title != "T" || p.Description != "D" || len(p.Image) == 0 {
-		t.Errorf("preview = %+v", p)
+	if page.Title != "T" || page.Description != "D" || len(page.Image) == 0 {
+		t.Errorf("preview = %+v", page)
 	}
-	if p, err := f.Fetch(ctx, srv.URL+"/redirect"); err != nil || p.Title != "T" {
+	if p, err := f.Fetch(ctx, srv.URL+"/redirect", maxHTMLBytes); err != nil || p.Title != "T" {
 		t.Errorf("redirect: %v %+v", err, p)
 	}
-	if p, err := f.Fetch(ctx, srv.URL+"/img.png"); err != nil || len(p.Image) == 0 || p.Title != "" {
+	if p, err := f.Fetch(ctx, srv.URL+"/img.png", maxHTMLBytes); err != nil || len(p.Image) == 0 || p.Title != "" {
 		t.Errorf("direct image: %v %+v", err, p)
 	}
-	if _, err := f.Fetch(ctx, srv.URL+"/big"); !errors.Is(err, ErrTooLarge) {
-		t.Errorf("oversize page should be refused, got %v", err)
+	// A page longer than the cap is read up to the cap.
+	if p, err := f.Fetch(ctx, srv.URL+"/big", maxHTMLBytes); err != nil || p.Title != "big" {
+		t.Errorf("oversize page: %v %+v", err, p)
+	}
+	if _, err := f.Fetch(ctx, srv.URL+"/late-title", maxHTMLBytes); !errors.Is(err, errNoMetadata) {
+		t.Errorf("a title past the cap should not be found, got %v", err)
+	}
+	if p, err := f.Fetch(ctx, srv.URL+"/late-title", 2*maxHTMLBytes); err != nil || p.Title != "late" {
+		t.Errorf("a title under a larger cap: %v %+v", err, p)
+	}
+	if _, err := f.Fetch(ctx, srv.URL+"/big.zip", maxHTMLBytes); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("oversize file should be refused, got %v", err)
 	}
 	// A direct image gets the image cap, not the page cap.
-	if p, err := f.Fetch(ctx, srv.URL+"/big.gif"); err != nil || len(p.Image) <= maxHTMLBytes {
+	if p, err := f.Fetch(ctx, srv.URL+"/big.gif", maxHTMLBytes); err != nil || len(p.Image) <= maxHTMLBytes {
 		t.Errorf("image over the page cap: %v, %d bytes", err, len(p.Image))
 	}
-	if _, err := f.Fetch(ctx, srv.URL+"/huge.gif"); !errors.Is(err, ErrTooLarge) {
+	if _, err := f.Fetch(ctx, srv.URL+"/huge.gif", maxHTMLBytes); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("oversize image should be refused, got %v", err)
 	}
 }

@@ -9,6 +9,7 @@ import { CleanupSection } from "./CleanupSection";
 import { Diagnostics } from "./Diagnostics";
 import { EmailSection } from "./EmailSection";
 import { IntegrationsSection } from "./IntegrationsSection";
+import { LinkPreviewSetting } from "./LinkPreviewSetting";
 import { LoginProvidersSection } from "./LoginProvidersSection";
 import { OutdatedNotice } from "./OutdatedNotice";
 import { PasswordSignInSection } from "./PasswordSignInSection";
@@ -95,6 +96,7 @@ export function AdminPage() {
         <>
           <OutdatedNotice />
           <ServerSection />
+          <LinkPreviewSetting />
           <AboutSection />
         </>
       )}

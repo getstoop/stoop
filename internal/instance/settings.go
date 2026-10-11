@@ -109,6 +109,10 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 	if err != nil {
 		return nil, err
 	}
+	previewMB, err := s.LinkPreviewHTMLMB(ctx)
+	if err != nil {
+		return nil, err
+	}
 	messageDays, err := s.MessageRetentionDays(ctx)
 	if err != nil {
 		return nil, err
@@ -140,6 +144,7 @@ func (s *Service) status(ctx context.Context) (*instancev1.GetInstanceStatusResp
 		WebhooksAvailable: s.webhooksEnv, WebhooksIncoming: incoming, WebhooksOutgoing: outgoing,
 		WebhooksAllowPrivateTargets: private, SelfDeletion: selfDeletion,
 		SessionLifetimeDays:  int32(sessionDays),
+		LinkPreviewHtmlMb:    int32(previewMB),
 		MessageRetentionDays: int32(messageDays), AttachmentRetentionDays: int32(attachmentDays),
 		VoiceAvailable: s.VoiceAvailable(),
 		EmailEnabled:   smtp.on(),
@@ -186,7 +191,7 @@ func (s *Service) SaveSettings(ctx context.Context, msg *instancev1.UpdateSettin
 	for _, stage := range []func(context.Context, *instancev1.UpdateSettingsRequest, *settingSave) error{
 		stageSessionLifetime, stageRetention, stageInstanceName, stageRegistrationPolicy,
 		stageSpaceCreation, s.stageStorageLimits, s.stagePasswordSignIn, stagePersonalTokens,
-		stageWebhooks, stageSelfDeletion,
+		stageWebhooks, stageSelfDeletion, stageLinkPreviewHTML,
 	} {
 		if err := stage(ctx, msg, save); err != nil {
 			return err

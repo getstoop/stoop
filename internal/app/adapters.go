@@ -160,15 +160,23 @@ func (v identityVerifier) VerifyRequest(ctx context.Context, h http.Header) (aut
 	return v.auth.VerifyToken(ctx, auth.TokenFromHeader(h))
 }
 
-// unfurler adapts internal/unfurl to chat's port.
-type unfurler struct{ f *unfurl.Fetcher }
+// unfurler adapts internal/unfurl to chat's port, reading the page cap
+// from the instance settings at each fetch.
+type unfurler struct {
+	f            *unfurl.Fetcher
+	maxHTMLBytes func(ctx context.Context) (int64, error)
+}
 
 func (u unfurler) Fetch(ctx context.Context, url string) (chat.LinkMeta, error) {
-	p, err := u.f.Fetch(ctx, url)
+	limit, err := u.maxHTMLBytes(ctx)
 	if err != nil {
 		return chat.LinkMeta{}, err
 	}
-	return chat.LinkMeta{Title: p.Title, Description: p.Description, SiteName: p.SiteName, Image: p.Image}, nil
+	preview, err := u.f.Fetch(ctx, url, limit)
+	if err != nil {
+		return chat.LinkMeta{}, err
+	}
+	return chat.LinkMeta{Title: preview.Title, Description: preview.Description, SiteName: preview.SiteName, Image: preview.Image}, nil
 }
 
 // providerSource adapts instance's login-provider settings to auth's

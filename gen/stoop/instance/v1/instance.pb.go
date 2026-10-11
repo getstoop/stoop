@@ -339,8 +339,10 @@ type GetInstanceStatusResponse struct {
 	// server has a public URL to build reset links on. Password sign-in's
 	// own setting still decides whose accounts it works for.
 	PasswordResetAvailable bool `protobuf:"varint,21,opt,name=password_reset_available,json=passwordResetAvailable,proto3" json:"password_reset_available,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// How many megabytes of a linked page are read to find its preview.
+	LinkPreviewHtmlMb int32 `protobuf:"varint,22,opt,name=link_preview_html_mb,json=linkPreviewHtmlMb,proto3" json:"link_preview_html_mb,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetInstanceStatusResponse) Reset() {
@@ -520,6 +522,13 @@ func (x *GetInstanceStatusResponse) GetPasswordResetAvailable() bool {
 	return false
 }
 
+func (x *GetInstanceStatusResponse) GetLinkPreviewHtmlMb() int32 {
+	if x != nil {
+		return x.LinkPreviewHtmlMb
+	}
+	return 0
+}
+
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset fields are left unchanged.
@@ -548,8 +557,11 @@ type UpdateSettingsRequest struct {
 	// 1-3650, or 0 to keep forever.
 	MessageRetentionDays    *int32 `protobuf:"varint,13,opt,name=message_retention_days,json=messageRetentionDays,proto3,oneof" json:"message_retention_days,omitempty"`
 	AttachmentRetentionDays *int32 `protobuf:"varint,14,opt,name=attachment_retention_days,json=attachmentRetentionDays,proto3,oneof" json:"attachment_retention_days,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// 1-16. 0 clears the saved value, falling back to
+	// STOOP_LINK_PREVIEW_HTML_MB.
+	LinkPreviewHtmlMb *int32 `protobuf:"varint,15,opt,name=link_preview_html_mb,json=linkPreviewHtmlMb,proto3,oneof" json:"link_preview_html_mb,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -676,6 +688,13 @@ func (x *UpdateSettingsRequest) GetMessageRetentionDays() int32 {
 func (x *UpdateSettingsRequest) GetAttachmentRetentionDays() int32 {
 	if x != nil && x.AttachmentRetentionDays != nil {
 		return *x.AttachmentRetentionDays
+	}
+	return 0
+}
+
+func (x *UpdateSettingsRequest) GetLinkPreviewHtmlMb() int32 {
+	if x != nil && x.LinkPreviewHtmlMb != nil {
+		return *x.LinkPreviewHtmlMb
 	}
 	return 0
 }
@@ -2265,7 +2284,7 @@ var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
 const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\n" +
 	" stoop/instance/v1/instance.proto\x12\x11stoop.instance.v1\x1a\x18stoop/auth/v1/auth.proto\x1a#stoop/instance/v1/diagnostics.proto\x1a\x1dstoop/instance/v1/email.proto\x1a!stoop/instance/v1/providers.proto\x1a$stoop/instance/v1/reachability.proto\x1a\x1cstoop/instance/v1/user.proto\"\x1a\n" +
-	"\x18GetInstanceStatusRequest\"\x8d\t\n" +
+	"\x18GetInstanceStatusRequest\"\xbe\t\n" +
 	"\x19GetInstanceStatusResponse\x12\x1f\n" +
 	"\vneeds_setup\x18\x01 \x01(\bR\n" +
 	"needsSetup\x12V\n" +
@@ -2290,7 +2309,9 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x19attachment_retention_days\x18\x12 \x01(\x05R\x17attachmentRetentionDays\x12'\n" +
 	"\x0fvoice_available\x18\x13 \x01(\bR\x0evoiceAvailable\x12#\n" +
 	"\remail_enabled\x18\x14 \x01(\bR\femailEnabled\x128\n" +
-	"\x18password_reset_available\x18\x15 \x01(\bR\x16passwordResetAvailable\"\xcd\t\n" +
+	"\x18password_reset_available\x18\x15 \x01(\bR\x16passwordResetAvailable\x12/\n" +
+	"\x14link_preview_html_mb\x18\x16 \x01(\x05R\x11linkPreviewHtmlMb\"\x9c\n" +
+	"\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
 	"\x0espace_creation\x18\x02 \x01(\x0e2&.stoop.instance.v1.SpaceCreationPolicyH\x01R\rspaceCreation\x88\x01\x01\x123\n" +
@@ -2307,7 +2328,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"R\fselfDeletion\x88\x01\x01\x127\n" +
 	"\x15session_lifetime_days\x18\f \x01(\x05H\vR\x13sessionLifetimeDays\x88\x01\x01\x129\n" +
 	"\x16message_retention_days\x18\r \x01(\x05H\fR\x14messageRetentionDays\x88\x01\x01\x12?\n" +
-	"\x19attachment_retention_days\x18\x0e \x01(\x05H\rR\x17attachmentRetentionDays\x88\x01\x01B\x16\n" +
+	"\x19attachment_retention_days\x18\x0e \x01(\x05H\rR\x17attachmentRetentionDays\x88\x01\x01\x124\n" +
+	"\x14link_preview_html_mb\x18\x0f \x01(\x05H\x0eR\x11linkPreviewHtmlMb\x88\x01\x01B\x16\n" +
 	"\x14_registration_policyB\x11\n" +
 	"\x0f_space_creationB\x16\n" +
 	"\x14_storage_quota_bytesB\x13\n" +
@@ -2321,7 +2343,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x0e_self_deletionB\x18\n" +
 	"\x16_session_lifetime_daysB\x19\n" +
 	"\x17_message_retention_daysB\x1c\n" +
-	"\x1a_attachment_retention_days\"\x8b\x01\n" +
+	"\x1a_attachment_retention_daysB\x17\n" +
+	"\x15_link_preview_html_mb\"\x8b\x01\n" +
 	"\x17PreviewRetentionRequest\x124\n" +
 	"\x16message_retention_days\x18\x01 \x01(\x05R\x14messageRetentionDays\x12:\n" +
 	"\x19attachment_retention_days\x18\x02 \x01(\x05R\x17attachmentRetentionDays\"\x83\x01\n" +
