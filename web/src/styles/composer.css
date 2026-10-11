@@ -138,7 +138,7 @@
 .composer label.composer-also-send {
   align-items: center;
   margin: 8px 4px 0;
-  font-size: var(--text-ui);
+  font-size: var(--text-body);
   color: var(--text-muted);
   cursor: pointer;
 }
