@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: center;
   /* off-scale: clears the buttons, 12px from the top and 24px from the sides */
-  padding: 56px 72px;
+  padding: 56px 80px;
   background: var(--scrim-deep);
 }
 
@@ -43,7 +43,7 @@
 
 .image-preview-step {
   top: 50%;
-  padding: 4px;
+  padding: 8px;
   transform: translateY(-50%);
 }
 
