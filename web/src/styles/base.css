@@ -13,6 +13,15 @@ html {
     transparent;
 }
 
+/* The timeline and the side panel show theirs only under the cursor. A
+   touch screen has no cursor and keeps the bar. */
+@media (hover: hover) {
+  .message-list:not(:hover),
+  .side-panel-body:not(:hover) {
+    scrollbar-color: transparent transparent;
+  }
+}
+
 html,
 body,
 #root {
