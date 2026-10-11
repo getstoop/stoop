@@ -5,6 +5,8 @@ import { errorText } from "../../api/errors";
 import type { Channel } from "../../gen/stoop/chat/v1/channel_pb";
 import { notice } from "../../stores/dialogs";
 import { ChannelGlyph } from "../ChannelGlyph";
+import { BellIcon } from "../Icons";
+import { Tooltip } from "../Tooltip";
 
 // One muted channel: its name opens it, and Unmute puts its row back in
 // the sidebar.
@@ -33,9 +35,16 @@ export function MutedRow({ channel }: { channel: Channel }) {
         </span>
         {channel.topic && <span className="muted-topic">{channel.topic}</span>}
       </Link>
-      <button type="button" className="chip" onClick={unmute}>
-        Unmute
-      </button>
+      <Tooltip text="Unmute" side="left">
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={`Unmute ${channel.name}`}
+          onClick={unmute}
+        >
+          <BellIcon size={16} />
+        </button>
+      </Tooltip>
     </li>
   );
 }
