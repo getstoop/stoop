@@ -49,6 +49,7 @@ export function MessageList({
   onReply,
   threadRoot,
   threadsAllowed = false,
+  canWrite = true,
 }: {
   messages: Message[];
   spaceId: string;
@@ -73,6 +74,10 @@ export function MessageList({
   threadRoot?: Message;
   // Messages here may start a thread (never in an announcement channel).
   threadsAllowed?: boolean;
+  // False for someone in the space but not this channel: they read it and
+  // write nothing. A prop, not a lookup here: another reader of the
+  // channel list mounting with each timeline would refetch it each time.
+  canWrite?: boolean;
 }) {
   const queryClient = useQueryClient();
   const threadRootId = threadRoot?.id;
@@ -387,11 +392,12 @@ export function MessageList({
         !!spaceForPerms &&
         canManageChannels(spaceForPerms)
       }
+      canWrite={canWrite}
       editing={editingId === message.id}
       usernames={usernames}
       myUsername={me?.username}
       threadOpen={!threadRootId && openThread === message.id}
-      canStartThread={threadsAllowed && !message.threadRootId}
+      canStartThread={threadsAllowed && canWrite && !message.threadRootId}
       withDay={!!threadRootId}
       rowIdPrefix={rowIdPrefix}
       onJumpTo={jumpTo}

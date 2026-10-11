@@ -19,6 +19,7 @@ import {
 } from "../../api/queries";
 import { copyShareLink, shareUrl, threadPath } from "../../api/shareLinks";
 import { setThreadMuted } from "../../api/threads";
+import { inChannel } from "../../api/unreads";
 import { removeMessageFromCache } from "../../api/ws";
 import {
   BellIcon,
@@ -35,6 +36,7 @@ import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkThreadRead } from "../../hooks/useMarkThreadRead";
 import { confirm, notice } from "../../stores/dialogs";
 import { Composer } from "./Composer";
+import { JoinBar } from "./JoinBar";
 import { MessageList } from "./MessageList";
 
 // A thread in the side panel: its root, its replies, and a box to reply.
@@ -183,7 +185,9 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
         </>
       }
       footer={
-        canReply && !rootMessage?.deleted ? (
+        channel && !inChannel(channel) ? (
+          <JoinBar channel={channel} />
+        ) : canReply && !rootMessage?.deleted ? (
           <Composer
             channelId={channelId}
             channelName={channelName}
@@ -214,6 +218,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           onEdit={setEditingId}
           onReply={setReplyTo}
           threadRoot={rootMessage}
+          canWrite={!channel || inChannel(channel)}
         />
       )}
     </SidePanelFrame>

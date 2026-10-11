@@ -200,7 +200,8 @@
     padding: 0 8px calc(8px + env(safe-area-inset-bottom));
   }
 
-  .posting-closed {
+  .posting-closed,
+  .join-bar {
     margin: 0 8px calc(8px + env(safe-area-inset-bottom));
   }
 

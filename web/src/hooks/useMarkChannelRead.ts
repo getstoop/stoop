@@ -3,7 +3,12 @@ import { useEffect } from "react";
 import { chatClient } from "../api/clients";
 import { useChannelRecord } from "../api/dms";
 import { hasAttention } from "../api/notifications";
-import { isUnread, patchChannel, recomputeSpaceUnread } from "../api/unreads";
+import {
+  inChannel,
+  isUnread,
+  patchChannel,
+  recomputeSpaceUnread,
+} from "../api/unreads";
 import { useConnectionStore } from "../stores/connection";
 
 // While a channel is on screen and the window has attention, keep the
@@ -13,7 +18,12 @@ export function useMarkChannelRead(spaceId: string, channelId: string) {
   const queryClient = useQueryClient();
   const { channel } = useChannelRecord(spaceId, channelId);
   const setActiveChannel = useConnectionStore((s) => s.setActiveChannel);
-  const target = channel && isUnread(channel) ? channel.lastMessageId : "";
+  // Looking at a channel you have not joined reads nothing: it was never
+  // unread for you.
+  const target =
+    channel && inChannel(channel) && isUnread(channel)
+      ? channel.lastMessageId
+      : "";
 
   useEffect(() => {
     setActiveChannel(channelId);

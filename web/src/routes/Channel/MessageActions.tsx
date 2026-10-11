@@ -9,6 +9,7 @@ export function MessageActions({
   mine,
   canDelete,
   canPin,
+  canWrite,
   onReply,
   onEdit,
   onDelete,
@@ -23,6 +24,8 @@ export function MessageActions({
   canDelete: boolean;
   // Whoever manages the channel; never in a direct message.
   canPin: boolean;
+  // In the channel: reacting, replying and editing are theirs to do.
+  canWrite: boolean;
   onReply: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -41,15 +44,17 @@ export function MessageActions({
 
   return (
     <span className="message-actions" data-message={message.id}>
-      <button
-        type="button"
-        className="message-action"
-        onClick={(e) => onReact(e.currentTarget.getBoundingClientRect())}
-        title="Add reaction"
-        aria-label="Add reaction"
-      >
-        <ReactIcon />
-      </button>
+      {canWrite && (
+        <button
+          type="button"
+          className="message-action"
+          onClick={(e) => onReact(e.currentTarget.getBoundingClientRect())}
+          title="Add reaction"
+          aria-label="Add reaction"
+        >
+          <ReactIcon />
+        </button>
+      )}
       <button
         type="button"
         className="message-action"
@@ -83,16 +88,18 @@ export function MessageActions({
           <ThreadIcon />
         </button>
       )}
-      <button
-        type="button"
-        className="message-action"
-        onClick={onReply}
-        title="Reply"
-        aria-label="Reply"
-      >
-        <ReplyIcon />
-      </button>
-      {mine && (
+      {canWrite && (
+        <button
+          type="button"
+          className="message-action"
+          onClick={onReply}
+          title="Reply"
+          aria-label="Reply"
+        >
+          <ReplyIcon />
+        </button>
+      )}
+      {mine && canWrite && (
         <button
           type="button"
           className="message-action"
