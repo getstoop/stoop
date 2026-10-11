@@ -218,6 +218,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           onEdit={setEditingId}
           onReply={setReplyTo}
           threadRoot={rootMessage}
+          canWrite={!channel || inChannel(channel)}
         />
       )}
     </SidePanelFrame>
