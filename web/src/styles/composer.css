@@ -137,14 +137,16 @@
 /* Under a thread's box: send the reply to the channel too. */
 .composer label.composer-also-send {
   align-items: center;
-  margin: 6px 4px 0;
-  font-size: var(--text-sm);
+  margin: 8px 4px 0;
+  font-size: var(--text-ui);
   color: var(--text-muted);
   cursor: pointer;
 }
 
 /* One short line: centred on it, without the toggle row's first-line nudge. */
 .composer label.composer-also-send input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
   margin: 0;
   cursor: pointer;
 }
