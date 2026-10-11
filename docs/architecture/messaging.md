@@ -717,14 +717,16 @@ which is a serious thing to be. So the fetcher:
   multicast ranges, and dials the checked IP** — so a name that resolves
   differently the second time cannot rebind onto a local address;
 - **re-checks every redirect** against the same rules;
-- caps bodies at 1 MB of HTML and 5 MB of image, the cap chosen by the
-  Content-Type the server announces;
+- reads the first `link_preview_html_mb` megabytes of a page (else
+  `STOOP_LINK_PREVIEW_HTML_MB`, else 2) and refuses an image over 5 MB,
+  the cap chosen by the Content-Type the server announces;
 - **never uses an environment proxy**, which would otherwise route the
   whole defence around itself.
 
 `STOOP_UNFURL_ALLOW_PRIVATE` relaxes this for development and for the
 browser spec, which serves its own page to unfurl. It is logged loudly at
 startup, because it is exactly the setting that turns the server into a
-probe of the operator's LAN. `STOOP_LINK_PREVIEWS=false` turns the feature
-off entirely, for operators who would rather the server made no outbound
-requests at all.
+probe of the operator's LAN. The `link_previews` setting (else
+`STOOP_LINK_PREVIEWS`, else on) turns the feature off, for operators who
+would rather the server made no outbound requests at all: links posted
+while it is off are not recorded, and cards already fetched stay.

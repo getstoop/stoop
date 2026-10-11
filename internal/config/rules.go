@@ -13,6 +13,11 @@ const (
 	MaxSessionLifetimeDays = 365
 	// DefaultSessionLifetimeDays applies when nothing else sets a lifetime.
 	DefaultSessionLifetimeDays = 30
+	// DefaultLinkPreviewHTMLMB is how much of a linked page is read for
+	// its preview when nothing else sets it; MaxLinkPreviewHTMLMB is the
+	// most allowed.
+	DefaultLinkPreviewHTMLMB = 2
+	MaxLinkPreviewHTMLMB     = 16
 	// DefaultSMTPHourlyLimit is the outbound email cap when none is set;
 	// MaxSMTPHourlyLimit is the highest one allowed.
 	DefaultSMTPHourlyLimit = 100

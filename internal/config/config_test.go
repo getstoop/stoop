@@ -139,6 +139,23 @@ func TestLoad_SessionLifetime(t *testing.T) {
 	}
 }
 
+func TestLoad_LinkPreviewHTML(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LinkPreviewHTMLMB != 2 {
+		t.Errorf("default = %d MB, want 2", cfg.LinkPreviewHTMLMB)
+	}
+	for _, bad := range []string{"0", "17", "2mb"} {
+		t.Setenv("STOOP_LINK_PREVIEW_HTML_MB", bad)
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_LINK_PREVIEW_HTML_MB") {
+			t.Errorf("%q should be rejected, got %v", bad, err)
+		}
+	}
+}
+
 func TestLoad_RateLimits(t *testing.T) {
 	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
 	cfg, err := Load()

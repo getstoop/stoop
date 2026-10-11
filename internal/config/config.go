@@ -112,8 +112,12 @@ type Config struct {
 	// LinkPreviews has the server fetch metadata for links in messages
 	// (Open Graph cards). The server does the fetching so readers' browsers
 	// never contact the linked site; turn it off if you'd rather the server
-	// made no outbound requests on members' behalf.
+	// made no outbound requests on members' behalf. The admin page's saved
+	// value overrides it.
 	LinkPreviews bool
+	// LinkPreviewHTMLMB is how many megabytes of a linked page are read
+	// to find its preview. The admin page's saved value overrides it.
+	LinkPreviewHTMLMB int
 	// UpdateCheck has the server read the release index on getstoop.org
 	// so the admin page can say a newer release exists.
 	UpdateCheck bool
@@ -266,6 +270,10 @@ func Load() (Config, error) {
 	cfg.SessionLifetimeDays = env.nonNegativeInt("STOOP_SESSION_LIFETIME_DAYS", DefaultSessionLifetimeDays)
 	if cfg.SessionLifetimeDays < 1 || cfg.SessionLifetimeDays > MaxSessionLifetimeDays {
 		env.fail("STOOP_SESSION_LIFETIME_DAYS must be 1-%d (got %d)", MaxSessionLifetimeDays, cfg.SessionLifetimeDays)
+	}
+	cfg.LinkPreviewHTMLMB = env.nonNegativeInt("STOOP_LINK_PREVIEW_HTML_MB", DefaultLinkPreviewHTMLMB)
+	if cfg.LinkPreviewHTMLMB < 1 || cfg.LinkPreviewHTMLMB > MaxLinkPreviewHTMLMB {
+		env.fail("STOOP_LINK_PREVIEW_HTML_MB must be 1-%d (got %d)", MaxLinkPreviewHTMLMB, cfg.LinkPreviewHTMLMB)
 	}
 	// Held to the same rules as a name saved on the admin page (instance
 	// settings.go): trimmed, and at most 100 characters.

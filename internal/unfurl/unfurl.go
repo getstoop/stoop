@@ -5,7 +5,8 @@
 // anything that isn't a public http(s) address: private, loopback,
 // link-local and multicast ranges are rejected at connect time (after DNS,
 // so a rebinding name can't slip through), redirects are re-checked hop by
-// hop, and bodies are capped.
+// hop, and bodies are capped: a longer page is read up to the cap, a
+// longer image is refused.
 package unfurl
 
 import (
@@ -35,7 +36,6 @@ type Preview struct {
 }
 
 const (
-	maxHTMLBytes  = 1 << 20 // 1 MB of HTML is plenty to find <head>
 	maxImageBytes = 5 << 20
 	maxRedirects  = 5
 	fetchTimeout  = 10 * time.Second
@@ -78,8 +78,8 @@ func checkURL(u *url.URL) error { return netguard.CheckURL(u) }
 
 // Fetch unfurls one URL. A direct image URL becomes a preview with only an
 // image; an HTML page yields its metadata and, when it names one, its
-// preview image.
-func (f *Fetcher) Fetch(ctx context.Context, raw string) (Preview, error) {
+// preview image. Only the first maxHTMLBytes of a page are read.
+func (f *Fetcher) Fetch(ctx context.Context, raw string, maxHTMLBytes int64) (Preview, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return Preview{}, err
@@ -87,7 +87,7 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string) (Preview, error) {
 	if err := checkURL(u); err != nil {
 		return Preview{}, err
 	}
-	body, ctype, finalURL, err := f.get(ctx, u.String(), "text/html, application/xhtml+xml, image/*;q=0.8")
+	body, ctype, finalURL, err := f.get(ctx, u.String(), "text/html, application/xhtml+xml, image/*;q=0.8", maxHTMLBytes)
 	if err != nil {
 		return Preview{}, err
 	}
@@ -97,7 +97,7 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string) (Preview, error) {
 		}
 		return Preview{Image: body}, nil
 	}
-	if !strings.HasPrefix(ctype, "text/html") && !strings.HasPrefix(ctype, "application/xhtml") {
+	if !isHTML(ctype) {
 		return Preview{}, ErrNotHTML
 	}
 	p, imageURL := parseHTML(body)
@@ -106,7 +106,7 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string) (Preview, error) {
 	}
 	if imageURL != "" {
 		if abs, err := finalURL.Parse(imageURL); err == nil && checkURL(abs) == nil {
-			if img, ictype, _, err := f.get(ctx, abs.String(), "image/*"); err == nil && strings.HasPrefix(ictype, "image/") {
+			if img, ictype, _, err := f.get(ctx, abs.String(), "image/*", maxHTMLBytes); err == nil && strings.HasPrefix(ictype, "image/") {
 				p.Image = img
 			}
 		}
@@ -114,10 +114,15 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string) (Preview, error) {
 	return p, nil
 }
 
+func isHTML(ctype string) bool {
+	return strings.HasPrefix(ctype, "text/html") || strings.HasPrefix(ctype, "application/xhtml")
+}
+
 // get performs a guarded GET. The body cap depends on what the server
 // says it is sending: an image may run to maxImageBytes, anything else
-// to maxHTMLBytes.
-func (f *Fetcher) get(ctx context.Context, raw string, accept string) ([]byte, string, *url.URL, error) {
+// to maxHTMLBytes. A longer HTML page is cut at the cap; anything else
+// longer is refused.
+func (f *Fetcher) get(ctx context.Context, raw string, accept string, maxHTMLBytes int64) ([]byte, string, *url.URL, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
 		return nil, "", nil, err
@@ -133,22 +138,27 @@ func (f *Fetcher) get(ctx context.Context, raw string, accept string) ([]byte, s
 		return nil, "", nil, fmt.Errorf("%w: %s", ErrBadStatus, resp.Status)
 	}
 	ctype := strings.ToLower(strings.TrimSpace(strings.SplitN(resp.Header.Get("Content-Type"), ";", 2)[0]))
-	limit := int64(maxHTMLBytes)
+	limit := maxHTMLBytes
 	if strings.HasPrefix(ctype, "image/") {
 		limit = maxImageBytes
 	}
-	if resp.ContentLength > limit {
+	untyped := ctype == "" || ctype == "application/octet-stream"
+	if resp.ContentLength > limit && !untyped && !isHTML(ctype) {
 		return nil, "", nil, ErrTooLarge
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return nil, "", nil, err
 	}
-	if int64(len(body)) > limit {
-		return nil, "", nil, ErrTooLarge
+	truncated := int64(len(body)) > limit
+	if truncated {
+		body = body[:limit]
 	}
-	if ctype == "" || ctype == "application/octet-stream" {
+	if untyped {
 		ctype = http.DetectContentType(body)
+	}
+	if truncated && !isHTML(ctype) {
+		return nil, "", nil, ErrTooLarge
 	}
 	return body, ctype, resp.Request.URL, nil
 }

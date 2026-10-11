@@ -19,6 +19,21 @@ func (q *Queries) DeleteMessageLinks(ctx context.Context, messageID string) erro
 	return err
 }
 
+const deleteMessageLinksExcept = `-- name: DeleteMessageLinksExcept :exec
+DELETE FROM message_links
+WHERE message_id = $1 AND NOT (url = ANY($2::text[]))
+`
+
+type DeleteMessageLinksExceptParams struct {
+	MessageID string
+	Urls      []string
+}
+
+func (q *Queries) DeleteMessageLinksExcept(ctx context.Context, arg DeleteMessageLinksExceptParams) error {
+	_, err := q.db.Exec(ctx, deleteMessageLinksExcept, arg.MessageID, arg.Urls)
+	return err
+}
+
 const ensureLinkPreview = `-- name: EnsureLinkPreview :exec
 
 INSERT INTO link_previews (url) VALUES ($1)

@@ -143,6 +143,8 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	authSvc.UseDeletionPorts(instanceSvc, chatSvc)
 	authSvc.UseBus(bus)
 	instanceSvc.UseSessionLifetimeEnv(cfg.SessionLifetimeDays)
+	instanceSvc.UseLinkPreviewsEnv(cfg.LinkPreviews)
+	instanceSvc.UseLinkPreviewHTMLEnv(cfg.LinkPreviewHTMLMB)
 	instanceSvc.UseWebhooksEnv(cfg.Webhooks)
 	instanceSvc.UseTestEmailThrottle(ratelimit.New(stores, "ratelimit_test_email", 5, 5))
 	chatSvc.UseInstancePolicy(instanceSvc)
@@ -176,11 +178,9 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	if err := scheduleSweeps(ctx, jobsSvc, cfg); err != nil {
 		return nil, err
 	}
-	if cfg.LinkPreviews {
-		chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate})}, filesSvc, chat.UnfurlOptions{})
-		if cfg.UnfurlAllowPrivate {
-			log.Warn("link previews may fetch private addresses (STOOP_UNFURL_ALLOW_PRIVATE); never use this outside development")
-		}
+	chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate}), instanceSvc.LinkPreviewHTMLBytes}, filesSvc, chat.UnfurlOptions{Enabled: instanceSvc.LinkPreviews})
+	if cfg.UnfurlAllowPrivate {
+		log.Warn("link previews may fetch private addresses (STOOP_UNFURL_ALLOW_PRIVATE); never use this outside development")
 	}
 	return &modules{
 		pool: pool, bus: bus, store: store, stores: stores,

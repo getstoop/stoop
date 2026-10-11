@@ -205,6 +205,10 @@ message GetInstanceStatusResponse {
   // server has a public URL to build reset links on. Password sign-in's
   // own setting still decides whose accounts it works for.
   bool password_reset_available = 21;
+  // How many megabytes of a linked page are read to find its preview.
+  int32 link_preview_html_mb = 22;
+  // Whether links in messages get previews.
+  bool link_previews = 23;
 }
 
 message UpdateSettingsRequest {
@@ -234,6 +238,10 @@ message UpdateSettingsRequest {
   // 1-3650, or 0 to keep forever.
   optional int32 message_retention_days = 13;
   optional int32 attachment_retention_days = 14;
+  // 1-16. 0 clears the saved value, falling back to
+  // STOOP_LINK_PREVIEW_HTML_MB.
+  optional int32 link_preview_html_mb = 15;
+  optional bool link_previews = 16;
 }
 
 message PreviewRetentionRequest {
