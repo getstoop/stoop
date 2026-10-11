@@ -55,29 +55,27 @@ export function ImagePreview({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="image-preview-frame">
-        <img key={a.fileId} src={fileUrl(a.fileId)} alt={a.name} />
-        {onPrevious && (
-          <button
-            type="button"
-            className="chip image-preview-step image-preview-previous"
-            onClick={onPrevious}
-            aria-label="Previous image"
-          >
-            <BackIcon />
-          </button>
-        )}
-        {onNext && (
-          <button
-            type="button"
-            className="chip image-preview-step image-preview-next"
-            onClick={onNext}
-            aria-label="Next image"
-          >
-            <ForwardIcon />
-          </button>
-        )}
-      </div>
+      <img key={a.fileId} src={fileUrl(a.fileId)} alt={a.name} />
+      {onPrevious && (
+        <button
+          type="button"
+          className="chip image-preview-step image-preview-previous"
+          onClick={onPrevious}
+          aria-label="Previous image"
+        >
+          <BackIcon />
+        </button>
+      )}
+      {onNext && (
+        <button
+          type="button"
+          className="chip image-preview-step image-preview-next"
+          onClick={onNext}
+          aria-label="Next image"
+        >
+          <ForwardIcon />
+        </button>
+      )}
       <button
         type="button"
         className="chip image-preview-close"

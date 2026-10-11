@@ -461,17 +461,16 @@
     display: inline-flex;
   }
   /* The image takes the width; the arrows sit over its edges. */
-  .image-preview img {
-    max-width: calc(100vw - 16px);
+  .image-preview {
+    /* off-scale: 56px keeps the top buttons clear of the image */
+    padding: 56px 8px;
   }
 
   .image-preview-previous {
-    right: auto;
-    left: 8px;
+    left: 12px;
   }
 
   .image-preview-next {
-    left: auto;
-    right: 8px;
+    right: 12px;
   }
 }

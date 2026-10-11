@@ -128,18 +128,15 @@ test("image preview: opening, sizing, stepping and closing", async ({
     "download",
     "large.png",
   );
-  const gaps = await preview.evaluate((e) => {
+  const edges = await preview.evaluate((e) => {
     const rect = (selector: string) =>
       (e.querySelector(selector) as Element).getBoundingClientRect();
-    const shown = rect("img");
     return [
-      Math.round(shown.left - rect('[aria-label="Previous image"]').right),
-      Math.round(rect('[aria-label="Next image"]').left - shown.right),
+      Math.round(rect('[aria-label="Previous image"]').left),
+      Math.round(window.innerWidth - rect('[aria-label="Next image"]').right),
     ];
   });
-  expect(gaps, "the arrows sit just outside the image's edges").toEqual([
-    12, 12,
-  ]);
+  expect(edges, "the arrows sit at the window's sides").toEqual([24, 24]);
 
   // --- arrow keys step too, and stop at each end
   await page.keyboard.press("ArrowRight");
