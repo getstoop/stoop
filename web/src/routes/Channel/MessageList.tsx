@@ -44,6 +44,7 @@ export function MessageList({
   group = false,
   newAfterId,
   jumpTarget,
+  jumpVisit = 0,
   editingId,
   onEdit,
   onReply,
@@ -64,6 +65,9 @@ export function MessageList({
   newAfterId: string | null;
   // A message to scroll to and flash once it's in the window (deep link).
   jumpTarget?: string;
+  // Which following of a link this is: the same target lands again when
+  // it changes.
+  jumpVisit?: number;
   // The message open in the inline editor, if any.
   editingId: string | null;
   onEdit: (id: string | null) => void;
@@ -227,8 +231,9 @@ export function MessageList({
   const [jumped, setJumped] = useState<string | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: fires once the first window is in
   useEffect(() => {
-    if (!jumpTarget || jumped === jumpTarget || messages.length === 0) return;
-    setJumped(jumpTarget);
+    const visit = `${jumpVisit}:${jumpTarget}`;
+    if (!jumpTarget || jumped === visit || messages.length === 0) return;
+    setJumped(visit);
     // The first window already came centred on a reply's root: land there
     // and open the thread at the reply, without asking the server again.
     const thread = useHistoryStore.getState().takeAroundThread(timeline);
@@ -263,7 +268,7 @@ export function MessageList({
         replace: true,
       });
     }
-  }, [jumpTarget, messages.length > 0]);
+  }, [jumpTarget, jumpVisit, messages.length > 0]);
   const dividerRef = useRef<HTMLDivElement>(null);
   const { data: meForDivider } = useMe();
   // The first unread message that isn't ours (our own sends are never "new").

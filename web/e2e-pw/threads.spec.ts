@@ -100,6 +100,18 @@ test("threads", async ({ browser }) => {
     "still on the #general thread",
   ).toHaveText("#general");
   await expect(panelRows(B).filter({ hasText: "the cooler" })).toHaveCount(1);
+
+  // The channel name in the header goes to that channel, on the thread's
+  // root, and does so again when it is clicked again.
+  const where = panel(B).locator(".side-panel-subtitle a");
+  await where.click();
+  await expect(B.locator(".channel-title")).toHaveText("general");
+  await expect(root(B), "the root is flashed").toHaveClass(/flash/);
+  await expect(panel(B), "the panel stays open").toBeVisible();
+  await expect(B, "the link's param leaves the address").not.toHaveURL(/m=/);
+  await expect(root(B)).not.toHaveClass(/flash/);
+  await where.click();
+  await expect(root(B), "a second click flashes it again").toHaveClass(/flash/);
   await panel(B).locator(".side-panel-close").click();
   await expect(panel(B), "Close closes it").toHaveCount(0);
 

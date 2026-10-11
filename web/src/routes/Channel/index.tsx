@@ -75,14 +75,29 @@ export function ChannelView() {
   const { m, t } = useSearch({ strict: false }) as { m?: string; t?: string };
   // Held for the channel it arrived in: the side panel takes a thread
   // link's ?t= and ?m= out of the address before the window may have
-  // loaded, and the channel must still land on the root.
+  // loaded, and the channel must still land on the root. `visit` counts
+  // the links followed, so the same message linked twice lands twice.
   const [arrival, setArrival] = useState<{
     channelId: string;
     id: string;
+    inAddress: boolean;
+    visit: number;
   } | null>(null);
   const linked = t ?? m;
-  if (linked && (arrival?.id !== linked || arrival.channelId !== channelId)) {
-    setArrival({ channelId, id: linked });
+  if (
+    linked &&
+    (!arrival?.inAddress ||
+      arrival.id !== linked ||
+      arrival.channelId !== channelId)
+  ) {
+    setArrival({
+      channelId,
+      id: linked,
+      inAddress: true,
+      visit: (arrival?.visit ?? 0) + 1,
+    });
+  } else if (!linked && arrival?.inAddress) {
+    setArrival({ ...arrival, inAddress: false });
   }
   const jumpTarget = arrival?.channelId === channelId ? arrival.id : undefined;
   const { data: messages } = useMessages({ channelId }, jumpTarget);
@@ -182,6 +197,7 @@ export function ChannelView() {
               divider?.channelId === channelId ? divider.afterId : null
             }
             jumpTarget={jumpTarget}
+            jumpVisit={arrival?.visit}
             editingId={editingId}
             onEdit={setEditingId}
             onReply={setReplyTo}

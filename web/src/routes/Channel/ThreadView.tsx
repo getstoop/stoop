@@ -37,6 +37,7 @@ import { useMarkThreadRead } from "../../hooks/useMarkThreadRead";
 import { confirm, notice } from "../../stores/dialogs";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
+import { ThreadChannelLink } from "./ThreadChannelLink";
 
 // A thread in the side panel: its root, its replies, and a box to reply.
 // Params: spaceId ("" for a DM), channelId, rootId, and focusId to open on
@@ -139,7 +140,14 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   return (
     <SidePanelFrame
       title="Thread"
-      subtitle={where}
+      subtitle={
+        <ThreadChannelLink
+          spaceId={spaceId}
+          channelId={channelId}
+          rootId={rootId}
+          label={where}
+        />
+      }
       actions={
         <>
           <button
