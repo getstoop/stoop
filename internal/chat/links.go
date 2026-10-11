@@ -141,6 +141,17 @@ func (s *Service) recordLinks(ctx context.Context, q *dbgen.Queries, messageID s
 	return stale, nil
 }
 
+// dropRemovedLinks deletes the link rows an edit took out of a message.
+// For an edit made while previews are off: nothing new is recorded, and
+// a card must not outlive its link.
+func (s *Service) dropRemovedLinks(ctx context.Context, q *dbgen.Queries, messageID string, urls []string) error {
+	if urls == nil {
+		// A nil list is NULL to Postgres, which would match nothing.
+		urls = []string{}
+	}
+	return q.DeleteMessageLinksExcept(ctx, dbgen.DeleteMessageLinksExceptParams{MessageID: messageID, Urls: urls})
+}
+
 // unfurlLater fetches the given URLs and then republishes the message.
 // Nothing here can fail the send: errors are logged and the URL is
 // marked failed so it isn't retried on every message.
