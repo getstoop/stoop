@@ -126,5 +126,6 @@
   max-width: 110px;
   font-size: var(--text-sm);
   border-radius: var(--radius);
-  padding: 2px 4px;
+  padding: 2px 20px 2px 4px;
+  background-position: right 6px center;
 }
