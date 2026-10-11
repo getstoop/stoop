@@ -151,9 +151,17 @@
 }
 
 .message:hover .message-toolbar,
-.message:focus-within .message-toolbar {
+.message:has(:focus-visible) .message-toolbar {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* No hover on a touch screen: a tapped row keeps its toolbar. */
+@media (hover: none) {
+  .message:focus-within .message-toolbar {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .message-toolbar .message-action {
