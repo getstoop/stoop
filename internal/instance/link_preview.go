@@ -2,7 +2,9 @@ package instance
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -13,13 +15,41 @@ import (
 
 // The link preview settings: link_previews, whether links in messages
 // get previews, and link_preview_html_mb, how much of a linked page is
-// read to find one. Both are read as a message is sent, so a change
-// applies to links posted from then on.
+// read to find one, and link_preview_proxy, the SOCKS5 proxy fetches go
+// through. All are read as a message is sent, so a change applies to
+// links posted from then on.
 
 const (
-	keyLinkPreviews    = "link_previews"
-	keyLinkPreviewHTML = "link_preview_html_mb"
+	keyLinkPreviews     = "link_previews"
+	keyLinkPreviewHTML  = "link_preview_html_mb"
+	keyLinkPreviewProxy = "link_preview_proxy"
 )
+
+// UseLinkPreviewProxyEnv supplies STOOP_LINK_PREVIEW_PROXY, in force
+// until a value is saved.
+func (s *Service) UseLinkPreviewProxyEnv(proxy string) { s.linkPreviewProxyEnv = proxy }
+
+// LinkPreviewProxy is the proxy in force (socks5://host:port), or empty
+// for none: the saved value, else the environment's. A saved empty value
+// means no proxy.
+func (s *Service) LinkPreviewProxy(ctx context.Context) (string, error) {
+	return s.readSetting(ctx, keyLinkPreviewProxy, s.linkPreviewProxyEnv)
+}
+
+// stageLinkPreviewProxy validates a save of the proxy; empty clears it.
+// Saved with the Hosting settings because only an admin may read it.
+func stageLinkPreviewProxy(msg *instancev1.UpdateReachabilityRequest, _ Reachability, save *settingSave) error {
+	if msg.LinkPreviewProxy == nil {
+		return nil
+	}
+	proxy := strings.TrimSpace(*msg.LinkPreviewProxy)
+	if _, ok := config.SOCKS5Proxy(proxy); proxy != "" && !ok {
+		return apierr.Field(connect.CodeInvalidArgument, "link_preview_proxy",
+			errors.New("the proxy must look like socks5://host:port"))
+	}
+	save.write(keyLinkPreviewProxy, proxy)
+	return nil
+}
 
 // UseLinkPreviewsEnv supplies STOOP_LINK_PREVIEWS, the fallback when
 // nothing is saved.

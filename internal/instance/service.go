@@ -96,6 +96,8 @@ type Service struct {
 	// STOOP_LINK_PREVIEW_HTML_MB (link_preview.go).
 	linkPreviewsEnv    bool
 	linkPreviewHTMLEnv int
+	// linkPreviewProxyEnv is STOOP_LINK_PREVIEW_PROXY (link_preview.go).
+	linkPreviewProxyEnv string
 	// retention counts what the retention settings would delete, for
 	// PreviewRetention (retention.go).
 	retention RetentionCounter

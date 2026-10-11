@@ -156,6 +156,21 @@ func TestLoad_LinkPreviewHTML(t *testing.T) {
 	}
 }
 
+func TestLoad_LinkPreviewProxy(t *testing.T) {
+	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
+	t.Setenv("STOOP_LINK_PREVIEW_PROXY", "socks5://127.0.0.1:9050")
+	cfg, err := Load()
+	if err != nil || cfg.LinkPreviewProxy != "socks5://127.0.0.1:9050" {
+		t.Fatalf("proxy = %q, %v", cfg.LinkPreviewProxy, err)
+	}
+	for _, bad := range []string{"127.0.0.1:9050", "http://proxy:3128", "socks5://proxy", "socks5://user:pw@proxy:1080", "socks5://proxy:1080/x"} {
+		t.Setenv("STOOP_LINK_PREVIEW_PROXY", bad)
+		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_LINK_PREVIEW_PROXY") {
+			t.Errorf("%q should be rejected, got %v", bad, err)
+		}
+	}
+}
+
 func TestLoad_RateLimits(t *testing.T) {
 	t.Setenv("STOOP_DATABASE_URL", "postgres://x")
 	cfg, err := Load()

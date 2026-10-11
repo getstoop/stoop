@@ -199,3 +199,17 @@ Trusted proxies.
   packets it cannot decrypt. LiveKit itself decrypts to forward between
   participants, so whoever runs the server can hear the room: there is no
   end-to-end encryption.
+
+## What linked sites see
+
+When someone posts a link, your server fetches the page to make its
+preview card, and the site sees your server's own address. A tunnel does
+not hide it: the fetch goes out directly. Anyone who can post can learn
+the address by linking to a site of theirs.
+
+To hide it, either turn link previews off (Server admin, Link previews),
+or set a SOCKS5 proxy there as `socks5://host:port`. Tor's local port, a
+VPN provider's SOCKS5 endpoint and `ssh -D` to another machine all work.
+The proxy looks up each site's name itself, so Stoop cannot stop a link
+from reaching whatever the proxy can reach: use a proxy that cannot
+reach your own network. If the proxy is down, links get no card.

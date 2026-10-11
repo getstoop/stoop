@@ -13,6 +13,8 @@ import (
 	"net/netip"
 	"net/url"
 	"time"
+
+	"golang.org/x/net/proxy"
 )
 
 var (
@@ -83,31 +85,61 @@ func (p Policy) CheckHost(ctx context.Context, u *url.URL) error {
 	return nil
 }
 
+// SOCKS5Transport sends every request through the SOCKS5 proxy at
+// proxyAddr (host:port), which also resolves the name, so the server
+// itself contacts nothing but the proxy. The policy can only be applied
+// to a host written as an address: what a name reaches is the proxy's to
+// decide. See docs/architecture/messaging.md → Link previews.
+func (p Policy) SOCKS5Transport(proxyAddr string) (*http.Transport, error) {
+	dialer, err := proxy.SOCKS5("tcp", proxyAddr, nil, &net.Dialer{Timeout: 5 * time.Second})
+	if err != nil {
+		return nil, err
+	}
+	viaProxy, ok := dialer.(proxy.ContextDialer)
+	if !ok {
+		return nil, errors.New("the SOCKS5 dialer takes no context")
+	}
+	return p.transport(func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+		if ip, err := netip.ParseAddr(host); err == nil && !p.Allows(ip) {
+			return nil, fmt.Errorf("%s: %w", ip, ErrNotPublic)
+		}
+		return viaProxy.DialContext(ctx, network, addr)
+	}), nil
+}
+
 // Transport dials only addresses the policy allows, resolving once and
 // dialing what it checked, and never routes through a proxy.
 func (p Policy) Transport() *http.Transport {
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	return p.transport(func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+		ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+		if err != nil {
+			return nil, err
+		}
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("%s: no addresses", host)
+		}
+		for _, ip := range ips {
+			if !p.Allows(ip) {
+				return nil, fmt.Errorf("%s resolves to %s: %w", host, ip, ErrNotPublic)
+			}
+		}
+		return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].Unmap().String(), port))
+	})
+}
+
+func (p Policy) transport(dial func(ctx context.Context, network, addr string) (net.Conn, error)) *http.Transport {
 	return &http.Transport{
-		Proxy: nil,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			host, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				return nil, err
-			}
-			ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
-			if err != nil {
-				return nil, err
-			}
-			if len(ips) == 0 {
-				return nil, fmt.Errorf("%s: no addresses", host)
-			}
-			for _, ip := range ips {
-				if !p.Allows(ip) {
-					return nil, fmt.Errorf("%s resolves to %s: %w", host, ip, ErrNotPublic)
-				}
-			}
-			return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].Unmap().String(), port))
-		},
+		Proxy:                  nil,
+		DialContext:            dial,
 		TLSHandshakeTimeout:    5 * time.Second,
 		ResponseHeaderTimeout:  8 * time.Second,
 		MaxResponseHeaderBytes: 64 << 10,

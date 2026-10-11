@@ -59,5 +59,17 @@ func IssuerURL(raw string) bool {
 	return ok && parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
+// SOCKS5Proxy parses a proxy address written socks5://host:port and
+// returns its host:port. Credentials, a path and a query are refused.
+func SOCKS5Proxy(raw string) (string, bool) {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "socks5" || parsed.User != nil ||
+		parsed.Hostname() == "" || parsed.Port() == "" ||
+		parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", false
+	}
+	return parsed.Host, true
+}
+
 // ValidProviderID reports whether id fits the login-provider id pattern.
 func ValidProviderID(id string) bool { return providerIDPattern.MatchString(id) }

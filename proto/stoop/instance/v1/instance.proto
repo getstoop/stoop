@@ -354,6 +354,9 @@ message GetReachabilityResponse {
   // The operator turned voice off (STOOP_VOICE=false), which is why
   // voice_configured is false whatever LiveKit settings exist.
   bool voice_off = 7;
+  // The SOCKS5 proxy link preview fetches go through
+  // (socks5://host:port), or empty for none.
+  string link_preview_proxy = 8;
 }
 
 message UpdateReachabilityRequest {
@@ -370,6 +373,8 @@ message UpdateReachabilityRequest {
   optional TrustedProxies trusted_proxies = 5;
   // Applied immediately: cloudflared starts, stops, or restarts.
   optional CloudflareTunnelSettings cloudflare_tunnel = 6;
+  // socks5://host:port; empty means no proxy.
+  optional string link_preview_proxy = 7;
 }
 
 message UpdateReachabilityResponse {

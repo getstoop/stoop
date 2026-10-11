@@ -723,6 +723,22 @@ which is a serious thing to be. So the fetcher:
 - **never uses an environment proxy**, which would otherwise route the
   whole defence around itself.
 
+### Through a proxy
+
+A fetch shows the linked site the server's own address, which is a home
+address for many operators and which any member can collect by posting a
+link to a site of theirs. With `link_preview_proxy` set (else
+`STOOP_LINK_PREVIEW_PROXY`), every preview fetch goes through that SOCKS5
+proxy instead, and **the proxy resolves the name**: a lookup made by the
+server would reach the site's name server from the operator's resolver.
+
+The cost is that the server no longer sees the address a name resolves
+to, so it cannot refuse a private one. A host written as an address is
+still checked; what a name reaches is the proxy's to decide, which is why
+the operator is told to use a proxy that cannot reach their network. A
+proxy that is down fails the fetch; nothing falls back to a direct one.
+SOCKS5 without credentials is the only kind taken.
+
 `STOOP_UNFURL_ALLOW_PRIVATE` relaxes this for development and for the
 browser spec, which serves its own page to unfurl. It is logged loudly at
 startup, because it is exactly the setting that turns the server into a

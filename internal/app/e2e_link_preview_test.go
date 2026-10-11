@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/getstoop/stoop/internal/netguard/socks5test"
 )
 
 // How much of a linked page a preview reads, and whether links get
@@ -74,5 +76,61 @@ func TestE2ELinkPreviewHTMLCap(t *testing.T) {
 	server.rpc(casey, settings, map[string]any{"linkPreviewHtmlMb": 0}).expect(t, "ok")
 	if megabytes() != 1 {
 		t.Errorf("cleared linkPreviewHtmlMb = %v, want the environment's 1", megabytes())
+	}
+}
+
+// Preview fetches go through the saved SOCKS5 proxy, which is handed the
+// name to resolve. Only an admin sets or reads it.
+func TestE2ELinkPreviewProxy(t *testing.T) {
+	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<title>Proxied</title>"))
+	}))
+	defer site.Close()
+	relay := socks5test.Start(t, site.Listener.Addr().String())
+	server := newHarness(t)
+	casey := server.person("casey")
+	ada := server.person("ada")
+	_, channelID := server.space(casey, "Porch")
+	const read = "stoop.instance.v1.InstanceService/GetReachability"
+	const update = "stoop.instance.v1.InstanceService/UpdateReachability"
+	proxy := "socks5://" + relay.Addr
+
+	refused := server.rpc(casey, update, map[string]any{"linkPreviewProxy": "http://proxy.example:3128"}).expect(t, "invalid_argument", "socks5://host:port")
+	if got := refused.field(); got != "link_preview_proxy" {
+		t.Errorf("the refusal names field %q", got)
+	}
+	server.rpc(ada, update, map[string]any{"linkPreviewProxy": proxy}).expect(t, "permission_denied")
+	server.rpc(casey, update, map[string]any{"linkPreviewProxy": proxy}).expect(t, "ok")
+	if got := server.rpc(casey, read, map[string]any{}).expect(t, "ok").str("linkPreviewProxy"); got != proxy {
+		t.Errorf("saved proxy reads back as %q", got)
+	}
+	server.rpc(ada, read, map[string]any{}).expect(t, "permission_denied")
+	if status := server.rpc("", "stoop.instance.v1.InstanceService/GetInstanceStatus", map[string]any{}).expect(t, "ok"); strings.Contains(status.raw, relay.Addr) {
+		t.Error("the public status carries the proxy address")
+	}
+
+	// The name resolves nowhere, and the server refuses loopback itself:
+	// a preview can only have come through the proxy.
+	server.send(casey, channelID, "look http://preview.invalid/page").expect(t, "ok")
+	previews := func() []any {
+		list, _ := server.message(casey, channelID, "look")["linkPreviews"].([]any)
+		return list
+	}
+	for deadline := time.Now().Add(10 * time.Second); len(previews()) == 0; time.Sleep(50 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("no preview through the proxy")
+		}
+	}
+	if title := previews()[0].(map[string]any)["title"]; title != "Proxied" {
+		t.Errorf("preview title = %v", title)
+	}
+	if got := relay.Hosts(); len(got) != 1 || got[0] != "preview.invalid:80" {
+		t.Errorf("the proxy was asked for %v, want the name unresolved", got)
+	}
+
+	server.rpc(casey, update, map[string]any{"linkPreviewProxy": ""}).expect(t, "ok")
+	if got := server.rpc(casey, read, map[string]any{}).expect(t, "ok").str("linkPreviewProxy"); got != "" {
+		t.Errorf("cleared proxy reads back as %q", got)
 	}
 }

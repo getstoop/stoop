@@ -1691,9 +1691,12 @@ type GetReachabilityResponse struct {
 	CloudflareTunnel *CloudflareTunnelStatus `protobuf:"bytes,6,opt,name=cloudflare_tunnel,json=cloudflareTunnel,proto3" json:"cloudflare_tunnel,omitempty"`
 	// The operator turned voice off (STOOP_VOICE=false), which is why
 	// voice_configured is false whatever LiveKit settings exist.
-	VoiceOff      bool `protobuf:"varint,7,opt,name=voice_off,json=voiceOff,proto3" json:"voice_off,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	VoiceOff bool `protobuf:"varint,7,opt,name=voice_off,json=voiceOff,proto3" json:"voice_off,omitempty"`
+	// The SOCKS5 proxy link preview fetches go through
+	// (socks5://host:port), or empty for none.
+	LinkPreviewProxy string `protobuf:"bytes,8,opt,name=link_preview_proxy,json=linkPreviewProxy,proto3" json:"link_preview_proxy,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetReachabilityResponse) Reset() {
@@ -1775,6 +1778,13 @@ func (x *GetReachabilityResponse) GetVoiceOff() bool {
 	return false
 }
 
+func (x *GetReachabilityResponse) GetLinkPreviewProxy() string {
+	if x != nil {
+		return x.LinkPreviewProxy
+	}
+	return ""
+}
+
 type UpdateReachabilityRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset fields are left unchanged. A set-but-empty public_url, a turn
@@ -1790,6 +1800,8 @@ type UpdateReachabilityRequest struct {
 	TrustedProxies *TrustedProxies `protobuf:"bytes,5,opt,name=trusted_proxies,json=trustedProxies,proto3,oneof" json:"trusted_proxies,omitempty"`
 	// Applied immediately: cloudflared starts, stops, or restarts.
 	CloudflareTunnel *CloudflareTunnelSettings `protobuf:"bytes,6,opt,name=cloudflare_tunnel,json=cloudflareTunnel,proto3,oneof" json:"cloudflare_tunnel,omitempty"`
+	// socks5://host:port; empty means no proxy.
+	LinkPreviewProxy *string `protobuf:"bytes,7,opt,name=link_preview_proxy,json=linkPreviewProxy,proto3,oneof" json:"link_preview_proxy,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1864,6 +1876,13 @@ func (x *UpdateReachabilityRequest) GetCloudflareTunnel() *CloudflareTunnelSetti
 		return x.CloudflareTunnel
 	}
 	return nil
+}
+
+func (x *UpdateReachabilityRequest) GetLinkPreviewProxy() string {
+	if x != nil && x.LinkPreviewProxy != nil {
+		return *x.LinkPreviewProxy
+	}
+	return ""
 }
 
 type UpdateReachabilityResponse struct {
@@ -2415,7 +2434,7 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"P\n" +
 	"\x19TransferOwnershipResponse\x123\n" +
 	"\x04user\x18\x01 \x01(\v2\x1f.stoop.instance.v1.InstanceUserR\x04user\"\x18\n" +
-	"\x16GetReachabilityRequest\"\xa3\x03\n" +
+	"\x16GetReachabilityRequest\"\xd1\x03\n" +
 	"\x17GetReachabilityResponse\x12C\n" +
 	"\freachability\x18\x01 \x01(\v2\x1f.stoop.instance.v1.ReachabilityR\freachability\x12@\n" +
 	"\ttailscale\x18\x02 \x01(\v2\".stoop.instance.v1.TailscaleStatusR\ttailscale\x12)\n" +
@@ -2423,7 +2442,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x0ehost_tailscale\x18\x04 \x01(\bR\rhostTailscale\x12:\n" +
 	"\alivekit\x18\x05 \x01(\v2 .stoop.instance.v1.LiveKitStatusR\alivekit\x12V\n" +
 	"\x11cloudflare_tunnel\x18\x06 \x01(\v2).stoop.instance.v1.CloudflareTunnelStatusR\x10cloudflareTunnel\x12\x1b\n" +
-	"\tvoice_off\x18\a \x01(\bR\bvoiceOff\"\x96\x04\n" +
+	"\tvoice_off\x18\a \x01(\bR\bvoiceOff\x12,\n" +
+	"\x12link_preview_proxy\x18\b \x01(\tR\x10linkPreviewProxy\"\xe0\x04\n" +
 	"\x19UpdateReachabilityRequest\x12\"\n" +
 	"\n" +
 	"public_url\x18\x01 \x01(\tH\x00R\tpublicUrl\x88\x01\x01\x125\n" +
@@ -2433,14 +2453,16 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"cloudflare\x88\x01\x01\x12G\n" +
 	"\ttailscale\x18\x04 \x01(\v2$.stoop.instance.v1.TailscaleSettingsH\x03R\ttailscale\x88\x01\x01\x12O\n" +
 	"\x0ftrusted_proxies\x18\x05 \x01(\v2!.stoop.instance.v1.TrustedProxiesH\x04R\x0etrustedProxies\x88\x01\x01\x12]\n" +
-	"\x11cloudflare_tunnel\x18\x06 \x01(\v2+.stoop.instance.v1.CloudflareTunnelSettingsH\x05R\x10cloudflareTunnel\x88\x01\x01B\r\n" +
+	"\x11cloudflare_tunnel\x18\x06 \x01(\v2+.stoop.instance.v1.CloudflareTunnelSettingsH\x05R\x10cloudflareTunnel\x88\x01\x01\x121\n" +
+	"\x12link_preview_proxy\x18\a \x01(\tH\x06R\x10linkPreviewProxy\x88\x01\x01B\r\n" +
 	"\v_public_urlB\a\n" +
 	"\x05_turnB\r\n" +
 	"\v_cloudflareB\f\n" +
 	"\n" +
 	"_tailscaleB\x12\n" +
 	"\x10_trusted_proxiesB\x14\n" +
-	"\x12_cloudflare_tunnel\"l\n" +
+	"\x12_cloudflare_tunnelB\x15\n" +
+	"\x13_link_preview_proxy\"l\n" +
 	"\x1aUpdateReachabilityResponse\x12N\n" +
 	"\freachability\x18\x01 \x01(\v2*.stoop.instance.v1.GetReachabilityResponseR\freachability\"\x15\n" +
 	"\x13GetBuildInfoRequest\"\x82\x01\n" +
