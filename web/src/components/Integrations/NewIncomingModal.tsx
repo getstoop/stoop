@@ -9,6 +9,7 @@ import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { Field } from "../Field";
 import { Modal } from "../Modal";
+import { Select } from "../Select";
 import { Switch } from "../Switch";
 import type { Secret } from "./SecretModal";
 
@@ -107,7 +108,7 @@ export function NewIncomingModal({
           />
         </Field>
         <Field label="Posts into" error={form.errors.channelId}>
-          <select
+          <Select
             name="hook-channel"
             value={chosenChannel}
             onChange={(e) => setChannelId(e.target.value)}
@@ -117,7 +118,7 @@ export function NewIncomingModal({
                 # {c.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field
           label="Posts as"
@@ -129,7 +130,7 @@ export function NewIncomingModal({
           }
           error={form.errors.botUserId}
         >
-          <select
+          <Select
             name="hook-bot"
             value={botUserId}
             onChange={(e) => setBotUserId(e.target.value)}
@@ -140,7 +141,7 @@ export function NewIncomingModal({
                 {b.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <label className="toggle-row">
           <Switch

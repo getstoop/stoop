@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { Select } from "../Select";
 
 export type SortChoice = { id: string; label: string };
 
@@ -48,7 +49,7 @@ export function Toolbar({
         </label>
       )}
       {sortChoices.length > 0 && (
-        <select
+        <Select
           className="dt-sort-select"
           aria-label="Sort by"
           value={sortValue}
@@ -61,7 +62,7 @@ export function Toolbar({
               <option value={`${c.id}:desc`}>{c.label}, reversed</option>
             </Fragment>
           ))}
-        </select>
+        </Select>
       )}
       <span className="dt-count muted small">{count}</span>
     </div>

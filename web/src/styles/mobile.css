@@ -412,7 +412,7 @@
     max-width: none;
   }
 
-  .setting-control > select {
+  .setting-control > .select {
     flex: 1 1 100%;
     width: 100%;
   }

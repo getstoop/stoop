@@ -11,6 +11,7 @@ import {
   useDndActive,
 } from "../../api/presence";
 import { useMe } from "../../api/queries";
+import { Select } from "../../components/Select";
 import { SettingRow } from "../../components/SettingRow";
 import { notice } from "../../stores/dialogs";
 
@@ -43,7 +44,7 @@ export function DoNotDisturbSection() {
       title="Do not disturb"
       description="Holds desktop alerts on every device you're signed in on, and shows everyone else you'd rather not be disturbed."
     >
-      <select
+      <Select
         id="dnd-duration"
         name="dnd-duration"
         value={choice}
@@ -61,7 +62,7 @@ export function DoNotDisturbSection() {
             {d.label}
           </option>
         ))}
-      </select>
+      </Select>
     </SettingRow>
   );
 }

@@ -19,16 +19,6 @@
     box-shadow var(--dur-fast) var(--ease);
 }
 
-/* The browser's own arrow sits against the border; this one is inset. The
-   stroke is a fixed grey because a data URI can't read a token. */
-:where(select:not([multiple], [size])) {
-  appearance: none;
-  padding-right: 32px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238b8d94' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-}
-
 :where(input, select, textarea)::placeholder {
   color: var(--text-muted);
 }
@@ -120,8 +110,8 @@ input.switch:disabled {
   color: var(--text-muted);
 }
 
-.card :where(input, select, textarea),
-.field :where(input, select, textarea) {
+.card :where(input, select, textarea, .select),
+.field :where(input, select, textarea, .select) {
   width: 100%;
 }
 
@@ -230,6 +220,36 @@ label.toggle-row input.switch {
   gap: 8px;
   color: var(--text-muted);
   font-size: var(--text-ui);
+}
+
+/* ---- Select (components/Select.tsx): the native select is still the
+   box; the wrapper only places the chevron over its right padding. ---- */
+.select {
+  position: relative;
+  display: inline-grid;
+  min-width: 0;
+}
+
+.select > select {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  padding-right: 32px;
+}
+
+/* ChevronIcon points right. */
+.select > svg {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  translate: 0 -50%;
+  rotate: 90deg;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.select:has(:disabled) > svg {
+  opacity: var(--disabled);
 }
 
 /* ---- NumberInput: the browser's spinner cannot be themed, so it is

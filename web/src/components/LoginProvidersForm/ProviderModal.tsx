@@ -3,6 +3,7 @@ import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { CopyButton } from "../CopyButton";
 import { Field } from "../Field";
 import { Modal } from "../Modal";
+import { Select } from "../Select";
 import type { ProviderRowState } from "./fields";
 import { PRESETS, type Preset } from "./presets";
 
@@ -145,7 +146,7 @@ export function ProviderModal({
           />
         </Field>
         <Field label="Icon" error={form.errors.icon}>
-          <select
+          <Select
             value={row.icon || "key"}
             onChange={(e) => set({ icon: e.target.value })}
           >
@@ -154,7 +155,7 @@ export function ProviderModal({
                 {i.label}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field
           label="Provider id"

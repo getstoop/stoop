@@ -9,6 +9,7 @@ import type { OutgoingWebhook } from "../../gen/stoop/integrations/v1/webhook_pb
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { Field } from "../Field";
 import { Modal } from "../Modal";
+import { Select } from "../Select";
 import type { Secret } from "./SecretModal";
 
 // New or edited outgoing webhook: where events go, which ones, and from
@@ -131,7 +132,7 @@ export function OutgoingHookModal({
           />
         </Field>
         <Field label="From" error={form.errors.channelId}>
-          <select
+          <Select
             name="outgoing-channel"
             value={channelId}
             onChange={(e) => setChannelId(e.target.value)}
@@ -142,7 +143,7 @@ export function OutgoingHookModal({
                 # {c.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
         <fieldset className="event-types">
           <legend className="eyebrow">Send when</legend>

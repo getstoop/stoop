@@ -149,7 +149,7 @@
   max-width: 420px;
 }
 
-.setting-control > select {
+.setting-control > .select {
   flex: 0 0 auto;
   width: max-content;
 }
@@ -293,9 +293,12 @@
 }
 
 /* Selects size to their longest option, so the chevron sits by the text. */
-.card-row select {
+.card-row .select {
   flex: 0 0 auto;
   width: max-content;
+}
+
+.card-row select {
   min-width: 0;
 }
 

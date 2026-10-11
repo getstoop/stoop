@@ -6,6 +6,7 @@ import { canDeleteSpace } from "../../api/permissions";
 import { useMe, useMembers } from "../../api/queries";
 import { Field } from "../../components/Field";
 import { controlAttrs } from "../../components/fieldControl";
+import { Select } from "../../components/Select";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 import { confirm, prompt } from "../../stores/dialogs";
@@ -51,7 +52,7 @@ export function DangerSection({ space }: { space: Space }) {
       <Field label="New owner" error={form.errors.userId}>
         {(control) => (
           <div className="card-row">
-            <select
+            <Select
               {...controlAttrs(control)}
               value={target}
               onChange={(e) => setTarget(e.target.value)}
@@ -62,7 +63,7 @@ export function DangerSection({ space }: { space: Space }) {
                   {m.displayName || m.username} (@{m.username})
                 </option>
               ))}
-            </select>
+            </Select>
             <button
               type="button"
               className="chip"

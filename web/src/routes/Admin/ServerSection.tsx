@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { instanceClient } from "../../api/clients";
 import { useInstanceStatus } from "../../api/queries";
+import { Select } from "../../components/Select";
 import { SettingRow } from "../../components/SettingRow";
 import {
   RegistrationPolicy,
@@ -130,7 +131,7 @@ export function ServerSection() {
         description={POLICIES.find((p) => p.value === shownPolicy)?.hint}
         error={form.errors.registrationPolicy}
       >
-        <select
+        <Select
           id="registration-policy"
           name="registration-policy"
           value={shownPolicy}
@@ -144,7 +145,7 @@ export function ServerSection() {
               {p.label}
             </option>
           ))}
-        </select>
+        </Select>
       </SettingRow>
       <SettingRow
         id="space-creation"
@@ -152,7 +153,7 @@ export function ServerSection() {
         description={SPACE_CREATION.find((p) => p.value === shownSpace)?.hint}
         error={form.errors.spaceCreation}
       >
-        <select
+        <Select
           id="space-creation"
           name="space-creation"
           value={shownSpace}
@@ -166,7 +167,7 @@ export function ServerSection() {
               {p.label}
             </option>
           ))}
-        </select>
+        </Select>
       </SettingRow>
       {form.formError && (
         <p className="error" role="alert">

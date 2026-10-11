@@ -196,6 +196,12 @@ kept for what is not a switch: one of a choose-many set (a token's
 permissions, a webhook's events, the people in a new conversation) and a
 choice that rides on a submit ("Also revoke my tokens", "Show hidden").
 
+**`<Select>`** is a dropdown: a native `<select>` in a `.select` wrapper
+that draws the chevron in `--text-muted`, in from the border. The select is
+still the box and takes every prop but `className`, which goes on the
+wrapper because the wrapper is what a layout sizes. `check-fields` refuses
+a bare `<select>`.
+
 **`<Input>`** is a text input with a `start` and an `end`: an icon, a unit,
 a button. The wrapper is the box and the input inside it is bare, so the
 focus halo and the danger border go round the slots. Use it when there is

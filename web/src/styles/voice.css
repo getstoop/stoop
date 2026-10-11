@@ -124,8 +124,14 @@
 
 .voice-mic-select {
   max-width: 110px;
+}
+
+.voice-mic-select > select {
   font-size: var(--text-sm);
   border-radius: var(--radius);
   padding: 2px 20px 2px 4px;
-  background-position: right 6px center;
+}
+
+.voice-mic-select > svg {
+  right: 6px;
 }

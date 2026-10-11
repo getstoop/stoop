@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Field } from "./Field";
 import { controlAttrs } from "./fieldControl";
+import { Select } from "./Select";
 
 const meta: Meta<typeof Field> = {
   title: "Components/Field",
@@ -63,14 +64,14 @@ export const RefusedWithHint: Story = {
   },
 };
 
-export const Select: Story = {
+export const WithASelect: Story = {
   args: {
     label: "Posts into",
     children: (
-      <select defaultValue="alerts">
+      <Select defaultValue="alerts">
         <option value="alerts">#alerts</option>
         <option value="general">#general</option>
-      </select>
+      </Select>
     ),
   },
 };
@@ -98,10 +99,10 @@ export const Pair: StoryObj = {
         <input placeholder="e.g. backup script" />
       </Field>
       <Field label="Expires">
-        <select defaultValue="90">
+        <Select defaultValue="90">
           <option value="90">In 90 days</option>
           <option value="0">Never</option>
-        </select>
+        </Select>
       </Field>
     </div>
   ),

@@ -1,5 +1,6 @@
 import { Field } from "../Field";
 import { NumberInput } from "../NumberInput";
+import { Select } from "../Select";
 import { EmailGroup } from "./EmailGroup";
 import { SECURITY_OPTIONS } from "./fields";
 import type { EmailDraft } from "./useEmailDraft";
@@ -45,7 +46,7 @@ export function SmtpFields({
         </Field>
         <div className="field-pair">
           <Field label="Security" error={errors["smtp.security"]}>
-            <select
+            <Select
               value={fields.security}
               onChange={(e) => setSecurity(Number(e.target.value))}
             >
@@ -54,7 +55,7 @@ export function SmtpFields({
                   {o.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field
             label="Port"
