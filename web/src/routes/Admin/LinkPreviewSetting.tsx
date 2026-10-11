@@ -119,7 +119,7 @@ export function LinkPreviewSetting() {
           autoComplete="off"
           spellCheck={false}
           value={shownProxy}
-          disabled={busy || !reachability || !on}
+          disabled={busy || !reachability}
           onChange={(e) => setProxy(e.target.value)}
         />
       </SettingRow>
