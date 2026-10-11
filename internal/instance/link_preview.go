@@ -37,8 +37,9 @@ func (s *Service) LinkPreviewProxy(ctx context.Context) (string, error) {
 }
 
 // stageLinkPreviewProxy validates a save of the proxy; empty clears it.
-// Saved with the Hosting settings because only an admin may read it.
-func stageLinkPreviewProxy(msg *instancev1.UpdateReachabilityRequest, _ Reachability, save *settingSave) error {
+// Saved with the other link preview settings so one save applies them
+// together, and read with the Hosting settings, which only an admin may.
+func stageLinkPreviewProxy(msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
 	if msg.LinkPreviewProxy == nil {
 		return nil
 	}
@@ -90,6 +91,9 @@ func (s *Service) LinkPreviewHTMLBytes(ctx context.Context) (int64, error) {
 // stageLinkPreviews validates a save of the link preview settings.
 func stageLinkPreviews(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
 	stageBool(save, keyLinkPreviews, msg.LinkPreviews)
+	if err := stageLinkPreviewProxy(msg, save); err != nil {
+		return err
+	}
 	megabytes := msg.LinkPreviewHtmlMb
 	if megabytes == nil {
 		return nil

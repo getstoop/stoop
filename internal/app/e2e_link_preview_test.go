@@ -122,12 +122,16 @@ func TestE2ELinkPreviewProxy(t *testing.T) {
 	ada := server.person("ada")
 	_, channelID := server.space(casey, "Porch")
 	const read = "stoop.instance.v1.InstanceService/GetReachability"
-	const update = "stoop.instance.v1.InstanceService/UpdateReachability"
+	const update = "stoop.instance.v1.InstanceService/UpdateSettings"
 	proxy := "socks5://" + relay.Addr
 
-	refused := server.rpc(casey, update, map[string]any{"linkPreviewProxy": "http://proxy.example:3128"}).expect(t, "invalid_argument", "socks5://host:port")
+	// A refused proxy saves nothing else sent with it.
+	refused := server.rpc(casey, update, map[string]any{"linkPreviewProxy": "http://proxy.example:3128", "linkPreviews": false}).expect(t, "invalid_argument", "socks5://host:port")
 	if got := refused.field(); got != "link_preview_proxy" {
 		t.Errorf("the refusal names field %q", got)
+	}
+	if on, _ := server.rpc("", "stoop.instance.v1.InstanceService/GetInstanceStatus", map[string]any{}).expect(t, "ok").body["linkPreviews"].(bool); !on {
+		t.Error("a refused proxy still turned previews off")
 	}
 	server.rpc(ada, update, map[string]any{"linkPreviewProxy": proxy}).expect(t, "permission_denied")
 	server.rpc(casey, update, map[string]any{"linkPreviewProxy": proxy}).expect(t, "ok")

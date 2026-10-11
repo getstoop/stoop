@@ -115,7 +115,7 @@ func (s *Service) SaveReachability(ctx context.Context, msg *instancev1.UpdateRe
 	// controllers are told only once the writes have committed.
 	save := &settingSave{}
 	for _, stage := range []func(*instancev1.UpdateReachabilityRequest, Reachability, *settingSave) error{
-		stagePublicURL, stageTURN, stageCloudflareTURN, s.stageTailscale, s.stageCloudflareTunnel, stageTrustedProxies, stageLinkPreviewProxy,
+		stagePublicURL, stageTURN, stageCloudflareTURN, s.stageTailscale, s.stageCloudflareTunnel, stageTrustedProxies,
 	} {
 		if err := stage(msg, current, save); err != nil {
 			return err

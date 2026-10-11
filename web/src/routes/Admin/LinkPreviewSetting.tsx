@@ -11,13 +11,15 @@ import { useFieldErrors } from "../../hooks/useFieldErrors";
 const MAX_MB = 16;
 
 // Whether links get previews, how much of a linked page one reads, and
-// the proxy the fetches go through. The Link previews tab. The switch
-// applies at once; the size and the proxy need Save. The proxy is read
-// and saved with the Hosting settings, which only an admin may read.
+// the proxy the fetches go through. The Link previews tab. One form, one
+// Save: nothing applies until it is pressed, and everything travels as
+// one UpdateSettings call. The proxy is read with the Hosting settings,
+// which only an admin may read.
 export function LinkPreviewSetting() {
   const queryClient = useQueryClient();
   const { data: status } = useInstanceStatus();
   const { data: reachability } = useReachability(true);
+  const [enabled, setEnabled] = useState<boolean | null>(null);
   const [megabytes, setMegabytes] = useState<string | null>(null);
   const [proxy, setProxy] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,22 +29,13 @@ export function LinkPreviewSetting() {
     "linkPreviewHtmlMb",
     "linkPreviewProxy",
   ]);
-  const on = status?.linkPreviews ?? true;
+  const shownEnabled = enabled ?? status?.linkPreviews ?? true;
   const shown = megabytes ?? (status ? String(status.linkPreviewHtmlMb) : "");
   const shownProxy = proxy ?? reachability?.linkPreviewProxy ?? "";
-
-  const turn = async (enabled: boolean) => {
-    setBusy(true);
-    form.begin();
-    try {
-      await instanceClient.updateSettings({ linkPreviews: enabled });
-      await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
-    } catch (err) {
-      form.fail(err);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const changed =
+    (enabled !== null && enabled !== status?.linkPreviews) ||
+    megabytes !== null ||
+    proxy !== null;
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -55,18 +48,16 @@ export function LinkPreviewSetting() {
     setBusy(true);
     setSaved(false);
     try {
-      if (megabytes !== null) {
-        await instanceClient.updateSettings({ linkPreviewHtmlMb: n });
-        setMegabytes(null);
-        await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
-      }
-      if (proxy !== null) {
-        await instanceClient.updateReachability({
-          linkPreviewProxy: proxy.trim(),
-        });
-        await queryClient.invalidateQueries({ queryKey: ["reachability"] });
-        setProxy(null);
-      }
+      await instanceClient.updateSettings({
+        linkPreviews: shownEnabled,
+        linkPreviewHtmlMb: n,
+        linkPreviewProxy: proxy === null ? undefined : proxy.trim(),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
+      await queryClient.invalidateQueries({ queryKey: ["reachability"] });
+      setEnabled(null);
+      setMegabytes(null);
+      setProxy(null);
       setSaved(true);
     } catch (err) {
       form.fail(err);
@@ -85,9 +76,9 @@ export function LinkPreviewSetting() {
       >
         <Switch
           id="link-previews"
-          checked={on}
+          checked={shownEnabled}
           disabled={busy || !status}
-          onChange={(e) => turn(e.target.checked)}
+          onChange={(e) => setEnabled(e.target.checked)}
         />
       </SettingRow>
       <SettingRow
@@ -103,7 +94,7 @@ export function LinkPreviewSetting() {
           max={MAX_MB}
           step="1"
           value={shown}
-          disabled={busy || !status || !on}
+          disabled={busy || !status}
           onChange={(e) => setMegabytes(e.target.value)}
         />
       </SettingRow>
@@ -124,16 +115,10 @@ export function LinkPreviewSetting() {
         />
       </SettingRow>
       <div className="setting-actions">
-        <button
-          type="submit"
-          className="primary"
-          disabled={busy || (megabytes === null && proxy === null)}
-        >
+        <button type="submit" className="primary" disabled={busy || !changed}>
           Save changes
         </button>
-        {saved && megabytes === null && proxy === null && (
-          <span className="hint">Saved.</span>
-        )}
+        {saved && !changed && <span className="hint">Saved.</span>}
       </div>
       {form.formError && (
         <p className="error" role="alert">
