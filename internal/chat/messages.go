@@ -520,6 +520,8 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 			if linksToFetch, err = s.recordLinks(ctx, qtx, msg.ID, extractLinks(content)); err != nil {
 				return fmt.Errorf("record links: %w", err)
 			}
+		} else if err := s.dropRemovedLinks(ctx, qtx, msg.ID, extractLinks(content)); err != nil {
+			return fmt.Errorf("drop removed links: %w", err)
 		}
 		return nil
 	})

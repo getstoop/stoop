@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,9 +15,11 @@ import (
 // previews at all: the saved setting, else the environment. A page whose
 // title sits past the cap gets no preview.
 func TestE2ELinkPreviewHTMLCap(t *testing.T) {
-	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	var fetched sync.Map
+	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte("<head><!--" + strings.Repeat("a", 3<<19) + "--><title>Late title</title></head>"))
+		fetched.Store(r.URL.Path, true)
 	}))
 	defer site.Close()
 	server := newHarness(t, "STOOP_UNFURL_ALLOW_PRIVATE", "true", "STOOP_LINK_PREVIEW_HTML_MB", "1")
@@ -32,6 +35,16 @@ func TestE2ELinkPreviewHTMLCap(t *testing.T) {
 		t.Errorf("status linkPreviewHtmlMb = %v, want the environment's 1", megabytes())
 	}
 	server.send(casey, channelID, "under one megabyte "+site.URL+"/one").expect(t, "ok")
+	// The cap is read when the fetch starts, so the page must have been
+	// fetched before the cap changes.
+	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(20 * time.Millisecond) {
+		if _, done := fetched.Load("/one"); done {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the first link was never fetched")
+		}
+	}
 
 	server.rpc(casey, settings, map[string]any{"linkPreviewHtmlMb": 17}).expect(t, "invalid_argument", "1-16")
 	server.rpc(casey, settings, map[string]any{"linkPreviewHtmlMb": 2}).expect(t, "ok")
@@ -62,6 +75,18 @@ func TestE2ELinkPreviewHTMLCap(t *testing.T) {
 		t.Error("status linkPreviews stayed on")
 	}
 	server.send(casey, channelID, "while off "+site.URL+"/off").expect(t, "ok")
+	// An edit while off keeps the card of a link it keeps and drops the
+	// card of a link it removes.
+	const edit = "stoop.chat.v1.ChatService/EditMessage"
+	carded := server.message(casey, channelID, "under two")["id"]
+	server.rpc(casey, edit, map[string]any{"messageId": carded, "content": "still under two megabytes " + site.URL + "/two"}).expect(t, "ok")
+	if got := previews("under two"); len(got) != 1 {
+		t.Errorf("an edit that kept the link left %d cards", len(got))
+	}
+	server.rpc(casey, edit, map[string]any{"messageId": carded, "content": "under two megabytes, link gone"}).expect(t, "ok")
+	if got := previews("under two"); len(got) != 0 {
+		t.Errorf("an edit that removed the link kept its card: %v", got)
+	}
 	server.rpc(casey, settings, map[string]any{"linkPreviews": true}).expect(t, "ok")
 	server.send(casey, channelID, "back on "+site.URL+"/on").expect(t, "ok")
 	for deadline := time.Now().Add(10 * time.Second); len(previews("back on")) == 0; time.Sleep(50 * time.Millisecond) {
