@@ -29,7 +29,7 @@ export function LinkPreviewSetting() {
     "linkPreviewHtmlMb",
     "linkPreviewProxy",
   ]);
-  const shownEnabled = enabled ?? status?.linkPreviews ?? true;
+  const shownEnabled = enabled ?? status?.linkPreviews ?? false;
   const shown = megabytes ?? (status ? String(status.linkPreviewHtmlMb) : "");
   const shownProxy = proxy ?? reachability?.linkPreviewProxy ?? "";
   const changed =

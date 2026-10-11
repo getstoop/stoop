@@ -111,9 +111,9 @@ type Config struct {
 
 	// LinkPreviews has the server fetch metadata for links in messages
 	// (Open Graph cards). The server does the fetching so readers' browsers
-	// never contact the linked site; turn it off if you'd rather the server
-	// made no outbound requests on members' behalf. The admin page's saved
-	// value overrides it.
+	// never contact the linked site, which shows that site the server's
+	// address: off unless turned on. The admin page's saved value
+	// overrides it.
 	LinkPreviews bool
 	// LinkPreviewHTMLMB is how many megabytes of a linked page are read
 	// to find its preview. The admin page's saved value overrides it.
@@ -240,7 +240,7 @@ func Load() (Config, error) {
 		SecureCookies:      env.bool("STOOP_SECURE_COOKIES", false),
 		RegistrationPolicy: env.oneOf("STOOP_REGISTRATION", "invite", "open", "invite", "closed"),
 		StorageDir:         getenv("STOOP_STORAGE_DIR", "./data"),
-		LinkPreviews:       env.bool("STOOP_LINK_PREVIEWS", true),
+		LinkPreviews:       env.bool("STOOP_LINK_PREVIEWS", false),
 		UpdateCheck:        env.bool("STOOP_UPDATE_CHECK", true),
 		UnfurlAllowPrivate: env.bool("STOOP_UNFURL_ALLOW_PRIVATE", false),
 		FileSweepInterval:  env.duration("STOOP_FILE_SWEEP_INTERVAL", 6*time.Hour),

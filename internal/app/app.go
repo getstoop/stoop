@@ -287,6 +287,9 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *App, err 
 		return nil, err
 	}
 	instanceSvc.UseEnvSet(config.IsSet)
+	if err := instanceSvc.KeepLinkPreviewsOn(ctx); err != nil {
+		return nil, err
+	}
 	drifted, err := instanceSvc.EnvDrift(ctx)
 	if err != nil {
 		return nil, err

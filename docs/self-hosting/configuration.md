@@ -33,7 +33,7 @@ page or with `stoop admin setting`.
 | `STOOP_STORAGE`            | `fs`                        | File storage backend. `fs` is the only one; any other value (including `s3`) refuses to start |
 | `STOOP_STORAGE_DIR`        | `./data`                    | Directory for uploaded files (compose: `/data` on the `stoop-data` volume) |
 | `STOOP_LIVEKIT_KEY_FILE`   | `<STOOP_STORAGE_DIR>/livekit/keys.yaml` | Where to write the LiveKit key pair for a sidecar started with `--key-file`. Written on every boot (minted or from the environment); the file is `0600` in a `0700` directory because LiveKit refuses a key file others can read |
-| `STOOP_LINK_PREVIEWS`      | `true`                      | Fetch Open Graph cards for links in messages. The server fetches (readers' browsers never contact the site); set `false` if the server should make no outbound requests on members' behalf. The admin page's saved value overrides it |
+| `STOOP_LINK_PREVIEWS`      | `false`                     | Fetch Open Graph cards for links in messages. The server fetches (readers' browsers never contact the site), so each linked site sees the server's address. The admin page's saved value overrides it |
 | `STOOP_LINK_PREVIEW_HTML_MB` | `2`                      | How many megabytes of a linked page are read to find its preview, 1-16. The admin page's saved value overrides it |
 | `STOOP_LINK_PREVIEW_PROXY` | *(none)*                  | A SOCKS5 proxy, `socks5://host:port`, that link preview fetches go through, so linked sites see its address and not the server's. A value saved on the admin page overrides it |
 | `STOOP_LINK_PREVIEW_RESOLVER` | `https://1.1.1.1/dns-query` | The DNS-over-HTTPS resolver that looks up site names, through the proxy, when a link preview proxy is set |

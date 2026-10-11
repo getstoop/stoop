@@ -12,7 +12,8 @@ const IMAGE = Buffer.from(
 // server has fetched the page — title, site, description, and the image
 // served from our own origin. The page lives on a throwaway server this
 // spec runs; the app server must allow private addresses for that
-// (STOOP_UNFURL_ALLOW_PRIVATE=1, as CI and the dev setup do). Also: links
+// (STOOP_UNFURL_ALLOW_PRIVATE=1) and have previews on
+// (STOOP_LINK_PREVIEWS=1), as CI and the dev setup do. Also: links
 // inside code are not unfurled, and editing the link away drops the card.
 // Ported from web/e2e/unfurl.mjs (STOOP-238).
 test("open graph cards for links", async ({ browser }) => {
