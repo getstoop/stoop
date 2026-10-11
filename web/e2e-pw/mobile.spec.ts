@@ -110,8 +110,15 @@ test("phone layout: drawer, toolbar on tap, and back to three columns", async ({
   await composer.click();
   const fontSize = await composer.evaluate((e) => getComputedStyle(e).fontSize);
   expect(fontSize, `composer is 16px on a phone (${fontSize})`).toBe("16px");
-  await composer.pressSequentially("hello from a phone");
+  // The on-screen keyboard's Return breaks the line; the button sends.
+  await composer.pressSequentially("hello from");
   await P.keyboard.press("Enter");
+  await composer.pressSequentially("a phone");
+  await expect(composer, "Return breaks the line").toHaveValue(
+    "hello from\na phone",
+  );
+  await P.locator(".composer-send").tap();
+  await expect(composer, "the button sends").toHaveValue("");
 
   const toolbar = P.locator(".message .message-toolbar").first();
   await toolbar.waitFor({ state: "attached" });

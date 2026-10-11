@@ -39,11 +39,14 @@ import { ComposerOverlay } from "../../components/ComposerOverlay";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
+import { SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
+import { Tooltip } from "../../components/Tooltip";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoGrow } from "../../hooks/useAutoGrow";
 import { useFormatting } from "../../hooks/useFormatting";
+import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 
 export function Composer({
   channelId,
@@ -88,6 +91,7 @@ export function Composer({
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   useAutoGrow(inputRef, draft);
+  const touchKeyboard = useTouchKeyboard();
   // Files picked, dropped, or pasted, uploading as they arrive; sent by id.
   const [pending, setPending] = useState<PendingAttachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
@@ -260,8 +264,10 @@ export function Composer({
           ? suggestions.length
           : 0;
     // Enter sends; Shift+Enter breaks the line (a textarea never submits
-    // its form on its own).
+    // its form on its own). An on-screen keyboard's Return breaks the line
+    // and the send button sends.
     if (e.key === "Enter" && !e.shiftKey && count === 0) {
+      if (touchKeyboard) return;
       e.preventDefault();
       send();
       return;
@@ -386,15 +392,16 @@ export function Composer({
       )}
       <div className="composer-tools">
         <FormatToolbar onFormat={format} />
-        <button
-          type="button"
-          className="format-button attach-button"
-          onClick={() => fileInputRef.current?.click()}
-          title="Attach files"
-          aria-label="Attach files"
-        >
-          <PaperclipIcon />
-        </button>
+        <Tooltip text="Attach files">
+          <button
+            type="button"
+            className="format-button attach-button"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Attach files"
+          >
+            <PaperclipIcon />
+          </button>
+        </Tooltip>
         <input
           ref={fileInputRef}
           type="file"
@@ -412,42 +419,54 @@ export function Composer({
         error={attachError}
         onRemove={dropPending}
       />
-      <div className="composer-input">
-        <ComposerOverlay value={draft} textareaRef={inputRef} />
-        <textarea
-          ref={inputRef}
-          value={draft}
-          rows={1}
-          onPaste={onPaste}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            updateMention(
-              e.target.value,
-              e.target.selectionStart ?? e.target.value.length,
-            );
-            pingTyping(e.target.value);
-          }}
-          onKeyDown={onKeyDown}
-          onBlur={() => {
-            setMention(null);
-            setShortcode(null);
-          }}
-          placeholder={
-            threadRootId
-              ? "Reply in thread"
-              : channelName
-                ? dm
-                  ? group
-                    ? `Message ${channelName}`
-                    : `Message @${channelName}`
-                  : announcement
-                    ? `Announce in #${channelName}`
-                    : `Message #${channelName}`
-                : "Message"
-          }
-          maxLength={4000}
-          autoComplete="off"
-        />
+      <div className="composer-row">
+        <div className="composer-input">
+          <ComposerOverlay value={draft} textareaRef={inputRef} />
+          <textarea
+            ref={inputRef}
+            value={draft}
+            rows={1}
+            onPaste={onPaste}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              updateMention(
+                e.target.value,
+                e.target.selectionStart ?? e.target.value.length,
+              );
+              pingTyping(e.target.value);
+            }}
+            onKeyDown={onKeyDown}
+            onBlur={() => {
+              setMention(null);
+              setShortcode(null);
+            }}
+            placeholder={
+              threadRootId
+                ? "Reply in thread"
+                : channelName
+                  ? dm
+                    ? group
+                      ? `Message ${channelName}`
+                      : `Message @${channelName}`
+                    : announcement
+                      ? `Announce in #${channelName}`
+                      : `Message #${channelName}`
+                  : "Message"
+            }
+            maxLength={4000}
+            autoComplete="off"
+          />
+        </div>
+        {touchKeyboard && (
+          <button
+            type="submit"
+            className="primary composer-send"
+            aria-label="Send"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <SendIcon />
+          </button>
+        )}
       </div>
       {threadRootId && (
         <label className="toggle-row composer-also-send">
