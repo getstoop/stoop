@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
-import { filterMembers, mentionQueryAt, splitMentions } from "./mentions";
+import {
+  filterMembers,
+  mentionNotes,
+  mentionQueryAt,
+  splitMentions,
+} from "./mentions";
 
 const member = (username: string, displayName = ""): Member =>
   ({ userId: username, username, displayName }) as Member;
@@ -237,5 +242,31 @@ describe("splitMentions", () => {
   it("gives the same answer on a second pass", () => {
     const once = splitMentions("hi @ada", known);
     expect(splitMentions("hi @ada", known)).toEqual(once);
+  });
+});
+
+describe("mentionNotes", () => {
+  const inside = new Set(["me", "ada", "bea"]);
+  const online = new Set(["me", "bea", "cal"]);
+  const row = (userId: string) => ({ userId }) as Member;
+  const notes = (...ids: string[]) =>
+    mentionNotes(ids.map(row), "garden", inside, online, "me");
+
+  it("counts the others @channel and @here reach in the channel", () => {
+    const found = notes("channel", "here");
+    expect(found.get("channel")).toBe("2 people");
+    expect(found.get("here")).toBe("1 person");
+  });
+
+  it("says a name outside the channel will be added, and nothing otherwise", () => {
+    const found = notes("ada", "cal");
+    expect(found.has("ada")).toBe(false);
+    expect(found.get("cal")).toBe("Not in #garden, will be added");
+  });
+
+  it("says nothing beside the caller's own name", () => {
+    expect(
+      mentionNotes([row("me")], "garden", new Set(), online, "me").size,
+    ).toBe(0);
   });
 });

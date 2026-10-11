@@ -49,6 +49,9 @@ export function applyMemberJoined(
   event: { spaceId: string; channelId: string; userId: string },
   me: string | null,
 ) {
+  queryClient.invalidateQueries({
+    queryKey: ["channel-members", event.channelId],
+  });
   patchMembers(queryClient, event.spaceId, event.channelId, (channel) => ({
     memberCount: channel.memberCount + 1,
     ...(event.userId === me ? { joined: true } : {}),
@@ -65,6 +68,9 @@ export function applyMemberLeft(
   event: { spaceId: string; channelId: string; userId: string },
   me: string | null,
 ) {
+  queryClient.invalidateQueries({
+    queryKey: ["channel-members", event.channelId],
+  });
   patchMembers(queryClient, event.spaceId, event.channelId, (channel) => ({
     memberCount: Math.max(0, channel.memberCount - 1),
     ...(event.userId === me
@@ -81,6 +87,7 @@ export function applyRequired(
   spaceId: string,
   channelId: string,
 ) {
+  queryClient.invalidateQueries({ queryKey: ["channel-members", channelId] });
   const channel = cached(queryClient, spaceId, channelId);
   if (!channel || inChannel(channel)) return;
   queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });

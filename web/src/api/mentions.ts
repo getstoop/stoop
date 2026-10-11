@@ -88,3 +88,30 @@ export function splitMentions(
   if (last < content.length) out.push({ text: content.slice(last) });
   return out;
 }
+
+// What the picker says beside a row in a text channel: how many other
+// people @channel and @here reach, and that naming someone outside the
+// channel brings them in. Keyed by the row's userId.
+export function mentionNotes(
+  candidates: Member[],
+  channelName: string,
+  inside: Set<string>,
+  online: Set<string>,
+  me: string,
+): Map<string, string> {
+  const people = (count: number) =>
+    count === 1 ? "1 person" : `${count} people`;
+  const notes = new Map<string, string>();
+  for (const candidate of candidates) {
+    if (candidate.userId === CHANNEL) {
+      notes.set(CHANNEL, people(inside.size - (inside.has(me) ? 1 : 0)));
+    } else if (candidate.userId === HERE) {
+      let here = 0;
+      for (const id of inside) if (id !== me && online.has(id)) here += 1;
+      notes.set(HERE, people(here));
+    } else if (candidate.userId !== me && !inside.has(candidate.userId)) {
+      notes.set(candidate.userId, `Not in #${channelName}, will be added`);
+    }
+  }
+  return notes;
+}

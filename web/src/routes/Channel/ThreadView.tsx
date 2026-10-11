@@ -31,6 +31,7 @@ import {
 import { useCloseSidePanel } from "../../components/SidePanel/context";
 import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
+import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkThreadRead } from "../../hooks/useMarkThreadRead";
@@ -193,6 +194,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
             channelName={channelName}
             dm={isDM}
             group={!!dm && dmIsGroup(dm)}
+            listsPeople={!isDM && channel?.kind === ChannelKind.TEXT}
             spaceId={spaceId}
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}

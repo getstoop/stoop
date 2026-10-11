@@ -206,6 +206,7 @@ export function ChannelView() {
               dm={isDM}
               group={isGroup}
               announcement={isAnnouncement(channel)}
+              listsPeople={!isDM && channel?.kind === ChannelKind.TEXT}
               spaceId={spaceId}
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}
