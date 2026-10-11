@@ -46,11 +46,13 @@
   border-radius: var(--radius);
 }
 
-.muted-row:hover {
+/* Over the bell, only the bell lights up, as with a channel row's ⋮. */
+.muted-row:hover:not(:has(.muted-unmute:hover)) {
   background: var(--raised);
 }
 
-.muted-row:has(.muted-open.active) {
+/* Matches the hover rule's weight, and comes after it. */
+.muted-list .muted-row:has(.muted-open.active) {
   background: var(--accent-soft);
 }
 
