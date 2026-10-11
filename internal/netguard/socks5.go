@@ -27,16 +27,7 @@ func (p Policy) SOCKS5Transport(proxyAddr, resolverURL string) (*http.Transport,
 	if !ok {
 		return nil, errors.New("the SOCKS5 dialer takes no context")
 	}
-	// The resolver is the operator's choice, so it is dialed as written.
-	resolver := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			Proxy:               nil,
-			DialContext:         viaProxy.DialContext,
-			TLSHandshakeTimeout: 5 * time.Second,
-			IdleConnTimeout:     90 * time.Second,
-		},
-	}
+	resolver := newResolverClient(viaProxy.DialContext)
 	return p.transport(func(ctx context.Context, network, addr string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(addr)
 		if err != nil {

@@ -5,15 +5,35 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
+	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
 )
 
 // maxDNSReply bounds a resolver's answer; a DNS message is at most 64 KB.
 const maxDNSReply = 64 << 10
+
+// newResolverClient is the client lookups are sent with. The resolver is
+// the operator's choice, so it is dialed as written; a redirect from it
+// is refused, since that would be somewhere nobody chose.
+func newResolverClient(dial func(ctx context.Context, network, addr string) (net.Conn, error)) *http.Client {
+	return &http.Client{
+		Timeout: 5 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Transport: &http.Transport{
+			Proxy:               nil,
+			DialContext:         dial,
+			TLSHandshakeTimeout: 5 * time.Second,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
+}
 
 // resolveOverHTTPS asks the DNS-over-HTTPS resolver at resolverURL (RFC
 // 8484) for a name's addresses: its IPv4 ones, or its IPv6 ones when it
