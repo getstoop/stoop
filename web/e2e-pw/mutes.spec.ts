@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import {
   acceptDialog,
   channelLink,
@@ -42,6 +42,10 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // The first channel row is #general (or the one conversation in the DM
   // list); it is the muted one throughout.
   const row = (p: Page) => p.locator(".channel-row").first();
+  // By name: a muted channel being read is listed last, so muting
+  // #general while in it moves its row.
+  const general = (p: Page) =>
+    p.locator(".channel-row", { hasText: "general" });
   // a.space-pill, not .space-pill: the rail's Create and Join buttons
   // carry the same class, and while the spaces query is still loading
   // they are the only matches — .first() then clicks Join and leaves its
@@ -49,9 +53,13 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   const railPill = (p: Page) => p.locator(".space-rail-list a.space-pill");
   const activityDot = (p: Page) => p.locator(".space-pill.activity .pill-dot");
 
-  // Mute or unmute the first channel row on the page.
-  const setMuted = async (p: Page, muted: boolean, why: string) => {
-    const r = row(p);
+  // Mute or unmute a channel row: the first on the page unless one is named.
+  const setMuted = async (
+    p: Page,
+    muted: boolean,
+    why: string,
+    r: Locator = row(p),
+  ) => {
     await r.hover();
     await r.locator(".dots-menu-button").click();
     const item = p.getByRole("menuitem", {
@@ -119,14 +127,23 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     "Delete channel",
   ]);
   await A.keyboard.press("Escape");
-  await setMuted(A, true, "mute #general from the row menu");
+  await setMuted(A, true, "mute #general from the row menu", general(A));
   await expect(
-    row(A).locator(".channel-link.muted"),
+    general(A).locator(".channel-link.muted"),
     "the muted row is dimmed",
   ).toHaveCount(1);
 
-  // A parks in #random so nothing in #general is read on arrival.
+  // A parks in #random so nothing in #general is read on arrival. Once A
+  // has left it, the muted channel's row leaves the sidebar.
   await channelLink(A, "random").click();
+  await expect(
+    channelLink(A, "general"),
+    "a muted channel's row goes once the reader leaves it",
+  ).toHaveCount(0);
+  await expect(
+    A.locator(".muted-bar"),
+    "and Muted channels appears on top of the members list",
+  ).toBeVisible();
 
   // A mention in a muted channel: activity yes, every other badge no. The
   // dot first, so the rest is asserted once the event has landed.
@@ -136,20 +153,16 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     "a mention in a muted channel lights the activity pill's dot",
   ).toBeAttached();
   await expect(
-    row(A).locator(".channel-link.unread"),
-    "a message in a muted channel doesn't bold the row",
+    channelLink(A, "general"),
+    "a message in a muted channel doesn't bring its row back",
   ).toHaveCount(0);
   await expect(
     railPill(A).locator(".pill-dot"),
     "and raises no unread dot on the space pill",
   ).toHaveCount(0);
   await expect(
-    row(A).locator(".channel-badge"),
-    "and raises no mention badge on the channel row",
-  ).toHaveCount(0);
-  await expect(
     railPill(A).locator(".pill-badge"),
-    "and none on the space pill",
+    "and no mention badge on it",
   ).toHaveCount(0);
   await A.locator(".space-pill.activity").click();
   await expect(
@@ -172,7 +185,26 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // ---- Unmuting brings the badges back.
   await A.goto("/");
   await channelLink(A, "random").click();
-  await setMuted(A, false, "unmute from the row menu");
+  await A.locator(".muted-bar").click();
+  const mutedRow = A.locator(".side-panel .muted-row");
+  await expect(
+    mutedRow,
+    "the side panel lists the muted channel",
+  ).toContainText("general");
+  await mutedRow.getByRole("button", { name: "Unmute" }).click();
+  await expect(
+    channelLink(A, "general"),
+    "unmuting from the panel puts the row back",
+  ).toHaveCount(1);
+  await expect(
+    A.locator(".side-panel .muted-empty"),
+    "and leaves the panel open and empty",
+  ).toBeVisible();
+  await A.locator(".side-panel-close").click();
+  await expect(
+    A.locator(".muted-bar"),
+    "with nothing muted and the panel closed, the bar goes",
+  ).toHaveCount(0);
   await mention(B, aName, "and a mention");
   await expect(
     row(A).locator(".channel-badge"),
@@ -230,7 +262,12 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // the item.
   await A.goto("/");
   await railPill(A).first().click();
-  await setMuted(A, true, "mute #general again for the cold-cache case");
+  await setMuted(
+    A,
+    true,
+    "mute #general again for the cold-cache case",
+    general(A),
+  );
   await A.goto("/activity");
   await markAllRead(A);
 
@@ -293,7 +330,14 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // the space's doing.
   await A.goto("/");
   await railPill(A).first().click();
-  await setMuted(A, false, "unmute #general so only the space mutes");
+  // #general is muted, so its row is only there once A has landed in it.
+  await expect(channelLink(A, "general")).toHaveClass(/active/);
+  await setMuted(
+    A,
+    false,
+    "unmute #general so only the space mutes",
+    general(A),
+  );
 
   expect(
     await menuItems(A),
@@ -419,13 +463,13 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   await expect(A.locator(".sidebar-header .space-name")).toHaveText(
     "Book club",
   );
-  await setMuted(A, true, "mute #general in the second space");
+  await setMuted(A, true, "mute #general in the second space", general(A));
 
   // Back to Stoop HQ: mute #general there too, then the whole space. The
   // channel mute is then covered by the space and shouldn't be listed.
   await railPill(A).first().click();
   await expect(A.locator(".sidebar-header .space-name")).toHaveText("Stoop HQ");
-  await setMuted(A, true, "mute #general in the first space");
+  await setMuted(A, true, "mute #general in the first space", general(A));
   await pickSpaceMenu(A, "Mute space", "then mute the space itself");
 
   // A row's label and its note ("direct message"), which sit in two

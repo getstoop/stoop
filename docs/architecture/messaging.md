@@ -294,7 +294,8 @@ thread's `thread_reply` items, which are its unread signal
 | Surface | Unmuted | Muted |
 | --- | --- | --- |
 | Desktop banner for a mention, reply or DM there | fires | silent |
-| Channel name bold when unread | yes | no (row dimmed) |
+| Channel name bold when unread | yes | no |
+| Text channel's row in the sidebar (its own mute) | shown | left out |
 | Mention count badge on the channel row | yes | no |
 | Space pill unread dot | yes | no |
 | Space pill mention count badge | yes | no |
@@ -316,6 +317,18 @@ Profile → Notifications holds the desktop banner permission; the activity
 page is only the feed. Inside a muted space the channel menu's mute item reads
 "Muted by space" and is disabled, and the space name carries a red muted
 bell, so the dimmed rows explain themselves.
+
+A text channel the person muted themselves leaves the sidebar, so muting
+is also how a long channel list gets shorter. While they have any in a
+space, a "Muted channels" bar sits on top of the members list and opens
+the list in the side panel (`components/MutedChannels`), where a name
+opens the channel and Unmute puts its row back. The channel being read
+has a row, dimmed and last in the list so no other row moves, until the
+reader goes elsewhere. A muted space hides nothing: only a channel's own
+mute does (`sidebarTextChannels` in `mutes.ts`). A thread from a muted
+channel shows its own mute button as muted and disabled, with a tooltip
+saying the channel is why. Voice channels and conversations stay
+listed, dimmed.
 
 Two neighbouring mechanisms are not mutes. **Do not disturb** is a
 choice on the account that holds every banner, on every device, on top of mutes

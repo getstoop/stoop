@@ -30,6 +30,7 @@ import {
 import { useCloseSidePanel } from "../../components/SidePanel/context";
 import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
+import { Tooltip } from "../../components/Tooltip";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkThreadRead } from "../../hooks/useMarkThreadRead";
@@ -59,6 +60,9 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
       : ""
     : (channel?.name ?? "");
   const where = isDM ? channelName : `#${channelName}`;
+  // The page beside the thread may be another channel, so the thread says
+  // for itself that its own is muted.
+  const channelMuted = isDM ? !!dm?.channel?.muted : !!channel?.muted;
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const { data: instanceStatus } = useInstanceStatus();
@@ -153,7 +157,30 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           >
             {copied ? <CheckIcon /> : <LinkIcon />}
           </button>
-          {summary && (
+          {/* A muted channel already silences its threads: the button
+              shows that and can't change it. Not `disabled`, which would
+              take it out of the tab order and away from its tooltip. */}
+          {summary && channelMuted && (
+            <Tooltip
+              text={isDM ? "Conversation muted" : "Channel muted"}
+              detail="Replies in this thread won't notify you."
+              side="bottom"
+            >
+              <button
+                type="button"
+                className="icon-button thread-channel-muted"
+                aria-disabled="true"
+                aria-label={
+                  isDM
+                    ? "Thread muted: its conversation is muted"
+                    : "Thread muted: its channel is muted"
+                }
+              >
+                <BellOffIcon size={16} />
+              </button>
+            </Tooltip>
+          )}
+          {summary && !channelMuted && (
             <button
               type="button"
               className={`icon-button${summary.muted ? " thread-muted-icon" : ""}`}

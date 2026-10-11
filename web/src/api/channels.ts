@@ -8,6 +8,7 @@ import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice, prompt } from "../stores/dialogs";
 import { chatClient } from "./clients";
 import { errorText } from "./errors";
+import { patchChannel, recomputeSpaceUnread } from "./unreads";
 
 // The channels a space may point new arrivals at. Voice is excluded here
 // and again on the server: landing someone in a voice channel would open
@@ -110,4 +111,22 @@ export async function setAnnouncement(
   } catch (err) {
     notice({ title: "Couldn't update the channel", body: errorText(err) });
   }
+}
+
+// Mutes or unmutes a channel for the caller, and brings the badges along.
+export async function setChannelMuted(
+  queryClient: QueryClient,
+  channel: Channel,
+  muted: boolean,
+) {
+  const res = await chatClient.setChannelMuted({
+    channelId: channel.id,
+    muted,
+  });
+  patchChannel(queryClient, channel.spaceId, channel.id, {
+    muted: res.channel?.muted ?? muted,
+  });
+  recomputeSpaceUnread(queryClient, channel.spaceId);
+  // The mute stamps on items already in the feed are now stale.
+  queryClient.invalidateQueries({ queryKey: ["activity"] });
 }
