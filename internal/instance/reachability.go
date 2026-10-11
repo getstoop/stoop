@@ -134,7 +134,12 @@ func (s *Service) reachabilityResponse(ctx context.Context) (*instancev1.GetReac
 	if err != nil {
 		return nil, err
 	}
+	previewProxy, err := s.LinkPreviewProxy(ctx)
+	if err != nil {
+		return nil, err
+	}
 	resp := &instancev1.GetReachabilityResponse{
+		LinkPreviewProxy: previewProxy,
 		Reachability: &instancev1.Reachability{
 			PublicUrl:        inForce.PublicURL,
 			Turn:             inForce.TURN.toProto(),

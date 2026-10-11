@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/getstoop/stoop/internal/netguard"
+	"github.com/getstoop/stoop/internal/netguard/socks5test"
 )
 
 func TestParseHTML(t *testing.T) {
@@ -69,48 +70,103 @@ func TestFetch_LocalServerRefusedUnlessAllowed(t *testing.T) {
 	ctx := context.Background()
 
 	// The default fetcher must refuse loopback — that's the SSRF guard.
-	if _, err := New(Options{}).Fetch(ctx, srv.URL+"/page", maxHTMLBytes); !errors.Is(err, netguard.ErrNotPublic) {
+	if _, err := New(Options{}).Fetch(ctx, srv.URL+"/page", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); !errors.Is(err, netguard.ErrNotPublic) {
 		t.Fatalf("loopback fetch should be refused, got %v", err)
 	}
-	if _, err := New(Options{}).Fetch(ctx, "ftp://example.com/x", maxHTMLBytes); !errors.Is(err, netguard.ErrBadScheme) {
+	if _, err := New(Options{}).Fetch(ctx, "ftp://example.com/x", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); !errors.Is(err, netguard.ErrBadScheme) {
 		t.Errorf("ftp should be refused, got %v", err)
 	}
-	if _, err := New(Options{}).Fetch(ctx, "http://user:pw@example.com/", maxHTMLBytes); !errors.Is(err, netguard.ErrBadScheme) {
+	if _, err := New(Options{}).Fetch(ctx, "http://user:pw@example.com/", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); !errors.Is(err, netguard.ErrBadScheme) {
 		t.Errorf("userinfo should be refused, got %v", err)
 	}
 
 	f := New(Options{AllowPrivate: true})
-	page, err := f.Fetch(ctx, srv.URL+"/page", maxHTMLBytes)
+	page, err := f.Fetch(ctx, srv.URL+"/page", FetchOptions{MaxHTMLBytes: maxHTMLBytes})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if page.Title != "T" || page.Description != "D" || len(page.Image) == 0 {
 		t.Errorf("preview = %+v", page)
 	}
-	if p, err := f.Fetch(ctx, srv.URL+"/redirect", maxHTMLBytes); err != nil || p.Title != "T" {
+	if p, err := f.Fetch(ctx, srv.URL+"/redirect", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); err != nil || p.Title != "T" {
 		t.Errorf("redirect: %v %+v", err, p)
 	}
-	if p, err := f.Fetch(ctx, srv.URL+"/img.png", maxHTMLBytes); err != nil || len(p.Image) == 0 || p.Title != "" {
+	if p, err := f.Fetch(ctx, srv.URL+"/img.png", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); err != nil || len(p.Image) == 0 || p.Title != "" {
 		t.Errorf("direct image: %v %+v", err, p)
 	}
 	// A page longer than the cap is read up to the cap.
-	if p, err := f.Fetch(ctx, srv.URL+"/big", maxHTMLBytes); err != nil || p.Title != "big" {
+	if p, err := f.Fetch(ctx, srv.URL+"/big", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); err != nil || p.Title != "big" {
 		t.Errorf("oversize page: %v %+v", err, p)
 	}
-	if _, err := f.Fetch(ctx, srv.URL+"/late-title", maxHTMLBytes); !errors.Is(err, errNoMetadata) {
+	if _, err := f.Fetch(ctx, srv.URL+"/late-title", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); !errors.Is(err, errNoMetadata) {
 		t.Errorf("a title past the cap should not be found, got %v", err)
 	}
-	if p, err := f.Fetch(ctx, srv.URL+"/late-title", 2*maxHTMLBytes); err != nil || p.Title != "late" {
+	if p, err := f.Fetch(ctx, srv.URL+"/late-title", FetchOptions{MaxHTMLBytes: 2 * maxHTMLBytes}); err != nil || p.Title != "late" {
 		t.Errorf("a title under a larger cap: %v %+v", err, p)
 	}
-	if _, err := f.Fetch(ctx, srv.URL+"/big.zip", maxHTMLBytes); !errors.Is(err, ErrTooLarge) {
+	if _, err := f.Fetch(ctx, srv.URL+"/big.zip", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("oversize file should be refused, got %v", err)
 	}
 	// A direct image gets the image cap, not the page cap.
-	if p, err := f.Fetch(ctx, srv.URL+"/big.gif", maxHTMLBytes); err != nil || len(p.Image) <= maxHTMLBytes {
+	if p, err := f.Fetch(ctx, srv.URL+"/big.gif", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); err != nil || len(p.Image) <= maxHTMLBytes {
 		t.Errorf("image over the page cap: %v, %d bytes", err, len(p.Image))
 	}
-	if _, err := f.Fetch(ctx, srv.URL+"/huge.gif", maxHTMLBytes); !errors.Is(err, ErrTooLarge) {
+	if _, err := f.Fetch(ctx, srv.URL+"/huge.gif", FetchOptions{MaxHTMLBytes: maxHTMLBytes}); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("oversize image should be refused, got %v", err)
+	}
+}
+
+// Through a proxy the server contacts only the proxy: the name is looked
+// up through it, the address is checked, and the proxy is asked for that
+// address. A dead proxy fails the fetch instead of going direct.
+func TestFetch_ThroughSOCKS5(t *testing.T) {
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<title>Proxied</title>"))
+	}))
+	defer srv.Close()
+	resolver := socks5test.StartResolver(t, map[string]string{
+		"preview.invalid": "203.0.113.7",
+		"inside.invalid":  "192.168.1.1",
+	})
+	resolverAddr := strings.TrimSuffix(strings.TrimPrefix(resolver, "http://"), "/dns-query")
+	relay := socks5test.Start(t)
+	relay.Route("203.0.113.7:80", srv.Listener.Addr().String())
+	ctx := context.Background()
+	fetcher := New(Options{Resolver: resolver})
+	through := FetchOptions{MaxHTMLBytes: maxHTMLBytes, SOCKS5Proxy: relay.Addr}
+
+	preview, err := fetcher.Fetch(ctx, "http://preview.invalid/page", through)
+	if err != nil || preview.Title != "Proxied" {
+		t.Fatalf("through the proxy: %v %+v", err, preview)
+	}
+	if got := relay.Hosts(); len(got) != 2 || got[0] != resolverAddr || got[1] != "203.0.113.7:80" {
+		t.Errorf("the proxy was asked for %v, want the resolver then the checked address", got)
+	}
+	// A name that resolves to a private address is refused, and so is
+	// one written as an address; the proxy is asked for neither.
+	if _, err := fetcher.Fetch(ctx, "http://inside.invalid/", through); !errors.Is(err, netguard.ErrNotPublic) {
+		t.Errorf("a name resolving to a private address should be refused, got %v", err)
+	}
+	if _, err := fetcher.Fetch(ctx, "http://192.168.1.1/", through); !errors.Is(err, netguard.ErrNotPublic) {
+		t.Errorf("a private address through the proxy should be refused, got %v", err)
+	}
+	for _, asked := range relay.Hosts() {
+		if strings.HasPrefix(asked, "192.168.") || strings.Contains(asked, "inside") {
+			t.Errorf("the proxy was asked for %s", asked)
+		}
+	}
+	if _, err := fetcher.Fetch(ctx, "http://nowhere.invalid/", through); err == nil {
+		t.Error("a name the resolver does not know should fail")
+	}
+
+	before := hits
+	if _, err := fetcher.Fetch(ctx, srv.URL, FetchOptions{MaxHTMLBytes: maxHTMLBytes, SOCKS5Proxy: "127.0.0.1:1"}); err == nil {
+		t.Error("a dead proxy should fail the fetch")
+	}
+	if hits != before {
+		t.Error("a dead proxy fell back to a direct fetch")
 	}
 }

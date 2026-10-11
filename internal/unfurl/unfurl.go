@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/html"
@@ -52,16 +53,31 @@ var (
 type Options struct {
 	// AllowPrivate disables the public-address check. Dev and tests only.
 	AllowPrivate bool
+	// Resolver is the DNS-over-HTTPS URL names are looked up at when a
+	// fetch goes through a proxy.
+	Resolver string
 }
 
 type Fetcher struct {
-	client *http.Client
+	policy   netguard.Policy
+	resolver string
+	direct   *http.Client
+
+	// proxied is the client for the proxy last asked for, kept so a
+	// fetch does not build a transport of its own.
+	mu          sync.Mutex
+	proxied     *http.Client
+	proxiedAddr string
 }
 
 func New(opts Options) *Fetcher {
+	policy := netguard.Policy{AllowPrivate: opts.AllowPrivate}
 	// The guard resolves once and dials what it checked (internal/netguard).
-	transport := netguard.Policy{AllowPrivate: opts.AllowPrivate}.Transport()
-	client := &http.Client{
+	return &Fetcher{policy: policy, resolver: opts.Resolver, direct: newClient(policy.Transport())}
+}
+
+func newClient(transport *http.Transport) *http.Client {
+	return &http.Client{
 		Transport: transport,
 		Timeout:   fetchTimeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -71,15 +87,40 @@ func New(opts Options) *Fetcher {
 			return checkURL(req.URL)
 		},
 	}
-	return &Fetcher{client: client}
+}
+
+// client is the direct client, or one through the SOCKS5 proxy at
+// proxyAddr. A proxy that can't be used is an error, never a direct fetch.
+func (f *Fetcher) client(proxyAddr string) (*http.Client, error) {
+	if proxyAddr == "" {
+		return f.direct, nil
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.proxied == nil || f.proxiedAddr != proxyAddr {
+		transport, err := f.policy.SOCKS5Transport(proxyAddr, f.resolver)
+		if err != nil {
+			return nil, err
+		}
+		f.proxied, f.proxiedAddr = newClient(transport), proxyAddr
+	}
+	return f.proxied, nil
+}
+
+// FetchOptions are what one fetch is held to.
+type FetchOptions struct {
+	// MaxHTMLBytes is how much of a page is read.
+	MaxHTMLBytes int64
+	// SOCKS5Proxy (host:port) carries the fetch when set.
+	SOCKS5Proxy string
 }
 
 func checkURL(u *url.URL) error { return netguard.CheckURL(u) }
 
 // Fetch unfurls one URL. A direct image URL becomes a preview with only an
 // image; an HTML page yields its metadata and, when it names one, its
-// preview image. Only the first maxHTMLBytes of a page are read.
-func (f *Fetcher) Fetch(ctx context.Context, raw string, maxHTMLBytes int64) (Preview, error) {
+// preview image. Only the first opts.MaxHTMLBytes of a page are read.
+func (f *Fetcher) Fetch(ctx context.Context, raw string, opts FetchOptions) (Preview, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return Preview{}, err
@@ -87,7 +128,12 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string, maxHTMLBytes int64) (Pr
 	if err := checkURL(u); err != nil {
 		return Preview{}, err
 	}
-	body, ctype, finalURL, err := f.get(ctx, u.String(), "text/html, application/xhtml+xml, image/*;q=0.8", maxHTMLBytes)
+	client, err := f.client(opts.SOCKS5Proxy)
+	if err != nil {
+		return Preview{}, err
+	}
+	maxHTMLBytes := opts.MaxHTMLBytes
+	body, ctype, finalURL, err := get(ctx, client, u.String(), "text/html, application/xhtml+xml, image/*;q=0.8", maxHTMLBytes)
 	if err != nil {
 		return Preview{}, err
 	}
@@ -106,7 +152,7 @@ func (f *Fetcher) Fetch(ctx context.Context, raw string, maxHTMLBytes int64) (Pr
 	}
 	if imageURL != "" {
 		if abs, err := finalURL.Parse(imageURL); err == nil && checkURL(abs) == nil {
-			if img, ictype, _, err := f.get(ctx, abs.String(), "image/*", maxHTMLBytes); err == nil && strings.HasPrefix(ictype, "image/") {
+			if img, ictype, _, err := get(ctx, client, abs.String(), "image/*", maxHTMLBytes); err == nil && strings.HasPrefix(ictype, "image/") {
 				p.Image = img
 			}
 		}
@@ -122,14 +168,14 @@ func isHTML(ctype string) bool {
 // says it is sending: an image may run to maxImageBytes, anything else
 // to maxHTMLBytes. A longer HTML page is cut at the cap; anything else
 // longer is refused.
-func (f *Fetcher) get(ctx context.Context, raw string, accept string, maxHTMLBytes int64) ([]byte, string, *url.URL, error) {
+func get(ctx context.Context, client *http.Client, raw string, accept string, maxHTMLBytes int64) ([]byte, string, *url.URL, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
 	if err != nil {
 		return nil, "", nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", accept)
-	resp, err := f.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", nil, err
 	}

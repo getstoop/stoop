@@ -723,6 +723,26 @@ which is a serious thing to be. So the fetcher:
 - **never uses an environment proxy**, which would otherwise route the
   whole defence around itself.
 
+### Through a proxy
+
+A fetch shows the linked site the server's own address, which is a home
+address for many operators and which any member can collect by posting a
+link to a site of theirs. With `link_preview_proxy` set (else
+`STOOP_LINK_PREVIEW_PROXY`), the server contacts nothing but that SOCKS5
+proxy:
+
+1. the name is looked up over HTTPS at `STOOP_LINK_PREVIEW_RESOLVER`, a
+   public resolver, **through the proxy**. A lookup made by the server
+   itself would reach the site's name server from the operator's
+   resolver;
+2. every address in the answer is checked as a direct fetch's would be;
+3. the proxy is asked to connect to **the address checked**, never to the
+   name, so there is no second lookup to answer differently.
+
+The guard is therefore as exact as without a proxy, wherever the proxy
+runs. A proxy or resolver that is down fails the fetch; nothing falls
+back to a direct one. SOCKS5 without credentials is the only kind taken.
+
 `STOOP_UNFURL_ALLOW_PRIVATE` relaxes this for development and for the
 browser spec, which serves its own page to unfurl. It is logged loudly at
 startup, because it is exactly the setting that turns the server into a

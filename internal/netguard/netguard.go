@@ -87,27 +87,31 @@ func (p Policy) CheckHost(ctx context.Context, u *url.URL) error {
 // dialing what it checked, and never routes through a proxy.
 func (p Policy) Transport() *http.Transport {
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	return p.transport(func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+		ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+		if err != nil {
+			return nil, err
+		}
+		if len(ips) == 0 {
+			return nil, fmt.Errorf("%s: no addresses", host)
+		}
+		for _, ip := range ips {
+			if !p.Allows(ip) {
+				return nil, fmt.Errorf("%s resolves to %s: %w", host, ip, ErrNotPublic)
+			}
+		}
+		return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].Unmap().String(), port))
+	})
+}
+
+func (p Policy) transport(dial func(ctx context.Context, network, addr string) (net.Conn, error)) *http.Transport {
 	return &http.Transport{
-		Proxy: nil,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			host, port, err := net.SplitHostPort(addr)
-			if err != nil {
-				return nil, err
-			}
-			ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
-			if err != nil {
-				return nil, err
-			}
-			if len(ips) == 0 {
-				return nil, fmt.Errorf("%s: no addresses", host)
-			}
-			for _, ip := range ips {
-				if !p.Allows(ip) {
-					return nil, fmt.Errorf("%s resolves to %s: %w", host, ip, ErrNotPublic)
-				}
-			}
-			return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].Unmap().String(), port))
-		},
+		Proxy:                  nil,
+		DialContext:            dial,
 		TLSHandshakeTimeout:    5 * time.Second,
 		ResponseHeaderTimeout:  8 * time.Second,
 		MaxResponseHeaderBytes: 64 << 10,

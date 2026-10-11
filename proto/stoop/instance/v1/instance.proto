@@ -242,6 +242,9 @@ message UpdateSettingsRequest {
   // STOOP_LINK_PREVIEW_HTML_MB.
   optional int32 link_preview_html_mb = 15;
   optional bool link_previews = 16;
+  // socks5://host:port; empty means no proxy. Read back by
+  // GetReachability, which only an admin may call.
+  optional string link_preview_proxy = 17;
 }
 
 message PreviewRetentionRequest {
@@ -354,6 +357,9 @@ message GetReachabilityResponse {
   // The operator turned voice off (STOOP_VOICE=false), which is why
   // voice_configured is false whatever LiveKit settings exist.
   bool voice_off = 7;
+  // The SOCKS5 proxy link preview fetches go through
+  // (socks5://host:port), or empty for none.
+  string link_preview_proxy = 8;
 }
 
 message UpdateReachabilityRequest {

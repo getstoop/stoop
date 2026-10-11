@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { instanceClient } from "../../api/clients";
-import { useInstanceStatus } from "../../api/queries";
+import { useInstanceStatus, useReachability } from "../../api/queries";
+import { Input } from "../../components/Input";
 import { NumberInput } from "../../components/NumberInput";
 import { SettingRow } from "../../components/SettingRow";
 import { Switch } from "../../components/Switch";
@@ -9,22 +10,32 @@ import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 const MAX_MB = 16;
 
-// Whether links get previews, and how much of a linked page one reads.
-// The Link previews tab. One form, one Save: nothing applies until it is
-// pressed, and everything travels as one UpdateSettings call.
+// Whether links get previews, how much of a linked page one reads, and
+// the proxy the fetches go through. The Link previews tab. One form, one
+// Save: nothing applies until it is pressed, and everything travels as
+// one UpdateSettings call. The proxy is read with the Hosting settings,
+// which only an admin may read.
 export function LinkPreviewSetting() {
   const queryClient = useQueryClient();
   const { data: status } = useInstanceStatus();
+  const { data: reachability } = useReachability(true);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [megabytes, setMegabytes] = useState<string | null>(null);
+  const [proxy, setProxy] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const form = useFieldErrors(["linkPreviews", "linkPreviewHtmlMb"]);
+  const form = useFieldErrors([
+    "linkPreviews",
+    "linkPreviewHtmlMb",
+    "linkPreviewProxy",
+  ]);
   const shownEnabled = enabled ?? status?.linkPreviews ?? true;
   const shown = megabytes ?? (status ? String(status.linkPreviewHtmlMb) : "");
+  const shownProxy = proxy ?? reachability?.linkPreviewProxy ?? "";
   const changed =
     (enabled !== null && enabled !== status?.linkPreviews) ||
-    megabytes !== null;
+    megabytes !== null ||
+    proxy !== null;
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -40,10 +51,13 @@ export function LinkPreviewSetting() {
       await instanceClient.updateSettings({
         linkPreviews: shownEnabled,
         linkPreviewHtmlMb: n,
+        linkPreviewProxy: proxy === null ? undefined : proxy.trim(),
       });
       await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
+      await queryClient.invalidateQueries({ queryKey: ["reachability"] });
       setEnabled(null);
       setMegabytes(null);
+      setProxy(null);
       setSaved(true);
     } catch (err) {
       form.fail(err);
@@ -82,6 +96,22 @@ export function LinkPreviewSetting() {
           value={shown}
           disabled={busy || !status}
           onChange={(e) => setMegabytes(e.target.value)}
+        />
+      </SettingRow>
+      <SettingRow
+        id="link-preview-proxy"
+        title="Link preview proxy"
+        description="A SOCKS5 proxy the fetches go through, so linked sites see its address and not this server's."
+        error={form.errors.linkPreviewProxy}
+      >
+        <Input
+          id="link-preview-proxy"
+          placeholder="socks5://host:port"
+          autoComplete="off"
+          spellCheck={false}
+          value={shownProxy}
+          disabled={busy || !reachability}
+          onChange={(e) => setProxy(e.target.value)}
         />
       </SettingRow>
       <div className="setting-actions">

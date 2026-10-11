@@ -570,8 +570,11 @@ type UpdateSettingsRequest struct {
 	// STOOP_LINK_PREVIEW_HTML_MB.
 	LinkPreviewHtmlMb *int32 `protobuf:"varint,15,opt,name=link_preview_html_mb,json=linkPreviewHtmlMb,proto3,oneof" json:"link_preview_html_mb,omitempty"`
 	LinkPreviews      *bool  `protobuf:"varint,16,opt,name=link_previews,json=linkPreviews,proto3,oneof" json:"link_previews,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// socks5://host:port; empty means no proxy. Read back by
+	// GetReachability, which only an admin may call.
+	LinkPreviewProxy *string `protobuf:"bytes,17,opt,name=link_preview_proxy,json=linkPreviewProxy,proto3,oneof" json:"link_preview_proxy,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -714,6 +717,13 @@ func (x *UpdateSettingsRequest) GetLinkPreviews() bool {
 		return *x.LinkPreviews
 	}
 	return false
+}
+
+func (x *UpdateSettingsRequest) GetLinkPreviewProxy() string {
+	if x != nil && x.LinkPreviewProxy != nil {
+		return *x.LinkPreviewProxy
+	}
+	return ""
 }
 
 type PreviewRetentionRequest struct {
@@ -1691,9 +1701,12 @@ type GetReachabilityResponse struct {
 	CloudflareTunnel *CloudflareTunnelStatus `protobuf:"bytes,6,opt,name=cloudflare_tunnel,json=cloudflareTunnel,proto3" json:"cloudflare_tunnel,omitempty"`
 	// The operator turned voice off (STOOP_VOICE=false), which is why
 	// voice_configured is false whatever LiveKit settings exist.
-	VoiceOff      bool `protobuf:"varint,7,opt,name=voice_off,json=voiceOff,proto3" json:"voice_off,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	VoiceOff bool `protobuf:"varint,7,opt,name=voice_off,json=voiceOff,proto3" json:"voice_off,omitempty"`
+	// The SOCKS5 proxy link preview fetches go through
+	// (socks5://host:port), or empty for none.
+	LinkPreviewProxy string `protobuf:"bytes,8,opt,name=link_preview_proxy,json=linkPreviewProxy,proto3" json:"link_preview_proxy,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetReachabilityResponse) Reset() {
@@ -1773,6 +1786,13 @@ func (x *GetReachabilityResponse) GetVoiceOff() bool {
 		return x.VoiceOff
 	}
 	return false
+}
+
+func (x *GetReachabilityResponse) GetLinkPreviewProxy() string {
+	if x != nil {
+		return x.LinkPreviewProxy
+	}
+	return ""
 }
 
 type UpdateReachabilityRequest struct {
@@ -2328,8 +2348,7 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\remail_enabled\x18\x14 \x01(\bR\femailEnabled\x128\n" +
 	"\x18password_reset_available\x18\x15 \x01(\bR\x16passwordResetAvailable\x12/\n" +
 	"\x14link_preview_html_mb\x18\x16 \x01(\x05R\x11linkPreviewHtmlMb\x12#\n" +
-	"\rlink_previews\x18\x17 \x01(\bR\flinkPreviews\"\xd8\n" +
-	"\n" +
+	"\rlink_previews\x18\x17 \x01(\bR\flinkPreviews\"\xa2\v\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
 	"\x0espace_creation\x18\x02 \x01(\x0e2&.stoop.instance.v1.SpaceCreationPolicyH\x01R\rspaceCreation\x88\x01\x01\x123\n" +
@@ -2348,7 +2367,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x16message_retention_days\x18\r \x01(\x05H\fR\x14messageRetentionDays\x88\x01\x01\x12?\n" +
 	"\x19attachment_retention_days\x18\x0e \x01(\x05H\rR\x17attachmentRetentionDays\x88\x01\x01\x124\n" +
 	"\x14link_preview_html_mb\x18\x0f \x01(\x05H\x0eR\x11linkPreviewHtmlMb\x88\x01\x01\x12(\n" +
-	"\rlink_previews\x18\x10 \x01(\bH\x0fR\flinkPreviews\x88\x01\x01B\x16\n" +
+	"\rlink_previews\x18\x10 \x01(\bH\x0fR\flinkPreviews\x88\x01\x01\x121\n" +
+	"\x12link_preview_proxy\x18\x11 \x01(\tH\x10R\x10linkPreviewProxy\x88\x01\x01B\x16\n" +
 	"\x14_registration_policyB\x11\n" +
 	"\x0f_space_creationB\x16\n" +
 	"\x14_storage_quota_bytesB\x13\n" +
@@ -2364,7 +2384,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x17_message_retention_daysB\x1c\n" +
 	"\x1a_attachment_retention_daysB\x17\n" +
 	"\x15_link_preview_html_mbB\x10\n" +
-	"\x0e_link_previews\"\x8b\x01\n" +
+	"\x0e_link_previewsB\x15\n" +
+	"\x13_link_preview_proxy\"\x8b\x01\n" +
 	"\x17PreviewRetentionRequest\x124\n" +
 	"\x16message_retention_days\x18\x01 \x01(\x05R\x14messageRetentionDays\x12:\n" +
 	"\x19attachment_retention_days\x18\x02 \x01(\x05R\x17attachmentRetentionDays\"\x83\x01\n" +
@@ -2415,7 +2436,7 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"P\n" +
 	"\x19TransferOwnershipResponse\x123\n" +
 	"\x04user\x18\x01 \x01(\v2\x1f.stoop.instance.v1.InstanceUserR\x04user\"\x18\n" +
-	"\x16GetReachabilityRequest\"\xa3\x03\n" +
+	"\x16GetReachabilityRequest\"\xd1\x03\n" +
 	"\x17GetReachabilityResponse\x12C\n" +
 	"\freachability\x18\x01 \x01(\v2\x1f.stoop.instance.v1.ReachabilityR\freachability\x12@\n" +
 	"\ttailscale\x18\x02 \x01(\v2\".stoop.instance.v1.TailscaleStatusR\ttailscale\x12)\n" +
@@ -2423,7 +2444,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x0ehost_tailscale\x18\x04 \x01(\bR\rhostTailscale\x12:\n" +
 	"\alivekit\x18\x05 \x01(\v2 .stoop.instance.v1.LiveKitStatusR\alivekit\x12V\n" +
 	"\x11cloudflare_tunnel\x18\x06 \x01(\v2).stoop.instance.v1.CloudflareTunnelStatusR\x10cloudflareTunnel\x12\x1b\n" +
-	"\tvoice_off\x18\a \x01(\bR\bvoiceOff\"\x96\x04\n" +
+	"\tvoice_off\x18\a \x01(\bR\bvoiceOff\x12,\n" +
+	"\x12link_preview_proxy\x18\b \x01(\tR\x10linkPreviewProxy\"\x96\x04\n" +
 	"\x19UpdateReachabilityRequest\x12\"\n" +
 	"\n" +
 	"public_url\x18\x01 \x01(\tH\x00R\tpublicUrl\x88\x01\x01\x125\n" +

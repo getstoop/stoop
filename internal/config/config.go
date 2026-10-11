@@ -118,6 +118,13 @@ type Config struct {
 	// LinkPreviewHTMLMB is how many megabytes of a linked page are read
 	// to find its preview. The admin page's saved value overrides it.
 	LinkPreviewHTMLMB int
+	// LinkPreviewProxy (socks5://host:port) carries preview fetches, so
+	// linked sites see the proxy's address and not the server's. The
+	// admin page's saved value overrides it.
+	LinkPreviewProxy string
+	// LinkPreviewResolver is the DNS-over-HTTPS address names are looked
+	// up at, through the proxy, when LinkPreviewProxy is in force.
+	LinkPreviewResolver string
 	// UpdateCheck has the server read the release index on getstoop.org
 	// so the admin page can say a newer release exists.
 	UpdateCheck bool
@@ -274,6 +281,14 @@ func Load() (Config, error) {
 	cfg.LinkPreviewHTMLMB = env.nonNegativeInt("STOOP_LINK_PREVIEW_HTML_MB", DefaultLinkPreviewHTMLMB)
 	if cfg.LinkPreviewHTMLMB < 1 || cfg.LinkPreviewHTMLMB > MaxLinkPreviewHTMLMB {
 		env.fail("STOOP_LINK_PREVIEW_HTML_MB must be 1-%d (got %d)", MaxLinkPreviewHTMLMB, cfg.LinkPreviewHTMLMB)
+	}
+	cfg.LinkPreviewProxy = os.Getenv("STOOP_LINK_PREVIEW_PROXY")
+	if _, ok := SOCKS5Proxy(cfg.LinkPreviewProxy); cfg.LinkPreviewProxy != "" && !ok {
+		env.fail("STOOP_LINK_PREVIEW_PROXY must look like socks5://host:port (got %q)", cfg.LinkPreviewProxy)
+	}
+	cfg.LinkPreviewResolver = getenv("STOOP_LINK_PREVIEW_RESOLVER", DefaultLinkPreviewResolver)
+	if !DNSResolver(cfg.LinkPreviewResolver, cfg.UnfurlAllowPrivate) {
+		env.fail("STOOP_LINK_PREVIEW_RESOLVER must be an https address (got %q)", cfg.LinkPreviewResolver)
 	}
 	// Held to the same rules as a name saved on the admin page (instance
 	// settings.go): trimmed, and at most 100 characters.

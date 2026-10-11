@@ -106,6 +106,7 @@ setting once or acts as its fallback, depending on the setting — see
 | `message_retention_days`, `attachment_retention_days` | Delete messages, or attachments' files, older than this many days, 1-3650; 0 keeps forever. Pinned messages and their files are kept. See [messaging.md](messaging.md#message-retention) and [files.md](files.md#retention). |
 | `session_lifetime_days` | How long a sign-in lasts, 1-365; unset falls back to `STOOP_SESSION_LIFETIME_DAYS` (30). See [identity.md](identity.md#sessions). |
 | `link_previews` | Whether links in messages get previews; unset falls back to `STOOP_LINK_PREVIEWS` (on). See [messaging.md](messaging.md#link-previews). |
+| `link_preview_proxy` | The SOCKS5 proxy preview fetches go through; unset falls back to `STOOP_LINK_PREVIEW_PROXY`, saved empty is none. Read with the reachability keys, so only an admin sees it. See [messaging.md](messaging.md#link-previews). |
 | `link_preview_html_mb` | How much of a linked page is read for its preview, 1-16 MB; unset falls back to `STOOP_LINK_PREVIEW_HTML_MB` (2). See [messaging.md](messaging.md#link-previews). |
 | `webhooks_incoming`, `webhooks_outgoing` | Each direction on (default) or off; `STOOP_WEBHOOKS=false` overrides both. See [integrations.md](integrations.md#switches). |
 | `webhooks_allow_private_targets` | Whether outgoing webhooks may reach LAN, loopback and CGNAT addresses (default off). |
