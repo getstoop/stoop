@@ -15,7 +15,7 @@ import {
 } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
-import { isMuted, sidebarHides } from "../api/mutes";
+import { isMuted, sidebarTextChannels } from "../api/mutes";
 import { canCreateInvites, canManageChannels } from "../api/permissions";
 import {
   useActivity,
@@ -67,10 +67,7 @@ export function SpaceLayout() {
   const [aboutOpen, setAboutOpen] = useState(false);
 
   const space = spaces?.find((s) => s.id === spaceId);
-  const textChannels =
-    channels?.filter(
-      (c) => c.kind !== ChannelKind.VOICE && !sidebarHides(c, openChannelId),
-    ) ?? [];
+  const textChannels = sidebarTextChannels(channels, openChannelId);
   const manage = !!space && canManageChannels(space);
   const voiceChannels =
     channels?.filter((c) => c.kind === ChannelKind.VOICE) ?? [];

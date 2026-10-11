@@ -323,9 +323,9 @@ is also how a long channel list gets shorter. While they have any in a
 space, a "Muted channels" bar sits on top of the members list and opens
 the list in the side panel (`components/MutedChannels`), where a name
 opens the channel and Unmute puts its row back. The channel being read
-keeps its row, dimmed, until the reader goes elsewhere. A muted space
-hides nothing: only a channel's own mute does (`sidebarHides` in
-`mutes.ts`). Voice channels and conversations stay listed, dimmed.
+has a row, dimmed and last in the list so no other row moves, until the
+reader goes elsewhere. A muted space hides nothing: only a channel's own
+mute does (`sidebarTextChannels` in `mutes.ts`). Voice channels and conversations stay listed, dimmed.
 
 Two neighbouring mechanisms are not mutes. **Do not disturb** is a
 choice on the account that holds every banner, on every device, on top of mutes

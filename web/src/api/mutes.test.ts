@@ -7,7 +7,7 @@ import {
   channelMuted,
   isMuted,
   mutedByCaller,
-  sidebarHides,
+  sidebarTextChannels,
   spaceMuted,
 } from "./mutes";
 
@@ -159,22 +159,35 @@ describe("isMuted", () => {
   });
 });
 
-describe("sidebarHides", () => {
+describe("sidebarTextChannels", () => {
   const text = (id: string, muted = false): Channel =>
     ({ id, muted, kind: ChannelKind.TEXT }) as Channel;
+  const ids = (channels: Channel[]) => channels.map((c) => c.id);
 
-  it("hides a text channel the caller muted", () => {
-    expect(sidebarHides(text("garden", true), "general")).toBe(true);
-    expect(sidebarHides(text("garden"), "general")).toBe(false);
+  it("leaves out a text channel the caller muted", () => {
+    const channels = [text("general"), text("garden", true), text("sale")];
+    expect(ids(sidebarTextChannels(channels, "general"))).toEqual([
+      "general",
+      "sale",
+    ]);
   });
 
-  it("keeps the row of the channel being read", () => {
-    expect(sidebarHides(text("garden", true), "garden")).toBe(false);
+  it("lists the muted channel being read last", () => {
+    const channels = [text("general"), text("garden", true), text("sale")];
+    expect(ids(sidebarTextChannels(channels, "garden"))).toEqual([
+      "general",
+      "sale",
+      "garden",
+    ]);
   });
 
-  it("leaves voice channels where they are", () => {
+  it("leaves voice channels to their own group", () => {
     const voice = { id: "porch", muted: true, kind: ChannelKind.VOICE };
     expect(mutedByCaller(voice as Channel)).toBe(false);
-    expect(sidebarHides(voice as Channel, undefined)).toBe(false);
+    expect(sidebarTextChannels([voice as Channel], "porch")).toEqual([]);
+  });
+
+  it("is empty while the list is cold", () => {
+    expect(sidebarTextChannels(undefined, undefined)).toEqual([]);
   });
 });

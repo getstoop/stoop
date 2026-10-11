@@ -57,11 +57,15 @@ export function mutedByCaller(channel: Channel): boolean {
   return channel.muted && channel.kind !== ChannelKind.VOICE;
 }
 
-// Whether the sidebar leaves a channel's row out. The channel being read
-// keeps its row until the reader goes elsewhere.
-export function sidebarHides(
-  channel: Channel,
+// The text channels the sidebar lists: those the caller has not muted, in
+// their order, then the muted one being read, if any. It goes last so
+// opening it moves no other row, and it leaves when the reader does.
+export function sidebarTextChannels(
+  channels: Channel[] | undefined,
   openChannelId: string | undefined,
-): boolean {
-  return mutedByCaller(channel) && channel.id !== openChannelId;
+): Channel[] {
+  const text = channels?.filter((c) => c.kind !== ChannelKind.VOICE) ?? [];
+  const listed = text.filter((c) => !mutedByCaller(c));
+  const reading = text.find((c) => mutedByCaller(c) && c.id === openChannelId);
+  return reading ? [...listed, reading] : listed;
 }
