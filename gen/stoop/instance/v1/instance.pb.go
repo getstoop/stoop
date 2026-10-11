@@ -341,8 +341,10 @@ type GetInstanceStatusResponse struct {
 	PasswordResetAvailable bool `protobuf:"varint,21,opt,name=password_reset_available,json=passwordResetAvailable,proto3" json:"password_reset_available,omitempty"`
 	// How many megabytes of a linked page are read to find its preview.
 	LinkPreviewHtmlMb int32 `protobuf:"varint,22,opt,name=link_preview_html_mb,json=linkPreviewHtmlMb,proto3" json:"link_preview_html_mb,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Whether links in messages get previews.
+	LinkPreviews  bool `protobuf:"varint,23,opt,name=link_previews,json=linkPreviews,proto3" json:"link_previews,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetInstanceStatusResponse) Reset() {
@@ -529,6 +531,13 @@ func (x *GetInstanceStatusResponse) GetLinkPreviewHtmlMb() int32 {
 	return 0
 }
 
+func (x *GetInstanceStatusResponse) GetLinkPreviews() bool {
+	if x != nil {
+		return x.LinkPreviews
+	}
+	return false
+}
+
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset fields are left unchanged.
@@ -560,6 +569,7 @@ type UpdateSettingsRequest struct {
 	// 1-16. 0 clears the saved value, falling back to
 	// STOOP_LINK_PREVIEW_HTML_MB.
 	LinkPreviewHtmlMb *int32 `protobuf:"varint,15,opt,name=link_preview_html_mb,json=linkPreviewHtmlMb,proto3,oneof" json:"link_preview_html_mb,omitempty"`
+	LinkPreviews      *bool  `protobuf:"varint,16,opt,name=link_previews,json=linkPreviews,proto3,oneof" json:"link_previews,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -697,6 +707,13 @@ func (x *UpdateSettingsRequest) GetLinkPreviewHtmlMb() int32 {
 		return *x.LinkPreviewHtmlMb
 	}
 	return 0
+}
+
+func (x *UpdateSettingsRequest) GetLinkPreviews() bool {
+	if x != nil && x.LinkPreviews != nil {
+		return *x.LinkPreviews
+	}
+	return false
 }
 
 type PreviewRetentionRequest struct {
@@ -2284,7 +2301,7 @@ var File_stoop_instance_v1_instance_proto protoreflect.FileDescriptor
 const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\n" +
 	" stoop/instance/v1/instance.proto\x12\x11stoop.instance.v1\x1a\x18stoop/auth/v1/auth.proto\x1a#stoop/instance/v1/diagnostics.proto\x1a\x1dstoop/instance/v1/email.proto\x1a!stoop/instance/v1/providers.proto\x1a$stoop/instance/v1/reachability.proto\x1a\x1cstoop/instance/v1/user.proto\"\x1a\n" +
-	"\x18GetInstanceStatusRequest\"\xbe\t\n" +
+	"\x18GetInstanceStatusRequest\"\xe3\t\n" +
 	"\x19GetInstanceStatusResponse\x12\x1f\n" +
 	"\vneeds_setup\x18\x01 \x01(\bR\n" +
 	"needsSetup\x12V\n" +
@@ -2310,7 +2327,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x0fvoice_available\x18\x13 \x01(\bR\x0evoiceAvailable\x12#\n" +
 	"\remail_enabled\x18\x14 \x01(\bR\femailEnabled\x128\n" +
 	"\x18password_reset_available\x18\x15 \x01(\bR\x16passwordResetAvailable\x12/\n" +
-	"\x14link_preview_html_mb\x18\x16 \x01(\x05R\x11linkPreviewHtmlMb\"\x9c\n" +
+	"\x14link_preview_html_mb\x18\x16 \x01(\x05R\x11linkPreviewHtmlMb\x12#\n" +
+	"\rlink_previews\x18\x17 \x01(\bR\flinkPreviews\"\xd8\n" +
 	"\n" +
 	"\x15UpdateSettingsRequest\x12[\n" +
 	"\x13registration_policy\x18\x01 \x01(\x0e2%.stoop.instance.v1.RegistrationPolicyH\x00R\x12registrationPolicy\x88\x01\x01\x12R\n" +
@@ -2329,7 +2347,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x15session_lifetime_days\x18\f \x01(\x05H\vR\x13sessionLifetimeDays\x88\x01\x01\x129\n" +
 	"\x16message_retention_days\x18\r \x01(\x05H\fR\x14messageRetentionDays\x88\x01\x01\x12?\n" +
 	"\x19attachment_retention_days\x18\x0e \x01(\x05H\rR\x17attachmentRetentionDays\x88\x01\x01\x124\n" +
-	"\x14link_preview_html_mb\x18\x0f \x01(\x05H\x0eR\x11linkPreviewHtmlMb\x88\x01\x01B\x16\n" +
+	"\x14link_preview_html_mb\x18\x0f \x01(\x05H\x0eR\x11linkPreviewHtmlMb\x88\x01\x01\x12(\n" +
+	"\rlink_previews\x18\x10 \x01(\bH\x0fR\flinkPreviews\x88\x01\x01B\x16\n" +
 	"\x14_registration_policyB\x11\n" +
 	"\x0f_space_creationB\x16\n" +
 	"\x14_storage_quota_bytesB\x13\n" +
@@ -2344,7 +2363,8 @@ const file_stoop_instance_v1_instance_proto_rawDesc = "" +
 	"\x16_session_lifetime_daysB\x19\n" +
 	"\x17_message_retention_daysB\x1c\n" +
 	"\x1a_attachment_retention_daysB\x17\n" +
-	"\x15_link_preview_html_mb\"\x8b\x01\n" +
+	"\x15_link_preview_html_mbB\x10\n" +
+	"\x0e_link_previews\"\x8b\x01\n" +
 	"\x17PreviewRetentionRequest\x124\n" +
 	"\x16message_retention_days\x18\x01 \x01(\x05R\x14messageRetentionDays\x12:\n" +
 	"\x19attachment_retention_days\x18\x02 \x01(\x05R\x17attachmentRetentionDays\"\x83\x01\n" +

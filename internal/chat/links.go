@@ -37,14 +37,32 @@ type PreviewImages interface {
 
 // UnfurlOptions tune the worker. Inline runs fetches synchronously in the
 // sending request — for tests, so a send returns with previews attached.
+// Enabled is asked once per send or edit; nil means always on.
 type UnfurlOptions struct {
-	Inline bool
+	Inline  bool
+	Enabled func(ctx context.Context) (bool, error)
 }
 
 // UseUnfurler enables link previews.
 func (s *Service) UseUnfurler(u Unfurler, images PreviewImages, opts UnfurlOptions) {
 	s.unfurler, s.previewImages, s.unfurlOpts = u, images, opts
 	s.unfurlSem = make(chan struct{}, 4)
+}
+
+// linkPreviewsOn reports whether this message's links get previews. A
+// setting that can't be read means none, never a failed send.
+func (s *Service) linkPreviewsOn(ctx context.Context) bool {
+	if s.unfurler == nil {
+		return false
+	}
+	if s.unfurlOpts.Enabled == nil {
+		return true
+	}
+	enabled, err := s.unfurlOpts.Enabled(ctx)
+	if err != nil {
+		slog.Default().Warn("could not read the link preview setting", "err", err)
+	}
+	return err == nil && enabled
 }
 
 const (

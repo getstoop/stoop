@@ -67,6 +67,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return nil, err
 	}
+	previewing := s.linkPreviewsOn(ctx)
 	attachments, err := s.claimAttachments(ctx, userID, spaceOf(channel), req.Msg.AttachmentIds)
 	if err != nil {
 		return nil, err
@@ -133,7 +134,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		if err := insertAttachments(ctx, qtx, row.ID, attachments); err != nil {
 			return err
 		}
-		if s.unfurler != nil {
+		if previewing {
 			if linksToFetch, err = s.recordLinks(ctx, qtx, row.ID, extractLinks(content)); err != nil {
 				return fmt.Errorf("record links: %w", err)
 			}
@@ -191,7 +192,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	}
 	// Cached link previews go out with the message itself; ones still to
 	// be fetched arrive later as MessageUpdated.
-	if s.unfurler != nil {
+	if previewing {
 		if previews, err := s.linkPreviewsByMessage(ctx, []string{row.ID}); err == nil {
 			msg.LinkPreviews = previews[row.ID]
 		}
@@ -211,7 +212,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		s.publishThreadRead(userID, channel, threadRoot.ID, threadMarker)
 	}
 	s.recordActivity(ctx, row, channel, participants, parent, mentioned, msg.Author, attachments)
-	if s.unfurler != nil {
+	if previewing {
 		s.unfurlLater(row.ID, userID, channel.ID, linksToFetch)
 	}
 
@@ -476,6 +477,7 @@ func (s *Service) loadMessage(ctx context.Context, messageID, spaceID string) (*
 
 func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.EditMessageRequest]) (*connect.Response[chatv1.EditMessageResponse], error) {
 	content := req.Msg.Content
+	previewing := s.linkPreviewsOn(ctx)
 	if content == "" || utf8.RuneCountInString(content) > maxMessageLen {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("message must be 1-%d characters", maxMessageLen))
@@ -514,7 +516,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 			}
 			return fmt.Errorf("edit message: %w", err)
 		}
-		if s.unfurler != nil {
+		if previewing {
 			if linksToFetch, err = s.recordLinks(ctx, qtx, msg.ID, extractLinks(content)); err != nil {
 				return fmt.Errorf("record links: %w", err)
 			}
@@ -534,7 +536,7 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 			Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
 		}))
 	}
-	if s.unfurler != nil {
+	if previewing {
 		s.unfurlLater(msg.ID, msg.AuthorID, channel.ID, linksToFetch)
 	}
 	return connect.NewResponse(&chatv1.EditMessageResponse{Message: out}), nil

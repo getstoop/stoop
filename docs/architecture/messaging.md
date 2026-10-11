@@ -726,6 +726,7 @@ which is a serious thing to be. So the fetcher:
 `STOOP_UNFURL_ALLOW_PRIVATE` relaxes this for development and for the
 browser spec, which serves its own page to unfurl. It is logged loudly at
 startup, because it is exactly the setting that turns the server into a
-probe of the operator's LAN. `STOOP_LINK_PREVIEWS=false` turns the feature
-off entirely, for operators who would rather the server made no outbound
-requests at all.
+probe of the operator's LAN. The `link_previews` setting (else
+`STOOP_LINK_PREVIEWS`, else on) turns the feature off, for operators who
+would rather the server made no outbound requests at all: links posted
+while it is off are not recorded, and cards already fetched stay.

@@ -112,7 +112,8 @@ type Config struct {
 	// LinkPreviews has the server fetch metadata for links in messages
 	// (Open Graph cards). The server does the fetching so readers' browsers
 	// never contact the linked site; turn it off if you'd rather the server
-	// made no outbound requests on members' behalf.
+	// made no outbound requests on members' behalf. The admin page's saved
+	// value overrides it.
 	LinkPreviews bool
 	// LinkPreviewHTMLMB is how many megabytes of a linked page are read
 	// to find its preview. The admin page's saved value overrides it.

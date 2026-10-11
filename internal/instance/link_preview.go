@@ -11,11 +11,24 @@ import (
 	"github.com/getstoop/stoop/internal/config"
 )
 
-// The link_preview_html_mb setting: how much of a linked page is read to
-// find its preview. Read at each fetch, so a change applies to links
-// posted from then on.
+// The link preview settings: link_previews, whether links in messages
+// get previews, and link_preview_html_mb, how much of a linked page is
+// read to find one. Both are read as a message is sent, so a change
+// applies to links posted from then on.
 
-const keyLinkPreviewHTML = "link_preview_html_mb"
+const (
+	keyLinkPreviews    = "link_previews"
+	keyLinkPreviewHTML = "link_preview_html_mb"
+)
+
+// UseLinkPreviewsEnv supplies STOOP_LINK_PREVIEWS, the fallback when
+// nothing is saved.
+func (s *Service) UseLinkPreviewsEnv(enabled bool) { s.linkPreviewsEnv = enabled }
+
+// LinkPreviews is the effective setting: saved, else environment.
+func (s *Service) LinkPreviews(ctx context.Context) (bool, error) {
+	return s.readBool(ctx, keyLinkPreviews, s.linkPreviewsEnv)
+}
 
 // UseLinkPreviewHTMLEnv supplies STOOP_LINK_PREVIEW_HTML_MB, the fallback
 // when nothing is saved.
@@ -44,8 +57,9 @@ func (s *Service) LinkPreviewHTMLBytes(ctx context.Context) (int64, error) {
 	return int64(megabytes) << 20, err
 }
 
-// stageLinkPreviewHTML validates a save of link_preview_html_mb.
-func stageLinkPreviewHTML(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+// stageLinkPreviews validates a save of the link preview settings.
+func stageLinkPreviews(_ context.Context, msg *instancev1.UpdateSettingsRequest, save *settingSave) error {
+	stageBool(save, keyLinkPreviews, msg.LinkPreviews)
 	megabytes := msg.LinkPreviewHtmlMb
 	if megabytes == nil {
 		return nil

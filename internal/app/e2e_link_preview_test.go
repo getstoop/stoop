@@ -8,8 +8,9 @@ import (
 	"time"
 )
 
-// How much of a linked page a preview reads: the saved setting, else the
-// environment. A page whose title sits past the cap gets no preview.
+// How much of a linked page a preview reads, and whether links get
+// previews at all: the saved setting, else the environment. A page whose
+// title sits past the cap gets no preview.
 func TestE2ELinkPreviewHTMLCap(t *testing.T) {
 	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
@@ -50,6 +51,24 @@ func TestE2ELinkPreviewHTMLCap(t *testing.T) {
 	}
 	if got := previews("under one"); len(got) != 0 {
 		t.Errorf("a title past a 1 MB cap still made a preview: %v", got)
+	}
+
+	// Off: a link posted meanwhile never gets a preview, even once it is
+	// back on.
+	server.rpc(casey, settings, map[string]any{"linkPreviews": false}).expect(t, "ok")
+	if on, _ := server.rpc("", status, map[string]any{}).expect(t, "ok").body["linkPreviews"].(bool); on {
+		t.Error("status linkPreviews stayed on")
+	}
+	server.send(casey, channelID, "while off "+site.URL+"/off").expect(t, "ok")
+	server.rpc(casey, settings, map[string]any{"linkPreviews": true}).expect(t, "ok")
+	server.send(casey, channelID, "back on "+site.URL+"/on").expect(t, "ok")
+	for deadline := time.Now().Add(10 * time.Second); len(previews("back on")) == 0; time.Sleep(50 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("no preview after link previews were turned back on")
+		}
+	}
+	if got := previews("while off"); len(got) != 0 {
+		t.Errorf("a link posted while previews were off made a preview: %v", got)
 	}
 
 	server.rpc(casey, settings, map[string]any{"linkPreviewHtmlMb": 0}).expect(t, "ok")
