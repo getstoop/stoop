@@ -10,29 +10,21 @@ import { useFieldErrors } from "../../hooks/useFieldErrors";
 const MAX_MB = 16;
 
 // Whether links get previews, and how much of a linked page one reads.
-// The Link previews tab. The switch applies at once; the size needs Save.
+// The Link previews tab. One form, one Save: nothing applies until it is
+// pressed, and everything travels as one UpdateSettings call.
 export function LinkPreviewSetting() {
   const queryClient = useQueryClient();
   const { data: status } = useInstanceStatus();
+  const [enabled, setEnabled] = useState<boolean | null>(null);
   const [megabytes, setMegabytes] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const form = useFieldErrors(["linkPreviews", "linkPreviewHtmlMb"]);
-  const on = status?.linkPreviews ?? true;
+  const shownEnabled = enabled ?? status?.linkPreviews ?? true;
   const shown = megabytes ?? (status ? String(status.linkPreviewHtmlMb) : "");
-
-  const turn = async (enabled: boolean) => {
-    setBusy(true);
-    form.begin();
-    try {
-      await instanceClient.updateSettings({ linkPreviews: enabled });
-      await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
-    } catch (err) {
-      form.fail(err);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const changed =
+    (enabled !== null && enabled !== status?.linkPreviews) ||
+    megabytes !== null;
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -45,9 +37,13 @@ export function LinkPreviewSetting() {
     setBusy(true);
     setSaved(false);
     try {
-      await instanceClient.updateSettings({ linkPreviewHtmlMb: n });
-      setMegabytes(null);
+      await instanceClient.updateSettings({
+        linkPreviews: shownEnabled,
+        linkPreviewHtmlMb: n,
+      });
       await queryClient.invalidateQueries({ queryKey: ["instance-status"] });
+      setEnabled(null);
+      setMegabytes(null);
       setSaved(true);
     } catch (err) {
       form.fail(err);
@@ -66,9 +62,9 @@ export function LinkPreviewSetting() {
       >
         <Switch
           id="link-previews"
-          checked={on}
+          checked={shownEnabled}
           disabled={busy || !status}
-          onChange={(e) => turn(e.target.checked)}
+          onChange={(e) => setEnabled(e.target.checked)}
         />
       </SettingRow>
       <SettingRow
@@ -84,19 +80,15 @@ export function LinkPreviewSetting() {
           max={MAX_MB}
           step="1"
           value={shown}
-          disabled={busy || !status || !on}
+          disabled={busy || !status}
           onChange={(e) => setMegabytes(e.target.value)}
         />
       </SettingRow>
       <div className="setting-actions">
-        <button
-          type="submit"
-          className="primary"
-          disabled={busy || megabytes === null}
-        >
+        <button type="submit" className="primary" disabled={busy || !changed}>
           Save changes
         </button>
-        {saved && megabytes === null && <span className="hint">Saved.</span>}
+        {saved && !changed && <span className="hint">Saved.</span>}
       </div>
       {form.formError && (
         <p className="error" role="alert">
