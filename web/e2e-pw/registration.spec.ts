@@ -14,8 +14,9 @@ const atPath = (p: Page, want: string, message: string) =>
 // Server-tab settings are one form: a select's new value only takes
 // effect once Save is clicked, and "Saved." says the round trip is over.
 const saveServer = async (p: Page) => {
-  await p.locator(".setting-actions button.primary").click();
-  await expect(p.locator(".setting-actions .hint")).toHaveText("Saved.");
+  const form = p.locator("form", { has: p.locator("#instance-name") });
+  await form.locator(".setting-actions button.primary").click();
+  await expect(form.locator(".setting-actions .hint")).toHaveText("Saved.");
 };
 
 // Who may create an account (invite, open, closed), who may create
