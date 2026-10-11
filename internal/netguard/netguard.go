@@ -30,9 +30,24 @@ type Policy struct {
 // cgnat is 100.64.0.0/10: carrier-grade NAT and Tailscale's range.
 var cgnat = netip.MustParsePrefix("100.64.0.0/10")
 
+// embedsIPv4 are the IPv6 ranges that carry an IPv4 address inside them:
+// IPv4-compatible, NAT64 (well-known and local-use) and 6to4. The inner
+// address is never checked, so the whole range is refused.
+var embedsIPv4 = []netip.Prefix{
+	netip.MustParsePrefix("::/96"),
+	netip.MustParsePrefix("64:ff9b::/96"),
+	netip.MustParsePrefix("64:ff9b:1::/48"),
+	netip.MustParsePrefix("2002::/16"),
+}
+
 // IsPublic reports whether ip is a globally routable unicast address.
 func IsPublic(ip netip.Addr) bool {
 	ip = ip.Unmap()
+	for _, prefix := range embedsIPv4 {
+		if prefix.Contains(ip) {
+			return false
+		}
+	}
 	return ip.IsValid() && ip.IsGlobalUnicast() &&
 		!ip.IsPrivate() && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() &&
 		!ip.IsMulticast() && !ip.IsUnspecified() && !cgnat.Contains(ip)

@@ -204,7 +204,8 @@ Every server-side request to a URL somebody chose goes through
 `internal/netguard`: resolve the name, check every address, dial the
 address checked. Public addresses always; RFC1918, loopback and CGNAT
 only when `webhooks_allow_private_targets` is on; link-local, including
-the cloud metadata address, never. A target is checked when a hook is
+the cloud metadata address, never, and nor are the IPv6 ranges that carry
+an IPv4 address inside them (IPv4-compatible, NAT64, 6to4). A target is checked when a hook is
 saved, and a hook whose target the policy refuses at delivery time is
 disabled with a reason. Link previews use the same guard with their own
 setting, and can be sent through a proxy with the same checks
