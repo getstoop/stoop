@@ -2,9 +2,9 @@ import { fileUrl, formatBytes } from "../../api/files";
 import type { Attachment } from "../../gen/stoop/chat/v1/message_pb";
 import { DownloadIcon } from "../Icons";
 
-// An attachment's name, size and download. Over the bottom of an image
-// or a video's still it shows on hover; an audio player's is always
-// visible, since its controls sit where the hover bar would.
+// An attachment's name, size and download. `overlay` lays it over the
+// bottom of an image (shown on hover) or a video's still (always shown);
+// an audio player's sits in a row of its own.
 export function MediaCaption({
   attachment: a,
   overlay = false,

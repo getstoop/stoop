@@ -59,8 +59,8 @@
   object-fit: contain;
 }
 
-/* Filename, size and a download button, shown over the bottom of an
-   image or a video's still on hover or keyboard focus. */
+/* Filename, size and a download button over the bottom of an image or a
+   video's still: an image's on hover or keyboard focus, a video's always. */
 .attachment-bar {
   position: absolute;
   left: 0;
@@ -79,8 +79,7 @@
 
 .attachment-image:hover .attachment-bar,
 .attachment-image:focus-within .attachment-bar,
-.attachment-video:hover .attachment-bar,
-.attachment-video:focus-within .attachment-bar {
+.attachment-video .attachment-bar {
   opacity: 1;
 }
 
