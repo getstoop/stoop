@@ -211,11 +211,6 @@ export function MessageRow({
         </span>
       </div>
       <div className="message-toolbar">
-        {continued && (
-          <span className="message-time" title={fullTime}>
-            {time}
-          </span>
-        )}
         <MessageActions
           message={message}
           link={link}
