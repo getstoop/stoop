@@ -60,3 +60,14 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* The thread header's channel name: a link that reads as the subtitle. */
+.thread-channel-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.thread-channel-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
