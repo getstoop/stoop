@@ -125,6 +125,7 @@
 
   /* Channel view: narrower gutters, smaller avatar column. */
   .channel-header {
+    min-height: 0;
     padding: 8px 12px;
     /* The pinned-messages sheet spans the header and positions against
        it (pins.css). */
