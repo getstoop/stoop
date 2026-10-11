@@ -79,6 +79,12 @@
   white-space: nowrap;
 }
 
+/* The muted bell, as beside a muted space's name. */
+.muted-unmute,
+.muted-unmute:hover {
+  color: var(--danger);
+}
+
 .muted-empty {
   margin: 0;
   padding: 16px;
