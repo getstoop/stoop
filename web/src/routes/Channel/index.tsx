@@ -194,6 +194,7 @@ export function ChannelView() {
             onEdit={setEditingId}
             onReply={setReplyTo}
             threadsAllowed={canPost(space, channel) && !isAnnouncement(channel)}
+            canWrite={!channel || inChannel(channel)}
           />
           <TypingIndicator channelId={channelId} spaceId={spaceId} />
           {channel && !inChannel(channel) ? (
@@ -205,6 +206,7 @@ export function ChannelView() {
               dm={isDM}
               group={isGroup}
               announcement={isAnnouncement(channel)}
+              listsPeople={!isDM && channel?.kind === ChannelKind.TEXT}
               spaceId={spaceId}
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}

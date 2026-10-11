@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import { chatClient } from "../../api/clients";
-import { useChannelRecord, usePeople } from "../../api/dms";
+import { usePeople } from "../../api/dms";
 import {
   isInlineImage,
   MAX_ATTACHMENT_BYTES,
@@ -49,7 +49,6 @@ import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { MentionPicker } from "../../components/MentionPicker";
-import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoGrow } from "../../hooks/useAutoGrow";
@@ -62,6 +61,7 @@ export function Composer({
   dm = false,
   group = false,
   announcement = false,
+  listsPeople = false,
   spaceId,
   replyTo,
   onCancelReply,
@@ -75,6 +75,8 @@ export function Composer({
   group?: boolean;
   // An announcement channel the caller may post in: say so.
   announcement?: boolean;
+  // A space's text channel, which has a list of people the picker reads.
+  listsPeople?: boolean;
   spaceId: string;
   replyTo: Message | null;
   onCancelReply: () => void;
@@ -198,16 +200,17 @@ export function Composer({
 
   // In a space's text channel the picker says who a broadcast reaches and
   // who a name would bring in.
-  const { channel: record } = useChannelRecord(spaceId, channelId);
-  const listed = !!record && spaceId !== "" && record.kind === ChannelKind.TEXT;
-  const { data: inside } = useChannelMembers(channelId, listed && !!mention);
+  const { data: inside } = useChannelMembers(
+    channelId,
+    listsPeople && !!mention,
+  );
   const online = useConnectionStore((state) => state.online);
   const { data: me } = useMe();
   const notes =
-    listed && inside
+    listsPeople && inside
       ? mentionNotes(
           candidates,
-          record.name,
+          channelName ?? "",
           new Set(inside.map((member) => member.userId)),
           online,
           me?.id ?? "",
