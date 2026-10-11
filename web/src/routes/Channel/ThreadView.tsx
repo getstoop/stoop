@@ -65,7 +65,12 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   const where = (
     <>
       {isDM ? channelName : `#${channelName}`}
-      {muted && <MutedMark />}
+      {muted && (
+        <MutedMark
+          tip={isDM ? "Conversation muted" : "Channel muted"}
+          detail="Replies in this thread won't notify you."
+        />
+      )}
     </>
   );
   const [replyTo, setReplyTo] = useState<Message | null>(null);
