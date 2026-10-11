@@ -3,10 +3,6 @@
 Status: decided 2026-10-10, not started. Nothing here is built. Where the
 new controls sit in the web app is still open; see [UI](#ui).
 
-Builds on [channel-membership.md](channel-membership.md), which lands
-first: it creates `channel_members`, the join, leave, list and add calls,
-and `@channel`. "What exists" below describes the code before either.
-
 ## What exists
 
 - Reading a space channel needs space membership and nothing else. One
@@ -24,7 +20,8 @@ and `@channel`. "What exists" below describes the code before either.
 ## The model
 
 A private channel is a space channel with a people list. Reading it needs
-space membership **and** a row in `channel_members`.
+space membership **and** a row in `channel_members`. A public channel has
+no list: everyone in the space is in it, as today.
 
 It is a list of people, not a rule about roles, so the fixed permission
 table does not change and there is still no per-channel override. Like an
@@ -51,9 +48,8 @@ so for private channels.
 | Bots | Need a `channel_members` row to read or post, added like a person. |
 | Incoming webhooks | Creating one that targets a private channel adds the hook's bot to that channel. |
 | Outgoing webhooks | Receive nothing from private channels in v1. |
-| `@channel` and `@here` | As in any channel: they reach the people in it. |
-| `@name` of someone not in the channel | Not mentioned and not added. A public channel adds them; here only `channels.manage` adds people. |
-| Joining | `JoinChannel` answers `NotFound` for a private channel. |
+| `@everyone` and `@here` | They reach the people in the channel, not the space. |
+| `@name` of someone not in the channel | Not mentioned and not added. Only `channels.manage` adds people. |
 | History for someone added later | All of it. |
 
 Defaults taken without being asked about, to confirm in review:
@@ -62,20 +58,33 @@ Defaults taken without being asked about, to confirm in review:
   converting in either direction in v1.
 - Whoever creates a private channel is its first member.
 - A member may take themselves out of a private channel.
-- A required channel can't be private, so a space's default channel
-  can't be, and a space keeps at least one public text channel.
+- A space's default channel can't be private.
 - A private channel may have no members. It still shows in Space
   settings → Channels, where an admin can add people or delete it.
 
 ## Schema
 
-One additive migration, owned by chat. `channel_members` already exists.
+One additive migration, owned by chat.
 
 ```sql
 ALTER TABLE channels ADD COLUMN private boolean NOT NULL DEFAULT false;
 ALTER TABLE channels ADD CONSTRAINT channels_private_in_space
-  CHECK (NOT private OR (space_id IS NOT NULL AND NOT required));
+  CHECK (NOT private OR space_id IS NOT NULL);
+
+CREATE TABLE channel_members (
+  channel_id uuid NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+  space_id   uuid NOT NULL,
+  user_id    uuid NOT NULL,
+  added_by   uuid REFERENCES users(id) ON DELETE SET NULL,
+  added_at   timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (channel_id, user_id),
+  FOREIGN KEY (space_id, user_id)
+    REFERENCES space_members(space_id, user_id) ON DELETE CASCADE
+);
 ```
+
+Only private channels have rows. Leaving or being removed from the space
+takes the person out of its private channels through the foreign key.
 
 ### The rollback trap
 
@@ -101,8 +110,8 @@ is a leak.
 | Realtime: channel events | `channel_created`, `channel_updated`, `channel_deleted` go to the space. | Members only. Being added arrives as `channel_created` on the person's own topic and being removed as `channel_deleted`, which is how a DM already appears and how the client already drops a channel. |
 | Realtime: reorder | `channels_reordered` carries every channel in the space. | Private channels are left out of the space broadcast; each member of one is sent their own list. |
 | Typing | The gateway relays to the space if the connection is subscribed to it. | For a private channel the gateway asks chat who may see it, as it does for a DM through `ChannelLookup.DMParticipants`. |
-| Mentions | Named handles resolve against the space, and someone not in the channel is added to it. | In a private channel named handles resolve against the channel's people, and nobody is added. |
-| Realtime: membership | `channel_member_joined` and `channel_member_left` go to the space. | Members only. |
+| Mentions | `@everyone`, `@here` and named handles resolve against the space. | In a private channel all three resolve against the channel's people. |
+| Realtime: membership | None. | `channel_member_joined` and `channel_member_left`, to the channel's members. |
 | Attachments | `mayDownload` asks `MayReadSpace` for any file with a space id. | Ask by channel. `IsAttachmentReadable` already does this for a DM's files. |
 | Activity | Items keep a preview of the message text. | Removing someone from a private channel deletes their activity items for it, as a block already does. |
 | Outgoing webhooks | The subscriber listens on `space:<id>`. | Nothing to do: private events no longer reach that topic. A test pins it so it stays true on purpose. |
@@ -118,9 +127,10 @@ bounded to a channel still needs its owner to be in that channel.
 | --- | --- | --- |
 | `ListChannels` | membership | Filtered as above. Unchanged shape. |
 | `ListAllChannels` | `channels.manage` | Every channel in the space, with a member count and whether the caller is in it. For Space settings → Channels. Listing is not membership and subscribes the caller to nothing, like `ListAllSpaces`. |
-| `ListChannelMembers` | a member of the channel, or `channels.manage` | Exists; any space member may call it for a public channel. |
-| `AddChannelMembers` | `channels.manage` | Exists. Naming yourself is how an admin joins. |
-| `RemoveChannelMember` | `channels.manage` | New. Clears the person's activity items for the channel and takes them out of its voice room. `LeaveChannel` does the same when the channel is private. |
+| `ListChannelMembers` | a member of the channel, or `channels.manage` | New. Private channels only. |
+| `AddChannelMembers` | `channels.manage` | New. Naming yourself is how an admin joins. |
+| `RemoveChannelMember` | `channels.manage` | New. Clears the person's activity items for the channel and takes them out of its voice room. |
+| `LeaveChannel` | a member of the channel | New. The same as being removed, for yourself. |
 
 Rename, topic, delete and reorder stay on `channels.manage` and work from
 settings on a channel the admin has not joined.
