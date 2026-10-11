@@ -83,7 +83,24 @@
   justify-content: flex-end;
 }
 
-/* The sidebar's way in, after the text channels. */
-.browse-link .channel-hash {
-  display: inline-flex;
+/* The sidebar's way in, after the text channels: a channel row's shape
+   without being one. */
+.browse-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.browse-link:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.browse-link.active {
+  background: var(--accent-soft);
+  color: var(--text);
 }
