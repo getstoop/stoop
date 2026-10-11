@@ -53,11 +53,15 @@ var (
 type Options struct {
 	// AllowPrivate disables the public-address check. Dev and tests only.
 	AllowPrivate bool
+	// Resolver is the DNS-over-HTTPS URL names are looked up at when a
+	// fetch goes through a proxy.
+	Resolver string
 }
 
 type Fetcher struct {
-	policy netguard.Policy
-	direct *http.Client
+	policy   netguard.Policy
+	resolver string
+	direct   *http.Client
 
 	// proxied is the client for the proxy last asked for, kept so a
 	// fetch does not build a transport of its own.
@@ -69,7 +73,7 @@ type Fetcher struct {
 func New(opts Options) *Fetcher {
 	policy := netguard.Policy{AllowPrivate: opts.AllowPrivate}
 	// The guard resolves once and dials what it checked (internal/netguard).
-	return &Fetcher{policy: policy, direct: newClient(policy.Transport())}
+	return &Fetcher{policy: policy, resolver: opts.Resolver, direct: newClient(policy.Transport())}
 }
 
 func newClient(transport *http.Transport) *http.Client {
@@ -94,7 +98,7 @@ func (f *Fetcher) client(proxyAddr string) (*http.Client, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.proxied == nil || f.proxiedAddr != proxyAddr {
-		transport, err := f.policy.SOCKS5Transport(proxyAddr)
+		transport, err := f.policy.SOCKS5Transport(proxyAddr, f.resolver)
 		if err != nil {
 			return nil, err
 		}

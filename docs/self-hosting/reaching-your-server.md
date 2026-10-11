@@ -210,6 +210,7 @@ the address by linking to a site of theirs.
 To hide it, either turn link previews off (Server admin, Link previews),
 or set a SOCKS5 proxy there as `socks5://host:port`. Tor's local port, a
 VPN provider's SOCKS5 endpoint and `ssh -D` to another machine all work.
-The proxy looks up each site's name itself, so Stoop cannot stop a link
-from reaching whatever the proxy can reach: use a proxy that cannot
-reach your own network. If the proxy is down, links get no card.
+Site names are then looked up through the proxy at a public resolver
+(`STOOP_LINK_PREVIEW_RESOLVER`, Cloudflare's by default), and links to
+private addresses are refused as they are without a proxy. If the proxy
+is down, links get no card.

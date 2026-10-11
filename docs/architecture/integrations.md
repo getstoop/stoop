@@ -207,7 +207,7 @@ only when `webhooks_allow_private_targets` is on; link-local, including
 the cloud metadata address, never. A target is checked when a hook is
 saved, and a hook whose target the policy refuses at delivery time is
 disabled with a reason. Link previews use the same guard with their own
-setting, and can be sent through a proxy that resolves names itself
+setting, and can be sent through a proxy with the same checks
 ([messaging.md](messaging.md#through-a-proxy)).
 
 ## Switches

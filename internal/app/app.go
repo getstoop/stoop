@@ -179,7 +179,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	if err := scheduleSweeps(ctx, jobsSvc, cfg); err != nil {
 		return nil, err
 	}
-	chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate}), instanceSvc}, filesSvc, chat.UnfurlOptions{Enabled: instanceSvc.LinkPreviews})
+	chatSvc.UseUnfurler(unfurler{unfurl.New(unfurl.Options{AllowPrivate: cfg.UnfurlAllowPrivate, Resolver: cfg.LinkPreviewResolver}), instanceSvc}, filesSvc, chat.UnfurlOptions{Enabled: instanceSvc.LinkPreviews})
 	if cfg.UnfurlAllowPrivate {
 		log.Warn("link previews may fetch private addresses (STOOP_UNFURL_ALLOW_PRIVATE); never use this outside development")
 	}

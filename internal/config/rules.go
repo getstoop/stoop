@@ -18,6 +18,9 @@ const (
 	// most allowed.
 	DefaultLinkPreviewHTMLMB = 2
 	MaxLinkPreviewHTMLMB     = 16
+	// DefaultLinkPreviewResolver is where names are looked up when
+	// preview fetches go through a proxy.
+	DefaultLinkPreviewResolver = "https://1.1.1.1/dns-query"
 	// DefaultSMTPHourlyLimit is the outbound email cap when none is set;
 	// MaxSMTPHourlyLimit is the highest one allowed.
 	DefaultSMTPHourlyLimit = 100
@@ -69,6 +72,13 @@ func SOCKS5Proxy(raw string) (string, bool) {
 		return "", false
 	}
 	return parsed.Host, true
+}
+
+// DNSResolver reports whether raw is a DNS-over-HTTPS address. Plain
+// http is taken only with allowInsecure, for tests.
+func DNSResolver(raw string, allowInsecure bool) bool {
+	parsed, ok := HTTPURL(raw)
+	return ok && parsed.User == nil && (parsed.Scheme == "https" || allowInsecure)
 }
 
 // ValidProviderID reports whether id fits the login-provider id pattern.

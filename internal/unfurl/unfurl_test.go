@@ -116,8 +116,9 @@ func TestFetch_LocalServerRefusedUnlessAllowed(t *testing.T) {
 	}
 }
 
-// Through a proxy the server contacts only the proxy, which is handed the
-// name to resolve; a dead proxy fails the fetch instead of going direct.
+// Through a proxy the server contacts only the proxy: the name is looked
+// up through it, the address is checked, and the proxy is asked for that
+// address. A dead proxy fails the fetch instead of going direct.
 func TestFetch_ThroughSOCKS5(t *testing.T) {
 	hits := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -126,21 +127,39 @@ func TestFetch_ThroughSOCKS5(t *testing.T) {
 		_, _ = w.Write([]byte("<title>Proxied</title>"))
 	}))
 	defer srv.Close()
-	relay := socks5test.Start(t, srv.Listener.Addr().String())
+	resolver := socks5test.StartResolver(t, map[string]string{
+		"preview.invalid": "203.0.113.7",
+		"inside.invalid":  "192.168.1.1",
+	})
+	resolverAddr := strings.TrimSuffix(strings.TrimPrefix(resolver, "http://"), "/dns-query")
+	relay := socks5test.Start(t)
+	relay.Route("203.0.113.7:80", srv.Listener.Addr().String())
 	ctx := context.Background()
-	fetcher := New(Options{})
+	fetcher := New(Options{Resolver: resolver})
+	through := FetchOptions{MaxHTMLBytes: maxHTMLBytes, SOCKS5Proxy: relay.Addr}
 
-	// The name exists nowhere: only the proxy could have reached it.
-	preview, err := fetcher.Fetch(ctx, "http://preview.invalid/page", FetchOptions{MaxHTMLBytes: maxHTMLBytes, SOCKS5Proxy: relay.Addr})
+	preview, err := fetcher.Fetch(ctx, "http://preview.invalid/page", through)
 	if err != nil || preview.Title != "Proxied" {
 		t.Fatalf("through the proxy: %v %+v", err, preview)
 	}
-	if got := relay.Hosts(); len(got) != 1 || got[0] != "preview.invalid:80" {
-		t.Errorf("the proxy was asked for %v, want the name unresolved", got)
+	if got := relay.Hosts(); len(got) != 2 || got[0] != resolverAddr || got[1] != "203.0.113.7:80" {
+		t.Errorf("the proxy was asked for %v, want the resolver then the checked address", got)
 	}
-	// An address is still held to the policy.
-	if _, err := fetcher.Fetch(ctx, "http://192.168.1.1/", FetchOptions{MaxHTMLBytes: maxHTMLBytes, SOCKS5Proxy: relay.Addr}); !errors.Is(err, netguard.ErrNotPublic) {
+	// A name that resolves to a private address is refused, and so is
+	// one written as an address; the proxy is asked for neither.
+	if _, err := fetcher.Fetch(ctx, "http://inside.invalid/", through); !errors.Is(err, netguard.ErrNotPublic) {
+		t.Errorf("a name resolving to a private address should be refused, got %v", err)
+	}
+	if _, err := fetcher.Fetch(ctx, "http://192.168.1.1/", through); !errors.Is(err, netguard.ErrNotPublic) {
 		t.Errorf("a private address through the proxy should be refused, got %v", err)
+	}
+	for _, asked := range relay.Hosts() {
+		if strings.HasPrefix(asked, "192.168.") || strings.Contains(asked, "inside") {
+			t.Errorf("the proxy was asked for %s", asked)
+		}
+	}
+	if _, err := fetcher.Fetch(ctx, "http://nowhere.invalid/", through); err == nil {
+		t.Error("a name the resolver does not know should fail")
 	}
 
 	before := hits

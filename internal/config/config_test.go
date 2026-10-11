@@ -163,6 +163,14 @@ func TestLoad_LinkPreviewProxy(t *testing.T) {
 	if err != nil || cfg.LinkPreviewProxy != "socks5://127.0.0.1:9050" {
 		t.Fatalf("proxy = %q, %v", cfg.LinkPreviewProxy, err)
 	}
+	if cfg.LinkPreviewResolver != "https://1.1.1.1/dns-query" {
+		t.Errorf("default resolver = %q", cfg.LinkPreviewResolver)
+	}
+	t.Setenv("STOOP_LINK_PREVIEW_RESOLVER", "http://resolver.example/dns-query")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_LINK_PREVIEW_RESOLVER") {
+		t.Errorf("a plain http resolver should be rejected, got %v", err)
+	}
+	t.Setenv("STOOP_LINK_PREVIEW_RESOLVER", "")
 	for _, bad := range []string{"127.0.0.1:9050", "http://proxy:3128", "socks5://proxy", "socks5://user:pw@proxy:1080", "socks5://proxy:1080/x"} {
 		t.Setenv("STOOP_LINK_PREVIEW_PROXY", bad)
 		if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STOOP_LINK_PREVIEW_PROXY") {

@@ -79,16 +79,20 @@ func TestE2ELinkPreviewHTMLCap(t *testing.T) {
 	}
 }
 
-// Preview fetches go through the saved SOCKS5 proxy, which is handed the
-// name to resolve. Only an admin sets or reads it.
+// Preview fetches go through the saved SOCKS5 proxy: the name is looked
+// up through it and the proxy is asked for the address. Only an admin
+// sets or reads it.
 func TestE2ELinkPreviewProxy(t *testing.T) {
 	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte("<title>Proxied</title>"))
 	}))
 	defer site.Close()
-	relay := socks5test.Start(t, site.Listener.Addr().String())
-	server := newHarness(t)
+	resolver := socks5test.StartResolver(t, map[string]string{"preview.invalid": "203.0.113.7"})
+	relay := socks5test.Start(t)
+	relay.Route("203.0.113.7:80", site.Listener.Addr().String())
+	// A plain-http resolver is only taken with private fetches allowed.
+	server := newHarness(t, "STOOP_UNFURL_ALLOW_PRIVATE", "true", "STOOP_LINK_PREVIEW_RESOLVER", resolver)
 	casey := server.person("casey")
 	ada := server.person("ada")
 	_, channelID := server.space(casey, "Porch")
@@ -110,8 +114,8 @@ func TestE2ELinkPreviewProxy(t *testing.T) {
 		t.Error("the public status carries the proxy address")
 	}
 
-	// The name resolves nowhere, and the server refuses loopback itself:
-	// a preview can only have come through the proxy.
+	// The name resolves only at the test resolver, to an address only
+	// the proxy routes: a preview can only have come through the proxy.
 	server.send(casey, channelID, "look http://preview.invalid/page").expect(t, "ok")
 	previews := func() []any {
 		list, _ := server.message(casey, channelID, "look")["linkPreviews"].([]any)
@@ -125,8 +129,9 @@ func TestE2ELinkPreviewProxy(t *testing.T) {
 	if title := previews()[0].(map[string]any)["title"]; title != "Proxied" {
 		t.Errorf("preview title = %v", title)
 	}
-	if got := relay.Hosts(); len(got) != 1 || got[0] != "preview.invalid:80" {
-		t.Errorf("the proxy was asked for %v, want the name unresolved", got)
+	asked := relay.Hosts()
+	if len(asked) != 2 || asked[1] != "203.0.113.7:80" {
+		t.Errorf("the proxy was asked for %v, want the resolver then the checked address", asked)
 	}
 
 	server.rpc(casey, update, map[string]any{"linkPreviewProxy": ""}).expect(t, "ok")

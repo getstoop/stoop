@@ -110,7 +110,7 @@ export function LinkPreviewSetting() {
       <SettingRow
         id="link-preview-proxy"
         title="Link preview proxy"
-        description="A SOCKS5 proxy the fetches go through, so linked sites see its address and not this server's. Use one that cannot reach your own network."
+        description="A SOCKS5 proxy the fetches go through, so linked sites see its address and not this server's."
         error={form.errors.linkPreviewProxy}
       >
         <Input

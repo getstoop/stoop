@@ -1,6 +1,7 @@
-// Package socks5test is a SOCKS5 proxy for tests: it takes CONNECT with
-// no authentication, records the host each request named, and dials
-// every one of them to the address it was started with.
+// Package socks5test is a SOCKS5 proxy and a DNS-over-HTTPS resolver for
+// tests. The proxy takes CONNECT with no authentication, records the
+// host each request named, and dials it, or the address it was told to
+// route that host to.
 package socks5test
 
 import (
@@ -16,30 +17,37 @@ type Proxy struct {
 	// Addr is the proxy's host:port.
 	Addr string
 
-	mu    sync.Mutex
-	hosts []string
+	mu     sync.Mutex
+	hosts  []string
+	routes map[string]string
 }
 
-// Start runs a proxy until the test ends. Whatever a client asks for is
-// connected to target (host:port).
-func Start(t *testing.T, target string) *Proxy {
+// Start runs a proxy until the test ends.
+func Start(t *testing.T) *Proxy {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = listener.Close() })
-	started := &Proxy{Addr: listener.Addr().String()}
+	started := &Proxy{Addr: listener.Addr().String(), routes: map[string]string{}}
 	go func() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
 				return
 			}
-			go started.serve(conn, target)
+			go started.serve(conn)
 		}
 	}()
 	return started
+}
+
+// Route sends requests for one host:port to target instead.
+func (p *Proxy) Route(requested, target string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.routes[requested] = target
 }
 
 // Hosts is every host:port a client asked for, in order.
@@ -49,7 +57,7 @@ func (p *Proxy) Hosts() []string {
 	return append([]string(nil), p.hosts...)
 }
 
-func (p *Proxy) serve(client net.Conn, target string) {
+func (p *Proxy) serve(client net.Conn) {
 	defer func() { _ = client.Close() }()
 	requested, err := handshake(client)
 	if err != nil {
@@ -57,7 +65,11 @@ func (p *Proxy) serve(client net.Conn, target string) {
 	}
 	p.mu.Lock()
 	p.hosts = append(p.hosts, requested)
+	target, routed := p.routes[requested]
 	p.mu.Unlock()
+	if !routed {
+		target = requested
+	}
 	upstream, err := net.Dial("tcp", target)
 	if err != nil {
 		_, _ = client.Write([]byte{5, 5, 0, 1, 0, 0, 0, 0, 0, 0})

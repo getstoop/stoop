@@ -13,8 +13,6 @@ import (
 	"net/netip"
 	"net/url"
 	"time"
-
-	"golang.org/x/net/proxy"
 )
 
 var (
@@ -83,32 +81,6 @@ func (p Policy) CheckHost(ctx context.Context, u *url.URL) error {
 		}
 	}
 	return nil
-}
-
-// SOCKS5Transport sends every request through the SOCKS5 proxy at
-// proxyAddr (host:port), which also resolves the name, so the server
-// itself contacts nothing but the proxy. The policy can only be applied
-// to a host written as an address: what a name reaches is the proxy's to
-// decide. See docs/architecture/messaging.md → Link previews.
-func (p Policy) SOCKS5Transport(proxyAddr string) (*http.Transport, error) {
-	dialer, err := proxy.SOCKS5("tcp", proxyAddr, nil, &net.Dialer{Timeout: 5 * time.Second})
-	if err != nil {
-		return nil, err
-	}
-	viaProxy, ok := dialer.(proxy.ContextDialer)
-	if !ok {
-		return nil, errors.New("the SOCKS5 dialer takes no context")
-	}
-	return p.transport(func(ctx context.Context, network, addr string) (net.Conn, error) {
-		host, _, err := net.SplitHostPort(addr)
-		if err != nil {
-			return nil, err
-		}
-		if ip, err := netip.ParseAddr(host); err == nil && !p.Allows(ip) {
-			return nil, fmt.Errorf("%s: %w", ip, ErrNotPublic)
-		}
-		return viaProxy.DialContext(ctx, network, addr)
-	}), nil
 }
 
 // Transport dials only addresses the policy allows, resolving once and
