@@ -10,7 +10,7 @@ import { useFieldErrors } from "../../hooks/useFieldErrors";
 const MAX_MB = 16;
 
 // Whether links get previews, and how much of a linked page one reads.
-// On the Server tab. The switch applies at once; the size needs Save.
+// The Link previews tab. The switch applies at once; the size needs Save.
 export function LinkPreviewSetting() {
   const queryClient = useQueryClient();
   const { data: status } = useInstanceStatus();
