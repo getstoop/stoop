@@ -12,7 +12,7 @@ import {
 } from "react";
 import { chatClient } from "../../api/clients";
 import { dayLabel, sameDay } from "../../api/dates";
-import { useChannelRecord, usePeople } from "../../api/dms";
+import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import {
   isLive,
@@ -26,7 +26,6 @@ import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { toggleReaction } from "../../api/reactions";
 import { historyRetentionNote } from "../../api/retention";
 import { messagePath, shareUrl, threadPath } from "../../api/shareLinks";
-import { inChannel } from "../../api/unreads";
 import { removeMessageFromCache } from "../../api/ws";
 import { EmojiPicker } from "../../components/EmojiPicker";
 import { UserCard } from "../../components/UserCard";
@@ -50,6 +49,7 @@ export function MessageList({
   onReply,
   threadRoot,
   threadsAllowed = false,
+  canWrite = true,
 }: {
   messages: Message[];
   spaceId: string;
@@ -74,6 +74,10 @@ export function MessageList({
   threadRoot?: Message;
   // Messages here may start a thread (never in an announcement channel).
   threadsAllowed?: boolean;
+  // False for someone in the space but not this channel: they read it and
+  // write nothing. A prop, not a lookup here: another reader of the
+  // channel list mounting with each timeline would refetch it each time.
+  canWrite?: boolean;
 }) {
   const queryClient = useQueryClient();
   const threadRootId = threadRoot?.id;
@@ -87,9 +91,6 @@ export function MessageList({
     openPanel?.kind === "thread" && openPanel.params.channelId === channelId
       ? openPanel.params.rootId
       : undefined;
-  // Someone in the space but not this channel reads it and writes nothing.
-  const { channel: record } = useChannelRecord(spaceId, channelId);
-  const canWrite = !record || inChannel(record);
   const { data: spacesForPerms } = useSpaces();
   const spaceForPerms = spacesForPerms?.find((s) => s.id === spaceId);
   // The permalink each message offers to copy. An ordinary https:// link,
