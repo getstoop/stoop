@@ -59,8 +59,8 @@
   object-fit: contain;
 }
 
-/* Filename, size and a download button, shown over the bottom of the
-   image on hover or keyboard focus. */
+/* Filename, size and a download button, shown over the bottom of an
+   image or a video's still on hover or keyboard focus. */
 .attachment-bar {
   position: absolute;
   left: 0;
@@ -78,12 +78,13 @@
 }
 
 .attachment-image:hover .attachment-bar,
-.attachment-image:focus-within .attachment-bar {
+.attachment-image:focus-within .attachment-bar,
+.attachment-video:hover .attachment-bar,
+.attachment-video:focus-within .attachment-bar {
   opacity: 1;
 }
 
-/* A video's frame and the audio player share the image's frame; their
-   caption sits under it and is always visible. */
+/* A video's frame and the audio player share the image's frame. */
 .attachment-video,
 .attachment-audio {
   display: block;
@@ -97,6 +98,7 @@
 
 /* A still to click, not a player: it plays in the preview. */
 .attachment-video {
+  position: relative;
   /* off-scale: a thumbnail's width */
   width: min(280px, 100%);
 }
@@ -245,6 +247,8 @@
 }
 
 .attachment-strip .pending.failed {
+  /* The reason is longer than a size: the chip widens to hold it. */
+  max-width: 100%;
   border-color: var(--danger);
 }
 
@@ -274,6 +278,7 @@
 }
 
 .pending.failed .pending-meta {
+  flex: 0 1 auto;
   color: var(--danger);
 }
 

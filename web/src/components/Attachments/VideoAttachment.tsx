@@ -40,7 +40,7 @@ export function VideoAttachment({ attachment: a }: { attachment: Attachment }) {
           <PlayIcon />
         </span>
       </button>
-      <MediaCaption attachment={a} />
+      <MediaCaption attachment={a} overlay />
       {preview.shown && (
         <MediaPreview
           attachment={preview.shown}
