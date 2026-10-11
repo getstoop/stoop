@@ -194,6 +194,7 @@ export function ChannelView() {
             onEdit={setEditingId}
             onReply={setReplyTo}
             threadsAllowed={canPost(space, channel) && !isAnnouncement(channel)}
+            canWrite={!channel || inChannel(channel)}
           />
           <TypingIndicator channelId={channelId} spaceId={spaceId} />
           {channel && !inChannel(channel) ? (
