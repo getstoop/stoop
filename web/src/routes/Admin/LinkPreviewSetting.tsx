@@ -11,9 +11,9 @@ import { useFieldErrors } from "../../hooks/useFieldErrors";
 const MAX_MB = 16;
 
 // Whether links get previews, how much of a linked page one reads, and
-// the proxy the fetches go through. On the Server tab. The switch applies
-// at once; the size and the proxy need Save. The proxy is read and saved
-// with the Hosting settings, which only an admin may read.
+// the proxy the fetches go through. The Link previews tab. The switch
+// applies at once; the size and the proxy need Save. The proxy is read
+// and saved with the Hosting settings, which only an admin may read.
 export function LinkPreviewSetting() {
   const queryClient = useQueryClient();
   const { data: status } = useInstanceStatus();

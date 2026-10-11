@@ -173,8 +173,8 @@ const adminRoute = createRoute({
   component: AdminPage,
   // ?tab=accounts (the account list) / ?tab=spaces (every space on the
   // server) / ?tab=hosting (how people reach the server) / ?tab=login
-  // (sign-in providers) / ?tab=storage (uploads) / ?tab=diagnostics
-  // (health and load).
+  // (sign-in providers) / ?tab=storage (uploads) / ?tab=previews (link
+  // previews) / ?tab=diagnostics (health and load).
   validateSearch: (
     search: Record<string, unknown>,
   ): {
@@ -186,6 +186,7 @@ const adminRoute = createRoute({
       | "email"
       | "storage"
       | "integrations"
+      | "previews"
       | "diagnostics";
   } => ({
     tab:
@@ -196,6 +197,7 @@ const adminRoute = createRoute({
       search.tab === "email" ||
       search.tab === "storage" ||
       search.tab === "integrations" ||
+      search.tab === "previews" ||
       search.tab === "diagnostics"
         ? search.tab
         : undefined,

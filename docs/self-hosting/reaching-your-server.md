@@ -207,8 +207,8 @@ preview card, and the site sees your server's own address. A tunnel does
 not hide it: the fetch goes out directly. Anyone who can post can learn
 the address by linking to a site of theirs.
 
-To hide it, either turn link previews off (Server admin, Link previews),
-or set a SOCKS5 proxy there as `socks5://host:port`. Tor's local port, a
+To hide it, either turn link previews off under **Server admin → Link
+previews**, or set a SOCKS5 proxy there as `socks5://host:port`. Tor's local port, a
 VPN provider's SOCKS5 endpoint and `ssh -D` to another machine all work.
 Site names are then looked up through the proxy at a public resolver
 (`STOOP_LINK_PREVIEW_RESOLVER`, Cloudflare's by default), and links to
