@@ -99,9 +99,12 @@
   margin-left: auto;
 }
 
+/* Dimmed as on a muted row, so it doesn't pass for one of the header's
+   buttons. */
 .side-panel-subtitle .muted-mark {
   margin-left: 6px;
   vertical-align: text-bottom;
+  opacity: var(--disabled);
 }
 
 .muted-empty {
