@@ -1,0 +1,82 @@
+/* ---- Muted channels: the bar on top of the members list and the side
+   panel it opens. docs/architecture/messaging.md → Mutes. ---- */
+
+.muted-bar {
+  flex: none;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  text-align: left;
+}
+
+.muted-bar:hover,
+.muted-bar.on {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.muted-bar-label {
+  flex: 1;
+}
+
+/* Whichever of these comes first under the channels takes the free space
+   above it. */
+.voice-bar + .muted-bar,
+.muted-bar + .members-panel {
+  margin-top: 0;
+}
+
+.muted-list {
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+
+.muted-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: var(--radius);
+}
+
+.muted-row:has(.muted-open.active) {
+  background: var(--accent-soft);
+}
+
+.muted-open {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.muted-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.muted-topic {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted-empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--text-muted);
+}

@@ -5,6 +5,7 @@ import {
   editChannelTopic,
   isAnnouncement,
   setAnnouncement,
+  setChannelMuted,
 } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
@@ -15,7 +16,6 @@ import {
   shareOrigin,
   shareUrl,
 } from "../api/shareLinks";
-import { patchChannel, recomputeSpaceUnread } from "../api/unreads";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice, prompt } from "../stores/dialogs";
@@ -47,17 +47,7 @@ export function ChannelMenu({
   };
 
   const toggleMute = () =>
-    run(async () => {
-      const res = await chatClient.setChannelMuted({
-        channelId: channel.id,
-        muted: !channel.muted,
-      });
-      const muted = res.channel?.muted ?? !channel.muted;
-      patchChannel(queryClient, spaceId, channel.id, { muted });
-      recomputeSpaceUnread(queryClient, spaceId);
-      // The mute stamps on items already in the feed are now stale.
-      queryClient.invalidateQueries({ queryKey: ["activity"] });
-    });
+    run(() => setChannelMuted(queryClient, channel, !channel.muted));
 
   const copyLink = () =>
     copyShareLink(

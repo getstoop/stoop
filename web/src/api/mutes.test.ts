@@ -1,9 +1,15 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
-import { channelMuted, isMuted, spaceMuted } from "./mutes";
+import {
+  channelMuted,
+  isMuted,
+  mutedByCaller,
+  sidebarHides,
+  spaceMuted,
+} from "./mutes";
 
 const channel = (id: string, muted = false): Channel =>
   ({ id, muted }) as Channel;
@@ -150,5 +156,25 @@ describe("isMuted", () => {
       qc.setQueryData(["dms"], [dm(channel("ada"))]);
       expect(isMuted(qc, "", "ada")).toBe(false);
     });
+  });
+});
+
+describe("sidebarHides", () => {
+  const text = (id: string, muted = false): Channel =>
+    ({ id, muted, kind: ChannelKind.TEXT }) as Channel;
+
+  it("hides a text channel the caller muted", () => {
+    expect(sidebarHides(text("garden", true), "general")).toBe(true);
+    expect(sidebarHides(text("garden"), "general")).toBe(false);
+  });
+
+  it("keeps the row of the channel being read", () => {
+    expect(sidebarHides(text("garden", true), "garden")).toBe(false);
+  });
+
+  it("leaves voice channels where they are", () => {
+    const voice = { id: "porch", muted: true, kind: ChannelKind.VOICE };
+    expect(mutedByCaller(voice as Channel)).toBe(false);
+    expect(sidebarHides(voice as Channel, undefined)).toBe(false);
   });
 });

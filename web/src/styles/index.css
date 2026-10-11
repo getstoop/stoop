@@ -56,5 +56,6 @@
 @import "./diagnostics.css";
 @import "./side-panel.css";
 @import "./threads.css";
+@import "./muted-channels.css";
 @import "./email.css";
 @import "./mobile.css";

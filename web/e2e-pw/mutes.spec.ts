@@ -125,8 +125,17 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     "the muted row is dimmed",
   ).toHaveCount(1);
 
-  // A parks in #random so nothing in #general is read on arrival.
+  // A parks in #random so nothing in #general is read on arrival. Once A
+  // has left it, the muted channel's row leaves the sidebar.
   await channelLink(A, "random").click();
+  await expect(
+    channelLink(A, "general"),
+    "a muted channel's row goes once the reader leaves it",
+  ).toHaveCount(0);
+  await expect(
+    A.locator(".muted-bar"),
+    "and Muted channels appears on top of the members list",
+  ).toBeVisible();
 
   // A mention in a muted channel: activity yes, every other badge no. The
   // dot first, so the rest is asserted once the event has landed.
@@ -136,20 +145,16 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     "a mention in a muted channel lights the activity pill's dot",
   ).toBeAttached();
   await expect(
-    row(A).locator(".channel-link.unread"),
-    "a message in a muted channel doesn't bold the row",
+    channelLink(A, "general"),
+    "a message in a muted channel doesn't bring its row back",
   ).toHaveCount(0);
   await expect(
     railPill(A).locator(".pill-dot"),
     "and raises no unread dot on the space pill",
   ).toHaveCount(0);
   await expect(
-    row(A).locator(".channel-badge"),
-    "and raises no mention badge on the channel row",
-  ).toHaveCount(0);
-  await expect(
     railPill(A).locator(".pill-badge"),
-    "and none on the space pill",
+    "and no mention badge on it",
   ).toHaveCount(0);
   await A.locator(".space-pill.activity").click();
   await expect(
@@ -172,7 +177,26 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // ---- Unmuting brings the badges back.
   await A.goto("/");
   await channelLink(A, "random").click();
-  await setMuted(A, false, "unmute from the row menu");
+  await A.locator(".muted-bar").click();
+  const mutedRow = A.locator(".side-panel .muted-row");
+  await expect(
+    mutedRow,
+    "the side panel lists the muted channel",
+  ).toContainText("general");
+  await mutedRow.getByRole("button", { name: "Unmute" }).click();
+  await expect(
+    channelLink(A, "general"),
+    "unmuting from the panel puts the row back",
+  ).toHaveCount(1);
+  await expect(
+    A.locator(".side-panel .muted-empty"),
+    "and leaves the panel open and empty",
+  ).toBeVisible();
+  await A.locator(".side-panel-close").click();
+  await expect(
+    A.locator(".muted-bar"),
+    "with nothing muted and the panel closed, the bar goes",
+  ).toHaveCount(0);
   await mention(B, aName, "and a mention");
   await expect(
     row(A).locator(".channel-badge"),
@@ -293,6 +317,8 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // the space's doing.
   await A.goto("/");
   await railPill(A).first().click();
+  // #general is muted, so its row is only there once A has landed in it.
+  await expect(channelLink(A, "general")).toHaveClass(/active/);
   await setMuted(A, false, "unmute #general so only the space mutes");
 
   expect(

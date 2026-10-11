@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 
@@ -48,4 +48,20 @@ export function isMuted(
   const space = spaceId ? spaceMuted(queryClient, spaceId) : false;
   if (space) return true;
   return channel === undefined || space === undefined ? undefined : false;
+}
+
+// A text channel the caller muted themselves, which the sidebar leaves out
+// and the Muted channels panel lists. A muted space hides nothing, and
+// voice channels stay where they are.
+export function mutedByCaller(channel: Channel): boolean {
+  return channel.muted && channel.kind !== ChannelKind.VOICE;
+}
+
+// Whether the sidebar leaves a channel's row out. The channel being read
+// keeps its row until the reader goes elsewhere.
+export function sidebarHides(
+  channel: Channel,
+  openChannelId: string | undefined,
+): boolean {
+  return mutedByCaller(channel) && channel.id !== openChannelId;
 }
