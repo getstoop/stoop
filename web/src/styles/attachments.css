@@ -20,11 +20,36 @@
   background: var(--panel);
 }
 
-.attachment-image > button {
+.attachment-image > button,
+.attachment-video > button {
   display: block;
   padding: 0;
   border: none;
   background: none;
+}
+
+.attachment-video > button {
+  position: relative;
+  width: 100%;
+}
+
+/* A play badge over the middle of the frame. */
+.attachment-video-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--raised);
+  color: var(--text);
+  transform: translate(-50%, -50%);
+}
+
+.attachment-video > button:hover .attachment-video-play {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .attachment-image img {
@@ -57,9 +82,8 @@
   opacity: 1;
 }
 
-/* Video and audio players share the image's frame; their caption sits
-   under the player and is always visible (the controls own the bottom
-   edge, so a hover bar has nowhere to go). */
+/* A video's frame and the audio player share the image's frame; their
+   caption sits under it and is always visible. */
 .attachment-video,
 .attachment-audio {
   display: block;
@@ -71,10 +95,17 @@
   background: var(--panel);
 }
 
+/* A still to click, not a player: it plays in the preview. */
+.attachment-video {
+  /* off-scale: a thumbnail's width */
+  width: min(280px, 100%);
+}
+
 .attachment-video video {
   display: block;
   width: 100%;
-  max-height: 360px;
+  /* off-scale: caps a portrait clip's still */
+  max-height: 200px;
   /* off-scale: black behind video is right in every theme */
   background: #000;
 }
