@@ -21,6 +21,7 @@ import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice, prompt } from "../stores/dialogs";
 import { ChannelAbout } from "./ChannelAbout";
 import { DotsMenu, type MenuItem } from "./DotsMenu";
+import { focusAfterMute } from "./MutedChannels/focus";
 
 // The ⋮ on a channel row: mute/unmute for anyone who can read it (a DM
 // too), and for people who manage the space, rename and delete. Shown on
@@ -47,7 +48,11 @@ export function ChannelMenu({
   };
 
   const toggleMute = () =>
-    run(() => setChannelMuted(queryClient, channel, !channel.muted));
+    run(async () => {
+      const muting = !channel.muted;
+      await setChannelMuted(queryClient, channel, muting);
+      if (muting) focusAfterMute(channel.id);
+    });
 
   const copyLink = () =>
     copyShareLink(

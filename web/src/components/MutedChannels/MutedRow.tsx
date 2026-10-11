@@ -7,15 +7,18 @@ import { notice } from "../../stores/dialogs";
 import { ChannelGlyph } from "../ChannelGlyph";
 import { BellOffIcon } from "../Icons";
 import { Tooltip } from "../Tooltip";
+import { focusAfterUnmute } from "./focus";
 
 // One muted channel: its name opens it, and Unmute puts its row back in
 // the sidebar.
 export function MutedRow({ channel }: { channel: Channel }) {
   const queryClient = useQueryClient();
 
-  const unmute = async () => {
+  const unmute = async (button: HTMLElement) => {
+    const moveFocus = focusAfterUnmute(button);
     try {
       await setChannelMuted(queryClient, channel, false);
+      moveFocus();
     } catch (err) {
       notice({ title: "Couldn't update the channel", body: errorText(err) });
     }
@@ -40,7 +43,7 @@ export function MutedRow({ channel }: { channel: Channel }) {
           type="button"
           className="icon-button muted-unmute"
           aria-label={`Unmute ${channel.name}`}
-          onClick={unmute}
+          onClick={(event) => unmute(event.currentTarget)}
         >
           <BellOffIcon size={16} />
         </button>

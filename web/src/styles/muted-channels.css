@@ -88,8 +88,7 @@
   color: var(--danger);
 }
 
-/* On the row of the muted channel being read, and after the channel's
-   name on a thread from one. */
+/* On the row of the muted channel being read. */
 .muted-mark {
   display: inline-flex;
   flex: none;
@@ -99,12 +98,14 @@
   margin-left: auto;
 }
 
-/* Dimmed as on a muted row, so it doesn't pass for one of the header's
-   buttons. */
-.side-panel-subtitle .muted-mark {
-  margin-left: 6px;
-  vertical-align: text-bottom;
+/* A thread's mute button while its channel is muted: it shows the mute
+   and does nothing. */
+.icon-button.thread-channel-muted,
+.icon-button.thread-channel-muted:hover {
+  background: none;
+  color: var(--danger);
   opacity: var(--disabled);
+  cursor: default;
 }
 
 .muted-empty {
