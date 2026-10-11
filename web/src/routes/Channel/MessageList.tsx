@@ -27,6 +27,7 @@ import { toggleReaction } from "../../api/reactions";
 import { historyRetentionNote } from "../../api/retention";
 import { messagePath, shareUrl, threadPath } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
+import { GalleryImages, galleryImages } from "../../components/Attachments";
 import { EmojiPicker } from "../../components/EmojiPicker";
 import { UserCard } from "../../components/UserCard";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
@@ -441,123 +442,136 @@ export function MessageList({
     />
   );
 
+  const rootShown = !!threadRoot && !!history && !history.hasOlder;
+  const images = useMemo(
+    () =>
+      galleryImages(
+        rootShown && threadRoot ? [threadRoot, ...messages] : messages,
+      ),
+    [messages, threadRoot, rootShown],
+  );
+
   return (
-    <div className="message-list-wrap">
-      <div className="message-list" ref={listRef}>
-        <div ref={topRef} className="history-sentinel" aria-hidden="true" />
-        {/* Always rendered so the row's height is reserved: swapping its
+    <GalleryImages.Provider value={images}>
+      <div className="message-list-wrap">
+        <div className="message-list" ref={listRef}>
+          <div ref={topRef} className="history-sentinel" aria-hidden="true" />
+          {/* Always rendered so the row's height is reserved: swapping its
           contents can't shift the view while a page is in flight. A
           thread's start is its root instead. */}
-        {!(threadRoot && history && !history.hasOlder) && (
-          <div
-            className={`history-head ${history && !history.hasOlder ? "history-start" : ""}`}
-            data-state={
-              history && !history.hasOlder
-                ? "start"
-                : history?.loading
-                  ? "loading"
-                  : "idle"
-            }
-          >
-            {history && !history.hasOlder ? (
-              <span>
-                {group
-                  ? "Beginning of this conversation"
-                  : dm
-                    ? `Beginning of your conversation with ${channelName}`
-                    : `Beginning of #${channelName}`}
-                {retentionNote && (
-                  <>
-                    {" · "}
-                    <strong>{retentionNote}</strong>
-                  </>
-                )}
-              </span>
-            ) : history?.loading ? (
-              "Loading earlier messages…"
-            ) : null}
-          </div>
-        )}
-        {!threadRoot && history && !history.hasOlder && (
-          <FirstRunCard channelId={channelId} />
-        )}
-        {threadRoot && history && !history.hasOlder && (
-          <>
-            {row(threadRoot, false)}
-            <div className="day-divider eyebrow thread-divider">
-              <span>
-                {replyCountLabel(
-                  threadRoot.thread?.replyCount ?? messages.length,
-                )}
-              </span>
+          {!(threadRoot && history && !history.hasOlder) && (
+            <div
+              className={`history-head ${history && !history.hasOlder ? "history-start" : ""}`}
+              data-state={
+                history && !history.hasOlder
+                  ? "start"
+                  : history?.loading
+                    ? "loading"
+                    : "idle"
+              }
+            >
+              {history && !history.hasOlder ? (
+                <span>
+                  {group
+                    ? "Beginning of this conversation"
+                    : dm
+                      ? `Beginning of your conversation with ${channelName}`
+                      : `Beginning of #${channelName}`}
+                  {retentionNote && (
+                    <>
+                      {" · "}
+                      <strong>{retentionNote}</strong>
+                    </>
+                  )}
+                </span>
+              ) : history?.loading ? (
+                "Loading earlier messages…"
+              ) : null}
             </div>
-          </>
-        )}
-        {messages.map((message, i) => {
-          const day =
-            !threadRoot &&
-            message.createdAt &&
-            startsDay(message, messages[i - 1])
-              ? dayLabel(timestampDate(message.createdAt))
-              : null;
-          const isNew = message.id === firstNewId;
-          return (
-            <Fragment key={message.id}>
-              {/* When the unread line falls on a day boundary the two
+          )}
+          {!threadRoot && history && !history.hasOlder && (
+            <FirstRunCard channelId={channelId} />
+          )}
+          {threadRoot && history && !history.hasOlder && (
+            <>
+              {row(threadRoot, false)}
+              <div className="day-divider eyebrow thread-divider">
+                <span>
+                  {replyCountLabel(
+                    threadRoot.thread?.replyCount ?? messages.length,
+                  )}
+                </span>
+              </div>
+            </>
+          )}
+          {messages.map((message, i) => {
+            const day =
+              !threadRoot &&
+              message.createdAt &&
+              startsDay(message, messages[i - 1])
+                ? dayLabel(timestampDate(message.createdAt))
+                : null;
+            const isNew = message.id === firstNewId;
+            return (
+              <Fragment key={message.id}>
+                {/* When the unread line falls on a day boundary the two
                 share one divider, in the unread line's colour. */}
-              {day && !isNew && (
-                <div className="day-divider eyebrow">
-                  <span>{day}</span>
-                </div>
-              )}
-              {isNew && (
-                <div
-                  ref={dividerRef}
-                  className={`new-divider eyebrow${day ? " starts-day" : ""}`}
-                >
-                  <span>{day ? `${day} · New messages` : "New messages"}</span>
-                </div>
-              )}
-              {row(message, continues(message, messages[i - 1]))}
-            </Fragment>
-          );
-        })}
-        {/* The window's newer edge: a sentinel that pages forward while
+                {day && !isNew && (
+                  <div className="day-divider eyebrow">
+                    <span>{day}</span>
+                  </div>
+                )}
+                {isNew && (
+                  <div
+                    ref={dividerRef}
+                    className={`new-divider eyebrow${day ? " starts-day" : ""}`}
+                  >
+                    <span>
+                      {day ? `${day} · New messages` : "New messages"}
+                    </span>
+                  </div>
+                )}
+                {row(message, continues(message, messages[i - 1]))}
+              </Fragment>
+            );
+          })}
+          {/* The window's newer edge: a sentinel that pages forward while
           the window isn't live. Always in the DOM so the observer is stable. */}
-        <div ref={footRef} className="history-foot" data-live={live}>
-          {!live && history?.loading ? "Loading newer messages…" : null}
+          <div ref={footRef} className="history-foot" data-live={live}>
+            {!live && history?.loading ? "Loading newer messages…" : null}
+          </div>
+          <div ref={bottomRef} />
+          {(!atBottom || !live) && (
+            <button
+              type="button"
+              className={`jump-latest ${newCount > 0 ? "unseen" : ""}`}
+              onClick={jumpToLatest}
+            >
+              {newCount > 0
+                ? `${newCount} new message${newCount === 1 ? "" : "s"} ↓`
+                : "Jump to latest ↓"}
+            </button>
+          )}
+          {card && (
+            <UserCard
+              spaceId={spaceId}
+              userId={card.userId}
+              anchor={card.anchor}
+              onClose={() => setCard(null)}
+            />
+          )}
+          {picker && (
+            <EmojiPicker
+              anchor={picker.anchor}
+              onPick={(emoji) =>
+                me && toggleReaction(queryClient, picker.message, emoji, me.id)
+              }
+              onClose={() => setPicker(null)}
+            />
+          )}
         </div>
-        <div ref={bottomRef} />
-        {(!atBottom || !live) && (
-          <button
-            type="button"
-            className={`jump-latest ${newCount > 0 ? "unseen" : ""}`}
-            onClick={jumpToLatest}
-          >
-            {newCount > 0
-              ? `${newCount} new message${newCount === 1 ? "" : "s"} ↓`
-              : "Jump to latest ↓"}
-          </button>
-        )}
-        {card && (
-          <UserCard
-            spaceId={spaceId}
-            userId={card.userId}
-            anchor={card.anchor}
-            onClose={() => setCard(null)}
-          />
-        )}
-        {picker && (
-          <EmojiPicker
-            anchor={picker.anchor}
-            onPick={(emoji) =>
-              me && toggleReaction(queryClient, picker.message, emoji, me.id)
-            }
-            onClose={() => setPicker(null)}
-          />
-        )}
       </div>
-    </div>
+    </GalleryImages.Provider>
   );
 }
 
