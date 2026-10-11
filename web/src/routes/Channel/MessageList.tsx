@@ -316,6 +316,11 @@ export function MessageList({
     list.addEventListener("scroll", onScroll, { passive: true });
     return () => list.removeEventListener("scroll", onScroll);
   }, []);
+  // An image or a video takes its height when its bytes arrive, after the
+  // view has landed: one that was at the bottom stays there.
+  const stayAtBottom = () => {
+    if (live && atBottomRef.current) bottomRef.current?.scrollIntoView();
+  };
   const pendingNewer = history?.pendingNewer ?? 0;
   const newCount = unseen + pendingNewer;
   const jumpToLatest = async () => {
@@ -454,7 +459,12 @@ export function MessageList({
   return (
     <GalleryMedia.Provider value={media}>
       <div className="message-list-wrap">
-        <div className="message-list" ref={listRef}>
+        <div
+          className="message-list"
+          ref={listRef}
+          onLoadCapture={stayAtBottom}
+          onLoadedMetadataCapture={stayAtBottom}
+        >
           <div ref={topRef} className="history-sentinel" aria-hidden="true" />
           {/* Always rendered so the row's height is reserved: swapping its
           contents can't shift the view while a page is in flight. A
