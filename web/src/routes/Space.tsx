@@ -15,7 +15,7 @@ import {
 } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
-import { isMuted, sidebarTextChannels } from "../api/mutes";
+import { isMuted, mutedByCaller, sidebarTextChannels } from "../api/mutes";
 import { canCreateInvites, canManageChannels } from "../api/permissions";
 import {
   useActivity,
@@ -264,6 +264,15 @@ export function SpaceLayout() {
                 >
                   <ChannelGlyph channel={channel} />
                   <span className="channel-name">{channel.name}</span>
+                  {mutedByCaller(channel) && (
+                    <span
+                      className="channel-muted-mark"
+                      role="img"
+                      aria-label="Muted"
+                    >
+                      <BellOffIcon size={14} />
+                    </span>
+                  )}
                   {(unreadByChannel.get(channel.id) ?? 0) > 0 && (
                     <span className="channel-badge" title="Unread mentions">
                       {badgeCount(unreadByChannel.get(channel.id) ?? 0)}
