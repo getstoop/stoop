@@ -56,11 +56,11 @@ test("image preview: opening, sizing, stepping and closing", async ({
   await send("last.png");
   await expect(thumbnails).toHaveCount(3);
 
-  const preview = page.locator(".image-preview");
+  const preview = page.locator(".media-preview");
   const image = preview.locator("img");
-  const previous = preview.locator('button[aria-label="Previous image"]');
-  const next = preview.locator('button[aria-label="Next image"]');
-  const download = preview.locator(".image-preview-download");
+  const previous = preview.locator('button[aria-label="Previous"]');
+  const next = preview.locator('button[aria-label="Next"]');
+  const download = preview.locator(".media-preview-download");
   // Where the image sits, once it has decoded.
   const box = async (naturalWidth: number) => {
     await expect
@@ -132,8 +132,8 @@ test("image preview: opening, sizing, stepping and closing", async ({
     const rect = (selector: string) =>
       (e.querySelector(selector) as Element).getBoundingClientRect();
     return [
-      Math.round(rect('[aria-label="Previous image"]').left),
-      Math.round(window.innerWidth - rect('[aria-label="Next image"]').right),
+      Math.round(rect('[aria-label="Previous"]').left),
+      Math.round(window.innerWidth - rect('[aria-label="Next"]').right),
     ];
   });
   expect(edges, "the arrows sit at the window's sides").toEqual([24, 24]);

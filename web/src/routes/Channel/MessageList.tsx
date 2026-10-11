@@ -27,7 +27,7 @@ import { toggleReaction } from "../../api/reactions";
 import { historyRetentionNote } from "../../api/retention";
 import { messagePath, shareUrl, threadPath } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
-import { GalleryImages, galleryImages } from "../../components/Attachments";
+import { GalleryMedia, galleryMedia } from "../../components/Attachments";
 import { EmojiPicker } from "../../components/EmojiPicker";
 import { UserCard } from "../../components/UserCard";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
@@ -443,16 +443,16 @@ export function MessageList({
   );
 
   const rootShown = !!threadRoot && !!history && !history.hasOlder;
-  const images = useMemo(
+  const media = useMemo(
     () =>
-      galleryImages(
+      galleryMedia(
         rootShown && threadRoot ? [threadRoot, ...messages] : messages,
       ),
     [messages, threadRoot, rootShown],
   );
 
   return (
-    <GalleryImages.Provider value={images}>
+    <GalleryMedia.Provider value={media}>
       <div className="message-list-wrap">
         <div className="message-list" ref={listRef}>
           <div ref={topRef} className="history-sentinel" aria-hidden="true" />
@@ -571,7 +571,7 @@ export function MessageList({
           )}
         </div>
       </div>
-    </GalleryImages.Provider>
+    </GalleryMedia.Provider>
   );
 }
 

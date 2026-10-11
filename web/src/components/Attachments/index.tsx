@@ -11,11 +11,12 @@ import { ExpiredAttachment } from "./ExpiredAttachment";
 import { ImageAttachment } from "./ImageAttachment";
 import { VideoAttachment } from "./VideoAttachment";
 
-export { GalleryImages, galleryImages } from "./gallery";
+export { GalleryMedia, galleryMedia } from "./gallery";
 
 // A message's attachments, rendered under its body: raster images inline
 // (click for a preview; a hover bar names the file and downloads it),
-// video and audio as a player, anything else as a download card.
+// video as a frame that plays in the same preview, audio as a player,
+// anything else as a download card.
 // Attachments are a separate field on the message, never part of the
 // Markdown.
 export function Attachments({ attachments }: { attachments: Attachment[] }) {

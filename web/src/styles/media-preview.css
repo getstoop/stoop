@@ -1,6 +1,6 @@
-/* ---- Image preview: an attached image over a scrim. ---- */
+/* ---- Media preview: an attached image or video over a scrim. ---- */
 
-.image-preview {
+.media-preview {
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
@@ -13,7 +13,8 @@
 }
 
 /* Its own size, shrunk to fit the window. */
-.image-preview img {
+.media-preview img,
+.media-preview video {
   display: block;
   max-width: 100%;
   max-height: 100%;
@@ -21,9 +22,9 @@
   border-radius: var(--radius-md);
 }
 
-.image-preview-close,
-.image-preview-download,
-.image-preview-step {
+.media-preview-close,
+.media-preview-download,
+.media-preview-step {
   position: absolute;
   top: 12px;
   display: inline-flex;
@@ -32,25 +33,25 @@
   text-decoration: none;
 }
 
-.image-preview-close {
+.media-preview-close {
   left: 12px;
   padding: 4px;
 }
 
-.image-preview-download {
+.media-preview-download {
   right: 12px;
 }
 
-.image-preview-step {
+.media-preview-step {
   top: 50%;
   padding: 8px;
   transform: translateY(-50%);
 }
 
-.image-preview-previous {
+.media-preview-previous {
   left: 24px;
 }
 
-.image-preview-next {
+.media-preview-next {
   right: 24px;
 }
