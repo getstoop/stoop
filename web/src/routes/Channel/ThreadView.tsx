@@ -27,6 +27,7 @@ import {
   LinkIcon,
   TrashIcon,
 } from "../../components/Icons";
+import { MutedMark } from "../../components/MutedMark";
 import { useCloseSidePanel } from "../../components/SidePanel/context";
 import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
@@ -58,7 +59,15 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
       ? dmTitle(dm, me?.id)
       : ""
     : (channel?.name ?? "");
-  const where = isDM ? channelName : `#${channelName}`;
+  // The page beside the thread may be another channel, so the thread says
+  // for itself that its own is muted.
+  const muted = isDM ? !!dm?.channel?.muted : !!channel?.muted;
+  const where = (
+    <>
+      {isDM ? channelName : `#${channelName}`}
+      {muted && <MutedMark />}
+    </>
+  );
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const { data: instanceStatus } = useInstanceStatus();

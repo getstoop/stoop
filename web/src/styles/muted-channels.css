@@ -82,17 +82,26 @@
 }
 
 /* The muted bell, as beside a muted space's name. */
-.channel-muted-mark,
+.muted-mark,
 .muted-unmute,
 .muted-unmute:hover {
   color: var(--danger);
 }
 
-/* On the row of the muted channel being read. */
-.channel-muted-mark {
+/* On the row of the muted channel being read, and after the channel's
+   name on a thread from one. */
+.muted-mark {
   display: inline-flex;
   flex: none;
+}
+
+.channel-link .muted-mark {
   margin-left: auto;
+}
+
+.side-panel-subtitle .muted-mark {
+  margin-left: 6px;
+  vertical-align: text-bottom;
 }
 
 .muted-empty {

@@ -40,6 +40,7 @@ import { InviteModal } from "../components/InviteModal";
 import { MembersPanel } from "../components/MembersPanel";
 import { closeDrawerOnLink } from "../components/MenuButton";
 import { MutedBar } from "../components/MutedChannels";
+import { MutedMark } from "../components/MutedMark";
 import { SpaceAbout } from "../components/SpaceAbout";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { SpaceWelcome } from "../components/SpaceWelcome";
@@ -264,15 +265,7 @@ export function SpaceLayout() {
                 >
                   <ChannelGlyph channel={channel} />
                   <span className="channel-name">{channel.name}</span>
-                  {mutedByCaller(channel) && (
-                    <span
-                      className="channel-muted-mark"
-                      role="img"
-                      aria-label="Muted"
-                    >
-                      <BellOffIcon size={14} />
-                    </span>
-                  )}
+                  {mutedByCaller(channel) && <MutedMark />}
                   {(unreadByChannel.get(channel.id) ?? 0) > 0 && (
                     <span className="channel-badge" title="Unread mentions">
                       {badgeCount(unreadByChannel.get(channel.id) ?? 0)}
