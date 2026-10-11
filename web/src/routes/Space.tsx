@@ -281,19 +281,17 @@ export function SpaceLayout() {
               <ChannelMenu channel={channel} space={space} />
             </div>
           ))}
-          <div className="channel-row">
-            <Link
-              to="/s/$spaceId/channels"
-              params={{ spaceId }}
-              className={`channel-link browse-link ${viewingOutside ? "active" : ""}`}
-              activeProps={{ className: "channel-link browse-link active" }}
-            >
-              <span className="channel-hash">
-                <ListIcon />
-              </span>
-              <span className="channel-name">Browse channels</span>
-            </Link>
-          </div>
+          {/* Not a channel row: it has no menu, and nothing that counts
+              or dims the channels should count or dim it. */}
+          <Link
+            to="/s/$spaceId/channels"
+            params={{ spaceId }}
+            className={`browse-link ${viewingOutside ? "active" : ""}`}
+            activeProps={{ className: "browse-link active" }}
+          >
+            <ListIcon />
+            Browse channels
+          </Link>
           {(voiceChannels.length > 0 || addVoice) && (
             <ChannelGroupHeading
               label="Voice channels"
