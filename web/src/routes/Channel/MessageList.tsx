@@ -151,6 +151,8 @@ export function MessageList({
   }, [loadNewer, queryClient, timeline, setAnchor]);
   const flash = (el: HTMLElement) => {
     el.scrollIntoView({ block: "center" });
+    // An open thread's root is highlighted already.
+    if (el.classList.contains("thread-open")) return;
     el.classList.add("flash");
     setTimeout(() => el.classList.remove("flash"), 1500);
   };
