@@ -15,6 +15,13 @@ SELECT * FROM incoming_webhooks WHERE credential_id = $1;
 -- name: ListIncomingWebhooksBySpace :many
 SELECT * FROM incoming_webhooks WHERE space_id = $1 ORDER BY created_at, id;
 
+-- ListIncomingWebhooksBySpaceForReader leaves out a hook into a private
+-- channel the reader is not in.
+-- name: ListIncomingWebhooksBySpaceForReader :many
+SELECT h.* FROM incoming_webhooks h
+JOIN channel_readers r ON r.channel_id = h.channel_id AND r.user_id = sqlc.arg('user_id')
+WHERE h.space_id = sqlc.arg('space_id') ORDER BY h.created_at, h.id;
+
 -- name: ListIncomingWebhooks :many
 SELECT * FROM incoming_webhooks ORDER BY space_id, created_at, id;
 

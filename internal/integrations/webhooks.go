@@ -42,10 +42,7 @@ func (s *Service) ListWebhooks(ctx context.Context, req *connect.Request[integra
 		if err := s.requireSpaceRead(ctx, req.Msg.SpaceId); err != nil {
 			return nil, err
 		}
-		if in, err = s.q.ListIncomingWebhooksBySpace(ctx, req.Msg.SpaceId); err != nil {
-			return nil, fmt.Errorf("list hooks: %w", err)
-		}
-		if out, err = s.q.ListOutgoingWebhooksBySpace(ctx, req.Msg.SpaceId); err != nil {
+		if in, out, err = s.spaceHooks(ctx, req.Msg.SpaceId); err != nil {
 			return nil, fmt.Errorf("list hooks: %w", err)
 		}
 	}
@@ -90,6 +87,31 @@ func targetHost(raw string) string {
 
 // requireSpaceRead is the members' view: the credential covers space.read
 // there and the identity is a member, or an instance admin.
+// spaceHooks is a space's hooks as the caller may see them: all of them
+// for an instance admin, who manages them; for anyone else, not one that
+// names a private channel they are not in.
+func (s *Service) spaceHooks(ctx context.Context, spaceID string) ([]dbgen.IncomingWebhook, []dbgen.OutgoingWebhook, error) {
+	if authctx.IsAdmin(ctx) {
+		in, err := s.q.ListIncomingWebhooksBySpace(ctx, spaceID)
+		if err != nil {
+			return nil, nil, err
+		}
+		out, err := s.q.ListOutgoingWebhooksBySpace(ctx, spaceID)
+		return in, out, err
+	}
+	reader := authctx.UserID(ctx)
+	in, err := s.q.ListIncomingWebhooksBySpaceForReader(ctx, dbgen.ListIncomingWebhooksBySpaceForReaderParams{
+		SpaceID: spaceID, UserID: reader,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	out, err := s.q.ListOutgoingWebhooksBySpaceForReader(ctx, dbgen.ListOutgoingWebhooksBySpaceForReaderParams{
+		SpaceID: spaceID, UserID: reader,
+	})
+	return in, out, err
+}
+
 func (s *Service) requireSpaceRead(ctx context.Context, spaceID string) error {
 	if !authctx.CoversSpace(ctx, authctx.SpaceRead, spaceID) {
 		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, authctx.SpaceRead))

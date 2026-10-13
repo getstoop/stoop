@@ -242,6 +242,50 @@ func (q *Queries) ListIncomingWebhooksBySpace(ctx context.Context, spaceID strin
 	return items, nil
 }
 
+const listIncomingWebhooksBySpaceForReader = `-- name: ListIncomingWebhooksBySpaceForReader :many
+SELECT h.id, h.space_id, h.channel_id, h.bot_user_id, h.credential_id, h.name, h.created_by, h.created_at, h.disabled_at, h.disabled_reason FROM incoming_webhooks h
+JOIN channel_readers r ON r.channel_id = h.channel_id AND r.user_id = $1
+WHERE h.space_id = $2 ORDER BY h.created_at, h.id
+`
+
+type ListIncomingWebhooksBySpaceForReaderParams struct {
+	UserID  string
+	SpaceID string
+}
+
+// ListIncomingWebhooksBySpaceForReader leaves out a hook into a private
+// channel the reader is not in.
+func (q *Queries) ListIncomingWebhooksBySpaceForReader(ctx context.Context, arg ListIncomingWebhooksBySpaceForReaderParams) ([]IncomingWebhook, error) {
+	rows, err := q.db.Query(ctx, listIncomingWebhooksBySpaceForReader, arg.UserID, arg.SpaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IncomingWebhook
+	for rows.Next() {
+		var i IncomingWebhook
+		if err := rows.Scan(
+			&i.ID,
+			&i.SpaceID,
+			&i.ChannelID,
+			&i.BotUserID,
+			&i.CredentialID,
+			&i.Name,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.DisabledAt,
+			&i.DisabledReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const renameIncomingWebhook = `-- name: RenameIncomingWebhook :exec
 UPDATE incoming_webhooks SET name = $2 WHERE id = $1
 `

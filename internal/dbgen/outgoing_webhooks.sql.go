@@ -252,6 +252,55 @@ func (q *Queries) ListOutgoingWebhooksBySpace(ctx context.Context, spaceID strin
 	return items, nil
 }
 
+const listOutgoingWebhooksBySpaceForReader = `-- name: ListOutgoingWebhooksBySpaceForReader :many
+SELECT h.id, h.space_id, h.channel_id, h.url, h.secret, h.event_types, h.sequence, h.name, h.created_by, h.created_at, h.disabled_at, h.disabled_reason FROM outgoing_webhooks h
+WHERE h.space_id = $1
+  AND (h.channel_id IS NULL OR EXISTS (
+      SELECT 1 FROM channel_readers r
+      WHERE r.channel_id = h.channel_id AND r.user_id = $2))
+ORDER BY h.created_at, h.id
+`
+
+type ListOutgoingWebhooksBySpaceForReaderParams struct {
+	SpaceID string
+	UserID  string
+}
+
+// ListOutgoingWebhooksBySpaceForReader leaves out a hook filtered to a
+// private channel the reader is not in.
+func (q *Queries) ListOutgoingWebhooksBySpaceForReader(ctx context.Context, arg ListOutgoingWebhooksBySpaceForReaderParams) ([]OutgoingWebhook, error) {
+	rows, err := q.db.Query(ctx, listOutgoingWebhooksBySpaceForReader, arg.SpaceID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OutgoingWebhook
+	for rows.Next() {
+		var i OutgoingWebhook
+		if err := rows.Scan(
+			&i.ID,
+			&i.SpaceID,
+			&i.ChannelID,
+			&i.Url,
+			&i.Secret,
+			&i.EventTypes,
+			&i.Sequence,
+			&i.Name,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.DisabledAt,
+			&i.DisabledReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const nextOutgoingSequence = `-- name: NextOutgoingSequence :one
 UPDATE outgoing_webhooks SET sequence = sequence + 1 WHERE id = $1 RETURNING sequence
 `

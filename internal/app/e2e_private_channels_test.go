@@ -227,6 +227,16 @@ func TestE2EPrivateChannelOutsider(t *testing.T) {
 		t.Error("the webhook's post did not reach the private channel")
 	}
 
+	// The space's hook list names it only to someone in the channel.
+	hooks := "stoop.integrations.v1.IntegrationService/ListWebhooks"
+	if got := site.rpc(bea, hooks, map[string]any{"spaceId": stoop}).expect(t, "ok"); strings.Contains(got.raw, captains) || strings.Contains(got.raw, "Uptime Kuma") {
+		t.Errorf("someone outside the channel is shown its webhook: %s", got.raw)
+	}
+	site.rpc(casey, chat+"AddChannelMembers", map[string]any{"channelId": captains, "userIds": []string{site.userID(ada)}}).expect(t, "ok")
+	if got := site.rpc(ada, hooks, map[string]any{"spaceId": stoop}).expect(t, "ok"); !strings.Contains(got.raw, "Uptime Kuma") {
+		t.Errorf("someone in the channel is not shown its webhook: %s", got.raw)
+	}
+
 	// Nothing of any of it reached the outsider's socket.
 	time.Sleep(300 * time.Millisecond)
 	if frames := beaSocket(); strings.Contains(frames, captains) || strings.Contains(frames, marker) {
