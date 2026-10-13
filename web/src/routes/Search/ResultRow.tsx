@@ -1,5 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useNavigate } from "@tanstack/react-router";
+import { channelNameText } from "../../api/channels";
 import { fullDateTime, shortDateTime } from "../../api/dates";
 import { useChannels, useMe } from "../../api/queries";
 import { messageSearch } from "../../api/shareLinks";
@@ -54,7 +55,10 @@ export function ResultRow({
           <BotMark kind={message.author?.kind} />
           <DeletedMark deleted={message.author?.deleted} />
         </strong>
-        <span className="muted"> in #{channel?.name ?? "…"}</span>
+        <span className="muted">
+          {" "}
+          in <strong>{channel ? channelNameText(channel) : "…"}</strong>
+        </span>
       </span>
       <span
         className="muted small search-row-time"

@@ -56,7 +56,7 @@ export function IncomingTable({
         accessorFn: (h) => latest.current.channelName(h.channelId),
         meta: { width: "16%" },
         cell: ({ row: { original: h } }) =>
-          `#${latest.current.channelName(h.channelId)}`,
+          latest.current.channelName(h.channelId),
       },
       {
         id: "notify",

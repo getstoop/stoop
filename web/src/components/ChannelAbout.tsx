@@ -1,6 +1,10 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
-import { editChannelTopic, isAnnouncement } from "../api/channels";
+import {
+  channelNameText,
+  editChannelTopic,
+  isAnnouncement,
+} from "../api/channels";
 import { canManageChannels } from "../api/permissions";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
@@ -26,7 +30,7 @@ export function ChannelAbout({
         ? "Announcement channel"
         : "Text channel";
   return (
-    <Modal title={`About #${channel.name}`} onClose={onClose}>
+    <Modal title={`About ${channelNameText(channel)}`} onClose={onClose}>
       <div className="channel-about">
         {channel.topic ? (
           <p>{channel.topic}</p>

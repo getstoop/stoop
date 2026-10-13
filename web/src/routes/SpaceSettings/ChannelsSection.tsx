@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { allChannelsKey, useAllChannels } from "../../api/channelPeople";
+import { channelNameText } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useChannels, useMe, useSpaceVoice } from "../../api/queries";
@@ -66,7 +67,7 @@ export function ChannelsSection({ space }: { space: Space }) {
   };
   const remove = async (c: Channel) => {
     const ok = await confirm({
-      title: `Delete #${c.name}?`,
+      title: `Delete ${channelNameText(c)}?`,
       body: "All its messages go with it.",
       action: "Delete",
       danger: true,

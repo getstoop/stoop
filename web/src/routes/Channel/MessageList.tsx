@@ -55,8 +55,9 @@ export function MessageList({
   messages: Message[];
   spaceId: string;
   channelId: string;
+  // As it reads in a sentence: "#general", a private channel's bare name,
+  // or for a direct message the other person.
   channelName: string;
-  // A direct message: channelName is the other person.
   dm?: boolean;
   // A group conversation: named after its people, who change.
   group?: boolean;
@@ -441,7 +442,7 @@ export function MessageList({
         threadRootId && message.inChannel && message.id !== threadRootId
           ? dm
             ? "the conversation"
-            : `#${channelName}`
+            : channelName
           : undefined
       }
     />
@@ -482,11 +483,15 @@ export function MessageList({
             >
               {history && !history.hasOlder ? (
                 <span>
-                  {group
-                    ? "Beginning of this conversation"
-                    : dm
-                      ? `Beginning of your conversation with ${channelName}`
-                      : `Beginning of #${channelName}`}
+                  {group ? (
+                    "Beginning of this conversation"
+                  ) : dm ? (
+                    `Beginning of your conversation with ${channelName}`
+                  ) : (
+                    <>
+                      Beginning of <strong>{channelName}</strong>
+                    </>
+                  )}
                   {retentionNote && (
                     <>
                       {" · "}

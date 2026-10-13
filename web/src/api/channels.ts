@@ -73,6 +73,11 @@ export function landingChannel(
   );
 }
 
+// A channel's name in a sentence: "#general", and the bare name for a
+// private channel, whose lock has no place in text.
+export const channelNameText = (channel: Pick<Channel, "name" | "private">) =>
+  channel.private ? channel.name : `#${channel.name}`;
+
 // The server's own limit, mirrored so the field counts down rather than
 // let a save fail (internal/chat/channels.go).
 export const MAX_CHANNEL_TOPIC = 250;
@@ -89,7 +94,7 @@ export async function editChannelTopic(
   queryClient: QueryClient,
 ): Promise<void> {
   await prompt({
-    title: `Topic for #${channel.name}`,
+    title: `Topic for ${channelNameText(channel)}`,
     body: "One line, shown in the channel header. Plain text.",
     label: "Topic",
     initial: channel.topic,
@@ -123,7 +128,7 @@ export async function setAnnouncement(
 ): Promise<void> {
   if (on && ask) {
     const ok = await confirm({
-      title: `Make #${channel.name} an announcement channel?`,
+      title: `Make ${channelNameText(channel)} an announcement channel?`,
       body: "Members will still read and react, but they won't be able to send, reply or edit their earlier messages here. Bots in the space can still post.",
       action: "Make announcement channel",
     });
@@ -159,8 +164,8 @@ export async function setChannelMuted(
   if (channel.spaceId && channel.kind !== ChannelKind.VOICE) {
     announce(
       now
-        ? `#${channel.name} muted. Find it under Muted channels.`
-        : `#${channel.name} unmuted.`,
+        ? `${channelNameText(channel)} muted. Find it under Muted channels.`
+        : `${channelNameText(channel)} unmuted.`,
     );
   }
   recomputeSpaceUnread(queryClient, channel.spaceId);

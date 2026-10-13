@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useState } from "react";
 import { activityVerb, markActivityRead } from "../api/activity";
+import { channelNameText } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { dayLabel, fullDateTime, sameDay } from "../api/dates";
 import { useActivity, useChannels, useSpaces } from "../api/queries";
@@ -149,7 +150,12 @@ function ActivityRow({ item }: { item: ActivityItem }) {
       <span className="activity-title">
         <strong>{who}</strong>
         <DeletedMark deleted={item.actor?.deleted} /> {activityVerb(item.kind)}
-        {item.spaceId && <> in #{channel?.name ?? "…"}</>}
+        {item.spaceId && (
+          <>
+            {" "}
+            in <strong>{channel ? channelNameText(channel) : "…"}</strong>
+          </>
+        )}
         {space && <span className="muted"> · {space.name}</span>}
       </span>
       <span

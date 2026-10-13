@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { channelNameText } from "../../api/channels";
 import { isBot } from "../../api/identity";
 import {
   useChannels,
@@ -35,8 +36,10 @@ export function IntegrationsSection({ space }: { space: Space }) {
   } | null>(null);
   const [secret, setSecret] = useState<Secret | null>(null);
 
-  const channelName = (id: string) =>
-    channels?.find((c) => c.id === id)?.name ?? "a channel";
+  const channelName = (id: string) => {
+    const channel = channels?.find((c) => c.id === id);
+    return channel ? channelNameText(channel) : "a channel";
+  };
   const available = status?.webhooksAvailable ?? true;
 
   return (

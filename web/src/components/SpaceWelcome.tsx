@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { channelNameText } from "../api/channels";
 import { markWelcomeSeen } from "../api/welcome";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
@@ -44,7 +45,7 @@ export function SpaceWelcome({
         <WelcomeText text={space.welcome} />
         <div className="space-welcome-actions">
           <button type="button" className="primary" onClick={enter}>
-            {channel ? `Go to #${channel.name}` : "Continue"}
+            {channel ? `Go to ${channelNameText(channel)}` : "Continue"}
           </button>
         </div>
       </div>

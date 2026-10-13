@@ -7,7 +7,7 @@ export function PostingClosed({ channelName }: { channelName: string }) {
     <div className="posting-closed">
       <MegaphoneIcon />
       <p>
-        <strong>#{channelName} is an announcement channel.</strong> Only admins
+        <strong>{channelName} is an announcement channel.</strong> Only admins
         post here; you can still react.
       </p>
     </div>

@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { isAnnouncement } from "../../api/channels";
+import { channelNameText, isAnnouncement } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import {
   dmIsGroup,
@@ -59,8 +59,10 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
     ? dm
       ? dmTitle(dm, me?.id)
       : ""
-    : (channel?.name ?? "");
-  const where = isDM ? channelName : `#${channelName}`;
+    : channel
+      ? channelNameText(channel)
+      : "";
+  const where = channelName;
   // The page beside the thread may be another channel, so the thread says
   // for itself that its own is muted.
   const channelMuted = isDM ? !!dm?.channel?.muted : !!channel?.muted;

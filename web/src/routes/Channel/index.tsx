@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { isAnnouncement } from "../../api/channels";
+import { channelNameText, isAnnouncement } from "../../api/channels";
 import {
   dmIsGroup,
   dmTitle,
@@ -61,11 +61,18 @@ export function ChannelView() {
   const { data: spaces } = useSpaces();
   const space = spaces?.find((s) => s.id === spaceId);
   const isDM = spaceId === "";
-  // What to call the conversation: the channel's name, or the other person.
+  // What to call the conversation in a sentence: "#general", a private
+  // channel's bare name, or the other person.
   const { data: dms } = useDirectMessages(isDM);
   const { data: me } = useMe();
   const dm = isDM ? dms?.find((d) => d.channel?.id === channelId) : undefined;
-  const title = isDM ? (dm ? dmTitle(dm, me?.id) : "") : (channel?.name ?? "");
+  const title = isDM
+    ? dm
+      ? dmTitle(dm, me?.id)
+      : ""
+    : channel
+      ? channelNameText(channel)
+      : "";
   const isGroup = !!dm && dmIsGroup(dm);
   // ?m=<messageId>: open the window around that message rather than the
   // newest page (activity, shared links).

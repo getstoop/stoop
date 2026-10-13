@@ -449,8 +449,8 @@ export function Composer({
                       ? `Message ${channelName}`
                       : `Message @${channelName}`
                     : announcement
-                      ? `Announce in #${channelName}`
-                      : `Message #${channelName}`
+                      ? `Announce in ${channelName}`
+                      : `Message ${channelName}`
                   : "Message"
             }
             maxLength={4000}
@@ -477,7 +477,7 @@ export function Composer({
           />
           <span>
             Also send to{" "}
-            {dm ? (group ? channelName : `@${channelName}`) : `#${channelName}`}
+            <strong>{dm && !group ? `@${channelName}` : channelName}</strong>
           </span>
         </label>
       )}
