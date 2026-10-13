@@ -33,7 +33,7 @@ RETURNING last_read_message_id;
 
 -- ThreadViewerStates is one person's view of each root: whether they are
 -- in its thread (started it, replied, or were @mentioned by name in it;
--- @everyone and @here don't count), whether they muted it, and how many
+-- @channel and @here don't count), whether they muted it, and how many
 -- replies by others came after their read marker.
 -- name: ThreadViewerStates :many
 SELECT r.id AS root_id,
@@ -43,7 +43,7 @@ SELECT r.id AS root_id,
      OR EXISTS (SELECT 1 FROM message_mentions mm JOIN messages m ON m.id = mm.message_id
                 WHERE mm.user_id = sqlc.arg(user_id)::uuid
                   AND (m.id = r.id OR m.thread_root_id = r.id)
-                  AND NOT m.mentions_everyone AND NOT m.mentions_here))::bool AS participating,
+                  AND NOT m.mentions_entire_channel AND NOT m.mentions_here))::bool AS participating,
     EXISTS (SELECT 1 FROM thread_mutes tm
             WHERE tm.user_id = sqlc.arg(user_id)::uuid AND tm.root_message_id = r.id)::bool AS muted,
     (SELECT count(*) FROM messages m

@@ -5,7 +5,7 @@ import {
   type ListItem,
   parseMarkdown,
 } from "../api/markdown";
-import { EVERYONE, HERE, splitMentions } from "../api/mentions";
+import { CHANNEL_HANDLE, HERE_HANDLE, splitMentions } from "../api/mentions";
 
 // Renders a message's Markdown as React nodes. Text runs still go through
 // splitMentions so @handles highlight inside formatting; `highlight`
@@ -13,21 +13,21 @@ import { EVERYONE, HERE, splitMentions } from "../api/mentions";
 export function MessageBody({
   content,
   usernames,
-  mentionsEveryone,
+  mentionsEntireChannel,
   mentionsHere,
   myUsername,
   highlight,
 }: {
   content: string;
   usernames: Set<string>;
-  mentionsEveryone: boolean;
+  mentionsEntireChannel: boolean;
   mentionsHere: boolean;
   myUsername?: string;
   highlight?: RegExp | null;
 }) {
   const me = myUsername?.toLowerCase();
   const text = (s: string): ReactNode =>
-    splitMentions(s, usernames, mentionsEveryone, mentionsHere).map(
+    splitMentions(s, usernames, mentionsEntireChannel, mentionsHere).map(
       (part, i) =>
         part.mention ? (
           <span
@@ -37,8 +37,8 @@ export function MessageBody({
               me &&
               (
                 part.mention === me ||
-                  part.mention === EVERYONE ||
-                  part.mention === HERE
+                  part.mention === CHANNEL_HANDLE ||
+                  part.mention === HERE_HANDLE
               )
                 ? "me"
                 : ""

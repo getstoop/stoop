@@ -12,7 +12,7 @@ export function WelcomeText({ text }: { text: string }) {
       <MessageBody
         content={text}
         usernames={NO_MENTIONS}
-        mentionsEveryone={false}
+        mentionsEntireChannel={false}
         mentionsHere={false}
       />
     </div>

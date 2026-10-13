@@ -28,7 +28,7 @@ const root = (over: Partial<Message> = {}): Message =>
     id: "root",
     author: { id: "ada" },
     mentionUserIds: [],
-    mentionsEveryone: false,
+    mentionsEntireChannel: false,
     mentionsHere: false,
     ...over,
   }) as Message;
@@ -53,12 +53,12 @@ describe("applyThreadChanged", () => {
     expect(read()).toMatchObject({ participating: true, unreadCount: 1 });
   });
 
-  it("counts a first reply where I was named, not where @everyone was", () => {
+  it("counts a first reply where I was named, not where @channel was", () => {
     const named = setup(root({ mentionUserIds: [ME] }));
     named.change({ replyCount: 1 });
     expect(named.read()?.unreadCount).toBe(1);
     const everyone = setup(
-      root({ mentionUserIds: [ME], mentionsEveryone: true }),
+      root({ mentionUserIds: [ME], mentionsEntireChannel: true }),
     );
     everyone.change({ replyCount: 1 });
     expect(everyone.read()).toMatchObject({
@@ -85,7 +85,7 @@ describe("applyThreadChanged", () => {
     noteMentionInThread(named.queryClient, {
       threadRootId: "root",
       mentionUserIds: [ME],
-      mentionsEveryone: false,
+      mentionsEntireChannel: false,
       mentionsHere: false,
     } as unknown as Message);
     named.change({ replyCount: 2 });
@@ -94,7 +94,7 @@ describe("applyThreadChanged", () => {
     noteMentionInThread(here.queryClient, {
       threadRootId: "root",
       mentionUserIds: [ME],
-      mentionsEveryone: false,
+      mentionsEntireChannel: false,
       mentionsHere: true,
     } as unknown as Message);
     here.change({ replyCount: 2 });

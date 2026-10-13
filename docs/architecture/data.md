@@ -131,7 +131,7 @@ row in the same transaction as the membership, so a rejoin starts
 unmuted; channel mutes are left alone and go when the channel does.
 
 **`messages`** — `channel_id`, `author_id`, `content`, `created_at`,
-`edited_at`, `reply_to_message_id`, `mentions_everyone`, `mentions_here`,
+`edited_at`, `reply_to_message_id`, `mentions_entire_channel`, `mentions_here`,
 `thread_root_id`, `in_channel`, `deleted_at`, and `search`, a stored column Postgres generates from `content`
 (`to_tsvector('simple', content)`) for message search. The index that
 matters for history:
@@ -190,7 +190,7 @@ module, which is what lets the list be one query with no paging
 ([messaging.md](messaging.md#pins)).
 
 **`message_mentions`** — `(message_id, user_id)`. Recipients of
-`@everyone` and `@here` are *materialised* here at send time, not
+`@channel` and `@here` are *materialised* here at send time, not
 recomputed at read time, so activity delivery has one shape regardless
 of how the mention was written and a later membership change doesn't
 retroactively change who was mentioned.

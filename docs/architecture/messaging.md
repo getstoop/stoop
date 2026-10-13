@@ -196,9 +196,11 @@ not a permission**: writing `@casey` in a space Casey isn't in does not
 reach them, and does not error either, because a typo shouldn't fail a
 message.
 
-`@everyone` and `@here` are reserved usernames (auth refuses to register
-them) and require the `mention_everyone` permission. Without it the token
-is plain text — not an error, just words. `@everyone` wins if both appear.
+`@channel` and `@here` are reserved usernames (auth refuses to register
+them) and require the `messages.notify_entire_channel` permission. Without it the
+token is plain text — not an error, just words. `@channel` wins if both
+appear. `@channel` reaches the people who can read the channel: the space's
+members in a public channel, its listed people in a private one.
 In a DM both are plain text, since addressing "everyone" in a conversation
 with one other person is meaningless.
 
@@ -207,7 +209,7 @@ a live connection right now. It is the only place chat consults the
 gateway.
 
 **Recipients are materialised** into `message_mentions` at send time, even
-for `@everyone`. Activity delivery then has one shape regardless of how
+for `@channel`. Activity delivery then has one shape regardless of how
 the mention was written, and a later membership change doesn't retroactively
 rewrite who was addressed.
 
@@ -247,7 +249,7 @@ otherwise hand them the new message's text.
 
 **Delivery is batched.** Each of the three goes through `notify`, which
 filters blockers, writes every recipient's item, and reads their mutes in
-one query each, so an `@everyone` costs the same handful of queries in
+one query each, so a `@channel` costs the same handful of queries in
 any size of space.
 
 ### The DM feed collapses
@@ -371,7 +373,7 @@ tables leave room for, none of it started:
 - **Push.** When banners leave the browser, the server already stamps
   the effective mute on every item; the tables hold what a push sender
   needs.
-- **Suppressing `@everyone` separately** is a candidate level, not a new
+- **Suppressing `@channel` separately** is a candidate level, not a new
   table.
 
 ## History
@@ -584,7 +586,7 @@ in the root's thread and not in the channel's timeline
   search results carry `thread_root_id`, so the client can open the
   thread.
 - **Who is in a thread.** Its root's author, everyone who replied, and
-  everyone @mentioned by name in the root or a reply (`@everyone` and
+  everyone @mentioned by name in the root or a reply (`@channel` and
   `@here` don't count). Nothing stores it: `ThreadViewerStates` works it
   out from the messages, so there is no follow to join or leave.
 - **Mutes and read markers.** `thread_mutes` and `thread_reads` mirror
@@ -635,7 +637,7 @@ carrying a `UNIQUE` constraint. That key is the whole model:
 
 DMs have no manager: they are never renamed, reordered or deleted, and each
 person deletes only their own messages. Mentions resolve against
-participants; `@everyone` and `@here` are plain text.
+participants; `@channel` and `@here` are plain text.
 
 **Who may open one:** people who share a space, or an instance admin with
 anyone — checked between the caller and each person named. It follows that

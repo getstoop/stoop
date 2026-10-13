@@ -334,7 +334,7 @@ func (f *fixture) post(t *testing.T, url, contentType, body string) (int, string
 func (f *fixture) create(t *testing.T, name string, notify bool) *integrationsv1.CreateIncomingResponse {
 	t.Helper()
 	res, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
-		ChannelId: f.channel, Name: name, NotifyEveryone: notify,
+		ChannelId: f.channel, Name: name, NotifyEntireChannel: notify,
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -459,14 +459,14 @@ func TestIncomingHookAuthorisationAndListing(t *testing.T) {
 
 	made := f.create(t, "UPS", true)
 	if !f.spaces.admin[f.space+"/"+made.Webhook.BotUserId] {
-		t.Error("notify_everyone should make the bot a space admin")
+		t.Error("notify_entire_channel should make the bot a space admin")
 	}
 	perms := made.Webhook.Permissions
 	if len(perms) != 2 {
 		t.Errorf("permissions = %v", perms)
 	}
 	no := false
-	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: made.Webhook.Id, NotifyEveryone: &no})); err != nil {
+	if _, err := f.svc.UpdateIncoming(f.admin, connect.NewRequest(&integrationsv1.UpdateIncomingRequest{Id: made.Webhook.Id, NotifyEntireChannel: &no})); err != nil {
 		t.Fatal(err)
 	}
 	if f.spaces.admin[f.space+"/"+made.Webhook.BotUserId] {

@@ -201,19 +201,19 @@ type LinkPreview struct {
 }
 
 type Message struct {
-	ID               string
-	ChannelID        string
-	AuthorID         string
-	Content          string
-	CreatedAt        time.Time
-	MentionsEveryone bool
-	ReplyToMessageID *string
-	MentionsHere     bool
-	EditedAt         *time.Time
-	Search           interface{}
-	ThreadRootID     *string
-	InChannel        bool
-	DeletedAt        *time.Time
+	ID                    string
+	ChannelID             string
+	AuthorID              string
+	Content               string
+	CreatedAt             time.Time
+	MentionsEntireChannel bool
+	ReplyToMessageID      *string
+	MentionsHere          bool
+	EditedAt              *time.Time
+	Search                interface{}
+	ThreadRootID          *string
+	InChannel             bool
+	DeletedAt             *time.Time
 }
 
 type MessageAttachment struct {
@@ -246,7 +246,7 @@ type MessageWithReply struct {
 	AuthorID              string
 	Content               string
 	CreatedAt             time.Time
-	MentionsEveryone      bool
+	MentionsEntireChannel bool
 	ReplyToMessageID      *string
 	MentionsHere          bool
 	EditedAt              *time.Time

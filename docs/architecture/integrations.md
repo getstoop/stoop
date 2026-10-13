@@ -43,7 +43,7 @@ hook made with a new bot creates that bot as a member of that one space. It acts
 
 | Credential | Kind | Grant | Bound to | Presented as |
 | --- | --- | --- | --- | --- |
-| hook token | `incoming_hook` | `messages.post`, optionally `messages.notify_everyone` | one channel | the path of `/hooks/{token}` |
+| hook token | `incoming_hook` | `messages.post`, optionally `messages.notify_entire_channel` | one channel | the path of `/hooks/{token}` |
 | bot token | `bot_token` | any grantable actions | the bot's memberships | `Authorization: Bearer stp_bot_…` |
 
 The grant gates the credential and the bot's role gates the identity;
@@ -70,7 +70,7 @@ space role, so a hook needn't be made an admin to feed one.
 and the hook's credential on the context and calls chat's `SendMessage`
 through the `Poster` port, after the app adapter runs the credential gate
 the interceptor would have. There is no second write path: membership,
-blocks, mentions and the `@everyone` refusal apply as they do to anyone.
+blocks, mentions and the `@channel` refusal apply as they do to anyone.
 
 | Body | Read from |
 | --- | --- |
@@ -98,7 +98,7 @@ list on read and by the sweep on its timer. Adding the bot back doesn't
 turn the hook on again; the admin does, and *Turn on* is refused while
 the bot is out.
 
-Ticking *may notify everyone* on a hook grants `messages.notify_everyone`
+Ticking *may use @channel and @here* on a hook grants `messages.notify_entire_channel`
 and makes the bot a space admin, since only admins hold it; unticking,
 deleting or sweeping away the last such grant returns the bot to member.
 Rotating a hook mints a new credential with the old one's grant and

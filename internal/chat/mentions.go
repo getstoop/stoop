@@ -27,26 +27,26 @@ func parseMentionHandles(content string) []string {
 	return out
 }
 
-// everyoneHandle addresses the whole space; hereHandle only the members
+// entireChannelHandle addresses everyone in the channel; hereHandle only those
 // currently online. Both are reserved usernames (auth refuses to register
-// them) and need the messages.notify_everyone permission; without it the token is
+// them) and need the messages.notify_entire_channel permission; without it the token is
 // plain text.
 const (
-	everyoneHandle = "everyone"
-	hereHandle     = "here"
+	entireChannelHandle = "channel"
+	hereHandle          = "here"
 )
 
 // mentionResult is what a message's @tokens resolved to.
 type mentionResult struct {
-	userIDs  []string
-	everyone bool
-	here     bool
+	userIDs       []string
+	entireChannel bool
+	here          bool
 }
 
 // resolveMentions maps @handles in content to user IDs of people in the
 // channel — the space's members, or the people of a private channel or a
 // DM (passed in, nil for a public channel) — excluding the author. Others are silently
-// ignored: a mention is an address, not a permission. @everyone wins over
+// ignored: a mention is an address, not a permission. @channel wins over
 // @here if both appear; in a DM both are plain text.
 func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, participants []string, authorID, content string) (mentionResult, error) {
 	handles := parseMentionHandles(content)
@@ -68,21 +68,21 @@ func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, pa
 		}
 	}
 
-	var wantEveryone, wantHere bool
+	var wantEntireChannel, wantHere bool
 	for _, h := range handles {
-		wantEveryone = wantEveryone || h == everyoneHandle
+		wantEntireChannel = wantEntireChannel || h == entireChannelHandle
 		wantHere = wantHere || h == hereHandle
 	}
-	if (wantEveryone || wantHere) && !isDM(channel) && s.mayNotifyEveryone(ctx, channel) {
+	if (wantEntireChannel || wantHere) && !isDM(channel) && s.mayNotifyEntireChannel(ctx, channel) {
 		targets := ids
-		if !wantEveryone {
+		if !wantEntireChannel {
 			if s.presence == nil {
 				targets = nil
 			} else if targets, err = s.presence.OnlineUserIDs(ctx, ids); err != nil {
 				return mentionResult{}, fmt.Errorf("list online members: %w", err)
 			}
 		}
-		res := mentionResult{everyone: wantEveryone, here: !wantEveryone}
+		res := mentionResult{entireChannel: wantEntireChannel, here: !wantEntireChannel}
 		for _, id := range targets {
 			if id != authorID {
 				res.userIDs = append(res.userIDs, id)

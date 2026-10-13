@@ -187,7 +187,7 @@ func TestBotsAndHookTokens(t *testing.T) {
 	}
 
 	// Grants change in place; listing never carries the secret.
-	if err := svc.SetCredentialGrants(bg, hook.ID, []authctx.Action{authctx.MessagesPost, authctx.MessagesNotifyEveryone}); err != nil {
+	if err := svc.SetCredentialGrants(bg, hook.ID, []authctx.Action{authctx.MessagesPost, authctx.MessagesNotifyEntireChannel}); err != nil {
 		t.Fatal(err)
 	}
 	creds, err := svc.BotCredentials(bg, []string{bot.ID}, nil)

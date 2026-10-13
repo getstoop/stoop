@@ -285,7 +285,7 @@ instance admin mints for it ([integrations.md](integrations.md#bots)):
 
 - **A hook token** (`stp_hook_`, kind `incoming_hook`) lives in a hook
   URL, is granted `messages.post` and optionally
-  `messages.notify_everyone`, and is bounded to one channel. It is
+  `messages.notify_entire_channel`, and is bounded to one channel. It is
   refused as a bearer token everywhere.
 - **A bot token** (`stp_bot_`, kind `bot_token`) is a bearer token with
   any grantable actions, like a personal token without an expiry. It has

@@ -24,15 +24,15 @@ export function eventLabel(key: string): string {
 export function hookCanText(
   hook: Pick<IncomingWebhook, "permissions">,
 ): string {
-  return hook.permissions.includes(Permission.MESSAGES_NOTIFY_EVERYONE)
-    ? "Post, and notify everyone"
+  return hook.permissions.includes(Permission.MESSAGES_NOTIFY_ENTIRE_CHANNEL)
+    ? "Post, and use @channel and @here"
     : "Post";
 }
 
-export function canNotifyEveryone(
+export function canNotifyEntireChannel(
   hook: Pick<IncomingWebhook, "permissions">,
 ): boolean {
-  return hook.permissions.includes(Permission.MESSAGES_NOTIFY_EVERYONE);
+  return hook.permissions.includes(Permission.MESSAGES_NOTIFY_ENTIRE_CHANNEL);
 }
 
 // The receiver as a member sees it: scheme and host, never the path.

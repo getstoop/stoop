@@ -220,12 +220,12 @@ func TestPrivateChannelMentionsReachItsPeople(t *testing.T) {
 	if unread := fixture.unread(t, fixture.cal); unread != 0 {
 		t.Errorf("someone outside the channel was mentioned by name: %d unread", unread)
 	}
-	fixture.send(t, fixture.owner, "@everyone flyer is out", "")
+	fixture.send(t, fixture.owner, "@channel flyer is out", "")
 	if unread := fixture.unread(t, fixture.bea); unread != 1 {
-		t.Errorf("someone in the channel after @everyone: %d unread, want 1", unread)
+		t.Errorf("someone in the channel after @channel: %d unread, want 1", unread)
 	}
 	if unread := fixture.unread(t, fixture.cal); unread != 0 {
-		t.Errorf("someone outside the channel after @everyone: %d unread", unread)
+		t.Errorf("someone outside the channel after @channel: %d unread", unread)
 	}
 }
 

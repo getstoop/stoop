@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useMemo, useRef } from "react";
-import { canNotifyEveryone, hookCanText } from "../../api/integrations";
+import { canNotifyEntireChannel, hookCanText } from "../../api/integrations";
 import { lastUsedText } from "../../api/tokenOptions";
 import { Avatar } from "../../components/Avatar";
 import {
@@ -67,12 +67,12 @@ export function IncomingTable({
           manage ? (
             <Switch
               name={`notify-${h.id}`}
-              checked={canNotifyEveryone(h)}
+              checked={canNotifyEntireChannel(h)}
               disabled={!h.enabled}
               onChange={(e) =>
                 latest.current.actions.setNotify(h, e.target.checked)
               }
-              aria-label={`${h.name} may notify everyone`}
+              aria-label={`${h.name} may use @channel and @here`}
             />
           ) : (
             hookCanText(h)

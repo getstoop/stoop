@@ -45,19 +45,19 @@ func (r Role) atLeast(o Role) bool { return r.rank() >= o.rank() }
 // space.delete. Reading, posting and voice are actions only so that a
 // credential can withhold them.
 var minRole = map[authctx.Action]Role{
-	authctx.SpaceRead:              RoleMember,
-	authctx.MessagesRead:           RoleMember,
-	authctx.MessagesPost:           RoleMember,
-	authctx.VoiceJoin:              RoleMember,
-	authctx.InvitesCreate:          RoleAdmin,
-	authctx.InvitesManage:          RoleAdmin,
-	authctx.ChannelsManage:         RoleAdmin,
-	authctx.MembersManage:          RoleAdmin,
-	authctx.SpaceManage:            RoleAdmin,
-	authctx.MessagesNotifyEveryone: RoleAdmin,
-	authctx.MessagesModerate:       RoleAdmin,
-	authctx.SpaceTransfer:          RoleOwner,
-	authctx.SpaceDelete:            RoleOwner,
+	authctx.SpaceRead:                   RoleMember,
+	authctx.MessagesRead:                RoleMember,
+	authctx.MessagesPost:                RoleMember,
+	authctx.VoiceJoin:                   RoleMember,
+	authctx.InvitesCreate:               RoleAdmin,
+	authctx.InvitesManage:               RoleAdmin,
+	authctx.ChannelsManage:              RoleAdmin,
+	authctx.MembersManage:               RoleAdmin,
+	authctx.SpaceManage:                 RoleAdmin,
+	authctx.MessagesNotifyEntireChannel: RoleAdmin,
+	authctx.MessagesModerate:            RoleAdmin,
+	authctx.SpaceTransfer:               RoleOwner,
+	authctx.SpaceDelete:                 RoleOwner,
 }
 
 // actor is the caller as seen by a specific space.

@@ -18,17 +18,17 @@ import (
 // port. Configuring integrations is instance.integrations.manage, checked
 // there; nothing here consults a space permission.
 
-// mayNotifyEveryone is the @everyone gate: the credential covers it in
+// mayNotifyEntireChannel is the @channel gate: the credential covers it in
 // this channel and the author's role holds it.
-func (s *Service) mayNotifyEveryone(ctx context.Context, channel dbgen.Channel) bool {
-	if !authctx.CoversChannel(ctx, authctx.MessagesNotifyEveryone, spaceOf(channel), channel.ID) {
+func (s *Service) mayNotifyEntireChannel(ctx context.Context, channel dbgen.Channel) bool {
+	if !authctx.CoversChannel(ctx, authctx.MessagesNotifyEntireChannel, spaceOf(channel), channel.ID) {
 		return false
 	}
 	a, err := s.actorFor(ctx, *channel.SpaceID)
 	if err != nil || (!a.member && !a.instanceAdmin) {
 		return false
 	}
-	return allowed(a, authctx.MessagesNotifyEveryone, false)
+	return allowed(a, authctx.MessagesNotifyEntireChannel, false)
 }
 
 // ChannelSpace returns a space channel's space id.
