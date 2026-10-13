@@ -226,7 +226,7 @@ switch is on, and the settings page says so.
 | --- | --- | --- |
 | Instance admin | everything, from Space settings → Integrations and Server admin → Integrations | everything but a token or secret after the moment it's shown |
 | Space owner or admin | removing a bot from the space | the member's view |
-| Member | nothing | the space's hooks: name, channel, grant, fingerprint, and an outgoing hook's host only |
+| Member | nothing | the space's hooks: name, channel, grant, fingerprint, and an outgoing hook's host only. Not a hook that names a private channel they are not in |
 
 Secrets appear once: `CreateIncoming`, `CreateOutgoing`, `RotateSecret`
 and `CreateBotToken` are the only responses that carry one. Every read
