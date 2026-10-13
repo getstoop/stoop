@@ -94,7 +94,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 		readClientEvents(ctx, conn, clientEvents)
 	}()
-	lastTyping := map[string]time.Time{}
+	typing := newTypingMemory()
 
 	if err := g.send(ctx, conn, g.ready(userID, spaceIDs)); err != nil {
 		return
@@ -112,7 +112,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_ = conn.Close(websocket.StatusNormalClosure, "")
 			return
 		case event := <-clientEvents:
-			g.handleClientEvent(ctx, userID, connID, sub, event, lastTyping)
+			g.handleClientEvent(ctx, userID, connID, sub, event, typing)
 		case <-pings.C:
 			// The session is checked again with every ping, so one that
 			// expired, or a revocation the bus never carried (the CLI, a
@@ -214,11 +214,11 @@ func readClientEvents(ctx context.Context, conn *websocket.Conn, out chan<- *rea
 
 // handleClientEvent applies one client event: a typing hint or a voice
 // state report.
-func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID uint64, sub *events.Subscription, event *realtimev1.ClientEvent, lastTyping map[string]time.Time) {
+func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID uint64, sub *events.Subscription, event *realtimev1.ClientEvent, memory *typingMemory) {
 	ctx, cancel := context.WithTimeout(ctx, g.lookupTimeout)
 	defer cancel()
 	if typing := event.GetTyping(); typing != nil {
-		g.relayTyping(ctx, userID, sub, typing, lastTyping)
+		g.relayTyping(ctx, userID, sub, typing, memory)
 	}
 	if voiceState := event.GetVoiceState(); voiceState != nil {
 		g.handleVoiceState(ctx, userID, connID, sub, voiceState)
@@ -337,31 +337,63 @@ func presenceChanged(userID string, online, dnd bool) *realtimev1.ServerEvent {
 	})
 }
 
-// relayTyping rebroadcasts a typing hint — to the space, if the connection
-// is actually subscribed to it, or (with no space) to the direct message's
-// other participants, if the sender is one — unless it relayed for this
-// channel a moment ago.
-func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, t *realtimev1.Typing, last map[string]time.Time) {
-	if t.ChannelId == "" {
+// typingMemory is what one connection remembers between typing hints.
+type typingMemory struct {
+	// last is when a hint was last relayed for a channel.
+	last map[string]time.Time
+	// public holds channels known to go to their space. A channel is
+	// private from the day it is made or never, so asking once is enough.
+	public map[string]bool
+}
+
+// maxRememberedPublic bounds what a connection remembers; past it the
+// memory starts over, which costs one lookup per channel again.
+const maxRememberedPublic = 512
+
+func (memory *typingMemory) rememberPublic(channelID string) {
+	if len(memory.public) >= maxRememberedPublic {
+		memory.public = map[string]bool{}
+	}
+	memory.public[channelID] = true
+}
+
+func newTypingMemory() *typingMemory {
+	return &typingMemory{last: map[string]time.Time{}, public: map[string]bool{}}
+}
+
+// relayTyping rebroadcasts a typing hint — to the space for a public
+// channel, if the connection is actually subscribed to it, or to the
+// other people in a direct message or private channel, if the sender is
+// one — unless it relayed for this channel a moment ago. Which of the two
+// a channel is comes from chat, never from the space id the client sent.
+func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, hint *realtimev1.Typing, memory *typingMemory) {
+	if hint.ChannelId == "" {
 		return
 	}
+	last := memory.last
 	now := time.Now()
-	if now.Sub(last[t.ChannelId]) < typingInterval {
+	if now.Sub(last[hint.ChannelId]) < typingInterval {
 		return
 	}
 
 	var topics []string
-	if t.SpaceId != "" {
-		if !sub.Has(events.SpaceTopic(t.SpaceId)) {
+	var ids []string
+	listed := false
+	if !memory.public[hint.ChannelId] {
+		var err error
+		if ids, listed, err = g.channels.ChannelPeople(ctx, hint.ChannelId); err != nil {
+			// Not knowing is not the same as public: relay nothing.
+			g.log.Error("resolve channel people", "err", err)
 			return
 		}
-		topics = []string{events.SpaceTopic(t.SpaceId)}
+	}
+	if !listed {
+		if hint.SpaceId == "" || !sub.Has(events.SpaceTopic(hint.SpaceId)) {
+			return
+		}
+		memory.rememberPublic(hint.ChannelId)
+		topics = []string{events.SpaceTopic(hint.SpaceId)}
 	} else {
-		ids, err := g.channels.DMParticipants(ctx, t.ChannelId)
-		if err != nil {
-			g.log.Error("resolve dm participants", "err", err)
-			return
-		}
 		mine := false
 		for _, id := range ids {
 			if id == userID {
@@ -374,10 +406,10 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Su
 			return
 		}
 	}
-	last[t.ChannelId] = now
+	last[hint.ChannelId] = now
 	ev := events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_UserTyping{
-			UserTyping: &realtimev1.UserTyping{SpaceId: t.SpaceId, ChannelId: t.ChannelId, UserId: userID},
+			UserTyping: &realtimev1.UserTyping{SpaceId: hint.SpaceId, ChannelId: hint.ChannelId, UserId: userID},
 		},
 	})
 	for _, topic := range topics {

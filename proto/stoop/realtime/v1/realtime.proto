@@ -116,8 +116,9 @@ message VoiceStateChanged {
   bool joined = 2;
 }
 
-// Typing in a direct message carries an empty space_id; the gateway relays
-// it to the other participants instead of a space.
+// Typing in a direct message carries an empty space_id. The gateway
+// relays a hint in a direct message or a private channel to the other
+// people in it, and any other to the space.
 message Typing {
   string space_id = 1;
   string channel_id = 2;
@@ -175,7 +176,9 @@ message ChannelDeleted {
   string channel_id = 2;
 }
 
-// ChannelsReordered carries the space's channels in their new order.
+// ChannelsReordered carries the space's public channels in their new
+// order, each with its position. A private channel's new position reaches
+// its people as channel_updated.
 message ChannelsReordered {
   string space_id = 1;
   repeated stoop.chat.v1.Channel channels = 2;

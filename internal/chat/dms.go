@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -35,17 +36,24 @@ func dmKey(ids []string) string {
 	return strings.Join(sorted, ":")
 }
 
-// DMParticipants implements the realtime gateway's channel port: who is
-// in a direct message, or nil for any other channel.
-func (s *Service) DMParticipants(ctx context.Context, channelID string) ([]string, error) {
+// ChannelPeople implements the realtime gateway's channel port. listed
+// says the channel has a people list, as a direct message and a private
+// channel do, and people is who is on it, which may be nobody. A public
+// channel is not listed. An id that names no channel is listed with
+// nobody on it, so nothing about it is relayed anywhere.
+func (s *Service) ChannelPeople(ctx context.Context, channelID string) (people []string, listed bool, err error) {
 	channel, err := s.q.GetChannel(ctx, channelID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, true, nil
+	}
 	if err != nil {
-		return nil, nil //nolint:nilerr // unknown channel: nobody
+		return nil, false, fmt.Errorf("look up channel: %w", err)
 	}
-	if !isDM(channel) {
-		return nil, nil
+	if !isDM(channel) && !channel.Private {
+		return nil, false, nil
 	}
-	return s.q.ListDMMembers(ctx, channel.ID)
+	people, err = s.people(ctx, channel)
+	return people, true, err
 }
 
 // IsAttachmentReadable implements the files module's download rule for

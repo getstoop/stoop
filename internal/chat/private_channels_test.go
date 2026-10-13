@@ -9,14 +9,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 // privateFixture is a space with a private channel: the owner and cal
 // are in the space but not the channel, bea is in both.
 type privateFixture struct {
 	pool            *pgxpool.Pool
+	bus             *events.InProcBus
 	svc             *chat.Service
 	owner, bea, cal context.Context
 	spaceID         string
@@ -26,9 +29,9 @@ type privateFixture struct {
 
 func newPrivateFixture(t *testing.T) privateFixture {
 	t.Helper()
-	pool, _, svc := newTestService(t)
+	pool, bus, svc := newTestService(t)
 	fixture := privateFixture{
-		pool: pool, svc: svc,
+		pool: pool, bus: bus, svc: svc,
 		owner: newUser(t, pool, "owner", authctx.RoleMember),
 		bea:   newUser(t, pool, "bea", authctx.RoleMember),
 		cal:   newUser(t, pool, "cal", authctx.RoleMember),
@@ -339,5 +342,150 @@ func TestUploadTargetSaysPrivate(t *testing.T) {
 	}
 	if _, _, err := fixture.svc.ChannelSpaceToPostIn(fixture.cal, authctx.UserID(fixture.cal), fixture.secretID); code(err) != connect.CodeNotFound {
 		t.Errorf("someone outside the channel: %v, want not found", err)
+	}
+}
+
+// received drains what a subscription holds and names each event's kind.
+func received(sub *events.Subscription) []string {
+	var kinds []string
+	for {
+		select {
+		case ev := <-sub.Events():
+			switch ev.Payload.(type) {
+			case *realtimev1.ServerEvent_MessageCreated:
+				kinds = append(kinds, "message_created")
+			case *realtimev1.ServerEvent_MessageUpdated:
+				kinds = append(kinds, "message_updated")
+			case *realtimev1.ServerEvent_MessageDeleted:
+				kinds = append(kinds, "message_deleted")
+			case *realtimev1.ServerEvent_ReactionsChanged:
+				kinds = append(kinds, "reactions_changed")
+			case *realtimev1.ServerEvent_ChannelUpdated:
+				kinds = append(kinds, "channel_updated")
+			case *realtimev1.ServerEvent_ChannelDeleted:
+				kinds = append(kinds, "channel_deleted")
+			case *realtimev1.ServerEvent_ChannelsReordered:
+				kinds = append(kinds, "channels_reordered")
+			default:
+				kinds = append(kinds, "other")
+			}
+		default:
+			return kinds
+		}
+	}
+}
+
+// A private channel's events go to its people's own topics. Nothing
+// reaches the space's topic, which is what every member's connection and
+// the outgoing webhook subscriber listen on.
+func TestPrivateChannelEventsReachItsPeopleOnly(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	svc := fixture.svc
+	space := fixture.bus.Subscribe("space:" + fixture.spaceID)
+	defer space.Close()
+	inside := fixture.bus.Subscribe("user:" + authctx.UserID(fixture.bea))
+	defer inside.Close()
+	outside := fixture.bus.Subscribe("user:" + authctx.UserID(fixture.cal))
+	defer outside.Close()
+
+	expect := func(step string, want ...string) {
+		t.Helper()
+		if got := received(space); len(got) != 0 {
+			t.Errorf("%s: the space was sent %v", step, got)
+		}
+		if got := received(outside); len(got) != 0 {
+			t.Errorf("%s: someone outside the channel was sent %v", step, got)
+		}
+		got := received(inside)
+		if len(got) != len(want) {
+			t.Errorf("%s: someone in the channel was sent %v, want %v", step, got, want)
+			return
+		}
+		for index := range want {
+			if got[index] != want[index] {
+				t.Errorf("%s: someone in the channel was sent %v, want %v", step, got, want)
+				return
+			}
+		}
+	}
+
+	messageID := fixture.send(t, fixture.bea, "the flyer is nearly done", "")
+	expect("send", "message_created")
+	if _, err := svc.EditMessage(fixture.bea, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: messageID, Content: "the flyer is done"})); err != nil {
+		t.Fatal(err)
+	}
+	expect("edit", "message_updated")
+	if _, err := svc.ToggleReaction(fixture.bea, connect.NewRequest(&chatv1.ToggleReactionRequest{MessageId: messageID, Emoji: "👍"})); err != nil {
+		t.Fatal(err)
+	}
+	expect("react", "reactions_changed")
+	if _, err := svc.DeleteMessage(fixture.bea, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: messageID})); err != nil {
+		t.Fatal(err)
+	}
+	expect("delete", "message_deleted")
+
+	topic := "Keep it in here"
+	if _, err := svc.UpdateChannel(fixture.owner, connect.NewRequest(&chatv1.UpdateChannelRequest{ChannelId: fixture.secretID, Topic: &topic})); err != nil {
+		t.Fatal(err)
+	}
+	expect("retopic", "channel_updated")
+
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || !listed || len(people) != 1 || people[0] != authctx.UserID(fixture.bea) {
+		t.Errorf("the channel's people for typing: %v %v %v", people, listed, err)
+	}
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.generalID); err != nil || listed || people != nil {
+		t.Errorf("a public channel has no people list: %v %v %v", people, listed, err)
+	}
+	// A private channel with nobody in it, and an id that names no
+	// channel, still have a people list: an empty one.
+	fixture.remove(t, fixture.bea)
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || !listed || len(people) != 0 {
+		t.Errorf("an empty private channel: %v %v %v", people, listed, err)
+	}
+	if people, listed, err := svc.ChannelPeople(context.Background(), uuid.NewString()); err != nil || !listed || len(people) != 0 {
+		t.Errorf("an id that names no channel: %v %v %v", people, listed, err)
+	}
+	fixture.add(t, fixture.bea)
+	received(inside)
+
+	if _, err := svc.DeleteChannel(fixture.owner, connect.NewRequest(&chatv1.DeleteChannelRequest{ChannelId: fixture.secretID})); err != nil {
+		t.Fatal(err)
+	}
+	expect("delete channel", "channel_deleted")
+}
+
+// A reorder tells the space about its public channels and a private
+// channel's people about theirs.
+func TestReorderLeavesPrivateChannelsOutOfTheSpaceBroadcast(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	fixture.add(t, fixture.owner)
+	space := fixture.bus.Subscribe("space:" + fixture.spaceID)
+	defer space.Close()
+	inside := fixture.bus.Subscribe("user:" + authctx.UserID(fixture.bea))
+	defer inside.Close()
+
+	if _, err := fixture.svc.ReorderChannels(fixture.owner, connect.NewRequest(&chatv1.ReorderChannelsRequest{
+		SpaceId: fixture.spaceID, ChannelIds: []string{fixture.secretID, fixture.generalID},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		var ev *realtimev1.ServerEvent
+		select {
+		case ev = <-space.Events():
+		default:
+			t.Fatal("the space was not told about the reorder")
+		}
+		reordered := ev.GetChannelsReordered()
+		if reordered == nil {
+			continue
+		}
+		if len(reordered.Channels) != 1 || reordered.Channels[0].Id != fixture.generalID || reordered.Channels[0].Position != 1 {
+			t.Errorf("the space broadcast: %v, want the public channel alone at position 1", reordered.Channels)
+		}
+		break
+	}
+	if got := received(inside); len(got) != 1 || got[0] != "channel_updated" {
+		t.Errorf("someone in the private channel was sent %v, want its new position", got)
 	}
 }

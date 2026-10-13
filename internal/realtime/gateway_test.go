@@ -2,6 +2,7 @@ package realtime_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -47,8 +48,8 @@ func (c fakeVoiceChannels) VoiceChannelSpace(_ context.Context, channelID string
 	return c[channelID], nil
 }
 
-func (fakeVoiceChannels) DMParticipants(context.Context, string) ([]string, error) {
-	return nil, nil
+func (fakeVoiceChannels) ChannelPeople(context.Context, string) ([]string, bool, error) {
+	return nil, false, nil
 }
 
 // countingChannels is fakeVoiceChannels that counts its lookups; no
@@ -64,9 +65,9 @@ func (channels *countingChannels) VoiceChannelSpace(ctx context.Context, channel
 	return channels.voice.VoiceChannelSpace(ctx, channelID)
 }
 
-func (channels *countingChannels) DMParticipants(context.Context, string) ([]string, error) {
+func (channels *countingChannels) ChannelPeople(context.Context, string) ([]string, bool, error) {
 	channels.dmLookups.Add(1)
-	return nil, nil
+	return nil, false, nil
 }
 
 // newTestGateway serves a gateway on a fresh bus for the test's duration;
@@ -682,7 +683,9 @@ func (channels gatedChannels) VoiceChannelSpace(ctx context.Context, channelID s
 	return channels.voice.VoiceChannelSpace(ctx, channelID)
 }
 
-func (gatedChannels) DMParticipants(context.Context, string) ([]string, error) { return nil, nil }
+func (gatedChannels) ChannelPeople(context.Context, string) ([]string, bool, error) {
+	return nil, false, nil
+}
 
 // A voice report still being resolved when the server ends the socket must
 // not leave the person in the channel once the connection is gone. A
@@ -725,5 +728,81 @@ func TestVoiceReportInFlightAtTeardownLeavesNoParticipant(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	if count := gw.VoiceParticipantCount(); count != 0 {
 		t.Fatalf("%d voice participants left after the connection closed", count)
+	}
+}
+
+// peopledChannels is a lookup in which one channel has a people list, as
+// a private channel or a direct message does, and counts its lookups.
+type peopledChannels struct {
+	channelID string
+	people    []string
+	lookups   atomic.Int64
+}
+
+func (*peopledChannels) VoiceChannelSpace(context.Context, string) (string, error) { return "", nil }
+
+func (channels *peopledChannels) ChannelPeople(_ context.Context, channelID string) ([]string, bool, error) {
+	channels.lookups.Add(1)
+	switch channelID {
+	case channels.channelID:
+		return channels.people, true, nil
+	case "empty":
+		// A private channel nobody is in.
+		return nil, true, nil
+	case "unknown":
+		return nil, false, errors.New("the database is away")
+	}
+	return nil, false, nil
+}
+
+// Typing in a private channel goes to its people whatever space id the
+// client sends, and a public channel is asked about once per connection.
+func TestTypingInAPrivateChannelReachesItsPeopleOnly(t *testing.T) {
+	channels := &peopledChannels{channelID: "secret", people: []string{"alice", "bob"}}
+	_, _, srv := newTestGateway(t, fakeMembers{
+		"alice": {"s1"}, "bob": {"s1"}, "carol": {"s1"},
+	}, channels)
+	alice, bob, carol := dial(t, srv, "alice"), dial(t, srv, "bob"), dial(t, srv, "carol")
+	for _, connection := range []*client{alice, bob, carol} {
+		if connection.next(time.Second).GetReady() == nil {
+			t.Fatal("no ready frame")
+		}
+	}
+	typing := func(event *realtimev1.ServerEvent) bool { return event.GetUserTyping() != nil }
+	type hint = realtimev1.ClientEvent_Typing
+
+	// With the space id, as a client that does not know better sends it.
+	alice.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "secret"}}})
+	if event := bob.waitFor(typing); event == nil || event.GetUserTyping().ChannelId != "secret" {
+		t.Fatal("someone in the private channel never saw the typing hint")
+	}
+	// Someone outside the channel typing "in" it reaches nobody. Neither
+	// does a hint in a private channel nobody is in, nor one the lookup
+	// failed for: an empty or unknown answer is not "public".
+	carol.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "secret"}}})
+	carol.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "empty"}}})
+	carol.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "unknown"}}})
+	alice.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "empty"}}})
+	alice.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "unknown"}}})
+	// A public channel's hint is what carol sees next, proving the private
+	// one never reached her.
+	alice.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "general"}}})
+	if event := carol.waitFor(typing); event == nil || event.GetUserTyping().ChannelId != "general" {
+		t.Fatalf("someone outside the private channel was sent %v, want only the public hint", event)
+	}
+	if event := bob.waitFor(typing); event == nil || event.GetUserTyping().ChannelId != "general" {
+		t.Fatalf("bob was sent %v, want the public hint: carol's hint in the private channel must reach nobody", event)
+	}
+
+	// A public channel is asked about once per connection: the next hint,
+	// once the relay interval has passed, costs no lookup.
+	before := channels.lookups.Load()
+	time.Sleep(2100 * time.Millisecond)
+	alice.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "general"}}})
+	if carol.waitFor(typing) == nil {
+		t.Fatal("the second public hint went missing")
+	}
+	if extra := channels.lookups.Load() - before; extra != 0 {
+		t.Errorf("a second hint in a public channel made %d lookups, want none", extra)
 	}
 }

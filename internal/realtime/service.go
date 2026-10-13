@@ -24,9 +24,10 @@ type ChannelLookup interface {
 	// VoiceChannelSpace resolves a voice channel to its space; "" means
 	// unknown or not voice.
 	VoiceChannelSpace(ctx context.Context, channelID string) (spaceID string, err error)
-	// DMParticipants lists who is in a direct message; nil for any other
-	// channel. Typing in a DM is relayed to them.
-	DMParticipants(ctx context.Context, channelID string) ([]string, error)
+	// ChannelPeople says whether a channel has a people list, as a direct
+	// message and a private channel do, and who is on it. Typing there is
+	// relayed to them; a channel that is not listed is public.
+	ChannelPeople(ctx context.Context, channelID string) (people []string, listed bool, err error)
 }
 
 // MembershipLister reports which spaces a user belongs to; implemented by
