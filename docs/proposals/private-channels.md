@@ -55,7 +55,7 @@ so for private channels.
 | Bots | Need a `channel_members` row to read or post, added like a person. |
 | Incoming webhooks | Creating one that targets a private channel adds the hook's bot to that channel. |
 | Outgoing webhooks | Receive nothing from private channels in v1. |
-| `@everyone` and `@here` | They reach the people in the channel, not the space. |
+| `@channel` and `@here` | `@channel` replaces `@everyone` in every channel and reaches the people in the channel; `@here` reaches the ones online. `@everyone` is retired with no alias: it is plain text. The username stays reserved. |
 | `@name` of someone not in the channel | Not mentioned and not added. Only `channels.manage` adds people. |
 | History for someone added later | All of it. |
 
@@ -118,7 +118,7 @@ is a leak.
 | Realtime: channel events | `channel_created`, `channel_updated`, `channel_deleted` go to the space. | Members only. Being added arrives as `channel_created` on the person's own topic and being removed as `channel_deleted`, which is how a DM already appears and how the client already drops a channel. |
 | Realtime: reorder | `channels_reordered` carries every channel in the space, and the client sorts by the order of that list, putting a channel missing from it first. | The space broadcast carries public channels only and the client applies each one's `position`. A private channel's new position goes to its members as `channel_updated`. `ReorderChannels` is called from settings with every channel in the space. |
 | Typing | The gateway relays to the space if the connection is subscribed to it. | For a private channel the gateway asks chat who may see it, as it does for a DM through `ChannelLookup.DMParticipants`. |
-| Mentions | `@everyone`, `@here` and named handles resolve against the space. | In a private channel all three resolve against the channel's people. |
+| Mentions | `@everyone`, `@here` and named handles resolve against the space. | `@channel` replaces `@everyone`. In a private channel `@channel`, `@here` and named handles resolve against the channel's people. |
 | Realtime: membership | None. | `channel_member_joined` and `channel_member_left`, to the channel's members. |
 | Attachments | `mayDownload` asks `MayReadSpace` for any file with a space id, which an instance admin outside the space also passes. A file row has a space and no channel, and `claimAttachments` lets a file uploaded for one channel be attached in another of the same space. | An upload to a private channel records the channel on the file row. A download of such a file needs channel membership, with no admin bypass; its uploader can always read it. A public channel's files record nothing and are served as today. Sending refuses an attachment whose recorded channel is not the message's channel. |
 | Activity | Items keep a preview of the message text. | Removing someone from a private channel deletes their activity items for it, as a block already does. |
@@ -199,6 +199,8 @@ cut between pull request 2 and the last one.
 1. **One definition of the access rule.** The five queries share one SQL
    definition, and `publishChannel` gets one place that decides who an
    event goes to. No behaviour changes.
+   Separately, and at any point: **`@channel` replaces `@everyone`**
+   (STOOP-495), server and web.
 2. **Schema and read boundary.** The migration and floor, the access rule,
    `NotFound` for outsiders, the list and search filters, moderation,
    activity clean-up, mentions. Nothing can create a private channel yet;
