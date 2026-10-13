@@ -6,6 +6,7 @@ import { DotsMenu } from "../../components/DotsMenu";
 import { CheckIcon, LockIcon } from "../../components/Icons";
 import { SpeakerIcon } from "../../components/VoiceIcons";
 import { type Channel, ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
+import type { ManagedChannel } from "../../gen/stoop/chat/v1/chat_pb";
 
 // One kind's channels, in the order the sidebar shows them: drag a row's
 // handle to move it. Only text channels can be announcement channels, so
@@ -14,18 +15,25 @@ export function ChannelTable({
   kind,
   channels,
   total,
+  managed,
   onEdit,
   onDelete,
+  onJoin,
+  onPeople,
   onReorder,
   rowError,
 }: {
   kind: ChannelKind;
   // undefined while loading.
   channels: Channel[] | undefined;
-  // Every channel in the space: the last one can't be deleted.
+  // The channels everyone sees: the last of those can't be deleted.
   total: number;
+  // Each channel's people count and whether the reader is in it.
+  managed: Map<string, ManagedChannel>;
   onEdit: (channel: Channel) => void;
   onDelete: (channel: Channel) => void;
+  onJoin: (channel: Channel) => void;
+  onPeople: (channel: Channel) => void;
   onReorder: (channelIds: string[]) => void;
   rowError: (channel: Channel) => string | null;
 }) {
@@ -34,8 +42,8 @@ export function ChannelTable({
 
   // The cells read this render's state and handlers through a ref, so
   // the columns stay stable.
-  const latest = useRef({ total, onEdit, onDelete });
-  latest.current = { total, onEdit, onDelete };
+  const latest = useRef({ total, managed, onEdit, onDelete, onJoin, onPeople });
+  latest.current = { total, managed, onEdit, onDelete, onJoin, onPeople };
 
   const columns = useMemo<TableColumn<Channel>[]>(() => {
     // The column says which channels are announcement channels; the row's
@@ -81,6 +89,16 @@ export function ChannelTable({
         header: "Topic",
         cell: ({ row: { original: c } }) => c.topic || "No topic",
       },
+      {
+        id: "people",
+        header: "People",
+        meta: { width: 110 },
+        cell: ({ row: { original: c } }) => {
+          if (!c.private) return <span className="muted">Everyone</span>;
+          const count = latest.current.managed.get(c.id)?.memberCount ?? 0;
+          return count === 1 ? "1 person" : `${count} people`;
+        },
+      },
       ...(voice ? [] : [announcement]),
       {
         id: "actions",
@@ -92,6 +110,14 @@ export function ChannelTable({
             <DotsMenu
               label={`Actions for #${c.name}`}
               items={[
+                // Joining is how someone who manages channels gets into a
+                // private one they were not added to.
+                ...(c.private && !v.managed.get(c.id)?.joined
+                  ? [{ label: "Join channel", onSelect: () => v.onJoin(c) }]
+                  : []),
+                ...(c.private
+                  ? [{ label: "People", onSelect: () => v.onPeople(c) }]
+                  : []),
                 { label: "Edit", onSelect: () => v.onEdit(c) },
                 // A private channel can't become one; one that is can go back.
                 ...(voice || (c.private && !isAnnouncement(c))
@@ -113,9 +139,9 @@ export function ChannelTable({
                 {
                   label: "Delete",
                   danger: true,
-                  disabled: v.total <= 1,
+                  disabled: !c.private && v.total <= 1,
                   title:
-                    v.total <= 1
+                    !c.private && v.total <= 1
                       ? "A space needs at least one channel"
                       : "Delete channel",
                   onSelect: () => v.onDelete(c),

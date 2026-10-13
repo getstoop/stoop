@@ -294,6 +294,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     }
     case "channelUpdated": {
       const c = payload.value;
+      queryClient.invalidateQueries({ queryKey: ["all-channels"] });
       queryClient.setQueryData<Channel[]>(["channels", c.spaceId], (old) =>
         old
           ? byPosition(
@@ -314,6 +315,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     }
     case "channelDeleted":
+      queryClient.invalidateQueries({ queryKey: ["all-channels"] });
       queryClient.setQueryData<Channel[]>(
         ["channels", payload.value.spaceId],
         (old) => old?.filter((x) => x.id !== payload.value.channelId),
@@ -333,12 +335,14 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       }
       break;
     case "channelsReordered":
+      queryClient.invalidateQueries({ queryKey: ["all-channels"] });
       queryClient.setQueryData<Channel[]>(
         ["channels", payload.value.spaceId],
         (old) => (old ? withPositions(old, payload.value.channels) : old),
       );
       break;
     case "channelCreated":
+      queryClient.invalidateQueries({ queryKey: ["all-channels"] });
       // A DM someone opened with us arrives here too (no space).
       queryClient.invalidateQueries({
         queryKey: payload.value.spaceId
@@ -354,6 +358,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.invalidateQueries({
         queryKey: channelPeopleKey(payload.value.channelId),
       });
+      queryClient.invalidateQueries({ queryKey: ["all-channels"] });
       break;
     case "activityItemCreated": {
       const item = payload.value.item;

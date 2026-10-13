@@ -1,7 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { removeChannelPerson, useChannelPeople } from "../../api/channelPeople";
+import {
+  removeChannelPerson,
+  useAllChannels,
+  useChannelPeople,
+} from "../../api/channelPeople";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { canManageChannels } from "../../api/permissions";
@@ -33,11 +37,20 @@ export function ChannelPeople({ params }: { params: Record<string, string> }) {
     refetchOnMount: false,
   });
   const space = spaces?.find((candidate) => candidate.id === spaceId);
-  const channel = channels?.find((candidate) => candidate.id === channelId);
+  const manages = !!space && canManageChannels(space);
+  const joined = channels?.find((candidate) => candidate.id === channelId);
+  // Someone who manages channels opens this from Space settings for a
+  // channel they are not in, which their own list does not hold.
+  const { data: all } = useAllChannels(
+    spaceId,
+    manages && !!channels && !joined,
+  );
+  const channel =
+    joined ?? all?.find((row) => row.channel?.id === channelId)?.channel;
   const { data: ids } = useChannelPeople(channelId, !!channel);
   const [adding, setAdding] = useState(false);
 
-  if (channels && !channel) {
+  if (channels && !channel && (!manages || all)) {
     return (
       <SidePanelFrame title="People">
         <SidePanelUnavailable message="You are no longer in this channel." />
@@ -55,8 +68,6 @@ export function ChannelPeople({ params }: { params: Record<string, string> }) {
   const outside = (members ?? []).filter(
     (member) => !inChannel.has(member.userId),
   );
-  const manages = !!space && canManageChannels(space);
-
   const remove = async (member: Member) => {
     const ok = await confirm({
       title: `Remove ${memberName(member)} from ${channel?.name}?`,
@@ -96,11 +107,13 @@ export function ChannelPeople({ params }: { params: Record<string, string> }) {
         channel ? `${channel.name}${ids ? ` · ${ids.length}` : ""}` : undefined
       }
       footer={
-        <div className="people-foot">
-          <button type="button" className="chip danger" onClick={leave}>
-            Leave channel
-          </button>
-        </div>
+        joined && (
+          <div className="people-foot">
+            <button type="button" className="chip danger" onClick={leave}>
+              Leave channel
+            </button>
+          </div>
+        )
       }
     >
       {manages && (
