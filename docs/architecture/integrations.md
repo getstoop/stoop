@@ -72,6 +72,11 @@ through the `Poster` port, after the app adapter runs the credential gate
 the interceptor would have. There is no second write path: membership,
 blocks, mentions and the `@channel` refusal apply as they do to anyone.
 
+A hook into a private channel needs its bot in that channel, so creating
+one adds the bot (`AddBotToChannel`), for a caller who is in the channel
+themself. A create that fails takes the bot back out unless another of
+its hooks posts there.
+
 | Body | Read from |
 | --- | --- |
 | `text/plain`, or anything that isn't JSON | verbatim |
@@ -117,8 +122,9 @@ share work:
   outgoing hook and translates events to the catalogue below. When an
   enabled hook in the space wants the event, it queues one
   `fan_out_webhook_event` job in the space's lane; that insert is all it
-  writes, so it keeps up with the bus. Direct messages publish to user
-  topics and never reach it.
+  writes, so it keeps up with the bus. Direct messages and private
+  channels publish to user topics and never reach it: an outgoing hook
+  carries nothing from either.
 - **The `fan_out_webhook_event` job** (`FanOutWebhookEvent`) reads the
   space's hooks again and, per matching hook, takes the hook's next
   `Stoop-Sequence`, renders a self-contained envelope, writes a log row
