@@ -86,16 +86,17 @@ func (v *voiceState) clearInChannel(userID, channelID string) *voiceEntry {
 	return v.clearIf(userID, func(entry *voiceEntry) bool { return entry.channel == channelID })
 }
 
-// occupied reports whether anyone is in channelID.
-func (v *voiceState) occupied(channelID string) bool {
+// occupied reports whether anyone is in channelID's voice, and whether
+// that channel is private.
+func (v *voiceState) occupied(channelID string) (occupied, private bool) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	for _, entry := range v.users {
 		if entry.channel == channelID {
-			return true
+			return true, entry.private
 		}
 	}
-	return false
+	return false, false
 }
 
 // clearChannel drops everyone in channelID; returns who was dropped.
@@ -155,16 +156,16 @@ func (v *voiceState) participantsInChannel(channelID string) []*realtimev1.Voice
 func (g *Gateway) voiceRoster(ctx context.Context, userID string, spaceIDs []string) []*realtimev1.VoiceParticipant {
 	roster, private := g.voice.participantsIn(spaceIDs)
 	for channelID, participants := range private {
-		if g.inChannel(ctx, channelID, userID) {
+		if g.isChannelPerson(ctx, channelID, userID) {
 			roster = append(roster, participants...)
 		}
 	}
 	return roster
 }
 
-// inChannel reports whether userID is one of a private channel's people;
+// isChannelPerson reports whether userID is one of a private channel's people;
 // false when that can't be found out.
-func (g *Gateway) inChannel(ctx context.Context, channelID, userID string) bool {
+func (g *Gateway) isChannelPerson(ctx context.Context, channelID, userID string) bool {
 	people, _, err := g.channels.ChannelPeople(ctx, channelID)
 	if err != nil {
 		g.log.Error("resolve channel people", "err", err)
@@ -191,7 +192,7 @@ func (g *Gateway) handleVoiceState(ctx context.Context, userID string, conn uint
 	if spaceID == "" || !sub.Has(events.SpaceTopic(spaceID)) {
 		return
 	}
-	if private && !g.inChannel(ctx, vs.ChannelId, userID) {
+	if private && !g.isChannelPerson(ctx, vs.ChannelId, userID) {
 		return
 	}
 	left, now := g.voice.set(userID, conn, spaceID, private, vs)
@@ -212,21 +213,25 @@ func (g *Gateway) publishLeft(userID string, left *voiceEntry) {
 // channelDeleted empties a deleted voice channel. Every connection that
 // could see it hears the event; only the first to get here finds anyone
 // to drop. Someone taken out of a private channel hears the same event
-// while the channel lives on, and then only they leave its voice.
+// while the channel lives on, and then only they leave its voice; a
+// public channel is never asked about.
 func (g *Gateway) channelDeleted(userID, channelID string) {
-	if !g.voice.occupied(channelID) {
+	occupied, private := g.voice.occupied(channelID)
+	if !occupied {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), g.lookupTimeout)
-	defer cancel()
-	spaceID, _, err := g.channels.VoiceChannelSpace(ctx, channelID)
-	if err != nil {
-		g.log.Error("resolve voice channel", "err", err)
-		return
-	}
-	if spaceID != "" {
-		g.publishLeft(userID, g.voice.clearInChannel(userID, channelID))
-		return
+	if private {
+		ctx, cancel := context.WithTimeout(context.Background(), g.lookupTimeout)
+		defer cancel()
+		spaceID, _, err := g.channels.VoiceChannelSpace(ctx, channelID)
+		if err != nil {
+			g.log.Error("resolve voice channel", "err", err)
+			return
+		}
+		if spaceID != "" {
+			g.publishLeft(userID, g.voice.clearInChannel(userID, channelID))
+			return
+		}
 	}
 	for id, e := range g.voice.clearChannel(channelID) {
 		g.publishVoice(id, e, false)

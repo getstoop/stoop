@@ -366,11 +366,6 @@ func TestPrivateVoiceChannel(t *testing.T) {
 		t.Errorf("VoiceChannelSpace = %q, private %v, %v", spaceID, private, err)
 	}
 	beaID, calID := authctx.UserID(fixture.bea), authctx.UserID(fixture.cal)
-	if _, err := svc.AddChannelMembers(fixture.owner, connect.NewRequest(&chatv1.AddChannelMembersRequest{
-		ChannelId: porch, UserIds: []string{beaID, calID},
-	})); err != nil {
-		t.Fatal(err)
-	}
 	mayJoin := func(userID string) bool {
 		t.Helper()
 		member, err := svc.IsChannelMember(ctx, userID, porch)
@@ -378,6 +373,14 @@ func TestPrivateVoiceChannel(t *testing.T) {
 			t.Fatal(err)
 		}
 		return member
+	}
+	if mayJoin(beaID) {
+		t.Error("someone in the space but not the channel may join its voice")
+	}
+	if _, err := svc.AddChannelMembers(fixture.owner, connect.NewRequest(&chatv1.AddChannelMembersRequest{
+		ChannelId: porch, UserIds: []string{beaID, calID},
+	})); err != nil {
+		t.Fatal(err)
 	}
 	if !mayJoin(beaID) {
 		t.Error("someone in the channel may not join its voice")

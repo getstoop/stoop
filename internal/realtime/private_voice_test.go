@@ -15,16 +15,18 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 )
 
-// privateVoice is a space "s1" with a public voice channel "porch" and a
+// privateVoiceChannels is a space "s1" with a public voice channel "porch" and a
 // private one "den", whose people and existence a test changes.
-type privateVoice struct {
+type privateVoiceChannels struct {
 	lock          sync.Mutex
 	people        []string
 	deleted       bool
 	peopleLookups atomic.Int64
+	voiceLookups  atomic.Int64
 }
 
-func (channels *privateVoice) VoiceChannelSpace(_ context.Context, channelID string) (string, bool, error) {
+func (channels *privateVoiceChannels) VoiceChannelSpace(_ context.Context, channelID string) (string, bool, error) {
+	channels.voiceLookups.Add(1)
 	channels.lock.Lock()
 	defer channels.lock.Unlock()
 	switch {
@@ -36,7 +38,7 @@ func (channels *privateVoice) VoiceChannelSpace(_ context.Context, channelID str
 	return "", false, nil
 }
 
-func (channels *privateVoice) ChannelPeople(_ context.Context, channelID string) ([]string, bool, error) {
+func (channels *privateVoiceChannels) ChannelPeople(_ context.Context, channelID string) ([]string, bool, error) {
 	channels.peopleLookups.Add(1)
 	channels.lock.Lock()
 	defer channels.lock.Unlock()
@@ -49,7 +51,7 @@ func (channels *privateVoice) ChannelPeople(_ context.Context, channelID string)
 	return slices.Clone(channels.people), true, nil
 }
 
-func (channels *privateVoice) set(people ...string) {
+func (channels *privateVoiceChannels) set(people ...string) {
 	channels.lock.Lock()
 	defer channels.lock.Unlock()
 	channels.people = people
@@ -60,7 +62,7 @@ func (channels *privateVoice) set(people ...string) {
 // someone out of the channel takes them out of its voice; a public voice
 // channel asks nothing about people.
 func TestPrivateVoiceRosterReachesItsPeopleOnly(t *testing.T) {
-	channels := &privateVoice{people: []string{"ada", "bea"}}
+	channels := &privateVoiceChannels{people: []string{"ada", "bea"}}
 	_, bus, srv := newTestGateway(t, fakeMembers{
 		"ada": {"s1"}, "bea": {"s1"}, "cal": {"s1"}, "dee": {"s1"},
 	}, channels)
@@ -166,5 +168,23 @@ func TestPrivateVoiceRosterReachesItsPeopleOnly(t *testing.T) {
 	}
 	if got, want := roster("ada"), []string{"dee in porch"}; !slices.Equal(got, want) {
 		t.Errorf("after the delete, snapshot = %v, want %v", got, want)
+	}
+
+	// Deleting a public voice channel with someone in it asks nothing.
+	voiceBefore, peopleBefore := channels.voiceLookups.Load(), channels.peopleLookups.Load()
+	bus.Publish(events.SpaceTopic("s1"), events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_ChannelDeleted{
+			ChannelDeleted: &realtimev1.ChannelDeleted{SpaceId: "s1", ChannelId: "porch"},
+		},
+	}))
+	deeLeft := func(event *realtimev1.ServerEvent) bool {
+		user, channel, joined := in(event)
+		return voice(event) && user == "dee" && channel == "porch" && !joined
+	}
+	if cal.waitFor(deeLeft) == nil {
+		t.Fatal("a deleted public voice channel was not emptied")
+	}
+	if extra := channels.voiceLookups.Load() - voiceBefore + channels.peopleLookups.Load() - peopleBefore; extra != 0 {
+		t.Errorf("deleting a public voice channel made %d lookups, want none", extra)
 	}
 }
