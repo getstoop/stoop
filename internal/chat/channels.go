@@ -217,16 +217,20 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	// either miss a clear that happened or announce one that did not. The
 	// conditional UPDATE decides and reports in a single statement, and
 	// holds the space's row lock until the delete commits.
-	// Who to tell is read first: the delete takes a private channel's
-	// people list with it.
-	people, err := s.people(ctx, channel)
-	if err != nil {
-		return nil, fmt.Errorf("list channel people: %w", err)
-	}
+	var people []string
 	var cleared dbgen.Space
 	var wasDefault bool
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// Who to tell is read before the delete takes a private channel's
+		// people list with it, and under the channel's lock, so someone
+		// added at the same moment is either on the list or refused.
+		if _, err := qtx.LockChannel(ctx, channel.ID); err != nil {
+			return apierr.NotFoundOr(err, "channel")
+		}
 		var err error
+		if people, err = peopleWith(ctx, qtx, channel); err != nil {
+			return fmt.Errorf("list channel people: %w", err)
+		}
 		cleared, err = qtx.ClearSpaceDefaultChannel(ctx, dbgen.ClearSpaceDefaultChannelParams{
 			ID: spaceOf(channel), ChannelID: channel.ID,
 		})

@@ -42,11 +42,17 @@ func (s *Service) accessChannel(ctx context.Context, channelID string) (dbgen.Ch
 // participants or a private channel's people. nil for a public channel,
 // whose events go to its space with no lookup.
 func (s *Service) people(ctx context.Context, channel dbgen.Channel) ([]string, error) {
+	return peopleWith(ctx, s.q, channel)
+}
+
+// peopleWith is people read through the given queries, for a caller
+// inside a transaction.
+func peopleWith(ctx context.Context, queries *dbgen.Queries, channel dbgen.Channel) ([]string, error) {
 	switch {
 	case isDM(channel):
-		return s.q.ListDMMembers(ctx, channel.ID)
+		return queries.ListDMMembers(ctx, channel.ID)
 	case channel.Private:
-		return s.q.ListPrivateChannelMemberIDs(ctx, channel.ID)
+		return queries.ListPrivateChannelMemberIDs(ctx, channel.ID)
 	default:
 		return nil, nil
 	}

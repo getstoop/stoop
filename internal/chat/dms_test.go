@@ -265,7 +265,7 @@ func TestDirectMessages(t *testing.T) {
 	}
 
 	// The port the files module and gateway use.
-	ids, err := svc.ChannelPeople(context.Background(), dm.Channel.Id)
+	ids, _, err := svc.ChannelPeople(context.Background(), dm.Channel.Id)
 	if err != nil || len(ids) != 2 {
 		t.Errorf("ChannelPeople: %v %v", ids, err)
 	}

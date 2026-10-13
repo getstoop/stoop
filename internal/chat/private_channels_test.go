@@ -430,12 +430,23 @@ func TestPrivateChannelEventsReachItsPeopleOnly(t *testing.T) {
 	}
 	expect("retopic", "channel_updated")
 
-	if people, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || len(people) != 1 || people[0] != authctx.UserID(fixture.bea) {
-		t.Errorf("the channel's people for typing: %v %v", people, err)
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || !listed || len(people) != 1 || people[0] != authctx.UserID(fixture.bea) {
+		t.Errorf("the channel's people for typing: %v %v %v", people, listed, err)
 	}
-	if people, err := svc.ChannelPeople(context.Background(), fixture.generalID); err != nil || people != nil {
-		t.Errorf("a public channel has no people list: %v %v", people, err)
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.generalID); err != nil || listed || people != nil {
+		t.Errorf("a public channel has no people list: %v %v %v", people, listed, err)
 	}
+	// A private channel with nobody in it, and an id that names no
+	// channel, still have a people list: an empty one.
+	fixture.remove(t, fixture.bea)
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || !listed || len(people) != 0 {
+		t.Errorf("an empty private channel: %v %v %v", people, listed, err)
+	}
+	if people, listed, err := svc.ChannelPeople(context.Background(), uuid.NewString()); err != nil || !listed || len(people) != 0 {
+		t.Errorf("an id that names no channel: %v %v %v", people, listed, err)
+	}
+	fixture.add(t, fixture.bea)
+	received(inside)
 
 	if _, err := svc.DeleteChannel(fixture.owner, connect.NewRequest(&chatv1.DeleteChannelRequest{ChannelId: fixture.secretID})); err != nil {
 		t.Fatal(err)

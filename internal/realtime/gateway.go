@@ -346,6 +346,17 @@ type typingMemory struct {
 	public map[string]bool
 }
 
+// maxRememberedPublic bounds what a connection remembers; past it the
+// memory starts over, which costs one lookup per channel again.
+const maxRememberedPublic = 512
+
+func (memory *typingMemory) rememberPublic(channelID string) {
+	if len(memory.public) >= maxRememberedPublic {
+		memory.public = map[string]bool{}
+	}
+	memory.public[channelID] = true
+}
+
 func newTypingMemory() *typingMemory {
 	return &typingMemory{last: map[string]time.Time{}, public: map[string]bool{}}
 }
@@ -367,18 +378,20 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Su
 
 	var topics []string
 	var ids []string
-	if hint.SpaceId == "" || !memory.public[hint.ChannelId] {
+	listed := false
+	if !memory.public[hint.ChannelId] {
 		var err error
-		if ids, err = g.channels.ChannelPeople(ctx, hint.ChannelId); err != nil {
+		if ids, listed, err = g.channels.ChannelPeople(ctx, hint.ChannelId); err != nil {
+			// Not knowing is not the same as public: relay nothing.
 			g.log.Error("resolve channel people", "err", err)
 			return
 		}
 	}
-	if ids == nil {
+	if !listed {
 		if hint.SpaceId == "" || !sub.Has(events.SpaceTopic(hint.SpaceId)) {
 			return
 		}
-		memory.public[hint.ChannelId] = true
+		memory.rememberPublic(hint.ChannelId)
 		topics = []string{events.SpaceTopic(hint.SpaceId)}
 	} else {
 		mine := false
