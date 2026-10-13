@@ -12,7 +12,7 @@ test("retention settings", async ({ browser }) => {
   await say(A, "tomatoes are in");
   const head = A.locator(".history-head");
   await expect(head, "no note while messages are kept forever").toHaveText(
-    "Beginning of #general",
+    "Beginning of # general",
   );
 
   await A.goto("/admin");
@@ -40,7 +40,7 @@ test("retention settings", async ({ browser }) => {
   // ---- The history head says so
   await A.goto("/");
   await expect(head, "the history head explains the gap").toHaveText(
-    "Beginning of #general · messages older than 365 days are deleted",
+    "Beginning of # general · messages older than 365 days are deleted",
   );
 
   // ---- Blank keeps forever again, without asking
@@ -53,6 +53,6 @@ test("retention settings", async ({ browser }) => {
   await expect(dialog).toHaveCount(0);
   await A.goto("/");
   await expect(head, "the note goes with it").toHaveText(
-    "Beginning of #general",
+    "Beginning of # general",
   );
 });
