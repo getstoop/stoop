@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { isAnnouncement } from "../../api/channels";
+import { channelNameText, isAnnouncement } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import {
   dmIsGroup,
@@ -20,6 +20,7 @@ import {
 import { copyShareLink, shareUrl, threadPath } from "../../api/shareLinks";
 import { setThreadMuted } from "../../api/threads";
 import { removeMessageFromCache } from "../../api/ws";
+import { ChannelName } from "../../components/ChannelName";
 import {
   BellIcon,
   BellOffIcon,
@@ -59,8 +60,12 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
     ? dm
       ? dmTitle(dm, me?.id)
       : ""
-    : (channel?.name ?? "");
-  const where = isDM ? channelName : `#${channelName}`;
+    : channel
+      ? channelNameText(channel)
+      : "";
+  const channelLabel =
+    !isDM && channel ? <ChannelName channel={channel} /> : channelName;
+  const where = channelLabel;
   // The page beside the thread may be another channel, so the thread says
   // for itself that its own is muted.
   const channelMuted = isDM ? !!dm?.channel?.muted : !!channel?.muted;
@@ -222,6 +227,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           <Composer
             channelId={channelId}
             channelName={channelName}
+            channelLabel={channelLabel}
             dm={isDM}
             group={!!dm && dmIsGroup(dm)}
             spaceId={spaceId}
@@ -241,6 +247,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           spaceId={spaceId}
           channelId={channelId}
           channelName={channelName}
+          channelLabel={channelLabel}
           dm={isDM}
           group={!!dm && dmIsGroup(dm)}
           newAfterId={null}

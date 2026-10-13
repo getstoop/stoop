@@ -6,6 +6,7 @@ import { messageSearch } from "../../api/shareLinks";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
+import { ChannelName } from "../../components/ChannelName";
 import { DeletedMark } from "../../components/DeletedMark";
 import { MessageBody } from "../../components/MessageBody";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
@@ -54,7 +55,10 @@ export function ResultRow({
           <BotMark kind={message.author?.kind} />
           <DeletedMark deleted={message.author?.deleted} />
         </strong>
-        <span className="muted"> in #{channel?.name ?? "…"}</span>
+        <span className="muted">
+          {" "}
+          in {channel ? <ChannelName channel={channel} /> : "…"}
+        </span>
       </span>
       <span
         className="muted small search-row-time"

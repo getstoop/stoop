@@ -1,6 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
-import { isAnnouncement, setAnnouncement } from "../../api/channels";
+import {
+  channelNameText,
+  isAnnouncement,
+  setAnnouncement,
+} from "../../api/channels";
 import { DataTable, type TableColumn } from "../../components/DataTable";
 import { DotsMenu } from "../../components/DotsMenu";
 import { CheckIcon, LockIcon } from "../../components/Icons";
@@ -108,7 +112,7 @@ export function ChannelTable({
           const v = latest.current;
           return (
             <DotsMenu
-              label={`Actions for #${c.name}`}
+              label={`Actions for ${channelNameText(c)}`}
               items={[
                 // Joining is how someone who manages channels gets into a
                 // private one they were not added to.
@@ -165,7 +169,7 @@ export function ChannelTable({
       empty={voice ? "No voice channels yet." : "No text channels yet."}
       ordered
       reorder={{
-        label: (c) => `Reorder #${c.name}`,
+        label: (c) => `Reorder ${channelNameText(c)}`,
         onReorder,
       }}
       rowError={rowError}

@@ -107,7 +107,7 @@ test("also send to channel", async ({ browser }) => {
   await expect(channelRows(B)).toHaveCount(1);
   await act(channelRows(B).first(), "Reply in thread");
   const box = panel(B).getByRole("checkbox", {
-    name: "Also send to #general",
+    name: "Also send to # general",
   });
   await box.check();
   await sayIn(B, ".side-panel", "yes please, two");
@@ -115,7 +115,7 @@ test("also send to channel", async ({ browser }) => {
   await expect(
     panelRows(B).filter({ hasText: "yes please" }).locator(".also-sent-marker"),
     "the thread tags the reply",
-  ).toHaveText("Also sent to #general");
+  ).toHaveText("Also sent to # general");
   await sayIn(B, ".side-panel", "only in the thread");
   await expect(panelRows(B).filter({ hasText: "only in" })).toHaveCount(1);
 

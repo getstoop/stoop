@@ -1,4 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
+import type { ReactNode } from "react";
 import { dayAndTime, fullDateTime } from "../../api/dates";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
@@ -75,7 +76,7 @@ export function MessageRow({
   // naming it.
   onOpenOrigin?: () => void;
   // In its thread, where such a reply was also sent: "#general".
-  alsoSentTo?: string;
+  alsoSentTo?: ReactNode;
 }) {
   const created = message.createdAt
     ? timestampDate(message.createdAt)

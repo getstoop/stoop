@@ -53,6 +53,10 @@ test("a private channel and its people", async ({ browser }) => {
     "a lock in the sidebar",
   ).toBeVisible();
   await expect(people(A), "its maker is the first person in it").toHaveCount(1);
+  await expect(
+    A.locator(".channel-view .composer textarea"),
+    "in text its name has no hash",
+  ).toHaveAttribute("placeholder", "Message captains");
   await expect(A.locator(".people-button")).toHaveText("1");
   const address = A.url();
 
@@ -113,7 +117,7 @@ test("a private channel and its people", async ({ browser }) => {
     .evaluate((box) => {
       box.scrollLeft = box.scrollWidth;
     });
-  await A.getByLabel("Actions for #captains").click();
+  await A.getByLabel("Actions for captains").click();
   await expect(A.getByRole("menuitem", { name: "People" })).toBeVisible();
   await expect(A.getByRole("menuitem", { name: "Join as member" })).toHaveCount(
     0,

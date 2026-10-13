@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { channelNameText } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import { dmTitle, useDirectMessages } from "../../api/dms";
 import { errorText } from "../../api/errors";
@@ -120,9 +121,11 @@ export function MutesSection() {
     })),
     ...mutedChannels.map(({ space, channel }) => ({
       id: channel.id,
-      label: `${space.name} › # ${channel.name}`,
+      label: channel.private
+        ? `${space.name} › ${channel.name}`
+        : `${space.name} › # ${channel.name}`,
       note: "",
-      what: `#${channel.name}`,
+      what: channelNameText(channel),
       onUnmute: () => unmuteChannel(queryClient, space.id, channel.id),
     })),
     ...mutedDms.map((d) => ({

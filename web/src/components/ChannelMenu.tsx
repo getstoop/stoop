@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   CHANNEL_NAME_HINT,
+  channelNameText,
   editChannelTopic,
   isAnnouncement,
   setAnnouncement,
@@ -77,7 +78,7 @@ export function ChannelMenu({
   const remove = () =>
     run(async () => {
       const ok = await confirm({
-        title: `Delete #${channel.name}?`,
+        title: `Delete ${channelNameText(channel)}?`,
         body: "All its messages go with it.",
         action: "Delete",
         danger: true,

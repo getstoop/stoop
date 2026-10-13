@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useMemo, useRef } from "react";
 import { eventLabel, hostOf } from "../../api/integrations";
 import {
@@ -15,19 +16,19 @@ import type { OutgoingWebhook } from "../../gen/stoop/integrations/v1/webhook_pb
 // under each row, its delivery log.
 export function OutgoingTable({
   hooks,
-  channelName,
+  channelLabel,
   manage,
   onEdit,
   onSecret,
 }: {
   hooks: OutgoingWebhook[] | undefined;
-  channelName: (id: string) => string;
+  channelLabel: (id: string) => ReactNode;
   manage: boolean;
   onEdit: (hook: OutgoingWebhook) => void;
   onSecret: (secret: Secret) => void;
 }) {
   const actions = useOutgoingActions(onSecret);
-  const view = { channelName, actions, onEdit };
+  const view = { channelLabel, actions, onEdit };
   const latest = useRef(view);
   latest.current = view;
 
@@ -57,7 +58,7 @@ export function OutgoingTable({
             <span className="dt-subline small">
               from{" "}
               {h.channelId
-                ? `#${latest.current.channelName(h.channelId)}`
+                ? latest.current.channelLabel(h.channelId)
                 : "every channel"}
             </span>
           </>

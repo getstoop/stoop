@@ -1,5 +1,6 @@
 import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import {
   type ClipboardEvent,
   type DragEvent,
@@ -51,6 +52,7 @@ import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 export function Composer({
   channelId,
   channelName,
+  channelLabel,
   dm = false,
   group = false,
   announcement = false,
@@ -62,6 +64,7 @@ export function Composer({
 }: {
   channelId: string;
   channelName?: string;
+  channelLabel?: ReactNode;
   dm?: boolean;
   // A group conversation: its title is a list of names, not a handle.
   group?: boolean;
@@ -449,8 +452,8 @@ export function Composer({
                       ? `Message ${channelName}`
                       : `Message @${channelName}`
                     : announcement
-                      ? `Announce in #${channelName}`
-                      : `Message #${channelName}`
+                      ? `Announce in ${channelName}`
+                      : `Message ${channelName}`
                   : "Message"
             }
             maxLength={4000}
@@ -477,7 +480,7 @@ export function Composer({
           />
           <span>
             Also send to{" "}
-            {dm ? (group ? channelName : `@${channelName}`) : `#${channelName}`}
+            {dm && !group ? `@${channelName}` : (channelLabel ?? channelName)}
           </span>
         </label>
       )}

@@ -1,7 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
 import { allChannelsKey } from "../../api/channelPeople";
-import { CHANNEL_NAME_HINT, MAX_CHANNEL_TOPIC } from "../../api/channels";
+import {
+  CHANNEL_NAME_HINT,
+  channelNameText,
+  MAX_CHANNEL_TOPIC,
+} from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import { Field } from "../../components/Field";
 import { Modal } from "../../components/Modal";
@@ -56,7 +60,7 @@ export function EditChannelModal({
 
   return (
     <Modal
-      title={`Edit #${channel.name}`}
+      title={`Edit ${channelNameText(channel)}`}
       onClose={onClose}
       footer={
         <>
