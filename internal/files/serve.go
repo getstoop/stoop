@@ -176,6 +176,17 @@ func (s *Service) mayDownload(ctx context.Context, id authctx.Identity, f dbgen.
 			}
 			return s.spaces.IsAttachmentReadable(ctx, id.UserID, f.ID)
 		}
+		if f.PrivateChannelID != nil {
+			// No inherited read here: a server admin outside the channel
+			// is refused like anyone else.
+			if !authctx.Covers(ctx, authctx.MessagesRead) {
+				return false, nil
+			}
+			if f.OwnerID == id.UserID {
+				return true, nil
+			}
+			return s.spaces.IsChannelMember(ctx, id.UserID, *f.PrivateChannelID)
+		}
 		return s.spaces.MayReadSpace(ctx, *f.SpaceID)
 	default:
 		return false, nil

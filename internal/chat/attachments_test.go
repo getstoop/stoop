@@ -26,7 +26,7 @@ type dbFiles struct {
 
 func (d *dbFiles) GetFiles(ctx context.Context, ids []string) ([]chat.FileRecord, error) {
 	rows, err := d.pool.Query(ctx,
-		`SELECT id, kind, owner_id, COALESCE(space_id::text, ''), name, content_type, size, expired_at IS NOT NULL FROM files WHERE id = ANY($1::uuid[])`, ids)
+		`SELECT id, kind, owner_id, COALESCE(space_id::text, ''), COALESCE(private_channel_id::text, ''), name, content_type, size, expired_at IS NOT NULL FROM files WHERE id = ANY($1::uuid[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (d *dbFiles) GetFiles(ctx context.Context, ids []string) ([]chat.FileRecord
 	var out []chat.FileRecord
 	for rows.Next() {
 		var record chat.FileRecord
-		if err := rows.Scan(&record.ID, &record.Kind, &record.OwnerID, &record.SpaceID, &record.Name, &record.ContentType, &record.Size, &record.Expired); err != nil {
+		if err := rows.Scan(&record.ID, &record.Kind, &record.OwnerID, &record.SpaceID, &record.PrivateChannelID, &record.Name, &record.ContentType, &record.Size, &record.Expired); err != nil {
 			return nil, err
 		}
 		out = append(out, record)

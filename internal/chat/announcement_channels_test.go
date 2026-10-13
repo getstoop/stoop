@@ -97,7 +97,7 @@ func TestAnnouncementChannels(t *testing.T) {
 	if _, err := svc.EditMessage(ada, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: adaOld.Id, Content: "after"})); code(err) != connect.CodePermissionDenied {
 		t.Errorf("member edits an earlier message: want permission_denied, got %v", err)
 	}
-	if _, err := svc.ChannelSpaceToPostIn(ada, authctx.UserID(ada), channelID); code(err) != connect.CodePermissionDenied {
+	if _, _, err := svc.ChannelSpaceToPostIn(ada, authctx.UserID(ada), channelID); code(err) != connect.CodePermissionDenied {
 		t.Errorf("member uploads: want permission_denied, got %v", err)
 	}
 
@@ -114,7 +114,7 @@ func TestAnnouncementChannels(t *testing.T) {
 	if _, err := send(hookIdentity(bot, channelID, authctx.MessagesPost), "up again", ""); err != nil {
 		t.Errorf("member bot posts through its hook: %v", err)
 	}
-	if _, err := svc.ChannelSpaceToPostIn(bea, beaID, channelID); err != nil {
+	if _, _, err := svc.ChannelSpaceToPostIn(bea, beaID, channelID); err != nil {
 		t.Errorf("admin uploads: %v", err)
 	}
 	// Identity only: a token that grants posting and nothing else.

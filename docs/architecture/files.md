@@ -144,6 +144,7 @@ authorisation: nothing serves bytes the job has not finished.
 | `link_preview` | Any signed-in user. The bytes are a public page's own preview image, fetched by the server; gating them per message would mean a membership check per card. |
 | `space_icon` | The space's members, and instance admins. Also anyone not signed in who sends a usable invite to that space as `?invite=`, so the invite page can show it. |
 | `attachment` (space) | The space's members, and instance admins — as chat's `MayReadSpace` decides, which includes the credential's grant and bounds (`messages.read` in that space). |
+| `attachment` (private channel) | The uploader and the channel's people — **no admin bypass** — with a credential that covers `messages.read`. The upload records the channel on the file's row (`private_channel_id`), and a message takes such a file only in that channel, so it can't be posted anywhere else. |
 | `attachment` (DM) | The uploader and the DM's participants — **no admin bypass** — with a credential that covers `dms.read`. |
 
 The invite rule gives away nothing the code doesn't already: `LookupInvite`

@@ -36,21 +36,22 @@ func (q *Queries) CountExpiringAttachments(ctx context.Context, arg CountExpirin
 
 const createFile = `-- name: CreateFile :one
 
-INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
+INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, private_channel_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id
 `
 
 type CreateFileParams struct {
-	ID          string
-	Kind        string
-	OwnerID     string
-	SpaceID     *string
-	ContentType string
-	Size        int64
-	Sha256      []byte
-	StorageKey  string
-	Name        string
+	ID               string
+	Kind             string
+	OwnerID          string
+	SpaceID          *string
+	ContentType      string
+	Size             int64
+	Sha256           []byte
+	StorageKey       string
+	Name             string
+	PrivateChannelID *string
 }
 
 // Stored file metadata. Owned by the files module.
@@ -66,6 +67,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		arg.Sha256,
 		arg.StorageKey,
 		arg.Name,
+		arg.PrivateChannelID,
 	)
 	var i File
 	err := row.Scan(
@@ -81,6 +83,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		&i.Name,
 		&i.ExpiredAt,
 		&i.Pending,
+		&i.PrivateChannelID,
 	)
 	return i, err
 }
@@ -88,7 +91,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 const createPendingFile = `-- name: CreatePendingFile :one
 INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, pending)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '', true)
-RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id
 `
 
 type CreatePendingFileParams struct {
@@ -129,12 +132,13 @@ func (q *Queries) CreatePendingFile(ctx context.Context, arg CreatePendingFilePa
 		&i.Name,
 		&i.ExpiredAt,
 		&i.Pending,
+		&i.PrivateChannelID,
 	)
 	return i, err
 }
 
 const deleteFile = `-- name: DeleteFile :one
-DELETE FROM files WHERE id = $1 RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
+DELETE FROM files WHERE id = $1 RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id
 `
 
 func (q *Queries) DeleteFile(ctx context.Context, id string) (File, error) {
@@ -153,12 +157,13 @@ func (q *Queries) DeleteFile(ctx context.Context, id string) (File, error) {
 		&i.Name,
 		&i.ExpiredAt,
 		&i.Pending,
+		&i.PrivateChannelID,
 	)
 	return i, err
 }
 
 const deleteFilesByIDs = `-- name: DeleteFilesByIDs :many
-DELETE FROM files WHERE id = ANY($1::uuid[]) RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
+DELETE FROM files WHERE id = ANY($1::uuid[]) RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id
 `
 
 func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]File, error) {
@@ -183,6 +188,7 @@ func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]Fi
 			&i.Name,
 			&i.ExpiredAt,
 			&i.Pending,
+			&i.PrivateChannelID,
 		); err != nil {
 			return nil, err
 		}
@@ -206,7 +212,7 @@ func (q *Queries) ExpireFiles(ctx context.Context, ids []string) error {
 }
 
 const getFile = `-- name: GetFile :one
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending FROM files WHERE id = $1
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id FROM files WHERE id = $1
 `
 
 func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
@@ -225,12 +231,13 @@ func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
 		&i.Name,
 		&i.ExpiredAt,
 		&i.Pending,
+		&i.PrivateChannelID,
 	)
 	return i, err
 }
 
 const getFilesByIDs = `-- name: GetFilesByIDs :many
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending FROM files WHERE id = ANY($1::uuid[])
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id FROM files WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File, error) {
@@ -255,6 +262,7 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File,
 			&i.Name,
 			&i.ExpiredAt,
 			&i.Pending,
+			&i.PrivateChannelID,
 		); err != nil {
 			return nil, err
 		}
@@ -310,7 +318,7 @@ func (q *Queries) ListExpiringAttachments(ctx context.Context, arg ListExpiringA
 }
 
 const listFilesOlderThan = `-- name: ListFilesOlderThan :many
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending FROM files
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id FROM files
 WHERE created_at < $1 AND id > $2
 ORDER BY id
 LIMIT $3
@@ -345,6 +353,7 @@ func (q *Queries) ListFilesOlderThan(ctx context.Context, arg ListFilesOlderThan
 			&i.Name,
 			&i.ExpiredAt,
 			&i.Pending,
+			&i.PrivateChannelID,
 		); err != nil {
 			return nil, err
 		}
@@ -394,7 +403,7 @@ func (q *Queries) LockStorageQuota(ctx context.Context) error {
 const readyPendingFile = `-- name: ReadyPendingFile :one
 UPDATE files SET pending = false, content_type = $1, size = $2, sha256 = $3
 WHERE id = $4 AND pending
-RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id
 `
 
 type ReadyPendingFileParams struct {
@@ -427,6 +436,7 @@ func (q *Queries) ReadyPendingFile(ctx context.Context, arg ReadyPendingFilePara
 		&i.Name,
 		&i.ExpiredAt,
 		&i.Pending,
+		&i.PrivateChannelID,
 	)
 	return i, err
 }

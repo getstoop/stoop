@@ -68,7 +68,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 	previewing := s.linkPreviewsOn(ctx)
-	attachments, err := s.claimAttachments(ctx, userID, spaceOf(channel), req.Msg.AttachmentIds)
+	attachments, err := s.claimAttachments(ctx, userID, channel, req.Msg.AttachmentIds)
 	if err != nil {
 		return nil, err
 	}

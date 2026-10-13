@@ -107,18 +107,19 @@ type EmailToken struct {
 }
 
 type File struct {
-	ID          string
-	Kind        string
-	OwnerID     string
-	SpaceID     *string
-	ContentType string
-	Size        int64
-	Sha256      []byte
-	StorageKey  string
-	CreatedAt   time.Time
-	Name        string
-	ExpiredAt   *time.Time
-	Pending     bool
+	ID               string
+	Kind             string
+	OwnerID          string
+	SpaceID          *string
+	ContentType      string
+	Size             int64
+	Sha256           []byte
+	StorageKey       string
+	CreatedAt        time.Time
+	Name             string
+	ExpiredAt        *time.Time
+	Pending          bool
+	PrivateChannelID *string
 }
 
 type IncomingWebhook struct {

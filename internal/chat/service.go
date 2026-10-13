@@ -63,13 +63,15 @@ type PresenceLister interface {
 
 // FileRecord is what chat needs to know about an uploaded file.
 type FileRecord struct {
-	ID          string
-	Kind        string
-	OwnerID     string
-	SpaceID     string
-	Name        string
-	ContentType string
-	Size        int64
+	ID      string
+	Kind    string
+	OwnerID string
+	SpaceID string
+	// PrivateChannelID: the private channel the file was uploaded for.
+	PrivateChannelID string
+	Name             string
+	ContentType      string
+	Size             int64
 	// Expired: deleted by attachment retention, with its name.
 	Expired bool
 }
@@ -139,25 +141,25 @@ func (s *Service) IsSpaceMember(ctx context.Context, userID, spaceID string) (bo
 }
 
 // ChannelSpaceToPostIn resolves a channel to its space ("" for a direct
-// message) for a user who may post in it: a member, and an admin or a bot
-// in an announcement channel. ctx carries that user's identity. Exposed
-// for the files module's upload handler.
-func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID string) (string, error) {
+// message), and whether it is private, for a user who may post in it: a
+// member, and an admin or a bot in an announcement channel. ctx carries
+// that user's identity. Exposed for the files module's upload handler.
+func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID string) (string, bool, error) {
 	ok, err := s.IsChannelMember(ctx, userID, channelID)
 	if err != nil {
-		return "", fmt.Errorf("check membership: %w", err)
+		return "", false, fmt.Errorf("check membership: %w", err)
 	}
 	if !ok {
-		return "", s.notInChannel(ctx, channelID)
+		return "", false, s.notInChannel(ctx, channelID)
 	}
 	channel, err := s.memberChannel(ctx, channelID)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
-		return "", err
+		return "", false, err
 	}
-	return spaceOf(channel), nil
+	return spaceOf(channel), channel.Private, nil
 }
 
 // IsChannelMember reports whether a user belongs to the channel's space

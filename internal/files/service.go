@@ -75,9 +75,13 @@ type Spaces interface {
 	// ListSpaceIDs is used to tell a user's spaces about a new avatar.
 	ListSpaceIDs(ctx context.Context, userID string) ([]string, error)
 	// ChannelSpaceToPostIn returns the channel's space id ("" for a
-	// direct message) if the user in ctx may post there; otherwise a
-	// Connect NotFound / PermissionDenied error.
-	ChannelSpaceToPostIn(ctx context.Context, userID, channelID string) (string, error)
+	// direct message) and whether the channel is private, if the user in
+	// ctx may post there; otherwise a Connect NotFound / PermissionDenied
+	// error.
+	ChannelSpaceToPostIn(ctx context.Context, userID, channelID string) (spaceID string, private bool, err error)
+	// IsChannelMember reports whether the user may read the channel. The
+	// download rule for a private channel's attachments.
+	IsChannelMember(ctx context.Context, userID, channelID string) (bool, error)
 	// IsAttachmentReadable reports whether the file is attached to a
 	// message the user can read. The download rule for attachments that
 	// have no space (direct messages).
@@ -93,13 +97,16 @@ type Spaces interface {
 
 // Info is what other modules (chat, through its port) learn about a file.
 type Info struct {
-	ID          string
-	Kind        Kind
-	OwnerID     string
-	SpaceID     string
-	Name        string
-	ContentType string
-	Size        int64
+	ID      string
+	Kind    Kind
+	OwnerID string
+	SpaceID string
+	// PrivateChannelID: the private channel an attachment was uploaded
+	// for; "" for any other file.
+	PrivateChannelID string
+	Name             string
+	ContentType      string
+	Size             int64
 	// Expired: deleted by attachment retention; no bytes and no name.
 	Expired bool
 }
@@ -162,6 +169,9 @@ func toInfo(f dbgen.File) Info {
 	}
 	if f.SpaceID != nil {
 		info.SpaceID = *f.SpaceID
+	}
+	if f.PrivateChannelID != nil {
+		info.PrivateChannelID = *f.PrivateChannelID
 	}
 	return info
 }

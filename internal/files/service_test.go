@@ -62,15 +62,18 @@ func (f *fakeAvatars) SetAvatar(_ context.Context, userID, fileID string) (strin
 }
 
 type fakeSpaces struct {
-	managers   map[string]bool // userID → may manage
-	members    map[string]bool // userID → member
-	icon       string
-	spaceID    string
-	channelID  string
-	referenced map[string]bool // file ids chat "still points at" (sweep)
-	pinned     []string        // files on pinned messages (retention)
-	setIconErr error           // what SetSpaceIcon answers when set
-	invite     string          // a usable invite code to the space
+	managers  map[string]bool // userID → may manage
+	members   map[string]bool // userID → member
+	icon      string
+	spaceID   string
+	channelID string
+	// A private channel and who is in it; "" when the test has none.
+	privateChannelID string
+	privateMembers   map[string]bool
+	referenced       map[string]bool // file ids chat "still points at" (sweep)
+	pinned           []string        // files on pinned messages (retention)
+	setIconErr       error           // what SetSpaceIcon answers when set
+	invite           string          // a usable invite code to the space
 }
 
 func (f *fakeSpaces) InviteShowsIcon(_ context.Context, code, fileID string) (bool, error) {
@@ -126,14 +129,20 @@ func (f *fakeSpaces) ListSpaceIDs(context.Context, string) ([]string, error) {
 func (f *fakeSpaces) IsAttachmentReadable(_ context.Context, userID, _ string) (bool, error) {
 	return f.members[userID], nil
 }
-func (f *fakeSpaces) ChannelSpaceToPostIn(_ context.Context, userID, channelID string) (string, error) {
+func (f *fakeSpaces) ChannelSpaceToPostIn(_ context.Context, userID, channelID string) (string, bool, error) {
+	if channelID == f.privateChannelID && f.privateMembers[userID] {
+		return f.spaceID, true, nil
+	}
 	if channelID != f.channelID {
-		return "", connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
+		return "", false, connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
 	}
 	if !f.members[userID] {
-		return "", connect.NewError(connect.CodePermissionDenied, errors.New("not a member"))
+		return "", false, connect.NewError(connect.CodePermissionDenied, errors.New("not a member"))
 	}
-	return f.spaceID, nil
+	return f.spaceID, false, nil
+}
+func (f *fakeSpaces) IsChannelMember(_ context.Context, userID, channelID string) (bool, error) {
+	return channelID == f.privateChannelID && f.privateMembers[userID], nil
 }
 
 type fakeSessions struct{ users map[string]authctx.Identity }
