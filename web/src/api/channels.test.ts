@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
-import { defaultChannelChoices, landingChannel } from "./channels";
+import {
+  byPosition,
+  defaultChannelChoices,
+  landingChannel,
+  withPositions,
+} from "./channels";
 
 // This module reaches ./clients, which builds its transport from
 // location.origin at import time; the node environment has no location.
@@ -96,5 +101,72 @@ describe("landingChannel", () => {
   it("lands in voice when a space has nothing else", () => {
     const voiceOnly = [channel("lounge", ChannelKind.VOICE)];
     expect(landingChannel(space(), voiceOnly)?.name).toBe("lounge");
+  });
+});
+
+describe("withPositions", () => {
+  const at = (id: string, position: number, seconds = 0, nanos = 0): Channel =>
+    ({
+      id,
+      name: id,
+      kind: ChannelKind.TEXT,
+      position,
+      createdAt: { seconds: BigInt(seconds), nanos },
+    }) as Channel;
+  const ids = (channels: Channel[]) => channels.map((c) => c.id);
+
+  it("moves the channels the space was told about and keeps a private one in its place", () => {
+    // The sidebar of someone in a private channel: general, captains, garden.
+    const mine = [at("general", 0), at("captains", 1), at("garden", 2)];
+    // The space hears about its public channels only: garden first.
+    const told = [
+      { id: "garden", position: 0 },
+      { id: "general", position: 2 },
+    ];
+    expect(ids(withPositions(mine, told))).toEqual([
+      "garden",
+      "captains",
+      "general",
+    ]);
+  });
+
+  it("ignores a channel the list does not hold", () => {
+    const mine = [at("general", 0), at("garden", 1)];
+    expect(
+      ids(withPositions(mine, [{ id: "elsewhere", position: 0 }])),
+    ).toEqual(["general", "garden"]);
+  });
+
+  it("orders equal positions oldest first, as the server does", () => {
+    expect(
+      ids(byPosition([at("newer", 0, 20), at("older", 0, 10), at("last", 1)])),
+    ).toEqual(["older", "newer", "last"]);
+  });
+});
+
+describe("byPosition", () => {
+  it("orders channels made in the same second by the milliseconds", () => {
+    const made = (id: string, nanos: number): Channel =>
+      ({
+        id,
+        name: id,
+        kind: ChannelKind.TEXT,
+        position: 0,
+        createdAt: { seconds: 10n, nanos },
+      }) as Channel;
+    expect(
+      byPosition([made("second", 500_000_000), made("first", 100_000_000)]).map(
+        (c) => c.id,
+      ),
+    ).toEqual(["first", "second"]);
+  });
+});
+
+describe("a private channel", () => {
+  it("is never offered as the channel new members start in", () => {
+    const hidden = { ...channel("captains"), private: true } as Channel;
+    expect(defaultChannelChoices([channel("general"), hidden])).toEqual([
+      channel("general"),
+    ]);
   });
 });
