@@ -165,7 +165,7 @@ type ThreadViewerStatesRow struct {
 
 // ThreadViewerStates is one person's view of each root: whether they are
 // in its thread (started it, replied, or were @mentioned by name in it;
-// @everyone and @here don't count), whether they muted it, and how many
+// @channel and @here don't count), whether they muted it, and how many
 // replies by others came after their read marker.
 func (q *Queries) ThreadViewerStates(ctx context.Context, arg ThreadViewerStatesParams) ([]ThreadViewerStatesRow, error) {
 	rows, err := q.db.Query(ctx, threadViewerStates, arg.UserID, arg.RootIds)

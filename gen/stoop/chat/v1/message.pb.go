@@ -273,7 +273,7 @@ type Message struct {
 	// The channel's space, so clients can update per-space state from a
 	// realtime event without a lookup.
 	SpaceId string `protobuf:"bytes,7,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	// True when the message @mentioned everyone (and the author was allowed
+	// True when the message used @channel (and the author was allowed
 	// to); mention_user_ids then lists every other member.
 	MentionsChannel bool `protobuf:"varint,8,opt,name=mentions_channel,json=mentionsChannel,proto3" json:"mentions_channel,omitempty"`
 	// Set when this message is a reply.

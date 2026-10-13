@@ -196,7 +196,7 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
   spaceId: string;
 
   /**
-   * True when the message @mentioned everyone (and the author was allowed
+   * True when the message used @channel (and the author was allowed
    * to); mention_user_ids then lists every other member.
    *
    * @generated from field: bool mentions_channel = 8;
