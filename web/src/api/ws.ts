@@ -315,8 +315,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.removeQueries({
         queryKey: ["messages", payload.value.channelId],
       });
-      // Its alerts went with it.
+      // Its alerts went with it, and so did its share of the space's dot.
       queryClient.invalidateQueries({ queryKey: ["activity"] });
+      recomputeSpaceUnread(queryClient, payload.value.spaceId);
       useVoiceStore.getState().dropChannel(payload.value.channelId);
       if (
         useVoiceStore.getState().connection?.channelId ===
