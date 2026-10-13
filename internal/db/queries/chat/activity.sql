@@ -91,3 +91,8 @@ WHERE a.user_id = sqlc.arg(user_id)
       SELECT 1 FROM dm_members d
       WHERE d.channel_id = a.channel_id AND d.user_id = sqlc.arg(blocked_id)
     ));
+
+-- DeleteActivityForChannel drops a person's alerts from a channel they
+-- can no longer read: each keeps a preview of the message.
+-- name: DeleteActivityForChannel :exec
+DELETE FROM activity_items WHERE user_id = sqlc.arg(user_id) AND channel_id = sqlc.arg(channel_id);

@@ -83,6 +83,10 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 			return nil, err
 		}
 	}
+	// A hook into a private channel puts its bot in that channel.
+	if err := s.spaces.AddBotToChannel(ctx, req.Msg.ChannelId, bot.ID); err != nil {
+		return nil, err
+	}
 	if req.Msg.NotifyEveryone {
 		if err := s.spaces.SetBotAdmin(ctx, spaceID, bot.ID, true); err != nil {
 			return nil, err

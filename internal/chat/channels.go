@@ -72,8 +72,26 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 			return nil, err
 		}
 	}
-	channel, err := s.q.CreateChannel(ctx, dbgen.CreateChannelParams{
-		ID: rowid.New(), SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind),
+	if req.Msg.Private {
+		if err := s.requireCanStartPrivate(ctx, req.Msg.SpaceId, kind); err != nil {
+			return nil, err
+		}
+	}
+	var channel dbgen.Channel
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		channel, err = qtx.CreateChannel(ctx, dbgen.CreateChannelParams{
+			ID: rowid.New(), SpaceID: req.Msg.SpaceId, Name: name, Kind: int16(kind), Private: req.Msg.Private,
+		})
+		if err != nil || !channel.Private {
+			return err
+		}
+		// Whoever creates a private channel is its first member.
+		creator := authctx.UserID(ctx)
+		_, err = qtx.AddPrivateChannelMember(ctx, dbgen.AddPrivateChannelMemberParams{
+			ChannelID: channel.ID, SpaceID: req.Msg.SpaceId, UserID: creator, AddedBy: &creator,
+		})
+		return err
 	})
 	if db.HasCode(err, db.UniqueViolation) {
 		return nil, errChannelNameTaken
@@ -82,7 +100,7 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, fmt.Errorf("create channel: %w", err)
 	}
 
-	s.bus.Publish(events.SpaceTopic(req.Msg.SpaceId), events.Stamp(&realtimev1.ServerEvent{
+	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelCreated{
 			ChannelCreated: toProtoChannel(channel),
 		},
@@ -268,7 +286,7 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.ChannelsManage); err != nil {
 		return nil, err
 	}
-	rows, err := s.listChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))
+	rows, err := s.allChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +322,7 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 		return nil, err
 	}
 
-	rows, err = s.listChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))
+	rows, err = s.allChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -400,6 +418,7 @@ func toProtoChannel(c dbgen.Channel) *chatv1.Channel {
 		Kind: chatv1.ChannelKind(c.Kind), Position: c.Position,
 		CreatedAt: timestamppb.New(c.CreatedAt), Topic: c.Topic,
 		PostPolicy: chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_EVERYONE,
+		Private:    c.Private,
 	}
 	if c.PostPolicy == postPolicyAdmins {
 		out.PostPolicy = chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_ADMINS

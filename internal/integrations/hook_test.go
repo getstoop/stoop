@@ -222,6 +222,7 @@ func (f *fakeSpaces) AddBotMember(ctx context.Context, spaceID, userID string) e
 	_, err := f.pool.Exec(ctx, `INSERT INTO space_members (space_id, user_id, role) VALUES ($1, $2, 'member') ON CONFLICT DO NOTHING`, spaceID, userID)
 	return err
 }
+func (f *fakeSpaces) AddBotToChannel(context.Context, string, string) error { return nil }
 func (f *fakeSpaces) RemoveBotMember(ctx context.Context, spaceID, userID string) error {
 	tag, err := f.pool.Exec(ctx, `DELETE FROM space_members WHERE space_id = $1 AND user_id = $2`, spaceID, userID)
 	if err == nil && tag.RowsAffected() == 0 {

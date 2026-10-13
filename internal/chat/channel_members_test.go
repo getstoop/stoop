@@ -1,0 +1,204 @@
+package chat_test
+
+import (
+	"context"
+	"testing"
+
+	"connectrpc.com/connect"
+
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/authctx"
+)
+
+func TestCreatePrivateChannel(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	svc := fixture.svc
+	space := fixture.bus.Subscribe("space:" + fixture.spaceID)
+	defer space.Close()
+	creator := fixture.bus.Subscribe("user:" + authctx.UserID(fixture.owner))
+	defer creator.Close()
+
+	created, err := svc.CreateChannel(fixture.owner, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: fixture.spaceID, Name: "captains", Private: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !created.Msg.Channel.Private {
+		t.Error("the channel did not come back private")
+	}
+	people, err := svc.ListChannelMembers(fixture.owner, connect.NewRequest(&chatv1.ListChannelMembersRequest{ChannelId: created.Msg.Channel.Id}))
+	if err != nil || len(people.Msg.UserIds) != 1 || people.Msg.UserIds[0] != authctx.UserID(fixture.owner) {
+		t.Errorf("the creator is not the first member: %v %v", people, err)
+	}
+	if got := received(space); len(got) != 0 {
+		t.Errorf("the space was told about a private channel: %v", got)
+	}
+	if got := received(creator); len(got) != 1 {
+		t.Errorf("the creator was sent %v, want the new channel", got)
+	}
+
+	if _, err := svc.CreateChannel(fixture.owner, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: fixture.spaceID, Name: "back-porch", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE, Private: true,
+	})); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("a private voice channel: %v, want failed precondition", err)
+	}
+	// A server admin who has not joined the space manages its channels,
+	// but can't be a private channel's first member.
+	operator := newUser(t, fixture.pool, "operator", authctx.RoleAdmin)
+	if _, err := svc.CreateChannel(operator, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: fixture.spaceID, Name: "ops", Private: true,
+	})); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("a private channel by someone outside the space: %v, want failed precondition", err)
+	}
+}
+
+func TestPrivateChannelPeople(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	svc := fixture.svc
+	stranger := newUser(t, fixture.pool, "stranger", authctx.RoleMember)
+	add := func(by context.Context, channelID string, people ...context.Context) error {
+		ids := make([]string, len(people))
+		for index, person := range people {
+			ids[index] = authctx.UserID(person)
+		}
+		_, err := svc.AddChannelMembers(by, connect.NewRequest(&chatv1.AddChannelMembersRequest{ChannelId: channelID, UserIds: ids}))
+		return err
+	}
+	members := func(by context.Context) ([]string, error) {
+		res, err := svc.ListChannelMembers(by, connect.NewRequest(&chatv1.ListChannelMembersRequest{ChannelId: fixture.secretID}))
+		if err != nil {
+			return nil, err
+		}
+		return res.Msg.UserIds, nil
+	}
+
+	if err := add(fixture.bea, fixture.secretID, fixture.cal); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a member adding someone: %v, want permission denied", err)
+	}
+	if err := add(fixture.owner, fixture.secretID, stranger); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("adding someone outside the space: %v, want failed precondition", err)
+	}
+	if err := add(fixture.owner, fixture.generalID, fixture.cal); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("adding to a public channel: %v, want failed precondition", err)
+	}
+	if _, err := members(fixture.cal); code(err) != connect.CodeNotFound {
+		t.Errorf("the people list for someone outside: %v, want not found", err)
+	}
+	// Someone in it, and an admin outside it, see who is in it.
+	for name, person := range map[string]context.Context{"bea": fixture.bea, "owner": fixture.owner} {
+		if ids, err := members(person); err != nil || len(ids) != 1 {
+			t.Errorf("the people list for %s: %v %v", name, ids, err)
+		}
+	}
+
+	fixture.send(t, fixture.bea, "before cal arrived @cal", "")
+	added := fixture.bus.Subscribe("user:" + authctx.UserID(fixture.cal))
+	defer added.Close()
+	inside := fixture.bus.Subscribe("user:" + authctx.UserID(fixture.bea))
+	defer inside.Close()
+	if err := add(fixture.owner, fixture.secretID, fixture.cal, fixture.bea); err != nil {
+		t.Fatal(err)
+	}
+	if got := received(added); len(got) != 2 {
+		t.Errorf("the person added was sent %v, want the channel and the join", got)
+	}
+	if got := received(inside); len(got) != 1 {
+		t.Errorf("someone already in was sent %v, want one join", got)
+	}
+	// History is all of it for someone added later.
+	history, err := svc.ListMessages(fixture.cal, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: fixture.secretID}))
+	if err != nil || len(history.Msg.Messages) != 1 {
+		t.Errorf("history for someone added later: %v %v", history, err)
+	}
+	fixture.send(t, fixture.bea, "@cal welcome", "")
+	if unread := fixture.unread(t, fixture.cal); unread != 1 {
+		t.Fatalf("a mention in the channel: %d unread, want 1", unread)
+	}
+
+	all, err := svc.ListAllChannels(fixture.owner, connect.NewRequest(&chatv1.ListAllChannelsRequest{SpaceId: fixture.spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range all.Msg.Channels {
+		switch row.Channel.Id {
+		case fixture.secretID:
+			if row.MemberCount != 2 || row.Joined {
+				t.Errorf("the private channel in settings: %d people, joined %v", row.MemberCount, row.Joined)
+			}
+		case fixture.generalID:
+			if row.MemberCount != 0 || !row.Joined {
+				t.Errorf("a public channel in settings: %d people, joined %v", row.MemberCount, row.Joined)
+			}
+		}
+	}
+	if len(all.Msg.Channels) != 2 {
+		t.Errorf("settings lists %d channels, want 2", len(all.Msg.Channels))
+	}
+	if _, err := svc.ListAllChannels(fixture.bea, connect.NewRequest(&chatv1.ListAllChannelsRequest{SpaceId: fixture.spaceID})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("settings list for a member: %v, want permission denied", err)
+	}
+	// An admin who is not in the private channel still orders every channel.
+	if _, err := svc.ReorderChannels(fixture.owner, connect.NewRequest(&chatv1.ReorderChannelsRequest{
+		SpaceId: fixture.spaceID, ChannelIds: []string{fixture.secretID, fixture.generalID},
+	})); err != nil {
+		t.Errorf("reorder by an admin outside the private channel: %v", err)
+	}
+
+	if _, err := svc.RemoveChannelMember(fixture.bea, connect.NewRequest(&chatv1.RemoveChannelMemberRequest{
+		ChannelId: fixture.secretID, UserId: authctx.UserID(fixture.cal),
+	})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a member removing someone: %v, want permission denied", err)
+	}
+	received(added)
+	if _, err := svc.RemoveChannelMember(fixture.owner, connect.NewRequest(&chatv1.RemoveChannelMemberRequest{
+		ChannelId: fixture.secretID, UserId: authctx.UserID(fixture.cal),
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if got := received(added); len(got) != 1 || got[0] != "channel_deleted" {
+		t.Errorf("the person removed was sent %v, want the channel gone", got)
+	}
+	if unread := fixture.unread(t, fixture.cal); unread != 0 {
+		t.Errorf("the person removed keeps %d alerts from the channel", unread)
+	}
+	if _, err := svc.ListMessages(fixture.cal, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: fixture.secretID})); code(err) != connect.CodeNotFound {
+		t.Errorf("reading after removal: %v, want not found", err)
+	}
+	if _, err := svc.RemoveChannelMember(fixture.owner, connect.NewRequest(&chatv1.RemoveChannelMemberRequest{
+		ChannelId: fixture.secretID, UserId: authctx.UserID(fixture.cal),
+	})); code(err) != connect.CodeNotFound {
+		t.Errorf("removing someone who is not in it: %v, want not found", err)
+	}
+
+	if _, err := svc.LeaveChannel(fixture.bea, connect.NewRequest(&chatv1.LeaveChannelRequest{ChannelId: fixture.generalID})); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("leaving a public channel: %v, want failed precondition", err)
+	}
+	if _, err := svc.LeaveChannel(fixture.bea, connect.NewRequest(&chatv1.LeaveChannelRequest{ChannelId: fixture.secretID})); err != nil {
+		t.Fatal(err)
+	}
+	if ids, err := members(fixture.owner); err != nil || len(ids) != 0 {
+		t.Errorf("after everyone left: %v %v", ids, err)
+	}
+}
+
+// A webhook's bot goes into a private channel only for someone in it.
+func TestAddBotToChannel(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	bot := newUser(t, fixture.pool, "uptime", authctx.RoleMember)
+	if err := fixture.svc.AddBotMember(fixture.owner, fixture.spaceID, authctx.UserID(bot)); err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.svc.AddBotToChannel(fixture.owner, fixture.secretID, authctx.UserID(bot)); code(err) != connect.CodeNotFound {
+		t.Errorf("by someone outside the channel: %v, want not found", err)
+	}
+	if err := fixture.svc.AddBotToChannel(fixture.bea, fixture.secretID, authctx.UserID(bot)); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := fixture.svc.IsChannelMember(bot, authctx.UserID(bot), fixture.secretID); err != nil || !ok {
+		t.Errorf("the bot is not in the channel: %v %v", ok, err)
+	}
+	if err := fixture.svc.AddBotToChannel(fixture.owner, fixture.generalID, authctx.UserID(bot)); err != nil {
+		t.Errorf("a public channel needs nothing: %v", err)
+	}
+}

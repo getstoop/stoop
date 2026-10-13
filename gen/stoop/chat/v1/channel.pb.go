@@ -154,7 +154,10 @@ type Channel struct {
 	Topic string `protobuf:"bytes,11,opt,name=topic,proto3" json:"topic,omitempty"`
 	// EVERYONE for a direct message and a voice channel. Written with
 	// manage_channels.
-	PostPolicy    ChannelPostPolicy `protobuf:"varint,12,opt,name=post_policy,json=postPolicy,proto3,enum=stoop.chat.v1.ChannelPostPolicy" json:"post_policy,omitempty"`
+	PostPolicy ChannelPostPolicy `protobuf:"varint,12,opt,name=post_policy,json=postPolicy,proto3,enum=stoop.chat.v1.ChannelPostPolicy" json:"post_policy,omitempty"`
+	// Only the people in it can see or read the channel. Set when it is
+	// created and never changed. Always false for a direct message.
+	Private       bool `protobuf:"varint,13,opt,name=private,proto3" json:"private,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -273,11 +276,18 @@ func (x *Channel) GetPostPolicy() ChannelPostPolicy {
 	return ChannelPostPolicy_CHANNEL_POST_POLICY_UNSPECIFIED
 }
 
+func (x *Channel) GetPrivate() bool {
+	if x != nil {
+		return x.Private
+	}
+	return false
+}
+
 var File_stoop_chat_v1_channel_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	"\n" +
-	"\x1bstoop/chat/v1/channel.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x03\n" +
+	"\x1bstoop/chat/v1/channel.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd4\x03\n" +
 	"\aChannel\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x12\n" +
@@ -293,7 +303,8 @@ const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	" \x01(\bR\x05muted\x12\x14\n" +
 	"\x05topic\x18\v \x01(\tR\x05topic\x12A\n" +
 	"\vpost_policy\x18\f \x01(\x0e2 .stoop.chat.v1.ChannelPostPolicyR\n" +
-	"postPolicy*o\n" +
+	"postPolicy\x12\x18\n" +
+	"\aprivate\x18\r \x01(\bR\aprivate*o\n" +
 	"\vChannelKind\x12\x1c\n" +
 	"\x18CHANNEL_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CHANNEL_KIND_TEXT\x10\x01\x12\x16\n" +

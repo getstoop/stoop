@@ -48,4 +48,7 @@ message Channel {
   // EVERYONE for a direct message and a voice channel. Written with
   // manage_channels.
   ChannelPostPolicy post_policy = 12;
+  // Only the people in it can see or read the channel. Set when it is
+  // created and never changed. Always false for a direct message.
+  bool private = 13;
 }

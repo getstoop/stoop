@@ -109,6 +109,22 @@ func (q *Queries) DeleteActivityForBlocked(ctx context.Context, arg DeleteActivi
 	return result.RowsAffected(), nil
 }
 
+const deleteActivityForChannel = `-- name: DeleteActivityForChannel :exec
+DELETE FROM activity_items WHERE user_id = $1 AND channel_id = $2
+`
+
+type DeleteActivityForChannelParams struct {
+	UserID    string
+	ChannelID string
+}
+
+// DeleteActivityForChannel drops a person's alerts from a channel they
+// can no longer read: each keeps a preview of the message.
+func (q *Queries) DeleteActivityForChannel(ctx context.Context, arg DeleteActivityForChannelParams) error {
+	_, err := q.db.Exec(ctx, deleteActivityForChannel, arg.UserID, arg.ChannelID)
+	return err
+}
+
 const deleteReadActivityBefore = `-- name: DeleteReadActivityBefore :execrows
 DELETE FROM activity_items WHERE read_at IS NOT NULL AND read_at < $1::timestamptz
 `

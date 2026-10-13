@@ -82,9 +82,27 @@ service ChatService {
   // DeleteSpace removes the space and everything in it. Owner or instance
   // admin only.
   rpc DeleteSpace(DeleteSpaceRequest) returns (DeleteSpaceResponse) {}
-  // CreateChannel requires manage_channels (admin+).
+  // CreateChannel requires manage_channels (admin+). Whoever creates a
+  // private channel is its first member.
   rpc CreateChannel(CreateChannelRequest) returns (CreateChannelResponse) {}
+  // ListChannels is the space's public channels and the private ones the
+  // caller is in.
   rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse) {}
+  // ListAllChannels is every channel in the space, private ones included,
+  // for Space settings. Requires manage_channels. Listing a private
+  // channel is not being in it and subscribes the caller to nothing.
+  rpc ListAllChannels(ListAllChannelsRequest) returns (ListAllChannelsResponse) {}
+  // ListChannelMembers is who is in a private channel, for someone in it
+  // or with manage_channels.
+  rpc ListChannelMembers(ListChannelMembersRequest) returns (ListChannelMembersResponse) {}
+  // AddChannelMembers puts members of the space into a private channel.
+  // Requires manage_channels; naming yourself is how an admin joins.
+  rpc AddChannelMembers(AddChannelMembersRequest) returns (AddChannelMembersResponse) {}
+  // RemoveChannelMember takes someone out of a private channel. Requires
+  // manage_channels.
+  rpc RemoveChannelMember(RemoveChannelMemberRequest) returns (RemoveChannelMemberResponse) {}
+  // LeaveChannel takes the caller out of a private channel they are in.
+  rpc LeaveChannel(LeaveChannelRequest) returns (LeaveChannelResponse) {}
   // UpdateChannel changes a channel's name and/or topic. Requires
   // manage_channels.
   rpc UpdateChannel(UpdateChannelRequest) returns (UpdateChannelResponse) {}
@@ -92,7 +110,8 @@ service ChatService {
   // manage_channels; a space always keeps at least one channel.
   rpc DeleteChannel(DeleteChannelRequest) returns (DeleteChannelResponse) {}
   // ReorderChannels sets the sidebar order from the given full list of the
-  // space's channel IDs. Requires manage_channels.
+  // space's channel IDs, private ones included (see ListAllChannels).
+  // Requires manage_channels.
   rpc ReorderChannels(ReorderChannelsRequest) returns (ReorderChannelsResponse) {}
   // SetChannelMuted sets the caller's own mute for a channel they can
   // read (a space's, or a direct message).
@@ -441,6 +460,8 @@ message CreateChannelRequest {
   string space_id = 1;
   string name = 2;
   ChannelKind kind = 3;
+  // Only the people added to it can see it. Not for a direct message.
+  bool private = 4;
 }
 
 message CreateChannelResponse {
@@ -491,6 +512,53 @@ message MutedThread {
 message ListChannelsRequest {
   string space_id = 1;
 }
+
+message ListAllChannelsRequest {
+  string space_id = 1;
+}
+
+message ListAllChannelsResponse {
+  repeated ManagedChannel channels = 1;
+}
+
+// ManagedChannel is a channel as Space settings lists it.
+message ManagedChannel {
+  Channel channel = 1;
+  // People in a private channel; 0 for a public one, which everyone in
+  // the space is in.
+  int32 member_count = 2;
+  // Whether the caller is in it. Always true for a public channel.
+  bool joined = 3;
+}
+
+message ListChannelMembersRequest {
+  string channel_id = 1;
+}
+
+message ListChannelMembersResponse {
+  // In the order they were added. Resolve against ListMembers.
+  repeated string user_ids = 1;
+}
+
+message AddChannelMembersRequest {
+  string channel_id = 1;
+  repeated string user_ids = 2;
+}
+
+message AddChannelMembersResponse {}
+
+message RemoveChannelMemberRequest {
+  string channel_id = 1;
+  string user_id = 2;
+}
+
+message RemoveChannelMemberResponse {}
+
+message LeaveChannelRequest {
+  string channel_id = 1;
+}
+
+message LeaveChannelResponse {}
 
 message ListChannelsResponse {
   repeated Channel channels = 1;
