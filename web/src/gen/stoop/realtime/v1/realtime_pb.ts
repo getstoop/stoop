@@ -437,9 +437,9 @@ export const VoiceStateChangedSchema: GenMessage<VoiceStateChanged> = /*@__PURE_
   messageDesc(file_stoop_realtime_v1_realtime, 5);
 
 /**
- * Typing in a direct message or a private channel carries an empty
- * space_id; the gateway relays it to the other people in it instead of a
- * space.
+ * Typing in a direct message carries an empty space_id. The gateway
+ * relays a hint in a direct message or a private channel to the other
+ * people in it, and any other to the space.
  *
  * @generated from message stoop.realtime.v1.Typing
  */

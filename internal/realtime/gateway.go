@@ -94,7 +94,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 		readClientEvents(ctx, conn, clientEvents)
 	}()
-	lastTyping := map[string]time.Time{}
+	typing := newTypingMemory()
 
 	if err := g.send(ctx, conn, g.ready(userID, spaceIDs)); err != nil {
 		return
@@ -112,7 +112,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_ = conn.Close(websocket.StatusNormalClosure, "")
 			return
 		case event := <-clientEvents:
-			g.handleClientEvent(ctx, userID, connID, sub, event, lastTyping)
+			g.handleClientEvent(ctx, userID, connID, sub, event, typing)
 		case <-pings.C:
 			// The session is checked again with every ping, so one that
 			// expired, or a revocation the bus never carried (the CLI, a
@@ -214,11 +214,11 @@ func readClientEvents(ctx context.Context, conn *websocket.Conn, out chan<- *rea
 
 // handleClientEvent applies one client event: a typing hint or a voice
 // state report.
-func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID uint64, sub *events.Subscription, event *realtimev1.ClientEvent, lastTyping map[string]time.Time) {
+func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID uint64, sub *events.Subscription, event *realtimev1.ClientEvent, memory *typingMemory) {
 	ctx, cancel := context.WithTimeout(ctx, g.lookupTimeout)
 	defer cancel()
 	if typing := event.GetTyping(); typing != nil {
-		g.relayTyping(ctx, userID, sub, typing, lastTyping)
+		g.relayTyping(ctx, userID, sub, typing, memory)
 	}
 	if voiceState := event.GetVoiceState(); voiceState != nil {
 		g.handleVoiceState(ctx, userID, connID, sub, voiceState)
@@ -337,31 +337,50 @@ func presenceChanged(userID string, online, dnd bool) *realtimev1.ServerEvent {
 	})
 }
 
-// relayTyping rebroadcasts a typing hint — to the space, if the connection
-// is actually subscribed to it, or (with no space) to the other people in
-// the direct message or private channel, if the sender is one — unless it
-// relayed for this channel a moment ago.
-func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, t *realtimev1.Typing, last map[string]time.Time) {
+// typingMemory is what one connection remembers between typing hints.
+type typingMemory struct {
+	// last is when a hint was last relayed for a channel.
+	last map[string]time.Time
+	// public holds channels known to go to their space. A channel is
+	// private from the day it is made or never, so asking once is enough.
+	public map[string]bool
+}
+
+func newTypingMemory() *typingMemory {
+	return &typingMemory{last: map[string]time.Time{}, public: map[string]bool{}}
+}
+
+// relayTyping rebroadcasts a typing hint — to the space for a public
+// channel, if the connection is actually subscribed to it, or to the
+// other people in a direct message or private channel, if the sender is
+// one — unless it relayed for this channel a moment ago. Which of the two
+// a channel is comes from chat, never from the space id the client sent.
+func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, t *realtimev1.Typing, memory *typingMemory) {
 	if t.ChannelId == "" {
 		return
 	}
+	last := memory.last
 	now := time.Now()
 	if now.Sub(last[t.ChannelId]) < typingInterval {
 		return
 	}
 
 	var topics []string
-	if t.SpaceId != "" {
-		if !sub.Has(events.SpaceTopic(t.SpaceId)) {
-			return
-		}
-		topics = []string{events.SpaceTopic(t.SpaceId)}
-	} else {
-		ids, err := g.channels.ChannelPeople(ctx, t.ChannelId)
-		if err != nil {
+	var ids []string
+	if t.SpaceId == "" || !memory.public[t.ChannelId] {
+		var err error
+		if ids, err = g.channels.ChannelPeople(ctx, t.ChannelId); err != nil {
 			g.log.Error("resolve channel people", "err", err)
 			return
 		}
+	}
+	if ids == nil {
+		if t.SpaceId == "" || !sub.Has(events.SpaceTopic(t.SpaceId)) {
+			return
+		}
+		memory.public[t.ChannelId] = true
+		topics = []string{events.SpaceTopic(t.SpaceId)}
+	} else {
 		mine := false
 		for _, id := range ids {
 			if id == userID {
