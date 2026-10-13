@@ -60,7 +60,7 @@ message Message {
   string space_id = 7;
   // True when the message used @channel (and the author was allowed
   // to); mention_user_ids then lists every other member.
-  bool mentions_channel = 8;
+  bool mentions_entire_channel = 8;
   // Set when this message is a reply.
   ReplyRef reply_to = 9;
   // True when the message @mentioned everyone currently online (@here).

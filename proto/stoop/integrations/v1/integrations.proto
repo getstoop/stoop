@@ -69,8 +69,8 @@ message CreateIncomingRequest {
   string name = 2;
   // Empty creates a new bot named after the hook.
   string bot_user_id = 3;
-  // Grants messages.notify_channel and makes the bot a space admin.
-  bool notify_channel = 4;
+  // Grants messages.notify_entire_channel and makes the bot a space admin.
+  bool notify_entire_channel = 4;
 }
 
 message CreateIncomingResponse {
@@ -99,7 +99,7 @@ message CreateOutgoingResponse {
 message UpdateIncomingRequest {
   string id = 1;
   optional string name = 2;
-  optional bool notify_channel = 3;
+  optional bool notify_entire_channel = 3;
   // True re-enables a hook disabled by the server; false disables it.
   optional bool enabled = 4;
 }

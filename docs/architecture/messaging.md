@@ -197,7 +197,7 @@ reach them, and does not error either, because a typo shouldn't fail a
 message.
 
 `@channel` and `@here` are reserved usernames (auth refuses to register
-them) and require the `messages.notify_channel` permission. Without it the
+them) and require the `messages.notify_entire_channel` permission. Without it the
 token is plain text — not an error, just words. `@channel` wins if both
 appear. `@channel` reaches the people who can read the channel: the space's
 members in a public channel, its listed people in a private one.

@@ -74,7 +74,7 @@ export const InToggleRow: StoryObj = {
       </label>
       <label className="toggle-row">
         <Switch />
-        <span>May notify the channel</span>
+        <span>May use @channel and @here</span>
       </label>
     </div>
   ),

@@ -66,7 +66,7 @@ export function ResultRow({
         <MessageBody
           content={message.content}
           usernames={usernames}
-          mentionsChannel={message.mentionsChannel}
+          mentionsEntireChannel={message.mentionsEntireChannel}
           mentionsHere={message.mentionsHere}
           myUsername={me?.username}
           highlight={highlight}

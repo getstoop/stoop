@@ -20,7 +20,7 @@ func (q *Queries) DeleteThreadSummary(ctx context.Context, rootMessageID string)
 }
 
 const listThreadAfter = `-- name: ListThreadAfter :many
-SELECT id, channel_id, author_id, content, created_at, mentions_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
 WHERE m.thread_root_id = $1::uuid
   AND (m.id > $2::uuid OR ($3::bool AND m.id = $2::uuid))
 ORDER BY m.id ASC
@@ -54,7 +54,7 @@ func (q *Queries) ListThreadAfter(ctx context.Context, arg ListThreadAfterParams
 			&i.AuthorID,
 			&i.Content,
 			&i.CreatedAt,
-			&i.MentionsChannel,
+			&i.MentionsEntireChannel,
 			&i.ReplyToMessageID,
 			&i.MentionsHere,
 			&i.EditedAt,
@@ -80,7 +80,7 @@ func (q *Queries) ListThreadAfter(ctx context.Context, arg ListThreadAfterParams
 
 const listThreadBefore = `-- name: ListThreadBefore :many
 
-SELECT id, channel_id, author_id, content, created_at, mentions_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
 WHERE m.thread_root_id = $1::uuid
   AND ($2::uuid IS NULL OR m.id < $2::uuid)
 ORDER BY m.id DESC
@@ -112,7 +112,7 @@ func (q *Queries) ListThreadBefore(ctx context.Context, arg ListThreadBeforePara
 			&i.AuthorID,
 			&i.Content,
 			&i.CreatedAt,
-			&i.MentionsChannel,
+			&i.MentionsEntireChannel,
 			&i.ReplyToMessageID,
 			&i.MentionsHere,
 			&i.EditedAt,
@@ -185,7 +185,7 @@ reactions AS (DELETE FROM message_reactions WHERE message_id = $1::uuid),
 mentions AS (DELETE FROM message_mentions WHERE message_id = $1::uuid),
 pins AS (DELETE FROM channel_pins WHERE message_id = $1::uuid),
 activity AS (DELETE FROM activity_items WHERE message_id = $1::uuid)
-UPDATE messages SET content = '', mentions_channel = false, mentions_here = false,
+UPDATE messages SET content = '', mentions_entire_channel = false, mentions_here = false,
     edited_at = NULL, deleted_at = now()
 WHERE id = $1::uuid
 `
@@ -272,14 +272,14 @@ func (q *Queries) RecordThreadReply(ctx context.Context, arg RecordThreadReplyPa
 
 const threadParticipants = `-- name: ThreadParticipants :many
 WITH thread AS (
-    SELECT m.id, m.channel_id, m.author_id, m.mentions_channel, m.mentions_here FROM messages m
+    SELECT m.id, m.channel_id, m.author_id, m.mentions_entire_channel, m.mentions_here FROM messages m
     WHERE m.id = $1::uuid
        OR (m.thread_root_id = $1::uuid AND m.id < $2::uuid)
 ), people AS (
     SELECT t.author_id AS user_id FROM thread t
     UNION
     SELECT mm.user_id FROM message_mentions mm JOIN thread t ON t.id = mm.message_id
-    WHERE NOT t.mentions_channel AND NOT t.mentions_here
+    WHERE NOT t.mentions_entire_channel AND NOT t.mentions_here
 )
 SELECT p.user_id FROM people p
 WHERE EXISTS (SELECT 1 FROM channel_readers cr

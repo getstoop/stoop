@@ -15,7 +15,7 @@ message IncomingWebhook {
   string bot_user_id = 4;
   string name = 5;
   // The hook credential's grants: messages.post, optionally
-  // messages.notify_channel.
+  // messages.notify_entire_channel.
   repeated stoop.access.v1.Permission permissions = 6;
   // The token's last four characters, to tell hooks apart.
   string hint = 7;

@@ -64,7 +64,7 @@ describe("named checks", () => {
     [
       "canMentionEntireChannel",
       canMentionEntireChannel,
-      Permission.MESSAGES_NOTIFY_CHANNEL,
+      Permission.MESSAGES_NOTIFY_ENTIRE_CHANNEL,
     ],
     ["canDeleteAnyMessage", canDeleteAnyMessage, Permission.MESSAGES_MODERATE],
     ["canDeleteSpace", canDeleteSpace, Permission.SPACE_DELETE],

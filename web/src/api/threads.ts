@@ -53,7 +53,7 @@ export function noteMentionInThread(
   if (
     message.threadRootId &&
     me &&
-    !message.mentionsChannel &&
+    !message.mentionsEntireChannel &&
     !message.mentionsHere &&
     message.mentionUserIds.includes(me)
   ) {
@@ -80,7 +80,7 @@ export function applyThreadChanged(
       replyCount: 0,
       participating:
         root.author?.id === me ||
-        (!root.mentionsChannel &&
+        (!root.mentionsEntireChannel &&
           !root.mentionsHere &&
           !!me &&
           root.mentionUserIds.includes(me)),

@@ -14,7 +14,7 @@ import (
 
 // Migration 00065 rewrites the action a credential was granted under its
 // old name, and leaves its other grants alone.
-func TestMentionsChannelMigrationRewritesGrants(t *testing.T) {
+func TestMentionsEntireChannelMigrationRewritesGrants(t *testing.T) {
 	pool := dbtest.New(t)
 	ctx := context.Background()
 	sqlDB := stdlib.OpenDBFromPool(pool)
@@ -44,7 +44,7 @@ func TestMentionsChannelMigrationRewritesGrants(t *testing.T) {
 	if err := pool.QueryRow(ctx, `SELECT grants FROM credentials WHERE id = $1`, hookID).Scan(&grants); err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"messages.post", "messages.notify_channel"}; !slices.Equal(grants, want) {
+	if want := []string{"messages.post", "messages.notify_entire_channel"}; !slices.Equal(grants, want) {
 		t.Errorf("grants after the migration = %v, want %v", grants, want)
 	}
 }

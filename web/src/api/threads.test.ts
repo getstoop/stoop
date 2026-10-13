@@ -28,7 +28,7 @@ const root = (over: Partial<Message> = {}): Message =>
     id: "root",
     author: { id: "ada" },
     mentionUserIds: [],
-    mentionsChannel: false,
+    mentionsEntireChannel: false,
     mentionsHere: false,
     ...over,
   }) as Message;
@@ -58,7 +58,7 @@ describe("applyThreadChanged", () => {
     named.change({ replyCount: 1 });
     expect(named.read()?.unreadCount).toBe(1);
     const everyone = setup(
-      root({ mentionUserIds: [ME], mentionsChannel: true }),
+      root({ mentionUserIds: [ME], mentionsEntireChannel: true }),
     );
     everyone.change({ replyCount: 1 });
     expect(everyone.read()).toMatchObject({
@@ -85,7 +85,7 @@ describe("applyThreadChanged", () => {
     noteMentionInThread(named.queryClient, {
       threadRootId: "root",
       mentionUserIds: [ME],
-      mentionsChannel: false,
+      mentionsEntireChannel: false,
       mentionsHere: false,
     } as unknown as Message);
     named.change({ replyCount: 2 });
@@ -94,7 +94,7 @@ describe("applyThreadChanged", () => {
     noteMentionInThread(here.queryClient, {
       threadRootId: "root",
       mentionUserIds: [ME],
-      mentionsChannel: false,
+      mentionsEntireChannel: false,
       mentionsHere: true,
     } as unknown as Message);
     here.change({ replyCount: 2 });

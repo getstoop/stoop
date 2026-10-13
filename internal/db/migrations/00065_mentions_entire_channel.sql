@@ -3,9 +3,9 @@
 -- message flag and the action a credential is granted take the new name.
 -- Contract: a binary from before this reads the old column.
 DROP VIEW message_with_reply;
-ALTER TABLE messages RENAME COLUMN mentions_everyone TO mentions_channel;
+ALTER TABLE messages RENAME COLUMN mentions_everyone TO mentions_entire_channel;
 CREATE VIEW message_with_reply AS
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_channel,
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_entire_channel,
     m.reply_to_message_id, m.mentions_here, m.edited_at,
     p.author_id AS reply_author_id,
     p.content AS reply_content,
@@ -17,16 +17,16 @@ SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_chan
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id AND p.deleted_at IS NULL
 LEFT JOIN threads t ON t.root_message_id = m.id;
-UPDATE credentials SET grants = array_replace(grants, 'messages.notify_everyone', 'messages.notify_channel')
+UPDATE credentials SET grants = array_replace(grants, 'messages.notify_everyone', 'messages.notify_entire_channel')
 WHERE 'messages.notify_everyone' = ANY (grants);
 UPDATE schema_floor SET min_migration = 65;
 
 -- +goose Down
 UPDATE schema_floor SET min_migration = 63;
-UPDATE credentials SET grants = array_replace(grants, 'messages.notify_channel', 'messages.notify_everyone')
-WHERE 'messages.notify_channel' = ANY (grants);
+UPDATE credentials SET grants = array_replace(grants, 'messages.notify_entire_channel', 'messages.notify_everyone')
+WHERE 'messages.notify_entire_channel' = ANY (grants);
 DROP VIEW message_with_reply;
-ALTER TABLE messages RENAME COLUMN mentions_channel TO mentions_everyone;
+ALTER TABLE messages RENAME COLUMN mentions_entire_channel TO mentions_everyone;
 CREATE VIEW message_with_reply AS
 SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone,
     m.reply_to_message_id, m.mentions_here, m.edited_at,

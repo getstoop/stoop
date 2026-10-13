@@ -44,7 +44,7 @@ func (noUsers) GetUsers(context.Context, []string) ([]UserRecord, error) { retur
 
 // A @channel costs the same few mention and activity queries however
 // big the space.
-func TestChannelMentionQueriesDoNotGrowWithTheSpace(t *testing.T) {
+func TestEntireChannelMentionQueriesDoNotGrowWithTheSpace(t *testing.T) {
 	pool := dbtest.New(t)
 	ctx := context.Background()
 	counter := &sendQueryCounter{}
@@ -59,9 +59,9 @@ func TestChannelMentionQueriesDoNotGrowWithTheSpace(t *testing.T) {
 
 	casey := authctx.WithIdentity(ctx, authctx.Identity{UserID: dbtest.NewUser(t, pool, "casey", "member"), Role: authctx.RoleMember})
 
-	// sendChannelMention posts @channel in a new space of casey and members-1
+	// sendEntireChannelMention posts @channel in a new space of casey and members-1
 	// others, and counts the queries it made.
-	sendChannelMention := func(members int) (mentions, activity int64) {
+	sendEntireChannelMention := func(members int) (mentions, activity int64) {
 		t.Helper()
 		space, err := svc.CreateSpace(casey, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 		if err != nil {
@@ -83,8 +83,8 @@ func TestChannelMentionQueriesDoNotGrowWithTheSpace(t *testing.T) {
 		return counter.mentions.Load(), counter.activity.Load()
 	}
 
-	smallMentions, smallActivity := sendChannelMention(3)
-	largeMentions, largeActivity := sendChannelMention(20)
+	smallMentions, smallActivity := sendEntireChannelMention(3)
+	largeMentions, largeActivity := sendEntireChannelMention(20)
 	t.Logf("mention queries: %d for a space of 3, %d for 20; activity queries: %d and %d",
 		smallMentions, largeMentions, smallActivity, largeActivity)
 	// One insert for every mention row; blocks, items and mutes for the

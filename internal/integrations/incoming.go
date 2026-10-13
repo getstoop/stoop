@@ -91,14 +91,14 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 	if joinedChannel, err = s.spaces.AddBotToChannel(ctx, req.Msg.ChannelId, bot.ID); err != nil {
 		return nil, err
 	}
-	if req.Msg.NotifyChannel {
+	if req.Msg.NotifyEntireChannel {
 		if err := s.spaces.SetBotAdmin(ctx, spaceID, bot.ID, true); err != nil {
 			return nil, err
 		}
 	}
 	cred, secret, err := s.bots.MintCredential(ctx, MintRequest{
 		HolderID: bot.ID, Kind: authctx.CredentialIncomingHook, Name: name,
-		Grants: hookGrants(req.Msg.NotifyChannel), ChannelID: req.Msg.ChannelId, CreatedBy: authctx.UserID(ctx),
+		Grants: hookGrants(req.Msg.NotifyEntireChannel), ChannelID: req.Msg.ChannelId, CreatedBy: authctx.UserID(ctx),
 	})
 	if err != nil {
 		return nil, err
@@ -144,11 +144,11 @@ func (s *Service) UpdateIncoming(ctx context.Context, req *connect.Request[integ
 			return nil, fmt.Errorf("rename hook: %w", err)
 		}
 	}
-	if req.Msg.NotifyChannel != nil {
+	if req.Msg.NotifyEntireChannel != nil {
 		if hook.CredentialID == nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("this hook's token was revoked; rotate it first"))
 		}
-		if err := s.bots.SetCredentialGrants(ctx, *hook.CredentialID, hookGrants(*req.Msg.NotifyChannel)); err != nil {
+		if err := s.bots.SetCredentialGrants(ctx, *hook.CredentialID, hookGrants(*req.Msg.NotifyEntireChannel)); err != nil {
 			return nil, err
 		}
 		if err := s.settleBotAdmin(ctx, hook.SpaceID, hook.BotUserID); err != nil {
@@ -325,7 +325,7 @@ func (s *Service) retireIfIdle(ctx context.Context, botID string) error {
 }
 
 // settleBotAdmin makes the bot a space admin while any of its hooks there
-// may notify the channel, and a member once none may. A bot no longer in the
+// may use @channel and @here, and a member once none may. A bot no longer in the
 // space is already not an admin there.
 func (s *Service) settleBotAdmin(ctx context.Context, spaceID, botID string) error {
 	hooks, err := s.q.ListIncomingWebhooksBySpace(ctx, spaceID)
@@ -346,7 +346,7 @@ func (s *Service) settleBotAdmin(ctx context.Context, spaceID, botID string) err
 		}
 		for _, cred := range creds {
 			for _, grant := range cred.Grants {
-				admin = admin || grant == authctx.MessagesNotifyChannel
+				admin = admin || grant == authctx.MessagesNotifyEntireChannel
 			}
 		}
 	}
@@ -398,9 +398,9 @@ func botUsername(name string) string {
 	return out
 }
 
-func hookGrants(notifyChannel bool) []authctx.Action {
-	if notifyChannel {
-		return []authctx.Action{authctx.MessagesPost, authctx.MessagesNotifyChannel}
+func hookGrants(notifyEntireChannel bool) []authctx.Action {
+	if notifyEntireChannel {
+		return []authctx.Action{authctx.MessagesPost, authctx.MessagesNotifyEntireChannel}
 	}
 	return []authctx.Action{authctx.MessagesPost}
 }

@@ -72,7 +72,7 @@ export function IncomingTable({
               onChange={(e) =>
                 latest.current.actions.setNotify(h, e.target.checked)
               }
-              aria-label={`${h.name} may notify the channel`}
+              aria-label={`${h.name} may use @channel and @here`}
             />
           ) : (
             hookCanText(h)

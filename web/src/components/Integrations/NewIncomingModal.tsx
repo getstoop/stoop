@@ -14,7 +14,7 @@ import { Switch } from "../Switch";
 import type { Secret } from "./SecretModal";
 
 // New incoming webhook: a name, the channel it posts into, the bot it
-// posts as (a new one by default) and whether it may notify the channel.
+// posts as (a new one by default) and whether it may use @channel and @here.
 export function NewIncomingModal({
   space,
   bots,
@@ -50,7 +50,7 @@ export function NewIncomingModal({
         channelId: chosenChannel,
         name: name.trim(),
         botUserId,
-        notifyChannel: notify,
+        notifyEntireChannel: notify,
       });
       await queryClient.invalidateQueries({ queryKey: ["webhooks"] });
       await queryClient.invalidateQueries({ queryKey: ["bots"] });
@@ -158,7 +158,7 @@ export function NewIncomingModal({
             onChange={(e) => setNotify(e.target.checked)}
           />
           <span>
-            May notify the channel
+            May use @channel and @here
             <span className="hint">
               Lets @channel and @here in its posts ping the channel. This makes
               the bot a space admin, since only admins may; the webhook itself

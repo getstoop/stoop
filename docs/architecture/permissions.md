@@ -149,7 +149,7 @@ Ownership is transferable, and the owner cannot leave without transferring
 | `channels.manage` (create, rename, set topic, delete, reorder, pin) | ✓ | ✓ | |
 | `members.manage` (kick, ban, set role ≤ admin) | ✓ | ✓ | |
 | `space.manage` (name, icon, description, welcome, settings) | ✓ | ✓ | |
-| `messages.notify_channel` (`@channel`, `@here`) | ✓ | ✓ | |
+| `messages.notify_entire_channel` (`@channel`, `@here`) | ✓ | ✓ | |
 | `messages.moderate` (delete others' messages; own always) | ✓ | ✓ | |
 | `space.transfer`, `space.delete` | ✓ | | |
 

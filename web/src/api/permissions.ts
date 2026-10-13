@@ -25,7 +25,7 @@ export const canManageMembers = (space: Space) =>
   can(space, Permission.MEMBERS_MANAGE);
 
 export const canMentionEntireChannel = (space: Space) =>
-  can(space, Permission.MESSAGES_NOTIFY_CHANNEL);
+  can(space, Permission.MESSAGES_NOTIFY_ENTIRE_CHANNEL);
 
 // Deleting someone else's message; your own is always yours to delete.
 export const canDeleteAnyMessage = (space: Space) =>

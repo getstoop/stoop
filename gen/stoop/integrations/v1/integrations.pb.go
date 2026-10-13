@@ -126,10 +126,10 @@ type CreateIncomingRequest struct {
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Empty creates a new bot named after the hook.
 	BotUserId string `protobuf:"bytes,3,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
-	// Grants messages.notify_channel and makes the bot a space admin.
-	NotifyChannel bool `protobuf:"varint,4,opt,name=notify_channel,json=notifyChannel,proto3" json:"notify_channel,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Grants messages.notify_entire_channel and makes the bot a space admin.
+	NotifyEntireChannel bool `protobuf:"varint,4,opt,name=notify_entire_channel,json=notifyEntireChannel,proto3" json:"notify_entire_channel,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreateIncomingRequest) Reset() {
@@ -183,9 +183,9 @@ func (x *CreateIncomingRequest) GetBotUserId() string {
 	return ""
 }
 
-func (x *CreateIncomingRequest) GetNotifyChannel() bool {
+func (x *CreateIncomingRequest) GetNotifyEntireChannel() bool {
 	if x != nil {
-		return x.NotifyChannel
+		return x.NotifyEntireChannel
 	}
 	return false
 }
@@ -376,10 +376,10 @@ func (x *CreateOutgoingResponse) GetSecret() string {
 }
 
 type UpdateIncomingRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	NotifyChannel *bool                  `protobuf:"varint,3,opt,name=notify_channel,json=notifyChannel,proto3,oneof" json:"notify_channel,omitempty"`
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	NotifyEntireChannel *bool                  `protobuf:"varint,3,opt,name=notify_entire_channel,json=notifyEntireChannel,proto3,oneof" json:"notify_entire_channel,omitempty"`
 	// True re-enables a hook disabled by the server; false disables it.
 	Enabled       *bool `protobuf:"varint,4,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -430,9 +430,9 @@ func (x *UpdateIncomingRequest) GetName() string {
 	return ""
 }
 
-func (x *UpdateIncomingRequest) GetNotifyChannel() bool {
-	if x != nil && x.NotifyChannel != nil {
-		return *x.NotifyChannel
+func (x *UpdateIncomingRequest) GetNotifyEntireChannel() bool {
+	if x != nil && x.NotifyEntireChannel != nil {
+		return *x.NotifyEntireChannel
 	}
 	return false
 }
@@ -1853,13 +1853,13 @@ const file_stoop_integrations_v1_integrations_proto_rawDesc = "" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\"\x9e\x01\n" +
 	"\x14ListWebhooksResponse\x12B\n" +
 	"\bincoming\x18\x01 \x03(\v2&.stoop.integrations.v1.IncomingWebhookR\bincoming\x12B\n" +
-	"\boutgoing\x18\x02 \x03(\v2&.stoop.integrations.v1.OutgoingWebhookR\boutgoing\"\x91\x01\n" +
+	"\boutgoing\x18\x02 \x03(\v2&.stoop.integrations.v1.OutgoingWebhookR\boutgoing\"\x9e\x01\n" +
 	"\x15CreateIncomingRequest\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x01 \x01(\tR\tchannelId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1e\n" +
-	"\vbot_user_id\x18\x03 \x01(\tR\tbotUserId\x12%\n" +
-	"\x0enotify_channel\x18\x04 \x01(\bR\rnotifyChannel\"l\n" +
+	"\vbot_user_id\x18\x03 \x01(\tR\tbotUserId\x122\n" +
+	"\x15notify_entire_channel\x18\x04 \x01(\bR\x13notifyEntireChannel\"l\n" +
 	"\x16CreateIncomingResponse\x12@\n" +
 	"\awebhook\x18\x01 \x01(\v2&.stoop.integrations.v1.IncomingWebhookR\awebhook\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\"\x98\x01\n" +
@@ -1873,14 +1873,14 @@ const file_stoop_integrations_v1_integrations_proto_rawDesc = "" +
 	"eventTypes\"r\n" +
 	"\x16CreateOutgoingResponse\x12@\n" +
 	"\awebhook\x18\x01 \x01(\v2&.stoop.integrations.v1.OutgoingWebhookR\awebhook\x12\x16\n" +
-	"\x06secret\x18\x02 \x01(\tR\x06secret\"\xb3\x01\n" +
+	"\x06secret\x18\x02 \x01(\tR\x06secret\"\xc7\x01\n" +
 	"\x15UpdateIncomingRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
-	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12*\n" +
-	"\x0enotify_channel\x18\x03 \x01(\bH\x01R\rnotifyChannel\x88\x01\x01\x12\x1d\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x127\n" +
+	"\x15notify_entire_channel\x18\x03 \x01(\bH\x01R\x13notifyEntireChannel\x88\x01\x01\x12\x1d\n" +
 	"\aenabled\x18\x04 \x01(\bH\x02R\aenabled\x88\x01\x01B\a\n" +
-	"\x05_nameB\x11\n" +
-	"\x0f_notify_channelB\n" +
+	"\x05_nameB\x18\n" +
+	"\x16_notify_entire_channelB\n" +
 	"\n" +
 	"\b_enabled\"Z\n" +
 	"\x16UpdateIncomingResponse\x12@\n" +

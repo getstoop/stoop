@@ -91,7 +91,7 @@ func TestMentionsAndActivity(t *testing.T) {
 	}
 }
 
-func TestMentionChannel(t *testing.T) {
+func TestMentionEntireChannel(t *testing.T) {
 	pool, _, svc := newTestService(t)
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
@@ -110,7 +110,7 @@ func TestMentionChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Msg.Message.MentionsChannel || len(res.Msg.Message.MentionUserIds) != 2 {
+	if !res.Msg.Message.MentionsEntireChannel || len(res.Msg.Message.MentionUserIds) != 2 {
 		t.Errorf("owner @channel: %+v", res.Msg.Message)
 	}
 	for _, ctx := range []context.Context{bea, cal} {
@@ -125,7 +125,7 @@ func TestMentionChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Msg.Message.MentionsChannel || len(res.Msg.Message.MentionUserIds) != 0 {
+	if res.Msg.Message.MentionsEntireChannel || len(res.Msg.Message.MentionUserIds) != 0 {
 		t.Errorf("member @channel should be plain text: %+v", res.Msg.Message)
 	}
 	activity, _ := svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
@@ -138,7 +138,7 @@ func TestMentionChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Msg.Message.MentionsChannel || len(res.Msg.Message.MentionUserIds) != 0 {
+	if res.Msg.Message.MentionsEntireChannel || len(res.Msg.Message.MentionUserIds) != 0 {
 		t.Errorf("@everyone should be plain text: %+v", res.Msg.Message)
 	}
 	activity, _ = svc.ListActivity(cal, connect.NewRequest(&chatv1.ListActivityRequest{}))
@@ -148,8 +148,8 @@ func TestMentionChannel(t *testing.T) {
 
 	// ListMessages carries the flag.
 	msgs, _ := svc.ListMessages(cal, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channelID}))
-	if !msgs.Msg.Messages[0].MentionsChannel || msgs.Msg.Messages[1].MentionsChannel || msgs.Msg.Messages[2].MentionsChannel {
-		t.Errorf("ListMessages mentions_channel flags wrong: %+v", msgs.Msg.Messages)
+	if !msgs.Msg.Messages[0].MentionsEntireChannel || msgs.Msg.Messages[1].MentionsEntireChannel || msgs.Msg.Messages[2].MentionsEntireChannel {
+		t.Errorf("ListMessages mentions_entire_channel flags wrong: %+v", msgs.Msg.Messages)
 	}
 }
 
@@ -187,7 +187,7 @@ func TestMentionHere(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Msg.Message.MentionsHere || res.Msg.Message.MentionsChannel || len(res.Msg.Message.MentionUserIds) != 1 || res.Msg.Message.MentionUserIds[0] != authctx.UserID(bea) {
+	if !res.Msg.Message.MentionsHere || res.Msg.Message.MentionsEntireChannel || len(res.Msg.Message.MentionUserIds) != 1 || res.Msg.Message.MentionUserIds[0] != authctx.UserID(bea) {
 		t.Errorf("@here: %+v", res.Msg.Message)
 	}
 	beaActivity, _ := svc.ListActivity(bea, connect.NewRequest(&chatv1.ListActivityRequest{}))

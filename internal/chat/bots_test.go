@@ -120,21 +120,21 @@ func TestBotsInSpaces(t *testing.T) {
 		}
 		return res.Msg.Message
 	}
-	if quiet := post(hookIdentity(bot, channelID, authctx.MessagesPost)); quiet.MentionsChannel {
-		t.Error("a hook without the grant pinged everyone")
+	if quiet := post(hookIdentity(bot, channelID, authctx.MessagesPost)); quiet.MentionsEntireChannel {
+		t.Error("a hook without the grant pinged the entire channel")
 	} else if quiet.Author.Kind != accessv1.IdentityKind_IDENTITY_KIND_BOT {
 		t.Errorf("author kind = %v", quiet.Author.Kind)
 	}
-	if m := post(hookIdentity(bot, channelID, authctx.MessagesPost, authctx.MessagesNotifyChannel)); m.MentionsChannel {
-		t.Error("a member bot pinged everyone")
+	if m := post(hookIdentity(bot, channelID, authctx.MessagesPost, authctx.MessagesNotifyEntireChannel)); m.MentionsEntireChannel {
+		t.Error("a member bot pinged the entire channel")
 	}
 	if err := svc.SetBotAdmin(bg, spaceID, bot, true); err != nil {
 		t.Fatal(err)
 	}
-	if m := post(hookIdentity(bot, channelID, authctx.MessagesPost)); m.MentionsChannel {
-		t.Error("an admin bot without the grant pinged everyone")
+	if m := post(hookIdentity(bot, channelID, authctx.MessagesPost)); m.MentionsEntireChannel {
+		t.Error("an admin bot without the grant pinged the entire channel")
 	}
-	if m := post(hookIdentity(bot, channelID, authctx.MessagesPost, authctx.MessagesNotifyChannel)); !m.MentionsChannel || len(m.MentionUserIds) != 1 {
+	if m := post(hookIdentity(bot, channelID, authctx.MessagesPost, authctx.MessagesNotifyEntireChannel)); !m.MentionsEntireChannel || len(m.MentionUserIds) != 1 {
 		t.Errorf("grant + admin should ping: %+v", m)
 	}
 	if memberRole(t, pool, spaceID, hookIdentity(bot, channelID)) != "admin" {

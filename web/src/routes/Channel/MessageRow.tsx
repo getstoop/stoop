@@ -232,7 +232,7 @@ export function MessageRow({
         <MessageBody
           content={message.content}
           usernames={usernames}
-          mentionsChannel={message.mentionsChannel}
+          mentionsEntireChannel={message.mentionsEntireChannel}
           mentionsHere={message.mentionsHere}
           myUsername={myUsername}
         />

@@ -27,13 +27,13 @@ func parseMentionHandles(content string) []string {
 	return out
 }
 
-// channelHandle addresses everyone in the channel; hereHandle only those
+// entireChannelHandle addresses everyone in the channel; hereHandle only those
 // currently online. Both are reserved usernames (auth refuses to register
-// them) and need the messages.notify_channel permission; without it the token is
+// them) and need the messages.notify_entire_channel permission; without it the token is
 // plain text.
 const (
-	channelHandle = "channel"
-	hereHandle    = "here"
+	entireChannelHandle = "channel"
+	hereHandle          = "here"
 )
 
 // mentionResult is what a message's @tokens resolved to.
@@ -70,7 +70,7 @@ func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, pa
 
 	var wantEntireChannel, wantHere bool
 	for _, h := range handles {
-		wantEntireChannel = wantEntireChannel || h == channelHandle
+		wantEntireChannel = wantEntireChannel || h == entireChannelHandle
 		wantHere = wantHere || h == hereHandle
 	}
 	if (wantEntireChannel || wantHere) && !isDM(channel) && s.mayNotifyEntireChannel(ctx, channel) {
