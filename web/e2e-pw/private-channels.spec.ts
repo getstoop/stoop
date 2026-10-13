@@ -3,6 +3,7 @@ import {
   acceptDialog,
   channelLink,
   expect,
+  gotoShared,
   say,
   seed,
   signIn,
@@ -67,7 +68,7 @@ test("a private channel and its people", async ({ browser }) => {
   await expect(B.getByText("the flyer is nearly done")).toBeVisible();
 
   // ---- Someone outside it gets nothing at its address.
-  await C.goto(address);
+  await gotoShared(C, address);
   await expect(C.locator(".space-rail")).toBeVisible();
   await expect(C.getByText("the flyer is nearly done")).toHaveCount(0);
   await expect(channelLink(C, "captains")).toHaveCount(0);
@@ -100,7 +101,7 @@ test("a private channel and its people", async ({ browser }) => {
 
   // ---- Space settings lists it with its people, and no Join for
   // someone already in it.
-  await A.goto(`/s/${space.id}/settings?tab=channels`);
+  await gotoShared(A, `/s/${space.id}/settings?tab=channels`);
   const row = A.locator("tr", { hasText: "captains" });
   await expect(row).toContainText("1 person");
   await expect(A.locator("tr", { hasText: "general" })).toContainText(
