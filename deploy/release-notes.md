@@ -1,160 +1,170 @@
-Stoop 0.9.0
+Stoop 0.10.0
 
-Stoop 0.9.0 is still a beta: the API and schema may change between minor
-versions. It upgrades in place from 0.8.x, and `stoop upgrade rollback`
-can take it back to 0.8.x, 0.7.x, 0.6.x or 0.5.x. Going below 0.5.0
-needs a backup, as before.
+Stoop 0.10.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.9.0 with no schema change, and
+`stoop upgrade rollback` can take it back to 0.9.x, 0.8.x, 0.7.x, 0.6.x
+or 0.5.x. Going below 0.5.0 needs a backup, as before.
 
 **What's new.**
 
-- **Email.** Stoop can send mail through an SMTP server you choose. It
-  is optional and off until you set it up, under Server admin → Email or
-  with the `STOOP_SMTP_*` variables before the first start. The page
-  sends a test before you save, and a refused test says which field is
-  wrong. See the new [email guide](https://github.com/getstoop/stoop/blob/v0.9.0/docs/self-hosting/email.md).
-- **An email address on your account.** With email on, people can add an
-  address under Profile → Security and confirm it from a link. It is
-  optional, and only the person and the server's admins see it. Changing
-  or removing it asks for the current password, and the old address is
-  told.
-- **Forgot password?** With email on and a public URL saved, the sign-in
-  page offers a reset link to anyone with a confirmed address. The link
-  works once, for an hour. Setting the new password signs every device
-  out. The page never says whether an address has an account.
-- **A new first-run setup.** Setup asks one thing per screen: account,
-  space, remote access, address, voice and video, email, invite. A
-  reload picks up where it stopped. With voice on, the space starts
-  with a voice channel, lounge, beside #general. The new space opens
-  with the invite link and a list of what was skipped. Server admin →
-  Hosting is unchanged.
-- **Smaller things.** When the first unread message is also the first of
-  its day, the channel shows one "Today · New messages" divider, not
-  two.
+- **Images and videos open in the app.** Clicking an image in chat opens
+  a preview inside Stoop, not a new browser window. It has a Download
+  button, and arrows (or the arrow keys) step through the images and
+  videos in the channel or thread. An uploaded video is now a small
+  still with a play badge in chat, and plays in the same preview.
+- **A muted channel leaves the sidebar.** Muting a text channel takes
+  its row out of the list. A "Muted channels" bar on top of the members
+  list opens them in the side panel, where a channel's name opens it
+  and its bell unmutes it. Mentions in a muted channel still reach
+  Activity. Muting a space, a voice channel or a conversation works as
+  before. Screen readers are told when a channel is muted or unmuted.
+- **Link previews for long pages.** A link to a page over 1 MB, a
+  YouTube video for one, used to get no card. The server now reads the
+  start of the page, 2 MB by default, and makes the card from that.
+- **Link previews through a proxy.** Preview fetches can go out through
+  a SOCKS5 proxy, so linked sites see the proxy's address and not your
+  server's. See [What linked sites see](https://github.com/getstoop/stoop/blob/v0.10.0/docs/self-hosting/reaching-your-server.md#what-linked-sites-see).
+- **Writing on a phone.** On a device with an on-screen keyboard, Return
+  breaks the line and a send button beside the field sends. Editing a
+  message gets Save and Cancel buttons. Desktop is unchanged: Enter
+  sends.
+- **The thread header's channel name is a link.** It opens the channel
+  at the message the thread started from.
+- **Smaller things.** Formatting buttons and the paperclip have
+  tooltips. A channel opened at the bottom stays there while its images
+  load. The message toolbar shows only on the message under the cursor,
+  and chat scrollbars only in the pane under it. The invite page shows
+  the space's icon to someone not signed in. The password reset email
+  states the account's username. A refused upload's reason fits inside
+  its chip. Page headers are one height, and the search field no longer
+  grows when clicked.
 
 **For operators.**
 
-- **Nothing changes until you set up email.** An upgraded server sends
-  no mail and shows no Email section or reset link.
-- **Password reset has no switch of its own.** It is on whenever email
-  is set up and the server has a public URL. Password sign-in still
-  decides who can use it: with *Server admins only*, only admins get a
-  link; with *Off*, nobody does.
-- **The hourly cap.** Stoop sends at most 100 emails in a clock hour by
-  default, tests included. Change it on the Email page; 0 is no cap.
-- **Server admin → Accounts shows confirmed addresses**, and
-  Diagnostics → Health has an Email row with the last send's error.
-- **Login providers.** A new account made through a provider takes the
-  provider's address as confirmed, when the provider says it is verified
-  and no account holds it. Existing accounts are not changed.
-- **`STOOP_SMTP_*` variables** (`HOST`, `PORT`, `SECURITY`, `USERNAME`,
-  `PASSWORD`, `FROM`, `FROM_NAME`, `HOURLY_LIMIT`) are read once, like
-  the other admin-page settings. `stoop admin setting` covers the Email
-  group too.
-- **API additions for scripts.** `GetEmailSettings`,
-  `UpdateEmailSettings` and `SendTestEmail` on the instance service;
-  `RequestEmailChange`, `ResendEmailConfirmation`, `CancelEmailChange`,
-  `RemoveEmail`, `ConfirmEmail`, `RequestPasswordReset`,
-  `GetPasswordReset` and `CompletePasswordReset` on the auth service.
-  `GetMe` carries the caller's `email`, the admin account list carries
-  `email`, and the instance status carries `email_enabled` and
-  `password_reset_available`. Nothing was removed.
+- **Link previews are off on a new server.** An admin turns them on
+  under Server admin → Link previews. With them on, the server fetches
+  every posted link from its own address, a tunnel does not hide that,
+  and any member can learn the address by linking to a site of theirs.
+- **An upgraded server keeps its previews.** At the first start on
+  0.10.0, a server that has accounts and no `STOOP_LINK_PREVIEWS` in its
+  environment gets the switch saved as on. A server whose environment
+  says `STOOP_LINK_PREVIEWS=false` stays off.
+- **`STOOP_LINK_PREVIEWS` changed meaning.** It defaults to `false`, and
+  it is now only the value used until the switch is saved on the admin
+  page. A saved switch overrides it, including turning previews on where
+  the variable says `false`.
+- **The Link previews tab** has three settings, and nothing applies
+  until Save: the switch, the page size (1 to 16 MB), and the proxy,
+  written `socks5://host:port`. A change applies to links posted from
+  then on, with no restart. HTTP proxies and a SOCKS5 username and
+  password are not supported.
+- **With a proxy set**, site names are looked up over HTTPS at a public
+  resolver, through the proxy, and that resolver sees every linked
+  hostname. If the proxy or the resolver is down, links get no card;
+  nothing falls back to a direct fetch. Outgoing webhooks still go out
+  directly.
+- **New variables.** `STOOP_LINK_PREVIEW_HTML_MB` (default `2`) and
+  `STOOP_LINK_PREVIEW_PROXY` are used until a value is saved on the
+  admin page. `STOOP_LINK_PREVIEW_RESOLVER` is the resolver used with a
+  proxy, `https://1.1.1.1/dns-query` by default.
+- **The private-address check is stricter.** Link previews and outgoing
+  webhooks now refuse IPv6 addresses that carry an IPv4 address inside
+  them: `::/96`, NAT64 (`64:ff9b::/96`, `64:ff9b:1::/48`) and 6to4
+  (`2002::/16`). A server with no IPv4 of its own, reaching IPv4 sites
+  only through NAT64, gets no previews for those sites and cannot
+  deliver webhooks to them.
+- **Rolling back to 0.9.0 turns direct fetches back on.** 0.9.0 does not
+  know the switch or the proxy: previews follow `STOOP_LINK_PREVIEWS`,
+  which is on by default there, and every fetch goes out from the
+  server's own address. Set `STOOP_LINK_PREVIEWS=false` before a
+  rollback if you rely on either.
+- **API additions for scripts.** `UpdateSettings` takes `link_previews`,
+  `link_preview_html_mb` and `link_preview_proxy`. The instance status
+  carries `link_previews` and `link_preview_html_mb`, and
+  `GetReachability` carries `link_preview_proxy`. Nothing was removed.
 
-**Schema.** Migrations 00060 and 00061 run at startup. Both only add, and
-the schema floor stays at 53.
-
-- 00060 adds four email columns to `users`, with a unique index on
-  confirmed addresses, and the `email_tokens` table.
-- 00061 lets `email_tokens` hold password reset links.
-
-After a rollback to 0.8.x the email settings and addresses stay in the
-database, unused: no mail is sent, and links already sent don't open.
+**Schema.** No migrations. 0.9.0 and 0.10.0 share schema 61, and the
+schema floor stays at 53.
 
 **Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
-`cloudflared` 2026.9.3, all unchanged from 0.8.1.
+`cloudflared` 2026.9.3, all unchanged from 0.9.0.
 
 **Known issues.**
 
+- A link that failed to get a card stays without one for a week, so
+  links posted while a proxy was down, or to a long page before the
+  upgrade, don't get a card straight away.
+- The preview's arrows step through the messages already loaded in the
+  channel; they don't fetch older history.
+- A video's still and playback in the preview were not checked in
+  Safari, or with MP4 and `.mov` files.
 - A mail relay with a self-signed certificate is not supported over
   STARTTLS or TLS.
-- Gmail works with an app password. Outlook.com and Microsoft 365 need a
-  mail provider's relay; Stoop does not sign in to them directly.
 - On the new space's first-run card, "Set up" beside a skipped Email
   step opens Hosting. Email is its own tab in Server admin.
-- On a phone, picking a channel from the drawer while a thread is open
-  leaves one extra step in the browser's history, so Back stays on the
-  same page once.
+- On a phone, picking a channel from the drawer while a thread is open,
+  or following the thread header's link to the channel you are already
+  in, leaves one extra step in the browser's history, so Back stays on
+  the same page once.
 
 Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
 security problems go through
 [private reporting](https://github.com/getstoop/stoop/security/advisories/new).
 
-Changes since 0.8.1:
+Changes since 0.9.0:
 
-- Build release: ask again for a merge's pull request (d5b92ed)
-- Web: divider and reaction-chip polish (ad27de5)
-- E2E: unreads expects the merged day and unread divider (7a109ea)
-- Web: say when the tunnel adds trusted proxies (b985dd3)
-- Web: setup wizard frame, and resume after a reload (2979068)
-- Web: /login only sends on a session that isn't signed out (b1ee4a6)
-- Web: setup account and space steps check inline and add a voice channel (19050ef)
-- Web: share the reachability form's state and section bodies (cd36027)
-- Web: setup asks remote access, address and voice on their own screens (e590bb0)
-- E2E and docs: setup's reachability on three screens (cfe4a6c)
-- Web: setup's invite step warns about a local link and mints once (800829d)
-- Web: the space setup made opens with the invite and what was skipped (51f43b7)
-- Web: setup resumes only for a live session, and forgets a deleted space (5fc3ec3)
-- Web: forgetting a deleted space forgets its invite too (af7f9d0)
-- Web: the shared reachability fields get a file each (1e34baa)
-- Web: setup's reachability screens handle Funnel, plain HTTP, a late node, no cloudflared (e18a4d3)
-- Web: setup's invite survives a late reply and is replaced once dead (7299eff)
-- Web: the first-run card says when setup's invite no longer works (18153f4)
-- Web: setup replaces only an invite the server says is gone (bd7be0f)
-- Web: the first-run card calls an invite dead only when the server does (9b48b73)
-- Web: reword the tunnel's trusted-proxies notice (1067277)
-- Docs: propose SMTP email setup and sending (a77074e)
-- Email: the contract (5d717a5)
-- Email: stubs settings and sending share (ea27928)
-- Web: the Email admin tab and its shared form (a470433)
-- Web: save takes field changes; neutral test placeholder (03b0870)
-- Web: an optional Email step in first-run setup (9037f3f)
-- Email: SMTP settings (943c31f)
-- Email: the sender, the hourly cap and SendTestEmail (b649704)
-- Email: the health row and the docs (171952a)
-- Email: a saved password goes only to its own server (e27a084)
-- Email: a deadline is no answer, not a wrong field (99cadf0)
-- Email: refusals read as sentences, like the rest of the form (32c9e1e)
-- Web: drop the Email tab's Off badge (9bf0577)
-- Email: STOOP_SMTP_HOST gets the admin page's host rule (57f0df7)
-- Email: a slow lookup or a busy database doesn't mislead (03f1436)
-- Web: the Email tab can't save over settings it couldn't read (e79ee0b)
-- Web: the Email step can't save over settings it couldn't read (3bc22fa)
-- Docs: when a blank SMTP password keeps the saved one (7bdce4a)
-- Web: the Email form shows what was saved, and when a password is kept (258f2e7)
-- Web: the Email step's refusals land under their fields too (7fadb07)
-- Docs: drop the built email proposal (7293fcb)
-- Point the email comments at docs/architecture/email.md (6c91670)
-- Docs: propose account email addresses and the send_email job (a44a80c)
-- Account email: the contract (42eee90)
-- Web: the profile's Email section and the confirm page (944f2e1)
-- Account email: the send_email job and confirmation tokens (6723fef)
-- Account email: addresses, confirmation and the RPCs (10e7d64)
-- Account email: the round trip, request to confirmed (e510f17)
-- Web: one email action at a time, and a reload that doesn't say expired (0799d76)
-- Account email: a failed send leaves the link you have working (6bafac3)
-- Docs: account email addresses and the send_email job (a90311a)
-- Account email: account first, then links, and the newer link wins (8f71fb3)
-- Web: the Email section catches up with another tab, and forms can't be closed mid-send (2540b1c)
-- Docs: drop the built account email proposal (96ece6f)
-- Docs: drop the built account email proposal (a1d4493)
-- Email: render messages from templates (fe152eb)
-- Email: phone layout as designed, and a fixed width for Outlook (49e3623)
-- Password reset: the contract (776fde5)
-- Web: password reset pages (d709788)
-- Web: a link spent while the form was open shows the spent card (d155db1)
-- Password reset: the server (696b2e8)
-- Web: no reset offered while password sign-in is off; name the account when done (3ccd3e4)
-- Password reset: same work for every address, policy checked at use (427733e)
-- Password reset: the notice keeps its address, and retries can't skip the limit (19ba2b2)
-- Web: retry a failed reset-link lookup without losing the token (59eac37)
-- Password reset: only a job's first attempt counts against the limit (d6263af)
-- Password reset: check the limit on a job's first attempt only (6a61f14)
+- Bump source-map-js from 1.2.1 to 1.2.2 in /web (3455492)
+- Invites: the invite page shows the space's icon (2981e87)
+- Password reset: the email states the username (4976b12)
+- Files: the invite icon test asks through the route (b65cc4b)
+- Bump vite from 6.4.3 to 8.3.3 in /web (5aba680)
+- Web: a muted channel leaves the sidebar (STOOP-480) (66d56ff)
+- Web: muted list rows take a hover state and an icon to unmute (5d213db)
+- Web: the muted list's unmute is the red muted bell (d39ce6e)
+- Web: over the unmute bell, only the bell is highlighted (0060d14)
+- Web: the muted channel being read is listed last (4ac8365)
+- Web: the open muted channel's row carries the muted bell (662516a)
+- Web: a thread from a muted channel says so beside the channel's name (2cce197)
+- Web: no thread mute on a thread from a muted channel (89614c2)
+- Web: the thread header's muted bell is dimmed like the sidebar's (486184e)
+- Web: the thread header's muted bell explains itself on hover (e8f598b)
+- Web: keyboard focus follows a mute, and a muted channel's thread says so on its button (5087ae9)
+- Web: muting a channel is announced to screen readers (624e262)
+- Web: composer tooltips, list icons, and a send button for on-screen keyboards (f281814)
+- Web: the thread header's channel name opens the channel on the thread's root (4ff5460)
+- Web: a jump to an open thread's root scrolls to it without the flash (7386004)
+- Web: page headers keep one height, and Activity fills the desktop shell's corner (5b350da)
+- Web: the message hover toolbar's buttons are larger (e581375)
+- Web: a grouped message's hover toolbar no longer repeats the time (a4d36e7)
+- Web: the thread composer's "Also send to" checkbox lines up with its label (82932fd)
+- Web: the "Also send to" checkbox and its label show a pointer (141c149)
+- Web: the "Also send to" checkbox and its label are a little larger (305ad6c)
+- Web: the "Also send to" label is body-sized (e72d1a6)
+- Web: the "Also send to" checkbox is drawn in the app's own style (5c2d129)
+- Web: clicking an image in chat opens a preview in the app (5efd3dc)
+- Web: a browser spec for the image preview (bd85721)
+- Web: the preview's arrows sit beside the image's edges (80677ee)
+- Web: the preview's arrows go back to the window's sides, 24px in (ef532e0)
+- Web: the preview's arrow buttons are a little larger (65e906f)
+- Web: an uploaded video plays in the preview, not in chat (d0a230d)
+- Link previews: a long page is read up to a cap the admin can set (9502d97)
+- Link previews: a switch on the Server admin tab turns them off and on (c0b94a3)
+- Web: the registration spec saves the Server form by name (c648fe1)
+- Link previews: fetches can go through a SOCKS5 proxy (0a41e04)
+- Link previews: a proxied fetch looks the name up through the proxy (971df67)
+- Web: link previews get their own Server admin tab (615b1d5)
+- Chat: an edit made while link previews are off drops a removed link's card (f20e4ee)
+- Test: the preview cap test waits for the first fetch before raising the cap (90ec478)
+- Chat: dropRemovedLinks names its queries parameter (66a0775)
+- Web: the link preview proxy can be set while previews are off (6c4fd5f)
+- Link previews: a redirect from the name resolver is refused (095befa)
+- Web: the link previews switch waits for Save (b57de3a)
+- Egress guard: IPv6 addresses that embed an IPv4 one are refused (f0c6144)
+- Web: the dropdown arrow sits in from the border (6ccf0af)
+- Link previews are off on a new server (cab1bff)
+- Web: a kit Select draws the dropdown chevron in the theme's colour (22ff331)
+- Link previews: the upgrade default never overwrites a saved choice (9326c13)
+- Web: a channel opened at the bottom stays there as its media loads (e44f99d)
+- Web: the message toolbar and the chat scrollbars follow the cursor (77e15d8)
+- Web: a video's caption shows on hover, and a failed upload's reason fits its chip (ded4b5e)
+- Web: a video's caption stays over its still (205f3cc)

@@ -110,8 +110,8 @@ input.switch:disabled {
   color: var(--text-muted);
 }
 
-.card :where(input, select, textarea),
-.field :where(input, select, textarea) {
+.card :where(input, select, textarea, .select),
+.field :where(input, select, textarea, .select) {
   width: 100%;
 }
 
@@ -220,6 +220,36 @@ label.toggle-row input.switch {
   gap: 8px;
   color: var(--text-muted);
   font-size: var(--text-ui);
+}
+
+/* ---- Select (components/Select.tsx): the native select is still the
+   box; the wrapper only places the chevron over its right padding. ---- */
+.select {
+  position: relative;
+  display: inline-grid;
+  min-width: 0;
+}
+
+.select > select {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  padding-right: 32px;
+}
+
+/* ChevronIcon points right. */
+.select > svg {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  translate: 0 -50%;
+  rotate: 90deg;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.select:has(:disabled) > svg {
+  opacity: var(--disabled);
 }
 
 /* ---- NumberInput: the browser's spinner cannot be themed, so it is

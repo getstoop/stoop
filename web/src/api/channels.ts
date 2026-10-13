@@ -5,9 +5,11 @@ import {
   ChannelPostPolicy,
 } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
+import { announce } from "../stores/announcer";
 import { confirm, notice, prompt } from "../stores/dialogs";
 import { chatClient } from "./clients";
 import { errorText } from "./errors";
+import { patchChannel, recomputeSpaceUnread } from "./unreads";
 
 // The channels a space may point new arrivals at. Voice is excluded here
 // and again on the server: landing someone in a voice channel would open
@@ -110,4 +112,30 @@ export async function setAnnouncement(
   } catch (err) {
     notice({ title: "Couldn't update the channel", body: errorText(err) });
   }
+}
+
+// Mutes or unmutes a channel for the caller, and brings the badges along.
+export async function setChannelMuted(
+  queryClient: QueryClient,
+  channel: Channel,
+  muted: boolean,
+) {
+  const res = await chatClient.setChannelMuted({
+    channelId: channel.id,
+    muted,
+  });
+  const now = res.channel?.muted ?? muted;
+  patchChannel(queryClient, channel.spaceId, channel.id, { muted: now });
+  // A text channel's row leaves or rejoins the sidebar, which a screen
+  // reader would otherwise not hear about.
+  if (channel.spaceId && channel.kind !== ChannelKind.VOICE) {
+    announce(
+      now
+        ? `#${channel.name} muted. Find it under Muted channels.`
+        : `#${channel.name} unmuted.`,
+    );
+  }
+  recomputeSpaceUnread(queryClient, channel.spaceId);
+  // The mute stamps on items already in the feed are now stale.
+  queryClient.invalidateQueries({ queryKey: ["activity"] });
 }

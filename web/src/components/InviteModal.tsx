@@ -12,6 +12,7 @@ import { useFieldErrors } from "../hooks/useFieldErrors";
 import { Field } from "./Field";
 import { Modal } from "./Modal";
 import { NumberInput } from "./NumberInput";
+import { Select } from "./Select";
 
 // Expiry presets, in seconds. 0 = never.
 const EXPIRY_OPTIONS: { label: string; seconds: number }[] = [
@@ -100,7 +101,7 @@ export function InviteModal({
       <form className="invite-form" ref={form.formRef} onSubmit={createInvite}>
         <div className="invite-fields">
           <Field label="Expires after" error={form.errors.expiresIn}>
-            <select
+            <Select
               value={expiry}
               onChange={(e) => setExpiry(Number(e.target.value))}
             >
@@ -109,7 +110,7 @@ export function InviteModal({
                   {o.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Max uses" error={form.errors.maxUses}>
             <NumberInput
@@ -129,7 +130,7 @@ export function InviteModal({
             }
             error={form.errors.role}
           >
-            <select
+            <Select
               value={role}
               onChange={(e) => setRole(Number(e.target.value) as SpaceRole)}
               disabled={roles.length < 2}
@@ -139,7 +140,7 @@ export function InviteModal({
                   {roleLabel(r)}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         </div>
         {form.formError && (

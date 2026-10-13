@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { threadFromLink } from "../../api/shareLinks";
 import { ThreadView } from "../../routes/Channel/ThreadView";
+import { MutedChannels } from "../MutedChannels";
 
 // What the side panel can show. A kind of content is one entry: its
 // component, which draws itself inside SidePanelFrame, and optionally the
@@ -29,4 +30,5 @@ export const panels: PanelRegistry = {
     component: ThreadView,
     link: { param: "t", also: ["m"], params: threadFromLink },
   },
+  muted: { component: MutedChannels },
 };

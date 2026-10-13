@@ -140,6 +140,7 @@ func TestE2ESettingsFieldViolation(t *testing.T) {
 	}{
 		{"blank server name", map[string]any{"instanceName": "  "}, "invalid_argument", "instance_name"},
 		{"two years signed in", map[string]any{"sessionLifetimeDays": 730}, "invalid_argument", "session_lifetime_days"},
+		{"a whole site per preview", map[string]any{"linkPreviewHtmlMb": 64}, "invalid_argument", "link_preview_html_mb"},
 		{"messages kept too long", map[string]any{"messageRetentionDays": 99999}, "invalid_argument", "message_retention_days"},
 		{"attachments kept too long", map[string]any{"attachmentRetentionDays": 99999}, "invalid_argument", "attachment_retention_days"},
 		{"a negative storage limit", map[string]any{"storageQuotaBytes": "-1"}, "invalid_argument", "storage_quota_bytes"},

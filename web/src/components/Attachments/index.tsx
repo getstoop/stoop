@@ -1,21 +1,22 @@
 import {
-  fileUrl,
-  formatBytes,
   isInlineImage,
   isPlayableAudio,
   isPlayableVideo,
 } from "../../api/files";
 import { plainText } from "../../api/markdown";
 import type { Attachment, Message } from "../../gen/stoop/chat/v1/message_pb";
-import { DownloadIcon } from "../Icons";
 import { AttachmentCard } from "./AttachmentCard";
 import { AudioAttachment } from "./AudioAttachment";
 import { ExpiredAttachment } from "./ExpiredAttachment";
+import { ImageAttachment } from "./ImageAttachment";
 import { VideoAttachment } from "./VideoAttachment";
 
+export { GalleryMedia, galleryMedia } from "./gallery";
+
 // A message's attachments, rendered under its body: raster images inline
-// (click for full size; a hover bar names the file and downloads it),
-// video and audio as a player, anything else as a download card.
+// (click for a preview; a hover bar names the file and downloads it),
+// video as a frame that plays in the same preview, audio as a player,
+// anything else as a download card.
 // Attachments are a separate field on the message, never part of the
 // Markdown.
 export function Attachments({ attachments }: { attachments: Attachment[] }) {
@@ -36,35 +37,6 @@ export function Attachments({ attachments }: { attachments: Attachment[] }) {
         ),
       )}
     </div>
-  );
-}
-
-// An inline image: click for full size, hover for the name and download.
-function ImageAttachment({ attachment: a }: { attachment: Attachment }) {
-  return (
-    <figure className="attachment-image">
-      <a
-        href={fileUrl(a.fileId)}
-        target="_blank"
-        rel="noreferrer"
-        title="Open full size"
-      >
-        <img src={fileUrl(a.fileId)} alt={a.name} loading="lazy" />
-      </a>
-      <figcaption className="attachment-bar">
-        <span className="attachment-name">{a.name}</span>
-        <span className="attachment-size">{formatBytes(a.size)}</span>
-        <a
-          className="attachment-download"
-          href={fileUrl(a.fileId)}
-          download={a.name}
-          title={`Download ${a.name}`}
-          aria-label={`Download ${a.name}`}
-        >
-          <DownloadIcon />
-        </a>
-      </figcaption>
-    </figure>
   );
 }
 

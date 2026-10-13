@@ -11,6 +11,7 @@ import (
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/cftunnel"
 	"github.com/getstoop/stoop/internal/chat"
+	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/files"
 	"github.com/getstoop/stoop/internal/instance"
 	"github.com/getstoop/stoop/internal/tailnet"
@@ -160,15 +161,32 @@ func (v identityVerifier) VerifyRequest(ctx context.Context, h http.Header) (aut
 	return v.auth.VerifyToken(ctx, auth.TokenFromHeader(h))
 }
 
-// unfurler adapts internal/unfurl to chat's port.
-type unfurler struct{ f *unfurl.Fetcher }
+// unfurler adapts internal/unfurl to chat's port, reading the page cap
+// and the proxy from the instance settings at each fetch.
+type unfurler struct {
+	f        *unfurl.Fetcher
+	instance *instance.Service
+}
 
 func (u unfurler) Fetch(ctx context.Context, url string) (chat.LinkMeta, error) {
-	p, err := u.f.Fetch(ctx, url)
+	limit, err := u.instance.LinkPreviewHTMLBytes(ctx)
 	if err != nil {
 		return chat.LinkMeta{}, err
 	}
-	return chat.LinkMeta{Title: p.Title, Description: p.Description, SiteName: p.SiteName, Image: p.Image}, nil
+	saved, err := u.instance.LinkPreviewProxy(ctx)
+	if err != nil {
+		return chat.LinkMeta{}, err
+	}
+	// A saved value that no longer parses must not turn into a direct fetch.
+	proxyAddr, ok := config.SOCKS5Proxy(saved)
+	if saved != "" && !ok {
+		return chat.LinkMeta{}, fmt.Errorf("link preview proxy %q is not socks5://host:port", saved)
+	}
+	preview, err := u.f.Fetch(ctx, url, unfurl.FetchOptions{MaxHTMLBytes: limit, SOCKS5Proxy: proxyAddr})
+	if err != nil {
+		return chat.LinkMeta{}, err
+	}
+	return chat.LinkMeta{Title: preview.Title, Description: preview.Description, SiteName: preview.SiteName, Image: preview.Image}, nil
 }
 
 // providerSource adapts instance's login-provider settings to auth's

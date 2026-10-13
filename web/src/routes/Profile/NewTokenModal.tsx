@@ -14,6 +14,7 @@ import {
 import { Field } from "../../components/Field";
 import { Modal } from "../../components/Modal";
 import { PermissionPicker } from "../../components/PermissionPicker";
+import { Select } from "../../components/Select";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // Security → Personal tokens → New token. It starts as narrow as it can:
@@ -100,7 +101,7 @@ export function NewTokenModal({
             />
           </Field>
           <Field label="Expires" error={form.errors.expiresInDays}>
-            <select
+            <Select
               name="token-expiry"
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
@@ -110,7 +111,7 @@ export function NewTokenModal({
                   {c.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         </div>
         {days === 0 && (

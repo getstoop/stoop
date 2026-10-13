@@ -21,6 +21,10 @@ INSERT INTO message_links (message_id, position, url) VALUES ($1, $2, $3);
 -- name: DeleteMessageLinks :exec
 DELETE FROM message_links WHERE message_id = $1;
 
+-- name: DeleteMessageLinksExcept :exec
+DELETE FROM message_links
+WHERE message_id = sqlc.arg(message_id) AND NOT (url = ANY(sqlc.arg(urls)::text[]));
+
 -- name: ListLinkPreviewsForMessages :many
 SELECT ml.message_id, ml.position, p.*
 FROM message_links ml

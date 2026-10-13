@@ -3,6 +3,7 @@ import { useState } from "react";
 import { instanceClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useInstanceStatus, useInstanceUsers } from "../../api/queries";
+import { Select } from "../../components/Select";
 import { SettingRow } from "../../components/SettingRow";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { PasswordSignIn } from "../../gen/stoop/instance/v1/instance_pb";
@@ -72,7 +73,7 @@ export function PasswordSignInSection() {
           </>
         }
       >
-        <select
+        <Select
           id="password-sign-in"
           name="password-sign-in"
           value={current}
@@ -88,7 +89,7 @@ export function PasswordSignInSection() {
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
       </SettingRow>
       {restricted && users && !adminWithPassword && (
         <div className="callout provider-warning" role="alert">

@@ -11,7 +11,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  /* off-scale: the sidebar header's height, so the two rules meet */
+  min-height: 51px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
 }
@@ -133,13 +135,13 @@
 
 .message-toolbar {
   position: absolute;
-  top: -12px;
+  top: -16px;
   right: 16px;
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 6px;
+  gap: 4px;
+  padding: 2px 4px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel);
@@ -149,13 +151,27 @@
 }
 
 .message:hover .message-toolbar,
-.message:focus-within .message-toolbar {
+.message:has(:focus-visible) .message-toolbar {
   opacity: 1;
   pointer-events: auto;
 }
 
+/* No hover on a touch screen: a tapped row keeps its toolbar. */
+@media (hover: none) {
+  .message:focus-within .message-toolbar {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .message-toolbar .message-action {
+  padding: 4px;
   opacity: 1;
+}
+
+.message-toolbar .message-action svg {
+  width: 18px;
+  height: 18px;
 }
 
 .message-action:hover {

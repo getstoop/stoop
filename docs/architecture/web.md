@@ -141,6 +141,7 @@ The stores, and what each is for:
 | `layout` | `drawerOpen`. That is the entire mobile navigation state. |
 | `sidePanel` | What the side panel shows, or nothing, saved per tab ([The side panel](#the-side-panel)). |
 | `dialogs` | The promise-shaped `confirm` / `prompt` / `notice` queue. |
+| `announcer` | The sentence a screen reader is told about a change that only shows on screen; `announce()` sets it and `components/Announcer.tsx` is the hidden live region that speaks it. |
 
 `connection.activeChannelId` deserves a note: it is what lets a realtime
 handler tell "a message arrived in the channel I am reading" from "a
@@ -410,7 +411,8 @@ not build its own.
   device's Back closes it, and going to another page closes it too. On a
   wide screen history is left alone, and Back never closes the panel.
 
-Adding a kind is a registry entry and its component. The first is a
+Adding a kind is a registry entry and its component. The muted channels
+list (`components/MutedChannels`) is the simplest. The first was a
 thread (`routes/Channel/ThreadView.tsx`): its root, fetched as a
 one-message page under the channel's key so realtime writes reach it,
 then its replies through the same `MessageList` as the channel, and a

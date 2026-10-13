@@ -1,9 +1,15 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
-import { channelMuted, isMuted, spaceMuted } from "./mutes";
+import {
+  channelMuted,
+  isMuted,
+  mutedByCaller,
+  sidebarTextChannels,
+  spaceMuted,
+} from "./mutes";
 
 const channel = (id: string, muted = false): Channel =>
   ({ id, muted }) as Channel;
@@ -150,5 +156,38 @@ describe("isMuted", () => {
       qc.setQueryData(["dms"], [dm(channel("ada"))]);
       expect(isMuted(qc, "", "ada")).toBe(false);
     });
+  });
+});
+
+describe("sidebarTextChannels", () => {
+  const text = (id: string, muted = false): Channel =>
+    ({ id, muted, kind: ChannelKind.TEXT }) as Channel;
+  const ids = (channels: Channel[]) => channels.map((c) => c.id);
+
+  it("leaves out a text channel the caller muted", () => {
+    const channels = [text("general"), text("garden", true), text("sale")];
+    expect(ids(sidebarTextChannels(channels, "general"))).toEqual([
+      "general",
+      "sale",
+    ]);
+  });
+
+  it("lists the muted channel being read last", () => {
+    const channels = [text("general"), text("garden", true), text("sale")];
+    expect(ids(sidebarTextChannels(channels, "garden"))).toEqual([
+      "general",
+      "sale",
+      "garden",
+    ]);
+  });
+
+  it("leaves voice channels to their own group", () => {
+    const voice = { id: "porch", muted: true, kind: ChannelKind.VOICE };
+    expect(mutedByCaller(voice as Channel)).toBe(false);
+    expect(sidebarTextChannels([voice as Channel], "porch")).toEqual([]);
+  });
+
+  it("is empty while the list is cold", () => {
+    expect(sidebarTextChannels(undefined, undefined)).toEqual([]);
   });
 });

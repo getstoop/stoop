@@ -125,6 +125,7 @@
 
   /* Channel view: narrower gutters, smaller avatar column. */
   .channel-header {
+    min-height: 0;
     padding: 8px 12px;
     /* The pinned-messages sheet spans the header and positions against
        it (pins.css). */
@@ -411,7 +412,7 @@
     max-width: none;
   }
 
-  .setting-control > select {
+  .setting-control > .select {
     flex: 1 1 100%;
     width: 100%;
   }
@@ -458,5 +459,18 @@
 
   .pins-close {
     display: inline-flex;
+  }
+  /* The image takes the width; the arrows sit over its edges. */
+  .media-preview {
+    /* off-scale: 56px keeps the top buttons clear of the image */
+    padding: 56px 8px;
+  }
+
+  .media-preview-previous {
+    left: 12px;
+  }
+
+  .media-preview-next {
+    right: 12px;
   }
 }

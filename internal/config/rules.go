@@ -13,6 +13,14 @@ const (
 	MaxSessionLifetimeDays = 365
 	// DefaultSessionLifetimeDays applies when nothing else sets a lifetime.
 	DefaultSessionLifetimeDays = 30
+	// DefaultLinkPreviewHTMLMB is how much of a linked page is read for
+	// its preview when nothing else sets it; MaxLinkPreviewHTMLMB is the
+	// most allowed.
+	DefaultLinkPreviewHTMLMB = 2
+	MaxLinkPreviewHTMLMB     = 16
+	// DefaultLinkPreviewResolver is where names are looked up when
+	// preview fetches go through a proxy.
+	DefaultLinkPreviewResolver = "https://1.1.1.1/dns-query"
 	// DefaultSMTPHourlyLimit is the outbound email cap when none is set;
 	// MaxSMTPHourlyLimit is the highest one allowed.
 	DefaultSMTPHourlyLimit = 100
@@ -52,6 +60,25 @@ func Origin(raw string) bool {
 func IssuerURL(raw string) bool {
 	parsed, ok := HTTPURL(raw)
 	return ok && parsed.RawQuery == "" && parsed.Fragment == ""
+}
+
+// SOCKS5Proxy parses a proxy address written socks5://host:port and
+// returns its host:port. Credentials, a path and a query are refused.
+func SOCKS5Proxy(raw string) (string, bool) {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "socks5" || parsed.User != nil ||
+		parsed.Hostname() == "" || parsed.Port() == "" ||
+		parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", false
+	}
+	return parsed.Host, true
+}
+
+// DNSResolver reports whether raw is a DNS-over-HTTPS address. Plain
+// http is taken only with allowInsecure, for tests.
+func DNSResolver(raw string, allowInsecure bool) bool {
+	parsed, ok := HTTPURL(raw)
+	return ok && parsed.User == nil && (parsed.Scheme == "https" || allowInsecure)
 }
 
 // ValidProviderID reports whether id fits the login-provider id pattern.

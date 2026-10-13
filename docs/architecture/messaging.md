@@ -294,7 +294,8 @@ thread's `thread_reply` items, which are its unread signal
 | Surface | Unmuted | Muted |
 | --- | --- | --- |
 | Desktop banner for a mention, reply or DM there | fires | silent |
-| Channel name bold when unread | yes | no (row dimmed) |
+| Channel name bold when unread | yes | no |
+| Text channel's row in the sidebar (its own mute) | shown | left out |
 | Mention count badge on the channel row | yes | no |
 | Space pill unread dot | yes | no |
 | Space pill mention count badge | yes | no |
@@ -316,6 +317,19 @@ Profile → Notifications holds the desktop banner permission; the activity
 page is only the feed. Inside a muted space the channel menu's mute item reads
 "Muted by space" and is disabled, and the space name carries a red muted
 bell, so the dimmed rows explain themselves.
+
+A text channel the person muted themselves leaves the sidebar, so muting
+is also how a long channel list gets shorter. While they have any in a
+space, a "Muted channels" bar sits on top of the members list and opens
+the list in the side panel (`components/MutedChannels`), where a name
+opens the channel and Unmute puts its row back. The channel being read
+has a row, dimmed and last in the list so no other row moves, until the
+reader goes elsewhere. A muted space hides nothing: only a channel's own
+mute does (`sidebarTextChannels` in `mutes.ts`). A thread from a muted
+channel shows its own mute button as muted and disabled, with a tooltip
+saying the channel is why. Muting or unmuting a text channel is
+announced to screen readers, since the row's move is only visible. Voice channels and conversations stay
+listed, dimmed.
 
 Two neighbouring mechanisms are not mutes. **Do not disturb** is a
 choice on the account that holds every banner, on every device, on top of mutes
@@ -703,14 +717,40 @@ which is a serious thing to be. So the fetcher:
   multicast ranges, and dials the checked IP** — so a name that resolves
   differently the second time cannot rebind onto a local address;
 - **re-checks every redirect** against the same rules;
-- caps bodies at 1 MB of HTML and 5 MB of image, the cap chosen by the
-  Content-Type the server announces;
+- reads the first `link_preview_html_mb` megabytes of a page (else
+  `STOOP_LINK_PREVIEW_HTML_MB`, else 2) and refuses an image over 5 MB,
+  the cap chosen by the Content-Type the server announces;
 - **never uses an environment proxy**, which would otherwise route the
   whole defence around itself.
+
+### Through a proxy
+
+A fetch shows the linked site the server's own address, which is a home
+address for many operators and which any member can collect by posting a
+link to a site of theirs. With `link_preview_proxy` set (else
+`STOOP_LINK_PREVIEW_PROXY`), the server contacts nothing but that SOCKS5
+proxy:
+
+1. the name is looked up over HTTPS at `STOOP_LINK_PREVIEW_RESOLVER`, a
+   public resolver, **through the proxy**. A lookup made by the server
+   itself would reach the site's name server from the operator's
+   resolver;
+2. every address in the answer is checked as a direct fetch's would be;
+3. the proxy is asked to connect to **the address checked**, never to the
+   name, so there is no second lookup to answer differently.
+
+The guard is therefore as exact as without a proxy, wherever the proxy
+runs. A proxy or resolver that is down fails the fetch; nothing falls
+back to a direct one. SOCKS5 without credentials is the only kind taken.
 
 `STOOP_UNFURL_ALLOW_PRIVATE` relaxes this for development and for the
 browser spec, which serves its own page to unfurl. It is logged loudly at
 startup, because it is exactly the setting that turns the server into a
-probe of the operator's LAN. `STOOP_LINK_PREVIEWS=false` turns the feature
-off entirely, for operators who would rather the server made no outbound
-requests at all.
+probe of the operator's LAN.
+
+Previews are **off unless turned on**: the `link_previews` setting, else
+`STOOP_LINK_PREVIEWS`, else off, because every fetch shows a linked site
+the server's address. Links posted while it is off are not recorded, and
+cards already fetched stay. A server that had accounts before this
+default has the setting saved as on at its first start with it
+(`KeepLinkPreviewsOn`), so an upgrade takes no cards away.

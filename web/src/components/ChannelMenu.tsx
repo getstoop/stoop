@@ -5,6 +5,7 @@ import {
   editChannelTopic,
   isAnnouncement,
   setAnnouncement,
+  setChannelMuted,
 } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
@@ -15,12 +16,12 @@ import {
   shareOrigin,
   shareUrl,
 } from "../api/shareLinks";
-import { patchChannel, recomputeSpaceUnread } from "../api/unreads";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice, prompt } from "../stores/dialogs";
 import { ChannelAbout } from "./ChannelAbout";
 import { DotsMenu, type MenuItem } from "./DotsMenu";
+import { focusAfterMute } from "./MutedChannels/focus";
 
 // The ⋮ on a channel row: mute/unmute for anyone who can read it (a DM
 // too), and for people who manage the space, rename and delete. Shown on
@@ -48,15 +49,9 @@ export function ChannelMenu({
 
   const toggleMute = () =>
     run(async () => {
-      const res = await chatClient.setChannelMuted({
-        channelId: channel.id,
-        muted: !channel.muted,
-      });
-      const muted = res.channel?.muted ?? !channel.muted;
-      patchChannel(queryClient, spaceId, channel.id, { muted });
-      recomputeSpaceUnread(queryClient, spaceId);
-      // The mute stamps on items already in the feed are now stale.
-      queryClient.invalidateQueries({ queryKey: ["activity"] });
+      const muting = !channel.muted;
+      await setChannelMuted(queryClient, channel, muting);
+      if (muting) focusAfterMute(channel.id);
     });
 
   const copyLink = () =>

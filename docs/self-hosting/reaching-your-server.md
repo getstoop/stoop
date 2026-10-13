@@ -199,3 +199,21 @@ Trusted proxies.
   packets it cannot decrypt. LiveKit itself decrypts to forward between
   participants, so whoever runs the server can hear the room: there is no
   end-to-end encryption.
+
+## What linked sites see
+
+Link previews are off on a new server. Turned on (**Server admin → Link
+previews**), your server fetches each posted link to make its card, and
+the site sees your server's own address. A tunnel does not hide it: the
+fetch goes out directly. Anyone who can post can learn the address by
+linking to a site of theirs.
+
+To have cards without that, set a SOCKS5 proxy on the same tab as
+`socks5://host:port`. Tor's local port, a VPN provider's SOCKS5 endpoint
+and `ssh -D` to another machine all work. Site names are then looked up
+through the proxy at a public resolver (`STOOP_LINK_PREVIEW_RESOLVER`,
+Cloudflare's by default), and links to private addresses are refused as
+they are without a proxy. If the proxy is down, links get no card.
+
+A server set up before previews were off by default keeps them on when
+it upgrades.

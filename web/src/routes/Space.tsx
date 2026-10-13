@@ -15,7 +15,7 @@ import {
 } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
-import { isMuted } from "../api/mutes";
+import { isMuted, mutedByCaller, sidebarTextChannels } from "../api/mutes";
 import { canCreateInvites, canManageChannels } from "../api/permissions";
 import {
   useActivity,
@@ -39,6 +39,8 @@ import { BellOffIcon } from "../components/Icons";
 import { InviteModal } from "../components/InviteModal";
 import { MembersPanel } from "../components/MembersPanel";
 import { closeDrawerOnLink } from "../components/MenuButton";
+import { MutedBar } from "../components/MutedChannels";
+import { MutedMark } from "../components/MutedMark";
 import { SpaceAbout } from "../components/SpaceAbout";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { SpaceWelcome } from "../components/SpaceWelcome";
@@ -53,7 +55,9 @@ import { useLayoutStore } from "../stores/layout";
 // Space layout: channel sidebar on the left, the active channel (via
 // Outlet) on the right.
 export function SpaceLayout() {
-  const { spaceId } = useParams({ strict: false }) as { spaceId: string };
+  const { spaceId, channelId: openChannelId } = useParams({
+    strict: false,
+  }) as { spaceId: string; channelId?: string };
   const { data: spaces } = useSpaces();
   const { data: channels } = useChannels(spaceId);
   const { data: activity } = useActivity();
@@ -64,8 +68,7 @@ export function SpaceLayout() {
   const [aboutOpen, setAboutOpen] = useState(false);
 
   const space = spaces?.find((s) => s.id === spaceId);
-  const textChannels =
-    channels?.filter((c) => c.kind !== ChannelKind.VOICE) ?? [];
+  const textChannels = sidebarTextChannels(channels, openChannelId);
   const manage = !!space && canManageChannels(space);
   const voiceChannels =
     channels?.filter((c) => c.kind === ChannelKind.VOICE) ?? [];
@@ -262,6 +265,7 @@ export function SpaceLayout() {
                 >
                   <ChannelGlyph channel={channel} />
                   <span className="channel-name">{channel.name}</span>
+                  {mutedByCaller(channel) && <MutedMark />}
                   {(unreadByChannel.get(channel.id) ?? 0) > 0 && (
                     <span className="channel-badge" title="Unread mentions">
                       {badgeCount(unreadByChannel.get(channel.id) ?? 0)}
@@ -288,6 +292,7 @@ export function SpaceLayout() {
           ))}
         </div>
         <VoiceBar />
+        <MutedBar spaceId={spaceId} channels={channels} />
         <MembersPanel spaceId={spaceId} />
       </aside>
       <Outlet />

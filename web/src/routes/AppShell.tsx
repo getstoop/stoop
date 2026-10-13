@@ -26,6 +26,7 @@ import { MAX_SPACE_NAME } from "../api/spaces";
 import { badgeCount, isAlerting } from "../api/unreads";
 import { startVoiceBridge } from "../api/voiceBridge";
 import { startRealtime } from "../api/ws";
+import { Announcer } from "../components/Announcer";
 import { Avatar } from "../components/Avatar";
 import {
   GearIcon,
@@ -114,6 +115,7 @@ export function AppShell() {
       <NavBackdrop />
       <Outlet />
       <SidePanel />
+      <Announcer />
     </div>
   );
 }

@@ -17,6 +17,7 @@
   font-size: var(--text-ui);
   /* off-scale: one button height for the sans and mono glyphs */
   line-height: 18px;
+  white-space: nowrap;
 }
 
 /* In the side panel's narrow column the tools sit closer, on one line. */
@@ -51,4 +52,9 @@
 .format-codeblock {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+}
+
+.format-button svg {
+  display: block;
+  margin: 0 auto;
 }

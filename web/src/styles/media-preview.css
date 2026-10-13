@@ -1,0 +1,57 @@
+/* ---- Media preview: an attached image or video over a scrim. ---- */
+
+.media-preview {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* off-scale: clears the buttons, 12px from the top and 24px from the sides */
+  padding: 56px 80px;
+  background: var(--scrim-deep);
+}
+
+/* Its own size, shrunk to fit the window. */
+.media-preview img,
+.media-preview video {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+
+.media-preview-close,
+.media-preview-download,
+.media-preview-step {
+  position: absolute;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.media-preview-close {
+  left: 12px;
+  padding: 4px;
+}
+
+.media-preview-download {
+  right: 12px;
+}
+
+.media-preview-step {
+  top: 50%;
+  padding: 8px;
+  transform: translateY(-50%);
+}
+
+.media-preview-previous {
+  left: 24px;
+}
+
+.media-preview-next {
+  right: 24px;
+}

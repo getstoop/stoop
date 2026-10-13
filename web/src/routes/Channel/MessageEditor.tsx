@@ -8,9 +8,11 @@ import { FormatToolbar } from "../../components/FormatToolbar";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoGrow } from "../../hooks/useAutoGrow";
 import { useFormatting } from "../../hooks/useFormatting";
+import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 
 // Inline editor: Enter saves, Shift+Enter breaks the line, Esc cancels,
-// empty content is refused.
+// empty content is refused. An on-screen keyboard's Return breaks the line,
+// so there the editor has Save and Cancel buttons.
 export function MessageEditor({
   message,
   onDone,
@@ -23,6 +25,7 @@ export function MessageEditor({
   const queryClient = useQueryClient();
   const ref = useRef<HTMLTextAreaElement>(null);
   useAutoGrow(ref, value);
+  const touchKeyboard = useTouchKeyboard();
   const { apply: format, onShortcut } = useFormatting(ref, setValue);
 
   // Focus once with the caret at the end.
@@ -74,6 +77,7 @@ export function MessageEditor({
           onKeyDown={(e) => {
             if (onShortcut(e)) return;
             if (e.key === "Enter" && !e.shiftKey) {
+              if (touchKeyboard) return;
               e.preventDefault();
               save();
             } else if (e.key === "Escape") {
@@ -84,9 +88,20 @@ export function MessageEditor({
           maxLength={4000}
         />
       </div>
-      <span className="muted small">
-        Enter to save · Shift+Enter for a new line · Esc to cancel
-      </span>
+      {touchKeyboard ? (
+        <div className="message-editor-actions">
+          <button type="button" className="chip" onClick={onDone}>
+            Cancel
+          </button>
+          <button type="button" className="primary" onClick={save}>
+            Save
+          </button>
+        </div>
+      ) : (
+        <span className="muted small">
+          Enter to save · Shift+Enter for a new line · Esc to cancel
+        </span>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}

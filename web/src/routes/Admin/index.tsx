@@ -9,6 +9,7 @@ import { CleanupSection } from "./CleanupSection";
 import { Diagnostics } from "./Diagnostics";
 import { EmailSection } from "./EmailSection";
 import { IntegrationsSection } from "./IntegrationsSection";
+import { LinkPreviewSetting } from "./LinkPreviewSetting";
 import { LoginProvidersSection } from "./LoginProvidersSection";
 import { OutdatedNotice } from "./OutdatedNotice";
 import { PasswordSignInSection } from "./PasswordSignInSection";
@@ -24,8 +25,8 @@ import { UsersSection } from "./UsersSection";
 
 // Server administration: who may create accounts and spaces, which build
 // this is, the account list, every space on the server, how people reach
-// the server, sign-in, outgoing email, the upload disk, and how the server
-// is doing.
+// the server, sign-in, outgoing email, the upload disk, link previews, and
+// how the server is doing.
 // Instance admins only; everyone else is sent home.
 
 type Tab =
@@ -37,6 +38,7 @@ type Tab =
   | "email"
   | "storage"
   | "integrations"
+  | "previews"
   | "diagnostics";
 
 const TABS: { key: Tab; label: string }[] = [
@@ -48,6 +50,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "email", label: "Email" },
   { key: "storage", label: "Storage" },
   { key: "integrations", label: "Integrations" },
+  { key: "previews", label: "Link previews" },
   { key: "diagnostics", label: "Diagnostics" },
 ];
 
@@ -116,6 +119,7 @@ export function AdminPage() {
       )}
       {active === "email" && <EmailSection />}
       {active === "integrations" && <IntegrationsSection />}
+      {active === "previews" && <LinkPreviewSetting />}
       {active === "diagnostics" && <Diagnostics />}
       {active === "storage" && (
         <>
