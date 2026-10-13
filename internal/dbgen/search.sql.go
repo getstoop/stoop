@@ -13,7 +13,7 @@ import (
 const getChannelInSpaceByName = `-- name: GetChannelInSpaceByName :one
 SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private FROM channels c
 WHERE c.space_id = $1::uuid AND lower(c.name) = lower($2)
-  AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = $3::uuid))
+  AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = $3::uuid)
 ORDER BY (c.name = $2) DESC, c.position, c.created_at
 LIMIT 1
 `
@@ -53,7 +53,7 @@ SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_ever
 JOIN messages indexed ON indexed.id = m.id
 WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = $1::uuid
         AND ($2::bool OR c.kind <> 2)
-        AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = $3::uuid)))
+        AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = $3::uuid))
   AND indexed.search @@ (CASE
       WHEN $4::text = '' THEN websearch_to_tsquery('simple', $5::text)
       WHEN $5::text = '' THEN to_tsquery('simple', $4::text)

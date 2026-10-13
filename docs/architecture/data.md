@@ -175,8 +175,11 @@ in the same file.
 
 **`channel_readers`** is a view of `(channel_id, user_id)`: who may read
 a channel, as the members of a public channel's space, the people in a
-private channel, or the participants of a direct message. Every query that asks whether someone may read a channel reads
-it, so the rule is written once.
+private channel, or the participants of a direct message. Every query
+that reads channels for a person asks it, lists as well as single checks,
+so the rule is written once. `TestQueriesAskTheViewWhoMayReadAChannel`
+fails when a query reads the `channels` table without it and is not on
+that test's short list of exceptions, each with its reason.
 
 **`channel_pins`** — `message_id` (the primary key, because a message
 belongs to exactly one channel), `channel_id`, `pinned_by`, `pinned_at`,

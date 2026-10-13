@@ -12,9 +12,8 @@ import (
 
 const countUnreadActivity = `-- name: CountUnreadActivity :one
 SELECT count(*) FROM activity_items a
-LEFT JOIN channels c ON c.id = a.channel_id
 WHERE a.user_id = $1 AND a.read_at IS NULL
-  AND (c.private IS NOT TRUE OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = a.channel_id AND pm.user_id = a.user_id))
+  AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = a.channel_id AND cr.user_id = a.user_id)
 `
 
 // CountUnreadActivity counts what ListActivity would list.
@@ -170,9 +169,8 @@ SELECT a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_
         OR EXISTS (SELECT 1 FROM thread_mutes tm WHERE tm.user_id = a.user_id AND tm.root_message_id = m.thread_root_id))::bool AS muted
 FROM activity_items a
 LEFT JOIN messages m ON m.id = a.message_id
-LEFT JOIN channels c ON c.id = a.channel_id
 WHERE a.user_id = $1
-  AND (c.private IS NOT TRUE OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = a.channel_id AND pm.user_id = a.user_id))
+  AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = a.channel_id AND cr.user_id = a.user_id)
   AND ($3::uuid IS NULL OR a.id < $3::uuid)
 ORDER BY a.id DESC
 LIMIT $2
@@ -195,8 +193,8 @@ type ListActivityRow struct {
 // ListActivity returns newest first with the message text for a
 // preview (NULL if the message has since been deleted), and the
 // recipient's effective mute for where each item happened. An item from
-// a private channel the recipient is no longer in is left out: removal
-// deletes them, and this holds for one written at the same moment.
+// a channel the recipient can no longer read is left out: its preview
+// shows the message as it now reads.
 func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]ListActivityRow, error) {
 	rows, err := q.db.Query(ctx, listActivity, arg.UserID, arg.Limit, arg.BeforeID)
 	if err != nil {

@@ -37,10 +37,7 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("direct messages don't have pinned messages"))
 	}
-	if err := s.requirePermission(ctx, *channel.SpaceID, authctx.ChannelsManage); err != nil {
-		return nil, err
-	}
-	if err := s.requireInPrivate(ctx, channel); err != nil {
+	if err := s.requireOnMessageIn(ctx, channel, authctx.ChannelsManage); err != nil {
 		return nil, err
 	}
 	if req.Msg.Pinned && msg.ThreadRootID != nil {

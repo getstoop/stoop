@@ -22,7 +22,7 @@ SELECT sqlc.embed(c), r.last_read_message_id,
 FROM channels c
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = sqlc.arg(user_id)
 WHERE c.space_id = sqlc.arg(space_id)::uuid
-  AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = sqlc.arg(user_id)))
+  AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = sqlc.arg(user_id))
 ORDER BY c.position, c.created_at;
 
 -- name: SetChannelLastMessage :exec
@@ -70,15 +70,3 @@ UPDATE channels SET position = sqlc.arg(position) WHERE id = sqlc.arg(id) AND sp
 -- name: ListChannelIDsByKind :many
 SELECT id FROM channels WHERE space_id = sqlc.arg(space_id)::uuid AND kind = sqlc.arg(kind)
 ORDER BY position, created_at;
-
--- ListAllChannelsBySpace is every channel in the space for Space
--- settings: how many people a private one holds, and whether the caller
--- is in it.
--- name: ListAllChannelsBySpace :many
-SELECT sqlc.embed(c),
-    (SELECT count(*) FROM channel_members pm WHERE pm.channel_id = c.id)::int AS member_count,
-    (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm
-                              WHERE pm.channel_id = c.id AND pm.user_id = sqlc.arg(user_id)))::bool AS joined
-FROM channels c
-WHERE c.space_id = sqlc.arg(space_id)::uuid
-ORDER BY c.position, c.created_at;
