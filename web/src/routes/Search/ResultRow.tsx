@@ -1,12 +1,12 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useNavigate } from "@tanstack/react-router";
-import { channelNameText } from "../../api/channels";
 import { fullDateTime, shortDateTime } from "../../api/dates";
 import { useChannels, useMe } from "../../api/queries";
 import { messageSearch } from "../../api/shareLinks";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
+import { ChannelName } from "../../components/ChannelName";
 import { DeletedMark } from "../../components/DeletedMark";
 import { MessageBody } from "../../components/MessageBody";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
@@ -57,7 +57,7 @@ export function ResultRow({
         </strong>
         <span className="muted">
           {" "}
-          in <strong>{channel ? channelNameText(channel) : "…"}</strong>
+          in {channel ? <ChannelName channel={channel} /> : "…"}
         </span>
       </span>
       <span

@@ -8,6 +8,7 @@ import {
   useMyPermissions,
   useWebhooks,
 } from "../../api/queries";
+import { ChannelName } from "../../components/ChannelName";
 import { NewIncomingModal } from "../../components/Integrations/NewIncomingModal";
 import { OutgoingHookModal } from "../../components/Integrations/OutgoingHookModal";
 import {
@@ -39,6 +40,10 @@ export function IntegrationsSection({ space }: { space: Space }) {
   const channelName = (id: string) => {
     const channel = channels?.find((c) => c.id === id);
     return channel ? channelNameText(channel) : "a channel";
+  };
+  const channelLabel = (id: string) => {
+    const channel = channels?.find((c) => c.id === id);
+    return channel ? <ChannelName channel={channel} /> : "a channel";
   };
   const available = status?.webhooksAvailable ?? true;
 
@@ -75,6 +80,7 @@ export function IntegrationsSection({ space }: { space: Space }) {
           hooks={hooks?.incoming}
           members={members}
           channelName={channelName}
+          channelLabel={channelLabel}
           manage={manage}
           onSecret={setSecret}
         />

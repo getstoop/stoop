@@ -56,11 +56,9 @@ export function OutgoingTable({
             {h.eventTypes.map(eventLabel).join(", ")}
             <span className="dt-subline small">
               from{" "}
-              {h.channelId ? (
-                <strong>{latest.current.channelName(h.channelId)}</strong>
-              ) : (
-                "every channel"
-              )}
+              {h.channelId
+                ? latest.current.channelName(h.channelId)
+                : "every channel"}
             </span>
           </>
         ),

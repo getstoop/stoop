@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useNarrowScreen } from "../../hooks/useNarrowScreen";
 import { useSidePanelStore } from "../../stores/sidePanel";
 
@@ -14,7 +15,7 @@ export function ThreadChannelLink({
   spaceId: string;
   channelId: string;
   rootId: string;
-  label: string;
+  label: ReactNode;
 }) {
   const close = useSidePanelStore((s) => s.close);
   const narrow = useNarrowScreen();

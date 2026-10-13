@@ -211,3 +211,13 @@
 .channel-add {
   padding: 2px;
 }
+
+/* A private channel's name in a sentence: its lock stays with it. */
+.channel-name-text {
+  white-space: nowrap;
+}
+
+.channel-name-text svg {
+  margin-inline-end: 0.2em;
+  vertical-align: -0.125em;
+}

@@ -12,6 +12,7 @@ import { canPost } from "../../api/permissions";
 import { useMe, useMessages, useSpaces } from "../../api/queries";
 import { joinVoice } from "../../api/voice";
 import { ChannelGlyph } from "../../components/ChannelGlyph";
+import { ChannelName } from "../../components/ChannelName";
 import { PeopleButton } from "../../components/ChannelPeople";
 import { ChannelTopic } from "../../components/ChannelTopic";
 import { MenuButton } from "../../components/MenuButton";
@@ -73,6 +74,7 @@ export function ChannelView() {
     : channel
       ? channelNameText(channel)
       : "";
+  const label = !isDM && channel ? <ChannelName channel={channel} /> : title;
   const isGroup = !!dm && dmIsGroup(dm);
   // ?m=<messageId>: open the window around that message rather than the
   // newest page (activity, shared links).
@@ -193,6 +195,7 @@ export function ChannelView() {
             spaceId={spaceId}
             channelId={channelId}
             channelName={title}
+            channelLabel={label}
             dm={isDM}
             group={isGroup}
             newAfterId={
@@ -210,6 +213,7 @@ export function ChannelView() {
             <Composer
               channelId={channelId}
               channelName={title}
+              channelLabel={label}
               dm={isDM}
               group={isGroup}
               announcement={isAnnouncement(channel)}

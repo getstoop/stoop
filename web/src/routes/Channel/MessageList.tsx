@@ -1,6 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import {
   Fragment,
   useCallback,
@@ -41,6 +42,7 @@ export function MessageList({
   spaceId,
   channelId,
   channelName,
+  channelLabel,
   dm = false,
   group = false,
   newAfterId,
@@ -58,6 +60,8 @@ export function MessageList({
   // As it reads in a sentence: "#general", a private channel's bare name,
   // or for a direct message the other person.
   channelName: string;
+  // The same for where an icon fits; channelName when absent.
+  channelLabel?: ReactNode;
   dm?: boolean;
   // A group conversation: named after its people, who change.
   group?: boolean;
@@ -442,7 +446,7 @@ export function MessageList({
         threadRootId && message.inChannel && message.id !== threadRootId
           ? dm
             ? "the conversation"
-            : channelName
+            : (channelLabel ?? channelName)
           : undefined
       }
     />
@@ -488,9 +492,7 @@ export function MessageList({
                   ) : dm ? (
                     `Beginning of your conversation with ${channelName}`
                   ) : (
-                    <>
-                      Beginning of <strong>{channelName}</strong>
-                    </>
+                    <>Beginning of {channelLabel ?? channelName}</>
                   )}
                   {retentionNote && (
                     <>

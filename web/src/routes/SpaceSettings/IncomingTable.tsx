@@ -1,4 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
+import type { ReactNode } from "react";
 import { useMemo, useRef } from "react";
 import { canNotifyEntireChannel, hookCanText } from "../../api/integrations";
 import { lastUsedText } from "../../api/tokenOptions";
@@ -23,17 +24,19 @@ export function IncomingTable({
   hooks,
   members,
   channelName,
+  channelLabel,
   manage,
   onSecret,
 }: {
   hooks: IncomingWebhook[] | undefined;
   members: Member[] | undefined;
   channelName: (id: string) => string;
+  channelLabel: (id: string) => ReactNode;
   manage: boolean;
   onSecret: (secret: Secret) => void;
 }) {
   const actions = useIncomingActions(onSecret);
-  const view = { members, channelName, actions };
+  const view = { members, channelName, channelLabel, actions };
   const latest = useRef(view);
   latest.current = view;
 
@@ -56,7 +59,7 @@ export function IncomingTable({
         accessorFn: (h) => latest.current.channelName(h.channelId),
         meta: { width: "16%" },
         cell: ({ row: { original: h } }) =>
-          latest.current.channelName(h.channelId),
+          latest.current.channelLabel(h.channelId),
       },
       {
         id: "notify",

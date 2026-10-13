@@ -3,12 +3,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useState } from "react";
 import { activityVerb, markActivityRead } from "../api/activity";
-import { channelNameText } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { dayLabel, fullDateTime, sameDay } from "../api/dates";
 import { useActivity, useChannels, useSpaces } from "../api/queries";
 import { messageSearch } from "../api/shareLinks";
 import { Avatar } from "../components/Avatar";
+import { ChannelName } from "../components/ChannelName";
 import { DeletedMark } from "../components/DeletedMark";
 import { MenuButton } from "../components/MenuButton";
 import type { ActivityItem } from "../gen/stoop/chat/v1/activity_pb";
@@ -151,10 +151,7 @@ function ActivityRow({ item }: { item: ActivityItem }) {
         <strong>{who}</strong>
         <DeletedMark deleted={item.actor?.deleted} /> {activityVerb(item.kind)}
         {item.spaceId && (
-          <>
-            {" "}
-            in <strong>{channel ? channelNameText(channel) : "…"}</strong>
-          </>
+          <> in {channel ? <ChannelName channel={channel} /> : "…"}</>
         )}
         {space && <span className="muted"> · {space.name}</span>}
       </span>
