@@ -113,7 +113,7 @@ export function ChannelTable({
                 // Joining is how someone who manages channels gets into a
                 // private one they were not added to.
                 ...(c.private && !v.managed.get(c.id)?.joined
-                  ? [{ label: "Join channel", onSelect: () => v.onJoin(c) }]
+                  ? [{ label: "Join as member", onSelect: () => v.onJoin(c) }]
                   : []),
                 ...(c.private
                   ? [{ label: "People", onSelect: () => v.onPeople(c) }]

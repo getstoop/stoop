@@ -1,14 +1,5 @@
 import type { Browser, Page } from "@playwright/test";
-import {
-  acceptDialog,
-  expect,
-  focus,
-  hasVoice,
-  reload,
-  seed,
-  signIn,
-  test,
-} from "./lib";
+import { expect, focus, hasVoice, reload, seed, signIn, test } from "./lib";
 
 // Voice channels end to end: create one, join by clicking it (which opens
 // its view, muted), see each other in the sidebar (snapshot and live),
@@ -194,12 +185,10 @@ test("voice channels, the stage, and who is in them", async ({
   const A = await ctxA.newPage();
   await signIn(A, tokens.ada);
 
-  // Create a voice channel from the sidebar (the prompt is answered
-  // "lounge"). The puppeteer harness pre-answered a native prompt with
-  // page.__promptAnswer; the app raises its own modal, and acceptDialog
-  // fills and confirms it.
+  // Create a voice channel from the sidebar's dialog.
   await A.locator(".channel-add.voice").click();
-  await acceptDialog(A, "lounge");
+  await A.getByLabel("Voice channel name").fill("lounge");
+  await A.getByRole("button", { name: "Create" }).click();
   await expect(
     A.locator(".voice-channel .channel-name"),
     "voice channel created from the sidebar",

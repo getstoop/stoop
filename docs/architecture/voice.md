@@ -86,6 +86,8 @@ of modules and neither imports the other.
   gateway thinks they are in.** Voice presence is client-reported (see
   below); a client that simply never sends `VoiceState` would otherwise
   stay in the call.
+- **Leaving or being removed from a private voice channel removes that
+  person from its room.**
 - **Channel and space deletion close the room** rather than removing
   people one at a time, which also disposes of a room whose channel no
   longer exists.

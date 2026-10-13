@@ -23,12 +23,8 @@ var errNotPrivate = connect.NewError(connect.CodeFailedPrecondition,
 	errors.New("everyone in the space is in a public channel"))
 
 // requireCanStartPrivate refuses a private channel the caller could not
-// be the first member of, and a private voice channel.
-func (s *Service) requireCanStartPrivate(ctx context.Context, spaceID string, kind chatv1.ChannelKind) error {
-	if kind == chatv1.ChannelKind_CHANNEL_KIND_VOICE {
-		return apierr.Field(connect.CodeFailedPrecondition, "private",
-			errors.New("a voice channel can't be private yet"))
-	}
+// be the first member of.
+func (s *Service) requireCanStartPrivate(ctx context.Context, spaceID string) error {
 	member, err := s.q.IsSpaceMember(ctx, dbgen.IsSpaceMemberParams{SpaceID: spaceID, UserID: authctx.UserID(ctx)})
 	if err != nil {
 		return fmt.Errorf("check membership: %w", err)
@@ -262,6 +258,9 @@ func (s *Service) removeFromChannel(ctx context.Context, channel dbgen.Channel, 
 			},
 		},
 	}))
+	if isVoice(channel) {
+		s.evictFromChannelVoice(ctx, channel.ID, userID)
+	}
 	return nil
 }
 

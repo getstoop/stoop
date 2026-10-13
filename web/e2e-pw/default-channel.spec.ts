@@ -63,7 +63,8 @@ test("the channel a space opens in", async ({ browser, request }) => {
   await channelLink(A, "tools").waitFor();
   if (voice) {
     await A.locator(".channel-group-heading .channel-add.voice").click();
-    await acceptDialog(A, "porch-swing");
+    await A.getByLabel("Voice channel name").fill("porch-swing");
+    await A.getByRole("button", { name: "Create" }).click();
     await channelLink(A, "porch-swing").waitFor();
   }
 

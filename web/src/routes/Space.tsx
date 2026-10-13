@@ -8,11 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 import { unreadCounts } from "../api/activity";
-import {
-  CHANNEL_NAME_HINT,
-  landingChannel,
-  MAX_CHANNEL_NAME,
-} from "../api/channels";
+import { landingChannel } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { isMuted, mutedByCaller, sidebarTextChannels } from "../api/mutes";
@@ -50,7 +46,7 @@ import { VoiceBar } from "../components/VoiceBar";
 import { VoiceChannel } from "../components/VoiceChannel";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
-import { confirm, notice, prompt } from "../stores/dialogs";
+import { confirm, notice } from "../stores/dialogs";
 import { useLayoutStore } from "../stores/layout";
 import { openSidePanel } from "../stores/sidePanel";
 
@@ -68,7 +64,7 @@ export function SpaceLayout() {
   const navigate = useNavigate();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<"text" | "voice" | null>(null);
 
   const space = spaces?.find((s) => s.id === spaceId);
   const textChannels = sidebarTextChannels(channels, openChannelId);
@@ -176,35 +172,19 @@ export function SpaceLayout() {
     }
   }
 
-  const createVoiceChannel = async () => {
-    const name = await prompt({
-      title: "New voice channel",
-      label: "Voice channel name",
-      body: CHANNEL_NAME_HINT,
-      maxLength: MAX_CHANNEL_NAME,
-      action: "Create",
-      submit: async (name) => {
-        await chatClient.createChannel({
-          spaceId,
-          name,
-          kind: ChannelKind.VOICE,
-        });
-      },
-    });
-    if (!name) return;
-    await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
-  };
-
   // A private channel opens on its people, since adding them is the next
-  // thing to do; nobody else can see it until then.
+  // thing to do; nobody else can see it until then. A voice channel's
+  // page is opened by joining it, so only its people open.
   const channelCreated = async (created: Channel) => {
     await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
     if (!created.private) return;
     useLayoutStore.getState().closeDrawer();
-    navigate({
-      to: "/s/$spaceId/c/$channelId",
-      params: { spaceId, channelId: created.id },
-    });
+    if (created.kind !== ChannelKind.VOICE) {
+      navigate({
+        to: "/s/$spaceId/c/$channelId",
+        params: { spaceId, channelId: created.id },
+      });
+    }
     openSidePanel("people", { spaceId, channelId: created.id });
   };
 
@@ -261,7 +241,8 @@ export function SpaceLayout() {
         {creating && (
           <NewChannelModal
             spaceId={spaceId}
-            onClose={() => setCreating(false)}
+            voice={creating === "voice"}
+            onClose={() => setCreating(null)}
             onCreated={channelCreated}
           />
         )}
@@ -269,7 +250,7 @@ export function SpaceLayout() {
           <ChannelGroupHeading
             label="Text channels"
             add={manage ? "Add channel" : undefined}
-            onAdd={() => setCreating(true)}
+            onAdd={() => setCreating("text")}
           />
           {textChannels.map((channel) => (
             <div key={channel.id} className="channel-row">
@@ -306,7 +287,7 @@ export function SpaceLayout() {
             <ChannelGroupHeading
               label="Voice channels"
               add={addVoice ? "Add voice channel" : undefined}
-              onAdd={createVoiceChannel}
+              onAdd={() => setCreating("voice")}
               divided
             />
           )}

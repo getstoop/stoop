@@ -88,9 +88,6 @@ func TestE2EPrivateChannelOutsider(t *testing.T) {
 	if created.body["channel"].(map[string]any)["private"] != true {
 		t.Fatalf("the new channel is not private: %s", created.raw)
 	}
-	site.rpc(casey, "stoop.chat.v1.ChatService/CreateChannel", map[string]any{
-		"spaceId": stoop, "name": "back-porch", "kind": "CHANNEL_KIND_VOICE", "private": true,
-	}).expect(t, "failed_precondition")
 	site.rpc(casey, "stoop.chat.v1.ChatService/AddChannelMembers", map[string]any{
 		"channelId": captains, "userIds": []string{site.userID(ada)},
 	}).expect(t, "ok")

@@ -8,7 +8,7 @@ import (
 
 func TestVoiceStateClears(t *testing.T) {
 	voice := newVoiceState()
-	voice.set("ada", 1, "s1", &realtimev1.VoiceState{ChannelId: "general"})
+	voice.set("ada", 1, "s1", false, &realtimev1.VoiceState{ChannelId: "general"})
 
 	// Another tab closing leaves the state its owner reported.
 	if left := voice.clearOwnedBy("ada", 2); left != nil {
@@ -23,7 +23,7 @@ func TestVoiceStateClears(t *testing.T) {
 		t.Errorf("leaving s1 = %+v, want the general entry", left)
 	}
 
-	voice.set("ada", 1, "s1", &realtimev1.VoiceState{ChannelId: "general"})
+	voice.set("ada", 1, "s1", false, &realtimev1.VoiceState{ChannelId: "general"})
 	if left := voice.clearOwnedBy("ada", 1); left == nil {
 		t.Error("the owning connection closing should clear the state")
 	}

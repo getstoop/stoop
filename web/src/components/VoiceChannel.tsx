@@ -6,13 +6,9 @@ import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import { useSpeaking } from "../hooks/useSpeaking";
 import { participantsIn, useVoiceStore } from "../stores/voice";
 import { Avatar } from "./Avatar";
+import { ChannelGlyph } from "./ChannelGlyph";
 import { Tooltip } from "./Tooltip";
-import {
-  CameraIcon,
-  HeadphonesIcon,
-  ScreenIcon,
-  SpeakerIcon,
-} from "./VoiceIcons";
+import { CameraIcon, HeadphonesIcon, ScreenIcon } from "./VoiceIcons";
 
 // A voice channel in the sidebar: clicking joins it — muted, camera off —
 // and opens its view, where the stage sits above the chat. Everyone
@@ -57,9 +53,7 @@ export function VoiceChannel({
           title={channel.topic ? undefined : label}
           aria-label={label}
         >
-          <span className="channel-hash">
-            <SpeakerIcon />
-          </span>
+          <ChannelGlyph channel={channel} />
           <span className="channel-name">{channel.name}</span>
         </button>
       </Tooltip>
