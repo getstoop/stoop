@@ -77,9 +77,7 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 		if !created {
 			undo := context.WithoutCancel(ctx)
 			if joinedChannel {
-				if err := s.spaces.RemoveBotFromChannel(undo, req.Msg.ChannelId, bot.ID); err != nil {
-					s.log.Error("undo hook create: take bot out of channel", "bot", bot.ID, "err", err)
-				}
+				s.undoBotInChannel(undo, req.Msg.ChannelId, bot.ID)
 			}
 			s.undoCreateIncoming(undo, spaceID, bot.ID, credID, newBot)
 		}
@@ -119,6 +117,11 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 		return nil, fmt.Errorf("create hook: %w", err)
 	}
 	created = true
+	// A hook made at the same moment for the same bot may have failed and
+	// taken the bot back out before this one's row existed; put it back.
+	if _, err := s.spaces.AddBotToChannel(ctx, req.Msg.ChannelId, bot.ID); err != nil {
+		s.log.Error("hook create: keep the bot in its channel", "bot", bot.ID, "err", err)
+	}
 	return connect.NewResponse(&integrationsv1.CreateIncomingResponse{
 		Webhook: toProtoIncoming(row, &cred), Url: url,
 	}), nil
@@ -184,6 +187,26 @@ func (s *Service) UpdateIncoming(ctx context.Context, req *connect.Request[integ
 
 // undoCreateIncoming takes back what a failed CreateIncoming did: the
 // credential, the admin grant, and a bot it made. It logs what it can't.
+// undoBotInChannel takes a bot back out of the private channel a failed
+// hook put it in, unless another hook posts there as the same bot: one
+// made at the same moment would have found the bot already in and needs
+// it to stay.
+func (s *Service) undoBotInChannel(ctx context.Context, channelID, botID string) {
+	others, err := s.q.CountIncomingWebhooksForBotInChannel(ctx, dbgen.CountIncomingWebhooksForBotInChannelParams{
+		ChannelID: channelID, BotUserID: botID,
+	})
+	if err != nil {
+		s.log.Error("undo hook create: count the bot's hooks in the channel", "bot", botID, "err", err)
+		return
+	}
+	if others > 0 {
+		return
+	}
+	if err := s.spaces.RemoveBotFromChannel(ctx, channelID, botID); err != nil {
+		s.log.Error("undo hook create: take bot out of channel", "bot", botID, "err", err)
+	}
+}
+
 func (s *Service) undoCreateIncoming(ctx context.Context, spaceID, botID, credID string, newBot bool) {
 	if credID != "" {
 		if err := s.bots.RevokeCredential(ctx, credID); err != nil && connect.CodeOf(err) != connect.CodeNotFound {

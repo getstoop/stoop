@@ -20,6 +20,24 @@ func (q *Queries) CountIncomingWebhooksBySpace(ctx context.Context, spaceID stri
 	return count, err
 }
 
+const countIncomingWebhooksForBotInChannel = `-- name: CountIncomingWebhooksForBotInChannel :one
+SELECT count(*) FROM incoming_webhooks WHERE channel_id = $1 AND bot_user_id = $2
+`
+
+type CountIncomingWebhooksForBotInChannelParams struct {
+	ChannelID string
+	BotUserID string
+}
+
+// CountIncomingWebhooksForBotInChannel is how many hooks post into a
+// channel as one bot: what says whether the bot still needs to be there.
+func (q *Queries) CountIncomingWebhooksForBotInChannel(ctx context.Context, arg CountIncomingWebhooksForBotInChannelParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countIncomingWebhooksForBotInChannel, arg.ChannelID, arg.BotUserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createIncomingWebhook = `-- name: CreateIncomingWebhook :one
 
 INSERT INTO incoming_webhooks (id, space_id, channel_id, bot_user_id, credential_id, name, created_by)
