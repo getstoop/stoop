@@ -1,14 +1,20 @@
 # Private channels
 
-Status: decided 2026-10-10, not started. Nothing here is built. Where the
-new controls sit in the web app is still open; see [UI](#ui).
+Status: decided 2026-10-10, checked against the code and updated
+2026-10-13, not started. Nothing here is built. Where the new controls sit
+in the web app is still open; see [UI](#ui).
 
 ## What exists
 
-- Reading a space channel needs space membership and nothing else. One
-  query, `IsChannelMember`, answers "may this person read this channel"
-  for messages, reactions, pins, threads, uploads and the voice token, and
-  its twin `ChannelMembersAmong` answers it for activity recipients.
+- Reading a space channel needs space membership and nothing else. The
+  rule "a member of the channel's space, or a participant in the DM" is
+  written out in five queries: `IsChannelMember` (messages, reactions,
+  pins, threads, uploads, the voice token), `ChannelMembersAmong`
+  (activity recipients), `ThreadParticipants` (thread reply activity),
+  `ListThreadMutes` (Profile → Muted) and `IsAttachmentReadable` (a DM's
+  files).
+- Pinning, deleting someone else's message and deleting a thread load the
+  channel from the message id and check only the space permission.
 - A direct message is a channel with no space and a participants table
   (`dm_members`). Its events go to each participant's `user:` topic, so
   the gateway keeps no per-channel bookkeeping.
@@ -37,12 +43,13 @@ so for private channels.
 
 | Question | Answer |
 | --- | --- |
-| Kinds | Text and voice. Voice may ship as a second phase. |
+| Kinds | Text and voice. Voice follows the first release. |
 | Who creates one | Holders of `channels.manage` (space admins and the owner). |
 | Who adds and removes people | The same. No new action in the table. |
 | What a space admin sees in the sidebar | Only the private channels they are in. |
 | What a space admin sees in Space settings → Channels | Every channel, private ones included, with who is in each. |
 | Admins reading a channel they are not in | Not possible. They join it from Space settings → Channels first. |
+| Admins pinning, deleting a message or deleting a thread in a channel they are not in | Not possible either. Rename, topic, delete and reorder of the channel itself work from settings without joining. |
 | Signal that an admin joined | The member list changes; nothing is written to the timeline. The system-messages work may add a line later; nothing here depends on it. |
 | Instance admins | Inherit space admin as they do today, so they can list and join. They must be a member of the space first: there is no channel membership without space membership. |
 | Bots | Need a `channel_members` row to read or post, added like a person. |
@@ -52,13 +59,13 @@ so for private channels.
 | `@name` of someone not in the channel | Not mentioned and not added. Only `channels.manage` adds people. |
 | History for someone added later | All of it. |
 
-Defaults taken without being asked about, to confirm in review:
+Also decided:
 
 - A channel is made private when it is created and stays that way. No
   converting in either direction in v1.
 - Whoever creates a private channel is its first member.
 - A member may take themselves out of a private channel.
-- A space's default channel can't be private.
+- A space's default channel can't be private. `UpdateSpace` refuses one.
 - A private channel may have no members. It still shows in Space
   settings → Channels, where an admin can add people or delete it.
 
@@ -102,19 +109,26 @@ is a leak.
 
 | Surface | Today | Change |
 | --- | --- | --- |
-| Access check | `IsChannelMember`, `ChannelMembersAmong`: space member, or DM participant. | A private channel also needs the `channel_members` row. Covers messages, edits, reactions, pins, threads, uploads, the voice token and activity recipients. |
+| Access check | The rule is copied into five queries (see [What exists](#what-exists)). | One SQL definition that all five use, and a private channel also needs the `channel_members` row. Covers messages, edits, reactions, pins, threads, uploads, the voice token, activity recipients, thread reply activity and the muted threads list. |
+| Moderation | `SetMessagePinned`, a moderator's `DeleteMessage` and `DeleteThread` check `channels.manage` or `messages.moderate` in the space. | They also need the access check, so they work only for someone in the channel. |
 | Refusal | "not a member of this channel's space" | A space member outside a private channel gets `NotFound`, as for a hidden voice channel, so the answer does not confirm the channel exists. |
 | Channel list | `ListChannelsBySpace`, `CountChannelsInSpace` return every channel. | Filter to public channels plus the caller's private ones. |
 | Search | `SearchMessages` scans every channel in the space; `GetChannelInSpaceByName` resolves `in:#name` against all of them. | Both take the same filter. |
 | Realtime: messages | `publishTo` publishes to `space:<id>`. | For a private channel, publish to each member's `user:` topic, as for a DM. Covers message, reaction, pin and typing events. |
 | Realtime: channel events | `channel_created`, `channel_updated`, `channel_deleted` go to the space. | Members only. Being added arrives as `channel_created` on the person's own topic and being removed as `channel_deleted`, which is how a DM already appears and how the client already drops a channel. |
-| Realtime: reorder | `channels_reordered` carries every channel in the space. | Private channels are left out of the space broadcast; each member of one is sent their own list. |
+| Realtime: reorder | `channels_reordered` carries every channel in the space, and the client sorts by the order of that list, putting a channel missing from it first. | The space broadcast carries public channels only and the client applies each one's `position`. A private channel's new position goes to its members as `channel_updated`. `ReorderChannels` is called from settings with every channel in the space. |
 | Typing | The gateway relays to the space if the connection is subscribed to it. | For a private channel the gateway asks chat who may see it, as it does for a DM through `ChannelLookup.DMParticipants`. |
 | Mentions | `@everyone`, `@here` and named handles resolve against the space. | In a private channel all three resolve against the channel's people. |
 | Realtime: membership | None. | `channel_member_joined` and `channel_member_left`, to the channel's members. |
-| Attachments | `mayDownload` asks `MayReadSpace` for any file with a space id. | Ask by channel. `IsAttachmentReadable` already does this for a DM's files. |
+| Attachments | `mayDownload` asks `MayReadSpace` for any file with a space id, which an instance admin outside the space also passes. A file row has a space and no channel. | A file attached to a message in a private channel is served through `IsAttachmentReadable`, as a DM's files are. One not attached yet is served to its uploader only. |
 | Activity | Items keep a preview of the message text. | Removing someone from a private channel deletes their activity items for it, as a block already does. |
 | Outgoing webhooks | The subscriber listens on `space:<id>`. | Nothing to do: private events no longer reach that topic. A test pins it so it stays true on purpose. |
+
+Messages are fanned out per member, with no `channel:` topic, so the
+gateway keeps no per-channel subscriptions and a removal can't leave one
+behind. From the jobs runner each publish is one notification to the
+server, so a link preview arriving in a private channel costs one per
+member.
 
 Credential bounds are unchanged and compose with membership: a token
 bounded to a channel still needs its owner to be in that channel.
@@ -161,25 +175,38 @@ Placement is undecided and is being worked out as a design. What it has
 to cover:
 
 - **Sidebar.** A mark on a private channel in place of `#` or the speaker,
-  so it reads as private at a glance.
+  so it reads as private at a glance. The same mark in the Muted channels
+  panel.
 - **Creating a channel.** A private switch, and picking the first members.
 - **Space settings → Channels.** Which channels are private, how many
   people are in each, a Join action on the ones the admin is not in, and
   the way into a channel's members.
 - **A channel's members.** List, add, remove; where a member sees who else
-  is in the channel.
+  is in the channel. The sidebar's members list shows the space's members
+  today.
 - **Integrations.** The channel picker for an incoming webhook shows
   private channels and says the bot will be added.
 
 ## Phases
 
-1. **Server boundary, text.** Schema and floor, the access queries, the
-   list and search filters, realtime fan-out, mentions, attachments, the
-   typing lookup, the new RPCs.
-2. **Web.** Everything under [UI](#ui).
-3. **Voice.** The four changes above. It can ride with phase 1 or follow
-   as its own pull request; private voice channels can't be created until
-   it lands.
+Pull requests 2 to 4 ship in the same release.
+
+1. **One definition of the access rule.** The five queries share one SQL
+   definition, and `publishChannel` gets one place that decides who an
+   event goes to. No behaviour changes.
+2. **Schema and read boundary.** The migration and floor, the access rule,
+   `NotFound` for outsiders, the list and search filters, moderation,
+   attachments, activity clean-up, mentions. Nothing can create a private
+   channel yet; tests insert the rows.
+3. **Realtime.** Per-member fan-out for message, channel and reorder
+   events, and the gateway's lookup for typing.
+4. **The RPCs.** `private` on create, `ListAllChannels`, add, remove,
+   leave, the incoming webhook's bot. With it, a test in which a member
+   of the space who is not in the channel calls every chat RPC and holds
+   a socket, and sees nothing of the channel.
+5. **Web.** Everything under [UI](#ui), designed first.
+6. **Voice.** The four changes above. `CreateChannel` refuses a private
+   voice channel until it lands.
 
 ## Not in v1
 
