@@ -338,9 +338,9 @@ func presenceChanged(userID string, online, dnd bool) *realtimev1.ServerEvent {
 }
 
 // relayTyping rebroadcasts a typing hint — to the space, if the connection
-// is actually subscribed to it, or (with no space) to the direct message's
-// other participants, if the sender is one — unless it relayed for this
-// channel a moment ago.
+// is actually subscribed to it, or (with no space) to the other people in
+// the direct message or private channel, if the sender is one — unless it
+// relayed for this channel a moment ago.
 func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, t *realtimev1.Typing, last map[string]time.Time) {
 	if t.ChannelId == "" {
 		return
@@ -357,9 +357,9 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Su
 		}
 		topics = []string{events.SpaceTopic(t.SpaceId)}
 	} else {
-		ids, err := g.channels.DMParticipants(ctx, t.ChannelId)
+		ids, err := g.channels.ChannelPeople(ctx, t.ChannelId)
 		if err != nil {
-			g.log.Error("resolve dm participants", "err", err)
+			g.log.Error("resolve channel people", "err", err)
 			return
 		}
 		mine := false

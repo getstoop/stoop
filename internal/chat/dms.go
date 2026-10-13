@@ -35,17 +35,14 @@ func dmKey(ids []string) string {
 	return strings.Join(sorted, ":")
 }
 
-// DMParticipants implements the realtime gateway's channel port: who is
-// in a direct message, or nil for any other channel.
-func (s *Service) DMParticipants(ctx context.Context, channelID string) ([]string, error) {
+// ChannelPeople implements the realtime gateway's channel port: who is
+// in a direct message or a private channel, or nil for any other channel.
+func (s *Service) ChannelPeople(ctx context.Context, channelID string) ([]string, error) {
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if err != nil {
 		return nil, nil //nolint:nilerr // unknown channel: nobody
 	}
-	if !isDM(channel) {
-		return nil, nil
-	}
-	return s.q.ListDMMembers(ctx, channel.ID)
+	return s.people(ctx, channel)
 }
 
 // IsAttachmentReadable implements the files module's download rule for

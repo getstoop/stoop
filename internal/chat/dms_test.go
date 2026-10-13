@@ -265,9 +265,9 @@ func TestDirectMessages(t *testing.T) {
 	}
 
 	// The port the files module and gateway use.
-	ids, err := svc.DMParticipants(context.Background(), dm.Channel.Id)
+	ids, err := svc.ChannelPeople(context.Background(), dm.Channel.Id)
 	if err != nil || len(ids) != 2 {
-		t.Errorf("DMParticipants: %v %v", ids, err)
+		t.Errorf("ChannelPeople: %v %v", ids, err)
 	}
 	if ok, _ := svc.IsChannelMember(context.Background(), aliceID, dm.Channel.Id); !ok {
 		t.Errorf("IsChannelMember(alice, dm) = false")

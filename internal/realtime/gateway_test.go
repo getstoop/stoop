@@ -47,7 +47,7 @@ func (c fakeVoiceChannels) VoiceChannelSpace(_ context.Context, channelID string
 	return c[channelID], nil
 }
 
-func (fakeVoiceChannels) DMParticipants(context.Context, string) ([]string, error) {
+func (fakeVoiceChannels) ChannelPeople(context.Context, string) ([]string, error) {
 	return nil, nil
 }
 
@@ -64,7 +64,7 @@ func (channels *countingChannels) VoiceChannelSpace(ctx context.Context, channel
 	return channels.voice.VoiceChannelSpace(ctx, channelID)
 }
 
-func (channels *countingChannels) DMParticipants(context.Context, string) ([]string, error) {
+func (channels *countingChannels) ChannelPeople(context.Context, string) ([]string, error) {
 	channels.dmLookups.Add(1)
 	return nil, nil
 }
@@ -682,7 +682,7 @@ func (channels gatedChannels) VoiceChannelSpace(ctx context.Context, channelID s
 	return channels.voice.VoiceChannelSpace(ctx, channelID)
 }
 
-func (gatedChannels) DMParticipants(context.Context, string) ([]string, error) { return nil, nil }
+func (gatedChannels) ChannelPeople(context.Context, string) ([]string, error) { return nil, nil }
 
 // A voice report still being resolved when the server ends the socket must
 // not leave the person in the channel once the connection is gone. A

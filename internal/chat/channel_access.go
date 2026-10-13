@@ -37,12 +37,26 @@ func (s *Service) accessChannel(ctx context.Context, channelID string) (dbgen.Ch
 	return s.memberChannel(ctx, channelID)
 }
 
+// people is who a channel's events go to by name: a direct message's
+// participants or a private channel's people. nil for a public channel,
+// whose events go to its space with no lookup.
+func (s *Service) people(ctx context.Context, channel dbgen.Channel) ([]string, error) {
+	switch {
+	case isDM(channel):
+		return s.q.ListDMMembers(ctx, channel.ID)
+	case channel.Private:
+		return s.q.ListPrivateChannelMemberIDs(ctx, channel.ID)
+	default:
+		return nil, nil
+	}
+}
+
 // writableChannel loads a channel the caller may write in: accessChannel,
 // plus the block rule in a direct message. Every RPC that adds to or
 // changes what the other side sees — send, edit, react — goes through
-// this one, so a kick, a ban or a block stops all three together. A
-// direct message's participants come back with it, nil for a space
-// channel, for the rest of the request to use.
+// this one, so a kick, a ban or a block stops all three together. The
+// channel's people come back with it (see people), for the rest of the
+// request to use.
 func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.Channel, []string, error) {
 	channel, err := s.accessChannel(ctx, channelID)
 	if err != nil {
@@ -51,12 +65,12 @@ func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.
 	if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
 		return dbgen.Channel{}, nil, err
 	}
-	if !isDM(channel) {
-		return channel, nil, nil
-	}
-	participants, err := s.q.ListDMMembers(ctx, channel.ID)
+	participants, err := s.people(ctx, channel)
 	if err != nil {
 		return dbgen.Channel{}, nil, fmt.Errorf("list participants: %w", err)
+	}
+	if !isDM(channel) {
+		return channel, participants, nil
 	}
 	blocked, err := s.dmBlocked(ctx, participants, authctx.UserID(ctx))
 	if err != nil {
@@ -69,26 +83,23 @@ func (s *Service) writableChannel(ctx context.Context, channelID string) (dbgen.
 }
 
 // publishChannel delivers an event to everyone who can see the channel:
-// the space's topic, or each DM participant's personal topic (which
-// every connection already subscribes to, so the gateway needs no DM
+// the space's topic for a public channel, or the personal topic of each
+// person in a direct message or a private channel (which every
+// connection already subscribes to, so the gateway keeps no per-channel
 // bookkeeping).
 func (s *Service) publishChannel(ctx context.Context, channel dbgen.Channel, ev *realtimev1.ServerEvent) {
-	var participants []string
-	if isDM(channel) {
-		ids, err := s.q.ListDMMembers(ctx, channel.ID)
-		if err != nil {
-			slog.Default().Warn("dm: could not list participants for event", "channel_id", channel.ID, "err", err)
-			return
-		}
-		participants = ids
+	participants, err := s.people(ctx, channel)
+	if err != nil {
+		slog.Default().Warn("could not list a channel's people for an event", "channel_id", channel.ID, "err", err)
+		return
 	}
 	s.publishTo(channel, participants, ev)
 }
 
-// publishTo is publishChannel with a direct message's participants
-// already in hand, as writableChannel returns them.
+// publishTo is publishChannel with the channel's people already in hand,
+// as writableChannel returns them.
 func (s *Service) publishTo(channel dbgen.Channel, participants []string, ev *realtimev1.ServerEvent) {
-	if !isDM(channel) {
+	if !isDM(channel) && !channel.Private {
 		s.bus.Publish(events.SpaceTopic(*channel.SpaceID), ev)
 		return
 	}

@@ -186,7 +186,7 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, fmt.Errorf("update channel: %w", err)
 	}
 	out := toProtoChannel(row)
-	s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
+	s.publishChannel(ctx, row, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelUpdated{ChannelUpdated: out},
 	}))
 	return connect.NewResponse(&chatv1.UpdateChannelResponse{Channel: out}), nil
@@ -217,6 +217,12 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	// either miss a clear that happened or announce one that did not. The
 	// conditional UPDATE decides and reports in a single statement, and
 	// holds the space's row lock until the delete commits.
+	// Who to tell is read first: the delete takes a private channel's
+	// people list with it.
+	people, err := s.people(ctx, channel)
+	if err != nil {
+		return nil, fmt.Errorf("list channel people: %w", err)
+	}
 	var cleared dbgen.Space
 	var wasDefault bool
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
@@ -237,7 +243,7 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 		return nil, err
 	}
 
-	s.bus.Publish(events.SpaceTopic(spaceOf(channel)), events.Stamp(&realtimev1.ServerEvent{
+	s.publishTo(channel, people, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelDeleted{
 			ChannelDeleted: &realtimev1.ChannelDeleted{SpaceId: spaceOf(channel), ChannelId: channel.ID},
 		},
@@ -303,13 +309,22 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 		return nil, err
 	}
 	channels := make([]*chatv1.Channel, len(rows))
+	var public []*chatv1.Channel
 	for i, r := range rows {
 		channels[i] = toProtoChannel(r.Channel)
+		if r.Channel.Private {
+			// A private channel's new position goes to its people only.
+			s.publishChannel(ctx, r.Channel, events.Stamp(&realtimev1.ServerEvent{
+				Payload: &realtimev1.ServerEvent_ChannelUpdated{ChannelUpdated: channels[i]},
+			}))
+			continue
+		}
+		public = append(public, channels[i])
 	}
 	// Broadcast without per-caller read markers; clients keep their own.
 	s.bus.Publish(events.SpaceTopic(req.Msg.SpaceId), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelsReordered{
-			ChannelsReordered: &realtimev1.ChannelsReordered{SpaceId: req.Msg.SpaceId, Channels: channels},
+			ChannelsReordered: &realtimev1.ChannelsReordered{SpaceId: req.Msg.SpaceId, Channels: public},
 		},
 	}))
 	return connect.NewResponse(&chatv1.ReorderChannelsResponse{Channels: channels}), nil

@@ -425,8 +425,9 @@ export const VoiceStateChangedSchema: GenMessage<VoiceStateChanged> = /*@__PURE_
   messageDesc(file_stoop_realtime_v1_realtime, 5);
 
 /**
- * Typing in a direct message carries an empty space_id; the gateway relays
- * it to the other participants instead of a space.
+ * Typing in a direct message or a private channel carries an empty
+ * space_id; the gateway relays it to the other people in it instead of a
+ * space.
  *
  * @generated from message stoop.realtime.v1.Typing
  */
@@ -624,7 +625,9 @@ export const ChannelDeletedSchema: GenMessage<ChannelDeleted> = /*@__PURE__*/
   messageDesc(file_stoop_realtime_v1_realtime, 13);
 
 /**
- * ChannelsReordered carries the space's channels in their new order.
+ * ChannelsReordered carries the space's public channels in their new
+ * order, each with its position. A private channel's new position reaches
+ * its people as channel_updated.
  *
  * @generated from message stoop.realtime.v1.ChannelsReordered
  */

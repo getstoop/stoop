@@ -76,7 +76,10 @@ places**, and nowhere else:
   space, or a participant in the DM. Every message RPC starts there, so
   there is one authorisation check for reading, not one per operation.
 - **`publishChannel`** delivers an event to whoever can see the channel:
-  the space's `space:<id>` topic, or each participant's `user:<id>` topic.
+  the space's `space:<id>` topic for a public channel, or the `user:<id>`
+  topic of each person in a DM or a private channel. A private channel's
+  events never reach the space's topic, so outgoing webhooks, which listen
+  there, carry none of them.
 
 Everything else that hangs off `channel_id` — messages, read markers,
 reactions, replies, attachments, link previews, history windows — works on
