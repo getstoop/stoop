@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import { threadFromLink } from "../../api/shareLinks";
 import { ThreadView } from "../../routes/Channel/ThreadView";
+import { ChannelPeople } from "../ChannelPeople";
 import { MutedChannels } from "../MutedChannels";
 
 // What the side panel can show. A kind of content is one entry: its
@@ -31,4 +32,5 @@ export const panels: PanelRegistry = {
     link: { param: "t", also: ["m"], params: threadFromLink },
   },
   muted: { component: MutedChannels },
+  people: { component: ChannelPeople },
 };

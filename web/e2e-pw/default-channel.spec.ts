@@ -58,7 +58,8 @@ test("the channel a space opens in", async ({ browser, request }) => {
   // ---- A second text channel, and a voice channel that must stay out of
   // the choices: landing someone there would open their microphone.
   await A.locator(".channel-group-heading .channel-add:not(.voice)").click();
-  await acceptDialog(A, "tools");
+  await A.getByLabel("Channel name").fill("tools");
+  await A.getByRole("button", { name: "Create" }).click();
   await channelLink(A, "tools").waitFor();
   if (voice) {
     await A.locator(".channel-group-heading .channel-add.voice").click();

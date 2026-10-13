@@ -57,6 +57,7 @@
 @import "./side-panel.css";
 @import "./threads.css";
 @import "./muted-channels.css";
+@import "./channel-people.css";
 @import "./email.css";
 @import "./media-preview.css";
 @import "./mobile.css";

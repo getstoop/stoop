@@ -13,6 +13,7 @@ import {
 import { useConnectionStore } from "../stores/connection";
 import { useVoiceStore } from "../stores/voice";
 import { receiveActivityItem } from "./activity";
+import { channelPeopleKey } from "./channelPeople";
 import { byPosition, withPositions } from "./channels";
 import {
   isLive,
@@ -348,6 +349,12 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "spaceJoined":
       queryClient.invalidateQueries({ queryKey: ["spaces"] });
       break;
+    case "channelMemberJoined":
+    case "channelMemberLeft":
+      queryClient.invalidateQueries({
+        queryKey: channelPeopleKey(payload.value.channelId),
+      });
+      break;
     case "activityItemCreated": {
       const item = payload.value.item;
       if (item) {
@@ -415,6 +422,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.removeQueries({
         queryKey: ["member", payload.value.spaceId, payload.value.userId],
       });
+      // Leaving a space takes someone out of its private channels with no
+      // event of its own.
+      queryClient.invalidateQueries({ queryKey: ["channel-people"] });
       // Their messages stay, and what they are shown as may have changed:
       // an account deleting itself leaves every space this way.
       queryClient.invalidateQueries({ queryKey: ["messages"] });
