@@ -107,7 +107,7 @@ test("also send to channel", async ({ browser }) => {
   await expect(channelRows(B)).toHaveCount(1);
   await act(channelRows(B).first(), "Reply in thread");
   const box = panel(B).getByRole("checkbox", {
-    name: "Also send to #general",
+    name: "Also send to # general",
   });
   await box.check();
   await sayIn(B, ".side-panel", "yes please, two");
