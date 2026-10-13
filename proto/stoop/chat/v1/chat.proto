@@ -109,9 +109,10 @@ service ChatService {
   // DeleteChannel removes a channel and its messages. Requires
   // manage_channels; a space always keeps at least one channel.
   rpc DeleteChannel(DeleteChannelRequest) returns (DeleteChannelResponse) {}
-  // ReorderChannels sets the sidebar order from the given full list of the
-  // space's channel IDs, private ones included (see ListAllChannels).
-  // Requires manage_channels.
+  // ReorderChannels sets the sidebar order from the given list of the
+  // space's channel IDs: every channel the caller can see, and any
+  // private ones they are not in (see ListAllChannels). One of those left
+  // out keeps its place. Requires manage_channels.
   rpc ReorderChannels(ReorderChannelsRequest) returns (ReorderChannelsResponse) {}
   // SetChannelMuted sets the caller's own mute for a channel they can
   // read (a space's, or a direct message).

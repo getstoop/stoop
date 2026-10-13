@@ -144,6 +144,43 @@ func TestPrivateChannelPeople(t *testing.T) {
 	})); err != nil {
 		t.Errorf("reorder by an admin outside the private channel: %v", err)
 	}
+	// Naming only the channels they can see works too, as the settings
+	// page of someone who can't see the private channel does: it keeps
+	// its place and the rest move around it.
+	garden, err := svc.CreateChannel(fixture.owner, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: fixture.spaceID, Name: "garden"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	order := func() []string {
+		res, err := svc.ListAllChannels(fixture.owner, connect.NewRequest(&chatv1.ListAllChannelsRequest{SpaceId: fixture.spaceID}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		names := make([]string, len(res.Msg.Channels))
+		for index, row := range res.Msg.Channels {
+			names[index] = row.Channel.Name
+		}
+		return names
+	}
+	if _, err := svc.ReorderChannels(fixture.owner, connect.NewRequest(&chatv1.ReorderChannelsRequest{
+		SpaceId: fixture.spaceID, ChannelIds: []string{fixture.secretID, fixture.generalID, garden.Msg.Channel.Id},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ReorderChannels(fixture.owner, connect.NewRequest(&chatv1.ReorderChannelsRequest{
+		SpaceId: fixture.spaceID, ChannelIds: []string{garden.Msg.Channel.Id, fixture.generalID},
+	})); err != nil {
+		t.Errorf("reorder naming only the visible channels: %v", err)
+	}
+	if got := order(); len(got) != 3 || got[0] != "secret" || got[1] != "garden" || got[2] != "general" {
+		t.Errorf("order after moving the visible channels: %v, want secret, garden, general", got)
+	}
+	// Leaving out a channel the caller can see is still refused.
+	if _, err := svc.ReorderChannels(fixture.owner, connect.NewRequest(&chatv1.ReorderChannelsRequest{
+		SpaceId: fixture.spaceID, ChannelIds: []string{fixture.generalID},
+	})); code(err) != connect.CodeInvalidArgument {
+		t.Errorf("reorder leaving out a visible channel: %v, want invalid argument", err)
+	}
 
 	if _, err := svc.RemoveChannelMember(fixture.bea, connect.NewRequest(&chatv1.RemoveChannelMemberRequest{
 		ChannelId: fixture.secretID, UserId: authctx.UserID(fixture.cal),
@@ -189,16 +226,60 @@ func TestAddBotToChannel(t *testing.T) {
 	if err := fixture.svc.AddBotMember(fixture.owner, fixture.spaceID, authctx.UserID(bot)); err != nil {
 		t.Fatal(err)
 	}
-	if err := fixture.svc.AddBotToChannel(fixture.owner, fixture.secretID, authctx.UserID(bot)); code(err) != connect.CodeNotFound {
+	if _, err := fixture.svc.AddBotToChannel(fixture.owner, fixture.secretID, authctx.UserID(bot)); code(err) != connect.CodeNotFound {
 		t.Errorf("by someone outside the channel: %v, want not found", err)
 	}
-	if err := fixture.svc.AddBotToChannel(fixture.bea, fixture.secretID, authctx.UserID(bot)); err != nil {
-		t.Fatal(err)
+	if added, err := fixture.svc.AddBotToChannel(fixture.bea, fixture.secretID, authctx.UserID(bot)); err != nil || !added {
+		t.Fatalf("adding the bot: %v %v", added, err)
+	}
+	if added, err := fixture.svc.AddBotToChannel(fixture.bea, fixture.secretID, authctx.UserID(bot)); err != nil || added {
+		t.Errorf("adding a bot already in it: %v %v", added, err)
 	}
 	if ok, err := fixture.svc.IsChannelMember(bot, authctx.UserID(bot), fixture.secretID); err != nil || !ok {
 		t.Errorf("the bot is not in the channel: %v %v", ok, err)
 	}
-	if err := fixture.svc.AddBotToChannel(fixture.owner, fixture.generalID, authctx.UserID(bot)); err != nil {
-		t.Errorf("a public channel needs nothing: %v", err)
+	if added, err := fixture.svc.AddBotToChannel(fixture.owner, fixture.generalID, authctx.UserID(bot)); err != nil || added {
+		t.Errorf("a public channel needs nothing: %v %v", added, err)
+	}
+	// Undoing takes it out, and undoing twice is fine.
+	for range 2 {
+		if err := fixture.svc.RemoveBotFromChannel(fixture.bea, fixture.secretID, authctx.UserID(bot)); err != nil {
+			t.Errorf("taking the bot back out: %v", err)
+		}
+	}
+	if ok, err := fixture.svc.IsChannelMember(bot, authctx.UserID(bot), fixture.secretID); err != nil || ok {
+		t.Errorf("the bot is still in the channel: %v %v", ok, err)
+	}
+}
+
+// The activity list and its unread count follow who is in a private
+// channel when they are read, so an alert written at the moment someone
+// is removed shows them nothing.
+func TestActivityFollowsPrivateChannelAccess(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	fixture.add(t, fixture.owner)
+	fixture.send(t, fixture.owner, "@bea the flyer is out", "")
+	listed := func() int {
+		res, err := fixture.svc.ListActivity(fixture.bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if int(res.Msg.UnreadCount) != len(res.Msg.Items) {
+			t.Errorf("unread count %d, items %d", res.Msg.UnreadCount, len(res.Msg.Items))
+		}
+		return len(res.Msg.Items)
+	}
+	if got := listed(); got != 1 {
+		t.Fatalf("in the channel: %d alerts, want 1", got)
+	}
+	// Take the row away without the cleanup a removal does, as an alert
+	// that slipped in beside a removal would be left.
+	fixture.remove(t, fixture.bea)
+	if got := listed(); got != 0 {
+		t.Errorf("out of the channel: %d alerts, want none", got)
+	}
+	fixture.add(t, fixture.bea)
+	if got := listed(); got != 1 {
+		t.Errorf("back in the channel: %d alerts, want 1", got)
 	}
 }

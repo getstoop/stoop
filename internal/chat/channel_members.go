@@ -133,7 +133,7 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 		}
 	}
 	for _, userID := range req.Msg.UserIds {
-		if err := s.addToChannel(ctx, channel, userID, authctx.UserID(ctx)); err != nil {
+		if _, err := s.addToChannel(ctx, channel, userID, authctx.UserID(ctx)); err != nil {
 			return nil, err
 		}
 	}
@@ -141,16 +141,17 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 }
 
 // addToChannel puts a space member into a private channel and tells them
-// and the people already in it. Already in is fine and tells nobody.
-func (s *Service) addToChannel(ctx context.Context, channel dbgen.Channel, userID, addedBy string) error {
+// and the people already in it. Already in is fine and tells nobody; it
+// reports whether this call is what put them in.
+func (s *Service) addToChannel(ctx context.Context, channel dbgen.Channel, userID, addedBy string) (bool, error) {
 	added, err := s.q.AddPrivateChannelMember(ctx, dbgen.AddPrivateChannelMemberParams{
 		ChannelID: channel.ID, SpaceID: *channel.SpaceID, UserID: userID, AddedBy: &addedBy,
 	})
 	if err != nil {
-		return fmt.Errorf("add channel member: %w", err)
+		return false, fmt.Errorf("add channel member: %w", err)
 	}
 	if added == 0 {
-		return nil
+		return false, nil
 	}
 	// The channel enters the person's list the way a new one does.
 	s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
@@ -163,7 +164,7 @@ func (s *Service) addToChannel(ctx context.Context, channel dbgen.Channel, userI
 			},
 		},
 	}))
-	return nil
+	return true, nil
 }
 
 func (s *Service) RemoveChannelMember(ctx context.Context, req *connect.Request[chatv1.RemoveChannelMemberRequest]) (*connect.Response[chatv1.RemoveChannelMemberResponse], error) {
@@ -230,18 +231,32 @@ func (s *Service) removeFromChannel(ctx context.Context, channel dbgen.Channel, 
 }
 
 // AddBotToChannel puts an incoming webhook's bot into the private channel
-// the hook posts into, for a caller who is in that channel. A public
-// channel needs nothing. Exposed for the integrations module.
-func (s *Service) AddBotToChannel(ctx context.Context, channelID, botUserID string) error {
+// the hook posts into, for a caller who is in that channel, and reports
+// whether this call is what put it there. A public channel needs
+// nothing. Exposed for the integrations module.
+func (s *Service) AddBotToChannel(ctx context.Context, channelID, botUserID string) (bool, error) {
+	channel, err := s.q.GetChannel(ctx, channelID)
+	if err != nil {
+		return false, apierr.NotFoundOr(err, "channel")
+	}
+	if !channel.Private {
+		return false, nil
+	}
+	if err := s.requireInPrivate(ctx, channel); err != nil {
+		return false, err
+	}
+	return s.addToChannel(ctx, channel, botUserID, authctx.UserID(ctx))
+}
+
+// RemoveBotFromChannel takes a bot back out of a private channel, for a
+// webhook that could not be finished. Not in it is fine.
+func (s *Service) RemoveBotFromChannel(ctx context.Context, channelID, botUserID string) error {
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if err != nil {
 		return apierr.NotFoundOr(err, "channel")
 	}
-	if !channel.Private {
-		return nil
-	}
-	if err := s.requireInPrivate(ctx, channel); err != nil {
+	if err := s.removeFromChannel(ctx, channel, botUserID); connect.CodeOf(err) != connect.CodeNotFound {
 		return err
 	}
-	return s.addToChannel(ctx, channel, botUserID, authctx.UserID(ctx))
+	return nil
 }

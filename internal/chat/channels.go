@@ -286,6 +286,42 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	return connect.NewResponse(&chatv1.DeleteChannelResponse{}), nil
 }
 
+// reorderedIDs is a space's channels in the order a request asks for.
+// The request names every channel the caller can see, once each, and may
+// name the private channels they are not in. One it leaves out keeps its
+// place in the list, so an admin who can't see a private channel still
+// orders the rest around it.
+func reorderedIDs(rows []dbgen.ListAllChannelsBySpaceRow, requested []string) ([]string, error) {
+	errList := connect.NewError(connect.CodeInvalidArgument,
+		errors.New("channel_ids must list every channel in the space exactly once"))
+	known := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		known[row.Channel.ID] = true
+	}
+	named := make(map[string]bool, len(requested))
+	for _, id := range requested {
+		if !known[id] || named[id] {
+			return nil, errList
+		}
+		named[id] = true
+	}
+	order := make([]string, len(rows))
+	next := 0
+	for index, row := range rows {
+		if !named[row.Channel.ID] {
+			// Only a private channel the caller is not in may be left out.
+			if row.Joined {
+				return nil, errList
+			}
+			order[index] = row.Channel.ID
+			continue
+		}
+		order[index] = requested[next]
+		next++
+	}
+	return order, nil
+}
+
 func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chatv1.ReorderChannelsRequest]) (*connect.Response[chatv1.ReorderChannelsResponse], error) {
 	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.ChannelsManage); err != nil {
 		return nil, err
@@ -294,26 +330,12 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 	if err != nil {
 		return nil, err
 	}
-	// The request must name every channel exactly once.
-	existing := make(map[string]bool, len(rows))
-	for _, r := range rows {
-		existing[r.Channel.ID] = true
+	order, err := reorderedIDs(rows, req.Msg.ChannelIds)
+	if err != nil {
+		return nil, err
 	}
-	if len(req.Msg.ChannelIds) != len(rows) {
-		return nil, connect.NewError(connect.CodeInvalidArgument,
-			errors.New("channel_ids must list every channel in the space"))
-	}
-	seen := map[string]bool{}
-	for _, id := range req.Msg.ChannelIds {
-		if !existing[id] || seen[id] {
-			return nil, connect.NewError(connect.CodeInvalidArgument,
-				errors.New("channel_ids must list every channel in the space exactly once"))
-		}
-		seen[id] = true
-	}
-
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		for index, id := range req.Msg.ChannelIds {
+		for index, id := range order {
 			if err := qtx.SetChannelPosition(ctx, dbgen.SetChannelPositionParams{
 				ID: id, SpaceID: req.Msg.SpaceId, Position: int32(index),
 			}); err != nil {

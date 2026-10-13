@@ -315,6 +315,8 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.removeQueries({
         queryKey: ["messages", payload.value.channelId],
       });
+      // Its alerts went with it.
+      queryClient.invalidateQueries({ queryKey: ["activity"] });
       useVoiceStore.getState().dropChannel(payload.value.channelId);
       if (
         useVoiceStore.getState().connection?.channelId ===

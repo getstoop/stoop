@@ -275,9 +275,10 @@ type ChatServiceClient interface {
 	// DeleteChannel removes a channel and its messages. Requires
 	// manage_channels; a space always keeps at least one channel.
 	DeleteChannel(context.Context, *connect.Request[v1.DeleteChannelRequest]) (*connect.Response[v1.DeleteChannelResponse], error)
-	// ReorderChannels sets the sidebar order from the given full list of the
-	// space's channel IDs, private ones included (see ListAllChannels).
-	// Requires manage_channels.
+	// ReorderChannels sets the sidebar order from the given list of the
+	// space's channel IDs: every channel the caller can see, and any
+	// private ones they are not in (see ListAllChannels). One of those left
+	// out keeps its place. Requires manage_channels.
 	ReorderChannels(context.Context, *connect.Request[v1.ReorderChannelsRequest]) (*connect.Response[v1.ReorderChannelsResponse], error)
 	// SetChannelMuted sets the caller's own mute for a channel they can
 	// read (a space's, or a direct message).
@@ -1128,9 +1129,10 @@ type ChatServiceHandler interface {
 	// DeleteChannel removes a channel and its messages. Requires
 	// manage_channels; a space always keeps at least one channel.
 	DeleteChannel(context.Context, *connect.Request[v1.DeleteChannelRequest]) (*connect.Response[v1.DeleteChannelResponse], error)
-	// ReorderChannels sets the sidebar order from the given full list of the
-	// space's channel IDs, private ones included (see ListAllChannels).
-	// Requires manage_channels.
+	// ReorderChannels sets the sidebar order from the given list of the
+	// space's channel IDs: every channel the caller can see, and any
+	// private ones they are not in (see ListAllChannels). One of those left
+	// out keeps its place. Requires manage_channels.
 	ReorderChannels(context.Context, *connect.Request[v1.ReorderChannelsRequest]) (*connect.Response[v1.ReorderChannelsResponse], error)
 	// SetChannelMuted sets the caller's own mute for a channel they can
 	// read (a space's, or a direct message).

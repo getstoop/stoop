@@ -176,6 +176,11 @@ func TestE2EPrivateChannelOutsider(t *testing.T) {
 		}
 		site.rpc(token, chat+"SearchMessages", map[string]any{"spaceId": stoop, "query": marker + " in:#captains"}).
 			expect(t, "not_found")
+		// Nothing else in the space is unread, so a dot on it could only
+		// come from the private channel.
+		if got := site.rpc(token, chat+"ListSpaces", map[string]any{}).expect(t, "ok"); strings.Contains(got.raw, `"hasUnread":true`) {
+			t.Errorf("%s: the space shows as unread because of the private channel: %s", who, got.raw)
+		}
 		if got := site.get(token, "/files/"+fileID); got.status == http.StatusOK || strings.Contains(got.raw, marker) {
 			t.Errorf("%s downloaded the channel's file: %d", who, got.status)
 		}

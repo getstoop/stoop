@@ -218,6 +218,8 @@ SELECT s.id, s.name, s.owner_id, s.created_at, s.members_can_invite, s.icon_file
         LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = m.user_id
         WHERE c.space_id = s.id
           AND (($1::bool AND s.voice_enabled) OR c.kind <> 2)
+          AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm
+                                        WHERE pm.channel_id = c.id AND pm.user_id = m.user_id))
           AND c.last_message_id IS NOT NULL
           AND (r.last_read_message_id IS NULL OR c.last_message_id > r.last_read_message_id)
           AND NOT EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = m.user_id)
@@ -244,7 +246,8 @@ type ListSpacesByUserRow struct {
 // any channel there has messages newer than their read marker, and their
 // own mute for the space. has_unread does not know about space mutes; the
 // client derives the effective state from both flags. Hidden voice
-// channels (kind 2) don't count.
+// channels (kind 2) don't count, nor do private channels the caller is
+// not in.
 func (q *Queries) ListSpacesByUser(ctx context.Context, arg ListSpacesByUserParams) ([]ListSpacesByUserRow, error) {
 	rows, err := q.db.Query(ctx, listSpacesByUser, arg.WithVoice, arg.UserID)
 	if err != nil {

@@ -2745,9 +2745,10 @@ export const ChatService: GenService<{
     output: typeof DeleteChannelResponseSchema;
   },
   /**
-   * ReorderChannels sets the sidebar order from the given full list of the
-   * space's channel IDs, private ones included (see ListAllChannels).
-   * Requires manage_channels.
+   * ReorderChannels sets the sidebar order from the given list of the
+   * space's channel IDs: every channel the caller can see, and any
+   * private ones they are not in (see ListAllChannels). One of those left
+   * out keeps its place. Requires manage_channels.
    *
    * @generated from rpc stoop.chat.v1.ChatService.ReorderChannels
    */

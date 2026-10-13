@@ -72,10 +72,16 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 	}
 
 	var credID string
-	created := false
+	created, joinedChannel := false, false
 	defer func() {
 		if !created {
-			s.undoCreateIncoming(context.WithoutCancel(ctx), spaceID, bot.ID, credID, newBot)
+			undo := context.WithoutCancel(ctx)
+			if joinedChannel {
+				if err := s.spaces.RemoveBotFromChannel(undo, req.Msg.ChannelId, bot.ID); err != nil {
+					s.log.Error("undo hook create: take bot out of channel", "bot", bot.ID, "err", err)
+				}
+			}
+			s.undoCreateIncoming(undo, spaceID, bot.ID, credID, newBot)
 		}
 	}()
 	if newBot {
@@ -84,7 +90,7 @@ func (s *Service) CreateIncoming(ctx context.Context, req *connect.Request[integ
 		}
 	}
 	// A hook into a private channel puts its bot in that channel.
-	if err := s.spaces.AddBotToChannel(ctx, req.Msg.ChannelId, bot.ID); err != nil {
+	if joinedChannel, err = s.spaces.AddBotToChannel(ctx, req.Msg.ChannelId, bot.ID); err != nil {
 		return nil, err
 	}
 	if req.Msg.NotifyEveryone {

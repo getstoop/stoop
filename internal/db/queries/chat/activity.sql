@@ -11,7 +11,9 @@ RETURNING *;
 
 -- ListActivity returns newest first with the message text for a
 -- preview (NULL if the message has since been deleted), and the
--- recipient's effective mute for where each item happened.
+-- recipient's effective mute for where each item happened. An item from
+-- a private channel the recipient is no longer in is left out: removal
+-- deletes them, and this holds for one written at the same moment.
 -- name: ListActivity :many
 SELECT sqlc.embed(a), m.content AS message_content, m.thread_root_id AS message_thread_root_id,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
@@ -20,13 +22,19 @@ SELECT sqlc.embed(a), m.content AS message_content, m.thread_root_id AS message_
         OR EXISTS (SELECT 1 FROM thread_mutes tm WHERE tm.user_id = a.user_id AND tm.root_message_id = m.thread_root_id))::bool AS muted
 FROM activity_items a
 LEFT JOIN messages m ON m.id = a.message_id
+LEFT JOIN channels c ON c.id = a.channel_id
 WHERE a.user_id = $1
+  AND (c.private IS NOT TRUE OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = a.channel_id AND pm.user_id = a.user_id))
   AND (sqlc.narg('before_id')::uuid IS NULL OR a.id < sqlc.narg('before_id')::uuid)
 ORDER BY a.id DESC
 LIMIT $2;
 
+-- CountUnreadActivity counts what ListActivity would list.
 -- name: CountUnreadActivity :one
-SELECT count(*) FROM activity_items WHERE user_id = $1 AND read_at IS NULL;
+SELECT count(*) FROM activity_items a
+LEFT JOIN channels c ON c.id = a.channel_id
+WHERE a.user_id = $1 AND a.read_at IS NULL
+  AND (c.private IS NOT TRUE OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = a.channel_id AND pm.user_id = a.user_id));
 
 -- name: MarkActivityRead :exec
 UPDATE activity_items SET read_at = now()
