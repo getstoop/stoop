@@ -328,3 +328,25 @@ func TestRefusalsDoNotConfirmAPrivateChannel(t *testing.T) {
 		t.Errorf("a member renaming a public channel: %v, want permission denied", err)
 	}
 }
+
+// A private channel can't be made an announcement channel; a public one can.
+func TestPrivateChannelCannotBeAnAnnouncementChannel(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	fixture.add(t, fixture.owner)
+	admins, everyone := chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_ADMINS, chatv1.ChannelPostPolicy_CHANNEL_POST_POLICY_EVERYONE
+	set := func(channelID string, policy chatv1.ChannelPostPolicy) error {
+		_, err := fixture.svc.UpdateChannel(fixture.owner, connect.NewRequest(&chatv1.UpdateChannelRequest{ChannelId: channelID, PostPolicy: &policy}))
+		return err
+	}
+	if err := set(fixture.secretID, admins); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("a private channel as an announcement channel: %v, want failed precondition", err)
+	}
+	// Everyone still posts there.
+	fixture.send(t, fixture.bea, "still open", "")
+	if err := set(fixture.secretID, everyone); err != nil {
+		t.Errorf("setting a private channel to what it already is: %v", err)
+	}
+	if err := set(fixture.generalID, admins); err != nil {
+		t.Errorf("a public channel as an announcement channel: %v", err)
+	}
+}

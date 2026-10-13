@@ -494,6 +494,9 @@ post; everyone else reads, reacts, and deletes their own messages.
 Changed with `UpdateChannel` under `manage_channels`, and carried to
 clients by the ordinary `ChannelUpdated`.
 
+A private channel can't be an announcement channel: `UpdateChannel`
+refuses `admins` for one, and the app doesn't offer it.
+
 `requirePostPolicy` checks the identity, not the credential: the
 credential was already checked for `messages.post`, so an admin's token
 that grants only that still posts. It guards `SendMessage` (replies

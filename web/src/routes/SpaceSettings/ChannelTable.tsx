@@ -93,7 +93,8 @@ export function ChannelTable({
               label={`Actions for #${c.name}`}
               items={[
                 { label: "Edit", onSelect: () => v.onEdit(c) },
-                ...(voice
+                // A private channel can't become one; one that is can go back.
+                ...(voice || (c.private && !isAnnouncement(c))
                   ? []
                   : [
                       {
