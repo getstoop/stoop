@@ -23,9 +23,16 @@ func TestPrivateChannelAttachmentDownloads(t *testing.T) {
 	fixture.spaces.privateChannelID = private
 	fixture.spaces.privateMembers = map[string]bool{fixture.owner: true}
 	fixture.spaces.members[fixture.other] = true
-	fixture.sess.users["read-only"] = authctx.Identity{UserID: fixture.owner, Role: authctx.RoleMember, Credential: authctx.Credential{
-		ID: "t", Kind: authctx.CredentialPersonalToken, Grants: []authctx.Action{authctx.DMsRead},
-	}}
+	token := func(credential authctx.Credential) authctx.Identity {
+		credential.ID, credential.Kind = "t", authctx.CredentialPersonalToken
+		return authctx.Identity{UserID: fixture.member, Role: authctx.RoleMember, Credential: credential}
+	}
+	read := []authctx.Action{authctx.MessagesRead}
+	fixture.sess.users["no-messages"] = token(authctx.Credential{Grants: []authctx.Action{authctx.DMsRead}})
+	fixture.sess.users["whole-account"] = token(authctx.Credential{Grants: read})
+	fixture.sess.users["this-space"] = token(authctx.Credential{Grants: read, Bounded: true, Spaces: []string{fixture.space}})
+	fixture.sess.users["this-channel"] = token(authctx.Credential{Grants: read, Bounded: true, Channels: []string{private}})
+	fixture.sess.users["elsewhere"] = token(authctx.Credential{Grants: read, Bounded: true, Spaces: []string{uuid.NewString()}})
 
 	status, body := fixture.upload(t, "owner", private, "flyer.txt", []byte("the 24th"))
 	if status != http.StatusCreated {
@@ -41,11 +48,10 @@ func TestPrivateChannelAttachmentDownloads(t *testing.T) {
 	}
 
 	for user, want := range map[string]int{
-		"owner":     http.StatusOK,        // in the channel, and the uploader
-		"member":    http.StatusForbidden, // in the space, not the channel
-		"other":     http.StatusForbidden,
-		"admin":     http.StatusForbidden, // no inherited read
-		"read-only": http.StatusForbidden, // a token without messages.read
+		"owner":  http.StatusOK,        // in the channel, and the uploader
+		"member": http.StatusForbidden, // in the space, not the channel
+		"other":  http.StatusForbidden,
+		"admin":  http.StatusForbidden, // no inherited read
 	} {
 		if res := fixture.get(t, id, user); res.StatusCode != want {
 			t.Errorf("private attachment as %s: %d, want %d", user, res.StatusCode, want)
@@ -53,9 +59,18 @@ func TestPrivateChannelAttachmentDownloads(t *testing.T) {
 	}
 
 	// The uploader keeps their own file after leaving the channel; someone
-	// added to it can read it.
+	// added to it can read it, with a session or with a token that grants
+	// messages.read and reaches the channel.
 	fixture.spaces.privateMembers = map[string]bool{fixture.member: true}
-	for user, want := range map[string]int{"owner": http.StatusOK, "member": http.StatusOK} {
+	for user, want := range map[string]int{
+		"owner":         http.StatusOK,
+		"member":        http.StatusOK,
+		"whole-account": http.StatusOK,
+		"this-space":    http.StatusOK,
+		"this-channel":  http.StatusOK,
+		"elsewhere":     http.StatusForbidden, // bounded to another space
+		"no-messages":   http.StatusForbidden, // no messages.read
+	} {
 		if res := fixture.get(t, id, user); res.StatusCode != want {
 			t.Errorf("after the people changed, as %s: %d, want %d", user, res.StatusCode, want)
 		}
