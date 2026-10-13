@@ -141,7 +141,7 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 			return err
 		},
 		"an upload": func() error {
-			_, err := svc.ChannelSpaceToPostIn(bea, authctx.UserID(bea), hangout)
+			_, _, err := svc.ChannelSpaceToPostIn(bea, authctx.UserID(bea), hangout)
 			return err
 		},
 	}

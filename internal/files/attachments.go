@@ -95,7 +95,7 @@ func (s *Service) UploadHandler() http.Handler {
 		// Membership, the credential's bounds and an announcement channel
 		// are chat's answer; the
 		// grant is checked here, since the handler isn't a Connect call.
-		spaceID, err := s.spaces.ChannelSpaceToPostIn(ctx, identity.UserID, channelID)
+		spaceID, private, err := s.spaces.ChannelSpaceToPostIn(ctx, identity.UserID, channelID)
 		if err != nil {
 			var cerr *connect.Error
 			switch {
@@ -141,7 +141,11 @@ func (s *Service) UploadHandler() http.Handler {
 			return
 		}
 
-		info, err := s.storeAttachment(request, identity.UserID, spaceID, part, header.Size, header.Filename)
+		privateChannelID := ""
+		if private {
+			privateChannelID = channelID
+		}
+		info, err := s.storeAttachment(request, identity.UserID, spaceID, privateChannelID, part, header.Size, header.Filename)
 		if err != nil {
 			if writeStorageFull(writer, err) {
 				return
@@ -191,7 +195,7 @@ func writeStorageFull(writer http.ResponseWriter, err error) bool {
 
 // storeAttachment sniffs the first bytes for the content type, then
 // streams the whole part into the blob store while hashing it.
-func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID string, part io.ReadSeeker, size int64, filename string) (Info, error) {
+func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID, privateChannelID string, part io.ReadSeeker, size int64, filename string) (Info, error) {
 	ctx := request.Context()
 	head := make([]byte, 512)
 	headLength, err := io.ReadFull(part, head)
@@ -208,12 +212,17 @@ func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID string
 	if spaceID != "" {
 		space = &spaceID
 	}
+	// A private channel's file says which, so only its people are served.
+	var privateChannel *string
+	if privateChannelID != "" {
+		privateChannel = &privateChannelID
+	}
 	hasher := sha256.New()
 	file, err := s.storeFile(ctx, KindAttachment, io.TeeReader(part, hasher), size, contentType, func(id, key string) (dbgen.File, error) {
 		return s.recordFile(ctx, dbgen.CreateFileParams{
 			ID: id, Kind: string(KindAttachment), OwnerID: ownerID, SpaceID: space,
 			ContentType: contentType, Size: size, Sha256: hasher.Sum(nil), StorageKey: key,
-			Name: sanitizeFilename(filename),
+			Name: sanitizeFilename(filename), PrivateChannelID: privateChannel,
 		})
 	})
 	if err != nil {

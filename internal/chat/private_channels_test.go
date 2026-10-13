@@ -295,3 +295,49 @@ func TestPrivateChannelAndSpaceSettings(t *testing.T) {
 		t.Errorf("deleting a private channel: %v", err)
 	}
 }
+
+func TestPrivateChannelAttachmentsStayInTheirChannel(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	fixture.svc.UseFiles(&dbFiles{pool: fixture.pool})
+	upload := func(privateChannel bool) string {
+		id := newFile(t, fixture.pool, fixture.bea, fixture.spaceID, "attachment", "flyer.txt")
+		if privateChannel {
+			if _, err := fixture.pool.Exec(context.Background(),
+				"UPDATE files SET private_channel_id = $2 WHERE id = $1", id, fixture.secretID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return id
+	}
+	send := func(channelID, fileID string) error {
+		_, err := fixture.svc.SendMessage(fixture.bea, connect.NewRequest(&chatv1.SendMessageRequest{
+			ChannelId: channelID, AttachmentIds: []string{fileID},
+		}))
+		return err
+	}
+	if err := send(fixture.generalID, upload(true)); code(err) != connect.CodeInvalidArgument {
+		t.Errorf("a private channel's file in a public channel: %v, want invalid argument", err)
+	}
+	if err := send(fixture.secretID, upload(false)); code(err) != connect.CodeInvalidArgument {
+		t.Errorf("a public upload in a private channel: %v, want invalid argument", err)
+	}
+	if err := send(fixture.secretID, upload(true)); err != nil {
+		t.Errorf("a private channel's file in its own channel: %v", err)
+	}
+	if err := send(fixture.generalID, upload(false)); err != nil {
+		t.Errorf("a public upload in a public channel: %v", err)
+	}
+}
+
+func TestUploadTargetSaysPrivate(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	if _, private, err := fixture.svc.ChannelSpaceToPostIn(fixture.bea, authctx.UserID(fixture.bea), fixture.secretID); err != nil || !private {
+		t.Errorf("someone in the channel: private %v, %v", private, err)
+	}
+	if _, private, err := fixture.svc.ChannelSpaceToPostIn(fixture.bea, authctx.UserID(fixture.bea), fixture.generalID); err != nil || private {
+		t.Errorf("a public channel: private %v, %v", private, err)
+	}
+	if _, _, err := fixture.svc.ChannelSpaceToPostIn(fixture.cal, authctx.UserID(fixture.cal), fixture.secretID); code(err) != connect.CodeNotFound {
+		t.Errorf("someone outside the channel: %v, want not found", err)
+	}
+}

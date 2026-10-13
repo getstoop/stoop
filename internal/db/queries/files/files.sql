@@ -2,8 +2,8 @@
 -- Only internal/files may use these queries.
 
 -- name: CreateFile :one
-INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, private_channel_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, sqlc.narg(private_channel_id))
 RETURNING *;
 
 -- CreatePendingFile stores an avatar or icon upload as sent; the

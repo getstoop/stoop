@@ -19,9 +19,12 @@ const (
 )
 
 // claimAttachments checks that every id names a pending attachment the
-// caller uploaded for this space. "Already used by another message" is
-// left to the UNIQUE constraint on insert (see insertAttachments).
-func (s *Service) claimAttachments(ctx context.Context, userID, spaceID string, ids []string) ([]FileRecord, error) {
+// caller uploaded for this channel's space, and for this channel itself
+// if it is private: a private channel's file goes nowhere else, and a
+// file uploaded elsewhere does not come in. "Already used by another
+// message" is left to the UNIQUE constraint on insert (see
+// insertAttachments).
+func (s *Service) claimAttachments(ctx context.Context, userID string, channel dbgen.Channel, ids []string) ([]FileRecord, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -47,10 +50,15 @@ func (s *Service) claimAttachments(ctx context.Context, userID, spaceID string, 
 	for _, r := range records {
 		byID[r.ID] = r
 	}
+	privateChannelID := ""
+	if channel.Private {
+		privateChannelID = channel.ID
+	}
 	out := make([]FileRecord, len(ids))
 	for i, id := range ids {
 		r, ok := byID[id]
-		if !ok || r.Kind != fileKindAttach || r.OwnerID != userID || r.SpaceID != spaceID || r.Expired {
+		if !ok || r.Kind != fileKindAttach || r.OwnerID != userID || r.SpaceID != spaceOf(channel) ||
+			r.PrivateChannelID != privateChannelID || r.Expired {
 			// One message for every failure mode: a forged id must not be
 			// distinguishable from an unknown one.
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown attachment"))

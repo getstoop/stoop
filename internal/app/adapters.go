@@ -141,7 +141,7 @@ func (d fileDirectory) GetFiles(ctx context.Context, ids []string) ([]chat.FileR
 	out := make([]chat.FileRecord, len(infos))
 	for i, f := range infos {
 		out[i] = chat.FileRecord{
-			ID: f.ID, Kind: string(f.Kind), OwnerID: f.OwnerID, SpaceID: f.SpaceID,
+			ID: f.ID, Kind: string(f.Kind), OwnerID: f.OwnerID, SpaceID: f.SpaceID, PrivateChannelID: f.PrivateChannelID,
 			Name: f.Name, ContentType: f.ContentType, Size: f.Size, Expired: f.Expired,
 		}
 	}
