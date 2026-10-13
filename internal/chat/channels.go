@@ -201,13 +201,13 @@ func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, err
 	}
-	listed, err := s.q.CountChannelsInSpace(ctx, dbgen.CountChannelsInSpaceParams{
+	listed, err := s.q.CountPublicChannelsInSpace(ctx, dbgen.CountPublicChannelsInSpaceParams{
 		SpaceID: spaceOf(channel), WithVoice: withVoice,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("count channels: %w", err)
 	}
-	if listed <= 1 {
+	if !channel.Private && listed <= 1 {
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			errors.New("a space needs at least one channel"))
 	}

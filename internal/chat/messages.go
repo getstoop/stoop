@@ -562,6 +562,9 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 		if err := s.requirePermission(ctx, *channel.SpaceID, authctx.MessagesModerate); err != nil {
 			return nil, err
 		}
+		if err := s.requireInPrivate(ctx, channel); err != nil {
+			return nil, err
+		}
 	} else if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
 		return nil, err
 	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {

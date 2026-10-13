@@ -240,6 +240,9 @@ func (s *Service) DeleteThread(ctx context.Context, req *connect.Request[chatv1.
 	if err := s.requirePermission(ctx, *channel.SpaceID, authctx.MessagesModerate); err != nil {
 		return nil, err
 	}
+	if err := s.requireInPrivate(ctx, channel); err != nil {
+		return nil, err
+	}
 	if root.ThreadRootID != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("that message is a reply, not a thread's root"))

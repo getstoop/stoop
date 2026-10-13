@@ -9,7 +9,8 @@ RETURNING *;
 -- name: GetChannel :one
 SELECT * FROM channels WHERE id = $1;
 
--- ListChannelsBySpace includes the caller's read marker, how many
+-- ListChannelsBySpace is the space's public channels and the private
+-- ones the caller is in, with the caller's read marker, how many
 -- messages are newer than it (all of them if they've never opened it),
 -- and whether they muted it.
 -- name: ListChannelsBySpace :many
@@ -21,6 +22,7 @@ SELECT sqlc.embed(c), r.last_read_message_id,
 FROM channels c
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = sqlc.arg(user_id)
 WHERE c.space_id = sqlc.arg(space_id)::uuid
+  AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = sqlc.arg(user_id)))
 ORDER BY c.position, c.created_at;
 
 -- name: SetChannelLastMessage :exec
@@ -46,11 +48,12 @@ RETURNING *;
 -- name: DeleteChannel :exec
 DELETE FROM channels WHERE id = $1;
 
--- CountChannelsInSpace leaves voice channels (kind 2) out when they are
+-- CountPublicChannelsInSpace is how many channels every member sees:
+-- private ones are left out, and voice channels (kind 2) when they are
 -- hidden.
--- name: CountChannelsInSpace :one
+-- name: CountPublicChannelsInSpace :one
 SELECT count(*) FROM channels
-WHERE space_id = sqlc.arg(space_id)::uuid
+WHERE space_id = sqlc.arg(space_id)::uuid AND NOT private
   AND (sqlc.arg(with_voice)::bool OR kind <> 2);
 
 -- name: SetChannelPosition :exec
@@ -62,3 +65,11 @@ UPDATE channels SET position = sqlc.arg(position) WHERE id = sqlc.arg(id) AND sp
 -- name: ListChannelIDsByKind :many
 SELECT id FROM channels WHERE space_id = sqlc.arg(space_id)::uuid AND kind = sqlc.arg(kind)
 ORDER BY position, created_at;
+
+-- name: IsPrivateChannelMember :one
+SELECT EXISTS (
+    SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2
+) AS is_member;
+
+-- name: ListPrivateChannelMemberIDs :many
+SELECT user_id FROM channel_members WHERE channel_id = $1 ORDER BY added_at, user_id;

@@ -110,6 +110,11 @@ list can answer "anything new?" without touching `messages`.
 channel, which is what let group conversations arrive with no migration at
 all. `closed_at` is one person taking the conversation off their own list.
 
+**`channel_members`** — the people in a private channel
+(`channels.private`), keyed `(channel_id, user_id)`. Only private channels
+have rows. A foreign key on `(space_id, user_id)` to `space_members` takes
+someone who leaves the space out of its private channels.
+
 **`channel_reads`** — `(user_id, channel_id) → last_read_message_id`, only
 ever moving forward. Because message ids are time-ordered, "unread" is an
 id comparison against `channels.last_message_id`, not a count.
@@ -169,8 +174,8 @@ a column a view reads, so a migration that does either recreates the view
 in the same file.
 
 **`channel_readers`** is a view of `(channel_id, user_id)`: who may read
-a channel, as the members of its space or the participants of the direct
-message. Every query that asks whether someone may read a channel reads
+a channel, as the members of a public channel's space, the people in a
+private channel, or the participants of a direct message. Every query that asks whether someone may read a channel reads
 it, so the rule is written once.
 
 **`channel_pins`** — `message_id` (the primary key, because a message
@@ -363,6 +368,12 @@ below that floor, naming both numbers, instead of failing at some later
 query. Expand-only releases never touch the floor, so rolling back across
 several of them still works. The fix for a refused start is the newer
 binary, or the backup taken before it ran.
+
+One migration raises the floor to itself without dropping anything:
+00063, which adds private channels. An older binary would start against
+it and treat every private channel as public, so it has to be refused.
+Until the release that ships it is tagged, the floor names a migration no
+release has.
 
 A contract migration raises the constant `db.Floor` in the same PR.
 `TestFloorMatchesSchema` migrates a fresh database and checks

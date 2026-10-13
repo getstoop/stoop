@@ -97,6 +97,40 @@ func (s *Service) publishTo(channel dbgen.Channel, participants []string, ev *re
 	}
 }
 
+// notInChannel is the refusal for someone who may not read a channel. A
+// private channel is not found, so the answer does not confirm it exists.
+func (s *Service) notInChannel(ctx context.Context, channelID string) error {
+	channel, err := s.q.GetChannel(ctx, channelID)
+	if err == nil && channel.Private {
+		return errChannelNotFound()
+	}
+	return connect.NewError(connect.CodePermissionDenied,
+		errors.New("not a member of this channel's space"))
+}
+
+func errChannelNotFound() error {
+	return connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
+}
+
+// requireInPrivate refuses a caller who is not in a private channel. A
+// space permission reaches a public channel on its own; a private one
+// also needs the caller in it.
+func (s *Service) requireInPrivate(ctx context.Context, channel dbgen.Channel) error {
+	if !channel.Private {
+		return nil
+	}
+	ok, err := s.q.IsPrivateChannelMember(ctx, dbgen.IsPrivateChannelMemberParams{
+		ChannelID: channel.ID, UserID: authctx.UserID(ctx),
+	})
+	if err != nil {
+		return fmt.Errorf("check channel membership: %w", err)
+	}
+	if !ok {
+		return errChannelNotFound()
+	}
+	return nil
+}
+
 // memberChannel loads a channel for someone already known to be in it. A
 // hidden voice channel is not found.
 func (s *Service) memberChannel(ctx context.Context, channelID string) (dbgen.Channel, error) {
@@ -109,7 +143,7 @@ func (s *Service) memberChannel(ctx context.Context, channelID string) (dbgen.Ch
 		return dbgen.Channel{}, err
 	}
 	if hidden {
-		return dbgen.Channel{}, connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
+		return dbgen.Channel{}, errChannelNotFound()
 	}
 	return channel, nil
 }

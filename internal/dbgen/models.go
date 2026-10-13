@@ -31,6 +31,15 @@ type Channel struct {
 	DmKey         *string
 	Topic         string
 	PostPolicy    string
+	Private       bool
+}
+
+type ChannelMember struct {
+	ChannelID string
+	SpaceID   string
+	UserID    string
+	AddedBy   *string
+	AddedAt   time.Time
 }
 
 type ChannelMute struct {

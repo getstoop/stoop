@@ -11,22 +11,25 @@ import (
 )
 
 const getChannelInSpaceByName = `-- name: GetChannelInSpaceByName :one
-SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy FROM channels
-WHERE space_id = $1::uuid AND lower(name) = lower($2)
-ORDER BY (name = $2) DESC, position, created_at
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private FROM channels c
+WHERE c.space_id = $1::uuid AND lower(c.name) = lower($2)
+  AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = $3::uuid))
+ORDER BY (c.name = $2) DESC, c.position, c.created_at
 LIMIT 1
 `
 
 type GetChannelInSpaceByNameParams struct {
 	SpaceID string
 	Name    string
+	UserID  string
 }
 
-// GetChannelInSpaceByName resolves an in:#name filter. Names from before
+// GetChannelInSpaceByName resolves an in:#name filter among the channels
+// the caller may read. Names from before
 // the naming rule may repeat or carry capitals: an exact match wins, then
 // the first by position, as in the sidebar.
 func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInSpaceByNameParams) (Channel, error) {
-	row := q.db.QueryRow(ctx, getChannelInSpaceByName, arg.SpaceID, arg.Name)
+	row := q.db.QueryRow(ctx, getChannelInSpaceByName, arg.SpaceID, arg.Name, arg.UserID)
 	var i Channel
 	err := row.Scan(
 		&i.ID,
@@ -39,6 +42,7 @@ func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInS
 		&i.DmKey,
 		&i.Topic,
 		&i.PostPolicy,
+		&i.Private,
 	)
 	return i, err
 }
@@ -48,24 +52,26 @@ const searchMessages = `-- name: SearchMessages :many
 SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids FROM message_with_reply m
 JOIN messages indexed ON indexed.id = m.id
 WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = $1::uuid
-        AND ($2::bool OR c.kind <> 2))
+        AND ($2::bool OR c.kind <> 2)
+        AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = $3::uuid)))
   AND indexed.search @@ (CASE
-      WHEN $3::text = '' THEN websearch_to_tsquery('simple', $4::text)
-      WHEN $4::text = '' THEN to_tsquery('simple', $3::text)
-      ELSE websearch_to_tsquery('simple', $4::text) && to_tsquery('simple', $3::text)
+      WHEN $4::text = '' THEN websearch_to_tsquery('simple', $5::text)
+      WHEN $5::text = '' THEN to_tsquery('simple', $4::text)
+      ELSE websearch_to_tsquery('simple', $5::text) && to_tsquery('simple', $4::text)
       END)
-  AND ($5::uuid IS NULL OR m.channel_id = $5::uuid)
-  AND ($6::uuid IS NULL OR m.author_id = $6::uuid)
-  AND ($7::timestamptz IS NULL OR m.created_at >= $7::timestamptz)
-  AND ($8::timestamptz IS NULL OR m.created_at < $8::timestamptz)
-  AND ($9::uuid IS NULL OR m.id < $9::uuid)
+  AND ($6::uuid IS NULL OR m.channel_id = $6::uuid)
+  AND ($7::uuid IS NULL OR m.author_id = $7::uuid)
+  AND ($8::timestamptz IS NULL OR m.created_at >= $8::timestamptz)
+  AND ($9::timestamptz IS NULL OR m.created_at < $9::timestamptz)
+  AND ($10::uuid IS NULL OR m.id < $10::uuid)
 ORDER BY m.id DESC
-LIMIT $10
+LIMIT $11
 `
 
 type SearchMessagesParams struct {
 	SpaceID   string
 	WithVoice bool
+	UserID    string
 	Prefix    string
 	Words     string
 	ChannelID *string
@@ -78,7 +84,8 @@ type SearchMessagesParams struct {
 
 // Message search. Owned by the chat module.
 // Only internal/chat may use these queries.
-// SearchMessages: one space's channels, newest first, read from
+// SearchMessages: one space's channels that the caller may read, newest
+// first, read from
 // message_with_reply like ListMessagesBefore, joined back to messages
 // for the search vector the view leaves out. `words` is websearch
 // syntax; `prefix` is a quoted lexeme with :* or "" (see
@@ -88,6 +95,7 @@ func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) 
 	rows, err := q.db.Query(ctx, searchMessages,
 		arg.SpaceID,
 		arg.WithVoice,
+		arg.UserID,
 		arg.Prefix,
 		arg.Words,
 		arg.ChannelID,

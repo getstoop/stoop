@@ -65,14 +65,16 @@ func (s *Service) SearchMessages(ctx context.Context, req *connect.Request[chatv
 		return nil, err
 	}
 	params := dbgen.SearchMessagesParams{
-		SpaceID: spaceID, Words: q.words, Prefix: q.prefix, Lim: limit,
+		SpaceID: spaceID, UserID: authctx.UserID(ctx), Words: q.words, Prefix: q.prefix, Lim: limit,
 		BeforeAt: q.before, AfterAt: q.after, WithVoice: withVoice,
 	}
 	if req.Msg.BeforeId != "" {
 		params.BeforeID = &req.Msg.BeforeId
 	}
 	if q.in != "" {
-		channel, err := s.q.GetChannelInSpaceByName(ctx, dbgen.GetChannelInSpaceByNameParams{SpaceID: spaceID, Name: q.in})
+		channel, err := s.q.GetChannelInSpaceByName(ctx, dbgen.GetChannelInSpaceByNameParams{
+			SpaceID: spaceID, Name: q.in, UserID: authctx.UserID(ctx),
+		})
 		if err != nil {
 			return nil, apierr.NotFoundOr(err, "channel")
 		}
