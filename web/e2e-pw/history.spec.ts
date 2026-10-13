@@ -75,7 +75,7 @@ test("paging back through older history", async ({ browser }) => {
   await expect(
     A.locator(".history-start"),
     "beginning marker names the channel",
-  ).toContainText("Beginning of #general");
+  ).toContainText("Beginning of # general");
   await scrollToTop();
   // The one wait left: proving nothing more is fetched needs time to pass.
   await A.waitForTimeout(800);

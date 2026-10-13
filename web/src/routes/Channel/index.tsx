@@ -223,7 +223,7 @@ export function ChannelView() {
               onEditLast={editLast}
             />
           ) : (
-            <PostingClosed channelName={title} />
+            <PostingClosed channelName={label} />
           )}
         </>
       )}

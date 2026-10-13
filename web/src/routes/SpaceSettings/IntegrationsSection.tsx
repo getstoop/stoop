@@ -110,7 +110,7 @@ export function IntegrationsSection({ space }: { space: Space }) {
         )}
         <OutgoingTable
           hooks={hooks?.outgoing}
-          channelName={channelName}
+          channelLabel={channelLabel}
           manage={manage}
           onEdit={(existing) => setOutgoing({ existing })}
           onSecret={setSecret}

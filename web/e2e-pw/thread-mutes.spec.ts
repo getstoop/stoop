@@ -115,7 +115,7 @@ test("also send to channel", async ({ browser }) => {
   await expect(
     panelRows(B).filter({ hasText: "yes please" }).locator(".also-sent-marker"),
     "the thread tags the reply",
-  ).toHaveText("Also sent to #general");
+  ).toHaveText("Also sent to # general");
   await sayIn(B, ".side-panel", "only in the thread");
   await expect(panelRows(B).filter({ hasText: "only in" })).toHaveCount(1);
 
