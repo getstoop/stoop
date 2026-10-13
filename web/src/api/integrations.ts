@@ -29,7 +29,7 @@ export function hookCanText(
     : "Post";
 }
 
-export function canNotifyChannel(
+export function canNotifyEntireChannel(
   hook: Pick<IncomingWebhook, "permissions">,
 ): boolean {
   return hook.permissions.includes(Permission.MESSAGES_NOTIFY_CHANNEL);

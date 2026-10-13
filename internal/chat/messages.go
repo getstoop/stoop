@@ -124,7 +124,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
-			MentionsChannel: res.channel, MentionsHere: res.here, ReplyToMessageID: replyTo,
+			MentionsChannel: res.entireChannel, MentionsHere: res.here, ReplyToMessageID: replyTo,
 			ThreadRootID: threadRootID, InChannel: threadRoot == nil || alsoSend,
 		})
 		if err != nil {

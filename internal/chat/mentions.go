@@ -38,9 +38,9 @@ const (
 
 // mentionResult is what a message's @tokens resolved to.
 type mentionResult struct {
-	userIDs []string
-	channel bool
-	here    bool
+	userIDs       []string
+	entireChannel bool
+	here          bool
 }
 
 // resolveMentions maps @handles in content to user IDs of people in the
@@ -68,21 +68,21 @@ func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, pa
 		}
 	}
 
-	var wantChannel, wantHere bool
+	var wantEntireChannel, wantHere bool
 	for _, h := range handles {
-		wantChannel = wantChannel || h == channelHandle
+		wantEntireChannel = wantEntireChannel || h == channelHandle
 		wantHere = wantHere || h == hereHandle
 	}
-	if (wantChannel || wantHere) && !isDM(channel) && s.mayNotifyChannel(ctx, channel) {
+	if (wantEntireChannel || wantHere) && !isDM(channel) && s.mayNotifyEntireChannel(ctx, channel) {
 		targets := ids
-		if !wantChannel {
+		if !wantEntireChannel {
 			if s.presence == nil {
 				targets = nil
 			} else if targets, err = s.presence.OnlineUserIDs(ctx, ids); err != nil {
 				return mentionResult{}, fmt.Errorf("list online members: %w", err)
 			}
 		}
-		res := mentionResult{channel: wantChannel, here: !wantChannel}
+		res := mentionResult{entireChannel: wantEntireChannel, here: !wantEntireChannel}
 		for _, id := range targets {
 			if id != authorID {
 				res.userIDs = append(res.userIDs, id)

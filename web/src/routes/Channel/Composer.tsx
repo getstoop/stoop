@@ -20,7 +20,7 @@ import {
 } from "../../api/files";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import { filterMembers, mentionQueryAt } from "../../api/mentions";
-import { canMentionChannel } from "../../api/permissions";
+import { canMentionEntireChannel } from "../../api/permissions";
 import { useInstanceStatus, useSpaces } from "../../api/queries";
 import {
   replaceShortcodes,
@@ -185,7 +185,7 @@ export function Composer({
       ? filterMembers(
           members,
           mention.query,
-          !!space && canMentionChannel(space),
+          !!space && canMentionEntireChannel(space),
         )
       : [];
 

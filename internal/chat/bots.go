@@ -18,9 +18,9 @@ import (
 // port. Configuring integrations is instance.integrations.manage, checked
 // there; nothing here consults a space permission.
 
-// mayNotifyChannel is the @channel gate: the credential covers it in
+// mayNotifyEntireChannel is the @channel gate: the credential covers it in
 // this channel and the author's role holds it.
-func (s *Service) mayNotifyChannel(ctx context.Context, channel dbgen.Channel) bool {
+func (s *Service) mayNotifyEntireChannel(ctx context.Context, channel dbgen.Channel) bool {
 	if !authctx.CoversChannel(ctx, authctx.MessagesNotifyChannel, spaceOf(channel), channel.ID) {
 		return false
 	}
