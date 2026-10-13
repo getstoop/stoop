@@ -11,6 +11,7 @@ import (
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
+	"github.com/getstoop/stoop/internal/db"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 )
@@ -132,10 +133,27 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 				errors.New("only members of the space can be added"))
 		}
 	}
-	for _, userID := range req.Msg.UserIds {
-		if _, err := s.addToChannel(ctx, channel, userID, authctx.UserID(ctx)); err != nil {
-			return nil, err
+	// All of them or none: one transaction, and nobody is told until it
+	// commits.
+	var added []string
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		added = added[:0]
+		for _, userID := range req.Msg.UserIds {
+			inserted, err := insertChannelMember(ctx, qtx, channel, userID, authctx.UserID(ctx))
+			if err != nil {
+				return err
+			}
+			if inserted {
+				added = append(added, userID)
+			}
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, userID := range added {
+		s.announceJoined(ctx, channel, userID)
 	}
 	return connect.NewResponse(&chatv1.AddChannelMembersResponse{}), nil
 }
@@ -144,15 +162,33 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 // and the people already in it. Already in is fine and tells nobody; it
 // reports whether this call is what put them in.
 func (s *Service) addToChannel(ctx context.Context, channel dbgen.Channel, userID, addedBy string) (bool, error) {
-	added, err := s.q.AddPrivateChannelMember(ctx, dbgen.AddPrivateChannelMemberParams{
+	inserted, err := insertChannelMember(ctx, s.q, channel, userID, addedBy)
+	if err != nil || !inserted {
+		return false, err
+	}
+	s.announceJoined(ctx, channel, userID)
+	return true, nil
+}
+
+// insertChannelMember writes the row and reports whether it was new.
+// Someone who left the space a moment ago is refused like anyone outside it.
+func insertChannelMember(ctx context.Context, queries *dbgen.Queries, channel dbgen.Channel, userID, addedBy string) (bool, error) {
+	inserted, err := queries.AddPrivateChannelMember(ctx, dbgen.AddPrivateChannelMemberParams{
 		ChannelID: channel.ID, SpaceID: *channel.SpaceID, UserID: userID, AddedBy: &addedBy,
 	})
+	if db.HasCode(err, db.ForeignKeyViolation) {
+		return false, apierr.Field(connect.CodeFailedPrecondition, "user_ids",
+			errors.New("only members of the space can be added"))
+	}
 	if err != nil {
 		return false, fmt.Errorf("add channel member: %w", err)
 	}
-	if added == 0 {
-		return false, nil
-	}
+	return inserted > 0, nil
+}
+
+// announceJoined tells someone newly in a private channel, and the people
+// already in it.
+func (s *Service) announceJoined(ctx context.Context, channel dbgen.Channel, userID string) {
 	// The channel enters the person's list the way a new one does.
 	s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelCreated{ChannelCreated: toProtoChannel(channel)},
@@ -164,7 +200,6 @@ func (s *Service) addToChannel(ctx context.Context, channel dbgen.Channel, userI
 			},
 		},
 	}))
-	return true, nil
 }
 
 func (s *Service) RemoveChannelMember(ctx context.Context, req *connect.Request[chatv1.RemoveChannelMemberRequest]) (*connect.Response[chatv1.RemoveChannelMemberResponse], error) {
