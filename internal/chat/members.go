@@ -182,11 +182,19 @@ func (s *Service) removeFromSpace(ctx context.Context, spaceID, userID string, k
 	return nil
 }
 
-// removeMember drops a membership and the same user's mute for the space
-// together: a rejoin starts unmuted. Channel mutes are left alone, as
+// removeMember drops a membership, the same user's mute for the space
+// and their alerts from its private channels together: a rejoin starts
+// unmuted. Channel mutes are left alone, as
 // they always have been; they go when the channel does.
 func (s *Service) removeMember(ctx context.Context, spaceID, userID string) error {
 	return s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// Their alerts from the space's private channels go too: each
+		// shows the message as it now reads, and they can't read it.
+		if err := qtx.DeleteActivityForPrivateChannels(ctx, dbgen.DeleteActivityForPrivateChannelsParams{
+			UserID: userID, SpaceID: spaceID,
+		}); err != nil {
+			return fmt.Errorf("drop private channel activity: %w", err)
+		}
 		if _, err := qtx.DeleteSpaceMember(ctx, dbgen.DeleteSpaceMemberParams{
 			SpaceID: spaceID, UserID: userID,
 		}); err != nil {
