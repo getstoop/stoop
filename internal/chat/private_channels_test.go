@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -140,6 +141,10 @@ func TestPrivateChannelIsReadByItsPeopleOnly(t *testing.T) {
 		if ok, err := svc.IsChannelMember(person, authctx.UserID(person), fixture.secretID); err != nil || ok {
 			t.Errorf("%s counts as a member of the channel: %v %v", name, ok, err)
 		}
+		// An id that names no channel reads the same as a private one.
+		if _, err := svc.ListMessages(person, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: uuid.NewString()})); code(err) != connect.CodeNotFound {
+			t.Errorf("%s reading a channel that does not exist: %v, want not found", name, err)
+		}
 	}
 	if _, err := svc.ListMessages(fixture.bea, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: fixture.secretID})); err != nil {
 		t.Errorf("someone in the channel reading: %v", err)
@@ -253,10 +258,18 @@ func TestRemovedFromPrivateChannel(t *testing.T) {
 
 func TestLeavingTheSpaceLeavesItsPrivateChannels(t *testing.T) {
 	fixture := newPrivateFixture(t)
+	fixture.add(t, fixture.owner)
+	fixture.send(t, fixture.owner, "@bea the flyer is out", "")
+	if unread := fixture.unread(t, fixture.bea); unread != 1 {
+		t.Fatalf("a mention in the private channel: %d unread, want 1", unread)
+	}
 	if _, err := fixture.svc.KickMember(fixture.owner, connect.NewRequest(&chatv1.KickMemberRequest{
 		SpaceId: fixture.spaceID, UserId: authctx.UserID(fixture.bea),
 	})); err != nil {
 		t.Fatal(err)
+	}
+	if unread := fixture.unread(t, fixture.bea); unread != 0 {
+		t.Errorf("a kicked member keeps %d alerts from the private channel", unread)
 	}
 	var rows int
 	if err := fixture.pool.QueryRow(context.Background(),
@@ -417,12 +430,23 @@ func TestPrivateChannelEventsReachItsPeopleOnly(t *testing.T) {
 	}
 	expect("retopic", "channel_updated")
 
-	if people, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || len(people) != 1 || people[0] != authctx.UserID(fixture.bea) {
-		t.Errorf("the channel's people for typing: %v %v", people, err)
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || !listed || len(people) != 1 || people[0] != authctx.UserID(fixture.bea) {
+		t.Errorf("the channel's people for typing: %v %v %v", people, listed, err)
 	}
-	if people, err := svc.ChannelPeople(context.Background(), fixture.generalID); err != nil || people != nil {
-		t.Errorf("a public channel has no people list: %v %v", people, err)
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.generalID); err != nil || listed || people != nil {
+		t.Errorf("a public channel has no people list: %v %v %v", people, listed, err)
 	}
+	// A private channel with nobody in it, and an id that names no
+	// channel, still have a people list: an empty one.
+	fixture.remove(t, fixture.bea)
+	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || !listed || len(people) != 0 {
+		t.Errorf("an empty private channel: %v %v %v", people, listed, err)
+	}
+	if people, listed, err := svc.ChannelPeople(context.Background(), uuid.NewString()); err != nil || !listed || len(people) != 0 {
+		t.Errorf("an id that names no channel: %v %v %v", people, listed, err)
+	}
+	fixture.add(t, fixture.bea)
+	received(inside)
 
 	if _, err := svc.DeleteChannel(fixture.owner, connect.NewRequest(&chatv1.DeleteChannelRequest{ChannelId: fixture.secretID})); err != nil {
 		t.Fatal(err)

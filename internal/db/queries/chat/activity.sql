@@ -96,3 +96,11 @@ WHERE a.user_id = sqlc.arg(user_id)
 -- can no longer read: each keeps a preview of the message.
 -- name: DeleteActivityForChannel :exec
 DELETE FROM activity_items WHERE user_id = sqlc.arg(user_id) AND channel_id = sqlc.arg(channel_id);
+
+-- DeleteActivityForPrivateChannels drops a person's alerts from a space's
+-- private channels when they leave the space. An alert shows its message
+-- as it now reads, so one left behind would go on showing edits.
+-- name: DeleteActivityForPrivateChannels :exec
+DELETE FROM activity_items a USING channels c
+WHERE a.user_id = sqlc.arg(user_id) AND c.id = a.channel_id
+  AND c.space_id = sqlc.arg(space_id)::uuid AND c.private;

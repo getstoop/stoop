@@ -101,7 +101,9 @@ func (noMembers) ListSpaceIDs(context.Context, string) ([]string, error) { retur
 type noChannels struct{}
 
 func (noChannels) VoiceChannelSpace(context.Context, string) (string, error) { return "", nil }
-func (noChannels) ChannelPeople(context.Context, string) ([]string, error)   { return nil, nil }
+func (noChannels) ChannelPeople(context.Context, string) ([]string, bool, error) {
+	return nil, false, nil
+}
 
 // A session that stops verifying (expired, or deleted by the CLI) ends
 // its socket at the next ping.

@@ -261,6 +261,19 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 	return items, nil
 }
 
+const lockChannel = `-- name: LockChannel :one
+SELECT id FROM channels WHERE id = $1 FOR UPDATE
+`
+
+// LockChannel holds a channel's row until the transaction ends, which
+// makes anything that adds a row pointing at it wait.
+func (q *Queries) LockChannel(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, lockChannel, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const setChannelLastMessage = `-- name: SetChannelLastMessage :exec
 UPDATE channels SET last_message_id = $2 WHERE id = $1
 `

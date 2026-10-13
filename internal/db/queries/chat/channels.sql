@@ -45,6 +45,11 @@ SET name = COALESCE(sqlc.narg('name'), name),
 WHERE id = $1
 RETURNING *;
 
+-- LockChannel holds a channel's row until the transaction ends, which
+-- makes anything that adds a row pointing at it wait.
+-- name: LockChannel :one
+SELECT id FROM channels WHERE id = $1 FOR UPDATE;
+
 -- name: DeleteChannel :exec
 DELETE FROM channels WHERE id = $1;
 

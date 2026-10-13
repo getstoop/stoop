@@ -179,7 +179,7 @@ func (s *Service) mayDownload(ctx context.Context, id authctx.Identity, f dbgen.
 		if f.PrivateChannelID != nil {
 			// No inherited read here: a server admin outside the channel
 			// is refused like anyone else.
-			if !authctx.Covers(ctx, authctx.MessagesRead) {
+			if !authctx.CoversChannel(ctx, authctx.MessagesRead, *f.SpaceID, *f.PrivateChannelID) {
 				return false, nil
 			}
 			if f.OwnerID == id.UserID {
