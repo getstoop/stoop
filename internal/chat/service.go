@@ -148,7 +148,7 @@ func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID st
 		return "", fmt.Errorf("check membership: %w", err)
 	}
 	if !ok {
-		return "", connect.NewError(connect.CodePermissionDenied, errors.New("not a member of this channel's space"))
+		return "", s.notInChannel(ctx, channelID)
 	}
 	channel, err := s.memberChannel(ctx, channelID)
 	if err != nil {
@@ -205,8 +205,7 @@ func (s *Service) requireChannelMember(ctx context.Context, channelID string) er
 		return fmt.Errorf("check membership: %w", err)
 	}
 	if !ok {
-		return connect.NewError(connect.CodePermissionDenied,
-			errors.New("not a member of this channel's space"))
+		return s.notInChannel(ctx, channelID)
 	}
 	if id, _ := authctx.From(ctx); id.Credential.Bounded {
 		channel, err := s.q.GetChannel(ctx, channelID)

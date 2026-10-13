@@ -9,21 +9,22 @@ import (
 	"context"
 )
 
-const countChannelsInSpace = `-- name: CountChannelsInSpace :one
+const countPublicChannelsInSpace = `-- name: CountPublicChannelsInSpace :one
 SELECT count(*) FROM channels
-WHERE space_id = $1::uuid
+WHERE space_id = $1::uuid AND NOT private
   AND ($2::bool OR kind <> 2)
 `
 
-type CountChannelsInSpaceParams struct {
+type CountPublicChannelsInSpaceParams struct {
 	SpaceID   string
 	WithVoice bool
 }
 
-// CountChannelsInSpace leaves voice channels (kind 2) out when they are
+// CountPublicChannelsInSpace is how many channels every member sees:
+// private ones are left out, and voice channels (kind 2) when they are
 // hidden.
-func (q *Queries) CountChannelsInSpace(ctx context.Context, arg CountChannelsInSpaceParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countChannelsInSpace, arg.SpaceID, arg.WithVoice)
+func (q *Queries) CountPublicChannelsInSpace(ctx context.Context, arg CountPublicChannelsInSpaceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countPublicChannelsInSpace, arg.SpaceID, arg.WithVoice)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -33,7 +34,7 @@ const createChannel = `-- name: CreateChannel :one
 
 INSERT INTO channels (id, space_id, name, kind, position)
 VALUES ($1, $2::uuid, $3, $4, $5)
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private
 `
 
 type CreateChannelParams struct {
@@ -66,6 +67,7 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		&i.DmKey,
 		&i.Topic,
 		&i.PostPolicy,
+		&i.Private,
 	)
 	return i, err
 }
@@ -80,7 +82,7 @@ func (q *Queries) DeleteChannel(ctx context.Context, id string) error {
 }
 
 const getChannel = `-- name: GetChannel :one
-SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy FROM channels WHERE id = $1
+SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private FROM channels WHERE id = $1
 `
 
 func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
@@ -97,8 +99,27 @@ func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
 		&i.DmKey,
 		&i.Topic,
 		&i.PostPolicy,
+		&i.Private,
 	)
 	return i, err
+}
+
+const isPrivateChannelMember = `-- name: IsPrivateChannelMember :one
+SELECT EXISTS (
+    SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2
+) AS is_member
+`
+
+type IsPrivateChannelMemberParams struct {
+	ChannelID string
+	UserID    string
+}
+
+func (q *Queries) IsPrivateChannelMember(ctx context.Context, arg IsPrivateChannelMemberParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isPrivateChannelMember, arg.ChannelID, arg.UserID)
+	var is_member bool
+	err := row.Scan(&is_member)
+	return is_member, err
 }
 
 const listChannelIDsByKind = `-- name: ListChannelIDsByKind :many
@@ -135,7 +156,7 @@ func (q *Queries) ListChannelIDsByKind(ctx context.Context, arg ListChannelIDsBy
 }
 
 const listChannelsBySpace = `-- name: ListChannelsBySpace :many
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, r.last_read_message_id,
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
@@ -143,6 +164,7 @@ SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_messag
 FROM channels c
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = $1
 WHERE c.space_id = $2::uuid
+  AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = $1))
 ORDER BY c.position, c.created_at
 `
 
@@ -158,7 +180,8 @@ type ListChannelsBySpaceRow struct {
 	UnreadCount       int64
 }
 
-// ListChannelsBySpace includes the caller's read marker, how many
+// ListChannelsBySpace is the space's public channels and the private
+// ones the caller is in, with the caller's read marker, how many
 // messages are newer than it (all of them if they've never opened it),
 // and whether they muted it.
 func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpaceParams) ([]ListChannelsBySpaceRow, error) {
@@ -181,6 +204,7 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 			&i.Channel.DmKey,
 			&i.Channel.Topic,
 			&i.Channel.PostPolicy,
+			&i.Channel.Private,
 			&i.LastReadMessageID,
 			&i.Muted,
 			&i.UnreadCount,
@@ -188,6 +212,30 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPrivateChannelMemberIDs = `-- name: ListPrivateChannelMemberIDs :many
+SELECT user_id FROM channel_members WHERE channel_id = $1 ORDER BY added_at, user_id
+`
+
+func (q *Queries) ListPrivateChannelMemberIDs(ctx context.Context, channelID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listPrivateChannelMemberIDs, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -230,7 +278,7 @@ SET name = COALESCE($2, name),
     topic = COALESCE($3, topic),
     post_policy = COALESCE($4, post_policy)
 WHERE id = $1
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private
 `
 
 type UpdateChannelParams struct {
@@ -259,6 +307,7 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		&i.DmKey,
 		&i.Topic,
 		&i.PostPolicy,
+		&i.Private,
 	)
 	return i, err
 }

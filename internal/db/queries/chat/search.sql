@@ -1,7 +1,8 @@
 -- Message search. Owned by the chat module.
 -- Only internal/chat may use these queries.
 
--- SearchMessages: one space's channels, newest first, read from
+-- SearchMessages: one space's channels that the caller may read, newest
+-- first, read from
 -- message_with_reply like ListMessagesBefore, joined back to messages
 -- for the search vector the view leaves out. `words` is websearch
 -- syntax; `prefix` is a quoted lexeme with :* or "" (see
@@ -11,7 +12,8 @@
 SELECT m.* FROM message_with_reply m
 JOIN messages indexed ON indexed.id = m.id
 WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(space_id)::uuid
-        AND (sqlc.arg(with_voice)::bool OR c.kind <> 2))
+        AND (sqlc.arg(with_voice)::bool OR c.kind <> 2)
+        AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = sqlc.arg(user_id)::uuid)))
   AND indexed.search @@ (CASE
       WHEN sqlc.arg(prefix)::text = '' THEN websearch_to_tsquery('simple', sqlc.arg(words)::text)
       WHEN sqlc.arg(words)::text = '' THEN to_tsquery('simple', sqlc.arg(prefix)::text)
@@ -25,11 +27,13 @@ WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(s
 ORDER BY m.id DESC
 LIMIT sqlc.arg(lim);
 
--- GetChannelInSpaceByName resolves an in:#name filter. Names from before
+-- GetChannelInSpaceByName resolves an in:#name filter among the channels
+-- the caller may read. Names from before
 -- the naming rule may repeat or carry capitals: an exact match wins, then
 -- the first by position, as in the sidebar.
 -- name: GetChannelInSpaceByName :one
-SELECT * FROM channels
-WHERE space_id = sqlc.arg(space_id)::uuid AND lower(name) = lower(sqlc.arg(name))
-ORDER BY (name = sqlc.arg(name)) DESC, position, created_at
+SELECT c.* FROM channels c
+WHERE c.space_id = sqlc.arg(space_id)::uuid AND lower(c.name) = lower(sqlc.arg(name))
+  AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = sqlc.arg(user_id)::uuid))
+ORDER BY (c.name = sqlc.arg(name)) DESC, c.position, c.created_at
 LIMIT 1;

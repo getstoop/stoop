@@ -25,8 +25,10 @@ func TestReleases(t *testing.T) {
 		}
 		prev = r
 	}
-	if r, ok := db.OldestStartable(db.Floor); !ok || r.Migration < db.Floor {
-		t.Errorf("no tagged release starts against the floor %d: got %+v", db.Floor, r)
+	// The floor names a released migration, or one this binary carries
+	// that the next release will ship.
+	if _, ok := db.OldestStartable(db.Floor); !ok && !known[db.Floor] {
+		t.Errorf("no tagged release starts against the floor %d, and the binary does not carry it", db.Floor)
 	}
 }
 

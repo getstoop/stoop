@@ -44,8 +44,8 @@ type mentionResult struct {
 }
 
 // resolveMentions maps @handles in content to user IDs of people in the
-// channel — the space's members, or a DM's participants (passed in, nil
-// for a space channel) — excluding the author. Others are silently
+// channel — the space's members, a private channel's people, or a DM's
+// participants (passed in, nil for a space channel) — excluding the author. Others are silently
 // ignored: a mention is an address, not a permission. @everyone wins over
 // @here if both appear; in a DM both are plain text.
 func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, participants []string, authorID, content string) (mentionResult, error) {
@@ -57,6 +57,10 @@ func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, pa
 	var err error
 	if isDM(channel) {
 		ids = participants
+	} else if channel.Private {
+		if ids, err = s.q.ListPrivateChannelMemberIDs(ctx, channel.ID); err != nil {
+			return mentionResult{}, fmt.Errorf("list channel members: %w", err)
+		}
 	} else {
 		rows, err := s.q.ListSpaceMembers(ctx, *channel.SpaceID)
 		if err != nil {

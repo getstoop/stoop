@@ -347,6 +347,10 @@ func (s *Service) UpdateSpace(ctx context.Context, req *connect.Request[chatv1.U
 				return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
 					errors.New("only a text channel can be the default"))
 			}
+			if channel.Private {
+				return nil, apierr.Field(connect.CodeInvalidArgument, "default_channel_id",
+					errors.New("a private channel can't be the default"))
+			}
 			patch.DefaultChannelID = &id
 		}
 	}
