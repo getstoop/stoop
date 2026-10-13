@@ -41,16 +41,18 @@ import { MembersPanel } from "../components/MembersPanel";
 import { closeDrawerOnLink } from "../components/MenuButton";
 import { MutedBar } from "../components/MutedChannels";
 import { MutedMark } from "../components/MutedMark";
+import { NewChannelModal } from "../components/NewChannelModal";
 import { SpaceAbout } from "../components/SpaceAbout";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { SpaceWelcome } from "../components/SpaceWelcome";
 import { Tooltip } from "../components/Tooltip";
 import { VoiceBar } from "../components/VoiceBar";
 import { VoiceChannel } from "../components/VoiceChannel";
-import { ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice, prompt } from "../stores/dialogs";
 import { useLayoutStore } from "../stores/layout";
+import { openSidePanel } from "../stores/sidePanel";
 
 // Space layout: channel sidebar on the left, the active channel (via
 // Outlet) on the right.
@@ -66,6 +68,7 @@ export function SpaceLayout() {
   const navigate = useNavigate();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const space = spaces?.find((s) => s.id === spaceId);
   const textChannels = sidebarTextChannels(channels, openChannelId);
@@ -173,20 +176,35 @@ export function SpaceLayout() {
     }
   }
 
-  const createChannel = async (kind: ChannelKind) => {
-    const voice = kind === ChannelKind.VOICE;
+  const createVoiceChannel = async () => {
     const name = await prompt({
-      title: voice ? "New voice channel" : "New channel",
-      label: voice ? "Voice channel name" : "Channel name",
+      title: "New voice channel",
+      label: "Voice channel name",
       body: CHANNEL_NAME_HINT,
       maxLength: MAX_CHANNEL_NAME,
       action: "Create",
       submit: async (name) => {
-        await chatClient.createChannel({ spaceId, name, kind });
+        await chatClient.createChannel({
+          spaceId,
+          name,
+          kind: ChannelKind.VOICE,
+        });
       },
     });
     if (!name) return;
     await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
+  };
+
+  // A private channel opens on its people, since adding them is the next
+  // thing to do; nobody else can see it until then.
+  const channelCreated = async (created: Channel) => {
+    await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
+    if (!created.private) return;
+    navigate({
+      to: "/s/$spaceId/c/$channelId",
+      params: { spaceId, channelId: created.id },
+    });
+    openSidePanel("people", { spaceId, channelId: created.id });
   };
 
   return (
@@ -239,11 +257,18 @@ export function SpaceLayout() {
         {aboutOpen && space && (
           <SpaceAbout space={space} onClose={() => setAboutOpen(false)} />
         )}
+        {creating && (
+          <NewChannelModal
+            spaceId={spaceId}
+            onClose={() => setCreating(false)}
+            onCreated={channelCreated}
+          />
+        )}
         <div className="channel-list">
           <ChannelGroupHeading
             label="Text channels"
             add={manage ? "Add channel" : undefined}
-            onAdd={() => createChannel(ChannelKind.TEXT)}
+            onAdd={() => setCreating(true)}
           />
           {textChannels.map((channel) => (
             <div key={channel.id} className="channel-row">
@@ -280,7 +305,7 @@ export function SpaceLayout() {
             <ChannelGroupHeading
               label="Voice channels"
               add={addVoice ? "Add voice channel" : undefined}
-              onAdd={() => createChannel(ChannelKind.VOICE)}
+              onAdd={createVoiceChannel}
               divided
             />
           )}
