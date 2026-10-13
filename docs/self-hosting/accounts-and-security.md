@@ -1,14 +1,16 @@
 # Accounts and security
 
-## Privacy of direct messages
+## Privacy of direct messages and private channels
 
-Direct messages are private *in the app*: nothing lets a server admin
-list or read a conversation they are not part of, and a file sent in a
-DM is served only to the people in it. They are not private from the
-machine. Like every message, DMs sit in Postgres in plaintext and in
-your backups, readable by anyone with the database password or the
-disk. Stoop does not do end-to-end encryption today; tell your people
-that before they assume otherwise.
+Direct messages and private channels are private *in the app*: nothing
+lets a server admin read one they are not in, and a file sent in one is
+served only to the people in it. A space's admins can see that a
+private channel exists and who is in it, and can add themselves, which
+its people see. They are not private from the machine. Like every
+message, they sit in Postgres in plaintext and in your backups,
+readable by anyone with the database password or the disk. Stoop does
+not do end-to-end encryption today; tell your people that before they
+assume otherwise.
 
 ## Security headers
 

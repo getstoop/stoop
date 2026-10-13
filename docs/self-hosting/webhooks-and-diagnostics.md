@@ -13,11 +13,13 @@ curl -d 'disk is full' https://chat.example.com/hooks/stp_hook_…
 
 The URL posts into that one channel as a bot and can do nothing else.
 Treat it like a password: anyone with it can post there. Rotate it from
-the same page if it leaks.
+the same page if it leaks. For a private channel, be in the channel
+when you make the webhook; its bot is added to the channel.
 
 **To have Stoop call your own endpoint** when something happens, choose
 *New outgoing webhook*, give it the URL and tick the events. Each event
-is a JSON POST signed with the secret shown once at creation. Verifying
+is a JSON POST signed with the secret shown once at creation. Nothing
+from a private channel or a direct message is sent. Verifying
 it, in Python:
 
 ```python

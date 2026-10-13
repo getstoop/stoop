@@ -164,6 +164,28 @@ the owner and bots post. It is a fixed meaning a channel either has or
 doesn't, not a per-role or per-person setting, so the table above is
 unchanged.
 
+### Private channels
+
+A private channel has a list of people, and only they see it, read it,
+search it, download its files, hear its events or join its voice. To
+anyone else in the space it answers as a channel that does not exist.
+The rule is one view, `channel_readers` ([data.md](data.md#chat)).
+
+- It is private from creation and stays so; a public channel never
+  becomes private. A text or a voice channel can be. The space's default
+  channel can't, nor can an announcement channel.
+- Its maker is its first person. `channels.manage` adds and removes
+  people; anyone in it may leave. It may end up with nobody in it.
+- **Managing is not reading.** Someone with `channels.manage` who is not
+  in it sees that it exists, its name and who is in it, and may rename,
+  reorder or delete it, or add themself. They read nothing in it until
+  they do, and joining is visible to its people.
+- Pinning, deleting someone else's message and deleting a thread need
+  the role and being in the channel.
+- An instance admin has no bypass, as with a direct message: no RPC
+  reads it for them, and its files are served only to its people. It is
+  the same *application* boundary; the rows are plaintext in Postgres.
+
 ### Enforcement
 
 One helper, `requirePermission(ctx, spaceID, action)` in
@@ -273,6 +295,5 @@ hover card where a misclick is cheap.
 
 ## Deliberately deferred
 
-Per-channel permissions and private channels. Deleting other people's
-messages is already covered by `messages.moderate`, which is the case
-those features are usually reached for first.
+Per-channel permissions: who may post, pin or moderate differs by role
+across the space, never channel by channel.
