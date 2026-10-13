@@ -18,6 +18,7 @@ export function byPosition(channels: Channel[]): Channel[] {
     (a, b) =>
       a.position - b.position ||
       Number((a.createdAt?.seconds ?? 0n) - (b.createdAt?.seconds ?? 0n)) ||
+      // nanos is the fraction of the second, not a whole timestamp.
       (a.createdAt?.nanos ?? 0) - (b.createdAt?.nanos ?? 0),
   );
 }
