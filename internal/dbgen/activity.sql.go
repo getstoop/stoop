@@ -109,6 +109,25 @@ func (q *Queries) DeleteActivityForBlocked(ctx context.Context, arg DeleteActivi
 	return result.RowsAffected(), nil
 }
 
+const deleteActivityForPrivateChannels = `-- name: DeleteActivityForPrivateChannels :exec
+DELETE FROM activity_items a USING channels c
+WHERE a.user_id = $1 AND c.id = a.channel_id
+  AND c.space_id = $2::uuid AND c.private
+`
+
+type DeleteActivityForPrivateChannelsParams struct {
+	UserID  string
+	SpaceID string
+}
+
+// DeleteActivityForPrivateChannels drops a person's alerts from a space's
+// private channels when they leave the space. An alert shows its message
+// as it now reads, so one left behind would go on showing edits.
+func (q *Queries) DeleteActivityForPrivateChannels(ctx context.Context, arg DeleteActivityForPrivateChannelsParams) error {
+	_, err := q.db.Exec(ctx, deleteActivityForPrivateChannels, arg.UserID, arg.SpaceID)
+	return err
+}
+
 const deleteReadActivityBefore = `-- name: DeleteReadActivityBefore :execrows
 DELETE FROM activity_items WHERE read_at IS NOT NULL AND read_at < $1::timestamptz
 `

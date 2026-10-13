@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -140,6 +141,10 @@ func TestPrivateChannelIsReadByItsPeopleOnly(t *testing.T) {
 		if ok, err := svc.IsChannelMember(person, authctx.UserID(person), fixture.secretID); err != nil || ok {
 			t.Errorf("%s counts as a member of the channel: %v %v", name, ok, err)
 		}
+		// An id that names no channel reads the same as a private one.
+		if _, err := svc.ListMessages(person, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: uuid.NewString()})); code(err) != connect.CodeNotFound {
+			t.Errorf("%s reading a channel that does not exist: %v, want not found", name, err)
+		}
 	}
 	if _, err := svc.ListMessages(fixture.bea, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: fixture.secretID})); err != nil {
 		t.Errorf("someone in the channel reading: %v", err)
@@ -253,10 +258,18 @@ func TestRemovedFromPrivateChannel(t *testing.T) {
 
 func TestLeavingTheSpaceLeavesItsPrivateChannels(t *testing.T) {
 	fixture := newPrivateFixture(t)
+	fixture.add(t, fixture.owner)
+	fixture.send(t, fixture.owner, "@bea the flyer is out", "")
+	if unread := fixture.unread(t, fixture.bea); unread != 1 {
+		t.Fatalf("a mention in the private channel: %d unread, want 1", unread)
+	}
 	if _, err := fixture.svc.KickMember(fixture.owner, connect.NewRequest(&chatv1.KickMemberRequest{
 		SpaceId: fixture.spaceID, UserId: authctx.UserID(fixture.bea),
 	})); err != nil {
 		t.Fatal(err)
+	}
+	if unread := fixture.unread(t, fixture.bea); unread != 0 {
+		t.Errorf("a kicked member keeps %d alerts from the private channel", unread)
 	}
 	var rows int
 	if err := fixture.pool.QueryRow(context.Background(),

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/apierr"
@@ -109,11 +110,16 @@ func (s *Service) publishTo(channel dbgen.Channel, participants []string, ev *re
 }
 
 // notInChannel is the refusal for someone who may not read a channel. A
-// private channel is not found, so the answer does not confirm it exists.
+// private channel is not found, and so is an id that names no channel:
+// the two must read the same, or the answer would confirm that a private
+// channel exists.
 func (s *Service) notInChannel(ctx context.Context, channelID string) error {
 	channel, err := s.q.GetChannel(ctx, channelID)
-	if err == nil && channel.Private {
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && channel.Private) {
 		return errChannelNotFound()
+	}
+	if err != nil {
+		return fmt.Errorf("look up channel: %w", err)
 	}
 	return connect.NewError(connect.CodePermissionDenied,
 		errors.New("not a member of this channel's space"))
