@@ -1,101 +1,112 @@
-Stoop 0.10.0
+Stoop 0.11.0
 
-Stoop 0.10.0 is still a beta: the API and schema may change between minor
-versions. It upgrades in place from 0.9.0 with no schema change, and
-`stoop upgrade rollback` can take it back to 0.9.x, 0.8.x, 0.7.x, 0.6.x
-or 0.5.x. Going below 0.5.0 needs a backup, as before.
+Stoop 0.11.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.10.0. **`stoop upgrade rollback`
+cannot take it back to 0.10.x**: this release reshapes the schema, so
+going back needs the backup the upgrade takes. `stoop upgrade` says so
+before it starts.
 
 **What's new.**
 
-- **Images and videos open in the app.** Clicking an image in chat opens
-  a preview inside Stoop, not a new browser window. It has a Download
-  button, and arrows (or the arrow keys) step through the images and
-  videos in the channel or thread. An uploaded video is now a small
-  still with a play badge in chat, and plays in the same preview.
-- **A muted channel leaves the sidebar.** Muting a text channel takes
-  its row out of the list. A "Muted channels" bar on top of the members
-  list opens them in the side panel, where a channel's name opens it
-  and its bell unmutes it. Mentions in a muted channel still reach
-  Activity. Muting a space, a voice channel or a conversation works as
-  before. Screen readers are told when a channel is muted or unmuted.
-- **Link previews for long pages.** A link to a page over 1 MB, a
-  YouTube video for one, used to get no card. The server now reads the
-  start of the page, 2 MB by default, and makes the card from that.
-- **Link previews through a proxy.** Preview fetches can go out through
-  a SOCKS5 proxy, so linked sites see the proxy's address and not your
-  server's. See [What linked sites see](https://github.com/getstoop/stoop/blob/v0.10.0/docs/self-hosting/reaching-your-server.md#what-linked-sites-see).
-- **Writing on a phone.** On a device with an on-screen keyboard, Return
-  breaks the line and a send button beside the field sends. Editing a
-  message gets Save and Cancel buttons. Desktop is unchanged: Enter
-  sends.
-- **The thread header's channel name is a link.** It opens the channel
-  at the message the thread started from.
-- **Smaller things.** Formatting buttons and the paperclip have
-  tooltips. A channel opened at the bottom stays there while its images
-  load. The message toolbar shows only on the message under the cursor,
-  and chat scrollbars only in the pane under it. The invite page shows
-  the space's icon to someone not signed in. The password reset email
-  states the account's username. A refused upload's reason fits inside
-  its chip. Page headers are one height, and the search field no longer
-  grows when clicked.
+- **Private channels.** A channel can be made private when it is
+  created, with the Private switch in New channel. Only the people
+  added to it see it, read it, find it in search, download its files or
+  get its notifications. To everyone else in the space it does not
+  exist. It shows a lock where other channels show a hash.
+- **Its people.** Whoever makes a private channel is its first person.
+  The People button in its header lists who is in it. Someone who can
+  manage channels adds and removes people there; anyone in it can
+  leave. Being added or removed takes effect at once, with no reload.
+- **Private voice channels.** A voice channel can be private too. Only
+  its people see it, see who is in the call, or join. Someone removed
+  from it, or who leaves it, is taken out of the call.
+- **Space settings lists every channel.** The Channels tab shows who is
+  in each one: "Everyone", or a count for a private channel. A space
+  admin who is not in a private channel sees its name and its people
+  there, and can rename, reorder or delete it, or choose "Join as
+  member". They read nothing in it until they join, and its people see
+  them join.
+- **`@channel` replaces `@everyone`.** `@channel` notifies everyone in
+  the channel and `@here` everyone in it who is online. In a private
+  channel that is its people, not the space. `@everyone` no longer does
+  anything, and nobody can take `everyone` or `channel` as a username.
+- **A channel's name in a sentence.** Where the app writes a channel's
+  name in text, a private channel has its lock in front and a public
+  one reads "# general".
+
+**What a private channel can't be.** A channel is private from creation
+and stays so, and a public channel can't be made private. The channel a
+space opens in can't be private, and neither can an announcement
+channel. A private channel may end up with nobody in it; a space admin
+can still join or delete it from Space settings.
 
 **For operators.**
 
-- **Link previews are off on a new server.** An admin turns them on
-  under Server admin → Link previews. With them on, the server fetches
-  every posted link from its own address, a tunnel does not hide that,
-  and any member can learn the address by linking to a site of theirs.
-- **An upgraded server keeps its previews.** At the first start on
-  0.10.0, a server that has accounts and no `STOOP_LINK_PREVIEWS` in its
-  environment gets the switch saved as on. A server whose environment
-  says `STOOP_LINK_PREVIEWS=false` stays off.
-- **`STOOP_LINK_PREVIEWS` changed meaning.** It defaults to `false`, and
-  it is now only the value used until the switch is saved on the admin
-  page. A saved switch overrides it, including turning previews on where
-  the variable says `false`.
-- **The Link previews tab** has three settings, and nothing applies
-  until Save: the switch, the page size (1 to 16 MB), and the proxy,
-  written `socks5://host:port`. A change applies to links posted from
-  then on, with no restart. HTTP proxies and a SOCKS5 username and
-  password are not supported.
-- **With a proxy set**, site names are looked up over HTTPS at a public
-  resolver, through the proxy, and that resolver sees every linked
-  hostname. If the proxy or the resolver is down, links get no card;
-  nothing falls back to a direct fetch. Outgoing webhooks still go out
-  directly.
-- **New variables.** `STOOP_LINK_PREVIEW_HTML_MB` (default `2`) and
-  `STOOP_LINK_PREVIEW_PROXY` are used until a value is saved on the
-  admin page. `STOOP_LINK_PREVIEW_RESOLVER` is the resolver used with a
-  proxy, `https://1.1.1.1/dns-query` by default.
-- **The private-address check is stricter.** Link previews and outgoing
-  webhooks now refuse IPv6 addresses that carry an IPv4 address inside
-  them: `::/96`, NAT64 (`64:ff9b::/96`, `64:ff9b:1::/48`) and 6to4
-  (`2002::/16`). A server with no IPv4 of its own, reaching IPv4 sites
-  only through NAT64, gets no previews for those sites and cannot
-  deliver webhooks to them.
-- **Rolling back to 0.9.0 turns direct fetches back on.** 0.9.0 does not
-  know the switch or the proxy: previews follow `STOOP_LINK_PREVIEWS`,
-  which is on by default there, and every fetch goes out from the
-  server's own address. Set `STOOP_LINK_PREVIEWS=false` before a
-  rollback if you rely on either.
-- **API additions for scripts.** `UpdateSettings` takes `link_previews`,
-  `link_preview_html_mb` and `link_preview_proxy`. The instance status
-  carries `link_previews` and `link_preview_html_mb`, and
-  `GetReachability` carries `link_preview_proxy`. Nothing was removed.
+- **Private means private in the app.** Nothing in Stoop lets a server
+  admin read a private channel they are not in, and its files are
+  served only to its people. It is not private from the machine: like
+  every message, its messages sit in Postgres in plaintext and in your
+  backups. See [Privacy of direct messages and private channels](https://github.com/getstoop/stoop/blob/v0.11.0/docs/self-hosting/accounts-and-security.md#privacy-of-direct-messages-and-private-channels).
+- **Reload open tabs after upgrading.** A browser tab left open from
+  0.10.0 keeps the old app until it is reloaded, and the old app does
+  not draw `@channel` mentions or know about private channels.
+- **Old `@everyone` messages.** The people they notified keep those
+  notifications. The text `@everyone` in an old message is now drawn as
+  plain text.
+- **Incoming webhooks.** A webhook can post into a private channel:
+  make it while you are in the channel, and its bot is added to the
+  channel. The switch that lets a webhook notify the channel now reads
+  "May use @channel and @here", and a payload that says `@everyone`
+  notifies nobody; send `@channel`.
+- **Outgoing webhooks send nothing from a private channel**, as they
+  already sent nothing from a direct message. A private channel can't
+  be picked as an outgoing webhook's channel in the app.
+- **The integrations list follows the channel.** A webhook into a
+  private channel is listed only to that channel's people and to server
+  admins.
+- **Tokens and bots.** A token or bot reaches a private channel only if
+  its account is in it. Stored grants named `messages.notify_everyone`
+  are renamed by the upgrade; nothing needs re-issuing.
+- **API changes for scripts.** Three names changed, with no alias:
+  the permission `PERMISSION_MESSAGES_NOTIFY_EVERYONE` is
+  `PERMISSION_MESSAGES_NOTIFY_ENTIRE_CHANNEL`, a message's
+  `mentions_everyone` is `mentions_entire_channel` (`mentionsEntireChannel`
+  in JSON), and an incoming webhook's `notify_everyone` is
+  `notify_entire_channel` (`notifyEntireChannel` in JSON). New:
+  `private` on `CreateChannel` and on a channel, the RPCs
+  `ListAllChannels`, `ListChannelMembers`, `AddChannelMembers`,
+  `RemoveChannelMember` and `LeaveChannel`, and the events
+  `channel_member_joined` and `channel_member_left`.
 
-**Schema.** No migrations. 0.9.0 and 0.10.0 share schema 61, and the
-schema floor stays at 53.
+**Schema.** Migrations 00062 to 00065 run at startup, taking the schema
+from 61 to 65. 00062 adds the view `channel_readers`, 00063 the
+`private` column and the `channel_members` table, and 00064 records
+which private channel a file belongs to. 00065 is a contract migration:
+it renames `messages.mentions_everyone` to `mentions_entire_channel`
+and rewrites stored grants. The schema floor goes from 53 to 65. 0.10.x
+and older refuse to start against the result, so `stoop upgrade
+rollback` refuses and points at the backup it took
+([Restoring in place](https://github.com/getstoop/stoop/blob/v0.11.0/docs/self-hosting/backups.md#restoring-in-place)).
+Anything written after the upgrade is lost by restoring it.
 
 **Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
-`cloudflared` 2026.9.3, all unchanged from 0.9.0.
+`cloudflared` 2026.9.3, all unchanged from 0.10.0.
 
 **Known issues.**
 
-- A link that failed to get a card stays without one for a week, so
-  links posted while a proxy was down, or to a long page before the
-  upgrade, don't get a card straight away.
-- The preview's arrows step through the messages already loaded in the
-  channel; they don't fetch older history.
+- The count on a private channel's People button can lag behind a
+  change made by someone else until the page is reloaded.
+- Someone removed from a private channel while search results from it
+  are on their screen keeps what is already drawn until they move to
+  another page.
+- Taking someone out of a private voice call depends on the voice
+  server being reachable. If it is not at that moment, they can stay in
+  the call until they hang up.
+- Placeholders, dialog titles and screen reader labels can't carry the
+  lock, so a private channel's name stands alone there.
+- A link that failed to get a card stays without one for a week.
+- The image preview's arrows step through the messages already loaded
+  in the channel; they don't fetch older history.
 - A video's still and playback in the preview were not checked in
   Safari, or with MP4 and `.mov` files.
 - A mail relay with a self-signed certificate is not supported over
@@ -111,60 +122,55 @@ Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
 security problems go through
 [private reporting](https://github.com/getstoop/stoop/security/advisories/new).
 
-Changes since 0.9.0:
+Changes since 0.10.0:
 
-- Bump source-map-js from 1.2.1 to 1.2.2 in /web (3455492)
-- Invites: the invite page shows the space's icon (2981e87)
-- Password reset: the email states the username (4976b12)
-- Files: the invite icon test asks through the route (b65cc4b)
-- Bump vite from 6.4.3 to 8.3.3 in /web (5aba680)
-- Web: a muted channel leaves the sidebar (STOOP-480) (66d56ff)
-- Web: muted list rows take a hover state and an icon to unmute (5d213db)
-- Web: the muted list's unmute is the red muted bell (d39ce6e)
-- Web: over the unmute bell, only the bell is highlighted (0060d14)
-- Web: the muted channel being read is listed last (4ac8365)
-- Web: the open muted channel's row carries the muted bell (662516a)
-- Web: a thread from a muted channel says so beside the channel's name (2cce197)
-- Web: no thread mute on a thread from a muted channel (89614c2)
-- Web: the thread header's muted bell is dimmed like the sidebar's (486184e)
-- Web: the thread header's muted bell explains itself on hover (e8f598b)
-- Web: keyboard focus follows a mute, and a muted channel's thread says so on its button (5087ae9)
-- Web: muting a channel is announced to screen readers (624e262)
-- Web: composer tooltips, list icons, and a send button for on-screen keyboards (f281814)
-- Web: the thread header's channel name opens the channel on the thread's root (4ff5460)
-- Web: a jump to an open thread's root scrolls to it without the flash (7386004)
-- Web: page headers keep one height, and Activity fills the desktop shell's corner (5b350da)
-- Web: the message hover toolbar's buttons are larger (e581375)
-- Web: a grouped message's hover toolbar no longer repeats the time (a4d36e7)
-- Web: the thread composer's "Also send to" checkbox lines up with its label (82932fd)
-- Web: the "Also send to" checkbox and its label show a pointer (141c149)
-- Web: the "Also send to" checkbox and its label are a little larger (305ad6c)
-- Web: the "Also send to" label is body-sized (e72d1a6)
-- Web: the "Also send to" checkbox is drawn in the app's own style (5c2d129)
-- Web: clicking an image in chat opens a preview in the app (5efd3dc)
-- Web: a browser spec for the image preview (bd85721)
-- Web: the preview's arrows sit beside the image's edges (80677ee)
-- Web: the preview's arrows go back to the window's sides, 24px in (ef532e0)
-- Web: the preview's arrow buttons are a little larger (65e906f)
-- Web: an uploaded video plays in the preview, not in chat (d0a230d)
-- Link previews: a long page is read up to a cap the admin can set (9502d97)
-- Link previews: a switch on the Server admin tab turns them off and on (c0b94a3)
-- Web: the registration spec saves the Server form by name (c648fe1)
-- Link previews: fetches can go through a SOCKS5 proxy (0a41e04)
-- Link previews: a proxied fetch looks the name up through the proxy (971df67)
-- Web: link previews get their own Server admin tab (615b1d5)
-- Chat: an edit made while link previews are off drops a removed link's card (f20e4ee)
-- Test: the preview cap test waits for the first fetch before raising the cap (90ec478)
-- Chat: dropRemovedLinks names its queries parameter (66a0775)
-- Web: the link preview proxy can be set while previews are off (6c4fd5f)
-- Link previews: a redirect from the name resolver is refused (095befa)
-- Web: the link previews switch waits for Save (b57de3a)
-- Egress guard: IPv6 addresses that embed an IPv4 one are refused (f0c6144)
-- Web: the dropdown arrow sits in from the border (6ccf0af)
-- Link previews are off on a new server (cab1bff)
-- Web: a kit Select draws the dropdown chevron in the theme's colour (22ff331)
-- Link previews: the upgrade default never overwrites a saved choice (9326c13)
-- Web: a channel opened at the bottom stays there as its media loads (e44f99d)
-- Web: the message toolbar and the chat scrollbars follow the cursor (77e15d8)
-- Web: a video's caption shows on hover, and a failed upload's reason fits its chip (ded4b5e)
-- Web: a video's caption stays over its still (205f3cc)
+- Docs: channel membership and private channels proposals (6554a401)
+- Docs: private channels stand on their own; drop the membership proposal (95eecea7)
+- Docs: private channels proposal checked against the code (05723308)
+- Docs: private channels: attachments by recorded channel, and the gates (9e99715a)
+- Docs: private channels ship in one release, voice included (0b2886fb)
+- Docs: private channels: @channel replaces @everyone, no alias (661f2d06)
+- Chat: who may read a channel is written once, as a view (09dd4601)
+- Chat: a private channel is read by its people only (50789bd4)
+- Files: a private channel's attachments are served to its people only (ad9d8bea)
+- Chat: a private channel's events go to its people only (0a12bd1f)
+- Files: the private attachment test names its fixture (24143439)
+- Chat: private channels can be created and their people managed (410ddfee)
+- Realtime: typing in a private channel goes to its people whatever the client sends (60eee560)
+- Realtime: relayTyping names its hint (fe64782a)
+- Chat: a missing channel reads like a private one, and leaving a space drops its private alerts (baa3446a)
+- Files: a bounded token that reaches a private channel downloads its attachments (be4faa97)
+- Realtime: an empty or unknown channel is never taken for a public one (b796c95f)
+- Chat: review fixes for private channel management (6466804d)
+- Web: a channel that leaves the list takes its share of the space's unread dot (3d21afae)
+- Chat: every query that reads channels for a person asks channel_readers (ad613550)
+- Chat: adding several people to a private channel is all or nothing (fd2eb334)
+- Integrations: a failed hook leaves its bot in a channel another hook needs (6d769bf8)
+- Web: a private channel shows a lock, and a reorder keeps it in place (d188ad78)
+- Web: create a private channel and manage who is in it (0de80472)
+- Web: focus returns from New channel, and a kick updates a private channel's people (3c6af68d)
+- Chat: a private channel can't be an announcement channel (fbded79c)
+- Web: the sidebar order matches the server to the nanosecond, and the settings lock is named (a9bd4988)
+- Web: say what nanos is in the channel order (4bd74720)
+- Web: order channels by creation time in milliseconds (5c4974ba)
+- Web: Space settings lists every channel, with who is in a private one (9d3840a7)
+- Web: a browser spec for private channels (a60f5833)
+- Web: the private channels spec goes past the link gate (be639f35)
+- Web: review fixes for private channels (097e82f2)
+- Chat: @channel replaces @everyone (caf7db95)
+- Regenerate after the comment edits (efdde310)
+- Chat: helpers say they notify the entire channel (338d9dbb)
+- Docs: the permission's real name, and who @channel reaches (4ddb68f6)
+- Web: @here reads "Everyone online in this channel" (dca57931)
+- Chat: the names say "entire channel" (4a129096)
+- Voice: a voice channel can be private (ec5e71c2)
+- Voice: deleting a public voice channel asks nothing (53b287e9)
+- Web: the settings row menu says "Join as member" (74749416)
+- Web: a browser spec for a private voice channel (e03ca9ba)
+- Integrations: a private channel's webhook is listed only to its people (987691f1)
+- Docs: private channels, and the built proposal is deleted (980e9e67)
+- Web: a private channel's name in text has no hash (5d9abd84)
+- Web: a lock before a private channel's name in a sentence (870766b1)
+- Web: a space after the hash of a public channel's name in a sentence (72dbd56b)
+- Web: the also-send spec names the checkbox as it now reads (19bffd73)
+- Web: the retention spec reads the start of history as it now reads (66bb1349)
