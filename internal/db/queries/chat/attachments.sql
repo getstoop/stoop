@@ -29,17 +29,15 @@ SELECT a.file_id FROM message_attachments a
 JOIN channel_pins p ON p.message_id = a.message_id;
 
 -- IsAttachmentReadable: the file is attached to a message in a channel
--- the user can read (space member or DM participant). Files' download
+-- the user can read. Files' download
 -- rule for attachments that have no space.
 -- name: IsAttachmentReadable :one
 SELECT EXISTS (
     SELECT 1
     FROM message_attachments a
     JOIN messages m ON m.id = a.message_id
-    JOIN channels c ON c.id = m.channel_id
-    LEFT JOIN space_members sm ON sm.space_id = c.space_id AND sm.user_id = $2
-    LEFT JOIN dm_members d ON d.channel_id = c.id AND d.user_id = $2
-    WHERE a.file_id = $1 AND (sm.user_id IS NOT NULL OR d.user_id IS NOT NULL)
+    JOIN channel_readers cr ON cr.channel_id = m.channel_id AND cr.user_id = $2
+    WHERE a.file_id = $1
 ) AS readable;
 
 -- ReferencedFileIDs: which of these files chat still points at — an

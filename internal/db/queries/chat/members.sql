@@ -11,24 +11,19 @@ SELECT EXISTS (
     SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2
 ) AS is_member;
 
--- IsChannelMember: a member of the channel's space, or a participant in
--- the direct message.
+-- IsChannelMember: whether the person may read the channel.
 -- name: IsChannelMember :one
 SELECT EXISTS (
-    SELECT 1
-    FROM channels c
-    LEFT JOIN space_members m ON m.space_id = c.space_id AND m.user_id = $2
-    LEFT JOIN dm_members d ON d.channel_id = c.id AND d.user_id = $2
-    WHERE c.id = $1 AND (m.user_id IS NOT NULL OR d.user_id IS NOT NULL)
+    SELECT 1 FROM channel_readers cr
+    WHERE cr.channel_id = sqlc.arg(channel_id)::uuid AND cr.user_id = sqlc.arg(user_id)::uuid
 ) AS is_member;
 
 -- ChannelMembersAmong is which of these people can still read the
--- channel: members of its space, or participants in the DM.
+-- channel.
 -- name: ChannelMembersAmong :many
 SELECT u.id::uuid FROM unnest(sqlc.arg(user_ids)::uuid[]) AS u(id)
-JOIN channels c ON c.id = sqlc.arg(channel_id)::uuid
-WHERE EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND sm.user_id = u.id)
-   OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = u.id);
+WHERE EXISTS (SELECT 1 FROM channel_readers cr
+              WHERE cr.channel_id = sqlc.arg(channel_id)::uuid AND cr.user_id = u.id);
 
 -- name: ListSpaceIDsByUser :many
 SELECT space_id FROM space_members WHERE user_id = $1;

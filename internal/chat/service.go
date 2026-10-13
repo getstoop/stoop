@@ -165,7 +165,7 @@ func (s *Service) ChannelSpaceToPostIn(ctx context.Context, userID, channelID st
 // user's bounded credential — whether its bounds reach the channel.
 // Exposed for the voice module's membership port.
 func (s *Service) IsChannelMember(ctx context.Context, userID, channelID string) (bool, error) {
-	ok, err := s.q.IsChannelMember(ctx, dbgen.IsChannelMemberParams{ID: channelID, UserID: userID})
+	ok, err := s.q.IsChannelMember(ctx, dbgen.IsChannelMemberParams{ChannelID: channelID, UserID: userID})
 	if err != nil || !ok {
 		return ok, err
 	}
@@ -200,7 +200,7 @@ func (s *Service) requireSpaceMember(ctx context.Context, spaceID string) error 
 func (s *Service) requireChannelMember(ctx context.Context, channelID string) error {
 	// Membership first, then the credential's bounds, so each refusal says
 	// which it was.
-	ok, err := s.q.IsChannelMember(ctx, dbgen.IsChannelMemberParams{ID: channelID, UserID: authctx.UserID(ctx)})
+	ok, err := s.q.IsChannelMember(ctx, dbgen.IsChannelMemberParams{ChannelID: channelID, UserID: authctx.UserID(ctx)})
 	if err != nil {
 		return fmt.Errorf("check membership: %w", err)
 	}

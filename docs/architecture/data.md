@@ -168,6 +168,11 @@ Queries that hand a message to a client read it
 a column a view reads, so a migration that does either recreates the view
 in the same file.
 
+**`channel_readers`** is a view of `(channel_id, user_id)`: who may read
+a channel, as the members of its space or the participants of the direct
+message. Every query that asks whether someone may read a channel reads
+it, so the rule is written once.
+
 **`channel_pins`** — `message_id` (the primary key, because a message
 belongs to exactly one channel), `channel_id`, `pinned_by`, `pinned_at`,
 with `(channel_id, pinned_at DESC)` for the list. The three cascades are

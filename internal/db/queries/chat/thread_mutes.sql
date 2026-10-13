@@ -9,7 +9,7 @@ ON CONFLICT DO NOTHING;
 DELETE FROM thread_mutes WHERE user_id = $1 AND root_message_id = $2;
 
 -- ListThreadMutes is Profile → Muted's threads, newest mute first, in
--- channels the person is still a member of; the caller drops hidden voice
+-- channels the person can still read; the caller drops hidden voice
 -- channels, as accessChannel does.
 -- name: ListThreadMutes :many
 SELECT sqlc.embed(m), sqlc.embed(c)
@@ -17,8 +17,7 @@ FROM thread_mutes tm
 JOIN message_with_reply m ON m.id = tm.root_message_id
 JOIN channels c ON c.id = m.channel_id
 WHERE tm.user_id = $1
-  AND (EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND sm.user_id = $1)
-       OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = $1))
+  AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = $1)
 ORDER BY tm.created_at DESC
 LIMIT 200;
 
