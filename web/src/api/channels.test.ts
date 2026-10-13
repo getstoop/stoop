@@ -145,7 +145,7 @@ describe("withPositions", () => {
 });
 
 describe("byPosition", () => {
-  it("orders channels made in the same second by the fraction of it", () => {
+  it("orders channels made in the same second by the milliseconds", () => {
     const made = (id: string, nanos: number): Channel =>
       ({
         id,
@@ -155,7 +155,9 @@ describe("byPosition", () => {
         createdAt: { seconds: 10n, nanos },
       }) as Channel;
     expect(
-      byPosition([made("second", 500), made("first", 100)]).map((c) => c.id),
+      byPosition([made("second", 500_000_000), made("first", 100_000_000)]).map(
+        (c) => c.id,
+      ),
     ).toEqual(["first", "second"]);
   });
 });
