@@ -958,9 +958,9 @@ func (x *VoiceStateChanged) GetJoined() bool {
 	return false
 }
 
-// Typing in a direct message or a private channel carries an empty
-// space_id; the gateway relays it to the other people in it instead of a
-// space.
+// Typing in a direct message carries an empty space_id. The gateway
+// relays a hint in a direct message or a private channel to the other
+// people in it, and any other to the space.
 type Typing struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`

@@ -292,10 +292,13 @@ resolving `@here` to the members who are online right now.
 
 Relayed to the space — but only if the connection is actually subscribed to
 that space, which is the check that stops a client claiming to type in
-somewhere it can't see. In a DM or a private channel the event carries an
-empty `space_id`, and the gateway resolves the people in it through
-`ChannelLookup.ChannelPeople` and publishes to each `user:` topic,
-verifying the sender is one of them. A public channel costs no lookup.
+somewhere it can't see. In a DM or a private channel the gateway resolves
+the people in it through `ChannelLookup.ChannelPeople` and publishes to
+each `user:` topic, verifying the sender is one of them. Which kind a
+channel is comes from that lookup, never from the `space_id` the client
+sent. A connection remembers the channels it found to be public, so a
+public channel costs one lookup per connection: a channel is private from
+the day it is made or never.
 
 Rate-limited per connection per channel to one relay every two seconds,
 counted from the last relay the sender was allowed. Every client frame,
