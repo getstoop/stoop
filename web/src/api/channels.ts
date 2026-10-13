@@ -17,7 +17,8 @@ export function byPosition(channels: Channel[]): Channel[] {
   return [...channels].sort(
     (a, b) =>
       a.position - b.position ||
-      Number((a.createdAt?.seconds ?? 0n) - (b.createdAt?.seconds ?? 0n)),
+      Number((a.createdAt?.seconds ?? 0n) - (b.createdAt?.seconds ?? 0n)) ||
+      (a.createdAt?.nanos ?? 0) - (b.createdAt?.nanos ?? 0),
   );
 }
 
