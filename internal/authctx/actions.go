@@ -21,19 +21,19 @@ const (
 
 // Actions on a space, held through a space role (internal/chat).
 const (
-	SpaceRead              Action = "space.read"
-	MessagesRead           Action = "messages.read"
-	MessagesPost           Action = "messages.post"
-	MessagesNotifyEveryone Action = "messages.notify_everyone"
-	MessagesModerate       Action = "messages.moderate"
-	VoiceJoin              Action = "voice.join"
-	InvitesCreate          Action = "invites.create"
-	InvitesManage          Action = "invites.manage"
-	ChannelsManage         Action = "channels.manage"
-	MembersManage          Action = "members.manage"
-	SpaceManage            Action = "space.manage"
-	SpaceTransfer          Action = "space.transfer"
-	SpaceDelete            Action = "space.delete"
+	SpaceRead             Action = "space.read"
+	MessagesRead          Action = "messages.read"
+	MessagesPost          Action = "messages.post"
+	MessagesNotifyChannel Action = "messages.notify_channel"
+	MessagesModerate      Action = "messages.moderate"
+	VoiceJoin             Action = "voice.join"
+	InvitesCreate         Action = "invites.create"
+	InvitesManage         Action = "invites.manage"
+	ChannelsManage        Action = "channels.manage"
+	MembersManage         Action = "members.manage"
+	SpaceManage           Action = "space.manage"
+	SpaceTransfer         Action = "space.transfer"
+	SpaceDelete           Action = "space.delete"
 )
 
 // Actions on the caller's own account, held by everyone.
@@ -57,19 +57,19 @@ var descriptions = map[Action]string{
 	SpacesJoinAny:              "join a space without an invite",
 	DMsReachAnyone:             "message people you don't share a space with",
 
-	SpaceRead:              "see this space",
-	MessagesRead:           "read messages",
-	MessagesPost:           "post messages",
-	MessagesNotifyEveryone: "mention everyone in this space",
-	MessagesModerate:       "delete other people's messages",
-	VoiceJoin:              "join voice",
-	InvitesCreate:          "create invites for this space",
-	InvitesManage:          "revoke other people's invites",
-	ChannelsManage:         "manage channels in this space",
-	MembersManage:          "manage members of this space",
-	SpaceManage:            "change this space's settings",
-	SpaceTransfer:          "transfer ownership of this space",
-	SpaceDelete:            "delete this space",
+	SpaceRead:             "see this space",
+	MessagesRead:          "read messages",
+	MessagesPost:          "post messages",
+	MessagesNotifyChannel: "mention @channel and @here",
+	MessagesModerate:      "delete other people's messages",
+	VoiceJoin:             "join voice",
+	InvitesCreate:         "create invites for this space",
+	InvitesManage:         "revoke other people's invites",
+	ChannelsManage:        "manage channels in this space",
+	MembersManage:         "manage members of this space",
+	SpaceManage:           "change this space's settings",
+	SpaceTransfer:         "transfer ownership of this space",
+	SpaceDelete:           "delete this space",
 
 	ProfileManage:     "change your profile",
 	PreferencesManage: "change your preferences",
@@ -117,7 +117,7 @@ var ownActions = map[Action]bool{
 }
 
 var spaceActions = map[Action]bool{
-	SpaceRead: true, MessagesRead: true, MessagesPost: true, MessagesNotifyEveryone: true,
+	SpaceRead: true, MessagesRead: true, MessagesPost: true, MessagesNotifyChannel: true,
 	MessagesModerate: true, VoiceJoin: true, InvitesCreate: true, InvitesManage: true,
 	ChannelsManage: true, MembersManage: true, SpaceManage: true, SpaceTransfer: true, SpaceDelete: true,
 }

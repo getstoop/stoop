@@ -206,7 +206,7 @@ type Message struct {
 	AuthorID         string
 	Content          string
 	CreatedAt        time.Time
-	MentionsEveryone bool
+	MentionsChannel  bool
 	ReplyToMessageID *string
 	MentionsHere     bool
 	EditedAt         *time.Time
@@ -246,7 +246,7 @@ type MessageWithReply struct {
 	AuthorID              string
 	Content               string
 	CreatedAt             time.Time
-	MentionsEveryone      bool
+	MentionsChannel       bool
 	ReplyToMessageID      *string
 	MentionsHere          bool
 	EditedAt              *time.Time

@@ -10,7 +10,7 @@ import (
 )
 
 const listThreadMutes = `-- name: ListThreadMutes :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_everyone, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_channel, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private
 FROM thread_mutes tm
 JOIN message_with_reply m ON m.id = tm.root_message_id
 JOIN channels c ON c.id = m.channel_id
@@ -43,7 +43,7 @@ func (q *Queries) ListThreadMutes(ctx context.Context, userID string) ([]ListThr
 			&i.MessageWithReply.AuthorID,
 			&i.MessageWithReply.Content,
 			&i.MessageWithReply.CreatedAt,
-			&i.MessageWithReply.MentionsEveryone,
+			&i.MessageWithReply.MentionsChannel,
 			&i.MessageWithReply.ReplyToMessageID,
 			&i.MessageWithReply.MentionsHere,
 			&i.MessageWithReply.EditedAt,
@@ -139,7 +139,7 @@ SELECT r.id AS root_id,
      OR EXISTS (SELECT 1 FROM message_mentions mm JOIN messages m ON m.id = mm.message_id
                 WHERE mm.user_id = $1::uuid
                   AND (m.id = r.id OR m.thread_root_id = r.id)
-                  AND NOT m.mentions_everyone AND NOT m.mentions_here))::bool AS participating,
+                  AND NOT m.mentions_channel AND NOT m.mentions_here))::bool AS participating,
     EXISTS (SELECT 1 FROM thread_mutes tm
             WHERE tm.user_id = $1::uuid AND tm.root_message_id = r.id)::bool AS muted,
     (SELECT count(*) FROM messages m

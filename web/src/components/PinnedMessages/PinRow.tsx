@@ -64,7 +64,7 @@ export function PinRow({
           <MessageBody
             content={message.content}
             usernames={usernames}
-            mentionsEveryone={message.mentionsEveryone}
+            mentionsChannel={message.mentionsChannel}
             mentionsHere={message.mentionsHere}
             myUsername={me?.username}
           />

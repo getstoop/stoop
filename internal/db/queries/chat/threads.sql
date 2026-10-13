@@ -68,7 +68,7 @@ reactions AS (DELETE FROM message_reactions WHERE message_id = sqlc.arg(id)::uui
 mentions AS (DELETE FROM message_mentions WHERE message_id = sqlc.arg(id)::uuid),
 pins AS (DELETE FROM channel_pins WHERE message_id = sqlc.arg(id)::uuid),
 activity AS (DELETE FROM activity_items WHERE message_id = sqlc.arg(id)::uuid)
-UPDATE messages SET content = '', mentions_everyone = false, mentions_here = false,
+UPDATE messages SET content = '', mentions_channel = false, mentions_here = false,
     edited_at = NULL, deleted_at = now()
 WHERE id = sqlc.arg(id)::uuid;
 
@@ -86,14 +86,14 @@ WHERE m.id = sqlc.arg(root_id)::uuid OR m.thread_root_id = sqlc.arg(root_id)::uu
 -- channel: message rows outlive a leave or a kick.
 -- name: ThreadParticipants :many
 WITH thread AS (
-    SELECT m.id, m.channel_id, m.author_id, m.mentions_everyone, m.mentions_here FROM messages m
+    SELECT m.id, m.channel_id, m.author_id, m.mentions_channel, m.mentions_here FROM messages m
     WHERE m.id = sqlc.arg(root_id)::uuid
        OR (m.thread_root_id = sqlc.arg(root_id)::uuid AND m.id < sqlc.arg(reply_id)::uuid)
 ), people AS (
     SELECT t.author_id AS user_id FROM thread t
     UNION
     SELECT mm.user_id FROM message_mentions mm JOIN thread t ON t.id = mm.message_id
-    WHERE NOT t.mentions_everyone AND NOT t.mentions_here
+    WHERE NOT t.mentions_channel AND NOT t.mentions_here
 )
 SELECT p.user_id FROM people p
 WHERE EXISTS (SELECT 1 FROM channel_readers cr

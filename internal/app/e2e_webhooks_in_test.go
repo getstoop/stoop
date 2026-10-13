@@ -106,7 +106,7 @@ func TestE2EIncomingHookAnswers(t *testing.T) {
 
 // Pinging everyone takes the hook's grant and the bot's role; ticking the
 // box on a hook gives its bot the role, and unticking the last takes it.
-func TestE2EIncomingHookNotifyEveryone(t *testing.T) {
+func TestE2EIncomingHookNotifyChannel(t *testing.T) {
 	h := newHarness(t)
 	casey := h.person("casey")
 	stoop, general := h.space(casey, "The Stoop")
@@ -123,8 +123,8 @@ func TestE2EIncomingHookNotifyEveryone(t *testing.T) {
 	}
 
 	_, quiet := h.hook(casey, bot, general, "quiet")
-	h.post(quiet, "text/plain", "@everyone quiet").expectStatus(t, http.StatusOK)
-	if h.message(casey, general, "quiet")["mentionsEveryone"] == true {
+	h.post(quiet, "text/plain", "@channel quiet").expectStatus(t, http.StatusOK)
+	if h.message(casey, general, "quiet")["mentionsChannel"] == true {
 		t.Error("a hook without the grant pinged everyone")
 	}
 	if role() != "SPACE_ROLE_MEMBER" {
@@ -132,7 +132,7 @@ func TestE2EIncomingHookNotifyEveryone(t *testing.T) {
 	}
 
 	loud := h.rpc(casey, "stoop.integrations.v1.IntegrationService/CreateIncoming", map[string]any{
-		"channelId": general, "name": "loud", "botUserId": bot, "notifyEveryone": true,
+		"channelId": general, "name": "loud", "botUserId": bot, "notifyChannel": true,
 	}).expect(t, "ok")
 	loudURL := loud.str("url")
 	if strings.HasPrefix(loudURL, "/") {
@@ -141,16 +141,16 @@ func TestE2EIncomingHookNotifyEveryone(t *testing.T) {
 	if role() != "SPACE_ROLE_ADMIN" {
 		t.Errorf("bot role after a notify hook = %s", role())
 	}
-	h.post(loudURL, "text/plain", "@everyone loud").expectStatus(t, http.StatusOK)
-	if h.message(casey, general, "loud")["mentionsEveryone"] != true {
+	h.post(loudURL, "text/plain", "@channel loud").expectStatus(t, http.StatusOK)
+	if h.message(casey, general, "loud")["mentionsChannel"] != true {
 		t.Error("grant plus role didn't ping everyone")
 	}
 	// The quiet hook's bot is now admin, but its own grant still lacks it.
-	h.post(quiet, "text/plain", "@everyone still quiet").expectStatus(t, http.StatusOK)
-	if h.message(casey, general, "still quiet")["mentionsEveryone"] == true {
+	h.post(quiet, "text/plain", "@channel still quiet").expectStatus(t, http.StatusOK)
+	if h.message(casey, general, "still quiet")["mentionsChannel"] == true {
 		t.Error("the grant gate didn't hold once the bot was admin")
 	}
-	h.rpc(casey, "stoop.integrations.v1.IntegrationService/UpdateIncoming", map[string]any{"id": loud.str("webhook.id"), "notifyEveryone": false}).expect(t, "ok")
+	h.rpc(casey, "stoop.integrations.v1.IntegrationService/UpdateIncoming", map[string]any{"id": loud.str("webhook.id"), "notifyChannel": false}).expect(t, "ok")
 	if role() != "SPACE_ROLE_MEMBER" {
 		t.Errorf("bot role after unticking = %s", role())
 	}

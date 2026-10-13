@@ -58,9 +58,9 @@ message Message {
   // The channel's space, so clients can update per-space state from a
   // realtime event without a lookup.
   string space_id = 7;
-  // True when the message @mentioned everyone (and the author was allowed
+  // True when the message used @channel (and the author was allowed
   // to); mention_user_ids then lists every other member.
-  bool mentions_everyone = 8;
+  bool mentions_channel = 8;
   // Set when this message is a reply.
   ReplyRef reply_to = 9;
   // True when the message @mentioned everyone currently online (@here).

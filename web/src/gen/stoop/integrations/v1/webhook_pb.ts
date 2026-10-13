@@ -51,7 +51,7 @@ export type IncomingWebhook = Message<"stoop.integrations.v1.IncomingWebhook"> &
 
   /**
    * The hook credential's grants: messages.post, optionally
-   * messages.notify_everyone.
+   * messages.notify_channel.
    *
    * @generated from field: repeated stoop.access.v1.Permission permissions = 6;
    */

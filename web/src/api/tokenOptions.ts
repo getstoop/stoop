@@ -59,10 +59,10 @@ const ALL_OPTIONS: TokenOption[] = [
     permissions: [Permission.INVITES_MANAGE],
   },
   {
-    key: "everyone",
-    label: "Mention everyone",
+    key: "notify-channel",
+    label: "Mention @channel and @here",
     group: "space",
-    permissions: [Permission.MESSAGES_NOTIFY_EVERYONE],
+    permissions: [Permission.MESSAGES_NOTIFY_CHANNEL],
   },
   {
     key: "moderate",
@@ -186,7 +186,7 @@ export const GROUP_LABELS: Record<TokenGroup, string> = {
 const BOT_SPACE_KEYS = [
   "read",
   "post",
-  "everyone",
+  "notify-channel",
   "moderate",
   "voice",
   "invites",

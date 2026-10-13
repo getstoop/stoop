@@ -124,7 +124,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
-			MentionsEveryone: res.everyone, MentionsHere: res.here, ReplyToMessageID: replyTo,
+			MentionsChannel: res.channel, MentionsHere: res.here, ReplyToMessageID: replyTo,
 			ThreadRootID: threadRootID, InChannel: threadRoot == nil || alsoSend,
 		})
 		if err != nil {
@@ -356,7 +356,7 @@ type messageRow = dbgen.GetMessageRow
 func listedMessage(row dbgen.MessageWithReply) messageRow {
 	return messageRow{
 		ID: row.ID, ChannelID: row.ChannelID, AuthorID: row.AuthorID, Content: row.Content,
-		CreatedAt: row.CreatedAt, MentionsEveryone: row.MentionsEveryone,
+		CreatedAt: row.CreatedAt, MentionsChannel: row.MentionsChannel,
 		ReplyToMessageID: row.ReplyToMessageID, MentionsHere: row.MentionsHere, EditedAt: row.EditedAt,
 		ThreadRootID: row.ThreadRootID, InChannel: row.InChannel, DeletedAt: row.DeletedAt,
 	}
@@ -611,7 +611,7 @@ func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, me
 		Id: row.ID, ChannelId: row.ChannelID, Author: authorOrUnknown(authors, row.AuthorID),
 		Content: row.Content, CreatedAt: timestamppb.New(row.CreatedAt),
 		MentionUserIds: mentions, SpaceId: spaceID,
-		MentionsEveryone: row.MentionsEveryone, MentionsHere: row.MentionsHere,
+		MentionsChannel: row.MentionsChannel, MentionsHere: row.MentionsHere,
 		InChannel: row.InChannel, Deleted: row.DeletedAt != nil,
 	}
 	if row.ThreadRootID != nil {

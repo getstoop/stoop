@@ -21,10 +21,10 @@ describe("integrations helpers", () => {
       hookCanText({
         permissions: [
           Permission.MESSAGES_POST,
-          Permission.MESSAGES_NOTIFY_EVERYONE,
+          Permission.MESSAGES_NOTIFY_CHANNEL,
         ],
       }),
-    ).toBe("Post, and notify everyone");
+    ).toBe("Post, and notify the channel");
   });
 
   it("shows a member the host only", () => {

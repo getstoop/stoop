@@ -32,9 +32,9 @@ export function useIncomingActions(onSecret: (secret: Secret) => void) {
     }
   };
 
-  const setNotify = (hook: IncomingWebhook, notifyEveryone: boolean) =>
+  const setNotify = (hook: IncomingWebhook, notifyChannel: boolean) =>
     act(hook, () =>
-      integrationsClient.updateIncoming({ id: hook.id, notifyEveryone }),
+      integrationsClient.updateIncoming({ id: hook.id, notifyChannel }),
     );
   const toggle = (hook: IncomingWebhook) =>
     act(hook, () =>

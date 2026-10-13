@@ -34,7 +34,7 @@ type IncomingWebhook struct {
 	BotUserId string                 `protobuf:"bytes,4,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
 	Name      string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
 	// The hook credential's grants: messages.post, optionally
-	// messages.notify_everyone.
+	// messages.notify_channel.
 	Permissions []v1.Permission `protobuf:"varint,6,rep,packed,name=permissions,proto3,enum=stoop.access.v1.Permission" json:"permissions,omitempty"`
 	// The token's last four characters, to tell hooks apart.
 	Hint    string `protobuf:"bytes,7,opt,name=hint,proto3" json:"hint,omitempty"`

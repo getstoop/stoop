@@ -37,7 +37,7 @@ func TestDeletingANotifyHookDemotesItsBot(t *testing.T) {
 	made := f.create(t, "UPS", true)
 	bot := made.Webhook.BotUserId
 	if !f.isAdmin(bot) {
-		t.Fatal("notify_everyone should make the bot a space admin")
+		t.Fatal("notify_channel should make the bot a space admin")
 	}
 	if _, err := f.svc.DeleteWebhook(f.admin, connect.NewRequest(&integrationsv1.DeleteWebhookRequest{Id: made.Webhook.Id})); err != nil {
 		t.Fatal(err)
@@ -65,14 +65,14 @@ func TestSweepingAnOrphanedNotifyHookDemotesItsBot(t *testing.T) {
 	f.spaces.channel[other] = f.space
 	quiet := f.create(t, "Backups", false)
 	loud, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
-		ChannelId: other, Name: "Backups loud", BotUserId: quiet.Webhook.BotUserId, NotifyEveryone: true,
+		ChannelId: other, Name: "Backups loud", BotUserId: quiet.Webhook.BotUserId, NotifyChannel: true,
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	bot := loud.Msg.Webhook.BotUserId
 	if !f.isAdmin(bot) {
-		t.Fatal("notify_everyone should make the bot a space admin")
+		t.Fatal("notify_channel should make the bot a space admin")
 	}
 	if _, err := f.pool.Exec(context.Background(), `DELETE FROM channels WHERE id = $1`, other); err != nil {
 		t.Fatal(err)
@@ -166,7 +166,7 @@ func TestAFailedCreateLeavesNothingBehind(t *testing.T) {
 	// The token can't be minted, after the bot was made an admin.
 	f.bots.failMint = errors.New("credentials store down")
 	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
-		ChannelId: f.channel, Name: "Watchtower", NotifyEveryone: true,
+		ChannelId: f.channel, Name: "Watchtower", NotifyChannel: true,
 	})); err == nil {
 		t.Fatal("create succeeded with the mint failing")
 	}
@@ -179,7 +179,7 @@ func TestAFailedCreateLeavesNothingBehind(t *testing.T) {
 	ghost := uuid.NewString()
 	f.spaces.channel[ghost] = f.space
 	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
-		ChannelId: ghost, Name: "Watchtower", NotifyEveryone: true,
+		ChannelId: ghost, Name: "Watchtower", NotifyChannel: true,
 	})); err == nil {
 		t.Fatal("create succeeded with no channel row")
 	}
@@ -196,7 +196,7 @@ func TestAFailedCreateLeavesNothingBehind(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
-		ChannelId: ghost, Name: "ntfy", BotUserId: made.Msg.Bot.Id, NotifyEveryone: true,
+		ChannelId: ghost, Name: "ntfy", BotUserId: made.Msg.Bot.Id, NotifyChannel: true,
 	})); err == nil {
 		t.Fatal("create succeeded with no channel row")
 	}
@@ -227,7 +227,7 @@ func TestACreateWithNoURLLeavesNothingBehind(t *testing.T) {
 	f := setup(t)
 	f.policy.failPublicURL = errors.New("settings unreadable")
 	if _, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
-		ChannelId: f.channel, Name: "Watchtower", NotifyEveryone: true,
+		ChannelId: f.channel, Name: "Watchtower", NotifyChannel: true,
 	})); err == nil {
 		t.Fatal("create succeeded without a URL")
 	}
@@ -264,7 +264,7 @@ func TestASweepWhoseRoleChangeFailsTriesAgain(t *testing.T) {
 	}
 	f.spaces.channel[other] = f.space
 	made, err := f.svc.CreateIncoming(f.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
-		ChannelId: other, Name: "Backups", NotifyEveryone: true,
+		ChannelId: other, Name: "Backups", NotifyChannel: true,
 	}))
 	if err != nil {
 		t.Fatal(err)

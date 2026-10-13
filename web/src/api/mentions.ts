@@ -18,21 +18,21 @@ export function mentionQueryAt(
   return { start: at, query };
 }
 
-export const EVERYONE = "everyone";
+export const CHANNEL = "channel";
 export const HERE = "here";
 
-// Candidates for the picker: members matching the prefix, plus @everyone
+// Candidates for the picker: members matching the prefix, plus @channel
 // first when the caller may use it.
 export function filterMembers(
   members: Member[],
   query: string,
-  includeEveryone = false,
+  includeGroup = false,
 ): Member[] {
   const q = query.toLowerCase();
   const out: Member[] = [];
-  if (includeEveryone) {
+  if (includeGroup) {
     for (const [handle, label] of [
-      [EVERYONE, "Everyone in this space"],
+      [CHANNEL, "Everyone in this channel"],
       [HERE, "Everyone online right now"],
     ]) {
       if (handle.startsWith(q)) {
@@ -63,7 +63,7 @@ export function filterMembers(
 export function splitMentions(
   content: string,
   usernames: Set<string>,
-  everyone = false,
+  channel = false,
   here = false,
 ): { text: string; mention?: string }[] {
   const out: { text: string; mention?: string }[] = [];
@@ -71,10 +71,8 @@ export function splitMentions(
   for (const m of content.matchAll(MENTION_TOKEN)) {
     const handle = m[2];
     const lower = handle.toLowerCase();
-    const isEveryone =
-      (everyone && lower === EVERYONE) || (here && lower === HERE);
-    if (!HANDLE.test(handle) || (!usernames.has(lower) && !isEveryone))
-      continue;
+    const isGroup = (channel && lower === CHANNEL) || (here && lower === HERE);
+    if (!HANDLE.test(handle) || (!usernames.has(lower) && !isGroup)) continue;
     const tokenStart = (m.index ?? 0) + m[1].length;
     if (tokenStart > last) out.push({ text: content.slice(last, tokenStart) });
     out.push({ text: `@${handle}`, mention: handle.toLowerCase() });

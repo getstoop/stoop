@@ -92,19 +92,19 @@ const (
 	Permission_PERMISSION_SPACES_JOIN_ANY              Permission = 7
 	Permission_PERMISSION_DMS_REACH_ANYONE             Permission = 8
 	// In a space.
-	Permission_PERMISSION_SPACE_READ               Permission = 20
-	Permission_PERMISSION_MESSAGES_READ            Permission = 21
-	Permission_PERMISSION_MESSAGES_POST            Permission = 22
-	Permission_PERMISSION_MESSAGES_NOTIFY_EVERYONE Permission = 23
-	Permission_PERMISSION_MESSAGES_MODERATE        Permission = 24
-	Permission_PERMISSION_VOICE_JOIN               Permission = 25
-	Permission_PERMISSION_INVITES_CREATE           Permission = 26
-	Permission_PERMISSION_INVITES_MANAGE           Permission = 27
-	Permission_PERMISSION_CHANNELS_MANAGE          Permission = 28
-	Permission_PERMISSION_MEMBERS_MANAGE           Permission = 29
-	Permission_PERMISSION_SPACE_MANAGE             Permission = 30
-	Permission_PERMISSION_SPACE_TRANSFER           Permission = 31
-	Permission_PERMISSION_SPACE_DELETE             Permission = 32
+	Permission_PERMISSION_SPACE_READ              Permission = 20
+	Permission_PERMISSION_MESSAGES_READ           Permission = 21
+	Permission_PERMISSION_MESSAGES_POST           Permission = 22
+	Permission_PERMISSION_MESSAGES_NOTIFY_CHANNEL Permission = 23
+	Permission_PERMISSION_MESSAGES_MODERATE       Permission = 24
+	Permission_PERMISSION_VOICE_JOIN              Permission = 25
+	Permission_PERMISSION_INVITES_CREATE          Permission = 26
+	Permission_PERMISSION_INVITES_MANAGE          Permission = 27
+	Permission_PERMISSION_CHANNELS_MANAGE         Permission = 28
+	Permission_PERMISSION_MEMBERS_MANAGE          Permission = 29
+	Permission_PERMISSION_SPACE_MANAGE            Permission = 30
+	Permission_PERMISSION_SPACE_TRANSFER          Permission = 31
+	Permission_PERMISSION_SPACE_DELETE            Permission = 32
 	// On the caller's own account.
 	Permission_PERMISSION_PROFILE_MANAGE     Permission = 40
 	Permission_PERMISSION_PREFERENCES_MANAGE Permission = 41
@@ -129,7 +129,7 @@ var (
 		20: "PERMISSION_SPACE_READ",
 		21: "PERMISSION_MESSAGES_READ",
 		22: "PERMISSION_MESSAGES_POST",
-		23: "PERMISSION_MESSAGES_NOTIFY_EVERYONE",
+		23: "PERMISSION_MESSAGES_NOTIFY_CHANNEL",
 		24: "PERMISSION_MESSAGES_MODERATE",
 		25: "PERMISSION_VOICE_JOIN",
 		26: "PERMISSION_INVITES_CREATE",
@@ -159,7 +159,7 @@ var (
 		"PERMISSION_SPACE_READ":                   20,
 		"PERMISSION_MESSAGES_READ":                21,
 		"PERMISSION_MESSAGES_POST":                22,
-		"PERMISSION_MESSAGES_NOTIFY_EVERYONE":     23,
+		"PERMISSION_MESSAGES_NOTIFY_CHANNEL":      23,
 		"PERMISSION_MESSAGES_MODERATE":            24,
 		"PERMISSION_VOICE_JOIN":                   25,
 		"PERMISSION_INVITES_CREATE":               26,
@@ -213,7 +213,7 @@ const file_stoop_access_v1_access_proto_rawDesc = "" +
 	"\fIdentityKind\x12\x1d\n" +
 	"\x19IDENTITY_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14IDENTITY_KIND_PERSON\x10\x01\x12\x15\n" +
-	"\x11IDENTITY_KIND_BOT\x10\x02*\x8d\a\n" +
+	"\x11IDENTITY_KIND_BOT\x10\x02*\x8c\a\n" +
 	"\n" +
 	"Permission\x12\x1a\n" +
 	"\x16PERMISSION_UNSPECIFIED\x10\x00\x12\x1c\n" +
@@ -227,8 +227,8 @@ const file_stoop_access_v1_access_proto_rawDesc = "" +
 	"\x1bPERMISSION_DMS_REACH_ANYONE\x10\b\x12\x19\n" +
 	"\x15PERMISSION_SPACE_READ\x10\x14\x12\x1c\n" +
 	"\x18PERMISSION_MESSAGES_READ\x10\x15\x12\x1c\n" +
-	"\x18PERMISSION_MESSAGES_POST\x10\x16\x12'\n" +
-	"#PERMISSION_MESSAGES_NOTIFY_EVERYONE\x10\x17\x12 \n" +
+	"\x18PERMISSION_MESSAGES_POST\x10\x16\x12&\n" +
+	"\"PERMISSION_MESSAGES_NOTIFY_CHANNEL\x10\x17\x12 \n" +
 	"\x1cPERMISSION_MESSAGES_MODERATE\x10\x18\x12\x19\n" +
 	"\x15PERMISSION_VOICE_JOIN\x10\x19\x12\x1d\n" +
 	"\x19PERMISSION_INVITES_CREATE\x10\x1a\x12\x1d\n" +

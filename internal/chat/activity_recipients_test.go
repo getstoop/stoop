@@ -52,14 +52,14 @@ func TestActivityForSeveralRecipients(t *testing.T) {
 	if _, err := svc.SetChannelMuted(ada, connect.NewRequest(&chatv1.SetChannelMutedRequest{ChannelId: channelID, Muted: true})); err != nil {
 		t.Fatal(err)
 	}
-	sent := send(t, casey, &chatv1.SendMessageRequest{Content: "@everyone game night"})
+	sent := send(t, casey, &chatv1.SendMessageRequest{Content: "@channel game night"})
 	adaItem, beaItem := nextActivityItem(t, adaSub).Item, nextActivityItem(t, beaSub).Item
 	if !adaItem.Muted || beaItem.Muted {
 		t.Errorf("channel mute: ada muted %v, bea muted %v; want true, false", adaItem.Muted, beaItem.Muted)
 	}
 	for _, item := range []*chatv1.ActivityItem{adaItem, beaItem} {
 		if item.Kind != chatv1.ActivityKind_ACTIVITY_KIND_MENTION || item.MessageId != sent.Id ||
-			item.Preview != "@everyone game night" || item.Actor.Username != "casey" || item.SpaceId != spaceID {
+			item.Preview != "@channel game night" || item.Actor.Username != "casey" || item.SpaceId != spaceID {
 			t.Errorf("mention item: %+v", item)
 		}
 	}
@@ -69,20 +69,20 @@ func TestActivityForSeveralRecipients(t *testing.T) {
 	if _, err := svc.SetSpaceMuted(bea, connect.NewRequest(&chatv1.SetSpaceMutedRequest{SpaceId: spaceID, Muted: true})); err != nil {
 		t.Fatal(err)
 	}
-	send(t, casey, &chatv1.SendMessageRequest{Content: "@everyone again"})
+	send(t, casey, &chatv1.SendMessageRequest{Content: "@channel again"})
 	adaItem, beaItem = nextActivityItem(t, adaSub).Item, nextActivityItem(t, beaSub).Item
 	if adaItem.Muted || !beaItem.Muted {
 		t.Errorf("space mute: ada muted %v, bea muted %v; want false, true", adaItem.Muted, beaItem.Muted)
 	}
 
-	// bea blocks casey: an @everyone still reaches ada, and a reply to
+	// bea blocks casey: an @channel still reaches ada, and a reply to
 	// bea reaches nobody.
 	if _, err := svc.BlockUser(bea, connect.NewRequest(&chatv1.BlockUserRequest{UserId: authctx.UserID(casey)})); err != nil {
 		t.Fatal(err)
 	}
 	beaBefore := unread(t, bea)
-	send(t, casey, &chatv1.SendMessageRequest{Content: "@everyone third"})
-	if item := nextActivityItem(t, adaSub).Item; item.Preview != "@everyone third" {
+	send(t, casey, &chatv1.SendMessageRequest{Content: "@channel third"})
+	if item := nextActivityItem(t, adaSub).Item; item.Preview != "@channel third" {
 		t.Errorf("ada after bea's block: %+v", item)
 	}
 	beaMessage := send(t, bea, &chatv1.SendMessageRequest{Content: "count me out"})

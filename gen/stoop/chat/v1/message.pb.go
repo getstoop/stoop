@@ -275,7 +275,7 @@ type Message struct {
 	SpaceId string `protobuf:"bytes,7,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// True when the message @mentioned everyone (and the author was allowed
 	// to); mention_user_ids then lists every other member.
-	MentionsEveryone bool `protobuf:"varint,8,opt,name=mentions_everyone,json=mentionsEveryone,proto3" json:"mentions_everyone,omitempty"`
+	MentionsChannel bool `protobuf:"varint,8,opt,name=mentions_channel,json=mentionsChannel,proto3" json:"mentions_channel,omitempty"`
 	// Set when this message is a reply.
 	ReplyTo *ReplyRef `protobuf:"bytes,9,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
 	// True when the message @mentioned everyone currently online (@here).
@@ -394,9 +394,9 @@ func (x *Message) GetSpaceId() string {
 	return ""
 }
 
-func (x *Message) GetMentionsEveryone() bool {
+func (x *Message) GetMentionsChannel() bool {
 	if x != nil {
-		return x.MentionsEveryone
+		return x.MentionsChannel
 	}
 	return false
 }
@@ -696,7 +696,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x18\n" +
-	"\aexpired\x18\x05 \x01(\bR\aexpired\"\xe3\x06\n" +
+	"\aexpired\x18\x05 \x01(\bR\aexpired\"\xe1\x06\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -706,8 +706,8 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12(\n" +
 	"\x10mention_user_ids\x18\x06 \x03(\tR\x0ementionUserIds\x12\x19\n" +
-	"\bspace_id\x18\a \x01(\tR\aspaceId\x12+\n" +
-	"\x11mentions_everyone\x18\b \x01(\bR\x10mentionsEveryone\x122\n" +
+	"\bspace_id\x18\a \x01(\tR\aspaceId\x12)\n" +
+	"\x10mentions_channel\x18\b \x01(\bR\x0fmentionsChannel\x122\n" +
 	"\breply_to\x18\t \x01(\v2\x17.stoop.chat.v1.ReplyRefR\areplyTo\x12#\n" +
 	"\rmentions_here\x18\n" +
 	" \x01(\bR\fmentionsHere\x127\n" +
