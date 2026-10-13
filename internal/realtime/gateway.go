@@ -355,31 +355,31 @@ func newTypingMemory() *typingMemory {
 // other people in a direct message or private channel, if the sender is
 // one — unless it relayed for this channel a moment ago. Which of the two
 // a channel is comes from chat, never from the space id the client sent.
-func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, t *realtimev1.Typing, memory *typingMemory) {
-	if t.ChannelId == "" {
+func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Subscription, hint *realtimev1.Typing, memory *typingMemory) {
+	if hint.ChannelId == "" {
 		return
 	}
 	last := memory.last
 	now := time.Now()
-	if now.Sub(last[t.ChannelId]) < typingInterval {
+	if now.Sub(last[hint.ChannelId]) < typingInterval {
 		return
 	}
 
 	var topics []string
 	var ids []string
-	if t.SpaceId == "" || !memory.public[t.ChannelId] {
+	if hint.SpaceId == "" || !memory.public[hint.ChannelId] {
 		var err error
-		if ids, err = g.channels.ChannelPeople(ctx, t.ChannelId); err != nil {
+		if ids, err = g.channels.ChannelPeople(ctx, hint.ChannelId); err != nil {
 			g.log.Error("resolve channel people", "err", err)
 			return
 		}
 	}
 	if ids == nil {
-		if t.SpaceId == "" || !sub.Has(events.SpaceTopic(t.SpaceId)) {
+		if hint.SpaceId == "" || !sub.Has(events.SpaceTopic(hint.SpaceId)) {
 			return
 		}
-		memory.public[t.ChannelId] = true
-		topics = []string{events.SpaceTopic(t.SpaceId)}
+		memory.public[hint.ChannelId] = true
+		topics = []string{events.SpaceTopic(hint.SpaceId)}
 	} else {
 		mine := false
 		for _, id := range ids {
@@ -393,10 +393,10 @@ func (g *Gateway) relayTyping(ctx context.Context, userID string, sub *events.Su
 			return
 		}
 	}
-	last[t.ChannelId] = now
+	last[hint.ChannelId] = now
 	ev := events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_UserTyping{
-			UserTyping: &realtimev1.UserTyping{SpaceId: t.SpaceId, ChannelId: t.ChannelId, UserId: userID},
+			UserTyping: &realtimev1.UserTyping{SpaceId: hint.SpaceId, ChannelId: hint.ChannelId, UserId: userID},
 		},
 	})
 	for _, topic := range topics {
