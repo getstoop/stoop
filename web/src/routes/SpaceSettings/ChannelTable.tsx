@@ -3,7 +3,7 @@ import { useMemo, useRef } from "react";
 import { isAnnouncement, setAnnouncement } from "../../api/channels";
 import { DataTable, type TableColumn } from "../../components/DataTable";
 import { DotsMenu } from "../../components/DotsMenu";
-import { CheckIcon } from "../../components/Icons";
+import { CheckIcon, LockIcon } from "../../components/Icons";
 import { SpeakerIcon } from "../../components/VoiceIcons";
 import { type Channel, ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 
@@ -62,7 +62,7 @@ export function ChannelTable({
         meta: { width: "24%" },
         cell: ({ row: { original: c } }) => (
           <strong className="dt-channel">
-            {voice ? <SpeakerIcon /> : "#"} {c.name}
+            {c.private ? <LockIcon /> : voice ? <SpeakerIcon /> : "#"} {c.name}
           </strong>
         ),
       },

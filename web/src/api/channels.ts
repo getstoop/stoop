@@ -11,11 +11,37 @@ import { chatClient } from "./clients";
 import { errorText } from "./errors";
 import { patchChannel, recomputeSpaceUnread } from "./unreads";
 
+// A space's channels in sidebar order, as the server lists them: by
+// position, then oldest first.
+export function byPosition(channels: Channel[]): Channel[] {
+  return [...channels].sort(
+    (a, b) =>
+      a.position - b.position ||
+      Number((a.createdAt?.seconds ?? 0n) - (b.createdAt?.seconds ?? 0n)),
+  );
+}
+
+// A reorder as the space is told of it: each channel named takes its new
+// position, and the list is put back in order. A private channel is not
+// named there; its position arrives on its own, for the people in it.
+export function withPositions(
+  channels: Channel[],
+  moved: { id: string; position: number }[],
+): Channel[] {
+  const positions = new Map(moved.map((c) => [c.id, c.position]));
+  return byPosition(
+    channels.map((c) =>
+      positions.has(c.id) ? { ...c, position: positions.get(c.id) ?? 0 } : c,
+    ),
+  );
+}
+
 // The channels a space may point new arrivals at. Voice is excluded here
 // and again on the server: landing someone in a voice channel would open
-// a microphone they never asked to open.
+// a microphone they never asked to open. So is a private channel, which
+// an arrival can't see.
 export function defaultChannelChoices(channels: Channel[]): Channel[] {
-  return channels.filter((c) => c.kind === ChannelKind.TEXT);
+  return channels.filter((c) => c.kind === ChannelKind.TEXT && !c.private);
 }
 
 // Which channel to open for someone who hasn't picked one — an invite, or

@@ -13,6 +13,7 @@ import {
 import { useConnectionStore } from "../stores/connection";
 import { useVoiceStore } from "../stores/voice";
 import { receiveActivityItem } from "./activity";
+import { byPosition, withPositions } from "./channels";
 import {
   isLive,
   type Timeline,
@@ -293,17 +294,21 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "channelUpdated": {
       const c = payload.value;
       queryClient.setQueryData<Channel[]>(["channels", c.spaceId], (old) =>
-        old?.map((x) =>
-          x.id === c.id
-            ? {
-                ...x,
-                name: c.name,
-                position: c.position,
-                topic: c.topic,
-                postPolicy: c.postPolicy,
-              }
-            : x,
-        ),
+        old
+          ? byPosition(
+              old.map((x) =>
+                x.id === c.id
+                  ? {
+                      ...x,
+                      name: c.name,
+                      position: c.position,
+                      topic: c.topic,
+                      postPolicy: c.postPolicy,
+                    }
+                  : x,
+              ),
+            )
+          : old,
       );
       break;
     }
@@ -326,19 +331,12 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         leaveVoice();
       }
       break;
-    case "channelsReordered": {
-      const order = new Map(payload.value.channels.map((c, i) => [c.id, i]));
+    case "channelsReordered":
       queryClient.setQueryData<Channel[]>(
         ["channels", payload.value.spaceId],
-        (old) =>
-          old
-            ? [...old].sort(
-                (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
-              )
-            : old,
+        (old) => (old ? withPositions(old, payload.value.channels) : old),
       );
       break;
-    }
     case "channelCreated":
       // A DM someone opened with us arrives here too (no space).
       queryClient.invalidateQueries({

@@ -107,7 +107,15 @@ export function NewIncomingModal({
             autoFocus
           />
         </Field>
-        <Field label="Posts into" error={form.errors.channelId}>
+        <Field
+          label="Posts into"
+          hint={
+            text.find((c) => c.id === chosenChannel)?.private
+              ? "The webhook's bot will be added to this channel."
+              : undefined
+          }
+          error={form.errors.channelId}
+        >
           <Select
             name="hook-channel"
             value={chosenChannel}
@@ -115,7 +123,7 @@ export function NewIncomingModal({
           >
             {text.map((c) => (
               <option key={c.id} value={c.id}>
-                # {c.name}
+                {c.private ? `${c.name} (private)` : `# ${c.name}`}
               </option>
             ))}
           </Select>
