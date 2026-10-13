@@ -123,8 +123,9 @@ export function ChannelMenu({
         onSelect: () => editChannelTopic(channel, queryClient),
       },
     );
-    if (channel.kind === ChannelKind.TEXT) {
-      const on = isAnnouncement(channel);
+    // A private channel can't become one; one that already is can go back.
+    const on = isAnnouncement(channel);
+    if (channel.kind === ChannelKind.TEXT && (on || !channel.private)) {
       items.push({
         label: on ? "Let everyone post" : "Make announcement channel",
         onSelect: () => setAnnouncement(channel, !on, queryClient, true),

@@ -192,6 +192,12 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 			return nil, apierr.Field(connect.CodeInvalidArgument, "post_policy",
 				errors.New("only a text channel can be an announcement channel"))
 		}
+		// A private channel shows a lock where the megaphone would go, and
+		// is a few people talking, not a place to tell the space something.
+		if channel.Private && p == postPolicyAdmins {
+			return nil, apierr.Field(connect.CodeFailedPrecondition, "post_policy",
+				errors.New("a private channel can't be an announcement channel"))
+		}
 		policy = &p
 	}
 	row, err := s.q.UpdateChannel(ctx, dbgen.UpdateChannelParams{
