@@ -105,13 +105,13 @@ describe("landingChannel", () => {
 });
 
 describe("withPositions", () => {
-  const at = (id: string, position: number, seconds = 0): Channel =>
+  const at = (id: string, position: number, seconds = 0, nanos = 0): Channel =>
     ({
       id,
       name: id,
       kind: ChannelKind.TEXT,
       position,
-      createdAt: { seconds: BigInt(seconds) },
+      createdAt: { seconds: BigInt(seconds), nanos },
     }) as Channel;
   const ids = (channels: Channel[]) => channels.map((c) => c.id);
 
@@ -141,6 +141,22 @@ describe("withPositions", () => {
     expect(
       ids(byPosition([at("newer", 0, 20), at("older", 0, 10), at("last", 1)])),
     ).toEqual(["older", "newer", "last"]);
+  });
+});
+
+describe("byPosition", () => {
+  it("orders channels made in the same second by the fraction of it", () => {
+    const made = (id: string, nanos: number): Channel =>
+      ({
+        id,
+        name: id,
+        kind: ChannelKind.TEXT,
+        position: 0,
+        createdAt: { seconds: 10n, nanos },
+      }) as Channel;
+    expect(
+      byPosition([made("second", 500), made("first", 100)]).map((c) => c.id),
+    ).toEqual(["first", "second"]);
   });
 });
 

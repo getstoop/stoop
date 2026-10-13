@@ -62,7 +62,17 @@ export function ChannelTable({
         meta: { width: "24%" },
         cell: ({ row: { original: c } }) => (
           <strong className="dt-channel">
-            {c.private ? <LockIcon /> : voice ? <SpeakerIcon /> : "#"} {c.name}
+            {c.private ? (
+              <>
+                <LockIcon />
+                <span className="dt-sr">Private channel</span>
+              </>
+            ) : voice ? (
+              <SpeakerIcon />
+            ) : (
+              "#"
+            )}{" "}
+            {c.name}
           </strong>
         ),
       },
