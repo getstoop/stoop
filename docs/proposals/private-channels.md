@@ -43,7 +43,7 @@ so for private channels.
 
 | Question | Answer |
 | --- | --- |
-| Kinds | Text and voice. Voice follows the first release. |
+| Kinds | Text and voice, in the same release. |
 | Who creates one | Holders of `channels.manage` (space admins and the owner). |
 | Who adds and removes people | The same. No new action in the table. |
 | What a space admin sees in the sidebar | Only the private channels they are in. |
@@ -191,7 +191,8 @@ to cover:
 
 ## Phases
 
-Tracked as STOOP-485. Pull requests 2 to 5 ship in the same release.
+Tracked as STOOP-485. Everything ships in one release: no release is
+cut between pull request 2 and the last one.
 
 0. **Design.** Mock-ups of everything under [UI](#ui), approved before
    anything is built.
