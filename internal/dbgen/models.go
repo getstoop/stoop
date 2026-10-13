@@ -53,6 +53,11 @@ type ChannelRead struct {
 	UpdatedAt         time.Time
 }
 
+type ChannelReader struct {
+	ChannelID string
+	UserID    string
+}
+
 type Credential struct {
 	ID         string
 	HolderID   string

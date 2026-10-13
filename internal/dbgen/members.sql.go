@@ -11,9 +11,8 @@ import (
 
 const channelMembersAmong = `-- name: ChannelMembersAmong :many
 SELECT u.id::uuid FROM unnest($1::uuid[]) AS u(id)
-JOIN channels c ON c.id = $2::uuid
-WHERE EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = c.space_id AND sm.user_id = u.id)
-   OR EXISTS (SELECT 1 FROM dm_members dm WHERE dm.channel_id = c.id AND dm.user_id = u.id)
+WHERE EXISTS (SELECT 1 FROM channel_readers cr
+              WHERE cr.channel_id = $2::uuid AND cr.user_id = u.id)
 `
 
 type ChannelMembersAmongParams struct {
@@ -22,7 +21,7 @@ type ChannelMembersAmongParams struct {
 }
 
 // ChannelMembersAmong is which of these people can still read the
-// channel: members of its space, or participants in the DM.
+// channel.
 func (q *Queries) ChannelMembersAmong(ctx context.Context, arg ChannelMembersAmongParams) ([]string, error) {
 	rows, err := q.db.Query(ctx, channelMembersAmong, arg.UserIds, arg.ChannelID)
 	if err != nil {
@@ -119,23 +118,19 @@ func (q *Queries) GetSpaceMemberRole(ctx context.Context, arg GetSpaceMemberRole
 
 const isChannelMember = `-- name: IsChannelMember :one
 SELECT EXISTS (
-    SELECT 1
-    FROM channels c
-    LEFT JOIN space_members m ON m.space_id = c.space_id AND m.user_id = $2
-    LEFT JOIN dm_members d ON d.channel_id = c.id AND d.user_id = $2
-    WHERE c.id = $1 AND (m.user_id IS NOT NULL OR d.user_id IS NOT NULL)
+    SELECT 1 FROM channel_readers cr
+    WHERE cr.channel_id = $1::uuid AND cr.user_id = $2::uuid
 ) AS is_member
 `
 
 type IsChannelMemberParams struct {
-	ID     string
-	UserID string
+	ChannelID string
+	UserID    string
 }
 
-// IsChannelMember: a member of the channel's space, or a participant in
-// the direct message.
+// IsChannelMember: whether the person may read the channel.
 func (q *Queries) IsChannelMember(ctx context.Context, arg IsChannelMemberParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isChannelMember, arg.ID, arg.UserID)
+	row := q.db.QueryRow(ctx, isChannelMember, arg.ChannelID, arg.UserID)
 	var is_member bool
 	err := row.Scan(&is_member)
 	return is_member, err
