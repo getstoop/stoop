@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -39,11 +40,6 @@ func TestCreatePrivateChannel(t *testing.T) {
 		t.Errorf("the creator was sent %v, want the new channel", got)
 	}
 
-	if _, err := svc.CreateChannel(fixture.owner, connect.NewRequest(&chatv1.CreateChannelRequest{
-		SpaceId: fixture.spaceID, Name: "back-porch", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE, Private: true,
-	})); code(err) != connect.CodeFailedPrecondition {
-		t.Errorf("a private voice channel: %v, want failed precondition", err)
-	}
 	// A server admin who has not joined the space manages its channels,
 	// but can't be a private channel's first member.
 	operator := newUser(t, fixture.pool, "operator", authctx.RoleAdmin)
@@ -348,5 +344,71 @@ func TestPrivateChannelCannotBeAnAnnouncementChannel(t *testing.T) {
 	}
 	if err := set(fixture.generalID, admins); err != nil {
 		t.Errorf("a public channel as an announcement channel: %v", err)
+	}
+}
+
+// A private voice channel: only its people may join it, the gateway is
+// told it is private, and leaving or being removed reaches the SFU.
+func TestPrivateVoiceChannel(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	svc := fixture.svc
+	rooms := &stubRooms{}
+	svc.UseVoiceRooms(rooms)
+	created, err := svc.CreateChannel(fixture.owner, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: fixture.spaceID, Name: "back-porch", Kind: chatv1.ChannelKind_CHANNEL_KIND_VOICE, Private: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	porch := created.Msg.Channel.Id
+	ctx := context.Background()
+	if spaceID, private, err := svc.VoiceChannelSpace(ctx, porch); err != nil || spaceID != fixture.spaceID || !private {
+		t.Errorf("VoiceChannelSpace = %q, private %v, %v", spaceID, private, err)
+	}
+	beaID, calID := authctx.UserID(fixture.bea), authctx.UserID(fixture.cal)
+	if _, err := svc.AddChannelMembers(fixture.owner, connect.NewRequest(&chatv1.AddChannelMembersRequest{
+		ChannelId: porch, UserIds: []string{beaID, calID},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	mayJoin := func(userID string) bool {
+		t.Helper()
+		member, err := svc.IsChannelMember(ctx, userID, porch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return member
+	}
+	if !mayJoin(beaID) {
+		t.Error("someone in the channel may not join its voice")
+	}
+
+	if _, err := svc.RemoveChannelMember(fixture.owner, connect.NewRequest(&chatv1.RemoveChannelMemberRequest{
+		ChannelId: porch, UserId: beaID,
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.LeaveChannel(fixture.cal, connect.NewRequest(&chatv1.LeaveChannelRequest{ChannelId: porch})); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{porch + "/" + beaID, porch + "/" + calID}; !slices.Equal(rooms.removed, want) {
+		t.Errorf("removed from the voice room: %v, want %v", rooms.removed, want)
+	}
+	if mayJoin(beaID) || mayJoin(calID) {
+		t.Error("someone taken out of the channel may still join its voice")
+	}
+
+	// Taking someone out of a private text channel asks the SFU nothing.
+	rooms.removed = nil
+	if _, err := svc.AddChannelMembers(fixture.owner, connect.NewRequest(&chatv1.AddChannelMembersRequest{
+		ChannelId: fixture.secretID, UserIds: []string{beaID},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.LeaveChannel(fixture.bea, connect.NewRequest(&chatv1.LeaveChannelRequest{ChannelId: fixture.secretID})); err != nil {
+		t.Fatal(err)
+	}
+	if len(rooms.removed) != 0 {
+		t.Errorf("a text channel reached the SFU: %v", rooms.removed)
 	}
 }

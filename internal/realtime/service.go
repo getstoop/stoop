@@ -21,9 +21,9 @@ type SessionVerifier interface {
 // ChannelLookup is the gateway's port onto the chat module's channels,
 // wired in internal/app.
 type ChannelLookup interface {
-	// VoiceChannelSpace resolves a voice channel to its space; "" means
-	// unknown or not voice.
-	VoiceChannelSpace(ctx context.Context, channelID string) (spaceID string, err error)
+	// VoiceChannelSpace resolves a voice channel to its space, and says
+	// whether it is private; "" means unknown or not voice.
+	VoiceChannelSpace(ctx context.Context, channelID string) (spaceID string, private bool, err error)
 	// ChannelPeople says whether a channel has a people list, as a direct
 	// message and a private channel do, and who is on it. Typing there is
 	// relayed to them; a channel that is not listed is public.

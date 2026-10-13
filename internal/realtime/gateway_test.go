@@ -44,8 +44,8 @@ func (m fakeMembers) ListSpaceIDs(_ context.Context, userID string) ([]string, e
 // voice channel id → space id; anything else is unknown or text.
 type fakeVoiceChannels map[string]string
 
-func (c fakeVoiceChannels) VoiceChannelSpace(_ context.Context, channelID string) (string, error) {
-	return c[channelID], nil
+func (c fakeVoiceChannels) VoiceChannelSpace(_ context.Context, channelID string) (string, bool, error) {
+	return c[channelID], false, nil
 }
 
 func (fakeVoiceChannels) ChannelPeople(context.Context, string) ([]string, bool, error) {
@@ -60,7 +60,7 @@ type countingChannels struct {
 	dmLookups    atomic.Int64
 }
 
-func (channels *countingChannels) VoiceChannelSpace(ctx context.Context, channelID string) (string, error) {
+func (channels *countingChannels) VoiceChannelSpace(ctx context.Context, channelID string) (string, bool, error) {
 	channels.voiceLookups.Add(1)
 	return channels.voice.VoiceChannelSpace(ctx, channelID)
 }
@@ -677,7 +677,7 @@ type gatedChannels struct {
 	release chan struct{}
 }
 
-func (channels gatedChannels) VoiceChannelSpace(ctx context.Context, channelID string) (string, error) {
+func (channels gatedChannels) VoiceChannelSpace(ctx context.Context, channelID string) (string, bool, error) {
 	channels.started <- struct{}{}
 	<-channels.release
 	return channels.voice.VoiceChannelSpace(ctx, channelID)
@@ -739,7 +739,9 @@ type peopledChannels struct {
 	lookups   atomic.Int64
 }
 
-func (*peopledChannels) VoiceChannelSpace(context.Context, string) (string, error) { return "", nil }
+func (*peopledChannels) VoiceChannelSpace(context.Context, string) (string, bool, error) {
+	return "", false, nil
+}
 
 func (channels *peopledChannels) ChannelPeople(_ context.Context, channelID string) ([]string, bool, error) {
 	channels.lookups.Add(1)

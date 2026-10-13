@@ -8,14 +8,16 @@ import { Field } from "./Field";
 import { Modal } from "./Modal";
 import { Switch } from "./Switch";
 
-// A new text channel: its name, and whether it is private. A private
-// channel is made that way and stays that way.
+// A new text or voice channel: its name, and whether it is private. A
+// private channel is made that way and stays that way.
 export function NewChannelModal({
   spaceId,
+  voice = false,
   onClose,
   onCreated,
 }: {
   spaceId: string;
+  voice?: boolean;
   onClose: () => void;
   onCreated: (channel: Channel) => void;
 }) {
@@ -34,7 +36,7 @@ export function NewChannelModal({
       const res = await chatClient.createChannel({
         spaceId,
         name: name.trim(),
-        kind: ChannelKind.TEXT,
+        kind: voice ? ChannelKind.VOICE : ChannelKind.TEXT,
         private: isPrivate,
       });
       if (res.channel) onCreated(res.channel);
@@ -47,7 +49,7 @@ export function NewChannelModal({
 
   return (
     <Modal
-      title="New channel"
+      title={voice ? "New voice channel" : "New channel"}
       onClose={onClose}
       small
       footer={
@@ -73,7 +75,7 @@ export function NewChannelModal({
         onSubmit={create}
       >
         <Field
-          label="Channel name"
+          label={voice ? "Voice channel name" : "Channel name"}
           counter={`${name.length} / ${MAX_CHANNEL_NAME}`}
           hint={CHANNEL_NAME_HINT}
           error={form.errors.name}

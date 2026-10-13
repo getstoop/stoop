@@ -29,9 +29,9 @@ func TestGatewayCounts(t *testing.T) {
 		t.Errorf("online users after one close = %d, want 2", got)
 	}
 
-	g.voice.set("ada", 1, "s", &realtimev1.VoiceState{ChannelId: "general"})
-	g.voice.set("bea", 2, "s", &realtimev1.VoiceState{ChannelId: "general"})
-	g.voice.set("casey", 3, "s", &realtimev1.VoiceState{ChannelId: "music"})
+	g.voice.set("ada", 1, "s", false, &realtimev1.VoiceState{ChannelId: "general"})
+	g.voice.set("bea", 2, "s", false, &realtimev1.VoiceState{ChannelId: "general"})
+	g.voice.set("casey", 3, "s", false, &realtimev1.VoiceState{ChannelId: "music"})
 	if got := g.VoiceParticipantCount(); got != 3 {
 		t.Errorf("voice participants = %d, want 3", got)
 	}

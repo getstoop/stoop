@@ -109,6 +109,20 @@ func (s *Service) evictFromSpaceVoice(ctx context.Context, spaceID, userID strin
 	}
 }
 
+// evictFromChannelVoice disconnects a user taken out of a private voice
+// channel. Best-effort: the removal has already committed.
+func (s *Service) evictFromChannelVoice(ctx context.Context, channelID, userID string) {
+	if s.rooms == nil {
+		return
+	}
+	ctx, cancel := cleanupCtx(ctx)
+	defer cancel()
+	if err := s.rooms.RemoveParticipant(ctx, channelID, userID); err != nil {
+		slog.Default().Warn("could not remove someone from a private voice room",
+			"channel_id", channelID, "user_id", userID, "err", err)
+	}
+}
+
 // closeVoiceRooms ends deleted voice channels' rooms.
 func (s *Service) closeVoiceRooms(ctx context.Context, channelIDs ...string) {
 	if s.rooms == nil || len(channelIDs) == 0 {

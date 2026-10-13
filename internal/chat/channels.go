@@ -73,7 +73,7 @@ func (s *Service) CreateChannel(ctx context.Context, req *connect.Request[chatv1
 		}
 	}
 	if req.Msg.Private {
-		if err := s.requireCanStartPrivate(ctx, req.Msg.SpaceId, kind); err != nil {
+		if err := s.requireCanStartPrivate(ctx, req.Msg.SpaceId); err != nil {
 			return nil, err
 		}
 	}
@@ -130,29 +130,29 @@ func (s *Service) ListChannels(ctx context.Context, req *connect.Request[chatv1.
 }
 
 // VoiceChannelSpace implements realtime.ChannelLookup: the space of a
-// voice channel, or "" for unknown and text channels, and for a voice
-// channel while voice is off.
-func (s *Service) VoiceChannelSpace(ctx context.Context, channelID string) (string, error) {
+// voice channel and whether it is private, or "" for unknown and text
+// channels, and for a voice channel while voice is off.
+func (s *Service) VoiceChannelSpace(ctx context.Context, channelID string) (spaceID string, private bool, err error) {
 	channel, err := s.q.GetChannel(ctx, channelID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil
+		return "", false, nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("get channel: %w", err)
+		return "", false, fmt.Errorf("get channel: %w", err)
 	}
 	if !isVoice(channel) {
-		return "", nil
+		return "", false, nil
 	}
 	if on, err := s.voiceOn(ctx, spaceOf(channel)); err != nil || !on {
-		return "", err
+		return "", false, err
 	}
-	return spaceOf(channel), nil
+	return spaceOf(channel), channel.Private, nil
 }
 
 // IsVoiceChannel implements voice.ChannelDirectory. Unknown channels report
 // false; callers check membership first, which already covers existence.
 func (s *Service) IsVoiceChannel(ctx context.Context, channelID string) (bool, error) {
-	spaceID, err := s.VoiceChannelSpace(ctx, channelID)
+	spaceID, _, err := s.VoiceChannelSpace(ctx, channelID)
 	return spaceID != "", err
 }
 

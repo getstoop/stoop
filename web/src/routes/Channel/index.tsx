@@ -17,7 +17,6 @@ import { ChannelTopic } from "../../components/ChannelTopic";
 import { MenuButton } from "../../components/MenuButton";
 import { PinnedMessages } from "../../components/PinnedMessages";
 import { SearchLauncher } from "../../components/SearchLauncher";
-import { SpeakerIcon } from "../../components/VoiceIcons";
 import { VoiceStage } from "../../components/VoiceStage";
 import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
@@ -159,13 +158,7 @@ export function ChannelView() {
           <DMTitle channelId={channelId} />
         ) : (
           <>
-            {channel?.kind === ChannelKind.VOICE ? (
-              <span className="channel-hash">
-                <SpeakerIcon />
-              </span>
-            ) : (
-              <ChannelGlyph channel={channel} />
-            )}
+            <ChannelGlyph channel={channel} />
             <span className="channel-title">{channel?.name ?? "…"}</span>
           </>
         )}

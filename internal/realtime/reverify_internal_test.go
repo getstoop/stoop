@@ -100,7 +100,9 @@ func (noMembers) ListSpaceIDs(context.Context, string) ([]string, error) { retur
 
 type noChannels struct{}
 
-func (noChannels) VoiceChannelSpace(context.Context, string) (string, error) { return "", nil }
+func (noChannels) VoiceChannelSpace(context.Context, string) (string, bool, error) {
+	return "", false, nil
+}
 func (noChannels) ChannelPeople(context.Context, string) ([]string, bool, error) {
 	return nil, false, nil
 }
@@ -138,10 +140,10 @@ type stuckChannels struct {
 	started chan struct{}
 }
 
-func (channels stuckChannels) VoiceChannelSpace(ctx context.Context, _ string) (string, error) {
+func (channels stuckChannels) VoiceChannelSpace(ctx context.Context, _ string) (string, bool, error) {
 	channels.started <- struct{}{}
 	<-ctx.Done()
-	return "", ctx.Err()
+	return "", false, ctx.Err()
 }
 
 // A client event whose lookup hangs holds the connection's other work for

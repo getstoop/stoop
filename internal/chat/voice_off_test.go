@@ -88,7 +88,7 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 	}
 	voiceSpace := func() string {
 		t.Helper()
-		id, err := svc.VoiceChannelSpace(context.Background(), hangout)
+		id, _, err := svc.VoiceChannelSpace(context.Background(), hangout)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -214,7 +214,7 @@ func TestSpaceVoiceSwitch(t *testing.T) {
 	}
 	voiceSpace := func(channelID string) string {
 		t.Helper()
-		id, err := svc.VoiceChannelSpace(context.Background(), channelID)
+		id, _, err := svc.VoiceChannelSpace(context.Background(), channelID)
 		if err != nil {
 			t.Fatal(err)
 		}

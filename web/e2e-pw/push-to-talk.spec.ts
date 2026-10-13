@@ -1,13 +1,5 @@
 import type { Page } from "@playwright/test";
-import {
-  acceptDialog,
-  expect,
-  focus,
-  hasVoice,
-  seed,
-  signIn,
-  test,
-} from "./lib";
+import { expect, focus, hasVoice, seed, signIn, test } from "./lib";
 
 // Push to talk end to end: turned on in account settings and kept across
 // a reload; while muted, holding Ctrl+` unmutes (as the other person in
@@ -66,7 +58,8 @@ test("push to talk", async ({ browser, request }) => {
 
   await A.goto("/");
   await A.locator(".channel-add.voice").click();
-  await acceptDialog(A, "lounge");
+  await A.getByLabel("Voice channel name").fill("lounge");
+  await A.getByRole("button", { name: "Create" }).click();
   await A.locator(".voice-channel .channel-link.voice").click();
   await expect(bar(A), "A connects to voice").toHaveText("Voice connected", {
     timeout: 15_000,

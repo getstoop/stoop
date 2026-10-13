@@ -170,7 +170,7 @@ subscription:
 | `SpaceJoined` | `sub.Add("space:"+id)`, record the space in presence, announce presence into it, then send this connection who is online and in voice there — `Ready` only covered the spaces held at connect time. |
 | `MemberRemoved` (this user) | Leave any voice channel there, `sub.Remove(…)`, drop the space from presence. |
 | `SpaceDeleted` | Same. |
-| `ChannelDeleted` | Clear anyone the gateway believed was in that voice channel. |
+| `ChannelDeleted` | Clear anyone the gateway believed was in that voice channel. Someone taken out of a private channel hears the same event while the channel lives on; then only they are cleared. |
 
 So joining a space mid-session starts delivering its events on the same
 socket, and being kicked stops it — with no reconnect and no separate
@@ -241,7 +241,7 @@ the server side.
 | 22 | `user_typing` | space / user | |
 | 27 | `reactions_changed` | space / user | |
 | 32 | `message_pinned` | space | Ids, the flag, who and when; not the list. |
-| 29 | `voice_state_changed` | space | Join, leave, mute, camera, screen share. |
+| 29 | `voice_state_changed` | space / user | Join, leave, mute, camera, screen share. |
 
 ### ClientEvent
 
@@ -312,6 +312,12 @@ refreshed, so a client that vanishes mid-keystroke doesn't leave a ghost.
 Who is in which voice channel is **client-reported**: after connecting to
 LiveKit, the client sends `VoiceState` over the gateway socket, and the
 gateway broadcasts `VoiceStateChanged` to the space.
+
+A private voice channel's roster goes to its people instead, each on
+their own topic: a report from someone not in it is ignored, the
+snapshot in `Ready` and after `SpaceJoined` leaves it out for anyone
+else, and someone added to it is sent who is already there. A public
+channel asks nothing about people.
 
 Each entry records the **connection id** that owns it, so a second tab
 disconnecting doesn't evict a voice session established by the first. State

@@ -225,7 +225,7 @@ func TestIsVoiceChannel(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%s: IsVoiceChannel = %v, want %v", tc.name, got, tc.want)
 		}
-		space, _ := svc.VoiceChannelSpace(ctx, tc.id)
+		space, _, _ := svc.VoiceChannelSpace(ctx, tc.id)
 		if want := ""; tc.want {
 			want = sp.Msg.Space.Id
 			if space != want {

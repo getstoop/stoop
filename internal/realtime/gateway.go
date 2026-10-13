@@ -96,7 +96,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	typing := newTypingMemory()
 
-	if err := g.send(ctx, conn, g.ready(userID, spaceIDs)); err != nil {
+	if err := g.send(ctx, conn, g.ready(ctx, userID, spaceIDs)); err != nil {
 		return
 	}
 
@@ -225,13 +225,13 @@ func (g *Gateway) handleClientEvent(ctx context.Context, userID string, connID u
 	}
 }
 
-func (g *Gateway) ready(userID string, spaceIDs []string) *realtimev1.ServerEvent {
+func (g *Gateway) ready(ctx context.Context, userID string, spaceIDs []string) *realtimev1.ServerEvent {
 	return events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_Ready{
 			Ready: &realtimev1.Ready{
 				UserId: userID, SpaceIds: spaceIDs,
 				Presences:         g.presence.presencesIn(spaceIDs),
-				VoiceParticipants: g.voice.participantsIn(spaceIDs),
+				VoiceParticipants: g.voiceRoster(ctx, userID, spaceIDs),
 			},
 		},
 	})
@@ -251,8 +251,16 @@ func (g *Gateway) deliver(ctx context.Context, conn *websocket.Conn, userID, ses
 	// Ready only covered the spaces held at connect time; the new space's
 	// presence and voice state follow its SpaceJoined.
 	if joinedSpace != "" {
-		if err := g.sendSpaceSnapshot(ctx, conn, joinedSpace); err != nil {
+		if err := g.sendSpaceSnapshot(ctx, conn, userID, joinedSpace); err != nil {
 			return false
+		}
+	}
+	// Added to a private voice channel: who is already in it follows.
+	if created := ev.GetChannelCreated(); created.GetPrivate() {
+		for _, participant := range g.voice.participantsInChannel(created.Id) {
+			if err := g.send(ctx, conn, voiceStateChanged(participant, true)); err != nil {
+				return false
+			}
 		}
 	}
 	// The session this socket was opened with is gone: the client has been
@@ -285,7 +293,7 @@ func (g *Gateway) applyControlEvent(userID string, sub *events.Subscription, ev 
 	case *realtimev1.ServerEvent_SpaceDeleted:
 		g.dropSpace(userID, sub, payload.SpaceDeleted.SpaceId)
 	case *realtimev1.ServerEvent_ChannelDeleted:
-		g.channelDeleted(payload.ChannelDeleted.ChannelId)
+		g.channelDeleted(userID, payload.ChannelDeleted.ChannelId)
 	case *realtimev1.ServerEvent_DoNotDisturbChanged:
 		// Set from any of the person's devices. Every connection hears it;
 		// only the first to apply it finds a change to announce.
@@ -307,14 +315,14 @@ func (g *Gateway) dropSpace(userID string, sub *events.Subscription, spaceID str
 // sendSpaceSnapshot tells one connection who is online and in voice in a
 // space it just joined, as the change events it would have seen had it
 // been subscribed all along.
-func (g *Gateway) sendSpaceSnapshot(ctx context.Context, conn *websocket.Conn, spaceID string) error {
+func (g *Gateway) sendSpaceSnapshot(ctx context.Context, conn *websocket.Conn, userID, spaceID string) error {
 	spaceIDs := []string{spaceID}
 	for _, online := range g.presence.presencesIn(spaceIDs) {
 		if err := g.send(ctx, conn, presenceChanged(online.UserId, true, online.Dnd)); err != nil {
 			return err
 		}
 	}
-	for _, participant := range g.voice.participantsIn(spaceIDs) {
+	for _, participant := range g.voiceRoster(ctx, userID, spaceIDs) {
 		if err := g.send(ctx, conn, voiceStateChanged(participant, true)); err != nil {
 			return err
 		}
