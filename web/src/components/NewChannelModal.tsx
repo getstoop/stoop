@@ -84,8 +84,6 @@ export function NewChannelModal({
             maxLength={MAX_CHANNEL_NAME}
             autoComplete="off"
             onChange={(event) => setName(event.target.value)}
-            // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
-            autoFocus
           />
         </Field>
         <label className="toggle-row">

@@ -422,6 +422,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.removeQueries({
         queryKey: ["member", payload.value.spaceId, payload.value.userId],
       });
+      // Leaving a space takes someone out of its private channels with no
+      // event of its own.
+      queryClient.invalidateQueries({ queryKey: ["channel-people"] });
       // Their messages stay, and what they are shown as may have changed:
       // an account deleting itself leaves every space this way.
       queryClient.invalidateQueries({ queryKey: ["messages"] });
