@@ -305,3 +305,52 @@ func TestARotationWhoseRoleChangeFailsChangesNothing(t *testing.T) {
 		t.Errorf("a failed rotation saved credential %v; %d credentials held", row.CredentialID, len(f.bots.creds))
 	}
 }
+
+// A hook that can't be finished takes its bot back out of the private
+// channel it was put in, unless another hook posts there as the same bot.
+func TestFailedHookLeavesAChannelOnlyWhenNothingElseNeedsTheBot(t *testing.T) {
+	fixture := setup(t)
+	first, err := fixture.svc.CreateIncoming(fixture.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
+		ChannelId: fixture.channel, Name: "Backups",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bot := first.Msg.Webhook.BotUserId
+	fail := func(channelID string) {
+		t.Helper()
+		fixture.bots.failMint = errors.New("credentials store down")
+		defer func() { fixture.bots.failMint = nil }()
+		if _, err := fixture.svc.CreateIncoming(fixture.admin, connect.NewRequest(&integrationsv1.CreateIncomingRequest{
+			ChannelId: channelID, Name: "Second", BotUserId: bot,
+		})); err == nil {
+			t.Fatal("create succeeded with the mint failing")
+		}
+	}
+	// The failed request is what put the bot in the channel.
+	fixture.spaces.joinsChannel = true
+
+	// Another hook already posts there as this bot: it stays.
+	fail(fixture.channel)
+	if len(fixture.spaces.leftChannel) != 0 {
+		t.Errorf("the bot was taken out of a channel another hook needs it in: %v", fixture.spaces.leftChannel)
+	}
+
+	// A channel where nothing else uses the bot: it is taken back out.
+	other := uuid.NewString()
+	if _, err := fixture.pool.Exec(context.Background(), `INSERT INTO channels (id, space_id, name) VALUES ($1, $2, 'other')`, other, fixture.space); err != nil {
+		t.Fatal(err)
+	}
+	fixture.spaces.channel[other] = fixture.space
+	fail(other)
+	if len(fixture.spaces.leftChannel) != 1 || fixture.spaces.leftChannel[0] != bot {
+		t.Errorf("the bot was not taken back out of the channel the failed hook put it in: %v", fixture.spaces.leftChannel)
+	}
+
+	// The bot was already there: nothing to undo.
+	fixture.spaces.joinsChannel, fixture.spaces.leftChannel = false, nil
+	fail(other)
+	if len(fixture.spaces.leftChannel) != 0 {
+		t.Errorf("a bot that was already in the channel was taken out: %v", fixture.spaces.leftChannel)
+	}
+}

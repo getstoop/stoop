@@ -208,6 +208,10 @@ type fakeSpaces struct {
 	admin   map[string]bool
 	// failAdmin, when set, is what SetBotAdmin returns.
 	failAdmin error
+	// joinsChannel is what AddBotToChannel answers: whether the call put
+	// the bot into a private channel. leftChannel records each undo.
+	joinsChannel bool
+	leftChannel  []string
 }
 
 func (f *fakeSpaces) ChannelSpace(_ context.Context, channelID string) (string, error) {
@@ -223,9 +227,12 @@ func (f *fakeSpaces) AddBotMember(ctx context.Context, spaceID, userID string) e
 	return err
 }
 func (f *fakeSpaces) AddBotToChannel(context.Context, string, string) (bool, error) {
-	return false, nil
+	return f.joinsChannel, nil
 }
-func (f *fakeSpaces) RemoveBotFromChannel(context.Context, string, string) error { return nil }
+func (f *fakeSpaces) RemoveBotFromChannel(_ context.Context, _, userID string) error {
+	f.leftChannel = append(f.leftChannel, userID)
+	return nil
+}
 func (f *fakeSpaces) RemoveBotMember(ctx context.Context, spaceID, userID string) error {
 	tag, err := f.pool.Exec(ctx, `DELETE FROM space_members WHERE space_id = $1 AND user_id = $2`, spaceID, userID)
 	if err == nil && tag.RowsAffected() == 0 {

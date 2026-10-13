@@ -37,3 +37,8 @@ UPDATE incoming_webhooks SET disabled_at = now(), disabled_reason = $2 WHERE id 
 
 -- name: DeleteIncomingWebhook :one
 DELETE FROM incoming_webhooks WHERE id = $1 RETURNING *;
+
+-- CountIncomingWebhooksForBotInChannel is how many hooks post into a
+-- channel as one bot: what says whether the bot still needs to be there.
+-- name: CountIncomingWebhooksForBotInChannel :one
+SELECT count(*) FROM incoming_webhooks WHERE channel_id = $1 AND bot_user_id = $2;
