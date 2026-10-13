@@ -115,7 +115,7 @@ test("a private channel and its people", async ({ browser }) => {
     });
   await A.getByLabel("Actions for #captains").click();
   await expect(A.getByRole("menuitem", { name: "People" })).toBeVisible();
-  await expect(A.getByRole("menuitem", { name: "Join channel" })).toHaveCount(
+  await expect(A.getByRole("menuitem", { name: "Join as member" })).toHaveCount(
     0,
   );
   await expect(
