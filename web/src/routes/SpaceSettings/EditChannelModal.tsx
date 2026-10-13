@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
+import { allChannelsKey } from "../../api/channelPeople";
 import { CHANNEL_NAME_HINT, MAX_CHANNEL_TOPIC } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import { Field } from "../../components/Field";
@@ -38,9 +39,14 @@ export function EditChannelModal({
         name: nextName !== channel.name ? nextName : undefined,
         topic: nextTopic !== channel.topic ? nextTopic : undefined,
       });
-      await queryClient.invalidateQueries({
-        queryKey: ["channels", channel.spaceId],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["channels", channel.spaceId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: allChannelsKey(channel.spaceId),
+        }),
+      ]);
       onClose();
     } catch (err) {
       form.fail(err);

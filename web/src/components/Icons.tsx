@@ -338,9 +338,6 @@ export function BotIcon() {
   );
 }
 
-// An announcement channel, where # would be; sized like the glyph.
-// Tilted up so it can't be read as the voice channels' speaker, and
-// moved so the tilted shape sits centred in the box.
 export function PeopleIcon() {
   return (
     <svg
@@ -381,6 +378,9 @@ export function LockIcon() {
   );
 }
 
+// An announcement channel, where # would be; sized like the glyph.
+// Tilted up so it can't be read as the voice channels' speaker, and
+// moved so the tilted shape sits centred in the box.
 export function MegaphoneIcon() {
   return (
     <svg

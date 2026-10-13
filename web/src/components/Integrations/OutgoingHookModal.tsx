@@ -27,7 +27,10 @@ export function OutgoingHookModal({
 }) {
   const queryClient = useQueryClient();
   const { data: channels } = useChannels(space.id);
-  const text = (channels ?? []).filter((c) => c.kind !== ChannelKind.VOICE);
+  // A private channel's events never reach an outgoing webhook.
+  const text = (channels ?? []).filter(
+    (c) => c.kind !== ChannelKind.VOICE && !c.private,
+  );
   const [name, setName] = useState(existing?.name ?? "");
   const [url, setUrl] = useState(existing?.url ?? "");
   const [channelId, setChannelId] = useState(existing?.channelId ?? "");

@@ -69,7 +69,7 @@ test("a private channel and its people", async ({ browser }) => {
 
   // ---- Someone outside it gets nothing at its address.
   await gotoShared(C, address);
-  await expect(C.locator(".space-rail")).toBeVisible();
+  await expect(channelLink(C, "general")).toBeVisible();
   await expect(C.getByText("the flyer is nearly done")).toHaveCount(0);
   await expect(channelLink(C, "captains")).toHaveCount(0);
 
@@ -93,6 +93,7 @@ test("a private channel and its people", async ({ browser }) => {
 
   // ---- Leaving: asked first, and the list the others see follows.
   await addPeople(bea);
+  await expect(people(A)).toHaveCount(2);
   await channelLink(B, "captains").click();
   await B.getByRole("button", { name: "Leave channel" }).click();
   await acceptDialog(B);
