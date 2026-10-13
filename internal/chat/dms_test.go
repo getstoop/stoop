@@ -237,7 +237,7 @@ func TestDirectMessages(t *testing.T) {
 		t.Fatal(err)
 	}
 	if reply.Msg.Message.MentionsChannel || len(reply.Msg.Message.MentionUserIds) != 1 {
-		t.Errorf("DM mentions: everyone=%v ids=%v", reply.Msg.Message.MentionsChannel, reply.Msg.Message.MentionUserIds)
+		t.Errorf("DM mentions: entire channel=%v ids=%v", reply.Msg.Message.MentionsChannel, reply.Msg.Message.MentionUserIds)
 	}
 	notes, err := svc.ListActivity(alice, connect.NewRequest(&chatv1.ListActivityRequest{}))
 	if err != nil {
