@@ -1,19 +1,40 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
+import { allChannelsKey, useAllChannels } from "../../api/channelPeople";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { useChannels, useSpaceVoice } from "../../api/queries";
+import { useChannels, useMe, useSpaceVoice } from "../../api/queries";
 import { type Channel, ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
+import type { ManagedChannel } from "../../gen/stoop/chat/v1/chat_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { confirm } from "../../stores/dialogs";
+import { openSidePanel } from "../../stores/sidePanel";
 import { ChannelTable } from "./ChannelTable";
 import { DefaultChannelRow } from "./DefaultChannelRow";
 import { EditChannelModal } from "./EditChannelModal";
 
 export function ChannelsSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
-  const { data: channels } = useChannels(space.id);
+  // Every channel in the space, the private ones the reader is not in
+  // too; the sidebar's own list is what a new member can be started in.
+  const { data: all } = useAllChannels(space.id);
+  const { data: mine } = useChannels(space.id);
+  const { data: me } = useMe();
   const spaceVoice = useSpaceVoice(space);
+  const channels = useMemo(
+    () =>
+      all
+        ?.map((row) => row.channel)
+        .filter((channel): channel is Channel => !!channel),
+    [all],
+  );
+  const managed = useMemo(
+    () =>
+      new Map<string, ManagedChannel>(
+        (all ?? []).map((row) => [row.channel?.id ?? "", row]),
+      ),
+    [all],
+  );
   const [error, setError] = useState<string | null>(null);
   const [failed, setFailed] = useState<{ id: string; text: string } | null>(
     null,
@@ -35,7 +56,10 @@ export function ChannelsSection({ space }: { space: Space }) {
     setFailed(null);
     try {
       await fn();
-      await queryClient.invalidateQueries({ queryKey: ["channels", space.id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["channels", space.id] }),
+        queryClient.invalidateQueries({ queryKey: allChannelsKey(space.id) }),
+      ]);
     } catch (err) {
       setFailed({ id: c.id, text: errorText(err) });
     }
@@ -49,6 +73,15 @@ export function ChannelsSection({ space }: { space: Space }) {
     });
     if (ok) act(c, () => chatClient.deleteChannel({ channelId: c.id }));
   };
+  const join = (c: Channel) =>
+    act(c, () =>
+      chatClient.addChannelMembers({
+        channelId: c.id,
+        userIds: me ? [me.id] : [],
+      }),
+    );
+  const people = (c: Channel) =>
+    openSidePanel("people", { spaceId: space.id, channelId: c.id });
 
   // A drop can land while the one before it is still in flight, and the
   // server writes each request in its own transaction — so two overlapping
@@ -70,31 +103,49 @@ export function ChannelsSection({ space }: { space: Space }) {
         old &&
         [...old].sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)),
     );
+    queryClient.setQueryData<ManagedChannel[]>(
+      allChannelsKey(space.id),
+      (old) =>
+        old &&
+        [...old].sort(
+          (a, b) =>
+            (rank.get(a.channel?.id ?? "") ?? 0) -
+            (rank.get(b.channel?.id ?? "") ?? 0),
+        ),
+    );
     saving.current = saving.current
       .then(() => chatClient.reorderChannels({ spaceId: space.id, channelIds }))
       .then(
         () => {},
         async (err) => {
           setError(errorText(err));
-          await queryClient.invalidateQueries({
-            queryKey: ["channels", space.id],
-          });
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: ["channels", space.id],
+            }),
+            queryClient.invalidateQueries({
+              queryKey: allChannelsKey(space.id),
+            }),
+          ]);
         },
       );
   };
   const ids = (list: Channel[] | undefined) => (list ?? []).map((c) => c.id);
 
   const table = {
-    total: channels?.length ?? 0,
+    total: channels?.filter((c) => !c.private).length ?? 0,
+    managed,
     onEdit: setEditing,
     onDelete: remove,
+    onJoin: join,
+    onPeople: people,
     rowError: (c: Channel) =>
       failed && failed.id === c.id ? failed.text : null,
   };
 
   return (
     <>
-      <section className="card">
+      <section className="card channel-tables">
         <h3>Text channels</h3>
         <ChannelTable
           {...table}
@@ -102,10 +153,10 @@ export function ChannelsSection({ space }: { space: Space }) {
           channels={text}
           onReorder={(textIds) => saveOrder(textIds, ids(voice))}
         />
-        {channels && <DefaultChannelRow space={space} channels={channels} />}
+        {mine && <DefaultChannelRow space={space} channels={mine} />}
       </section>
       {spaceVoice && (
-        <section className="card">
+        <section className="card channel-tables">
           <h3>Voice channels</h3>
           <ChannelTable
             {...table}

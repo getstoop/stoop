@@ -320,3 +320,16 @@
   gap: 16px;
   padding-bottom: 8px;
 }
+
+/* The channels tables have five columns. Beside an open side panel there
+   is not room for them, so they keep a width and scroll sideways inside
+   their box. Not on a narrow screen, where rows stack. */
+@media (width > 768px) and (height > 480px) {
+  .channel-tables .dt-box {
+    overflow-x: auto;
+  }
+
+  .channel-tables .dt {
+    min-width: 700px;
+  }
+}

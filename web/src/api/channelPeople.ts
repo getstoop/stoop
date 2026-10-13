@@ -38,3 +38,17 @@ export async function removeChannelPerson(
     queryKey: channelPeopleKey(channelId),
   });
 }
+
+// Every channel in a space as Space settings lists them, for someone who
+// manages channels: the private ones they are not in too, with how many
+// people each holds.
+export const allChannelsKey = (spaceId: string) => ["all-channels", spaceId];
+
+export function useAllChannels(spaceId: string, enabled = true) {
+  return useQuery({
+    queryKey: allChannelsKey(spaceId),
+    queryFn: async () =>
+      (await chatClient.listAllChannels({ spaceId })).channels,
+    enabled: enabled && spaceId !== "",
+  });
+}
