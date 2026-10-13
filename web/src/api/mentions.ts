@@ -33,7 +33,7 @@ export function filterMembers(
   if (includeGroup) {
     for (const [handle, label] of [
       [CHANNEL, "Everyone in this channel"],
-      [HERE, "Everyone online right now"],
+      [HERE, "Everyone online in this channel"],
     ]) {
       if (handle.startsWith(q)) {
         out.push({

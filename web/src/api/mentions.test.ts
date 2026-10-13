@@ -115,7 +115,7 @@ describe("filterMembers", () => {
   it("labels the two broadcast rows for the picker", () => {
     const [channel, here] = filterMembers([], "", true);
     expect(channel.displayName).toBe("Everyone in this channel");
-    expect(here.displayName).toBe("Everyone online right now");
+    expect(here.displayName).toBe("Everyone online in this channel");
   });
 
   it("lists a member once even when both names match", () => {
