@@ -9,6 +9,7 @@ export function ChannelGlyph({ channel }: { channel: Channel | undefined }) {
     return (
       <span className="channel-hash icon" title="Private channel">
         <LockIcon />
+        <span className="visually-hidden">Private channel</span>
       </span>
     );
   }
@@ -16,6 +17,7 @@ export function ChannelGlyph({ channel }: { channel: Channel | undefined }) {
   return (
     <span className="channel-hash icon" title="Announcement channel">
       <MegaphoneIcon />
+      <span className="visually-hidden">Announcement channel</span>
     </span>
   );
 }

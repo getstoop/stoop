@@ -200,6 +200,7 @@ export function SpaceLayout() {
   const channelCreated = async (created: Channel) => {
     await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
     if (!created.private) return;
+    useLayoutStore.getState().closeDrawer();
     navigate({
       to: "/s/$spaceId/c/$channelId",
       params: { spaceId, channelId: created.id },

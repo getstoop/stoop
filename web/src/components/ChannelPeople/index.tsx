@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   removeChannelPerson,
@@ -14,6 +13,7 @@ import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { confirm, notice } from "../../stores/dialogs";
 import { memberName } from "../MembersPanel/groups";
 import { SidePanelFrame, SidePanelUnavailable } from "../SidePanel";
+import { useCloseSidePanel } from "../SidePanel/context";
 import { AddPeopleModal } from "./AddPeopleModal";
 import { PersonRow } from "./PersonRow";
 
@@ -26,7 +26,7 @@ export function ChannelPeople({ params }: { params: Record<string, string> }) {
   const spaceId = params.spaceId ?? "";
   const channelId = params.channelId ?? "";
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const close = useCloseSidePanel();
   const { data: me } = useMe();
   const { data: spaces } = useSpaces();
   const { data: members } = useMembers(spaceId);
@@ -94,49 +94,54 @@ export function ChannelPeople({ params }: { params: Record<string, string> }) {
     try {
       await chatClient.leaveChannel({ channelId });
       await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
-      navigate({ to: "/s/$spaceId", params: { spaceId } });
+      close();
     } catch (err) {
       notice({ title: "Couldn't leave the channel", body: errorText(err) });
     }
   };
 
+  // The dialog sits outside the frame, whose Escape closes the panel.
   return (
-    <SidePanelFrame
-      title="People"
-      subtitle={
-        channel ? `${channel.name}${ids ? ` · ${ids.length}` : ""}` : undefined
-      }
-      footer={
-        joined && (
-          <div className="people-foot">
-            <button type="button" className="chip danger" onClick={leave}>
-              Leave channel
+    <>
+      <SidePanelFrame
+        title="People"
+        subtitle={
+          channel
+            ? `${channel.name}${ids ? ` · ${ids.length}` : ""}`
+            : undefined
+        }
+        footer={
+          joined && (
+            <div className="people-foot">
+              <button type="button" className="chip danger" onClick={leave}>
+                Leave channel
+              </button>
+            </div>
+          )
+        }
+      >
+        {manages && (
+          <div className="people-bar">
+            <button
+              type="button"
+              className="chip"
+              onClick={() => setAdding(true)}
+            >
+              Add people
             </button>
           </div>
-        )
-      }
-    >
-      {manages && (
-        <div className="people-bar">
-          <button
-            type="button"
-            className="chip"
-            onClick={() => setAdding(true)}
-          >
-            Add people
-          </button>
-        </div>
-      )}
-      <ul className="people-list">
-        {people.map((member) => (
-          <PersonRow
-            key={member.userId}
-            member={member}
-            self={member.userId === me?.id}
-            onRemove={manages ? () => remove(member) : undefined}
-          />
-        ))}
-      </ul>
+        )}
+        <ul className="people-list">
+          {people.map((member) => (
+            <PersonRow
+              key={member.userId}
+              member={member}
+              self={member.userId === me?.id}
+              onRemove={manages ? () => remove(member) : undefined}
+            />
+          ))}
+        </ul>
+      </SidePanelFrame>
       {adding && channel && (
         <AddPeopleModal
           channel={channel}
@@ -145,6 +150,6 @@ export function ChannelPeople({ params }: { params: Record<string, string> }) {
           onClose={() => setAdding(false)}
         />
       )}
-    </SidePanelFrame>
+    </>
   );
 }
