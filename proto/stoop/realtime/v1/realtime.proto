@@ -55,6 +55,8 @@ message ServerEvent {
     ThreadChanged thread_changed = 34;
     ThreadMuted thread_muted = 35;
     ThreadRead thread_read = 36;
+    ChannelMemberChanged channel_member_joined = 37;
+    ChannelMemberChanged channel_member_left = 38;
   }
 }
 
@@ -170,6 +172,15 @@ message UserTyping {
 message Ping {}
 
 message Pong {}
+
+// ChannelMemberChanged says who joined or left a private channel, to the
+// people in it. The person themself is told with channel_created or
+// channel_deleted, which is how the channel enters and leaves their list.
+message ChannelMemberChanged {
+  string space_id = 1;
+  string channel_id = 2;
+  string user_id = 3;
+}
 
 message ChannelDeleted {
   string space_id = 1;

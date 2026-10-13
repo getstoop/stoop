@@ -32,8 +32,8 @@ func (q *Queries) CountPublicChannelsInSpace(ctx context.Context, arg CountPubli
 
 const createChannel = `-- name: CreateChannel :one
 
-INSERT INTO channels (id, space_id, name, kind, position)
-VALUES ($1, $2::uuid, $3, $4, $5)
+INSERT INTO channels (id, space_id, name, kind, position, private)
+VALUES ($1, $2::uuid, $3, $4, $5, $6)
 RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private
 `
 
@@ -43,6 +43,7 @@ type CreateChannelParams struct {
 	Name     string
 	Kind     int16
 	Position int32
+	Private  bool
 }
 
 // Channels within a space. Owned by the chat module.
@@ -54,6 +55,7 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		arg.Name,
 		arg.Kind,
 		arg.Position,
+		arg.Private,
 	)
 	var i Channel
 	err := row.Scan(
@@ -104,22 +106,62 @@ func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
 	return i, err
 }
 
-const isPrivateChannelMember = `-- name: IsPrivateChannelMember :one
-SELECT EXISTS (
-    SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2
-) AS is_member
+const listAllChannelsBySpace = `-- name: ListAllChannelsBySpace :many
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private,
+    (SELECT count(*) FROM channel_members pm WHERE pm.channel_id = c.id)::int AS member_count,
+    (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm
+                              WHERE pm.channel_id = c.id AND pm.user_id = $1))::bool AS joined
+FROM channels c
+WHERE c.space_id = $2::uuid
+ORDER BY c.position, c.created_at
 `
 
-type IsPrivateChannelMemberParams struct {
-	ChannelID string
-	UserID    string
+type ListAllChannelsBySpaceParams struct {
+	UserID  string
+	SpaceID string
 }
 
-func (q *Queries) IsPrivateChannelMember(ctx context.Context, arg IsPrivateChannelMemberParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isPrivateChannelMember, arg.ChannelID, arg.UserID)
-	var is_member bool
-	err := row.Scan(&is_member)
-	return is_member, err
+type ListAllChannelsBySpaceRow struct {
+	Channel     Channel
+	MemberCount int32
+	Joined      bool
+}
+
+// ListAllChannelsBySpace is every channel in the space for Space
+// settings: how many people a private one holds, and whether the caller
+// is in it.
+func (q *Queries) ListAllChannelsBySpace(ctx context.Context, arg ListAllChannelsBySpaceParams) ([]ListAllChannelsBySpaceRow, error) {
+	rows, err := q.db.Query(ctx, listAllChannelsBySpace, arg.UserID, arg.SpaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAllChannelsBySpaceRow
+	for rows.Next() {
+		var i ListAllChannelsBySpaceRow
+		if err := rows.Scan(
+			&i.Channel.ID,
+			&i.Channel.SpaceID,
+			&i.Channel.Name,
+			&i.Channel.Kind,
+			&i.Channel.Position,
+			&i.Channel.CreatedAt,
+			&i.Channel.LastMessageID,
+			&i.Channel.DmKey,
+			&i.Channel.Topic,
+			&i.Channel.PostPolicy,
+			&i.Channel.Private,
+			&i.MemberCount,
+			&i.Joined,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listChannelIDsByKind = `-- name: ListChannelIDsByKind :many
@@ -212,30 +254,6 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPrivateChannelMemberIDs = `-- name: ListPrivateChannelMemberIDs :many
-SELECT user_id FROM channel_members WHERE channel_id = $1 ORDER BY added_at, user_id
-`
-
-func (q *Queries) ListPrivateChannelMemberIDs(ctx context.Context, channelID string) ([]string, error) {
-	rows, err := q.db.Query(ctx, listPrivateChannelMemberIDs, channelID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var user_id string
-		if err := rows.Scan(&user_id); err != nil {
-			return nil, err
-		}
-		items = append(items, user_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

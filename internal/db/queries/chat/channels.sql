@@ -2,8 +2,8 @@
 -- Only internal/chat may use these queries.
 
 -- name: CreateChannel :one
-INSERT INTO channels (id, space_id, name, kind, position)
-VALUES (sqlc.arg(id), sqlc.arg(space_id)::uuid, sqlc.arg(name), sqlc.arg(kind), sqlc.arg(position))
+INSERT INTO channels (id, space_id, name, kind, position, private)
+VALUES (sqlc.arg(id), sqlc.arg(space_id)::uuid, sqlc.arg(name), sqlc.arg(kind), sqlc.arg(position), sqlc.arg(private))
 RETURNING *;
 
 -- name: GetChannel :one
@@ -71,10 +71,14 @@ UPDATE channels SET position = sqlc.arg(position) WHERE id = sqlc.arg(id) AND sp
 SELECT id FROM channels WHERE space_id = sqlc.arg(space_id)::uuid AND kind = sqlc.arg(kind)
 ORDER BY position, created_at;
 
--- name: IsPrivateChannelMember :one
-SELECT EXISTS (
-    SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2
-) AS is_member;
-
--- name: ListPrivateChannelMemberIDs :many
-SELECT user_id FROM channel_members WHERE channel_id = $1 ORDER BY added_at, user_id;
+-- ListAllChannelsBySpace is every channel in the space for Space
+-- settings: how many people a private one holds, and whether the caller
+-- is in it.
+-- name: ListAllChannelsBySpace :many
+SELECT sqlc.embed(c),
+    (SELECT count(*) FROM channel_members pm WHERE pm.channel_id = c.id)::int AS member_count,
+    (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm
+                              WHERE pm.channel_id = c.id AND pm.user_id = sqlc.arg(user_id)))::bool AS joined
+FROM channels c
+WHERE c.space_id = sqlc.arg(space_id)::uuid
+ORDER BY c.position, c.created_at;
