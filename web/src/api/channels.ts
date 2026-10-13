@@ -1,3 +1,4 @@
+import { timestampMs } from "@bufbuild/protobuf/wkt";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   type Channel,
@@ -15,13 +16,12 @@ import { patchChannel, recomputeSpaceUnread } from "./unreads";
 // position, then oldest first.
 export function byPosition(channels: Channel[]): Channel[] {
   return [...channels].sort(
-    (a, b) =>
-      a.position - b.position ||
-      Number((a.createdAt?.seconds ?? 0n) - (b.createdAt?.seconds ?? 0n)) ||
-      // nanos is the fraction of the second, not a whole timestamp.
-      (a.createdAt?.nanos ?? 0) - (b.createdAt?.nanos ?? 0),
+    (a, b) => a.position - b.position || createdMs(a) - createdMs(b),
   );
 }
+
+const createdMs = (channel: Channel) =>
+  channel.createdAt ? timestampMs(channel.createdAt) : 0;
 
 // A reorder as the space is told of it: each channel named takes its new
 // position, and the list is put back in order. A private channel is not
