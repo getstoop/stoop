@@ -39,8 +39,7 @@ SELECT sqlc.embed(s), m.role AS my_role,
         LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = m.user_id
         WHERE c.space_id = s.id
           AND ((sqlc.arg(with_voice)::bool AND s.voice_enabled) OR c.kind <> 2)
-          AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm
-                                        WHERE pm.channel_id = c.id AND pm.user_id = m.user_id))
+          AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = m.user_id)
           AND c.last_message_id IS NOT NULL
           AND (r.last_read_message_id IS NULL OR c.last_message_id > r.last_read_message_id)
           AND NOT EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = m.user_id)

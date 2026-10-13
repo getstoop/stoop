@@ -13,7 +13,7 @@ SELECT m.* FROM message_with_reply m
 JOIN messages indexed ON indexed.id = m.id
 WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(space_id)::uuid
         AND (sqlc.arg(with_voice)::bool OR c.kind <> 2)
-        AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = sqlc.arg(user_id)::uuid)))
+        AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = sqlc.arg(user_id)::uuid))
   AND indexed.search @@ (CASE
       WHEN sqlc.arg(prefix)::text = '' THEN websearch_to_tsquery('simple', sqlc.arg(words)::text)
       WHEN sqlc.arg(words)::text = '' THEN to_tsquery('simple', sqlc.arg(prefix)::text)
@@ -34,6 +34,6 @@ LIMIT sqlc.arg(lim);
 -- name: GetChannelInSpaceByName :one
 SELECT c.* FROM channels c
 WHERE c.space_id = sqlc.arg(space_id)::uuid AND lower(c.name) = lower(sqlc.arg(name))
-  AND (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm WHERE pm.channel_id = c.id AND pm.user_id = sqlc.arg(user_id)::uuid))
+  AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = sqlc.arg(user_id)::uuid)
 ORDER BY (c.name = sqlc.arg(name)) DESC, c.position, c.created_at
 LIMIT 1;

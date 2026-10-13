@@ -135,6 +135,10 @@ func errChannelNotFound() error {
 	return connect.NewError(connect.CodeNotFound, errors.New("channel not found"))
 }
 
+func errMessageNotFound() error {
+	return connect.NewError(connect.CodeNotFound, errors.New("message not found"))
+}
+
 // requireInPrivate refuses a caller who is not in a private channel. A
 // space permission reaches a public channel on its own; a private one
 // also needs the caller in it.
@@ -152,6 +156,28 @@ func (s *Service) requireInPrivate(ctx context.Context, channel dbgen.Channel) e
 		return errChannelNotFound()
 	}
 	return nil
+}
+
+// requireManageChannel is the channels.manage gate for a channel's own
+// settings and people. An admin passes without being in a private
+// channel. Anyone else outside one is told it is not found, so the
+// refusal does not confirm it exists.
+func (s *Service) requireManageChannel(ctx context.Context, channel dbgen.Channel) error {
+	err := s.requirePermission(ctx, *channel.SpaceID, authctx.ChannelsManage)
+	if err != nil && s.requireInPrivate(ctx, channel) != nil {
+		return errChannelNotFound()
+	}
+	return err
+}
+
+// requireOnMessageIn is the gate for acting on someone else's message:
+// the space permission, and in a private channel being in it. Outside
+// it, the message is not found whatever the caller may do in the space.
+func (s *Service) requireOnMessageIn(ctx context.Context, channel dbgen.Channel, action authctx.Action) error {
+	if s.requireInPrivate(ctx, channel) != nil {
+		return errMessageNotFound()
+	}
+	return s.requirePermission(ctx, *channel.SpaceID, action)
 }
 
 // memberChannel loads a channel for someone already known to be in it. A

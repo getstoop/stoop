@@ -57,6 +57,64 @@ func (q *Queries) IsPrivateChannelMember(ctx context.Context, arg IsPrivateChann
 	return is_member, err
 }
 
+const listAllChannelsBySpace = `-- name: ListAllChannelsBySpace :many
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private,
+    (SELECT count(*) FROM channel_members pm WHERE pm.channel_id = c.id)::int AS member_count,
+    (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm
+                              WHERE pm.channel_id = c.id AND pm.user_id = $1))::bool AS joined
+FROM channels c
+WHERE c.space_id = $2::uuid
+ORDER BY c.position, c.created_at
+`
+
+type ListAllChannelsBySpaceParams struct {
+	UserID  string
+	SpaceID string
+}
+
+type ListAllChannelsBySpaceRow struct {
+	Channel     Channel
+	MemberCount int32
+	Joined      bool
+}
+
+// ListAllChannelsBySpace is every channel in the space for Space
+// settings: how many people a private one holds, and whether the caller
+// is in it.
+func (q *Queries) ListAllChannelsBySpace(ctx context.Context, arg ListAllChannelsBySpaceParams) ([]ListAllChannelsBySpaceRow, error) {
+	rows, err := q.db.Query(ctx, listAllChannelsBySpace, arg.UserID, arg.SpaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAllChannelsBySpaceRow
+	for rows.Next() {
+		var i ListAllChannelsBySpaceRow
+		if err := rows.Scan(
+			&i.Channel.ID,
+			&i.Channel.SpaceID,
+			&i.Channel.Name,
+			&i.Channel.Kind,
+			&i.Channel.Position,
+			&i.Channel.CreatedAt,
+			&i.Channel.LastMessageID,
+			&i.Channel.DmKey,
+			&i.Channel.Topic,
+			&i.Channel.PostPolicy,
+			&i.Channel.Private,
+			&i.MemberCount,
+			&i.Joined,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPrivateChannelMemberIDs = `-- name: ListPrivateChannelMemberIDs :many
 SELECT user_id FROM channel_members WHERE channel_id = $1 ORDER BY added_at, user_id
 `

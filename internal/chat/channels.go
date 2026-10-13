@@ -416,7 +416,7 @@ func (s *Service) spaceChannelToManage(ctx context.Context, channelID string) (d
 		return dbgen.Channel{}, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("direct messages can't be managed"))
 	}
-	if err := s.requirePermission(ctx, *channel.SpaceID, authctx.ChannelsManage); err != nil {
+	if err := s.requireManageChannel(ctx, channel); err != nil {
 		return dbgen.Channel{}, err
 	}
 	return channel, nil

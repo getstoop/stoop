@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -281,5 +282,49 @@ func TestActivityFollowsPrivateChannelAccess(t *testing.T) {
 	fixture.add(t, fixture.bea)
 	if got := listed(); got != 1 {
 		t.Errorf("back in the channel: %d alerts, want 1", got)
+	}
+}
+
+// A refusal never confirms that a private channel, or a message in one,
+// exists: to someone outside it they read like an id that names nothing.
+func TestRefusalsDoNotConfirmAPrivateChannel(t *testing.T) {
+	fixture := newPrivateFixture(t)
+	svc := fixture.svc
+	messageID := fixture.send(t, fixture.bea, "the flyer", "")
+	topic := "mine"
+	onChannel := func(person context.Context, channelID string) []error {
+		_, rename := svc.UpdateChannel(person, connect.NewRequest(&chatv1.UpdateChannelRequest{ChannelId: channelID, Topic: &topic}))
+		_, add := svc.AddChannelMembers(person, connect.NewRequest(&chatv1.AddChannelMembersRequest{ChannelId: channelID, UserIds: []string{authctx.UserID(person)}}))
+		_, remove := svc.RemoveChannelMember(person, connect.NewRequest(&chatv1.RemoveChannelMemberRequest{ChannelId: channelID, UserId: authctx.UserID(fixture.bea)}))
+		_, people := svc.ListChannelMembers(person, connect.NewRequest(&chatv1.ListChannelMembersRequest{ChannelId: channelID}))
+		_, gone := svc.DeleteChannel(person, connect.NewRequest(&chatv1.DeleteChannelRequest{ChannelId: channelID}))
+		return []error{rename, add, remove, people, gone}
+	}
+	onMessage := func(person context.Context, id string) []error {
+		_, pin := svc.SetMessagePinned(person, connect.NewRequest(&chatv1.SetMessagePinnedRequest{MessageId: id, Pinned: true}))
+		_, gone := svc.DeleteMessage(person, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: id}))
+		_, thread := svc.DeleteThread(person, connect.NewRequest(&chatv1.DeleteThreadRequest{MessageId: id}))
+		return []error{pin, gone, thread}
+	}
+	same := func(what string, real, missing []error) {
+		t.Helper()
+		for index := range real {
+			if code(real[index]) != connect.CodeNotFound || real[index].Error() != missing[index].Error() {
+				t.Errorf("%s, call %d: %v for the private one, %v for one that does not exist", what, index, real[index], missing[index])
+			}
+		}
+	}
+	// cal is in the space with no rights; the owner manages channels but
+	// is not in this one, so only the message calls are closed to them.
+	same("a member outside, on the channel", onChannel(fixture.cal, fixture.secretID), onChannel(fixture.cal, uuid.NewString()))
+	same("a member outside, on a message", onMessage(fixture.cal, messageID), onMessage(fixture.cal, uuid.NewString()))
+	same("an admin outside, on a message", onMessage(fixture.owner, messageID), onMessage(fixture.owner, uuid.NewString()))
+
+	// Someone in the channel without the right is told so plainly.
+	if _, err := svc.UpdateChannel(fixture.bea, connect.NewRequest(&chatv1.UpdateChannelRequest{ChannelId: fixture.secretID, Topic: &topic})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a member in the channel renaming it: %v, want permission denied", err)
+	}
+	if _, err := svc.UpdateChannel(fixture.cal, connect.NewRequest(&chatv1.UpdateChannelRequest{ChannelId: fixture.generalID, Topic: &topic})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a member renaming a public channel: %v, want permission denied", err)
 	}
 }
