@@ -1,7 +1,9 @@
+import { useRef } from "react";
 import { isBot } from "../api/identity";
 import { isChannelOrHere } from "../api/mentions";
 import { presenceClass, presenceLabel } from "../api/presence";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
+import { useScrollToSelected } from "../hooks/useScrollToSelected";
 import { useConnectionStore } from "../stores/connection";
 import { Avatar } from "./Avatar";
 import { BotMark } from "./BotMark";
@@ -18,9 +20,15 @@ export function MentionPicker({
 }) {
   const online = useConnectionStore((s) => s.online);
   const dnd = useConnectionStore((s) => s.dnd);
+  const listRef = useRef<HTMLUListElement>(null);
+  useScrollToSelected(listRef, selected);
   if (candidates.length === 0) return null;
   return (
-    <ul className="mention-picker popover" aria-label="Mention a member">
+    <ul
+      ref={listRef}
+      className="mention-picker popover"
+      aria-label="Mention a member"
+    >
       {candidates.map((m, i) => (
         <li key={m.userId}>
           <button
