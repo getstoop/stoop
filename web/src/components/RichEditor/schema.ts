@@ -90,7 +90,6 @@ export const schema = new Schema({
       toDOM: () => ["s", 0],
     },
     code: {
-      inclusive: false,
       parseDOM: [{ tag: "code" }],
       toDOM: () => ["code", 0],
     },

@@ -79,9 +79,7 @@ const rules = inputRules({
     wrappingInputRule(/^>\s$/, schema.nodes.blockquote),
     wrappingInputRule(/^[-*]\s$/, schema.nodes.bulletList),
     wrappingInputRule(/^\d+[.)]\s$/, schema.nodes.orderedList),
-    textblockTypeInputRule(/^```(\w*)\s$/, schema.nodes.codeBlock, (m) => ({
-      language: m[1] || null,
-    })),
+    textblockTypeInputRule(/^```$/, schema.nodes.codeBlock),
   ],
 });
 

@@ -200,6 +200,14 @@ describe("the toolbar's pressed buttons", () => {
     expect(off && activeFormats(off)).toEqual([]);
   });
 
+  it("keep inline code on for everything typed after it", () => {
+    const on = run(caretAtEnd(stateOf("run ")), formatCommands.code);
+    const one = on && on.apply(on.tr.insertText("x"));
+    const more = one && one.apply(one.tr.insertText(" = 1"));
+    expect(more && md(more)).toBe("run `x = 1`");
+    expect(more && activeFormats(more)).toEqual(["code"]);
+  });
+
   it("show a style only when all of the selection has it", () => {
     const doc = stateOf("**bold** plain");
     const mixed = doc.apply(

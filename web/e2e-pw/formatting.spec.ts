@@ -158,6 +158,26 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
   await A.keyboard.press("Enter");
   await expect(last(A).locator("strong")).toHaveText("two");
 
+  // Inline code switched on keeps going for everything typed after it.
+  await clickTool(A, "Inline code");
+  await composer(A).pressSequentially("x = 1");
+  await expect(
+    composer(A).locator("code"),
+    "everything typed after Inline code is code",
+  ).toHaveText("x = 1");
+  await A.keyboard.press("Enter");
+  await expect(last(A).locator("code.md-code")).toHaveText("x = 1");
+
+  // Three backticks at the start of a line open a code block.
+  await composer(A).pressSequentially("```");
+  await composer(A).pressSequentially("let y");
+  await expect(
+    composer(A).locator("pre"),
+    "typing ``` opens a code block",
+  ).toHaveText("let y");
+  await A.keyboard.press("Enter");
+  await expect(last(A).locator("pre.md-pre code")).toHaveText("let y");
+
   // Quote via the toolbar, then out of it and a code block after.
   await composer(A).pressSequentially("wise words");
   await clickTool(A, "Quote");
