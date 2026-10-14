@@ -5,6 +5,7 @@ import { Tooltip } from "./Tooltip";
 
 // The formatting row above the composer/editor. Buttons keep the editor
 // focused (mousedown is cancelled) so the selection they act on survives.
+// A button shows pressed while its format is in effect at the caret.
 const BUTTONS: {
   format: Format;
   label: string;
@@ -27,7 +28,13 @@ const BUTTONS: {
   { format: "codeblock", label: "Code block", glyph: "{ }" },
 ];
 
-export function FormatToolbar({ onFormat }: { onFormat: (f: Format) => void }) {
+export function FormatToolbar({
+  active,
+  onFormat,
+}: {
+  active: Format[];
+  onFormat: (f: Format) => void;
+}) {
   return (
     <div className="format-toolbar">
       {BUTTONS.map((b) => (
@@ -39,6 +46,7 @@ export function FormatToolbar({ onFormat }: { onFormat: (f: Format) => void }) {
             type="button"
             className={`format-button format-${b.format}`}
             aria-label={b.label}
+            aria-pressed={active.includes(b.format)}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => onFormat(b.format)}
           >

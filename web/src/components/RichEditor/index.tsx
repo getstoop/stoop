@@ -3,7 +3,7 @@ import { EditorState, Selection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { type RefObject, useLayoutEffect, useRef } from "react";
 import type { Format } from "../../api/formatting";
-import { formatCommands } from "./commands";
+import { activeFormats, formatCommands } from "./commands";
 import { fromMarkdown, toMarkdown } from "./markdown";
 import { editorPlugins } from "./plugins";
 import { schema } from "./schema";
@@ -27,6 +27,7 @@ export function RichEditor({
   value,
   onChange,
   onCaret,
+  onFormats,
   onKeyDown,
   onPaste,
   onBlur,
@@ -39,6 +40,8 @@ export function RichEditor({
   onChange: (markdown: string, textBefore: string) => void;
   // The caret moved without an edit: pickers re-read their query.
   onCaret?: (textBefore: string) => void;
+  // The formats in effect at the caret, for the toolbar to show.
+  onFormats?: (active: Format[]) => void;
   onKeyDown: (e: KeyboardEvent) => void;
   onPaste?: (e: ClipboardEvent) => void;
   onBlur?: () => void;
@@ -52,11 +55,20 @@ export function RichEditor({
   const handlers = useRef({
     onChange,
     onCaret,
+    onFormats,
     onKeyDown,
     onPaste,
     onBlur,
   });
-  handlers.current = { onChange, onCaret, onKeyDown, onPaste, onBlur };
+  handlers.current = {
+    onChange,
+    onCaret,
+    onFormats,
+    onKeyDown,
+    onPaste,
+    onBlur,
+  };
+  const formatsKey = useRef("");
   const placeholderRef = useRef(placeholder);
   placeholderRef.current = placeholder;
   const emitted = useRef(value);
@@ -92,6 +104,11 @@ export function RichEditor({
       },
       dispatchTransaction: (tr) => {
         view.updateState(view.state.apply(tr));
+        const active = activeFormats(view.state);
+        if (active.join() !== formatsKey.current) {
+          formatsKey.current = active.join();
+          handlers.current.onFormats?.(active);
+        }
         if (tr.getMeta("fromProps")) return;
         const { $from } = view.state.selection;
         const textBefore = $from.parent.textBetween(

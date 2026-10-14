@@ -32,6 +32,11 @@
   color: var(--text);
 }
 
+.format-button[aria-pressed="true"] {
+  background: var(--raised);
+  color: var(--accent);
+}
+
 .format-bold {
   font-weight: 700;
 }

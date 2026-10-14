@@ -16,7 +16,7 @@ import {
   MAX_ATTACHMENTS,
   uploadAttachment,
 } from "../../api/files";
-import { shortcutFormat } from "../../api/formatting";
+import { type Format, shortcutFormat } from "../../api/formatting";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import { filterMembers, mentionQueryAt } from "../../api/mentions";
 import { canMentionEntireChannel } from "../../api/permissions";
@@ -78,6 +78,7 @@ export function Composer({
   // A thread reply may also show in the channel; reset after each send.
   const [alsoSend, setAlsoSend] = useState(false);
   const [draft, setDraft] = useState("");
+  const [formats, setFormats] = useState<Format[]>([]);
   const [mention, setMention] = useState<{
     start: number;
     query: string;
@@ -380,7 +381,10 @@ export function Composer({
         </div>
       )}
       <div className="composer-tools">
-        <FormatToolbar onFormat={(f) => inputRef.current?.format(f)} />
+        <FormatToolbar
+          active={formats}
+          onFormat={(f) => inputRef.current?.format(f)}
+        />
         <Tooltip text="Attach files">
           <button
             type="button"
@@ -412,6 +416,7 @@ export function Composer({
         <div className="composer-input">
           <RichEditor
             fieldRef={inputRef}
+            onFormats={setFormats}
             value={draft}
             onPaste={onPaste}
             onChange={(value, textBefore) => {

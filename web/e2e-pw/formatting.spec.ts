@@ -96,6 +96,10 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
     composer(A).locator("strong"),
     "toolbar bold styles the selection",
   ).toHaveText("hi there");
+  await expect(
+    A.locator('.composer .format-button[aria-label="Bold"]'),
+    "…and shows pressed over it",
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(composer(A), "the editor keeps focus").toBeFocused();
   await expect
     .poll(() => A.evaluate(() => window.getSelection()?.toString()), {
@@ -112,6 +116,47 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
     last(A).locator(":is(s strong, strong s)"),
     "nested strike and bold render",
   ).toHaveText("hi there");
+
+  // A button shows pressed while its style is in effect at the caret.
+  const tool = (p: Page, label: string) =>
+    p.locator(`.composer .format-button[aria-label="${label}"]`);
+  // With nothing selected, Bold stays on and what's typed is bold until
+  // it is switched off again.
+  await composer(A).pressSequentially("one ");
+  await clickTool(A, "Bold");
+  await expect(tool(A, "Bold"), "Bold stays pressed").toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await composer(A).pressSequentially("two");
+  await expect(
+    composer(A).locator("strong"),
+    "typing after Bold is bold",
+  ).toHaveText("two");
+  await expect(tool(A, "Bold"), "…and Bold is still pressed").toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await clickTool(A, "Bold");
+  await composer(A).pressSequentially(" three");
+  await expect(
+    composer(A).locator("strong"),
+    "switching Bold off stops the bold",
+  ).toHaveText("two");
+  await expect(tool(A, "Bold")).toHaveAttribute("aria-pressed", "false");
+  // Clicking into bold words presses the button; out of them releases it.
+  await composer(A).locator("strong").click();
+  await expect(
+    tool(A, "Bold"),
+    "the caret in bold words presses Bold",
+  ).toHaveAttribute("aria-pressed", "true");
+  await A.keyboard.press("End");
+  await expect(
+    tool(A, "Bold"),
+    "…and leaving them releases it",
+  ).toHaveAttribute("aria-pressed", "false");
+  await A.keyboard.press("Enter");
+  await expect(last(A).locator("strong")).toHaveText("two");
 
   // Quote via the toolbar, then out of it and a code block after.
   await composer(A).pressSequentially("wise words");

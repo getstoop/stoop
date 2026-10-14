@@ -6,7 +6,7 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
-import { formatCommands, newLine } from "./commands";
+import { activeFormats, formatCommands, newLine } from "./commands";
 import { fromMarkdown, toMarkdown } from "./markdown";
 import { indentItem, linkSelection, markdownSlice } from "./plugins";
 import { schema } from "./schema";
@@ -178,5 +178,52 @@ describe("the format commands", () => {
     expect(md(code)).toBe("```\nx = 1\n```");
     const back = run(code, formatCommands.codeblock);
     expect(back && md(back)).toBe("x = 1");
+  });
+});
+
+describe("the toolbar's pressed buttons", () => {
+  it("show the style the caret is inside", () => {
+    expect(activeFormats(caretAfter(stateOf("a **bold** word"), "bo"))).toEqual(
+      ["bold"],
+    );
+    expect(activeFormats(caretAfter(stateOf("a **bold** word"), "wo"))).toEqual(
+      [],
+    );
+  });
+
+  it("show a style switched on at the caret, before anything is typed", () => {
+    const on = run(caretAtEnd(stateOf("plain")), formatCommands.bold);
+    expect(on && activeFormats(on)).toEqual(["bold"]);
+    const typed = on && on.apply(on.tr.insertText("er"));
+    expect(typed && md(typed)).toBe("plain**er**");
+    const off = typed && run(typed, formatCommands.bold);
+    expect(off && activeFormats(off)).toEqual([]);
+  });
+
+  it("show a style only when all of the selection has it", () => {
+    const doc = stateOf("**bold** plain");
+    const mixed = doc.apply(
+      doc.tr.setSelection(
+        TextSelection.create(
+          doc.doc,
+          posOf(doc, "bold"),
+          posOf(doc, "plain", true),
+        ),
+      ),
+    );
+    expect(activeFormats(mixed)).toEqual([]);
+    const bolded = run(mixed, formatCommands.bold);
+    expect(bolded && md(bolded)).toBe("**bold plain**");
+    expect(bolded && activeFormats(bolded)).toEqual(["bold"]);
+  });
+
+  it("show the block the caret is in", () => {
+    expect(activeFormats(caretAtEnd(stateOf("> said")))).toEqual(["quote"]);
+    expect(activeFormats(caretAtEnd(stateOf("1. first")))).toEqual([
+      "orderedList",
+    ]);
+    expect(activeFormats(caretAtEnd(stateOf("```\nx\n```")))).toEqual([
+      "codeblock",
+    ]);
   });
 });

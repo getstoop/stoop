@@ -2,7 +2,7 @@ import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
-import { shortcutFormat } from "../../api/formatting";
+import { type Format, shortcutFormat } from "../../api/formatting";
 import { replaceShortcodes } from "../../api/shortcodes";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { RichEditor, type RichField } from "../../components/RichEditor";
@@ -21,6 +21,7 @@ export function MessageEditor({
 }) {
   const [value, setValue] = useState(message.content);
   const [error, setError] = useState<string | null>(null);
+  const [formats, setFormats] = useState<Format[]>([]);
   const queryClient = useQueryClient();
   const ref = useRef<RichField>(null);
   const touchKeyboard = useTouchKeyboard();
@@ -56,9 +57,13 @@ export function MessageEditor({
 
   return (
     <div className="message-editor">
-      <FormatToolbar onFormat={(f) => ref.current?.format(f)} />
+      <FormatToolbar
+        active={formats}
+        onFormat={(f) => ref.current?.format(f)}
+      />
       <RichEditor
         fieldRef={ref}
+        onFormats={setFormats}
         value={value}
         autoFocus
         onChange={(markdown) => setValue(markdown)}
