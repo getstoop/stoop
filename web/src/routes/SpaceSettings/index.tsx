@@ -10,6 +10,7 @@ import { BansSection } from "./BansSection";
 import { ChannelsSection } from "./ChannelsSection";
 import { DangerSection, InstanceAdminDelete } from "./DangerSection";
 import { GeneralSection } from "./GeneralSection";
+import { GroupsSection } from "./GroupsSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { MembersSection } from "./MembersSection";
 import { ModerationLegend } from "./ModerationLegend";
@@ -25,6 +26,7 @@ type Tab =
   | "about"
   | "channels"
   | "members"
+  | "groups"
   | "banned"
   | "integrations"
   | "owner";
@@ -34,6 +36,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "about", label: "About" },
   { key: "channels", label: "Channels" },
   { key: "members", label: "Members" },
+  { key: "groups", label: "Groups" },
   { key: "banned", label: "Banned" },
   { key: "integrations", label: "Integrations" },
 ];
@@ -109,6 +112,7 @@ export function SpaceSettingsPage() {
           <ModerationLegend />
         </>
       )}
+      {active === "groups" && <GroupsSection space={space} />}
       {active === "banned" && <BansSection space={space} />}
       {active === "integrations" && <IntegrationsSection space={space} />}
       {active === "owner" && owner && <DangerSection space={space} />}

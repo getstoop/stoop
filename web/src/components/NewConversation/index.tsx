@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { filterCandidates } from "../../api/candidates";
 import { openDirectMessage, useDMCandidates } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import type { MessageAuthor } from "../../gen/stoop/chat/v1/message_pb";
 import { notice } from "../../stores/dialogs";
+import { CandidateRow } from "../CandidateRow";
 import { Modal } from "../Modal";
-import { CandidateRow } from "./CandidateRow";
-import { filterCandidates } from "./candidates";
 
 // The maximum a conversation holds, the caller included — the server's
 // cap, mirrored so the picker can stop before the refusal.

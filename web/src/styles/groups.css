@@ -1,0 +1,27 @@
+/* ---- Groups: Space settings → Groups, the sets of members @@handle
+   mentions at once. ---- */
+
+.groups-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.groups-head h3 {
+  margin: 0;
+}
+
+/* A group's stand-in for an avatar, the size of a small one. */
+.group-mark {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--text-muted);
+}
