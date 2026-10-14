@@ -200,8 +200,17 @@
   margin-bottom: 8px;
 }
 
+/* On a narrow screen the format buttons scroll sideways and the
+   paperclip stays in reach at the end. */
 .composer-tools .format-toolbar {
+  min-width: 0;
   margin-bottom: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.composer-tools .attach-button {
+  flex-shrink: 0;
 }
 
 .attach-button {

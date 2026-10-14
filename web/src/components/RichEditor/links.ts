@@ -1,6 +1,6 @@
 import type { Mark, ResolvedPos } from "prosemirror-model";
 import type { Command, EditorState, Transaction } from "prosemirror-state";
-import { TextSelection } from "prosemirror-state";
+import { Selection, TextSelection } from "prosemirror-state";
 import { schema } from "./schema";
 
 // The link the toolbar button, Ctrl/⌘+K and a double click act on.
@@ -74,13 +74,20 @@ export function linkDraft(
   state: EditorState,
   link = linkAround(state),
 ): LinkDraft | null {
-  const { $from, $to, from, to } = state.selection;
-  if ($from.parent.type.spec.code) return null;
+  // Narrowed to the text it covers: select all holds the whole document.
+  const $start = Selection.near(state.selection.$from, 1).$from;
+  const $end = Selection.near(state.selection.$to, -1).$to;
+  if ($start.parent.type.spec.code) return null;
   if (link) {
     return { ...link, text: state.doc.textBetween(link.from, link.to) };
   }
-  if (!$from.sameParent($to)) return { from: to, to, text: "", href: "" };
-  return { from, to, text: state.doc.textBetween(from, to), href: "" };
+  if ($start.sameParent($end)) {
+    const { pos: from } = $start;
+    const to = Math.max(from, $end.pos);
+    return { from, to, text: state.doc.textBetween(from, to), href: "" };
+  }
+  // Across lines: a new link at the end of the last one.
+  return { from: $end.pos, to: $end.pos, text: "", href: "" };
 }
 
 const ADDRESS = /^https?:\/\/\S+$/i;

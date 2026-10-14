@@ -1,5 +1,6 @@
 import { Node } from "prosemirror-model";
 import {
+  AllSelection,
   type Command,
   EditorState,
   Selection,
@@ -265,6 +266,22 @@ describe("links", () => {
       text: "this",
       href: "",
     });
+  });
+
+  it("take a one-line draft's words from select all", () => {
+    const state = stateOf("just this");
+    const all = state.apply(state.tr.setSelection(new AllSelection(state.doc)));
+    expect(linkDraft(all)?.text).toBe("just this");
+  });
+
+  it("go at the end of the last line when the selection spans lines", () => {
+    const state = stateOf("one\ntwo");
+    const all = state.apply(state.tr.setSelection(new AllSelection(state.doc)));
+    const draft = linkDraft(all);
+    expect(draft?.text).toBe("");
+    const saved =
+      draft && all.apply(saveLink(all, draft, "it", "https://x.org"));
+    expect(saved && md(saved)).toBe("one\ntwo[it](https://x.org)");
   });
 
   it("can't go in a code block", () => {
