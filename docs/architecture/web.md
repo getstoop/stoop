@@ -187,10 +187,7 @@ theme, each a complete set of the same sixteen colour tokens — `--canvas`,
 `--text-muted`, `--accent`, `--accent-soft`, `--on-accent`, `--ok`,
 `--warn`, `--danger`, `--shadow`, `--scrim` — **and nothing else.**
 
-Never type, never spacing. A theme that changed a font size would visibly
-desynchronise the composer overlay from the textarea underneath it, because
-that overlay depends on glyph metrics staying put
-([messaging.md](messaging.md#the-composer-overlay)).
+Never type, never spacing.
 
 Nothing under `styles/` names a colour literal; every component reads
 tokens. So **a new theme is a forty-line block that works with every
@@ -374,9 +371,8 @@ Two consequences of "same DOM, transformed" that have to be respected:
   toolbar that only exists on hover is a toolbar that does not exist on a
   phone.
 
-Inputs are 16px below the breakpoint because iOS Safari zooms into anything
-smaller, and the composer overlay inherits the same size so its glyph
-metrics stay matched to the textarea. Everything else in
+Inputs, the message editor included, are 16px below the breakpoint
+because iOS Safari zooms into anything smaller. Everything else in
 `styles/mobile.css` is spacing, in one media query, so there is one place
 to look for what changes below 768px.
 
@@ -437,8 +433,8 @@ offers the choice as a checkbox, cleared after each send.
 
 - Spoilers are `<button>` elements, not styled spans — keyboard reachable
   and announced as controls.
-- The composer overlay is `aria-hidden`; the textarea stays the accessible
-  input, and what is sent is the raw source.
+- The message editor is a contenteditable with `role="textbox"`,
+  `aria-multiline` and its placeholder as `aria-placeholder`.
 - Focus is global (`:focus-visible` in `base.css`); fields swap the ring
   for an accent border, and a feature overrides it only for a stated
   reason.

@@ -13,8 +13,8 @@ sections, in this order:
 1. **The ticket** — what to build, in prose the agent can act on. Name the
    issue or tracker item, and say that the agent must not create new ones.
 2. **Orientation (read before writing code)** — the 4–6 files that matter,
-   with one line each on *why* (e.g. "`useFormatting` relies on the
-   textarea's own selection").
+   with one line each on *why* (e.g. "`markdown.ts` in `RichEditor/` must
+   write only what the message parser reads back").
 3. **Non-negotiables** — module boundaries
    (`docs/architecture/modules.md`), file
    layout (`docs/conventions.md`: one component per file, one stylesheet
@@ -112,8 +112,10 @@ sections, in this order:
   that directory are typechecked (`tsconfig.e2e.json`) and linted.
 
   `fill()` sets a value in one event; anything whose subject is typing
-  (an autocomplete opening per keystroke, the composer's overlay tracking
-  the caret) needs `pressSequentially`. And `reload(page)` from
+  (an autocomplete opening per keystroke, a typed marker pair turning into
+  formatting) needs `pressSequentially`. In the message editor `fill()`
+  puts Markdown in as literal characters; `paste()` from `lib.ts` writes
+  it as formatting, the way a person pasting it would. And `reload(page)` from
   `web/e2e-pw/lib.ts`, never `page.reload()`: a channel URL meets the
   desktop-app gate on reload and a plain reload walks into it.
 
@@ -151,7 +153,7 @@ sections, in this order:
 
 - **Wait for a navigation the app starts on its own.** Message on a
   member's card opens the conversation only once the server has
-  answered; a `.composer textarea` reached before that is still the
+  answered; a `.composer .rich-editor-content` reached before that is still the
   channel's, and the text typed into it is gone when the route changes.
   `await expect(page).toHaveURL(/\/dm\//)` first.
 
@@ -373,11 +375,6 @@ force-pushes, and a pull request can only merge once every CI job is green
   `rtc.ips.excludes` covering every real range — `node_ip` alone isn't enough, pion still offers the
   host's own interfaces. The join must fail with the media-path message
   within ~16 s, never hang on "Connecting…".
-- **A styled overlay must not change glyph metrics.** Real bold and a bare
-  `<code>` (browser default monospace) are wider than the textarea's text —
-  measured +7 px and +29 px — so the caret drifts. Emphasis in the composer
-  overlay is paint-only; see the comment in `web/src/styles/composer.css`
-  and the width checks in `web/e2e-pw/composer-styling.spec.ts`.
 
 ### Harness traps
 

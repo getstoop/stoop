@@ -21,7 +21,7 @@ test("a private voice channel and its call", async ({ browser, request }) => {
   const open = async (token: string) => {
     const page = await (await browser.newContext()).newPage();
     await signIn(page, token);
-    await page.locator(".composer textarea").waitFor();
+    await page.locator(".composer .rich-editor-content").waitFor();
     return page;
   };
   const A = await open(tokens.ada);

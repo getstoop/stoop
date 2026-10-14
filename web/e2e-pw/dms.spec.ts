@@ -27,7 +27,7 @@ test("direct messages", async ({ browser }) => {
   const open = async (token: string) => {
     const p = await (await browser.newContext()).newPage();
     await signIn(p, token);
-    await p.locator(".composer textarea").waitFor();
+    await p.locator(".composer .rich-editor-content").waitFor();
     return p;
   };
   const A = await open(tokens.ada);
@@ -50,9 +50,9 @@ test("direct messages", async ({ browser }) => {
     "header names the other person",
   ).toContainText(bName);
   await expect(
-    A.locator(".composer textarea"),
+    A.locator(".composer .rich-editor-content"),
     "composer placeholder addresses them",
-  ).toHaveAttribute("placeholder", `Message @${bName}`);
+  ).toHaveAttribute("aria-placeholder", `Message @${bName}`);
   await expect(
     A.locator(".history-head"),
     "history head is DM wording",

@@ -45,7 +45,7 @@ test("the member list, roles, kicking and leaving", async ({ browser }) => {
   const speak = async (token: string, text: string) => {
     const p = await (await browser.newContext()).newPage();
     await signIn(p, token);
-    await expect(p.locator(".composer textarea")).toBeVisible();
+    await expect(p.locator(".composer .rich-editor-content")).toBeVisible();
     await say(p, text);
     await expect(
       p.locator(".message-content", { hasText: text }),

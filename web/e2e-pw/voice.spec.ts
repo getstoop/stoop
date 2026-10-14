@@ -202,7 +202,7 @@ test("voice channels, the stage, and who is in them", async ({
   const ctxB = await stageContext(browser);
   const B = await ctxB.newPage();
   await signIn(B, tokens.bea);
-  await B.locator(".composer textarea").waitFor({ timeout: 8_000 });
+  await B.locator(".composer .rich-editor-content").waitFor({ timeout: 8_000 });
 
   // A joins by clicking the channel: that opens its view, and the stage
   // says "Connecting…" until the media path is up. Watched from before

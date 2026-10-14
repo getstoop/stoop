@@ -69,7 +69,7 @@ test("message actions, editing and deleting", async ({ browser }) => {
 
   // B edits: inline editor, Enter saves, (edited) marker, A sees it live.
   await clickAction(B, 0, "Edit");
-  await B.locator(".message-editor textarea").fill("hello world");
+  await B.locator(".message-editor .rich-editor-content").fill("hello world");
   await B.keyboard.press("Enter");
   await expect(content(B, 0), "edit saved").toHaveText(/^hello world/);
   await expect(
@@ -86,7 +86,9 @@ test("message actions, editing and deleting", async ({ browser }) => {
 
   // Esc cancels without saving.
   await clickAction(B, 0, "Edit");
-  await B.locator(".message-editor textarea").pressSequentially(" zzz");
+  await B.locator(".message-editor .rich-editor-content").pressSequentially(
+    " zzz",
+  );
   await B.keyboard.press("Escape");
   // innerText is empty while the editor covers it, so this also proves
   // Esc put the message back.

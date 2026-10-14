@@ -20,7 +20,7 @@ test("blocking a person, banning them from a space", async ({ browser }) => {
   const open = async (token: string) => {
     const p = await (await browser.newContext()).newPage();
     await signIn(p, token);
-    await p.locator(".composer textarea").waitFor();
+    await p.locator(".composer .rich-editor-content").waitFor();
     return p;
   };
   const A = await open(tokens.ada);

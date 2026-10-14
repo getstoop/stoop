@@ -38,9 +38,9 @@ test("space settings, roles and deletion", async ({ browser }) => {
 
   // A owns "Stoop HQ" (+ #random), B is a member.
   await signIn(A, tokens.ada);
-  await expect(A.locator(".composer textarea")).toBeVisible();
+  await expect(A.locator(".composer .rich-editor-content")).toBeVisible();
   await signIn(B, tokens.bea);
-  await expect(B.locator(".composer textarea")).toBeVisible();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
 
   await expect
     .poll(() => menuItems(B), {

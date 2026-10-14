@@ -15,7 +15,7 @@ test("an announcement channel", async ({ browser }) => {
     await p.locator(".channel-row .dots-menu-button").click();
     await p.getByRole("menuitem", { name: label, exact: true }).click();
   };
-  const composer = (p: Page) => p.locator(".composer textarea");
+  const composer = (p: Page) => p.locator(".composer .rich-editor-content");
   const notice = (p: Page) => p.locator(".posting-closed");
 
   await expect(composer(B), "a member starts with a composer").toBeVisible();
@@ -35,7 +35,7 @@ test("an announcement channel", async ({ browser }) => {
   await expect(
     composer(A),
     "the owner keeps a composer that says it announces",
-  ).toHaveAttribute("placeholder", "Announce in #general");
+  ).toHaveAttribute("aria-placeholder", "Announce in #general");
 
   // ---- The owner posts; the member reacts
   await say(A, "moving boxes on Saturday");

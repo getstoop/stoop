@@ -23,7 +23,7 @@ test("a private channel and its people", async ({ browser }) => {
   const open = async (token: string) => {
     const page = await (await browser.newContext()).newPage();
     await signIn(page, token);
-    await page.locator(".composer textarea").waitFor();
+    await page.locator(".composer .rich-editor-content").waitFor();
     return page;
   };
   const A = await open(tokens.ada);
@@ -54,9 +54,9 @@ test("a private channel and its people", async ({ browser }) => {
   ).toBeVisible();
   await expect(people(A), "its maker is the first person in it").toHaveCount(1);
   await expect(
-    A.locator(".channel-view .composer textarea"),
+    A.locator(".channel-view .composer .rich-editor-content"),
     "in text its name has no hash",
-  ).toHaveAttribute("placeholder", "Message captains");
+  ).toHaveAttribute("aria-placeholder", "Message captains");
   await expect(A.locator(".people-button")).toHaveText("1");
   const address = A.url();
 

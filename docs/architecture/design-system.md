@@ -80,11 +80,8 @@ every theme scope makes each card derive its own.
 each is for, are in the comments of `tokens.css`; they are not repeated
 here. Weights are 400, 600 and 700.
 
-**Themes never touch type.** The composer draws its Markdown highlighting
-in an overlay laid exactly over the textarea
-([messaging.md](messaging.md#the-composer-overlay)). A theme that moved a
-glyph would pull the two apart. That is why type lives in the first block
-of `tokens.css`, which no theme can reach.
+**Themes never touch type.** Type lives in the first block of
+`tokens.css`, which no theme can reach.
 
 **Spacing is literal px on the scale 2 4 6 8 12 16 20 24 32.** There are no
 spacing tokens: `gap: 8px` reads better than a variable, and the scale is

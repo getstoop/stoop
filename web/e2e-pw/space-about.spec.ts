@@ -22,7 +22,7 @@ test("what a space says about itself", async ({ browser }) => {
 
   // ---- A owns the space; nothing said about it yet
   await signIn(A, tokens.ada);
-  await expect(A.locator(".composer textarea")).toBeVisible();
+  await expect(A.locator(".composer .rich-editor-content")).toBeVisible();
   await expect(
     A.locator(".space-desc"),
     "a space with nothing to say renders no description line",
@@ -174,7 +174,7 @@ test("what a space says about itself", async ({ browser }) => {
   // ---- A plain member may read it but not write it
   await B.goto(`/s/${bSpaceId}/settings?tab=about`);
   await expect(
-    B.locator(".composer textarea"),
+    B.locator(".composer .rich-editor-content"),
     "a member is bounced out of space settings",
   ).toBeVisible();
   await expect(

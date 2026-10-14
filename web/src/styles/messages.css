@@ -73,27 +73,6 @@
   margin: 2px 0;
 }
 
-.message-editor textarea {
-  display: block;
-  width: 100%;
-  max-height: 40vh;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--accent);
-  /* The field background lives on the overlay (same box, underneath);
-     the textarea itself is transparent and stacked on top so the caret and
-     selection paint over the styled text (STOOP-38). */
-  background: transparent;
-  position: relative;
-  z-index: 1;
-  color: transparent;
-  caret-color: var(--text);
-  font: inherit;
-  line-height: var(--leading-ui);
-  resize: none;
-  overflow-y: auto;
-}
-
 /* Rows: an avatar column on the left (first row of a group), content
    indented to clear it on every row, and a subtle wash on hover. */
 .message {

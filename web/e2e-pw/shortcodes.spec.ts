@@ -11,7 +11,7 @@ test("emoji shortcodes and the suggestion list", async ({ browser }) => {
   const A = await (await browser.newContext()).newPage();
   await signIn(A, tokens.ada);
 
-  const composer = A.locator(".composer textarea");
+  const composer = A.locator(".composer .rich-editor-content");
   const options = A.locator(".emoji-suggest .mention-option");
   // The body only (attachments, cards and the edited marker also live in
   // .message-content).
@@ -42,7 +42,7 @@ test("emoji shortcodes and the suggestion list", async ({ browser }) => {
     /selected/,
   );
   await A.keyboard.press("Enter");
-  await expect(composer, "Enter inserts the emoji and a space").toHaveValue(
+  await expect(composer, "Enter inserts the emoji and a space").toHaveText(
     "oh no 😭 ",
   );
   await expect(options, "list closes after picking").toHaveCount(0);
@@ -71,23 +71,23 @@ test("emoji shortcodes and the suggestion list", async ({ browser }) => {
   ).toHaveText("😭");
   await A.keyboard.press("Escape");
   await expect(options, "Esc closes the list").toHaveCount(0);
-  await expect(composer, "and keeps the text").toHaveValue(":loudly_cry");
+  await expect(composer, "and keeps the text").toHaveText(":loudly_cry");
   await composer.pressSequentially("i");
   await expect(options.first(), "typing on reopens the list").toHaveClass(
     /selected/,
   );
   await A.keyboard.press("Tab");
-  await expect(composer, "Tab picks the highlighted suggestion").toHaveValue(
+  await expect(composer, "Tab picks the highlighted suggestion").toHaveText(
     "😭 ",
   );
   await A.keyboard.press("Enter");
-  await expect(composer, "the draft clears on send").toHaveValue("");
+  await expect(composer, "the draft clears on send").toHaveText("");
 
   // Colons in ordinary text don't open the list.
   // Straight after a send the composer re-renders; typing into it with no
   // delay interleaves the keystrokes ("nothise: t").
   await composer.pressSequentially("note: this", { delay: 20 });
-  await expect(composer, "the draft is what was typed").toHaveValue(
+  await expect(composer, "the draft is what was typed").toHaveText(
     "note: this",
   );
   await expect(
@@ -101,7 +101,9 @@ test("emoji shortcodes and the suggestion list", async ({ browser }) => {
   const last = A.locator(".message").last();
   await last.hover();
   await last.locator('.message-action[aria-label="Edit"]').click();
-  await A.locator(".message-editor textarea").pressSequentially(" :+1:");
+  await A.locator(".message-editor .rich-editor-content").pressSequentially(
+    " :+1:",
+  );
   await A.keyboard.press("Enter");
   await expect(lastMessage, "the inline editor converts on save").toHaveText(
     /^note: this 👍/,

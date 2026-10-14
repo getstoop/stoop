@@ -100,7 +100,9 @@ test("open graph cards for links", async ({ browser }) => {
     const third = A.locator(".message").nth(2);
     await third.hover();
     await third.locator('.message-action[aria-label="Edit"]').click();
-    await A.locator(".message-editor textarea").fill("no link any more");
+    await A.locator(".message-editor .rich-editor-content").fill(
+      "no link any more",
+    );
     await A.keyboard.press("Enter");
     await expect(
       card(A, 2),

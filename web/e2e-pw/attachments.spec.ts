@@ -85,10 +85,10 @@ test("attachments: sending, serving, capping and deleting", async ({
   // A and B are both members (seeded).
   const A = await (await browser.newContext()).newPage();
   await signIn(A, tokens.ada);
-  await expect(A.locator(".composer textarea")).toBeVisible();
+  await expect(A.locator(".composer .rich-editor-content")).toBeVisible();
   const B = await (await browser.newContext()).newPage();
   await signIn(B, tokens.bea);
-  await expect(B.locator(".composer textarea")).toBeVisible();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
 
   // --- image, attachment-only message
   await expect(
@@ -101,7 +101,7 @@ test("attachments: sending, serving, capping and deleting", async ({
     A.locator(".attachment-strip .pending img.pending-thumb"),
     "pending strip shows an image thumbnail",
   ).toHaveCount(1);
-  await A.locator(".composer textarea").click();
+  await A.locator(".composer .rich-editor-content").click();
   await A.keyboard.press("Enter");
   await expect(
     A.locator(".message .attachments img"),
@@ -153,7 +153,9 @@ test("attachments: sending, serving, capping and deleting", async ({
   // --- text file with a message: download card, attachment disposition
   await attach(A, files.notes);
   await expect(pendingReady(A)).toBeVisible();
-  await A.locator(".composer textarea").pressSequentially("notes from today");
+  await A.locator(".composer .rich-editor-content").pressSequentially(
+    "notes from today",
+  );
   await A.keyboard.press("Enter");
   const bCard = B.locator(".attachment-card").first();
   await expect(bCard).toBeVisible();
@@ -331,7 +333,7 @@ test("attachments: sending, serving, capping and deleting", async ({
     B.locator(".reply-bar"),
     "reply bar previews the attachment name",
   ).toContainText("📎 secret.txt");
-  await B.locator(".composer textarea").pressSequentially("got it");
+  await B.locator(".composer .rich-editor-content").pressSequentially("got it");
   await B.keyboard.press("Enter");
   await expect(
     A.locator(".reply-quote .reply-preview"),

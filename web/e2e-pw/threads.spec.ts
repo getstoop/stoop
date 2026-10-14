@@ -27,7 +27,7 @@ test("threads", async ({ browser }) => {
   const panelRows = (p: Page) => panel(p).locator(".message");
   const summary = (p: Page) => p.locator(".channel-view .thread-summary");
   const sayIn = async (p: Page, where: string, text: string) => {
-    await p.locator(`${where} .composer textarea`).fill(text);
+    await p.locator(`${where} .composer .rich-editor-content`).fill(text);
     await p.keyboard.press("Enter");
   };
   const act = async (row: Locator, label: string) => {
@@ -37,8 +37,8 @@ test("threads", async ({ browser }) => {
 
   await signIn(A, tokens.ada);
   await signIn(B, tokens.bea);
-  await A.locator(".channel-view .composer textarea").waitFor();
-  await B.locator(".channel-view .composer textarea").waitFor();
+  await A.locator(".channel-view .composer .rich-editor-content").waitFor();
+  await B.locator(".channel-view .composer .rich-editor-content").waitFor();
 
   await sayIn(A, ".channel-view", "who is bringing chairs on saturday?");
   const root = (p: Page) =>

@@ -10,9 +10,9 @@ test("messages arrive live, later, and after a reload", async ({ browser }) => {
   const B = await (await browser.newContext()).newPage();
 
   await signIn(A, tokens.ada);
-  await expect(A.locator(".composer textarea")).toBeVisible();
+  await expect(A.locator(".composer .rich-editor-content")).toBeVisible();
   await signIn(B, tokens.bea);
-  await expect(B.locator(".composer textarea")).toBeVisible();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
 
   await say(A, "msg1 right away");
   await expect(

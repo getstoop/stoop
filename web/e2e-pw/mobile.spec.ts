@@ -51,7 +51,7 @@ test("phone layout: drawer, toolbar on tap, and back to three columns", async ({
 
   await expect(P, "landed in a channel").toHaveURL(/\/c\//);
   // Nothing below means anything until the channel has rendered.
-  await P.locator(".composer textarea").waitFor();
+  await P.locator(".composer .rich-editor-content").waitFor();
 
   let l = await layout(P);
   expect(l.menuShown, "phone: menu button is shown").toBe(true);
@@ -106,7 +106,7 @@ test("phone layout: drawer, toolbar on tap, and back to three columns", async ({
     .toBe(false);
 
   // Messages: the toolbar shows on tap, since touch has no hover.
-  const composer = P.locator(".composer textarea");
+  const composer = P.locator(".composer .rich-editor-content");
   await composer.click();
   const fontSize = await composer.evaluate((e) => getComputedStyle(e).fontSize);
   expect(fontSize, `composer is 16px on a phone (${fontSize})`).toBe("16px");
@@ -114,11 +114,12 @@ test("phone layout: drawer, toolbar on tap, and back to three columns", async ({
   await composer.pressSequentially("hello from");
   await P.keyboard.press("Enter");
   await composer.pressSequentially("a phone");
-  await expect(composer, "Return breaks the line").toHaveValue(
-    "hello from\na phone",
-  );
+  await expect(composer.locator("p"), "Return breaks the line").toHaveText([
+    "hello from",
+    "a phone",
+  ]);
   await P.locator(".composer-send").tap();
-  await expect(composer, "the button sends").toHaveValue("");
+  await expect(composer, "the button sends").toHaveText("");
 
   const toolbar = P.locator(".message .message-toolbar").first();
   await toolbar.waitFor({ state: "attached" });
@@ -166,7 +167,7 @@ test("phone layout: drawer, toolbar on tap, and back to three columns", async ({
     await browser.newContext({ viewport: { width: 1280, height: 800 } })
   ).newPage();
   await signIn(D, tokens.mob);
-  await D.locator(".composer textarea").waitFor();
+  await D.locator(".composer .rich-editor-content").waitFor();
   const w = await layout(D);
   expect(w.menuShown, "desktop: menu button hidden").toBe(false);
   expect(

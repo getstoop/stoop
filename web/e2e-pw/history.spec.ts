@@ -29,7 +29,7 @@ test("paging back through older history", async ({ browser }) => {
     list.evaluate((e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40);
 
   await signIn(A, tokens.ada);
-  await expect(A.locator(".composer textarea")).toBeVisible();
+  await expect(A.locator(".composer .rich-editor-content")).toBeVisible();
 
   // Seed 120 messages through the API.
   await A.evaluate(async (channelId) => {
@@ -94,7 +94,7 @@ test("paging back through older history", async ({ browser }) => {
 
   const B = await (await browser.newContext({ viewport: VIEWPORT })).newPage();
   await signIn(B, tokens.bea);
-  await expect(B.locator(".composer textarea")).toBeVisible();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
   const topBefore = await scrollTop();
   await say(B, "hello from bea");
   await expect(pill, "someone else's message counts on the pill").toHaveText(

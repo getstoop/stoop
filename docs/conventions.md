@@ -147,7 +147,7 @@ for, and why — is in
   `e2e-pw/lib.ts`.
 - **Focus is global** (`:focus-visible` in `base.css`); fields swap the ring
   for an accent border. A feature overrides it only for a stated reason
-  (the composer's overlay border is one).
+  (the message editor's outline is one).
 - **An inline `style` in a `.tsx` file carries computed geometry only:**
   `left`, `top`, `right`, `bottom`, `width`, `height`, `min`/`max` of
   both, `transform`, `transition`, and CSS custom properties (`"--name"`).
