@@ -16,6 +16,7 @@ import {
   timelineKey,
   useHistoryStore,
 } from "./history";
+import { serverOrigin } from "./origin";
 
 // Server-state hooks. Query keys are the vocabulary the WS client uses to
 // apply realtime events, so keep them in sync with src/api/ws.ts.
@@ -27,6 +28,19 @@ export function useInstanceStatus() {
     queryFn: async () => instanceClient.getInstanceStatus({}),
     staleTime: Number.POSITIVE_INFINITY,
   });
+}
+
+// The origins a link to this server may carry: the one this tab is on,
+// and the configured public address.
+export function useServerOrigins(): string[] {
+  const publicUrl = useInstanceStatus().data?.publicUrl;
+  const origins = [serverOrigin()];
+  try {
+    if (publicUrl) origins.push(new URL(publicUrl).origin);
+  } catch {
+    // An address that doesn't parse names no origin.
+  }
+  return origins;
 }
 
 // Whether this server has voice: off when the operator turned it off or
@@ -190,6 +204,32 @@ export function useThreadRoot(channelId: string, rootId: string) {
     },
     enabled: channelId !== "" && rootId !== "",
     retry: false,
+  });
+}
+
+// One message by id, for the card under a link to it. Keyed as a thread's
+// root is, so the channel's realtime writes keep it current. An empty
+// page is a message that is gone; an error is one the reader can't see.
+export function useLinkedMessage(
+  channelId: string,
+  messageId: string,
+  threadRootId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["messages", channelId, messageId, "root"],
+    queryFn: async () => {
+      const res = await chatClient.listMessages({
+        channelId,
+        threadId: threadRootId,
+        aroundId: messageId,
+        limit: 1,
+      });
+      return res.messages.filter((m) => m.id === messageId);
+    },
+    enabled,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 

@@ -6,6 +6,7 @@ import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
 import { DeletedMark } from "../../components/DeletedMark";
 import { PinIcon } from "../../components/Icons";
+import { LinkedMessages } from "../../components/LinkedMessages";
 import { LinkPreviews } from "../../components/LinkPreviews";
 import { MessageBody } from "../../components/MessageBody";
 import { ReactionBar } from "../../components/ReactionBar";
@@ -238,6 +239,7 @@ export function MessageRow({
           myUsername={myUsername}
         />
         <Attachments attachments={message.attachments} />
+        <LinkedMessages content={message.content} />
         <LinkPreviews previews={message.linkPreviews} />
         {message.editedAt && (
           <span className="edited-marker" title="Edited">

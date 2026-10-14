@@ -5,6 +5,7 @@ import { useDialogStore } from "../stores/dialogs";
 import {
   channelPath,
   copyShareLink,
+  linkedMessage,
   messagePath,
   sharedLinkKind,
   shareOrigin,
@@ -174,6 +175,48 @@ describe("messagePath", () => {
     const path = messagePath(SPACE, CHANNEL, MESSAGE);
     const [pathname, search] = path.split("?");
     expect(sharedLinkKind(pathname, `?${search}`)).toBe("message");
+  });
+});
+
+describe("linkedMessage", () => {
+  const ORIGIN = "https://porch.example.test";
+  const origins = [ORIGIN];
+
+  it("reads a message link to this server", () => {
+    expect(
+      linkedMessage(`${ORIGIN}/s/${SPACE}/c/${CHANNEL}?m=${MESSAGE}`, origins),
+    ).toEqual({
+      spaceId: SPACE,
+      channelId: CHANNEL,
+      messageId: MESSAGE,
+      threadRootId: "",
+    });
+  });
+
+  it("reads a reply in a thread, and a thread's root", () => {
+    const channel = `${ORIGIN}/s/${SPACE}/c/${CHANNEL}`;
+    expect(linkedMessage(`${channel}?t=root1&m=${MESSAGE}`, origins)).toEqual({
+      spaceId: SPACE,
+      channelId: CHANNEL,
+      messageId: MESSAGE,
+      threadRootId: "root1",
+    });
+    expect(linkedMessage(`${channel}?t=root1`, origins)).toMatchObject({
+      messageId: "root1",
+      threadRootId: "",
+    });
+  });
+
+  it("is null for anything else", () => {
+    for (const href of [
+      `https://elsewhere.example.test/s/${SPACE}/c/${CHANNEL}?m=${MESSAGE}`,
+      `${ORIGIN}/s/${SPACE}/c/${CHANNEL}`,
+      `${ORIGIN}/dm/${DM}?m=${MESSAGE}`,
+      `${ORIGIN}/s/${SPACE}?m=${MESSAGE}`,
+      "not a link",
+    ]) {
+      expect(linkedMessage(href, origins)).toBeNull();
+    }
   });
 });
 

@@ -713,6 +713,16 @@ Previews are cached per URL in `link_previews` for a week and shared by
 every message linking it. **Failures are cached too**, so a dead link isn't
 retried once per message that mentions it.
 
+### Links to messages
+
+A link to a message on this server shows the message instead of a card
+for the page (`components/LinkedMessages`). The reader's own app fetches
+it with `ListMessages`, so a reader who can't read the message gets no
+card, and each reader sees it as they would in its channel. The app
+shows none for a private channel or a direct message, even to someone in
+it. The link preview setting does not apply: nothing outside the server
+is contacted.
+
 ### The server fetches, never the reader's browser
 
 A preview card never contacts the linked site. This is a privacy property —
