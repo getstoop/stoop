@@ -1,7 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useNavigate } from "@tanstack/react-router";
 import { fullDateTime, shortDateTime } from "../../api/dates";
-import type { MentionKinds } from "../../api/mentions";
+import type { MentionMembers } from "../../api/mentions";
 import { useChannels, useMe } from "../../api/queries";
 import { messageSearch } from "../../api/shareLinks";
 import { Attachments } from "../../components/Attachments";
@@ -23,7 +23,7 @@ export function ResultRow({
 }: {
   message: Message;
   spaceId: string;
-  usernames: MentionKinds;
+  usernames: MentionMembers;
   highlight: RegExp | null;
 }) {
   const navigate = useNavigate();

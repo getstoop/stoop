@@ -1,7 +1,8 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { ReactNode } from "react";
 import { dayAndTime, fullDateTime } from "../../api/dates";
-import type { MentionKinds } from "../../api/mentions";
+import { emojiOnly } from "../../api/emojiText";
+import type { MentionMembers } from "../../api/mentions";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -54,7 +55,7 @@ export function MessageRow({
   canDelete: boolean;
   canPin: boolean;
   editing: boolean;
-  usernames: MentionKinds;
+  usernames: MentionMembers;
   myUsername?: string;
   // Its thread is the one open in the side panel.
   threadOpen: boolean;
@@ -231,13 +232,17 @@ export function MessageRow({
       {editing ? (
         <MessageEditor message={message} onDone={() => onEdit(null)} />
       ) : null}
-      <div className="message-content" hidden={editing}>
+      <div
+        className={`message-content ${emojiOnly(message.content) ? "emoji-only" : ""}`}
+        hidden={editing}
+      >
         <MessageBody
           content={message.content}
           usernames={usernames}
           mentionsEntireChannel={message.mentionsEntireChannel}
           mentionsHere={message.mentionsHere}
           myUsername={myUsername}
+          onMention={onCard}
         />
         <Attachments attachments={message.attachments} />
         <LinkedMessages content={message.content} />

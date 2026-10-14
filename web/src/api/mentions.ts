@@ -1,4 +1,3 @@
-import type { IdentityKind } from "../gen/stoop/access/v1/access_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import { isBot } from "./identity";
 
@@ -23,11 +22,11 @@ export function mentionQueryAt(
 export const CHANNEL_HANDLE = "channel";
 export const HERE_HANDLE = "here";
 
-// Each member's handle and what it names, a person or a bot.
-export type MentionKinds = ReadonlyMap<string, IdentityKind>;
+// The member each handle names.
+export type MentionMembers = ReadonlyMap<string, Member>;
 
-export function mentionKinds(members: Member[] | undefined): MentionKinds {
-  return new Map(members?.map((m) => [m.username.toLowerCase(), m.kind]));
+export function mentionMembers(members: Member[] | undefined): MentionMembers {
+  return new Map(members?.map((m) => [m.username.toLowerCase(), m]));
 }
 
 export const isChannelOrHere = (handle: string) =>
@@ -101,11 +100,15 @@ export function splitMentions(
 // the accent fill when it reaches us.
 export function mentionClass(
   handle: string,
-  kinds: MentionKinds,
+  members: MentionMembers,
   me?: string,
 ): string {
   const everyone = isChannelOrHere(handle);
-  const glyph = everyone ? "" : isBot(kinds.get(handle)) ? "bot" : "person";
+  const glyph = everyone
+    ? ""
+    : isBot(members.get(handle)?.kind)
+      ? "bot"
+      : "person";
   const mine = me && (handle === me || everyone) ? "me" : "";
   return ["mention", glyph, mine].filter(Boolean).join(" ");
 }

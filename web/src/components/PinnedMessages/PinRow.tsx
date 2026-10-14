@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { fullDateTime, shortDateTime } from "../../api/dates";
-import type { MentionKinds } from "../../api/mentions";
+import type { MentionMembers } from "../../api/mentions";
 import { useMe } from "../../api/queries";
 import type { PinnedMessage } from "../../gen/stoop/chat/v1/pin_pb";
 import { Attachments } from "../Attachments";
@@ -20,7 +20,7 @@ export function PinRow({
 }: {
   pin: PinnedMessage;
   // The space's handles, so @mentions in a kept message read as mentions.
-  usernames: MentionKinds;
+  usernames: MentionMembers;
   canUnpin: boolean;
   onOpen: () => void;
   onUnpin: () => void;

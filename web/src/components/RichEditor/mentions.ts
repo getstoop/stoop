@@ -2,7 +2,7 @@ import type { Node } from "prosemirror-model";
 import { Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import {
-  type MentionKinds,
+  type MentionMembers,
   mentionClass,
   splitMentions,
 } from "../../api/mentions";
@@ -12,13 +12,13 @@ import { schema } from "./schema";
 // names a member as the pill the message will show.
 
 export interface MentionContext {
-  kinds: MentionKinds;
+  members: MentionMembers;
   // Whether @channel and @here are ours to use here.
   channelAndHere: boolean;
 }
 
 export const NO_MENTIONS: MentionContext = {
-  kinds: new Map(),
+  members: new Map(),
   channelAndHere: false,
 };
 
@@ -26,7 +26,7 @@ export const mentionsKey = new PluginKey<DecorationSet>("mentions");
 
 export function mentionDecorations(
   doc: Node,
-  { kinds, channelAndHere }: MentionContext,
+  { members, channelAndHere }: MentionContext,
 ): DecorationSet {
   const decos: Decoration[] = [];
   doc.descendants((node, pos) => {
@@ -36,14 +36,14 @@ export function mentionDecorations(
     let at = pos;
     for (const part of splitMentions(
       node.text,
-      kinds,
+      members,
       channelAndHere,
       channelAndHere,
     )) {
       if (part.mention) {
         decos.push(
           Decoration.inline(at, at + part.text.length, {
-            class: mentionClass(part.mention, kinds),
+            class: mentionClass(part.mention, members),
           }),
         );
       }

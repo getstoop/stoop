@@ -8,6 +8,7 @@ import {
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
+import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { activeFormats, formatCommands, newLine } from "./commands";
 import { checkLink, linkAround, linkDraft, saveLink } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
@@ -324,14 +325,14 @@ describe("links", () => {
 });
 
 describe("mentions", () => {
-  const kinds = new Map([
-    ["casey", IdentityKind.PERSON],
-    ["uptime", IdentityKind.BOT],
+  const members = new Map([
+    ["casey", { kind: IdentityKind.PERSON } as Member],
+    ["uptime", { kind: IdentityKind.BOT } as Member],
   ]);
 
   const drawn = (markdown: string, channelAndHere = false) => {
     const state = stateOf(markdown);
-    return mentionDecorations(state.doc, { kinds, channelAndHere })
+    return mentionDecorations(state.doc, { members, channelAndHere })
       .find()
       .map((d) => ({
         text: state.doc.textBetween(d.from, d.to),

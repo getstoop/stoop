@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode, useState } from "react";
+import { splitEmoji } from "../api/emojiText";
 import {
   type Block,
   type Inline,
@@ -6,7 +7,7 @@ import {
   parseMarkdown,
 } from "../api/markdown";
 import {
-  type MentionKinds,
+  type MentionMembers,
   mentionClass,
   splitMentions,
 } from "../api/mentions";
@@ -21,38 +22,70 @@ export function MessageBody({
   mentionsHere,
   myUsername,
   highlight,
+  onMention,
 }: {
   content: string;
-  usernames: MentionKinds;
+  usernames: MentionMembers;
   mentionsEntireChannel: boolean;
   mentionsHere: boolean;
   myUsername?: string;
   highlight?: RegExp | null;
+  // Opens a mentioned member's card. Not inside a link or a spoiler,
+  // whose click is their own.
+  onMention?: (userId: string, anchor: DOMRect) => void;
 }) {
   const me = myUsername?.toLowerCase();
-  const text = (s: string): ReactNode =>
+  const text = (s: string, inControl: boolean): ReactNode =>
     splitMentions(s, usernames, mentionsEntireChannel, mentionsHere).map(
-      (part, i) =>
-        part.mention ? (
-          <span
+      (part, i) => {
+        if (!part.mention) {
+          return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+            <Fragment key={i}>
+              {splitEmoji(part.text).map((run, j) =>
+                run.emoji ? (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+                  <span key={j} className="emoji">
+                    {run.text}
+                  </span>
+                ) : (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+                  <Fragment key={j}>{marked(run.text, highlight)}</Fragment>
+                ),
+              )}
+            </Fragment>
+          );
+        }
+        const className = mentionClass(part.mention, usernames, me);
+        const member = usernames.get(part.mention);
+        return onMention && member && !inControl ? (
+          <button
             // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
             key={i}
-            className={mentionClass(part.mention, usernames, me)}
+            type="button"
+            className={className}
+            onClick={(e) => {
+              e.stopPropagation();
+              onMention(member.userId, e.currentTarget.getBoundingClientRect());
+            }}
           >
             {part.text}
-          </span>
+          </button>
         ) : (
           // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-          <Fragment key={i}>{marked(part.text, highlight)}</Fragment>
-        ),
+          <span key={i} className={className}>
+            {part.text}
+          </span>
+        );
+      },
     );
 
-  const inline = (nodes: Inline[]): ReactNode =>
+  const inline = (nodes: Inline[], inControl = false): ReactNode =>
     nodes.map((n, i) => {
       const key = i;
       switch (n.type) {
         case "text":
-          return <Fragment key={key}>{text(n.text)}</Fragment>;
+          return <Fragment key={key}>{text(n.text, inControl)}</Fragment>;
         case "code":
           return (
             <code key={key} className="md-code">
@@ -70,19 +103,19 @@ export function MessageBody({
               // Words can say anything; the address is one hover away.
               title={n.label ? n.href : undefined}
             >
-              {n.label ? inline(n.label) : n.href}
+              {n.label ? inline(n.label, true) : n.href}
             </a>
           );
         case "bold":
-          return <strong key={key}>{inline(n.children)}</strong>;
+          return <strong key={key}>{inline(n.children, inControl)}</strong>;
         case "italic":
-          return <em key={key}>{inline(n.children)}</em>;
+          return <em key={key}>{inline(n.children, inControl)}</em>;
         case "underline":
-          return <u key={key}>{inline(n.children)}</u>;
+          return <u key={key}>{inline(n.children, inControl)}</u>;
         case "strike":
-          return <s key={key}>{inline(n.children)}</s>;
+          return <s key={key}>{inline(n.children, inControl)}</s>;
         case "spoiler":
-          return <Spoiler key={key}>{inline(n.children)}</Spoiler>;
+          return <Spoiler key={key}>{inline(n.children, true)}</Spoiler>;
         default:
           return null;
       }
