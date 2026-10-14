@@ -57,6 +57,7 @@ message ServerEvent {
     ThreadRead thread_read = 36;
     ChannelMemberChanged channel_member_joined = 37;
     ChannelMemberChanged channel_member_left = 38;
+    GroupsChanged groups_changed = 39;
   }
 }
 
@@ -332,6 +333,12 @@ message MemberRemoved {
 // space.my_role is not meaningful in a broadcast; clients refetch.
 message SpaceUpdated {
   stoop.chat.v1.Space space = 1;
+}
+
+// GroupsChanged is broadcast to the space when a group is created,
+// changed or deleted; clients refetch the space's groups.
+message GroupsChanged {
+  string space_id = 1;
 }
 
 // SpaceDeleted is broadcast to the space; the gateway drops every

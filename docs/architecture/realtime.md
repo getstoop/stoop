@@ -236,6 +236,7 @@ the server side.
 | 14 | `member_role_changed` | space | |
 | 15 | `member_removed` | space | Kick, leave, or ban. |
 | 28 | `member_updated` | space | A member's profile or avatar changed; refetch them. |
+| 39 | `groups_changed` | space | A group was created, changed or deleted; refetch the space's groups. |
 | 19 | `activity_item_created` | user | |
 | 21 | `presence_changed` | space | Online, offline, or do not disturb turning on or off, including when it ends on its own. |
 | 22 | `user_typing` | space / user | |

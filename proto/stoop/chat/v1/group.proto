@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package stoop.chat.v1;
+
+// Group is a set of a space's members that @@handle mentions all at once,
+// in the space's public channels. See docs/architecture/messaging.md.
+message Group {
+  string id = 1;
+  string space_id = 2;
+  // What people type after @@: 3-32 of a-z, 0-9 and _, unique in the space.
+  string handle = 3;
+  // What people read: 1-50 characters.
+  string name = 4;
+  repeated string user_ids = 5;
+}

@@ -1685,6 +1685,398 @@ func (x *ListBansResponse) GetBans() []*Ban {
 	return nil
 }
 
+type ListGroupsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListGroupsRequest) Reset() {
+	*x = ListGroupsRequest{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListGroupsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListGroupsRequest) ProtoMessage() {}
+
+func (x *ListGroupsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListGroupsRequest.ProtoReflect.Descriptor instead.
+func (*ListGroupsRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ListGroupsRequest) GetSpaceId() string {
+	if x != nil {
+		return x.SpaceId
+	}
+	return ""
+}
+
+type ListGroupsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Groups        []*Group               `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListGroupsResponse) Reset() {
+	*x = ListGroupsResponse{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListGroupsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListGroupsResponse) ProtoMessage() {}
+
+func (x *ListGroupsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListGroupsResponse.ProtoReflect.Descriptor instead.
+func (*ListGroupsResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ListGroupsResponse) GetGroups() []*Group {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+type CreateGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	Handle        string                 `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	UserIds       []string               `protobuf:"bytes,4,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateGroupRequest) Reset() {
+	*x = CreateGroupRequest{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateGroupRequest) ProtoMessage() {}
+
+func (x *CreateGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateGroupRequest.ProtoReflect.Descriptor instead.
+func (*CreateGroupRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *CreateGroupRequest) GetSpaceId() string {
+	if x != nil {
+		return x.SpaceId
+	}
+	return ""
+}
+
+func (x *CreateGroupRequest) GetHandle() string {
+	if x != nil {
+		return x.Handle
+	}
+	return ""
+}
+
+func (x *CreateGroupRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateGroupRequest) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type CreateGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Group         *Group                 `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateGroupResponse) Reset() {
+	*x = CreateGroupResponse{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateGroupResponse) ProtoMessage() {}
+
+func (x *CreateGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateGroupResponse.ProtoReflect.Descriptor instead.
+func (*CreateGroupResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *CreateGroupResponse) GetGroup() *Group {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+type UpdateGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	Handle        string                 `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	UserIds       []string               `protobuf:"bytes,4,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateGroupRequest) Reset() {
+	*x = UpdateGroupRequest{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateGroupRequest) ProtoMessage() {}
+
+func (x *UpdateGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateGroupRequest.ProtoReflect.Descriptor instead.
+func (*UpdateGroupRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *UpdateGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *UpdateGroupRequest) GetHandle() string {
+	if x != nil {
+		return x.Handle
+	}
+	return ""
+}
+
+func (x *UpdateGroupRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateGroupRequest) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type UpdateGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Group         *Group                 `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateGroupResponse) Reset() {
+	*x = UpdateGroupResponse{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateGroupResponse) ProtoMessage() {}
+
+func (x *UpdateGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateGroupResponse.ProtoReflect.Descriptor instead.
+func (*UpdateGroupResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *UpdateGroupResponse) GetGroup() *Group {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+type DeleteGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteGroupRequest) Reset() {
+	*x = DeleteGroupRequest{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteGroupRequest) ProtoMessage() {}
+
+func (x *DeleteGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteGroupRequest.ProtoReflect.Descriptor instead.
+func (*DeleteGroupRequest) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *DeleteGroupRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+type DeleteGroupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteGroupResponse) Reset() {
+	*x = DeleteGroupResponse{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteGroupResponse) ProtoMessage() {}
+
+func (x *DeleteGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteGroupResponse.ProtoReflect.Descriptor instead.
+func (*DeleteGroupResponse) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{42}
+}
+
 type BlockUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1694,7 +2086,7 @@ type BlockUserRequest struct {
 
 func (x *BlockUserRequest) Reset() {
 	*x = BlockUserRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[35]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1706,7 +2098,7 @@ func (x *BlockUserRequest) String() string {
 func (*BlockUserRequest) ProtoMessage() {}
 
 func (x *BlockUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[35]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1719,7 +2111,7 @@ func (x *BlockUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockUserRequest.ProtoReflect.Descriptor instead.
 func (*BlockUserRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{35}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *BlockUserRequest) GetUserId() string {
@@ -1737,7 +2129,7 @@ type BlockUserResponse struct {
 
 func (x *BlockUserResponse) Reset() {
 	*x = BlockUserResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[36]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1749,7 +2141,7 @@ func (x *BlockUserResponse) String() string {
 func (*BlockUserResponse) ProtoMessage() {}
 
 func (x *BlockUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[36]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1762,7 +2154,7 @@ func (x *BlockUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockUserResponse.ProtoReflect.Descriptor instead.
 func (*BlockUserResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{36}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{44}
 }
 
 type UnblockUserRequest struct {
@@ -1774,7 +2166,7 @@ type UnblockUserRequest struct {
 
 func (x *UnblockUserRequest) Reset() {
 	*x = UnblockUserRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[37]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1786,7 +2178,7 @@ func (x *UnblockUserRequest) String() string {
 func (*UnblockUserRequest) ProtoMessage() {}
 
 func (x *UnblockUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[37]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1799,7 +2191,7 @@ func (x *UnblockUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnblockUserRequest.ProtoReflect.Descriptor instead.
 func (*UnblockUserRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{37}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UnblockUserRequest) GetUserId() string {
@@ -1817,7 +2209,7 @@ type UnblockUserResponse struct {
 
 func (x *UnblockUserResponse) Reset() {
 	*x = UnblockUserResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[38]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1829,7 +2221,7 @@ func (x *UnblockUserResponse) String() string {
 func (*UnblockUserResponse) ProtoMessage() {}
 
 func (x *UnblockUserResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[38]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1842,7 +2234,7 @@ func (x *UnblockUserResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnblockUserResponse.ProtoReflect.Descriptor instead.
 func (*UnblockUserResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{38}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{46}
 }
 
 type ListBlockedUsersRequest struct {
@@ -1853,7 +2245,7 @@ type ListBlockedUsersRequest struct {
 
 func (x *ListBlockedUsersRequest) Reset() {
 	*x = ListBlockedUsersRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[39]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1865,7 +2257,7 @@ func (x *ListBlockedUsersRequest) String() string {
 func (*ListBlockedUsersRequest) ProtoMessage() {}
 
 func (x *ListBlockedUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[39]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1878,7 +2270,7 @@ func (x *ListBlockedUsersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBlockedUsersRequest.ProtoReflect.Descriptor instead.
 func (*ListBlockedUsersRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{39}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{47}
 }
 
 type ListBlockedUsersResponse struct {
@@ -1890,7 +2282,7 @@ type ListBlockedUsersResponse struct {
 
 func (x *ListBlockedUsersResponse) Reset() {
 	*x = ListBlockedUsersResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[40]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1902,7 +2294,7 @@ func (x *ListBlockedUsersResponse) String() string {
 func (*ListBlockedUsersResponse) ProtoMessage() {}
 
 func (x *ListBlockedUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[40]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1915,7 +2307,7 @@ func (x *ListBlockedUsersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBlockedUsersResponse.ProtoReflect.Descriptor instead.
 func (*ListBlockedUsersResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{40}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ListBlockedUsersResponse) GetUsers() []*MessageAuthor {
@@ -1934,7 +2326,7 @@ type LeaveSpaceRequest struct {
 
 func (x *LeaveSpaceRequest) Reset() {
 	*x = LeaveSpaceRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[41]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1946,7 +2338,7 @@ func (x *LeaveSpaceRequest) String() string {
 func (*LeaveSpaceRequest) ProtoMessage() {}
 
 func (x *LeaveSpaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[41]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1959,7 +2351,7 @@ func (x *LeaveSpaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveSpaceRequest.ProtoReflect.Descriptor instead.
 func (*LeaveSpaceRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{41}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *LeaveSpaceRequest) GetSpaceId() string {
@@ -1977,7 +2369,7 @@ type LeaveSpaceResponse struct {
 
 func (x *LeaveSpaceResponse) Reset() {
 	*x = LeaveSpaceResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[42]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1989,7 +2381,7 @@ func (x *LeaveSpaceResponse) String() string {
 func (*LeaveSpaceResponse) ProtoMessage() {}
 
 func (x *LeaveSpaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[42]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2002,7 +2394,7 @@ func (x *LeaveSpaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveSpaceResponse.ProtoReflect.Descriptor instead.
 func (*LeaveSpaceResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{42}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{50}
 }
 
 type TransferOwnershipRequest struct {
@@ -2015,7 +2407,7 @@ type TransferOwnershipRequest struct {
 
 func (x *TransferOwnershipRequest) Reset() {
 	*x = TransferOwnershipRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[43]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2027,7 +2419,7 @@ func (x *TransferOwnershipRequest) String() string {
 func (*TransferOwnershipRequest) ProtoMessage() {}
 
 func (x *TransferOwnershipRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[43]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2040,7 +2432,7 @@ func (x *TransferOwnershipRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferOwnershipRequest.ProtoReflect.Descriptor instead.
 func (*TransferOwnershipRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{43}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *TransferOwnershipRequest) GetSpaceId() string {
@@ -2066,7 +2458,7 @@ type TransferOwnershipResponse struct {
 
 func (x *TransferOwnershipResponse) Reset() {
 	*x = TransferOwnershipResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[44]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2078,7 +2470,7 @@ func (x *TransferOwnershipResponse) String() string {
 func (*TransferOwnershipResponse) ProtoMessage() {}
 
 func (x *TransferOwnershipResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[44]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2091,7 +2483,7 @@ func (x *TransferOwnershipResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferOwnershipResponse.ProtoReflect.Descriptor instead.
 func (*TransferOwnershipResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{44}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *TransferOwnershipResponse) GetSpace() *Space {
@@ -2121,7 +2513,7 @@ type UpdateSpaceRequest struct {
 
 func (x *UpdateSpaceRequest) Reset() {
 	*x = UpdateSpaceRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[45]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2133,7 +2525,7 @@ func (x *UpdateSpaceRequest) String() string {
 func (*UpdateSpaceRequest) ProtoMessage() {}
 
 func (x *UpdateSpaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[45]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2146,7 +2538,7 @@ func (x *UpdateSpaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSpaceRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSpaceRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{45}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *UpdateSpaceRequest) GetSpaceId() string {
@@ -2207,7 +2599,7 @@ type UpdateSpaceResponse struct {
 
 func (x *UpdateSpaceResponse) Reset() {
 	*x = UpdateSpaceResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[46]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2219,7 +2611,7 @@ func (x *UpdateSpaceResponse) String() string {
 func (*UpdateSpaceResponse) ProtoMessage() {}
 
 func (x *UpdateSpaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[46]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2232,7 +2624,7 @@ func (x *UpdateSpaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSpaceResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSpaceResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{46}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *UpdateSpaceResponse) GetSpace() *Space {
@@ -2251,7 +2643,7 @@ type DeleteSpaceRequest struct {
 
 func (x *DeleteSpaceRequest) Reset() {
 	*x = DeleteSpaceRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[47]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2263,7 +2655,7 @@ func (x *DeleteSpaceRequest) String() string {
 func (*DeleteSpaceRequest) ProtoMessage() {}
 
 func (x *DeleteSpaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[47]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2276,7 +2668,7 @@ func (x *DeleteSpaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSpaceRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSpaceRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{47}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *DeleteSpaceRequest) GetSpaceId() string {
@@ -2294,7 +2686,7 @@ type DeleteSpaceResponse struct {
 
 func (x *DeleteSpaceResponse) Reset() {
 	*x = DeleteSpaceResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[48]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2306,7 +2698,7 @@ func (x *DeleteSpaceResponse) String() string {
 func (*DeleteSpaceResponse) ProtoMessage() {}
 
 func (x *DeleteSpaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[48]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2319,7 +2711,7 @@ func (x *DeleteSpaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSpaceResponse.ProtoReflect.Descriptor instead.
 func (*DeleteSpaceResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{48}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{56}
 }
 
 type CreateInviteRequest struct {
@@ -2338,7 +2730,7 @@ type CreateInviteRequest struct {
 
 func (x *CreateInviteRequest) Reset() {
 	*x = CreateInviteRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[49]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2350,7 +2742,7 @@ func (x *CreateInviteRequest) String() string {
 func (*CreateInviteRequest) ProtoMessage() {}
 
 func (x *CreateInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[49]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2363,7 +2755,7 @@ func (x *CreateInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInviteRequest.ProtoReflect.Descriptor instead.
 func (*CreateInviteRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{49}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *CreateInviteRequest) GetSpaceId() string {
@@ -2403,7 +2795,7 @@ type CreateInviteResponse struct {
 
 func (x *CreateInviteResponse) Reset() {
 	*x = CreateInviteResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[50]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2415,7 +2807,7 @@ func (x *CreateInviteResponse) String() string {
 func (*CreateInviteResponse) ProtoMessage() {}
 
 func (x *CreateInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[50]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2428,7 +2820,7 @@ func (x *CreateInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInviteResponse.ProtoReflect.Descriptor instead.
 func (*CreateInviteResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{50}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *CreateInviteResponse) GetInvite() *Invite {
@@ -2447,7 +2839,7 @@ type ListInvitesRequest struct {
 
 func (x *ListInvitesRequest) Reset() {
 	*x = ListInvitesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[51]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2459,7 +2851,7 @@ func (x *ListInvitesRequest) String() string {
 func (*ListInvitesRequest) ProtoMessage() {}
 
 func (x *ListInvitesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[51]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2472,7 +2864,7 @@ func (x *ListInvitesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInvitesRequest.ProtoReflect.Descriptor instead.
 func (*ListInvitesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{51}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ListInvitesRequest) GetSpaceId() string {
@@ -2492,7 +2884,7 @@ type ListInvitesResponse struct {
 
 func (x *ListInvitesResponse) Reset() {
 	*x = ListInvitesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[52]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2504,7 +2896,7 @@ func (x *ListInvitesResponse) String() string {
 func (*ListInvitesResponse) ProtoMessage() {}
 
 func (x *ListInvitesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[52]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2517,7 +2909,7 @@ func (x *ListInvitesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListInvitesResponse.ProtoReflect.Descriptor instead.
 func (*ListInvitesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{52}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ListInvitesResponse) GetInvites() []*Invite {
@@ -2536,7 +2928,7 @@ type RevokeInviteRequest struct {
 
 func (x *RevokeInviteRequest) Reset() {
 	*x = RevokeInviteRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[53]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2548,7 +2940,7 @@ func (x *RevokeInviteRequest) String() string {
 func (*RevokeInviteRequest) ProtoMessage() {}
 
 func (x *RevokeInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[53]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2561,7 +2953,7 @@ func (x *RevokeInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeInviteRequest.ProtoReflect.Descriptor instead.
 func (*RevokeInviteRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{53}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *RevokeInviteRequest) GetInviteId() string {
@@ -2580,7 +2972,7 @@ type RevokeInviteResponse struct {
 
 func (x *RevokeInviteResponse) Reset() {
 	*x = RevokeInviteResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[54]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2592,7 +2984,7 @@ func (x *RevokeInviteResponse) String() string {
 func (*RevokeInviteResponse) ProtoMessage() {}
 
 func (x *RevokeInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[54]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2605,7 +2997,7 @@ func (x *RevokeInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeInviteResponse.ProtoReflect.Descriptor instead.
 func (*RevokeInviteResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{54}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *RevokeInviteResponse) GetInvite() *Invite {
@@ -2625,7 +3017,7 @@ type LookupInviteRequest struct {
 
 func (x *LookupInviteRequest) Reset() {
 	*x = LookupInviteRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[55]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2637,7 +3029,7 @@ func (x *LookupInviteRequest) String() string {
 func (*LookupInviteRequest) ProtoMessage() {}
 
 func (x *LookupInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[55]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2650,7 +3042,7 @@ func (x *LookupInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LookupInviteRequest.ProtoReflect.Descriptor instead.
 func (*LookupInviteRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{55}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *LookupInviteRequest) GetCode() string {
@@ -2669,7 +3061,7 @@ type LookupInviteResponse struct {
 
 func (x *LookupInviteResponse) Reset() {
 	*x = LookupInviteResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[56]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2681,7 +3073,7 @@ func (x *LookupInviteResponse) String() string {
 func (*LookupInviteResponse) ProtoMessage() {}
 
 func (x *LookupInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[56]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2694,7 +3086,7 @@ func (x *LookupInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LookupInviteResponse.ProtoReflect.Descriptor instead.
 func (*LookupInviteResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{56}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *LookupInviteResponse) GetPreview() *InvitePreview {
@@ -2717,7 +3109,7 @@ type CreateChannelRequest struct {
 
 func (x *CreateChannelRequest) Reset() {
 	*x = CreateChannelRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[57]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2729,7 +3121,7 @@ func (x *CreateChannelRequest) String() string {
 func (*CreateChannelRequest) ProtoMessage() {}
 
 func (x *CreateChannelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[57]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2742,7 +3134,7 @@ func (x *CreateChannelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateChannelRequest.ProtoReflect.Descriptor instead.
 func (*CreateChannelRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{57}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *CreateChannelRequest) GetSpaceId() string {
@@ -2782,7 +3174,7 @@ type CreateChannelResponse struct {
 
 func (x *CreateChannelResponse) Reset() {
 	*x = CreateChannelResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[58]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2794,7 +3186,7 @@ func (x *CreateChannelResponse) String() string {
 func (*CreateChannelResponse) ProtoMessage() {}
 
 func (x *CreateChannelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[58]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2807,7 +3199,7 @@ func (x *CreateChannelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateChannelResponse.ProtoReflect.Descriptor instead.
 func (*CreateChannelResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{58}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *CreateChannelResponse) GetChannel() *Channel {
@@ -2827,7 +3219,7 @@ type SetChannelMutedRequest struct {
 
 func (x *SetChannelMutedRequest) Reset() {
 	*x = SetChannelMutedRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[59]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2839,7 +3231,7 @@ func (x *SetChannelMutedRequest) String() string {
 func (*SetChannelMutedRequest) ProtoMessage() {}
 
 func (x *SetChannelMutedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[59]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2852,7 +3244,7 @@ func (x *SetChannelMutedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetChannelMutedRequest.ProtoReflect.Descriptor instead.
 func (*SetChannelMutedRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{59}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *SetChannelMutedRequest) GetChannelId() string {
@@ -2878,7 +3270,7 @@ type SetChannelMutedResponse struct {
 
 func (x *SetChannelMutedResponse) Reset() {
 	*x = SetChannelMutedResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[60]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2890,7 +3282,7 @@ func (x *SetChannelMutedResponse) String() string {
 func (*SetChannelMutedResponse) ProtoMessage() {}
 
 func (x *SetChannelMutedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[60]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2903,7 +3295,7 @@ func (x *SetChannelMutedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetChannelMutedResponse.ProtoReflect.Descriptor instead.
 func (*SetChannelMutedResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{60}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *SetChannelMutedResponse) GetChannel() *Channel {
@@ -2923,7 +3315,7 @@ type SetSpaceMutedRequest struct {
 
 func (x *SetSpaceMutedRequest) Reset() {
 	*x = SetSpaceMutedRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[61]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2935,7 +3327,7 @@ func (x *SetSpaceMutedRequest) String() string {
 func (*SetSpaceMutedRequest) ProtoMessage() {}
 
 func (x *SetSpaceMutedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[61]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2948,7 +3340,7 @@ func (x *SetSpaceMutedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSpaceMutedRequest.ProtoReflect.Descriptor instead.
 func (*SetSpaceMutedRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{61}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *SetSpaceMutedRequest) GetSpaceId() string {
@@ -2974,7 +3366,7 @@ type SetSpaceMutedResponse struct {
 
 func (x *SetSpaceMutedResponse) Reset() {
 	*x = SetSpaceMutedResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[62]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2986,7 +3378,7 @@ func (x *SetSpaceMutedResponse) String() string {
 func (*SetSpaceMutedResponse) ProtoMessage() {}
 
 func (x *SetSpaceMutedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[62]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2999,7 +3391,7 @@ func (x *SetSpaceMutedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSpaceMutedResponse.ProtoReflect.Descriptor instead.
 func (*SetSpaceMutedResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{62}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *SetSpaceMutedResponse) GetSpace() *Space {
@@ -3020,7 +3412,7 @@ type SetThreadMutedRequest struct {
 
 func (x *SetThreadMutedRequest) Reset() {
 	*x = SetThreadMutedRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[63]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3032,7 +3424,7 @@ func (x *SetThreadMutedRequest) String() string {
 func (*SetThreadMutedRequest) ProtoMessage() {}
 
 func (x *SetThreadMutedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[63]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3045,7 +3437,7 @@ func (x *SetThreadMutedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetThreadMutedRequest.ProtoReflect.Descriptor instead.
 func (*SetThreadMutedRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{63}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *SetThreadMutedRequest) GetMessageId() string {
@@ -3070,7 +3462,7 @@ type SetThreadMutedResponse struct {
 
 func (x *SetThreadMutedResponse) Reset() {
 	*x = SetThreadMutedResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[64]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3082,7 +3474,7 @@ func (x *SetThreadMutedResponse) String() string {
 func (*SetThreadMutedResponse) ProtoMessage() {}
 
 func (x *SetThreadMutedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[64]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3095,7 +3487,7 @@ func (x *SetThreadMutedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetThreadMutedResponse.ProtoReflect.Descriptor instead.
 func (*SetThreadMutedResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{64}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{72}
 }
 
 type ListThreadMutesRequest struct {
@@ -3106,7 +3498,7 @@ type ListThreadMutesRequest struct {
 
 func (x *ListThreadMutesRequest) Reset() {
 	*x = ListThreadMutesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[65]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3118,7 +3510,7 @@ func (x *ListThreadMutesRequest) String() string {
 func (*ListThreadMutesRequest) ProtoMessage() {}
 
 func (x *ListThreadMutesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[65]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3131,7 +3523,7 @@ func (x *ListThreadMutesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListThreadMutesRequest.ProtoReflect.Descriptor instead.
 func (*ListThreadMutesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{65}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{73}
 }
 
 type ListThreadMutesResponse struct {
@@ -3143,7 +3535,7 @@ type ListThreadMutesResponse struct {
 
 func (x *ListThreadMutesResponse) Reset() {
 	*x = ListThreadMutesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[66]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3155,7 +3547,7 @@ func (x *ListThreadMutesResponse) String() string {
 func (*ListThreadMutesResponse) ProtoMessage() {}
 
 func (x *ListThreadMutesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[66]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3168,7 +3560,7 @@ func (x *ListThreadMutesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListThreadMutesResponse.ProtoReflect.Descriptor instead.
 func (*ListThreadMutesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{66}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ListThreadMutesResponse) GetThreads() []*MutedThread {
@@ -3192,7 +3584,7 @@ type MutedThread struct {
 
 func (x *MutedThread) Reset() {
 	*x = MutedThread{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[67]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3204,7 +3596,7 @@ func (x *MutedThread) String() string {
 func (*MutedThread) ProtoMessage() {}
 
 func (x *MutedThread) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[67]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3217,7 +3609,7 @@ func (x *MutedThread) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MutedThread.ProtoReflect.Descriptor instead.
 func (*MutedThread) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{67}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *MutedThread) GetSpaceId() string {
@@ -3250,7 +3642,7 @@ type ListChannelsRequest struct {
 
 func (x *ListChannelsRequest) Reset() {
 	*x = ListChannelsRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[68]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3262,7 +3654,7 @@ func (x *ListChannelsRequest) String() string {
 func (*ListChannelsRequest) ProtoMessage() {}
 
 func (x *ListChannelsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[68]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3275,7 +3667,7 @@ func (x *ListChannelsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListChannelsRequest.ProtoReflect.Descriptor instead.
 func (*ListChannelsRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{68}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *ListChannelsRequest) GetSpaceId() string {
@@ -3294,7 +3686,7 @@ type ListAllChannelsRequest struct {
 
 func (x *ListAllChannelsRequest) Reset() {
 	*x = ListAllChannelsRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[69]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3306,7 +3698,7 @@ func (x *ListAllChannelsRequest) String() string {
 func (*ListAllChannelsRequest) ProtoMessage() {}
 
 func (x *ListAllChannelsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[69]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3319,7 +3711,7 @@ func (x *ListAllChannelsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAllChannelsRequest.ProtoReflect.Descriptor instead.
 func (*ListAllChannelsRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{69}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *ListAllChannelsRequest) GetSpaceId() string {
@@ -3338,7 +3730,7 @@ type ListAllChannelsResponse struct {
 
 func (x *ListAllChannelsResponse) Reset() {
 	*x = ListAllChannelsResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[70]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3350,7 +3742,7 @@ func (x *ListAllChannelsResponse) String() string {
 func (*ListAllChannelsResponse) ProtoMessage() {}
 
 func (x *ListAllChannelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[70]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3363,7 +3755,7 @@ func (x *ListAllChannelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAllChannelsResponse.ProtoReflect.Descriptor instead.
 func (*ListAllChannelsResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{70}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *ListAllChannelsResponse) GetChannels() []*ManagedChannel {
@@ -3388,7 +3780,7 @@ type ManagedChannel struct {
 
 func (x *ManagedChannel) Reset() {
 	*x = ManagedChannel{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[71]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3400,7 +3792,7 @@ func (x *ManagedChannel) String() string {
 func (*ManagedChannel) ProtoMessage() {}
 
 func (x *ManagedChannel) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[71]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3413,7 +3805,7 @@ func (x *ManagedChannel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagedChannel.ProtoReflect.Descriptor instead.
 func (*ManagedChannel) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{71}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *ManagedChannel) GetChannel() *Channel {
@@ -3446,7 +3838,7 @@ type ListChannelMembersRequest struct {
 
 func (x *ListChannelMembersRequest) Reset() {
 	*x = ListChannelMembersRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[72]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3458,7 +3850,7 @@ func (x *ListChannelMembersRequest) String() string {
 func (*ListChannelMembersRequest) ProtoMessage() {}
 
 func (x *ListChannelMembersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[72]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3471,7 +3863,7 @@ func (x *ListChannelMembersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListChannelMembersRequest.ProtoReflect.Descriptor instead.
 func (*ListChannelMembersRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{72}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *ListChannelMembersRequest) GetChannelId() string {
@@ -3491,7 +3883,7 @@ type ListChannelMembersResponse struct {
 
 func (x *ListChannelMembersResponse) Reset() {
 	*x = ListChannelMembersResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[73]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3503,7 +3895,7 @@ func (x *ListChannelMembersResponse) String() string {
 func (*ListChannelMembersResponse) ProtoMessage() {}
 
 func (x *ListChannelMembersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[73]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3516,7 +3908,7 @@ func (x *ListChannelMembersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListChannelMembersResponse.ProtoReflect.Descriptor instead.
 func (*ListChannelMembersResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{73}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *ListChannelMembersResponse) GetUserIds() []string {
@@ -3536,7 +3928,7 @@ type AddChannelMembersRequest struct {
 
 func (x *AddChannelMembersRequest) Reset() {
 	*x = AddChannelMembersRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[74]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3548,7 +3940,7 @@ func (x *AddChannelMembersRequest) String() string {
 func (*AddChannelMembersRequest) ProtoMessage() {}
 
 func (x *AddChannelMembersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[74]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3561,7 +3953,7 @@ func (x *AddChannelMembersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddChannelMembersRequest.ProtoReflect.Descriptor instead.
 func (*AddChannelMembersRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{74}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *AddChannelMembersRequest) GetChannelId() string {
@@ -3586,7 +3978,7 @@ type AddChannelMembersResponse struct {
 
 func (x *AddChannelMembersResponse) Reset() {
 	*x = AddChannelMembersResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[75]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3598,7 +3990,7 @@ func (x *AddChannelMembersResponse) String() string {
 func (*AddChannelMembersResponse) ProtoMessage() {}
 
 func (x *AddChannelMembersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[75]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3611,7 +4003,7 @@ func (x *AddChannelMembersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddChannelMembersResponse.ProtoReflect.Descriptor instead.
 func (*AddChannelMembersResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{75}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{83}
 }
 
 type RemoveChannelMemberRequest struct {
@@ -3624,7 +4016,7 @@ type RemoveChannelMemberRequest struct {
 
 func (x *RemoveChannelMemberRequest) Reset() {
 	*x = RemoveChannelMemberRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[76]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3636,7 +4028,7 @@ func (x *RemoveChannelMemberRequest) String() string {
 func (*RemoveChannelMemberRequest) ProtoMessage() {}
 
 func (x *RemoveChannelMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[76]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3649,7 +4041,7 @@ func (x *RemoveChannelMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveChannelMemberRequest.ProtoReflect.Descriptor instead.
 func (*RemoveChannelMemberRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{76}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *RemoveChannelMemberRequest) GetChannelId() string {
@@ -3674,7 +4066,7 @@ type RemoveChannelMemberResponse struct {
 
 func (x *RemoveChannelMemberResponse) Reset() {
 	*x = RemoveChannelMemberResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[77]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3686,7 +4078,7 @@ func (x *RemoveChannelMemberResponse) String() string {
 func (*RemoveChannelMemberResponse) ProtoMessage() {}
 
 func (x *RemoveChannelMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[77]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3699,7 +4091,7 @@ func (x *RemoveChannelMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveChannelMemberResponse.ProtoReflect.Descriptor instead.
 func (*RemoveChannelMemberResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{77}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{85}
 }
 
 type LeaveChannelRequest struct {
@@ -3711,7 +4103,7 @@ type LeaveChannelRequest struct {
 
 func (x *LeaveChannelRequest) Reset() {
 	*x = LeaveChannelRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[78]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3723,7 +4115,7 @@ func (x *LeaveChannelRequest) String() string {
 func (*LeaveChannelRequest) ProtoMessage() {}
 
 func (x *LeaveChannelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[78]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3736,7 +4128,7 @@ func (x *LeaveChannelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveChannelRequest.ProtoReflect.Descriptor instead.
 func (*LeaveChannelRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{78}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *LeaveChannelRequest) GetChannelId() string {
@@ -3754,7 +4146,7 @@ type LeaveChannelResponse struct {
 
 func (x *LeaveChannelResponse) Reset() {
 	*x = LeaveChannelResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[79]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3766,7 +4158,7 @@ func (x *LeaveChannelResponse) String() string {
 func (*LeaveChannelResponse) ProtoMessage() {}
 
 func (x *LeaveChannelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[79]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3779,7 +4171,7 @@ func (x *LeaveChannelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveChannelResponse.ProtoReflect.Descriptor instead.
 func (*LeaveChannelResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{79}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{87}
 }
 
 type ListChannelsResponse struct {
@@ -3791,7 +4183,7 @@ type ListChannelsResponse struct {
 
 func (x *ListChannelsResponse) Reset() {
 	*x = ListChannelsResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[80]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3803,7 +4195,7 @@ func (x *ListChannelsResponse) String() string {
 func (*ListChannelsResponse) ProtoMessage() {}
 
 func (x *ListChannelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[80]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3816,7 +4208,7 @@ func (x *ListChannelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListChannelsResponse.ProtoReflect.Descriptor instead.
 func (*ListChannelsResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{80}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ListChannelsResponse) GetChannels() []*Channel {
@@ -3840,7 +4232,7 @@ type UpdateChannelRequest struct {
 
 func (x *UpdateChannelRequest) Reset() {
 	*x = UpdateChannelRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[81]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3852,7 +4244,7 @@ func (x *UpdateChannelRequest) String() string {
 func (*UpdateChannelRequest) ProtoMessage() {}
 
 func (x *UpdateChannelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[81]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3865,7 +4257,7 @@ func (x *UpdateChannelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateChannelRequest.ProtoReflect.Descriptor instead.
 func (*UpdateChannelRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{81}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *UpdateChannelRequest) GetChannelId() string {
@@ -3905,7 +4297,7 @@ type UpdateChannelResponse struct {
 
 func (x *UpdateChannelResponse) Reset() {
 	*x = UpdateChannelResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[82]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3917,7 +4309,7 @@ func (x *UpdateChannelResponse) String() string {
 func (*UpdateChannelResponse) ProtoMessage() {}
 
 func (x *UpdateChannelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[82]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3930,7 +4322,7 @@ func (x *UpdateChannelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateChannelResponse.ProtoReflect.Descriptor instead.
 func (*UpdateChannelResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{82}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *UpdateChannelResponse) GetChannel() *Channel {
@@ -3949,7 +4341,7 @@ type DeleteChannelRequest struct {
 
 func (x *DeleteChannelRequest) Reset() {
 	*x = DeleteChannelRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[83]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3961,7 +4353,7 @@ func (x *DeleteChannelRequest) String() string {
 func (*DeleteChannelRequest) ProtoMessage() {}
 
 func (x *DeleteChannelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[83]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3974,7 +4366,7 @@ func (x *DeleteChannelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteChannelRequest.ProtoReflect.Descriptor instead.
 func (*DeleteChannelRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{83}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *DeleteChannelRequest) GetChannelId() string {
@@ -3992,7 +4384,7 @@ type DeleteChannelResponse struct {
 
 func (x *DeleteChannelResponse) Reset() {
 	*x = DeleteChannelResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[84]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4004,7 +4396,7 @@ func (x *DeleteChannelResponse) String() string {
 func (*DeleteChannelResponse) ProtoMessage() {}
 
 func (x *DeleteChannelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[84]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4017,7 +4409,7 @@ func (x *DeleteChannelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteChannelResponse.ProtoReflect.Descriptor instead.
 func (*DeleteChannelResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{84}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{92}
 }
 
 type ReorderChannelsRequest struct {
@@ -4031,7 +4423,7 @@ type ReorderChannelsRequest struct {
 
 func (x *ReorderChannelsRequest) Reset() {
 	*x = ReorderChannelsRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[85]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4043,7 +4435,7 @@ func (x *ReorderChannelsRequest) String() string {
 func (*ReorderChannelsRequest) ProtoMessage() {}
 
 func (x *ReorderChannelsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[85]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4056,7 +4448,7 @@ func (x *ReorderChannelsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReorderChannelsRequest.ProtoReflect.Descriptor instead.
 func (*ReorderChannelsRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{85}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *ReorderChannelsRequest) GetSpaceId() string {
@@ -4082,7 +4474,7 @@ type ReorderChannelsResponse struct {
 
 func (x *ReorderChannelsResponse) Reset() {
 	*x = ReorderChannelsResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[86]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4094,7 +4486,7 @@ func (x *ReorderChannelsResponse) String() string {
 func (*ReorderChannelsResponse) ProtoMessage() {}
 
 func (x *ReorderChannelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[86]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4107,7 +4499,7 @@ func (x *ReorderChannelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReorderChannelsResponse.ProtoReflect.Descriptor instead.
 func (*ReorderChannelsResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{86}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *ReorderChannelsResponse) GetChannels() []*Channel {
@@ -4140,7 +4532,7 @@ type SendMessageRequest struct {
 
 func (x *SendMessageRequest) Reset() {
 	*x = SendMessageRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[87]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4152,7 +4544,7 @@ func (x *SendMessageRequest) String() string {
 func (*SendMessageRequest) ProtoMessage() {}
 
 func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[87]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4165,7 +4557,7 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{87}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *SendMessageRequest) GetChannelId() string {
@@ -4219,7 +4611,7 @@ type SendMessageResponse struct {
 
 func (x *SendMessageResponse) Reset() {
 	*x = SendMessageResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[88]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4231,7 +4623,7 @@ func (x *SendMessageResponse) String() string {
 func (*SendMessageResponse) ProtoMessage() {}
 
 func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[88]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4244,7 +4636,7 @@ func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageResponse.ProtoReflect.Descriptor instead.
 func (*SendMessageResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{88}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *SendMessageResponse) GetMessage() *Message {
@@ -4264,7 +4656,7 @@ type EditMessageRequest struct {
 
 func (x *EditMessageRequest) Reset() {
 	*x = EditMessageRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[89]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4276,7 +4668,7 @@ func (x *EditMessageRequest) String() string {
 func (*EditMessageRequest) ProtoMessage() {}
 
 func (x *EditMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[89]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4289,7 +4681,7 @@ func (x *EditMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditMessageRequest.ProtoReflect.Descriptor instead.
 func (*EditMessageRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{89}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *EditMessageRequest) GetMessageId() string {
@@ -4315,7 +4707,7 @@ type EditMessageResponse struct {
 
 func (x *EditMessageResponse) Reset() {
 	*x = EditMessageResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[90]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4327,7 +4719,7 @@ func (x *EditMessageResponse) String() string {
 func (*EditMessageResponse) ProtoMessage() {}
 
 func (x *EditMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[90]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4340,7 +4732,7 @@ func (x *EditMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditMessageResponse.ProtoReflect.Descriptor instead.
 func (*EditMessageResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{90}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *EditMessageResponse) GetMessage() *Message {
@@ -4359,7 +4751,7 @@ type DeleteMessageRequest struct {
 
 func (x *DeleteMessageRequest) Reset() {
 	*x = DeleteMessageRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[91]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4371,7 +4763,7 @@ func (x *DeleteMessageRequest) String() string {
 func (*DeleteMessageRequest) ProtoMessage() {}
 
 func (x *DeleteMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[91]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4384,7 +4776,7 @@ func (x *DeleteMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMessageRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMessageRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{91}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *DeleteMessageRequest) GetMessageId() string {
@@ -4402,7 +4794,7 @@ type DeleteMessageResponse struct {
 
 func (x *DeleteMessageResponse) Reset() {
 	*x = DeleteMessageResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[92]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4414,7 +4806,7 @@ func (x *DeleteMessageResponse) String() string {
 func (*DeleteMessageResponse) ProtoMessage() {}
 
 func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[92]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4427,7 +4819,7 @@ func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMessageResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMessageResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{92}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{100}
 }
 
 type DeleteThreadRequest struct {
@@ -4440,7 +4832,7 @@ type DeleteThreadRequest struct {
 
 func (x *DeleteThreadRequest) Reset() {
 	*x = DeleteThreadRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[93]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4452,7 +4844,7 @@ func (x *DeleteThreadRequest) String() string {
 func (*DeleteThreadRequest) ProtoMessage() {}
 
 func (x *DeleteThreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[93]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4465,7 +4857,7 @@ func (x *DeleteThreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteThreadRequest.ProtoReflect.Descriptor instead.
 func (*DeleteThreadRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{93}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *DeleteThreadRequest) GetMessageId() string {
@@ -4483,7 +4875,7 @@ type DeleteThreadResponse struct {
 
 func (x *DeleteThreadResponse) Reset() {
 	*x = DeleteThreadResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[94]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4495,7 +4887,7 @@ func (x *DeleteThreadResponse) String() string {
 func (*DeleteThreadResponse) ProtoMessage() {}
 
 func (x *DeleteThreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[94]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4508,7 +4900,7 @@ func (x *DeleteThreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteThreadResponse.ProtoReflect.Descriptor instead.
 func (*DeleteThreadResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{94}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{102}
 }
 
 type ToggleReactionRequest struct {
@@ -4522,7 +4914,7 @@ type ToggleReactionRequest struct {
 
 func (x *ToggleReactionRequest) Reset() {
 	*x = ToggleReactionRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[95]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4534,7 +4926,7 @@ func (x *ToggleReactionRequest) String() string {
 func (*ToggleReactionRequest) ProtoMessage() {}
 
 func (x *ToggleReactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[95]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4547,7 +4939,7 @@ func (x *ToggleReactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToggleReactionRequest.ProtoReflect.Descriptor instead.
 func (*ToggleReactionRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{95}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *ToggleReactionRequest) GetMessageId() string {
@@ -4574,7 +4966,7 @@ type ToggleReactionResponse struct {
 
 func (x *ToggleReactionResponse) Reset() {
 	*x = ToggleReactionResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[96]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4586,7 +4978,7 @@ func (x *ToggleReactionResponse) String() string {
 func (*ToggleReactionResponse) ProtoMessage() {}
 
 func (x *ToggleReactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[96]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4599,7 +4991,7 @@ func (x *ToggleReactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToggleReactionResponse.ProtoReflect.Descriptor instead.
 func (*ToggleReactionResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{96}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *ToggleReactionResponse) GetMessage() *Message {
@@ -4634,7 +5026,7 @@ type ListMessagesRequest struct {
 
 func (x *ListMessagesRequest) Reset() {
 	*x = ListMessagesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[97]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4646,7 +5038,7 @@ func (x *ListMessagesRequest) String() string {
 func (*ListMessagesRequest) ProtoMessage() {}
 
 func (x *ListMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[97]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4659,7 +5051,7 @@ func (x *ListMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{97}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *ListMessagesRequest) GetChannelId() string {
@@ -4722,7 +5114,7 @@ type ListMessagesResponse struct {
 
 func (x *ListMessagesResponse) Reset() {
 	*x = ListMessagesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[98]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4734,7 +5126,7 @@ func (x *ListMessagesResponse) String() string {
 func (*ListMessagesResponse) ProtoMessage() {}
 
 func (x *ListMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[98]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4747,7 +5139,7 @@ func (x *ListMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ListMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{98}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *ListMessagesResponse) GetMessages() []*Message {
@@ -4804,7 +5196,7 @@ type SearchMessagesRequest struct {
 
 func (x *SearchMessagesRequest) Reset() {
 	*x = SearchMessagesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[99]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4816,7 +5208,7 @@ func (x *SearchMessagesRequest) String() string {
 func (*SearchMessagesRequest) ProtoMessage() {}
 
 func (x *SearchMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[99]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4829,7 +5221,7 @@ func (x *SearchMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchMessagesRequest.ProtoReflect.Descriptor instead.
 func (*SearchMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{99}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *SearchMessagesRequest) GetScope() isSearchMessagesRequest_Scope {
@@ -4892,7 +5284,7 @@ type SearchMessagesResponse struct {
 
 func (x *SearchMessagesResponse) Reset() {
 	*x = SearchMessagesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[100]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4904,7 +5296,7 @@ func (x *SearchMessagesResponse) String() string {
 func (*SearchMessagesResponse) ProtoMessage() {}
 
 func (x *SearchMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[100]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4917,7 +5309,7 @@ func (x *SearchMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchMessagesResponse.ProtoReflect.Descriptor instead.
 func (*SearchMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{100}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *SearchMessagesResponse) GetMessages() []*Message {
@@ -4945,7 +5337,7 @@ type SetMessagePinnedRequest struct {
 
 func (x *SetMessagePinnedRequest) Reset() {
 	*x = SetMessagePinnedRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[101]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4957,7 +5349,7 @@ func (x *SetMessagePinnedRequest) String() string {
 func (*SetMessagePinnedRequest) ProtoMessage() {}
 
 func (x *SetMessagePinnedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[101]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4970,7 +5362,7 @@ func (x *SetMessagePinnedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMessagePinnedRequest.ProtoReflect.Descriptor instead.
 func (*SetMessagePinnedRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{101}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *SetMessagePinnedRequest) GetMessageId() string {
@@ -4997,7 +5389,7 @@ type SetMessagePinnedResponse struct {
 
 func (x *SetMessagePinnedResponse) Reset() {
 	*x = SetMessagePinnedResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[102]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5009,7 +5401,7 @@ func (x *SetMessagePinnedResponse) String() string {
 func (*SetMessagePinnedResponse) ProtoMessage() {}
 
 func (x *SetMessagePinnedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[102]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5022,7 +5414,7 @@ func (x *SetMessagePinnedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetMessagePinnedResponse.ProtoReflect.Descriptor instead.
 func (*SetMessagePinnedResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{102}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *SetMessagePinnedResponse) GetPin() *PinnedMessage {
@@ -5041,7 +5433,7 @@ type ListPinnedMessagesRequest struct {
 
 func (x *ListPinnedMessagesRequest) Reset() {
 	*x = ListPinnedMessagesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[103]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5053,7 +5445,7 @@ func (x *ListPinnedMessagesRequest) String() string {
 func (*ListPinnedMessagesRequest) ProtoMessage() {}
 
 func (x *ListPinnedMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[103]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5066,7 +5458,7 @@ func (x *ListPinnedMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinnedMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListPinnedMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{103}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *ListPinnedMessagesRequest) GetChannelId() string {
@@ -5086,7 +5478,7 @@ type ListPinnedMessagesResponse struct {
 
 func (x *ListPinnedMessagesResponse) Reset() {
 	*x = ListPinnedMessagesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[104]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5098,7 +5490,7 @@ func (x *ListPinnedMessagesResponse) String() string {
 func (*ListPinnedMessagesResponse) ProtoMessage() {}
 
 func (x *ListPinnedMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[104]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5111,7 +5503,7 @@ func (x *ListPinnedMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinnedMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ListPinnedMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{104}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *ListPinnedMessagesResponse) GetPins() []*PinnedMessage {
@@ -5139,7 +5531,7 @@ type DirectMessage struct {
 
 func (x *DirectMessage) Reset() {
 	*x = DirectMessage{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[105]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5151,7 +5543,7 @@ func (x *DirectMessage) String() string {
 func (*DirectMessage) ProtoMessage() {}
 
 func (x *DirectMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[105]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5164,7 +5556,7 @@ func (x *DirectMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirectMessage.ProtoReflect.Descriptor instead.
 func (*DirectMessage) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{105}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *DirectMessage) GetChannel() *Channel {
@@ -5198,7 +5590,7 @@ type OpenDirectMessageRequest struct {
 
 func (x *OpenDirectMessageRequest) Reset() {
 	*x = OpenDirectMessageRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[106]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5210,7 +5602,7 @@ func (x *OpenDirectMessageRequest) String() string {
 func (*OpenDirectMessageRequest) ProtoMessage() {}
 
 func (x *OpenDirectMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[106]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5223,7 +5615,7 @@ func (x *OpenDirectMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenDirectMessageRequest.ProtoReflect.Descriptor instead.
 func (*OpenDirectMessageRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{106}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *OpenDirectMessageRequest) GetUserIds() []string {
@@ -5242,7 +5634,7 @@ type OpenDirectMessageResponse struct {
 
 func (x *OpenDirectMessageResponse) Reset() {
 	*x = OpenDirectMessageResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[107]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5254,7 +5646,7 @@ func (x *OpenDirectMessageResponse) String() string {
 func (*OpenDirectMessageResponse) ProtoMessage() {}
 
 func (x *OpenDirectMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[107]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5267,7 +5659,7 @@ func (x *OpenDirectMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenDirectMessageResponse.ProtoReflect.Descriptor instead.
 func (*OpenDirectMessageResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{107}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *OpenDirectMessageResponse) GetDirectMessage() *DirectMessage {
@@ -5285,7 +5677,7 @@ type ListDirectMessagesRequest struct {
 
 func (x *ListDirectMessagesRequest) Reset() {
 	*x = ListDirectMessagesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[108]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5297,7 +5689,7 @@ func (x *ListDirectMessagesRequest) String() string {
 func (*ListDirectMessagesRequest) ProtoMessage() {}
 
 func (x *ListDirectMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[108]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5310,7 +5702,7 @@ func (x *ListDirectMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirectMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListDirectMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{108}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{116}
 }
 
 type ListDirectMessagesResponse struct {
@@ -5322,7 +5714,7 @@ type ListDirectMessagesResponse struct {
 
 func (x *ListDirectMessagesResponse) Reset() {
 	*x = ListDirectMessagesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[109]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5334,7 +5726,7 @@ func (x *ListDirectMessagesResponse) String() string {
 func (*ListDirectMessagesResponse) ProtoMessage() {}
 
 func (x *ListDirectMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[109]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5347,7 +5739,7 @@ func (x *ListDirectMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirectMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ListDirectMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{109}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *ListDirectMessagesResponse) GetDirectMessages() []*DirectMessage {
@@ -5367,7 +5759,7 @@ type SetDirectMessageClosedRequest struct {
 
 func (x *SetDirectMessageClosedRequest) Reset() {
 	*x = SetDirectMessageClosedRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[110]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5379,7 +5771,7 @@ func (x *SetDirectMessageClosedRequest) String() string {
 func (*SetDirectMessageClosedRequest) ProtoMessage() {}
 
 func (x *SetDirectMessageClosedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[110]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5392,7 +5784,7 @@ func (x *SetDirectMessageClosedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDirectMessageClosedRequest.ProtoReflect.Descriptor instead.
 func (*SetDirectMessageClosedRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{110}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *SetDirectMessageClosedRequest) GetChannelId() string {
@@ -5418,7 +5810,7 @@ type SetDirectMessageClosedResponse struct {
 
 func (x *SetDirectMessageClosedResponse) Reset() {
 	*x = SetDirectMessageClosedResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[111]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5430,7 +5822,7 @@ func (x *SetDirectMessageClosedResponse) String() string {
 func (*SetDirectMessageClosedResponse) ProtoMessage() {}
 
 func (x *SetDirectMessageClosedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[111]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5443,7 +5835,7 @@ func (x *SetDirectMessageClosedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDirectMessageClosedResponse.ProtoReflect.Descriptor instead.
 func (*SetDirectMessageClosedResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{111}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *SetDirectMessageClosedResponse) GetDirectMessage() *DirectMessage {
@@ -5461,7 +5853,7 @@ type ListDirectMessageCandidatesRequest struct {
 
 func (x *ListDirectMessageCandidatesRequest) Reset() {
 	*x = ListDirectMessageCandidatesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[112]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5473,7 +5865,7 @@ func (x *ListDirectMessageCandidatesRequest) String() string {
 func (*ListDirectMessageCandidatesRequest) ProtoMessage() {}
 
 func (x *ListDirectMessageCandidatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[112]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5486,7 +5878,7 @@ func (x *ListDirectMessageCandidatesRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ListDirectMessageCandidatesRequest.ProtoReflect.Descriptor instead.
 func (*ListDirectMessageCandidatesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{112}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{120}
 }
 
 type ListDirectMessageCandidatesResponse struct {
@@ -5498,7 +5890,7 @@ type ListDirectMessageCandidatesResponse struct {
 
 func (x *ListDirectMessageCandidatesResponse) Reset() {
 	*x = ListDirectMessageCandidatesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[113]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5510,7 +5902,7 @@ func (x *ListDirectMessageCandidatesResponse) String() string {
 func (*ListDirectMessageCandidatesResponse) ProtoMessage() {}
 
 func (x *ListDirectMessageCandidatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[113]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5523,7 +5915,7 @@ func (x *ListDirectMessageCandidatesResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ListDirectMessageCandidatesResponse.ProtoReflect.Descriptor instead.
 func (*ListDirectMessageCandidatesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{113}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *ListDirectMessageCandidatesResponse) GetUsers() []*MessageAuthor {
@@ -5537,7 +5929,7 @@ var File_stoop_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x18stoop/chat/v1/chat.proto\x12\rstoop.chat.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bstoop/chat/v1/channel.proto\x1a\x1astoop/chat/v1/invite.proto\x1a\x1astoop/chat/v1/member.proto\x1a\x1bstoop/chat/v1/message.proto\x1a\x17stoop/chat/v1/pin.proto\x1a\x1cstoop/chat/v1/activity.proto\x1a\x19stoop/chat/v1/space.proto\"(\n" +
+	"\x18stoop/chat/v1/chat.proto\x12\rstoop.chat.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bstoop/chat/v1/channel.proto\x1a\x19stoop/chat/v1/group.proto\x1a\x1astoop/chat/v1/invite.proto\x1a\x1astoop/chat/v1/member.proto\x1a\x1bstoop/chat/v1/message.proto\x1a\x17stoop/chat/v1/pin.proto\x1a\x1cstoop/chat/v1/activity.proto\x1a\x19stoop/chat/v1/space.proto\"(\n" +
 	"\x12CreateSpaceRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"\x82\x01\n" +
 	"\x13CreateSpaceResponse\x12*\n" +
@@ -5624,7 +6016,28 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\":\n" +
 	"\x10ListBansResponse\x12&\n" +
-	"\x04bans\x18\x01 \x03(\v2\x12.stoop.chat.v1.BanR\x04bans\"+\n" +
+	"\x04bans\x18\x01 \x03(\v2\x12.stoop.chat.v1.BanR\x04bans\".\n" +
+	"\x11ListGroupsRequest\x12\x19\n" +
+	"\bspace_id\x18\x01 \x01(\tR\aspaceId\"B\n" +
+	"\x12ListGroupsResponse\x12,\n" +
+	"\x06groups\x18\x01 \x03(\v2\x14.stoop.chat.v1.GroupR\x06groups\"v\n" +
+	"\x12CreateGroupRequest\x12\x19\n" +
+	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x16\n" +
+	"\x06handle\x18\x02 \x01(\tR\x06handle\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x19\n" +
+	"\buser_ids\x18\x04 \x03(\tR\auserIds\"A\n" +
+	"\x13CreateGroupResponse\x12*\n" +
+	"\x05group\x18\x01 \x01(\v2\x14.stoop.chat.v1.GroupR\x05group\"v\n" +
+	"\x12UpdateGroupRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x16\n" +
+	"\x06handle\x18\x02 \x01(\tR\x06handle\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x19\n" +
+	"\buser_ids\x18\x04 \x03(\tR\auserIds\"A\n" +
+	"\x13UpdateGroupResponse\x12*\n" +
+	"\x05group\x18\x01 \x01(\v2\x14.stoop.chat.v1.GroupR\x05group\"/\n" +
+	"\x12DeleteGroupRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\"\x15\n" +
+	"\x13DeleteGroupResponse\"+\n" +
 	"\x10BlockUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x13\n" +
 	"\x11BlockUserResponse\"-\n" +
@@ -5849,7 +6262,7 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\x0edirect_message\x18\x01 \x01(\v2\x1c.stoop.chat.v1.DirectMessageR\rdirectMessage\"$\n" +
 	"\"ListDirectMessageCandidatesRequest\"Y\n" +
 	"#ListDirectMessageCandidatesResponse\x122\n" +
-	"\x05users\x18\x01 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\x05users2\xea(\n" +
+	"\x05users\x18\x01 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\x05users2\xc7+\n" +
 	"\vChatService\x12V\n" +
 	"\vCreateSpace\x12!.stoop.chat.v1.CreateSpaceRequest\x1a\".stoop.chat.v1.CreateSpaceResponse\"\x00\x12S\n" +
 	"\n" +
@@ -5869,7 +6282,12 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\tAddMember\x12\x1f.stoop.chat.v1.AddMemberRequest\x1a .stoop.chat.v1.AddMemberResponse\"\x00\x12P\n" +
 	"\tBanMember\x12\x1f.stoop.chat.v1.BanMemberRequest\x1a .stoop.chat.v1.BanMemberResponse\"\x00\x12V\n" +
 	"\vUnbanMember\x12!.stoop.chat.v1.UnbanMemberRequest\x1a\".stoop.chat.v1.UnbanMemberResponse\"\x00\x12M\n" +
-	"\bListBans\x12\x1e.stoop.chat.v1.ListBansRequest\x1a\x1f.stoop.chat.v1.ListBansResponse\"\x00\x12P\n" +
+	"\bListBans\x12\x1e.stoop.chat.v1.ListBansRequest\x1a\x1f.stoop.chat.v1.ListBansResponse\"\x00\x12S\n" +
+	"\n" +
+	"ListGroups\x12 .stoop.chat.v1.ListGroupsRequest\x1a!.stoop.chat.v1.ListGroupsResponse\"\x00\x12V\n" +
+	"\vCreateGroup\x12!.stoop.chat.v1.CreateGroupRequest\x1a\".stoop.chat.v1.CreateGroupResponse\"\x00\x12V\n" +
+	"\vUpdateGroup\x12!.stoop.chat.v1.UpdateGroupRequest\x1a\".stoop.chat.v1.UpdateGroupResponse\"\x00\x12V\n" +
+	"\vDeleteGroup\x12!.stoop.chat.v1.DeleteGroupRequest\x1a\".stoop.chat.v1.DeleteGroupResponse\"\x00\x12P\n" +
 	"\tBlockUser\x12\x1f.stoop.chat.v1.BlockUserRequest\x1a .stoop.chat.v1.BlockUserResponse\"\x00\x12V\n" +
 	"\vUnblockUser\x12!.stoop.chat.v1.UnblockUserRequest\x1a\".stoop.chat.v1.UnblockUserResponse\"\x00\x12e\n" +
 	"\x10ListBlockedUsers\x12&.stoop.chat.v1.ListBlockedUsersRequest\x1a'.stoop.chat.v1.ListBlockedUsersResponse\"\x00\x12S\n" +
@@ -5923,7 +6341,7 @@ func file_stoop_chat_v1_chat_proto_rawDescGZIP() []byte {
 	return file_stoop_chat_v1_chat_proto_rawDescData
 }
 
-var file_stoop_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 114)
+var file_stoop_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 122)
 var file_stoop_chat_v1_chat_proto_goTypes = []any{
 	(*CreateSpaceRequest)(nil),                  // 0: stoop.chat.v1.CreateSpaceRequest
 	(*CreateSpaceResponse)(nil),                 // 1: stoop.chat.v1.CreateSpaceResponse
@@ -5960,266 +6378,286 @@ var file_stoop_chat_v1_chat_proto_goTypes = []any{
 	(*ListBansRequest)(nil),                     // 32: stoop.chat.v1.ListBansRequest
 	(*Ban)(nil),                                 // 33: stoop.chat.v1.Ban
 	(*ListBansResponse)(nil),                    // 34: stoop.chat.v1.ListBansResponse
-	(*BlockUserRequest)(nil),                    // 35: stoop.chat.v1.BlockUserRequest
-	(*BlockUserResponse)(nil),                   // 36: stoop.chat.v1.BlockUserResponse
-	(*UnblockUserRequest)(nil),                  // 37: stoop.chat.v1.UnblockUserRequest
-	(*UnblockUserResponse)(nil),                 // 38: stoop.chat.v1.UnblockUserResponse
-	(*ListBlockedUsersRequest)(nil),             // 39: stoop.chat.v1.ListBlockedUsersRequest
-	(*ListBlockedUsersResponse)(nil),            // 40: stoop.chat.v1.ListBlockedUsersResponse
-	(*LeaveSpaceRequest)(nil),                   // 41: stoop.chat.v1.LeaveSpaceRequest
-	(*LeaveSpaceResponse)(nil),                  // 42: stoop.chat.v1.LeaveSpaceResponse
-	(*TransferOwnershipRequest)(nil),            // 43: stoop.chat.v1.TransferOwnershipRequest
-	(*TransferOwnershipResponse)(nil),           // 44: stoop.chat.v1.TransferOwnershipResponse
-	(*UpdateSpaceRequest)(nil),                  // 45: stoop.chat.v1.UpdateSpaceRequest
-	(*UpdateSpaceResponse)(nil),                 // 46: stoop.chat.v1.UpdateSpaceResponse
-	(*DeleteSpaceRequest)(nil),                  // 47: stoop.chat.v1.DeleteSpaceRequest
-	(*DeleteSpaceResponse)(nil),                 // 48: stoop.chat.v1.DeleteSpaceResponse
-	(*CreateInviteRequest)(nil),                 // 49: stoop.chat.v1.CreateInviteRequest
-	(*CreateInviteResponse)(nil),                // 50: stoop.chat.v1.CreateInviteResponse
-	(*ListInvitesRequest)(nil),                  // 51: stoop.chat.v1.ListInvitesRequest
-	(*ListInvitesResponse)(nil),                 // 52: stoop.chat.v1.ListInvitesResponse
-	(*RevokeInviteRequest)(nil),                 // 53: stoop.chat.v1.RevokeInviteRequest
-	(*RevokeInviteResponse)(nil),                // 54: stoop.chat.v1.RevokeInviteResponse
-	(*LookupInviteRequest)(nil),                 // 55: stoop.chat.v1.LookupInviteRequest
-	(*LookupInviteResponse)(nil),                // 56: stoop.chat.v1.LookupInviteResponse
-	(*CreateChannelRequest)(nil),                // 57: stoop.chat.v1.CreateChannelRequest
-	(*CreateChannelResponse)(nil),               // 58: stoop.chat.v1.CreateChannelResponse
-	(*SetChannelMutedRequest)(nil),              // 59: stoop.chat.v1.SetChannelMutedRequest
-	(*SetChannelMutedResponse)(nil),             // 60: stoop.chat.v1.SetChannelMutedResponse
-	(*SetSpaceMutedRequest)(nil),                // 61: stoop.chat.v1.SetSpaceMutedRequest
-	(*SetSpaceMutedResponse)(nil),               // 62: stoop.chat.v1.SetSpaceMutedResponse
-	(*SetThreadMutedRequest)(nil),               // 63: stoop.chat.v1.SetThreadMutedRequest
-	(*SetThreadMutedResponse)(nil),              // 64: stoop.chat.v1.SetThreadMutedResponse
-	(*ListThreadMutesRequest)(nil),              // 65: stoop.chat.v1.ListThreadMutesRequest
-	(*ListThreadMutesResponse)(nil),             // 66: stoop.chat.v1.ListThreadMutesResponse
-	(*MutedThread)(nil),                         // 67: stoop.chat.v1.MutedThread
-	(*ListChannelsRequest)(nil),                 // 68: stoop.chat.v1.ListChannelsRequest
-	(*ListAllChannelsRequest)(nil),              // 69: stoop.chat.v1.ListAllChannelsRequest
-	(*ListAllChannelsResponse)(nil),             // 70: stoop.chat.v1.ListAllChannelsResponse
-	(*ManagedChannel)(nil),                      // 71: stoop.chat.v1.ManagedChannel
-	(*ListChannelMembersRequest)(nil),           // 72: stoop.chat.v1.ListChannelMembersRequest
-	(*ListChannelMembersResponse)(nil),          // 73: stoop.chat.v1.ListChannelMembersResponse
-	(*AddChannelMembersRequest)(nil),            // 74: stoop.chat.v1.AddChannelMembersRequest
-	(*AddChannelMembersResponse)(nil),           // 75: stoop.chat.v1.AddChannelMembersResponse
-	(*RemoveChannelMemberRequest)(nil),          // 76: stoop.chat.v1.RemoveChannelMemberRequest
-	(*RemoveChannelMemberResponse)(nil),         // 77: stoop.chat.v1.RemoveChannelMemberResponse
-	(*LeaveChannelRequest)(nil),                 // 78: stoop.chat.v1.LeaveChannelRequest
-	(*LeaveChannelResponse)(nil),                // 79: stoop.chat.v1.LeaveChannelResponse
-	(*ListChannelsResponse)(nil),                // 80: stoop.chat.v1.ListChannelsResponse
-	(*UpdateChannelRequest)(nil),                // 81: stoop.chat.v1.UpdateChannelRequest
-	(*UpdateChannelResponse)(nil),               // 82: stoop.chat.v1.UpdateChannelResponse
-	(*DeleteChannelRequest)(nil),                // 83: stoop.chat.v1.DeleteChannelRequest
-	(*DeleteChannelResponse)(nil),               // 84: stoop.chat.v1.DeleteChannelResponse
-	(*ReorderChannelsRequest)(nil),              // 85: stoop.chat.v1.ReorderChannelsRequest
-	(*ReorderChannelsResponse)(nil),             // 86: stoop.chat.v1.ReorderChannelsResponse
-	(*SendMessageRequest)(nil),                  // 87: stoop.chat.v1.SendMessageRequest
-	(*SendMessageResponse)(nil),                 // 88: stoop.chat.v1.SendMessageResponse
-	(*EditMessageRequest)(nil),                  // 89: stoop.chat.v1.EditMessageRequest
-	(*EditMessageResponse)(nil),                 // 90: stoop.chat.v1.EditMessageResponse
-	(*DeleteMessageRequest)(nil),                // 91: stoop.chat.v1.DeleteMessageRequest
-	(*DeleteMessageResponse)(nil),               // 92: stoop.chat.v1.DeleteMessageResponse
-	(*DeleteThreadRequest)(nil),                 // 93: stoop.chat.v1.DeleteThreadRequest
-	(*DeleteThreadResponse)(nil),                // 94: stoop.chat.v1.DeleteThreadResponse
-	(*ToggleReactionRequest)(nil),               // 95: stoop.chat.v1.ToggleReactionRequest
-	(*ToggleReactionResponse)(nil),              // 96: stoop.chat.v1.ToggleReactionResponse
-	(*ListMessagesRequest)(nil),                 // 97: stoop.chat.v1.ListMessagesRequest
-	(*ListMessagesResponse)(nil),                // 98: stoop.chat.v1.ListMessagesResponse
-	(*SearchMessagesRequest)(nil),               // 99: stoop.chat.v1.SearchMessagesRequest
-	(*SearchMessagesResponse)(nil),              // 100: stoop.chat.v1.SearchMessagesResponse
-	(*SetMessagePinnedRequest)(nil),             // 101: stoop.chat.v1.SetMessagePinnedRequest
-	(*SetMessagePinnedResponse)(nil),            // 102: stoop.chat.v1.SetMessagePinnedResponse
-	(*ListPinnedMessagesRequest)(nil),           // 103: stoop.chat.v1.ListPinnedMessagesRequest
-	(*ListPinnedMessagesResponse)(nil),          // 104: stoop.chat.v1.ListPinnedMessagesResponse
-	(*DirectMessage)(nil),                       // 105: stoop.chat.v1.DirectMessage
-	(*OpenDirectMessageRequest)(nil),            // 106: stoop.chat.v1.OpenDirectMessageRequest
-	(*OpenDirectMessageResponse)(nil),           // 107: stoop.chat.v1.OpenDirectMessageResponse
-	(*ListDirectMessagesRequest)(nil),           // 108: stoop.chat.v1.ListDirectMessagesRequest
-	(*ListDirectMessagesResponse)(nil),          // 109: stoop.chat.v1.ListDirectMessagesResponse
-	(*SetDirectMessageClosedRequest)(nil),       // 110: stoop.chat.v1.SetDirectMessageClosedRequest
-	(*SetDirectMessageClosedResponse)(nil),      // 111: stoop.chat.v1.SetDirectMessageClosedResponse
-	(*ListDirectMessageCandidatesRequest)(nil),  // 112: stoop.chat.v1.ListDirectMessageCandidatesRequest
-	(*ListDirectMessageCandidatesResponse)(nil), // 113: stoop.chat.v1.ListDirectMessageCandidatesResponse
-	(*Space)(nil),                               // 114: stoop.chat.v1.Space
-	(*Channel)(nil),                             // 115: stoop.chat.v1.Channel
-	(*SpaceSummary)(nil),                        // 116: stoop.chat.v1.SpaceSummary
-	(*Member)(nil),                              // 117: stoop.chat.v1.Member
-	(*ActivityItem)(nil),                        // 118: stoop.chat.v1.ActivityItem
-	(SpaceRole)(0),                              // 119: stoop.chat.v1.SpaceRole
-	(*MessageAuthor)(nil),                       // 120: stoop.chat.v1.MessageAuthor
-	(*timestamppb.Timestamp)(nil),               // 121: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),                 // 122: google.protobuf.Duration
-	(*Invite)(nil),                              // 123: stoop.chat.v1.Invite
-	(*InvitePreview)(nil),                       // 124: stoop.chat.v1.InvitePreview
-	(ChannelKind)(0),                            // 125: stoop.chat.v1.ChannelKind
-	(*Message)(nil),                             // 126: stoop.chat.v1.Message
-	(ChannelPostPolicy)(0),                      // 127: stoop.chat.v1.ChannelPostPolicy
-	(*PinnedMessage)(nil),                       // 128: stoop.chat.v1.PinnedMessage
+	(*ListGroupsRequest)(nil),                   // 35: stoop.chat.v1.ListGroupsRequest
+	(*ListGroupsResponse)(nil),                  // 36: stoop.chat.v1.ListGroupsResponse
+	(*CreateGroupRequest)(nil),                  // 37: stoop.chat.v1.CreateGroupRequest
+	(*CreateGroupResponse)(nil),                 // 38: stoop.chat.v1.CreateGroupResponse
+	(*UpdateGroupRequest)(nil),                  // 39: stoop.chat.v1.UpdateGroupRequest
+	(*UpdateGroupResponse)(nil),                 // 40: stoop.chat.v1.UpdateGroupResponse
+	(*DeleteGroupRequest)(nil),                  // 41: stoop.chat.v1.DeleteGroupRequest
+	(*DeleteGroupResponse)(nil),                 // 42: stoop.chat.v1.DeleteGroupResponse
+	(*BlockUserRequest)(nil),                    // 43: stoop.chat.v1.BlockUserRequest
+	(*BlockUserResponse)(nil),                   // 44: stoop.chat.v1.BlockUserResponse
+	(*UnblockUserRequest)(nil),                  // 45: stoop.chat.v1.UnblockUserRequest
+	(*UnblockUserResponse)(nil),                 // 46: stoop.chat.v1.UnblockUserResponse
+	(*ListBlockedUsersRequest)(nil),             // 47: stoop.chat.v1.ListBlockedUsersRequest
+	(*ListBlockedUsersResponse)(nil),            // 48: stoop.chat.v1.ListBlockedUsersResponse
+	(*LeaveSpaceRequest)(nil),                   // 49: stoop.chat.v1.LeaveSpaceRequest
+	(*LeaveSpaceResponse)(nil),                  // 50: stoop.chat.v1.LeaveSpaceResponse
+	(*TransferOwnershipRequest)(nil),            // 51: stoop.chat.v1.TransferOwnershipRequest
+	(*TransferOwnershipResponse)(nil),           // 52: stoop.chat.v1.TransferOwnershipResponse
+	(*UpdateSpaceRequest)(nil),                  // 53: stoop.chat.v1.UpdateSpaceRequest
+	(*UpdateSpaceResponse)(nil),                 // 54: stoop.chat.v1.UpdateSpaceResponse
+	(*DeleteSpaceRequest)(nil),                  // 55: stoop.chat.v1.DeleteSpaceRequest
+	(*DeleteSpaceResponse)(nil),                 // 56: stoop.chat.v1.DeleteSpaceResponse
+	(*CreateInviteRequest)(nil),                 // 57: stoop.chat.v1.CreateInviteRequest
+	(*CreateInviteResponse)(nil),                // 58: stoop.chat.v1.CreateInviteResponse
+	(*ListInvitesRequest)(nil),                  // 59: stoop.chat.v1.ListInvitesRequest
+	(*ListInvitesResponse)(nil),                 // 60: stoop.chat.v1.ListInvitesResponse
+	(*RevokeInviteRequest)(nil),                 // 61: stoop.chat.v1.RevokeInviteRequest
+	(*RevokeInviteResponse)(nil),                // 62: stoop.chat.v1.RevokeInviteResponse
+	(*LookupInviteRequest)(nil),                 // 63: stoop.chat.v1.LookupInviteRequest
+	(*LookupInviteResponse)(nil),                // 64: stoop.chat.v1.LookupInviteResponse
+	(*CreateChannelRequest)(nil),                // 65: stoop.chat.v1.CreateChannelRequest
+	(*CreateChannelResponse)(nil),               // 66: stoop.chat.v1.CreateChannelResponse
+	(*SetChannelMutedRequest)(nil),              // 67: stoop.chat.v1.SetChannelMutedRequest
+	(*SetChannelMutedResponse)(nil),             // 68: stoop.chat.v1.SetChannelMutedResponse
+	(*SetSpaceMutedRequest)(nil),                // 69: stoop.chat.v1.SetSpaceMutedRequest
+	(*SetSpaceMutedResponse)(nil),               // 70: stoop.chat.v1.SetSpaceMutedResponse
+	(*SetThreadMutedRequest)(nil),               // 71: stoop.chat.v1.SetThreadMutedRequest
+	(*SetThreadMutedResponse)(nil),              // 72: stoop.chat.v1.SetThreadMutedResponse
+	(*ListThreadMutesRequest)(nil),              // 73: stoop.chat.v1.ListThreadMutesRequest
+	(*ListThreadMutesResponse)(nil),             // 74: stoop.chat.v1.ListThreadMutesResponse
+	(*MutedThread)(nil),                         // 75: stoop.chat.v1.MutedThread
+	(*ListChannelsRequest)(nil),                 // 76: stoop.chat.v1.ListChannelsRequest
+	(*ListAllChannelsRequest)(nil),              // 77: stoop.chat.v1.ListAllChannelsRequest
+	(*ListAllChannelsResponse)(nil),             // 78: stoop.chat.v1.ListAllChannelsResponse
+	(*ManagedChannel)(nil),                      // 79: stoop.chat.v1.ManagedChannel
+	(*ListChannelMembersRequest)(nil),           // 80: stoop.chat.v1.ListChannelMembersRequest
+	(*ListChannelMembersResponse)(nil),          // 81: stoop.chat.v1.ListChannelMembersResponse
+	(*AddChannelMembersRequest)(nil),            // 82: stoop.chat.v1.AddChannelMembersRequest
+	(*AddChannelMembersResponse)(nil),           // 83: stoop.chat.v1.AddChannelMembersResponse
+	(*RemoveChannelMemberRequest)(nil),          // 84: stoop.chat.v1.RemoveChannelMemberRequest
+	(*RemoveChannelMemberResponse)(nil),         // 85: stoop.chat.v1.RemoveChannelMemberResponse
+	(*LeaveChannelRequest)(nil),                 // 86: stoop.chat.v1.LeaveChannelRequest
+	(*LeaveChannelResponse)(nil),                // 87: stoop.chat.v1.LeaveChannelResponse
+	(*ListChannelsResponse)(nil),                // 88: stoop.chat.v1.ListChannelsResponse
+	(*UpdateChannelRequest)(nil),                // 89: stoop.chat.v1.UpdateChannelRequest
+	(*UpdateChannelResponse)(nil),               // 90: stoop.chat.v1.UpdateChannelResponse
+	(*DeleteChannelRequest)(nil),                // 91: stoop.chat.v1.DeleteChannelRequest
+	(*DeleteChannelResponse)(nil),               // 92: stoop.chat.v1.DeleteChannelResponse
+	(*ReorderChannelsRequest)(nil),              // 93: stoop.chat.v1.ReorderChannelsRequest
+	(*ReorderChannelsResponse)(nil),             // 94: stoop.chat.v1.ReorderChannelsResponse
+	(*SendMessageRequest)(nil),                  // 95: stoop.chat.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),                 // 96: stoop.chat.v1.SendMessageResponse
+	(*EditMessageRequest)(nil),                  // 97: stoop.chat.v1.EditMessageRequest
+	(*EditMessageResponse)(nil),                 // 98: stoop.chat.v1.EditMessageResponse
+	(*DeleteMessageRequest)(nil),                // 99: stoop.chat.v1.DeleteMessageRequest
+	(*DeleteMessageResponse)(nil),               // 100: stoop.chat.v1.DeleteMessageResponse
+	(*DeleteThreadRequest)(nil),                 // 101: stoop.chat.v1.DeleteThreadRequest
+	(*DeleteThreadResponse)(nil),                // 102: stoop.chat.v1.DeleteThreadResponse
+	(*ToggleReactionRequest)(nil),               // 103: stoop.chat.v1.ToggleReactionRequest
+	(*ToggleReactionResponse)(nil),              // 104: stoop.chat.v1.ToggleReactionResponse
+	(*ListMessagesRequest)(nil),                 // 105: stoop.chat.v1.ListMessagesRequest
+	(*ListMessagesResponse)(nil),                // 106: stoop.chat.v1.ListMessagesResponse
+	(*SearchMessagesRequest)(nil),               // 107: stoop.chat.v1.SearchMessagesRequest
+	(*SearchMessagesResponse)(nil),              // 108: stoop.chat.v1.SearchMessagesResponse
+	(*SetMessagePinnedRequest)(nil),             // 109: stoop.chat.v1.SetMessagePinnedRequest
+	(*SetMessagePinnedResponse)(nil),            // 110: stoop.chat.v1.SetMessagePinnedResponse
+	(*ListPinnedMessagesRequest)(nil),           // 111: stoop.chat.v1.ListPinnedMessagesRequest
+	(*ListPinnedMessagesResponse)(nil),          // 112: stoop.chat.v1.ListPinnedMessagesResponse
+	(*DirectMessage)(nil),                       // 113: stoop.chat.v1.DirectMessage
+	(*OpenDirectMessageRequest)(nil),            // 114: stoop.chat.v1.OpenDirectMessageRequest
+	(*OpenDirectMessageResponse)(nil),           // 115: stoop.chat.v1.OpenDirectMessageResponse
+	(*ListDirectMessagesRequest)(nil),           // 116: stoop.chat.v1.ListDirectMessagesRequest
+	(*ListDirectMessagesResponse)(nil),          // 117: stoop.chat.v1.ListDirectMessagesResponse
+	(*SetDirectMessageClosedRequest)(nil),       // 118: stoop.chat.v1.SetDirectMessageClosedRequest
+	(*SetDirectMessageClosedResponse)(nil),      // 119: stoop.chat.v1.SetDirectMessageClosedResponse
+	(*ListDirectMessageCandidatesRequest)(nil),  // 120: stoop.chat.v1.ListDirectMessageCandidatesRequest
+	(*ListDirectMessageCandidatesResponse)(nil), // 121: stoop.chat.v1.ListDirectMessageCandidatesResponse
+	(*Space)(nil),                               // 122: stoop.chat.v1.Space
+	(*Channel)(nil),                             // 123: stoop.chat.v1.Channel
+	(*SpaceSummary)(nil),                        // 124: stoop.chat.v1.SpaceSummary
+	(*Member)(nil),                              // 125: stoop.chat.v1.Member
+	(*ActivityItem)(nil),                        // 126: stoop.chat.v1.ActivityItem
+	(SpaceRole)(0),                              // 127: stoop.chat.v1.SpaceRole
+	(*MessageAuthor)(nil),                       // 128: stoop.chat.v1.MessageAuthor
+	(*timestamppb.Timestamp)(nil),               // 129: google.protobuf.Timestamp
+	(*Group)(nil),                               // 130: stoop.chat.v1.Group
+	(*durationpb.Duration)(nil),                 // 131: google.protobuf.Duration
+	(*Invite)(nil),                              // 132: stoop.chat.v1.Invite
+	(*InvitePreview)(nil),                       // 133: stoop.chat.v1.InvitePreview
+	(ChannelKind)(0),                            // 134: stoop.chat.v1.ChannelKind
+	(*Message)(nil),                             // 135: stoop.chat.v1.Message
+	(ChannelPostPolicy)(0),                      // 136: stoop.chat.v1.ChannelPostPolicy
+	(*PinnedMessage)(nil),                       // 137: stoop.chat.v1.PinnedMessage
 }
 var file_stoop_chat_v1_chat_proto_depIdxs = []int32{
-	114, // 0: stoop.chat.v1.CreateSpaceResponse.space:type_name -> stoop.chat.v1.Space
-	115, // 1: stoop.chat.v1.CreateSpaceResponse.default_channel:type_name -> stoop.chat.v1.Channel
-	114, // 2: stoop.chat.v1.ListSpacesResponse.spaces:type_name -> stoop.chat.v1.Space
-	116, // 3: stoop.chat.v1.ListAllSpacesResponse.spaces:type_name -> stoop.chat.v1.SpaceSummary
-	114, // 4: stoop.chat.v1.GetSpaceResponse.space:type_name -> stoop.chat.v1.Space
-	114, // 5: stoop.chat.v1.JoinSpaceResponse.space:type_name -> stoop.chat.v1.Space
-	117, // 6: stoop.chat.v1.GetMemberResponse.member:type_name -> stoop.chat.v1.Member
-	118, // 7: stoop.chat.v1.ListActivityResponse.items:type_name -> stoop.chat.v1.ActivityItem
-	117, // 8: stoop.chat.v1.ListMembersResponse.members:type_name -> stoop.chat.v1.Member
-	119, // 9: stoop.chat.v1.SetMemberRoleRequest.role:type_name -> stoop.chat.v1.SpaceRole
-	117, // 10: stoop.chat.v1.SetMemberRoleResponse.member:type_name -> stoop.chat.v1.Member
-	114, // 11: stoop.chat.v1.AddMemberResponse.space:type_name -> stoop.chat.v1.Space
-	120, // 12: stoop.chat.v1.Ban.user:type_name -> stoop.chat.v1.MessageAuthor
-	121, // 13: stoop.chat.v1.Ban.created_at:type_name -> google.protobuf.Timestamp
+	122, // 0: stoop.chat.v1.CreateSpaceResponse.space:type_name -> stoop.chat.v1.Space
+	123, // 1: stoop.chat.v1.CreateSpaceResponse.default_channel:type_name -> stoop.chat.v1.Channel
+	122, // 2: stoop.chat.v1.ListSpacesResponse.spaces:type_name -> stoop.chat.v1.Space
+	124, // 3: stoop.chat.v1.ListAllSpacesResponse.spaces:type_name -> stoop.chat.v1.SpaceSummary
+	122, // 4: stoop.chat.v1.GetSpaceResponse.space:type_name -> stoop.chat.v1.Space
+	122, // 5: stoop.chat.v1.JoinSpaceResponse.space:type_name -> stoop.chat.v1.Space
+	125, // 6: stoop.chat.v1.GetMemberResponse.member:type_name -> stoop.chat.v1.Member
+	126, // 7: stoop.chat.v1.ListActivityResponse.items:type_name -> stoop.chat.v1.ActivityItem
+	125, // 8: stoop.chat.v1.ListMembersResponse.members:type_name -> stoop.chat.v1.Member
+	127, // 9: stoop.chat.v1.SetMemberRoleRequest.role:type_name -> stoop.chat.v1.SpaceRole
+	125, // 10: stoop.chat.v1.SetMemberRoleResponse.member:type_name -> stoop.chat.v1.Member
+	122, // 11: stoop.chat.v1.AddMemberResponse.space:type_name -> stoop.chat.v1.Space
+	128, // 12: stoop.chat.v1.Ban.user:type_name -> stoop.chat.v1.MessageAuthor
+	129, // 13: stoop.chat.v1.Ban.created_at:type_name -> google.protobuf.Timestamp
 	33,  // 14: stoop.chat.v1.ListBansResponse.bans:type_name -> stoop.chat.v1.Ban
-	120, // 15: stoop.chat.v1.ListBlockedUsersResponse.users:type_name -> stoop.chat.v1.MessageAuthor
-	114, // 16: stoop.chat.v1.TransferOwnershipResponse.space:type_name -> stoop.chat.v1.Space
-	114, // 17: stoop.chat.v1.UpdateSpaceResponse.space:type_name -> stoop.chat.v1.Space
-	122, // 18: stoop.chat.v1.CreateInviteRequest.expires_in:type_name -> google.protobuf.Duration
-	119, // 19: stoop.chat.v1.CreateInviteRequest.role:type_name -> stoop.chat.v1.SpaceRole
-	123, // 20: stoop.chat.v1.CreateInviteResponse.invite:type_name -> stoop.chat.v1.Invite
-	123, // 21: stoop.chat.v1.ListInvitesResponse.invites:type_name -> stoop.chat.v1.Invite
-	123, // 22: stoop.chat.v1.RevokeInviteResponse.invite:type_name -> stoop.chat.v1.Invite
-	124, // 23: stoop.chat.v1.LookupInviteResponse.preview:type_name -> stoop.chat.v1.InvitePreview
-	125, // 24: stoop.chat.v1.CreateChannelRequest.kind:type_name -> stoop.chat.v1.ChannelKind
-	115, // 25: stoop.chat.v1.CreateChannelResponse.channel:type_name -> stoop.chat.v1.Channel
-	115, // 26: stoop.chat.v1.SetChannelMutedResponse.channel:type_name -> stoop.chat.v1.Channel
-	114, // 27: stoop.chat.v1.SetSpaceMutedResponse.space:type_name -> stoop.chat.v1.Space
-	67,  // 28: stoop.chat.v1.ListThreadMutesResponse.threads:type_name -> stoop.chat.v1.MutedThread
-	126, // 29: stoop.chat.v1.MutedThread.root:type_name -> stoop.chat.v1.Message
-	71,  // 30: stoop.chat.v1.ListAllChannelsResponse.channels:type_name -> stoop.chat.v1.ManagedChannel
-	115, // 31: stoop.chat.v1.ManagedChannel.channel:type_name -> stoop.chat.v1.Channel
-	115, // 32: stoop.chat.v1.ListChannelsResponse.channels:type_name -> stoop.chat.v1.Channel
-	127, // 33: stoop.chat.v1.UpdateChannelRequest.post_policy:type_name -> stoop.chat.v1.ChannelPostPolicy
-	115, // 34: stoop.chat.v1.UpdateChannelResponse.channel:type_name -> stoop.chat.v1.Channel
-	115, // 35: stoop.chat.v1.ReorderChannelsResponse.channels:type_name -> stoop.chat.v1.Channel
-	126, // 36: stoop.chat.v1.SendMessageResponse.message:type_name -> stoop.chat.v1.Message
-	126, // 37: stoop.chat.v1.EditMessageResponse.message:type_name -> stoop.chat.v1.Message
-	126, // 38: stoop.chat.v1.ToggleReactionResponse.message:type_name -> stoop.chat.v1.Message
-	126, // 39: stoop.chat.v1.ListMessagesResponse.messages:type_name -> stoop.chat.v1.Message
-	126, // 40: stoop.chat.v1.SearchMessagesResponse.messages:type_name -> stoop.chat.v1.Message
-	128, // 41: stoop.chat.v1.SetMessagePinnedResponse.pin:type_name -> stoop.chat.v1.PinnedMessage
-	128, // 42: stoop.chat.v1.ListPinnedMessagesResponse.pins:type_name -> stoop.chat.v1.PinnedMessage
-	115, // 43: stoop.chat.v1.DirectMessage.channel:type_name -> stoop.chat.v1.Channel
-	120, // 44: stoop.chat.v1.DirectMessage.participants:type_name -> stoop.chat.v1.MessageAuthor
-	105, // 45: stoop.chat.v1.OpenDirectMessageResponse.direct_message:type_name -> stoop.chat.v1.DirectMessage
-	105, // 46: stoop.chat.v1.ListDirectMessagesResponse.direct_messages:type_name -> stoop.chat.v1.DirectMessage
-	105, // 47: stoop.chat.v1.SetDirectMessageClosedResponse.direct_message:type_name -> stoop.chat.v1.DirectMessage
-	120, // 48: stoop.chat.v1.ListDirectMessageCandidatesResponse.users:type_name -> stoop.chat.v1.MessageAuthor
-	0,   // 49: stoop.chat.v1.ChatService.CreateSpace:input_type -> stoop.chat.v1.CreateSpaceRequest
-	2,   // 50: stoop.chat.v1.ChatService.ListSpaces:input_type -> stoop.chat.v1.ListSpacesRequest
-	4,   // 51: stoop.chat.v1.ChatService.ListAllSpaces:input_type -> stoop.chat.v1.ListAllSpacesRequest
-	6,   // 52: stoop.chat.v1.ChatService.GetSpace:input_type -> stoop.chat.v1.GetSpaceRequest
-	8,   // 53: stoop.chat.v1.ChatService.JoinSpace:input_type -> stoop.chat.v1.JoinSpaceRequest
-	49,  // 54: stoop.chat.v1.ChatService.CreateInvite:input_type -> stoop.chat.v1.CreateInviteRequest
-	51,  // 55: stoop.chat.v1.ChatService.ListInvites:input_type -> stoop.chat.v1.ListInvitesRequest
-	53,  // 56: stoop.chat.v1.ChatService.RevokeInvite:input_type -> stoop.chat.v1.RevokeInviteRequest
-	55,  // 57: stoop.chat.v1.ChatService.LookupInvite:input_type -> stoop.chat.v1.LookupInviteRequest
-	10,  // 58: stoop.chat.v1.ChatService.GetMember:input_type -> stoop.chat.v1.GetMemberRequest
-	20,  // 59: stoop.chat.v1.ChatService.ListMembers:input_type -> stoop.chat.v1.ListMembersRequest
-	22,  // 60: stoop.chat.v1.ChatService.SetMemberRole:input_type -> stoop.chat.v1.SetMemberRoleRequest
-	24,  // 61: stoop.chat.v1.ChatService.KickMember:input_type -> stoop.chat.v1.KickMemberRequest
-	26,  // 62: stoop.chat.v1.ChatService.AddMember:input_type -> stoop.chat.v1.AddMemberRequest
-	28,  // 63: stoop.chat.v1.ChatService.BanMember:input_type -> stoop.chat.v1.BanMemberRequest
-	30,  // 64: stoop.chat.v1.ChatService.UnbanMember:input_type -> stoop.chat.v1.UnbanMemberRequest
-	32,  // 65: stoop.chat.v1.ChatService.ListBans:input_type -> stoop.chat.v1.ListBansRequest
-	35,  // 66: stoop.chat.v1.ChatService.BlockUser:input_type -> stoop.chat.v1.BlockUserRequest
-	37,  // 67: stoop.chat.v1.ChatService.UnblockUser:input_type -> stoop.chat.v1.UnblockUserRequest
-	39,  // 68: stoop.chat.v1.ChatService.ListBlockedUsers:input_type -> stoop.chat.v1.ListBlockedUsersRequest
-	41,  // 69: stoop.chat.v1.ChatService.LeaveSpace:input_type -> stoop.chat.v1.LeaveSpaceRequest
-	43,  // 70: stoop.chat.v1.ChatService.TransferOwnership:input_type -> stoop.chat.v1.TransferOwnershipRequest
-	45,  // 71: stoop.chat.v1.ChatService.UpdateSpace:input_type -> stoop.chat.v1.UpdateSpaceRequest
-	47,  // 72: stoop.chat.v1.ChatService.DeleteSpace:input_type -> stoop.chat.v1.DeleteSpaceRequest
-	57,  // 73: stoop.chat.v1.ChatService.CreateChannel:input_type -> stoop.chat.v1.CreateChannelRequest
-	68,  // 74: stoop.chat.v1.ChatService.ListChannels:input_type -> stoop.chat.v1.ListChannelsRequest
-	69,  // 75: stoop.chat.v1.ChatService.ListAllChannels:input_type -> stoop.chat.v1.ListAllChannelsRequest
-	72,  // 76: stoop.chat.v1.ChatService.ListChannelMembers:input_type -> stoop.chat.v1.ListChannelMembersRequest
-	74,  // 77: stoop.chat.v1.ChatService.AddChannelMembers:input_type -> stoop.chat.v1.AddChannelMembersRequest
-	76,  // 78: stoop.chat.v1.ChatService.RemoveChannelMember:input_type -> stoop.chat.v1.RemoveChannelMemberRequest
-	78,  // 79: stoop.chat.v1.ChatService.LeaveChannel:input_type -> stoop.chat.v1.LeaveChannelRequest
-	81,  // 80: stoop.chat.v1.ChatService.UpdateChannel:input_type -> stoop.chat.v1.UpdateChannelRequest
-	83,  // 81: stoop.chat.v1.ChatService.DeleteChannel:input_type -> stoop.chat.v1.DeleteChannelRequest
-	85,  // 82: stoop.chat.v1.ChatService.ReorderChannels:input_type -> stoop.chat.v1.ReorderChannelsRequest
-	59,  // 83: stoop.chat.v1.ChatService.SetChannelMuted:input_type -> stoop.chat.v1.SetChannelMutedRequest
-	61,  // 84: stoop.chat.v1.ChatService.SetSpaceMuted:input_type -> stoop.chat.v1.SetSpaceMutedRequest
-	63,  // 85: stoop.chat.v1.ChatService.SetThreadMuted:input_type -> stoop.chat.v1.SetThreadMutedRequest
-	65,  // 86: stoop.chat.v1.ChatService.ListThreadMutes:input_type -> stoop.chat.v1.ListThreadMutesRequest
-	87,  // 87: stoop.chat.v1.ChatService.SendMessage:input_type -> stoop.chat.v1.SendMessageRequest
-	97,  // 88: stoop.chat.v1.ChatService.ListMessages:input_type -> stoop.chat.v1.ListMessagesRequest
-	99,  // 89: stoop.chat.v1.ChatService.SearchMessages:input_type -> stoop.chat.v1.SearchMessagesRequest
-	101, // 90: stoop.chat.v1.ChatService.SetMessagePinned:input_type -> stoop.chat.v1.SetMessagePinnedRequest
-	103, // 91: stoop.chat.v1.ChatService.ListPinnedMessages:input_type -> stoop.chat.v1.ListPinnedMessagesRequest
-	89,  // 92: stoop.chat.v1.ChatService.EditMessage:input_type -> stoop.chat.v1.EditMessageRequest
-	91,  // 93: stoop.chat.v1.ChatService.DeleteMessage:input_type -> stoop.chat.v1.DeleteMessageRequest
-	93,  // 94: stoop.chat.v1.ChatService.DeleteThread:input_type -> stoop.chat.v1.DeleteThreadRequest
-	95,  // 95: stoop.chat.v1.ChatService.ToggleReaction:input_type -> stoop.chat.v1.ToggleReactionRequest
-	106, // 96: stoop.chat.v1.ChatService.OpenDirectMessage:input_type -> stoop.chat.v1.OpenDirectMessageRequest
-	108, // 97: stoop.chat.v1.ChatService.ListDirectMessages:input_type -> stoop.chat.v1.ListDirectMessagesRequest
-	110, // 98: stoop.chat.v1.ChatService.SetDirectMessageClosed:input_type -> stoop.chat.v1.SetDirectMessageClosedRequest
-	112, // 99: stoop.chat.v1.ChatService.ListDirectMessageCandidates:input_type -> stoop.chat.v1.ListDirectMessageCandidatesRequest
-	12,  // 100: stoop.chat.v1.ChatService.MarkChannelRead:input_type -> stoop.chat.v1.MarkChannelReadRequest
-	14,  // 101: stoop.chat.v1.ChatService.MarkThreadRead:input_type -> stoop.chat.v1.MarkThreadReadRequest
-	16,  // 102: stoop.chat.v1.ChatService.ListActivity:input_type -> stoop.chat.v1.ListActivityRequest
-	18,  // 103: stoop.chat.v1.ChatService.MarkActivityRead:input_type -> stoop.chat.v1.MarkActivityReadRequest
-	1,   // 104: stoop.chat.v1.ChatService.CreateSpace:output_type -> stoop.chat.v1.CreateSpaceResponse
-	3,   // 105: stoop.chat.v1.ChatService.ListSpaces:output_type -> stoop.chat.v1.ListSpacesResponse
-	5,   // 106: stoop.chat.v1.ChatService.ListAllSpaces:output_type -> stoop.chat.v1.ListAllSpacesResponse
-	7,   // 107: stoop.chat.v1.ChatService.GetSpace:output_type -> stoop.chat.v1.GetSpaceResponse
-	9,   // 108: stoop.chat.v1.ChatService.JoinSpace:output_type -> stoop.chat.v1.JoinSpaceResponse
-	50,  // 109: stoop.chat.v1.ChatService.CreateInvite:output_type -> stoop.chat.v1.CreateInviteResponse
-	52,  // 110: stoop.chat.v1.ChatService.ListInvites:output_type -> stoop.chat.v1.ListInvitesResponse
-	54,  // 111: stoop.chat.v1.ChatService.RevokeInvite:output_type -> stoop.chat.v1.RevokeInviteResponse
-	56,  // 112: stoop.chat.v1.ChatService.LookupInvite:output_type -> stoop.chat.v1.LookupInviteResponse
-	11,  // 113: stoop.chat.v1.ChatService.GetMember:output_type -> stoop.chat.v1.GetMemberResponse
-	21,  // 114: stoop.chat.v1.ChatService.ListMembers:output_type -> stoop.chat.v1.ListMembersResponse
-	23,  // 115: stoop.chat.v1.ChatService.SetMemberRole:output_type -> stoop.chat.v1.SetMemberRoleResponse
-	25,  // 116: stoop.chat.v1.ChatService.KickMember:output_type -> stoop.chat.v1.KickMemberResponse
-	27,  // 117: stoop.chat.v1.ChatService.AddMember:output_type -> stoop.chat.v1.AddMemberResponse
-	29,  // 118: stoop.chat.v1.ChatService.BanMember:output_type -> stoop.chat.v1.BanMemberResponse
-	31,  // 119: stoop.chat.v1.ChatService.UnbanMember:output_type -> stoop.chat.v1.UnbanMemberResponse
-	34,  // 120: stoop.chat.v1.ChatService.ListBans:output_type -> stoop.chat.v1.ListBansResponse
-	36,  // 121: stoop.chat.v1.ChatService.BlockUser:output_type -> stoop.chat.v1.BlockUserResponse
-	38,  // 122: stoop.chat.v1.ChatService.UnblockUser:output_type -> stoop.chat.v1.UnblockUserResponse
-	40,  // 123: stoop.chat.v1.ChatService.ListBlockedUsers:output_type -> stoop.chat.v1.ListBlockedUsersResponse
-	42,  // 124: stoop.chat.v1.ChatService.LeaveSpace:output_type -> stoop.chat.v1.LeaveSpaceResponse
-	44,  // 125: stoop.chat.v1.ChatService.TransferOwnership:output_type -> stoop.chat.v1.TransferOwnershipResponse
-	46,  // 126: stoop.chat.v1.ChatService.UpdateSpace:output_type -> stoop.chat.v1.UpdateSpaceResponse
-	48,  // 127: stoop.chat.v1.ChatService.DeleteSpace:output_type -> stoop.chat.v1.DeleteSpaceResponse
-	58,  // 128: stoop.chat.v1.ChatService.CreateChannel:output_type -> stoop.chat.v1.CreateChannelResponse
-	80,  // 129: stoop.chat.v1.ChatService.ListChannels:output_type -> stoop.chat.v1.ListChannelsResponse
-	70,  // 130: stoop.chat.v1.ChatService.ListAllChannels:output_type -> stoop.chat.v1.ListAllChannelsResponse
-	73,  // 131: stoop.chat.v1.ChatService.ListChannelMembers:output_type -> stoop.chat.v1.ListChannelMembersResponse
-	75,  // 132: stoop.chat.v1.ChatService.AddChannelMembers:output_type -> stoop.chat.v1.AddChannelMembersResponse
-	77,  // 133: stoop.chat.v1.ChatService.RemoveChannelMember:output_type -> stoop.chat.v1.RemoveChannelMemberResponse
-	79,  // 134: stoop.chat.v1.ChatService.LeaveChannel:output_type -> stoop.chat.v1.LeaveChannelResponse
-	82,  // 135: stoop.chat.v1.ChatService.UpdateChannel:output_type -> stoop.chat.v1.UpdateChannelResponse
-	84,  // 136: stoop.chat.v1.ChatService.DeleteChannel:output_type -> stoop.chat.v1.DeleteChannelResponse
-	86,  // 137: stoop.chat.v1.ChatService.ReorderChannels:output_type -> stoop.chat.v1.ReorderChannelsResponse
-	60,  // 138: stoop.chat.v1.ChatService.SetChannelMuted:output_type -> stoop.chat.v1.SetChannelMutedResponse
-	62,  // 139: stoop.chat.v1.ChatService.SetSpaceMuted:output_type -> stoop.chat.v1.SetSpaceMutedResponse
-	64,  // 140: stoop.chat.v1.ChatService.SetThreadMuted:output_type -> stoop.chat.v1.SetThreadMutedResponse
-	66,  // 141: stoop.chat.v1.ChatService.ListThreadMutes:output_type -> stoop.chat.v1.ListThreadMutesResponse
-	88,  // 142: stoop.chat.v1.ChatService.SendMessage:output_type -> stoop.chat.v1.SendMessageResponse
-	98,  // 143: stoop.chat.v1.ChatService.ListMessages:output_type -> stoop.chat.v1.ListMessagesResponse
-	100, // 144: stoop.chat.v1.ChatService.SearchMessages:output_type -> stoop.chat.v1.SearchMessagesResponse
-	102, // 145: stoop.chat.v1.ChatService.SetMessagePinned:output_type -> stoop.chat.v1.SetMessagePinnedResponse
-	104, // 146: stoop.chat.v1.ChatService.ListPinnedMessages:output_type -> stoop.chat.v1.ListPinnedMessagesResponse
-	90,  // 147: stoop.chat.v1.ChatService.EditMessage:output_type -> stoop.chat.v1.EditMessageResponse
-	92,  // 148: stoop.chat.v1.ChatService.DeleteMessage:output_type -> stoop.chat.v1.DeleteMessageResponse
-	94,  // 149: stoop.chat.v1.ChatService.DeleteThread:output_type -> stoop.chat.v1.DeleteThreadResponse
-	96,  // 150: stoop.chat.v1.ChatService.ToggleReaction:output_type -> stoop.chat.v1.ToggleReactionResponse
-	107, // 151: stoop.chat.v1.ChatService.OpenDirectMessage:output_type -> stoop.chat.v1.OpenDirectMessageResponse
-	109, // 152: stoop.chat.v1.ChatService.ListDirectMessages:output_type -> stoop.chat.v1.ListDirectMessagesResponse
-	111, // 153: stoop.chat.v1.ChatService.SetDirectMessageClosed:output_type -> stoop.chat.v1.SetDirectMessageClosedResponse
-	113, // 154: stoop.chat.v1.ChatService.ListDirectMessageCandidates:output_type -> stoop.chat.v1.ListDirectMessageCandidatesResponse
-	13,  // 155: stoop.chat.v1.ChatService.MarkChannelRead:output_type -> stoop.chat.v1.MarkChannelReadResponse
-	15,  // 156: stoop.chat.v1.ChatService.MarkThreadRead:output_type -> stoop.chat.v1.MarkThreadReadResponse
-	17,  // 157: stoop.chat.v1.ChatService.ListActivity:output_type -> stoop.chat.v1.ListActivityResponse
-	19,  // 158: stoop.chat.v1.ChatService.MarkActivityRead:output_type -> stoop.chat.v1.MarkActivityReadResponse
-	104, // [104:159] is the sub-list for method output_type
-	49,  // [49:104] is the sub-list for method input_type
-	49,  // [49:49] is the sub-list for extension type_name
-	49,  // [49:49] is the sub-list for extension extendee
-	0,   // [0:49] is the sub-list for field type_name
+	130, // 15: stoop.chat.v1.ListGroupsResponse.groups:type_name -> stoop.chat.v1.Group
+	130, // 16: stoop.chat.v1.CreateGroupResponse.group:type_name -> stoop.chat.v1.Group
+	130, // 17: stoop.chat.v1.UpdateGroupResponse.group:type_name -> stoop.chat.v1.Group
+	128, // 18: stoop.chat.v1.ListBlockedUsersResponse.users:type_name -> stoop.chat.v1.MessageAuthor
+	122, // 19: stoop.chat.v1.TransferOwnershipResponse.space:type_name -> stoop.chat.v1.Space
+	122, // 20: stoop.chat.v1.UpdateSpaceResponse.space:type_name -> stoop.chat.v1.Space
+	131, // 21: stoop.chat.v1.CreateInviteRequest.expires_in:type_name -> google.protobuf.Duration
+	127, // 22: stoop.chat.v1.CreateInviteRequest.role:type_name -> stoop.chat.v1.SpaceRole
+	132, // 23: stoop.chat.v1.CreateInviteResponse.invite:type_name -> stoop.chat.v1.Invite
+	132, // 24: stoop.chat.v1.ListInvitesResponse.invites:type_name -> stoop.chat.v1.Invite
+	132, // 25: stoop.chat.v1.RevokeInviteResponse.invite:type_name -> stoop.chat.v1.Invite
+	133, // 26: stoop.chat.v1.LookupInviteResponse.preview:type_name -> stoop.chat.v1.InvitePreview
+	134, // 27: stoop.chat.v1.CreateChannelRequest.kind:type_name -> stoop.chat.v1.ChannelKind
+	123, // 28: stoop.chat.v1.CreateChannelResponse.channel:type_name -> stoop.chat.v1.Channel
+	123, // 29: stoop.chat.v1.SetChannelMutedResponse.channel:type_name -> stoop.chat.v1.Channel
+	122, // 30: stoop.chat.v1.SetSpaceMutedResponse.space:type_name -> stoop.chat.v1.Space
+	75,  // 31: stoop.chat.v1.ListThreadMutesResponse.threads:type_name -> stoop.chat.v1.MutedThread
+	135, // 32: stoop.chat.v1.MutedThread.root:type_name -> stoop.chat.v1.Message
+	79,  // 33: stoop.chat.v1.ListAllChannelsResponse.channels:type_name -> stoop.chat.v1.ManagedChannel
+	123, // 34: stoop.chat.v1.ManagedChannel.channel:type_name -> stoop.chat.v1.Channel
+	123, // 35: stoop.chat.v1.ListChannelsResponse.channels:type_name -> stoop.chat.v1.Channel
+	136, // 36: stoop.chat.v1.UpdateChannelRequest.post_policy:type_name -> stoop.chat.v1.ChannelPostPolicy
+	123, // 37: stoop.chat.v1.UpdateChannelResponse.channel:type_name -> stoop.chat.v1.Channel
+	123, // 38: stoop.chat.v1.ReorderChannelsResponse.channels:type_name -> stoop.chat.v1.Channel
+	135, // 39: stoop.chat.v1.SendMessageResponse.message:type_name -> stoop.chat.v1.Message
+	135, // 40: stoop.chat.v1.EditMessageResponse.message:type_name -> stoop.chat.v1.Message
+	135, // 41: stoop.chat.v1.ToggleReactionResponse.message:type_name -> stoop.chat.v1.Message
+	135, // 42: stoop.chat.v1.ListMessagesResponse.messages:type_name -> stoop.chat.v1.Message
+	135, // 43: stoop.chat.v1.SearchMessagesResponse.messages:type_name -> stoop.chat.v1.Message
+	137, // 44: stoop.chat.v1.SetMessagePinnedResponse.pin:type_name -> stoop.chat.v1.PinnedMessage
+	137, // 45: stoop.chat.v1.ListPinnedMessagesResponse.pins:type_name -> stoop.chat.v1.PinnedMessage
+	123, // 46: stoop.chat.v1.DirectMessage.channel:type_name -> stoop.chat.v1.Channel
+	128, // 47: stoop.chat.v1.DirectMessage.participants:type_name -> stoop.chat.v1.MessageAuthor
+	113, // 48: stoop.chat.v1.OpenDirectMessageResponse.direct_message:type_name -> stoop.chat.v1.DirectMessage
+	113, // 49: stoop.chat.v1.ListDirectMessagesResponse.direct_messages:type_name -> stoop.chat.v1.DirectMessage
+	113, // 50: stoop.chat.v1.SetDirectMessageClosedResponse.direct_message:type_name -> stoop.chat.v1.DirectMessage
+	128, // 51: stoop.chat.v1.ListDirectMessageCandidatesResponse.users:type_name -> stoop.chat.v1.MessageAuthor
+	0,   // 52: stoop.chat.v1.ChatService.CreateSpace:input_type -> stoop.chat.v1.CreateSpaceRequest
+	2,   // 53: stoop.chat.v1.ChatService.ListSpaces:input_type -> stoop.chat.v1.ListSpacesRequest
+	4,   // 54: stoop.chat.v1.ChatService.ListAllSpaces:input_type -> stoop.chat.v1.ListAllSpacesRequest
+	6,   // 55: stoop.chat.v1.ChatService.GetSpace:input_type -> stoop.chat.v1.GetSpaceRequest
+	8,   // 56: stoop.chat.v1.ChatService.JoinSpace:input_type -> stoop.chat.v1.JoinSpaceRequest
+	57,  // 57: stoop.chat.v1.ChatService.CreateInvite:input_type -> stoop.chat.v1.CreateInviteRequest
+	59,  // 58: stoop.chat.v1.ChatService.ListInvites:input_type -> stoop.chat.v1.ListInvitesRequest
+	61,  // 59: stoop.chat.v1.ChatService.RevokeInvite:input_type -> stoop.chat.v1.RevokeInviteRequest
+	63,  // 60: stoop.chat.v1.ChatService.LookupInvite:input_type -> stoop.chat.v1.LookupInviteRequest
+	10,  // 61: stoop.chat.v1.ChatService.GetMember:input_type -> stoop.chat.v1.GetMemberRequest
+	20,  // 62: stoop.chat.v1.ChatService.ListMembers:input_type -> stoop.chat.v1.ListMembersRequest
+	22,  // 63: stoop.chat.v1.ChatService.SetMemberRole:input_type -> stoop.chat.v1.SetMemberRoleRequest
+	24,  // 64: stoop.chat.v1.ChatService.KickMember:input_type -> stoop.chat.v1.KickMemberRequest
+	26,  // 65: stoop.chat.v1.ChatService.AddMember:input_type -> stoop.chat.v1.AddMemberRequest
+	28,  // 66: stoop.chat.v1.ChatService.BanMember:input_type -> stoop.chat.v1.BanMemberRequest
+	30,  // 67: stoop.chat.v1.ChatService.UnbanMember:input_type -> stoop.chat.v1.UnbanMemberRequest
+	32,  // 68: stoop.chat.v1.ChatService.ListBans:input_type -> stoop.chat.v1.ListBansRequest
+	35,  // 69: stoop.chat.v1.ChatService.ListGroups:input_type -> stoop.chat.v1.ListGroupsRequest
+	37,  // 70: stoop.chat.v1.ChatService.CreateGroup:input_type -> stoop.chat.v1.CreateGroupRequest
+	39,  // 71: stoop.chat.v1.ChatService.UpdateGroup:input_type -> stoop.chat.v1.UpdateGroupRequest
+	41,  // 72: stoop.chat.v1.ChatService.DeleteGroup:input_type -> stoop.chat.v1.DeleteGroupRequest
+	43,  // 73: stoop.chat.v1.ChatService.BlockUser:input_type -> stoop.chat.v1.BlockUserRequest
+	45,  // 74: stoop.chat.v1.ChatService.UnblockUser:input_type -> stoop.chat.v1.UnblockUserRequest
+	47,  // 75: stoop.chat.v1.ChatService.ListBlockedUsers:input_type -> stoop.chat.v1.ListBlockedUsersRequest
+	49,  // 76: stoop.chat.v1.ChatService.LeaveSpace:input_type -> stoop.chat.v1.LeaveSpaceRequest
+	51,  // 77: stoop.chat.v1.ChatService.TransferOwnership:input_type -> stoop.chat.v1.TransferOwnershipRequest
+	53,  // 78: stoop.chat.v1.ChatService.UpdateSpace:input_type -> stoop.chat.v1.UpdateSpaceRequest
+	55,  // 79: stoop.chat.v1.ChatService.DeleteSpace:input_type -> stoop.chat.v1.DeleteSpaceRequest
+	65,  // 80: stoop.chat.v1.ChatService.CreateChannel:input_type -> stoop.chat.v1.CreateChannelRequest
+	76,  // 81: stoop.chat.v1.ChatService.ListChannels:input_type -> stoop.chat.v1.ListChannelsRequest
+	77,  // 82: stoop.chat.v1.ChatService.ListAllChannels:input_type -> stoop.chat.v1.ListAllChannelsRequest
+	80,  // 83: stoop.chat.v1.ChatService.ListChannelMembers:input_type -> stoop.chat.v1.ListChannelMembersRequest
+	82,  // 84: stoop.chat.v1.ChatService.AddChannelMembers:input_type -> stoop.chat.v1.AddChannelMembersRequest
+	84,  // 85: stoop.chat.v1.ChatService.RemoveChannelMember:input_type -> stoop.chat.v1.RemoveChannelMemberRequest
+	86,  // 86: stoop.chat.v1.ChatService.LeaveChannel:input_type -> stoop.chat.v1.LeaveChannelRequest
+	89,  // 87: stoop.chat.v1.ChatService.UpdateChannel:input_type -> stoop.chat.v1.UpdateChannelRequest
+	91,  // 88: stoop.chat.v1.ChatService.DeleteChannel:input_type -> stoop.chat.v1.DeleteChannelRequest
+	93,  // 89: stoop.chat.v1.ChatService.ReorderChannels:input_type -> stoop.chat.v1.ReorderChannelsRequest
+	67,  // 90: stoop.chat.v1.ChatService.SetChannelMuted:input_type -> stoop.chat.v1.SetChannelMutedRequest
+	69,  // 91: stoop.chat.v1.ChatService.SetSpaceMuted:input_type -> stoop.chat.v1.SetSpaceMutedRequest
+	71,  // 92: stoop.chat.v1.ChatService.SetThreadMuted:input_type -> stoop.chat.v1.SetThreadMutedRequest
+	73,  // 93: stoop.chat.v1.ChatService.ListThreadMutes:input_type -> stoop.chat.v1.ListThreadMutesRequest
+	95,  // 94: stoop.chat.v1.ChatService.SendMessage:input_type -> stoop.chat.v1.SendMessageRequest
+	105, // 95: stoop.chat.v1.ChatService.ListMessages:input_type -> stoop.chat.v1.ListMessagesRequest
+	107, // 96: stoop.chat.v1.ChatService.SearchMessages:input_type -> stoop.chat.v1.SearchMessagesRequest
+	109, // 97: stoop.chat.v1.ChatService.SetMessagePinned:input_type -> stoop.chat.v1.SetMessagePinnedRequest
+	111, // 98: stoop.chat.v1.ChatService.ListPinnedMessages:input_type -> stoop.chat.v1.ListPinnedMessagesRequest
+	97,  // 99: stoop.chat.v1.ChatService.EditMessage:input_type -> stoop.chat.v1.EditMessageRequest
+	99,  // 100: stoop.chat.v1.ChatService.DeleteMessage:input_type -> stoop.chat.v1.DeleteMessageRequest
+	101, // 101: stoop.chat.v1.ChatService.DeleteThread:input_type -> stoop.chat.v1.DeleteThreadRequest
+	103, // 102: stoop.chat.v1.ChatService.ToggleReaction:input_type -> stoop.chat.v1.ToggleReactionRequest
+	114, // 103: stoop.chat.v1.ChatService.OpenDirectMessage:input_type -> stoop.chat.v1.OpenDirectMessageRequest
+	116, // 104: stoop.chat.v1.ChatService.ListDirectMessages:input_type -> stoop.chat.v1.ListDirectMessagesRequest
+	118, // 105: stoop.chat.v1.ChatService.SetDirectMessageClosed:input_type -> stoop.chat.v1.SetDirectMessageClosedRequest
+	120, // 106: stoop.chat.v1.ChatService.ListDirectMessageCandidates:input_type -> stoop.chat.v1.ListDirectMessageCandidatesRequest
+	12,  // 107: stoop.chat.v1.ChatService.MarkChannelRead:input_type -> stoop.chat.v1.MarkChannelReadRequest
+	14,  // 108: stoop.chat.v1.ChatService.MarkThreadRead:input_type -> stoop.chat.v1.MarkThreadReadRequest
+	16,  // 109: stoop.chat.v1.ChatService.ListActivity:input_type -> stoop.chat.v1.ListActivityRequest
+	18,  // 110: stoop.chat.v1.ChatService.MarkActivityRead:input_type -> stoop.chat.v1.MarkActivityReadRequest
+	1,   // 111: stoop.chat.v1.ChatService.CreateSpace:output_type -> stoop.chat.v1.CreateSpaceResponse
+	3,   // 112: stoop.chat.v1.ChatService.ListSpaces:output_type -> stoop.chat.v1.ListSpacesResponse
+	5,   // 113: stoop.chat.v1.ChatService.ListAllSpaces:output_type -> stoop.chat.v1.ListAllSpacesResponse
+	7,   // 114: stoop.chat.v1.ChatService.GetSpace:output_type -> stoop.chat.v1.GetSpaceResponse
+	9,   // 115: stoop.chat.v1.ChatService.JoinSpace:output_type -> stoop.chat.v1.JoinSpaceResponse
+	58,  // 116: stoop.chat.v1.ChatService.CreateInvite:output_type -> stoop.chat.v1.CreateInviteResponse
+	60,  // 117: stoop.chat.v1.ChatService.ListInvites:output_type -> stoop.chat.v1.ListInvitesResponse
+	62,  // 118: stoop.chat.v1.ChatService.RevokeInvite:output_type -> stoop.chat.v1.RevokeInviteResponse
+	64,  // 119: stoop.chat.v1.ChatService.LookupInvite:output_type -> stoop.chat.v1.LookupInviteResponse
+	11,  // 120: stoop.chat.v1.ChatService.GetMember:output_type -> stoop.chat.v1.GetMemberResponse
+	21,  // 121: stoop.chat.v1.ChatService.ListMembers:output_type -> stoop.chat.v1.ListMembersResponse
+	23,  // 122: stoop.chat.v1.ChatService.SetMemberRole:output_type -> stoop.chat.v1.SetMemberRoleResponse
+	25,  // 123: stoop.chat.v1.ChatService.KickMember:output_type -> stoop.chat.v1.KickMemberResponse
+	27,  // 124: stoop.chat.v1.ChatService.AddMember:output_type -> stoop.chat.v1.AddMemberResponse
+	29,  // 125: stoop.chat.v1.ChatService.BanMember:output_type -> stoop.chat.v1.BanMemberResponse
+	31,  // 126: stoop.chat.v1.ChatService.UnbanMember:output_type -> stoop.chat.v1.UnbanMemberResponse
+	34,  // 127: stoop.chat.v1.ChatService.ListBans:output_type -> stoop.chat.v1.ListBansResponse
+	36,  // 128: stoop.chat.v1.ChatService.ListGroups:output_type -> stoop.chat.v1.ListGroupsResponse
+	38,  // 129: stoop.chat.v1.ChatService.CreateGroup:output_type -> stoop.chat.v1.CreateGroupResponse
+	40,  // 130: stoop.chat.v1.ChatService.UpdateGroup:output_type -> stoop.chat.v1.UpdateGroupResponse
+	42,  // 131: stoop.chat.v1.ChatService.DeleteGroup:output_type -> stoop.chat.v1.DeleteGroupResponse
+	44,  // 132: stoop.chat.v1.ChatService.BlockUser:output_type -> stoop.chat.v1.BlockUserResponse
+	46,  // 133: stoop.chat.v1.ChatService.UnblockUser:output_type -> stoop.chat.v1.UnblockUserResponse
+	48,  // 134: stoop.chat.v1.ChatService.ListBlockedUsers:output_type -> stoop.chat.v1.ListBlockedUsersResponse
+	50,  // 135: stoop.chat.v1.ChatService.LeaveSpace:output_type -> stoop.chat.v1.LeaveSpaceResponse
+	52,  // 136: stoop.chat.v1.ChatService.TransferOwnership:output_type -> stoop.chat.v1.TransferOwnershipResponse
+	54,  // 137: stoop.chat.v1.ChatService.UpdateSpace:output_type -> stoop.chat.v1.UpdateSpaceResponse
+	56,  // 138: stoop.chat.v1.ChatService.DeleteSpace:output_type -> stoop.chat.v1.DeleteSpaceResponse
+	66,  // 139: stoop.chat.v1.ChatService.CreateChannel:output_type -> stoop.chat.v1.CreateChannelResponse
+	88,  // 140: stoop.chat.v1.ChatService.ListChannels:output_type -> stoop.chat.v1.ListChannelsResponse
+	78,  // 141: stoop.chat.v1.ChatService.ListAllChannels:output_type -> stoop.chat.v1.ListAllChannelsResponse
+	81,  // 142: stoop.chat.v1.ChatService.ListChannelMembers:output_type -> stoop.chat.v1.ListChannelMembersResponse
+	83,  // 143: stoop.chat.v1.ChatService.AddChannelMembers:output_type -> stoop.chat.v1.AddChannelMembersResponse
+	85,  // 144: stoop.chat.v1.ChatService.RemoveChannelMember:output_type -> stoop.chat.v1.RemoveChannelMemberResponse
+	87,  // 145: stoop.chat.v1.ChatService.LeaveChannel:output_type -> stoop.chat.v1.LeaveChannelResponse
+	90,  // 146: stoop.chat.v1.ChatService.UpdateChannel:output_type -> stoop.chat.v1.UpdateChannelResponse
+	92,  // 147: stoop.chat.v1.ChatService.DeleteChannel:output_type -> stoop.chat.v1.DeleteChannelResponse
+	94,  // 148: stoop.chat.v1.ChatService.ReorderChannels:output_type -> stoop.chat.v1.ReorderChannelsResponse
+	68,  // 149: stoop.chat.v1.ChatService.SetChannelMuted:output_type -> stoop.chat.v1.SetChannelMutedResponse
+	70,  // 150: stoop.chat.v1.ChatService.SetSpaceMuted:output_type -> stoop.chat.v1.SetSpaceMutedResponse
+	72,  // 151: stoop.chat.v1.ChatService.SetThreadMuted:output_type -> stoop.chat.v1.SetThreadMutedResponse
+	74,  // 152: stoop.chat.v1.ChatService.ListThreadMutes:output_type -> stoop.chat.v1.ListThreadMutesResponse
+	96,  // 153: stoop.chat.v1.ChatService.SendMessage:output_type -> stoop.chat.v1.SendMessageResponse
+	106, // 154: stoop.chat.v1.ChatService.ListMessages:output_type -> stoop.chat.v1.ListMessagesResponse
+	108, // 155: stoop.chat.v1.ChatService.SearchMessages:output_type -> stoop.chat.v1.SearchMessagesResponse
+	110, // 156: stoop.chat.v1.ChatService.SetMessagePinned:output_type -> stoop.chat.v1.SetMessagePinnedResponse
+	112, // 157: stoop.chat.v1.ChatService.ListPinnedMessages:output_type -> stoop.chat.v1.ListPinnedMessagesResponse
+	98,  // 158: stoop.chat.v1.ChatService.EditMessage:output_type -> stoop.chat.v1.EditMessageResponse
+	100, // 159: stoop.chat.v1.ChatService.DeleteMessage:output_type -> stoop.chat.v1.DeleteMessageResponse
+	102, // 160: stoop.chat.v1.ChatService.DeleteThread:output_type -> stoop.chat.v1.DeleteThreadResponse
+	104, // 161: stoop.chat.v1.ChatService.ToggleReaction:output_type -> stoop.chat.v1.ToggleReactionResponse
+	115, // 162: stoop.chat.v1.ChatService.OpenDirectMessage:output_type -> stoop.chat.v1.OpenDirectMessageResponse
+	117, // 163: stoop.chat.v1.ChatService.ListDirectMessages:output_type -> stoop.chat.v1.ListDirectMessagesResponse
+	119, // 164: stoop.chat.v1.ChatService.SetDirectMessageClosed:output_type -> stoop.chat.v1.SetDirectMessageClosedResponse
+	121, // 165: stoop.chat.v1.ChatService.ListDirectMessageCandidates:output_type -> stoop.chat.v1.ListDirectMessageCandidatesResponse
+	13,  // 166: stoop.chat.v1.ChatService.MarkChannelRead:output_type -> stoop.chat.v1.MarkChannelReadResponse
+	15,  // 167: stoop.chat.v1.ChatService.MarkThreadRead:output_type -> stoop.chat.v1.MarkThreadReadResponse
+	17,  // 168: stoop.chat.v1.ChatService.ListActivity:output_type -> stoop.chat.v1.ListActivityResponse
+	19,  // 169: stoop.chat.v1.ChatService.MarkActivityRead:output_type -> stoop.chat.v1.MarkActivityReadResponse
+	111, // [111:170] is the sub-list for method output_type
+	52,  // [52:111] is the sub-list for method input_type
+	52,  // [52:52] is the sub-list for extension type_name
+	52,  // [52:52] is the sub-list for extension extendee
+	0,   // [0:52] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_chat_proto_init() }
@@ -6228,16 +6666,17 @@ func file_stoop_chat_v1_chat_proto_init() {
 		return
 	}
 	file_stoop_chat_v1_channel_proto_init()
+	file_stoop_chat_v1_group_proto_init()
 	file_stoop_chat_v1_invite_proto_init()
 	file_stoop_chat_v1_member_proto_init()
 	file_stoop_chat_v1_message_proto_init()
 	file_stoop_chat_v1_pin_proto_init()
 	file_stoop_chat_v1_activity_proto_init()
 	file_stoop_chat_v1_space_proto_init()
-	file_stoop_chat_v1_chat_proto_msgTypes[45].OneofWrappers = []any{}
-	file_stoop_chat_v1_chat_proto_msgTypes[49].OneofWrappers = []any{}
-	file_stoop_chat_v1_chat_proto_msgTypes[81].OneofWrappers = []any{}
-	file_stoop_chat_v1_chat_proto_msgTypes[99].OneofWrappers = []any{
+	file_stoop_chat_v1_chat_proto_msgTypes[53].OneofWrappers = []any{}
+	file_stoop_chat_v1_chat_proto_msgTypes[57].OneofWrappers = []any{}
+	file_stoop_chat_v1_chat_proto_msgTypes[89].OneofWrappers = []any{}
+	file_stoop_chat_v1_chat_proto_msgTypes[107].OneofWrappers = []any{
 		(*SearchMessagesRequest_SpaceId)(nil),
 	}
 	type x struct{}
@@ -6246,7 +6685,7 @@ func file_stoop_chat_v1_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_chat_v1_chat_proto_rawDesc), len(file_stoop_chat_v1_chat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   114,
+			NumMessages:   122,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -137,6 +137,11 @@ var procedures = map[string]authctx.Rule{
 	chatv1connect.ChatServiceUnbanMemberProcedure:   needs(authctx.MembersManage),
 	chatv1connect.ChatServiceListBansProcedure:      needs(authctx.MembersManage),
 
+	chatv1connect.ChatServiceListGroupsProcedure:  needs(authctx.SpaceRead),
+	chatv1connect.ChatServiceCreateGroupProcedure: needs(authctx.MembersManage),
+	chatv1connect.ChatServiceUpdateGroupProcedure: needs(authctx.MembersManage),
+	chatv1connect.ChatServiceDeleteGroupProcedure: needs(authctx.MembersManage),
+
 	chatv1connect.ChatServiceBlockUserProcedure:        needs(authctx.PreferencesManage),
 	chatv1connect.ChatServiceUnblockUserProcedure:      needs(authctx.PreferencesManage),
 	chatv1connect.ChatServiceListBlockedUsersProcedure: needs(authctx.PreferencesManage),

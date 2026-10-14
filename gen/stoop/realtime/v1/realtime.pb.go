@@ -62,6 +62,7 @@ type ServerEvent struct {
 	//	*ServerEvent_ThreadRead
 	//	*ServerEvent_ChannelMemberJoined
 	//	*ServerEvent_ChannelMemberLeft
+	//	*ServerEvent_GroupsChanged
 	Payload       isServerEvent_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -406,6 +407,15 @@ func (x *ServerEvent) GetChannelMemberLeft() *ChannelMemberChanged {
 	return nil
 }
 
+func (x *ServerEvent) GetGroupsChanged() *GroupsChanged {
+	if x != nil {
+		if x, ok := x.Payload.(*ServerEvent_GroupsChanged); ok {
+			return x.GroupsChanged
+		}
+	}
+	return nil
+}
+
 type isServerEvent_Payload interface {
 	isServerEvent_Payload()
 }
@@ -540,6 +550,10 @@ type ServerEvent_ChannelMemberLeft struct {
 	ChannelMemberLeft *ChannelMemberChanged `protobuf:"bytes,38,opt,name=channel_member_left,json=channelMemberLeft,proto3,oneof"`
 }
 
+type ServerEvent_GroupsChanged struct {
+	GroupsChanged *GroupsChanged `protobuf:"bytes,39,opt,name=groups_changed,json=groupsChanged,proto3,oneof"`
+}
+
 func (*ServerEvent_Ready) isServerEvent_Payload() {}
 
 func (*ServerEvent_Ping) isServerEvent_Payload() {}
@@ -603,6 +617,8 @@ func (*ServerEvent_ThreadRead) isServerEvent_Payload() {}
 func (*ServerEvent_ChannelMemberJoined) isServerEvent_Payload() {}
 
 func (*ServerEvent_ChannelMemberLeft) isServerEvent_Payload() {}
+
+func (*ServerEvent_GroupsChanged) isServerEvent_Payload() {}
 
 // ClientEvent is sent from the client to the server.
 type ClientEvent struct {
@@ -2585,6 +2601,52 @@ func (x *SpaceUpdated) GetSpace() *v1.Space {
 	return nil
 }
 
+// GroupsChanged is broadcast to the space when a group is created,
+// changed or deleted; clients refetch the space's groups.
+type GroupsChanged struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GroupsChanged) Reset() {
+	*x = GroupsChanged{}
+	mi := &file_stoop_realtime_v1_realtime_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupsChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupsChanged) ProtoMessage() {}
+
+func (x *GroupsChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_realtime_v1_realtime_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupsChanged.ProtoReflect.Descriptor instead.
+func (*GroupsChanged) Descriptor() ([]byte, []int) {
+	return file_stoop_realtime_v1_realtime_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GroupsChanged) GetSpaceId() string {
+	if x != nil {
+		return x.SpaceId
+	}
+	return ""
+}
+
 // SpaceDeleted is broadcast to the space; the gateway drops every
 // connection's subscription to it.
 type SpaceDeleted struct {
@@ -2596,7 +2658,7 @@ type SpaceDeleted struct {
 
 func (x *SpaceDeleted) Reset() {
 	*x = SpaceDeleted{}
-	mi := &file_stoop_realtime_v1_realtime_proto_msgTypes[33]
+	mi := &file_stoop_realtime_v1_realtime_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2608,7 +2670,7 @@ func (x *SpaceDeleted) String() string {
 func (*SpaceDeleted) ProtoMessage() {}
 
 func (x *SpaceDeleted) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_realtime_v1_realtime_proto_msgTypes[33]
+	mi := &file_stoop_realtime_v1_realtime_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2621,7 +2683,7 @@ func (x *SpaceDeleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpaceDeleted.ProtoReflect.Descriptor instead.
 func (*SpaceDeleted) Descriptor() ([]byte, []int) {
-	return file_stoop_realtime_v1_realtime_proto_rawDescGZIP(), []int{33}
+	return file_stoop_realtime_v1_realtime_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *SpaceDeleted) GetSpaceId() string {
@@ -2635,7 +2697,7 @@ var File_stoop_realtime_v1_realtime_proto protoreflect.FileDescriptor
 
 const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
-	" stoop/realtime/v1/realtime.proto\x12\x11stoop.realtime.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bstoop/chat/v1/channel.proto\x1a\x1bstoop/chat/v1/message.proto\x1a\x1cstoop/chat/v1/reaction.proto\x1a\x1cstoop/chat/v1/activity.proto\x1a\x19stoop/chat/v1/space.proto\"\xc3\x13\n" +
+	" stoop/realtime/v1/realtime.proto\x12\x11stoop.realtime.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bstoop/chat/v1/channel.proto\x1a\x1bstoop/chat/v1/message.proto\x1a\x1cstoop/chat/v1/reaction.proto\x1a\x1cstoop/chat/v1/activity.proto\x1a\x19stoop/chat/v1/space.proto\"\x8e\x14\n" +
 	"\vServerEvent\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12*\n" +
 	"\x02ts\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x120\n" +
@@ -2674,7 +2736,8 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"\vthread_read\x18$ \x01(\v2\x1d.stoop.realtime.v1.ThreadReadH\x00R\n" +
 	"threadRead\x12]\n" +
 	"\x15channel_member_joined\x18% \x01(\v2'.stoop.realtime.v1.ChannelMemberChangedH\x00R\x13channelMemberJoined\x12Y\n" +
-	"\x13channel_member_left\x18& \x01(\v2'.stoop.realtime.v1.ChannelMemberChangedH\x00R\x11channelMemberLeftB\t\n" +
+	"\x13channel_member_left\x18& \x01(\v2'.stoop.realtime.v1.ChannelMemberChangedH\x00R\x11channelMemberLeft\x12I\n" +
+	"\x0egroups_changed\x18' \x01(\v2 .stoop.realtime.v1.GroupsChangedH\x00R\rgroupsChangedB\t\n" +
 	"\apayload\"\xd0\x01\n" +
 	"\vClientEvent\x12-\n" +
 	"\x04pong\x18\x03 \x01(\v2\x17.stoop.realtime.v1.PongH\x00R\x04pong\x123\n" +
@@ -2821,7 +2884,9 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06kicked\x18\x03 \x01(\bR\x06kicked\":\n" +
 	"\fSpaceUpdated\x12*\n" +
-	"\x05space\x18\x01 \x01(\v2\x14.stoop.chat.v1.SpaceR\x05space\")\n" +
+	"\x05space\x18\x01 \x01(\v2\x14.stoop.chat.v1.SpaceR\x05space\"*\n" +
+	"\rGroupsChanged\x12\x19\n" +
+	"\bspace_id\x18\x01 \x01(\tR\aspaceId\")\n" +
 	"\fSpaceDeleted\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceIdB\xc8\x01\n" +
 	"\x15com.stoop.realtime.v1B\rRealtimeProtoP\x01Z:github.com/getstoop/stoop/gen/stoop/realtime/v1;realtimev1\xa2\x02\x03SRX\xaa\x02\x11Stoop.Realtime.V1\xca\x02\x11Stoop\\Realtime\\V1\xe2\x02\x1dStoop\\Realtime\\V1\\GPBMetadata\xea\x02\x13Stoop::Realtime::V1b\x06proto3"
@@ -2838,7 +2903,7 @@ func file_stoop_realtime_v1_realtime_proto_rawDescGZIP() []byte {
 	return file_stoop_realtime_v1_realtime_proto_rawDescData
 }
 
-var file_stoop_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_stoop_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_stoop_realtime_v1_realtime_proto_goTypes = []any{
 	(*ServerEvent)(nil),           // 0: stoop.realtime.v1.ServerEvent
 	(*ClientEvent)(nil),           // 1: stoop.realtime.v1.ClientEvent
@@ -2873,37 +2938,38 @@ var file_stoop_realtime_v1_realtime_proto_goTypes = []any{
 	(*MemberUpdated)(nil),         // 30: stoop.realtime.v1.MemberUpdated
 	(*MemberRemoved)(nil),         // 31: stoop.realtime.v1.MemberRemoved
 	(*SpaceUpdated)(nil),          // 32: stoop.realtime.v1.SpaceUpdated
-	(*SpaceDeleted)(nil),          // 33: stoop.realtime.v1.SpaceDeleted
-	(*timestamppb.Timestamp)(nil), // 34: google.protobuf.Timestamp
-	(*v1.Message)(nil),            // 35: stoop.chat.v1.Message
-	(*v1.Channel)(nil),            // 36: stoop.chat.v1.Channel
-	(*v1.Reaction)(nil),           // 37: stoop.chat.v1.Reaction
-	(*v1.ThreadSummary)(nil),      // 38: stoop.chat.v1.ThreadSummary
-	(*v1.MessageAuthor)(nil),      // 39: stoop.chat.v1.MessageAuthor
-	(*v1.Space)(nil),              // 40: stoop.chat.v1.Space
-	(*v1.ActivityItem)(nil),       // 41: stoop.chat.v1.ActivityItem
-	(v1.SpaceRole)(0),             // 42: stoop.chat.v1.SpaceRole
+	(*GroupsChanged)(nil),         // 33: stoop.realtime.v1.GroupsChanged
+	(*SpaceDeleted)(nil),          // 34: stoop.realtime.v1.SpaceDeleted
+	(*timestamppb.Timestamp)(nil), // 35: google.protobuf.Timestamp
+	(*v1.Message)(nil),            // 36: stoop.chat.v1.Message
+	(*v1.Channel)(nil),            // 37: stoop.chat.v1.Channel
+	(*v1.Reaction)(nil),           // 38: stoop.chat.v1.Reaction
+	(*v1.ThreadSummary)(nil),      // 39: stoop.chat.v1.ThreadSummary
+	(*v1.MessageAuthor)(nil),      // 40: stoop.chat.v1.MessageAuthor
+	(*v1.Space)(nil),              // 41: stoop.chat.v1.Space
+	(*v1.ActivityItem)(nil),       // 42: stoop.chat.v1.ActivityItem
+	(v1.SpaceRole)(0),             // 43: stoop.chat.v1.SpaceRole
 }
 var file_stoop_realtime_v1_realtime_proto_depIdxs = []int32{
-	34, // 0: stoop.realtime.v1.ServerEvent.ts:type_name -> google.protobuf.Timestamp
+	35, // 0: stoop.realtime.v1.ServerEvent.ts:type_name -> google.protobuf.Timestamp
 	8,  // 1: stoop.realtime.v1.ServerEvent.ready:type_name -> stoop.realtime.v1.Ready
 	11, // 2: stoop.realtime.v1.ServerEvent.ping:type_name -> stoop.realtime.v1.Ping
 	7,  // 3: stoop.realtime.v1.ServerEvent.credential_revoked:type_name -> stoop.realtime.v1.CredentialRevoked
-	35, // 4: stoop.realtime.v1.ServerEvent.message_created:type_name -> stoop.chat.v1.Message
+	36, // 4: stoop.realtime.v1.ServerEvent.message_created:type_name -> stoop.chat.v1.Message
 	17, // 5: stoop.realtime.v1.ServerEvent.message_deleted:type_name -> stoop.realtime.v1.MessageDeleted
-	36, // 6: stoop.realtime.v1.ServerEvent.channel_created:type_name -> stoop.chat.v1.Channel
+	37, // 6: stoop.realtime.v1.ServerEvent.channel_created:type_name -> stoop.chat.v1.Channel
 	20, // 7: stoop.realtime.v1.ServerEvent.space_joined:type_name -> stoop.realtime.v1.SpaceJoined
 	29, // 8: stoop.realtime.v1.ServerEvent.member_role_changed:type_name -> stoop.realtime.v1.MemberRoleChanged
 	31, // 9: stoop.realtime.v1.ServerEvent.member_removed:type_name -> stoop.realtime.v1.MemberRemoved
 	32, // 10: stoop.realtime.v1.ServerEvent.space_updated:type_name -> stoop.realtime.v1.SpaceUpdated
-	33, // 11: stoop.realtime.v1.ServerEvent.space_deleted:type_name -> stoop.realtime.v1.SpaceDeleted
+	34, // 11: stoop.realtime.v1.ServerEvent.space_deleted:type_name -> stoop.realtime.v1.SpaceDeleted
 	28, // 12: stoop.realtime.v1.ServerEvent.member_joined:type_name -> stoop.realtime.v1.MemberJoined
 	27, // 13: stoop.realtime.v1.ServerEvent.activity_item_created:type_name -> stoop.realtime.v1.ActivityItemCreated
 	25, // 14: stoop.realtime.v1.ServerEvent.channel_read:type_name -> stoop.realtime.v1.ChannelRead
 	9,  // 15: stoop.realtime.v1.ServerEvent.presence_changed:type_name -> stoop.realtime.v1.PresenceChanged
 	10, // 16: stoop.realtime.v1.ServerEvent.user_typing:type_name -> stoop.realtime.v1.UserTyping
-	35, // 17: stoop.realtime.v1.ServerEvent.message_updated:type_name -> stoop.chat.v1.Message
-	36, // 18: stoop.realtime.v1.ServerEvent.channel_updated:type_name -> stoop.chat.v1.Channel
+	36, // 17: stoop.realtime.v1.ServerEvent.message_updated:type_name -> stoop.chat.v1.Message
+	37, // 18: stoop.realtime.v1.ServerEvent.channel_updated:type_name -> stoop.chat.v1.Channel
 	14, // 19: stoop.realtime.v1.ServerEvent.channel_deleted:type_name -> stoop.realtime.v1.ChannelDeleted
 	15, // 20: stoop.realtime.v1.ServerEvent.channels_reordered:type_name -> stoop.realtime.v1.ChannelsReordered
 	16, // 21: stoop.realtime.v1.ServerEvent.reactions_changed:type_name -> stoop.realtime.v1.ReactionsChanged
@@ -2918,27 +2984,28 @@ var file_stoop_realtime_v1_realtime_proto_depIdxs = []int32{
 	26, // 30: stoop.realtime.v1.ServerEvent.thread_read:type_name -> stoop.realtime.v1.ThreadRead
 	13, // 31: stoop.realtime.v1.ServerEvent.channel_member_joined:type_name -> stoop.realtime.v1.ChannelMemberChanged
 	13, // 32: stoop.realtime.v1.ServerEvent.channel_member_left:type_name -> stoop.realtime.v1.ChannelMemberChanged
-	12, // 33: stoop.realtime.v1.ClientEvent.pong:type_name -> stoop.realtime.v1.Pong
-	6,  // 34: stoop.realtime.v1.ClientEvent.typing:type_name -> stoop.realtime.v1.Typing
-	3,  // 35: stoop.realtime.v1.ClientEvent.voice_state:type_name -> stoop.realtime.v1.VoiceState
-	4,  // 36: stoop.realtime.v1.VoiceStateChanged.participant:type_name -> stoop.realtime.v1.VoiceParticipant
-	4,  // 37: stoop.realtime.v1.Ready.voice_participants:type_name -> stoop.realtime.v1.VoiceParticipant
-	2,  // 38: stoop.realtime.v1.Ready.presences:type_name -> stoop.realtime.v1.UserPresence
-	36, // 39: stoop.realtime.v1.ChannelsReordered.channels:type_name -> stoop.chat.v1.Channel
-	37, // 40: stoop.realtime.v1.ReactionsChanged.reactions:type_name -> stoop.chat.v1.Reaction
-	38, // 41: stoop.realtime.v1.ThreadChanged.thread:type_name -> stoop.chat.v1.ThreadSummary
-	39, // 42: stoop.realtime.v1.MessagePinned.pinned_by:type_name -> stoop.chat.v1.MessageAuthor
-	34, // 43: stoop.realtime.v1.MessagePinned.pinned_at:type_name -> google.protobuf.Timestamp
-	40, // 44: stoop.realtime.v1.SpaceJoined.space:type_name -> stoop.chat.v1.Space
-	34, // 45: stoop.realtime.v1.DoNotDisturbChanged.until:type_name -> google.protobuf.Timestamp
-	41, // 46: stoop.realtime.v1.ActivityItemCreated.item:type_name -> stoop.chat.v1.ActivityItem
-	42, // 47: stoop.realtime.v1.MemberRoleChanged.role:type_name -> stoop.chat.v1.SpaceRole
-	40, // 48: stoop.realtime.v1.SpaceUpdated.space:type_name -> stoop.chat.v1.Space
-	49, // [49:49] is the sub-list for method output_type
-	49, // [49:49] is the sub-list for method input_type
-	49, // [49:49] is the sub-list for extension type_name
-	49, // [49:49] is the sub-list for extension extendee
-	0,  // [0:49] is the sub-list for field type_name
+	33, // 33: stoop.realtime.v1.ServerEvent.groups_changed:type_name -> stoop.realtime.v1.GroupsChanged
+	12, // 34: stoop.realtime.v1.ClientEvent.pong:type_name -> stoop.realtime.v1.Pong
+	6,  // 35: stoop.realtime.v1.ClientEvent.typing:type_name -> stoop.realtime.v1.Typing
+	3,  // 36: stoop.realtime.v1.ClientEvent.voice_state:type_name -> stoop.realtime.v1.VoiceState
+	4,  // 37: stoop.realtime.v1.VoiceStateChanged.participant:type_name -> stoop.realtime.v1.VoiceParticipant
+	4,  // 38: stoop.realtime.v1.Ready.voice_participants:type_name -> stoop.realtime.v1.VoiceParticipant
+	2,  // 39: stoop.realtime.v1.Ready.presences:type_name -> stoop.realtime.v1.UserPresence
+	37, // 40: stoop.realtime.v1.ChannelsReordered.channels:type_name -> stoop.chat.v1.Channel
+	38, // 41: stoop.realtime.v1.ReactionsChanged.reactions:type_name -> stoop.chat.v1.Reaction
+	39, // 42: stoop.realtime.v1.ThreadChanged.thread:type_name -> stoop.chat.v1.ThreadSummary
+	40, // 43: stoop.realtime.v1.MessagePinned.pinned_by:type_name -> stoop.chat.v1.MessageAuthor
+	35, // 44: stoop.realtime.v1.MessagePinned.pinned_at:type_name -> google.protobuf.Timestamp
+	41, // 45: stoop.realtime.v1.SpaceJoined.space:type_name -> stoop.chat.v1.Space
+	35, // 46: stoop.realtime.v1.DoNotDisturbChanged.until:type_name -> google.protobuf.Timestamp
+	42, // 47: stoop.realtime.v1.ActivityItemCreated.item:type_name -> stoop.chat.v1.ActivityItem
+	43, // 48: stoop.realtime.v1.MemberRoleChanged.role:type_name -> stoop.chat.v1.SpaceRole
+	41, // 49: stoop.realtime.v1.SpaceUpdated.space:type_name -> stoop.chat.v1.Space
+	50, // [50:50] is the sub-list for method output_type
+	50, // [50:50] is the sub-list for method input_type
+	50, // [50:50] is the sub-list for extension type_name
+	50, // [50:50] is the sub-list for extension extendee
+	0,  // [0:50] is the sub-list for field type_name
 }
 
 func init() { file_stoop_realtime_v1_realtime_proto_init() }
@@ -2979,6 +3046,7 @@ func file_stoop_realtime_v1_realtime_proto_init() {
 		(*ServerEvent_ThreadRead)(nil),
 		(*ServerEvent_ChannelMemberJoined)(nil),
 		(*ServerEvent_ChannelMemberLeft)(nil),
+		(*ServerEvent_GroupsChanged)(nil),
 	}
 	file_stoop_realtime_v1_realtime_proto_msgTypes[1].OneofWrappers = []any{
 		(*ClientEvent_Pong)(nil),
@@ -2991,7 +3059,7 @@ func file_stoop_realtime_v1_realtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_realtime_v1_realtime_proto_rawDesc), len(file_stoop_realtime_v1_realtime_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   34,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
