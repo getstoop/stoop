@@ -8,7 +8,7 @@ import {
   toggleMark,
   wrapIn,
 } from "prosemirror-commands";
-import type { NodeType } from "prosemirror-model";
+import type { MarkType, NodeType } from "prosemirror-model";
 import {
   liftListItem,
   splitListItem,
@@ -91,15 +91,66 @@ const toggleCodeBlock: Command = (state, dispatch) =>
     ? setBlockType(schema.nodes.paragraph)(state, dispatch)
     : setBlockType(schema.nodes.codeBlock)(state, dispatch);
 
+// A selection that is only partly styled gets the style everywhere; the
+// button shows on only once all of it is.
+const toggle = (type: MarkType) =>
+  toggleMark(type, null, { removeWhenPresent: false });
+
 export const formatCommands: Record<Format, Command> = {
-  bold: toggleMark(schema.marks.bold),
-  italic: toggleMark(schema.marks.italic),
-  underline: toggleMark(schema.marks.underline),
-  strike: toggleMark(schema.marks.strike),
-  code: toggleMark(schema.marks.code),
-  spoiler: toggleMark(schema.marks.spoiler),
+  bold: toggle(schema.marks.bold),
+  italic: toggle(schema.marks.italic),
+  underline: toggle(schema.marks.underline),
+  strike: toggle(schema.marks.strike),
+  code: toggle(schema.marks.code),
+  spoiler: toggle(schema.marks.spoiler),
   quote: toggleQuote,
   list: toggleList(schema.nodes.bulletList),
   orderedList: toggleList(schema.nodes.orderedList),
   codeblock: toggleCodeBlock,
 };
+
+const MARKS = [
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "code",
+  "spoiler",
+] as const;
+
+// The formats in effect where the caret is: at a caret, what typing
+// would carry; over a selection, what all of its text has.
+export function activeFormats(state: EditorState): Format[] {
+  const { empty, from, to, $from } = state.selection;
+  const active: Format[] = [];
+  for (const name of MARKS) {
+    const type = schema.marks[name];
+    const on = empty
+      ? !!type.isInSet(state.storedMarks ?? $from.marks())
+      : coversRange(state, from, to, type);
+    if (on) active.push(name);
+  }
+  if (inNode(state, schema.nodes.blockquote)) active.push("quote");
+  const list = $from.depth >= 2 ? $from.node($from.depth - 2).type : null;
+  if (list === schema.nodes.bulletList) active.push("list");
+  if (list === schema.nodes.orderedList) active.push("orderedList");
+  if ($from.parent.type === schema.nodes.codeBlock) active.push("codeblock");
+  return active;
+}
+
+function coversRange(
+  state: EditorState,
+  from: number,
+  to: number,
+  type: MarkType,
+): boolean {
+  let any = false;
+  let all = true;
+  state.doc.nodesBetween(from, to, (node) => {
+    if (!node.isText) return true;
+    any = true;
+    if (!type.isInSet(node.marks)) all = false;
+    return false;
+  });
+  return any && all;
+}
