@@ -13,11 +13,24 @@ import (
 // module's username rules (3-32 of [a-z0-9_]), matched case-insensitively.
 var mentionRE = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])@([a-z0-9_]{3,32})\b`)
 
-// parseMentionHandles returns the distinct, lowercased handles in content.
+// groupMentionRE matches @@handle, a group. mentionRE never matches it:
+// that refuses an @ straight after another.
+var groupMentionRE = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])@@([a-z0-9_]{3,32})\b`)
+
+// parseMentionHandles returns the distinct, lowercased @handles in content.
 func parseMentionHandles(content string) []string {
+	return parseHandles(mentionRE, content)
+}
+
+// parseGroupHandles returns the distinct, lowercased @@handles in content.
+func parseGroupHandles(content string) []string {
+	return parseHandles(groupMentionRE, content)
+}
+
+func parseHandles(pattern *regexp.Regexp, content string) []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, m := range mentionRE.FindAllStringSubmatch(content, -1) {
+	for _, m := range pattern.FindAllStringSubmatch(content, -1) {
 		h := strings.ToLower(m[1])
 		if !seen[h] {
 			seen[h] = true
@@ -43,13 +56,46 @@ type mentionResult struct {
 	here          bool
 }
 
-// resolveMentions maps @handles in content to user IDs of people in the
+// resolveMentions maps a message's mentions to the user IDs they reach,
+// excluding the author: @handles first, then @@handles, which reach a
+// group's people in public channels only. When @channel or @here
+// applies it decides alone, for groups as for @handles.
+func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, participants []string, authorID, content string) (mentionResult, error) {
+	res, err := s.resolvePersonMentions(ctx, channel, participants, authorID, parseMentionHandles(content))
+	if err != nil || res.entireChannel || res.here || isDM(channel) || channel.Private {
+		return res, err
+	}
+	groupHandles := parseGroupHandles(content)
+	if len(groupHandles) == 0 {
+		return res, nil
+	}
+	// A group's people are members of its space by foreign key, so every
+	// one of them can read a public channel.
+	groupMemberIDs, err := s.q.ListGroupMemberIDsByHandles(ctx, dbgen.ListGroupMemberIDsByHandlesParams{
+		SpaceID: *channel.SpaceID, Handles: groupHandles,
+	})
+	if err != nil {
+		return mentionResult{}, fmt.Errorf("resolve groups: %w", err)
+	}
+	reached := map[string]bool{authorID: true}
+	for _, id := range res.userIDs {
+		reached[id] = true
+	}
+	for _, id := range groupMemberIDs {
+		if !reached[id] {
+			reached[id] = true
+			res.userIDs = append(res.userIDs, id)
+		}
+	}
+	return res, nil
+}
+
+// resolvePersonMentions maps @handles to user IDs of people in the
 // channel — the space's members, or the people of a private channel or a
 // DM (passed in, nil for a public channel) — excluding the author. Others are silently
 // ignored: a mention is an address, not a permission. @channel wins over
 // @here if both appear; in a DM both are plain text.
-func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, participants []string, authorID, content string) (mentionResult, error) {
-	handles := parseMentionHandles(content)
+func (s *Service) resolvePersonMentions(ctx context.Context, channel dbgen.Channel, participants []string, authorID string, handles []string) (mentionResult, error) {
 	if len(handles) == 0 {
 		return mentionResult{}, nil
 	}

@@ -223,6 +223,21 @@ for `@channel`. Activity delivery then has one shape regardless of how
 the mention was written, and a later membership change doesn't retroactively
 rewrite who was addressed.
 
+### Groups
+
+`@@handle` mentions a group: a set of a space's members with a name
+("Garden crew") and a handle, made by those with `members.manage`. The
+person pattern refuses an `@` straight after another `@`, so a group's
+handle never competes with a username; a handle is unique only within
+its space, and `channel` and `here` are refused.
+
+A group works in public channels only. In a private channel or a DM
+`@@handle` is plain text and reaches nobody. Every member of the space can
+read a public channel, so the group's people are reached as they are,
+minus the author, and materialised into `message_mentions` with everyone
+else. When `@channel` or `@here` applies it decides alone, as it does for
+`@handle`.
+
 ## Activity
 
 The activity feed is the record of what happened to you: every mention,

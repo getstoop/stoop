@@ -5,6 +5,7 @@ package stoop.chat.v1;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "stoop/chat/v1/channel.proto";
+import "stoop/chat/v1/group.proto";
 import "stoop/chat/v1/invite.proto";
 import "stoop/chat/v1/member.proto";
 import "stoop/chat/v1/message.proto";
@@ -65,6 +66,16 @@ service ChatService {
   rpc BanMember(BanMemberRequest) returns (BanMemberResponse) {}
   rpc UnbanMember(UnbanMemberRequest) returns (UnbanMemberResponse) {}
   rpc ListBans(ListBansRequest) returns (ListBansResponse) {}
+  // ListGroups returns a space's groups with their people. Needs
+  // space.read.
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse) {}
+  // CreateGroup, UpdateGroup and DeleteGroup need members.manage. A group
+  // holds people who are members of the space, never bots; leaving the
+  // space takes a person out of its groups.
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse) {}
+  // UpdateGroup replaces the handle, name and people.
+  rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse) {}
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse) {}
   // BlockUser stops direct messages between the caller and another user
   // in both directions, hides their existing conversation from the
   // caller, and drops mention/reply alerts from them. Anyone may block
@@ -357,6 +368,42 @@ message Ban {
 message ListBansResponse {
   repeated Ban bans = 1;
 }
+
+message ListGroupsRequest {
+  string space_id = 1;
+}
+
+message ListGroupsResponse {
+  repeated Group groups = 1;
+}
+
+message CreateGroupRequest {
+  string space_id = 1;
+  string handle = 2;
+  string name = 3;
+  repeated string user_ids = 4;
+}
+
+message CreateGroupResponse {
+  Group group = 1;
+}
+
+message UpdateGroupRequest {
+  string group_id = 1;
+  string handle = 2;
+  string name = 3;
+  repeated string user_ids = 4;
+}
+
+message UpdateGroupResponse {
+  Group group = 1;
+}
+
+message DeleteGroupRequest {
+  string group_id = 1;
+}
+
+message DeleteGroupResponse {}
 
 message BlockUserRequest {
   string user_id = 1;

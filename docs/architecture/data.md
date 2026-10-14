@@ -115,6 +115,13 @@ all. `closed_at` is one person taking the conversation off their own list.
 have rows. A foreign key on `(space_id, user_id)` to `space_members` takes
 someone who leaves the space out of its private channels.
 
+**`groups`** and **`group_members`** — the groups `@@handle` mentions
+([messaging.md](messaging.md#groups)). `(space_id, handle)` is unique.
+`group_members` carries the space id so that two foreign keys hold a
+group's people to members of its own space: one to `groups (id,
+space_id)`, one to `space_members`, which takes someone who leaves the
+space out of its groups.
+
 **`channel_reads`** — `(user_id, channel_id) → last_read_message_id`, only
 ever moving forward. Because message ids are time-ordered, "unread" is an
 id comparison against `channels.last_message_id`, not a count.

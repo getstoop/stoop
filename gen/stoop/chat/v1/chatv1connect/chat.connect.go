@@ -72,6 +72,14 @@ const (
 	ChatServiceUnbanMemberProcedure = "/stoop.chat.v1.ChatService/UnbanMember"
 	// ChatServiceListBansProcedure is the fully-qualified name of the ChatService's ListBans RPC.
 	ChatServiceListBansProcedure = "/stoop.chat.v1.ChatService/ListBans"
+	// ChatServiceListGroupsProcedure is the fully-qualified name of the ChatService's ListGroups RPC.
+	ChatServiceListGroupsProcedure = "/stoop.chat.v1.ChatService/ListGroups"
+	// ChatServiceCreateGroupProcedure is the fully-qualified name of the ChatService's CreateGroup RPC.
+	ChatServiceCreateGroupProcedure = "/stoop.chat.v1.ChatService/CreateGroup"
+	// ChatServiceUpdateGroupProcedure is the fully-qualified name of the ChatService's UpdateGroup RPC.
+	ChatServiceUpdateGroupProcedure = "/stoop.chat.v1.ChatService/UpdateGroup"
+	// ChatServiceDeleteGroupProcedure is the fully-qualified name of the ChatService's DeleteGroup RPC.
+	ChatServiceDeleteGroupProcedure = "/stoop.chat.v1.ChatService/DeleteGroup"
 	// ChatServiceBlockUserProcedure is the fully-qualified name of the ChatService's BlockUser RPC.
 	ChatServiceBlockUserProcedure = "/stoop.chat.v1.ChatService/BlockUser"
 	// ChatServiceUnblockUserProcedure is the fully-qualified name of the ChatService's UnblockUser RPC.
@@ -231,6 +239,16 @@ type ChatServiceClient interface {
 	BanMember(context.Context, *connect.Request[v1.BanMemberRequest]) (*connect.Response[v1.BanMemberResponse], error)
 	UnbanMember(context.Context, *connect.Request[v1.UnbanMemberRequest]) (*connect.Response[v1.UnbanMemberResponse], error)
 	ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error)
+	// ListGroups returns a space's groups with their people. Needs
+	// space.read.
+	ListGroups(context.Context, *connect.Request[v1.ListGroupsRequest]) (*connect.Response[v1.ListGroupsResponse], error)
+	// CreateGroup, UpdateGroup and DeleteGroup need members.manage. A group
+	// holds people who are members of the space, never bots; leaving the
+	// space takes a person out of its groups.
+	CreateGroup(context.Context, *connect.Request[v1.CreateGroupRequest]) (*connect.Response[v1.CreateGroupResponse], error)
+	// UpdateGroup replaces the handle, name and people.
+	UpdateGroup(context.Context, *connect.Request[v1.UpdateGroupRequest]) (*connect.Response[v1.UpdateGroupResponse], error)
+	DeleteGroup(context.Context, *connect.Request[v1.DeleteGroupRequest]) (*connect.Response[v1.DeleteGroupResponse], error)
 	// BlockUser stops direct messages between the caller and another user
 	// in both directions, hides their existing conversation from the
 	// caller, and drops mention/reply alerts from them. Anyone may block
@@ -468,6 +486,30 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+ChatServiceListBansProcedure,
 			connect.WithSchema(chatServiceMethods.ByName("ListBans")),
+			connect.WithClientOptions(opts...),
+		),
+		listGroups: connect.NewClient[v1.ListGroupsRequest, v1.ListGroupsResponse](
+			httpClient,
+			baseURL+ChatServiceListGroupsProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListGroups")),
+			connect.WithClientOptions(opts...),
+		),
+		createGroup: connect.NewClient[v1.CreateGroupRequest, v1.CreateGroupResponse](
+			httpClient,
+			baseURL+ChatServiceCreateGroupProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("CreateGroup")),
+			connect.WithClientOptions(opts...),
+		),
+		updateGroup: connect.NewClient[v1.UpdateGroupRequest, v1.UpdateGroupResponse](
+			httpClient,
+			baseURL+ChatServiceUpdateGroupProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("UpdateGroup")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteGroup: connect.NewClient[v1.DeleteGroupRequest, v1.DeleteGroupResponse](
+			httpClient,
+			baseURL+ChatServiceDeleteGroupProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("DeleteGroup")),
 			connect.WithClientOptions(opts...),
 		),
 		blockUser: connect.NewClient[v1.BlockUserRequest, v1.BlockUserResponse](
@@ -720,6 +762,10 @@ type chatServiceClient struct {
 	banMember                   *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
 	unbanMember                 *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
 	listBans                    *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
+	listGroups                  *connect.Client[v1.ListGroupsRequest, v1.ListGroupsResponse]
+	createGroup                 *connect.Client[v1.CreateGroupRequest, v1.CreateGroupResponse]
+	updateGroup                 *connect.Client[v1.UpdateGroupRequest, v1.UpdateGroupResponse]
+	deleteGroup                 *connect.Client[v1.DeleteGroupRequest, v1.DeleteGroupResponse]
 	blockUser                   *connect.Client[v1.BlockUserRequest, v1.BlockUserResponse]
 	unblockUser                 *connect.Client[v1.UnblockUserRequest, v1.UnblockUserResponse]
 	listBlockedUsers            *connect.Client[v1.ListBlockedUsersRequest, v1.ListBlockedUsersResponse]
@@ -843,6 +889,26 @@ func (c *chatServiceClient) UnbanMember(ctx context.Context, req *connect.Reques
 // ListBans calls stoop.chat.v1.ChatService.ListBans.
 func (c *chatServiceClient) ListBans(ctx context.Context, req *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error) {
 	return c.listBans.CallUnary(ctx, req)
+}
+
+// ListGroups calls stoop.chat.v1.ChatService.ListGroups.
+func (c *chatServiceClient) ListGroups(ctx context.Context, req *connect.Request[v1.ListGroupsRequest]) (*connect.Response[v1.ListGroupsResponse], error) {
+	return c.listGroups.CallUnary(ctx, req)
+}
+
+// CreateGroup calls stoop.chat.v1.ChatService.CreateGroup.
+func (c *chatServiceClient) CreateGroup(ctx context.Context, req *connect.Request[v1.CreateGroupRequest]) (*connect.Response[v1.CreateGroupResponse], error) {
+	return c.createGroup.CallUnary(ctx, req)
+}
+
+// UpdateGroup calls stoop.chat.v1.ChatService.UpdateGroup.
+func (c *chatServiceClient) UpdateGroup(ctx context.Context, req *connect.Request[v1.UpdateGroupRequest]) (*connect.Response[v1.UpdateGroupResponse], error) {
+	return c.updateGroup.CallUnary(ctx, req)
+}
+
+// DeleteGroup calls stoop.chat.v1.ChatService.DeleteGroup.
+func (c *chatServiceClient) DeleteGroup(ctx context.Context, req *connect.Request[v1.DeleteGroupRequest]) (*connect.Response[v1.DeleteGroupResponse], error) {
+	return c.deleteGroup.CallUnary(ctx, req)
 }
 
 // BlockUser calls stoop.chat.v1.ChatService.BlockUser.
@@ -1085,6 +1151,16 @@ type ChatServiceHandler interface {
 	BanMember(context.Context, *connect.Request[v1.BanMemberRequest]) (*connect.Response[v1.BanMemberResponse], error)
 	UnbanMember(context.Context, *connect.Request[v1.UnbanMemberRequest]) (*connect.Response[v1.UnbanMemberResponse], error)
 	ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error)
+	// ListGroups returns a space's groups with their people. Needs
+	// space.read.
+	ListGroups(context.Context, *connect.Request[v1.ListGroupsRequest]) (*connect.Response[v1.ListGroupsResponse], error)
+	// CreateGroup, UpdateGroup and DeleteGroup need members.manage. A group
+	// holds people who are members of the space, never bots; leaving the
+	// space takes a person out of its groups.
+	CreateGroup(context.Context, *connect.Request[v1.CreateGroupRequest]) (*connect.Response[v1.CreateGroupResponse], error)
+	// UpdateGroup replaces the handle, name and people.
+	UpdateGroup(context.Context, *connect.Request[v1.UpdateGroupRequest]) (*connect.Response[v1.UpdateGroupResponse], error)
+	DeleteGroup(context.Context, *connect.Request[v1.DeleteGroupRequest]) (*connect.Response[v1.DeleteGroupResponse], error)
 	// BlockUser stops direct messages between the caller and another user
 	// in both directions, hides their existing conversation from the
 	// caller, and drops mention/reply alerts from them. Anyone may block
@@ -1318,6 +1394,30 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		ChatServiceListBansProcedure,
 		svc.ListBans,
 		connect.WithSchema(chatServiceMethods.ByName("ListBans")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceListGroupsHandler := connect.NewUnaryHandler(
+		ChatServiceListGroupsProcedure,
+		svc.ListGroups,
+		connect.WithSchema(chatServiceMethods.ByName("ListGroups")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceCreateGroupHandler := connect.NewUnaryHandler(
+		ChatServiceCreateGroupProcedure,
+		svc.CreateGroup,
+		connect.WithSchema(chatServiceMethods.ByName("CreateGroup")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceUpdateGroupHandler := connect.NewUnaryHandler(
+		ChatServiceUpdateGroupProcedure,
+		svc.UpdateGroup,
+		connect.WithSchema(chatServiceMethods.ByName("UpdateGroup")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceDeleteGroupHandler := connect.NewUnaryHandler(
+		ChatServiceDeleteGroupProcedure,
+		svc.DeleteGroup,
+		connect.WithSchema(chatServiceMethods.ByName("DeleteGroup")),
 		connect.WithHandlerOptions(opts...),
 	)
 	chatServiceBlockUserHandler := connect.NewUnaryHandler(
@@ -1584,6 +1684,14 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceUnbanMemberHandler.ServeHTTP(w, r)
 		case ChatServiceListBansProcedure:
 			chatServiceListBansHandler.ServeHTTP(w, r)
+		case ChatServiceListGroupsProcedure:
+			chatServiceListGroupsHandler.ServeHTTP(w, r)
+		case ChatServiceCreateGroupProcedure:
+			chatServiceCreateGroupHandler.ServeHTTP(w, r)
+		case ChatServiceUpdateGroupProcedure:
+			chatServiceUpdateGroupHandler.ServeHTTP(w, r)
+		case ChatServiceDeleteGroupProcedure:
+			chatServiceDeleteGroupHandler.ServeHTTP(w, r)
 		case ChatServiceBlockUserProcedure:
 			chatServiceBlockUserHandler.ServeHTTP(w, r)
 		case ChatServiceUnblockUserProcedure:
@@ -1735,6 +1843,22 @@ func (UnimplementedChatServiceHandler) UnbanMember(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListBans is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListGroups(context.Context, *connect.Request[v1.ListGroupsRequest]) (*connect.Response[v1.ListGroupsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListGroups is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) CreateGroup(context.Context, *connect.Request[v1.CreateGroupRequest]) (*connect.Response[v1.CreateGroupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.CreateGroup is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) UpdateGroup(context.Context, *connect.Request[v1.UpdateGroupRequest]) (*connect.Response[v1.UpdateGroupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.UpdateGroup is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) DeleteGroup(context.Context, *connect.Request[v1.DeleteGroupRequest]) (*connect.Response[v1.DeleteGroupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.DeleteGroup is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) BlockUser(context.Context, *connect.Request[v1.BlockUserRequest]) (*connect.Response[v1.BlockUserResponse], error) {

@@ -122,6 +122,20 @@ type File struct {
 	PrivateChannelID *string
 }
 
+type Group struct {
+	ID        string
+	SpaceID   string
+	Handle    string
+	Name      string
+	CreatedAt time.Time
+}
+
+type GroupMember struct {
+	GroupID string
+	SpaceID string
+	UserID  string
+}
+
 type IncomingWebhook struct {
 	ID             string
 	SpaceID        string
