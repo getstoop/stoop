@@ -19,6 +19,7 @@ import {
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { newLine } from "./commands";
 import { fromMarkdown, toMarkdown } from "./markdown";
+import { type MentionContext, mentions, NO_MENTIONS } from "./mentions";
 import { schema } from "./schema";
 
 // Typing a marker pair styles its content, the way the message format
@@ -229,7 +230,10 @@ function maxLength(limit: number) {
   });
 }
 
-export function editorPlugins(placeholderText: () => string): Plugin[] {
+export function editorPlugins(
+  placeholderText: () => string,
+  mentionContext: () => MentionContext = () => NO_MENTIONS,
+): Plugin[] {
   return [
     rules,
     keys,
@@ -238,6 +242,7 @@ export function editorPlugins(placeholderText: () => string): Plugin[] {
     linkOnPaste,
     markdownPaste,
     autolink,
+    mentions(mentionContext),
     placeholder(placeholderText),
     maxLength(4000),
   ];

@@ -7,9 +7,11 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
+import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import { activeFormats, formatCommands, newLine } from "./commands";
 import { checkLink, linkAround, linkDraft, saveLink } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
+import { mentionDecorations } from "./mentions";
 import { indentItem, linkSelection, markdownSlice } from "./plugins";
 import { schema } from "./schema";
 
@@ -318,5 +320,42 @@ describe("links", () => {
     expect(checkLink("docs", "https://example.com")).toEqual({});
     expect(checkLink("see https://a.b", "https://c.d").text).toBeTruthy();
     expect(checkLink("https://c.d", "https://c.d")).toEqual({});
+  });
+});
+
+describe("mentions", () => {
+  const kinds = new Map([
+    ["casey", IdentityKind.PERSON],
+    ["uptime", IdentityKind.BOT],
+  ]);
+
+  const drawn = (markdown: string, channelAndHere = false) => {
+    const state = stateOf(markdown);
+    return mentionDecorations(state.doc, { kinds, channelAndHere })
+      .find()
+      .map((d) => ({
+        text: state.doc.textBetween(d.from, d.to),
+        class: (d as unknown as { type: { attrs: { class: string } } }).type
+          .attrs.class,
+      }));
+  };
+
+  it("draws a member's handle as a person or a bot", () => {
+    expect(drawn("hi @casey and @Uptime")).toEqual([
+      { text: "@casey", class: "mention person" },
+      { text: "@Uptime", class: "mention bot" },
+    ]);
+  });
+
+  it("leaves a handle that isn't a member, and code", () => {
+    expect(drawn("@nobody `@casey`\n\n```\n@casey\n```")).toEqual([]);
+  });
+
+  it("draws @channel and @here only where they may be used", () => {
+    expect(drawn("@channel @here")).toEqual([]);
+    expect(drawn("@channel @here", true)).toEqual([
+      { text: "@channel", class: "mention" },
+      { text: "@here", class: "mention" },
+    ]);
   });
 });

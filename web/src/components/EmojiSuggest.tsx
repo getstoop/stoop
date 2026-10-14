@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import type { Shortcode } from "../api/shortcodes";
+import { useScrollToSelected } from "../hooks/useScrollToSelected";
 
 // Autocomplete list shown above the composer while typing :shortcode.
 export function EmojiSuggest({
@@ -10,9 +12,12 @@ export function EmojiSuggest({
   selected: number;
   onPick: (s: Shortcode) => void;
 }) {
+  const listRef = useRef<HTMLUListElement>(null);
+  useScrollToSelected(listRef, selected);
   if (candidates.length === 0) return null;
   return (
     <ul
+      ref={listRef}
       className="mention-picker emoji-suggest popover"
       aria-label="Insert an emoji"
     >

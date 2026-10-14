@@ -5,7 +5,11 @@ import {
   type ListItem,
   parseMarkdown,
 } from "../api/markdown";
-import { CHANNEL_HANDLE, HERE_HANDLE, splitMentions } from "../api/mentions";
+import {
+  type MentionKinds,
+  mentionClass,
+  splitMentions,
+} from "../api/mentions";
 
 // Renders a message's Markdown as React nodes. Text runs still go through
 // splitMentions so @handles highlight inside formatting; `highlight`
@@ -19,7 +23,7 @@ export function MessageBody({
   highlight,
 }: {
   content: string;
-  usernames: Set<string>;
+  usernames: MentionKinds;
   mentionsEntireChannel: boolean;
   mentionsHere: boolean;
   myUsername?: string;
@@ -33,16 +37,7 @@ export function MessageBody({
           <span
             // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
             key={i}
-            className={`mention ${
-              me &&
-              (
-                part.mention === me ||
-                  part.mention === CHANNEL_HANDLE ||
-                  part.mention === HERE_HANDLE
-              )
-                ? "me"
-                : ""
-            }`}
+            className={mentionClass(part.mention, usernames, me)}
           >
             {part.text}
           </span>

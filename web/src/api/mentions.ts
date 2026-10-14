@@ -1,4 +1,6 @@
+import type { IdentityKind } from "../gen/stoop/access/v1/access_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
+import { isBot } from "./identity";
 
 // Client-side mirror of the server's mention token rule.
 const HANDLE = /^[a-z0-9_]{3,32}$/i;
@@ -20,6 +22,16 @@ export function mentionQueryAt(
 
 export const CHANNEL_HANDLE = "channel";
 export const HERE_HANDLE = "here";
+
+// Each member's handle and what it names, a person or a bot.
+export type MentionKinds = ReadonlyMap<string, IdentityKind>;
+
+export function mentionKinds(members: Member[] | undefined): MentionKinds {
+  return new Map(members?.map((m) => [m.username.toLowerCase(), m.kind]));
+}
+
+export const isChannelOrHere = (handle: string) =>
+  handle === CHANNEL_HANDLE || handle === HERE_HANDLE;
 
 // Candidates for the picker: members matching the prefix, plus @channel
 // first when the caller may use it.
@@ -62,7 +74,7 @@ export function filterMembers(
 // that are actually members, matching the server).
 export function splitMentions(
   content: string,
-  usernames: Set<string>,
+  usernames: { has(handle: string): boolean },
   entireChannel = false,
   here = false,
 ): { text: string; mention?: string }[] {
@@ -83,4 +95,17 @@ export function splitMentions(
   }
   if (last < content.length) out.push({ text: content.slice(last) });
   return out;
+}
+
+// A mention's pill: a person or bot glyph after a member's handle, and
+// the accent fill when it reaches us.
+export function mentionClass(
+  handle: string,
+  kinds: MentionKinds,
+  me?: string,
+): string {
+  const everyone = isChannelOrHere(handle);
+  const glyph = everyone ? "" : isBot(kinds.get(handle)) ? "bot" : "person";
+  const mine = me && (handle === me || everyone) ? "me" : "";
+  return ["mention", glyph, mine].filter(Boolean).join(" ");
 }

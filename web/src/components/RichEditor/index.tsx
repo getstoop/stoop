@@ -14,6 +14,7 @@ import {
   saveLink,
 } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
+import { type MentionContext, mentionsKey, NO_MENTIONS } from "./mentions";
 import { editorPlugins } from "./plugins";
 import { schema } from "./schema";
 
@@ -41,6 +42,7 @@ export function RichEditor({
   onPaste,
   onBlur,
   placeholder = "",
+  mentions,
   autoFocus = false,
   fieldRef,
 }: {
@@ -55,6 +57,8 @@ export function RichEditor({
   onPaste?: (e: ClipboardEvent) => void;
   onBlur?: () => void;
   placeholder?: string;
+  // The members a typed @handle is drawn as a mention for.
+  mentions?: MentionContext;
   // Focus on mount with the caret at the end.
   autoFocus?: boolean;
   fieldRef: RefObject<RichField | null>;
@@ -84,6 +88,8 @@ export function RichEditor({
   } | null>(null);
   const placeholderRef = useRef(placeholder);
   placeholderRef.current = placeholder;
+  const mentionsRef = useRef(mentions);
+  mentionsRef.current = mentions;
   const emitted = useRef(value);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the view is made once; props reach it through refs and the effect below
@@ -98,7 +104,10 @@ export function RichEditor({
     const view: EditorView = new EditorView(host, {
       state: EditorState.create({
         doc: docFrom(value),
-        plugins: editorPlugins(() => placeholderRef.current),
+        plugins: editorPlugins(
+          () => placeholderRef.current,
+          () => mentionsRef.current ?? NO_MENTIONS,
+        ),
       }),
       attributes: () => ({
         class: "rich-editor-content",
@@ -210,6 +219,13 @@ export function RichEditor({
     const view = viewRef.current;
     if (view) view.dispatch(view.state.tr);
   }, [placeholder]);
+
+  // Members arriving or changing redraw the mentions already typed.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mentions is read through its ref; a change is what triggers the update
+  useLayoutEffect(() => {
+    const view = viewRef.current;
+    if (view) view.dispatch(view.state.tr.setMeta(mentionsKey, true));
+  }, [mentions]);
 
   const closeLinkForm = () => {
     setLinkForm(null);

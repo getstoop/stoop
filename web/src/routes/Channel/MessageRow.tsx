@@ -1,6 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { ReactNode } from "react";
 import { dayAndTime, fullDateTime } from "../../api/dates";
+import type { MentionKinds } from "../../api/mentions";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -53,7 +54,7 @@ export function MessageRow({
   canDelete: boolean;
   canPin: boolean;
   editing: boolean;
-  usernames: Set<string>;
+  usernames: MentionKinds;
   myUsername?: string;
   // Its thread is the one open in the side panel.
   threadOpen: boolean;
