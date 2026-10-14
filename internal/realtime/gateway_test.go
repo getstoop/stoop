@@ -796,12 +796,23 @@ func TestTypingInAPrivateChannelReachesItsPeopleOnly(t *testing.T) {
 		t.Fatalf("bob was sent %v, want the public hint: carol's hint in the private channel must reach nobody", event)
 	}
 
+	// Carol's connection handles her frames in order, so once her public
+	// hint arrives her three above have made their lookups.
+	fromCarol := func(event *realtimev1.ServerEvent) bool {
+		return event.GetUserTyping().GetUserId() == "carol" && event.GetUserTyping().GetChannelId() == "general"
+	}
+	carol.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "general"}}})
+	if bob.waitFor(fromCarol) == nil {
+		t.Fatal("carol's public hint went missing")
+	}
+
 	// A public channel is asked about once per connection: the next hint,
 	// once the relay interval has passed, costs no lookup.
 	before := channels.lookups.Load()
 	time.Sleep(2100 * time.Millisecond)
 	alice.send(&realtimev1.ClientEvent{Payload: &hint{Typing: &realtimev1.Typing{SpaceId: "s1", ChannelId: "general"}}})
-	if carol.waitFor(typing) == nil {
+	fromAlice := func(event *realtimev1.ServerEvent) bool { return event.GetUserTyping().GetUserId() == "alice" }
+	if carol.waitFor(fromAlice) == nil {
 		t.Fatal("the second public hint went missing")
 	}
 	if extra := channels.lookups.Load() - before; extra != 0 {
