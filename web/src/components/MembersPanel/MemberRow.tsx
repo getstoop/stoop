@@ -5,7 +5,7 @@ import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
 import { Avatar } from "../Avatar";
 import { BotMark } from "../BotMark";
-import { memberName } from "./groups";
+import { memberName } from "./statusGroups";
 
 export function MemberRow({
   member,

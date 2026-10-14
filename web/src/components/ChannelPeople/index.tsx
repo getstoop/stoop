@@ -11,7 +11,7 @@ import { canManageChannels } from "../../api/permissions";
 import { channelsQuery, useMe, useMembers, useSpaces } from "../../api/queries";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { confirm, notice } from "../../stores/dialogs";
-import { memberName } from "../MembersPanel/groups";
+import { memberName } from "../MembersPanel/statusGroups";
 import { SidePanelFrame, SidePanelUnavailable } from "../SidePanel";
 import { useCloseSidePanel } from "../SidePanel/context";
 import { AddPeopleModal } from "./AddPeopleModal";

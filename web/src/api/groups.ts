@@ -1,6 +1,9 @@
 import { type QueryClient, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import { chatClient } from "./clients";
+import { type MentionGroups, mentionGroups, NO_GROUPS } from "./mentions";
+import { useChannels } from "./queries";
 
 // A space's groups, each mentioned all at once as @@handle in its public
 // channels (docs/architecture/messaging.md → Groups).
@@ -16,6 +19,23 @@ export function useGroups(spaceId: string) {
     queryFn: async () => (await chatClient.listGroups({ spaceId })).groups,
     enabled: spaceId !== "",
   });
+}
+
+// The groups @@handle reaches in a channel: a space's public channels
+// only. In a private channel or a DM there are none, so the token stays
+// plain text, as it does for the server.
+export function useChannelGroups(
+  spaceId: string,
+  channelId: string,
+): MentionGroups {
+  const { data: channels } = useChannels(spaceId);
+  const { data: groups } = useGroups(spaceId);
+  const channel = channels?.find((candidate) => candidate.id === channelId);
+  const usable = !!channel && !channel.private;
+  return useMemo(
+    () => (usable ? mentionGroups(groups) : NO_GROUPS),
+    [usable, groups],
+  );
 }
 
 export type GroupFields = { handle: string; name: string; userIds: string[] };
