@@ -166,7 +166,10 @@ export function Composer({
   };
   const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const files = [...e.clipboardData.files];
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      onPasteLink(e);
+      return;
+    }
     e.preventDefault();
     addFiles(files);
   };
@@ -178,7 +181,11 @@ export function Composer({
     });
     setAttachError(null);
   }, [channelId]);
-  const { apply: format, onShortcut } = useFormatting(inputRef, setDraft);
+  const {
+    apply: format,
+    onShortcut,
+    onPasteLink,
+  } = useFormatting(inputRef, setDraft);
   const queryClient = useQueryClient();
   const members = usePeople(spaceId, channelId);
   const { data: spaces } = useSpaces();
