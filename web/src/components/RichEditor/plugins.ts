@@ -19,8 +19,8 @@ import { schema } from "./schema";
 // Typing a marker pair styles its content, the way the message format
 // would read it: "__" is underline and "_" is nothing.
 function markRule(open: string, type: MarkType): InputRule {
-  const d = open.replace(/[*|~`]/g, "\\$&");
-  const c = open[0] === "`" ? "`" : `\\${open[0]}`;
+  const d = escapeRegExp(open);
+  const c = escapeRegExp(open[0]);
   // The content starts and ends on a non-space and holds no marker char.
   const pattern = new RegExp(
     `(?:^|\\s)(${d}([^\\s${c}](?:[^${c}]*[^\\s${c}])?)${d})$`,
@@ -33,6 +33,10 @@ function markRule(open: string, type: MarkType): InputRule {
       .replaceWith(from, end, schema.text(match[2], marks))
       .removeStoredMark(type);
   });
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[\\^$.*+?()[\]{}|~`-]/g, "\\$&");
 }
 
 const rules = inputRules({
