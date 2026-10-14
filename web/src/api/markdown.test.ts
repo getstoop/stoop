@@ -36,7 +36,13 @@ const styledSource = (nodes: StyledInline[]): string =>
   nodes
     .map((n) => {
       if (n.type === "text") return n.text;
-      if (n.type === "link") return n.href;
+      if (n.type === "link") {
+        if (!n.label) return n.href;
+        const { open, children, middle, close } = n.label;
+        return (
+          open.text + styledSource(children) + middle.text + n.href + close.text
+        );
+      }
       if (n.type === "code") return n.open.text + n.text + n.close.text;
       return n.open.text + styledSource(n.children) + n.close.text;
     })
@@ -173,6 +179,61 @@ describe("parseInline", () => {
   });
 });
 
+describe("a link with a label", () => {
+  const labelled = (href: string, ...label: Inline[]): Inline => ({
+    type: "link",
+    href,
+    label,
+  });
+
+  it("reads [words](address) as the words, linked", () => {
+    expect(parseInline("see [the docs](https://example.com/a) now")).toEqual([
+      text("see "),
+      labelled("https://example.com/a", text("the docs")),
+      text(" now"),
+    ]);
+  });
+
+  it("styles the words, and is styled itself", () => {
+    expect(parseInline("[**b** c](https://a.b)")).toEqual([
+      labelled("https://a.b", bold(text("b")), text(" c")),
+    ]);
+    expect(parseInline("**[b](https://a.b)**")).toEqual([
+      bold(labelled("https://a.b", text("b"))),
+    ]);
+  });
+
+  it("ends the address at its own closing bracket", () => {
+    expect(parseInline("([a](https://a.b/x_(y)))")).toEqual([
+      text("("),
+      labelled("https://a.b/x_(y)", text("a")),
+      text(")"),
+    ]);
+  });
+
+  // The words would show one address and the link would go to another.
+  it("refuses words that are themselves an address", () => {
+    const nodes = parseInline("[https://a.example](https://b.example)");
+    expect(nodes[0]).toEqual(text("["));
+    expect(nodes.some((n) => n.type === "link" && n.label)).toBe(false);
+  });
+
+  it("leaves anything else as typed", () => {
+    for (const s of [
+      "[a](b)",
+      "[a](ftp://a.b)",
+      "[a](https://a.b c)",
+      "[ ](https://a.b)",
+      "[a] (https://a.b)",
+      "[a](https://",
+    ]) {
+      const nodes = parseInline(s);
+      expect(nodes.some((n) => n.type === "link" && n.label)).toBe(false);
+    }
+    expect(parseInline("\\[a](https://a.b)")[0]).toEqual(text("[a]("));
+  });
+});
+
 describe("parseStyledInline", () => {
   it("keeps the markers as their own nodes", () => {
     expect(parseStyledInline("**b**")).toEqual([
@@ -233,6 +294,9 @@ describe("parseStyledInline", () => {
       "a || b",
       "~~**nested**~~",
       "****",
+      "see [the **docs**](https://example.com/a_(b)) now",
+      "[not](a link) and [https://a.example](https://b.example)",
+      "\\[escaped](https://example.com)",
     ];
     for (const s of samples) expect(styledSource(parseStyledInline(s))).toBe(s);
   });
@@ -477,6 +541,14 @@ describe("plainText mirrors the server", () => {
     ["*italic* line", "italic line"],
     ["a || b", "a || b"],
     ["\\- not a list", "- not a list"],
+    ["see [the docs](https://example.com/a) now", "see the docs now"],
+    ["[**bold** words](https://a.b/x_(y))", "bold words"],
+    ["[a](not an address)", "[a](not an address)"],
+    [
+      "[https://a.example](https://b.example)",
+      "[https://a.example](https://b.example)",
+    ],
+    ["\\[a](https://a.b)", "[a](https://a.b)"],
   ];
   for (const [input, want] of cases) {
     it(`strips ${JSON.stringify(input)}`, () => {

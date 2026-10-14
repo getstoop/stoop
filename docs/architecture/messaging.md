@@ -127,7 +127,8 @@ element props, and there is no code path where it becomes markup.
 
 Supported: `**bold**`, `*italic*`, `__underline__`, `~~strike~~`,
 `||spoiler||`, `` `code` ``, fenced code blocks, `>` quotes, `- ` and
-`1. ` lists, auto-linked URLs, and `\` escapes.
+`1. ` lists, auto-linked URLs, `[words](https://address)` links, and `\`
+escapes.
 
 Some deliberate absences and edge rules:
 
@@ -138,6 +139,10 @@ Some deliberate absences and edge rules:
 - Lists parse to a flat row list carrying a depth (two spaces per level,
   three deep, never skipping a level), which the renderer turns into nested
   `<ul>`/`<ol>` with each sub-list inside the `<li>` it belongs to.
+- A link's words can be styled but **can't hold an address of their
+  own**, so a label never shows one address over another; such text
+  stays as typed. The address is http(s) only and shows on hover. A
+  preview reads the words, and the link preview is for the address.
 - A spoiler renders as a **`<button>`** — a real control, keyboard
   reachable and announced as one — whose content is `visibility: hidden`
   until clicked. A `<span>` with a click handler would be invisible to

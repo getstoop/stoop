@@ -72,8 +72,10 @@ export function MessageBody({
               href={n.href}
               target="_blank"
               rel="noopener noreferrer"
+              // Words can say anything; the address is one hover away.
+              title={n.label ? n.href : undefined}
             >
-              {n.href}
+              {n.label ? inline(n.label) : n.href}
             </a>
           );
         case "bold":
