@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type Inline,
+  linksIn,
   parseInline,
   parseMarkdown,
   parseStyledInline,
@@ -528,5 +529,25 @@ describe("plainText where the server differs", () => {
 
   it("keeps a bullet that is inside a quote", () => {
     expect(plainText("> - item")).toBe("- item"); // server: "item"
+  });
+});
+
+describe("linksIn", () => {
+  it("lists each link once, in order, wherever it sits", () => {
+    expect(
+      linksIn(
+        "see https://a.example/x and **https://b.example**\n- https://a.example/x\n> https://c.example",
+      ),
+    ).toEqual([
+      "https://a.example/x",
+      "https://b.example",
+      "https://c.example",
+    ]);
+  });
+
+  it("skips code", () => {
+    expect(linksIn("`https://a.example`\n```\nhttps://b.example\n```")).toEqual(
+      [],
+    );
   });
 });

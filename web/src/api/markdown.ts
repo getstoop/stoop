@@ -417,6 +417,24 @@ export function plainText(content: string): string {
     .trim();
 }
 
+// The distinct links in a message, in order of appearance. Mirrors
+// extractLinks on the server, without its cap.
+export function linksIn(content: string): string[] {
+  const found = new Set<string>();
+  const walk = (nodes: Inline[]) => {
+    for (const n of nodes) {
+      if (n.type === "link") found.add(n.href);
+      else if ("children" in n) walk(n.children);
+    }
+  };
+  for (const b of parseMarkdown(content)) {
+    if (b.type === "codeblock") continue;
+    if (b.type === "list") for (const it of b.items) walk(it.content);
+    else for (const l of b.lines) walk(l);
+  }
+  return [...found];
+}
+
 function inlineText(nodes: Inline[]): string {
   return nodes
     .map((n) => {

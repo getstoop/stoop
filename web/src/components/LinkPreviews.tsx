@@ -1,14 +1,19 @@
 import { fileUrl } from "../api/files";
+import { useServerOrigins } from "../api/queries";
+import { linkedMessage } from "../api/shareLinks";
 import type { LinkPreview } from "../gen/stoop/chat/v1/message_pb";
 
 // Open Graph cards for links in a message. The server fetched and
 // re-encoded everything here — the image is served from our own origin —
 // so rendering a card never contacts the linked site.
+// A link to a message on this server gets a LinkedMessages card instead.
 export function LinkPreviews({ previews }: { previews: LinkPreview[] }) {
-  if (previews.length === 0) return null;
+  const origins = useServerOrigins();
+  const shown = previews.filter((p) => !linkedMessage(p.url, origins));
+  if (shown.length === 0) return null;
   return (
     <div className="link-previews">
-      {previews.map((p) => (
+      {shown.map((p) => (
         <LinkPreviewCard key={p.url} preview={p} />
       ))}
     </div>
