@@ -5,8 +5,9 @@ import (
 	"testing"
 )
 
-// The same cases as web/src/api/markdown.test.ts, "plainText mirrors the
-// server" and "plainText": the two implementations are held to one answer.
+// The same cases as web/src/api/markdown/markdown.test.ts, "plainText
+// mirrors the server" and "plainText": the two implementations are held to
+// one answer.
 func TestPlainTextMirrorsTheClient(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"**bold** and *italic*", "bold and italic"},

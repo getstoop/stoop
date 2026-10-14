@@ -1,0 +1,55 @@
+import { parseMarkdown } from "./blocks";
+import type { Block, Inline } from "./types";
+
+// What other features read out of a message without rendering it.
+
+// The message with its markup removed, for one-line previews (reply bar,
+// activity previews). Mirrors plainText on the server.
+export function plainText(content: string): string {
+  return parseMarkdown(content)
+    .map((b) => {
+      if (b.type === "codeblock") return b.text;
+      return lineRuns(b).map(inlineText).join("\n");
+    })
+    .join("\n")
+    .replace(/\s*\n\s*/g, " ")
+    .trim();
+}
+
+// The distinct links in a message, in order of appearance. Mirrors
+// extractLinks on the server, without its cap.
+export function linksIn(content: string): string[] {
+  const found = new Set<string>();
+  const walk = (nodes: Inline[]) => {
+    for (const n of nodes) {
+      if (n.type === "link") found.add(n.href);
+      else if ("children" in n) walk(n.children);
+    }
+  };
+  for (const b of parseMarkdown(content)) {
+    if (b.type !== "codeblock") for (const run of lineRuns(b)) walk(run);
+  }
+  return [...found];
+}
+
+// A block's lines of inline content. A list reads as its items; the
+// bullets themselves are markup.
+function lineRuns(b: Exclude<Block, { type: "codeblock" }>): Inline[][] {
+  return b.type === "list" ? b.items.map((it) => it.content) : b.lines;
+}
+
+function inlineText(nodes: Inline[]): string {
+  return nodes
+    .map((n) => {
+      switch (n.type) {
+        case "text":
+        case "code":
+          return n.text;
+        case "link":
+          return n.label ? inlineText(n.label) : n.href;
+        default:
+          return inlineText(n.children);
+      }
+    })
+    .join("");
+}
