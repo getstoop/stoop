@@ -1,5 +1,6 @@
 import { Node } from "prosemirror-model";
 import {
+  AllSelection,
   type Command,
   EditorState,
   Selection,
@@ -7,6 +8,7 @@ import {
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
 import { activeFormats, formatCommands, newLine } from "./commands";
+import { checkLink, linkAround, linkDraft, saveLink } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
 import { indentItem, linkSelection, markdownSlice } from "./plugins";
 import { schema } from "./schema";
@@ -233,5 +235,88 @@ describe("the toolbar's pressed buttons", () => {
     expect(activeFormats(caretAtEnd(stateOf("```\nx\n```")))).toEqual([
       "codeblock",
     ]);
+  });
+});
+
+describe("links", () => {
+  const LINKED = "see [the **docs** page](https://example.com/d) now";
+
+  it("are found from anywhere inside, as one link across styles", () => {
+    const state = caretAfter(stateOf(LINKED), "do");
+    expect(linkAround(state)?.href).toBe("https://example.com/d");
+    expect(activeFormats(state)).toContain("link");
+    const link = linkAround(state);
+    expect(link && state.doc.textBetween(link.from, link.to)).toBe(
+      "the docs page",
+    );
+  });
+
+  it("aren't found at their edge, where typing isn't linked", () => {
+    expect(linkAround(caretAfter(stateOf(LINKED), "page"))).toBeNull();
+  });
+
+  it("open the form with the selected words", () => {
+    const draft = linkDraft(selecting(stateOf("read this"), "this"));
+    expect(draft && { text: draft.text, href: draft.href }).toEqual({
+      text: "this",
+      href: "",
+    });
+  });
+
+  it("take a one-line draft's words from select all", () => {
+    const state = stateOf("just this");
+    const all = state.apply(state.tr.setSelection(new AllSelection(state.doc)));
+    expect(linkDraft(all)?.text).toBe("just this");
+  });
+
+  it("go at the end of the last line when the selection spans lines", () => {
+    const state = stateOf("one\ntwo");
+    const all = state.apply(state.tr.setSelection(new AllSelection(state.doc)));
+    const draft = linkDraft(all);
+    expect(draft?.text).toBe("");
+    const saved =
+      draft && all.apply(saveLink(all, draft, "it", "https://x.org"));
+    expect(saved && md(saved)).toBe("one\ntwo[it](https://x.org)");
+  });
+
+  it("can't go in a code block", () => {
+    expect(linkDraft(caretAtEnd(stateOf("```\nx\n```")))).toBeNull();
+  });
+
+  it("save over the selected words, keeping their styles", () => {
+    const state = selecting(stateOf("read **this** now"), "this");
+    const draft = linkDraft(state);
+    const saved =
+      draft && state.apply(saveLink(state, draft, "this", "https://x.org"));
+    expect(saved && md(saved)).toBe("read [**this**](https://x.org) now");
+    expect(saved && activeFormats(saved), "the caret is past the link").toEqual(
+      ["bold"],
+    );
+  });
+
+  it("save new words at the caret, or the address when there are none", () => {
+    const state = caretAfter(stateOf("go "), "go ");
+    const draft = linkDraft(state);
+    const named =
+      draft && state.apply(saveLink(state, draft, "here", "https://x.org"));
+    expect(named && md(named)).toBe("go [here](https://x.org)");
+    const bare =
+      draft && state.apply(saveLink(state, draft, " ", "https://x.org"));
+    expect(bare && md(bare)).toBe("go https://x.org");
+  });
+
+  it("save an edit over the whole link", () => {
+    const state = caretAfter(stateOf(LINKED), "do");
+    const draft = linkDraft(state);
+    const edited =
+      draft && state.apply(saveLink(state, draft, "guide", "https://x.org/g"));
+    expect(edited && md(edited)).toBe("see [guide](https://x.org/g) now");
+  });
+
+  it("refuse an address the format can't read, and words holding one", () => {
+    expect(checkLink("docs", "example.com").href).toBeTruthy();
+    expect(checkLink("docs", "https://example.com")).toEqual({});
+    expect(checkLink("see https://a.b", "https://c.d").text).toBeTruthy();
+    expect(checkLink("https://c.d", "https://c.d")).toEqual({});
   });
 });

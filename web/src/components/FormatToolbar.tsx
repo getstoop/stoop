@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { type Format, shortcutHint } from "../api/formatting";
-import { BulletListIcon, NumberedListIcon } from "./Icons";
+import { BulletListIcon, LinkIcon, NumberedListIcon } from "./Icons";
 import { Tooltip } from "./Tooltip";
 
 // The formatting row above the composer/editor. Buttons keep the editor
@@ -18,6 +18,7 @@ const BUTTONS: {
   { format: "strike", label: "Strikethrough", hint: "⇧X", glyph: "S" },
   { format: "code", label: "Inline code", hint: "E", glyph: "</>" },
   { format: "spoiler", label: "Spoiler", glyph: "▚" },
+  { format: "link", label: "Link", hint: "K", glyph: <LinkIcon /> },
   { format: "quote", label: "Quote", glyph: "❝" },
   { format: "list", label: "Bulleted list", glyph: <BulletListIcon /> },
   {

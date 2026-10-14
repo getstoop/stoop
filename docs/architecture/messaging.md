@@ -167,6 +167,9 @@ document, and Markdown is what it sends and what it loads to edit.
   block stays literal.
 - **A bare address stays plain text**, styled as a link, because the
   message format links it on its own.
+- **The link form refuses what the format can't read back**: an address
+  not starting with `http://` or `https://`, and link words holding an
+  address of their own.
 
 ### The server's one involvement
 
