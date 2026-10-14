@@ -22,8 +22,8 @@ const (
 
 type inlineNode struct {
 	kind     inlineKind
-	text     string // the text, the code, or the href
-	children []inlineNode
+	text     string       // the text, the code, or the href
+	children []inlineNode // a style's content, or a link's label
 }
 
 type blockKind int
@@ -52,6 +52,7 @@ var (
 	// at the start of a line is still italic.
 	listLine     = regexp.MustCompile(`^( {0,6})([-*]|\d{1,9}[.)])\s+(.*)$`)
 	urlAt        = regexp.MustCompile(`(?i)^https?://[^\s<]+`)
+	urlWhole     = regexp.MustCompile(`(?i)^https?://[^\s<]+$`)
 	trailingPunc = regexp.MustCompile(`[.,;:!?)\]'"]+$`)
 	mdWhitespace = regexp.MustCompile(`\s*\n\s*`)
 )
@@ -140,6 +141,14 @@ func parseInline(s string) []inlineNode {
 				continue
 			}
 		}
+		if ch == '[' {
+			if node, end, ok := matchLabelled(s, i); ok {
+				flush()
+				out = append(out, node)
+				i = end
+				continue
+			}
+		}
 		// ***both*** is bold around italic.
 		if strings.HasPrefix(s[i:], "***") {
 			if j := findCloser(s, "***", i+3); j != -1 {
@@ -162,6 +171,63 @@ func parseInline(s string) []inlineNode {
 	}
 	flush()
 	return out
+}
+
+// matchLabelled is "[words](https://address)" at start. The words can't hold
+// a link of their own, so a label never shows one address over another.
+func matchLabelled(source string, start int) (node inlineNode, end int, ok bool) {
+	labelEnd := start + 1
+	for labelEnd < len(source) && source[labelEnd] != ']' {
+		if source[labelEnd] == '[' {
+			return inlineNode{}, 0, false
+		}
+		if source[labelEnd] == '\\' && labelEnd+1 < len(source) && strings.IndexByte(escapable, source[labelEnd+1]) >= 0 {
+			labelEnd++
+		}
+		labelEnd++
+	}
+	if !strings.HasPrefix(source[min(labelEnd, len(source)):], "](") {
+		return inlineNode{}, 0, false
+	}
+	label := source[start+1 : labelEnd]
+	if strings.TrimSpace(label) == "" {
+		return inlineNode{}, 0, false
+	}
+	// The address ends at the ")" that isn't closing a "(" inside it.
+	hrefStart := labelEnd + 2
+	hrefEnd, depth := hrefStart, 0
+	for ; hrefEnd < len(source); hrefEnd++ {
+		if source[hrefEnd] == '(' {
+			depth++
+		}
+		if source[hrefEnd] == ')' {
+			if depth == 0 {
+				break
+			}
+			depth--
+		}
+	}
+	if hrefEnd >= len(source) {
+		return inlineNode{}, 0, false
+	}
+	href := source[hrefStart:hrefEnd]
+	if !urlWhole.MatchString(href) {
+		return inlineNode{}, 0, false
+	}
+	children := parseInline(label)
+	if holdsLink(children) {
+		return inlineNode{}, 0, false
+	}
+	return inlineNode{kind: inlineLink, text: href, children: children}, hrefEnd + 1, true
+}
+
+func holdsLink(nodes []inlineNode) bool {
+	for _, n := range nodes {
+		if n.kind == inlineLink || holdsLink(n.children) {
+			return true
+		}
+	}
+	return false
 }
 
 func matchDelimited(s string, i int) (inner string, end int, ok bool) {
@@ -257,7 +323,8 @@ func plainText(content string) string {
 func inlineString(nodes []inlineNode) string {
 	var sb strings.Builder
 	for _, n := range nodes {
-		if n.kind == inlineStyled {
+		// A style reads as its content, and a link with a label as its label.
+		if n.kind == inlineStyled || len(n.children) > 0 {
 			sb.WriteString(inlineString(n.children))
 		} else {
 			sb.WriteString(n.text)

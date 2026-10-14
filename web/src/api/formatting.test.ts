@@ -3,6 +3,7 @@ import {
   applyFormat,
   type Format,
   IS_MAC,
+  linkSelection,
   shortcutFormat,
   shortcutHint,
 } from "./formatting";
@@ -410,5 +411,37 @@ describe("shortcutHint", () => {
 
   it("agrees with the module already imported here", () => {
     expect(shortcutHint("B")).toBe(IS_MAC ? "⌘B" : "Ctrl+B");
+  });
+});
+
+describe("linkSelection", () => {
+  const URL = "https://example.com/a_(b)";
+
+  it("links the selected words to a pasted address", () => {
+    expect(linkSelection("read the docs now", 5, 13, ` ${URL}\n`)).toEqual({
+      value: `read [the docs](${URL}) now`,
+      start: 5 + `[the docs](${URL})`.length,
+      end: 5 + `[the docs](${URL})`.length,
+    });
+  });
+
+  it("keeps styling inside the words", () => {
+    expect(linkSelection("**the** docs", 0, 12, URL)?.value).toBe(
+      `[**the** docs](${URL})`,
+    );
+  });
+
+  it("leaves every other paste alone", () => {
+    expect(linkSelection("the docs", 4, 4, URL)).toBeNull();
+    expect(linkSelection("the docs", 0, 8, "not an address")).toBeNull();
+    expect(linkSelection("the docs", 0, 8, `${URL} and more`)).toBeNull();
+    expect(linkSelection("the docs", 0, 8, "ftp://example.com")).toBeNull();
+    expect(linkSelection("the docs", 3, 4, URL)).toBeNull();
+  });
+
+  it("replaces words that can't be a link's", () => {
+    expect(linkSelection("https://old.example", 0, 19, URL)).toBeNull();
+    expect(linkSelection("a [b] c", 0, 7, URL)).toBeNull();
+    expect(linkSelection("one\ntwo", 0, 7, URL)).toBeNull();
   });
 });

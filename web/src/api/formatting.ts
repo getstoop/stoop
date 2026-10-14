@@ -3,6 +3,8 @@
 // "1. ") on the selected lines, or fence the selection as a code block. Pure functions over (value,
 // selection) so they're easy to test and share.
 
+import { parseInline } from "./markdown";
+
 export type Format =
   | "bold"
   | "italic"
@@ -133,6 +135,33 @@ function fence(value: string, start: number, end: number): Edit {
     value: `${before}${lead}\`\`\`\n${sel}\n\`\`\`${trail}${after}`,
     start: s,
     end: s + sel.length,
+  };
+}
+
+// An address pasted over selected words links the words to it, with the
+// caret after the link. Null when the paste is anything else, or the
+// words can't be a link's (they hold an address, a bracket or a line
+// break): the paste then replaces them as usual.
+export function linkSelection(
+  value: string,
+  start: number,
+  end: number,
+  pasted: string,
+): Edit | null {
+  const words = value.slice(start, end);
+  const address = pasted.trim();
+  if (words.trim() === "" || words.includes("\n")) return null;
+  if (!/^https?:\/\/\S+$/i.test(address)) return null;
+  const link = `[${words}](${address})`;
+  const parsed = parseInline(link);
+  if (parsed.length !== 1 || parsed[0].type !== "link" || !parsed[0].label) {
+    return null;
+  }
+  const caret = start + link.length;
+  return {
+    value: value.slice(0, start) + link + value.slice(end),
+    start: caret,
+    end: caret,
   };
 }
 

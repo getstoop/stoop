@@ -2,8 +2,8 @@
 // tree the renderer turns into React nodes (never HTML strings). Blocks:
 // fenced code, "> " quotes, "- "/"1. " lists, plain lines. Inline:
 // **bold**, *italic*, __underline__, ~~strike~~, ||spoiler||, `code`,
-// bare http(s) links. `_italic_` is deliberately absent so @user_names
-// survive; escapes work with `\`.
+// bare http(s) links, [words](https://address). `_italic_` is deliberately
+// absent so @user_names survive; escapes work with `\`.
 //
 // The parser keeps the markers themselves (StyledMarker) so the composer's
 // live-styling overlay can dim them while they are typed; parseInline and
@@ -13,7 +13,8 @@
 export type Inline =
   | { type: "text"; text: string }
   | { type: "code"; text: string }
-  | { type: "link"; href: string }
+  // label is the words of a [words](address) link; a bare URL has none.
+  | { type: "link"; href: string; label?: Inline[] }
   | {
       type: "bold" | "italic" | "underline" | "strike" | "spoiler";
       children: Inline[];
@@ -36,18 +37,28 @@ export type Block =
   | { type: "codeblock"; text: string; lang: string };
 
 // The marker-preserving inline tree. "code" is a backtick pair plus the
-// literal run between them, "link" is a bare URL, and each style node is
-// its open and close marker plus the styled content in between.
+// literal run between them, "link" is a bare URL or one with a label, and
+// each style node is its open and close marker plus the styled content in
+// between.
 export type StyledInline =
   | { type: "text"; text: string }
   | { type: "code"; open: StyledMarker; text: string; close: StyledMarker }
-  | { type: "link"; href: string }
+  | { type: "link"; href: string; label?: StyledLabel }
   | {
       type: "bold" | "italic" | "underline" | "strike" | "spoiler";
       open: StyledMarker;
       children: StyledInline[];
       close: StyledMarker;
     };
+
+// The words of a [words](address) link, with the "[" before them, the
+// "](" between them and the address, and the ")" after it.
+export interface StyledLabel {
+  open: StyledMarker;
+  children: StyledInline[];
+  middle: StyledMarker;
+  close: StyledMarker;
+}
 
 // A quote line: its ">" marker plus the styled content after it.
 export interface StyledQuoteLine {
@@ -224,6 +235,7 @@ export function parseStyledMarkdown(content: string): StyledBlock[] {
 // without becoming a list.
 const ESCAPABLE = /[\\`*_~>|#[\]()-]/;
 const URL_AT = /^https?:\/\/[^\s<]+/i;
+const URL_WHOLE = /^https?:\/\/[^\s<]+$/i;
 const TRAILING_PUNCT = /[.,;:!?)\]'"]+$/;
 
 // Delimiters longest first so "**" wins over "*".
@@ -276,6 +288,15 @@ export function parseStyledInline(s: string): StyledInline[] {
         flush();
         out.push({ type: "link", href });
         i += href.length;
+        continue;
+      }
+    }
+    if (ch === "[") {
+      const labelled = matchLabelled(s, i);
+      if (labelled) {
+        flush();
+        out.push(labelled.node);
+        i = labelled.end;
         continue;
       }
     }
@@ -339,13 +360,74 @@ function inlineProject(nodes: StyledInline[]): Inline[] {
         out.push({ type: "code", text: n.text });
         break;
       case "link":
-        out.push({ type: "link", href: n.href });
+        out.push(
+          n.label
+            ? {
+                type: "link",
+                href: n.href,
+                label: inlineProject(n.label.children),
+              }
+            : { type: "link", href: n.href },
+        );
         break;
       default:
         out.push({ type: n.type, children: inlineProject(n.children) });
     }
   }
   return out;
+}
+
+// "[words](https://address)" at i. The words can't hold a link of their
+// own, so a label never shows one address over another.
+function matchLabelled(
+  s: string,
+  i: number,
+): { node: StyledInline; end: number } | null {
+  let labelEnd = i + 1;
+  while (labelEnd < s.length && s[labelEnd] !== "]") {
+    if (s[labelEnd] === "[") return null;
+    const escaped =
+      s[labelEnd] === "\\" &&
+      labelEnd + 1 < s.length &&
+      ESCAPABLE.test(s[labelEnd + 1]);
+    labelEnd += escaped ? 2 : 1;
+  }
+  if (s[labelEnd] !== "]" || s[labelEnd + 1] !== "(") return null;
+  const label = s.slice(i + 1, labelEnd);
+  if (label.trim() === "") return null;
+  // The address ends at the ")" that isn't closing a "(" inside it.
+  const hrefStart = labelEnd + 2;
+  let hrefEnd = hrefStart;
+  let depth = 0;
+  while (hrefEnd < s.length) {
+    if (s[hrefEnd] === "(") depth++;
+    if (s[hrefEnd] === ")" && depth-- === 0) break;
+    hrefEnd++;
+  }
+  if (hrefEnd >= s.length) return null;
+  const href = s.slice(hrefStart, hrefEnd);
+  if (!URL_WHOLE.test(href)) return null;
+  const children = parseStyledInline(label);
+  if (holdsLink(children)) return null;
+  return {
+    node: {
+      type: "link",
+      href,
+      label: {
+        open: { text: "[" },
+        children,
+        middle: { text: "](" },
+        close: { text: ")" },
+      },
+    },
+    end: hrefEnd + 1,
+  };
+}
+
+function holdsLink(nodes: StyledInline[]): boolean {
+  return nodes.some(
+    (n) => n.type === "link" || ("children" in n && holdsLink(n.children)),
+  );
 }
 
 function matchDelimited(s: string, i: number) {
@@ -443,7 +525,7 @@ function inlineText(nodes: Inline[]): string {
         case "code":
           return n.text;
         case "link":
-          return n.href;
+          return n.label ? inlineText(n.label) : n.href;
         default:
           return inlineText(n.children);
       }

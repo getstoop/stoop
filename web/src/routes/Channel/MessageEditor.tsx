@@ -26,7 +26,11 @@ export function MessageEditor({
   const ref = useRef<HTMLTextAreaElement>(null);
   useAutoGrow(ref, value);
   const touchKeyboard = useTouchKeyboard();
-  const { apply: format, onShortcut } = useFormatting(ref, setValue);
+  const {
+    apply: format,
+    onShortcut,
+    onPasteLink,
+  } = useFormatting(ref, setValue);
 
   // Focus once with the caret at the end.
   useEffect(() => {
@@ -74,6 +78,7 @@ export function MessageEditor({
           value={value}
           rows={1}
           onChange={(e) => setValue(e.target.value)}
+          onPaste={onPasteLink}
           onKeyDown={(e) => {
             if (onShortcut(e)) return;
             if (e.key === "Enter" && !e.shiftKey) {

@@ -36,6 +36,11 @@ func TestPlainTextMirrorsTheClient(t *testing.T) {
 		{"  a\n\n  b  ", "a b"},
 		{"> quoted\n- item\n```\ncode\n```", "quoted item code"},
 		{"see https://example.com now", "see https://example.com now"},
+		{"see [the docs](https://example.com/a) now", "see the docs now"},
+		{"[**bold** words](https://a.b/x_(y))", "bold words"},
+		{"[a](not an address)", "[a](not an address)"},
+		{"[https://a.example](https://b.example)", "[https://a.example](https://b.example)"},
+		{`\[a](https://a.b)`, "[a](https://a.b)"},
 	}
 	for _, c := range cases {
 		if got := plainText(c.in); got != c.want {
@@ -82,6 +87,16 @@ func TestParseInlineShape(t *testing.T) {
 		{"see https://a.b/c.", []inlineNode{text("see "), {kind: inlineLink, text: "https://a.b/c"}, text(".")}},
 		{"https://a.b/x_(y)", []inlineNode{{kind: inlineLink, text: "https://a.b/x_(y)"}}},
 		{"https://a.b/**x**", []inlineNode{{kind: inlineLink, text: "https://a.b/**x**"}}},
+		{"([a **b**](https://a.b/x_(y)))", []inlineNode{
+			text("("),
+			{kind: inlineLink, text: "https://a.b/x_(y)", children: []inlineNode{text("a "), styled(text("b"))}},
+			text(")"),
+		}},
+		{"[a](ftp://a.b)", []inlineNode{text("[a](ftp://a.b)")}},
+		{"[ ](https://a.b)", []inlineNode{text("[ ]("), {kind: inlineLink, text: "https://a.b"}, text(")")}},
+		{"[a](https://a.b", []inlineNode{text("[a]("), {kind: inlineLink, text: "https://a.b"}}},
+		{"[a", []inlineNode{text("[a")}},
+		{"[a]", []inlineNode{text("[a]")}},
 	}
 	for _, c := range cases {
 		if got := parseInline(c.in); !reflect.DeepEqual(got, c.want) {

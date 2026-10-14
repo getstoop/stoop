@@ -16,7 +16,8 @@ import {
 // The live-styling layer under a composer's textarea: it reproduces the
 // draft character for character — every marker (**, *, __, ~~, ||, ``,
 // ```, >, "- ") stays visible in a dimmed span, and the content between
-// markers is styled (strong/em/u/s/code/quote/spoiler). A spoiler is not
+// markers is styled (strong/em/u/s/code/quote/spoiler); a link with a
+// label shows its words as the link and its address dimmed. A spoiler is not
 // blurred here: you are the one writing it. The textarea on top has transparent
 // text, so the user reads this layer while typing into the textarea.
 //
@@ -208,7 +209,20 @@ function inline(nodes: StyledInline[]): ReactNode {
           </Fragment>
         );
       case "link":
-        return (
+        return n.label ? (
+          <Fragment
+            // biome-ignore lint/suspicious/noArrayIndexKey: static parse tree
+            key={i}
+          >
+            <span className="md-marker">{n.label.open.text}</span>
+            <span className="ov-link">{inline(n.label.children)}</span>
+            <span className="md-marker">
+              {n.label.middle.text}
+              {n.href}
+              {n.label.close.text}
+            </span>
+          </Fragment>
+        ) : (
           <span
             // biome-ignore lint/suspicious/noArrayIndexKey: static parse tree
             key={i}
