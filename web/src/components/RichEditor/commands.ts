@@ -20,7 +20,7 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import type { Format } from "../../api/formatting";
-import { linkAround, removeLink } from "./links";
+import { linkAround } from "./links";
 import { schema } from "./schema";
 
 // A blank last line in a code block, then a new line: leave the block
@@ -97,14 +97,14 @@ const toggleCodeBlock: Command = (state, dispatch) =>
 const toggle = (type: MarkType) =>
   toggleMark(type, null, { removeWhenPresent: false });
 
-export const formatCommands: Record<Format, Command> = {
+// Link opens the link dialog instead (RichEditor/index.tsx).
+export const formatCommands: Record<Exclude<Format, "link">, Command> = {
   bold: toggle(schema.marks.bold),
   italic: toggle(schema.marks.italic),
   underline: toggle(schema.marks.underline),
   strike: toggle(schema.marks.strike),
   code: toggle(schema.marks.code),
   spoiler: toggle(schema.marks.spoiler),
-  link: removeLink,
   quote: toggleQuote,
   list: toggleList(schema.nodes.bulletList),
   orderedList: toggleList(schema.nodes.orderedList),

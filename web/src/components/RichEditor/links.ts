@@ -1,5 +1,5 @@
 import type { Mark, ResolvedPos } from "prosemirror-model";
-import type { Command, EditorState, Transaction } from "prosemirror-state";
+import type { EditorState, Transaction } from "prosemirror-state";
 import { Selection, TextSelection } from "prosemirror-state";
 import { schema } from "./schema";
 
@@ -60,13 +60,6 @@ export function linkAtPos(state: EditorState, pos: number): LinkRange | null {
   const mark = schema.marks.link.isInSet($pos.nodeAfter?.marks ?? []);
   return mark && pos < $pos.end() ? linkAt($pos, mark) : null;
 }
-
-export const removeLink: Command = (state, dispatch) => {
-  const link = linkAround(state);
-  if (!link) return false;
-  dispatch?.(state.tr.removeMark(link.from, link.to, schema.marks.link));
-  return true;
-};
 
 // The form's starting values: the link being edited, else the selected
 // words, else nothing at the caret. Null where links can't go.

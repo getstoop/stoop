@@ -8,13 +8,7 @@ import {
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
 import { activeFormats, formatCommands, newLine } from "./commands";
-import {
-  checkLink,
-  linkAround,
-  linkDraft,
-  removeLink,
-  saveLink,
-} from "./links";
+import { checkLink, linkAround, linkDraft, saveLink } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
 import { indentItem, linkSelection, markdownSlice } from "./plugins";
 import { schema } from "./schema";
@@ -251,13 +245,14 @@ describe("links", () => {
     const state = caretAfter(stateOf(LINKED), "do");
     expect(linkAround(state)?.href).toBe("https://example.com/d");
     expect(activeFormats(state)).toContain("link");
-    const removed = run(state, removeLink);
-    expect(removed && md(removed)).toBe("see the **docs** page now");
+    const link = linkAround(state);
+    expect(link && state.doc.textBetween(link.from, link.to)).toBe(
+      "the docs page",
+    );
   });
 
   it("aren't found at their edge, where typing isn't linked", () => {
     expect(linkAround(caretAfter(stateOf(LINKED), "page"))).toBeNull();
-    expect(run(caretAfter(stateOf(LINKED), "page"), removeLink)).toBeNull();
   });
 
   it("open the form with the selected words", () => {

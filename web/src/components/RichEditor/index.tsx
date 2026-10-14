@@ -167,9 +167,9 @@ export function RichEditor({
     }
     fieldRef.current = {
       format: (format) => {
-        // In a link the button removes it; elsewhere it opens the form.
-        if (format === "link" && !linkAround(view.state)) {
-          openLink(null);
+        // In a link the button opens it to edit; elsewhere, to add one.
+        if (format === "link") {
+          openLink(linkAround(view.state));
           return;
         }
         formatCommands[format](view.state, view.dispatch);

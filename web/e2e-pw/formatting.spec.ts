@@ -198,25 +198,20 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
     "href",
     "https://example.org/b",
   );
-  // The caret in the link presses the button, and the button unlinks.
+  // The caret in the link presses the button, and the button opens the
+  // link to edit, where Remove link unlinks it.
   await composer(A).locator("a").click();
   await expect(
     tool(A, "Link"),
     "the caret in a link presses Link",
   ).toHaveAttribute("aria-pressed", "true");
   await clickTool(A, "Link");
-  await expect(composer(A).locator("a"), "Link removes the link").toHaveCount(
-    0,
-  );
-  await expect(composer(A)).toHaveText("docs");
-  // Remove link in the edit dialog unlinks too.
-  await A.keyboard.press("ControlOrMeta+z");
-  await composer(A).locator("a").dblclick();
-  await linkForm.getByRole("button", { name: "Remove link" }).click();
   await expect(
-    composer(A).locator("a"),
-    "Remove link in the dialog unlinks",
-  ).toHaveCount(0);
+    linkForm.locator("h2"),
+    "Link in a link opens it to edit",
+  ).toHaveText("Edit link");
+  await linkForm.getByRole("button", { name: "Remove link" }).click();
+  await expect(composer(A).locator("a"), "Remove link unlinks").toHaveCount(0);
   await expect(composer(A)).toHaveText("docs");
   // Ctrl/⌘+K with nothing selected adds a link at the caret.
   await A.keyboard.press("End");
