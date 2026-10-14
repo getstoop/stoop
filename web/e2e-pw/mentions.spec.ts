@@ -197,6 +197,16 @@ test("mentions notify, badge and read", async ({ browser }) => {
   await expect(picker(A), "owner's picker offers @channel").toContainText(
     "Everyone in this channel",
   );
+  // The picker follows the caret: away from the query it closes, so
+  // Enter can't replace the wrong words; back at it, it reopens.
+  await A.keyboard.press("Home");
+  await expect(picker(A), "the caret leaving the query closes it").toHaveCount(
+    0,
+  );
+  await A.keyboard.press("End");
+  await expect(picker(A), "…and coming back reopens it").toContainText(
+    "Everyone in this channel",
+  );
   await A.keyboard.press("Enter");
   await type(A, "game night");
   await A.keyboard.press("Enter");

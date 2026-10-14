@@ -419,6 +419,9 @@ export function Composer({
               updateMention(textBefore, textBefore.length);
               pingTyping(value);
             }}
+            onCaret={(textBefore) =>
+              updateMention(textBefore, textBefore.length)
+            }
             onKeyDown={onKeyDown}
             onBlur={() => {
               setMention(null);

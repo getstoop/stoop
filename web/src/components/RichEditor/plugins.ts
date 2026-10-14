@@ -10,7 +10,12 @@ import {
 import { keymap } from "prosemirror-keymap";
 import { type MarkType, type Node, Slice } from "prosemirror-model";
 import { liftListItem, sinkListItem } from "prosemirror-schema-list";
-import { type EditorState, Plugin, type Transaction } from "prosemirror-state";
+import {
+  type Command,
+  type EditorState,
+  Plugin,
+  type Transaction,
+} from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { newLine } from "./commands";
 import { fromMarkdown, toMarkdown } from "./markdown";
@@ -80,6 +85,30 @@ const rules = inputRules({
   ],
 });
 
+// The message format reads four levels (indents 0 to 3); Tab stops there
+// rather than the writer flattening a deeper item.
+const MAX_LIST_DEPTH = 3;
+
+function sinkUpTo(max: number): Command {
+  const sink = sinkListItem(schema.nodes.listItem);
+  return (state, dispatch) => {
+    const { $from } = state.selection;
+    let lists = 0;
+    for (let d = $from.depth; d > 0; d--) {
+      const { type } = $from.node(d);
+      if (
+        type === schema.nodes.bulletList ||
+        type === schema.nodes.orderedList
+      ) {
+        lists++;
+      }
+    }
+    return lists <= max && sink(state, dispatch);
+  };
+}
+
+export const indentItem = sinkUpTo(MAX_LIST_DEPTH);
+
 const keys = keymap({
   "Mod-z": undo,
   "Shift-Mod-z": redo,
@@ -87,7 +116,7 @@ const keys = keymap({
   Backspace: undoInputRule,
   Enter: newLine,
   "Shift-Enter": newLine,
-  Tab: sinkListItem(schema.nodes.listItem),
+  Tab: indentItem,
   "Shift-Tab": liftListItem(schema.nodes.listItem),
 });
 

@@ -8,7 +8,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { formatCommands, newLine } from "./commands";
 import { fromMarkdown, toMarkdown } from "./markdown";
-import { linkSelection, markdownSlice } from "./plugins";
+import { indentItem, linkSelection, markdownSlice } from "./plugins";
 import { schema } from "./schema";
 
 const stateOf = (md: string) =>
@@ -104,6 +104,21 @@ describe("pasting an address over words", () => {
     ],
   ])("leaves the paste alone when %s", (_, state, pasted) => {
     expect(linkSelection(state, pasted)).toBeNull();
+  });
+});
+
+describe("Tab in a list", () => {
+  it("indents an item under the one before", () => {
+    const next = run(caretAtEnd(stateOf("- one\n- two")), indentItem);
+    expect(next && md(next)).toBe("- one\n  - two");
+  });
+
+  it("stops at the deepest level the format keeps", () => {
+    const third = "- a\n  - b\n    - c\n    - d";
+    const fourth = run(caretAtEnd(stateOf(third)), indentItem);
+    expect(fourth && md(fourth)).toBe("- a\n  - b\n    - c\n      - d");
+    const deepest = "- a\n  - b\n    - c\n      - d\n      - e";
+    expect(run(caretAtEnd(stateOf(deepest)), indentItem)).toBeNull();
   });
 });
 

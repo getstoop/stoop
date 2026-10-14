@@ -26,6 +26,7 @@ function docFrom(markdown: string): Node {
 export function RichEditor({
   value,
   onChange,
+  onCaret,
   onKeyDown,
   onPaste,
   onBlur,
@@ -36,6 +37,8 @@ export function RichEditor({
   value: string;
   // textBefore is the current block's text up to the caret, for pickers.
   onChange: (markdown: string, textBefore: string) => void;
+  // The caret moved without an edit: pickers re-read their query.
+  onCaret?: (textBefore: string) => void;
   onKeyDown: (e: KeyboardEvent) => void;
   onPaste?: (e: ClipboardEvent) => void;
   onBlur?: () => void;
@@ -46,8 +49,14 @@ export function RichEditor({
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const handlers = useRef({ onChange, onKeyDown, onPaste, onBlur });
-  handlers.current = { onChange, onKeyDown, onPaste, onBlur };
+  const handlers = useRef({
+    onChange,
+    onCaret,
+    onKeyDown,
+    onPaste,
+    onBlur,
+  });
+  handlers.current = { onChange, onCaret, onKeyDown, onPaste, onBlur };
   const placeholderRef = useRef(placeholder);
   placeholderRef.current = placeholder;
   const emitted = useRef(value);
@@ -83,14 +92,21 @@ export function RichEditor({
       },
       dispatchTransaction: (tr) => {
         view.updateState(view.state.apply(tr));
-        if (!tr.docChanged || tr.getMeta("fromProps")) return;
+        if (tr.getMeta("fromProps")) return;
+        const { $from } = view.state.selection;
+        const textBefore = $from.parent.textBetween(
+          0,
+          $from.parentOffset,
+          undefined,
+          "\ufffc",
+        );
+        if (!tr.docChanged) {
+          if (tr.selectionSet) handlers.current.onCaret?.(textBefore);
+          return;
+        }
         const markdown = toMarkdown(view.state.doc.toJSON());
         emitted.current = markdown;
-        const { $from } = view.state.selection;
-        handlers.current.onChange(
-          markdown,
-          $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc"),
-        );
+        handlers.current.onChange(markdown, textBefore);
       },
     });
     viewRef.current = view;
@@ -106,7 +122,8 @@ export function RichEditor({
         view.focus();
       },
       replaceBeforeCaret: (count, text) => {
-        const pos = view.state.selection.from;
+        const { from: pos, $from } = view.state.selection;
+        if (count > $from.parentOffset) return;
         view.dispatch(view.state.tr.insertText(text, pos - count, pos));
         view.focus();
       },
