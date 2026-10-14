@@ -21,7 +21,7 @@ import { type Format, shortcutFormat } from "../../api/formatting";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import {
   filterMembers,
-  mentionKinds,
+  mentionMembers,
   mentionQueryAt,
 } from "../../api/mentions";
 import { canMentionEntireChannel } from "../../api/permissions";
@@ -185,7 +185,7 @@ export function Composer({
   const space = spaces?.find((s) => s.id === spaceId);
   const channelAndHere = !!space && canMentionEntireChannel(space);
   const mentionContext = useMemo(
-    () => ({ kinds: mentionKinds(members), channelAndHere }),
+    () => ({ members: mentionMembers(members), channelAndHere }),
     [members, channelAndHere],
   );
   const candidates =

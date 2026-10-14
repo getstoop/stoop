@@ -1,9 +1,9 @@
-import type { MentionKinds } from "../api/mentions";
+import type { MentionMembers } from "../api/mentions";
 import { MessageBody } from "./MessageBody";
 
 // A greeting is prose, not a mention: @names in it render as plain
 // text rather than lighting up like a mention.
-const NO_MENTIONS: MentionKinds = new Map();
+const NO_MENTIONS: MentionMembers = new Map();
 
 // A space's welcome text, rendered through the message renderer so it
 // takes exactly the Markdown a message takes and nothing more.

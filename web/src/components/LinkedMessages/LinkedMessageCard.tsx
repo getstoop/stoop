@@ -1,7 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Link } from "@tanstack/react-router";
 import { fullDateTime, shortDateTime } from "../../api/dates";
-import { mentionKinds } from "../../api/mentions";
+import { mentionMembers } from "../../api/mentions";
 import {
   useChannels,
   useLinkedMessage,
@@ -40,7 +40,7 @@ export function LinkedMessageCard({ target }: { target: LinkedMessage }) {
 
   const who = message.author?.displayName || message.author?.username || "…";
   const when = message.createdAt ? timestampDate(message.createdAt) : null;
-  const usernames = mentionKinds(members);
+  const usernames = mentionMembers(members);
   return (
     <div className="link-preview linked-message">
       <Link

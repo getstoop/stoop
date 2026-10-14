@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
-import { mentionKinds } from "../../api/mentions";
+import { mentionMembers } from "../../api/mentions";
 import { useChannels, useMembers, useSpaces } from "../../api/queries";
 import {
   highlightPattern,
@@ -34,7 +34,7 @@ export function SearchPage() {
   const { data: members } = useMembers(spaceId);
   const space = spaces?.find((s) => s.id === spaceId);
   const from = channels?.find((ch) => ch.id === c);
-  const usernames = mentionKinds(members);
+  const usernames = mentionMembers(members);
   const [draft, setDraft] = useState(q);
   const input = useRef<HTMLInputElement>(null);
   // Arriving with nothing to search puts the cursor in the field.

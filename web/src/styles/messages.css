@@ -262,6 +262,23 @@
   padding: 0 4px;
 }
 
+.message-content.emoji-only > .md-lines {
+  font-size: 2em;
+  line-height: var(--leading-tight);
+}
+
+button.mention {
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+button.mention:hover {
+  text-decoration: underline;
+}
+
 .mention.me {
   background: var(--accent);
   color: var(--on-accent);
