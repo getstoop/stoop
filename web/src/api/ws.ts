@@ -15,6 +15,7 @@ import { useVoiceStore } from "../stores/voice";
 import { receiveActivityItem } from "./activity";
 import { channelPeopleKey } from "./channelPeople";
 import { byPosition, withPositions } from "./channels";
+import { groupsKey } from "./groups";
 import {
   isLive,
   type Timeline,
@@ -427,9 +428,12 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.removeQueries({
         queryKey: ["member", payload.value.spaceId, payload.value.userId],
       });
-      // Leaving a space takes someone out of its private channels with no
-      // event of its own.
+      // Leaving a space takes someone out of its private channels and its
+      // groups with no event of its own.
       queryClient.invalidateQueries({ queryKey: ["channel-people"] });
+      queryClient.invalidateQueries({
+        queryKey: groupsKey(payload.value.spaceId),
+      });
       // Their messages stay, and what they are shown as may have changed:
       // an account deleting itself leaves every space this way.
       queryClient.invalidateQueries({ queryKey: ["messages"] });
@@ -438,6 +442,11 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         queryClient.invalidateQueries({ queryKey: ["spaces"] });
         leaveVoiceIn(payload.value.spaceId);
       }
+      break;
+    case "groupsChanged":
+      queryClient.invalidateQueries({
+        queryKey: groupsKey(payload.value.spaceId),
+      });
       break;
     case "spaceUpdated": {
       queryClient.invalidateQueries({ queryKey: ["spaces"] });

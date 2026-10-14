@@ -303,6 +303,7 @@ const SPACE_SETTINGS_TABS = [
   "about",
   "channels",
   "members",
+  "groups",
   "banned",
   "integrations",
   "owner",
