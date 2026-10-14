@@ -231,6 +231,16 @@ export function RichEditor({
             }
             closeLinkForm();
           }}
+          onRemove={() => {
+            const view = viewRef.current;
+            const { from, to } = linkForm.draft;
+            if (view) {
+              view.dispatch(
+                view.state.tr.removeMark(from, to, schema.marks.link),
+              );
+            }
+            closeLinkForm();
+          }}
           onCancel={closeLinkForm}
         />
       )}

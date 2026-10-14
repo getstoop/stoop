@@ -12,12 +12,14 @@ export function LinkDialog({
   href: initialHref,
   editing,
   onSave,
+  onRemove,
   onCancel,
 }: {
   text: string;
   href: string;
   editing: boolean;
   onSave: (text: string, href: string) => void;
+  onRemove: () => void;
   onCancel: () => void;
 }) {
   const formId = useId();
@@ -41,9 +43,16 @@ export function LinkDialog({
       small
       footer={
         <>
-          <button type="button" className="chip" onClick={onCancel}>
-            Cancel
-          </button>
+          {/* Editing, ✕ and Escape still cancel. */}
+          {editing ? (
+            <button type="button" className="chip danger" onClick={onRemove}>
+              Remove link
+            </button>
+          ) : (
+            <button type="button" className="chip" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
           <button type="submit" form={formId} className="primary">
             Save
           </button>

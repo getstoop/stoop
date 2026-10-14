@@ -187,6 +187,11 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
   await expect(field("Address"), "the form holds the address").toHaveValue(
     "https://example.org/a",
   );
+  await expect(
+    linkForm.getByRole("button", { name: "Remove link" }),
+    "editing offers Remove link where Cancel was",
+  ).toBeVisible();
+  await expect(linkForm.getByRole("button", { name: "Cancel" })).toHaveCount(0);
   await field("Address").fill("https://example.org/b");
   await A.keyboard.press("Enter");
   await expect(composer(A).locator("a")).toHaveAttribute(
@@ -203,6 +208,15 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
   await expect(composer(A).locator("a"), "Link removes the link").toHaveCount(
     0,
   );
+  await expect(composer(A)).toHaveText("docs");
+  // Remove link in the edit dialog unlinks too.
+  await A.keyboard.press("ControlOrMeta+z");
+  await composer(A).locator("a").dblclick();
+  await linkForm.getByRole("button", { name: "Remove link" }).click();
+  await expect(
+    composer(A).locator("a"),
+    "Remove link in the dialog unlinks",
+  ).toHaveCount(0);
   await expect(composer(A)).toHaveText("docs");
   // Ctrl/⌘+K with nothing selected adds a link at the caret.
   await A.keyboard.press("End");
