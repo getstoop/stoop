@@ -120,7 +120,7 @@ the request succeeds with no message and no event goes out.
 `messages.content` is a small chat-style Markdown subset, and **the
 client renders it — the server never does.**
 
-Rendering goes through a parser (`web/src/api/markdown.ts`) to a tree, then
+Rendering goes through a parser (`web/src/api/markdown/`) to a tree, then
 to React nodes. Never `innerHTML`. That is why there is no sanitizer in the
 codebase and no XSS surface to audit: user content becomes text nodes and
 element props, and there is no code path where it becomes markup.
@@ -157,7 +157,7 @@ document, and Markdown is what it sends and what it loads to edit.
 - **The schema is the message format.** A quote holds lines, a list item
   holds a line and maybe a nested list, a code block holds plain text. The
   editor cannot make something the format cannot write.
-- **`markdown.ts` converts both ways**, and its tests hold the round trip:
+- **`RichEditor/markdown.ts` converts both ways**, and its tests hold the round trip:
   Markdown loaded and written back comes out unchanged. A marker character
   typed as text goes out escaped.
 - **Typing a marker pair formats it** with the format's meaning: `__` is

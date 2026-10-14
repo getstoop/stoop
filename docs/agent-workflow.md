@@ -13,8 +13,8 @@ sections, in this order:
 1. **The ticket** — what to build, in prose the agent can act on. Name the
    issue or tracker item, and say that the agent must not create new ones.
 2. **Orientation (read before writing code)** — the 4–6 files that matter,
-   with one line each on *why* (e.g. "`markdown.ts` in `RichEditor/` must
-   write only what the message parser reads back").
+   with one line each on *why* (e.g. "`RichEditor/markdown.ts` must write
+   only what the message parser reads back").
 3. **Non-negotiables** — module boundaries
    (`docs/architecture/modules.md`), file
    layout (`docs/conventions.md`: one component per file, one stylesheet
@@ -101,7 +101,7 @@ sections, in this order:
   parser case exercised through Chrome, a login and a composer is a slow
   and flaky way to catch what a named test case catches directly.
 
-  `web/src/api/markdown.ts` mirrors `plainText` in
+  `web/src/api/markdown/text.ts` mirrors `plainText` in
   `internal/chat/markdown.go`; they generate the same previews on
   opposite sides of the wire, so a case added to one belongs in the
   other.

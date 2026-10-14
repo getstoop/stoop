@@ -158,8 +158,9 @@ are testable and reusable:
 - `history.ts` — the message window state machine
   ([realtime.md](realtime.md#history-windows)).
 - `ws.ts` — the realtime client and the event → cache mapping.
-- `markdown.ts` — the parser, in both its rendering and marker-preserving
-  forms.
+- `markdown/` — the message format's parser: blocks a line at a time
+  (`blocks.ts`), inline syntax with a cursor (`inline.ts`), and the
+  plain-text and link readers (`text.ts`).
 - `unreads.ts` — the unread/badge derivations, which route an empty space
   id to the DM list instead of a space's channels.
 - `mutes.ts` — the one place the effective mute is derived for the

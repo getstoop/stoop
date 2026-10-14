@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-// The client's Markdown parser (web/src/api/markdown.ts) ported for
+// The client's Markdown parser (web/src/api/markdown/) ported for
 // plain-text previews; the two test files carry the same cases. See
 // docs/architecture/messaging.md → The server's one involvement.
 
@@ -106,8 +106,8 @@ func parseMarkdown(content string) []block {
 	return blocks
 }
 
-// parseInline is the client's parseStyledInline with the markers dropped
-// as it goes: escapes resolved, code and links kept whole, styles nested.
+// parseInline is the client's parseInline: escapes resolved, code and
+// links kept whole, styles nested.
 func parseInline(s string) []inlineNode {
 	var out []inlineNode
 	var text strings.Builder

@@ -1,14 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  type Inline,
-  linksIn,
-  parseInline,
-  parseMarkdown,
-  parseStyledInline,
-  parseStyledMarkdown,
-  plainText,
-  type StyledInline,
-} from "./markdown";
+import { type Inline, linksIn, parseInline, parseMarkdown, plainText } from ".";
 
 const text = (t: string): Inline => ({ type: "text", text: t });
 const code = (t: string): Inline => ({ type: "code", text: t });
@@ -30,24 +21,6 @@ const spoiler = (...children: Inline[]): Inline => ({
   type: "spoiler",
   children,
 });
-
-// The source a styled tree stands for. Every character has to come back,
-// or the composer overlay drifts out of line with the textarea under it.
-const styledSource = (nodes: StyledInline[]): string =>
-  nodes
-    .map((n) => {
-      if (n.type === "text") return n.text;
-      if (n.type === "link") {
-        if (!n.label) return n.href;
-        const { open, children, middle, close } = n.label;
-        return (
-          open.text + styledSource(children) + middle.text + n.href + close.text
-        );
-      }
-      if (n.type === "code") return n.open.text + n.text + n.close.text;
-      return n.open.text + styledSource(n.children) + n.close.text;
-    })
-    .join("");
 
 describe("parseInline", () => {
   it("returns nothing for an empty string", () => {
@@ -235,74 +208,6 @@ describe("a link with a label", () => {
   });
 });
 
-describe("parseStyledInline", () => {
-  it("keeps the markers as their own nodes", () => {
-    expect(parseStyledInline("**b**")).toEqual([
-      {
-        type: "bold",
-        open: { text: "**" },
-        children: [{ type: "text", text: "b" }],
-        close: { text: "**" },
-      },
-    ]);
-  });
-
-  it("keeps a code span's backticks", () => {
-    expect(parseStyledInline("`x`")).toEqual([
-      { type: "code", open: { text: "`" }, text: "x", close: { text: "`" } },
-    ]);
-  });
-
-  // One run of markers, two nodes: the bold owns all six characters so the
-  // overlay dims them once, and the italic inside carries none.
-  it("gives ***both*** its markers on the bold node only", () => {
-    expect(parseStyledInline("***both***")).toEqual([
-      {
-        type: "bold",
-        open: { text: "***" },
-        children: [
-          {
-            type: "italic",
-            open: { text: "" },
-            children: [{ type: "text", text: "both" }],
-            close: { text: "" },
-          },
-        ],
-        close: { text: "***" },
-      },
-    ]);
-  });
-
-  it("keeps the backslash that parseInline drops", () => {
-    expect(parseStyledInline("\\*x\\*")).toEqual([
-      { type: "text", text: "\\*x\\*" },
-    ]);
-    expect(parseInline("\\*x\\*")).toEqual([text("*x*")]);
-  });
-
-  it("reproduces the source character for character", () => {
-    const samples = [
-      "",
-      "plain",
-      "**bold** and *italic*",
-      "***both***",
-      "`code` and ||spoiler||",
-      "**unterminated",
-      "\\*escaped\\*",
-      "see https://example.com, then",
-      "2 * 3 * 4",
-      "__a__b__",
-      "a || b",
-      "~~**nested**~~",
-      "****",
-      "see [the **docs**](https://example.com/a_(b)) now",
-      "[not](a link) and [https://a.example](https://b.example)",
-      "\\[escaped](https://example.com)",
-    ];
-    for (const s of samples) expect(styledSource(parseStyledInline(s))).toBe(s);
-  });
-});
-
 describe("parseMarkdown", () => {
   it("makes one empty line out of an empty message", () => {
     expect(parseMarkdown("")).toEqual([{ type: "lines", lines: [[]] }]);
@@ -438,84 +343,6 @@ describe("parseMarkdown", () => {
   });
 });
 
-describe("parseStyledMarkdown", () => {
-  it("keeps a list row's indent and bullet as one marker", () => {
-    expect(parseStyledMarkdown("  1. first")).toEqual([
-      {
-        type: "list",
-        items: [
-          {
-            open: { text: "  1. " },
-            ordered: true,
-            depth: 1,
-            content: [{ type: "text", text: "first" }],
-          },
-        ],
-      },
-    ]);
-  });
-
-  it("keeps the space a quote marker ate", () => {
-    expect(parseStyledMarkdown("> hi")).toEqual([
-      {
-        type: "quote",
-        lines: [{ open: { text: "> " }, line: [{ type: "text", text: "hi" }] }],
-      },
-    ]);
-    expect(parseStyledMarkdown(">hi")).toEqual([
-      {
-        type: "quote",
-        lines: [{ open: { text: ">" }, line: [{ type: "text", text: "hi" }] }],
-      },
-    ]);
-  });
-
-  it("keeps both fence lines verbatim", () => {
-    expect(parseStyledMarkdown("```js\na\nb\n```")).toEqual([
-      {
-        type: "codeblock",
-        open: { text: "```js" },
-        lang: "js",
-        sameLine: false,
-        text: "a\nb",
-        body: ["a", "b"],
-        close: { text: "```" },
-      },
-    ]);
-  });
-
-  it("leaves an unterminated fence with an empty closer", () => {
-    expect(parseStyledMarkdown("```\nx")).toEqual([
-      {
-        type: "codeblock",
-        open: { text: "```" },
-        lang: "",
-        sameLine: false,
-        text: "x",
-        body: ["x"],
-        close: { text: "" },
-      },
-    ]);
-  });
-
-  it("splits a one-line fence into its two fences", () => {
-    expect(parseStyledMarkdown("```hi```")).toEqual([
-      {
-        type: "codeblock",
-        open: { text: "```" },
-        lang: "",
-        sameLine: true,
-        text: "hi",
-        body: ["hi"],
-        close: { text: "```" },
-      },
-    ]);
-  });
-});
-
-// Ported from TestPlainText and TestPlainTextListsAndSpoilers in
-// internal/chat/markdown_internal_test.go. The server writes activity and
-// reply previews from the same message text, so a disagreement is a bug.
 describe("plainText mirrors the server", () => {
   const cases: [string, string][] = [
     ["**bold** and *italic*", "bold and italic"],
