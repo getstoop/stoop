@@ -1,7 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { ReactNode } from "react";
 import { dayAndTime, fullDateTime } from "../../api/dates";
-import { emojiOnly } from "../../api/emojiOnly";
+import { emojiOnly } from "../../api/emojiText";
 import type { MentionMembers } from "../../api/mentions";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";

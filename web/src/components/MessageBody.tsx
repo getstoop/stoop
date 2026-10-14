@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode, useState } from "react";
+import { splitEmoji } from "../api/emojiText";
 import {
   type Block,
   type Inline,
@@ -38,8 +39,22 @@ export function MessageBody({
     splitMentions(s, usernames, mentionsEntireChannel, mentionsHere).map(
       (part, i) => {
         if (!part.mention) {
-          // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-          return <Fragment key={i}>{marked(part.text, highlight)}</Fragment>;
+          return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+            <Fragment key={i}>
+              {splitEmoji(part.text).map((run, j) =>
+                run.emoji ? (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+                  <span key={j} className="emoji">
+                    {run.text}
+                  </span>
+                ) : (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+                  <Fragment key={j}>{marked(run.text, highlight)}</Fragment>
+                ),
+              )}
+            </Fragment>
+          );
         }
         const className = mentionClass(part.mention, usernames, me);
         const member = usernames.get(part.mention);
