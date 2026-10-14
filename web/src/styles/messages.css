@@ -268,13 +268,13 @@
 }
 
 /* The person or bot glyph (Icons.tsx), in the pill's own colour. */
-.mention.person::before,
-.mention.bot::before {
+.mention.person::after,
+.mention.bot::after {
   content: "";
   display: inline-block;
   width: 0.85em;
   height: 0.85em;
-  margin-right: 3px;
+  margin-left: 3px;
   vertical-align: -0.08em;
   background: currentColor;
   mask: var(--mention-glyph) center / contain no-repeat;

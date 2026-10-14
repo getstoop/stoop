@@ -97,7 +97,7 @@ export function splitMentions(
   return out;
 }
 
-// A mention's pill: a person or bot glyph before a member's handle, and
+// A mention's pill: a person or bot glyph after a member's handle, and
 // the accent fill when it reaches us.
 export function mentionClass(
   handle: string,
