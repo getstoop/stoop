@@ -80,7 +80,6 @@ export function RichEditor({
   const formatsKey = useRef("");
   const [linkForm, setLinkForm] = useState<{
     draft: LinkDraft;
-    at: { left: number; top: number; bottom: number };
     editing: boolean;
   } | null>(null);
   const placeholderRef = useRef(placeholder);
@@ -94,8 +93,7 @@ export function RichEditor({
     const openLink = (link: LinkRange | null) => {
       const draft = linkDraft(view.state, link);
       if (!draft) return;
-      const at = view.coordsAtPos(draft.from);
-      setLinkForm({ draft, at, editing: !!link });
+      setLinkForm({ draft, editing: !!link });
     };
     const view: EditorView = new EditorView(host, {
       state: EditorState.create({
@@ -223,7 +221,6 @@ export function RichEditor({
       <div ref={hostRef} className="rich-editor" />
       {linkForm && (
         <LinkDialog
-          at={linkForm.at}
           text={linkForm.draft.text}
           href={linkForm.draft.href}
           editing={linkForm.editing}

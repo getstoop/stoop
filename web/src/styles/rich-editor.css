@@ -91,20 +91,3 @@
   word-wrap: break-word;
   font-variant-ligatures: none;
 }
-
-/* The link form (RichEditor/LinkDialog.tsx), fixed over the caret's line. */
-.link-dialog {
-  position: fixed;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: min(320px, calc(100vw - 16px));
-  padding: 12px;
-}
-
-.link-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}

@@ -158,8 +158,8 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
   await A.keyboard.press("Enter");
   await expect(last(A).locator("strong")).toHaveText("two");
 
-  // Links: the button opens a form for the words and the address.
-  const linkForm = A.locator(".link-dialog");
+  // Links: the button opens a dialog for the words and the address.
+  const linkForm = A.getByRole("dialog", { name: /link/i });
   const field = (label: string) =>
     linkForm.locator(".field").filter({ hasText: label }).locator("input");
   await composer(A).pressSequentially("docs");
