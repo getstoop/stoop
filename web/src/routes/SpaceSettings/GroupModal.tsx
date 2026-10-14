@@ -1,12 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
+import { filterCandidates } from "../../api/candidates";
 import { GROUP_HANDLE_HINT, MAX_GROUP_NAME, saveGroup } from "../../api/groups";
 import { isBot } from "../../api/identity";
+import { CandidateRow } from "../../components/CandidateRow";
 import { Field } from "../../components/Field";
 import { Input } from "../../components/Input";
 import { Modal } from "../../components/Modal";
-import { CandidateRow } from "../../components/NewConversation/CandidateRow";
-import { filterCandidates } from "../../components/NewConversation/candidates";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import type { MessageAuthor } from "../../gen/stoop/chat/v1/message_pb";
@@ -33,9 +33,9 @@ export function GroupModal({
   const [picked, setPicked] = useState<string[]>(existing?.userIds ?? []);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
-  const form = useFieldErrors(["name", "handle", "user_ids"]);
+  const form = useFieldErrors(["name", "handle", "userIds"]);
 
-  const people = members.filter((m) => !isBot(m.kind)).map(asAuthor);
+  const people = members.filter((member) => !isBot(member.kind)).map(asAuthor);
   const shown = filterCandidates(people, query);
   const toggle = (id: string) =>
     setPicked((old) =>
@@ -43,8 +43,8 @@ export function GroupModal({
     );
   const ready = name.trim() !== "" && handle.trim() !== "" && picked.length > 0;
 
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
     if (!ready) return;
     setBusy(true);
     form.begin();
@@ -94,7 +94,7 @@ export function GroupModal({
             value={name}
             maxLength={MAX_GROUP_NAME}
             placeholder="Garden crew"
-            onChange={(e) => setName(e.target.value)}
+            onChange={(event) => setName(event.target.value)}
             // biome-ignore lint/a11y/noAutofocus: the first field of the dialog
             autoFocus
           />
@@ -112,20 +112,20 @@ export function GroupModal({
             placeholder="gardeners"
             autoCapitalize="none"
             spellCheck={false}
-            onChange={(e) => setHandle(e.target.value)}
+            onChange={(event) => setHandle(event.target.value)}
           />
         </Field>
         <div className="new-conversation">
           <Field
             label="People"
             counter={`${picked.length} selected`}
-            error={form.errors.user_ids}
+            error={form.errors.userIds}
           >
             <input
               type="search"
               value={query}
               placeholder="Search people"
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
             />
           </Field>
           <div className="candidate-list">

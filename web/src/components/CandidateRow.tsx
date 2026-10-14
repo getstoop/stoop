@@ -1,7 +1,7 @@
-import { presenceClass, presenceLabel } from "../../api/presence";
-import type { MessageAuthor } from "../../gen/stoop/chat/v1/message_pb";
-import { useConnectionStore } from "../../stores/connection";
-import { Avatar } from "../Avatar";
+import { presenceClass, presenceLabel } from "../api/presence";
+import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
+import { useConnectionStore } from "../stores/connection";
+import { Avatar } from "./Avatar";
 
 export function CandidateRow({
   person,

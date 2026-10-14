@@ -68,7 +68,7 @@ export function GroupsSection({ space }: { space: Space }) {
           members={members ?? []}
           onEdit={setEditing}
           onDelete={remove}
-          rowError={(g) => (failed?.id === g.id ? failed.text : null)}
+          rowError={(group) => (failed?.id === group.id ? failed.text : null)}
         />
       </section>
       {editing !== undefined && (

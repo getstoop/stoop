@@ -31,17 +31,17 @@ export function GroupTable({
       {
         id: "group",
         header: "Group",
-        accessorFn: (g) => g.name,
-        cell: ({ row: { original: g } }) => (
+        accessorFn: (group) => group.name,
+        cell: ({ row: { original: group } }) => (
           <div className="dt-person">
             <span className="group-mark" aria-hidden="true">
               <PeopleIcon />
             </span>
             <div>
               <strong>
-                {g.name} <span className="muted">{groupCount(g)}</span>
+                {group.name} <span className="muted">{groupCount(group)}</span>
               </strong>
-              <span className="muted small">@@{g.handle}</span>
+              <span className="muted small">@@{group.handle}</span>
             </div>
           </div>
         ),
@@ -50,23 +50,23 @@ export function GroupTable({
         id: "people",
         header: "People",
         enableSorting: false,
-        cell: ({ row: { original: g } }) =>
-          peopleText(g, latest.current.members),
+        cell: ({ row: { original: group } }) =>
+          peopleText(group, latest.current.members),
       },
       {
         id: "actions",
         header: "",
         enableSorting: false,
         meta: { width: 64, actions: true },
-        cell: ({ row: { original: g } }) => (
+        cell: ({ row: { original: group } }) => (
           <DotsMenu
-            label={`Actions for @@${g.handle}`}
+            label={`Actions for @@${group.handle}`}
             items={[
-              { label: "Edit", onSelect: () => latest.current.onEdit(g) },
+              { label: "Edit", onSelect: () => latest.current.onEdit(group) },
               {
                 label: "Delete",
                 danger: true,
-                onSelect: () => latest.current.onDelete(g),
+                onSelect: () => latest.current.onDelete(group),
               },
             ]}
           />
@@ -80,16 +80,16 @@ export function GroupTable({
     <DataTable
       rows={groups}
       columns={columns}
-      rowId={(g) => g.id}
+      rowId={(group) => group.id}
       search={{
         placeholder: "Filter by name or @@handle",
         label: "Filter groups",
-        text: (g) => `${g.name} @@${g.handle}`,
+        text: (group) => `${group.name} @@${group.handle}`,
       }}
       noun={["group", "groups"]}
       empty="No groups yet."
       rowError={rowError}
-      rowProps={(g) => ({ "data-group": g.handle })}
+      rowProps={(group) => ({ "data-group": group.handle })}
     />
   );
 }
@@ -98,7 +98,7 @@ export function GroupTable({
 // has left the space.
 function peopleText(group: Group, members: Member[]): string {
   const names = group.userIds.map((id) => {
-    const member = members.find((m) => m.userId === id);
+    const member = members.find((candidate) => candidate.userId === id);
     return member ? member.displayName || member.username : "Someone";
   });
   if (names.length === 0) return "Nobody";

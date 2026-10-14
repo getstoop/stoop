@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MessageAuthor } from "../../gen/stoop/chat/v1/message_pb";
+import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
 import { filterCandidates } from "./candidates";
 
 const author = (

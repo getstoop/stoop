@@ -1,13 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { filterCandidates } from "../../api/candidates";
 import { addChannelPeople } from "../../api/channelPeople";
 import { errorText } from "../../api/errors";
 import type { Channel } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import type { MessageAuthor } from "../../gen/stoop/chat/v1/message_pb";
+import { CandidateRow } from "../CandidateRow";
 import { Modal } from "../Modal";
-import { CandidateRow } from "../NewConversation/CandidateRow";
-import { filterCandidates } from "../NewConversation/candidates";
 
 // Picking people to add to a private channel: the space's members who
 // are not in it yet. The picker is the one a new conversation uses.
