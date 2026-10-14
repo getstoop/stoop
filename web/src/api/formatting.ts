@@ -8,6 +8,7 @@ export type Format =
   | "strike"
   | "code"
   | "spoiler"
+  | "link"
   | "quote"
   | "list"
   | "orderedList"

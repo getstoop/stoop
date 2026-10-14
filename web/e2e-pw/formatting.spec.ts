@@ -158,6 +158,66 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
   await A.keyboard.press("Enter");
   await expect(last(A).locator("strong")).toHaveText("two");
 
+  // Links: the button opens a form for the words and the address.
+  const linkForm = A.locator(".link-dialog");
+  const field = (label: string) =>
+    linkForm.locator(".field").filter({ hasText: label }).locator("input");
+  await composer(A).pressSequentially("docs");
+  await selectAll(A);
+  await clickTool(A, "Link");
+  await expect(field("Text"), "the form holds the selected words").toHaveValue(
+    "docs",
+  );
+  await expect(field("Address"), "…and waits for the address").toBeFocused();
+  await A.keyboard.type("example.org");
+  await A.keyboard.press("Enter");
+  await expect(
+    linkForm.locator(".field-error"),
+    "an address without http:// is refused beside its field",
+  ).toBeVisible();
+  await field("Address").fill("https://example.org/a");
+  await A.keyboard.press("Enter");
+  await expect(linkForm, "Enter saves").toHaveCount(0);
+  await expect(composer(A).locator("a"), "the words are linked").toHaveText(
+    "docs",
+  );
+  await expect(composer(A), "the editor has focus back").toBeFocused();
+  // A double click on the link opens it for editing.
+  await composer(A).locator("a").dblclick();
+  await expect(field("Address"), "the form holds the address").toHaveValue(
+    "https://example.org/a",
+  );
+  await field("Address").fill("https://example.org/b");
+  await A.keyboard.press("Enter");
+  await expect(composer(A).locator("a")).toHaveAttribute(
+    "href",
+    "https://example.org/b",
+  );
+  // The caret in the link presses the button, and the button unlinks.
+  await composer(A).locator("a").click();
+  await expect(
+    tool(A, "Link"),
+    "the caret in a link presses Link",
+  ).toHaveAttribute("aria-pressed", "true");
+  await clickTool(A, "Link");
+  await expect(composer(A).locator("a"), "Link removes the link").toHaveCount(
+    0,
+  );
+  await expect(composer(A)).toHaveText("docs");
+  // Ctrl/⌘+K with nothing selected adds a link at the caret.
+  await A.keyboard.press("End");
+  await A.keyboard.type(" and ");
+  await A.keyboard.press("ControlOrMeta+k");
+  await expect(field("Text"), "with no words, Text is first").toBeFocused();
+  await A.keyboard.type("more");
+  await field("Address").fill("https://example.org/c");
+  await A.keyboard.press("Enter");
+  await A.keyboard.press("Enter");
+  await expect(last(A).locator("a.md-link"), "the link is sent").toHaveText(
+    "more",
+  );
+  await expect(last(A)).toHaveText("docs and more");
+
   // Inline code switched on keeps going for everything typed after it.
   await clickTool(A, "Inline code");
   await composer(A).pressSequentially("x = 1");

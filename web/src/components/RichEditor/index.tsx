@@ -1,9 +1,18 @@
 import { Node } from "prosemirror-model";
 import { EditorState, Selection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-import { type RefObject, useLayoutEffect, useRef } from "react";
+import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import type { Format } from "../../api/formatting";
 import { activeFormats, formatCommands } from "./commands";
+import { LinkDialog } from "./LinkDialog";
+import {
+  type LinkDraft,
+  type LinkRange,
+  linkAround,
+  linkAtPos,
+  linkDraft,
+  saveLink,
+} from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
 import { editorPlugins } from "./plugins";
 import { schema } from "./schema";
@@ -69,6 +78,11 @@ export function RichEditor({
     onBlur,
   };
   const formatsKey = useRef("");
+  const [linkForm, setLinkForm] = useState<{
+    draft: LinkDraft;
+    at: { left: number; top: number; bottom: number };
+    editing: boolean;
+  } | null>(null);
   const placeholderRef = useRef(placeholder);
   placeholderRef.current = placeholder;
   const emitted = useRef(value);
@@ -77,6 +91,12 @@ export function RichEditor({
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host) return;
+    const openLink = (link: LinkRange | null) => {
+      const draft = linkDraft(view.state, link);
+      if (!draft) return;
+      const at = view.coordsAtPos(draft.from);
+      setLinkForm({ draft, at, editing: !!link });
+    };
     const view: EditorView = new EditorView(host, {
       state: EditorState.create({
         doc: docFrom(value),
@@ -90,7 +110,21 @@ export function RichEditor({
       }),
       handleKeyDown: (_view, e) => {
         handlers.current.onKeyDown(e);
+        const mod = e.metaKey || e.ctrlKey;
+        if (!e.defaultPrevented && mod && !e.shiftKey && !e.altKey) {
+          if (e.key.toLowerCase() === "k") {
+            e.preventDefault();
+            openLink(linkAround(view.state));
+          }
+        }
         return e.defaultPrevented;
+      },
+      // A double click on a link opens it in the link form.
+      handleDoubleClick: (_view, pos) => {
+        const link = linkAtPos(view.state, pos);
+        if (!link) return false;
+        openLink(link);
+        return true;
       },
       handlePaste: (_view, e) => {
         handlers.current.onPaste?.(e);
@@ -135,6 +169,11 @@ export function RichEditor({
     }
     fieldRef.current = {
       format: (format) => {
+        // In a link the button removes it; elsewhere it opens the form.
+        if (format === "link" && !linkAround(view.state)) {
+          openLink(null);
+          return;
+        }
         formatCommands[format](view.state, view.dispatch);
         view.focus();
       },
@@ -174,5 +213,30 @@ export function RichEditor({
     if (view) view.dispatch(view.state.tr);
   }, [placeholder]);
 
-  return <div ref={hostRef} className="rich-editor" />;
+  const closeLinkForm = () => {
+    setLinkForm(null);
+    viewRef.current?.focus();
+  };
+
+  return (
+    <>
+      <div ref={hostRef} className="rich-editor" />
+      {linkForm && (
+        <LinkDialog
+          at={linkForm.at}
+          text={linkForm.draft.text}
+          href={linkForm.draft.href}
+          editing={linkForm.editing}
+          onSave={(text, href) => {
+            const view = viewRef.current;
+            if (view) {
+              view.dispatch(saveLink(view.state, linkForm.draft, text, href));
+            }
+            closeLinkForm();
+          }}
+          onCancel={closeLinkForm}
+        />
+      )}
+    </>
+  );
 }

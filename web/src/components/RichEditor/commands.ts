@@ -20,6 +20,7 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import type { Format } from "../../api/formatting";
+import { linkAround, removeLink } from "./links";
 import { schema } from "./schema";
 
 // A blank last line in a code block, then a new line: leave the block
@@ -103,6 +104,7 @@ export const formatCommands: Record<Format, Command> = {
   strike: toggle(schema.marks.strike),
   code: toggle(schema.marks.code),
   spoiler: toggle(schema.marks.spoiler),
+  link: removeLink,
   quote: toggleQuote,
   list: toggleList(schema.nodes.bulletList),
   orderedList: toggleList(schema.nodes.orderedList),
@@ -130,6 +132,7 @@ export function activeFormats(state: EditorState): Format[] {
       : coversRange(state, from, to, type);
     if (on) active.push(name);
   }
+  if (linkAround(state)) active.push("link");
   if (inNode(state, schema.nodes.blockquote)) active.push("quote");
   const list = $from.depth >= 2 ? $from.node($from.depth - 2).type : null;
   if (list === schema.nodes.bulletList) active.push("list");
