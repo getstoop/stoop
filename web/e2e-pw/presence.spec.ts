@@ -17,7 +17,7 @@ test("who is online, who is typing, and who @here reaches", async ({
     invite: true,
   });
   const beaName = `bea${suffix}`;
-  const composer = (p: Page) => p.locator(".composer textarea");
+  const composer = (p: Page) => p.locator(".composer .rich-editor-content");
   const heading = (p: Page) => p.locator(".members-heading");
   const typing = (p: Page) => p.locator(".typing-indicator");
   const onlineNames = (p: Page) => p.locator(".member-row.online .member-name");

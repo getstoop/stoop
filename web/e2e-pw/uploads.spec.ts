@@ -77,7 +77,7 @@ test("avatars and space icons", async ({ browser }) => {
     await signIn(A, tokens.ada);
     const B = await (await browser.newContext()).newPage();
     await signIn(B, tokens.bea);
-    await B.locator(".composer textarea").waitFor();
+    await B.locator(".composer .rich-editor-content").waitFor();
 
     // --- avatar: rejects first, then a real upload
     await A.goto("/profile");

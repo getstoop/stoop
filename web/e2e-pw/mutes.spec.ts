@@ -37,7 +37,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   await signIn(A, tokens.ada);
   const B = await (await browser.newContext()).newPage();
   await signIn(B, tokens.bea);
-  await B.locator(".composer textarea").waitFor();
+  await B.locator(".composer .rich-editor-content").waitFor();
 
   // The first channel row is #general (or the one conversation in the DM
   // list); it is the muted one throughout.
@@ -98,7 +98,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   // went just before.
   const mention = async (p: Page, name: string, body: string) => {
     await p
-      .locator(".composer textarea")
+      .locator(".composer .rich-editor-content")
       .pressSequentially(`@${name} ${body}`, { delay: 20 });
     // Escape first, or Enter would pick from the picker instead of sending.
     await p.keyboard.press("Escape");
@@ -243,7 +243,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
   await expect(activityDot(A), "the activity pill starts clean").toHaveCount(0);
   await A.goto("/profile");
   await B.locator(".space-pill.dms").click();
-  await B.locator(".composer textarea").waitFor();
+  await B.locator(".composer .rich-editor-content").waitFor();
   await say(B, "you there?");
   await B.locator(".message-content", { hasText: "you there?" }).waitFor();
   // The DMs pill is meant to stay clean, so this waits rather than polls.

@@ -19,7 +19,7 @@ test("a channel's topic", async ({ browser }) => {
     });
     const p = await context.newPage();
     await signIn(p, token);
-    await p.locator(".composer textarea").waitFor();
+    await p.locator(".composer .rich-editor-content").waitFor();
     return p;
   };
 

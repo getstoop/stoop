@@ -24,9 +24,9 @@ test("searching a space's messages", async ({ browser }) => {
   const A = await (await browser.newContext()).newPage();
   const B = await (await browser.newContext()).newPage();
   await signIn(A, tokens.ada);
-  await expect(A.locator(".composer textarea")).toBeVisible();
+  await expect(A.locator(".composer .rich-editor-content")).toBeVisible();
   await signIn(B, tokens.bea);
-  await expect(B.locator(".composer textarea")).toBeVisible();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
 
   const rows = (p: Page) => p.locator(".search-row .search-row-body");
   const field = (p: Page) => p.locator(".search-form input");

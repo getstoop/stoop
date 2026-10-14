@@ -181,7 +181,7 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
   await A.waitForTimeout(300);
   const B = await (await browser.newContext({ viewport: VIEWPORT })).newPage();
   await signIn(B, tokens.bea);
-  await expect(B.locator(".composer textarea")).toBeVisible();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
   const topBefore = await scrollTop();
   const rowsBefore = await messages.count();
   await say(B, "hello from bea");

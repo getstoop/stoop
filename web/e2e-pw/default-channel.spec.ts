@@ -47,13 +47,13 @@ test("the channel a space opens in", async ({ browser, request }) => {
     await p.locator('input[autocomplete="username"]').fill(username);
     await p.locator('input[type="password"]').fill(password);
     await p.locator('button[type="submit"]').click();
-    await p.locator(".composer textarea").waitFor();
+    await p.locator(".composer .rich-editor-content").waitFor();
   };
 
   // ---- A lands in #general; B and C are not members until they arrive.
   const A = await newPage();
   await signIn(A, tokens.ada);
-  await A.locator(".composer textarea").waitFor();
+  await A.locator(".composer .rich-editor-content").waitFor();
 
   // ---- A second text channel, and a voice channel that must stay out of
   // the choices: landing someone there would open their microphone.

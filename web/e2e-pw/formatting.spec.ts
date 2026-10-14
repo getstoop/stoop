@@ -1,36 +1,26 @@
 import type { Page } from "@playwright/test";
-import { expect, seed, signIn, test } from "./lib";
+import { expect, paste, seed, signIn, test } from "./lib";
 
-// Markdown in the composer and the timeline: inline syntax renders as
-// real elements, the toolbar and its shortcuts wrap the selection, lists
-// and spoilers work, previews stay plain, and editing keeps the markup.
-// Ported from web/e2e/formatting.mjs (STOOP-238). Typing is the subject
-// throughout — the caret, the selection and the mention picker all
-// depend on keystrokes — so this spec types instead of filling. What each
-// marker does to a selection or a caret is api/formatting.test.ts; here
-// one button and one shortcut prove the wiring, and the rest is what the
-// timeline renders.
-test("markdown in the composer and the timeline", async ({ browser }) => {
+// Formatting in the message box and the timeline: typed marker pairs turn
+// into styled text in the editor, the toolbar and its shortcuts style the
+// selection, pasted Markdown keeps its formatting, the timeline renders
+// real elements, previews stay plain, and editing shows the formatting.
+// Typing is the subject — the input rules and the mention picker follow
+// keystrokes — so the draft is typed unless a step is about pasting. What
+// each command does to the document is RichEditor/editor.test.ts; here one
+// button and one shortcut prove the wiring.
+test("formatting in the composer and the timeline", async ({ browser }) => {
   const { suffix, tokens } = await seed({ channels: ["general"] });
   const A = await (await browser.newContext()).newPage();
   const B = await (await browser.newContext()).newPage();
 
-  const composer = (p: Page) => p.locator(".composer textarea");
-  const selectAll = (p: Page) =>
-    composer(p).evaluate((e: HTMLTextAreaElement) => {
-      e.focus();
-      e.select();
-    });
+  const composer = (p: Page) => p.locator(".composer .rich-editor-content");
+  const selectAll = async (p: Page) => {
+    await composer(p).focus();
+    await p.keyboard.press("ControlOrMeta+a");
+  };
   const send = async (p: Page, text: string) => {
     await composer(p).pressSequentially(text);
-    await p.keyboard.press("Enter");
-  };
-  const sendLines = async (p: Page, lines: string[]) => {
-    await composer(p).focus();
-    for (const [i, line] of lines.entries()) {
-      if (i > 0) await p.keyboard.press("Shift+Enter");
-      await composer(p).pressSequentially(line);
-    }
     await p.keyboard.press("Enter");
   };
   const last = (p: Page) => p.locator(".message-content").last();
@@ -47,12 +37,28 @@ test("markdown in the composer and the timeline", async ({ browser }) => {
   await signIn(B, tokens.bea);
   await expect(composer(B)).toBeVisible();
 
-  // Inline syntax renders as real elements, and B sees the same live.
+  // Typed marker pairs style their words in the editor, markers gone.
   // (The trailing space closes the mention picker so Enter sends.)
-  await send(
-    A,
+  await composer(A).pressSequentially(
     `**bold** *it* __under__ ~~gone~~ \`code\` https://example.com/x. @bea${suffix} `,
   );
+  for (const [sel, text] of [
+    ["strong", "bold"],
+    ["em", "it"],
+    ["u", "under"],
+    ["s", "gone"],
+    ["code", "code"],
+    [".rich-autolink", "https://example.com/x"],
+  ] as const) {
+    await expect(
+      composer(A).locator(sel),
+      `the editor styles <${sel}> ${text}`,
+    ).toHaveText(text);
+  }
+  await expect(composer(A), "no markers in the editor").not.toContainText("*");
+  await A.keyboard.press("Enter");
+
+  // The timeline renders the same, and B sees it live.
   for (const [sel, text] of [
     ["strong", "bold"],
     ["em", "it"],
@@ -78,49 +84,51 @@ test("markdown in the composer and the timeline", async ({ browser }) => {
     "no raw markers in the rendered text",
   ).not.toContainText("**");
 
-  // Toolbar: wraps the selection, toggles off again, and keeps focus.
+  // A literal marker typed on its own stays a character.
+  await send(A, "2 * 3 = 6");
+  await expect(last(A), "a lone star is text").toHaveText("2 * 3 = 6");
+
+  // Toolbar: styles the selection and keeps focus and the selection.
   await composer(A).pressSequentially("hi there");
   await selectAll(A);
   await clickTool(A, "Bold");
-  await expect(composer(A), "toolbar bold wraps the selection").toHaveValue(
-    "**hi there**",
-  );
-  await expect(composer(A), "the textarea keeps focus").toBeFocused();
+  await expect(
+    composer(A).locator("strong"),
+    "toolbar bold styles the selection",
+  ).toHaveText("hi there");
+  await expect(composer(A), "the editor keeps focus").toBeFocused();
   await expect
-    .poll(
-      () => composer(A).evaluate((e: HTMLTextAreaElement) => e.selectionStart),
-      { message: "the inner text is left selected" },
-    )
-    .toBe(2);
-  // A shortcut reaches the same function from the keyboard.
-  await selectAll(A);
+    .poll(() => A.evaluate(() => window.getSelection()?.toString()), {
+      message: "the words stay selected",
+    })
+    .toBe("hi there");
+  // A shortcut reaches the same command from the keyboard.
   await A.keyboard.press("Control+Shift+X");
-  await expect(composer(A), "Ctrl+Shift+X strikes").toHaveValue(
-    "~~**hi there**~~",
+  await expect(composer(A).locator("s"), "Ctrl+Shift+X strikes").toHaveText(
+    "hi there",
   );
   await A.keyboard.press("Enter");
   await expect(
-    last(A).locator("s strong"),
-    "nested strike/bold renders",
+    last(A).locator(":is(s strong, strong s)"),
+    "nested strike and bold render",
   ).toHaveText("hi there");
 
-  // Quote and code block via the toolbar, multi-line.
+  // Quote via the toolbar, then out of it and a code block after.
   await composer(A).pressSequentially("wise words");
   await clickTool(A, "Quote");
-  await expect(composer(A), "quote prefixes the line").toHaveValue(
-    "> wise words",
-  );
+  await expect(
+    composer(A).locator("blockquote"),
+    "quote wraps the line",
+  ).toHaveText("wise words");
   await A.keyboard.press("End");
   await A.keyboard.press("Shift+Enter");
+  await A.keyboard.press("Shift+Enter");
   await composer(A).pressSequentially("x := 1");
-  await composer(A).evaluate((e: HTMLTextAreaElement) => {
-    e.setSelectionRange(e.value.length - 6, e.value.length);
-  });
   await clickTool(A, "Code block");
   await expect(
-    composer(A),
-    "code block fences the selection on its own lines",
-  ).toHaveValue("> wise words\n```\nx := 1\n```");
+    composer(A).locator("pre"),
+    "code block holds the line after the quote",
+  ).toHaveText("x := 1");
   await A.keyboard.press("Enter");
   await expect(
     last(A).locator("blockquote.md-quote"),
@@ -131,25 +139,27 @@ test("markdown in the composer and the timeline", async ({ browser }) => {
     "code block renders",
   ).toHaveText("x := 1");
 
-  // Lists and spoilers (STOOP-37): toolbar writes them, the timeline renders
-  // real <ul>/<ol> and a spoiler that stays hidden until it is clicked.
+  // Lists: the toolbar starts one and a new line is the next item.
   await composer(A).pressSequentially("milk");
   await clickTool(A, "Bulleted list");
-  await expect(composer(A), "the list button prefixes the line").toHaveValue(
-    "- milk",
-  );
   await A.keyboard.press("End");
   await A.keyboard.press("Shift+Enter");
-  await composer(A).pressSequentially("- eggs");
+  await composer(A).pressSequentially("eggs");
+  await expect(
+    composer(A).locator("ul li"),
+    "the editor shows a list",
+  ).toHaveText(["milk", "eggs"]);
   await A.keyboard.press("Enter");
   await expect(
     last(A).locator("ul.md-list li"),
     "a bulleted list renders as a real ul",
   ).toHaveText(["milk", "eggs"]);
 
-  // Numbered, with bulleted children: each level picks its own tag, and the
-  // sub-list lives inside the <li> it belongs to (never <li> beside <li>).
-  await sendLines(A, ["1. first", "  - under", "2. second"]);
+  // Pasted Markdown keeps its formatting. Numbered, with bulleted
+  // children: each level picks its own tag, and the sub-list lives inside
+  // the <li> it belongs to (never <li> beside <li>).
+  await paste(composer(A), "1. first\n  - under\n2. second");
+  await A.keyboard.press("Enter");
   const ordered = last(A).locator("ol.md-list");
   await expect(ordered).toBeVisible();
   const shape = await ordered.evaluate((ol) => ({
@@ -167,7 +177,8 @@ test("markdown in the composer and the timeline", async ({ browser }) => {
   expect(shape.liInsideLi, "and no <li> sits beside an <li>").toBe(false);
 
   // A run that switches marker kind is two lists, not one.
-  await sendLines(A, ["- a bullet", "1. a number"]);
+  await paste(composer(A), "- a bullet\n1. a number");
+  await A.keyboard.press("Enter");
   await expect
     .poll(
       () =>
@@ -177,13 +188,15 @@ test("markdown in the composer and the timeline", async ({ browser }) => {
       { message: "switching marker kind starts a new list" },
     )
     .toBe("UL,OL");
+
+  // Spoilers: the toolbar marks one, the timeline hides it until clicked.
   await composer(A).pressSequentially("a thing");
   await selectAll(A);
   await clickTool(A, "Spoiler");
   await expect(
-    composer(A),
-    "the spoiler button wraps the selection",
-  ).toHaveValue("||a thing||");
+    composer(A).locator(".rich-spoiler"),
+    "the spoiler button marks the selection",
+  ).toHaveText("a thing");
   await A.keyboard.press("Enter");
   const spoiler = A.locator(".message-content .md-spoiler");
   await expect(
@@ -238,17 +251,16 @@ test("markdown in the composer and the timeline", async ({ browser }) => {
     "**",
   );
 
-  // Editing shows the raw Markdown and keeps it.
+  // Editing shows the formatting, not the markers, and keeps it.
   await clickAction(A, 0, "Edit");
-  const editor = A.locator(".message-editor textarea");
-  await expect(editor, "editor shows the raw markup").toHaveValue(
-    /^\*\*bold\*\*/,
-  );
-  await editor.evaluate((e: HTMLTextAreaElement) => {
-    e.focus();
-    e.setSelectionRange(e.value.length, e.value.length);
-  });
-  await editor.pressSequentially(" edited");
+  const editor = A.locator(".message-editor .rich-editor-content");
+  await expect(editor, "the edit box has focus").toBeFocused();
+  await expect(
+    editor.locator("strong").first(),
+    "the edit box shows the bold",
+  ).toHaveText("bold");
+  await expect(editor, "…without its markers").not.toContainText("**");
+  await A.keyboard.type(" edited");
   await A.keyboard.press("Enter");
   const edited = A.locator(".message-content").first();
   await expect(

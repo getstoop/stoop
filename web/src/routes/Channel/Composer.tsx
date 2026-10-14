@@ -2,12 +2,9 @@ import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import {
-  type ClipboardEvent,
   type DragEvent,
   type FormEvent,
-  type KeyboardEvent,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -19,6 +16,7 @@ import {
   MAX_ATTACHMENTS,
   uploadAttachment,
 } from "../../api/files";
+import { shortcutFormat } from "../../api/formatting";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import { filterMembers, mentionQueryAt } from "../../api/mentions";
 import { canMentionEntireChannel } from "../../api/permissions";
@@ -36,17 +34,15 @@ import {
 } from "../../components/AttachmentStrip";
 import { messagePreview } from "../../components/Attachments";
 import { BotMark } from "../../components/BotMark";
-import { ComposerOverlay } from "../../components/ComposerOverlay";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
+import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
-import { useAutoGrow } from "../../hooks/useAutoGrow";
-import { useFormatting } from "../../hooks/useFormatting";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 
 export function Composer({
@@ -92,8 +88,7 @@ export function Composer({
     query: string;
   } | null>(null);
   const [selected, setSelected] = useState(0);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  useAutoGrow(inputRef, draft);
+  const inputRef = useRef<RichField>(null);
   const touchKeyboard = useTouchKeyboard();
   // Files picked, dropped, or pasted, uploading as they arrive; sent by id.
   const [pending, setPending] = useState<PendingAttachment[]>([]);
@@ -164,12 +159,9 @@ export function Composer({
     setDragging(false);
     if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
   };
-  const onPaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
-    const files = [...e.clipboardData.files];
-    if (files.length === 0) {
-      onPasteLink(e);
-      return;
-    }
+  const onPaste = (e: ClipboardEvent) => {
+    const files = [...(e.clipboardData?.files ?? [])];
+    if (files.length === 0) return;
     e.preventDefault();
     addFiles(files);
   };
@@ -181,11 +173,6 @@ export function Composer({
     });
     setAttachError(null);
   }, [channelId]);
-  const {
-    apply: format,
-    onShortcut,
-    onPasteLink,
-  } = useFormatting(inputRef, setDraft);
   const queryClient = useQueryClient();
   const members = usePeople(spaceId, channelId);
   const { data: spaces } = useSpaces();
@@ -222,35 +209,22 @@ export function Composer({
     });
   };
 
-  // Where the caret goes once React has committed a draft a picker wrote.
-  // Moved in a layout effect, before the browser paints or takes the next
-  // key: a deferred frame let a keystroke, or a select-all, land first and
-  // be undone by the move.
-  const caretRef = useRef<number | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs after each draft commit
-  useLayoutEffect(() => {
-    const pos = caretRef.current;
-    if (pos === null) return;
-    caretRef.current = null;
-    inputRef.current?.setSelectionRange(pos, pos);
-  }, [draft]);
-
   const pick = (m: Member) => {
     if (!mention) return;
-    const caret = inputRef.current?.selectionStart ?? draft.length;
-    const next = `${draft.slice(0, mention.start)}@${m.username} ${draft.slice(caret)}`;
-    setDraft(next);
+    inputRef.current?.replaceBeforeCaret(
+      1 + mention.query.length,
+      `@${m.username} `,
+    );
     setMention(null);
-    caretRef.current = mention.start + m.username.length + 2;
   };
 
   const pickEmoji = (sc: Shortcode) => {
     if (!shortcode) return;
-    const caret = inputRef.current?.selectionStart ?? draft.length;
-    const next = `${draft.slice(0, shortcode.start)}${sc.emoji} ${draft.slice(caret)}`;
-    setDraft(next);
+    inputRef.current?.replaceBeforeCaret(
+      1 + shortcode.query.length,
+      `${sc.emoji} `,
+    );
     setShortcode(null);
-    caretRef.current = shortcode.start + sc.emoji.length + 1;
   };
 
   // Focus the box when a reply is started.
@@ -258,8 +232,13 @@ export function Composer({
     if (replyTo) inputRef.current?.focus();
   }, [replyTo]);
 
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (onShortcut(e)) return;
+  const onKeyDown = (e: KeyboardEvent) => {
+    const shortcut = shortcutFormat(e);
+    if (shortcut) {
+      e.preventDefault();
+      inputRef.current?.format(shortcut);
+      return;
+    }
     // Escape handled here is spent: it doesn't also close the side panel.
     if (e.key === "Escape" && !mention && !shortcode && replyTo) {
       e.preventDefault();
@@ -401,7 +380,7 @@ export function Composer({
         </div>
       )}
       <div className="composer-tools">
-        <FormatToolbar onFormat={format} />
+        <FormatToolbar onFormat={(f) => inputRef.current?.format(f)} />
         <Tooltip text="Attach files">
           <button
             type="button"
@@ -431,19 +410,14 @@ export function Composer({
       />
       <div className="composer-row">
         <div className="composer-input">
-          <ComposerOverlay value={draft} textareaRef={inputRef} />
-          <textarea
-            ref={inputRef}
+          <RichEditor
+            fieldRef={inputRef}
             value={draft}
-            rows={1}
             onPaste={onPaste}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              updateMention(
-                e.target.value,
-                e.target.selectionStart ?? e.target.value.length,
-              );
-              pingTyping(e.target.value);
+            onChange={(value, textBefore) => {
+              setDraft(value);
+              updateMention(textBefore, textBefore.length);
+              pingTyping(value);
             }}
             onKeyDown={onKeyDown}
             onBlur={() => {
@@ -463,8 +437,6 @@ export function Composer({
                       : `Message ${channelName}`
                   : "Message"
             }
-            maxLength={4000}
-            autoComplete="off"
           />
         </div>
         {touchKeyboard && (

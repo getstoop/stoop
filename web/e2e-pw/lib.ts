@@ -2,6 +2,7 @@ import {
   type APIRequestContext,
   test as base,
   expect,
+  type Locator,
   type Page,
 } from "@playwright/test";
 import pg from "pg";
@@ -159,8 +160,29 @@ export async function spaceMenu(page: Page, label: string) {
 export const channelLink = (page: Page, name: string) =>
   page.locator(".channel-link", { hasText: name });
 
+// The message box: a rich-text editor, not a textarea.
+export const COMPOSER = ".composer .rich-editor-content";
+
+// Pastes text into an editor as a person would. The editor reads pasted
+// text as Markdown, so this is how a spec writes formatting; fill() puts
+// the characters in literally.
+export async function paste(editor: Locator, text: string) {
+  await editor.click();
+  await editor.evaluate((el, text) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", text);
+    el.dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData: data,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  }, text);
+}
+
 export const say = async (page: Page, text: string) => {
-  await page.locator(".composer textarea").fill(text);
+  await paste(page.locator(COMPOSER), text);
   await page.keyboard.press("Enter");
 };
 

@@ -15,7 +15,7 @@ declare global {
 test("mentions notify, badge and read", async ({ browser }) => {
   const { suffix, tokens } = await seed();
 
-  const composer = (p: Page) => p.locator(".composer textarea");
+  const composer = (p: Page) => p.locator(".composer .rich-editor-content");
   const activityDot = (p: Page) => p.locator(".space-pill.activity .pill-dot");
   const picker = (p: Page) => p.locator(".mention-picker");
   // The picker opens and filters per keystroke, so the composer is typed
@@ -64,7 +64,7 @@ test("mentions notify, badge and read", async ({ browser }) => {
     `@ada${suffix}`,
   );
   await B.keyboard.press("Enter");
-  await expect(composer(B), "Enter completes the mention").toHaveValue(
+  await expect(composer(B), "Enter completes the mention").toHaveText(
     `morning @ada${suffix} `,
   );
   await expect(picker(B), "picker closes after completion").toHaveCount(0);
@@ -74,7 +74,7 @@ test("mentions notify, badge and read", async ({ browser }) => {
   // at the banner. Only the "@ad" above needs the picker's per-keystroke
   // filtering; the rest of the line does not.
   await composer(B).fill(`morning @ada${suffix} coffee?`);
-  await expect(composer(B), "the whole line is in the composer").toHaveValue(
+  await expect(composer(B), "the whole line is in the composer").toHaveText(
     `morning @ada${suffix} coffee?`,
   );
   await B.keyboard.press("Enter");
@@ -210,7 +210,7 @@ test("mentions notify, badge and read", async ({ browser }) => {
   await A.locator(".space-pill.avatar").click(); // A looks away
   await type(B, "@chan");
   // The keystrokes have landed, so the picker has had its chance.
-  await expect(composer(B)).toHaveValue("@chan");
+  await expect(composer(B)).toHaveText("@chan");
   await expect(
     picker(B).filter({ hasText: "Everyone" }),
     "member's picker doesn't offer @channel",

@@ -6,7 +6,7 @@ const channelRows = (p: Page) => p.locator(".channel-view .message");
 const panel = (p: Page) => p.locator(".side-panel");
 const panelRows = (p: Page) => panel(p).locator(".message");
 const sayIn = async (p: Page, where: string, text: string) => {
-  await p.locator(`${where} .composer textarea`).fill(text);
+  await p.locator(`${where} .composer .rich-editor-content`).fill(text);
   await p.keyboard.press("Enter");
 };
 const act = async (row: Locator, label: string) => {
@@ -23,8 +23,8 @@ test("thread mutes and new replies", async ({ browser }) => {
   const B = await (await browser.newContext()).newPage();
   await signIn(A, tokens.ada);
   await signIn(B, tokens.bea);
-  await A.locator(".channel-view .composer textarea").waitFor();
-  await B.locator(".channel-view .composer textarea").waitFor();
+  await A.locator(".channel-view .composer .rich-editor-content").waitFor();
+  await B.locator(".channel-view .composer .rich-editor-content").waitFor();
 
   await sayIn(A, ".channel-view", "who can lend a hedge trimmer?");
   const root = channelRows(B).filter({ hasText: "hedge trimmer" });
@@ -100,8 +100,8 @@ test("also send to channel", async ({ browser }) => {
   const B = await (await browser.newContext()).newPage();
   await signIn(A, tokens.ada);
   await signIn(B, tokens.bea);
-  await A.locator(".channel-view .composer textarea").waitFor();
-  await B.locator(".channel-view .composer textarea").waitFor();
+  await A.locator(".channel-view .composer .rich-editor-content").waitFor();
+  await B.locator(".channel-view .composer .rich-editor-content").waitFor();
 
   await sayIn(A, ".channel-view", "compost bins: anyone want one?");
   await expect(channelRows(B)).toHaveCount(1);

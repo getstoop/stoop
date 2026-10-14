@@ -1,13 +1,12 @@
 import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
+import { shortcutFormat } from "../../api/formatting";
 import { replaceShortcodes } from "../../api/shortcodes";
-import { ComposerOverlay } from "../../components/ComposerOverlay";
 import { FormatToolbar } from "../../components/FormatToolbar";
+import { RichEditor, type RichField } from "../../components/RichEditor";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
-import { useAutoGrow } from "../../hooks/useAutoGrow";
-import { useFormatting } from "../../hooks/useFormatting";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 
 // Inline editor: Enter saves, Shift+Enter breaks the line, Esc cancels,
@@ -23,21 +22,8 @@ export function MessageEditor({
   const [value, setValue] = useState(message.content);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useAutoGrow(ref, value);
+  const ref = useRef<RichField>(null);
   const touchKeyboard = useTouchKeyboard();
-  const {
-    apply: format,
-    onShortcut,
-    onPasteLink,
-  } = useFormatting(ref, setValue);
-
-  // Focus once with the caret at the end.
-  useEffect(() => {
-    const end = message.content.length;
-    ref.current?.focus();
-    ref.current?.setSelectionRange(end, end);
-  }, [message.content.length]);
 
   const save = async () => {
     const content = replaceShortcodes(value).trim();
@@ -70,29 +56,27 @@ export function MessageEditor({
 
   return (
     <div className="message-editor">
-      <FormatToolbar onFormat={format} />
-      <div className="composer-input">
-        <ComposerOverlay value={value} textareaRef={ref} />
-        <textarea
-          ref={ref}
-          value={value}
-          rows={1}
-          onChange={(e) => setValue(e.target.value)}
-          onPaste={onPasteLink}
-          onKeyDown={(e) => {
-            if (onShortcut(e)) return;
-            if (e.key === "Enter" && !e.shiftKey) {
-              if (touchKeyboard) return;
-              e.preventDefault();
-              save();
-            } else if (e.key === "Escape") {
-              e.preventDefault();
-              onDone();
-            }
-          }}
-          maxLength={4000}
-        />
-      </div>
+      <FormatToolbar onFormat={(f) => ref.current?.format(f)} />
+      <RichEditor
+        fieldRef={ref}
+        value={value}
+        autoFocus
+        onChange={(markdown) => setValue(markdown)}
+        onKeyDown={(e) => {
+          const shortcut = shortcutFormat(e);
+          if (shortcut) {
+            e.preventDefault();
+            ref.current?.format(shortcut);
+          } else if (e.key === "Enter" && !e.shiftKey) {
+            if (touchKeyboard) return;
+            e.preventDefault();
+            save();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            onDone();
+          }
+        }}
+      />
       {touchKeyboard ? (
         <div className="message-editor-actions">
           <button type="button" className="chip" onClick={onDone}>

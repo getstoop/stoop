@@ -3,7 +3,7 @@ import { type Format, shortcutHint } from "../api/formatting";
 import { BulletListIcon, NumberedListIcon } from "./Icons";
 import { Tooltip } from "./Tooltip";
 
-// The formatting row above the composer/editor. Buttons keep the textarea
+// The formatting row above the composer/editor. Buttons keep the editor
 // focused (mousedown is cancelled) so the selection they act on survives.
 const BUTTONS: {
   format: Format;

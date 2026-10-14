@@ -37,8 +37,8 @@ test("pinned messages", async ({ browser }) => {
   // its first fetch and its subscription — B then holds one of the two
   // and waits ten seconds to say so. Every other spec that talks across
   // two pages waits for the composer first.
-  await A.locator(".composer textarea").waitFor();
-  await B.locator(".composer textarea").waitFor();
+  await A.locator(".composer .rich-editor-content").waitFor();
+  await B.locator(".composer .rich-editor-content").waitFor();
   await say(A, "server address is stoop.example.net");
   // The first has to land before the second is sent, or the server may
   // store them the other way round and the indices below swap.

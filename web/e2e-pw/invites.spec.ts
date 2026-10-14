@@ -250,7 +250,7 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
 
   // ---- realtime: A sends, B receives
   const message = `hi from A ${suffix}`;
-  await A.locator(".composer textarea").fill(message);
+  await A.locator(".composer .rich-editor-content").fill(message);
   await A.keyboard.press("Enter");
   await expect(
     B.locator(".message-list"),

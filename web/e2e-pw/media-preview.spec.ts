@@ -34,7 +34,7 @@ test("image preview: opening, sizing, stepping and closing", async ({
   });
   const page = await context.newPage();
   await signIn(page, tokens.ada);
-  await expect(page.locator(".composer textarea")).toBeVisible();
+  await expect(page.locator(".composer .rich-editor-content")).toBeVisible();
 
   const thumbnails = page.locator(".attachment-image > button");
   const send = async (...names: string[]) => {
@@ -44,7 +44,7 @@ test("image preview: opening, sizing, stepping and closing", async ({
     await expect(page.locator(".attachment-strip .pending.ready")).toHaveCount(
       names.length,
     );
-    await page.locator(".composer textarea").click();
+    await page.locator(".composer .rich-editor-content").click();
     await page.keyboard.press("Enter");
     await expect(page.locator(".attachment-strip .pending")).toHaveCount(0);
   };

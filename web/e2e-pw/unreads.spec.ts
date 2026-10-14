@@ -20,7 +20,7 @@ test("unread markers, dividers and the space dot", async ({ browser }) => {
   await signIn(A, tokens.ada);
   await channelLink(A, "random").click();
   await signIn(B, tokens.bea);
-  await expect(B.locator(".composer textarea")).toBeVisible();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
 
   for (const [p, who] of [
     [A, "A"],

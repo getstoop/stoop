@@ -210,8 +210,8 @@
     right: 10px;
   }
 
-  /* 16px is the threshold below which iOS Safari zooms a focused field.
-     The composer overlay inherits the same size, so it stays in step. */
+  /* 16px is the threshold below which iOS Safari zooms a focused field,
+     the editor's contenteditable included. */
   .composer-input,
   .message-editor,
   .login-card input,

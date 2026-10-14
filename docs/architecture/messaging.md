@@ -148,23 +148,25 @@ Some deliberate absences and edge rules:
   until clicked. A `<span>` with a click handler would be invisible to
   anyone not using a mouse.
 
-### The composer overlay
+### The composer
 
-The composer shows the draft live-styled while it is typed. It is not a
-rich-text editor: the textarea stays a plain textarea holding the raw
-source, and what gets sent is exactly what was typed.
+The composer and the edit box are a rich-text editor on ProseMirror
+(`web/src/components/RichEditor/`). Markers never show: the draft is a
+document, and Markdown is what it sends and what it loads to edit.
 
-The styling comes from a second parse — `parseStyledMarkdown`, the same
-parser keeping each marker's exact characters — that drives an
-`aria-hidden` overlay rendered *under* the textarea
-(`web/src/components/ComposerOverlay.tsx`). Markers are dimmed, content
-between them is styled, and **every character is reproduced**, so the
-overlay lines up with the textarea glyph for glyph.
-
-This is the reason `themes.css` contains colour and nothing else, and the
-reason inputs are 16px below the mobile breakpoint (iOS Safari zooms into
-anything smaller, and the overlay has to zoom with it). A theme that
-changed a font size would visibly desynchronise the overlay from the text.
+- **The schema is the message format.** A quote holds lines, a list item
+  holds a line and maybe a nested list, a code block holds plain text. The
+  editor cannot make something the format cannot write.
+- **`markdown.ts` converts both ways**, and its tests hold the round trip:
+  Markdown loaded and written back comes out unchanged. A marker character
+  typed as text goes out escaped.
+- **Typing a marker pair formats it** with the format's meaning: `__` is
+  underline and `_` is nothing, whatever other editors do.
+- **Pasted plain text is read as Markdown**, so a message's source pastes
+  back formatted. Pasted HTML goes through the schema; a paste into a code
+  block stays literal.
+- **A bare address stays plain text**, styled as a link, because the
+  message format links it on its own.
 
 ### The server's one involvement
 
