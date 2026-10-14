@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { mentionKinds } from "../../api/mentions";
 import { canManageChannels } from "../../api/permissions";
 import { setMessagePinned, usePins } from "../../api/pins";
 import { useMembers, useSpaces } from "../../api/queries";
@@ -24,7 +25,7 @@ export function PinnedMessages({
   const { data: spaces } = useSpaces();
   const { data: members } = useMembers(spaceId);
   const space = spaces?.find((s) => s.id === spaceId);
-  const usernames = new Set(members?.map((m) => m.username.toLowerCase()));
+  const usernames = mentionKinds(members);
   const manage = !!space && canManageChannels(space);
   const { data: pins, isPending } = usePins(channelId, open);
 

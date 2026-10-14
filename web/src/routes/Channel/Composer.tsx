@@ -5,6 +5,7 @@ import {
   type DragEvent,
   type FormEvent,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -18,7 +19,11 @@ import {
 } from "../../api/files";
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
-import { filterMembers, mentionQueryAt } from "../../api/mentions";
+import {
+  filterMembers,
+  mentionKinds,
+  mentionQueryAt,
+} from "../../api/mentions";
 import { canMentionEntireChannel } from "../../api/permissions";
 import { useInstanceStatus, useSpaces } from "../../api/queries";
 import {
@@ -178,13 +183,14 @@ export function Composer({
   const members = usePeople(spaceId, channelId);
   const { data: spaces } = useSpaces();
   const space = spaces?.find((s) => s.id === spaceId);
+  const channelAndHere = !!space && canMentionEntireChannel(space);
+  const mentionContext = useMemo(
+    () => ({ kinds: mentionKinds(members), channelAndHere }),
+    [members, channelAndHere],
+  );
   const candidates =
     mention && members
-      ? filterMembers(
-          members,
-          mention.query,
-          !!space && canMentionEntireChannel(space),
-        )
+      ? filterMembers(members, mention.query, channelAndHere)
       : [];
 
   const suggestions = shortcode ? searchShortcodes(shortcode.query) : [];
@@ -417,6 +423,7 @@ export function Composer({
           <RichEditor
             fieldRef={inputRef}
             onFormats={setFormats}
+            mentions={mentionContext}
             value={draft}
             onPaste={onPaste}
             onChange={(value, textBefore) => {

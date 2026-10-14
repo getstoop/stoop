@@ -21,6 +21,7 @@ import {
   timelineKey,
   useHistoryStore,
 } from "../../api/history";
+import { mentionKinds } from "../../api/mentions";
 import { canDeleteAnyMessage, canManageChannels } from "../../api/permissions";
 import { setMessagePinned } from "../../api/pins";
 import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
@@ -296,7 +297,7 @@ export function MessageList({
   } | null>(null);
   const { data: me } = useMe();
   const members = usePeople(spaceId, channelId);
-  const usernames = new Set(members?.map((m) => m.username.toLowerCase()));
+  const usernames = mentionKinds(members);
 
   // Land on the "New messages" line when there is one, else the bottom;
   // subsequent arrivals scroll to the bottom as before.
