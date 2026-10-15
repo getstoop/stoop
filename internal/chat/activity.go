@@ -244,8 +244,18 @@ func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.
 	if err != nil {
 		return nil, err
 	}
+	var contents []string
+	for _, row := range rows {
+		if row.MessageContent != nil {
+			contents = append(contents, *row.MessageContent)
+		}
+	}
+	names, err := s.mentionNames(ctx, contents...)
+	if err != nil {
+		return nil, err
+	}
 	for i, r := range rows {
-		out[i] = toProtoActivityItem(r.ActivityItem, r.MessageContent, r.MessageThreadRootID, files[r.MessageFirstFileID].label(), actors[r.ActivityItem.ActorID], r.Muted)
+		out[i] = toProtoActivityItem(r.ActivityItem, names.textOf(r.MessageContent), r.MessageThreadRootID, files[r.MessageFirstFileID].label(), actors[r.ActivityItem.ActorID], r.Muted)
 	}
 	unread, err := s.q.CountUnreadActivity(ctx, userID)
 	if err != nil {

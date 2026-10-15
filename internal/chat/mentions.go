@@ -3,7 +3,9 @@ package chat
 import (
 	"context"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/getstoop/stoop/internal/dbgen"
@@ -56,23 +58,19 @@ type mentionResult struct {
 	here          bool
 }
 
-// resolveMentions maps a message's mentions to the user IDs they reach,
-// excluding the author: @handles first, then @@handles, which reach a
-// group's people in public channels only. When @channel or @here
-// applies it decides alone, for groups as for @handles.
-func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, participants []string, authorID, content string) (mentionResult, error) {
-	res, err := s.resolvePersonMentions(ctx, channel, participants, authorID, parseMentionHandles(content))
-	if err != nil || res.entireChannel || res.here || isDM(channel) || channel.Private {
+// resolveMentions turns a message's targets into the people told,
+// excluding the author: @handles first, then @@handles, which name groups
+// in public channels only. When @channel or @here applies it decides
+// alone, for groups as for @handles.
+func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, authorID, content string, targets mentionTargets) (mentionResult, error) {
+	res, err := s.resolvePersonMentions(ctx, channel, authorID, parseMentionHandles(content), targets)
+	if err != nil || res.entireChannel || res.here || len(targets.groups) == 0 {
 		return res, err
-	}
-	groupHandles := parseGroupHandles(content)
-	if len(groupHandles) == 0 {
-		return res, nil
 	}
 	// A group's people are members of its space by foreign key, so every
 	// one of them can read a public channel.
 	groupMemberIDs, err := s.q.ListGroupMemberIDsByHandles(ctx, dbgen.ListGroupMemberIDsByHandlesParams{
-		SpaceID: *channel.SpaceID, Handles: groupHandles,
+		SpaceID: *channel.SpaceID, Handles: slices.Collect(maps.Keys(targets.groups)),
 	})
 	if err != nil {
 		return mentionResult{}, fmt.Errorf("resolve groups: %w", err)
@@ -90,46 +88,28 @@ func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, pa
 	return res, nil
 }
 
-// resolvePersonMentions maps @handles to user IDs of people in the
-// channel — the space's members, or the people of a private channel or a
-// DM (passed in, nil for a public channel) — excluding the author. Others are silently
-// ignored: a mention is an address, not a permission. @channel wins over
-// @here if both appear; in a DM both are plain text.
-func (s *Service) resolvePersonMentions(ctx context.Context, channel dbgen.Channel, participants []string, authorID string, handles []string) (mentionResult, error) {
-	if len(handles) == 0 {
-		return mentionResult{}, nil
-	}
-	var ids []string
-	var err error
-	if isDM(channel) || channel.Private {
-		ids = participants
-	} else {
-		rows, err := s.q.ListSpaceMembers(ctx, *channel.SpaceID)
-		if err != nil {
-			return mentionResult{}, fmt.Errorf("list members: %w", err)
-		}
-		ids = make([]string, len(rows))
-		for i, r := range rows {
-			ids[i] = r.UserID
-		}
-	}
-
+// resolvePersonMentions maps @handles to the people in the channel they
+// name, excluding the author. Others are silently ignored: a mention is
+// an address, not a permission. @channel wins over @here if both appear;
+// in a DM both are plain text.
+func (s *Service) resolvePersonMentions(ctx context.Context, channel dbgen.Channel, authorID string, handles []string, targets mentionTargets) (mentionResult, error) {
 	var wantEntireChannel, wantHere bool
 	for _, h := range handles {
 		wantEntireChannel = wantEntireChannel || h == entireChannelHandle
 		wantHere = wantHere || h == hereHandle
 	}
 	if (wantEntireChannel || wantHere) && !isDM(channel) && s.mayNotifyEntireChannel(ctx, channel) {
-		targets := ids
+		recipients := targets.readers
 		if !wantEntireChannel {
+			var err error
 			if s.presence == nil {
-				targets = nil
-			} else if targets, err = s.presence.OnlineUserIDs(ctx, ids); err != nil {
+				recipients = nil
+			} else if recipients, err = s.presence.OnlineUserIDs(ctx, targets.readers); err != nil {
 				return mentionResult{}, fmt.Errorf("list online members: %w", err)
 			}
 		}
 		res := mentionResult{entireChannel: wantEntireChannel, here: !wantEntireChannel}
-		for _, id := range targets {
+		for _, id := range recipients {
 			if id != authorID {
 				res.userIDs = append(res.userIDs, id)
 			}
@@ -137,17 +117,9 @@ func (s *Service) resolvePersonMentions(ctx context.Context, channel dbgen.Chann
 		return res, nil
 	}
 
-	records, err := s.users.GetUsers(ctx, ids)
-	if err != nil {
-		return mentionResult{}, fmt.Errorf("resolve members: %w", err)
-	}
-	byHandle := make(map[string]string, len(records))
-	for _, r := range records {
-		byHandle[strings.ToLower(r.Username)] = r.ID
-	}
 	var res mentionResult
 	for _, h := range handles {
-		if id, ok := byHandle[h]; ok && id != authorID {
+		if id, ok := targets.people[h]; ok && id != authorID {
 			res.userIDs = append(res.userIDs, id)
 		}
 	}
