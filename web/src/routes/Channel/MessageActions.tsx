@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { copyShareLink } from "../../api/shareLinks";
-import { LinkIcon, PinIcon } from "../../components/Icons";
+import {
+  LinkIcon,
+  PencilIcon,
+  PinIcon,
+  TrashIcon,
+} from "../../components/Icons";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 export function MessageActions({
@@ -164,26 +169,6 @@ function ReplyIcon() {
     <svg {...iconProps} aria-hidden="true">
       <path d="M9 17l-5-5 5-5" />
       <path d="M4 12h9a6 6 0 0 1 6 6v1" />
-    </svg>
-  );
-}
-
-function PencilIcon() {
-  return (
-    <svg {...iconProps} aria-hidden="true">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg {...iconProps} aria-hidden="true">
-      <path d="M3 6h18" />
-      <path d="M8 6V4h8v2" />
-      <path d="M19 6l-1 14H6L5 6" />
-      <path d="M10 11v6M14 11v6" />
     </svg>
   );
 }

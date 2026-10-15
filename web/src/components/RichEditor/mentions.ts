@@ -132,8 +132,7 @@ export function settleMentions(
       }
       return false;
     }
-    if (!node.isText || !node.text || inCode(node)) return true;
-    if (onlyWords(node)) return true;
+    if (!node.isText || !node.text || onlyWords(node)) return true;
     const addresses = [...node.text.matchAll(ADDRESS)].map((m) => [
       m.index,
       m.index + m[0].length,

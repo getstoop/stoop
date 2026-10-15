@@ -6,7 +6,7 @@ import { isBot } from "./identity";
 // group, the handle being the one current when it was saved. @channel and
 // @here stay typed words. See docs/architecture/messaging.md → Mentions.
 
-export type MentionKind = "person" | "group";
+type MentionKind = "person" | "group";
 
 // What a mention is in the editor and in a parsed message.
 export interface MentionRef {
@@ -17,7 +17,7 @@ export interface MentionRef {
 
 const KIND_LETTER: Record<MentionKind, string> = { person: "u", group: "g" };
 
-export const MENTION_TOKEN =
+const MENTION_TOKEN =
   /<@([ug]):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([a-z0-9_]{3,32})>/;
 
 export function mentionToken({ kind, id, handle }: MentionRef): string {
@@ -61,8 +61,8 @@ export function mentionQueryAt(
   return { start: at, query };
 }
 
-export const CHANNEL_HANDLE = "channel";
-export const HERE_HANDLE = "here";
+const CHANNEL_HANDLE = "channel";
+const HERE_HANDLE = "here";
 
 // The people a mention may name, by user ID.
 export type MentionMembers = ReadonlyMap<string, Member>;
@@ -155,7 +155,7 @@ export function filterMembers(
   return out.slice(0, 8);
 }
 
-export type EveryonePart = { text: string; everyone?: true };
+type EveryonePart = { text: string; everyone?: true };
 
 const EVERYONE_WORD = /(^|[^a-z0-9_@])@(channel|here)\b/gi;
 

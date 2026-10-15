@@ -46,7 +46,7 @@ import { BotMark } from "../../components/BotMark";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
-import { SendIcon } from "../../components/Icons";
+import { PaperclipIcon, SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
@@ -94,7 +94,6 @@ export function Composer({
   const [mention, setMention] = useState<{
     start: number;
     query: string;
-    group?: true;
   } | null>(null);
   // The :shortcode being typed, when no @mention is.
   const [shortcode, setShortcode] = useState<{
@@ -538,23 +537,5 @@ export function Composer({
         </p>
       )}
     </form>
-  );
-}
-
-function PaperclipIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m21.4 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-    </svg>
   );
 }

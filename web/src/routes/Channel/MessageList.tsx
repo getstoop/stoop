@@ -513,7 +513,7 @@ export function MessageList({
           {threadRoot && history && !history.hasOlder && (
             <>
               {row(threadRoot, false)}
-              <div className="day-divider eyebrow thread-divider">
+              <div className="day-divider eyebrow">
                 <span>
                   {replyCountLabel(
                     threadRoot.thread?.replyCount ?? messages.length,

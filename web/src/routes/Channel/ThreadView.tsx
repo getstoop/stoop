@@ -65,7 +65,6 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
       : "";
   const channelLabel =
     !isDM && channel ? <ChannelName channel={channel} /> : channelName;
-  const where = channelLabel;
   // The page beside the thread may be another channel, so the thread says
   // for itself that its own is muted.
   const channelMuted = isDM ? !!dm?.channel?.muted : !!channel?.muted;
@@ -96,7 +95,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
     (root.data && !rootMessage)
   ) {
     return (
-      <SidePanelFrame title="Thread" subtitle={where}>
+      <SidePanelFrame title="Thread" subtitle={channelLabel}>
         <SidePanelUnavailable message="This thread isn't available any more." />
       </SidePanelFrame>
     );
@@ -150,7 +149,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           spaceId={spaceId}
           channelId={channelId}
           rootId={rootId}
-          label={where}
+          label={channelLabel}
         />
       }
       actions={
