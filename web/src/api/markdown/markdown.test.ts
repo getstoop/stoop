@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { type Inline, linksIn, parseInline, parseMarkdown, plainText } from ".";
+import {
+  type Inline,
+  isBlankMessage,
+  linksIn,
+  parseInline,
+  parseMarkdown,
+  plainText,
+} from ".";
 
 const text = (t: string): Inline => ({ type: "text", text: t });
 const code = (t: string): Inline => ({ type: "code", text: t });
@@ -468,6 +475,37 @@ describe("plainText where the server differs", () => {
 
   it("keeps a bullet that is inside a quote", () => {
     expect(plainText("> - item")).toBe("- item"); // server: "item"
+  });
+});
+
+describe("isBlankMessage", () => {
+  // As the editor writes an empty block, before the send trims it.
+  it.each([
+    "",
+    "  \n ",
+    ">",
+    "> \n>",
+    "- ",
+    "1. ",
+    "- \n  - ",
+    "```\n\n```",
+    "```\n```",
+  ])("%j is blank", (content) => {
+    expect(isBlankMessage(content)).toBe(true);
+  });
+
+  it.each([
+    "👍",
+    "<@u:00000000-0000-4000-8000-000000000001:casey>",
+    "<@g:00000000-0000-4000-8000-000000000002:crew>",
+    "```\nx = 1\n```",
+    "> quoted",
+    "- item",
+    "-",
+    "\\- not a list",
+    "[](https://example.com)",
+  ])("%j has content", (content) => {
+    expect(isBlankMessage(content)).toBe(false);
   });
 });
 
