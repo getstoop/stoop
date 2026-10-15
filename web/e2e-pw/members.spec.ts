@@ -79,15 +79,16 @@ test("the member list, roles, kicking and leaving", async ({ browser }) => {
     "Leave space",
   );
 
-  // The card is profile-only now: Message and Block, never roles or
-  // removal — those live in the space's settings, with a link to them.
+  // The card is profile-only now: Message, Block and Copy mention, never
+  // roles or removal — those live in the space's settings, with a link to
+  // them.
   await A.locator(".message-author")
     .filter({ hasText: `bea${suffix}` })
     .click();
   await expect(
     A.locator(".user-card-actions button"),
-    "card offers only Message and Block",
-  ).toHaveText(["Message", "Block"]);
+    "card offers only Message, Block and Copy mention",
+  ).toHaveText(["Message", "Block", "Copy mention"]);
   await expect(
     A.locator(".user-card .card-manage-link"),
     "the owner's card links to space settings for management",

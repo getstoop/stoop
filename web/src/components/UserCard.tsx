@@ -6,6 +6,7 @@ import { setBlocked, useBlocked } from "../api/blocks";
 import { openDirectMessage } from "../api/dms";
 import { errorText } from "../api/errors";
 import { isBot } from "../api/identity";
+import { mentionToken } from "../api/mentions";
 import { canManageMembers, roleLabel } from "../api/permissions";
 import { presenceClass, presenceLabel } from "../api/presence";
 import { useMe, useMember, useSpaces, useUserProfile } from "../api/queries";
@@ -15,6 +16,7 @@ import { useConnectionStore } from "../stores/connection";
 import { confirm, notice } from "../stores/dialogs";
 import { Avatar } from "./Avatar";
 import { BotMark } from "./BotMark";
+import { CopyButton } from "./CopyButton";
 import { DeletedMark } from "./DeletedMark";
 
 // A small profile card, anchored below the element that opened it. Who
@@ -148,17 +150,17 @@ export function UserCard({
               {timestampDate(member.joinedAt).toLocaleDateString()}
             </p>
           )}
-          {!isSelf && (
-            <div className="user-card-actions">
-              {spaceId && !bot && (
-                <button
-                  type="button"
-                  className="chip message-button"
-                  onClick={message}
-                >
-                  Message
-                </button>
-              )}
+          <div className="user-card-actions">
+            {!isSelf && spaceId && !bot && (
+              <button
+                type="button"
+                className="chip message-button"
+                onClick={message}
+              >
+                Message
+              </button>
+            )}
+            {!isSelf && (
               <button
                 type="button"
                 className="chip block-button"
@@ -166,8 +168,18 @@ export function UserCard({
               >
                 {isBlocked ? "Unblock" : "Block"}
               </button>
-            </div>
-          )}
+            )}
+            {profile && (
+              <CopyButton
+                label="Copy mention"
+                text={mentionToken({
+                  kind: "person",
+                  id: userId,
+                  handle: profile.username.toLowerCase(),
+                })}
+              />
+            )}
+          </div>
           {bot && instanceAdmin && (
             <Link
               to="/admin"
