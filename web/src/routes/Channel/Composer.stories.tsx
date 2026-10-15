@@ -5,7 +5,8 @@ import { Composer } from "./Composer";
 
 // The composer in a public channel, its reads answered here instead of by
 // a server. What Send would post is shown below it: the content exactly as
-// SendMessage carries it, mention tokens and Markdown included.
+// SendMessage carries it, mention tokens and Markdown included. Like a
+// channel, the composer sits at the bottom with the newest send above it.
 
 const SPACE = "00000000-0000-4000-8000-0000000000a1";
 const CHANNEL = "00000000-0000-4000-8000-0000000000b1";
@@ -88,34 +89,36 @@ function ComposerWithSent() {
   // Installed during the first render, before the composer's queries run.
   const [restore] = useState(() =>
     stubServer(({ content }) =>
-      setSent((list) => [{ id: list.length, content }, ...list]),
+      setSent((list) => [...list, { id: list.length, content }]),
     ),
   );
   useEffect(() => restore, [restore]);
   const [queryClient] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="kit-section">
-        <div className="kit-composer-room">
-          <Composer
-            channelId={CHANNEL}
-            channelName="general"
-            spaceId={SPACE}
-            replyTo={null}
-            onCancelReply={() => {}}
-            onEditLast={() => {}}
-          />
+      <div className="kit-channel">
+        <div className="kit-channel-sent">
+          <h3>Sent to the server</h3>
+          {sent.length === 0 ? (
+            <p className="muted">
+              Nothing yet. Type a message and press Enter.
+            </p>
+          ) : (
+            sent.map(({ id, content }) => (
+              <pre key={id} className="kit-mono kit-sent">
+                {content}
+              </pre>
+            ))
+          )}
         </div>
-        <h3>Sent to the server</h3>
-        {sent.length === 0 ? (
-          <p className="muted">Nothing yet. Type a message and press Enter.</p>
-        ) : (
-          sent.map(({ id, content }) => (
-            <pre key={id} className="kit-mono kit-sent">
-              {content}
-            </pre>
-          ))
-        )}
+        <Composer
+          channelId={CHANNEL}
+          channelName="general"
+          spaceId={SPACE}
+          replyTo={null}
+          onCancelReply={() => {}}
+          onEditLast={() => {}}
+        />
       </div>
     </QueryClientProvider>
   );
@@ -128,5 +131,6 @@ const meta: Meta<typeof Composer> = {
 export default meta;
 
 export const InAChannel: StoryObj = {
+  parameters: { layout: "fullscreen" },
   render: () => <ComposerWithSent />,
 };
