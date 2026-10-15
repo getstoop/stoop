@@ -94,6 +94,42 @@ const scope = (t: Timeline) => ({
   threadId: t.rootId ?? "",
 });
 
+// The server's largest page, for fetchLiveWindow's catch-up.
+const SPAN_PAGE = 100;
+
+// The newest rows back to `have`'s oldest, for refetching a live window
+// (a rename, Ready): the rows redraw from the server and the history the
+// reader paged in stays.
+export async function fetchLiveWindow(
+  t: Timeline,
+  have: Message[],
+): Promise<ListMessagesResponse> {
+  const oldestId = have[0]?.id;
+  const bound = Math.max(have.length, WINDOW_CAP);
+  const newest = await chatClient.listMessages({
+    ...scope(t),
+    limit: SPAN_PAGE,
+  });
+  let rows = newest.messages;
+  let hasOlder = newest.hasOlder;
+  const reached = () => rows.some((m) => m.id === oldestId);
+  while (hasOlder && rows.length > 0 && rows.length < bound && !reached()) {
+    const older = await chatClient.listMessages({
+      ...scope(t),
+      beforeId: rows[0].id,
+      limit: SPAN_PAGE,
+    });
+    rows = [...older.messages, ...rows];
+    hasOlder = older.hasOlder;
+  }
+  const start = rows.findIndex((m) => m.id === oldestId);
+  if (start > 0) {
+    rows = rows.slice(start);
+    hasOlder = true;
+  }
+  return { ...newest, messages: rows, hasOlder };
+}
+
 export const useHistoryStore = create<HistoryState>((set, get) => {
   const patch = (t: Timeline, p: Partial<ChannelHistory>) =>
     set((s) => ({
