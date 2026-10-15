@@ -8,7 +8,8 @@ export type Inline =
   | { type: "mention"; mention: MentionRef }
   | { type: "code"; text: string }
   // label is the words of a [words](address) link; a bare URL has none.
-  | { type: "link"; href: string; label?: Inline[] }
+  // noPreview marks [words](<address>): no card is shown for it.
+  | { type: "link"; href: string; label?: Inline[]; noPreview?: true }
   | {
       type: "bold" | "italic" | "underline" | "strike" | "spoiler";
       children: Inline[];

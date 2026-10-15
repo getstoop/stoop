@@ -114,6 +114,17 @@ func TestParseInlineShape(t *testing.T) {
 			{kind: inlineLink, text: "https://a.b/x_(y)", children: []inlineNode{text("a "), styled(text("b"))}},
 			text(")"),
 		}},
+		// [words](<address>) gets no preview, and its words may be the address.
+		{"[a](<https://a.b/x_(y)>)", []inlineNode{
+			{kind: inlineLink, text: "https://a.b/x_(y)", children: []inlineNode{text("a")}, noPreview: true},
+		}},
+		{"[https://a.b/x__y](<https://a.b/x__y>).", []inlineNode{
+			{kind: inlineLink, text: "https://a.b/x__y", children: []inlineNode{text("https://a.b/x__y")}, noPreview: true}, text("."),
+		}},
+		{"[https://a.b](<https://c.d>)", []inlineNode{
+			text("["), {kind: inlineLink, text: "https://a.b]("}, text("<"), {kind: inlineLink, text: "https://c.d"}, text(">)"),
+		}},
+		{"[a](<https://a.b)", []inlineNode{text("[a](<"), {kind: inlineLink, text: "https://a.b"}, text(")")}},
 		{"[a](ftp://a.b)", []inlineNode{text("[a](ftp://a.b)")}},
 		{"[ ](https://a.b)", []inlineNode{text("[ ]("), {kind: inlineLink, text: "https://a.b"}, text(")")}},
 		{"[a](https://a.b", []inlineNode{text("[a]("), {kind: inlineLink, text: "https://a.b"}}},

@@ -23,6 +23,9 @@ func TestExtractLinks(t *testing.T) {
 		{"(see https://example.com/wiki/Ada_(mathematician)).", []string{"https://example.com/wiki/Ada_(mathematician)"}},
 		{"[the docs](https://docs.example/a) and **[more](https://more.example)**", []string{"https://docs.example/a", "https://more.example"}},
 		{"https://a.example https://b.example https://c.example https://d.example", []string{"https://a.example", "https://b.example", "https://c.example"}},
+		// [words](<address>) asked for no preview, and takes no place in the cap.
+		{"[https://quiet.example](<https://quiet.example>) [words](<https://quiet.example/b>) https://loud.example", []string{"https://loud.example"}},
+		{"[a](<https://a.example>) https://b.example https://c.example https://d.example", []string{"https://b.example", "https://c.example", "https://d.example"}},
 	} {
 		if got := extractLinks(tc.in); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("extractLinks(%q) = %v, want %v", tc.in, got, tc.want)

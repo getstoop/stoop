@@ -319,6 +319,23 @@ describe("links", () => {
     expect(bare && md(bare)).toBe("go https://x.org");
   });
 
+  it("save a link with its preview turned off, and open it that way", () => {
+    const state = caretAfter(stateOf("go "), "go ");
+    const draft = linkDraft(state);
+    expect(draft?.preview).toBe(true);
+    const named =
+      draft &&
+      state.apply(saveLink(state, draft, "here", "https://x.org", false));
+    expect(named && md(named)).toBe("go [here](<https://x.org>)");
+    const bare =
+      draft && state.apply(saveLink(state, draft, " ", "https://x.org", false));
+    expect(bare && md(bare)).toBe("go [https://x.org](<https://x.org>)");
+    const opened = linkDraft(
+      caretAfter(stateOf("[here](<https://x.org>)"), "he"),
+    );
+    expect(opened?.preview).toBe(false);
+  });
+
   it("save an edit over the whole link", () => {
     const state = caretAfter(stateOf(LINKED), "do");
     const draft = linkDraft(state);
@@ -340,6 +357,8 @@ describe("links", () => {
     ]) {
       expect(checkLink("docs", href).href).toMatch(/unpaired bracket/);
     }
+    expect(checkLink("docs", "https://x.com/a>b")).toEqual({});
+    expect(checkLink("docs", "https://x.com/a>b", false).href).toMatch(/>/);
   });
 
   it("come from pasted HTML only when the format can read the address", () => {

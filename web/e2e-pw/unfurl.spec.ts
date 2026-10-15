@@ -14,7 +14,8 @@ const IMAGE = Buffer.from(
 // spec runs; the app server must allow private addresses for that
 // (STOOP_UNFURL_ALLOW_PRIVATE=1) and have previews on
 // (STOOP_LINK_PREVIEWS=1), as CI and the dev setup do. Also: links
-// inside code are not unfurled, and editing the link away drops the card.
+// inside code are not unfurled, editing the link away drops the card, and
+// a link whose preview the link form turned off gets none.
 // Ported from web/e2e/unfurl.mjs (STOOP-238).
 test("open graph cards for links", async ({ browser }) => {
   // The linked site.
@@ -107,6 +108,39 @@ test("open graph cards for links", async ({ browser }) => {
     await expect(
       card(A, 2),
       "editing the link away removes the card",
+    ).toHaveCount(0);
+
+    // The link form offers the preview, ticked; unticked, the link gets
+    // no card. The cached card on the message after it proves the absence.
+    const linkForm = A.getByRole("dialog", { name: /link/i });
+    const previewBox = linkForm.getByRole("checkbox", {
+      name: "Show a preview",
+    });
+    await A.locator(".composer .rich-editor-content").click();
+    await A.keyboard.press("ControlOrMeta+k");
+    await expect(previewBox, "the preview is on by default").toBeChecked();
+    await A.keyboard.type("quiet");
+    await linkForm
+      .locator(".field")
+      .filter({ hasText: "Address" })
+      .locator("input")
+      .fill(`${siteUrl}/page`);
+    await previewBox.uncheck();
+    await linkForm.getByRole("button", { name: "Save" }).click();
+    await expect(linkForm).toHaveCount(0);
+    await A.keyboard.press("Enter");
+    await expect(
+      A.locator(".message").nth(3).locator("a.md-link"),
+      "the link is sent",
+    ).toHaveText("quiet");
+    await say(A, `loud ${siteUrl}/page`);
+    await expect(
+      card(A, 4).locator(".link-preview-title"),
+      "a link with its preview on still gets the card",
+    ).toHaveText("Stoop & friends");
+    await expect(
+      card(A, 3),
+      "a link with its preview off gets none",
     ).toHaveCount(0);
   } finally {
     site.close();

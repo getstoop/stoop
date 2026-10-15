@@ -280,11 +280,14 @@ export function RichEditor({
         <LinkDialog
           text={linkForm.draft.text}
           href={linkForm.draft.href}
+          preview={linkForm.draft.preview}
           editing={linkForm.editing}
-          onSave={(text, href) => {
+          onSave={(text, href, preview) => {
             const view = viewRef.current;
             if (view) {
-              view.dispatch(saveLink(view.state, linkForm.draft, text, href));
+              view.dispatch(
+                saveLink(view.state, linkForm.draft, text, href, preview),
+              );
             }
             closeLinkForm();
           }}

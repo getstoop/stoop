@@ -133,7 +133,9 @@ element props, and there is no code path where it becomes markup.
 Supported: `**bold**`, `*italic*`, `__underline__`, `~~strike~~`,
 `||spoiler||`, `` `code` ``, fenced code blocks, `>` quotes, `- ` and
 `1. ` lists, auto-linked URLs, `[words](https://address)` links, and `\`
-escapes.
+escapes. `[words](<https://address>)` is a link that gets no preview
+(→ Link previews); its words may be the address itself, as a bare
+address has no other way to say it wants none.
 
 Some deliberate absences and edge rules:
 
@@ -778,7 +780,7 @@ never learn there are two kinds of channel either. A group has no name, so
 
 URLs in a message — at most three distinct ones, taken from the content
 with fenced and inline code stripped out first, each at most 2048
-characters — are recorded in `message_links` at send time. A worker then fetches each one's Open Graph
+characters, leaving out any written `[words](<address>)` — are recorded in `message_links` at send time. A worker then fetches each one's Open Graph
 metadata through chat's `Unfurler` port (`internal/unfurl`), stores the
 preview image through the `PreviewImages` port (files, kind
 `link_preview`, re-encoded and bounded like every other image), and
@@ -786,6 +788,13 @@ republishes the message as `MessageUpdated`. A link straight to an image
 is a preview of just that image. An animated GIF is written again frame
 by frame and stays animated, at its own size rather than fitted, since a
 frame that paints part of the canvas cannot be scaled on its own.
+
+The link form's "Show a preview" box, offered only while previews are
+on, writes a link it unticks as `[words](<address>)`, and one with no
+words as `[address](<address>)`. The choice lives in the
+content, so an edit can turn a card on or off, and the editor reads it
+back when the message is opened to edit. A link to a message written
+this way shows no message card either.
 
 Previews are cached per URL in `link_previews` for a week and shared by
 every message linking it. **Failures are cached too**, so a dead link isn't

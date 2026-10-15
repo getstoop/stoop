@@ -129,7 +129,8 @@ function inline(nodes: JSONContent[] = []): string {
       if (!text) continue;
       for (const mark of marks.slice(keep)) {
         const bare = mark.type === "link" && node.text === mark.attrs?.href;
-        out += bare ? "" : opener(mark);
+        // Without a preview an address is its own words, written as-is.
+        if (!bare || !previewed(mark)) out += opener(mark);
         open.push({ mark, bare });
       }
     }
@@ -177,7 +178,14 @@ function opener(mark: MarkJSON): string {
 
 function closer({ mark, bare }: { mark: MarkJSON; bare: boolean }): string {
   if (mark.type !== "link") return DELIM[mark.type] ?? "";
-  return bare ? "" : `](${mark.attrs?.href})`;
+  const href = mark.attrs?.href;
+  if (!previewed(mark)) return `](<${href}>)`;
+  return bare ? "" : `](${href})`;
+}
+
+// A link's preview is on unless the link form turned it off.
+function previewed(mark: MarkJSON): boolean {
+  return mark.attrs?.preview !== false;
 }
 
 function sortMarks(marks: MarkJSON[]): MarkJSON[] {
@@ -187,7 +195,11 @@ function sortMarks(marks: MarkJSON[]): MarkJSON[] {
 }
 
 function sameMark(a: MarkJSON, b: MarkJSON) {
-  return a.type === b.type && a.attrs?.href === b.attrs?.href;
+  return (
+    a.type === b.type &&
+    a.attrs?.href === b.attrs?.href &&
+    previewed(a) === previewed(b)
+  );
 }
 
 // Characters the parser would read as markup. A single "_" stays, so
@@ -270,7 +282,9 @@ function inlineJSON(nodes: Inline[], marks: MarkJSON[]): JSONContent[] {
         );
         break;
       case "link": {
-        const link = { type: "link", attrs: { href: n.href } };
+        const link = n.noPreview
+          ? { type: "link", attrs: { href: n.href, preview: false } }
+          : { type: "link", attrs: { href: n.href } };
         if (n.label) out.push(...inlineJSON(n.label, [...marks, link]));
         // A bare address stays text; the editor styles it as a link.
         else text(n.href, marks);

@@ -1,8 +1,9 @@
 import { mentionTokenAt, tokensAsText } from "../mentions";
 import type { Inline } from "./types";
 
-// Inline syntax, left to right: mention tokens, escapes, `code`, bare http(s) links,
-// [words](https://address), ***both***, then **bold**, __underline__,
+// Inline syntax, left to right: mention tokens, escapes, `code`, bare
+// http(s) links, [words](https://address) and [words](<https://address>),
+// ***both***, then **bold**, __underline__,
 // ~~strike~~, ||spoiler|| and *italic*. `_italic_` is deliberately absent
 // so @user_names survive.
 
@@ -112,7 +113,8 @@ class InlineParser {
   }
 
   // "[words](https://address)". The words can't hold a link of their own,
-  // so a label never shows one address over another.
+  // so a label never shows one address over another. "[words](<address>)"
+  // is a link that gets no preview.
   private labelledLink(): boolean {
     const { s, i } = this;
     if (s[i] !== "[") return false;
@@ -138,12 +140,32 @@ class InlineParser {
       hrefEnd++;
     }
     if (hrefEnd >= s.length) return false;
-    const href = s.slice(hrefStart, hrefEnd);
+    let href = s.slice(hrefStart, hrefEnd);
+    const quiet = /^<[^<>]*>$/.test(href);
+    if (quiet) href = href.slice(1, -1);
     if (!URL_WHOLE.test(href)) return false;
+    // Without a preview the words may be the address itself: a bare
+    // address has no other way to say it wants none.
+    if (quiet && words === href) {
+      return this.emit(
+        {
+          type: "link",
+          href,
+          label: [{ type: "text", text: href }],
+          noPreview: true,
+        },
+        hrefEnd + 1,
+      );
+    }
     // A link's words can't mention anyone: a token there reads as its handle.
     const label = parseInline(tokensAsText(words));
     if (holdsLink(label)) return false;
-    return this.emit({ type: "link", href, label }, hrefEnd + 1);
+    return this.emit(
+      quiet
+        ? { type: "link", href, label, noPreview: true }
+        : { type: "link", href, label },
+      hrefEnd + 1,
+    );
   }
 
   // ***both*** is bold around italic.

@@ -22,10 +22,11 @@ const (
 )
 
 type inlineNode struct {
-	kind     inlineKind
-	text     string       // the text, the code, the href, or the token
-	children []inlineNode // a style's content, or a link's label
-	at       int          // a token's byte offset in the content
+	kind      inlineKind
+	text      string       // the text, the code, the href, or the token
+	children  []inlineNode // a style's content, or a link's label
+	at        int          // a token's byte offset in the content
+	noPreview bool         // a [words](<address>) link
 }
 
 type blockKind int
@@ -57,6 +58,8 @@ var (
 	urlWhole     = regexp.MustCompile(`(?i)^https?://[^\s<]+$`)
 	trailingPunc = regexp.MustCompile(`[.,;:!?)\]'"]+$`)
 	mdWhitespace = regexp.MustCompile(`\s*\n\s*`)
+	// [words](<address>) is a link that gets no preview.
+	quietHref = regexp.MustCompile(`^<[^<>]*>$`)
 )
 
 const escapable = "\\`*_~>|#[]().-"
@@ -232,15 +235,24 @@ func matchLabelled(source string, start int) (node inlineNode, end int, ok bool)
 		return inlineNode{}, 0, false
 	}
 	href := source[hrefStart:hrefEnd]
+	quiet := quietHref.MatchString(href)
+	if quiet {
+		href = href[1 : len(href)-1]
+	}
 	if !urlWhole.MatchString(href) {
 		return inlineNode{}, 0, false
+	}
+	// Without a preview the words may be the address itself: a bare
+	// address has no other way to say it wants none.
+	if quiet && label == href {
+		return inlineNode{kind: inlineLink, text: href, children: []inlineNode{{kind: inlineText, text: href}}, noPreview: true}, hrefEnd + 1, true
 	}
 	// A link's words can't mention anyone: a token there reads as its handle.
 	children := parseInline(tokensAsText(label))
 	if holdsLink(children) {
 		return inlineNode{}, 0, false
 	}
-	return inlineNode{kind: inlineLink, text: href, children: children}, hrefEnd + 1, true
+	return inlineNode{kind: inlineLink, text: href, children: children, noPreview: quiet}, hrefEnd + 1, true
 }
 
 func holdsLink(nodes []inlineNode) bool {

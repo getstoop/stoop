@@ -76,7 +76,7 @@ const (
 // extractLinks finds up to maxLinksPerMessage distinct http(s) URLs in
 // message content, in order of appearance: the link nodes of the same
 // parse the client renders from, so code is skipped and a URL ends where
-// the client's does.
+// the client's does. A link in angle brackets asked for no preview.
 func extractLinks(content string) []string {
 	seen := map[string]bool{}
 	var out []string
@@ -85,7 +85,7 @@ func extractLinks(content string) []string {
 		for _, n := range nodes {
 			switch n.kind {
 			case inlineLink:
-				if seen[n.text] || len(n.text) > 2048 {
+				if n.noPreview || seen[n.text] || len(n.text) > 2048 {
 					continue
 				}
 				seen[n.text] = true

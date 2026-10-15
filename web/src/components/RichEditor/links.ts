@@ -10,6 +10,7 @@ export interface LinkRange {
   from: number;
   to: number;
   href: string;
+  preview: boolean;
 }
 
 // What the link form opens with: the words and address to edit, and the
@@ -19,6 +20,7 @@ export interface LinkDraft {
   to: number;
   text: string;
   href: string;
+  preview: boolean;
 }
 
 // The whole link at a position: every neighbouring piece of text with the
@@ -42,7 +44,12 @@ function linkAt($pos: ResolvedPos, mark: Mark): LinkRange {
     }
     offset = end;
   }
-  return { from: start + from, to: start + to, href: mark.attrs.href };
+  return {
+    from: start + from,
+    to: start + to,
+    href: mark.attrs.href,
+    preview: mark.attrs.preview,
+  };
 }
 
 // The link the caret is in (not at its edge: typing there isn't linked),
@@ -78,10 +85,11 @@ export function linkDraft(
   if ($start.sameParent($end)) {
     const { pos: from } = $start;
     const to = Math.max(from, $end.pos);
-    return { from, to, text: state.doc.textBetween(from, to), href: "" };
+    const text = state.doc.textBetween(from, to);
+    return { from, to, text, href: "", preview: true };
   }
   // Across lines: a new link at the end of the last one.
-  return { from: $end.pos, to: $end.pos, text: "", href: "" };
+  return { from: $end.pos, to: $end.pos, text: "", href: "", preview: true };
 }
 
 // What's wrong with the form, field by field, as the message format would
@@ -90,6 +98,7 @@ export function linkDraft(
 export function checkLink(
   text: string,
   href: string,
+  preview = true,
 ): { text?: string; href?: string } {
   const errors: { text?: string; href?: string } = {};
   const address = href.trim();
@@ -97,6 +106,9 @@ export function checkLink(
     errors.href = "Enter an address starting with http:// or https://";
   } else if (!readableAddress(address)) {
     errors.href = "The address can't hold a < or an unpaired bracket";
+  } else if (!preview && /[<>[\]]/.test(address)) {
+    // It is written in angle brackets, and may be its own words.
+    errors.href = "An address without a preview can't hold > [ or ]";
   }
   if (text.trim() !== href.trim() && /https?:\/\//i.test(text)) {
     errors.text = "Link text can't contain an address";
@@ -112,8 +124,9 @@ export function saveLink(
   draft: LinkDraft,
   text: string,
   href: string,
+  preview = true,
 ): Transaction {
-  const link = schema.marks.link.create({ href: href.trim() });
+  const link = schema.marks.link.create({ href: href.trim(), preview });
   const words = text.trim() || href.trim();
   const { from, to } = draft;
   const tr = state.tr;

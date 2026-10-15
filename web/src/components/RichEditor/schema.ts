@@ -85,7 +85,8 @@ export const schema = new Schema({
   },
   marks: {
     link: {
-      attrs: { href: {} },
+      // preview off is written as an address in angle brackets.
+      attrs: { href: {}, preview: { default: true } },
       inclusive: false,
       parseDOM: [
         {

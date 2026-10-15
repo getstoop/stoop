@@ -249,6 +249,47 @@ describe("a link with a label", () => {
   });
 });
 
+// The same cases as the server's TestParseInlineShape.
+describe("a link with its address in angle brackets", () => {
+  it("is a link that gets no preview", () => {
+    expect(parseInline("[a](<https://a.b/x_(y)>)")).toEqual([
+      {
+        type: "link",
+        href: "https://a.b/x_(y)",
+        label: [text("a")],
+        noPreview: true,
+      },
+    ]);
+  });
+
+  it("may have the address itself for words", () => {
+    expect(parseInline("[https://a.b/x__y](<https://a.b/x__y>).")).toEqual([
+      {
+        type: "link",
+        href: "https://a.b/x__y",
+        label: [text("https://a.b/x__y")],
+        noPreview: true,
+      },
+      text("."),
+    ]);
+    expect(parseInline("[https://a.b](<https://c.d>)")).toEqual([
+      text("["),
+      link("https://a.b]("),
+      text("<"),
+      link("https://c.d"),
+      text(">)"),
+    ]);
+  });
+
+  it("needs both brackets around a whole address", () => {
+    expect(parseInline("[a](<https://a.b)")).toEqual([
+      text("[a](<"),
+      link("https://a.b"),
+      text(")"),
+    ]);
+  });
+});
+
 describe("parseMarkdown", () => {
   it("makes one empty line out of an empty message", () => {
     expect(parseMarkdown("")).toEqual([{ type: "lines", lines: [[]] }]);
@@ -611,6 +652,14 @@ describe("linksIn", () => {
     expect(
       linksIn("```c++\nhttps://a.example\n```\nhttps://b.example"),
     ).toEqual(["https://b.example"]);
+  });
+
+  it("skips links that asked for no preview", () => {
+    expect(
+      linksIn(
+        "[https://a.example](<https://a.example>) [b](<https://b.example>) https://c.example",
+      ),
+    ).toEqual(["https://c.example"]);
   });
 
   it("skips code", () => {
