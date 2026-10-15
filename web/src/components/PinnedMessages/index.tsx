@@ -38,13 +38,16 @@ export function PinnedMessages({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+    // An image preview opened from a pin is drawn over the page, outside
+    // the panel, but belongs to it.
+    const inside = (target: EventTarget | null) =>
+      ref.current?.contains(target as Node) ||
+      (target instanceof Element && !!target.closest(".media-preview"));
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
+      if (!inside(e.target)) setOpen(false);
     };
     const onScroll = (e: Event) => {
-      if (ref.current?.contains(e.target as Node)) return;
-      setOpen(false);
+      if (!inside(e.target)) setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("scroll", onScroll, true);
