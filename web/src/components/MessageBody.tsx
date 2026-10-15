@@ -7,10 +7,14 @@ import {
   parseMarkdown,
 } from "../api/markdown";
 import {
+  groupMentionClass,
+  type MentionGroups,
   type MentionMembers,
   mentionClass,
+  NO_GROUPS,
   splitMentions,
 } from "../api/mentions";
+import type { Group } from "../gen/stoop/chat/v1/group_pb";
 
 // Renders a message's Markdown as React nodes. Text runs still go through
 // splitMentions so @handles highlight inside formatting; `highlight`
@@ -23,6 +27,8 @@ export function MessageBody({
   myUsername,
   highlight,
   onMention,
+  groups = NO_GROUPS,
+  onGroup,
 }: {
   content: string;
   usernames: MentionMembers;
@@ -33,40 +39,51 @@ export function MessageBody({
   // Opens a mentioned member's card. Not inside a link or a spoiler,
   // whose click is their own.
   onMention?: (userId: string, anchor: DOMRect) => void;
+  // The groups @@handle names here: none in a private channel or a DM.
+  groups?: MentionGroups;
+  // Opens a mentioned group's card, under the same rule as onMention.
+  onGroup?: (group: Group, anchor: DOMRect) => void;
 }) {
   const me = myUsername?.toLowerCase();
+  const myUserId = me ? usernames.get(me)?.userId : undefined;
   const text = (s: string, inControl: boolean): ReactNode =>
-    splitMentions(s, usernames, mentionsEntireChannel, mentionsHere).map(
-      (part, i) => {
-        if (!part.mention) {
-          return (
-            // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-            <Fragment key={i}>
-              {splitEmoji(part.text).map((run, j) =>
-                run.emoji ? (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-                  <span key={j} className="emoji">
-                    {run.text}
-                  </span>
-                ) : (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-                  <Fragment key={j}>{marked(run.text, highlight)}</Fragment>
-                ),
-              )}
-            </Fragment>
-          );
-        }
-        const className = mentionClass(part.mention, usernames, me);
-        const member = usernames.get(part.mention);
-        return onMention && member && !inControl ? (
+    splitMentions(
+      s,
+      usernames,
+      mentionsEntireChannel,
+      mentionsHere,
+      groups,
+    ).map((part, i) => {
+      if (!part.mention) {
+        return (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+          <Fragment key={i}>
+            {splitEmoji(part.text).map((run, j) =>
+              run.emoji ? (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+                <span key={j} className="emoji">
+                  {run.text}
+                </span>
+              ) : (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+                <Fragment key={j}>{marked(run.text, highlight)}</Fragment>
+              ),
+            )}
+          </Fragment>
+        );
+      }
+      if (part.group) {
+        const group = groups.get(part.mention);
+        const className = groupMentionClass(group, myUserId);
+        return onGroup && group && !inControl ? (
           <button
             // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
             key={i}
             type="button"
             className={className}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMention(member.userId, e.currentTarget.getBoundingClientRect());
+            onClick={(event) => {
+              event.stopPropagation();
+              onGroup(group, event.currentTarget.getBoundingClientRect());
             }}
           >
             {part.text}
@@ -77,8 +94,29 @@ export function MessageBody({
             {part.text}
           </span>
         );
-      },
-    );
+      }
+      const className = mentionClass(part.mention, usernames, me);
+      const member = usernames.get(part.mention);
+      return onMention && member && !inControl ? (
+        <button
+          // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+          key={i}
+          type="button"
+          className={className}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMention(member.userId, e.currentTarget.getBoundingClientRect());
+          }}
+        >
+          {part.text}
+        </button>
+      ) : (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+        <span key={i} className={className}>
+          {part.text}
+        </span>
+      );
+    });
 
   const inline = (nodes: Inline[], inControl = false): ReactNode =>
     nodes.map((n, i) => {

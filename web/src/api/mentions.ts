@@ -1,22 +1,27 @@
+import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import { isBot } from "./identity";
 
-// Client-side mirror of the server's mention token rule.
+// Client-side mirror of the server's mention token rules: @handle is a
+// person, @@handle a group, and neither follows a letter or another @.
 const HANDLE = /^[a-z0-9_]{3,32}$/i;
-export const MENTION_TOKEN = /(^|[^a-z0-9_@])@([a-z0-9_]{3,32})\b/gi;
+const MENTION_TOKEN = /(^|[^a-z0-9_@])(@@?)([a-z0-9_]{3,32})\b/gi;
 
-// The @query being typed at the caret, if any: e.g. "hi @be|" → "be".
+// The @query or @@query being typed at the caret, if any: e.g.
+// "hi @be|" → "be", "hi @@ga|" → "ga" for a group.
 export function mentionQueryAt(
   text: string,
   caret: number,
-): { start: number; query: string } | null {
+): { start: number; query: string; group?: true } | null {
   const before = text.slice(0, caret);
   const at = before.lastIndexOf("@");
   if (at < 0) return null;
-  if (at > 0 && /[a-z0-9_@]/i.test(before[at - 1])) return null;
   const query = before.slice(at + 1);
   if (!/^[a-z0-9_]*$/i.test(query)) return null;
-  return { start: at, query };
+  const group = at > 0 && before[at - 1] === "@";
+  const start = group ? at - 1 : at;
+  if (start > 0 && /[a-z0-9_@]/i.test(before[start - 1])) return null;
+  return group ? { start, query, group } : { start, query };
 }
 
 export const CHANNEL_HANDLE = "channel";
@@ -24,6 +29,15 @@ export const HERE_HANDLE = "here";
 
 // The member each handle names.
 export type MentionMembers = ReadonlyMap<string, Member>;
+
+// The group each @@handle names; empty where groups do nothing (a private
+// channel, a DM).
+export type MentionGroups = ReadonlyMap<string, Group>;
+export const NO_GROUPS: MentionGroups = new Map();
+
+export function mentionGroups(groups: Group[] | undefined): MentionGroups {
+  return new Map(groups?.map((group) => [group.handle, group]));
+}
 
 export function mentionMembers(members: Member[] | undefined): MentionMembers {
   return new Map(members?.map((m) => [m.username.toLowerCase(), m]));
@@ -69,32 +83,78 @@ export function filterMembers(
   return out.slice(0, 8);
 }
 
+export type MentionPart = { text: string; mention?: string; group?: true };
+
 // Splits content into plain text and mention tokens (only for handles
-// that are actually members, matching the server).
+// that are actually members, or groups, matching the server).
 export function splitMentions(
   content: string,
   usernames: { has(handle: string): boolean },
   entireChannel = false,
   here = false,
-): { text: string; mention?: string }[] {
-  const out: { text: string; mention?: string }[] = [];
+  groups: { has(handle: string): boolean } = NO_GROUPS,
+): MentionPart[] {
+  const out: MentionPart[] = [];
   let last = 0;
-  for (const m of content.matchAll(MENTION_TOKEN)) {
-    const handle = m[2];
+  for (const match of content.matchAll(MENTION_TOKEN)) {
+    const [, lead, sigil, handle] = match;
     const lower = handle.toLowerCase();
+    const group = sigil === "@@";
     const isChannelOrHere =
-      (entireChannel && lower === CHANNEL_HANDLE) ||
-      (here && lower === HERE_HANDLE);
-    if (!HANDLE.test(handle) || (!usernames.has(lower) && !isChannelOrHere))
-      continue;
-    const tokenStart = (m.index ?? 0) + m[1].length;
+      !group &&
+      ((entireChannel && lower === CHANNEL_HANDLE) ||
+        (here && lower === HERE_HANDLE));
+    const known = group ? groups.has(lower) : usernames.has(lower);
+    if (!HANDLE.test(handle) || (!known && !isChannelOrHere)) continue;
+    const tokenStart = (match.index ?? 0) + lead.length;
     if (tokenStart > last) out.push({ text: content.slice(last, tokenStart) });
-    out.push({ text: `@${handle}`, mention: handle.toLowerCase() });
-    last = tokenStart + handle.length + 1;
+    const text = `${sigil}${handle}`;
+    out.push(
+      group ? { text, mention: lower, group } : { text, mention: lower },
+    );
+    last = tokenStart + text.length;
   }
   if (last < content.length) out.push({ text: content.slice(last) });
   return out;
 }
+
+// A picker row: someone (or @channel / @here), or a group.
+export type MentionCandidate =
+  | { kind: "member"; member: Member }
+  | { kind: "group"; group: Group };
+
+// The picker's rows for what is being typed: @channel and @here, then
+// groups, then people. Typing @@ asks for groups alone.
+export function mentionCandidates(
+  members: Member[],
+  groups: Group[],
+  query: string,
+  { channelAndHere = false, groupsOnly = false } = {},
+): MentionCandidate[] {
+  const q = query.toLowerCase();
+  const people = groupsOnly
+    ? []
+    : filterMembers(members, query, channelAndHere);
+  const asMember = (member: Member): MentionCandidate => ({
+    kind: "member",
+    member,
+  });
+  const matching = groups.filter(
+    (group) =>
+      group.handle.startsWith(q) || group.name.toLowerCase().startsWith(q),
+  );
+  return [
+    ...people.filter((member) => isChannelOrHere(member.userId)).map(asMember),
+    ...matching.map((group): MentionCandidate => ({ kind: "group", group })),
+    ...people.filter((member) => !isChannelOrHere(member.userId)).map(asMember),
+  ].slice(0, 8);
+}
+
+// What picking a row writes, with the space after it.
+export const candidateText = (candidate: MentionCandidate) =>
+  candidate.kind === "group"
+    ? `@@${candidate.group.handle} `
+    : `@${candidate.member.username} `;
 
 // A mention's pill: a person or bot glyph after a member's handle, and
 // the accent fill when it reaches us.
@@ -111,4 +171,10 @@ export function mentionClass(
       : "person";
   const mine = me && (handle === me || everyone) ? "me" : "";
   return ["mention", glyph, mine].filter(Boolean).join(" ");
+}
+
+// A group's pill: the group glyph, and the accent fill when we're in it.
+export function groupMentionClass(group: Group | undefined, myUserId?: string) {
+  const mine = !!myUserId && !!group?.userIds.includes(myUserId);
+  return mine ? "mention group me" : "mention group";
 }

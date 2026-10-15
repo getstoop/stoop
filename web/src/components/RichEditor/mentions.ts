@@ -2,31 +2,37 @@ import type { Node } from "prosemirror-model";
 import { Plugin, PluginKey } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import {
+  groupMentionClass,
+  type MentionGroups,
   type MentionMembers,
   mentionClass,
+  NO_GROUPS,
   splitMentions,
 } from "../../api/mentions";
 import { schema } from "./schema";
 
 // Mentions stay plain text in the document; this draws a handle that
-// names a member as the pill the message will show.
+// names a member or a group as the pill the message will show.
 
 export interface MentionContext {
   members: MentionMembers;
   // Whether @channel and @here are ours to use here.
   channelAndHere: boolean;
+  // The groups @@handle names here; none in a private channel or a DM.
+  groups: MentionGroups;
 }
 
 export const NO_MENTIONS: MentionContext = {
   members: new Map(),
   channelAndHere: false,
+  groups: NO_GROUPS,
 };
 
 export const mentionsKey = new PluginKey<DecorationSet>("mentions");
 
 export function mentionDecorations(
   doc: Node,
-  { members, channelAndHere }: MentionContext,
+  { members, channelAndHere, groups }: MentionContext,
 ): DecorationSet {
   const decos: Decoration[] = [];
   doc.descendants((node, pos) => {
@@ -39,11 +45,14 @@ export function mentionDecorations(
       members,
       channelAndHere,
       channelAndHere,
+      groups,
     )) {
       if (part.mention) {
         decos.push(
           Decoration.inline(at, at + part.text.length, {
-            class: mentionClass(part.mention, members),
+            class: part.group
+              ? groupMentionClass(groups.get(part.mention))
+              : mentionClass(part.mention, members),
           }),
         );
       }
@@ -54,7 +63,7 @@ export function mentionDecorations(
   return DecorationSet.create(doc, decos);
 }
 
-// A transaction carrying mentionsKey redraws for new members.
+// A transaction carrying mentionsKey redraws for new members or groups.
 export function mentions(context: () => MentionContext) {
   return new Plugin<DecorationSet>({
     key: mentionsKey,

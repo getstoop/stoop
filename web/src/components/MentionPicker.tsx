@@ -1,22 +1,24 @@
 import { useRef } from "react";
+import { groupCount } from "../api/groups";
 import { isBot } from "../api/identity";
-import { isChannelOrHere } from "../api/mentions";
+import { isChannelOrHere, type MentionCandidate } from "../api/mentions";
 import { presenceClass, presenceLabel } from "../api/presence";
-import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import { useScrollToSelected } from "../hooks/useScrollToSelected";
 import { useConnectionStore } from "../stores/connection";
 import { Avatar } from "./Avatar";
 import { BotMark } from "./BotMark";
+import { PeopleIcon } from "./Icons";
 
-// Autocomplete list shown above the composer while typing @handle.
+// Autocomplete list shown above the composer while typing @handle or
+// @@handle: @channel and @here, then groups, then people.
 export function MentionPicker({
   candidates,
   selected,
   onPick,
 }: {
-  candidates: Member[];
+  candidates: MentionCandidate[];
   selected: number;
-  onPick: (m: Member) => void;
+  onPick: (candidate: MentionCandidate) => void;
 }) {
   const online = useConnectionStore((s) => s.online);
   const dnd = useConnectionStore((s) => s.dnd);
@@ -29,42 +31,67 @@ export function MentionPicker({
       className="mention-picker popover"
       aria-label="Mention a member"
     >
-      {candidates.map((m, i) => (
-        <li key={m.userId}>
+      {candidates.map((candidate, i) => (
+        <li
+          key={
+            candidate.kind === "group"
+              ? `group:${candidate.group.id}`
+              : candidate.member.userId
+          }
+        >
           <button
             type="button"
             className={`option mention-option ${i === selected ? "selected" : ""}`}
             aria-pressed={i === selected}
             onMouseDown={(e) => {
               e.preventDefault(); // keep the input focused
-              onPick(m);
+              onPick(candidate);
             }}
           >
-            {/* @channel and @here are not anyone. */}
-            {!isChannelOrHere(m.userId) && (
-              <Avatar
-                name={m.displayName || m.username}
-                fileId={m.avatarFileId}
-                kind={m.kind}
-                size="small"
-              >
-                {!isBot(m.kind) && (
-                  <span
-                    className={`online-dot ${presenceClass(online.has(m.userId), dnd[m.userId])}`}
-                    role="img"
-                    aria-label={presenceLabel(
-                      online.has(m.userId),
-                      dnd[m.userId],
+            {candidate.kind === "group" ? (
+              <>
+                <span className="group-mark" aria-hidden="true">
+                  <PeopleIcon />
+                </span>
+                <span className="member-name">
+                  {candidate.group.name}{" "}
+                  <span className="muted">{groupCount(candidate.group)}</span>
+                </span>
+                <span className="muted small">@@{candidate.group.handle}</span>
+              </>
+            ) : (
+              <>
+                {/* @channel and @here are not anyone. */}
+                {!isChannelOrHere(candidate.member.userId) && (
+                  <Avatar
+                    name={
+                      candidate.member.displayName || candidate.member.username
+                    }
+                    fileId={candidate.member.avatarFileId}
+                    kind={candidate.member.kind}
+                    size="small"
+                  >
+                    {!isBot(candidate.member.kind) && (
+                      <span
+                        className={`online-dot ${presenceClass(online.has(candidate.member.userId), dnd[candidate.member.userId])}`}
+                        role="img"
+                        aria-label={presenceLabel(
+                          online.has(candidate.member.userId),
+                          dnd[candidate.member.userId],
+                        )}
+                      />
                     )}
-                  />
+                  </Avatar>
                 )}
-              </Avatar>
+                <span className="member-name">
+                  {candidate.member.displayName || candidate.member.username}
+                  <BotMark kind={candidate.member.kind} />
+                </span>
+                <span className="muted small">
+                  @{candidate.member.username}
+                </span>
+              </>
             )}
-            <span className="member-name">
-              {m.displayName || m.username}
-              <BotMark kind={m.kind} />
-            </span>
-            <span className="muted small">@{m.username}</span>
           </button>
         </li>
       ))}

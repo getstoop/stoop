@@ -5,9 +5,13 @@ import { useConnectionStore } from "../../stores/connection";
 import { SearchIcon } from "../Icons";
 import { Input } from "../Input";
 import { UserCard } from "../UserCard";
-import { COLLAPSE_OFFLINE_ABOVE, headingText, splitMembers } from "./groups";
 import { MemberGroup } from "./MemberGroup";
 import { MemberRow } from "./MemberRow";
+import {
+  COLLAPSE_OFFLINE_ABOVE,
+  headingText,
+  splitMembers,
+} from "./statusGroups";
 
 // Members of the current space in online and offline groups, narrowed by
 // the search field. Clicking a member opens the same profile card as

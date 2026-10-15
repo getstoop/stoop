@@ -2,7 +2,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { ReactNode } from "react";
 import { dayAndTime, fullDateTime } from "../../api/dates";
 import { emojiOnly } from "../../api/emojiText";
-import type { MentionMembers } from "../../api/mentions";
+import type { MentionGroups, MentionMembers } from "../../api/mentions";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -12,6 +12,7 @@ import { LinkedMessages } from "../../components/LinkedMessages";
 import { LinkPreviews } from "../../components/LinkPreviews";
 import { MessageBody } from "../../components/MessageBody";
 import { ReactionBar } from "../../components/ReactionBar";
+import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { MessageActions } from "./MessageActions";
 import { MessageEditor } from "./MessageEditor";
@@ -30,6 +31,7 @@ export function MessageRow({
   canPin,
   editing,
   usernames,
+  groups,
   myUsername,
   threadOpen,
   canStartThread,
@@ -37,6 +39,7 @@ export function MessageRow({
   rowIdPrefix = "msg-",
   onJumpTo,
   onCard,
+  onGroup,
   onReact,
   onReply,
   onEdit,
@@ -56,6 +59,8 @@ export function MessageRow({
   canPin: boolean;
   editing: boolean;
   usernames: MentionMembers;
+  // The groups @@handle names in this channel.
+  groups: MentionGroups;
   myUsername?: string;
   // Its thread is the one open in the side panel.
   threadOpen: boolean;
@@ -68,6 +73,7 @@ export function MessageRow({
   rowIdPrefix?: string;
   onJumpTo: (id: string) => void;
   onCard: (userId: string, anchor: DOMRect) => void;
+  onGroup: (group: Group, anchor: DOMRect) => void;
   onReact: (anchor: DOMRect) => void;
   onReply: () => void;
   onEdit: (id: string | null) => void;
@@ -243,6 +249,8 @@ export function MessageRow({
           mentionsHere={message.mentionsHere}
           myUsername={myUsername}
           onMention={onCard}
+          groups={groups}
+          onGroup={onGroup}
         />
         <Attachments attachments={message.attachments} />
         <LinkedMessages content={message.content} />

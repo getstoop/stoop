@@ -18,9 +18,12 @@ import {
   uploadAttachment,
 } from "../../api/files";
 import { type Format, shortcutFormat } from "../../api/formatting";
+import { useChannelGroups } from "../../api/groups";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import {
-  filterMembers,
+  candidateText,
+  type MentionCandidate,
+  mentionCandidates,
   mentionMembers,
   mentionQueryAt,
 } from "../../api/mentions";
@@ -46,7 +49,6 @@ import { SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
-import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 
@@ -87,6 +89,7 @@ export function Composer({
   const [mention, setMention] = useState<{
     start: number;
     query: string;
+    group?: true;
   } | null>(null);
   // The :shortcode being typed, when no @mention is.
   const [shortcode, setShortcode] = useState<{
@@ -184,13 +187,17 @@ export function Composer({
   const { data: spaces } = useSpaces();
   const space = spaces?.find((s) => s.id === spaceId);
   const channelAndHere = !!space && canMentionEntireChannel(space);
+  const groups = useChannelGroups(spaceId, channelId);
   const mentionContext = useMemo(
-    () => ({ members: mentionMembers(members), channelAndHere }),
-    [members, channelAndHere],
+    () => ({ members: mentionMembers(members), channelAndHere, groups }),
+    [members, channelAndHere, groups],
   );
   const candidates =
     mention && members
-      ? filterMembers(members, mention.query, channelAndHere)
+      ? mentionCandidates(members, [...groups.values()], mention.query, {
+          channelAndHere,
+          groupsOnly: mention.group,
+        })
       : [];
 
   const suggestions = shortcode ? searchShortcodes(shortcode.query) : [];
@@ -216,11 +223,11 @@ export function Composer({
     });
   };
 
-  const pick = (m: Member) => {
+  const pick = (candidate: MentionCandidate) => {
     if (!mention) return;
     inputRef.current?.replaceBeforeCaret(
-      1 + mention.query.length,
-      `@${m.username} `,
+      (mention.group ? 2 : 1) + mention.query.length,
+      candidateText(candidate),
     );
     setMention(null);
   };

@@ -15,6 +15,7 @@ import { chatClient } from "../../api/clients";
 import { dayLabel, sameDay } from "../../api/dates";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
+import { useChannelGroups } from "../../api/groups";
 import {
   isLive,
   timelineId,
@@ -31,7 +32,9 @@ import { messagePath, shareUrl, threadPath } from "../../api/shareLinks";
 import { removeMessageFromCache } from "../../api/ws";
 import { GalleryMedia, galleryMedia } from "../../components/Attachments";
 import { EmojiPicker } from "../../components/EmojiPicker";
+import { GroupCard } from "../../components/GroupCard";
 import { UserCard } from "../../components/UserCard";
+import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { confirm, notice } from "../../stores/dialogs";
 import { openSidePanel, useSidePanelStore } from "../../stores/sidePanel";
@@ -290,6 +293,10 @@ export function MessageList({
   const [card, setCard] = useState<{ userId: string; anchor: DOMRect } | null>(
     null,
   );
+  const [groupCard, setGroupCard] = useState<{
+    group: Group;
+    anchor: DOMRect;
+  } | null>(null);
   // The reaction picker, open for one message at a time.
   const [picker, setPicker] = useState<{
     message: Message;
@@ -298,6 +305,7 @@ export function MessageList({
   const { data: me } = useMe();
   const members = usePeople(spaceId, channelId);
   const usernames = mentionMembers(members);
+  const groups = useChannelGroups(spaceId, channelId);
 
   // Land on the "New messages" line when there is one, else the bottom;
   // subsequent arrivals scroll to the bottom as before.
@@ -408,13 +416,21 @@ export function MessageList({
       }
       editing={editingId === message.id}
       usernames={usernames}
+      groups={groups}
       myUsername={me?.username}
       threadOpen={!threadRootId && openThread === message.id}
       canStartThread={threadsAllowed && !message.threadRootId}
       withDay={!!threadRootId}
       rowIdPrefix={rowIdPrefix}
       onJumpTo={jumpTo}
-      onCard={(userId, anchor) => setCard({ userId, anchor })}
+      onCard={(userId, anchor) => {
+        setGroupCard(null);
+        setCard({ userId, anchor });
+      }}
+      onGroup={(group, anchor) => {
+        setCard(null);
+        setGroupCard({ group, anchor });
+      }}
       onReact={(anchor) => setPicker({ message, anchor })}
       onReply={() => onReply(message)}
       onEdit={onEdit}
@@ -576,6 +592,14 @@ export function MessageList({
               userId={card.userId}
               anchor={card.anchor}
               onClose={() => setCard(null)}
+            />
+          )}
+          {groupCard && (
+            <GroupCard
+              spaceId={spaceId}
+              group={groupCard.group}
+              anchor={groupCard.anchor}
+              onClose={() => setGroupCard(null)}
             />
           )}
           {picker && (

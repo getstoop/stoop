@@ -7,7 +7,7 @@ import { useConnectionStore } from "../../stores/connection";
 import { Avatar } from "../Avatar";
 import { BotMark } from "../BotMark";
 import { CloseIcon } from "../Icons";
-import { memberName } from "../MembersPanel/groups";
+import { memberName } from "../MembersPanel/statusGroups";
 
 // One person in a private channel. onRemove is there for someone who may
 // take them out, and never on the reader's own row: they leave instead.

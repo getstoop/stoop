@@ -8,6 +8,7 @@ import {
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
+import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { activeFormats, formatCommands, newLine } from "./commands";
 import { checkLink, linkAround, linkDraft, saveLink } from "./links";
@@ -330,9 +331,13 @@ describe("mentions", () => {
     ["uptime", { kind: IdentityKind.BOT } as Member],
   ]);
 
+  const groups = new Map([
+    ["gardeners", { handle: "gardeners", userIds: [] } as unknown as Group],
+  ]);
+
   const drawn = (markdown: string, channelAndHere = false) => {
     const state = stateOf(markdown);
-    return mentionDecorations(state.doc, { members, channelAndHere })
+    return mentionDecorations(state.doc, { members, channelAndHere, groups })
       .find()
       .map((d) => ({
         text: state.doc.textBetween(d.from, d.to),
@@ -345,6 +350,12 @@ describe("mentions", () => {
     expect(drawn("hi @casey and @Uptime")).toEqual([
       { text: "@casey", class: "mention person" },
       { text: "@Uptime", class: "mention bot" },
+    ]);
+  });
+
+  it("draws a group's @@handle with the group glyph", () => {
+    expect(drawn("@@gardeners and @@nobody")).toEqual([
+      { text: "@@gardeners", class: "mention group" },
     ]);
   });
 

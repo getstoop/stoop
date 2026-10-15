@@ -2,7 +2,6 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setBlocked, useBlocked } from "../api/blocks";
 import { openDirectMessage } from "../api/dms";
 import { errorText } from "../api/errors";
@@ -11,8 +10,9 @@ import { canManageMembers, roleLabel } from "../api/permissions";
 import { presenceClass, presenceLabel } from "../api/presence";
 import { useMe, useMember, useSpaces, useUserProfile } from "../api/queries";
 import { InstanceRole } from "../gen/stoop/auth/v1/auth_pb";
+import { useAnchoredCard } from "../hooks/useAnchoredCard";
 import { useConnectionStore } from "../stores/connection";
-import { confirm, dialogOpen, notice } from "../stores/dialogs";
+import { confirm, notice } from "../stores/dialogs";
 import { Avatar } from "./Avatar";
 import { BotMark } from "./BotMark";
 import { DeletedMark } from "./DeletedMark";
@@ -44,7 +44,7 @@ export function UserCard({
   const { data: me } = useMe();
   const { data: spaces } = useSpaces();
   const queryClient = useQueryClient();
-  const ref = useRef<HTMLDivElement>(null);
+  const { ref, style } = useAnchoredCard(anchor, onClose);
   const space = spaces?.find((s) => s.id === spaceId);
   const isSelf = me?.id === userId;
   const { data: blocked } = useBlocked();
@@ -85,50 +85,13 @@ export function UserCard({
     }
   };
 
-  useEffect(() => {
-    // A dialog the card itself raised (Block) sits on top of it: its
-    // buttons are outside the card, and dismissing the card under them
-    // would take the answer's context away with it.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !dialogOpen()) onClose();
-    };
-    const onClick = (e: MouseEvent) => {
-      if (dialogOpen()) return;
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    // Deferred so the click that opened the card doesn't immediately close it.
-    const id = setTimeout(() => window.addEventListener("mousedown", onClick));
-    return () => {
-      clearTimeout(id);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onClick);
-    };
-  }, [onClose]);
-
-  // Keep the card on screen: below the anchor, clamped to the viewport.
-  const width = 280;
-  const left = Math.max(
-    8,
-    Math.min(anchor.left, window.innerWidth - width - 8),
-  );
-  // Below the anchor, but never off the bottom: measured after each
-  // render, since the card grows as the member and their actions load.
-  const [top, setTop] = useState(anchor.bottom + 6);
-  useLayoutEffect(() => {
-    const h = ref.current?.getBoundingClientRect().height ?? 180;
-    setTop(
-      Math.max(8, Math.min(anchor.bottom + 6, window.innerHeight - h - 8)),
-    );
-  });
-
   return (
     <div
       ref={ref}
       className="user-card popover"
       role="dialog"
       aria-label="Member profile"
-      style={{ left, top, width }}
+      style={style}
     >
       {isLoading && <p className="muted">Loading…</p>}
       {error && (

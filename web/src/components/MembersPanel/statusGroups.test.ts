@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
-import { headingText, matches, memberName, splitMembers } from "./groups";
+import { headingText, matches, memberName, splitMembers } from "./statusGroups";
 
 const member = (userId: string, username: string, displayName = ""): Member =>
   ({ userId, username, displayName }) as Member;

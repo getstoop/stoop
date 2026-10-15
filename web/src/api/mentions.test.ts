@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
-import { filterMembers, mentionQueryAt, splitMentions } from "./mentions";
+import {
+  candidateText,
+  filterMembers,
+  groupMentionClass,
+  mentionCandidates,
+  mentionQueryAt,
+  splitMentions,
+} from "./mentions";
 
 const member = (username: string, displayName = ""): Member =>
   ({ userId: username, username, displayName }) as Member;
@@ -49,8 +57,22 @@ describe("mentionQueryAt", () => {
     expect(mentionQueryAt("mail casey@", 11)).toBeNull();
   });
 
-  it("does not open on a second @ stuck to the first", () => {
-    expect(mentionQueryAt("@@ada", 5)).toBeNull();
+  it("opens a group query on @@", () => {
+    expect(mentionQueryAt("@@ga", 4)).toEqual({
+      start: 0,
+      query: "ga",
+      group: true,
+    });
+    expect(mentionQueryAt("hi @@", 5)).toEqual({
+      start: 3,
+      query: "",
+      group: true,
+    });
+  });
+
+  it("does not open on a third @ or on @@ stuck to a word", () => {
+    expect(mentionQueryAt("@@@ga", 5)).toBeNull();
+    expect(mentionQueryAt("mail casey@@ga", 14)).toBeNull();
   });
 
   it("opens after punctuation and after a newline", () => {
@@ -230,5 +252,88 @@ describe("splitMentions", () => {
   it("gives the same answer on a second pass", () => {
     const once = splitMentions("hi @ada", known);
     expect(splitMentions("hi @ada", known)).toEqual(once);
+  });
+});
+
+const group = (handle: string, name: string, userIds: string[] = []): Group =>
+  ({ id: handle, handle, name, userIds }) as unknown as Group;
+
+const groups = new Set(["gardeners", "ada"]);
+
+describe("splitMentions with groups", () => {
+  it("marks an @@handle that names a group", () => {
+    expect(
+      splitMentions("hi @@Gardeners!", known, false, false, groups),
+    ).toEqual([
+      { text: "hi " },
+      { text: "@@Gardeners", mention: "gardeners", group: true },
+      { text: "!" },
+    ]);
+  });
+
+  it("tells a person from a group with the same handle", () => {
+    expect(splitMentions("@ada @@ada", known, false, false, groups)).toEqual([
+      { text: "@ada", mention: "ada" },
+      { text: " " },
+      { text: "@@ada", mention: "ada", group: true },
+    ]);
+  });
+
+  it("leaves @@handle plain where no group has it, or groups do nothing", () => {
+    expect(splitMentions("@@nobody", known, false, false, groups)).toEqual([
+      { text: "@@nobody" },
+    ]);
+    expect(splitMentions("@@gardeners", known)).toEqual([
+      { text: "@@gardeners" },
+    ]);
+  });
+
+  it("never reads @@channel as @channel", () => {
+    expect(splitMentions("@@channel", known, true, true, groups)).toEqual([
+      { text: "@@channel" },
+    ]);
+  });
+});
+
+describe("mentionCandidates", () => {
+  const crew = group("gardeners", "Garden crew");
+  const captains = group("watch_captains", "Watch captains");
+
+  it("puts @channel first, then groups, then people", () => {
+    const rows = mentionCandidates(members, [crew, captains], "", {
+      channelAndHere: true,
+    });
+    expect(rows.slice(0, 5).map((row) => row.kind)).toEqual([
+      "member",
+      "member",
+      "group",
+      "group",
+      "member",
+    ]);
+    expect(candidateText(rows[0])).toBe("@channel ");
+    expect(candidateText(rows[2])).toBe("@@gardeners ");
+  });
+
+  it("matches a group on its handle or its name", () => {
+    expect(mentionCandidates([], [crew, captains], "gard")).toHaveLength(1);
+    expect(mentionCandidates([], [crew, captains], "watch")).toHaveLength(1);
+    expect(mentionCandidates([], [crew, captains], "garden c")).toHaveLength(1);
+  });
+
+  it("offers groups alone after @@", () => {
+    const rows = mentionCandidates(members, [crew], "", {
+      channelAndHere: true,
+      groupsOnly: true,
+    });
+    expect(rows.map((row) => row.kind)).toEqual(["group"]);
+  });
+});
+
+describe("groupMentionClass", () => {
+  it("fills the pill for someone in the group", () => {
+    const crew = group("gardeners", "Garden crew", ["me-id"]);
+    expect(groupMentionClass(crew, "me-id")).toBe("mention group me");
+    expect(groupMentionClass(crew, "other")).toBe("mention group");
+    expect(groupMentionClass(undefined, "me-id")).toBe("mention group");
   });
 });
