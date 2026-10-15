@@ -323,7 +323,8 @@ export function Composer({
   whereRef.current = where;
   const send = async () => {
     if (sendingRef.current) return;
-    const written = replaceShortcodes(draft);
+    const typed = inputRef.current?.sendable() ?? draft;
+    const written = replaceShortcodes(typed);
     const content = isBlankMessage(written) ? "" : written.trim();
     const files = pendingRef.current;
     // Wait for uploads in flight; failed ones are dropped, not sent.
@@ -359,7 +360,7 @@ export function Composer({
         releasePreviews();
         return;
       }
-      setDraft((typedSince) => restoreDraft(draft, typedSince));
+      setDraft((typedSince) => restoreDraft(typed, typedSince));
       setPending((addedSince) => restoreFiles(files, addedSince));
       // The reply target comes back unless another was picked meanwhile.
       const replyNow = replyToRef.current;
