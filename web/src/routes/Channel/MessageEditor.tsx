@@ -33,7 +33,7 @@ export function MessageEditor({
   const touchKeyboard = useTouchKeyboard();
 
   const save = async () => {
-    const written = replaceShortcodes(value);
+    const written = replaceShortcodes(ref.current?.sendable() ?? value);
     const content = written.trim();
     if (content === message.content) {
       onDone();

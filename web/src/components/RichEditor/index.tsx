@@ -20,6 +20,7 @@ import {
   mentionsKey,
   mentionsOffAtCaret,
   NO_MENTIONS,
+  settleMentions,
 } from "./mentions";
 import { editorPlugins } from "./plugins";
 import { schema } from "./schema";
@@ -36,6 +37,8 @@ export interface RichField {
   mentionBeforeCaret(count: number, mention: MentionRef): void;
   // Whether what is typed at the caret can't be a mention.
   mentionsOffAtCaret(): boolean;
+  // The draft to send, with a handle still at the caret made a mention.
+  sendable(): string;
   focus(): void;
 }
 
@@ -219,6 +222,15 @@ export function RichEditor({
         view.focus();
       },
       mentionsOffAtCaret: () => mentionsOffAtCaret(view.state),
+      sendable: () => {
+        const settled = settleMentions(
+          view.state.tr,
+          mentionsRef.current ?? NO_MENTIONS,
+          null,
+        );
+        if (settled) view.dispatch(settled);
+        return toMarkdown(view.state.doc.toJSON());
+      },
       focus: () => view.focus(),
     };
     return () => {
