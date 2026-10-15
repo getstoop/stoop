@@ -35,6 +35,18 @@ export function mentionTokenAt(
   return { mention: { kind, id, handle }, length: token.length };
 }
 
+// Each token as the @handle it was written with. Mentions don't work in
+// code, so code shows them this way.
+export function tokensAsText(content: string): string {
+  return content.replace(new RegExp(MENTION_TOKEN.source, "g"), "@$3");
+}
+
+// Content's length as people read it, each token counted as its handle:
+// the message limit, as the server counts it.
+export function writtenLength(content: string): number {
+  return tokensAsText(content).length;
+}
+
 // The @query being typed at the caret, if any: e.g. "hi @be|" → "be".
 export function mentionQueryAt(
   text: string,
@@ -220,7 +232,7 @@ export function candidateMention(
 // A person's pill: a person or bot glyph, and the accent fill when it is us.
 export function mentionClass(member: Member | undefined, myUserId?: string) {
   const glyph = isBot(member?.kind) ? "bot" : "person";
-  const mine = !!myUserId && member?.userId === myUserId ? "me" : "";
+  const mine = myUserId && member?.userId === myUserId ? "me" : "";
   return ["mention", glyph, mine].filter(Boolean).join(" ");
 }
 

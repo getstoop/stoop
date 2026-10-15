@@ -1,5 +1,10 @@
 import type { Mark, Node } from "prosemirror-model";
-import { Plugin, PluginKey, type Transaction } from "prosemirror-state";
+import {
+  type EditorState,
+  Plugin,
+  PluginKey,
+  type Transaction,
+} from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import {
   currentHandle,
@@ -17,7 +22,9 @@ import { schema } from "./schema";
 
 // A mention is a node carrying who it names. This plugin draws each as
 // its pill, keeps its handle current, and turns a handle typed in full
-// into one when exactly one person or group has it.
+// into one when exactly one person or group has it. A mention given the
+// code style, a link or a spoiler becomes its words, as mentions don't
+// work there.
 
 export interface MentionContext {
   // The people who can read the channel, by user ID.
@@ -38,6 +45,22 @@ export const mentionsKey = new PluginKey<DecorationSet>("mentions");
 
 const inCode = (node: Node) =>
   node.marks.some((mark) => mark.type === schema.marks.code);
+
+// A mention in code, a link's words or a spoiler reads as its handle.
+const WORDS_ONLY = [schema.marks.code, schema.marks.link, schema.marks.spoiler];
+const onlyWords = (node: Node) =>
+  node.marks.some((mark) => WORDS_ONLY.includes(mark.type));
+
+// Whether what is typed at the caret can't be a mention: in a code block,
+// in code or a spoiler, or at the end of a link's or a spoiler's words.
+export function mentionsOffAtCaret(state: EditorState): boolean {
+  const { $from } = state.selection;
+  if ($from.parent.type.spec.code) return true;
+  const marks = state.storedMarks ?? $from.marks();
+  return [...marks, ...($from.nodeBefore?.marks ?? [])].some((mark) =>
+    WORDS_ONLY.includes(mark.type),
+  );
+}
 
 export function mentionDecorations(
   doc: Node,
@@ -90,9 +113,14 @@ export function settleMentions(
 ): Transaction | null {
   const replacements: Replacement[] = [];
   const renames: { pos: number; ref: MentionRef }[] = [];
+  const asWords: { pos: number; node: Node }[] = [];
   tr.doc.descendants((node, pos) => {
     if (node.type.spec.code) return false;
     if (node.type === schema.nodes.mention) {
+      if (onlyWords(node)) {
+        asWords.push({ pos, node });
+        return false;
+      }
       const ref = node.attrs as MentionRef;
       const handle = currentHandle(ref, members, groups);
       if (handle && handle !== ref.handle) {
@@ -101,7 +129,7 @@ export function settleMentions(
       return false;
     }
     if (!node.isText || !node.text || inCode(node)) return true;
-    if (node.marks.some((mark) => mark.type === schema.marks.link)) return true;
+    if (onlyWords(node)) return true;
     const addresses = [...node.text.matchAll(ADDRESS)].map((m) => [
       m.index,
       m.index + m[0].length,
@@ -121,8 +149,24 @@ export function settleMentions(
     }
     return true;
   });
-  if (replacements.length === 0 && renames.length === 0) return null;
-  return applyMentions(tr, replacements, renames);
+  if (
+    replacements.length === 0 &&
+    renames.length === 0 &&
+    asWords.length === 0
+  ) {
+    return null;
+  }
+  applyMentions(tr, replacements, renames);
+  // Last first, as above; these come after every replacement.
+  for (const { pos, node } of asWords.reverse()) {
+    const from = tr.mapping.map(pos);
+    tr.replaceWith(
+      from,
+      from + node.nodeSize,
+      schema.text(`@${node.attrs.handle}`, node.marks),
+    );
+  }
+  return tr;
 }
 
 interface Replacement {
