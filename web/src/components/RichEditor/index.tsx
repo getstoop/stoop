@@ -147,13 +147,17 @@ export function RichEditor({
         },
       },
       dispatchTransaction: (tr) => {
-        view.updateState(view.state.apply(tr));
+        const { state, transactions } = view.state.applyTransaction(tr);
+        view.updateState(state);
+        // The mentions plugin may append a change of its own, even to a
+        // transaction that changed nothing: that is an edit too.
+        const appended = transactions.slice(1).some((t) => t.docChanged);
         const active = activeFormats(view.state);
         if (active.join() !== formatsKey.current) {
           formatsKey.current = active.join();
           handlers.current.onFormats?.(active);
         }
-        if (tr.getMeta("fromProps")) return;
+        if (tr.getMeta("fromProps") && !appended) return;
         const { $from } = view.state.selection;
         const textBefore = $from.parent.textBetween(
           0,
@@ -161,7 +165,7 @@ export function RichEditor({
           undefined,
           "\ufffc",
         );
-        if (!tr.docChanged) {
+        if (!tr.docChanged && !appended) {
           if (tr.selectionSet) handlers.current.onCaret?.(textBefore);
           return;
         }
@@ -196,7 +200,10 @@ export function RichEditor({
       mentionBeforeCaret: (count, mention) => {
         const { from: pos, $from } = view.state.selection;
         if (count > $from.parentOffset) return;
-        const node = schema.nodes.mention.create({ ...mention });
+        // The pill takes the formatting of what it replaces: one picked
+        // inside a spoiler stays hidden.
+        const marks = view.state.storedMarks ?? $from.marks();
+        const node = schema.nodes.mention.create({ ...mention }, null, marks);
         view.dispatch(
           view.state.tr
             .replaceWith(pos - count, pos, node)
