@@ -420,9 +420,12 @@ The summary under a root carries the reader's own half (`participating`,
 viewer gets the same event. `api/threads.ts` keeps it: a new summary
 keeps the cached half and adds others' replies to the count of a thread
 the reader is in and hasn't muted, and a first reply works that out from
-the cached root. The open thread marks itself read once the window has
-attention (`useMarkThreadRead`), and reads its own activity items; the
-channel reads only items outside threads.
+the cached root. `MessageUpdated` and the `EditMessage` answer carry
+only the shared half too, so `replaceMessage` (`api/ws.ts`) keeps the
+cached half when it swaps in an edited root. The open thread marks
+itself read once the window has attention (`useMarkThreadRead`), and
+reads its own activity items; the channel reads only items outside
+threads.
 
 A reply also sent to the channel is one message in both timelines
 (`appendMessage` routes it to both). In the channel it carries a line

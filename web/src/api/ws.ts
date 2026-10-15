@@ -229,6 +229,8 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageUpdated": {
       const m = payload.value;
+      replaceMessage(queryClient, m);
+      if (!m.deleted) break;
       // A root deleted while its thread has replies arrives as an update:
       // quotes of it, and the line on its replies also sent to the
       // channel, read as a deleted message's.
@@ -236,8 +238,6 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         { queryKey: ["messages", m.channelId] },
         (old) =>
           old?.map((x) => {
-            if (x.id === m.id) return m;
-            if (!m.deleted) return x;
             let next = x;
             if (x.replyTo?.messageId === m.id) {
               next = {
@@ -518,6 +518,34 @@ export function removeMessageFromCache(
             : x,
         ),
   );
+}
+
+// Swaps in a message's new version in every window of its channel.
+// Events and EditMessage carry only the thread summary's shared half, so
+// the reader's own half (participating, muted, unreadCount) is kept.
+export function replaceMessage(queryClient: QueryClient, message: Message) {
+  queryClient.setQueriesData<Message[]>(
+    { queryKey: ["messages", message.channelId] },
+    (old) =>
+      old?.map((cached) =>
+        cached.id === message.id ? withViewerHalf(message, cached) : cached,
+      ),
+  );
+}
+
+function withViewerHalf(message: Message, cached: Message): Message {
+  const next = message.thread;
+  const previous = cached.thread;
+  if (!next || !previous) return message;
+  return {
+    ...message,
+    thread: {
+      ...next,
+      participating: previous.participating,
+      muted: previous.muted,
+      unreadCount: previous.unreadCount,
+    },
+  };
 }
 
 // Also used by the send-message mutation, so delivery via RPC response and
