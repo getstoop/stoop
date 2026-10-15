@@ -111,22 +111,26 @@ export function MessageList({
   );
   const linkOrigin = instanceStatus?.publicUrl;
 
-  const remove = async (m: Message) => {
-    const ok = await confirm({
-      title: "Delete this message?",
-      action: "Delete",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await chatClient.deleteMessage({ messageId: m.id });
-      // A root with replies stays as a placeholder; the server's update
-      // for it fills the row in.
-      if (!m.thread) removeMessageFromCache(queryClient, m.channelId, m.id);
-    } catch (err) {
-      notice({ title: "Couldn't delete the message", body: errorText(err) });
-    }
-  };
+  // Row handlers take the message and stay stable, so rows stay memoised.
+  const remove = useCallback(
+    async (m: Message) => {
+      const ok = await confirm({
+        title: "Delete this message?",
+        action: "Delete",
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        await chatClient.deleteMessage({ messageId: m.id });
+        // A root with replies stays as a placeholder; the server's update
+        // for it fills the row in.
+        if (!m.thread) removeMessageFromCache(queryClient, m.channelId, m.id);
+      } catch (err) {
+        notice({ title: "Couldn't delete the message", body: errorText(err) });
+      }
+    },
+    [queryClient],
+  );
 
   // The window's edges (see api/history.ts): a sentinel at each end asks
   // for the next page when it scrolls into view. Before any change to the
@@ -160,13 +164,6 @@ export function MessageList({
     setAnchor(have?.[have.length - 1]?.id);
     return loadNewer(queryClient, timeline);
   }, [loadNewer, queryClient, timeline, setAnchor]);
-  const flash = (el: HTMLElement) => {
-    el.scrollIntoView({ block: "center" });
-    // An open thread's root is highlighted already.
-    if (el.classList.contains("thread-open")) return;
-    el.classList.add("flash");
-    setTimeout(() => el.classList.remove("flash"), 1500);
-  };
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs after every window change
   useLayoutEffect(() => {
     const store = useHistoryStore.getState();
@@ -213,29 +210,32 @@ export function MessageList({
 
   // Jump to a message and flash it. If it isn't in the window, one round
   // trip replaces the window with a page centred on it.
-  const jumpTo = async (id: string) => {
-    const el = document.getElementById(`${rowIdPrefix}${id}`);
-    if (el) {
-      flash(el);
-      return true;
-    }
-    const { found, threadRootId: thread } = await storeJumpTo(
-      queryClient,
-      timeline,
-      id,
-    );
-    // A reply in a thread: the channel lands on its root, and the thread
-    // opens at the reply.
-    if (thread) {
-      openSidePanel("thread", {
-        spaceId,
-        channelId,
-        rootId: thread,
-        focusId: id,
-      });
-    }
-    return found;
-  };
+  const jumpTo = useCallback(
+    async (id: string) => {
+      const el = document.getElementById(`${rowIdPrefix}${id}`);
+      if (el) {
+        flash(el);
+        return true;
+      }
+      const { found, threadRootId: thread } = await storeJumpTo(
+        queryClient,
+        timeline,
+        id,
+      );
+      // A reply in a thread: the channel lands on its root, and the thread
+      // opens at the reply.
+      if (thread) {
+        openSidePanel("thread", {
+          spaceId,
+          channelId,
+          rootId: thread,
+          focusId: id,
+        });
+      }
+      return found;
+    },
+    [rowIdPrefix, storeJumpTo, queryClient, timeline, spaceId, channelId],
+  );
 
   // A deep link: land on the message as soon as the window holds it (the
   // query opened around it), or fetch that window. The param is then
@@ -283,14 +283,12 @@ export function MessageList({
     }
   }, [jumpTarget, jumpVisit, messages.length > 0]);
   const dividerRef = useRef<HTMLDivElement>(null);
-  const { data: meForDivider } = useMe();
+  const { data: me } = useMe();
   // The first unread message that isn't ours (our own sends are never "new").
   const firstNewId =
     newAfterId === null
       ? undefined
-      : messages.find(
-          (m) => m.id > newAfterId && m.author?.id !== meForDivider?.id,
-        )?.id;
+      : messages.find((m) => m.id > newAfterId && m.author?.id !== me?.id)?.id;
   const [card, setCard] = useState<{ userId: string; anchor: DOMRect } | null>(
     null,
   );
@@ -303,10 +301,41 @@ export function MessageList({
     message: Message;
     anchor: DOMRect;
   } | null>(null);
-  const { data: me } = useMe();
   const members = usePeople(spaceId, channelId);
-  const membersById = mentionMembers(members);
+  const membersById = useMemo(() => mentionMembers(members), [members]);
   const groups = useChannelGroups(spaceId, channelId);
+  const showCard = useCallback((userId: string, anchor: DOMRect) => {
+    setGroupCard(null);
+    setCard({ userId, anchor });
+  }, []);
+  const showGroup = useCallback((group: Group, anchor: DOMRect) => {
+    setCard(null);
+    setGroupCard({ group, anchor });
+  }, []);
+  const showPicker = useCallback(
+    (message: Message, anchor: DOMRect) => setPicker({ message, anchor }),
+    [],
+  );
+  const togglePin = useCallback(
+    (message: Message) =>
+      setMessagePinned(queryClient, message, !message.pinned),
+    [queryClient],
+  );
+  const openThreadOf = useCallback(
+    (message: Message) =>
+      openSidePanel("thread", { spaceId, channelId, rootId: message.id }),
+    [spaceId, channelId],
+  );
+  const openOrigin = useCallback(
+    (message: Message) =>
+      openSidePanel("thread", {
+        spaceId,
+        channelId,
+        rootId: message.threadRootId,
+        focusId: message.id,
+      }),
+    [spaceId, channelId],
+  );
 
   // Land on the "New messages" line when there is one, else the bottom;
   // subsequent arrivals scroll to the bottom as before.
@@ -407,41 +436,16 @@ export function MessageList({
       withDay={!!threadRootId}
       rowIdPrefix={rowIdPrefix}
       onJumpTo={jumpTo}
-      onCard={(userId, anchor) => {
-        setGroupCard(null);
-        setCard({ userId, anchor });
-      }}
-      onGroup={(group, anchor) => {
-        setCard(null);
-        setGroupCard({ group, anchor });
-      }}
-      onReact={(anchor) => setPicker({ message, anchor })}
-      onReply={() => onReply(message)}
+      onCard={showCard}
+      onGroup={showGroup}
+      onReact={showPicker}
+      onReply={onReply}
       onEdit={onEdit}
-      onDelete={() => remove(message)}
-      onTogglePin={() =>
-        setMessagePinned(queryClient, message, !message.pinned)
-      }
-      onThread={
-        threadRootId
-          ? undefined
-          : () =>
-              openSidePanel("thread", {
-                spaceId,
-                channelId,
-                rootId: message.id,
-              })
-      }
+      onDelete={remove}
+      onTogglePin={togglePin}
+      onThread={threadRootId ? undefined : openThreadOf}
       onOpenOrigin={
-        threadRootId || !message.threadRootId
-          ? undefined
-          : () =>
-              openSidePanel("thread", {
-                spaceId,
-                channelId,
-                rootId: message.threadRootId,
-                focusId: message.id,
-              })
+        threadRootId || !message.threadRootId ? undefined : openOrigin
       }
       alsoSentTo={
         threadRootId && message.inChannel && message.id !== threadRootId
@@ -607,6 +611,15 @@ export function MessageList({
       </div>
     </GalleryMedia.Provider>
   );
+}
+
+// Scroll a row into view and flash it.
+function flash(el: HTMLElement) {
+  el.scrollIntoView({ block: "center" });
+  // An open thread's root is highlighted already.
+  if (el.classList.contains("thread-open")) return;
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 1500);
 }
 
 function replyCountLabel(count: number): string {

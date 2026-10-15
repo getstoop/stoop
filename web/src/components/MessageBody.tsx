@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode, useState } from "react";
+import { Fragment, type ReactNode, useMemo, useState } from "react";
 import { splitEmoji } from "../api/emojiText";
 import {
   type Block,
@@ -50,6 +50,7 @@ export function MessageBody({
   // Opens a mentioned group's card, under the same rule as onMention.
   onGroup?: (group: Group, anchor: DOMRect) => void;
 }) {
+  const blocks = useMemo(() => parseMarkdown(content), [content]);
   const text = (s: string): ReactNode =>
     splitEveryone(s, mentionsEntireChannel, mentionsHere).map((part, i) =>
       part.everyone ? (
@@ -191,7 +192,7 @@ export function MessageBody({
     }
   };
 
-  return <>{parseMarkdown(content).map(block)}</>;
+  return <>{blocks.map(block)}</>;
 }
 
 // A text run with search hits wrapped in <mark>.

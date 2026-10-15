@@ -1,5 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import type { ReactNode } from "react";
+import { memo, type ReactNode, useMemo } from "react";
 import { dayAndTime, fullDateTime } from "../../api/dates";
 import { emojiOnly } from "../../api/emojiText";
 import type { MentionGroups, MentionMembers } from "../../api/mentions";
@@ -21,7 +21,9 @@ import { ThreadSummary } from "./ThreadSummary";
 // One message in a timeline: quote, author, toolbar, body, reactions, and
 // on a root the line that opens its thread. A root deleted while its
 // thread has replies is a placeholder that only opens the thread.
-export function MessageRow({
+// Memoised, so the list's own state (a picker, a card, scrolling) doesn't
+// re-render rows; the handlers take the message so they can be shared.
+export const MessageRow = memo(function MessageRow({
   message,
   continued,
   spaceId,
@@ -74,19 +76,23 @@ export function MessageRow({
   onJumpTo: (id: string) => void;
   onCard: (userId: string, anchor: DOMRect) => void;
   onGroup: (group: Group, anchor: DOMRect) => void;
-  onReact: (anchor: DOMRect) => void;
-  onReply: () => void;
+  onReact: (message: Message, anchor: DOMRect) => void;
+  onReply: (message: Message) => void;
   onEdit: (id: string | null) => void;
-  onDelete: () => void;
-  onTogglePin: () => void;
+  onDelete: (message: Message) => void;
+  onTogglePin: (message: Message) => void;
   // Opens its thread; absent inside a thread, where a reply has none.
-  onThread?: () => void;
+  onThread?: (message: Message) => void;
   // In the channel, a reply also sent there opens its thread from the line
   // naming it.
-  onOpenOrigin?: () => void;
+  onOpenOrigin?: (message: Message) => void;
   // In its thread, where such a reply was also sent: "#general".
   alsoSentTo?: ReactNode;
 }) {
+  const editorMentions = useMemo(
+    () => ({ members, groups, channelAndHere: false }),
+    [members, groups],
+  );
   const created = message.createdAt
     ? timestampDate(message.createdAt)
     : undefined;
@@ -102,7 +108,7 @@ export function MessageRow({
     <ThreadSummary
       thread={message.thread}
       open={threadOpen}
-      onOpen={onThread}
+      onOpen={() => onThread(message)}
     />
   );
   const rowClass = [
@@ -169,7 +175,7 @@ export function MessageRow({
         <button
           type="button"
           className="reply-quote thread-origin"
-          onClick={onOpenOrigin}
+          onClick={() => onOpenOrigin(message)}
           title="Open the thread"
         >
           <span className="reply-arrow">↳</span>
@@ -227,18 +233,20 @@ export function MessageRow({
           mine={mine}
           canDelete={canDelete}
           canPin={canPin}
-          onReply={onReply}
+          onReply={() => onReply(message)}
           onEdit={() => onEdit(message.id)}
-          onDelete={onDelete}
-          onReact={onReact}
-          onTogglePin={onTogglePin}
-          onThread={canStartThread ? onThread : undefined}
+          onDelete={() => onDelete(message)}
+          onReact={(anchor) => onReact(message, anchor)}
+          onTogglePin={() => onTogglePin(message)}
+          onThread={
+            canStartThread && onThread ? () => onThread(message) : undefined
+          }
         />
       </div>
       {editing ? (
         <MessageEditor
           message={message}
-          mentions={{ members, groups, channelAndHere: false }}
+          mentions={editorMentions}
           onDone={() => onEdit(null)}
         />
       ) : null}
@@ -274,4 +282,4 @@ export function MessageRow({
       {summary}
     </div>
   );
-}
+});
