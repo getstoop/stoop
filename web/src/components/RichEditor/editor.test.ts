@@ -7,6 +7,7 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
+import { writtenLength } from "../../api/mentions";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
@@ -416,6 +417,16 @@ describe("mentions", () => {
   it("leaves code, addresses, @channel and @here", () => {
     const text = "`@casey` https://social.example/@casey and @channel @here.";
     expect(settled(text)).toBe(text);
+  });
+
+  it("keeps a mention as its words when a line becomes a code block", () => {
+    const state = caretAtEnd(stateOf(`block ${casey} end`));
+    const next = run(state, formatCommands.codeblock);
+    expect(next && md(next)).toBe("```\nblock @casey end\n```");
+  });
+
+  it("counts a mention as its handle against the limit", () => {
+    expect(writtenLength(`hi ${casey}`)).toBe("hi @casey".length);
   });
 
   it("brings a mention's handle up to date", () => {
