@@ -76,7 +76,8 @@ const (
 // extractLinks finds up to maxLinksPerMessage distinct http(s) URLs in
 // message content, in order of appearance: the link nodes of the same
 // parse the client renders from, so code is skipped and a URL ends where
-// the client's does.
+// the client's does. A link in a spoiler gets no card: the card would show
+// what the spoiler hides.
 func extractLinks(content string) []string {
 	seen := map[string]bool{}
 	var out []string
@@ -94,6 +95,9 @@ func extractLinks(content string) []string {
 					return true
 				}
 			case inlineStyled:
+				if n.spoiler {
+					continue
+				}
 				if walk(n.children) {
 					return true
 				}

@@ -23,14 +23,14 @@ export function isBlankMessage(content: string): boolean {
   return plainText(content) === "";
 }
 
-// The distinct links in a message, in order of appearance. Mirrors
-// extractLinks on the server, without its cap.
+// The distinct links in a message, in order of appearance, outside
+// spoilers. Mirrors extractLinks on the server, without its cap.
 export function linksIn(content: string): string[] {
   const found = new Set<string>();
   const walk = (nodes: Inline[]) => {
     for (const n of nodes) {
       if (n.type === "link") found.add(n.href);
-      else if ("children" in n) walk(n.children);
+      else if (n.type !== "spoiler" && "children" in n) walk(n.children);
     }
   };
   for (const b of parseMarkdown(content)) {

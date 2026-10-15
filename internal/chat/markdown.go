@@ -26,6 +26,7 @@ type inlineNode struct {
 	text     string       // the text, the code, the href, or the token
 	children []inlineNode // a style's content, or a link's label
 	at       int          // a token's byte offset in the content
+	spoiler  bool         // a style that is a ||spoiler||
 }
 
 type blockKind int
@@ -183,7 +184,8 @@ func parseInlineAt(source string, base int) []inlineNode {
 		}
 		if children, end, ok := matchDelimited(source, i, base); ok {
 			flush()
-			out = append(out, inlineNode{kind: inlineStyled, children: children})
+			spoiler := strings.HasPrefix(source[i:], "||")
+			out = append(out, inlineNode{kind: inlineStyled, children: children, spoiler: spoiler})
 			i = end
 			continue
 		}

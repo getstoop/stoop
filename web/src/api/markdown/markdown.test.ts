@@ -585,4 +585,12 @@ describe("linksIn", () => {
       [],
     );
   });
+
+  it("skips spoilers", () => {
+    expect(
+      linksIn(
+        "the ending: ||https://spoiler.example|| or **||[this](https://words.example)||** but https://ok.example",
+      ),
+    ).toEqual(["https://ok.example"]);
+  });
 });

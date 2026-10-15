@@ -85,6 +85,9 @@ func TestPlainTextAgreesWhereTheServerDiffered(t *testing.T) {
 func TestParseInlineShape(t *testing.T) {
 	text := func(s string) inlineNode { return inlineNode{kind: inlineText, text: s} }
 	styled := func(children ...inlineNode) inlineNode { return inlineNode{kind: inlineStyled, children: children} }
+	spoiler := func(children ...inlineNode) inlineNode {
+		return inlineNode{kind: inlineStyled, children: children, spoiler: true}
+	}
 	mention := func(token string, at int) inlineNode { return inlineNode{kind: inlineMention, text: token, at: at} }
 	cases := []struct {
 		in   string
@@ -121,7 +124,7 @@ func TestParseInlineShape(t *testing.T) {
 		{underlineHandle + " hi", []inlineNode{mention(underlineHandle, 0), text(" hi")}},
 		{"**" + sharedToken + "**", []inlineNode{styled(mention(sharedToken, 2))}},
 		{"`" + sharedToken + "`", []inlineNode{{kind: inlineCode, text: "@casey"}}},
-		{"||" + sharedToken + "||", []inlineNode{styled(text("@casey"))}},
+		{"||" + sharedToken + "||", []inlineNode{spoiler(text("@casey"))}},
 		{"[see " + sharedToken + "](https://x.example)", []inlineNode{
 			{kind: inlineLink, text: "https://x.example", children: []inlineNode{text("see @casey")}},
 		}},
