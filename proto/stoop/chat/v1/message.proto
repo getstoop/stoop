@@ -50,10 +50,13 @@ message Message {
   string id = 1;
   string channel_id = 2;
   MessageAuthor author = 3;
+  // Markdown, with mentions as tokens: <@u:ID:handle> for a person,
+  // <@g:ID:handle> for a group. The handle is the one current when the
+  // message was saved. See docs/architecture/integrations.md → Mentions.
   string content = 4;
   google.protobuf.Timestamp created_at = 5;
-  // Members this message @mentions, resolved at send time. Clients use it
-  // to highlight mention tokens and to tint messages that mention them.
+  // Members this message mentions, resolved at send time. Clients use it
+  // to tint messages that mention them.
   repeated string mention_user_ids = 6;
   // The channel's space, so clients can update per-space state from a
   // realtime event without a lookup.

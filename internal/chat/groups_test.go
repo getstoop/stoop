@@ -15,7 +15,7 @@ import (
 )
 
 // groupFixture is the private-channel fixture, with the user directory
-// that knows bots, and a group @@gardeners holding all three people.
+// that knows bots, and a group, gardeners, holding all three people.
 type groupFixture struct {
 	privateFixture
 	groupID string
@@ -72,38 +72,39 @@ func refusedField(err error) string {
 func TestGroupMentionReachesItsPeopleInPublicChannels(t *testing.T) {
 	fixture := newGroupFixture(t)
 
-	message := fixture.sendTo(t, fixture.bea, fixture.generalID, "compost Saturday @@Gardeners")
+	message := fixture.sendTo(t, fixture.bea, fixture.generalID, "compost Saturday "+groupMention(fixture.groupID))
 	want := []string{authctx.UserID(fixture.owner), authctx.UserID(fixture.cal)}
 	if got := slices.Sorted(slices.Values(message.MentionUserIds)); !slices.Equal(got, slices.Sorted(slices.Values(want))) {
 		t.Errorf("mention_user_ids = %v, want the owner and cal (not the author)", got)
 	}
 	if unread := fixture.unread(t, fixture.cal); unread != 1 {
-		t.Errorf("cal after @@gardeners: %d unread, want 1", unread)
+		t.Errorf("cal after the group mention: %d unread, want 1", unread)
 	}
 	if unread := fixture.unread(t, fixture.bea); unread != 0 {
 		t.Errorf("the author was told of their own mention: %d unread", unread)
 	}
 
 	// Named directly and through the group: one item, not two.
-	fixture.sendTo(t, fixture.owner, fixture.generalID, "@cal and @@gardeners, gloves")
+	fixture.sendTo(t, fixture.owner, fixture.generalID, mentionOf(fixture.cal)+" and "+groupMention(fixture.groupID)+", gloves")
 	if unread := fixture.unread(t, fixture.cal); unread != 2 {
-		t.Errorf("cal after @cal plus @@gardeners: %d unread, want 2", unread)
+		t.Errorf("cal after a mention and the group: %d unread, want 2", unread)
 	}
 
-	// A single @ is a person's handle, and nobody is called gardeners.
+	// Typed text mentions nobody, even a group's handle.
 	if got := fixture.sendTo(t, fixture.owner, fixture.generalID, "@gardeners hello").MentionUserIds; len(got) != 0 {
-		t.Errorf("@gardeners reached %v; it names no person", got)
+		t.Errorf("typed @gardeners reached %v", got)
 	}
 }
 
 func TestGroupAndPersonMayShareAHandle(t *testing.T) {
 	fixture := newGroupFixture(t)
-	if _, err := fixture.svc.CreateGroup(fixture.owner, connect.NewRequest(&chatv1.CreateGroupRequest{
+	namesake, err := fixture.svc.CreateGroup(fixture.owner, connect.NewRequest(&chatv1.CreateGroupRequest{
 		SpaceId: fixture.spaceID, Handle: "bea", Name: "Not Bea", UserIds: []string{authctx.UserID(fixture.cal)},
-	})); err != nil {
+	}))
+	if err != nil {
 		t.Fatalf("a group named like a person: %v", err)
 	}
-	message := fixture.sendTo(t, fixture.owner, fixture.generalID, "@bea and @@bea")
+	message := fixture.sendTo(t, fixture.owner, fixture.generalID, mentionOf(fixture.bea)+" and "+groupMention(namesake.Msg.Group.Id))
 	want := []string{authctx.UserID(fixture.bea), authctx.UserID(fixture.cal)}
 	if got := slices.Sorted(slices.Values(message.MentionUserIds)); !slices.Equal(got, slices.Sorted(slices.Values(want))) {
 		t.Errorf("mention_user_ids = %v, want bea (the person) and cal (the group)", got)
@@ -114,8 +115,8 @@ func TestGroupMentionDoesNothingInPrivateChannelsAndDMs(t *testing.T) {
 	fixture := newGroupFixture(t)
 	fixture.add(t, fixture.cal)
 
-	if got := fixture.sendTo(t, fixture.bea, fixture.secretID, "@@gardeners in here").MentionUserIds; len(got) != 0 {
-		t.Errorf("@@gardeners in a private channel reached %v", got)
+	if got := fixture.sendTo(t, fixture.bea, fixture.secretID, groupMention(fixture.groupID)+" in here").MentionUserIds; len(got) != 0 {
+		t.Errorf("a group in a private channel reached %v", got)
 	}
 	dm, err := fixture.svc.OpenDirectMessage(fixture.bea, connect.NewRequest(&chatv1.OpenDirectMessageRequest{
 		UserIds: []string{authctx.UserID(fixture.cal)},
@@ -123,8 +124,8 @@ func TestGroupMentionDoesNothingInPrivateChannelsAndDMs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := fixture.sendTo(t, fixture.bea, dm.Msg.DirectMessage.Channel.Id, "@@gardeners in a DM").MentionUserIds; len(got) != 0 {
-		t.Errorf("@@gardeners in a DM reached %v", got)
+	if got := fixture.sendTo(t, fixture.bea, dm.Msg.DirectMessage.Channel.Id, groupMention(fixture.groupID)+" in a DM").MentionUserIds; len(got) != 0 {
+		t.Errorf("a group in a DM reached %v", got)
 	}
 }
 

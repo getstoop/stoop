@@ -65,7 +65,7 @@ func TestActivityMuteStamp(t *testing.T) {
 	}
 
 	// Unmuted.
-	if item := mention(t, "@bea one"); item.Muted {
+	if item := mention(t, mentionOf(bea)+" one"); item.Muted {
 		t.Error("unmuted mention: event muted = true")
 	}
 	if newest(t).Muted {
@@ -76,7 +76,7 @@ func TestActivityMuteStamp(t *testing.T) {
 	if _, err := svc.SetChannelMuted(bea, connect.NewRequest(&chatv1.SetChannelMutedRequest{ChannelId: channelID, Muted: true})); err != nil {
 		t.Fatal(err)
 	}
-	if item := mention(t, "@bea two"); !item.Muted {
+	if item := mention(t, mentionOf(bea)+" two"); !item.Muted {
 		t.Error("muted channel: event muted = false")
 	}
 	if !newest(t).Muted {
@@ -90,7 +90,7 @@ func TestActivityMuteStamp(t *testing.T) {
 	if _, err := svc.SetSpaceMuted(bea, connect.NewRequest(&chatv1.SetSpaceMutedRequest{SpaceId: spaceID, Muted: true})); err != nil {
 		t.Fatal(err)
 	}
-	if item := mention(t, "@bea three"); !item.Muted {
+	if item := mention(t, mentionOf(bea)+" three"); !item.Muted {
 		t.Error("muted space: event muted = false")
 	}
 	if !newest(t).Muted {
@@ -133,7 +133,7 @@ func TestActivityListFollowsTheReadGrants(t *testing.T) {
 		t.Fatal(err)
 	}
 	// One mention in the space, one direct message: two items for bea.
-	if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: sp.Msg.DefaultChannel.Id, Content: "@bea the gate"})); err != nil {
+	if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: sp.Msg.DefaultChannel.Id, Content: mentionOf(bea) + " the gate"})); err != nil {
 		t.Fatal(err)
 	}
 	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{beaID}}))

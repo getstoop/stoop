@@ -92,7 +92,7 @@ func TestE2EPrivateChannelOutsider(t *testing.T) {
 		"channelId": captains, "userIds": []string{site.userID(ada)},
 	}).expect(t, "ok")
 
-	root := site.send(casey, captains, marker+" and the party is the 24th @bea").expect(t, "ok").str("message.id")
+	root := site.send(casey, captains, marker+" and the party is the 24th "+site.mention(bea)).expect(t, "ok").str("message.id")
 	site.rpc(ada, "stoop.chat.v1.ChatService/SendMessage", map[string]any{
 		"channelId": captains, "content": marker + " in a thread", "threadRootId": root,
 	}).expect(t, "ok")

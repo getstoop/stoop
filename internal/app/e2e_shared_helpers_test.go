@@ -84,11 +84,11 @@ func TestE2EOptionalTimestamps(t *testing.T) {
 
 	// chat: a message is unedited until it is edited; an activity item is
 	// unread until it is read.
-	sent := h.send(casey, general, "hello @ada").expect(t, "ok")
+	sent := h.send(casey, general, "hello "+h.mention(ada)).expect(t, "ok")
 	if sent.str("message.editedAt") != "" {
 		t.Errorf("a new message carries editedAt: %s", sent.raw)
 	}
-	edited := h.rpc(casey, chat+"EditMessage", map[string]any{"messageId": sent.str("message.id"), "content": "hello again @ada"}).expect(t, "ok")
+	edited := h.rpc(casey, chat+"EditMessage", map[string]any{"messageId": sent.str("message.id"), "content": "hello again " + h.mention(ada)}).expect(t, "ok")
 	if edited.str("message.editedAt") == "" {
 		t.Errorf("an edited message carries no editedAt: %s", edited.raw)
 	}

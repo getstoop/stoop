@@ -216,7 +216,7 @@ func TestPrivateChannelMentionsReachItsPeople(t *testing.T) {
 	fixture := newPrivateFixture(t)
 	fixture.add(t, fixture.owner)
 
-	fixture.send(t, fixture.bea, "@cal are you there", "")
+	fixture.send(t, fixture.bea, mentionOf(fixture.cal)+" are you there", "")
 	if unread := fixture.unread(t, fixture.cal); unread != 0 {
 		t.Errorf("someone outside the channel was mentioned by name: %d unread", unread)
 	}
@@ -259,7 +259,7 @@ func TestRemovedFromPrivateChannel(t *testing.T) {
 func TestLeavingTheSpaceLeavesItsPrivateChannels(t *testing.T) {
 	fixture := newPrivateFixture(t)
 	fixture.add(t, fixture.owner)
-	fixture.send(t, fixture.owner, "@bea the flyer is out", "")
+	fixture.send(t, fixture.owner, mentionOf(fixture.bea)+" the flyer is out", "")
 	if unread := fixture.unread(t, fixture.bea); unread != 1 {
 		t.Fatalf("a mention in the private channel: %d unread, want 1", unread)
 	}

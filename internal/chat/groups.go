@@ -148,7 +148,7 @@ func (s *Service) groupInputFrom(ctx context.Context, spaceID, rawHandle, rawNam
 	}
 	if handle == entireChannelHandle || handle == hereHandle {
 		return groupInput{}, apierr.Field(connect.CodeInvalidArgument, "handle",
-			fmt.Errorf("@@%s is reserved", handle))
+			fmt.Errorf("@%s is reserved", handle))
 	}
 	name := strings.TrimSpace(rawName)
 	if name == "" || utf8.RuneCountInString(name) > maxGroupNameLen {
@@ -210,7 +210,7 @@ func addGroupMembers(ctx context.Context, qtx *dbgen.Queries, group dbgen.Group,
 func groupWriteError(err error, handle string) error {
 	if db.HasCode(err, db.UniqueViolation) {
 		return apierr.Field(connect.CodeAlreadyExists, "handle",
-			fmt.Errorf("@@%s is taken in this space", handle))
+			fmt.Errorf("@%s is taken in this space", handle))
 	}
 	return fmt.Errorf("write group: %w", err)
 }

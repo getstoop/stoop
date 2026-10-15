@@ -67,7 +67,7 @@ func TestThreadMutesAndReads(t *testing.T) {
 
 	root := send(ada, "@channel who has the ladder?", "")
 	beaFirst := send(bea, "mine, in the garage", root.Id)
-	beaSecond := send(bea, "@cara you borrowed it last", root.Id)
+	beaSecond := send(bea, mentionOf(cara)+" you borrowed it last", root.Id)
 
 	expect("ada (started it)", ada, root.Id, true, false, 2)
 	expect("bea (replied)", bea, root.Id, true, false, 0)

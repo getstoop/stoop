@@ -170,6 +170,10 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
   author?: MessageAuthor | undefined;
 
   /**
+   * Markdown, with mentions as tokens: <@u:ID:handle> for a person,
+   * <@g:ID:handle> for a group. The handle is the one current when the
+   * message was saved. See docs/architecture/integrations.md → Mentions.
+   *
    * @generated from field: string content = 4;
    */
   content: string;
@@ -180,8 +184,8 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
   createdAt?: Timestamp | undefined;
 
   /**
-   * Members this message @mentions, resolved at send time. Clients use it
-   * to highlight mention tokens and to tint messages that mention them.
+   * Members this message mentions, resolved at send time. Clients use it
+   * to tint messages that mention them.
    *
    * @generated from field: repeated string mention_user_ids = 6;
    */

@@ -85,7 +85,7 @@ func (ts *threadSpace) remove(ctx context.Context, id string) {
 // replies stay; and the last reply's delete takes the placeholder too.
 func TestDeletedRootBecomesPlaceholder(t *testing.T) {
 	ts, rows := newThreadSpace(t)
-	root := ts.send(ts.ada, "ladder? @bea", "", "")
+	root := ts.send(ts.ada, "ladder? "+mentionOf(ts.bea), "", "")
 	quote := ts.send(ts.bea, "quoting the root", "", root.Id)
 	first := ts.send(ts.bea, "mine", root.Id, "")
 	second := ts.send(ts.ada, "thanks", root.Id, "")

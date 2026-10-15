@@ -16,7 +16,7 @@ func TestMentionsAndActivity(t *testing.T) {
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	bea := newUser(t, pool, "bea", authctx.RoleMember)
 	cal := newUser(t, pool, "cal", authctx.RoleMember)
-	_ = newUser(t, pool, "stranger", authctx.RoleMember) // exists, not a member
+	stranger := newUser(t, pool, "stranger", authctx.RoleMember) // exists, not a member
 
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	if err != nil {
@@ -32,9 +32,9 @@ func TestMentionsAndActivity(t *testing.T) {
 	beaEvents := bus.Subscribe("user:" + authctx.UserID(bea))
 	defer beaEvents.Close()
 
-	// Owner mentions bea (case-insensitively), themselves, and a non-member.
+	// Owner mentions bea, themselves, and a non-member; a plain @cal is text.
 	res, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{
-		ChannelId: channelID, Content: "hey @Bea and @owner, also @stranger and email@example.com",
+		ChannelId: channelID, Content: "hey " + mentionOf(bea) + " and " + mentionOf(owner) + ", also " + mentionOf(stranger) + ", @cal and email@example.com",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestMentionsAndActivity(t *testing.T) {
 	if err != nil || mr.Msg.UnreadCount != 0 {
 		t.Errorf("mark read: %v %v", mr, err)
 	}
-	if _, err := svc.SendMessage(cal, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@bea again"})); err != nil {
+	if _, err := svc.SendMessage(cal, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: mentionOf(bea) + " again"})); err != nil {
 		t.Fatal(err)
 	}
 	<-beaEvents.Events()

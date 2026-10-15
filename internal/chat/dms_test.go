@@ -231,7 +231,7 @@ func TestDirectMessages(t *testing.T) {
 
 	// ---- mentions and replies in a DM: one alert, not two ----
 	reply, err := svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{
-		ChannelId: dm.Channel.Id, Content: "@alice hi back @channel", ReplyToMessageId: sent.Msg.Message.Id,
+		ChannelId: dm.Channel.Id, Content: mentionOf(alice) + " hi back @channel", ReplyToMessageId: sent.Msg.Message.Id,
 	}))
 	if err != nil {
 		t.Fatal(err)

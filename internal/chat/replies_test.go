@@ -55,7 +55,7 @@ func TestReplies(t *testing.T) {
 	if count, _ := unread(owner); count != 1 {
 		t.Errorf("self-reply notified: unread=%d", count)
 	}
-	if _, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "@owner see above", ReplyToMessageId: orig.Msg.Message.Id})); err != nil {
+	if _, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: mentionOf(owner) + " see above", ReplyToMessageId: orig.Msg.Message.Id})); err != nil {
 		t.Fatal(err)
 	}
 	if count, kind := unread(owner); count != 2 || kind != chatv1.ActivityKind_ACTIVITY_KIND_MENTION {

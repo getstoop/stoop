@@ -97,8 +97,8 @@ deliberate:
    [announcement channel](#announcement-channels).
 3. **Claim attachments** — check each id through the `FileDirectory` port
    for kind, owner and space ([files.md](files.md)).
-4. **Resolve mentions** against the channel's people, and encode them
-   as [tokens](#mention-tokens).
+4. **Check mentions**: keep the [tokens](#mentions) that name the
+   channel's people or a group of its space.
 5. **Resolve the reply parent**, which must be a message in the same
    channel, and the authors the event will carry.
 6. **One transaction**: insert the message, its `message_attachments`,
@@ -197,19 +197,41 @@ which is a different mechanism for a genuinely different thing.
 
 ## Mentions
 
-`@handle` is matched at a word boundary against auth's username rules
-(3–32 of `[a-z0-9_]`), case-insensitively, and resolved to **people in the
-channel** — a space's members, or a DM's participants — excluding the
-author.
+**Only a token mentions anyone.** `<@u:ID:handle>` names a person and
+`<@g:ID:handle>` a group; `@channel` and `@here` are the two exceptions,
+typed as words. Plain `@casey` is text, from a person, a bot or a hook,
+so a person and a group may share a handle without either being
+mistaken for the other. The web composer writes the tokens: picking from
+the picker, or typing a handle in full that only one person or group
+has, makes a pill. Bots and hooks write them directly
+([integrations.md](integrations.md#mentions)).
 
-Handles that don't resolve are silently ignored. **A mention is an address,
-not a permission**: writing `@casey` in a space Casey isn't in does not
-reach them, and does not error either, because a typo shouldn't fail a
-message.
+`mention_tokens.go` checks every token on send and edit:
+
+- A person token is kept if its ID can read the channel: the space's
+  members in a public channel, its people in a private one, a DM's
+  participants. A group token is kept if its ID is a group of the
+  channel's space and the channel is public.
+- A kept token's handle is rewritten to the current one, whatever the
+  sender put there. It is what readers show for a person or group they
+  can't find, and what search indexes, so a message is found by the
+  handle it was written with.
+- Any other token is saved as `@handle` text and reaches nobody. **A
+  mention is an address, not a permission**: one for someone outside the
+  channel doesn't error, because a stale ID shouldn't fail a message.
+- The 4000-character limit counts each token as its handle.
+- An edit checks its tokens but tells nobody new.
+
+`content` carries the tokens as stored, to clients, bots and outgoing
+webhooks alike. Clients draw a pill from the ID with the names they
+already hold. Previews are text: reply quotes, thread-root lines and
+activity items read each token as its current `@handle`, or its saved
+one when the person or group is gone, before markup is stripped. One
+users call and one groups query cover a page.
 
 `@channel` and `@here` are reserved usernames (auth refuses to register
 them) and require the `messages.notify_entire_channel` permission. Without it the
-token is plain text — not an error, just words. `@channel` wins if both
+word is plain text — not an error, just words. `@channel` wins if both
 appear. `@channel` reaches the people who can read the channel: the space's
 members in a public channel, its listed people in a private one.
 In a DM both are plain text, since addressing "everyone" in a conversation
@@ -224,52 +246,23 @@ for `@channel`. Activity delivery then has one shape regardless of how
 the mention was written, and a later membership change doesn't retroactively
 rewrite who was addressed.
 
-### Groups
-
-`@@handle` mentions a group: a set of a space's members with a name
-("Garden crew") and a handle, made by those with `members.manage`. The
-person pattern refuses an `@` straight after another `@`, so a group's
-handle never competes with a username; a handle is unique only within
-its space, and `channel` and `here` are refused.
-
-A group works in public channels only. In a private channel or a DM
-`@@handle` is plain text and reaches nobody. Every member of the space can
-read a public channel, so the group's people are reached as they are,
-minus the author, and materialised into `message_mentions` with everyone
-else. When `@channel` or `@here` applies it decides alone, as it does for
-`@handle`.
-
-### Mention tokens
-
-Stored content names who a mention means, not the handle it was typed
-with, so a rename carries through old messages and whoever takes an old
-name later doesn't inherit its mentions. `mention_tokens.go` does both
-directions:
-
-- **Writing.** On send and edit, each `@handle` that names a reader of
-  the channel and each `@@handle` that names a group becomes
-  `<@u:ID:handle>` or `<@g:ID:handle>`. A handle naming nobody, one
-  inside a web address (`https://social.example/@casey` must not change
-  with a rename), and `@channel` and `@here`, stay text. The 4000-character limit counts the
-  text as written; stored content can be longer. An edit encodes but
-  tells nobody new.
-- **Reading.** Tokens turn back into the current `@handle` or
-  `@@handle` text before content leaves the module: in
-  `hydrateMessages` (every list, search, pin and resent message, with
-  reply quotes and thread-root lines), on the send path, and in activity
-  previews. One users call and one groups query cover a page. A token
-  whose person or group is gone reads as the handle it was written with.
-  Clients, bots and outgoing webhooks only ever see text.
-- **Search** indexes the token's words, so a message is found by the
-  handle it was written with, not a later one.
-- **Typed by hand**, a token is saved as the handle it carries and tells
-  nobody, so no ID the server didn't look up is stored or read back.
-- Messages from before tokens keep their plain text.
-
 Open tabs refetch messages when a group changes (`groups_changed`) and
 when a username does: auth calls chat's `AnnounceRename` for a rename
 on the profile page, by an admin or of a bot, and chat sends
 `member_updated` to each of the person's spaces and their own devices.
+
+### Groups
+
+A group is a set of a space's members with a name ("Garden crew") and a
+handle, made by those with `members.manage`. A handle is unique only
+within its space, may match a username, and `channel` and `here` are
+refused.
+
+A group works in public channels only. In a private channel or a DM a
+group token is saved as text and reaches nobody. Every member of the
+space can read a public channel, so the group's people are reached as
+they are, minus the author, and materialised into `message_mentions`
+with everyone else. When `@channel` or `@here` applies it decides alone.
 
 ## Activity
 

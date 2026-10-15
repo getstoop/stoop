@@ -86,6 +86,28 @@ its hooks posts there.
 `username`, `icon_emoji`, `icon_url` and `blocks` are accepted and
 ignored. Text over the message limit is cut to fit with an ellipsis.
 
+### Mentions
+
+Only a token mentions anyone, from a hook or a bot as from a person:
+
+| Mention | Write |
+| --- | --- |
+| A person | `<@u:ID:handle>` |
+| A group | `<@g:ID:handle>` |
+| Everyone in the channel, everyone online | `@channel`, `@here` (needs the grant below) |
+
+Plain `@handle` is text and reaches nobody. Copy a token from the app:
+*Copy mention* on a person's card, or on a group's row in Space settings
+→ Groups. The handle part may be anything of 3–32 `[a-z0-9_]`; the
+server replaces it with the current one. A token for someone who can't
+read the channel, or a group in a private channel, is posted as its
+handle and reaches nobody ([messaging.md](messaging.md#mentions)).
+
+Messages read back the same way: `content` over the API and in outgoing
+`data` carries the tokens. The handle in a token is the one current when
+the message was saved; for the current name, look the ID up with
+`GetMember`, or `ListGroups` for a group (both need `space.read`).
+
 | Situation | Answer |
 | --- | --- |
 | Posted | `200 ok` |
