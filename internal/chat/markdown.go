@@ -220,9 +220,9 @@ func parseInline(s string) []inlineNode {
 				continue
 			}
 		}
-		if inner, end, ok := matchDelimited(s, i); ok {
+		if children, end, ok := matchDelimited(s, i); ok {
 			flush()
-			out = append(out, inlineNode{kind: inlineStyled, children: parseInline(inner)})
+			out = append(out, inlineNode{kind: inlineStyled, children: children})
 			i = end
 			continue
 		}
@@ -290,27 +290,53 @@ func holdsLink(nodes []inlineNode) bool {
 	return false
 }
 
-func matchDelimited(s string, i int) (inner string, end int, ok bool) {
+func matchDelimited(source string, i int) (children []inlineNode, end int, ok bool) {
 	for _, d := range delims {
-		if !strings.HasPrefix(s[i:], d) {
+		if !strings.HasPrefix(source[i:], d) {
 			continue
 		}
 		start := i + len(d)
 		// The opener must be followed by something other than whitespace
 		// (or, for "*", another "*": that's an unclosed "**").
-		if start >= len(s) || spaceAt(s, start) {
+		if start >= len(source) || spaceAt(source, start) {
 			continue
 		}
-		if d == "*" && s[start] == '*' {
+		if d == "*" && source[start] == '*' {
 			continue
 		}
-		j := findCloser(s, d, start+1)
+		j := findCloser(source, d, start+1)
+		if d == "**" {
+			if children, end, ok = closeOnStarRun(source, start, j); ok {
+				return children, end, true
+			}
+		}
 		if j == -1 {
 			continue
 		}
-		return s[start:j], j + len(d), true
+		return parseInline(source[start:j]), j + len(d), true
 	}
-	return "", 0, false
+	return nil, 0, false
+}
+
+// closeOnStarRun reads "**a *b***": when bold closes on a run of three or
+// more stars, the run's first stars can close the italic inside it.
+func closeOnStarRun(source string, start, closeAt int) (children []inlineNode, end int, ok bool) {
+	if closeAt == -1 || !strings.HasPrefix(source[closeAt:], "***") {
+		return nil, 0, false
+	}
+	// A closer inside a run (its first star after a space) takes no part.
+	if source[closeAt-1] == '*' {
+		return nil, 0, false
+	}
+	runEnd := closeAt
+	for runEnd < len(source) && source[runEnd] == '*' {
+		runEnd++
+	}
+	children = parseInline(source[start : runEnd-2])
+	if len(children) == 0 || children[len(children)-1].kind != inlineStyled {
+		return nil, 0, false
+	}
+	return children, runEnd, true
 }
 
 // findCloser is the first occurrence of d at or after from that follows a

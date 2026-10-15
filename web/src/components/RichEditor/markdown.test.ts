@@ -8,6 +8,9 @@ describe("rich editor Markdown round trip", () => {
     "__under__ ~~strike~~ ||spoiler|| `code`",
     "***both***",
     "**bold with *italic* inside**",
+    "**bold ending in *italic***",
+    "***italic* starting bold**",
+    "*italic* ***both*** *italic*",
     "see [the words](https://example.com/a?b=c) here",
     "[**styled** words](https://example.com)",
     "a bare https://example.com/path link",
@@ -38,6 +41,25 @@ describe("rich editor Markdown round trip", () => {
       ],
     };
     expect(toMarkdown(doc)).toBe("**bold** plain");
+  });
+
+  it("writes bold ending in italic so it reads back", () => {
+    const bold = { type: "bold" };
+    const italic = { type: "italic" };
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "hello ", marks: [bold] },
+            { type: "text", text: "world", marks: [bold, italic] },
+          ],
+        },
+      ],
+    };
+    expect(toMarkdown(doc)).toBe("**hello *world***");
+    expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
   });
 
   it("escapes markup typed as text", () => {
