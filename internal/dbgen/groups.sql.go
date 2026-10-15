@@ -94,6 +94,36 @@ func (q *Queries) GetGroup(ctx context.Context, id string) (Group, error) {
 	return i, err
 }
 
+const listGroupHandlesByIDs = `-- name: ListGroupHandlesByIDs :many
+SELECT id, handle FROM groups WHERE id = ANY ($1::uuid[])
+`
+
+type ListGroupHandlesByIDsRow struct {
+	ID     string
+	Handle string
+}
+
+// ListGroupHandlesByIDs is the current handles behind mention tokens.
+func (q *Queries) ListGroupHandlesByIDs(ctx context.Context, ids []string) ([]ListGroupHandlesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, listGroupHandlesByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGroupHandlesByIDsRow
+	for rows.Next() {
+		var i ListGroupHandlesByIDsRow
+		if err := rows.Scan(&i.ID, &i.Handle); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGroupMemberIDsByHandles = `-- name: ListGroupMemberIDsByHandles :many
 SELECT DISTINCT gm.user_id
 FROM groups g
@@ -179,6 +209,43 @@ func (q *Queries) ListGroups(ctx context.Context, spaceID string) ([]Group, erro
 			&i.Name,
 			&i.CreatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGroupsByHandles = `-- name: ListGroupsByHandles :many
+SELECT id, handle FROM groups
+WHERE space_id = $1 AND handle = ANY ($2::text[])
+`
+
+type ListGroupsByHandlesParams struct {
+	SpaceID string
+	Handles []string
+}
+
+type ListGroupsByHandlesRow struct {
+	ID     string
+	Handle string
+}
+
+// ListGroupsByHandles is which groups a message's @@handles name, for
+// its mention tokens.
+func (q *Queries) ListGroupsByHandles(ctx context.Context, arg ListGroupsByHandlesParams) ([]ListGroupsByHandlesRow, error) {
+	rows, err := q.db.Query(ctx, listGroupsByHandles, arg.SpaceID, arg.Handles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListGroupsByHandlesRow
+	for rows.Next() {
+		var i ListGroupsByHandlesRow
+		if err := rows.Scan(&i.ID, &i.Handle); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

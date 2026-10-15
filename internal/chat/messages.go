@@ -73,7 +73,11 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 
-	res, err := s.resolveMentions(ctx, channel, participants, userID, content)
+	targets, err := s.lookupMentions(ctx, channel, participants, content)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.resolveMentions(ctx, channel, userID, content, targets)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +127,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	}
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
-			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: content,
+			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: encodeMentions(content, targets),
 			MentionsEntireChannel: res.entireChannel, MentionsHere: res.here, ReplyToMessageID: replyTo,
 			ThreadRootID: threadRootID, InChannel: threadRoot == nil || alsoSend,
 		})
@@ -178,15 +182,29 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 
-	// The message is saved: from here on nothing fails the send.
-	msg := toProtoMessage(row, authors, mentioned, spaceOf(channel))
+	// The message is saved: from here on nothing fails the send. Without
+	// the current names, tokens read as the handles they were written with.
+	stored := []string{row.Content}
+	if parent != nil {
+		stored = append(stored, parent.Content)
+	}
+	if alsoSend {
+		stored = append(stored, threadRoot.Content)
+	}
+	names, err := s.mentionNames(ctx, stored...)
+	if err != nil {
+		slog.Default().Warn("send: could not read mention names", "message_id", row.ID, "err", err)
+	}
+	shown := row
+	shown.Content = names.text(row.Content)
+	msg := toProtoMessage(shown, authors, mentioned, spaceOf(channel))
 	msg.Attachments = toProtoAttachments(attachments)
 	if parent != nil {
-		msg.ReplyTo = replyRef(parent.ID, authors[parent.AuthorID], &parent.Content, s.firstAttachmentName(ctx, parent.ID))
+		msg.ReplyTo = replyRef(parent.ID, authors[parent.AuthorID], names.textOf(&parent.Content), s.firstAttachmentName(ctx, parent.ID))
 	}
 	if alsoSend {
 		roots := map[string]dbgen.ThreadRootRefsRow{threadRoot.ID: {
-			ID: threadRoot.ID, AuthorID: threadRoot.AuthorID, Content: threadRoot.Content,
+			ID: threadRoot.ID, AuthorID: threadRoot.AuthorID, Content: names.text(threadRoot.Content),
 		}}
 		msg.ThreadRoot = s.threadRootRef(ctx, threadRoot.ID, roots, authors)
 	}
@@ -211,7 +229,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		}
 		s.publishThreadRead(userID, channel, threadRoot.ID, threadMarker)
 	}
-	s.recordActivity(ctx, row, channel, participants, parent, mentioned, msg.Author, attachments)
+	s.recordActivity(ctx, shown, channel, participants, parent, mentioned, msg.Author, attachments)
 	if previewing {
 		s.unfurlLater(row.ID, userID, channel.ID, linksToFetch)
 	}
@@ -432,10 +450,21 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		return nil, err
 	}
 
+	names, err := s.mentionNames(ctx, storedContents(rows, roots)...)
+	if err != nil {
+		return nil, err
+	}
+	for id, root := range roots {
+		root.Content = names.text(root.Content)
+		roots[id] = root
+	}
+
 	messages := make([]*chatv1.Message, len(rows))
 	rootRefs := map[string]*chatv1.ReplyRef{}
 	for index, row := range rows {
-		message := toProtoMessage(listedMessage(row), authors, mentions[row.ID], spaceID)
+		shown := listedMessage(row)
+		shown.Content = names.text(row.Content)
+		message := toProtoMessage(shown, authors, mentions[row.ID], spaceID)
 		message.Reactions = reactions[row.ID]
 		message.Attachments = attachments[row.ID]
 		message.LinkPreviews = previews[row.ID]
@@ -454,11 +483,27 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			if row.ReplyAuthorID != nil {
 				author = authors[*row.ReplyAuthorID]
 			}
-			message.ReplyTo = replyRef(*row.ReplyToMessageID, author, row.ReplyContent, replyFiles[row.ReplyFirstFileID].label())
+			message.ReplyTo = replyRef(*row.ReplyToMessageID, author, names.textOf(row.ReplyContent), replyFiles[row.ReplyFirstFileID].label())
 		}
 		messages[index] = message
 	}
 	return messages, nil
+}
+
+// storedContents is every content a page of messages shows: the
+// messages, their reply quotes and their thread roots.
+func storedContents(rows []dbgen.MessageWithReply, roots map[string]dbgen.ThreadRootRefsRow) []string {
+	contents := make([]string, 0, len(rows)+len(roots))
+	for _, row := range rows {
+		contents = append(contents, row.Content)
+		if row.ReplyContent != nil {
+			contents = append(contents, *row.ReplyContent)
+		}
+	}
+	for _, root := range roots {
+		contents = append(contents, root.Content)
+	}
+	return contents
 }
 
 // loadMessage reads one message and hydrates it, for the events that resend
@@ -505,12 +550,16 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return nil, err
 	}
-	// Mentions are not re-resolved on edit: no new activity, and the
-	// original recipients stay recorded. Links are: the previews follow
-	// the text, and land with it.
+	// Mentions are encoded but not re-resolved on edit: no new activity,
+	// and the original recipients stay recorded. Links are: the previews
+	// follow the text, and land with it.
+	targets, err := s.lookupMentions(ctx, channel, participants, content)
+	if err != nil {
+		return nil, err
+	}
 	var linksToFetch []string
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: content}); err != nil {
+		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: encodeMentions(content, targets)}); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return placeholderError()
 			}

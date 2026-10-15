@@ -3,9 +3,9 @@
 Everything in this document belongs to `internal/chat` — the largest
 module, and the only one whose surface is big enough that its files are
 organised by entity rather than by layer (`spaces.go`, `channels.go`,
-`messages.go`, `mentions.go`, `activity.go`, `reactions.go`,
-`invites.go`, `bans.go`, `blocks.go`, `dms.go`, `links.go`,
-`permissions.go`, `markdown.go`).
+`messages.go`, `mentions.go`, `mention_tokens.go`, `activity.go`,
+`reactions.go`, `invites.go`, `bans.go`, `blocks.go`, `dms.go`,
+`links.go`, `permissions.go`, `markdown.go`).
 
 ## The container model
 
@@ -97,7 +97,8 @@ deliberate:
    [announcement channel](#announcement-channels).
 3. **Claim attachments** — check each id through the `FileDirectory` port
    for kind, owner and space ([files.md](files.md)).
-4. **Resolve mentions** against the channel's people.
+4. **Resolve mentions** against the channel's people, and encode them
+   as [tokens](#mention-tokens).
 5. **Resolve the reply parent**, which must be a message in the same
    channel, and the authors the event will carry.
 6. **One transaction**: insert the message, its `message_attachments`,
@@ -237,6 +238,36 @@ read a public channel, so the group's people are reached as they are,
 minus the author, and materialised into `message_mentions` with everyone
 else. When `@channel` or `@here` applies it decides alone, as it does for
 `@handle`.
+
+### Mention tokens
+
+Stored content names who a mention means, not the handle it was typed
+with, so a rename carries through old messages and whoever takes an old
+name later doesn't inherit its mentions. `mention_tokens.go` does both
+directions:
+
+- **Writing.** On send and edit, each `@handle` that names a reader of
+  the channel and each `@@handle` that names a group becomes
+  `<@u:ID:handle>` or `<@g:ID:handle>`. A handle naming nobody, and
+  `@channel` and `@here`, stay text. The 4000-character limit counts the
+  text as written; stored content can be longer. An edit encodes but
+  tells nobody new.
+- **Reading.** Tokens turn back into the current `@handle` or
+  `@@handle` text before content leaves the module: in
+  `hydrateMessages` (every list, search, pin and resent message, with
+  reply quotes and thread-root lines), on the send path, and in activity
+  previews. One users call and one groups query cover a page. A token
+  whose person or group is gone reads as the handle it was written with.
+  Clients, bots and outgoing webhooks only ever see text.
+- **Search** indexes the token's words, so a message is found by the
+  handle it was written with, not a later one.
+- **Typed by hand**, a token is saved as the handle it carries and tells
+  nobody, so no ID the server didn't look up is stored or read back.
+- Messages from before tokens keep their plain text.
+
+A group's handle change sends `groups_changed`; a username change sends
+no event yet, so an open tab shows the new name the next time it loads
+the messages.
 
 ## Activity
 
