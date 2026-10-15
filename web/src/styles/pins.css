@@ -81,17 +81,14 @@
 }
 
 .pin-row-open {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 2px 8px;
   padding: 8px;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
+  border-radius: var(--radius);
 }
 
 /* The avatar column beside the three lines of text; a files strip, when
@@ -100,12 +97,40 @@
   grid-row: 1 / span 3;
 }
 
+/* The row's one way in: the who-and-when line, its hit area stretched
+   over the whole row; the ring goes round the row too. */
 .pin-row-title {
   display: flex;
   align-items: baseline;
   gap: 6px;
   min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
   font-size: var(--text-ui);
+  text-align: left;
+}
+
+.pin-row-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.pin-row-title:focus-visible {
+  outline: none;
+}
+
+.pin-row-open:has(.pin-row-title:focus-visible) {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* The message's links and spoilers, and its files, sit above the
+   stretched hit area: later in the tree and positioned, they paint over
+   it. */
+.pin-row-body :is(a, button) {
+  position: relative;
 }
 
 .pin-row-title strong {
@@ -130,6 +155,7 @@
 
 /* A files strip takes its own line beside the avatar, under the words. */
 .pin-row-files {
+  position: relative;
   grid-column: 2;
   min-width: 0;
 }
