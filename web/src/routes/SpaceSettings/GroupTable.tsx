@@ -1,5 +1,7 @@
 import { useMemo, useRef } from "react";
 import { groupCount } from "../../api/groups";
+import { mentionToken } from "../../api/mentions";
+import { CopyButton } from "../../components/CopyButton";
 import { DataTable, type TableColumn } from "../../components/DataTable";
 import { DotsMenu } from "../../components/DotsMenu";
 import { PeopleIcon } from "../../components/Icons";
@@ -43,6 +45,14 @@ export function GroupTable({
               </strong>
               <span className="muted small">@{group.handle}</span>
             </div>
+            <CopyButton
+              label="Copy mention"
+              text={mentionToken({
+                kind: "group",
+                id: group.id,
+                handle: group.handle,
+              })}
+            />
           </div>
         ),
       },
