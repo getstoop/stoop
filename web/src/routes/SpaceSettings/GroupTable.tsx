@@ -41,7 +41,7 @@ export function GroupTable({
               <strong>
                 {group.name} <span className="muted">{groupCount(group)}</span>
               </strong>
-              <span className="muted small">@@{group.handle}</span>
+              <span className="muted small">@{group.handle}</span>
             </div>
           </div>
         ),
@@ -60,7 +60,7 @@ export function GroupTable({
         meta: { width: 64, actions: true },
         cell: ({ row: { original: group } }) => (
           <DotsMenu
-            label={`Actions for @@${group.handle}`}
+            label={`Actions for @${group.handle}`}
             items={[
               { label: "Edit", onSelect: () => latest.current.onEdit(group) },
               {
@@ -82,9 +82,9 @@ export function GroupTable({
       columns={columns}
       rowId={(group) => group.id}
       search={{
-        placeholder: "Filter by name or @@handle",
+        placeholder: "Filter by name or @handle",
         label: "Filter groups",
-        text: (group) => `${group.name} @@${group.handle}`,
+        text: (group) => `${group.name} @${group.handle}`,
       }}
       noun={["group", "groups"]}
       empty="No groups yet."

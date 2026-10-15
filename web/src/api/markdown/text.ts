@@ -47,6 +47,8 @@ function inlineText(nodes: Inline[]): string {
           return n.text;
         case "link":
           return n.label ? inlineText(n.label) : n.href;
+        case "mention":
+          return `@${n.mention.handle}`;
         default:
           return inlineText(n.children);
       }

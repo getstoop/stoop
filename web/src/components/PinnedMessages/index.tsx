@@ -26,7 +26,7 @@ export function PinnedMessages({
   const { data: spaces } = useSpaces();
   const { data: members } = useMembers(spaceId);
   const space = spaces?.find((s) => s.id === spaceId);
-  const usernames = mentionMembers(members);
+  const membersById = mentionMembers(members);
   const groups = useChannelGroups(spaceId, channelId);
   const manage = !!space && canManageChannels(space);
   const { data: pins, isPending } = usePins(channelId, open);
@@ -97,7 +97,7 @@ export function PinnedMessages({
                   <PinRow
                     key={pin.message.id}
                     pin={pin}
-                    usernames={usernames}
+                    members={membersById}
                     groups={groups}
                     canUnpin={manage}
                     onOpen={() => {

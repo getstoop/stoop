@@ -5,12 +5,12 @@ import { chatClient } from "./clients";
 import { type MentionGroups, mentionGroups, NO_GROUPS } from "./mentions";
 import { channelsQuery } from "./queries";
 
-// A space's groups, each mentioned all at once as @@handle in its public
+// A space's groups, each mentioned all at once as @handle in its public
 // channels (docs/architecture/messaging.md → Groups).
 export const groupsKey = (spaceId: string) => ["groups", spaceId];
 
 export const GROUP_HANDLE_HINT =
-  "What people type after @@. Letters, numbers and _.";
+  "What people type after @. Letters, numbers and _.";
 export const MAX_GROUP_NAME = 50;
 
 export function useGroups(spaceId: string) {
@@ -21,9 +21,8 @@ export function useGroups(spaceId: string) {
   });
 }
 
-// The groups @@handle reaches in a channel: a space's public channels
-// only. In a private channel or a DM there are none, so the token stays
-// plain text, as it does for the server.
+// The groups a mention reaches in a channel: a space's public channels
+// only. In a private channel or a DM there are none, as for the server.
 export function useChannelGroups(
   spaceId: string,
   channelId: string,

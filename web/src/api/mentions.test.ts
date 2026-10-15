@@ -2,16 +2,25 @@ import { describe, expect, it } from "vitest";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import {
-  candidateText,
+  candidateMention,
+  currentHandle,
   filterMembers,
   groupMentionClass,
   mentionCandidates,
+  mentionGroups,
+  mentionMembers,
   mentionQueryAt,
-  splitMentions,
+  mentionToken,
+  mentionTokenAt,
+  soleMention,
+  splitEveryone,
 } from "./mentions";
 
 const member = (username: string, displayName = ""): Member =>
   ({ userId: username, username, displayName }) as Member;
+
+const group = (handle: string, name: string, userIds: string[] = []): Group =>
+  ({ id: handle, handle, name, userIds }) as unknown as Group;
 
 const members = [
   member("casey", "Casey Q."),
@@ -19,8 +28,6 @@ const members = [
   member("bea"),
   member("cal", "Callisto"),
 ];
-
-const known = new Set(["casey", "ada", "bea", "cal", "ada_w"]);
 
 describe("mentionQueryAt", () => {
   it("reads the handle being typed at the caret", () => {
@@ -57,22 +64,8 @@ describe("mentionQueryAt", () => {
     expect(mentionQueryAt("mail casey@", 11)).toBeNull();
   });
 
-  it("opens a group query on @@", () => {
-    expect(mentionQueryAt("@@ga", 4)).toEqual({
-      start: 0,
-      query: "ga",
-      group: true,
-    });
-    expect(mentionQueryAt("hi @@", 5)).toEqual({
-      start: 3,
-      query: "",
-      group: true,
-    });
-  });
-
-  it("does not open on a third @ or on @@ stuck to a word", () => {
-    expect(mentionQueryAt("@@@ga", 5)).toBeNull();
-    expect(mentionQueryAt("mail casey@@ga", 14)).toBeNull();
+  it("does not open on @@", () => {
+    expect(mentionQueryAt("@@ga", 4)).toBeNull();
   });
 
   it("opens after punctuation and after a newline", () => {
@@ -152,145 +145,73 @@ describe("filterMembers", () => {
   });
 });
 
-describe("splitMentions", () => {
-  it("returns nothing for an empty message", () => {
-    expect(splitMentions("", known)).toEqual([]);
+describe("mention tokens", () => {
+  const id = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8b";
+
+  it("reads and writes a person and a group", () => {
+    expect(mentionTokenAt(`<@u:${id}:casey> hi`)).toEqual({
+      mention: { kind: "person", id, handle: "casey" },
+      length: 47,
+    });
+    expect(mentionToken({ kind: "group", id, handle: "crew" })).toBe(
+      `<@g:${id}:crew>`,
+    );
   });
 
-  it("leaves a message without mentions in one piece", () => {
-    expect(splitMentions("hello there", known)).toEqual([
-      { text: "hello there" },
-    ]);
-  });
-
-  it("marks a handle that belongs to a member", () => {
-    expect(splitMentions("hi @ada!", known)).toEqual([
-      { text: "hi " },
-      { text: "@ada", mention: "ada" },
-      { text: "!" },
-    ]);
-  });
-
-  it("keeps the typed case in the text and lowercases the mention", () => {
-    expect(splitMentions("@Ada", known)).toEqual([
-      { text: "@Ada", mention: "ada" },
-    ]);
-  });
-
-  it("marks each of several mentions", () => {
-    expect(splitMentions("@ada and @bea", known)).toEqual([
-      { text: "@ada", mention: "ada" },
-      { text: " and " },
-      { text: "@bea", mention: "bea" },
-    ]);
-  });
-
-  it("leaves a handle nobody holds as plain text", () => {
-    expect(splitMentions("hi @nobody", known)).toEqual([
-      { text: "hi @nobody" },
-    ]);
-  });
-
-  it("does not mention out of an email address", () => {
-    expect(splitMentions("mail casey@example.com", known)).toEqual([
-      { text: "mail casey@example.com" },
-    ]);
-  });
-
-  it("needs three characters, so a short handle never mentions", () => {
-    expect(splitMentions("@cy", new Set(["cy"]))).toEqual([{ text: "@cy" }]);
-  });
-
-  it("stops the handle at punctuation but keeps the underscore", () => {
-    expect(splitMentions("@ada_w's turn", known)).toEqual([
-      { text: "@ada_w", mention: "ada_w" },
-      { text: "'s turn" },
-    ]);
-    expect(splitMentions("(@bea)", known)).toEqual([
-      { text: "(" },
-      { text: "@bea", mention: "bea" },
-      { text: ")" },
-    ]);
-  });
-
-  // The second @ is not a boundary the token rule accepts, so only the
-  // first handle in a run is a mention.
-  it("takes only the first handle when two are stuck together", () => {
-    expect(splitMentions("@ada@bea", known)).toEqual([
-      { text: "@ada", mention: "ada" },
-      { text: "@bea" },
-    ]);
-  });
-
-  it("mentions @channel and @here only when the message carries them", () => {
-    expect(splitMentions("@channel", known)).toEqual([{ text: "@channel" }]);
-    expect(splitMentions("@channel", known, true)).toEqual([
-      { text: "@channel", mention: "channel" },
-    ]);
-    expect(splitMentions("@here", known, true)).toEqual([{ text: "@here" }]);
-    expect(splitMentions("@here", known, false, true)).toEqual([
-      { text: "@here", mention: "here" },
-    ]);
-  });
-
-  it("takes @Channel written in any case", () => {
-    expect(splitMentions("@Channel", known, true)).toEqual([
-      { text: "@Channel", mention: "channel" },
-    ]);
-  });
-
-  it("keeps the text either side of a skipped handle intact", () => {
-    expect(splitMentions("a @nobody b @ada c", known)).toEqual([
-      { text: "a @nobody b " },
-      { text: "@ada", mention: "ada" },
-      { text: " c" },
-    ]);
-  });
-
-  // The token regex is module-level and global; matchAll must not leave
-  // lastIndex behind for the next message.
-  it("gives the same answer on a second pass", () => {
-    const once = splitMentions("hi @ada", known);
-    expect(splitMentions("hi @ada", known)).toEqual(once);
+  it("refuses what isn't one", () => {
+    expect(mentionTokenAt(`hi <@u:${id}:casey>`)).toBeNull();
+    expect(mentionTokenAt("<@u:not-an-id:casey>")).toBeNull();
+    expect(mentionTokenAt(`<@x:${id}:casey>`)).toBeNull();
   });
 });
 
-const group = (handle: string, name: string, userIds: string[] = []): Group =>
-  ({ id: handle, handle, name, userIds }) as unknown as Group;
+describe("soleMention and currentHandle", () => {
+  const people = mentionMembers(members);
+  const crew = mentionGroups([group("gardeners", "Garden crew")]);
 
-const groups = new Set(["gardeners", "ada"]);
+  it("names the one person or group with the handle", () => {
+    expect(soleMention("Casey", people, crew)).toEqual({
+      kind: "person",
+      id: "casey",
+      handle: "casey",
+    });
+    expect(soleMention("gardeners", people, crew)?.kind).toBe("group");
+    expect(soleMention("nobody", people, crew)).toBeNull();
+    expect(soleMention("channel", people, crew)).toBeNull();
+  });
 
-describe("splitMentions with groups", () => {
-  it("marks an @@handle that names a group", () => {
+  it("names nobody when a person and a group share it", () => {
     expect(
-      splitMentions("hi @@Gardeners!", known, false, false, groups),
-    ).toEqual([
+      soleMention("bea", people, mentionGroups([group("bea", "Not Bea")])),
+    ).toBeNull();
+  });
+
+  it("reads the current handle, or null when it can't be found", () => {
+    expect(
+      currentHandle({ kind: "person", id: "ada", handle: "old" }, people, crew),
+    ).toBe("ada");
+    expect(
+      currentHandle(
+        { kind: "person", id: "gone", handle: "old" },
+        people,
+        crew,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("splitEveryone", () => {
+  it("marks @channel and @here only when the message used them", () => {
+    expect(splitEveryone("@channel and @here", false, false)).toEqual([
+      { text: "@channel and @here" },
+    ]);
+    expect(splitEveryone("hi @Channel!", true)).toEqual([
       { text: "hi " },
-      { text: "@@Gardeners", mention: "gardeners", group: true },
+      { text: "@Channel", everyone: true },
       { text: "!" },
     ]);
-  });
-
-  it("tells a person from a group with the same handle", () => {
-    expect(splitMentions("@ada @@ada", known, false, false, groups)).toEqual([
-      { text: "@ada", mention: "ada" },
-      { text: " " },
-      { text: "@@ada", mention: "ada", group: true },
-    ]);
-  });
-
-  it("leaves @@handle plain where no group has it, or groups do nothing", () => {
-    expect(splitMentions("@@nobody", known, false, false, groups)).toEqual([
-      { text: "@@nobody" },
-    ]);
-    expect(splitMentions("@@gardeners", known)).toEqual([
-      { text: "@@gardeners" },
-    ]);
-  });
-
-  it("never reads @@channel as @channel", () => {
-    expect(splitMentions("@@channel", known, true, true, groups)).toEqual([
-      { text: "@@channel" },
+    expect(splitEveryone("mail me@here.org", true, true)).toEqual([
+      { text: "mail me@here.org" },
     ]);
   });
 });
@@ -310,22 +231,18 @@ describe("mentionCandidates", () => {
       "group",
       "member",
     ]);
-    expect(candidateText(rows[0])).toBe("@channel ");
-    expect(candidateText(rows[2])).toBe("@@gardeners ");
+    expect(candidateMention(rows[0])).toBeNull();
+    expect(candidateMention(rows[2])).toEqual({
+      kind: "group",
+      id: crew.id,
+      handle: "gardeners",
+    });
   });
 
   it("matches a group on its handle or its name", () => {
     expect(mentionCandidates([], [crew, captains], "gard")).toHaveLength(1);
     expect(mentionCandidates([], [crew, captains], "watch")).toHaveLength(1);
     expect(mentionCandidates([], [crew, captains], "garden c")).toHaveLength(1);
-  });
-
-  it("offers groups alone after @@", () => {
-    const rows = mentionCandidates(members, [crew], "", {
-      channelAndHere: true,
-      groupsOnly: true,
-    });
-    expect(rows.map((row) => row.kind)).toEqual(["group"]);
   });
 });
 

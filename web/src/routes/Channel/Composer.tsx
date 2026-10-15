@@ -21,7 +21,7 @@ import { type Format, shortcutFormat } from "../../api/formatting";
 import { useChannelGroups } from "../../api/groups";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import {
-  candidateText,
+  candidateMention,
   type MentionCandidate,
   mentionCandidates,
   mentionMembers,
@@ -196,7 +196,6 @@ export function Composer({
     mention && members
       ? mentionCandidates(members, [...groups.values()], mention.query, {
           channelAndHere,
-          groupsOnly: mention.group,
         })
       : [];
 
@@ -225,10 +224,15 @@ export function Composer({
 
   const pick = (candidate: MentionCandidate) => {
     if (!mention) return;
-    inputRef.current?.replaceBeforeCaret(
-      (mention.group ? 2 : 1) + mention.query.length,
-      candidateText(candidate),
-    );
+    const typed = 1 + mention.query.length;
+    const ref = candidateMention(candidate);
+    if (ref) inputRef.current?.mentionBeforeCaret(typed, ref);
+    else if (candidate.kind === "member") {
+      inputRef.current?.replaceBeforeCaret(
+        typed,
+        `@${candidate.member.username} `,
+      );
+    }
     setMention(null);
   };
 

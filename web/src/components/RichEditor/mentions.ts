@@ -1,34 +1,43 @@
-import type { Node } from "prosemirror-model";
-import { Plugin, PluginKey } from "prosemirror-state";
+import type { Mark, Node } from "prosemirror-model";
+import { Plugin, PluginKey, type Transaction } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import {
+  currentHandle,
   groupMentionClass,
   type MentionGroups,
   type MentionMembers,
+  type MentionRef,
   mentionClass,
   NO_GROUPS,
-  splitMentions,
+  NO_MEMBERS,
+  soleMention,
+  splitEveryone,
 } from "../../api/mentions";
 import { schema } from "./schema";
 
-// Mentions stay plain text in the document; this draws a handle that
-// names a member or a group as the pill the message will show.
+// A mention is a node carrying who it names. This plugin draws each as
+// its pill, keeps its handle current, and turns a handle typed in full
+// into one when exactly one person or group has it.
 
 export interface MentionContext {
+  // The people who can read the channel, by user ID.
   members: MentionMembers;
   // Whether @channel and @here are ours to use here.
   channelAndHere: boolean;
-  // The groups @@handle names here; none in a private channel or a DM.
+  // The groups mentions name here, by ID; none in a private channel or a DM.
   groups: MentionGroups;
 }
 
 export const NO_MENTIONS: MentionContext = {
-  members: new Map(),
+  members: NO_MEMBERS,
   channelAndHere: false,
   groups: NO_GROUPS,
 };
 
 export const mentionsKey = new PluginKey<DecorationSet>("mentions");
+
+const inCode = (node: Node) =>
+  node.marks.some((mark) => mark.type === schema.marks.code);
 
 export function mentionDecorations(
   doc: Node,
@@ -37,23 +46,28 @@ export function mentionDecorations(
   const decos: Decoration[] = [];
   doc.descendants((node, pos) => {
     if (node.type.spec.code) return false;
-    if (!node.isText || !node.text) return true;
-    if (node.marks.some((m) => m.type === schema.marks.code)) return true;
+    if (node.type === schema.nodes.mention) {
+      const ref = node.attrs as MentionRef;
+      decos.push(
+        Decoration.node(pos, pos + node.nodeSize, {
+          class:
+            ref.kind === "group"
+              ? groupMentionClass(groups.get(ref.id))
+              : mentionClass(members.get(ref.id)),
+        }),
+      );
+      return false;
+    }
+    if (!node.isText || !node.text || inCode(node)) return true;
     let at = pos;
-    for (const part of splitMentions(
+    for (const part of splitEveryone(
       node.text,
-      members,
       channelAndHere,
       channelAndHere,
-      groups,
     )) {
-      if (part.mention) {
+      if (part.everyone) {
         decos.push(
-          Decoration.inline(at, at + part.text.length, {
-            class: part.group
-              ? groupMentionClass(groups.get(part.mention))
-              : mentionClass(part.mention, members),
-          }),
+          Decoration.inline(at, at + part.text.length, { class: "mention" }),
         );
       }
       at += part.text.length;
@@ -61,6 +75,80 @@ export function mentionDecorations(
     return true;
   });
   return DecorationSet.create(doc, decos);
+}
+
+// "@handle" with something after it that can't be part of a handle: the
+// handle is typed in full. Not after a letter, a digit or another "@".
+const TYPED_HANDLE = /(^|[^a-z0-9_@])@([a-z0-9_]{3,32})(?=[^a-z0-9_])/gi;
+const ADDRESS = /https?:\/\/[^\s<]+/gi;
+
+// The transaction that turns typed handles into mentions and brings each
+// mention's handle up to date, or null when there is nothing to change.
+export function settleMentions(
+  tr: Transaction,
+  { members, groups }: MentionContext,
+): Transaction | null {
+  const replacements: Replacement[] = [];
+  const renames: { pos: number; ref: MentionRef }[] = [];
+  tr.doc.descendants((node, pos) => {
+    if (node.type.spec.code) return false;
+    if (node.type === schema.nodes.mention) {
+      const ref = node.attrs as MentionRef;
+      const handle = currentHandle(ref, members, groups);
+      if (handle && handle !== ref.handle) {
+        renames.push({ pos, ref: { ...ref, handle } });
+      }
+      return false;
+    }
+    if (!node.isText || !node.text || inCode(node)) return true;
+    if (node.marks.some((mark) => mark.type === schema.marks.link)) return true;
+    const addresses = [...node.text.matchAll(ADDRESS)].map((m) => [
+      m.index,
+      m.index + m[0].length,
+    ]);
+    for (const match of node.text.matchAll(TYPED_HANDLE)) {
+      const [, lead, handle] = match;
+      const start = (match.index ?? 0) + lead.length;
+      if (addresses.some(([from, to]) => start >= from && start < to)) continue;
+      const ref = soleMention(handle, members, groups);
+      if (!ref) continue;
+      replacements.push({
+        from: pos + start,
+        to: pos + start + handle.length + 1,
+        ref,
+        marks: node.marks,
+      });
+    }
+    return true;
+  });
+  if (replacements.length === 0 && renames.length === 0) return null;
+  return applyMentions(tr, replacements, renames);
+}
+
+interface Replacement {
+  from: number;
+  to: number;
+  ref: MentionRef;
+  marks: readonly Mark[];
+}
+
+function applyMentions(
+  tr: Transaction,
+  replacements: Replacement[],
+  renames: { pos: number; ref: MentionRef }[],
+): Transaction {
+  for (const { pos, ref } of renames) {
+    tr.setNodeMarkup(pos, undefined, { ...ref });
+  }
+  // Last first, so earlier positions stay where they were.
+  for (const { from, to, ref, marks } of [...replacements].reverse()) {
+    tr.replaceWith(
+      from,
+      to,
+      schema.nodes.mention.create({ ...ref }, null, marks),
+    );
+  }
+  return tr;
 }
 
 // A transaction carrying mentionsKey redraws for new members or groups.
@@ -73,6 +161,21 @@ export function mentions(context: () => MentionContext) {
         tr.docChanged || tr.getMeta(mentionsKey)
           ? mentionDecorations(tr.doc, context())
           : old,
+    },
+    appendTransaction(transactions, _old, state) {
+      if (
+        !transactions.some((tr) => tr.docChanged || tr.getMeta(mentionsKey))
+      ) {
+        return null;
+      }
+      const tr = state.tr;
+      const settled = settleMentions(tr, context());
+      if (!settled) return null;
+      // Bringing a handle up to date isn't an edit to undo.
+      if (!transactions.some((t) => t.docChanged)) {
+        settled.setMeta("addToHistory", false);
+      }
+      return settled;
     },
     props: {
       decorations(state) {

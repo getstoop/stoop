@@ -30,9 +30,9 @@ export function MessageRow({
   canDelete,
   canPin,
   editing,
-  usernames,
+  members,
   groups,
-  myUsername,
+  myUserId,
   threadOpen,
   canStartThread,
   withDay = false,
@@ -58,10 +58,10 @@ export function MessageRow({
   canDelete: boolean;
   canPin: boolean;
   editing: boolean;
-  usernames: MentionMembers;
-  // The groups @@handle names in this channel.
+  members: MentionMembers;
+  // The groups mentions name in this channel, by ID.
   groups: MentionGroups;
-  myUsername?: string;
+  myUserId?: string;
   // Its thread is the one open in the side panel.
   threadOpen: boolean;
   // The toolbar offers to start a thread (not in an announcement channel).
@@ -236,7 +236,11 @@ export function MessageRow({
         />
       </div>
       {editing ? (
-        <MessageEditor message={message} onDone={() => onEdit(null)} />
+        <MessageEditor
+          message={message}
+          mentions={{ members, groups, channelAndHere: false }}
+          onDone={() => onEdit(null)}
+        />
       ) : null}
       <div
         className={`message-content ${emojiOnly(message.content) ? "emoji-only" : ""}`}
@@ -244,10 +248,10 @@ export function MessageRow({
       >
         <MessageBody
           content={message.content}
-          usernames={usernames}
+          members={members}
           mentionsEntireChannel={message.mentionsEntireChannel}
           mentionsHere={message.mentionsHere}
-          myUsername={myUsername}
+          myUserId={myUserId}
           onMention={onCard}
           groups={groups}
           onGroup={onGroup}

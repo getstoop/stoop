@@ -3,6 +3,7 @@ import { EditorState, Selection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import type { Format } from "../../api/formatting";
+import type { MentionRef } from "../../api/mentions";
 import { activeFormats, formatCommands } from "./commands";
 import { LinkDialog } from "./LinkDialog";
 import {
@@ -26,6 +27,8 @@ export interface RichField {
   format(format: Format): void;
   // Replace the `count` characters before the caret (a picker's query).
   replaceBeforeCaret(count: number, text: string): void;
+  // The same, with a mention and a space after it.
+  mentionBeforeCaret(count: number, mention: MentionRef): void;
   focus(): void;
 }
 
@@ -188,6 +191,17 @@ export function RichEditor({
         const { from: pos, $from } = view.state.selection;
         if (count > $from.parentOffset) return;
         view.dispatch(view.state.tr.insertText(text, pos - count, pos));
+        view.focus();
+      },
+      mentionBeforeCaret: (count, mention) => {
+        const { from: pos, $from } = view.state.selection;
+        if (count > $from.parentOffset) return;
+        const node = schema.nodes.mention.create({ ...mention });
+        view.dispatch(
+          view.state.tr
+            .replaceWith(pos - count, pos, node)
+            .insertText(" ", pos - count + node.nodeSize),
+        );
         view.focus();
       },
       focus: () => view.focus(),

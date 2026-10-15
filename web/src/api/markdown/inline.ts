@@ -1,6 +1,7 @@
+import { mentionTokenAt } from "../mentions";
 import type { Inline } from "./types";
 
-// Inline syntax, left to right: escapes, `code`, bare http(s) links,
+// Inline syntax, left to right: mention tokens, escapes, `code`, bare http(s) links,
 // [words](https://address), ***both***, then **bold**, __underline__,
 // ~~strike~~, ||spoiler|| and *italic*. `_italic_` is deliberately absent
 // so @user_names survive.
@@ -40,6 +41,7 @@ class InlineParser {
   parse(): Inline[] {
     while (this.i < this.s.length) {
       if (
+        this.mention() ||
         this.escape() ||
         this.code() ||
         this.bareLink() ||
@@ -65,6 +67,18 @@ class InlineParser {
   private flush() {
     if (this.text) this.out.push({ type: "text", text: this.text });
     this.text = "";
+  }
+
+  // A token is whole: its handle may hold "__", which isn't underline.
+  private mention(): boolean {
+    const { s, i } = this;
+    if (s[i] !== "<") return false;
+    const token = mentionTokenAt(s.slice(i));
+    if (!token) return false;
+    return this.emit(
+      { type: "mention", mention: token.mention },
+      i + token.length,
+    );
   }
 
   private escape(): boolean {

@@ -49,6 +49,38 @@ export const schema = new Schema({
       toDOM: () => ["pre", ["code", 0]],
     },
     text: { group: "inline" },
+    // A mention is one unit: it carries who it names, and reads as the
+    // handle. The mentions plugin keeps the handle current.
+    mention: {
+      group: "inline",
+      inline: true,
+      atom: true,
+      attrs: { kind: {}, id: {}, handle: {} },
+      leafText: (node) => `@${node.attrs.handle}`,
+      parseDOM: [
+        {
+          tag: "span[data-mention-id]",
+          getAttrs: (dom) => {
+            const el = dom as HTMLElement;
+            return {
+              kind: el.dataset.mentionKind,
+              id: el.dataset.mentionId,
+              handle: el.dataset.mentionHandle,
+            };
+          },
+        },
+      ],
+      toDOM: (node) => [
+        "span",
+        {
+          class: "mention",
+          "data-mention-kind": node.attrs.kind,
+          "data-mention-id": node.attrs.id,
+          "data-mention-handle": node.attrs.handle,
+        },
+        `@${node.attrs.handle}`,
+      ],
+    },
   },
   marks: {
     link: {
