@@ -36,6 +36,7 @@ func TestPlainTextMirrorsTheClient(t *testing.T) {
 		{"*italic* line", "italic line"},
 		{"a || b", "a || b"},
 		{`\- not a list`, "- not a list"},
+		{`1\. not a list`, "1. not a list"},
 		{"  a\n\n  b  ", "a b"},
 		{"> quoted\n- item\n```\ncode\n```", "quoted item code"},
 		{"see https://example.com now", "see https://example.com now"},
@@ -135,6 +136,7 @@ func TestParseMarkdownBlocks(t *testing.T) {
 		{"```objective-c\nx\n```\nafter", []blockKind{blockCode, blockLines}},
 		{"```f#\nx\n```\nafter", []blockKind{blockCode, blockLines}},
 		{"> - item", []blockKind{blockQuote}},
+		{`1\. x`, []blockKind{blockLines}},
 	}
 	for _, c := range cases {
 		if got := kinds(c.in); !reflect.DeepEqual(got, c.want) {

@@ -395,6 +395,12 @@ describe("parseMarkdown", () => {
       { type: "quote", lines: [[text("- item")]] },
     ]);
   });
+
+  it("reads an escaped number as a line, not a list", () => {
+    expect(parseMarkdown("1\\. not a list")).toEqual([
+      { type: "lines", lines: [[text("1. not a list")]] },
+    ]);
+  });
 });
 
 describe("plainText mirrors the server", () => {
@@ -425,6 +431,7 @@ describe("plainText mirrors the server", () => {
     ["*italic* line", "italic line"],
     ["a || b", "a || b"],
     ["\\- not a list", "- not a list"],
+    ["1\\. not a list", "1. not a list"],
     ["see [the docs](https://example.com/a) now", "see the docs now"],
     ["[**bold** words](https://a.b/x_(y))", "bold words"],
     ["[a](not an address)", "[a](not an address)"],

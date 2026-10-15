@@ -57,7 +57,7 @@ var (
 	mdWhitespace = regexp.MustCompile(`\s*\n\s*`)
 )
 
-const escapable = "\\`*_~>|#[]()-"
+const escapable = "\\`*_~>|#[]().-"
 
 // Delimiters longest first so "**" wins over "*".
 var delims = []string{"**", "__", "~~", "||", "*"}
