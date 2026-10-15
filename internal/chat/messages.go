@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -37,11 +38,25 @@ func clampPageSize(requested, fallback, maximum int32) int32 {
 	return min(requested, maximum)
 }
 
+// refuseNul refuses content holding a NUL, which Postgres text can't store.
+func refuseNul(content string) error {
+	if strings.ContainsRune(content, 0) {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("message can't contain a NUL character"))
+	}
+	return nil
+}
+
 func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.SendMessageRequest]) (*connect.Response[chatv1.SendMessageResponse], error) {
 	userID := authctx.UserID(ctx)
 	content := req.Msg.Content
-	// Text is optional when there are attachments; the length cap always
-	// applies.
+	if err := refuseNul(content); err != nil {
+		return nil, err
+	}
+	// Text is optional when there are attachments, and blank text is none;
+	// the length cap always applies.
+	if strings.TrimSpace(content) == "" {
+		content = ""
+	}
 	if (content == "" && len(req.Msg.AttachmentIds) == 0) || writtenLength(content) > maxMessageLen {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("message must be 1-%d characters or carry an attachment", maxMessageLen))
@@ -520,7 +535,10 @@ func (s *Service) loadMessage(ctx context.Context, messageID, spaceID string) (*
 func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.EditMessageRequest]) (*connect.Response[chatv1.EditMessageResponse], error) {
 	content := req.Msg.Content
 	previewing := s.linkPreviewsOn(ctx)
-	if content == "" || writtenLength(content) > maxMessageLen {
+	if err := refuseNul(content); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(content) == "" || writtenLength(content) > maxMessageLen {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("message must be 1-%d characters", maxMessageLen))
 	}

@@ -159,8 +159,18 @@ func TestAttachments(t *testing.T) {
 	}
 	_, err = send(owner, "")
 	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "empty message without attachments")
+	_, err = send(owner, "   \n ")
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "blank message without attachments")
+	_, err = send(owner, "a\x00b", newFile(t, pool, owner, spaceID, "attachment", "nul.txt"))
+	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "NUL byte")
 	if count := countMessages(); count != before {
 		t.Errorf("rejected sends created %d messages", count-before)
+	}
+
+	// Blank text with a file is a file-only message.
+	blank, err := send(owner, " \n ", newFile(t, pool, owner, spaceID, "attachment", "blank.txt"))
+	if err != nil || blank.Content != "" {
+		t.Errorf("blank text with a file: %+v %v", blank, err)
 	}
 
 	// Deleting the message deletes its files through the port.
