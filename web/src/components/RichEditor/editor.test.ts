@@ -425,6 +425,20 @@ describe("mentions", () => {
     expect(next && md(next)).toBe("```\nblock @casey end\n```");
   });
 
+  it("turns a mention given the code style into its words", () => {
+    const state = stateOf(`hi ${casey}`);
+    const all = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(state.doc, 1, state.doc.content.size - 1),
+      ),
+    );
+    const coded = run(all, formatCommands.code)!;
+    const tr = settleMentions(coded.tr, context)!;
+    const doc = coded.apply(tr).doc;
+    expect(doc.textContent).toBe("hi @casey");
+    expect(drawn(md(coded.apply(tr)))).toEqual([]);
+  });
+
   it("counts a mention as its handle against the limit", () => {
     expect(writtenLength(`hi ${casey}`)).toBe("hi @casey".length);
   });

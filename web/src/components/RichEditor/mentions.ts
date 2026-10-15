@@ -17,7 +17,8 @@ import { schema } from "./schema";
 
 // A mention is a node carrying who it names. This plugin draws each as
 // its pill, keeps its handle current, and turns a handle typed in full
-// into one when exactly one person or group has it.
+// into one when exactly one person or group has it. A mention given the
+// code style becomes its words, as mentions don't work in code.
 
 export interface MentionContext {
   // The people who can read the channel, by user ID.
@@ -90,9 +91,14 @@ export function settleMentions(
 ): Transaction | null {
   const replacements: Replacement[] = [];
   const renames: { pos: number; ref: MentionRef }[] = [];
+  const inCodeMentions: { pos: number; node: Node }[] = [];
   tr.doc.descendants((node, pos) => {
     if (node.type.spec.code) return false;
     if (node.type === schema.nodes.mention) {
+      if (inCode(node)) {
+        inCodeMentions.push({ pos, node });
+        return false;
+      }
       const ref = node.attrs as MentionRef;
       const handle = currentHandle(ref, members, groups);
       if (handle && handle !== ref.handle) {
@@ -121,8 +127,24 @@ export function settleMentions(
     }
     return true;
   });
-  if (replacements.length === 0 && renames.length === 0) return null;
-  return applyMentions(tr, replacements, renames);
+  if (
+    replacements.length === 0 &&
+    renames.length === 0 &&
+    inCodeMentions.length === 0
+  ) {
+    return null;
+  }
+  applyMentions(tr, replacements, renames);
+  // Last first, as above; these come after every replacement.
+  for (const { pos, node } of inCodeMentions.reverse()) {
+    const from = tr.mapping.map(pos);
+    tr.replaceWith(
+      from,
+      from + node.nodeSize,
+      schema.text(`@${node.attrs.handle}`, node.marks),
+    );
+  }
+  return tr;
 }
 
 interface Replacement {

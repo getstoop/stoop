@@ -1,4 +1,4 @@
-import { mentionTokenAt } from "../mentions";
+import { mentionTokenAt, tokensAsText } from "../mentions";
 import type { Inline } from "./types";
 
 // Inline syntax, left to right: mention tokens, escapes, `code`, bare http(s) links,
@@ -96,7 +96,10 @@ class InlineParser {
     if (s[i] !== "`") return false;
     const close = s.indexOf("`", i + 1);
     if (close <= i + 1) return false;
-    return this.emit({ type: "code", text: s.slice(i + 1, close) }, close + 1);
+    return this.emit(
+      { type: "code", text: tokensAsText(s.slice(i + 1, close)) },
+      close + 1,
+    );
   }
 
   private bareLink(): boolean {
