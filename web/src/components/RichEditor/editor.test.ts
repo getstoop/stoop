@@ -359,6 +359,8 @@ describe("links", () => {
     }
     expect(checkLink("docs", "https://x.com/a>b")).toEqual({});
     expect(checkLink("docs", "https://x.com/a>b", false).href).toMatch(/>/);
+    expect(checkLink("", "https://x.com/a\\", false).href).toMatch(/\\/);
+    expect(checkLink("", "https://x.com/a]b", false).href).toBeTruthy();
   });
 
   it("come from pasted HTML only when the format can read the address", () => {
@@ -369,6 +371,31 @@ describe("links", () => {
       href: "https://x.com/a_(b)",
     });
     expect(attrs("https://x.com/a)b")).toBe(false);
+  });
+
+  it("keep their preview turned off through the clipboard", () => {
+    const rule = schema.marks.link.spec.parseDOM?.[0] as TagParseRule;
+    const attrs = (href: string, preview: string | null) =>
+      rule.getAttrs?.({
+        getAttribute: (name: string) => (name === "href" ? href : preview),
+      } as unknown as HTMLElement);
+    const quiet = schema.marks.link.create({
+      href: "https://x.org",
+      preview: false,
+    });
+    const dom = schema.marks.link.spec.toDOM?.(quiet, true) as
+      | [string, Record<string, string>]
+      | undefined;
+    expect(dom?.[1]["data-preview"]).toBe("false");
+    expect(attrs("https://x.org", "false")).toEqual({
+      href: "https://x.org",
+      preview: false,
+    });
+    expect(attrs("https://x.org", null)).toEqual({ href: "https://x.org" });
+    expect(
+      attrs("https://x.org/a\\", "false"),
+      "an address it can't carry keeps its preview",
+    ).toEqual({ href: "https://x.org/a\\" });
   });
 });
 

@@ -106,9 +106,9 @@ function inline(nodes: JSONContent[] = []): string {
     out += ws;
     open.length = keep;
   };
-  for (const node of nodes.flatMap(splitCode)) {
+  for (const node of wholeQuietAddresses(nodes.flatMap(splitCode))) {
     if (node.type !== "text" && node.type !== "mention") continue;
-    const marks = sortMarks(node.marks ?? []);
+    const marks = sortMarks(node.marks ?? [], quietAddressLink(node));
     let keep = 0;
     while (
       keep < open.length &&
@@ -129,7 +129,8 @@ function inline(nodes: JSONContent[] = []): string {
       if (!text) continue;
       for (const mark of marks.slice(keep)) {
         const bare = mark.type === "link" && node.text === mark.attrs?.href;
-        // Without a preview an address is its own words, written as-is.
+        // Without a preview an address is its own words, written as-is
+        // (wholeQuietAddresses saw to that).
         if (!bare || !previewed(mark)) out += opener(mark);
         open.push({ mark, bare });
       }
@@ -143,6 +144,52 @@ function inline(nodes: JSONContent[] = []): string {
   }
   closeFrom(0);
   return out;
+}
+
+// A link without a preview whose words are its address is written
+// [address](<address>), where the words must be the address exactly. So it
+// goes out as one piece: styles the whole address shares stay, written
+// around the link; part of it styled, or code, can't be said there.
+function wholeQuietAddresses(nodes: JSONContent[]): JSONContent[] {
+  const out: JSONContent[] = [];
+  let i = 0;
+  while (i < nodes.length) {
+    const link = quietLink(nodes[i]);
+    let end = i + 1;
+    while (
+      link &&
+      end < nodes.length &&
+      nodes[end].type === "text" &&
+      (nodes[end].marks ?? []).some((m) => sameMark(m, link))
+    ) {
+      end++;
+    }
+    const run = nodes.slice(i, end);
+    const text = run.map((n) => n.text ?? "").join("");
+    if (link && run.length > 0 && text === link.attrs?.href) {
+      const marks = (run[0].marks ?? []).filter(
+        (m) =>
+          m.type !== "code" &&
+          run.every((n) => (n.marks ?? []).some((o) => sameMark(o, m))),
+      );
+      out.push({ type: "text", text, marks });
+    } else {
+      out.push(...run);
+    }
+    i = end;
+  }
+  return out;
+}
+
+function quietLink(node: JSONContent): MarkJSON | undefined {
+  if (node.type !== "text") return undefined;
+  return (node.marks ?? []).find((m) => m.type === "link" && !previewed(m));
+}
+
+// Whether a node is a whole address without a preview, by its own words.
+function quietAddressLink(node: JSONContent): boolean {
+  const link = quietLink(node);
+  return !!link && node.text === link.attrs?.href;
 }
 
 // A code span can't hold a backtick, nor a bracket in link words: those
@@ -172,6 +219,12 @@ export function readableAddress(href: string): boolean {
   return depth === 0;
 }
 
+// An address a link without a preview can carry: it may be its own
+// words, where a bracket or a closing backslash would end them early.
+export function quietAddress(href: string): boolean {
+  return readableAddress(href) && !/[<>[\]\\]/.test(href);
+}
+
 function opener(mark: MarkJSON): string {
   return mark.type === "link" ? "[" : (DELIM[mark.type] ?? "");
 }
@@ -188,10 +241,16 @@ function previewed(mark: MarkJSON): boolean {
   return mark.attrs?.preview !== false;
 }
 
-function sortMarks(marks: MarkJSON[]): MarkJSON[] {
+// innerLink puts the link inside the styles, for an address that is its
+// own words: [**address**](<address>) would no longer be the address.
+function sortMarks(marks: MarkJSON[], innerLink = false): MarkJSON[] {
+  const order = (m: MarkJSON) =>
+    innerLink && m.type === "link"
+      ? MARK_ORDER.length
+      : MARK_ORDER.indexOf(m.type);
   return marks
     .filter((m) => MARK_ORDER.includes(m.type))
-    .sort((a, b) => MARK_ORDER.indexOf(a.type) - MARK_ORDER.indexOf(b.type));
+    .sort((a, b) => order(a) - order(b));
 }
 
 function sameMark(a: MarkJSON, b: MarkJSON) {

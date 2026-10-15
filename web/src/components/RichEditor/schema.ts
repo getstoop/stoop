@@ -1,5 +1,5 @@
 import { Schema } from "prosemirror-model";
-import { readableAddress } from "./markdown";
+import { quietAddress, readableAddress } from "./markdown";
 
 // The message format as a document schema, and nothing more: a quote holds
 // lines, a list item holds a line and maybe a nested list, and a code
@@ -85,21 +85,32 @@ export const schema = new Schema({
   },
   marks: {
     link: {
-      // preview off is written as an address in angle brackets.
+      // preview off is written [words](<address>); on the clipboard it is
+      // data-preview="false", so a copied link keeps it.
       attrs: { href: {}, preview: { default: true } },
       inclusive: false,
       parseDOM: [
         {
           tag: "a[href]",
           getAttrs: (dom) => {
-            const href = (dom as HTMLElement).getAttribute("href") ?? "";
-            return readableAddress(href) ? { href } : false;
+            const el = dom as HTMLElement;
+            const href = el.getAttribute("href") ?? "";
+            if (!readableAddress(href)) return false;
+            const quiet =
+              el.getAttribute("data-preview") === "false" && quietAddress(href);
+            return quiet ? { href, preview: false } : { href };
           },
         },
       ],
       toDOM: (mark) => [
         "a",
-        { href: mark.attrs.href, title: mark.attrs.href },
+        mark.attrs.preview
+          ? { href: mark.attrs.href, title: mark.attrs.href }
+          : {
+              href: mark.attrs.href,
+              title: mark.attrs.href,
+              "data-preview": "false",
+            },
         0,
       ],
     },

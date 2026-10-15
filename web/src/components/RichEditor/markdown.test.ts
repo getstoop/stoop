@@ -16,6 +16,7 @@ describe("rich editor Markdown round trip", () => {
     "a bare https://example.com/path link",
     "see [the words](<https://example.com/a>) without a preview",
     "a bare [https://example.com/path](<https://example.com/path>) one too",
+    "**[https://x.org](<https://x.org>)** and *[https://y.org](<https://y.org>) words*",
     "[**styled**](<https://a.example>) [same](https://a.example)",
     "an address with markup https://example.com/a_b__c*d~e|f link",
     "@user_name and @casey",
@@ -30,6 +31,39 @@ describe("rich editor Markdown round trip", () => {
     "1\\. not a list",
   ])("%j", (md) => {
     expect(toMarkdown(fromMarkdown(md))).toBe(md);
+  });
+
+  // Its words must be the address exactly, or neither parser reads it and
+  // the address would get its preview back.
+  it("writes a styled address without a preview with the styles outside", () => {
+    const quiet = {
+      type: "link",
+      attrs: { href: "https://x.org", preview: false },
+    };
+    const doc = (...content: JSONContent[]): JSONContent => ({
+      type: "doc",
+      content: [{ type: "paragraph", content }],
+    });
+    const piece = (text: string, ...marks: string[]): JSONContent => ({
+      type: "text",
+      text,
+      marks: [quiet, ...marks.map((type) => ({ type }))],
+    });
+    expect(toMarkdown(doc(piece("https://x.org", "bold")))).toBe(
+      "**[https://x.org](<https://x.org>)**",
+    );
+    expect(
+      toMarkdown(
+        doc(piece("https://", "bold"), piece("x.org", "bold", "italic")),
+      ),
+      "a style on part of it is dropped",
+    ).toBe("**[https://x.org](<https://x.org>)**");
+    expect(toMarkdown(doc(piece("https://x.org", "code")))).toBe(
+      "[https://x.org](<https://x.org>)",
+    );
+    const sent = toMarkdown(doc(piece("https://", "italic"), piece("x.org")));
+    expect(sent).toBe("[https://x.org](<https://x.org>)");
+    expect(toMarkdown(fromMarkdown(sent))).toBe(sent);
   });
 
   it("moves whitespace outside the markers", () => {

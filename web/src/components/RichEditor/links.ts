@@ -1,7 +1,7 @@
 import type { Mark, ResolvedPos } from "prosemirror-model";
 import type { EditorState, Transaction } from "prosemirror-state";
 import { Selection, TextSelection } from "prosemirror-state";
-import { readableAddress } from "./markdown";
+import { quietAddress, readableAddress } from "./markdown";
 import { schema } from "./schema";
 
 // The link the toolbar button, Ctrl/⌘+K and a double click act on.
@@ -106,9 +106,8 @@ export function checkLink(
     errors.href = "Enter an address starting with http:// or https://";
   } else if (!readableAddress(address)) {
     errors.href = "The address can't hold a < or an unpaired bracket";
-  } else if (!preview && /[<>[\]]/.test(address)) {
-    // It is written in angle brackets, and may be its own words.
-    errors.href = "An address without a preview can't hold > [ or ]";
+  } else if (!preview && !quietAddress(address)) {
+    errors.href = "An address without a preview can't hold > [ ] or \\";
   }
   if (text.trim() !== href.trim() && /https?:\/\//i.test(text)) {
     errors.text = "Link text can't contain an address";

@@ -791,7 +791,10 @@ frame that paints part of the canvas cannot be scaled on its own.
 
 The link form's "Show a preview" box, offered only while previews are
 on, writes a link it unticks as `[words](<address>)`, and one with no
-words as `[address](<address>)`. The choice lives in the
+words as `[address](<address>)`, styles the whole address shares going
+around it (`**[address](<address>)**`) since its words must be the address
+exactly; such an address can't hold `<`, `>`, `[`, `]` or `\`. A copied
+link carries the choice as `data-preview="false"`. The choice lives in the
 content, so an edit can turn a card on or off, and the editor reads it
 back when the message is opened to edit. A link to a message written
 this way shows no message card either.
