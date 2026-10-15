@@ -261,8 +261,8 @@ directions:
   Clients, bots and outgoing webhooks only ever see text.
 - **Search** indexes the token's words, so a message is found by the
   handle it was written with, not a later one.
-- **Typed by hand**, a token reads back as text and tells nobody, the
-  same as typing the handle.
+- **Typed by hand**, a token is saved as the handle it carries and tells
+  nobody, so no ID the server didn't look up is stored or read back.
 - Messages from before tokens keep their plain text.
 
 A group's handle change sends `groups_changed`; a username change sends

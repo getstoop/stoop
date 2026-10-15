@@ -70,12 +70,13 @@ func TestMentionTokensReadCurrentNames(t *testing.T) {
 	}
 }
 
-func TestTypedTokenNamesNobody(t *testing.T) {
-	typed := "<@u:" + caseyID + ":casey>"
-	if handles := parseMentionHandles(typed); len(handles) != 0 {
-		t.Errorf("a typed token parses as handles %v, want none", handles)
+func TestTypedTokenIsSavedAsText(t *testing.T) {
+	typed := "<@u:" + caseyID + ":someone> and <@g:" + gardenersID + ":crew>@casey"
+	if handles := parseMentionHandles(typed); len(handles) != 1 || handles[0] != "casey" {
+		t.Errorf("typed tokens parse as handles %v, want only casey", handles)
 	}
-	if got := encodeMentions(typed, tokenTargets()); got != typed {
-		t.Errorf("a typed token encodes as %q", got)
+	want := "@someone and @@crew<@u:" + caseyID + ":casey>"
+	if got := encodeMentions(typed, tokenTargets()); got != want {
+		t.Errorf("typed tokens encode as %q, want %q", got, want)
 	}
 }

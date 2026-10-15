@@ -144,14 +144,17 @@ func TestMentionTokensLengthCountsTheWrittenText(t *testing.T) {
 	}
 }
 
-func TestMentionTokensTypedByHandNameNobody(t *testing.T) {
+func TestMentionTokensTypedByHandAreSavedAsText(t *testing.T) {
 	fixture := newGroupFixture(t)
 	typed := "<@u:" + authctx.UserID(fixture.cal) + ":someone>"
 	sent := fixture.sendTo(t, fixture.bea, fixture.generalID, typed)
-	if sent.Content != "@cal" || len(sent.MentionUserIds) != 0 {
+	if sent.Content != "@someone" || len(sent.MentionUserIds) != 0 {
 		t.Errorf("a typed token reads %q and reached %v", sent.Content, sent.MentionUserIds)
 	}
 	if unread := fixture.unread(t, fixture.cal); unread != 0 {
 		t.Errorf("a typed token told cal: %d unread", unread)
+	}
+	if stored := fixture.storedContent(t, sent.Id); stored != "@someone" {
+		t.Errorf("a typed token was stored as %q", stored)
 	}
 }

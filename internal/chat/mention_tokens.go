@@ -93,8 +93,26 @@ func (s *Service) channelReaders(ctx context.Context, channel dbgen.Channel, par
 }
 
 // encodeMentions turns each handle that names someone into its token. A
-// handle naming nobody stays text.
+// handle naming nobody stays text, and so does a token typed by hand: it
+// is saved as the handle it carries, so no ID the server didn't look up
+// is ever stored or read back.
 func encodeMentions(content string, targets mentionTargets) string {
+	var out strings.Builder
+	written := 0
+	for _, typed := range mentionTokenRE.FindAllStringSubmatchIndex(content, -1) {
+		out.WriteString(encodeHandles(content[written:typed[0]], targets))
+		symbol := "@"
+		if content[typed[2]:typed[3]] == groupToken {
+			symbol = "@@"
+		}
+		out.WriteString(symbol + content[typed[6]:typed[7]])
+		written = typed[1]
+	}
+	out.WriteString(encodeHandles(content[written:], targets))
+	return out.String()
+}
+
+func encodeHandles(content string, targets mentionTargets) string {
 	matches := anyMentionRE.FindAllStringSubmatchIndex(content, -1)
 	if len(matches) == 0 {
 		return content
