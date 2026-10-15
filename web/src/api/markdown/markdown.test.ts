@@ -28,6 +28,14 @@ const spoiler = (...children: Inline[]): Inline => ({
   type: "spoiler",
   children,
 });
+// The server's tests use the same tokens.
+const ID = "00000000-0000-4000-8000-000000000001";
+const TOKEN = `<@u:${ID}:casey>`;
+const UNDERLINE_HANDLE = `<@u:${ID}:a__b__c>`;
+const mention = (handle: string): Inline => ({
+  type: "mention",
+  mention: { kind: "person", id: ID, handle },
+});
 
 describe("parseInline", () => {
   it("returns nothing for an empty string", () => {
@@ -380,6 +388,28 @@ describe("parseMarkdown", () => {
     ]);
   });
 
+  it("reads a token whole, even with __ in its handle", () => {
+    expect(parseInline(`hi ${TOKEN}`)).toEqual([text("hi "), mention("casey")]);
+    expect(parseInline(`${UNDERLINE_HANDLE} hi`)).toEqual([
+      mention("a__b__c"),
+      text(" hi"),
+    ]);
+    expect(parseInline(`**${TOKEN}**`)).toEqual([bold(mention("casey"))]);
+  });
+
+  it("never pairs backticks across a style's edge", () => {
+    expect(parseInline(`*x \`${TOKEN}* y\``)).toEqual([
+      italic(text("x `"), mention("casey")),
+      text(" y`"),
+    ]);
+    expect(parseInline(`**a \`b** c\` d ${TOKEN} \`e\``)).toEqual([
+      bold(text("a `b")),
+      text(" c"),
+      code(" d @casey "),
+      text("e`"),
+    ]);
+  });
+
   it("keeps blocks in source order", () => {
     expect(parseMarkdown("intro\n- one\nafter").map((b) => b.type)).toEqual([
       "lines",
@@ -440,6 +470,12 @@ describe("plainText mirrors the server", () => {
       "[https://a.example](https://b.example)",
     ],
     ["\\[a](https://a.b)", "[a](https://a.b)"],
+    [`hi ${TOKEN}`, "hi @casey"],
+    [`${UNDERLINE_HANDLE} hi`, "@a__b__c hi"],
+    [`\`${TOKEN}\``, "@casey"],
+    [`\`\`\`\n${TOKEN}\n\`\`\``, "@casey"],
+    [`||${TOKEN}||`, "@casey"],
+    [`[see ${TOKEN}](https://x.example)`, "see @casey"],
   ];
   for (const [input, want] of cases) {
     it(`strips ${JSON.stringify(input)}`, () => {

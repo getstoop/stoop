@@ -18,12 +18,14 @@ const (
 	inlineCode
 	inlineLink
 	inlineStyled
+	inlineMention
 )
 
 type inlineNode struct {
 	kind     inlineKind
-	text     string       // the text, the code, or the href
+	text     string       // the text, the code, the href, or the token
 	children []inlineNode // a style's content, or a link's label
+	at       int          // a token's byte offset in the content
 }
 
 type blockKind int
@@ -64,6 +66,10 @@ var delims = []string{"**", "__", "~~", "||", "*"}
 
 func parseMarkdown(content string) []block {
 	lines := strings.Split(content, "\n")
+	starts := make([]int, len(lines))
+	for i := 1; i < len(lines); i++ {
+		starts[i] = starts[i-1] + len(lines[i-1]) + 1
+	}
 	var blocks []block
 	last := func(kind blockKind) *block {
 		if n := len(blocks); n > 0 && blocks[n-1].kind == kind {
@@ -75,7 +81,7 @@ func parseMarkdown(content string) []block {
 	for i := 0; i < len(lines); {
 		line := lines[i]
 		if m := fenceOneLine.FindStringSubmatch(line); m != nil {
-			blocks = append(blocks, block{kind: blockCode, text: m[1]})
+			blocks = append(blocks, block{kind: blockCode, text: tokensAsText(m[1])})
 			i++
 			continue
 		}
@@ -84,91 +90,37 @@ func parseMarkdown(content string) []block {
 			for j < len(lines) && !fenceClose.MatchString(lines[j]) {
 				j++
 			}
-			blocks = append(blocks, block{kind: blockCode, text: strings.Join(lines[i+1:j], "\n")})
+			blocks = append(blocks, block{kind: blockCode, text: tokensAsText(strings.Join(lines[i+1:j], "\n"))})
 			i = j + 1
 			continue
 		}
-		if m := listLine.FindStringSubmatch(line); m != nil {
+		if item := listLine.FindStringSubmatchIndex(line); item != nil {
 			b := last(blockList)
-			b.items = append(b.items, parseInline(m[3]))
+			b.items = append(b.items, parseInlineAt(line[item[6]:item[7]], starts[i]+item[6]))
 			i++
 			continue
 		}
-		if m := quoteLine.FindStringSubmatch(line); m != nil {
+		if quoted := quoteLine.FindStringSubmatchIndex(line); quoted != nil {
 			b := last(blockQuote)
-			b.lines = append(b.lines, parseInline(m[1]))
+			b.lines = append(b.lines, parseInlineAt(line[quoted[2]:quoted[3]], starts[i]+quoted[2]))
 		} else {
 			b := last(blockLines)
-			b.lines = append(b.lines, parseInline(line))
+			b.lines = append(b.lines, parseInlineAt(line, starts[i]))
 		}
 		i++
 	}
 	return blocks
 }
 
-// codeRanges is where content is code, as [start, end) byte offsets:
-// fenced blocks, fence lines included, and `inline code`, by the same
-// rules as parseMarkdown and parseInline (escapes, and links read whole).
-func codeRanges(content string) [][2]int {
-	var ranges [][2]int
-	lines := strings.Split(content, "\n")
-	starts := make([]int, len(lines)+1)
-	for i, line := range lines {
-		starts[i+1] = starts[i] + len(line) + 1
-	}
-	for i := 0; i < len(lines); {
-		line := lines[i]
-		if fenceOneLine.MatchString(line) {
-			ranges = append(ranges, [2]int{starts[i], starts[i] + len(line)})
-			i++
-			continue
-		}
-		if fenceOpen.MatchString(line) {
-			j := i + 1
-			for j < len(lines) && !fenceClose.MatchString(lines[j]) {
-				j++
-			}
-			end := min(j+1, len(lines))
-			ranges = append(ranges, [2]int{starts[i], starts[end] - 1})
-			i = j + 1
-			continue
-		}
-		for _, span := range inlineCodeRanges(line) {
-			ranges = append(ranges, [2]int{starts[i] + span[0], starts[i] + span[1]})
-		}
-		i++
-	}
-	return ranges
-}
-
-func inlineCodeRanges(line string) [][2]int {
-	var ranges [][2]int
-	for i := 0; i < len(line); {
-		ch := line[i]
-		switch {
-		case ch == '\\' && i+1 < len(line) && strings.IndexByte(escapable, line[i+1]) >= 0:
-			i += 2
-			continue
-		case ch == '`':
-			if j := strings.IndexByte(line[i+1:], '`'); j > 0 {
-				ranges = append(ranges, [2]int{i, i + j + 2})
-				i += j + 2
-				continue
-			}
-		case ch == 'h' || ch == 'H':
-			if m := urlAt.FindString(line[i:]); m != "" {
-				i += len(trimURL(m))
-				continue
-			}
-		}
-		i++
-	}
-	return ranges
-}
-
-// parseInline is the client's parseInline: escapes resolved, code and
-// links kept whole, styles nested.
+// parseInline is the client's parseInline: tokens, code and links kept
+// whole, escapes resolved, styles nested.
 func parseInline(s string) []inlineNode {
+	return parseInlineAt(s, 0)
+}
+
+// parseInlineAt is parseInline for source found at offset base in the content,
+// so each token knows where it is.
+func parseInlineAt(source string, base int) []inlineNode {
 	var out []inlineNode
 	var text strings.Builder
 	flush := func() {
@@ -177,23 +129,32 @@ func parseInline(s string) []inlineNode {
 			text.Reset()
 		}
 	}
-	for i := 0; i < len(s); {
-		ch := s[i]
-		if ch == '\\' && i+1 < len(s) && strings.IndexByte(escapable, s[i+1]) >= 0 {
-			text.WriteByte(s[i+1])
+	for i := 0; i < len(source); {
+		ch := source[i]
+		// A token is whole: its handle may hold "__", which isn't underline.
+		if ch == '<' {
+			if length := tokenLength(source[i:]); length > 0 {
+				flush()
+				out = append(out, inlineNode{kind: inlineMention, text: source[i : i+length], at: base + i})
+				i += length
+				continue
+			}
+		}
+		if ch == '\\' && i+1 < len(source) && strings.IndexByte(escapable, source[i+1]) >= 0 {
+			text.WriteByte(source[i+1])
 			i += 2
 			continue
 		}
 		if ch == '`' {
-			if j := strings.IndexByte(s[i+1:], '`'); j > 0 {
+			if j := strings.IndexByte(source[i+1:], '`'); j > 0 {
 				flush()
-				out = append(out, inlineNode{kind: inlineCode, text: s[i+1 : i+1+j]})
+				out = append(out, inlineNode{kind: inlineCode, text: tokensAsText(source[i+1 : i+1+j])})
 				i += j + 2
 				continue
 			}
 		}
 		if ch == 'h' || ch == 'H' {
-			if m := urlAt.FindString(s[i:]); m != "" {
+			if m := urlAt.FindString(source[i:]); m != "" {
 				href := trimURL(m)
 				flush()
 				out = append(out, inlineNode{kind: inlineLink, text: href})
@@ -202,7 +163,7 @@ func parseInline(s string) []inlineNode {
 			}
 		}
 		if ch == '[' {
-			if node, end, ok := matchLabelled(s, i); ok {
+			if node, end, ok := matchLabelled(source, i); ok {
 				flush()
 				out = append(out, node)
 				i = end
@@ -210,17 +171,17 @@ func parseInline(s string) []inlineNode {
 			}
 		}
 		// ***both*** is bold around italic.
-		if strings.HasPrefix(s[i:], "***") {
-			if j := findCloser(s, "***", i+3); j != -1 {
+		if strings.HasPrefix(source[i:], "***") {
+			if j := findCloser(source, "***", i+3); j != -1 {
 				flush()
 				out = append(out, inlineNode{kind: inlineStyled, children: []inlineNode{
-					{kind: inlineStyled, children: parseInline(s[i+3 : j])},
+					{kind: inlineStyled, children: parseInlineAt(source[i+3:j], base+i+3)},
 				}})
 				i = j + 3
 				continue
 			}
 		}
-		if children, end, ok := matchDelimited(s, i); ok {
+		if children, end, ok := matchDelimited(source, i, base); ok {
 			flush()
 			out = append(out, inlineNode{kind: inlineStyled, children: children})
 			i = end
@@ -274,7 +235,8 @@ func matchLabelled(source string, start int) (node inlineNode, end int, ok bool)
 	if !urlWhole.MatchString(href) {
 		return inlineNode{}, 0, false
 	}
-	children := parseInline(label)
+	// A link's words can't mention anyone: a token there reads as its handle.
+	children := parseInline(tokensAsText(label))
 	if holdsLink(children) {
 		return inlineNode{}, 0, false
 	}
@@ -290,7 +252,7 @@ func holdsLink(nodes []inlineNode) bool {
 	return false
 }
 
-func matchDelimited(source string, i int) (children []inlineNode, end int, ok bool) {
+func matchDelimited(source string, i, base int) (children []inlineNode, end int, ok bool) {
 	for _, d := range delims {
 		if !strings.HasPrefix(source[i:], d) {
 			continue
@@ -306,21 +268,25 @@ func matchDelimited(source string, i int) (children []inlineNode, end int, ok bo
 		}
 		j := findCloser(source, d, start+1)
 		if d == "**" {
-			if children, end, ok = closeOnStarRun(source, start, j); ok {
+			if children, end, ok = closeOnStarRun(source, start, j, base); ok {
 				return children, end, true
 			}
 		}
 		if j == -1 {
 			continue
 		}
-		return parseInline(source[start:j]), j + len(d), true
+		// A spoiler can't mention anyone: a token there reads as its handle.
+		if d == "||" {
+			return parseInline(tokensAsText(source[start:j])), j + len(d), true
+		}
+		return parseInlineAt(source[start:j], base+start), j + len(d), true
 	}
 	return nil, 0, false
 }
 
 // closeOnStarRun reads "**a *b***": when bold closes on a run of three or
 // more stars, the run's first stars can close the italic inside it.
-func closeOnStarRun(source string, start, closeAt int) (children []inlineNode, end int, ok bool) {
+func closeOnStarRun(source string, start, closeAt, base int) (children []inlineNode, end int, ok bool) {
 	if closeAt == -1 || !strings.HasPrefix(source[closeAt:], "***") {
 		return nil, 0, false
 	}
@@ -332,7 +298,7 @@ func closeOnStarRun(source string, start, closeAt int) (children []inlineNode, e
 	for runEnd < len(source) && source[runEnd] == '*' {
 		runEnd++
 	}
-	children = parseInline(source[start : runEnd-2])
+	children = parseInlineAt(source[start:runEnd-2], base+start)
 	if len(children) == 0 || children[len(children)-1].kind != inlineStyled {
 		return nil, 0, false
 	}
@@ -409,12 +375,37 @@ func plainText(content string) string {
 func inlineString(nodes []inlineNode) string {
 	var sb strings.Builder
 	for _, n := range nodes {
-		// A style reads as its content, and a link with a label as its label.
-		if n.kind == inlineStyled || len(n.children) > 0 {
+		// A style reads as its content, a link with a label as its label,
+		// and a token as its handle.
+		switch {
+		case n.kind == inlineStyled || len(n.children) > 0:
 			sb.WriteString(inlineString(n.children))
-		} else {
+		case n.kind == inlineMention:
+			_, _, handle := tokenParts(n.text)
+			sb.WriteString("@" + handle)
+		default:
 			sb.WriteString(n.text)
 		}
 	}
 	return sb.String()
+}
+
+// walkInline calls visit for each inline node of the parse, a node before
+// its children. Code blocks have none.
+func walkInline(blocks []block, visit func(inlineNode)) {
+	var walk func(nodes []inlineNode)
+	walk = func(nodes []inlineNode) {
+		for _, node := range nodes {
+			visit(node)
+			walk(node.children)
+		}
+	}
+	for _, parsed := range blocks {
+		for _, line := range parsed.lines {
+			walk(line)
+		}
+		for _, item := range parsed.items {
+			walk(item)
+		}
+	}
 }

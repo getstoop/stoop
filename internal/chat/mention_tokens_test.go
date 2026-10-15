@@ -154,3 +154,39 @@ func TestMentionTokensInCodeAreText(t *testing.T) {
 		t.Errorf("tokens in code reached %v", sent.MentionUserIds)
 	}
 }
+
+// A token the message shows as text reaches nobody and is saved as text;
+// one it shows as a mention reaches its person, wherever backticks sit.
+func TestMentionTokensFollowTheParse(t *testing.T) {
+	fixture := newGroupFixture(t)
+	calID := authctx.UserID(fixture.cal)
+	cal := "<@u:" + calID + ":cal>"
+	shownAsText := map[string]string{
+		"||" + mentionOf(fixture.cal) + "||":                      "||@someone||",
+		"[see " + mentionOf(fixture.cal) + "](https://x.example)": "[see @someone](https://x.example)",
+		"**a `b** c` d " + mentionOf(fixture.cal) + " `e`":        "**a `b** c` d @someone `e`",
+	}
+	for written, want := range shownAsText {
+		sent := fixture.sendTo(t, fixture.owner, fixture.generalID, written)
+		if sent.Content != want {
+			t.Errorf("%q saved as %q, want %q", written, sent.Content, want)
+		}
+		if len(sent.MentionUserIds) != 0 {
+			t.Errorf("%q reached %v", written, sent.MentionUserIds)
+		}
+	}
+	if unread := fixture.unread(t, fixture.cal); unread != 0 {
+		t.Errorf("cal has %d unread from tokens shown as text", unread)
+	}
+
+	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, "*x `"+mentionOf(fixture.cal)+"* y`")
+	if want := "*x `" + cal + "* y`"; sent.Content != want {
+		t.Errorf("saved as %q, want %q", sent.Content, want)
+	}
+	if len(sent.MentionUserIds) != 1 || sent.MentionUserIds[0] != calID {
+		t.Errorf("a token outside code reached %v, want cal", sent.MentionUserIds)
+	}
+	if unread := fixture.unread(t, fixture.cal); unread != 1 {
+		t.Errorf("cal has %d unread, want 1", unread)
+	}
+}
