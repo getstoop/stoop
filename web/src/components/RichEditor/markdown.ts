@@ -106,7 +106,7 @@ function inline(nodes: JSONContent[] = []): string {
     out += ws;
     open.length = keep;
   };
-  for (const node of nodes) {
+  for (const node of nodes.flatMap(splitCode)) {
     if (node.type !== "text" && node.type !== "mention") continue;
     const marks = sortMarks(node.marks ?? []);
     let keep = 0;
@@ -135,12 +135,40 @@ function inline(nodes: JSONContent[] = []): string {
     }
     const literal =
       marks.some((m) => m.type === "code") || open.some((o) => o.bare);
+    const inWords = open.some((o) => o.mark.type === "link" && !o.bare);
     // In code a mention is the words it reads as.
     if (mention && !literal) out += mentionToken(mention);
-    else out += literal ? text : escapeMarkup(text);
+    else out += literal ? text : escapeMarkup(text, inWords);
   }
   closeFrom(0);
   return out;
+}
+
+// A code span can't hold a backtick, nor a bracket in link words: those
+// go out as escaped text beside the code.
+function splitCode(node: JSONContent): JSONContent[] {
+  const marks = node.marks ?? [];
+  if (!node.text || !marks.some((m) => m.type === "code")) return [node];
+  const inWords = marks.some(
+    (m) => m.type === "link" && m.attrs?.href !== node.text,
+  );
+  const plain = marks.filter((m) => m.type !== "code");
+  return node.text
+    .split(inWords ? /([`[\]]+)/ : /(`+)/)
+    .map((text, i) => ({ ...node, text, marks: i % 2 ? plain : marks }))
+    .filter((piece) => piece.text);
+}
+
+// An address the reader takes back whole: http(s) with no space or "<",
+// and every ")" closing a "(" before it.
+export function readableAddress(href: string): boolean {
+  if (!/^https?:\/\/[^\s<]+$/i.test(href)) return false;
+  let depth = 0;
+  for (const ch of href) {
+    if (ch === "(") depth++;
+    if (ch === ")" && --depth < 0) return false;
+  }
+  return depth === 0;
 }
 
 function opener(mark: MarkJSON): string {
@@ -167,20 +195,20 @@ function sameMark(a: MarkJSON, b: MarkJSON) {
 // alone: the parser reads it whole, so a backslash would land in it.
 const BARE_URL = /https?:\/\/[^\s<]+/gi;
 
-function escapeMarkup(text: string): string {
+function escapeMarkup(text: string, inWords: boolean): string {
   let out = "";
   let last = 0;
   for (const m of text.matchAll(BARE_URL)) {
-    out += escapeRun(text.slice(last, m.index)) + m[0];
+    out += escapeRun(text.slice(last, m.index), inWords) + m[0];
     last = m.index + m[0].length;
   }
-  return out + escapeRun(text.slice(last));
+  return out + escapeRun(text.slice(last), inWords);
 }
 
-function escapeRun(text: string): string {
-  return text.replace(/[\\`*~|[]|__/g, (m) =>
-    m === "__" ? "\\_\\_" : `\\${m}`,
-  );
+// In link words a "]" would end them early.
+function escapeRun(text: string, inWords: boolean): string {
+  const markup = inWords ? /[\\`*~|[\]]|__/g : /[\\`*~|[]|__/g;
+  return text.replace(markup, (m) => (m === "__" ? "\\_\\_" : `\\${m}`));
 }
 
 export function fromMarkdown(md: string): JSONContent {

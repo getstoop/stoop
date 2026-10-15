@@ -1,4 +1,4 @@
-import { Node } from "prosemirror-model";
+import { Node, type TagParseRule } from "prosemirror-model";
 import {
   AllSelection,
   type Command,
@@ -107,6 +107,11 @@ describe("pasting an address over words", () => {
       "the paste is not an address",
       selecting(stateOf("words"), "words"),
       "words",
+    ],
+    [
+      "the address has a stray bracket",
+      selecting(stateOf("words"), "words"),
+      "https://x.com/a)b",
     ],
     [
       "the words hold an address",
@@ -327,6 +332,24 @@ describe("links", () => {
     expect(checkLink("docs", "https://example.com")).toEqual({});
     expect(checkLink("see https://a.b", "https://c.d").text).toBeTruthy();
     expect(checkLink("https://c.d", "https://c.d")).toEqual({});
+    expect(checkLink("docs", "https://x.com/a_(b)")).toEqual({});
+    for (const href of [
+      "https://x.com/a)b",
+      "https://x.com/a(b",
+      "https://x.com/a<b",
+    ]) {
+      expect(checkLink("docs", href).href).toMatch(/unpaired bracket/);
+    }
+  });
+
+  it("come from pasted HTML only when the format can read the address", () => {
+    const rule = schema.marks.link.spec.parseDOM?.[0] as TagParseRule;
+    const attrs = (href: string) =>
+      rule.getAttrs?.({ getAttribute: () => href } as unknown as HTMLElement);
+    expect(attrs("https://x.com/a_(b)")).toEqual({
+      href: "https://x.com/a_(b)",
+    });
+    expect(attrs("https://x.com/a)b")).toBe(false);
   });
 });
 

@@ -170,8 +170,12 @@ document, and Markdown is what it sends and what it loads to edit.
 - **A bare address stays plain text**, styled as a link, because the
   message format links it on its own.
 - **The link form refuses what the format can't read back**: an address
-  not starting with `http://` or `https://`, and link words holding an
-  address of their own.
+  not starting with `http://` or `https://`, one with a space, a `<` or a
+  bracket it doesn't close, and link words holding an address of their
+  own. A pasted link with such an address pastes as its words.
+- **A code span can't hold a backtick**, so a backtick styled as code
+  goes out as an escaped backtick beside the code (and in link words, a
+  bracket does too).
 - **A draft stays in its conversation.** Switching channel or thread
   starts an empty box, so unsent text is never sent somewhere else.
 
