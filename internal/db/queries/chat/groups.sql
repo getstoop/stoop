@@ -1,4 +1,4 @@
--- Groups: a set of a space's members that @@handle mentions. Owned by the
+-- Groups: a set of a space's members that one mention reaches. Owned by the
 -- chat module. Only internal/chat may use these queries.
 
 -- name: ListGroups :many
@@ -29,19 +29,16 @@ DELETE FROM group_members WHERE group_id = $1;
 INSERT INTO group_members (group_id, space_id, user_id)
 SELECT @group_id::uuid, @space_id::uuid, unnest(@user_ids::uuid[]);
 
--- ListGroupMemberIDsByHandles is who a message's @@handles reach.
--- name: ListGroupMemberIDsByHandles :many
-SELECT DISTINCT gm.user_id
-FROM groups g
-JOIN group_members gm ON gm.group_id = g.id
-WHERE g.space_id = @space_id AND g.handle = ANY (@handles::text[]);
+-- ListGroupMemberIDsByGroupIDs is who a message's group tokens reach.
+-- name: ListGroupMemberIDsByGroupIDs :many
+SELECT DISTINCT user_id FROM group_members WHERE group_id = ANY (@group_ids::uuid[]);
 
--- ListGroupsByHandles is which groups a message's @@handles name, for
--- its mention tokens.
--- name: ListGroupsByHandles :many
+-- ListSpaceGroupsByIDs is which of a message's group tokens name a group
+-- of its channel's space.
+-- name: ListSpaceGroupsByIDs :many
 SELECT id, handle FROM groups
-WHERE space_id = @space_id AND handle = ANY (@handles::text[]);
+WHERE space_id = @space_id AND id = ANY (@ids::uuid[]);
 
--- ListGroupHandlesByIDs is the current handles behind mention tokens.
+-- ListGroupHandlesByIDs is the current handles behind tokens, for previews.
 -- name: ListGroupHandlesByIDs :many
 SELECT id, handle FROM groups WHERE id = ANY (@ids::uuid[]);

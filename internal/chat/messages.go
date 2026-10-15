@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -43,7 +42,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	content := req.Msg.Content
 	// Text is optional when there are attachments; the length cap always
 	// applies.
-	if (content == "" && len(req.Msg.AttachmentIds) == 0) || utf8.RuneCountInString(content) > maxMessageLen {
+	if (content == "" && len(req.Msg.AttachmentIds) == 0) || writtenLength(content) > maxMessageLen {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("message must be 1-%d characters or carry an attachment", maxMessageLen))
 	}
@@ -73,7 +72,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 
-	targets, err := s.lookupMentions(ctx, channel, participants, content)
+	stored, targets, err := s.checkMentions(ctx, channel, participants, content)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +126,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	}
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
-			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: encodeMentions(content, targets),
+			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: stored,
 			MentionsEntireChannel: res.entireChannel, MentionsHere: res.here, ReplyToMessageID: replyTo,
 			ThreadRootID: threadRootID, InChannel: threadRoot == nil || alsoSend,
 		})
@@ -182,22 +181,21 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		return nil, err
 	}
 
-	// The message is saved: from here on nothing fails the send. Without
-	// the current names, tokens read as the handles they were written with.
-	stored := []string{row.Content}
+	// The message is saved: from here on nothing fails the send. Previews
+	// read tokens as text; without the current names, as their saved
+	// handles.
+	previewed := []string{row.Content}
 	if parent != nil {
-		stored = append(stored, parent.Content)
+		previewed = append(previewed, parent.Content)
 	}
 	if alsoSend {
-		stored = append(stored, threadRoot.Content)
+		previewed = append(previewed, threadRoot.Content)
 	}
-	names, err := s.mentionNames(ctx, stored...)
+	names, err := s.mentionNames(ctx, previewed...)
 	if err != nil {
 		slog.Default().Warn("send: could not read mention names", "message_id", row.ID, "err", err)
 	}
-	shown := row
-	shown.Content = names.text(row.Content)
-	msg := toProtoMessage(shown, authors, mentioned, spaceOf(channel))
+	msg := toProtoMessage(row, authors, mentioned, spaceOf(channel))
 	msg.Attachments = toProtoAttachments(attachments)
 	if parent != nil {
 		msg.ReplyTo = replyRef(parent.ID, authors[parent.AuthorID], names.textOf(&parent.Content), s.firstAttachmentName(ctx, parent.ID))
@@ -229,7 +227,9 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		}
 		s.publishThreadRead(userID, channel, threadRoot.ID, threadMarker)
 	}
-	s.recordActivity(ctx, shown, channel, participants, parent, mentioned, msg.Author, attachments)
+	previewedRow := row
+	previewedRow.Content = names.text(row.Content)
+	s.recordActivity(ctx, previewedRow, channel, participants, parent, mentioned, msg.Author, attachments)
 	if previewing {
 		s.unfurlLater(row.ID, userID, channel.ID, linksToFetch)
 	}
@@ -450,7 +450,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		return nil, err
 	}
 
-	names, err := s.mentionNames(ctx, storedContents(rows, roots)...)
+	names, err := s.mentionNames(ctx, previewedContents(rows, roots)...)
 	if err != nil {
 		return nil, err
 	}
@@ -462,9 +462,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	messages := make([]*chatv1.Message, len(rows))
 	rootRefs := map[string]*chatv1.ReplyRef{}
 	for index, row := range rows {
-		shown := listedMessage(row)
-		shown.Content = names.text(row.Content)
-		message := toProtoMessage(shown, authors, mentions[row.ID], spaceID)
+		message := toProtoMessage(listedMessage(row), authors, mentions[row.ID], spaceID)
 		message.Reactions = reactions[row.ID]
 		message.Attachments = attachments[row.ID]
 		message.LinkPreviews = previews[row.ID]
@@ -490,12 +488,11 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	return messages, nil
 }
 
-// storedContents is every content a page of messages shows: the
-// messages, their reply quotes and their thread roots.
-func storedContents(rows []dbgen.MessageWithReply, roots map[string]dbgen.ThreadRootRefsRow) []string {
+// previewedContents is every content a page of messages previews: its
+// reply quotes and its thread roots.
+func previewedContents(rows []dbgen.MessageWithReply, roots map[string]dbgen.ThreadRootRefsRow) []string {
 	contents := make([]string, 0, len(rows)+len(roots))
 	for _, row := range rows {
-		contents = append(contents, row.Content)
 		if row.ReplyContent != nil {
 			contents = append(contents, *row.ReplyContent)
 		}
@@ -523,7 +520,7 @@ func (s *Service) loadMessage(ctx context.Context, messageID, spaceID string) (*
 func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.EditMessageRequest]) (*connect.Response[chatv1.EditMessageResponse], error) {
 	content := req.Msg.Content
 	previewing := s.linkPreviewsOn(ctx)
-	if content == "" || utf8.RuneCountInString(content) > maxMessageLen {
+	if content == "" || writtenLength(content) > maxMessageLen {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("message must be 1-%d characters", maxMessageLen))
 	}
@@ -550,16 +547,16 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
 		return nil, err
 	}
-	// Mentions are encoded but not re-resolved on edit: no new activity,
-	// and the original recipients stay recorded. Links are: the previews
-	// follow the text, and land with it.
-	targets, err := s.lookupMentions(ctx, channel, participants, content)
+	// Tokens are checked but nobody new is told on an edit: no new
+	// activity, and the original recipients stay recorded. Links are
+	// recorded again: the previews follow the text, and land with it.
+	stored, _, err := s.checkMentions(ctx, channel, participants, content)
 	if err != nil {
 		return nil, err
 	}
 	var linksToFetch []string
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: encodeMentions(content, targets)}); err != nil {
+		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: stored}); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return placeholderError()
 			}

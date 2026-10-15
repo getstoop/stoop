@@ -3,100 +3,46 @@ package chat
 import (
 	"context"
 	"fmt"
-	"maps"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// mentionRE matches @handle at a word boundary. Handles are the auth
-// module's username rules (3-32 of [a-z0-9_]), matched case-insensitively.
-var mentionRE = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])@([a-z0-9_]{3,32})\b`)
-
-// groupMentionRE matches @@handle, a group. mentionRE never matches it:
-// that refuses an @ straight after another.
-var groupMentionRE = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])@@([a-z0-9_]{3,32})\b`)
-
-// parseMentionHandles returns the distinct, lowercased @handles in content.
-func parseMentionHandles(content string) []string {
-	return parseHandles(mentionRE, content)
-}
-
-// parseGroupHandles returns the distinct, lowercased @@handles in content.
-func parseGroupHandles(content string) []string {
-	return parseHandles(groupMentionRE, content)
-}
-
-func parseHandles(pattern *regexp.Regexp, content string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, m := range pattern.FindAllStringSubmatch(content, -1) {
-		h := strings.ToLower(m[1])
-		if !seen[h] {
-			seen[h] = true
-			out = append(out, h)
-		}
-	}
-	return out
-}
+// everyoneRE matches @channel and @here, the two mentions that stay
+// typed words: both are reserved usernames, so nothing clashes with them.
+var everyoneRE = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])@(channel|here)\b`)
 
 // entireChannelHandle addresses everyone in the channel; hereHandle only those
-// currently online. Both are reserved usernames (auth refuses to register
-// them) and need the messages.notify_entire_channel permission; without it the token is
-// plain text.
+// currently online. Both need the messages.notify_entire_channel
+// permission; without it the word is plain text.
 const (
 	entireChannelHandle = "channel"
 	hereHandle          = "here"
 )
 
-// mentionResult is what a message's @tokens resolved to.
+// namesEveryone reports whether content holds @channel or @here.
+func namesEveryone(content string) bool {
+	return everyoneRE.MatchString(content)
+}
+
+// mentionResult is who a message's mentions reach.
 type mentionResult struct {
 	userIDs       []string
 	entireChannel bool
 	here          bool
 }
 
-// resolveMentions turns a message's targets into the people told,
-// excluding the author: @handles first, then @@handles, which name groups
-// in public channels only. When @channel or @here applies it decides
-// alone, for groups as for @handles.
+// resolveMentions turns a message's kept tokens into the people told,
+// excluding the author: people first, then the groups' people. When
+// @channel or @here applies it decides alone. @channel wins over @here if
+// both appear; in a DM both are plain text.
 func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, authorID, content string, targets mentionTargets) (mentionResult, error) {
-	res, err := s.resolvePersonMentions(ctx, channel, authorID, parseMentionHandles(content), targets)
-	if err != nil || res.entireChannel || res.here || len(targets.groups) == 0 {
-		return res, err
-	}
-	// A group's people are members of its space by foreign key, so every
-	// one of them can read a public channel.
-	groupMemberIDs, err := s.q.ListGroupMemberIDsByHandles(ctx, dbgen.ListGroupMemberIDsByHandlesParams{
-		SpaceID: *channel.SpaceID, Handles: slices.Collect(maps.Keys(targets.groups)),
-	})
-	if err != nil {
-		return mentionResult{}, fmt.Errorf("resolve groups: %w", err)
-	}
-	reached := map[string]bool{authorID: true}
-	for _, id := range res.userIDs {
-		reached[id] = true
-	}
-	for _, id := range groupMemberIDs {
-		if !reached[id] {
-			reached[id] = true
-			res.userIDs = append(res.userIDs, id)
-		}
-	}
-	return res, nil
-}
-
-// resolvePersonMentions maps @handles to the people in the channel they
-// name, excluding the author. Others are silently ignored: a mention is
-// an address, not a permission. @channel wins over @here if both appear;
-// in a DM both are plain text.
-func (s *Service) resolvePersonMentions(ctx context.Context, channel dbgen.Channel, authorID string, handles []string, targets mentionTargets) (mentionResult, error) {
 	var wantEntireChannel, wantHere bool
-	for _, h := range handles {
-		wantEntireChannel = wantEntireChannel || h == entireChannelHandle
-		wantHere = wantHere || h == hereHandle
+	for _, match := range everyoneRE.FindAllStringSubmatch(content, -1) {
+		word := strings.ToLower(match[1])
+		wantEntireChannel = wantEntireChannel || word == entireChannelHandle
+		wantHere = wantHere || word == hereHandle
 	}
 	if (wantEntireChannel || wantHere) && !isDM(channel) && s.mayNotifyEntireChannel(ctx, channel) {
 		recipients := targets.readers
@@ -118,10 +64,24 @@ func (s *Service) resolvePersonMentions(ctx context.Context, channel dbgen.Chann
 	}
 
 	var res mentionResult
-	for _, h := range handles {
-		if id, ok := targets.people[h]; ok && id != authorID {
-			res.userIDs = append(res.userIDs, id)
+	reached := map[string]bool{authorID: true}
+	reach := func(ids []string) {
+		for _, id := range ids {
+			if !reached[id] {
+				reached[id] = true
+				res.userIDs = append(res.userIDs, id)
+			}
 		}
+	}
+	reach(targets.people)
+	if len(targets.groups) > 0 {
+		// A group's people are members of its space by foreign key, so
+		// every one of them can read a public channel.
+		groupMemberIDs, err := s.q.ListGroupMemberIDsByGroupIDs(ctx, targets.groups)
+		if err != nil {
+			return mentionResult{}, fmt.Errorf("resolve groups: %w", err)
+		}
+		reach(groupMemberIDs)
 	}
 	return res, nil
 }

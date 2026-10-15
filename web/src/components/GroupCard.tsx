@@ -7,7 +7,7 @@ import { useAnchoredCard } from "../hooks/useAnchoredCard";
 import { Avatar } from "./Avatar";
 import { PeopleIcon } from "./Icons";
 
-// A group's card, opened from its @@handle: its name, who is in it, and a
+// A group's card, opened from its mention: its name, who is in it, and a
 // way to its settings for those who manage members.
 export function GroupCard({
   spaceId,
@@ -45,7 +45,7 @@ export function GroupCard({
           <strong>
             {group.name} <span className="muted">{groupCount(group)}</span>
           </strong>
-          <span className="muted">@@{group.handle}</span>
+          <span className="muted">@{group.handle}</span>
         </div>
       </div>
       {people.length === 0 ? (

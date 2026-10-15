@@ -106,6 +106,66 @@ func parseMarkdown(content string) []block {
 	return blocks
 }
 
+// codeRanges is where content is code, as [start, end) byte offsets:
+// fenced blocks, fence lines included, and `inline code`, by the same
+// rules as parseMarkdown and parseInline (escapes, and links read whole).
+func codeRanges(content string) [][2]int {
+	var ranges [][2]int
+	lines := strings.Split(content, "\n")
+	starts := make([]int, len(lines)+1)
+	for i, line := range lines {
+		starts[i+1] = starts[i] + len(line) + 1
+	}
+	for i := 0; i < len(lines); {
+		line := lines[i]
+		if fenceOneLine.MatchString(line) {
+			ranges = append(ranges, [2]int{starts[i], starts[i] + len(line)})
+			i++
+			continue
+		}
+		if fenceOpen.MatchString(line) {
+			j := i + 1
+			for j < len(lines) && !fenceClose.MatchString(lines[j]) {
+				j++
+			}
+			end := min(j+1, len(lines))
+			ranges = append(ranges, [2]int{starts[i], starts[end] - 1})
+			i = j + 1
+			continue
+		}
+		for _, span := range inlineCodeRanges(line) {
+			ranges = append(ranges, [2]int{starts[i] + span[0], starts[i] + span[1]})
+		}
+		i++
+	}
+	return ranges
+}
+
+func inlineCodeRanges(line string) [][2]int {
+	var ranges [][2]int
+	for i := 0; i < len(line); {
+		ch := line[i]
+		switch {
+		case ch == '\\' && i+1 < len(line) && strings.IndexByte(escapable, line[i+1]) >= 0:
+			i += 2
+			continue
+		case ch == '`':
+			if j := strings.IndexByte(line[i+1:], '`'); j > 0 {
+				ranges = append(ranges, [2]int{i, i + j + 2})
+				i += j + 2
+				continue
+			}
+		case ch == 'h' || ch == 'H':
+			if m := urlAt.FindString(line[i:]); m != "" {
+				i += len(trimURL(m))
+				continue
+			}
+		}
+		i++
+	}
+	return ranges
+}
+
 // parseInline is the client's parseInline: escapes resolved, code and
 // links kept whole, styles nested.
 func parseInline(s string) []inlineNode {

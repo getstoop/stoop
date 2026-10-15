@@ -248,6 +248,17 @@ func (h *harness) userID(token string) string {
 	return h.rpc(token, "stoop.auth.v1.AuthService/GetMe", map[string]any{}).expect(h.t, "ok").str("user.id")
 }
 
+// mention is the token that mentions a person, as the composer writes it.
+func (h *harness) mention(token string) string {
+	h.t.Helper()
+	return "<@u:" + h.userID(token) + ":someone>"
+}
+
+// groupMention is the token that mentions a group.
+func groupMention(groupID string) string {
+	return "<@g:" + groupID + ":somegroup>"
+}
+
 // space creates a space as the caller and returns its id and the id of
 // its default channel.
 func (h *harness) space(token, name string) (spaceID, channelID string) {

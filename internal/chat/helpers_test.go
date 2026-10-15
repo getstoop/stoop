@@ -66,3 +66,14 @@ func code(err error) connect.Code {
 	}
 	return 0
 }
+
+// mentionOf is the token that mentions a person, as the composer writes
+// it. The server rewrites the handle to the current one.
+func mentionOf(person context.Context) string {
+	return "<@u:" + authctx.UserID(person) + ":someone>"
+}
+
+// groupMention is the token that mentions a group.
+func groupMention(groupID string) string {
+	return "<@g:" + groupID + ":somegroup>"
+}

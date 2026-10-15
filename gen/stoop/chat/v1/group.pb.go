@@ -21,13 +21,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Group is a set of a space's members that @@handle mentions all at once,
+// Group is a set of a space's members that one mention reaches at once,
 // in the space's public channels. See docs/architecture/messaging.md.
 type Group struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	SpaceId string                 `protobuf:"bytes,2,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	// What people type after @@: 3-32 of a-z, 0-9 and _, unique in the space.
+	// What people type after @: 3-32 of a-z, 0-9 and _, unique in the space.
 	Handle string `protobuf:"bytes,3,opt,name=handle,proto3" json:"handle,omitempty"`
 	// What people read: 1-50 characters.
 	Name          string   `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`

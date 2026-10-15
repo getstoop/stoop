@@ -38,7 +38,7 @@ func messageCount(t *testing.T, pool *pgxpool.Pool, channelID string) int {
 
 // mentionSpace is casey's space with ada in it, and a subscription to its
 // events.
-func mentionSpace(t *testing.T) (*pgxpool.Pool, *chat.Service, context.Context, string, *events.Subscription) {
+func mentionSpace(t *testing.T) (*pgxpool.Pool, *chat.Service, context.Context, string, *events.Subscription, string) {
 	t.Helper()
 	pool, bus, svc := newTestService(t)
 	casey := newUser(t, pool, "casey", authctx.RoleMember)
@@ -50,17 +50,17 @@ func mentionSpace(t *testing.T) (*pgxpool.Pool, *chat.Service, context.Context, 
 	joinSpace(t, svc, casey, created.Msg.Space.Id, ada)
 	spaceEvents := bus.Subscribe(events.SpaceTopic(created.Msg.Space.Id))
 	t.Cleanup(spaceEvents.Close)
-	return pool, svc, casey, created.Msg.DefaultChannel.Id, spaceEvents
+	return pool, svc, casey, created.Msg.DefaultChannel.Id, spaceEvents, mentionOf(ada)
 }
 
 // The message is saved before activity is recorded: activity that fails
 // to write is logged, and the sender and the channel still see it sent.
 func TestFailedActivityDoesNotFailTheSend(t *testing.T) {
-	pool, svc, casey, channelID, spaceEvents := mentionSpace(t)
+	pool, svc, casey, channelID, spaceEvents, adaMention := mentionSpace(t)
 	refuseInserts(t, pool, "activity_items")
 
 	sent, err := svc.SendMessage(casey, connect.NewRequest(&chatv1.SendMessageRequest{
-		ChannelId: channelID, Content: "hey @ada",
+		ChannelId: channelID, Content: "hey " + adaMention,
 	}))
 	if err != nil {
 		t.Fatalf("send reported failure after the message was saved: %v", err)
@@ -77,11 +77,11 @@ func TestFailedActivityDoesNotFailTheSend(t *testing.T) {
 // A mention row belongs to the message: when it fails to write, nothing
 // of the send is kept and nobody is told.
 func TestFailedMentionRollsBackTheSend(t *testing.T) {
-	pool, svc, casey, channelID, spaceEvents := mentionSpace(t)
+	pool, svc, casey, channelID, spaceEvents, adaMention := mentionSpace(t)
 	refuseInserts(t, pool, "message_mentions")
 
 	if _, err := svc.SendMessage(casey, connect.NewRequest(&chatv1.SendMessageRequest{
-		ChannelId: channelID, Content: "hey @ada",
+		ChannelId: channelID, Content: "hey " + adaMention,
 	})); err == nil {
 		t.Fatal("the failed mention write was not reported")
 	}

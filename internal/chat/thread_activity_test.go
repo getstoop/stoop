@@ -83,7 +83,7 @@ func TestThreadActivity(t *testing.T) {
 
 	// A reply that mentions dot by name is a mention for her, and puts her
 	// in the thread: the next reply reaches her as a thread_reply.
-	send(casey, "@dot can you hold it steady?", root.Id)
+	send(casey, mentionOf(dot)+" can you hold it steady?", root.Id)
 	if got := items(dot); len(got) != 2 || got[0].Kind != chatv1.ActivityKind_ACTIVITY_KIND_MENTION || got[0].ThreadRootId != root.Id {
 		t.Errorf("dot after a mention in the thread = %+v, want a mention naming the thread", got)
 	}
@@ -114,7 +114,7 @@ func TestThreadActivity(t *testing.T) {
 	if after := len(items(ada)); after != before {
 		t.Errorf("ada muted the thread and got %d new items for a reply", after-before)
 	}
-	send(bea, "@ada you too", root.Id)
+	send(bea, mentionOf(ada)+" you too", root.Id)
 	if got := items(ada); len(got) != before+1 || got[0].Kind != chatv1.ActivityKind_ACTIVITY_KIND_MENTION || !got[0].Muted {
 		t.Errorf("ada's newest item = %+v, want a muted mention", got[0])
 	}

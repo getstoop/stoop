@@ -89,7 +89,7 @@ func TestPrivateChannelPeople(t *testing.T) {
 		}
 	}
 
-	fixture.send(t, fixture.bea, "before cal arrived @cal", "")
+	fixture.send(t, fixture.bea, "before cal arrived "+mentionOf(fixture.cal), "")
 	added := fixture.bus.Subscribe("user:" + authctx.UserID(fixture.cal))
 	defer added.Close()
 	inside := fixture.bus.Subscribe("user:" + authctx.UserID(fixture.bea))
@@ -108,7 +108,7 @@ func TestPrivateChannelPeople(t *testing.T) {
 	if err != nil || len(history.Msg.Messages) != 1 {
 		t.Errorf("history for someone added later: %v %v", history, err)
 	}
-	fixture.send(t, fixture.bea, "@cal welcome", "")
+	fixture.send(t, fixture.bea, mentionOf(fixture.cal)+" welcome", "")
 	if unread := fixture.unread(t, fixture.cal); unread != 1 {
 		t.Fatalf("a mention in the channel: %d unread, want 1", unread)
 	}
@@ -255,7 +255,7 @@ func TestAddBotToChannel(t *testing.T) {
 func TestActivityFollowsPrivateChannelAccess(t *testing.T) {
 	fixture := newPrivateFixture(t)
 	fixture.add(t, fixture.owner)
-	fixture.send(t, fixture.owner, "@bea the flyer is out", "")
+	fixture.send(t, fixture.owner, mentionOf(fixture.bea)+" the flyer is out", "")
 	listed := func() int {
 		res, err := fixture.svc.ListActivity(fixture.bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
 		if err != nil {

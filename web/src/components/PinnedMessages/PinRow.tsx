@@ -13,7 +13,7 @@ import { MessageBody } from "../MessageBody";
 // itself clamped to a few lines. The row opens the channel at it.
 export function PinRow({
   pin,
-  usernames,
+  members,
   groups,
   canUnpin,
   onOpen,
@@ -21,8 +21,8 @@ export function PinRow({
 }: {
   pin: PinnedMessage;
   // The space's handles, so @mentions in a kept message read as mentions.
-  usernames: MentionMembers;
-  // The channel's groups, so @@handles read as groups.
+  members: MentionMembers;
+  // The channel's groups, by ID.
   groups: MentionGroups;
   canUnpin: boolean;
   onOpen: () => void;
@@ -67,11 +67,11 @@ export function PinRow({
         <span className="pin-row-body message-content">
           <MessageBody
             content={message.content}
-            usernames={usernames}
+            members={members}
             groups={groups}
             mentionsEntireChannel={message.mentionsEntireChannel}
             mentionsHere={message.mentionsHere}
-            myUsername={me?.username}
+            myUserId={me?.id}
           />
         </span>
         {message.attachments.length > 0 && (

@@ -9,8 +9,8 @@ import { Avatar } from "./Avatar";
 import { BotMark } from "./BotMark";
 import { PeopleIcon } from "./Icons";
 
-// Autocomplete list shown above the composer while typing @handle or
-// @@handle: @channel and @here, then groups, then people.
+// Autocomplete list shown above the composer while typing @handle:
+// @channel and @here, then groups, then people.
 export function MentionPicker({
   candidates,
   selected,
@@ -57,7 +57,7 @@ export function MentionPicker({
                   {candidate.group.name}{" "}
                   <span className="muted">{groupCount(candidate.group)}</span>
                 </span>
-                <span className="muted small">@@{candidate.group.handle}</span>
+                <span className="muted small">@{candidate.group.handle}</span>
               </>
             ) : (
               <>

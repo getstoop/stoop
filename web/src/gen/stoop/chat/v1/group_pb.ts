@@ -13,7 +13,7 @@ export const file_stoop_chat_v1_group: GenFile = /*@__PURE__*/
   fileDesc("ChlzdG9vcC9jaGF0L3YxL2dyb3VwLnByb3RvEg1zdG9vcC5jaGF0LnYxIlUKBUdyb3VwEgoKAmlkGAEgASgJEhAKCHNwYWNlX2lkGAIgASgJEg4KBmhhbmRsZRgDIAEoCRIMCgRuYW1lGAQgASgJEhAKCHVzZXJfaWRzGAUgAygJQqkBChFjb20uc3Rvb3AuY2hhdC52MUIKR3JvdXBQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z");
 
 /**
- * Group is a set of a space's members that @@handle mentions all at once,
+ * Group is a set of a space's members that one mention reaches at once,
  * in the space's public channels. See docs/architecture/messaging.md.
  *
  * @generated from message stoop.chat.v1.Group
@@ -30,7 +30,7 @@ export type Group = Message<"stoop.chat.v1.Group"> & {
   spaceId: string;
 
   /**
-   * What people type after @@: 3-32 of a-z, 0-9 and _, unique in the space.
+   * What people type after @: 3-32 of a-z, 0-9 and _, unique in the space.
    *
    * @generated from field: string handle = 3;
    */

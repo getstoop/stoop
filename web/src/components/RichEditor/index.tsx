@@ -3,6 +3,7 @@ import { EditorState, Selection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import type { Format } from "../../api/formatting";
+import type { MentionRef } from "../../api/mentions";
 import { activeFormats, formatCommands } from "./commands";
 import { LinkDialog } from "./LinkDialog";
 import {
@@ -14,7 +15,12 @@ import {
   saveLink,
 } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
-import { type MentionContext, mentionsKey, NO_MENTIONS } from "./mentions";
+import {
+  type MentionContext,
+  mentionsKey,
+  mentionsOffAtCaret,
+  NO_MENTIONS,
+} from "./mentions";
 import { editorPlugins } from "./plugins";
 import { schema } from "./schema";
 
@@ -26,6 +32,10 @@ export interface RichField {
   format(format: Format): void;
   // Replace the `count` characters before the caret (a picker's query).
   replaceBeforeCaret(count: number, text: string): void;
+  // The same, with a mention and a space after it.
+  mentionBeforeCaret(count: number, mention: MentionRef): void;
+  // Whether what is typed at the caret can't be a mention.
+  mentionsOffAtCaret(): boolean;
   focus(): void;
 }
 
@@ -144,13 +154,17 @@ export function RichEditor({
         },
       },
       dispatchTransaction: (tr) => {
-        view.updateState(view.state.apply(tr));
+        const { state, transactions } = view.state.applyTransaction(tr);
+        view.updateState(state);
+        // The mentions plugin may append a change of its own, even to a
+        // transaction that changed nothing: that is an edit too.
+        const appended = transactions.slice(1).some((t) => t.docChanged);
         const active = activeFormats(view.state);
         if (active.join() !== formatsKey.current) {
           formatsKey.current = active.join();
           handlers.current.onFormats?.(active);
         }
-        if (tr.getMeta("fromProps")) return;
+        if (tr.getMeta("fromProps") && !appended) return;
         const { $from } = view.state.selection;
         const textBefore = $from.parent.textBetween(
           0,
@@ -158,7 +172,7 @@ export function RichEditor({
           undefined,
           "\ufffc",
         );
-        if (!tr.docChanged) {
+        if (!tr.docChanged && !appended) {
           if (tr.selectionSet) handlers.current.onCaret?.(textBefore);
           return;
         }
@@ -190,6 +204,21 @@ export function RichEditor({
         view.dispatch(view.state.tr.insertText(text, pos - count, pos));
         view.focus();
       },
+      mentionBeforeCaret: (count, mention) => {
+        const { from: pos, $from } = view.state.selection;
+        if (count > $from.parentOffset) return;
+        // The pill takes the formatting of what it replaces: one picked
+        // in bold stays bold.
+        const marks = view.state.storedMarks ?? $from.marks();
+        const node = schema.nodes.mention.create({ ...mention }, null, marks);
+        view.dispatch(
+          view.state.tr
+            .replaceWith(pos - count, pos, node)
+            .insertText(" ", pos - count + node.nodeSize),
+        );
+        view.focus();
+      },
+      mentionsOffAtCaret: () => mentionsOffAtCaret(view.state),
       focus: () => view.focus(),
     };
     return () => {

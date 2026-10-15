@@ -52,7 +52,7 @@ func TestBlocks(t *testing.T) {
 		t.Errorf("DM lists: alice %d (want 0), bob %d (want 1)", len(al.Msg.DirectMessages), len(bl.Msg.DirectMessages))
 	}
 	// A mention from bob in the space doesn't alert alice.
-	if _, err := svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: sp.Msg.DefaultChannel.Id, Content: "@alice hi"})); err != nil {
+	if _, err := svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: sp.Msg.DefaultChannel.Id, Content: mentionOf(alice) + " hi"})); err != nil {
 		t.Fatal(err)
 	}
 	notes, _ := svc.ListActivity(alice, connect.NewRequest(&chatv1.ListActivityRequest{}))

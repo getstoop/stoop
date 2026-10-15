@@ -40,27 +40,45 @@ func (f groupFixture) history(t *testing.T, person context.Context) map[string]*
 	return byID
 }
 
-func TestMentionTokensFollowRenames(t *testing.T) {
+// Kept tokens carry the current handle whatever the sender wrote; the
+// rest are saved as text and reach nobody. Content goes out as stored.
+func TestMentionTokensAreChecked(t *testing.T) {
 	fixture := newGroupFixture(t)
 	beaID := authctx.UserID(fixture.bea)
-
-	written := "hi @Bea and @@gardeners, not @nobody"
+	stranger := newUser(t, fixture.pool, "stranger", authctx.RoleMember)
+	written := "hi <@u:" + beaID + ":wrong> and <@g:" + fixture.groupID + ":wrong>, not " +
+		mentionOf(stranger) + " or <@g:0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8c:ghosts> or @cal"
 	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, written)
-	if want := "hi @bea and @@gardeners, not @nobody"; sent.Content != want {
-		t.Errorf("sent content = %q, want %q", sent.Content, want)
-	}
-	stored := fixture.storedContent(t, sent.Id)
-	if want := "hi <@u:" + beaID + ":bea> and <@g:" + fixture.groupID + ":gardeners>, not @nobody"; stored != want {
+	want := "hi <@u:" + beaID + ":bea> and <@g:" + fixture.groupID + ":gardeners>, not @someone or @ghosts or @cal"
+	if stored := fixture.storedContent(t, sent.Id); stored != want {
 		t.Errorf("stored content = %q, want %q", stored, want)
 	}
+	if sent.Content != want {
+		t.Errorf("sent content = %q, want it as stored", sent.Content)
+	}
+	if listed := fixture.history(t, fixture.cal)[sent.Id].Content; listed != want {
+		t.Errorf("listed content = %q, want it as stored", listed)
+	}
+	if unread := fixture.unread(t, fixture.cal); unread != 1 {
+		t.Errorf("cal, in the group, has %d unread; want 1 (typed @cal tells nobody)", unread)
+	}
+	if unread := fixture.unread(t, stranger); unread != 0 {
+		t.Errorf("someone outside the space was told: %d unread", unread)
+	}
+}
 
+// Previews read tokens as current handles; content keeps its tokens.
+func TestMentionTokensPreviewsFollowRenames(t *testing.T) {
+	fixture := newGroupFixture(t)
+	beaID := authctx.UserID(fixture.bea)
+	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, "hi "+mentionOf(fixture.bea)+" and "+groupMention(fixture.groupID))
 	quote, err := fixture.svc.SendMessage(fixture.cal, connect.NewRequest(&chatv1.SendMessageRequest{
-		ChannelId: fixture.generalID, Content: "agreed @bea", ReplyToMessageId: sent.Id,
+		ChannelId: fixture.generalID, Content: "agreed", ReplyToMessageId: sent.Id,
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview := quote.Msg.Message.ReplyTo.Preview; !strings.Contains(preview, "hi @bea and @@gardeners") {
+	if preview := quote.Msg.Message.ReplyTo.Preview; preview != "hi @bea and @gardeners" {
 		t.Errorf("reply quote on send = %q", preview)
 	}
 
@@ -68,47 +86,24 @@ func TestMentionTokensFollowRenames(t *testing.T) {
 	fixture.exec(t, "UPDATE groups SET handle = 'growers' WHERE id = $1", fixture.groupID)
 
 	history := fixture.history(t, fixture.cal)
-	if got, want := history[sent.Id].Content, "hi @bea_k and @@growers, not @nobody"; got != want {
-		t.Errorf("after the renames the message reads %q, want %q", got, want)
+	if got := history[quote.Msg.Message.Id].ReplyTo.Preview; got != "hi @bea_k and @growers" {
+		t.Errorf("after the renames the reply quotes %q", got)
 	}
-	if got := history[quote.Msg.Message.Id]; got.Content != "agreed @bea_k" || !strings.Contains(got.ReplyTo.Preview, "hi @bea_k and @@growers") {
-		t.Errorf("after the renames the reply reads %q quoting %q", got.Content, got.ReplyTo.Preview)
+	if got := history[sent.Id].Content; !strings.Contains(got, "<@u:"+beaID+":bea>") {
+		t.Errorf("content after the renames = %q, want the token as stored", got)
 	}
-
 	activity, err := fixture.svc.ListActivity(fixture.bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, item := range activity.Msg.Items {
-		if strings.Contains(item.Preview, "<@") || !strings.Contains(item.Preview, "@bea_k") {
-			t.Errorf("activity preview after the rename = %q", item.Preview)
-		}
-	}
-	if len(activity.Msg.Items) == 0 {
-		t.Error("bea has no activity")
+	if len(activity.Msg.Items) == 0 || activity.Msg.Items[0].Preview != "hi @bea_k and @growers" {
+		t.Errorf("bea's activity after the renames = %v", activity.Msg.Items)
 	}
 
-	// A group deleted since reads as the handle it was written with.
+	// A group deleted since previews as its saved handle.
 	fixture.exec(t, "DELETE FROM groups WHERE id = $1", fixture.groupID)
-	if got, want := fixture.history(t, fixture.cal)[sent.Id].Content, "hi @bea_k and @@gardeners, not @nobody"; got != want {
-		t.Errorf("after the group's deletion the message reads %q, want %q", got, want)
-	}
-}
-
-func TestMentionTokensANewOwnerOfAnOldNameInheritsNothing(t *testing.T) {
-	fixture := newGroupFixture(t)
-	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, "thanks @bea")
-	fixture.exec(t, "UPDATE users SET username = 'bea_k' WHERE id = $1", authctx.UserID(fixture.bea))
-	newBea := newUser(t, fixture.pool, "bea", authctx.RoleMember)
-	invite, err := fixture.svc.CreateInvite(fixture.owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: fixture.spaceID}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := fixture.svc.JoinSpace(newBea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invite.Msg.Invite.Code})); err != nil {
-		t.Fatal(err)
-	}
-	if got := fixture.history(t, newBea)[sent.Id].Content; got != "thanks @bea_k" {
-		t.Errorf("the old message reads %q, want it to name the renamed person", got)
+	if got := fixture.history(t, fixture.cal)[quote.Msg.Message.Id].ReplyTo.Preview; got != "hi @bea_k and @gardeners" {
+		t.Errorf("after the group's deletion the reply quotes %q", got)
 	}
 }
 
@@ -116,45 +111,46 @@ func TestMentionTokensOnEdit(t *testing.T) {
 	fixture := newGroupFixture(t)
 	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, "hello")
 	edited, err := fixture.svc.EditMessage(fixture.owner, connect.NewRequest(&chatv1.EditMessageRequest{
-		MessageId: sent.Id, Content: "hello @cal",
+		MessageId: sent.Id, Content: "hello " + mentionOf(fixture.cal),
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if edited.Msg.Message.Content != "hello @cal" {
-		t.Errorf("edited content = %q", edited.Msg.Message.Content)
-	}
-	if stored := fixture.storedContent(t, sent.Id); stored != "hello <@u:"+authctx.UserID(fixture.cal)+":cal>" {
-		t.Errorf("stored after the edit = %q", stored)
+	want := "hello <@u:" + authctx.UserID(fixture.cal) + ":cal>"
+	if edited.Msg.Message.Content != want || fixture.storedContent(t, sent.Id) != want {
+		t.Errorf("edited content = %q, want %q", edited.Msg.Message.Content, want)
 	}
 	if unread := fixture.unread(t, fixture.cal); unread != 0 {
 		t.Errorf("an edit told cal: %d unread", unread)
 	}
 }
 
-func TestMentionTokensLengthCountsTheWrittenText(t *testing.T) {
+func TestMentionTokensLengthCountsHandles(t *testing.T) {
 	fixture := newGroupFixture(t)
-	written := strings.Repeat("@cal ", 800)
-	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, written)
-	if sent.Content != written {
-		t.Error("a full-length message with mentions did not read back as written")
+	unit := mentionOf(fixture.cal) + " "
+	content := strings.Repeat(unit, 4000/len("@someone "))
+	if _, err := fixture.svc.SendMessage(fixture.owner, connect.NewRequest(&chatv1.SendMessageRequest{
+		ChannelId: fixture.generalID, Content: content,
+	})); err != nil {
+		t.Errorf("a message of %d characters as written was refused: %v", 4000/len("@someone ")*len("@someone "), err)
 	}
-	if stored := fixture.storedContent(t, sent.Id); len(stored) <= len(written) {
-		t.Errorf("stored %d characters, want more than the %d written", len(stored), len(written))
+	if _, err := fixture.svc.SendMessage(fixture.owner, connect.NewRequest(&chatv1.SendMessageRequest{
+		ChannelId: fixture.generalID, Content: content + strings.Repeat("x", 4000),
+	})); code(err) != connect.CodeInvalidArgument {
+		t.Errorf("an over-long message: %v, want invalid_argument", err)
 	}
 }
 
-func TestMentionTokensTypedByHandAreSavedAsText(t *testing.T) {
+// A mention doesn't work in code: it is saved as its handle and tells
+// nobody.
+func TestMentionTokensInCodeAreText(t *testing.T) {
 	fixture := newGroupFixture(t)
-	typed := "<@u:" + authctx.UserID(fixture.cal) + ":someone>"
-	sent := fixture.sendTo(t, fixture.bea, fixture.generalID, typed)
-	if sent.Content != "@someone" || len(sent.MentionUserIds) != 0 {
-		t.Errorf("a typed token reads %q and reached %v", sent.Content, sent.MentionUserIds)
+	written := "`" + mentionOf(fixture.cal) + "`\n```\n" + groupMention(fixture.groupID) + "\n```"
+	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, written)
+	if want := "`@someone`\n```\n@somegroup\n```"; sent.Content != want {
+		t.Errorf("content = %q, want %q", sent.Content, want)
 	}
-	if unread := fixture.unread(t, fixture.cal); unread != 0 {
-		t.Errorf("a typed token told cal: %d unread", unread)
-	}
-	if stored := fixture.storedContent(t, sent.Id); stored != "@someone" {
-		t.Errorf("a typed token was stored as %q", stored)
+	if len(sent.MentionUserIds) != 0 {
+		t.Errorf("tokens in code reached %v", sent.MentionUserIds)
 	}
 }

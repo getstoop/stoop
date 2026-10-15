@@ -103,7 +103,7 @@ type ListGroupHandlesByIDsRow struct {
 	Handle string
 }
 
-// ListGroupHandlesByIDs is the current handles behind mention tokens.
+// ListGroupHandlesByIDs is the current handles behind tokens, for previews.
 func (q *Queries) ListGroupHandlesByIDs(ctx context.Context, ids []string) ([]ListGroupHandlesByIDsRow, error) {
 	rows, err := q.db.Query(ctx, listGroupHandlesByIDs, ids)
 	if err != nil {
@@ -124,21 +124,13 @@ func (q *Queries) ListGroupHandlesByIDs(ctx context.Context, ids []string) ([]Li
 	return items, nil
 }
 
-const listGroupMemberIDsByHandles = `-- name: ListGroupMemberIDsByHandles :many
-SELECT DISTINCT gm.user_id
-FROM groups g
-JOIN group_members gm ON gm.group_id = g.id
-WHERE g.space_id = $1 AND g.handle = ANY ($2::text[])
+const listGroupMemberIDsByGroupIDs = `-- name: ListGroupMemberIDsByGroupIDs :many
+SELECT DISTINCT user_id FROM group_members WHERE group_id = ANY ($1::uuid[])
 `
 
-type ListGroupMemberIDsByHandlesParams struct {
-	SpaceID string
-	Handles []string
-}
-
-// ListGroupMemberIDsByHandles is who a message's @@handles reach.
-func (q *Queries) ListGroupMemberIDsByHandles(ctx context.Context, arg ListGroupMemberIDsByHandlesParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, listGroupMemberIDsByHandles, arg.SpaceID, arg.Handles)
+// ListGroupMemberIDsByGroupIDs is who a message's group tokens reach.
+func (q *Queries) ListGroupMemberIDsByGroupIDs(ctx context.Context, groupIds []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listGroupMemberIDsByGroupIDs, groupIds)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +183,7 @@ const listGroups = `-- name: ListGroups :many
 SELECT id, space_id, handle, name, created_at FROM groups WHERE space_id = $1 ORDER BY handle
 `
 
-// Groups: a set of a space's members that @@handle mentions. Owned by the
+// Groups: a set of a space's members that one mention reaches. Owned by the
 // chat module. Only internal/chat may use these queries.
 func (q *Queries) ListGroups(ctx context.Context, spaceID string) ([]Group, error) {
 	rows, err := q.db.Query(ctx, listGroups, spaceID)
@@ -219,32 +211,32 @@ func (q *Queries) ListGroups(ctx context.Context, spaceID string) ([]Group, erro
 	return items, nil
 }
 
-const listGroupsByHandles = `-- name: ListGroupsByHandles :many
+const listSpaceGroupsByIDs = `-- name: ListSpaceGroupsByIDs :many
 SELECT id, handle FROM groups
-WHERE space_id = $1 AND handle = ANY ($2::text[])
+WHERE space_id = $1 AND id = ANY ($2::uuid[])
 `
 
-type ListGroupsByHandlesParams struct {
+type ListSpaceGroupsByIDsParams struct {
 	SpaceID string
-	Handles []string
+	Ids     []string
 }
 
-type ListGroupsByHandlesRow struct {
+type ListSpaceGroupsByIDsRow struct {
 	ID     string
 	Handle string
 }
 
-// ListGroupsByHandles is which groups a message's @@handles name, for
-// its mention tokens.
-func (q *Queries) ListGroupsByHandles(ctx context.Context, arg ListGroupsByHandlesParams) ([]ListGroupsByHandlesRow, error) {
-	rows, err := q.db.Query(ctx, listGroupsByHandles, arg.SpaceID, arg.Handles)
+// ListSpaceGroupsByIDs is which of a message's group tokens name a group
+// of its channel's space.
+func (q *Queries) ListSpaceGroupsByIDs(ctx context.Context, arg ListSpaceGroupsByIDsParams) ([]ListSpaceGroupsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, listSpaceGroupsByIDs, arg.SpaceID, arg.Ids)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListGroupsByHandlesRow
+	var items []ListSpaceGroupsByIDsRow
 	for rows.Next() {
-		var i ListGroupsByHandlesRow
+		var i ListSpaceGroupsByIDsRow
 		if err := rows.Scan(&i.ID, &i.Handle); err != nil {
 			return nil, err
 		}

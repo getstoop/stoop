@@ -1,8 +1,11 @@
 // The message format's tree: what MessageBody renders and the previews and
 // the editor read. Markers are gone by this point; escapes are resolved.
 
+import type { MentionRef } from "../mentions";
+
 export type Inline =
   | { type: "text"; text: string }
+  | { type: "mention"; mention: MentionRef }
   | { type: "code"; text: string }
   // label is the words of a [words](address) link; a bare URL has none.
   | { type: "link"; href: string; label?: Inline[] }

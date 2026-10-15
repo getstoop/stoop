@@ -26,7 +26,7 @@ func TestSweepActivity(t *testing.T) {
 	// Three mentions of bea: one read long ago, one read just now, one unread.
 	ch := sp.Msg.DefaultChannel.Id
 	for index := 0; index < 3; index++ {
-		if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: ch, Content: "@bea hi"})); err != nil {
+		if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: ch, Content: mentionOf(bea) + " hi"})); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -265,10 +265,13 @@ type Message struct {
 	Id        string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	ChannelId string                 `protobuf:"bytes,2,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
 	Author    *MessageAuthor         `protobuf:"bytes,3,opt,name=author,proto3" json:"author,omitempty"`
+	// Markdown, with mentions as tokens: <@u:ID:handle> for a person,
+	// <@g:ID:handle> for a group. The handle is the one current when the
+	// message was saved. See docs/architecture/integrations.md → Mentions.
 	Content   string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Members this message @mentions, resolved at send time. Clients use it
-	// to highlight mention tokens and to tint messages that mention them.
+	// Members this message mentions, resolved at send time. Clients use it
+	// to tint messages that mention them.
 	MentionUserIds []string `protobuf:"bytes,6,rep,name=mention_user_ids,json=mentionUserIds,proto3" json:"mention_user_ids,omitempty"`
 	// The channel's space, so clients can update per-space state from a
 	// realtime event without a lookup.

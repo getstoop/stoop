@@ -4,79 +4,117 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// Stored content names who a mention means, not the handle it was typed
-// with: <@u:ID:handle> for a person, <@g:ID:handle> for a group. Content
-// is turned back into @handle text before it leaves this module. See
-// messaging.md → Mention tokens.
+// Only a token mentions anyone: <@u:ID:handle> for a person,
+// <@g:ID:handle> for a group. Content carries them as stored; previews
+// read them back as @handle text. See messaging.md → Mentions.
 
-// anyMentionRE matches @handle and @@handle together, so encoding
-// reads the text as written in one pass.
-var anyMentionRE = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])(@@?)([a-z0-9_]{3,32})\b`)
-
-// mentionTokenRE matches a stored token. The handle is the one written,
-// read back when its person or group can't be found.
+// mentionTokenRE matches a token. The handle is the one current when the
+// message was saved, for readers that can't find the person or group.
 var mentionTokenRE = regexp.MustCompile(`<@([ug]):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([a-z0-9_]{3,32})>`)
-
-// addressRE finds web addresses. A handle inside one is part of the
-// address, which a rename must not change.
-var addressRE = regexp.MustCompile(`(?i)https?://[^\s<]+`)
 
 const (
 	personToken = "u"
 	groupToken  = "g"
 )
 
-// mentionTargets is who a message's handles name, handle → ID, and the
-// channel's readers when it has @handles.
+// mentionTargets is who a message's kept tokens name, in the order they
+// appear, and the channel's readers for @channel and @here.
 type mentionTargets struct {
-	people  map[string]string
-	groups  map[string]string
+	people  []string
+	groups  []string
 	readers []string
 }
 
-// lookupMentions finds the @handles that name a reader of the channel
-// and, in a public channel, the @@handles that name a group of its
-// space.
-func (s *Service) lookupMentions(ctx context.Context, channel dbgen.Channel, participants []string, content string) (mentionTargets, error) {
-	targets := mentionTargets{people: map[string]string{}, groups: map[string]string{}}
-	if handles := parseMentionHandles(content); len(handles) > 0 {
-		readers, err := s.channelReaders(ctx, channel, participants)
-		if err != nil {
-			return mentionTargets{}, err
+// checkMentions keeps each token that names a reader of the channel or,
+// in a public channel, a group of its space, with its current handle.
+// Any other token, and any token in code, is saved as its handle, as
+// text. It returns the content to store and who the kept tokens name.
+func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, participants []string, content string) (string, mentionTargets, error) {
+	var targets mentionTargets
+	content = codeAsText(content)
+	matches := mentionTokenRE.FindAllStringSubmatch(content, -1)
+	if len(matches) == 0 && !namesEveryone(content) {
+		return content, targets, nil
+	}
+	readers, err := s.channelReaders(ctx, channel, participants)
+	if err != nil {
+		return "", mentionTargets{}, err
+	}
+	targets.readers = readers
+	var personIDs, groupIDs []string
+	for _, match := range matches {
+		kind, id := match[1], match[2]
+		switch {
+		case kind == personToken && slices.Contains(readers, id) && !slices.Contains(personIDs, id):
+			personIDs = append(personIDs, id)
+		case kind == groupToken && !slices.Contains(groupIDs, id):
+			groupIDs = append(groupIDs, id)
 		}
-		records, err := s.users.GetUsers(ctx, readers)
+	}
+	current := map[string]string{}
+	if len(personIDs) > 0 {
+		records, err := s.users.GetUsers(ctx, personIDs)
 		if err != nil {
-			return mentionTargets{}, fmt.Errorf("resolve members: %w", err)
+			return "", mentionTargets{}, fmt.Errorf("read mentioned people: %w", err)
 		}
-		byHandle := make(map[string]string, len(records))
 		for _, record := range records {
-			byHandle[strings.ToLower(record.Username)] = record.ID
+			current[personToken+record.ID] = strings.ToLower(record.Username)
 		}
-		for _, handle := range handles {
-			if id, ok := byHandle[handle]; ok {
-				targets.people[handle] = id
-			}
-		}
-		targets.readers = readers
 	}
-	if isDM(channel) || channel.Private {
-		return targets, nil
-	}
-	if handles := parseGroupHandles(content); len(handles) > 0 {
-		rows, err := s.q.ListGroupsByHandles(ctx, dbgen.ListGroupsByHandlesParams{SpaceID: *channel.SpaceID, Handles: handles})
+	if len(groupIDs) > 0 && !isDM(channel) && !channel.Private {
+		rows, err := s.q.ListSpaceGroupsByIDs(ctx, dbgen.ListSpaceGroupsByIDsParams{SpaceID: *channel.SpaceID, Ids: groupIDs})
 		if err != nil {
-			return mentionTargets{}, fmt.Errorf("resolve groups: %w", err)
+			return "", mentionTargets{}, fmt.Errorf("read mentioned groups: %w", err)
 		}
 		for _, row := range rows {
-			targets.groups[row.Handle] = row.ID
+			current[groupToken+row.ID] = row.Handle
 		}
 	}
-	return targets, nil
+	stored := mentionTokenRE.ReplaceAllStringFunc(content, func(token string) string {
+		match := mentionTokenRE.FindStringSubmatch(token)
+		kind, id, handle := match[1], match[2], match[3]
+		name, kept := current[kind+id]
+		if !kept {
+			return "@" + handle
+		}
+		if kind == personToken && !slices.Contains(targets.people, id) {
+			targets.people = append(targets.people, id)
+		}
+		if kind == groupToken && !slices.Contains(targets.groups, id) {
+			targets.groups = append(targets.groups, id)
+		}
+		return "<@" + kind + ":" + id + ":" + name + ">"
+	})
+	return stored, targets, nil
+}
+
+// codeAsText saves each token inside code as its handle: a mention
+// doesn't work in code, and code shows what was written.
+func codeAsText(content string) string {
+	if !strings.Contains(content, "<@") || !strings.Contains(content, "`") {
+		return content
+	}
+	code := codeRanges(content)
+	var out strings.Builder
+	written := 0
+	for _, match := range mentionTokenRE.FindAllStringSubmatchIndex(content, -1) {
+		start, end := match[0], match[1]
+		if !slices.ContainsFunc(code, func(span [2]int) bool { return start >= span[0] && start < span[1] }) {
+			continue
+		}
+		out.WriteString(content[written:start])
+		out.WriteString("@" + content[match[6]:match[7]])
+		written = end
+	}
+	out.WriteString(content[written:])
+	return out.String()
 }
 
 // channelReaders is who can read the channel: the space's members, or
@@ -96,60 +134,10 @@ func (s *Service) channelReaders(ctx context.Context, channel dbgen.Channel, par
 	return ids, nil
 }
 
-// encodeMentions turns each handle that names someone into its token. A
-// handle naming nobody stays text, and so does a token typed by hand: it
-// is saved as the handle it carries, so no ID the server didn't look up
-// is ever stored or read back.
-func encodeMentions(content string, targets mentionTargets) string {
-	var out strings.Builder
-	written := 0
-	for _, typed := range mentionTokenRE.FindAllStringSubmatchIndex(content, -1) {
-		out.WriteString(encodeHandles(content[written:typed[0]], targets))
-		symbol := "@"
-		if content[typed[2]:typed[3]] == groupToken {
-			symbol = "@@"
-		}
-		out.WriteString(symbol + content[typed[6]:typed[7]])
-		written = typed[1]
-	}
-	out.WriteString(encodeHandles(content[written:], targets))
-	return out.String()
-}
-
-func encodeHandles(content string, targets mentionTargets) string {
-	matches := anyMentionRE.FindAllStringSubmatchIndex(content, -1)
-	if len(matches) == 0 {
-		return content
-	}
-	addresses := addressRE.FindAllStringIndex(content, -1)
-	var out strings.Builder
-	written := 0
-	for _, match := range matches {
-		symbolStart, handleStart, handleEnd := match[2], match[4], match[5]
-		handle := strings.ToLower(content[handleStart:handleEnd])
-		kind, ids := personToken, targets.people
-		if content[symbolStart:handleStart] == "@@" {
-			kind, ids = groupToken, targets.groups
-		}
-		id, ok := ids[handle]
-		if !ok || inAddress(addresses, symbolStart) {
-			continue
-		}
-		out.WriteString(content[written:symbolStart])
-		out.WriteString("<@" + kind + ":" + id + ":" + handle + ">")
-		written = handleEnd
-	}
-	out.WriteString(content[written:])
-	return out.String()
-}
-
-func inAddress(addresses [][]int, at int) bool {
-	for _, address := range addresses {
-		if at >= address[0] && at < address[1] {
-			return true
-		}
-	}
-	return false
+// writtenLength is content's length as people read it, each token
+// counted as its handle, for the message length limit.
+func writtenLength(content string) int {
+	return utf8.RuneCountInString(mentionNames{}.text(content))
 }
 
 // mentionNames is the current handle behind each token, by ID.
@@ -159,7 +147,8 @@ type mentionNames struct {
 }
 
 // mentionNames looks up the current handles behind a batch of stored
-// contents: one call for the people, one query for the groups.
+// contents, for previews: one call for the people, one query for the
+// groups.
 func (s *Service) mentionNames(ctx context.Context, contents ...string) (mentionNames, error) {
 	names := mentionNames{people: map[string]string{}, groups: map[string]string{}}
 	var userIDs, groupIDs []string
@@ -199,9 +188,8 @@ func (s *Service) mentionNames(ctx context.Context, contents ...string) (mention
 	return names, nil
 }
 
-// text is stored content as people read it: each token as its current
-// @handle or @@handle, or as the handle it was written with when its
-// person or group is gone.
+// text is stored content as a preview reads it: each token as its current
+// @handle, or as its saved handle when its person or group is gone.
 func (n mentionNames) text(content string) string {
 	if !strings.Contains(content, "<@") {
 		return content
@@ -209,14 +197,14 @@ func (n mentionNames) text(content string) string {
 	return mentionTokenRE.ReplaceAllStringFunc(content, func(token string) string {
 		match := mentionTokenRE.FindStringSubmatch(token)
 		kind, id, handle := match[1], match[2], match[3]
-		symbol, current := "@", n.people
+		current := n.people
 		if kind == groupToken {
-			symbol, current = "@@", n.groups
+			current = n.groups
 		}
 		if name, ok := current[id]; ok {
 			handle = name
 		}
-		return symbol + handle
+		return "@" + handle
 	})
 }
 

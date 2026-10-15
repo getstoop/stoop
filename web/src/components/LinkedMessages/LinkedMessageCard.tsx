@@ -42,7 +42,7 @@ export function LinkedMessageCard({ target }: { target: LinkedMessage }) {
 
   const who = message.author?.displayName || message.author?.username || "…";
   const when = message.createdAt ? timestampDate(message.createdAt) : null;
-  const usernames = mentionMembers(members);
+  const membersById = mentionMembers(members);
   return (
     <div className="link-preview linked-message">
       <Link
@@ -78,11 +78,11 @@ export function LinkedMessageCard({ target }: { target: LinkedMessage }) {
         <div className="linked-message-body message-content">
           <MessageBody
             content={message.content}
-            usernames={usernames}
+            members={membersById}
             groups={groups}
             mentionsEntireChannel={message.mentionsEntireChannel}
             mentionsHere={message.mentionsHere}
-            myUsername={me?.username}
+            myUserId={me?.id}
           />
         </div>
       )}

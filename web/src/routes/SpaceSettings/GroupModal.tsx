@@ -106,7 +106,7 @@ export function GroupModal({
         >
           <Input
             name="group-handle"
-            start="@@"
+            start="@"
             value={handle}
             maxLength={32}
             placeholder="gardeners"

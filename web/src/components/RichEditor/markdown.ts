@@ -1,4 +1,5 @@
 import { type Inline, type ListItem, parseMarkdown } from "../../api/markdown";
+import { type MentionRef, mentionToken } from "../../api/mentions";
 
 // The rich editor's document and our Markdown subset, both ways. The draft
 // is the document; Markdown is what it sends and what it loads to edit.
@@ -102,7 +103,7 @@ function inline(nodes: JSONContent[] = []): string {
     open.length = keep;
   };
   for (const node of nodes) {
-    if (node.type !== "text") continue;
+    if (node.type !== "text" && node.type !== "mention") continue;
     const marks = sortMarks(node.marks ?? []);
     let keep = 0;
     while (
@@ -113,7 +114,9 @@ function inline(nodes: JSONContent[] = []): string {
       keep++;
     }
     closeFrom(keep);
-    let text = node.text ?? "";
+    const mention =
+      node.type === "mention" ? (node.attrs as unknown as MentionRef) : null;
+    let text = mention ? `@${mention.handle}` : (node.text ?? "");
     if (marks.length > keep) {
       // Openers go after leading whitespace: "** a**" doesn't open.
       const ws = /^\s*/.exec(text)?.[0] ?? "";
@@ -128,7 +131,9 @@ function inline(nodes: JSONContent[] = []): string {
     }
     const literal =
       marks.some((m) => m.type === "code") || open.some((o) => o.bare);
-    out += literal ? text : escapeMarkup(text);
+    // In code a mention is the words it reads as.
+    if (mention && !literal) out += mentionToken(mention);
+    else out += literal ? text : escapeMarkup(text);
   }
   closeFrom(0);
   return out;
@@ -224,6 +229,13 @@ function inlineJSON(nodes: Inline[], marks: MarkJSON[]): JSONContent[] {
         break;
       case "code":
         text(n.text, [...marks, { type: "code" }]);
+        break;
+      case "mention":
+        out.push(
+          marks.length
+            ? { type: "mention", attrs: { ...n.mention }, marks }
+            : { type: "mention", attrs: { ...n.mention } },
+        );
         break;
       case "link": {
         const link = { type: "link", attrs: { href: n.href } };

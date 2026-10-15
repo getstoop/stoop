@@ -115,7 +115,7 @@ all. `closed_at` is one person taking the conversation off their own list.
 have rows. A foreign key on `(space_id, user_id)` to `space_members` takes
 someone who leaves the space out of its private channels.
 
-**`groups`** and **`group_members`** — the groups `@@handle` mentions
+**`groups`** and **`group_members`** — the groups a mention reaches
 ([messaging.md](messaging.md#groups)). `(space_id, handle)` is unique.
 `group_members` carries the space id so that two foreign keys hold a
 group's people to members of its own space: one to `groups (id,
