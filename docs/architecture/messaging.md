@@ -171,6 +171,8 @@ document, and Markdown is what it sends and what it loads to edit.
 - **The link form refuses what the format can't read back**: an address
   not starting with `http://` or `https://`, and link words holding an
   address of their own.
+- **A draft stays in its conversation.** Switching channel or thread
+  starts an empty box, so unsent text is never sent somewhere else.
 
 ### The server's one involvement
 
