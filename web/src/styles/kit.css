@@ -102,3 +102,13 @@ body[data-ground="canvas"] {
 .kit-panel-footer {
   padding: 0 16px 16px;
 }
+
+/* What a story's composer would have sent, as written. */
+.kit-sent {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
