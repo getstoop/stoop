@@ -17,15 +17,17 @@ func tokenTargets() mentionTargets {
 
 func TestEncodeMentions(t *testing.T) {
 	tests := map[string]string{
-		"hi @casey":                  "hi <@u:" + caseyID + ":casey>",
-		"(@Casey) and @casey's":      "(<@u:" + caseyID + ":casey>) and <@u:" + caseyID + ":casey>'s",
-		"@nobody stays":              "@nobody stays",
-		"@@gardeners and @gardeners": "<@g:" + gardenersID + ":gardeners> and <@u:" + adaID + ":gardeners>",
-		"@@casey is no group":        "@@casey is no group",
-		"me@casey.org":               "me@casey.org",
-		"`@casey` in code":           "`<@u:" + caseyID + ":casey>` in code",
-		"@channel and @here":         "@channel and @here",
-		"no mentions":                "no mentions",
+		"hi @casey":                                "hi <@u:" + caseyID + ":casey>",
+		"(@Casey) and @casey's":                    "(<@u:" + caseyID + ":casey>) and <@u:" + caseyID + ":casey>'s",
+		"@nobody stays":                            "@nobody stays",
+		"@@gardeners and @gardeners":               "<@g:" + gardenersID + ":gardeners> and <@u:" + adaID + ":gardeners>",
+		"@@casey is no group":                      "@@casey is no group",
+		"me@casey.org":                             "me@casey.org",
+		"`@casey` in code":                         "`<@u:" + caseyID + ":casey>` in code",
+		"@channel and @here":                       "@channel and @here",
+		"no mentions":                              "no mentions",
+		"https://social.example/@casey and @casey": "https://social.example/@casey and <@u:" + caseyID + ":casey>",
+		"[@casey](https://x.example/@casey)":       "[<@u:" + caseyID + ":casey>](https://x.example/@casey)",
 	}
 	for in, want := range tests {
 		if got := encodeMentions(in, tokenTargets()); got != want {
