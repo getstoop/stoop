@@ -1,4 +1,8 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  queryOptions,
+  useQuery,
+} from "@tanstack/react-query";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
@@ -10,6 +14,7 @@ import {
 } from "./clients";
 import { isSignedOut } from "./errors";
 import {
+  fetchLiveWindow,
   isLive,
   type Timeline,
   timelineId,
@@ -160,20 +165,23 @@ export function useChannels(spaceId: string) {
 // window centred on a message instead of the newest page — a deep link;
 // if it isn't in the channel we fall back to the newest page.
 // A timeline's window: a channel's messages, or a thread's replies.
-export function useMessages(timeline: Timeline, aroundId?: string) {
+export function messagesQuery(timeline: Timeline, aroundId?: string) {
   const { channelId, rootId = "" } = timeline;
-  return useQuery({
+  return {
     queryKey: timelineKey(timeline),
-    queryFn: async ({ client }) => {
+    queryFn: async ({ client }: { client: QueryClient }) => {
       const t = { channelId, rootId: rootId || undefined };
-      // A refetch (focus, invalidation) must not yank a reader who jumped
+      // A refetch (an event, Ready) must not yank a reader who jumped
       // into history back to the newest page; keep their window as is.
+      // A live one is fetched again over the rows it spans.
       const have = client.getQueryData<Message[]>(timelineKey(t));
-      if (have && !isLive(useHistoryStore.getState().channels[timelineId(t)])) {
-        return have;
-      }
       let res: ListMessagesResponse | undefined;
-      if (aroundId) {
+      if (have?.length) {
+        if (!isLive(useHistoryStore.getState().channels[timelineId(t)])) {
+          return have;
+        }
+        res = await fetchLiveWindow(t, have);
+      } else if (aroundId) {
         res = await chatClient
           .listMessages({ channelId, threadId: rootId, aroundId })
           .catch(() => undefined);
@@ -185,7 +193,14 @@ export function useMessages(timeline: Timeline, aroundId?: string) {
       return res.messages;
     },
     enabled: channelId !== "",
-  });
+    // The socket keeps the window current, and refetching one spans up to
+    // WINDOW_CAP rows; Ready covers what a dropped socket missed.
+    refetchOnWindowFocus: false,
+  };
+}
+
+export function useMessages(timeline: Timeline, aroundId?: string) {
+  return useQuery(messagesQuery(timeline, aroundId));
 }
 
 // A thread's root, kept as a one-message page under its channel's key so

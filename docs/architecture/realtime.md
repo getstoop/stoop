@@ -378,6 +378,13 @@ spliced in — splicing into a window that has a gap above it would be a lie
 about the order of the conversation. Pressing the pill, or sending a
 message, refetches the newest page.
 
+**A refetch keeps the window.** Events that change how old messages render
+(`member_updated`, `groups_changed`) and Ready invalidate every window. A
+live one is fetched again from the newest message back to its oldest row
+(`fetchLiveWindow`, pages of 100), so history the reader paged in is
+redrawn rather than dropped; a window that isn't live is left as it is.
+Message windows do not refetch on tab focus: the socket keeps them current.
+
 **The window is capped at 300 rows** (`WINDOW_CAP`). Paging in one
 direction prunes the far end, and the pruning sets the opposite edge flag:
 dropping the newest rows to prepend older ones means the window no longer
