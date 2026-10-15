@@ -447,6 +447,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.invalidateQueries({
         queryKey: groupsKey(payload.value.spaceId),
       });
+      // Messages carry a group's current handle, so a rename shows on
+      // old messages too.
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
       break;
     case "spaceUpdated": {
       queryClient.invalidateQueries({ queryKey: ["spaces"] });
