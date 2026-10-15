@@ -21,6 +21,11 @@ INSERT INTO message_links (message_id, position, url, dismissed) VALUES ($1, $2,
 -- name: ListDismissedMessageLinks :many
 SELECT url FROM message_links WHERE message_id = $1 AND dismissed;
 
+-- LockMessageForLinks waits out an edit rebuilding the message's link
+-- rows, which holds the message row from its content update onwards.
+-- name: LockMessageForLinks :one
+SELECT id FROM messages WHERE id = $1 FOR UPDATE;
+
 -- DismissMessageLink hides a link's card on one message; no rows means
 -- the message doesn't link the URL.
 -- name: DismissMessageLink :execrows

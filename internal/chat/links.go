@@ -122,7 +122,9 @@ func extractLinks(content string) []string {
 
 // recordLinks replaces a message's link rows (within the caller's
 // transaction) and returns the URLs that still need fetching. A card
-// dismissed before an edit stays dismissed, and isn't fetched again.
+// dismissed before an edit stays dismissed, and isn't fetched again; the
+// caller holds the message row, so no dismissal lands in between
+// (DismissLinkPreview).
 func (s *Service) recordLinks(ctx context.Context, q *dbgen.Queries, messageID string, urls []string) ([]string, error) {
 	dismissedURLs, err := q.ListDismissedMessageLinks(ctx, messageID)
 	if err != nil {
@@ -184,12 +186,24 @@ func (s *Service) DismissLinkPreview(ctx context.Context, req *connect.Request[c
 		if err := s.requireOnMessageIn(ctx, channel, authctx.MessagesModerate); err != nil {
 			return nil, err
 		}
+	} else if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
+		return nil, err
 	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {
 		return nil, err
 	}
-	dismissed, err := s.q.DismissMessageLink(ctx, dbgen.DismissMessageLinkParams{MessageID: msg.ID, Url: req.Msg.Url})
+	// Under the message's lock: an edit reads the dismissed links and
+	// rebuilds the rows while holding it, and would otherwise put back a
+	// card dismissed in between.
+	var dismissed int64
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockMessageForLinks(ctx, msg.ID); err != nil {
+			return err
+		}
+		dismissed, err = qtx.DismissMessageLink(ctx, dbgen.DismissMessageLinkParams{MessageID: msg.ID, Url: req.Msg.Url})
+		return err
+	})
 	if err != nil {
-		return nil, err
+		return nil, apierr.NotFoundOr(err, "message")
 	}
 	if dismissed == 0 {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("the message has no preview for that link"))

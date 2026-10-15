@@ -243,6 +243,26 @@ func TestDismissLinkPreview(t *testing.T) {
 	if err := dismiss(cal, inDM, plain); code(err) != connect.CodePermissionDenied {
 		t.Errorf("the other person in a DM: %v, want permission denied", err)
 	}
+	// A token dismisses only where it may post: a dms.post token not in a
+	// space, a messages.post token not in a DM.
+	withGrant := func(grant authctx.Action) context.Context {
+		id, _ := authctx.From(bea)
+		id.Credential = authctx.Credential{ID: "t", Kind: authctx.CredentialPersonalToken, Grants: []authctx.Action{grant}}
+		return authctx.WithIdentity(context.Background(), id)
+	}
+	dmOnly, spaceOnly := withGrant(authctx.DMsPost), withGrant(authctx.MessagesPost)
+	inSpace := send(bea, channelID, "more "+article)
+	if err := dismiss(dmOnly, inSpace, article); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a dms.post token in a space: %v, want permission denied", err)
+	}
+	dmAgain := send(bea, dm.Channel.Id, "again "+article)
+	if err := dismiss(spaceOnly, dmAgain, article); code(err) != connect.CodePermissionDenied {
+		t.Errorf("a messages.post token in a DM: %v, want permission denied", err)
+	}
+	if err := dismiss(spaceOnly, inSpace, article); err != nil {
+		t.Errorf("a messages.post token on its own space message: %v", err)
+	}
+
 	if err := dismiss(bea, inDM, plain); err != nil {
 		t.Errorf("the author in a DM: %v", err)
 	}
