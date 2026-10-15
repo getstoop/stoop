@@ -439,6 +439,19 @@ describe("mentions", () => {
     expect(drawn(md(coded.apply(tr)))).toEqual([]);
   });
 
+  it("turns a mention made into a link into its words", () => {
+    const state = stateOf(`hi ${casey}`);
+    const linked = state.apply(
+      state.tr.addMark(
+        1,
+        state.doc.content.size - 1,
+        schema.marks.link.create({ href: "https://a.example" }),
+      ),
+    );
+    const tr = settleMentions(linked.tr, context)!;
+    expect(md(linked.apply(tr))).toBe("[hi @casey](https://a.example)");
+  });
+
   it("knows when the caret is in code", () => {
     expect(caretInCode(caretAtEnd(stateOf("hi @")))).toBe(false);
     expect(caretInCode(caretAtEnd(stateOf("```\nping @\n```")))).toBe(true);
