@@ -17,15 +17,20 @@ func TestMentionTokensReadAsText(t *testing.T) {
 		people: map[string]string{caseyID: "casey_k"},
 		groups: map[string]string{gardenersID: "growers"},
 	}
-	if got, want := renamed.text(stored), "@casey_k and @growers"; got != want {
+	if got, want := plainText(renamed.current(stored)), "@casey_k and @growers"; got != want {
 		t.Errorf("renamed: got %q, want %q", got, want)
 	}
 	// Someone or something not found reads as its saved handle.
-	if got, want := (mentionNames{}).text(stored), "@casey and @gardeners"; got != want {
+	if got, want := plainText((mentionNames{}).current(stored)), "@casey and @gardeners"; got != want {
 		t.Errorf("not found: got %q, want %q", got, want)
 	}
+	// A handle's "__" is part of it, not underline.
+	underlined := mentionNames{people: map[string]string{caseyID: "a__b__c"}}
+	if got, want := plainText(underlined.current(stored)), "@a__b__c and @gardeners"; got != want {
+		t.Errorf("underscores: got %q, want %q", got, want)
+	}
 	// Not a token: the ID has the wrong shape.
-	if in := "<@u:------------------------------------:casey>"; (mentionNames{}).text(in) != in {
+	if in := "<@u:------------------------------------:casey>"; (mentionNames{}).current(in) != in {
 		t.Errorf("%q should stay as written", in)
 	}
 }
