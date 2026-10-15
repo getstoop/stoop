@@ -1,7 +1,7 @@
-import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
+import { errorText } from "../../api/errors";
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { isBlankMessage } from "../../api/markdown";
 import { replaceShortcodes } from "../../api/shortcodes";
@@ -51,7 +51,7 @@ export function MessageEditor({
       if (res.message) replaceMessage(queryClient, res.message);
       onDone();
     } catch (err) {
-      setError(err instanceof ConnectError ? err.rawMessage : String(err));
+      setError(errorText(err));
     }
   };
 

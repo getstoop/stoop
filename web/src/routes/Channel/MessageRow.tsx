@@ -158,7 +158,7 @@ export const MessageRow = memo(function MessageRow({
           onClick={() => onJumpTo(message.replyTo?.messageId ?? "")}
           title="Jump to the original message"
         >
-          <span className="reply-arrow">↩</span>
+          <span>↩</span>
           <strong>
             {message.replyTo.author?.displayName ||
               message.replyTo.author?.username ||
@@ -178,7 +178,7 @@ export const MessageRow = memo(function MessageRow({
           onClick={() => onOpenOrigin(message)}
           title="Open the thread"
         >
-          <span className="reply-arrow">↳</span>
+          <span>↳</span>
           <span>replied to a thread:</span>
           {message.threadRoot.author && (
             <strong>

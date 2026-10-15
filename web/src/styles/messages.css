@@ -105,9 +105,9 @@
   display: none;
 }
 
-/* The time (continued rows) and actions float over the row's top-right
-   corner on hover instead of taking a line of their own, so reactions
-   and cards sit directly under the content. */
+/* The actions float over the row's top-right corner on hover instead of
+   taking a line of their own, so reactions and cards sit directly under
+   the content. */
 .message {
   position: relative;
 }
