@@ -31,3 +31,22 @@ func TestWrittenLengthCountsTokensAsHandles(t *testing.T) {
 		t.Errorf("written length = %d, want %d", got, len("hi @casey"))
 	}
 }
+
+func TestCodeAsText(t *testing.T) {
+	casey := "<@u:" + caseyID + ":casey>"
+	tests := map[string]string{
+		"`" + casey + "` and " + casey:                       "`@casey` and " + casey,
+		"```\n" + casey + "\n```\nafter " + casey:            "```\n@casey\n```\nafter " + casey,
+		"```" + casey + "```":                                "```@casey```",
+		"```\nunclosed " + casey:                             "```\nunclosed @casey",
+		"\\`not code " + casey + "\\`":                       "\\`not code " + casey + "\\`",
+		"https://x.example/`a` " + casey:                     "https://x.example/`a` " + casey,
+		"one ` tick " + casey:                                "one ` tick " + casey,
+		"> quoted `" + casey + "`\n- listed `" + casey + "`": "> quoted `@casey`\n- listed `@casey`",
+	}
+	for in, want := range tests {
+		if got := codeAsText(in); got != want {
+			t.Errorf("%q:\n got %q\nwant %q", in, got, want)
+		}
+	}
+}

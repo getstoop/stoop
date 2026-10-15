@@ -34,10 +34,11 @@ type mentionTargets struct {
 
 // checkMentions keeps each token that names a reader of the channel or,
 // in a public channel, a group of its space, with its current handle.
-// Any other token is saved as its handle, as text. It returns the content
-// to store and who the kept tokens name.
+// Any other token, and any token in code, is saved as its handle, as
+// text. It returns the content to store and who the kept tokens name.
 func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, participants []string, content string) (string, mentionTargets, error) {
 	var targets mentionTargets
+	content = codeAsText(content)
 	matches := mentionTokenRE.FindAllStringSubmatch(content, -1)
 	if len(matches) == 0 && !namesEveryone(content) {
 		return content, targets, nil
@@ -92,6 +93,28 @@ func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, part
 		return "<@" + kind + ":" + id + ":" + name + ">"
 	})
 	return stored, targets, nil
+}
+
+// codeAsText saves each token inside code as its handle: a mention
+// doesn't work in code, and code shows what was written.
+func codeAsText(content string) string {
+	if !strings.Contains(content, "<@") || !strings.Contains(content, "`") {
+		return content
+	}
+	code := codeRanges(content)
+	var out strings.Builder
+	written := 0
+	for _, match := range mentionTokenRE.FindAllStringSubmatchIndex(content, -1) {
+		start, end := match[0], match[1]
+		if !slices.ContainsFunc(code, func(span [2]int) bool { return start >= span[0] && start < span[1] }) {
+			continue
+		}
+		out.WriteString(content[written:start])
+		out.WriteString("@" + content[match[6]:match[7]])
+		written = end
+	}
+	out.WriteString(content[written:])
+	return out.String()
 }
 
 // channelReaders is who can read the channel: the space's members, or

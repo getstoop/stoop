@@ -216,6 +216,9 @@ has, makes a pill. Bots and hooks write them directly
   sender put there. It is what readers show for a person or group they
   can't find, and what search indexes, so a message is found by the
   handle it was written with.
+- A token in code, inline or in a block, is saved as `@handle` text and
+  reaches nobody: mentions don't work in code, and code shows what was
+  written. The composer writes text there already.
 - Any other token is saved as `@handle` text and reaches nobody. **A
   mention is an address, not a permission**: one for someone outside the
   channel doesn't error, because a stale ID shouldn't fail a message.

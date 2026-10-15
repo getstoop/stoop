@@ -100,8 +100,8 @@ Plain `@handle` is text and reaches nobody. Copy a token from the app:
 *Copy mention* on a person's card, or on a group's row in Space settings
 → Groups. The handle part may be anything of 3–32 `[a-z0-9_]`; the
 server replaces it with the current one. A token for someone who can't
-read the channel, or a group in a private channel, is posted as its
-handle and reaches nobody ([messaging.md](messaging.md#mentions)).
+read the channel, a group in a private channel, or any token inside
+`code`, is posted as its handle and reaches nobody ([messaging.md](messaging.md#mentions)).
 
 Messages read back the same way: `content` over the API and in outgoing
 `data` carries the tokens. The handle in a token is the one current when

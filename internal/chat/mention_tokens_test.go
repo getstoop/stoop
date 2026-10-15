@@ -140,3 +140,17 @@ func TestMentionTokensLengthCountsHandles(t *testing.T) {
 		t.Errorf("an over-long message: %v, want invalid_argument", err)
 	}
 }
+
+// A mention doesn't work in code: it is saved as its handle and tells
+// nobody.
+func TestMentionTokensInCodeAreText(t *testing.T) {
+	fixture := newGroupFixture(t)
+	written := "`" + mentionOf(fixture.cal) + "`\n```\n" + groupMention(fixture.groupID) + "\n```"
+	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, written)
+	if want := "`@someone`\n```\n@somegroup\n```"; sent.Content != want {
+		t.Errorf("content = %q, want %q", sent.Content, want)
+	}
+	if len(sent.MentionUserIds) != 0 {
+		t.Errorf("tokens in code reached %v", sent.MentionUserIds)
+	}
+}
