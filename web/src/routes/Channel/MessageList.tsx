@@ -12,7 +12,7 @@ import {
   useState,
 } from "react";
 import { chatClient } from "../../api/clients";
-import { dayLabel, sameDay } from "../../api/dates";
+import { dayLabel } from "../../api/dates";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import { useChannelGroups } from "../../api/groups";
@@ -39,6 +39,7 @@ import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { confirm, notice } from "../../stores/dialogs";
 import { openSidePanel, useSidePanelStore } from "../../stores/sidePanel";
 import { FirstRunCard } from "./FirstRunCard";
+import { continues, startsDay } from "./grouping";
 import { MessageRow } from "./MessageRow";
 
 export function MessageList({
@@ -374,23 +375,6 @@ export function MessageList({
     }
   }, [newestId, firstNewId]);
 
-  // A message continues the previous one when it's from the same author
-  // within the same minute, isn't a reply, and doesn't sit at the "New
-  // messages" line — then we skip its author/time row.
-  // A day separator goes above the first message of each calendar day.
-  const startsDay = (m: Message, prev: Message | undefined) =>
-    !prev?.createdAt ||
-    !m.createdAt ||
-    !sameDay(timestampDate(prev.createdAt), timestampDate(m.createdAt));
-  const continues = (m: Message, prev: Message | undefined) =>
-    !!prev &&
-    prev.author?.id === m.author?.id &&
-    !m.replyTo &&
-    m.id !== firstNewId &&
-    !!m.createdAt &&
-    !!prev.createdAt &&
-    sameMinute(timestampDate(prev.createdAt), timestampDate(m.createdAt));
-
   // One message's row: in the timeline, and a thread's root above it.
   const row = (message: Message, continued: boolean) => (
     <MessageRow
@@ -565,7 +549,15 @@ export function MessageList({
                     </span>
                   </div>
                 )}
-                {row(message, continues(message, messages[i - 1]))}
+                {row(
+                  message,
+                  continues(
+                    message,
+                    messages[i - 1],
+                    firstNewId,
+                    !!threadRootId,
+                  ),
+                )}
               </Fragment>
             );
           })}
@@ -614,16 +606,6 @@ export function MessageList({
         </div>
       </div>
     </GalleryMedia.Provider>
-  );
-}
-
-function sameMinute(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate() &&
-    a.getHours() === b.getHours() &&
-    a.getMinutes() === b.getMinutes()
   );
 }
 
