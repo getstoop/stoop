@@ -132,6 +132,22 @@ export function MessageList({
     [queryClient],
   );
 
+  // The card goes for everyone; the server's update for the message
+  // takes it out of the row.
+  const dismissPreview = useCallback(async (m: Message, url: string) => {
+    const ok = await confirm({
+      title: "Remove this preview?",
+      body: "It's removed for everyone.",
+      action: "Remove",
+    });
+    if (!ok) return;
+    try {
+      await chatClient.dismissLinkPreview({ messageId: m.id, url });
+    } catch (err) {
+      notice({ title: "Couldn't remove the preview", body: errorText(err) });
+    }
+  }, []);
+
   // The window's edges (see api/history.ts): a sentinel at each end asks
   // for the next page when it scrolls into view. Before any change to the
   // window we note where one message sits on screen; after React commits
@@ -442,6 +458,7 @@ export function MessageList({
       onReply={onReply}
       onEdit={onEdit}
       onDelete={remove}
+      onDismissPreview={dismissPreview}
       onTogglePin={togglePin}
       onThread={threadRootId ? undefined : openThreadOf}
       onOpenOrigin={

@@ -157,6 +157,9 @@ const (
 	// ChatServiceDeleteMessageProcedure is the fully-qualified name of the ChatService's DeleteMessage
 	// RPC.
 	ChatServiceDeleteMessageProcedure = "/stoop.chat.v1.ChatService/DeleteMessage"
+	// ChatServiceDismissLinkPreviewProcedure is the fully-qualified name of the ChatService's
+	// DismissLinkPreview RPC.
+	ChatServiceDismissLinkPreviewProcedure = "/stoop.chat.v1.ChatService/DismissLinkPreview"
 	// ChatServiceDeleteThreadProcedure is the fully-qualified name of the ChatService's DeleteThread
 	// RPC.
 	ChatServiceDeleteThreadProcedure = "/stoop.chat.v1.ChatService/DeleteThread"
@@ -330,6 +333,10 @@ type ChatServiceClient interface {
 	// messages.moderate. A root whose thread has replies is kept as a
 	// placeholder (Message.deleted) instead.
 	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
+	// DismissLinkPreview hides the card for one of a message's links, for
+	// everyone: the author's own message, or anyone's with messages.moderate
+	// (in a DM, only the author's). An edit keeps it hidden.
+	DismissLinkPreview(context.Context, *connect.Request[v1.DismissLinkPreviewRequest]) (*connect.Response[v1.DismissLinkPreviewResponse], error)
 	// DeleteThread removes a root and every reply in its thread. Requires
 	// messages.moderate in the channel's space.
 	DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error)
@@ -680,6 +687,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("DeleteMessage")),
 			connect.WithClientOptions(opts...),
 		),
+		dismissLinkPreview: connect.NewClient[v1.DismissLinkPreviewRequest, v1.DismissLinkPreviewResponse](
+			httpClient,
+			baseURL+ChatServiceDismissLinkPreviewProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("DismissLinkPreview")),
+			connect.WithClientOptions(opts...),
+		),
 		deleteThread: connect.NewClient[v1.DeleteThreadRequest, v1.DeleteThreadResponse](
 			httpClient,
 			baseURL+ChatServiceDeleteThreadProcedure,
@@ -794,6 +807,7 @@ type chatServiceClient struct {
 	listPinnedMessages          *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
 	editMessage                 *connect.Client[v1.EditMessageRequest, v1.EditMessageResponse]
 	deleteMessage               *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
+	dismissLinkPreview          *connect.Client[v1.DismissLinkPreviewRequest, v1.DismissLinkPreviewResponse]
 	deleteThread                *connect.Client[v1.DeleteThreadRequest, v1.DeleteThreadResponse]
 	toggleReaction              *connect.Client[v1.ToggleReactionRequest, v1.ToggleReactionResponse]
 	openDirectMessage           *connect.Client[v1.OpenDirectMessageRequest, v1.OpenDirectMessageResponse]
@@ -1051,6 +1065,11 @@ func (c *chatServiceClient) DeleteMessage(ctx context.Context, req *connect.Requ
 	return c.deleteMessage.CallUnary(ctx, req)
 }
 
+// DismissLinkPreview calls stoop.chat.v1.ChatService.DismissLinkPreview.
+func (c *chatServiceClient) DismissLinkPreview(ctx context.Context, req *connect.Request[v1.DismissLinkPreviewRequest]) (*connect.Response[v1.DismissLinkPreviewResponse], error) {
+	return c.dismissLinkPreview.CallUnary(ctx, req)
+}
+
 // DeleteThread calls stoop.chat.v1.ChatService.DeleteThread.
 func (c *chatServiceClient) DeleteThread(ctx context.Context, req *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error) {
 	return c.deleteThread.CallUnary(ctx, req)
@@ -1242,6 +1261,10 @@ type ChatServiceHandler interface {
 	// messages.moderate. A root whose thread has replies is kept as a
 	// placeholder (Message.deleted) instead.
 	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
+	// DismissLinkPreview hides the card for one of a message's links, for
+	// everyone: the author's own message, or anyone's with messages.moderate
+	// (in a DM, only the author's). An edit keeps it hidden.
+	DismissLinkPreview(context.Context, *connect.Request[v1.DismissLinkPreviewRequest]) (*connect.Response[v1.DismissLinkPreviewResponse], error)
 	// DeleteThread removes a root and every reply in its thread. Requires
 	// messages.moderate in the channel's space.
 	DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error)
@@ -1588,6 +1611,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("DeleteMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceDismissLinkPreviewHandler := connect.NewUnaryHandler(
+		ChatServiceDismissLinkPreviewProcedure,
+		svc.DismissLinkPreview,
+		connect.WithSchema(chatServiceMethods.ByName("DismissLinkPreview")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceDeleteThreadHandler := connect.NewUnaryHandler(
 		ChatServiceDeleteThreadProcedure,
 		svc.DeleteThread,
@@ -1748,6 +1777,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceEditMessageHandler.ServeHTTP(w, r)
 		case ChatServiceDeleteMessageProcedure:
 			chatServiceDeleteMessageHandler.ServeHTTP(w, r)
+		case ChatServiceDismissLinkPreviewProcedure:
+			chatServiceDismissLinkPreviewHandler.ServeHTTP(w, r)
 		case ChatServiceDeleteThreadProcedure:
 			chatServiceDeleteThreadHandler.ServeHTTP(w, r)
 		case ChatServiceToggleReactionProcedure:
@@ -1971,6 +2002,10 @@ func (UnimplementedChatServiceHandler) EditMessage(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.DeleteMessage is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) DismissLinkPreview(context.Context, *connect.Request[v1.DismissLinkPreviewRequest]) (*connect.Response[v1.DismissLinkPreviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.DismissLinkPreview is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) DeleteThread(context.Context, *connect.Request[v1.DeleteThreadRequest]) (*connect.Response[v1.DeleteThreadResponse], error) {

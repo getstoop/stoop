@@ -167,6 +167,7 @@ var procedures = map[string]authctx.Rule{
 	chatv1connect.ChatServiceSendMessageProcedure:        needs(authctx.MessagesPost, authctx.DMsPost),
 	chatv1connect.ChatServiceEditMessageProcedure:        needs(authctx.MessagesPost, authctx.DMsPost),
 	chatv1connect.ChatServiceDeleteMessageProcedure:      needs(authctx.MessagesPost, authctx.DMsPost),
+	chatv1connect.ChatServiceDismissLinkPreviewProcedure: needs(authctx.MessagesPost, authctx.DMsPost),
 	chatv1connect.ChatServiceDeleteThreadProcedure:       needs(authctx.MessagesModerate),
 	chatv1connect.ChatServiceToggleReactionProcedure:     needs(authctx.MessagesPost, authctx.DMsPost),
 	chatv1connect.ChatServiceListMessagesProcedure:       needs(authctx.MessagesRead, authctx.DMsRead),

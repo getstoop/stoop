@@ -7,6 +7,31 @@
   margin-top: 6px;
 }
 
+.link-preview-card {
+  position: relative;
+  max-width: 520px;
+}
+
+/* Over the card's corner, for whoever may delete the message. */
+.link-preview-dismiss {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--surface);
+  opacity: 0;
+}
+
+.link-preview-card:hover .link-preview-dismiss,
+.link-preview-dismiss:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .link-preview-dismiss {
+    opacity: 1;
+  }
+}
+
 .link-preview {
   display: flex;
   gap: 12px;
