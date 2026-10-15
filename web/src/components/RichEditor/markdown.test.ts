@@ -24,6 +24,7 @@ describe("rich editor Markdown round trip", () => {
     "before\n\nafter a blank line",
     "a \\*literal\\* star and a \\| pipe",
     "\\- not a list",
+    "1\\. not a list",
   ])("%j", (md) => {
     expect(toMarkdown(fromMarkdown(md))).toBe(md);
   });
@@ -60,6 +61,24 @@ describe("rich editor Markdown round trip", () => {
       ],
     };
     expect(toMarkdown(doc)).toBe("**hello *world***");
+    expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
+  });
+
+  it.each([
+    ["1. not a list", "1\\. not a list"],
+    ["2023. was a year", "2023\\. was a year"],
+    ["4) also not", "4\\) also not"],
+    ["  - indented dash", "  \\- indented dash"],
+    ["   12. indented number", "   12\\. indented number"],
+    ["-\ttabbed dash", "\\-\ttabbed dash"],
+  ])("keeps the paragraph %j a paragraph", (words, md) => {
+    const doc = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: words }] },
+      ],
+    };
+    expect(toMarkdown(doc)).toBe(md);
     expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
   });
 

@@ -84,10 +84,14 @@ function list(node: JSONContent, depth: number, lines: string[]) {
   }
 }
 
-// A paragraph that starts like a block marker would read back as one.
+// A paragraph that starts like a block marker would read back as one. A
+// list marker counts after up to six spaces, as the reader allows.
+const BULLET_START = /^( {0,6})([-*])(?=\s)/;
+const NUMBER_START = /^( {0,6}\d{1,9})([.)])(?=\s)/;
+
 function escapeLineStart(line: string): string {
-  if (/^(>|[-*] |```)/.test(line)) return `\\${line}`;
-  return line.replace(/^(\d{1,9})\) /, "$1\\) ");
+  if (/^(>|```)/.test(line)) return `\\${line}`;
+  return line.replace(BULLET_START, "$1\\$2").replace(NUMBER_START, "$1\\$2");
 }
 
 function inline(nodes: JSONContent[] = []): string {

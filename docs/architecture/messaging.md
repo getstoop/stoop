@@ -136,7 +136,8 @@ Some deliberate absences and edge rules:
 - **`_italic_` is not supported**, so `@user_names` survive intact. This is
   the kind of rule that only shows up once real handles exist.
 - A bullet needs a space after it, so a line starting with `*italic*` is
-  still italic rather than a broken list. `\-` escapes a literal dash.
+  still italic rather than a broken list. `\-` escapes a literal dash
+  and `1\.` a literal number, so the line stays a line.
 - Lists parse to a flat row list carrying a depth (two spaces per level,
   three deep, never skipping a level), which the renderer turns into nested
   `<ul>`/`<ol>` with each sub-list inside the `<li>` it belongs to.
