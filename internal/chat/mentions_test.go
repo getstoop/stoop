@@ -201,3 +201,26 @@ func TestMentionHere(t *testing.T) {
 		t.Errorf("member @here should be plain: %+v", res.Msg.Message)
 	}
 }
+
+// @channel and @here in code or an address are text and tell nobody; in
+// a spoiler or a link's words they are words the message shows.
+func TestEntireChannelOutsideCodeOnly(t *testing.T) {
+	fixture := newGroupFixture(t)
+	for _, content := range []string{"`@channel`", "```\n@here\n```", "see https://x.example/@channel", "[docs](https://x.example/@here)"} {
+		sent := fixture.sendTo(t, fixture.owner, fixture.generalID, content)
+		if sent.MentionsEntireChannel || sent.MentionsHere || len(sent.MentionUserIds) != 0 {
+			t.Errorf("%q mentioned: %+v", content, sent)
+		}
+	}
+	if unread := fixture.unread(t, fixture.cal); unread != 0 {
+		t.Errorf("cal has %d unread from @channel in code or an address", unread)
+	}
+	for _, content := range []string{"||@channel||", "[ping @channel](https://x.example)"} {
+		if sent := fixture.sendTo(t, fixture.owner, fixture.generalID, content); !sent.MentionsEntireChannel {
+			t.Errorf("%q did not mention the channel: %+v", content, sent)
+		}
+	}
+	if unread := fixture.unread(t, fixture.cal); unread != 2 {
+		t.Errorf("cal has %d unread, want 2", unread)
+	}
+}

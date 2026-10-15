@@ -253,6 +253,11 @@ members in a public channel, its listed people in a private one.
 In a DM both are plain text, since addressing "everyone" in a conversation
 with one other person is meaningless.
 
+They count where the client marks them: as words of the message's text,
+read off the same parse as tokens. In code or inside an address they are
+text; in a spoiler or a link's words they count, since the client marks
+them there too.
+
 `@here` resolves through the `PresenceLister` port to the members who have
 a live connection right now. It is the only place chat consults the
 gateway.

@@ -69,7 +69,7 @@ func TestStoredFormKeepsLiveTokens(t *testing.T) {
 		"**bold " + casey + "** and *" + casey + "*": "**bold " + casey + "** and *" + casey + "*",
 	}
 	for in, want := range tests {
-		if got := storedForm(in, liveMentions(in), everyone); got != want {
+		if got := storedForm(in, readMentions(in).tokens, everyone); got != want {
 			t.Errorf("%q:\n got %q\nwant %q", in, got, want)
 		}
 	}
@@ -80,7 +80,7 @@ func TestStoredFormKeepsLiveTokens(t *testing.T) {
 func TestStoredFormRewritesHandles(t *testing.T) {
 	in := "<@u:" + caseyID + ":old> and <@g:" + gardenersID + ":gardeners>"
 	current := map[string]string{personToken + caseyID: "casey_k"}
-	if got, want := storedForm(in, liveMentions(in), current), "<@u:"+caseyID+":casey_k> and @gardeners"; got != want {
+	if got, want := storedForm(in, readMentions(in).tokens, current), "<@u:"+caseyID+":casey_k> and @gardeners"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -90,7 +90,7 @@ func TestLiveMentionsOffsets(t *testing.T) {
 	casey := "<@u:" + caseyID + ":casey>"
 	in := "a " + casey + "\n> " + casey + "\n  - **" + casey + "**\n***" + casey + "***"
 	var at []int
-	for _, token := range liveMentions(in) {
+	for _, token := range readMentions(in).tokens {
 		if in[token.at:token.at+len(casey)] != casey {
 			t.Errorf("token at %d reads %q", token.at, in[token.at:])
 		}

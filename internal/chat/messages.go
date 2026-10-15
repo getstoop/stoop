@@ -76,7 +76,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.resolveMentions(ctx, channel, userID, content, targets)
+	res, err := s.resolveMentions(ctx, channel, userID, targets)
 	if err != nil {
 		return nil, err
 	}

@@ -25,11 +25,13 @@ const (
 )
 
 // mentionTargets is who a message's kept tokens name, in the order they
-// appear, and the channel's readers for @channel and @here.
+// appear, whether it uses @channel and @here as words, and the channel's
+// readers for those.
 type mentionTargets struct {
-	people  []string
-	groups  []string
-	readers []string
+	people              []string
+	groups              []string
+	readers             []string
+	entireChannel, here bool
 }
 
 // checkMentions keeps each live token that names a reader of the channel
@@ -41,7 +43,11 @@ func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, part
 	var targets mentionTargets
 	hasTokens := false
 	eachToken(content, func(_, _ int) { hasTokens = true })
-	if !hasTokens && !namesEveryone(content) {
+	if !hasTokens && !mayNameEveryone(content) {
+		return content, targets, nil
+	}
+	shown := readMentions(content)
+	if !hasTokens && !shown.entireChannel && !shown.here {
 		return content, targets, nil
 	}
 	readers, err := s.channelReaders(ctx, channel, participants)
@@ -49,12 +55,12 @@ func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, part
 		return "", mentionTargets{}, err
 	}
 	targets.readers = readers
+	targets.entireChannel, targets.here = shown.entireChannel, shown.here
 	if !hasTokens {
 		return content, targets, nil
 	}
-	live := liveMentions(content)
 	var personIDs, groupIDs []string
-	for _, token := range live {
+	for _, token := range shown.tokens {
 		kind, id, _ := tokenParts(token.text)
 		switch {
 		case kind == personToken && slices.Contains(readers, id) && !slices.Contains(personIDs, id):
@@ -82,13 +88,14 @@ func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, part
 			current[groupToken+row.ID] = row.Handle
 		}
 	}
-	stored := storedForm(content, live, current)
+	stored := storedForm(content, shown.tokens, current)
 	// Who is told is read from what is stored, since rewriting a token
 	// can change how the rest of the message reads.
 	if stored != content {
-		live = liveMentions(stored)
+		shown = readMentions(stored)
+		targets.entireChannel, targets.here = shown.entireChannel, shown.here
 	}
-	for _, token := range live {
+	for _, token := range shown.tokens {
 		kind, id, _ := tokenParts(token.text)
 		if kind == personToken && !slices.Contains(targets.people, id) {
 			targets.people = append(targets.people, id)
@@ -100,16 +107,34 @@ func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, part
 	return stored, targets, nil
 }
 
-// liveMentions is each token the message shows as a mention, in order.
-// The parse reads a token in code, a spoiler or a link's words as text.
-func liveMentions(content string) []inlineNode {
-	var live []inlineNode
+// shownMentions is what a message shows as mentions: its tokens, in
+// order, and whether @channel or @here is a word of its text.
+type shownMentions struct {
+	tokens              []inlineNode
+	entireChannel, here bool
+}
+
+// readMentions reads them off the parse, as the client draws them: a
+// token in code, a spoiler or a link's words is text, and code and an
+// address hold no words.
+func readMentions(content string) shownMentions {
+	var shown shownMentions
 	walkInline(parseMarkdown(content), func(node inlineNode) {
-		if node.kind == inlineMention {
-			live = append(live, node)
+		switch node.kind {
+		case inlineMention:
+			shown.tokens = append(shown.tokens, node)
+		case inlineText:
+			if !strings.Contains(node.text, "@") {
+				return
+			}
+			for _, match := range everyoneRE.FindAllStringSubmatch(node.text, -1) {
+				word := strings.ToLower(match[1])
+				shown.entireChannel = shown.entireChannel || word == entireChannelHandle
+				shown.here = shown.here || word == hereHandle
+			}
 		}
 	})
-	return live
+	return shown
 }
 
 // storedForm is content as saved: each live token found in current, by
