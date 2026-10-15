@@ -141,6 +141,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	authSvc.UseTokenPolicy(instanceSvc)
 	authSvc.UseSessionPolicy(instanceSvc)
 	authSvc.UseDeletionPorts(instanceSvc, chatSvc)
+	authSvc.UseRenameAnnouncer(chatSvc)
 	authSvc.UseBus(bus)
 	instanceSvc.UseSessionLifetimeEnv(cfg.SessionLifetimeDays)
 	instanceSvc.UseLinkPreviewsEnv(cfg.LinkPreviews)
