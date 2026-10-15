@@ -14,7 +14,7 @@ import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { activeFormats, formatCommands, newLine } from "./commands";
 import { checkLink, linkAround, linkDraft, saveLink } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
-import { mentionDecorations, settleMentions } from "./mentions";
+import { caretInCode, mentionDecorations, settleMentions } from "./mentions";
 import { indentItem, linkSelection, markdownSlice } from "./plugins";
 import { schema } from "./schema";
 
@@ -437,6 +437,14 @@ describe("mentions", () => {
     const doc = coded.apply(tr).doc;
     expect(doc.textContent).toBe("hi @casey");
     expect(drawn(md(coded.apply(tr)))).toEqual([]);
+  });
+
+  it("knows when the caret is in code", () => {
+    expect(caretInCode(caretAtEnd(stateOf("hi @")))).toBe(false);
+    expect(caretInCode(caretAtEnd(stateOf("```\nping @\n```")))).toBe(true);
+    expect(
+      caretInCode(caretAfter(stateOf("run `ping @x` now"), "ping @")),
+    ).toBe(true);
   });
 
   it("counts a mention as its handle against the limit", () => {
