@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import { type Member, MemberSchema } from "../gen/stoop/chat/v1/member_pb";
@@ -52,9 +53,15 @@ export function usePeople(
 ): Member[] | undefined {
   const members = useMembers(spaceId);
   const dms = useDirectMessages(spaceId === "");
-  if (spaceId) return members.data;
-  const dm = dms.data?.find((d) => d.channel?.id === channelId);
-  return dm ? dm.participants.map(participantAsMember) : undefined;
+  const dm = spaceId
+    ? undefined
+    : dms.data?.find((d) => d.channel?.id === channelId);
+  // The same array until the conversation's record changes.
+  const participants = useMemo(
+    () => dm?.participants.map(participantAsMember),
+    [dm],
+  );
+  return spaceId ? members.data : participants;
 }
 
 function participantAsMember(p: MessageAuthor): Member {
