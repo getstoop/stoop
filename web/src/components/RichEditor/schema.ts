@@ -1,4 +1,5 @@
 import { Schema } from "prosemirror-model";
+import { readableAddress } from "./markdown";
 
 // The message format as a document schema, and nothing more: a quote holds
 // lines, a list item holds a line and maybe a nested list, and a code
@@ -91,7 +92,7 @@ export const schema = new Schema({
           tag: "a[href]",
           getAttrs: (dom) => {
             const href = (dom as HTMLElement).getAttribute("href") ?? "";
-            return /^https?:\/\//i.test(href) ? { href } : false;
+            return readableAddress(href) ? { href } : false;
           },
         },
       ],

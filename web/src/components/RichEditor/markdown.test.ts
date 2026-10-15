@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fromMarkdown, toMarkdown } from "./markdown";
+import { fromMarkdown, type JSONContent, toMarkdown } from "./markdown";
 
 describe("rich editor Markdown round trip", () => {
   it.each([
@@ -80,6 +80,48 @@ describe("rich editor Markdown round trip", () => {
     };
     expect(toMarkdown(doc)).toBe(md);
     expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
+  });
+
+  const line = (...content: JSONContent[]): JSONContent => ({
+    type: "doc",
+    content: [{ type: "paragraph", content }],
+  });
+  const link = { type: "link", attrs: { href: "https://x.com" } };
+  const code = { type: "code" };
+
+  it("keeps a ] in link words", () => {
+    const doc = line({ type: "text", text: "a]b", marks: [link] });
+    expect(toMarkdown(doc)).toBe("[a\\]b](https://x.com)");
+    expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
+  });
+
+  it("keeps a link whose address has balanced brackets", () => {
+    const wiki = { type: "link", attrs: { href: "https://x.com/a_(b)" } };
+    const doc = line({ type: "text", text: "words", marks: [wiki] });
+    expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
+  });
+
+  it("writes a backtick in code beside the code", () => {
+    const doc = line({ type: "text", text: "a`b", marks: [code] });
+    expect(toMarkdown(doc)).toBe("`a`\\``b`");
+    expect(fromMarkdown(toMarkdown(doc))).toEqual(
+      line(
+        { type: "text", text: "a", marks: [code] },
+        { type: "text", text: "`" },
+        { type: "text", text: "b", marks: [code] },
+      ),
+    );
+  });
+
+  it("writes a bracket in code in link words beside the code", () => {
+    const doc = line({ type: "text", text: "a]b", marks: [link, code] });
+    expect(fromMarkdown(toMarkdown(doc))).toEqual(
+      line(
+        { type: "text", text: "a", marks: [link, code] },
+        { type: "text", text: "]", marks: [link] },
+        { type: "text", text: "b", marks: [link, code] },
+      ),
+    );
   });
 
   it("escapes markup typed as text", () => {

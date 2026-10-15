@@ -19,7 +19,7 @@ import {
 import { Decoration, DecorationSet } from "prosemirror-view";
 import { writtenLength } from "../../api/mentions";
 import { newLine } from "./commands";
-import { fromMarkdown, toMarkdown } from "./markdown";
+import { fromMarkdown, readableAddress, toMarkdown } from "./markdown";
 import { type MentionContext, mentions, NO_MENTIONS } from "./mentions";
 import { schema } from "./schema";
 
@@ -140,8 +140,6 @@ function placeholder(text: () => string) {
   });
 }
 
-const ADDRESS = /^https?:\/\/\S+$/i;
-
 // An address pasted over selected words links them. The words stay on
 // one line and can't hold an address of their own, as the format requires.
 export function linkSelection(
@@ -150,7 +148,7 @@ export function linkSelection(
 ): Transaction | null {
   const href = pasted.trim();
   const { from, to, empty, $from, $to } = state.selection;
-  if (empty || !ADDRESS.test(href) || !$from.sameParent($to)) return null;
+  if (empty || !readableAddress(href) || !$from.sameParent($to)) return null;
   if ($from.parent.type.spec.code) return null;
   if (/https?:\/\//i.test(state.doc.textBetween(from, to))) return null;
   return state.tr.addMark(from, to, schema.marks.link.create({ href }));
