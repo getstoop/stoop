@@ -104,7 +104,7 @@ export function mentionDecorations(
 // nothing after it: the handle is typed in full. Not after a letter, a
 // digit or another "@".
 const TYPED_HANDLE = /(^|[^a-z0-9_@])@([a-z0-9_]{3,32})(?=[^a-z0-9_]|$)/gi;
-const ADDRESS = /https?:\/\/[^\s<]+/gi;
+const ADDRESS = /https?:\/\/[^\s<>]+/gi;
 
 // The transaction that turns typed handles into mentions and brings each
 // mention's handle up to date, or null when there is nothing to change.

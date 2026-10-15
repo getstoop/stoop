@@ -18,6 +18,7 @@ func TestExtractLinks(t *testing.T) {
 		{"```c++\nhttps://block.example\n```\nhttps://ok.example", []string{"https://ok.example"}},
 		{"https://dup.example https://dup.example", []string{"https://dup.example"}},
 		{"ftp://nope.example no links here", nil},
+		{"write to <https://a.example/x>", []string{"https://a.example/x"}},
 		{"https://example.com/wiki/Ada_(mathematician)", []string{"https://example.com/wiki/Ada_(mathematician)"}},
 		{"(see https://example.com/wiki/Ada_(mathematician)).", []string{"https://example.com/wiki/Ada_(mathematician)"}},
 		{"[the docs](https://docs.example/a) and **[more](https://more.example)**", []string{"https://docs.example/a", "https://more.example"}},

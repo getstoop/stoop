@@ -107,6 +107,8 @@ func TestParseInlineShape(t *testing.T) {
 		{"see https://a.b/c.", []inlineNode{text("see "), {kind: inlineLink, text: "https://a.b/c"}, text(".")}},
 		{"https://a.b/x_(y)", []inlineNode{{kind: inlineLink, text: "https://a.b/x_(y)"}}},
 		{"https://a.b/**x**", []inlineNode{{kind: inlineLink, text: "https://a.b/**x**"}}},
+		{"<https://example.com>", []inlineNode{text("<"), {kind: inlineLink, text: "https://example.com"}, text(">")}},
+		{"<https://example.com/a>.", []inlineNode{text("<"), {kind: inlineLink, text: "https://example.com/a"}, text(">.")}},
 		{"([a **b**](https://a.b/x_(y)))", []inlineNode{
 			text("("),
 			{kind: inlineLink, text: "https://a.b/x_(y)", children: []inlineNode{text("a "), styled(text("b"))}},

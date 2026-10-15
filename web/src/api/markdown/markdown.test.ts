@@ -169,6 +169,19 @@ describe("parseInline", () => {
     ]);
   });
 
+  it("ends a URL at >, so <address> links the address", () => {
+    expect(parseInline("<https://example.com>")).toEqual([
+      text("<"),
+      link("https://example.com"),
+      text(">"),
+    ]);
+    expect(parseInline("<https://example.com/a>.")).toEqual([
+      text("<"),
+      link("https://example.com/a"),
+      text(">."),
+    ]);
+  });
+
   it("keeps a closing paren that belongs to the URL", () => {
     const url = "https://example.com/wiki/Ada_(mathematician)";
     expect(parseInline(url)).toEqual([link(url)]);
@@ -585,6 +598,12 @@ describe("linksIn", () => {
       "https://a.example/x",
       "https://b.example",
       "https://c.example",
+    ]);
+  });
+
+  it("takes an address in angle brackets without the >", () => {
+    expect(linksIn("write to <https://a.example/x>")).toEqual([
+      "https://a.example/x",
     ]);
   });
 

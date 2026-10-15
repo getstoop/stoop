@@ -53,7 +53,7 @@ var (
 	// spaces for nesting. A bullet must be followed by a space, so *italic*
 	// at the start of a line is still italic.
 	listLine     = regexp.MustCompile(`^( {0,6})([-*]|\d{1,9}[.)])\s+(.*)$`)
-	urlAt        = regexp.MustCompile(`(?i)^https?://[^\s<]+`)
+	urlAt        = regexp.MustCompile(`(?i)^https?://[^\s<>]+`)
 	urlWhole     = regexp.MustCompile(`(?i)^https?://[^\s<]+$`)
 	trailingPunc = regexp.MustCompile(`[.,;:!?)\]'"]+$`)
 	mdWhitespace = regexp.MustCompile(`\s*\n\s*`)

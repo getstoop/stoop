@@ -89,6 +89,11 @@ describe("rich editor Markdown round trip", () => {
   const link = { type: "link", attrs: { href: "https://x.com" } };
   const code = { type: "code" };
 
+  it("escapes markers after an address's >, where the reader ends it", () => {
+    const doc = line({ type: "text", text: "<https://x.com>*a*" });
+    expect(toMarkdown(doc)).toBe("<https://x.com>\\*a\\*");
+  });
+
   it("keeps a ] in link words", () => {
     const doc = line({ type: "text", text: "a]b", marks: [link] });
     expect(toMarkdown(doc)).toBe("[a\\]b](https://x.com)");

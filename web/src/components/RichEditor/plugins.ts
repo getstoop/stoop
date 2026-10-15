@@ -168,7 +168,7 @@ const linkOnPaste = new Plugin({
 
 // Bare addresses stay plain text in the document (the message format
 // links them on its own); this only styles them as links.
-const BARE = /https?:\/\/[^\s<]+/gi;
+const BARE = /https?:\/\/[^\s<>]+/gi;
 
 function bareLinks(doc: Node): DecorationSet {
   const decos: Decoration[] = [];
