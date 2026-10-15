@@ -93,3 +93,31 @@ func TestEditAndDelete(t *testing.T) {
 		t.Errorf("deleting twice: want not_found, got %v", err)
 	}
 }
+
+// Content from bots and hooks may end lines in \r\n or \r; it is stored
+// with \n alone so every reader splits lines the same way.
+func TestLineEndingsNormalised(t *testing.T) {
+	pool, _, svc := newTestService(t)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	sp, err := svc.CreateSpace(bea, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sent, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: sp.Msg.DefaultChannel.Id, Content: "- a\r\n- b\r> c"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sent.Msg.Message.Content; got != "- a\n- b\n> c" {
+		t.Errorf("sent content = %q", got)
+	}
+	edited, err := svc.EditMessage(bea, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: sent.Msg.Message.Id, Content: "> a\r\r\n> b"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := edited.Msg.Message.Content; got != "> a\n\n> b" {
+		t.Errorf("edited content = %q", got)
+	}
+	if _, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: sp.Msg.DefaultChannel.Id, Content: "\r\n\r"})); code(err) != connect.CodeInvalidArgument {
+		t.Errorf("line endings alone: want invalid_argument, got %v", err)
+	}
+}

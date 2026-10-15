@@ -163,6 +163,10 @@ func TestParseMarkdownBlocks(t *testing.T) {
 		{"```f#\nx\n```\nafter", []blockKind{blockCode, blockLines}},
 		{"> - item", []blockKind{blockQuote}},
 		{`1\. x`, []blockKind{blockLines}},
+		// Stored before line endings were normalised; the client agrees.
+		{"- a\r\n- b", []blockKind{blockList}},
+		{"> a\r\n> b", []blockKind{blockQuote}},
+		{"```a\rb```", []blockKind{blockCode}},
 	}
 	for _, c := range cases {
 		if got := kinds(c.in); !reflect.DeepEqual(got, c.want) {

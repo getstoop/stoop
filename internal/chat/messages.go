@@ -38,6 +38,14 @@ func clampPageSize(requested, fallback, maximum int32) int32 {
 	return min(requested, maximum)
 }
 
+var lineEndings = strings.NewReplacer("\r\n", "\n", "\r", "\n")
+
+// normaliseLineEndings ends every line in \n, as the composer does on
+// paste, so stored content splits into lines the same way everywhere.
+func normaliseLineEndings(content string) string {
+	return lineEndings.Replace(content)
+}
+
 // refuseNul refuses content holding a NUL, which Postgres text can't store.
 func refuseNul(content string) error {
 	if strings.ContainsRune(content, 0) {
@@ -48,7 +56,7 @@ func refuseNul(content string) error {
 
 func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.SendMessageRequest]) (*connect.Response[chatv1.SendMessageResponse], error) {
 	userID := authctx.UserID(ctx)
-	content := req.Msg.Content
+	content := normaliseLineEndings(req.Msg.Content)
 	if err := refuseNul(content); err != nil {
 		return nil, err
 	}
@@ -533,7 +541,7 @@ func (s *Service) loadMessage(ctx context.Context, messageID, spaceID string) (*
 }
 
 func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.EditMessageRequest]) (*connect.Response[chatv1.EditMessageResponse], error) {
-	content := req.Msg.Content
+	content := normaliseLineEndings(req.Msg.Content)
 	previewing := s.linkPreviewsOn(ctx)
 	if err := refuseNul(content); err != nil {
 		return nil, err
