@@ -145,6 +145,8 @@ Some deliberate absences and edge rules:
 - Lists parse to a flat row list carrying a depth (two spaces per level,
   three deep, never skipping a level), which the renderer turns into nested
   `<ul>`/`<ol>` with each sub-list inside the `<li>` it belongs to.
+- A bare address ends at a space, `<` or `>`, so `<https://address>`,
+  as pasted from email, links the address and shows the brackets as text.
 - A link's words can be styled but **can't hold an address of their
   own**, so a label never shows one address over another; such text
   stays as typed. The address is http(s) only and shows on hover. A

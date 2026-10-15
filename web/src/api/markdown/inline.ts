@@ -9,7 +9,7 @@ import type { Inline } from "./types";
 // "-" and "." are escapable too, so a line may start with a literal
 // dash or "1." without becoming a list.
 const ESCAPABLE = /[\\`*_~>|#[\]().-]/;
-const URL_AT = /^https?:\/\/[^\s<]+/i;
+const URL_AT = /^https?:\/\/[^\s<>]+/i;
 const URL_WHOLE = /^https?:\/\/[^\s<]+$/i;
 const TRAILING_PUNCT = /[.,;:!?)\]'"]+$/;
 

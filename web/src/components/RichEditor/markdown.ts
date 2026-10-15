@@ -193,7 +193,7 @@ function sameMark(a: MarkJSON, b: MarkJSON) {
 // Characters the parser would read as markup. A single "_" stays, so
 // @user_names survive; only "__" would underline. A bare address is left
 // alone: the parser reads it whole, so a backslash would land in it.
-const BARE_URL = /https?:\/\/[^\s<]+/gi;
+const BARE_URL = /https?:\/\/[^\s<>]+/gi;
 
 function escapeMarkup(text: string, inWords: boolean): string {
   let out = "";
