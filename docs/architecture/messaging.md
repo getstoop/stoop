@@ -91,7 +91,9 @@ a DM unchanged, because it never asks which kind it has.
 deliberate:
 
 1. **Validate.** Content is 1–4000 characters, *or* empty with at least one
-   attachment.
+   attachment. Whitespace alone counts as empty, and a NUL character is
+   refused (Postgres text can't hold one). An edit needs text, by the
+   same rules.
 2. **Authorise** via `writableChannel` — channel membership, plus the block
    rule in a DM — then `requirePostPolicy` for an
    [announcement channel](#announcement-channels).

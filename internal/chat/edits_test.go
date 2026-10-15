@@ -56,6 +56,11 @@ func TestEditAndDelete(t *testing.T) {
 	if _, err := svc.EditMessage(bea, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: m1.Msg.Message.Id, Content: ""})); code(err) != connect.CodeInvalidArgument {
 		t.Errorf("empty edit: %v", err)
 	}
+	for name, content := range map[string]string{"blank edit": " \n ", "NUL byte": "a\x00b"} {
+		if _, err := svc.EditMessage(bea, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: m1.Msg.Message.Id, Content: content})); code(err) != connect.CodeInvalidArgument {
+			t.Errorf("%s: want invalid_argument, got %v", name, err)
+		}
+	}
 
 	// Delete: cal can't delete bea's; bea can delete her own; owner can delete anyone's.
 	if _, err := svc.DeleteMessage(cal, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: m2.Msg.Message.Id})); code(err) != connect.CodePermissionDenied {
