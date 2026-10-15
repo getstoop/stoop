@@ -174,8 +174,11 @@ export function Composer({
     e.preventDefault();
     addFiles(files);
   };
-  // biome-ignore lint/correctness/useExhaustiveDependencies: drop pending files when switching channels
+  // biome-ignore lint/correctness/useExhaustiveDependencies: start empty when switching channels
   useEffect(() => {
+    setDraft("");
+    setMention(null);
+    setShortcode(null);
     setPending((list) => {
       for (const p of list) if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
       return [];
