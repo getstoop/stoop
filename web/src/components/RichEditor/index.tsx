@@ -15,7 +15,12 @@ import {
   saveLink,
 } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
-import { type MentionContext, mentionsKey, NO_MENTIONS } from "./mentions";
+import {
+  caretInCode,
+  type MentionContext,
+  mentionsKey,
+  NO_MENTIONS,
+} from "./mentions";
 import { editorPlugins } from "./plugins";
 import { schema } from "./schema";
 
@@ -29,6 +34,8 @@ export interface RichField {
   replaceBeforeCaret(count: number, text: string): void;
   // The same, with a mention and a space after it.
   mentionBeforeCaret(count: number, mention: MentionRef): void;
+  // Whether the caret is in code, where mentions don't work.
+  caretInCode(): boolean;
   focus(): void;
 }
 
@@ -211,6 +218,7 @@ export function RichEditor({
         );
         view.focus();
       },
+      caretInCode: () => caretInCode(view.state),
       focus: () => view.focus(),
     };
     return () => {

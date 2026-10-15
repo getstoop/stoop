@@ -1,5 +1,10 @@
 import type { Mark, Node } from "prosemirror-model";
-import { Plugin, PluginKey, type Transaction } from "prosemirror-state";
+import {
+  type EditorState,
+  Plugin,
+  PluginKey,
+  type Transaction,
+} from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import {
   currentHandle,
@@ -39,6 +44,15 @@ export const mentionsKey = new PluginKey<DecorationSet>("mentions");
 
 const inCode = (node: Node) =>
   node.marks.some((mark) => mark.type === schema.marks.code);
+
+// Whether what is typed at the caret goes into code, where mentions
+// don't work: a code block, or text with the code style.
+export function caretInCode(state: EditorState): boolean {
+  const { $from } = state.selection;
+  if ($from.parent.type.spec.code) return true;
+  const marks = state.storedMarks ?? $from.marks();
+  return marks.some((mark) => mark.type === schema.marks.code);
+}
 
 export function mentionDecorations(
   doc: Node,
