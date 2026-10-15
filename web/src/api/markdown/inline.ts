@@ -170,7 +170,11 @@ class InlineParser {
       if (d === "*" && s[start] === "*") continue;
       const close = findCloser(s, d, start + 1);
       if (close === -1) continue;
-      const children = parseInline(s.slice(start, close));
+      // A spoiler can't mention anyone: a token there reads as its handle.
+      const inner = s.slice(start, close);
+      const children = parseInline(
+        type === "spoiler" ? tokensAsText(inner) : inner,
+      );
       return this.emit({ type, children }, close + d.length);
     }
     return false;

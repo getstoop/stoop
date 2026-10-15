@@ -23,7 +23,7 @@ import { schema } from "./schema";
 // A mention is a node carrying who it names. This plugin draws each as
 // its pill, keeps its handle current, and turns a handle typed in full
 // into one when exactly one person or group has it. A mention given the
-// code style or made into a link becomes its words, as mentions don't
+// code style, a link or a spoiler becomes its words, as mentions don't
 // work there.
 
 export interface MentionContext {
@@ -46,22 +46,19 @@ export const mentionsKey = new PluginKey<DecorationSet>("mentions");
 const inCode = (node: Node) =>
   node.marks.some((mark) => mark.type === schema.marks.code);
 
-// A mention in code or in a link's words reads as its handle there.
+// A mention in code, a link's words or a spoiler reads as its handle.
+const WORDS_ONLY = [schema.marks.code, schema.marks.link, schema.marks.spoiler];
 const onlyWords = (node: Node) =>
-  node.marks.some(
-    (mark) =>
-      mark.type === schema.marks.code || mark.type === schema.marks.link,
-  );
+  node.marks.some((mark) => WORDS_ONLY.includes(mark.type));
 
 // Whether what is typed at the caret can't be a mention: in a code block,
-// in text with the code style, or at the end of a link's words.
+// in code or a spoiler, or at the end of a link's or a spoiler's words.
 export function mentionsOffAtCaret(state: EditorState): boolean {
   const { $from } = state.selection;
   if ($from.parent.type.spec.code) return true;
   const marks = state.storedMarks ?? $from.marks();
-  if (marks.some((mark) => mark.type === schema.marks.code)) return true;
-  return !!$from.nodeBefore?.marks.some(
-    (mark) => mark.type === schema.marks.link,
+  return [...marks, ...($from.nodeBefore?.marks ?? [])].some((mark) =>
+    WORDS_ONLY.includes(mark.type),
   );
 }
 
@@ -132,7 +129,7 @@ export function settleMentions(
       return false;
     }
     if (!node.isText || !node.text || inCode(node)) return true;
-    if (node.marks.some((mark) => mark.type === schema.marks.link)) return true;
+    if (onlyWords(node)) return true;
     const addresses = [...node.text.matchAll(ADDRESS)].map((m) => [
       m.index,
       m.index + m[0].length,

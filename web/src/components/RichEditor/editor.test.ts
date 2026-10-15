@@ -456,6 +456,23 @@ describe("mentions", () => {
     expect(md(linked.apply(tr))).toBe("[hi @casey](https://a.example)");
   });
 
+  it("turns a mention given the spoiler style into its words", () => {
+    const state = stateOf(`hi ${casey}`);
+    const hidden = state.apply(
+      state.tr.addMark(
+        1,
+        state.doc.content.size - 1,
+        schema.marks.spoiler.create(),
+      ),
+    );
+    const tr = settleMentions(hidden.tr, context)!;
+    expect(md(hidden.apply(tr))).toBe("||hi @casey||");
+  });
+
+  it("leaves a handle typed in a spoiler as text", () => {
+    expect(settled("||hi @casey|| ok")).toBe("||hi @casey|| ok");
+  });
+
   it("knows when the caret can't take a mention", () => {
     expect(mentionsOffAtCaret(caretAtEnd(stateOf("hi @")))).toBe(false);
     expect(mentionsOffAtCaret(caretAtEnd(stateOf("```\nping @\n```")))).toBe(
@@ -467,6 +484,10 @@ describe("mentions", () => {
     const linked = stateOf("[see @ada](https://a.example) x");
     expect(mentionsOffAtCaret(caretAfter(linked, "see @ada"))).toBe(true);
     expect(mentionsOffAtCaret(caretAtEnd(linked))).toBe(false);
+    const hidden = stateOf("||ping @ada|| x");
+    expect(mentionsOffAtCaret(caretAfter(hidden, "ping @"))).toBe(true);
+    expect(mentionsOffAtCaret(caretAfter(hidden, "ping @ada"))).toBe(true);
+    expect(mentionsOffAtCaret(caretAtEnd(hidden))).toBe(false);
   });
 
   it("counts a mention as its handle against the limit", () => {
