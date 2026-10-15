@@ -169,6 +169,8 @@ class InlineParser {
       if (start >= s.length || /\s/.test(s[start])) continue;
       if (d === "*" && s[start] === "*") continue;
       const close = findCloser(s, d, start + 1);
+      const run = d === "**" ? closeOnStarRun(s, start, close) : null;
+      if (run) return this.emit({ type, children: run.children }, run.end);
       if (close === -1) continue;
       // A spoiler can't mention anyone: a token there reads as its handle.
       const inner = s.slice(start, close);
@@ -199,6 +201,22 @@ function findCloser(s: string, d: string, from: number): number {
     j = s.indexOf(d, j + 1);
   }
   return j;
+}
+
+// "**a *b***": when bold closes on a run of three or more stars, the run's
+// first stars can close the italic inside it.
+function closeOnStarRun(
+  s: string,
+  start: number,
+  close: number,
+): { children: Inline[]; end: number } | null {
+  if (close === -1 || !s.startsWith("***", close)) return null;
+  let runEnd = close;
+  while (s[runEnd] === "*") runEnd++;
+  const children = parseInline(s.slice(start, runEnd - 2));
+  const last = children[children.length - 1];
+  if (last?.type !== "italic" && last?.type !== "bold") return null;
+  return { children, end: runEnd };
 }
 
 // Trailing punctuation belongs to the sentence, not the link, except a

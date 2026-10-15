@@ -92,6 +92,19 @@ describe("parseInline", () => {
     ]);
   });
 
+  it("closes bold and the italic inside it on one run of stars", () => {
+    expect(parseInline("**hello *world***")).toEqual([
+      bold(text("hello "), italic(text("world"))),
+    ]);
+    expect(parseInline("***world* hello**")).toEqual([
+      bold(italic(text("world")), text(" hello")),
+    ]);
+  });
+
+  it("leaves a run's spare star as text when nothing inside takes it", () => {
+    expect(parseInline("**a***")).toEqual([bold(text("a")), text("*")]);
+  });
+
   it("leaves an empty backtick pair as text", () => {
     expect(parseInline("``")).toEqual([text("``")]);
   });
@@ -373,6 +386,7 @@ describe("plainText mirrors the server", () => {
     ["**bold** and *italic*", "bold and italic"],
     ["__under__ ~~gone~~ `code`", "under gone code"],
     ["***both***", "both"],
+    ["**hello *world***", "hello world"],
     ["> quoted\n> lines", "quoted lines"],
     ["```go\nfmt.Println()\n```", "fmt.Println()"],
     ["```one liner```", "one liner"],
