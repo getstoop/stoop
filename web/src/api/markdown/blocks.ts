@@ -6,7 +6,9 @@ import type { Block, Inline, ListItem } from "./types";
 // plain lines. Each reader takes the run of lines its block owns and says
 // where the next block starts.
 
-const FENCE_OPEN = /^\s*```(\w*)\s*$/;
+// A language is any run of characters but backticks and ASCII spaces
+// (Go's \s, so the server agrees): c++, f#, objective-c.
+const FENCE_OPEN = /^\s*```([^\t\n\f\r `]*)\s*$/;
 const FENCE_CLOSE = /^\s*```\s*$/;
 const FENCE_ONE_LINE = /^\s*```(.+?)```\s*$/;
 const QUOTE = /^>\s?(.*)$/;

@@ -131,6 +131,9 @@ func TestParseMarkdownBlocks(t *testing.T) {
 		{"*italic* line", []blockKind{blockLines}},
 		{"```\nx\n```\nafter", []blockKind{blockCode, blockLines}},
 		{"```\nnever closed", []blockKind{blockCode}},
+		{"```c++\nint x;\n```\nafter", []blockKind{blockCode, blockLines}},
+		{"```objective-c\nx\n```\nafter", []blockKind{blockCode, blockLines}},
+		{"```f#\nx\n```\nafter", []blockKind{blockCode, blockLines}},
 		{"> - item", []blockKind{blockQuote}},
 	}
 	for _, c := range cases {

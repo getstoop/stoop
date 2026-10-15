@@ -43,7 +43,7 @@ type block struct {
 }
 
 var (
-	fenceOpen    = regexp.MustCompile("^\\s*```(\\w*)\\s*$")
+	fenceOpen    = regexp.MustCompile("^\\s*```([^\\s`]*)\\s*$")
 	fenceClose   = regexp.MustCompile("^\\s*```\\s*$")
 	fenceOneLine = regexp.MustCompile("^\\s*```(.+?)```\\s*$")
 	quoteLine    = regexp.MustCompile(`^>\s?(.*)$`)
