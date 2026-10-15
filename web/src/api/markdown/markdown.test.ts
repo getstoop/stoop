@@ -337,6 +337,13 @@ describe("parseMarkdown", () => {
     ]);
   });
 
+  it("shows a mention token in a link's words as its handle", () => {
+    const token = "<@u:00000000-0000-4000-8000-000000000001:casey>";
+    expect(parseInline(`[hi ${token}](https://a.example)`)).toEqual([
+      { type: "link", href: "https://a.example", label: [text("hi @casey")] },
+    ]);
+  });
+
   it("keeps blocks in source order", () => {
     expect(parseMarkdown("intro\n- one\nafter").map((b) => b.type)).toEqual([
       "lines",

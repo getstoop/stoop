@@ -140,7 +140,8 @@ class InlineParser {
     if (hrefEnd >= s.length) return false;
     const href = s.slice(hrefStart, hrefEnd);
     if (!URL_WHOLE.test(href)) return false;
-    const label = parseInline(words);
+    // A link's words can't mention anyone: a token there reads as its handle.
+    const label = parseInline(tokensAsText(words));
     if (holdsLink(label)) return false;
     return this.emit({ type: "link", href, label }, hrefEnd + 1);
   }
