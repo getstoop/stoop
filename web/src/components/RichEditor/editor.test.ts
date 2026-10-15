@@ -424,8 +424,28 @@ describe("mentions", () => {
     );
   });
 
-  it("waits for the end of the handle", () => {
-    expect(settled("hi @casey")).toBe("hi @casey");
+  it("waits for the end of a handle at the caret", () => {
+    const state = caretAtEnd(stateOf("hi @casey"));
+    expect(settleMentions(state.tr, context)).toBeNull();
+  });
+
+  it("settles a handle ending a line the caret isn't on", () => {
+    const state = caretAtEnd(stateOf("hi @casey\nsecond line"));
+    const tr = settleMentions(state.tr, context);
+    expect(tr && md(state.apply(tr))).toBe(`hi ${casey}\nsecond line`);
+    const before = caretAfter(stateOf("hi @casey"), "hi");
+    const settledBefore = settleMentions(before.tr, context);
+    expect(settledBefore && md(before.apply(settledBefore))).toBe(
+      `hi ${casey}`,
+    );
+  });
+
+  it("settles a handle at the caret on send", () => {
+    const state = caretAtEnd(stateOf("hi @casey"));
+    const tr = settleMentions(state.tr, context, null);
+    expect(tr && md(state.apply(tr))).toBe(`hi ${casey}`);
+    const nobody = caretAtEnd(stateOf("hi @nobody"));
+    expect(settleMentions(nobody.tr, context, null)).toBeNull();
   });
 
   it("leaves a handle that names nobody, or a person and a group both", () => {

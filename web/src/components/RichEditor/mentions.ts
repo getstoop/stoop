@@ -100,21 +100,25 @@ export function mentionDecorations(
   return DecorationSet.create(doc, decos);
 }
 
-// "@handle" with something after it that can't be part of a handle: the
-// handle is typed in full. Not after a letter, a digit or another "@".
-const TYPED_HANDLE = /(^|[^a-z0-9_@])@([a-z0-9_]{3,32})(?=[^a-z0-9_])/gi;
+// "@handle" with something after it that can't be part of a handle, or
+// nothing after it: the handle is typed in full. Not after a letter, a
+// digit or another "@".
+const TYPED_HANDLE = /(^|[^a-z0-9_@])@([a-z0-9_]{3,32})(?=[^a-z0-9_]|$)/gi;
 const ADDRESS = /https?:\/\/[^\s<>]+/gi;
 
 // The transaction that turns typed handles into mentions and brings each
 // mention's handle up to date, or null when there is nothing to change.
+// A handle ending its line counts as typed in full unless it ends at
+// typingAt, the caret; null (on send) settles that one too.
 export function settleMentions(
   tr: Transaction,
   { members, groups }: MentionContext,
+  typingAt: number | null = tr.selection.empty ? tr.selection.head : null,
 ): Transaction | null {
   const replacements: Replacement[] = [];
   const renames: { pos: number; ref: MentionRef }[] = [];
   const asWords: { pos: number; node: Node }[] = [];
-  tr.doc.descendants((node, pos) => {
+  tr.doc.descendants((node, pos, parent, index) => {
     if (node.type.spec.code) return false;
     if (node.type === schema.nodes.mention) {
       if (onlyWords(node)) {
@@ -138,11 +142,16 @@ export function settleMentions(
       const [, lead, handle] = match;
       const start = (match.index ?? 0) + lead.length;
       if (addresses.some(([from, to]) => start >= from && start < to)) continue;
+      const end = start + handle.length + 1;
+      if (end === node.text.length) {
+        const endsLine = !!parent && index === parent.childCount - 1;
+        if (!endsLine || pos + end === typingAt) continue;
+      }
       const ref = soleMention(handle, members, groups);
       if (!ref) continue;
       replacements.push({
         from: pos + start,
-        to: pos + start + handle.length + 1,
+        to: pos + end,
         ref,
         marks: node.marks,
       });
