@@ -202,8 +202,8 @@ export function Composer({
   const suggestions = shortcode ? searchShortcodes(shortcode.query) : [];
 
   const updateMention = (value: string, caret: number) => {
-    // No picker in code: a mention there would be sent as text.
-    const q = inputRef.current?.caretInCode()
+    // No picker in code or a link's words: a mention there is sent as text.
+    const q = inputRef.current?.mentionsOffAtCaret()
       ? null
       : mentionQueryAt(value, caret);
     setMention(q);

@@ -53,13 +53,16 @@ const onlyWords = (node: Node) =>
       mark.type === schema.marks.code || mark.type === schema.marks.link,
   );
 
-// Whether what is typed at the caret goes into code, where mentions
-// don't work: a code block, or text with the code style.
-export function caretInCode(state: EditorState): boolean {
+// Whether what is typed at the caret can't be a mention: in a code block,
+// in text with the code style, or at the end of a link's words.
+export function mentionsOffAtCaret(state: EditorState): boolean {
   const { $from } = state.selection;
   if ($from.parent.type.spec.code) return true;
   const marks = state.storedMarks ?? $from.marks();
-  return marks.some((mark) => mark.type === schema.marks.code);
+  if (marks.some((mark) => mark.type === schema.marks.code)) return true;
+  return !!$from.nodeBefore?.marks.some(
+    (mark) => mark.type === schema.marks.link,
+  );
 }
 
 export function mentionDecorations(

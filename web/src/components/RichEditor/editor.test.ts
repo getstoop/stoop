@@ -14,7 +14,11 @@ import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { activeFormats, formatCommands, newLine } from "./commands";
 import { checkLink, linkAround, linkDraft, saveLink } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
-import { caretInCode, mentionDecorations, settleMentions } from "./mentions";
+import {
+  mentionDecorations,
+  mentionsOffAtCaret,
+  settleMentions,
+} from "./mentions";
 import { indentItem, linkSelection, markdownSlice } from "./plugins";
 import { schema } from "./schema";
 
@@ -452,12 +456,17 @@ describe("mentions", () => {
     expect(md(linked.apply(tr))).toBe("[hi @casey](https://a.example)");
   });
 
-  it("knows when the caret is in code", () => {
-    expect(caretInCode(caretAtEnd(stateOf("hi @")))).toBe(false);
-    expect(caretInCode(caretAtEnd(stateOf("```\nping @\n```")))).toBe(true);
+  it("knows when the caret can't take a mention", () => {
+    expect(mentionsOffAtCaret(caretAtEnd(stateOf("hi @")))).toBe(false);
+    expect(mentionsOffAtCaret(caretAtEnd(stateOf("```\nping @\n```")))).toBe(
+      true,
+    );
     expect(
-      caretInCode(caretAfter(stateOf("run `ping @x` now"), "ping @")),
+      mentionsOffAtCaret(caretAfter(stateOf("run `ping @x` now"), "ping @")),
     ).toBe(true);
+    const linked = stateOf("[see @ada](https://a.example) x");
+    expect(mentionsOffAtCaret(caretAfter(linked, "see @ada"))).toBe(true);
+    expect(mentionsOffAtCaret(caretAtEnd(linked))).toBe(false);
   });
 
   it("counts a mention as its handle against the limit", () => {
