@@ -233,6 +233,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
             spaceId={spaceId}
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}
+            onReply={setReplyTo}
             onEditLast={editLast}
             threadRootId={rootId}
           />

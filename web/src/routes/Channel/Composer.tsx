@@ -1,4 +1,3 @@
-import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import {
@@ -11,6 +10,7 @@ import {
 } from "react";
 import { chatClient } from "../../api/clients";
 import { usePeople } from "../../api/dms";
+import { errorText } from "../../api/errors";
 import {
   isInlineImage,
   MAX_ATTACHMENT_BYTES,
@@ -51,6 +51,7 @@ import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
+import { restoreDraft, restoreFiles } from "./unsent";
 
 export function Composer({
   channelId,
@@ -62,6 +63,7 @@ export function Composer({
   spaceId,
   replyTo,
   onCancelReply,
+  onReply,
   onEditLast,
   threadRootId,
 }: {
@@ -76,6 +78,8 @@ export function Composer({
   spaceId: string;
   replyTo: Message | null;
   onCancelReply: () => void;
+  // Puts back the reply target of a send the server refused.
+  onReply: (message: Message) => void;
   // Up arrow in an empty box: edit the caller's last message here.
   onEditLast: () => void;
   // Reply into this root's thread instead of the channel.
@@ -309,7 +313,15 @@ export function Composer({
     }
   };
 
+  // Enter pressed again before the server answers must not send twice.
+  const sendingRef = useRef(false);
+  const replyToRef = useRef(replyTo);
+  replyToRef.current = replyTo;
+  const where = `${channelId}/${threadRootId ?? ""}`;
+  const whereRef = useRef(where);
+  whereRef.current = where;
   const send = async () => {
+    if (sendingRef.current) return;
     const content = replaceShortcodes(draft).trim();
     const files = pendingRef.current;
     // Wait for uploads in flight; failed ones are dropped, not sent.
@@ -319,21 +331,45 @@ export function Composer({
     setDraft("");
     setMention(null);
     setShortcode(null);
-    for (const p of files) if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
     setPending([]);
     setAttachError(null);
-    const replyToMessageId = replyTo?.id ?? "";
     onCancelReply();
     setAlsoSend(false);
+    const releasePreviews = () => {
+      for (const p of files)
+        if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+    };
+    sendingRef.current = true;
+    let res: Awaited<ReturnType<typeof chatClient.sendMessage>>;
     try {
-      const res = await chatClient.sendMessage({
+      res = await chatClient.sendMessage({
         channelId,
         content,
-        replyToMessageId,
+        replyToMessageId: replyTo?.id ?? "",
         attachmentIds,
         threadRootId: threadRootId ?? "",
         alsoSendToChannel: !!threadRootId && alsoSend,
       });
+    } catch (err) {
+      // Refused: put it all back with the reason, unless the person has
+      // moved to another channel or thread meanwhile.
+      if (whereRef.current !== where) {
+        releasePreviews();
+        return;
+      }
+      setDraft((typedSince) => restoreDraft(draft, typedSince));
+      setPending((addedSince) => restoreFiles(files, addedSince));
+      // The reply target comes back unless another was picked meanwhile.
+      const replyNow = replyToRef.current;
+      if (replyTo && (!replyNow || replyNow === replyTo)) onReply(replyTo);
+      setAlsoSend(alsoSend);
+      setAttachError(errorText(err));
+      return;
+    } finally {
+      sendingRef.current = false;
+    }
+    releasePreviews();
+    try {
       // The WS event usually lands first; appendMessage dedupes by ID either
       // way. Sent from inside history, the window is replaced by the newest
       // page so the message is seen where it landed.
@@ -346,9 +382,7 @@ export function Composer({
         }
       }
     } catch (err) {
-      setAttachError(
-        err instanceof ConnectError ? err.rawMessage : String(err),
-      );
+      setAttachError(errorText(err));
     }
   };
 
