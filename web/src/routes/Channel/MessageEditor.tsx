@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { replaceShortcodes } from "../../api/shortcodes";
+import { replaceMessage } from "../../api/ws";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import type { MentionContext } from "../../components/RichEditor/mentions";
@@ -45,14 +46,7 @@ export function MessageEditor({
         messageId: message.id,
         content,
       });
-      if (res.message) {
-        const m = res.message;
-        // Every window of the channel: a thread's replies and root too.
-        queryClient.setQueriesData<Message[]>(
-          { queryKey: ["messages", m.channelId] },
-          (old) => old?.map((x) => (x.id === m.id ? m : x)),
-        );
-      }
+      if (res.message) replaceMessage(queryClient, res.message);
       onDone();
     } catch (err) {
       setError(err instanceof ConnectError ? err.rawMessage : String(err));
