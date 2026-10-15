@@ -433,6 +433,20 @@ describe("parseMarkdown", () => {
   });
 });
 
+describe("parseMarkdown agrees with the server on \\r", () => {
+  // Old messages may still hold \r; the server's parser reads it as text.
+  const cases: [string, string[]][] = [
+    ["- a\r\n- b", ["list"]],
+    ["> a\r\n> b", ["quote"]],
+    ["```a\rb```", ["codeblock"]],
+  ];
+  for (const [input, want] of cases) {
+    it(`reads ${JSON.stringify(input)} as ${want.join(", ")}`, () => {
+      expect(parseMarkdown(input).map((block) => block.type)).toEqual(want);
+    });
+  }
+});
+
 describe("plainText mirrors the server", () => {
   const cases: [string, string][] = [
     ["**bold** and *italic*", "bold and italic"],

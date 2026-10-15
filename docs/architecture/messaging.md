@@ -90,7 +90,9 @@ a DM unchanged, because it never asks which kind it has.
 `SendMessage` is the busiest path in the codebase, and its ordering is
 deliberate:
 
-1. **Validate.** Content is 1–4000 characters, *or* empty with at least one
+1. **Validate.** Line endings become `\n` first (`\r\n` and a lone `\r`
+   alike), so stored content splits into lines the same way in every
+   reader. Content is 1–4000 characters, *or* empty with at least one
    attachment. Whitespace alone counts as empty, and a NUL character is
    refused (Postgres text can't hold one). An edit needs text, by the
    same rules.

@@ -10,12 +10,13 @@ import type { Block, Inline, ListItem } from "./types";
 // (Go's \s, so the server agrees): c++, f#, objective-c.
 const FENCE_OPEN = /^\s*```([^\t\n\f\r `]*)\s*$/;
 const FENCE_CLOSE = /^\s*```\s*$/;
-const FENCE_ONE_LINE = /^\s*```(.+?)```\s*$/;
-const QUOTE = /^>\s?(.*)$/;
+// The s flag, here and on LIST, lets "." take \r as Go's does.
+const FENCE_ONE_LINE = /^\s*```(.+?)```\s*$/s;
+const QUOTE = /^>\s?(.*)$/s;
 // "- item", "* item", "1. item", "1) item", with up to six leading spaces
 // for nesting. A bullet must be followed by a space, so *italic* at the
 // start of a line is still italic.
-const LIST = /^( {0,6})([-*]|\d{1,9}[.)])\s+(.*)$/;
+const LIST = /^( {0,6})([-*]|\d{1,9}[.)])\s+(.*)$/s;
 // Two spaces a level, three levels deep — enough to be useful, shallow
 // enough that a wrapped paste doesn't produce a staircase.
 const MAX_LIST_DEPTH = 3;
