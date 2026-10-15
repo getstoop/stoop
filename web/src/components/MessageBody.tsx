@@ -7,123 +7,121 @@ import {
   parseMarkdown,
 } from "../api/markdown";
 import {
+  currentHandle,
+  EVERYONE_CLASS,
   groupMentionClass,
   type MentionGroups,
   type MentionMembers,
+  type MentionRef,
   mentionClass,
   NO_GROUPS,
-  splitMentions,
+  splitEveryone,
 } from "../api/mentions";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 
-// Renders a message's Markdown as React nodes. Text runs still go through
-// splitMentions so @handles highlight inside formatting; `highlight`
-// (a search's terms) marks matching words in those runs.
+// Renders a message's Markdown as React nodes. A mention token is a pill
+// for the person or group it names, read by ID; text runs still go
+// through splitEveryone for @channel and @here. `highlight` (a search's
+// terms) marks matching words in those runs.
 export function MessageBody({
   content,
-  usernames,
+  members,
   mentionsEntireChannel,
   mentionsHere,
-  myUsername,
+  myUserId,
   highlight,
   onMention,
   groups = NO_GROUPS,
   onGroup,
 }: {
   content: string;
-  usernames: MentionMembers;
+  // The people who can read the channel, by user ID.
+  members: MentionMembers;
   mentionsEntireChannel: boolean;
   mentionsHere: boolean;
-  myUsername?: string;
+  myUserId?: string;
   highlight?: RegExp | null;
   // Opens a mentioned member's card. Not inside a link or a spoiler,
   // whose click is their own.
   onMention?: (userId: string, anchor: DOMRect) => void;
-  // The groups @@handle names here: none in a private channel or a DM.
+  // The groups mentions name here, by ID: none in a private channel or
+  // a DM.
   groups?: MentionGroups;
   // Opens a mentioned group's card, under the same rule as onMention.
   onGroup?: (group: Group, anchor: DOMRect) => void;
 }) {
-  const me = myUsername?.toLowerCase();
-  const myUserId = me ? usernames.get(me)?.userId : undefined;
-  const text = (s: string, inControl: boolean): ReactNode =>
-    splitMentions(
-      s,
-      usernames,
-      mentionsEntireChannel,
-      mentionsHere,
-      groups,
-    ).map((part, i) => {
-      if (!part.mention) {
-        return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-          <Fragment key={i}>
-            {splitEmoji(part.text).map((run, j) =>
-              run.emoji ? (
-                // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-                <span key={j} className="emoji">
-                  {run.text}
-                </span>
-              ) : (
-                // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-                <Fragment key={j}>{marked(run.text, highlight)}</Fragment>
-              ),
-            )}
-          </Fragment>
-        );
-      }
-      if (part.group) {
-        const group = groups.get(part.mention);
-        const className = groupMentionClass(group, myUserId);
-        return onGroup && group && !inControl ? (
-          <button
-            // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-            key={i}
-            type="button"
-            className={className}
-            onClick={(event) => {
-              event.stopPropagation();
-              onGroup(group, event.currentTarget.getBoundingClientRect());
-            }}
-          >
-            {part.text}
-          </button>
-        ) : (
-          // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-          <span key={i} className={className}>
-            {part.text}
-          </span>
-        );
-      }
-      const className = mentionClass(part.mention, usernames, me);
-      const member = usernames.get(part.mention);
-      return onMention && member && !inControl ? (
-        <button
-          // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-          key={i}
-          type="button"
-          className={className}
-          onClick={(e) => {
-            e.stopPropagation();
-            onMention(member.userId, e.currentTarget.getBoundingClientRect());
-          }}
-        >
-          {part.text}
-        </button>
-      ) : (
+  const text = (s: string): ReactNode =>
+    splitEveryone(s, mentionsEntireChannel, mentionsHere).map((part, i) =>
+      part.everyone ? (
         // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
-        <span key={i} className={className}>
+        <span key={i} className={myUserId ? EVERYONE_CLASS : "mention"}>
           {part.text}
         </span>
-      );
-    });
+      ) : (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+        <Fragment key={i}>
+          {splitEmoji(part.text).map((run, j) =>
+            run.emoji ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+              <span key={j} className="emoji">
+                {run.text}
+              </span>
+            ) : (
+              // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+              <Fragment key={j}>{marked(run.text, highlight)}</Fragment>
+            ),
+          )}
+        </Fragment>
+      ),
+    );
+
+  // Someone or something this channel can't find reads as its saved
+  // handle, as plain text.
+  const mention = (
+    ref: MentionRef,
+    key: number,
+    inControl: boolean,
+  ): ReactNode => {
+    const handle = currentHandle(ref, members, groups);
+    if (handle === null) {
+      return <Fragment key={key}>{text(`@${ref.handle}`)}</Fragment>;
+    }
+    const group = ref.kind === "group" ? groups.get(ref.id) : undefined;
+    const className = group
+      ? groupMentionClass(group, myUserId)
+      : mentionClass(members.get(ref.id), myUserId);
+    const open = (anchor: DOMRect) => {
+      if (group) onGroup?.(group, anchor);
+      else onMention?.(ref.id, anchor);
+    };
+    const clickable = !inControl && (group ? !!onGroup : !!onMention);
+    return clickable ? (
+      <button
+        key={key}
+        type="button"
+        className={className}
+        onClick={(event) => {
+          event.stopPropagation();
+          open(event.currentTarget.getBoundingClientRect());
+        }}
+      >
+        @{handle}
+      </button>
+    ) : (
+      <span key={key} className={className}>
+        @{handle}
+      </span>
+    );
+  };
 
   const inline = (nodes: Inline[], inControl = false): ReactNode =>
     nodes.map((n, i) => {
       const key = i;
       switch (n.type) {
         case "text":
-          return <Fragment key={key}>{text(n.text, inControl)}</Fragment>;
+          return <Fragment key={key}>{text(n.text)}</Fragment>;
+        case "mention":
+          return mention(n.mention, key, inControl);
         case "code":
           return (
             <code key={key} className="md-code">

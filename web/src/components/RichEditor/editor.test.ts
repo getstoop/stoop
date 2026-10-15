@@ -7,13 +7,18 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
+import { writtenLength } from "../../api/mentions";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { activeFormats, formatCommands, newLine } from "./commands";
 import { checkLink, linkAround, linkDraft, saveLink } from "./links";
 import { fromMarkdown, toMarkdown } from "./markdown";
-import { mentionDecorations } from "./mentions";
+import {
+  mentionDecorations,
+  mentionsOffAtCaret,
+  settleMentions,
+} from "./mentions";
 import { indentItem, linkSelection, markdownSlice } from "./plugins";
 import { schema } from "./schema";
 
@@ -326,41 +331,60 @@ describe("links", () => {
 });
 
 describe("mentions", () => {
+  const caseyID = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8b";
+  const uptimeID = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8d";
+  const gardenersID = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8c";
+  const twinID = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8e";
+  const member = (userId: string, username: string, kind: IdentityKind) =>
+    ({ userId, username, kind }) as Member;
   const members = new Map([
-    ["casey", { kind: IdentityKind.PERSON } as Member],
-    ["uptime", { kind: IdentityKind.BOT } as Member],
+    [caseyID, member(caseyID, "casey", IdentityKind.PERSON)],
+    [uptimeID, member(uptimeID, "uptime", IdentityKind.BOT)],
   ]);
-
   const groups = new Map([
-    ["gardeners", { handle: "gardeners", userIds: [] } as unknown as Group],
+    [
+      gardenersID,
+      { id: gardenersID, handle: "gardeners", userIds: [] } as unknown as Group,
+    ],
   ]);
+  const context = { members, channelAndHere: false, groups };
+  const casey = `<@u:${caseyID}:casey>`;
+  const gardeners = `<@g:${gardenersID}:gardeners>`;
 
   const drawn = (markdown: string, channelAndHere = false) => {
     const state = stateOf(markdown);
     return mentionDecorations(state.doc, { members, channelAndHere, groups })
       .find()
       .map((d) => ({
-        text: state.doc.textBetween(d.from, d.to),
+        text: state.doc.textBetween(
+          d.from,
+          d.to,
+          undefined,
+          (leaf) => `@${leaf.attrs.handle}`,
+        ),
         class: (d as unknown as { type: { attrs: { class: string } } }).type
           .attrs.class,
       }));
   };
 
-  it("draws a member's handle as a person or a bot", () => {
-    expect(drawn("hi @casey and @Uptime")).toEqual([
+  // The document after the mentions plugin has settled it.
+  const settled = (markdown: string, ctx = context) => {
+    const state = stateOf(markdown);
+    const tr = settleMentions(state.tr, ctx);
+    return md(tr ? state.apply(tr) : state);
+  };
+
+  it("loads tokens as mentions and writes them back", () => {
+    const text = `hi ${casey}, **${gardeners}** and \`@casey\``;
+    expect(md(stateOf(text))).toBe(text);
+  });
+
+  it("draws a mention as a person, a bot or a group", () => {
+    expect(drawn(`hi ${casey} <@u:${uptimeID}:uptime> ${gardeners}`)).toEqual([
       { text: "@casey", class: "mention person" },
-      { text: "@Uptime", class: "mention bot" },
+      { text: "@uptime", class: "mention bot" },
+      { text: "@gardeners", class: "mention group" },
     ]);
-  });
-
-  it("draws a group's @@handle with the group glyph", () => {
-    expect(drawn("@@gardeners and @@nobody")).toEqual([
-      { text: "@@gardeners", class: "mention group" },
-    ]);
-  });
-
-  it("leaves a handle that isn't a member, and code", () => {
-    expect(drawn("@nobody `@casey`\n\n```\n@casey\n```")).toEqual([]);
   });
 
   it("draws @channel and @here only where they may be used", () => {
@@ -369,5 +393,110 @@ describe("mentions", () => {
       { text: "@channel", class: "mention" },
       { text: "@here", class: "mention" },
     ]);
+  });
+
+  it("turns a handle typed in full into its mention", () => {
+    expect(settled("hi @Casey, and @gardeners!")).toBe(
+      `hi ${casey}, and ${gardeners}!`,
+    );
+  });
+
+  it("waits for the end of the handle", () => {
+    expect(settled("hi @casey")).toBe("hi @casey");
+  });
+
+  it("leaves a handle that names nobody, or a person and a group both", () => {
+    const twins = new Map([
+      ...groups,
+      [
+        twinID,
+        { id: twinID, handle: "casey", userIds: [] } as unknown as Group,
+      ],
+    ]);
+    expect(
+      settled("@nobody and @casey here", { ...context, groups: twins }),
+    ).toBe("@nobody and @casey here");
+  });
+
+  it("leaves code, addresses, @channel and @here", () => {
+    const text = "`@casey` https://social.example/@casey and @channel @here.";
+    expect(settled(text)).toBe(text);
+  });
+
+  it("keeps a mention as its words when a line becomes a code block", () => {
+    const state = caretAtEnd(stateOf(`block ${casey} end`));
+    const next = run(state, formatCommands.codeblock);
+    expect(next && md(next)).toBe("```\nblock @casey end\n```");
+  });
+
+  it("turns a mention given the code style into its words", () => {
+    const state = stateOf(`hi ${casey}`);
+    const all = state.apply(
+      state.tr.setSelection(
+        TextSelection.create(state.doc, 1, state.doc.content.size - 1),
+      ),
+    );
+    const coded = run(all, formatCommands.code)!;
+    const tr = settleMentions(coded.tr, context)!;
+    const doc = coded.apply(tr).doc;
+    expect(doc.textContent).toBe("hi @casey");
+    expect(drawn(md(coded.apply(tr)))).toEqual([]);
+  });
+
+  it("turns a mention made into a link into its words", () => {
+    const state = stateOf(`hi ${casey}`);
+    const linked = state.apply(
+      state.tr.addMark(
+        1,
+        state.doc.content.size - 1,
+        schema.marks.link.create({ href: "https://a.example" }),
+      ),
+    );
+    const tr = settleMentions(linked.tr, context)!;
+    expect(md(linked.apply(tr))).toBe("[hi @casey](https://a.example)");
+  });
+
+  it("turns a mention given the spoiler style into its words", () => {
+    const state = stateOf(`hi ${casey}`);
+    const hidden = state.apply(
+      state.tr.addMark(
+        1,
+        state.doc.content.size - 1,
+        schema.marks.spoiler.create(),
+      ),
+    );
+    const tr = settleMentions(hidden.tr, context)!;
+    expect(md(hidden.apply(tr))).toBe("||hi @casey||");
+  });
+
+  it("leaves a handle typed in a spoiler as text", () => {
+    expect(settled("||hi @casey|| ok")).toBe("||hi @casey|| ok");
+  });
+
+  it("knows when the caret can't take a mention", () => {
+    expect(mentionsOffAtCaret(caretAtEnd(stateOf("hi @")))).toBe(false);
+    expect(mentionsOffAtCaret(caretAtEnd(stateOf("```\nping @\n```")))).toBe(
+      true,
+    );
+    expect(
+      mentionsOffAtCaret(caretAfter(stateOf("run `ping @x` now"), "ping @")),
+    ).toBe(true);
+    const linked = stateOf("[see @ada](https://a.example) x");
+    expect(mentionsOffAtCaret(caretAfter(linked, "see @ada"))).toBe(true);
+    expect(mentionsOffAtCaret(caretAtEnd(linked))).toBe(false);
+    const hidden = stateOf("||ping @ada|| x");
+    expect(mentionsOffAtCaret(caretAfter(hidden, "ping @"))).toBe(true);
+    expect(mentionsOffAtCaret(caretAfter(hidden, "ping @ada"))).toBe(true);
+    expect(mentionsOffAtCaret(caretAtEnd(hidden))).toBe(false);
+  });
+
+  it("counts a mention as its handle against the limit", () => {
+    expect(writtenLength(`hi ${casey}`)).toBe("hi @casey".length);
+  });
+
+  it("brings a mention's handle up to date", () => {
+    expect(settled(`hi <@u:${caseyID}:old_name> there`)).toBe(
+      `hi ${casey} there`,
+    );
   });
 });

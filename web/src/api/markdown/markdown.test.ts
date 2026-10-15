@@ -326,6 +326,31 @@ describe("parseMarkdown", () => {
     ]);
   });
 
+  it("shows a mention token in code as its handle", () => {
+    const token = "<@u:00000000-0000-4000-8000-000000000001:casey>";
+    expect(parseInline(`run \`${token}\``)).toEqual([
+      text("run "),
+      code("@casey"),
+    ]);
+    expect(parseMarkdown(`\`\`\`\nping ${token}\n\`\`\``)).toEqual([
+      { type: "codeblock", text: "ping @casey", lang: "" },
+    ]);
+  });
+
+  it("shows a mention token in a link's words as its handle", () => {
+    const token = "<@u:00000000-0000-4000-8000-000000000001:casey>";
+    expect(parseInline(`[hi ${token}](https://a.example)`)).toEqual([
+      { type: "link", href: "https://a.example", label: [text("hi @casey")] },
+    ]);
+  });
+
+  it("shows a mention token in a spoiler as its handle", () => {
+    const token = "<@u:00000000-0000-4000-8000-000000000001:casey>";
+    expect(parseInline(`||hi ${token}||`)).toEqual([
+      spoiler(text("hi @casey")),
+    ]);
+  });
+
   it("keeps blocks in source order", () => {
     expect(parseMarkdown("intro\n- one\nafter").map((b) => b.type)).toEqual([
       "lines",

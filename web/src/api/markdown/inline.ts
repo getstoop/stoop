@@ -1,6 +1,7 @@
+import { mentionTokenAt, tokensAsText } from "../mentions";
 import type { Inline } from "./types";
 
-// Inline syntax, left to right: escapes, `code`, bare http(s) links,
+// Inline syntax, left to right: mention tokens, escapes, `code`, bare http(s) links,
 // [words](https://address), ***both***, then **bold**, __underline__,
 // ~~strike~~, ||spoiler|| and *italic*. `_italic_` is deliberately absent
 // so @user_names survive.
@@ -40,6 +41,7 @@ class InlineParser {
   parse(): Inline[] {
     while (this.i < this.s.length) {
       if (
+        this.mention() ||
         this.escape() ||
         this.code() ||
         this.bareLink() ||
@@ -67,6 +69,18 @@ class InlineParser {
     this.text = "";
   }
 
+  // A token is whole: its handle may hold "__", which isn't underline.
+  private mention(): boolean {
+    const { s, i } = this;
+    if (s[i] !== "<") return false;
+    const token = mentionTokenAt(s.slice(i));
+    if (!token) return false;
+    return this.emit(
+      { type: "mention", mention: token.mention },
+      i + token.length,
+    );
+  }
+
   private escape(): boolean {
     const { s, i } = this;
     if (s[i] !== "\\" || i + 1 >= s.length || !ESCAPABLE.test(s[i + 1])) {
@@ -82,7 +96,10 @@ class InlineParser {
     if (s[i] !== "`") return false;
     const close = s.indexOf("`", i + 1);
     if (close <= i + 1) return false;
-    return this.emit({ type: "code", text: s.slice(i + 1, close) }, close + 1);
+    return this.emit(
+      { type: "code", text: tokensAsText(s.slice(i + 1, close)) },
+      close + 1,
+    );
   }
 
   private bareLink(): boolean {
@@ -123,7 +140,8 @@ class InlineParser {
     if (hrefEnd >= s.length) return false;
     const href = s.slice(hrefStart, hrefEnd);
     if (!URL_WHOLE.test(href)) return false;
-    const label = parseInline(words);
+    // A link's words can't mention anyone: a token there reads as its handle.
+    const label = parseInline(tokensAsText(words));
     if (holdsLink(label)) return false;
     return this.emit({ type: "link", href, label }, hrefEnd + 1);
   }
@@ -152,7 +170,11 @@ class InlineParser {
       if (d === "*" && s[start] === "*") continue;
       const close = findCloser(s, d, start + 1);
       if (close === -1) continue;
-      const children = parseInline(s.slice(start, close));
+      // A spoiler can't mention anyone: a token there reads as its handle.
+      const inner = s.slice(start, close);
+      const children = parseInline(
+        type === "spoiler" ? tokensAsText(inner) : inner,
+      );
       return this.emit({ type, children }, close + d.length);
     }
     return false;

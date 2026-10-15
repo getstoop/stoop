@@ -1,4 +1,4 @@
-/* ---- Groups, the sets of members @@handle mentions at once: Space
+/* ---- Groups, the sets of members one mention reaches at once: Space
    settings → Groups, the picker's group rows and the group card. The
    pill's glyph is with the other pills in messages.css. ---- */
 
@@ -32,7 +32,7 @@
   height: 40px;
 }
 
-/* A group's card, opened from its @@handle: the member card's frame
+/* A group's card, opened from its mention: the member card's frame
    (user-card.css) with its people listed. */
 .group-card-people {
   list-style: none;

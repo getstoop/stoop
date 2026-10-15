@@ -10,7 +10,7 @@ import { confirm } from "../../stores/dialogs";
 import { GroupModal } from "./GroupModal";
 import { GroupTable } from "./GroupTable";
 
-// Space settings → Groups: the sets of members @@handle mentions at once.
+// Space settings → Groups: the sets of members one mention reaches at once.
 export function GroupsSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
   const { data: groups } = useGroups(space.id);
@@ -25,7 +25,7 @@ export function GroupsSection({ space }: { space: Space }) {
   const remove = async (group: Group) => {
     const ok = await confirm({
       title: `Delete ${group.name}?`,
-      body: `@@${group.handle} will stop notifying anyone. Messages that used it stay as they are.`,
+      body: `@${group.handle} will stop notifying anyone. Messages that used it stay as they are.`,
       action: "Delete",
       danger: true,
     });

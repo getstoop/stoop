@@ -87,10 +87,34 @@ function liftOut(type: NodeType): Command {
   };
 }
 
-const toggleCodeBlock: Command = (state, dispatch) =>
-  state.selection.$from.parent.type === schema.nodes.codeBlock
-    ? setBlockType(schema.nodes.paragraph)(state, dispatch)
-    : setBlockType(schema.nodes.codeBlock)(state, dispatch);
+// A code block holds text only, so a mention in the lines it takes over
+// becomes the words it reads as instead of being dropped.
+const toggleCodeBlock: Command = (state, dispatch) => {
+  if (state.selection.$from.parent.type === schema.nodes.codeBlock) {
+    return setBlockType(schema.nodes.paragraph)(state, dispatch);
+  }
+  if (!setBlockType(schema.nodes.codeBlock)(state)) return false;
+  if (dispatch) {
+    const { $from, $to, from, to } = state.selection;
+    const tr = state.tr;
+    const mentions: { pos: number; size: number; handle: string }[] = [];
+    state.doc.nodesBetween($from.start(), $to.end(), (node, pos) => {
+      if (node.type === schema.nodes.mention) {
+        mentions.push({ pos, size: node.nodeSize, handle: node.attrs.handle });
+      }
+    });
+    for (const { pos, size, handle } of mentions.reverse()) {
+      tr.replaceWith(pos, pos + size, schema.text(`@${handle}`));
+    }
+    tr.setBlockType(
+      tr.mapping.map(from),
+      tr.mapping.map(to),
+      schema.nodes.codeBlock,
+    );
+    dispatch(tr.scrollIntoView());
+  }
+  return true;
+};
 
 // A selection that is only partly styled gets the style everywhere; the
 // button shows on only once all of it is.

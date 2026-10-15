@@ -1,3 +1,4 @@
+import { tokensAsText } from "../mentions";
 import { parseInline } from "./inline";
 import type { Block, Inline, ListItem } from "./types";
 
@@ -41,7 +42,7 @@ function readCodeblock(lines: string[], start: number): Read | null {
   const one = lines[start].match(FENCE_ONE_LINE);
   if (one) {
     return {
-      block: { type: "codeblock", text: one[1], lang: "" },
+      block: { type: "codeblock", text: tokensAsText(one[1]), lang: "" },
       next: start + 1,
     };
   }
@@ -52,7 +53,7 @@ function readCodeblock(lines: string[], start: number): Read | null {
   return {
     block: {
       type: "codeblock",
-      text: lines.slice(start + 1, end).join("\n"),
+      text: tokensAsText(lines.slice(start + 1, end).join("\n")),
       lang: open[1],
     },
     next: end + 1,

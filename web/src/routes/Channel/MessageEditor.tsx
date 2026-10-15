@@ -6,6 +6,7 @@ import { type Format, shortcutFormat } from "../../api/formatting";
 import { replaceShortcodes } from "../../api/shortcodes";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { RichEditor, type RichField } from "../../components/RichEditor";
+import type { MentionContext } from "../../components/RichEditor/mentions";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 
@@ -14,9 +15,12 @@ import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 // so there the editor has Save and Cancel buttons.
 export function MessageEditor({
   message,
+  mentions,
   onDone,
 }: {
   message: Message;
+  // Who the message's mentions name, so they read with current handles.
+  mentions: MentionContext;
   onDone: () => void;
 }) {
   const [value, setValue] = useState(message.content);
@@ -65,6 +69,7 @@ export function MessageEditor({
         fieldRef={ref}
         onFormats={setFormats}
         value={value}
+        mentions={mentions}
         autoFocus
         onChange={(markdown) => setValue(markdown)}
         onKeyDown={(e) => {

@@ -304,7 +304,7 @@ export function MessageList({
   } | null>(null);
   const { data: me } = useMe();
   const members = usePeople(spaceId, channelId);
-  const usernames = mentionMembers(members);
+  const membersById = mentionMembers(members);
   const groups = useChannelGroups(spaceId, channelId);
 
   // Land on the "New messages" line when there is one, else the bottom;
@@ -415,9 +415,9 @@ export function MessageList({
         canManageChannels(spaceForPerms)
       }
       editing={editingId === message.id}
-      usernames={usernames}
+      members={membersById}
       groups={groups}
-      myUsername={me?.username}
+      myUserId={me?.id}
       threadOpen={!threadRootId && openThread === message.id}
       canStartThread={threadsAllowed && !message.threadRootId}
       withDay={!!threadRootId}

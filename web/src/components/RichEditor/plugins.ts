@@ -17,6 +17,7 @@ import {
   type Transaction,
 } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
+import { writtenLength } from "../../api/mentions";
 import { newLine } from "./commands";
 import { fromMarkdown, toMarkdown } from "./markdown";
 import { type MentionContext, mentions, NO_MENTIONS } from "./mentions";
@@ -223,10 +224,11 @@ const markdownPaste = new Plugin({
   props: { clipboardTextParser: markdownSlice },
 });
 
+// The message limit counts each mention as its handle, as the server does.
 function maxLength(limit: number) {
   return new Plugin({
     filterTransaction: (tr) =>
-      !tr.docChanged || toMarkdown(tr.doc.toJSON()).length <= limit,
+      !tr.docChanged || writtenLength(toMarkdown(tr.doc.toJSON())) <= limit,
   });
 }
 

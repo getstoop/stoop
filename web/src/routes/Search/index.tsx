@@ -34,7 +34,7 @@ export function SearchPage() {
   const { data: members } = useMembers(spaceId);
   const space = spaces?.find((s) => s.id === spaceId);
   const from = channels?.find((ch) => ch.id === c);
-  const usernames = mentionMembers(members);
+  const membersById = mentionMembers(members);
   const [draft, setDraft] = useState(q);
   const input = useRef<HTMLInputElement>(null);
   // Arriving with nothing to search puts the cursor in the field.
@@ -194,7 +194,7 @@ export function SearchPage() {
               <ResultRow
                 message={m}
                 spaceId={spaceId}
-                usernames={usernames}
+                members={membersById}
                 highlight={highlight}
               />
             </li>

@@ -19,12 +19,12 @@ import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 export function ResultRow({
   message,
   spaceId,
-  usernames,
+  members,
   highlight,
 }: {
   message: Message;
   spaceId: string;
-  usernames: MentionMembers;
+  members: MentionMembers;
   highlight: RegExp | null;
 }) {
   const navigate = useNavigate();
@@ -72,10 +72,10 @@ export function ResultRow({
       <span className="search-row-body message-content">
         <MessageBody
           content={message.content}
-          usernames={usernames}
+          members={members}
           mentionsEntireChannel={message.mentionsEntireChannel}
           mentionsHere={message.mentionsHere}
-          myUsername={me?.username}
+          myUserId={me?.id}
           highlight={highlight}
           groups={groups}
         />
