@@ -220,6 +220,7 @@ export function ChannelView() {
               spaceId={spaceId}
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}
+              onReply={setReplyTo}
               onEditLast={editLast}
             />
           ) : (

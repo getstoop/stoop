@@ -117,6 +117,7 @@ function ComposerWithSent() {
           spaceId={SPACE}
           replyTo={null}
           onCancelReply={() => {}}
+          onReply={() => {}}
           onEditLast={() => {}}
         />
       </div>
