@@ -103,6 +103,13 @@ body[data-ground="canvas"] {
   padding: 0 16px 16px;
 }
 
+/* Room above a story's composer for the mention picker, which opens
+   upward and is at most 260px tall. */
+.kit-composer-room {
+  /* off-scale: the picker's 260px plus a gap */
+  padding-top: 280px;
+}
+
 /* What a story's composer would have sent, as written. */
 .kit-sent {
   margin: 0;

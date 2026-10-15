@@ -96,14 +96,16 @@ function ComposerWithSent() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="kit-section">
-        <Composer
-          channelId={CHANNEL}
-          channelName="general"
-          spaceId={SPACE}
-          replyTo={null}
-          onCancelReply={() => {}}
-          onEditLast={() => {}}
-        />
+        <div className="kit-composer-room">
+          <Composer
+            channelId={CHANNEL}
+            channelName="general"
+            spaceId={SPACE}
+            replyTo={null}
+            onCancelReply={() => {}}
+            onEditLast={() => {}}
+          />
+        </div>
         <h3>Sent to the server</h3>
         {sent.length === 0 ? (
           <p className="muted">Nothing yet. Type a message and press Enter.</p>
