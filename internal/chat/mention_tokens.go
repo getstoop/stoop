@@ -22,6 +22,10 @@ var anyMentionRE = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])(@@?)([a-z0-9_]{3,32
 // read back when its person or group can't be found.
 var mentionTokenRE = regexp.MustCompile(`<@([ug]):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([a-z0-9_]{3,32})>`)
 
+// addressRE finds web addresses. A handle inside one is part of the
+// address, which a rename must not change.
+var addressRE = regexp.MustCompile(`(?i)https?://[^\s<]+`)
+
 const (
 	personToken = "u"
 	groupToken  = "g"
@@ -117,6 +121,7 @@ func encodeHandles(content string, targets mentionTargets) string {
 	if len(matches) == 0 {
 		return content
 	}
+	addresses := addressRE.FindAllStringIndex(content, -1)
 	var out strings.Builder
 	written := 0
 	for _, match := range matches {
@@ -127,7 +132,7 @@ func encodeHandles(content string, targets mentionTargets) string {
 			kind, ids = groupToken, targets.groups
 		}
 		id, ok := ids[handle]
-		if !ok {
+		if !ok || inAddress(addresses, symbolStart) {
 			continue
 		}
 		out.WriteString(content[written:symbolStart])
@@ -136,6 +141,15 @@ func encodeHandles(content string, targets mentionTargets) string {
 	}
 	out.WriteString(content[written:])
 	return out.String()
+}
+
+func inAddress(addresses [][]int, at int) bool {
+	for _, address := range addresses {
+		if at >= address[0] && at < address[1] {
+			return true
+		}
+	}
+	return false
 }
 
 // mentionNames is the current handle behind each token, by ID.

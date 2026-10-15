@@ -248,8 +248,9 @@ directions:
 
 - **Writing.** On send and edit, each `@handle` that names a reader of
   the channel and each `@@handle` that names a group becomes
-  `<@u:ID:handle>` or `<@g:ID:handle>`. A handle naming nobody, and
-  `@channel` and `@here`, stay text. The 4000-character limit counts the
+  `<@u:ID:handle>` or `<@g:ID:handle>`. A handle naming nobody, one
+  inside a web address (`https://social.example/@casey` must not change
+  with a rename), and `@channel` and `@here`, stay text. The 4000-character limit counts the
   text as written; stored content can be longer. An edit encodes but
   tells nobody new.
 - **Reading.** Tokens turn back into the current `@handle` or
