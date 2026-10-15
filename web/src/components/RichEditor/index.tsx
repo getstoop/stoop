@@ -208,7 +208,7 @@ export function RichEditor({
         const { from: pos, $from } = view.state.selection;
         if (count > $from.parentOffset) return;
         // The pill takes the formatting of what it replaces: one picked
-        // inside a spoiler stays hidden.
+        // in bold stays bold.
         const marks = view.state.storedMarks ?? $from.marks();
         const node = schema.nodes.mention.create({ ...mention }, null, marks);
         view.dispatch(
