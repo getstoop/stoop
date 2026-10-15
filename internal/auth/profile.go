@@ -68,6 +68,10 @@ func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1
 		return nil, err
 	}
 	userID := authctx.UserID(ctx)
+	current, err := s.q.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("look up user: %w", err)
+	}
 	var user dbgen.User
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		if username != nil {
@@ -96,6 +100,7 @@ func (s *Service) UpdateProfile(ctx context.Context, req *connect.Request[authv1
 	if err != nil {
 		return nil, err
 	}
+	s.announceRename(ctx, current, user)
 	return connect.NewResponse(&authv1.UpdateProfileResponse{User: toProtoUser(user)}), nil
 }
 

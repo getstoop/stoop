@@ -195,6 +195,7 @@ func (s *Service) RenameAccount(ctx context.Context, userID string, username, di
 	if err != nil {
 		return AccountSummary{}, err
 	}
+	s.announceRename(ctx, current, renamed)
 	return toSummary(renamed), nil
 }
 

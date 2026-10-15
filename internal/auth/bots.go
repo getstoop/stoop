@@ -124,8 +124,9 @@ func (s *Service) UpdateBot(ctx context.Context, id string, username, displayNam
 	if err != nil {
 		return Bot{}, err
 	}
+	var renamed dbgen.User
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if _, err := change.apply(ctx, qtx, current); err != nil {
+		if renamed, err = change.apply(ctx, qtx, current); err != nil {
 			return err
 		}
 		if text == nil {
@@ -139,6 +140,7 @@ func (s *Service) UpdateBot(ctx context.Context, id string, username, displayNam
 	if err != nil {
 		return Bot{}, err
 	}
+	s.announceRename(ctx, current, renamed)
 	return s.GetBot(ctx, id)
 }
 

@@ -63,6 +63,7 @@ type Service struct {
 	sessions  SessionPolicy
 	deletion  DeletionPolicy
 	departure AccountDeparture
+	renames   RenameAnnouncer
 	// bus carries CredentialRevoked to the gateway (revocation.go).
 	bus events.Bus
 	// stateKey signs the short-lived login-state cookie (loginflow.go).

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -242,6 +243,28 @@ func (s *Service) publishMemberRemoved(spaceID, userID string, kicked bool) {
 	s.bus.Publish(events.SpaceTopic(spaceID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MemberRemoved{
 			MemberRemoved: &realtimev1.MemberRemoved{SpaceId: spaceID, UserId: userID, Kicked: kicked},
+		},
+	}))
+}
+
+// AnnounceRename is auth's port for a username change: each of the
+// person's spaces and their own devices refetch them and the messages
+// that mention them.
+func (s *Service) AnnounceRename(ctx context.Context, userID string) {
+	spaceIDs, err := s.q.ListSpaceIDsByUser(ctx, userID)
+	if err != nil {
+		slog.Default().Warn("rename: spaces not notified", "user_id", userID, "err", err)
+	}
+	for _, spaceID := range spaceIDs {
+		s.publishMemberUpdated(events.SpaceTopic(spaceID), spaceID, userID)
+	}
+	s.publishMemberUpdated(events.UserTopic(userID), "", userID)
+}
+
+func (s *Service) publishMemberUpdated(topic, spaceID, userID string) {
+	s.bus.Publish(topic, events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_MemberUpdated{
+			MemberUpdated: &realtimev1.MemberUpdated{SpaceId: spaceID, UserId: userID},
 		},
 	}))
 }

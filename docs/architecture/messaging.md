@@ -265,9 +265,10 @@ directions:
   nobody, so no ID the server didn't look up is stored or read back.
 - Messages from before tokens keep their plain text.
 
-A group's handle change sends `groups_changed`; a username change sends
-no event yet, so an open tab shows the new name the next time it loads
-the messages.
+Open tabs refetch messages when a group changes (`groups_changed`) and
+when a username does: auth calls chat's `AnnounceRename` for a rename
+on the profile page, by an admin or of a bot, and chat sends
+`member_updated` to each of the person's spaces and their own devices.
 
 ## Activity
 

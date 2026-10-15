@@ -75,6 +75,26 @@ func renameFrom(username, displayName *string) (rename, error) {
 	return checked, nil
 }
 
+// RenameAnnouncer is auth's port onto chat for a username change: the
+// person's spaces refetch them, and the messages that mention them,
+// which read back with the new handle.
+type RenameAnnouncer interface {
+	AnnounceRename(ctx context.Context, userID string)
+}
+
+// UseRenameAnnouncer wires the port. Set once at startup; without it a
+// rename shows on the next load.
+func (s *Service) UseRenameAnnouncer(announcer RenameAnnouncer) {
+	s.renames = announcer
+}
+
+// announceRename tells the person's spaces, when the username changed.
+func (s *Service) announceRename(ctx context.Context, before, after dbgen.User) {
+	if s.renames != nil && before.Username != after.Username {
+		s.renames.AnnounceRename(ctx, after.ID)
+	}
+}
+
 // apply writes a checked rename with qtx; current is returned when it
 // changes nothing.
 func (change rename) apply(ctx context.Context, qtx *dbgen.Queries, current dbgen.User) (dbgen.User, error) {
