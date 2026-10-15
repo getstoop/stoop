@@ -240,6 +240,7 @@ type MessageLink struct {
 	MessageID string
 	Position  int32
 	Url       string
+	Dismissed bool
 }
 
 type MessageMention struct {

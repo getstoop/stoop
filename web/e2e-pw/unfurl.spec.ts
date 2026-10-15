@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import type { Page } from "@playwright/test";
-import { expect, reload, say, seed, signIn, test } from "./lib";
+import { acceptDialog, expect, reload, say, seed, signIn, test } from "./lib";
 
 // The og:image the throwaway site serves: a 64×32 PNG, red half, blue half.
 const IMAGE = Buffer.from(
@@ -14,7 +14,8 @@ const IMAGE = Buffer.from(
 // spec runs; the app server must allow private addresses for that
 // (STOOP_UNFURL_ALLOW_PRIVATE=1) and have previews on
 // (STOOP_LINK_PREVIEWS=1), as CI and the dev setup do. Also: links
-// inside code are not unfurled, and editing the link away drops the card.
+// inside code are not unfurled, editing the link away drops the card, and
+// the author can remove a card for everyone.
 // Ported from web/e2e/unfurl.mjs (STOOP-238).
 test("open graph cards for links", async ({ browser }) => {
   // The linked site.
@@ -108,6 +109,21 @@ test("open graph cards for links", async ({ browser }) => {
       card(A, 2),
       "editing the link away removes the card",
     ).toHaveCount(0);
+
+    // The author removes a card with its ×; it stays gone after a reload.
+    await card(A, 0).hover();
+    await A.locator(".message")
+      .nth(0)
+      .getByRole("button", { name: "Remove preview" })
+      .click();
+    await acceptDialog(A);
+    await expect(card(A, 0), "the removed card goes").toHaveCount(0);
+    await reload(A);
+    await expect(
+      A.locator(".message").nth(0),
+      "the message itself stays",
+    ).toContainText("look at");
+    await expect(card(A, 0), "and its card stays removed").toHaveCount(0);
   } finally {
     site.close();
   }

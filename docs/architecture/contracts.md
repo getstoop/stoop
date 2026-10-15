@@ -73,8 +73,8 @@ Grouped by what they touch rather than declaration order:
 - **Channels** — `CreateChannel`, `ListChannels`, `UpdateChannel`,
   `DeleteChannel`, `ReorderChannels`, `SetChannelMuted`, `SetSpaceMuted`
 - **Messages** — `SendMessage`, `ListMessages`, `SearchMessages`,
-  `EditMessage`, `DeleteMessage`, `ToggleReaction`, `SetMessagePinned`,
-  `ListPinnedMessages`
+  `EditMessage`, `DeleteMessage`, `DismissLinkPreview`, `ToggleReaction`,
+  `SetMessagePinned`, `ListPinnedMessages`
 - **Direct messages** — `OpenDirectMessage`, `ListDirectMessages`,
   `ListDirectMessageCandidates`, `SetDirectMessageClosed`
 - **Attention** — `MarkChannelRead`, `ListActivity`,

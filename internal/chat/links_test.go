@@ -160,3 +160,90 @@ func TestLinkPreviews(t *testing.T) {
 		t.Errorf("edit added a link but no preview: %+v", previews)
 	}
 }
+
+// A card is dismissed by its message's author, or by a moderator outside
+// DMs, for everyone; an edit keeps it dismissed and doesn't refetch it.
+func TestDismissLinkPreview(t *testing.T) {
+	pool, _, svc := newTestService(t)
+	uf := &fakeUnfurler{fetches: map[string]int{}}
+	svc.UseUnfurler(uf, &fakePreviewImages{pool: pool}, chat.UnfurlOptions{Inline: true})
+	owner := newUser(t, pool, "owner", authctx.RoleMember)
+	bea := newUser(t, pool, "bea", authctx.RoleMember)
+	cal := newUser(t, pool, "cal", authctx.RoleMember)
+	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	joinSpace(t, svc, owner, sp.Msg.Space.Id, bea, cal)
+	channelID := sp.Msg.DefaultChannel.Id
+	send := func(who context.Context, channel, content string) string {
+		res, err := svc.SendMessage(who, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channel, Content: content}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.Msg.Message.Id
+	}
+	previewsOf := func(who context.Context, channel, id string) []*chatv1.LinkPreview {
+		res, err := svc.ListMessages(who, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: channel}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, message := range res.Msg.Messages {
+			if message.Id == id {
+				return message.LinkPreviews
+			}
+		}
+		t.Fatalf("message %s not listed", id)
+		return nil
+	}
+	dismiss := func(who context.Context, id, url string) error {
+		_, err := svc.DismissLinkPreview(who, connect.NewRequest(&chatv1.DismissLinkPreviewRequest{MessageId: id, Url: url}))
+		return err
+	}
+	const article, plain = "https://example.com/article", "https://example.com/plain"
+
+	// The author dismisses one of two cards; the other stays.
+	mine := send(bea, channelID, "see "+article+" and "+plain)
+	if err := dismiss(bea, mine, article); err != nil {
+		t.Fatal(err)
+	}
+	if previews := previewsOf(cal, channelID, mine); len(previews) != 1 || previews[0].Url != plain {
+		t.Fatalf("after dismissing the article, previews = %+v", previews)
+	}
+	if err := dismiss(bea, mine, "https://example.com/elsewhere"); code(err) != connect.CodeNotFound {
+		t.Errorf("a URL the message doesn't link: %v, want not found", err)
+	}
+
+	// An edit keeps the dismissal and doesn't fetch the URL again.
+	fetches := uf.fetches[article]
+	if _, err := svc.EditMessage(bea, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: mine, Content: "still " + article + " and " + plain})); err != nil {
+		t.Fatal(err)
+	}
+	if previews := previewsOf(cal, channelID, mine); len(previews) != 1 || previews[0].Url != plain {
+		t.Errorf("after an edit, previews = %+v", previews)
+	}
+	if uf.fetches[article] != fetches {
+		t.Error("an edit refetched a dismissed URL")
+	}
+
+	// Another member can't; the space's owner, a moderator, can.
+	if err := dismiss(cal, mine, plain); code(err) != connect.CodePermissionDenied {
+		t.Errorf("another member dismissing: %v, want permission denied", err)
+	}
+	if err := dismiss(owner, mine, plain); err != nil {
+		t.Fatalf("a moderator dismissing: %v", err)
+	}
+	if previews := previewsOf(cal, channelID, mine); len(previews) != 0 {
+		t.Errorf("after the moderator, previews = %+v", previews)
+	}
+
+	// In a DM there is no moderator.
+	dm := openDM(t, svc, bea, authctx.UserID(cal))
+	inDM := send(bea, dm.Channel.Id, "look "+plain)
+	if err := dismiss(cal, inDM, plain); code(err) != connect.CodePermissionDenied {
+		t.Errorf("the other person in a DM: %v, want permission denied", err)
+	}
+	if err := dismiss(bea, inDM, plain); err != nil {
+		t.Errorf("the author in a DM: %v", err)
+	}
+}

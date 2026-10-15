@@ -34,6 +34,25 @@ func (q *Queries) DeleteMessageLinksExcept(ctx context.Context, arg DeleteMessag
 	return err
 }
 
+const dismissMessageLink = `-- name: DismissMessageLink :execrows
+UPDATE message_links SET dismissed = true WHERE message_id = $1 AND url = $2
+`
+
+type DismissMessageLinkParams struct {
+	MessageID string
+	Url       string
+}
+
+// DismissMessageLink hides a link's card on one message; no rows means
+// the message doesn't link the URL.
+func (q *Queries) DismissMessageLink(ctx context.Context, arg DismissMessageLinkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, dismissMessageLink, arg.MessageID, arg.Url)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const ensureLinkPreview = `-- name: EnsureLinkPreview :exec
 
 INSERT INTO link_previews (url) VALUES ($1)
@@ -70,25 +89,55 @@ func (q *Queries) GetLinkPreview(ctx context.Context, url string) (LinkPreview, 
 }
 
 const insertMessageLink = `-- name: InsertMessageLink :exec
-INSERT INTO message_links (message_id, position, url) VALUES ($1, $2, $3)
+INSERT INTO message_links (message_id, position, url, dismissed) VALUES ($1, $2, $3, $4)
 `
 
 type InsertMessageLinkParams struct {
 	MessageID string
 	Position  int32
 	Url       string
+	Dismissed bool
 }
 
 func (q *Queries) InsertMessageLink(ctx context.Context, arg InsertMessageLinkParams) error {
-	_, err := q.db.Exec(ctx, insertMessageLink, arg.MessageID, arg.Position, arg.Url)
+	_, err := q.db.Exec(ctx, insertMessageLink,
+		arg.MessageID,
+		arg.Position,
+		arg.Url,
+		arg.Dismissed,
+	)
 	return err
+}
+
+const listDismissedMessageLinks = `-- name: ListDismissedMessageLinks :many
+SELECT url FROM message_links WHERE message_id = $1 AND dismissed
+`
+
+func (q *Queries) ListDismissedMessageLinks(ctx context.Context, messageID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listDismissedMessageLinks, messageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		items = append(items, url)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listLinkPreviewsForMessages = `-- name: ListLinkPreviewsForMessages :many
 SELECT ml.message_id, ml.position, p.url, p.state, p.fetched_at, p.title, p.description, p.site_name, p.image_file_id, p.image_width, p.image_height
 FROM message_links ml
 JOIN link_previews p ON p.url = ml.url
-WHERE ml.message_id = ANY($1::uuid[]) AND p.state = 'ok'
+WHERE ml.message_id = ANY($1::uuid[]) AND p.state = 'ok' AND NOT ml.dismissed
 ORDER BY ml.message_id, ml.position
 `
 

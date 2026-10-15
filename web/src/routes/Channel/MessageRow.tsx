@@ -46,6 +46,7 @@ export const MessageRow = memo(function MessageRow({
   onReply,
   onEdit,
   onDelete,
+  onDismissPreview,
   onTogglePin,
   onThread,
   onOpenOrigin,
@@ -80,6 +81,8 @@ export const MessageRow = memo(function MessageRow({
   onReply: (message: Message) => void;
   onEdit: (id: string | null) => void;
   onDelete: (message: Message) => void;
+  // Shown where onDelete is: the author, or a moderator outside DMs.
+  onDismissPreview: (message: Message, url: string) => void;
   onTogglePin: (message: Message) => void;
   // Opens its thread; absent inside a thread, where a reply has none.
   onThread?: (message: Message) => void;
@@ -266,7 +269,12 @@ export const MessageRow = memo(function MessageRow({
         />
         <Attachments attachments={message.attachments} />
         <LinkedMessages content={message.content} />
-        <LinkPreviews previews={message.linkPreviews} />
+        <LinkPreviews
+          previews={message.linkPreviews}
+          onDismiss={
+            canDelete ? (url) => onDismissPreview(message, url) : undefined
+          }
+        />
         {message.editedAt && (
           <span className="edited-marker" title="Edited">
             (edited)

@@ -16,7 +16,15 @@ SET state = $2, fetched_at = now(), title = $3, description = $4, site_name = $5
 WHERE url = $1;
 
 -- name: InsertMessageLink :exec
-INSERT INTO message_links (message_id, position, url) VALUES ($1, $2, $3);
+INSERT INTO message_links (message_id, position, url, dismissed) VALUES ($1, $2, $3, $4);
+
+-- name: ListDismissedMessageLinks :many
+SELECT url FROM message_links WHERE message_id = $1 AND dismissed;
+
+-- DismissMessageLink hides a link's card on one message; no rows means
+-- the message doesn't link the URL.
+-- name: DismissMessageLink :execrows
+UPDATE message_links SET dismissed = true WHERE message_id = $1 AND url = $2;
 
 -- name: DeleteMessageLinks :exec
 DELETE FROM message_links WHERE message_id = $1;
@@ -29,5 +37,5 @@ WHERE message_id = sqlc.arg(message_id) AND NOT (url = ANY(sqlc.arg(urls)::text[
 SELECT ml.message_id, ml.position, p.*
 FROM message_links ml
 JOIN link_previews p ON p.url = ml.url
-WHERE ml.message_id = ANY($1::uuid[]) AND p.state = 'ok'
+WHERE ml.message_id = ANY($1::uuid[]) AND p.state = 'ok' AND NOT ml.dismissed
 ORDER BY ml.message_id, ml.position;

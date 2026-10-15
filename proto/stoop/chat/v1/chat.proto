@@ -157,6 +157,10 @@ service ChatService {
   // messages.moderate. A root whose thread has replies is kept as a
   // placeholder (Message.deleted) instead.
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse) {}
+  // DismissLinkPreview hides the card for one of a message's links, for
+  // everyone: the author's own message, or anyone's with messages.moderate
+  // (in a DM, only the author's). An edit keeps it hidden.
+  rpc DismissLinkPreview(DismissLinkPreviewRequest) returns (DismissLinkPreviewResponse) {}
   // DeleteThread removes a root and every reply in its thread. Requires
   // messages.moderate in the channel's space.
   rpc DeleteThread(DeleteThreadRequest) returns (DeleteThreadResponse) {}
@@ -677,6 +681,14 @@ message DeleteMessageRequest {
 }
 
 message DeleteMessageResponse {}
+
+message DismissLinkPreviewRequest {
+  string message_id = 1;
+  // The card's URL, as LinkPreview.url gives it.
+  string url = 2;
+}
+
+message DismissLinkPreviewResponse {}
 
 message DeleteThreadRequest {
   // The thread's root.

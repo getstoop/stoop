@@ -787,6 +787,12 @@ is a preview of just that image. An animated GIF is written again frame
 by frame and stays animated, at its own size rather than fitted, since a
 frame that paints part of the canvas cannot be scaled on its own.
 
+A card can be removed for everyone with `DismissLinkPreview`, by whoever
+may delete the message: its author, or a moderator outside DMs. The
+`message_links` row stays, marked `dismissed`, so an edit that keeps the
+link keeps the card gone and doesn't fetch it again. Cards for links to
+messages (below) are drawn by the reader's app and can't be removed yet.
+
 Previews are cached per URL in `link_previews` for a week and shared by
 every message linking it. **Failures are cached too**, so a dead link isn't
 retried once per message that mentions it.
