@@ -196,7 +196,8 @@ line would be worse than one that spoils a plot point. This is a choice,
 and it is written down here so it is not later "fixed" into a blank
 preview.
 
-A link inside a spoiler is the other way round: it gets **no card**,
+A link inside a spoiler, or whose words hold one (the composer writes
+`[||words||](address)`), is the other way round: it gets **no card**,
 neither a link preview (`extractLinks`) nor a linked-message card
 (`linksIn`). A card shows a page's title and image, or another
 message, in the open under the spoiler hiding it.

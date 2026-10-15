@@ -19,6 +19,7 @@ func TestExtractLinks(t *testing.T) {
 		{"https://dup.example https://dup.example", []string{"https://dup.example"}},
 		// A card would show what a spoiler hides.
 		{"the ending: ||https://spoiler.example|| or **||[this](https://words.example)||** but https://ok.example", []string{"https://ok.example"}},
+		{"[||the ending||](https://hidden.example) and [see **||it||**](https://part.example)", nil},
 		{"ftp://nope.example no links here", nil},
 		{"https://example.com/wiki/Ada_(mathematician)", []string{"https://example.com/wiki/Ada_(mathematician)"}},
 		{"(see https://example.com/wiki/Ada_(mathematician)).", []string{"https://example.com/wiki/Ada_(mathematician)"}},

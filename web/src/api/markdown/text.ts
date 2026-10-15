@@ -23,20 +23,31 @@ export function isBlankMessage(content: string): boolean {
   return plainText(content) === "";
 }
 
-// The distinct links in a message, in order of appearance, outside
-// spoilers. Mirrors extractLinks on the server, without its cap.
+// The distinct links in a message, in order of appearance, leaving out a
+// link in a spoiler or whose words hold one. Mirrors extractLinks on the
+// server, without its cap.
 export function linksIn(content: string): string[] {
   const found = new Set<string>();
   const walk = (nodes: Inline[]) => {
     for (const n of nodes) {
-      if (n.type === "link") found.add(n.href);
-      else if (n.type !== "spoiler" && "children" in n) walk(n.children);
+      if (n.type === "link") {
+        if (!holdsSpoiler(n.label ?? [])) found.add(n.href);
+      } else if (n.type !== "spoiler" && "children" in n) walk(n.children);
     }
   };
   for (const b of parseMarkdown(content)) {
     if (b.type !== "codeblock") for (const run of lineRuns(b)) walk(run);
   }
   return [...found];
+}
+
+function holdsSpoiler(nodes: Inline[]): boolean {
+  return nodes.some(
+    (n) =>
+      n.type === "spoiler" ||
+      ("children" in n && holdsSpoiler(n.children)) ||
+      (n.type === "link" && holdsSpoiler(n.label ?? [])),
+  );
 }
 
 // A block's lines of inline content. A list reads as its items; the

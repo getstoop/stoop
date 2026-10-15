@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { linksIn } from "../../api/markdown";
 import { fromMarkdown, type JSONContent, toMarkdown } from "./markdown";
 
 describe("rich editor Markdown round trip", () => {
@@ -62,6 +63,29 @@ describe("rich editor Markdown round trip", () => {
     };
     expect(toMarkdown(doc)).toBe("**hello *world***");
     expect(fromMarkdown(toMarkdown(doc))).toEqual(doc);
+  });
+
+  it("writes a spoilered link so it gets no card", () => {
+    const link = { type: "link", attrs: { href: "https://hidden.example" } };
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              text: "the ending",
+              marks: [link, { type: "spoiler" }],
+            },
+          ],
+        },
+      ],
+    };
+    const md = toMarkdown(doc);
+    expect(md).toBe("[||the ending||](https://hidden.example)");
+    expect(fromMarkdown(md)).toEqual(doc);
+    expect(linksIn(md)).toEqual([]);
   });
 
   it.each([

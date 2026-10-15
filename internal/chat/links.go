@@ -76,7 +76,8 @@ const (
 // extractLinks finds up to maxLinksPerMessage distinct http(s) URLs in
 // message content, in order of appearance: the link nodes of the same
 // parse the client renders from, so code is skipped and a URL ends where
-// the client's does. A link in a spoiler gets no card: the card would show
+// the client's does. A link in a spoiler, or whose words hold one (the
+// composer writes [||words||](address)), gets no card: the card would show
 // what the spoiler hides.
 func extractLinks(content string) []string {
 	seen := map[string]bool{}
@@ -86,7 +87,7 @@ func extractLinks(content string) []string {
 		for _, n := range nodes {
 			switch n.kind {
 			case inlineLink:
-				if seen[n.text] || len(n.text) > 2048 {
+				if seen[n.text] || len(n.text) > 2048 || holdsSpoiler(n.children) {
 					continue
 				}
 				seen[n.text] = true
@@ -118,6 +119,15 @@ func extractLinks(content string) []string {
 		}
 	}
 	return out
+}
+
+func holdsSpoiler(nodes []inlineNode) bool {
+	for _, n := range nodes {
+		if n.spoiler || holdsSpoiler(n.children) {
+			return true
+		}
+	}
+	return false
 }
 
 // recordLinks replaces a message's link rows (within the caller's

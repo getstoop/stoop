@@ -593,4 +593,12 @@ describe("linksIn", () => {
       ),
     ).toEqual(["https://ok.example"]);
   });
+
+  it("skips a link whose words hold a spoiler", () => {
+    expect(
+      linksIn(
+        "[||the ending||](https://hidden.example) and [see **||it||**](https://part.example)",
+      ),
+    ).toEqual([]);
+  });
 });
