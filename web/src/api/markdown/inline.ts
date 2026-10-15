@@ -211,6 +211,8 @@ function closeOnStarRun(
   close: number,
 ): { children: Inline[]; end: number } | null {
   if (close === -1 || !s.startsWith("***", close)) return null;
+  // A closer inside a run (its first star after a space) takes no part.
+  if (s[close - 1] === "*") return null;
   let runEnd = close;
   while (s[runEnd] === "*") runEnd++;
   const children = parseInline(s.slice(start, runEnd - 2));

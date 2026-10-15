@@ -324,6 +324,10 @@ func closeOnStarRun(source string, start, closeAt int) (children []inlineNode, e
 	if closeAt == -1 || !strings.HasPrefix(source[closeAt:], "***") {
 		return nil, 0, false
 	}
+	// A closer inside a run (its first star after a space) takes no part.
+	if source[closeAt-1] == '*' {
+		return nil, 0, false
+	}
 	runEnd := closeAt
 	for runEnd < len(source) && source[runEnd] == '*' {
 		runEnd++

@@ -14,6 +14,7 @@ func TestPlainTextMirrorsTheClient(t *testing.T) {
 		{"__under__ ~~gone~~ `code`", "under gone code"},
 		{"***both***", "both"},
 		{"**hello *world***", "hello world"},
+		{"**a *******", "a *****"},
 		{"> quoted\n> lines", "quoted lines"},
 		{"```go\nfmt.Println()\n```", "fmt.Println()"},
 		{"```one liner```", "one liner"},
