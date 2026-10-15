@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import { chatClient } from "./clients";
 import { type MentionGroups, mentionGroups, NO_GROUPS } from "./mentions";
-import { useChannels } from "./queries";
+import { channelsQuery } from "./queries";
 
 // A space's groups, each mentioned all at once as @@handle in its public
 // channels (docs/architecture/messaging.md → Groups).
@@ -28,7 +28,13 @@ export function useChannelGroups(
   spaceId: string,
   channelId: string,
 ): MentionGroups {
-  const { data: channels } = useChannels(spaceId);
+  // Read the list the channel view already holds: a refetch on every
+  // mount (the timeline remounts per channel) would put a stale read
+  // marker back over the one opening the channel just advanced.
+  const { data: channels } = useQuery({
+    ...channelsQuery(spaceId),
+    refetchOnMount: false,
+  });
   const { data: groups } = useGroups(spaceId);
   const channel = channels?.find((candidate) => candidate.id === channelId);
   const usable = !!channel && !channel.private;
