@@ -232,7 +232,7 @@ func (s *Service) channelReaders(ctx context.Context, channel dbgen.Channel, par
 // writtenLength is content's length as people read it, each token
 // counted as its handle, for the message length limit.
 func writtenLength(content string) int {
-	return utf8.RuneCountInString(mentionNames{}.text(content))
+	return utf8.RuneCountInString(tokensAsText(content))
 }
 
 // mentionNames is the current handle behind each token, by ID.
@@ -268,7 +268,7 @@ func (s *Service) mentionNames(ctx context.Context, contents ...string) (mention
 			return mentionNames{}, fmt.Errorf("read mentioned people: %w", err)
 		}
 		for _, record := range records {
-			names.people[record.ID] = record.Username
+			names.people[record.ID] = strings.ToLower(record.Username)
 		}
 	}
 	if len(groupIDs) > 0 {
@@ -283,31 +283,36 @@ func (s *Service) mentionNames(ctx context.Context, contents ...string) (mention
 	return names, nil
 }
 
-// text is stored content as a preview reads it: each token as its current
-// @handle, or as its saved handle when its person or group is gone.
-func (n mentionNames) text(content string) string {
+// current is stored content with each token carrying its current
+// handle, or its saved one when its person or group is gone. A preview
+// reads the tokens after the markup, so a handle's "__" stays as written.
+func (n mentionNames) current(content string) string {
 	if !strings.Contains(content, "<@") {
 		return content
 	}
-	return mentionTokenRE.ReplaceAllStringFunc(content, func(token string) string {
-		match := mentionTokenRE.FindStringSubmatch(token)
-		kind, id, handle := match[1], match[2], match[3]
-		current := n.people
+	var out strings.Builder
+	written := 0
+	eachToken(content, func(start, end int) {
+		kind, id, handle := tokenParts(content[start:end])
+		names := n.people
 		if kind == groupToken {
-			current = n.groups
+			names = n.groups
 		}
-		if name, ok := current[id]; ok {
+		if name, ok := names[id]; ok {
 			handle = name
 		}
-		return "@" + handle
+		out.WriteString(content[written:start] + "<@" + kind + ":" + id + ":" + handle + ">")
+		written = end
 	})
+	out.WriteString(content[written:])
+	return out.String()
 }
 
-// textOf is text for an optional content.
-func (n mentionNames) textOf(content *string) *string {
+// currentOf is current for an optional content.
+func (n mentionNames) currentOf(content *string) *string {
 	if content == nil {
 		return nil
 	}
-	shown := n.text(*content)
+	shown := n.current(*content)
 	return &shown
 }

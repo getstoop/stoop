@@ -241,8 +241,9 @@ has, makes a pill. Bots and hooks write them directly
 webhooks alike. Clients draw a pill from the ID with the names they
 already hold. Previews are text: reply quotes, thread-root lines and
 activity items read each token as its current `@handle`, or its saved
-one when the person or group is gone, before markup is stripped. One
-users call and one groups query cover a page.
+one when the person or group is gone. The handle goes in after the
+markup is read, as on the web, so a handle's `__` is never underline.
+One users call and one groups query cover a page.
 
 `@channel` and `@here` are reserved usernames (auth refuses to register
 them) and require the `messages.notify_entire_channel` permission. Without it the

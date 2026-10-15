@@ -107,6 +107,32 @@ func TestMentionTokensPreviewsFollowRenames(t *testing.T) {
 	}
 }
 
+// A handle with "__" in it previews as written, not as underline.
+func TestMentionTokensPreviewHandlesWhole(t *testing.T) {
+	fixture := newGroupFixture(t)
+	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, mentionOf(fixture.bea)+" hi")
+	fixture.exec(t, "UPDATE users SET username = 'b__e__a' WHERE id = $1", authctx.UserID(fixture.bea))
+	reply, err := fixture.svc.SendMessage(fixture.cal, connect.NewRequest(&chatv1.SendMessageRequest{
+		ChannelId: fixture.generalID, Content: "same", ReplyToMessageId: sent.Id,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reply.Msg.Message.ReplyTo.Preview; got != "@b__e__a hi" {
+		t.Errorf("reply quote on send = %q", got)
+	}
+	if got := fixture.history(t, fixture.cal)[reply.Msg.Message.Id].ReplyTo.Preview; got != "@b__e__a hi" {
+		t.Errorf("reply quote listed = %q", got)
+	}
+	activity, err := fixture.svc.ListActivity(fixture.bea, connect.NewRequest(&chatv1.ListActivityRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(activity.Msg.Items) != 1 || activity.Msg.Items[0].Preview != "@b__e__a hi" {
+		t.Errorf("bea's activity = %v", activity.Msg.Items)
+	}
+}
+
 func TestMentionTokensOnEdit(t *testing.T) {
 	fixture := newGroupFixture(t)
 	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, "hello")
