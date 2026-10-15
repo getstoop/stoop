@@ -328,6 +328,15 @@ describe("parseMarkdown", () => {
     ]);
   });
 
+  it("keeps a language with symbols in it", () => {
+    for (const lang of ["c++", "objective-c", "f#"]) {
+      expect(parseMarkdown(`\`\`\`${lang}\nint x;\n\`\`\`\nafter`)).toEqual([
+        { type: "codeblock", text: "int x;", lang },
+        { type: "lines", lines: [[text("after")]] },
+      ]);
+    }
+  });
+
   it("takes a one-line fence", () => {
     expect(parseMarkdown("```one liner```")).toEqual([
       { type: "codeblock", text: "one liner", lang: "" },
@@ -520,6 +529,12 @@ describe("linksIn", () => {
       "https://b.example",
       "https://c.example",
     ]);
+  });
+
+  it("skips a fenced block whose language has symbols", () => {
+    expect(
+      linksIn("```c++\nhttps://a.example\n```\nhttps://b.example"),
+    ).toEqual(["https://b.example"]);
   });
 
   it("skips code", () => {

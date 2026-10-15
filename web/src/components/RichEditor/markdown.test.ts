@@ -20,6 +20,7 @@ describe("rich editor Markdown round trip", () => {
     "- one\n- two\n  - nested\n    - deeper\n- three",
     "1. one\n2. two\n  - bullet child",
     "```js\nconst x = 1;\n\nreturn x;\n```",
+    "```c++\nint x;\n```\nafter",
     "before\n\nafter a blank line",
     "a \\*literal\\* star and a \\| pipe",
     "\\- not a list",
