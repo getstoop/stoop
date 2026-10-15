@@ -186,7 +186,9 @@ and activity previews, including bullets and `||`, so a preview reads
 as the words themselves. It is the client's parser ported to Go, not a
 second set of rules, and the same test cases run on both sides: a
 preview never shows an address or a word the rendered message does not.
-The link extractor for previews walks the same parse.
+The link extractor for previews walks the same parse, and so does the
+mention check: a token counts where the parse reads it as a mention,
+never by a separate scan for backticks.
 
 Note the consequence: **a spoiler's text does appear in a preview.**
 The marker hides it *in the message*; an activity preview of a blank
@@ -223,9 +225,12 @@ has, makes a pill. Bots and hooks write them directly
   sender put there. It is what readers show for a person or group they
   can't find, and what search indexes, so a message is found by the
   handle it was written with.
-- A token in code, inline or in a block, is saved as `@handle` text and
-  reaches nobody: mentions don't work in code, and code shows what was
-  written. The composer writes text there already.
+- A token the message shows as text is saved as `@handle` text and
+  reaches nobody: one in code, inline or in a block, in a spoiler, or in
+  a link's words. Code shows what was written, and a spoiler and a link
+  are controls of their own. The parse decides (The server's one
+  involvement), so the people told are the pills the message shows. The
+  composer writes text there already.
 - Any other token is saved as `@handle` text and reaches nobody. **A
   mention is an address, not a permission**: one for someone outside the
   channel doesn't error, because a stale ID shouldn't fail a message.
@@ -236,8 +241,9 @@ has, makes a pill. Bots and hooks write them directly
 webhooks alike. Clients draw a pill from the ID with the names they
 already hold. Previews are text: reply quotes, thread-root lines and
 activity items read each token as its current `@handle`, or its saved
-one when the person or group is gone, before markup is stripped. One
-users call and one groups query cover a page.
+one when the person or group is gone. The handle goes in after the
+markup is read, as on the web, so a handle's `__` is never underline.
+One users call and one groups query cover a page.
 
 `@channel` and `@here` are reserved usernames (auth refuses to register
 them) and require the `messages.notify_entire_channel` permission. Without it the

@@ -32,15 +32,16 @@ type mentionTargets struct {
 	readers []string
 }
 
-// checkMentions keeps each token that names a reader of the channel or,
-// in a public channel, a group of its space, with its current handle.
-// Any other token, and any token in code, is saved as its handle, as
-// text. It returns the content to store and who the kept tokens name.
+// checkMentions keeps each live token that names a reader of the channel
+// or, in a public channel, a group of its space, with its current handle.
+// Any other token, and any token the message shows as text (in code, a
+// spoiler or a link's words), is saved as its handle, as text. It returns
+// the content to store and who the kept tokens name.
 func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, participants []string, content string) (string, mentionTargets, error) {
 	var targets mentionTargets
-	content = codeAsText(content)
-	matches := mentionTokenRE.FindAllStringSubmatch(content, -1)
-	if len(matches) == 0 && !namesEveryone(content) {
+	hasTokens := false
+	eachToken(content, func(_, _ int) { hasTokens = true })
+	if !hasTokens && !namesEveryone(content) {
 		return content, targets, nil
 	}
 	readers, err := s.channelReaders(ctx, channel, participants)
@@ -48,9 +49,13 @@ func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, part
 		return "", mentionTargets{}, err
 	}
 	targets.readers = readers
+	if !hasTokens {
+		return content, targets, nil
+	}
+	live := liveMentions(content)
 	var personIDs, groupIDs []string
-	for _, match := range matches {
-		kind, id := match[1], match[2]
+	for _, token := range live {
+		kind, id, _ := tokenParts(token.text)
 		switch {
 		case kind == personToken && slices.Contains(readers, id) && !slices.Contains(personIDs, id):
 			personIDs = append(personIDs, id)
@@ -77,43 +82,133 @@ func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, part
 			current[groupToken+row.ID] = row.Handle
 		}
 	}
-	stored := mentionTokenRE.ReplaceAllStringFunc(content, func(token string) string {
-		match := mentionTokenRE.FindStringSubmatch(token)
-		kind, id, handle := match[1], match[2], match[3]
-		name, kept := current[kind+id]
-		if !kept {
-			return "@" + handle
-		}
+	stored := storedForm(content, live, current)
+	// Who is told is read from what is stored, since rewriting a token
+	// can change how the rest of the message reads.
+	if stored != content {
+		live = liveMentions(stored)
+	}
+	for _, token := range live {
+		kind, id, _ := tokenParts(token.text)
 		if kind == personToken && !slices.Contains(targets.people, id) {
 			targets.people = append(targets.people, id)
 		}
 		if kind == groupToken && !slices.Contains(targets.groups, id) {
 			targets.groups = append(targets.groups, id)
 		}
-		return "<@" + kind + ":" + id + ":" + name + ">"
-	})
+	}
 	return stored, targets, nil
 }
 
-// codeAsText saves each token inside code as its handle: a mention
-// doesn't work in code, and code shows what was written.
-func codeAsText(content string) string {
-	if !strings.Contains(content, "<@") || !strings.Contains(content, "`") {
-		return content
+// liveMentions is each token the message shows as a mention, in order.
+// The parse reads a token in code, a spoiler or a link's words as text.
+func liveMentions(content string) []inlineNode {
+	var live []inlineNode
+	walkInline(parseMarkdown(content), func(node inlineNode) {
+		if node.kind == inlineMention {
+			live = append(live, node)
+		}
+	})
+	return live
+}
+
+// storedForm is content as saved: each live token found in current, by
+// kind and ID, carries that handle; every other token is its handle, as
+// text.
+func storedForm(content string, live []inlineNode, current map[string]string) string {
+	liveAt := make(map[int]bool, len(live))
+	for _, token := range live {
+		liveAt[token.at] = true
 	}
-	code := codeRanges(content)
 	var out strings.Builder
 	written := 0
-	for _, match := range mentionTokenRE.FindAllStringSubmatchIndex(content, -1) {
-		start, end := match[0], match[1]
-		if !slices.ContainsFunc(code, func(span [2]int) bool { return start >= span[0] && start < span[1] }) {
-			continue
-		}
+	eachToken(content, func(start, end int) {
+		kind, id, handle := tokenParts(content[start:end])
 		out.WriteString(content[written:start])
-		out.WriteString("@" + content[match[6]:match[7]])
+		if name, kept := current[kind+id]; kept && liveAt[start] {
+			out.WriteString("<@" + kind + ":" + id + ":" + name + ">")
+		} else {
+			out.WriteString("@" + handle)
+		}
 		written = end
-	}
+	})
 	out.WriteString(content[written:])
+	return out.String()
+}
+
+// eachToken calls visit with where each token in content starts and ends.
+func eachToken(content string, visit func(start, end int)) {
+	for from := 0; ; {
+		at := strings.Index(content[from:], "<@")
+		if at == -1 {
+			return
+		}
+		start := from + at
+		if length := tokenLength(content[start:]); length > 0 {
+			visit(start, start+length)
+			from = start + length
+		} else {
+			from = start + 1
+		}
+	}
+}
+
+// tokenLength is the length of the token text starts with, or 0: the
+// match mentionTokenRE makes, by hand, since the parse asks at every "<".
+func tokenLength(text string) int {
+	const idEnd = len("<@u:") + 36
+	if len(text) < idEnd+len(":abc>") || text[0] != '<' || text[1] != '@' || (text[2] != personToken[0] && text[2] != groupToken[0]) || text[3] != ':' {
+		return 0
+	}
+	for index := len("<@u:"); index < idEnd; index++ {
+		char := text[index]
+		switch index - len("<@u:") {
+		case 8, 13, 18, 23:
+			if char != '-' {
+				return 0
+			}
+		default:
+			if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+				return 0
+			}
+		}
+	}
+	if text[idEnd] != ':' {
+		return 0
+	}
+	end := idEnd + 1
+	for end < len(text) && end-idEnd <= 33 && isHandleChar(text[end]) {
+		end++
+	}
+	if handle := end - idEnd - 1; handle < 3 || handle > 32 || end == len(text) || text[end] != '>' {
+		return 0
+	}
+	return end + 1
+}
+
+func isHandleChar(char byte) bool {
+	return (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') || char == '_'
+}
+
+// tokenParts splits a whole token: "<@", the kind, ":", the
+// 36-character ID, ":", the handle, ">".
+func tokenParts(token string) (kind, id, handle string) {
+	return token[2:3], token[4:40], token[41 : len(token)-1]
+}
+
+// tokensAsText is text with each token as the @handle it was saved with.
+func tokensAsText(text string) string {
+	if !strings.Contains(text, "<@") {
+		return text
+	}
+	var out strings.Builder
+	written := 0
+	eachToken(text, func(start, end int) {
+		_, _, handle := tokenParts(text[start:end])
+		out.WriteString(text[written:start] + "@" + handle)
+		written = end
+	})
+	out.WriteString(text[written:])
 	return out.String()
 }
 
@@ -137,7 +232,7 @@ func (s *Service) channelReaders(ctx context.Context, channel dbgen.Channel, par
 // writtenLength is content's length as people read it, each token
 // counted as its handle, for the message length limit.
 func writtenLength(content string) int {
-	return utf8.RuneCountInString(mentionNames{}.text(content))
+	return utf8.RuneCountInString(tokensAsText(content))
 }
 
 // mentionNames is the current handle behind each token, by ID.
@@ -173,7 +268,7 @@ func (s *Service) mentionNames(ctx context.Context, contents ...string) (mention
 			return mentionNames{}, fmt.Errorf("read mentioned people: %w", err)
 		}
 		for _, record := range records {
-			names.people[record.ID] = record.Username
+			names.people[record.ID] = strings.ToLower(record.Username)
 		}
 	}
 	if len(groupIDs) > 0 {
@@ -188,31 +283,36 @@ func (s *Service) mentionNames(ctx context.Context, contents ...string) (mention
 	return names, nil
 }
 
-// text is stored content as a preview reads it: each token as its current
-// @handle, or as its saved handle when its person or group is gone.
-func (n mentionNames) text(content string) string {
+// current is stored content with each token carrying its current
+// handle, or its saved one when its person or group is gone. A preview
+// reads the tokens after the markup, so a handle's "__" stays as written.
+func (n mentionNames) current(content string) string {
 	if !strings.Contains(content, "<@") {
 		return content
 	}
-	return mentionTokenRE.ReplaceAllStringFunc(content, func(token string) string {
-		match := mentionTokenRE.FindStringSubmatch(token)
-		kind, id, handle := match[1], match[2], match[3]
-		current := n.people
+	var out strings.Builder
+	written := 0
+	eachToken(content, func(start, end int) {
+		kind, id, handle := tokenParts(content[start:end])
+		names := n.people
 		if kind == groupToken {
-			current = n.groups
+			names = n.groups
 		}
-		if name, ok := current[id]; ok {
+		if name, ok := names[id]; ok {
 			handle = name
 		}
-		return "@" + handle
+		out.WriteString(content[written:start] + "<@" + kind + ":" + id + ":" + handle + ">")
+		written = end
 	})
+	out.WriteString(content[written:])
+	return out.String()
 }
 
-// textOf is text for an optional content.
-func (n mentionNames) textOf(content *string) *string {
+// currentOf is current for an optional content.
+func (n mentionNames) currentOf(content *string) *string {
 	if content == nil {
 		return nil
 	}
-	shown := n.text(*content)
+	shown := n.current(*content)
 	return &shown
 }

@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+// The client's tests use the same token.
+const (
+	sharedToken     = "<@u:00000000-0000-4000-8000-000000000001:casey>"
+	underlineHandle = "<@u:00000000-0000-4000-8000-000000000001:a__b__c>"
+)
+
 // The same cases as web/src/api/markdown/markdown.test.ts, "plainText
 // mirrors the server" and "plainText": the two implementations are held to
 // one answer.
@@ -45,6 +51,12 @@ func TestPlainTextMirrorsTheClient(t *testing.T) {
 		{"[a](not an address)", "[a](not an address)"},
 		{"[https://a.example](https://b.example)", "[https://a.example](https://b.example)"},
 		{`\[a](https://a.b)`, "[a](https://a.b)"},
+		{"hi " + sharedToken, "hi @casey"},
+		{underlineHandle + " hi", "@a__b__c hi"},
+		{"`" + sharedToken + "`", "@casey"},
+		{"```\n" + sharedToken + "\n```", "@casey"},
+		{"||" + sharedToken + "||", "@casey"},
+		{"[see " + sharedToken + "](https://x.example)", "see @casey"},
 	}
 	for _, c := range cases {
 		if got := plainText(c.in); got != c.want {
@@ -73,6 +85,7 @@ func TestPlainTextAgreesWhereTheServerDiffered(t *testing.T) {
 func TestParseInlineShape(t *testing.T) {
 	text := func(s string) inlineNode { return inlineNode{kind: inlineText, text: s} }
 	styled := func(children ...inlineNode) inlineNode { return inlineNode{kind: inlineStyled, children: children} }
+	mention := func(token string, at int) inlineNode { return inlineNode{kind: inlineMention, text: token, at: at} }
 	cases := []struct {
 		in   string
 		want []inlineNode
@@ -104,6 +117,19 @@ func TestParseInlineShape(t *testing.T) {
 		{"[a](https://a.b", []inlineNode{text("[a]("), {kind: inlineLink, text: "https://a.b"}}},
 		{"[a", []inlineNode{text("[a")}},
 		{"[a]", []inlineNode{text("[a]")}},
+		{"hi " + sharedToken, []inlineNode{text("hi "), mention(sharedToken, 3)}},
+		{underlineHandle + " hi", []inlineNode{mention(underlineHandle, 0), text(" hi")}},
+		{"**" + sharedToken + "**", []inlineNode{styled(mention(sharedToken, 2))}},
+		{"`" + sharedToken + "`", []inlineNode{{kind: inlineCode, text: "@casey"}}},
+		{"||" + sharedToken + "||", []inlineNode{styled(text("@casey"))}},
+		{"[see " + sharedToken + "](https://x.example)", []inlineNode{
+			{kind: inlineLink, text: "https://x.example", children: []inlineNode{text("see @casey")}},
+		}},
+		// A backtick pair never spans a style's edge.
+		{"*x `" + sharedToken + "* y`", []inlineNode{styled(text("x `"), mention(sharedToken, 4)), text(" y`")}},
+		{"**a `b** c` d " + sharedToken + " `e`", []inlineNode{
+			styled(text("a `b")), text(" c"), {kind: inlineCode, text: " d @casey "}, text("e`"),
+		}},
 	}
 	for _, c := range cases {
 		if got := parseInline(c.in); !reflect.DeepEqual(got, c.want) {

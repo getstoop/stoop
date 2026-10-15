@@ -182,8 +182,8 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	}
 
 	// The message is saved: from here on nothing fails the send. Previews
-	// read tokens as text; without the current names, as their saved
-	// handles.
+	// read tokens as their current handles; without the current names, as
+	// their saved ones.
 	previewed := []string{row.Content}
 	if parent != nil {
 		previewed = append(previewed, parent.Content)
@@ -198,11 +198,11 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	msg := toProtoMessage(row, authors, mentioned, spaceOf(channel))
 	msg.Attachments = toProtoAttachments(attachments)
 	if parent != nil {
-		msg.ReplyTo = replyRef(parent.ID, authors[parent.AuthorID], names.textOf(&parent.Content), s.firstAttachmentName(ctx, parent.ID))
+		msg.ReplyTo = replyRef(parent.ID, authors[parent.AuthorID], names.currentOf(&parent.Content), s.firstAttachmentName(ctx, parent.ID))
 	}
 	if alsoSend {
 		roots := map[string]dbgen.ThreadRootRefsRow{threadRoot.ID: {
-			ID: threadRoot.ID, AuthorID: threadRoot.AuthorID, Content: names.text(threadRoot.Content),
+			ID: threadRoot.ID, AuthorID: threadRoot.AuthorID, Content: names.current(threadRoot.Content),
 		}}
 		msg.ThreadRoot = s.threadRootRef(ctx, threadRoot.ID, roots, authors)
 	}
@@ -228,7 +228,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		s.publishThreadRead(userID, channel, threadRoot.ID, threadMarker)
 	}
 	previewedRow := row
-	previewedRow.Content = names.text(row.Content)
+	previewedRow.Content = names.current(row.Content)
 	s.recordActivity(ctx, previewedRow, channel, participants, parent, mentioned, msg.Author, attachments)
 	if previewing {
 		s.unfurlLater(row.ID, userID, channel.ID, linksToFetch)
@@ -455,7 +455,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		return nil, err
 	}
 	for id, root := range roots {
-		root.Content = names.text(root.Content)
+		root.Content = names.current(root.Content)
 		roots[id] = root
 	}
 
@@ -481,7 +481,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			if row.ReplyAuthorID != nil {
 				author = authors[*row.ReplyAuthorID]
 			}
-			message.ReplyTo = replyRef(*row.ReplyToMessageID, author, names.textOf(row.ReplyContent), replyFiles[row.ReplyFirstFileID].label())
+			message.ReplyTo = replyRef(*row.ReplyToMessageID, author, names.currentOf(row.ReplyContent), replyFiles[row.ReplyFirstFileID].label())
 		}
 		messages[index] = message
 	}
