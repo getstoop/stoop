@@ -10,7 +10,9 @@ import { DeletedMark } from "../DeletedMark";
 import { MessageBody } from "../MessageBody";
 
 // One kept message: who said it and when, who pinned it, then the message
-// itself clamped to a few lines. The row opens the channel at it.
+// itself clamped to a few lines. The row opens the channel at it: the
+// who-and-when line is the button, stretched over the row (pins.css), so
+// the links and files in the message stay their own controls.
 export function PinRow({
   pin,
   members,
@@ -38,14 +40,14 @@ export function PinRow({
   const pinnedAt = pin.pinnedAt ? timestampDate(pin.pinnedAt) : null;
   return (
     <div className="pin-row">
-      <button type="button" className="pin-row-open" onClick={onOpen}>
+      <div className="pin-row-open">
         <Avatar
           name={who}
           fileId={message.author?.avatarFileId ?? ""}
           kind={message.author?.kind}
           size="small"
         />
-        <span className="pin-row-title">
+        <button type="button" className="pin-row-title" onClick={onOpen}>
           <strong>
             {who}
             <BotMark kind={message.author?.kind} />
@@ -57,7 +59,7 @@ export function PinRow({
           >
             {when ? shortDateTime(when) : ""}
           </span>
-        </span>
+        </button>
         <span className="pin-row-by muted">
           Pinned by {pinnedBy}
           {pinnedAt ? ` · ${shortDateTime(pinnedAt)}` : ""}
@@ -79,7 +81,7 @@ export function PinRow({
             <Attachments attachments={message.attachments} />
           </span>
         )}
-      </button>
+      </div>
       {canUnpin && (
         <button
           type="button"
