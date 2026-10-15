@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// everyoneRE matches @channel and @here, the two mentions that stay
-// typed words: both are reserved usernames, so nothing clashes with them.
-var everyoneRE = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])@(channel|here)\b`)
+// everyoneRE matches @channel and @here in a run of text, the two
+// mentions that stay typed words: both are reserved usernames, so
+// nothing clashes with them. everyoneHintRE is whether content may hold
+// one, before it is parsed.
+var (
+	everyoneRE     = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_@])@(channel|here)\b`)
+	everyoneHintRE = regexp.MustCompile(`(?i)@(?:channel|here)`)
+)
 
 // entireChannelHandle addresses everyone in the channel; hereHandle only those
 // currently online. Both need the messages.notify_entire_channel
@@ -21,9 +25,10 @@ const (
 	hereHandle          = "here"
 )
 
-// namesEveryone reports whether content holds @channel or @here.
-func namesEveryone(content string) bool {
-	return everyoneRE.MatchString(content)
+// mayNameEveryone is whether content may use @channel or @here.
+// readMentions says whether it does.
+func mayNameEveryone(content string) bool {
+	return everyoneHintRE.MatchString(content)
 }
 
 // mentionResult is who a message's mentions reach.
@@ -37,13 +42,8 @@ type mentionResult struct {
 // excluding the author: people first, then the groups' people. When
 // @channel or @here applies it decides alone. @channel wins over @here if
 // both appear; in a DM both are plain text.
-func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, authorID, content string, targets mentionTargets) (mentionResult, error) {
-	var wantEntireChannel, wantHere bool
-	for _, match := range everyoneRE.FindAllStringSubmatch(content, -1) {
-		word := strings.ToLower(match[1])
-		wantEntireChannel = wantEntireChannel || word == entireChannelHandle
-		wantHere = wantHere || word == hereHandle
-	}
+func (s *Service) resolveMentions(ctx context.Context, channel dbgen.Channel, authorID string, targets mentionTargets) (mentionResult, error) {
+	wantEntireChannel, wantHere := targets.entireChannel, targets.here
 	if (wantEntireChannel || wantHere) && !isDM(channel) && s.mayNotifyEntireChannel(ctx, channel) {
 		recipients := targets.readers
 		if !wantEntireChannel {
