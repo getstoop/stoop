@@ -16,6 +16,13 @@ export function plainText(content: string): string {
     .trim();
 }
 
+// No words and no mention: only markers, like an empty quote, bullet or
+// code block. Such a message isn't sent. Check before trimming: a trimmed
+// "- " is a typed dash.
+export function isBlankMessage(content: string): boolean {
+  return plainText(content) === "";
+}
+
 // The distinct links in a message, in order of appearance. Mirrors
 // extractLinks on the server, without its cap.
 export function linksIn(content: string): string[] {

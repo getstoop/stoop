@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { type Format, shortcutFormat } from "../../api/formatting";
+import { isBlankMessage } from "../../api/markdown";
 import { replaceShortcodes } from "../../api/shortcodes";
 import { replaceMessage } from "../../api/ws";
 import { FormatToolbar } from "../../components/FormatToolbar";
@@ -32,13 +33,14 @@ export function MessageEditor({
   const touchKeyboard = useTouchKeyboard();
 
   const save = async () => {
-    const content = replaceShortcodes(value).trim();
-    if (!content) {
-      setError("A message can't be empty — delete it instead.");
-      return;
-    }
+    const written = replaceShortcodes(value);
+    const content = written.trim();
     if (content === message.content) {
       onDone();
+      return;
+    }
+    if (isBlankMessage(written)) {
+      setError("A message can't be empty — delete it instead.");
       return;
     }
     try {

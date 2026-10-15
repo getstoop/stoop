@@ -20,6 +20,7 @@ import {
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { useChannelGroups } from "../../api/groups";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
+import { isBlankMessage } from "../../api/markdown";
 import {
   candidateMention,
   type MentionCandidate,
@@ -322,7 +323,8 @@ export function Composer({
   whereRef.current = where;
   const send = async () => {
     if (sendingRef.current) return;
-    const content = replaceShortcodes(draft).trim();
+    const written = replaceShortcodes(draft);
+    const content = isBlankMessage(written) ? "" : written.trim();
     const files = pendingRef.current;
     // Wait for uploads in flight; failed ones are dropped, not sent.
     if (files.some((p) => !p.fileId && !p.error)) return;
