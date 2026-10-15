@@ -102,3 +102,31 @@ body[data-ground="canvas"] {
 .kit-panel-footer {
   padding: 0 16px 16px;
 }
+
+/* A story laid out as a channel: what was sent, then the composer at the
+   bottom of the viewport. */
+.kit-channel {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.kit-channel-sent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+/* What a story's composer would have sent, as written. */
+.kit-sent {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
