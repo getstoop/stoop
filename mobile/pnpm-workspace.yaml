@@ -1,0 +1,11 @@
+# pnpm 11 reads its settings here, not from .npmrc. mobile/ is its own
+# project with its own lockfile, not a workspace with web/: Expo pins its
+# own React, and the two share source files only (web/src/gen).
+
+# Expo's guidance for pnpm: a flat node_modules, as npm lays it out.
+nodeLinker: hoisted
+
+# A version younger than the release-age gate stops the install instead
+# of pnpm quietly adding it to an exclusion list.
+minimumReleaseAgeStrict: true
+
