@@ -227,11 +227,11 @@ force-pushes, and a pull request can only merge once every CI job is green
   on its own throwaway Postgres, so it never touches the dev database.
   Local `make lint` / `make test` / `make build` before pushing keep the
   round-trips short.
-- To land it: `gh pr merge --squash --auto` queues the merge for when the
-  checks pass; `--merge` keeps the branch's commits when they tell a story.
-  The branch is deleted on merge. Never `--admin`, and never push to `main`
-  — if the ruleset ever needs bypassing that is the user's call, made in the
-  repository settings, not from a session.
+- The maintainer merges. A session stops once the pull request is open and
+  its checks are green, and reports back; it never runs `gh pr merge`, with
+  or without `--auto`. The branch is deleted on merge. Never `--admin`, and
+  never push to `main` — if the ruleset ever needs bypassing that is the
+  user's call, made in the repository settings, not from a session.
 - A red check on the PR is the work not being done yet. Fix it on the
   branch and push; don't ask for the check to be skipped.
 
