@@ -1,0 +1,17 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      // The client web generates from the protos, shared as source rather
+      // than as a package. Metro reads this mapping too.
+      "@stoop/gen/*": ["../web/src/gen/*"],
+      // The protobuf runtime the generated files import, from this app's
+      // node_modules. Left to itself, tsc resolves those imports from
+      // web/src/gen upward and finds web's copy, and the two copies'
+      // types do not match; metro.config.js does the same for the bundle.
+      "@bufbuild/protobuf": ["./node_modules/@bufbuild/protobuf/dist/esm"],
+      "@bufbuild/protobuf/*": ["./node_modules/@bufbuild/protobuf/dist/esm/*"]
+    }
+  }
+}
