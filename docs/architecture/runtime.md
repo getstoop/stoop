@@ -518,8 +518,8 @@ look like a red `main`.
 
 `main` is protected by a repository ruleset: no direct pushes, no
 force-pushes, and a pull request merges only once all six jobs are green.
-Branch, commit, `gh pr create`, then `gh pr merge --squash --auto`. The
-full procedure is in
+Branch, commit, `gh pr create`; the maintainer merges. The full procedure
+is in
 [../agent-workflow.md](../agent-workflow.md#how-a-change-lands).
 
 ### Development
