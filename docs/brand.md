@@ -65,6 +65,7 @@ brand/masters/   hand-drawn SVGs, the only files edited by hand
 brand/build.mjs  `make brand`: cuts everything below
 brand/dist/      committed outputs for other repos (desktop/, press/)
 web/public/      the web icon set, written directly, served from the root
+mobile/assets/   the phone app's mark, written directly
 ```
 
 **Masters.**
@@ -116,10 +117,16 @@ per `nativeTheme`. Not built.
 **`brand/dist/press/`** — the mark in each colour as SVG and the rounded
 icon at 256 and 1024, for a README, a site, a listing.
 
+**`mobile/assets/`** — written directly, like `web/public/`.
+
+| File | From | Read by |
+| --- | --- | --- |
+| `mark.png`, `@2x`, `@3x` | `mark` at 96 pt, in black | `mobile/src/screens/Welcome.tsx`, tinted with the theme's accent (`tintColor`) |
+
 ## Regenerating
 
 ```sh
-make brand                       # here: web/public and brand/dist
+make brand                       # here: web/public, brand/dist, mobile/assets
 cd ../stoop-desktop && make brand   # there: copies dist/desktop in
 ```
 

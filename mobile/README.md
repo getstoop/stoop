@@ -3,7 +3,7 @@
 > [!CAUTION]
 > **Work in progress. Do not build or install this app.**
 >
-> It is not a usable Stoop client: it has no sign-in and one test screen,
+> It is not a usable Stoop client: it has no sign-in and one screen,
 > it talks to a development server over plain HTTP, and it is not
 > released, signed for distribution or supported. Use Stoop in the
 > browser. The steps below are only for people developing the app
@@ -14,9 +14,24 @@ app of our own (not Expo Go) that installs from a Mac onto a real iPhone or
 Android phone and loads its JavaScript from Metro on that Mac. Everything
 builds locally; no Expo cloud services are used.
 
-So far it is one smoke-test screen (STOOP-501): the dev server's
-`GET /version`, and `InstanceService.GetInstanceStatus` called through the
-generated client in `web/src/gen`, which the app shares as source.
+So far it is the welcome screen, whose buttons do nothing yet. The
+screens follow the mobile mockups, one at a time.
+
+## Themes
+
+The app wears the web app's themes. `src/theme/generated.ts` is written
+from `web/src/themes.css` and `web/src/tokens.css` by `make mobile-theme`;
+never edit it by hand. Screens read colours through `useTheme()` and sizes
+from `tokens`, the same names as the CSS custom properties in camel case
+(`--text-muted` is `textMuted`).
+
+`ThemeProvider`, around the whole app in `App.tsx`, holds the current
+theme, Brownstone to start, and sets the status bar to match;
+`useThemeName()` reads and changes it. Nothing offers a choice yet, and
+the choice is not saved across launches.
+
+The Stoop mark is `assets/mark.png` (with `@2x` and `@3x`), cut by
+`make brand` and tinted with the theme's accent.
 
 ## Prerequisites
 
@@ -71,15 +86,18 @@ From the repo root; none of them joins `make lint`, `make test` or
 | --- | --- |
 | `make mobile-ios` | Builds onto a connected iPhone and starts Metro |
 | `make mobile-android` | The same for a connected Android phone |
+| `make mobile-metro` | Starts Metro for a build already on the phone |
 | `make mobile-prebuild` | Regenerates `ios/` and `android/` from `app.json` |
+| `make mobile-theme` | Regenerates `src/theme/generated.ts` from the web themes |
 | `make mobile-typecheck` | `tsc --noEmit` over `mobile/`, generated client included |
 
 `mobile/ios` and `mobile/android` are generated (Expo's continuous native
 generation) and gitignored. Native settings go in `app.json` or a config
 plugin, never into those folders by hand.
 
-After the first install, `pnpm start` in `mobile/` serves JavaScript to a
-build already on the phone, with no native rebuild.
+After the first install, `make mobile-metro` (or `pnpm start` in
+`mobile/`) serves JavaScript to a build already on the phone, with no
+native rebuild.
 
 ## Plain HTTP to the dev server
 
