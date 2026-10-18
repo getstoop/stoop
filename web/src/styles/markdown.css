@@ -86,3 +86,17 @@
 .md-spoiler.revealed * {
   visibility: visible;
 }
+
+/* A pasted link to a message on this server, read as who and where. */
+.message-link {
+  text-decoration: none;
+}
+
+.message-link:hover {
+  text-decoration: underline;
+}
+
+.message-link svg {
+  margin-right: 4px;
+  vertical-align: -2px;
+}

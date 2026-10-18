@@ -530,6 +530,26 @@ export function LinkIcon() {
   );
 }
 
+// One speech bubble: "a message". Threads use two. Three corners round
+// like the logo's, the tail where its steps come off.
+export function ChatBubbleIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 3h8a5 5 0 0 1 5 5v4a5 5 0 0 1-5 5H7l-4 4V8a5 5 0 0 1 5-5z" />
+    </svg>
+  );
+}
+
 // Three rows, each led by a dot.
 export function BulletListIcon() {
   return (
