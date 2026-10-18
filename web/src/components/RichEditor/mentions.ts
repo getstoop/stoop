@@ -7,14 +7,19 @@ import {
 } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import {
+  CHANNEL_LINK_CLASS,
   currentHandle,
   groupMentionClass,
+  type MentionChannels,
   type MentionGroups,
   type MentionMembers,
   type MentionRef,
   mentionClass,
+  mentionText,
+  NO_CHANNELS,
   NO_GROUPS,
   NO_MEMBERS,
+  soleChannel,
   soleMention,
   splitEveryone,
 } from "../../api/mentions";
@@ -22,9 +27,9 @@ import { schema } from "./schema";
 
 // A mention is a node carrying who it names. This plugin draws each as
 // its pill, keeps its handle current, and turns a handle typed in full
-// into one when exactly one person or group has it. A mention given the
-// code style, a link or a spoiler becomes its words, as mentions don't
-// work there.
+// into one when exactly one person or group has it, and a #name typed in
+// full into a channel link. A mention given the code style, a link or a
+// spoiler becomes its words, as mentions don't work there.
 
 export interface MentionContext {
   // The people who can read the channel, by user ID.
@@ -33,13 +38,25 @@ export interface MentionContext {
   channelAndHere: boolean;
   // The groups mentions name here, by ID; none in a private channel or a DM.
   groups: MentionGroups;
+  // The channels a link may name, by ID; none in a private channel or a DM.
+  channels: MentionChannels;
 }
 
 export const NO_MENTIONS: MentionContext = {
   members: NO_MEMBERS,
   channelAndHere: false,
   groups: NO_GROUPS,
+  channels: NO_CHANNELS,
 };
+
+function pillClass(
+  ref: MentionRef,
+  { members, groups }: MentionContext,
+): string {
+  if (ref.kind === "channel") return CHANNEL_LINK_CLASS;
+  if (ref.kind === "group") return groupMentionClass(groups.get(ref.id));
+  return mentionClass(members.get(ref.id));
+}
 
 export const mentionsKey = new PluginKey<DecorationSet>("mentions");
 
@@ -64,8 +81,9 @@ export function mentionsOffAtCaret(state: EditorState): boolean {
 
 export function mentionDecorations(
   doc: Node,
-  { members, channelAndHere, groups }: MentionContext,
+  context: MentionContext,
 ): DecorationSet {
+  const { channelAndHere } = context;
   const decos: Decoration[] = [];
   doc.descendants((node, pos) => {
     if (node.type.spec.code) return false;
@@ -73,10 +91,7 @@ export function mentionDecorations(
       const ref = node.attrs as MentionRef;
       decos.push(
         Decoration.node(pos, pos + node.nodeSize, {
-          class:
-            ref.kind === "group"
-              ? groupMentionClass(groups.get(ref.id))
-              : mentionClass(members.get(ref.id)),
+          class: pillClass(ref, context),
         }),
       );
       return false;
@@ -104,6 +119,9 @@ export function mentionDecorations(
 // nothing after it: the handle is typed in full. Not after a letter, a
 // digit or another "@".
 const TYPED_HANDLE = /(^|[^a-z0-9_@])@([a-z0-9_]{3,32})(?=[^a-z0-9_]|$)/gi;
+// "#name" the same way, not after what channelQueryAt skips.
+const TYPED_CHANNEL =
+  /(^|[^a-z0-9_#&/])#([a-z0-9][a-z0-9_-]{0,31})(?=[^a-z0-9_-]|$)/gi;
 const ADDRESS = /https?:\/\/[^\s<>]+/gi;
 
 // The transaction that turns typed handles into mentions and brings each
@@ -112,7 +130,7 @@ const ADDRESS = /https?:\/\/[^\s<>]+/gi;
 // typingAt, the caret; null (on send) settles that one too.
 export function settleMentions(
   tr: Transaction,
-  { members, groups }: MentionContext,
+  { members, groups, channels }: MentionContext,
   typingAt: number | null = tr.selection.empty ? tr.selection.head : null,
 ): Transaction | null {
   const replacements: Replacement[] = [];
@@ -126,7 +144,7 @@ export function settleMentions(
         return false;
       }
       const ref = node.attrs as MentionRef;
-      const handle = currentHandle(ref, members, groups);
+      const handle = currentHandle(ref, members, groups, channels);
       if (handle && handle !== ref.handle) {
         renames.push({ pos, ref: { ...ref, handle } });
       }
@@ -137,7 +155,17 @@ export function settleMentions(
       m.index,
       m.index + m[0].length,
     ]);
-    for (const match of node.text.matchAll(TYPED_HANDLE)) {
+    const typed = [
+      ...[...node.text.matchAll(TYPED_HANDLE)].map((match) => ({
+        match,
+        ref: soleMention(match[2], members, groups),
+      })),
+      ...[...node.text.matchAll(TYPED_CHANNEL)].map((match) => ({
+        match,
+        ref: soleChannel(match[2], channels),
+      })),
+    ];
+    for (const { match, ref } of typed) {
       const [, lead, handle] = match;
       const start = (match.index ?? 0) + lead.length;
       if (addresses.some(([from, to]) => start >= from && start < to)) continue;
@@ -146,7 +174,6 @@ export function settleMentions(
         const endsLine = !!parent && index === parent.childCount - 1;
         if (!endsLine || pos + end === typingAt) continue;
       }
-      const ref = soleMention(handle, members, groups);
       if (!ref) continue;
       replacements.push({
         from: pos + start,
@@ -171,7 +198,7 @@ export function settleMentions(
     tr.replaceWith(
       from,
       from + node.nodeSize,
-      schema.text(`@${node.attrs.handle}`, node.marks),
+      schema.text(mentionText(node.attrs as MentionRef), node.marks),
     );
   }
   return tr;
@@ -193,7 +220,8 @@ function applyMentions(
     tr.setNodeMarkup(pos, undefined, { ...ref });
   }
   // Last first, so earlier positions stay where they were.
-  for (const { from, to, ref, marks } of [...replacements].reverse()) {
+  const lastFirst = [...replacements].sort((a, b) => b.from - a.from);
+  for (const { from, to, ref, marks } of lastFirst) {
     tr.replaceWith(
       from,
       to,

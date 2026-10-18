@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useLinkableChannels } from "../../api/channelLinks";
 import { useChannelGroups } from "../../api/groups";
 import { mentionMembers } from "../../api/mentions";
 import { canManageChannels } from "../../api/permissions";
@@ -28,6 +29,7 @@ export function PinnedMessages({
   const space = spaces?.find((s) => s.id === spaceId);
   const membersById = mentionMembers(members);
   const groups = useChannelGroups(spaceId, channelId);
+  const linkable = useLinkableChannels(spaceId, channelId);
   const manage = !!space && canManageChannels(space);
   const { data: pins, isPending } = usePins(channelId, open);
 
@@ -102,6 +104,7 @@ export function PinnedMessages({
                     pin={pin}
                     members={membersById}
                     groups={groups}
+                    channels={linkable}
                     canUnpin={manage}
                     onOpen={() => {
                       setOpen(false);

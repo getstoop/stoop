@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useLinkableChannels } from "../../api/channelLinks";
 import { chatClient } from "../../api/clients";
 import { dayLabel } from "../../api/dates";
 import { usePeople } from "../../api/dms";
@@ -320,6 +321,7 @@ export function MessageList({
   const members = usePeople(spaceId, channelId);
   const membersById = useMemo(() => mentionMembers(members), [members]);
   const groups = useChannelGroups(spaceId, channelId);
+  const linkable = useLinkableChannels(spaceId, channelId);
   const showCard = useCallback((userId: string, anchor: DOMRect) => {
     setGroupCard(null);
     setCard({ userId, anchor });
@@ -446,6 +448,7 @@ export function MessageList({
       editing={editingId === message.id}
       members={membersById}
       groups={groups}
+      channels={linkable}
       myUserId={me?.id}
       threadOpen={!threadRootId && openThread === message.id}
       canStartThread={threadsAllowed && !message.threadRootId}

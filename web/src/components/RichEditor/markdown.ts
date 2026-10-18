@@ -1,5 +1,5 @@
 import { type Inline, type ListItem, parseMarkdown } from "../../api/markdown";
-import { type MentionRef, mentionToken } from "../../api/mentions";
+import { type MentionRef, mentionText, mentionToken } from "../../api/mentions";
 
 // The rich editor's document and our Markdown subset, both ways. The draft
 // is the document; Markdown is what it sends and what it loads to edit.
@@ -120,7 +120,7 @@ function inline(nodes: JSONContent[] = []): string {
     closeFrom(keep);
     const mention =
       node.type === "mention" ? (node.attrs as unknown as MentionRef) : null;
-    let text = mention ? `@${mention.handle}` : (node.text ?? "");
+    let text = mention ? mentionText(mention) : (node.text ?? "");
     if (marks.length > keep) {
       // Openers go after leading whitespace: "** a**" doesn't open.
       const ws = /^\s*/.exec(text)?.[0] ?? "";

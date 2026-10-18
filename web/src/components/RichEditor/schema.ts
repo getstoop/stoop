@@ -1,4 +1,5 @@
 import { Schema } from "prosemirror-model";
+import { type MentionRef, mentionText } from "../../api/mentions";
 import { readableAddress } from "./markdown";
 
 // The message format as a document schema, and nothing more: a quote holds
@@ -51,13 +52,14 @@ export const schema = new Schema({
     },
     text: { group: "inline" },
     // A mention is one unit: it carries who it names, and reads as the
-    // handle. The mentions plugin keeps the handle current.
+    // handle. The mentions plugin keeps the handle current. A channel link
+    // is a mention of kind "channel" that reads as #name.
     mention: {
       group: "inline",
       inline: true,
       atom: true,
       attrs: { kind: {}, id: {}, handle: {} },
-      leafText: (node) => `@${node.attrs.handle}`,
+      leafText: (node) => mentionText(node.attrs as MentionRef),
       parseDOM: [
         {
           tag: "span[data-mention-id]",
@@ -79,7 +81,7 @@ export const schema = new Schema({
           "data-mention-id": node.attrs.id,
           "data-mention-handle": node.attrs.handle,
         },
-        `@${node.attrs.handle}`,
+        mentionText(node.attrs as MentionRef),
       ],
     },
   },

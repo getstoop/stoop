@@ -20,6 +20,7 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import type { Format } from "../../api/formatting";
+import { type MentionRef, mentionText } from "../../api/mentions";
 import { linkAround } from "./links";
 import { schema } from "./schema";
 
@@ -97,14 +98,15 @@ const toggleCodeBlock: Command = (state, dispatch) => {
   if (dispatch) {
     const { $from, $to, from, to } = state.selection;
     const tr = state.tr;
-    const mentions: { pos: number; size: number; handle: string }[] = [];
+    const mentions: { pos: number; size: number; words: string }[] = [];
     state.doc.nodesBetween($from.start(), $to.end(), (node, pos) => {
       if (node.type === schema.nodes.mention) {
-        mentions.push({ pos, size: node.nodeSize, handle: node.attrs.handle });
+        const words = mentionText(node.attrs as MentionRef);
+        mentions.push({ pos, size: node.nodeSize, words });
       }
     });
-    for (const { pos, size, handle } of mentions.reverse()) {
-      tr.replaceWith(pos, pos + size, schema.text(`@${handle}`));
+    for (const { pos, size, words } of mentions.reverse()) {
+      tr.replaceWith(pos, pos + size, schema.text(words));
     }
     tr.setBlockType(
       tr.mapping.map(from),

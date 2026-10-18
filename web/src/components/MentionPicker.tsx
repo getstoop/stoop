@@ -10,7 +10,8 @@ import { BotMark } from "./BotMark";
 import { PeopleIcon } from "./Icons";
 
 // Autocomplete list shown above the composer while typing @handle:
-// @channel and @here, then groups, then people.
+// @channel and @here, then groups, then people. While typing #name, the
+// space's public channels.
 export function MentionPicker({
   candidates,
   selected,
@@ -25,20 +26,15 @@ export function MentionPicker({
   const listRef = useRef<HTMLUListElement>(null);
   useScrollToSelected(listRef, selected);
   if (candidates.length === 0) return null;
+  const channels = candidates[0].kind === "channel";
   return (
     <ul
       ref={listRef}
       className="mention-picker popover"
-      aria-label="Mention a member"
+      aria-label={channels ? "Link a channel" : "Mention a member"}
     >
       {candidates.map((candidate, i) => (
-        <li
-          key={
-            candidate.kind === "group"
-              ? `group:${candidate.group.id}`
-              : candidate.member.userId
-          }
-        >
+        <li key={candidateKey(candidate)}>
           <button
             type="button"
             className={`option mention-option ${i === selected ? "selected" : ""}`}
@@ -48,7 +44,17 @@ export function MentionPicker({
               onPick(candidate);
             }}
           >
-            {candidate.kind === "group" ? (
+            {candidate.kind === "channel" ? (
+              <>
+                <span className="channel-mark" aria-hidden="true">
+                  #
+                </span>
+                <span className="member-name">{candidate.channel.name}</span>
+                <span className="muted small mention-option-topic">
+                  {candidate.channel.topic}
+                </span>
+              </>
+            ) : candidate.kind === "group" ? (
               <>
                 <span className="group-mark" aria-hidden="true">
                   <PeopleIcon />
@@ -97,4 +103,10 @@ export function MentionPicker({
       ))}
     </ul>
   );
+}
+
+function candidateKey(candidate: MentionCandidate): string {
+  if (candidate.kind === "channel") return `channel:${candidate.channel.id}`;
+  if (candidate.kind === "group") return `group:${candidate.group.id}`;
+  return candidate.member.userId;
 }

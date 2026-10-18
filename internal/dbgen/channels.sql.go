@@ -139,6 +139,39 @@ func (q *Queries) ListChannelIDsByKind(ctx context.Context, arg ListChannelIDsBy
 	return items, nil
 }
 
+const listChannelNamesByIDs = `-- name: ListChannelNamesByIDs :many
+SELECT id, name FROM channels
+WHERE id = ANY ($1::uuid[]) AND NOT private AND kind = 1
+`
+
+type ListChannelNamesByIDsRow struct {
+	ID   string
+	Name string
+}
+
+// ListChannelNamesByIDs is the current names behind channel tokens, for
+// previews: public text channels only, as a kept link names, since a
+// message saved before links were checked can hold any channel's ID.
+func (q *Queries) ListChannelNamesByIDs(ctx context.Context, ids []string) ([]ListChannelNamesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, listChannelNamesByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListChannelNamesByIDsRow
+	for rows.Next() {
+		var i ListChannelNamesByIDsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listChannelsBySpace = `-- name: ListChannelsBySpace :many
 SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
@@ -193,6 +226,44 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 			&i.Muted,
 			&i.UnreadCount,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLinkableChannelsByIDs = `-- name: ListLinkableChannelsByIDs :many
+SELECT id, name FROM channels
+WHERE space_id = $1::uuid AND id = ANY ($2::uuid[])
+  AND NOT private AND kind = 1
+`
+
+type ListLinkableChannelsByIDsParams struct {
+	SpaceID string
+	Ids     []string
+}
+
+type ListLinkableChannelsByIDsRow struct {
+	ID   string
+	Name string
+}
+
+// ListLinkableChannelsByIDs is which of a message's channel tokens name a
+// public text channel of its channel's space.
+func (q *Queries) ListLinkableChannelsByIDs(ctx context.Context, arg ListLinkableChannelsByIDsParams) ([]ListLinkableChannelsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, listLinkableChannelsByIDs, arg.SpaceID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLinkableChannelsByIDsRow
+	for rows.Next() {
+		var i ListLinkableChannelsByIDsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

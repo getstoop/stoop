@@ -1,0 +1,34 @@
+/* ---- Channel links: a #channel pill in a message, which opens the
+   channel, and the picker's channel rows. The pill's fill is .mention's
+   (messages.css). ---- */
+
+a.mention.channel-pill {
+  text-decoration: none;
+}
+
+a.mention.channel-pill:hover {
+  text-decoration: underline;
+}
+
+/* A channel's stand-in for an avatar, the size of a small one, as
+   .group-mark is for a group. */
+.channel-mark {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* A topic is one line; a long one is cut rather than wrapped. */
+.mention-option-topic {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

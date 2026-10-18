@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Fragment, type ReactNode, useMemo, useState } from "react";
 import { splitEmoji } from "../api/emojiText";
 import {
@@ -7,20 +8,25 @@ import {
   parseMarkdown,
 } from "../api/markdown";
 import {
+  CHANNEL_LINK_CLASS,
   currentHandle,
   EVERYONE_CLASS,
   groupMentionClass,
+  type MentionChannels,
   type MentionGroups,
   type MentionMembers,
   type MentionRef,
   mentionClass,
+  mentionText,
+  NO_CHANNELS,
   NO_GROUPS,
   splitEveryone,
 } from "../api/mentions";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 
 // Renders a message's Markdown as React nodes. A mention token is a pill
-// for the person or group it names, read by ID; text runs still go
+// for the person or group it names, read by ID, and a channel token a
+// link to the channel; text runs still go
 // through splitEveryone for @channel and @here. `highlight` (a search's
 // terms) marks matching words in those runs.
 export function MessageBody({
@@ -33,6 +39,8 @@ export function MessageBody({
   onMention,
   groups = NO_GROUPS,
   onGroup,
+  channels = NO_CHANNELS,
+  channelLinks = true,
 }: {
   content: string;
   // The people who can read the channel, by user ID.
@@ -49,6 +57,12 @@ export function MessageBody({
   groups?: MentionGroups;
   // Opens a mentioned group's card, under the same rule as onMention.
   onGroup?: (group: Group, anchor: DOMRect) => void;
+  // The channels a link may open, by ID: none in a private channel or a
+  // DM, and a private channel is never among them.
+  channels?: MentionChannels;
+  // Whether a channel's pill opens it: not where the whole message is a
+  // control of its own (a search result).
+  channelLinks?: boolean;
 }) {
   const blocks = useMemo(() => parseMarkdown(content), [content]);
   const text = (s: string): ReactNode =>
@@ -83,9 +97,27 @@ export function MessageBody({
     key: number,
     inControl: boolean,
   ): ReactNode => {
-    const handle = currentHandle(ref, members, groups);
+    const handle = currentHandle(ref, members, groups, channels);
     if (handle === null) {
-      return <Fragment key={key}>{text(`@${ref.handle}`)}</Fragment>;
+      return <Fragment key={key}>{text(mentionText(ref))}</Fragment>;
+    }
+    const channel = channels.get(ref.id);
+    if (ref.kind === "channel" && channel) {
+      return inControl || !channelLinks ? (
+        <span key={key} className={CHANNEL_LINK_CLASS}>
+          #{handle}
+        </span>
+      ) : (
+        <Link
+          key={key}
+          to="/s/$spaceId/c/$channelId"
+          params={{ spaceId: channel.spaceId, channelId: channel.id }}
+          className={CHANNEL_LINK_CLASS}
+          onClick={(event) => event.stopPropagation()}
+        >
+          #{handle}
+        </Link>
+      );
     }
     const group = ref.kind === "group" ? groups.get(ref.id) : undefined;
     const className = group
