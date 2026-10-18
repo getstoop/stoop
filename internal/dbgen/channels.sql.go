@@ -140,7 +140,8 @@ func (q *Queries) ListChannelIDsByKind(ctx context.Context, arg ListChannelIDsBy
 }
 
 const listChannelNamesByIDs = `-- name: ListChannelNamesByIDs :many
-SELECT id, name FROM channels WHERE id = ANY ($1::uuid[])
+SELECT id, name FROM channels
+WHERE id = ANY ($1::uuid[]) AND NOT private AND kind = 1
 `
 
 type ListChannelNamesByIDsRow struct {
@@ -149,7 +150,8 @@ type ListChannelNamesByIDsRow struct {
 }
 
 // ListChannelNamesByIDs is the current names behind channel tokens, for
-// previews.
+// previews: public text channels only, as a kept link names, since a
+// message saved before links were checked can hold any channel's ID.
 func (q *Queries) ListChannelNamesByIDs(ctx context.Context, ids []string) ([]ListChannelNamesByIDsRow, error) {
 	rows, err := q.db.Query(ctx, listChannelNamesByIDs, ids)
 	if err != nil {

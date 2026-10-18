@@ -44,6 +44,14 @@ func TestChannelLinksAreChecked(t *testing.T) {
 		t.Errorf("stored content = %q, want %q", stored, want)
 	}
 
+	// A link written as text can't join what is around it into a link
+	// that was never checked.
+	nested := "<" + channelLink("00000000-0000-0000-0000-000000000000", fixture.secretID[:32]) + fixture.secretID[32:] + ":guess>"
+	joined := fixture.sendTo(t, fixture.owner, fixture.generalID, nested)
+	if stored := fixture.storedContent(t, joined.Id); stored != "#guess" {
+		t.Errorf("nested link stored as %q", stored)
+	}
+
 	// From a private channel, even a public channel's link is text.
 	inSecret := fixture.sendTo(t, fixture.bea, fixture.secretID, "see "+channelLink(gardenID, "garden"))
 	if stored := fixture.storedContent(t, inSecret.Id); stored != "see #garden" {
@@ -79,5 +87,22 @@ func TestChannelLinksPreviewsFollowRenames(t *testing.T) {
 	fixture.exec(t, "DELETE FROM channels WHERE id = $1", gardenID)
 	if got := fixture.history(t, fixture.cal)[quote.Msg.Message.Id].ReplyTo.Preview; got != "see #garden" {
 		t.Errorf("after the channel's deletion the reply quotes %q", got)
+	}
+}
+
+// A message saved before links were checked can hold any channel's ID;
+// a preview never reads a private channel's name through it.
+func TestChannelLinksPreviewsSkipPrivateChannels(t *testing.T) {
+	fixture := newGroupFixture(t)
+	sent := fixture.sendTo(t, fixture.owner, fixture.generalID, "old")
+	fixture.exec(t, "UPDATE messages SET content = $1 WHERE id = $2", "see "+channelLink(fixture.secretID, "placeholder"), sent.Id)
+	quote, err := fixture.svc.SendMessage(fixture.cal, connect.NewRequest(&chatv1.SendMessageRequest{
+		ChannelId: fixture.generalID, Content: "ok", ReplyToMessageId: sent.Id,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview := quote.Msg.Message.ReplyTo.Preview; preview != "see #placeholder" {
+		t.Errorf("reply quote = %q, want the saved name", preview)
 	}
 }

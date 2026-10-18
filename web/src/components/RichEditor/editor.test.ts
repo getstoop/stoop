@@ -473,9 +473,9 @@ describe("mentions", () => {
   });
 
   it("keeps a mention as its words when a line becomes a code block", () => {
-    const state = caretAtEnd(stateOf(`block ${casey} end`));
+    const state = caretAtEnd(stateOf(`block ${casey} and ${garden} end`));
     const next = run(state, formatCommands.codeblock);
-    expect(next && md(next)).toBe("```\nblock @casey end\n```");
+    expect(next && md(next)).toBe("```\nblock @casey and #garden end\n```");
   });
 
   it("turns a mention given the code style into its words", () => {

@@ -79,6 +79,8 @@ WHERE space_id = sqlc.arg(space_id)::uuid AND id = ANY (sqlc.arg(ids)::uuid[])
   AND NOT private AND kind = 1;
 
 -- ListChannelNamesByIDs is the current names behind channel tokens, for
--- previews.
+-- previews: public text channels only, as a kept link names, since a
+-- message saved before links were checked can hold any channel's ID.
 -- name: ListChannelNamesByIDs :many
-SELECT id, name FROM channels WHERE id = ANY (sqlc.arg(ids)::uuid[]);
+SELECT id, name FROM channels
+WHERE id = ANY (sqlc.arg(ids)::uuid[]) AND NOT private AND kind = 1;

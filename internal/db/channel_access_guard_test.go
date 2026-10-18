@@ -19,7 +19,7 @@ var channelReadsWithoutTheView = map[string]string{
 	"ListChannelIDsByKind":       "a space's voice rooms to clear on a kick; ids only, never returned to a client",
 	"ListAllChannelsBySpace":     "Space settings for channels.manage: every channel, with who is in each",
 	"ListLinkableChannelsByIDs":  "a sent message's channel links: public channels only, of the space the sender is posting in",
-	"ListChannelNamesByIDs":      "previews' channel links: a kept link only ever names a public channel, and a channel never becomes private",
+	"ListChannelNamesByIDs":      "previews' channel links: public text channels only, whatever ID a stored token holds",
 }
 
 var (

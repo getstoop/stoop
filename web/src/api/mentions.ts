@@ -80,7 +80,8 @@ const CHANNEL_HANDLE = "channel";
 const HERE_HANDLE = "here";
 
 // The #query being typed at the caret, if any: e.g. "see #gar|" → "gar".
-// Not after a letter, a digit, "#", "&" or "/" (C#, &#39;, an address).
+// Not after a letter, a digit, "#", "&" or "/" (C#, &#39;, an address),
+// nor anywhere in an address (https://a.example/?#top).
 export function channelQueryAt(
   text: string,
   caret: number,
@@ -91,6 +92,7 @@ export function channelQueryAt(
   const query = before.slice(hash + 1);
   if (!/^[a-z0-9_-]*$/i.test(query)) return null;
   if (hash > 0 && /[a-z0-9_#&/]/i.test(before[hash - 1])) return null;
+  if (/:\/\/\S*$/.test(before.slice(0, hash))) return null;
   return { start: hash, query };
 }
 

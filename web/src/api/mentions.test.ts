@@ -214,6 +214,8 @@ describe("channel links", () => {
     expect(channelQueryAt("see #off-to", 11)?.query).toBe("off-to");
     expect(channelQueryAt("C#", 2)).toBeNull();
     expect(channelQueryAt("https://a.example/#top", 22)).toBeNull();
+    expect(channelQueryAt("https://a.example/?#garden", 26)).toBeNull();
+    expect(channelQueryAt("https://a.example/ #gar", 23)?.query).toBe("gar");
     expect(channelQueryAt("#garden now", 11)).toBeNull();
   });
 

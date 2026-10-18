@@ -107,6 +107,13 @@ func (s *Service) checkMentions(ctx context.Context, channel dbgen.Channel, part
 		}
 	}
 	stored := storedForm(content, shown.tokens, current)
+	// A token written as text can join what is around it into a new one
+	// ("<" + "#name" + "…:x>") that nothing checked, so write it again
+	// until it settles; each pass that changes it writes a token as text.
+	for written := content; stored != written; {
+		written = stored
+		stored = storedForm(written, readMentions(written).tokens, current)
+	}
 	// Who is told is read from what is stored, since rewriting a token
 	// can change how the rest of the message reads.
 	if stored != content {

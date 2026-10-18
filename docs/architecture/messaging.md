@@ -307,9 +307,14 @@ it is an address for the reader to follow, not a mention.
 - The name follows the channel-name rule (`[a-z0-9_-]`, up to 32), and a
   kept link's name is rewritten to the current one. A channel whose name
   is from before the rule can't be linked until it is renamed.
+- Writing a link as text can join it to what is around it into a new
+  token (`<` + `#name` + `…:x>`), so the stored form is written again
+  until it settles, and no token is stored that wasn't checked.
 - As for mentions: one in code, a spoiler or a link's words is text, the
   limit counts it as `#name`, and previews read it as the current
-  `#name`, or the saved one once the channel is gone.
+  `#name`, or the saved one once the channel is gone. Previews look up
+  public text channels only: a message saved before links were checked
+  can hold any channel's ID as plain text.
 
 The web client draws a kept link as a pill that opens the channel, from
 the channel list it already holds; one whose channel it can't find reads
