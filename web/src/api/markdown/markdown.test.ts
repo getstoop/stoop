@@ -401,6 +401,24 @@ describe("parseMarkdown", () => {
     ]);
   });
 
+  it("reads a channel token whole, and shows it in code as its #name", () => {
+    const token = `<#${ID}:off-topic_2>`;
+    expect(parseInline(`see ${token}`)).toEqual([
+      text("see "),
+      {
+        type: "mention",
+        mention: { kind: "channel", id: ID, handle: "off-topic_2" },
+      },
+    ]);
+    expect(parseInline(`run \`${token}\``)).toEqual([
+      text("run "),
+      code("#off-topic_2"),
+    ]);
+    expect(parseInline(`||${token}||`)).toEqual([
+      spoiler(text("#off-topic_2")),
+    ]);
+  });
+
   it("reads a token whole, even with __ in its handle", () => {
     expect(parseInline(`hi ${TOKEN}`)).toEqual([text("hi "), mention("casey")]);
     expect(parseInline(`${UNDERLINE_HANDLE} hi`)).toEqual([

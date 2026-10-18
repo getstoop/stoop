@@ -1,5 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useNavigate } from "@tanstack/react-router";
+import { useLinkableChannels } from "../../api/channelLinks";
 import { fullDateTime, shortDateTime } from "../../api/dates";
 import { useChannelGroups } from "../../api/groups";
 import type { MentionMembers } from "../../api/mentions";
@@ -32,6 +33,7 @@ export function ResultRow({
   const { data: me } = useMe();
   const channel = channels?.find((c) => c.id === message.channelId);
   const groups = useChannelGroups(spaceId, message.channelId);
+  const linkable = useLinkableChannels(spaceId, message.channelId);
   const who = message.author?.displayName || message.author?.username || "…";
   const when = message.createdAt ? timestampDate(message.createdAt) : null;
   return (
@@ -78,6 +80,8 @@ export function ResultRow({
           myUserId={me?.id}
           highlight={highlight}
           groups={groups}
+          channels={linkable}
+          channelLinks={false}
         />
         <Attachments attachments={message.attachments} />
       </span>

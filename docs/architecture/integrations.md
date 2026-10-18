@@ -95,6 +95,7 @@ Only a token mentions anyone, from a hook or a bot as from a person:
 | A person | `<@u:ID:handle>` |
 | A group | `<@g:ID:handle>` |
 | Everyone in the channel, everyone online | `@channel`, `@here` (needs the grant below) |
+| A link to a channel (tells nobody) | `<#ID:name>` |
 
 Plain `@handle` is text and reaches nobody. Copy a token from the app:
 *Copy mention* on a person's card, or on a group's row in Space settings
@@ -102,7 +103,10 @@ Plain `@handle` is text and reaches nobody. Copy a token from the app:
 server replaces it with the current one. A token for someone who can't
 read the channel, a group in a private channel, or any token inside
 `code`, a spoiler or a link's words, is posted as its handle and
-reaches nobody ([messaging.md](messaging.md#mentions)).
+reaches nobody ([messaging.md](messaging.md#mentions)). A channel link
+is kept only in a public channel and only to a public text channel of
+the same space; any other is posted as `#name`
+([messaging.md](messaging.md#channel-links)).
 
 Messages read back the same way: `content` over the API and in outgoing
 `data` carries the tokens. The handle in a token is the one current when

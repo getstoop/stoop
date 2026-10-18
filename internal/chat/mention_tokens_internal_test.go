@@ -9,7 +9,12 @@ import (
 const (
 	caseyID     = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8b"
 	gardenersID = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8c"
+	gardenID    = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8d"
 )
+
+// tokenRE is the token grammar written as a pattern, for tokenLength to
+// agree with.
+var tokenRE = regexp.MustCompile(`<@[ug]:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[a-z0-9_]{3,32}>|<#[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[a-z0-9_-]{1,32}>`)
 
 func TestMentionTokensReadAsText(t *testing.T) {
 	stored := "<@u:" + caseyID + ":casey> and <@g:" + gardenersID + ":gardeners>"
@@ -32,6 +37,42 @@ func TestMentionTokensReadAsText(t *testing.T) {
 	// Not a token: the ID has the wrong shape.
 	if in := "<@u:------------------------------------:casey>"; (mentionNames{}).current(in) != in {
 		t.Errorf("%q should stay as written", in)
+	}
+}
+
+func TestChannelTokensReadAsText(t *testing.T) {
+	stored := "see <#" + gardenID + ":garden> and <@u:" + caseyID + ":casey>"
+	renamed := mentionNames{channels: map[string]string{gardenID: "the-garden"}}
+	if got, want := plainText(renamed.current(stored)), "see #the-garden and @casey"; got != want {
+		t.Errorf("renamed: got %q, want %q", got, want)
+	}
+	if got, want := plainText((mentionNames{}).current(stored)), "see #garden and @casey"; got != want {
+		t.Errorf("not found: got %q, want %q", got, want)
+	}
+	if got := writtenLength(stored); got != len("see #garden and @casey") {
+		t.Errorf("written length = %d", got)
+	}
+}
+
+// A channel token is kept only where it was given a current name, and is
+// text where the message shows text.
+func TestStoredFormChannelTokens(t *testing.T) {
+	garden := "<#" + gardenID + ":garden>"
+	current := map[string]string{channelToken + gardenID: "the-garden"}
+	tests := map[string]string{
+		"go to " + garden:                     "go to <#" + gardenID + ":the-garden>",
+		"`" + garden + "`":                    "`#garden`",
+		"||" + garden + "||":                  "||#garden||",
+		"[" + garden + "](https://x.example)": "[#garden](https://x.example)",
+	}
+	for in, want := range tests {
+		if got := storedForm(in, readMentions(in).tokens, current); got != want {
+			t.Errorf("%q:\n got %q\nwant %q", in, got, want)
+		}
+	}
+	// A channel not found (private, elsewhere, gone) is its name, as text.
+	if got, want := storedForm(garden, readMentions(garden).tokens, nil), "#garden"; got != want {
+		t.Errorf("not found: got %q, want %q", got, want)
 	}
 }
 
@@ -101,9 +142,9 @@ func TestLiveMentionsOffsets(t *testing.T) {
 	}
 }
 
-// tokenLength is mentionTokenRE's match at the start, by hand.
+// tokenLength is tokenRE's match at the start, by hand.
 func TestTokenLengthMatchesTheRegexp(t *testing.T) {
-	anchored := regexp.MustCompile("^" + mentionTokenRE.String())
+	anchored := regexp.MustCompile("^(?:" + tokenRE.String() + ")")
 	tests := []string{
 		"<@u:" + caseyID + ":casey>",
 		"<@g:" + gardenersID + ":gardeners> after",
@@ -121,6 +162,19 @@ func TestTokenLengthMatchesTheRegexp(t *testing.T) {
 		"<@u:",
 		"<@",
 		"",
+		"<#" + gardenID + ":garden>",
+		"<#" + gardenID + ":off-topic_2> after",
+		"<#" + gardenID + ":a>",
+		"<#" + gardenID + ":>",
+		"<#" + gardenID + ":" + strings.Repeat("a", 32) + ">",
+		"<#" + gardenID + ":" + strings.Repeat("a", 33) + ">",
+		"<#" + gardenID + ":Garden>",
+		"<#" + gardenID + ":off topic>",
+		"<#c:" + gardenID + ":garden>",
+		"<@c:" + gardenID + ":garden>",
+		"<@u:" + caseyID + ":off-topic>",
+		"<#" + gardenID[:35] + ":garden>",
+		"<#",
 	}
 	for _, in := range tests {
 		if got, want := tokenLength(in), len(anchored.FindString(in)); got != want {

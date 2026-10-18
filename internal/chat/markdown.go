@@ -18,7 +18,7 @@ const (
 	inlineCode
 	inlineLink
 	inlineStyled
-	inlineMention
+	inlineMention // any token: a mention or a channel link
 )
 
 type inlineNode struct {
@@ -376,13 +376,13 @@ func inlineString(nodes []inlineNode) string {
 	var sb strings.Builder
 	for _, n := range nodes {
 		// A style reads as its content, a link with a label as its label,
-		// and a token as its handle.
+		// and a token as its @handle or #name.
 		switch {
 		case n.kind == inlineStyled || len(n.children) > 0:
 			sb.WriteString(inlineString(n.children))
 		case n.kind == inlineMention:
-			_, _, handle := tokenParts(n.text)
-			sb.WriteString("@" + handle)
+			kind, _, handle := tokenParts(n.text)
+			sb.WriteString(tokenAsText(kind, handle))
 		default:
 			sb.WriteString(n.text)
 		}

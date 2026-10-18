@@ -1,44 +1,59 @@
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import { isBot } from "./identity";
 
 // Only a token mentions anyone: <@u:ID:handle> a person, <@g:ID:handle> a
 // group, the handle being the one current when it was saved. @channel and
-// @here stay typed words. See docs/architecture/messaging.md → Mentions.
+// @here stay typed words. <#ID:name> links a channel: it rides the same
+// machinery but tells nobody. See docs/architecture/messaging.md →
+// Mentions and Channel links.
 
-type MentionKind = "person" | "group";
+type MentionKind = "person" | "group" | "channel";
 
-// What a mention is in the editor and in a parsed message.
+// What a mention or a channel link is in the editor and in a parsed
+// message. A channel's handle is its name.
 export interface MentionRef {
   kind: MentionKind;
   id: string;
   handle: string;
 }
 
-const KIND_LETTER: Record<MentionKind, string> = { person: "u", group: "g" };
-
-const MENTION_TOKEN =
-  /<@([ug]):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):([a-z0-9_]{3,32})>/;
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const MENTION_TOKEN = new RegExp(
+  `<@([ug]):(${UUID}):([a-z0-9_]{3,32})>|<#(${UUID}):([a-z0-9_-]{1,32})>`,
+);
 
 export function mentionToken({ kind, id, handle }: MentionRef): string {
-  return `<@${KIND_LETTER[kind]}:${id}:${handle}>`;
+  if (kind === "channel") return `<#${id}:${handle}>`;
+  return `<@${kind === "group" ? "g" : "u"}:${id}:${handle}>`;
+}
+
+// How a mention reads as words: @handle, or #name for a channel.
+export const mentionText = ({ kind, handle }: MentionRef) =>
+  `${kind === "channel" ? "#" : "@"}${handle}`;
+
+function refOf(match: RegExpExecArray): MentionRef {
+  const [, letter, id, handle, channelId, name] = match;
+  if (channelId) return { kind: "channel", id: channelId, handle: name };
+  return { kind: letter === "g" ? "group" : "person", id, handle };
 }
 
 // The token at the start of s, if any.
 export function mentionTokenAt(
   s: string,
 ): { mention: MentionRef; length: number } | null {
-  const match = new RegExp(`^${MENTION_TOKEN.source}`).exec(s);
+  const match = new RegExp(`^(?:${MENTION_TOKEN.source})`).exec(s);
   if (!match) return null;
-  const [token, letter, id, handle] = match;
-  const kind: MentionKind = letter === "g" ? "group" : "person";
-  return { mention: { kind, id, handle }, length: token.length };
+  return { mention: refOf(match), length: match[0].length };
 }
 
-// Each token as the @handle it was written with. Mentions don't work in
-// code, so code shows them this way.
+// Each token as the @handle or #name it was written with. Mentions don't
+// work in code, so code shows them this way.
 export function tokensAsText(content: string): string {
-  return content.replace(new RegExp(MENTION_TOKEN.source, "g"), "@$3");
+  return content.replace(new RegExp(MENTION_TOKEN.source, "g"), (...match) =>
+    mentionText(refOf(match as unknown as RegExpExecArray)),
+  );
 }
 
 // Content's length as people read it, each token counted as its handle:
@@ -64,6 +79,21 @@ export function mentionQueryAt(
 const CHANNEL_HANDLE = "channel";
 const HERE_HANDLE = "here";
 
+// The #query being typed at the caret, if any: e.g. "see #gar|" → "gar".
+// Not after a letter, a digit, "#", "&" or "/" (C#, &#39;, an address).
+export function channelQueryAt(
+  text: string,
+  caret: number,
+): { start: number; query: string } | null {
+  const before = text.slice(0, caret);
+  const hash = before.lastIndexOf("#");
+  if (hash < 0) return null;
+  const query = before.slice(hash + 1);
+  if (!/^[a-z0-9_-]*$/i.test(query)) return null;
+  if (hash > 0 && /[a-z0-9_#&/]/i.test(before[hash - 1])) return null;
+  return { start: hash, query };
+}
+
 // The people a mention may name, by user ID.
 export type MentionMembers = ReadonlyMap<string, Member>;
 
@@ -72,6 +102,43 @@ export type MentionMembers = ReadonlyMap<string, Member>;
 export type MentionGroups = ReadonlyMap<string, Group>;
 export const NO_GROUPS: MentionGroups = new Map();
 export const NO_MEMBERS: MentionMembers = new Map();
+
+// The channels a link may name, by ID: the space's public text channels
+// whose names a token can carry (one saved before the naming rule can't).
+// Empty in a private channel or a DM, whose links the server keeps as text.
+export type MentionChannels = ReadonlyMap<string, Channel>;
+export const NO_CHANNELS: MentionChannels = new Map();
+
+const TOKEN_NAME = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+
+export function linkableChannels(
+  channels: Channel[] | undefined,
+): MentionChannels {
+  return new Map(
+    channels
+      ?.filter(
+        (channel) =>
+          !channel.private &&
+          channel.kind === ChannelKind.TEXT &&
+          TOKEN_NAME.test(channel.name),
+      )
+      .map((channel) => [channel.id, channel]),
+  );
+}
+
+// The channel a fully typed #name names, if any.
+export function soleChannel(
+  name: string,
+  channels: MentionChannels,
+): MentionRef | null {
+  const lower = name.toLowerCase();
+  for (const channel of channels.values()) {
+    if (channel.name === lower) {
+      return { kind: "channel", id: channel.id, handle: lower };
+    }
+  }
+  return null;
+}
 
 export function mentionGroups(groups: Group[] | undefined): MentionGroups {
   return new Map(groups?.map((group) => [group.id, group]));
@@ -107,13 +174,17 @@ export function soleMention(
   return found.length === 1 ? found[0] : null;
 }
 
-// The handle a mention reads as now: the person's or group's current one,
-// or null when neither can be found here.
+// The handle a mention reads as now: the person's, group's or channel's
+// current one, or null when it can't be found here.
 export function currentHandle(
   mention: MentionRef,
   members: MentionMembers,
   groups: MentionGroups,
+  channels: MentionChannels = NO_CHANNELS,
 ): string | null {
+  if (mention.kind === "channel") {
+    return channels.get(mention.id)?.name ?? null;
+  }
   if (mention.kind === "group") return groups.get(mention.id)?.handle ?? null;
   return members.get(mention.id)?.username.toLowerCase() ?? null;
 }
@@ -185,10 +256,25 @@ export function splitEveryone(
   return out;
 }
 
-// A picker row: someone (or @channel / @here), or a group.
+// A picker row: someone (or @channel / @here), a group, or a channel to
+// link.
 export type MentionCandidate =
   | { kind: "member"; member: Member }
-  | { kind: "group"; group: Group };
+  | { kind: "group"; group: Group }
+  | { kind: "channel"; channel: Channel };
+
+// The picker's rows for a #query: channels whose name starts with it, in
+// the sidebar's order.
+export function channelCandidates(
+  channels: MentionChannels,
+  query: string,
+): MentionCandidate[] {
+  const q = query.toLowerCase();
+  return [...channels.values()]
+    .filter((channel) => channel.name.startsWith(q))
+    .slice(0, 8)
+    .map((channel) => ({ kind: "channel", channel }));
+}
 
 // The picker's rows for what is being typed: @channel and @here, then
 // groups, then people.
@@ -220,6 +306,10 @@ export function mentionCandidates(
 export function candidateMention(
   candidate: MentionCandidate,
 ): MentionRef | null {
+  if (candidate.kind === "channel") {
+    const { id, name } = candidate.channel;
+    return { kind: "channel", id, handle: name };
+  }
   if (candidate.kind === "group") {
     const { id, handle } = candidate.group;
     return { kind: "group", id, handle };
@@ -235,6 +325,9 @@ export function mentionClass(member: Member | undefined, myUserId?: string) {
   const mine = myUserId && member?.userId === myUserId ? "me" : "";
   return ["mention", glyph, mine].filter(Boolean).join(" ");
 }
+
+// A channel link's pill: its #name says what it is, so it has no glyph.
+export const CHANNEL_LINK_CLASS = "mention channel-pill";
 
 // @channel and @here: the accent fill, since they reach us too.
 export const EVERYONE_CLASS = "mention me";

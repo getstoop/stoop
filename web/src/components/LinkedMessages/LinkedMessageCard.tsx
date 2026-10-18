@@ -1,5 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Link } from "@tanstack/react-router";
+import { useLinkableChannels } from "../../api/channelLinks";
 import { fullDateTime, shortDateTime } from "../../api/dates";
 import { useChannelGroups } from "../../api/groups";
 import { mentionMembers } from "../../api/mentions";
@@ -30,6 +31,7 @@ export function LinkedMessageCard({ target }: { target: LinkedMessage }) {
   const channel = channels?.find((c) => c.id === channelId);
   const shown = !!channel && !channel.private;
   const groups = useChannelGroups(inSpace ? spaceId : "", channelId);
+  const linkable = useLinkableChannels(inSpace ? spaceId : "", channelId);
   const { data: members } = useMembers(shown ? spaceId : "");
   const { data: found } = useLinkedMessage(
     channelId,
@@ -80,6 +82,7 @@ export function LinkedMessageCard({ target }: { target: LinkedMessage }) {
             content={message.content}
             members={membersById}
             groups={groups}
+            channels={linkable}
             mentionsEntireChannel={message.mentionsEntireChannel}
             mentionsHere={message.mentionsHere}
             myUserId={me?.id}

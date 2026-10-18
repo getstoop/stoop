@@ -25,6 +25,7 @@
 @import "./messages.css";
 @import "./user-card.css";
 @import "./mention-picker.css";
+@import "./channel-links.css";
 @import "./activity.css";
 @import "./composer.css";
 @import "./rich-editor.css";

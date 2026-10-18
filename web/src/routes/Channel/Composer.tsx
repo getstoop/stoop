@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useLinkableChannels } from "../../api/channelLinks";
 import { chatClient } from "../../api/clients";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
@@ -23,6 +24,8 @@ import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import { isBlankMessage } from "../../api/markdown";
 import {
   candidateMention,
+  channelCandidates,
+  channelQueryAt,
   type MentionCandidate,
   mentionCandidates,
   mentionMembers,
@@ -91,9 +94,11 @@ export function Composer({
   const [alsoSend, setAlsoSend] = useState(false);
   const [draft, setDraft] = useState("");
   const [formats, setFormats] = useState<Format[]>([]);
+  // The @handle or #channel being typed.
   const [mention, setMention] = useState<{
     start: number;
     query: string;
+    channel?: boolean;
   } | null>(null);
   // The :shortcode being typed, when no @mention is.
   const [shortcode, setShortcode] = useState<{
@@ -195,12 +200,19 @@ export function Composer({
   const space = spaces?.find((s) => s.id === spaceId);
   const channelAndHere = !!space && canMentionEntireChannel(space);
   const groups = useChannelGroups(spaceId, channelId);
+  const linkable = useLinkableChannels(spaceId, channelId);
   const mentionContext = useMemo(
-    () => ({ members: mentionMembers(members), channelAndHere, groups }),
-    [members, channelAndHere, groups],
+    () => ({
+      members: mentionMembers(members),
+      channelAndHere,
+      groups,
+      channels: linkable,
+    }),
+    [members, channelAndHere, groups, linkable],
   );
-  const candidates =
-    mention && members
+  const candidates = mention?.channel
+    ? channelCandidates(linkable, mention.query)
+    : mention && members
       ? mentionCandidates(members, [...groups.values()], mention.query, {
           channelAndHere,
         })
@@ -210,9 +222,12 @@ export function Composer({
 
   const updateMention = (value: string, caret: number) => {
     // No picker in code or a link's words: a mention there is sent as text.
-    const q = inputRef.current?.mentionsOffAtCaret()
+    const off = inputRef.current?.mentionsOffAtCaret();
+    const channelQuery = linkable.size > 0 && channelQueryAt(value, caret);
+    const q = off
       ? null
-      : mentionQueryAt(value, caret);
+      : (mentionQueryAt(value, caret) ??
+        (channelQuery ? { ...channelQuery, channel: true } : null));
     setMention(q);
     setShortcode(q ? null : shortcodeQueryAt(value, caret));
     setSelected(0);

@@ -1,3 +1,4 @@
+import { mentionText } from "../mentions";
 import { parseMarkdown } from "./blocks";
 import type { Block, Inline } from "./types";
 
@@ -55,7 +56,7 @@ function inlineText(nodes: Inline[]): string {
         case "link":
           return n.label ? inlineText(n.label) : n.href;
         case "mention":
-          return `@${n.mention.handle}`;
+          return mentionText(n.mention);
         default:
           return inlineText(n.children);
       }

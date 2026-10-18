@@ -2,7 +2,11 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { memo, type ReactNode, useMemo } from "react";
 import { dayAndTime, fullDateTime } from "../../api/dates";
 import { emojiOnly } from "../../api/emojiText";
-import type { MentionGroups, MentionMembers } from "../../api/mentions";
+import type {
+  MentionChannels,
+  MentionGroups,
+  MentionMembers,
+} from "../../api/mentions";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -34,6 +38,7 @@ export const MessageRow = memo(function MessageRow({
   editing,
   members,
   groups,
+  channels,
   myUserId,
   threadOpen,
   canStartThread,
@@ -64,6 +69,8 @@ export const MessageRow = memo(function MessageRow({
   members: MentionMembers;
   // The groups mentions name in this channel, by ID.
   groups: MentionGroups;
+  // The channels a link may name in this channel, by ID.
+  channels: MentionChannels;
   myUserId?: string;
   // Its thread is the one open in the side panel.
   threadOpen: boolean;
@@ -93,8 +100,8 @@ export const MessageRow = memo(function MessageRow({
   alsoSentTo?: ReactNode;
 }) {
   const editorMentions = useMemo(
-    () => ({ members, groups, channelAndHere: false }),
-    [members, groups],
+    () => ({ members, groups, channels, channelAndHere: false }),
+    [members, groups, channels],
   );
   const created = message.createdAt
     ? timestampDate(message.createdAt)
@@ -266,6 +273,7 @@ export const MessageRow = memo(function MessageRow({
           onMention={onCard}
           groups={groups}
           onGroup={onGroup}
+          channels={channels}
         />
         <Attachments attachments={message.attachments} />
         <LinkedMessages content={message.content} />

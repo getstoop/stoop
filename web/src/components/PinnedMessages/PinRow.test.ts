@@ -41,6 +41,7 @@ const render = () =>
         pin,
         members: new Map(),
         groups: new Map(),
+        channels: new Map(),
         canUnpin: true,
         onOpen: () => {},
         onUnpin: () => {},

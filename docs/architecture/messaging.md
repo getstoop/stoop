@@ -291,6 +291,32 @@ space can read a public channel, so the group's people are reached as
 they are, minus the author, and materialised into `message_mentions`
 with everyone else. When `@channel` or `@here` applies it decides alone.
 
+### Channel links
+
+`<#ID:name>` links a channel. It rides the mention machinery in
+`mention_tokens.go` (the parse, the checks, previews) but tells nobody:
+it is an address for the reader to follow, not a mention.
+
+- A link is kept only from a public channel to a public text channel of
+  the same space. Everyone who reads the message can open it, so a
+  private channel's ID never reaches someone outside it. Any other link
+  (to a private, voice or deleted channel, one in another space, or from
+  a private channel or a DM) is saved as `#name` text. A private channel
+  stays private for its whole life, so a kept link can't later point at
+  one.
+- The name follows the channel-name rule (`[a-z0-9_-]`, up to 32), and a
+  kept link's name is rewritten to the current one. A channel whose name
+  is from before the rule can't be linked until it is renamed.
+- As for mentions: one in code, a spoiler or a link's words is text, the
+  limit counts it as `#name`, and previews read it as the current
+  `#name`, or the saved one once the channel is gone.
+
+The web client draws a kept link as a pill that opens the channel, from
+the channel list it already holds; one whose channel it can't find reads
+as `#name` text. In the composer, `#` opens a picker of the space's
+public text channels, and a name typed in full becomes a link, as a
+handle does. Neither is offered in a private channel or a DM.
+
 ## Activity
 
 The activity feed is the record of what happened to you: every mention,

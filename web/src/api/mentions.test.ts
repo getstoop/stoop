@@ -1,19 +1,25 @@
 import { describe, expect, it } from "vitest";
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import {
   candidateMention,
+  channelCandidates,
+  channelQueryAt,
   currentHandle,
   filterMembers,
   groupMentionClass,
+  linkableChannels,
   mentionCandidates,
   mentionGroups,
   mentionMembers,
   mentionQueryAt,
   mentionToken,
   mentionTokenAt,
+  soleChannel,
   soleMention,
   splitEveryone,
+  tokensAsText,
 } from "./mentions";
 
 const member = (username: string, displayName = ""): Member =>
@@ -162,6 +168,75 @@ describe("mention tokens", () => {
     expect(mentionTokenAt(`hi <@u:${id}:casey>`)).toBeNull();
     expect(mentionTokenAt("<@u:not-an-id:casey>")).toBeNull();
     expect(mentionTokenAt(`<@x:${id}:casey>`)).toBeNull();
+  });
+});
+
+describe("channel links", () => {
+  const id = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8b";
+  const channel = (name: string, fields: Partial<Channel> = {}): Channel =>
+    ({
+      id: name,
+      name,
+      kind: ChannelKind.TEXT,
+      private: false,
+      ...fields,
+    }) as Channel;
+  const linkable = linkableChannels([
+    channel("garden"),
+    channel("gardening-club"),
+    channel("secret", { private: true }),
+    channel("porch", { kind: ChannelKind.VOICE }),
+    channel("Off Topic"),
+  ]);
+
+  it("reads and writes a channel token", () => {
+    expect(mentionTokenAt(`<#${id}:off-topic> hi`)).toEqual({
+      mention: { kind: "channel", id, handle: "off-topic" },
+      length: 49,
+    });
+    expect(mentionToken({ kind: "channel", id, handle: "garden" })).toBe(
+      `<#${id}:garden>`,
+    );
+    expect(mentionTokenAt(`<#${id}:Garden>`)).toBeNull();
+    expect(mentionTokenAt(`<@c:${id}:garden>`)).toBeNull();
+    expect(tokensAsText(`<#${id}:garden> and <@u:${id}:casey>`)).toBe(
+      "#garden and @casey",
+    );
+  });
+
+  it("links public text channels whose names a token can carry", () => {
+    expect([...linkable.keys()]).toEqual(["garden", "gardening-club"]);
+  });
+
+  it("reads the #query at the caret", () => {
+    expect(channelQueryAt("see #gar", 8)).toEqual({ start: 4, query: "gar" });
+    expect(channelQueryAt("#", 1)).toEqual({ start: 0, query: "" });
+    expect(channelQueryAt("see #off-to", 11)?.query).toBe("off-to");
+    expect(channelQueryAt("C#", 2)).toBeNull();
+    expect(channelQueryAt("https://a.example/#top", 22)).toBeNull();
+    expect(channelQueryAt("#garden now", 11)).toBeNull();
+  });
+
+  it("offers channels by name, and names one typed in full", () => {
+    expect(
+      channelCandidates(linkable, "Gard").map(
+        (candidate) => candidate.kind === "channel" && candidate.channel.name,
+      ),
+    ).toEqual(["garden", "gardening-club"]);
+    const [first] = channelCandidates(linkable, "garden");
+    expect(candidateMention(first)).toEqual({
+      kind: "channel",
+      id: "garden",
+      handle: "garden",
+    });
+    expect(soleChannel("Garden", linkable)?.id).toBe("garden");
+    expect(soleChannel("secret", linkable)).toBeNull();
+  });
+
+  it("reads a channel's current name, or null when it can't be linked", () => {
+    const ref = { kind: "channel" as const, id: "garden", handle: "old" };
+    expect(currentHandle(ref, new Map(), new Map(), linkable)).toBe("garden");
+    expect(currentHandle(ref, new Map(), new Map())).toBeNull();
   });
 });
 

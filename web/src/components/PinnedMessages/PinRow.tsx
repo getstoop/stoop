@@ -1,6 +1,10 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { fullDateTime, shortDateTime } from "../../api/dates";
-import type { MentionGroups, MentionMembers } from "../../api/mentions";
+import type {
+  MentionChannels,
+  MentionGroups,
+  MentionMembers,
+} from "../../api/mentions";
 import { useMe } from "../../api/queries";
 import type { PinnedMessage } from "../../gen/stoop/chat/v1/pin_pb";
 import { Attachments } from "../Attachments";
@@ -17,6 +21,7 @@ export function PinRow({
   pin,
   members,
   groups,
+  channels,
   canUnpin,
   onOpen,
   onUnpin,
@@ -26,6 +31,8 @@ export function PinRow({
   members: MentionMembers;
   // The channel's groups, by ID.
   groups: MentionGroups;
+  // The channels a link may open, by ID.
+  channels: MentionChannels;
   canUnpin: boolean;
   onOpen: () => void;
   onUnpin: () => void;
@@ -71,6 +78,7 @@ export function PinRow({
             content={message.content}
             members={members}
             groups={groups}
+            channels={channels}
             mentionsEntireChannel={message.mentionsEntireChannel}
             mentionsHere={message.mentionsHere}
             myUserId={me?.id}

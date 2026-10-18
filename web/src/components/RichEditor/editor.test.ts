@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { writtenLength } from "../../api/mentions";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
+import type { Channel } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { activeFormats, formatCommands, newLine } from "./commands";
@@ -370,20 +371,25 @@ describe("mentions", () => {
       { id: gardenersID, handle: "gardeners", userIds: [] } as unknown as Group,
     ],
   ]);
-  const context = { members, channelAndHere: false, groups };
+  const gardenID = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a8f";
+  const channels = new Map([
+    [gardenID, { id: gardenID, name: "garden" } as Channel],
+  ]);
+  const context = { members, channelAndHere: false, groups, channels };
   const casey = `<@u:${caseyID}:casey>`;
   const gardeners = `<@g:${gardenersID}:gardeners>`;
+  const garden = `<#${gardenID}:garden>`;
 
   const drawn = (markdown: string, channelAndHere = false) => {
     const state = stateOf(markdown);
-    return mentionDecorations(state.doc, { members, channelAndHere, groups })
+    return mentionDecorations(state.doc, { ...context, channelAndHere })
       .find()
       .map((d) => ({
         text: state.doc.textBetween(
           d.from,
           d.to,
           undefined,
-          (leaf) => `@${leaf.attrs.handle}`,
+          (leaf) => leaf.type.spec.leafText?.(leaf) ?? "",
         ),
         class: (d as unknown as { type: { attrs: { class: string } } }).type
           .attrs.class,
@@ -535,6 +541,57 @@ describe("mentions", () => {
 
   it("counts a mention as its handle against the limit", () => {
     expect(writtenLength(`hi ${casey}`)).toBe("hi @casey".length);
+  });
+
+  it("loads a channel link and writes it back", () => {
+    const text = `see ${garden}, **${garden}** and \`#garden\``;
+    expect(md(stateOf(text))).toBe(text);
+    expect(drawn(`see ${garden}`)).toEqual([
+      { text: "#garden", class: "mention channel-pill" },
+    ]);
+  });
+
+  it("turns a channel name typed in full into its link", () => {
+    expect(settled("see #Garden, not #nowhere or C#garden")).toBe(
+      `see ${garden}, not #nowhere or C#garden`,
+    );
+    expect(settled("@casey in #garden")).toBe(`${casey} in ${garden}`);
+    expect(settled("#garden-party")).toBe("#garden-party");
+    expect(settled("https://a.example/#garden x")).toBe(
+      "https://a.example/#garden x",
+    );
+  });
+
+  it("leaves #name as text where there are no channels to link", () => {
+    expect(settled("see #garden", { ...context, channels: new Map() })).toBe(
+      "see #garden",
+    );
+  });
+
+  it("brings a channel link's name up to date, or leaves it saved", () => {
+    expect(settled(`see <#${gardenID}:old-name> x`)).toBe(`see ${garden} x`);
+    const gone = settled(`see ${garden} x`, {
+      ...context,
+      channels: new Map(),
+    });
+    expect(gone).toBe(`see ${garden} x`);
+  });
+
+  it("turns a channel link in a spoiler into its words", () => {
+    const state = stateOf(`see ${garden}`);
+    const hidden = state.apply(
+      state.tr.addMark(
+        1,
+        state.doc.content.size - 1,
+        schema.marks.spoiler.create(),
+      ),
+    );
+    const tr = settleMentions(hidden.tr, context)!;
+    expect(md(hidden.apply(tr))).toBe("||see #garden||");
+  });
+
+  it("counts a channel link as its #name against the limit", () => {
+    expect(writtenLength(`see ${garden}`)).toBe("see #garden".length);
   });
 
   it("brings a mention's handle up to date", () => {
