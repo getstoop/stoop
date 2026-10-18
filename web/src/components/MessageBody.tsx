@@ -22,7 +22,10 @@ import {
   NO_GROUPS,
   splitEveryone,
 } from "../api/mentions";
+import { useServerOrigins } from "../api/queries";
+import { linkedMessage } from "../api/shareLinks";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
+import { MessageLink } from "./MessageLink";
 
 // Renders a message's Markdown as React nodes. A mention token is a pill
 // for the person or group it names, read by ID, and a channel token a
@@ -65,6 +68,7 @@ export function MessageBody({
   channelLinks?: boolean;
 }) {
   const blocks = useMemo(() => parseMarkdown(content), [content]);
+  const origins = useServerOrigins();
   const text = (s: string): ReactNode =>
     splitEveryone(s, mentionsEntireChannel, mentionsHere).map((part, i) =>
       part.everyone ? (
@@ -161,7 +165,13 @@ export function MessageBody({
               {n.text}
             </code>
           );
-        case "link":
+        case "link": {
+          // A pasted link to a message here reads as who said it and
+          // where. A link with words of its own keeps them.
+          const target = n.label ? null : linkedMessage(n.href, origins);
+          if (target) {
+            return <MessageLink key={key} href={n.href} target={target} />;
+          }
           return (
             <a
               key={key}
@@ -175,6 +185,7 @@ export function MessageBody({
               {n.label ? inline(n.label, true) : n.href}
             </a>
           );
+        }
         case "bold":
           return <strong key={key}>{inline(n.children, inControl)}</strong>;
         case "italic":

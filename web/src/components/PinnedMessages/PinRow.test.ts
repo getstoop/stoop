@@ -11,6 +11,8 @@ import { PinnedMessageSchema } from "../../gen/stoop/chat/v1/pin_pb";
 import { PinRow } from "./PinRow";
 
 vi.mock("../../api/clients", () => ({ chatClient: {}, authClient: {} }));
+// A bare link is checked against this server's origin.
+vi.stubGlobal("location", { origin: "https://porch.example.test" });
 
 const pin = create(PinnedMessageSchema, {
   message: create(MessageSchema, {
