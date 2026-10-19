@@ -55,8 +55,9 @@ export function DesktopAuthCompletePage() {
           // Same person, a new session: refetch what was read with the
           // old one rather than start from nothing.
           await queryClient.invalidateQueries();
+          // href, not to: next carries its own query (?tab=security).
           await navigate({
-            to: safeRedirect(result.next) ?? "/profile",
+            href: safeRedirect(result.next) ?? "/profile",
             replace: true,
           });
           return;

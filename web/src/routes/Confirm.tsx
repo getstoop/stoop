@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, Navigate, useNavigate, useSearch } from "@tanstack/react-router";
+import { Navigate, useNavigate, useSearch } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../api/clients";
 import { isSignedOut } from "../api/errors";
@@ -48,7 +48,8 @@ export function ConfirmPage() {
       // Same person, a new session: refetch what was read with the old
       // one rather than start from nothing.
       await queryClient.invalidateQueries();
-      await navigate({ to: target, replace: true });
+      // href, not to: the target carries its own query (?tab=security).
+      await navigate({ href: target, replace: true });
     } catch (err) {
       form.fail(err);
       setBusy(false);
@@ -105,9 +106,13 @@ export function ConfirmPage() {
             </button>
           </>
         )}
-        <Link className="link" to={target}>
+        <button
+          type="button"
+          className="link"
+          onClick={() => void navigate({ href: target })}
+        >
           Cancel and go back
-        </Link>
+        </button>
       </form>
     </div>
   );
