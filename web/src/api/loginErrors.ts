@@ -27,6 +27,8 @@ export function loginErrorText(code: string): string {
 const PROFILE_ERRORS: Record<string, string> = {
   identity_taken: "That identity is already linked to a different account.",
   already_linked: "That provider is already linked to your account.",
+  sign_in_again:
+    "Linking a provider only works within ten minutes of signing in. Sign out, sign back in, and link it then.",
 };
 
 // A link can fail for its own reasons or for any of the sign-in ones,

@@ -456,7 +456,8 @@ func TestSocialRegistrationPolicy(t *testing.T) {
 }
 
 func TestSocialLink(t *testing.T) {
-	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
 	svc.UseRegistrationPorts(&fakePolicy{policy: auth.PolicyOpen}, nil)
 	rig := newSocialRig(t, svc)
 
@@ -505,6 +506,19 @@ func TestSocialLink(t *testing.T) {
 	}
 	if status, _ := rig.linkAttempt(t, pat, s256("v")); status != http.StatusUnauthorized {
 		t.Errorf("desktop link start with a personal token = %d", status)
+	}
+
+	// Nor one from a session older than ten minutes: a linked identity is
+	// a way back in, which a stolen session must not be able to add.
+	stale, staleToken := signIn(t, svc, "tess", "correct horse battery")
+	ageSession(t, pool, stale)
+	staleJar, _ := cookiejar.New(nil)
+	staleJar.SetCookies(appURL, []*http.Cookie{{Name: auth.SessionCookieName, Value: staleToken}})
+	if loc := rig.run(t, &http.Client{Jar: staleJar}, "/auth/oidc/sso/start?link=1"); loc != "/profile?error=sign_in_again" {
+		t.Errorf("link from an old session landed on %q", loc)
+	}
+	if status, body := rig.linkAttempt(t, staleToken, s256("v")); status != http.StatusForbidden {
+		t.Errorf("desktop link start from an old session = %d, %v", status, body)
 	}
 }
 

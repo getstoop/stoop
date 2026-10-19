@@ -99,11 +99,12 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		Redirect: safeRedirectPath(r.URL.Query().Get("redirect")),
 		Exp:      time.Now().Add(loginStateTTL).Unix(),
 	}
-	// Link intent requires a live session now, before anything is looked
-	// up; the callback checks the same session again so a cookie planted
-	// on someone else can't attach an attacker's identity to their
-	// account. A desktop link recorded its session at /auth/desktop/start
-	// — the system browser has none.
+	// Link intent requires a live, recent session now, before anything is
+	// looked up (linkNeedsSignIn); the callback checks the same session
+	// again so a cookie planted on someone else can't attach an
+	// attacker's identity to their account. A desktop link recorded and
+	// checked its session at /auth/desktop/start — the system browser has
+	// none.
 	if link {
 		if att.isLink() {
 			st.LinkUserID, st.SessionID = att.linkUserID, att.sessionID
@@ -116,6 +117,10 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 			}
 			if err != nil {
 				fail("login_state")
+				return
+			}
+			if failCode := s.linkNeedsSignIn(ctx, ident.SessionID); failCode != "" {
+				http.Redirect(w, r, "/profile?error="+failCode, http.StatusFound)
 				return
 			}
 			st.LinkUserID, st.SessionID = ident.UserID, ident.SessionID
@@ -206,6 +211,23 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	http.Redirect(w, r, res.target, http.StatusFound)
+}
+
+// linkNeedsSignIn is the failure code for a link the session may not
+// start, "" when it may. A linked identity signs in for as long as it
+// stays linked, so linking needs a recent sign-in like every other way
+// back into the account; the round trip is bound to this session, so
+// the check is made once, here.
+func (s *Service) linkNeedsSignIn(ctx context.Context, sessionID string) string {
+	err := s.requireRecentSignIn(ctx, sessionID, "link a provider")
+	if err == nil {
+		return ""
+	}
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		slog.Error("check a link's session", "err", err)
+		return "server_error"
+	}
+	return "sign_in_again"
 }
 
 // loginProvider is the provider a sign-in round trip goes through and the

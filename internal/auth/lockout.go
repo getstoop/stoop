@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 
+	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/kv"
 )
 
@@ -73,6 +75,35 @@ func (g *loginGuard) failure(ctx context.Context, username string) error {
 // success clears username's failure history.
 func (g *loginGuard) success(ctx context.Context, username string) error {
 	return g.entries.Delete(ctx, username)
+}
+
+// accountPasswordMatches checks a signed-in person's password against
+// their own account, under the same lockout as signing in: a stolen
+// session must not be a way to guess the password without limit. Keyed on
+// the handle, so failures here and at the login form share one budget.
+func (s *Service) accountPasswordMatches(ctx context.Context, user dbgen.User, password string) (bool, error) {
+	handle := strings.ToLower(user.Username)
+	wait, err := s.guard.check(ctx, handle)
+	if err != nil {
+		return false, errGuardDown(err)
+	}
+	if wait > 0 {
+		return false, errLockedOut(wait)
+	}
+	match, err := s.checkPassword(ctx, password, *user.PasswordHash)
+	if err != nil {
+		return false, hashFailure("verify password", err)
+	}
+	if !match {
+		if err := s.guard.failure(ctx, handle); err != nil {
+			return false, errGuardDown(err)
+		}
+		return false, nil
+	}
+	if err := s.guard.success(ctx, handle); err != nil {
+		return false, errGuardDown(err)
+	}
+	return true, nil
 }
 
 // errGuardDown refuses a sign-in the guard could not account for. Letting

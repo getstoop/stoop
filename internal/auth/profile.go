@@ -121,13 +121,13 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 	// first one is set here, from a recent sign-in, since there is no
 	// password to check against.
 	if user.PasswordHash == nil {
-		if err := s.requireRecentSignIn(ctx, id.Credential.ID, "set a password"); err != nil {
+		if err := s.requireRecentSignIn(ctx, id.SessionID, "set a password"); err != nil {
 			return nil, err
 		}
 	} else {
-		match, err := s.checkPassword(ctx, req.Msg.CurrentPassword, *user.PasswordHash)
+		match, err := s.accountPasswordMatches(ctx, user, req.Msg.CurrentPassword)
 		if err != nil {
-			return nil, hashFailure("verify password", err)
+			return nil, err
 		}
 		if !match {
 			return nil, apierr.Field(connect.CodeInvalidArgument, "current_password", errors.New("current password is incorrect"))

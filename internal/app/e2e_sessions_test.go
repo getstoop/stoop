@@ -44,7 +44,8 @@ func TestE2ESessions(t *testing.T) {
 	h.rpc(pat, "stoop.auth.v1.AuthService/RevokeOtherSessions", map[string]any{}).expect(t, "permission_denied")
 
 	// Everywhere else: the first sign-in and the phone go, this one stays,
-	// and a token isn't a session so it stays too.
+	// and personal tokens go too, since one made from a stolen session
+	// would otherwise outlast the rest.
 	got := h.rpc(laptop, "stoop.auth.v1.AuthService/RevokeOtherSessions", map[string]any{}).expect(t, "ok")
 	if n, _ := got.body["revoked"].(float64); n != 2 {
 		t.Errorf("revoked = %v, want 2", got.body["revoked"])
@@ -54,7 +55,8 @@ func TestE2ESessions(t *testing.T) {
 	if left := h.rpc(laptop, "stoop.auth.v1.AuthService/ListSessions", map[string]any{}).expect(t, "ok").list("sessions"); len(left) != 1 {
 		t.Errorf("%d sessions left, want 1", len(left))
 	}
-	h.rpc(pat, "stoop.chat.v1.ChatService/ListSpaces", map[string]any{}).expect(t, "ok")
+	h.rpc(pat, "stoop.chat.v1.ChatService/ListSpaces", map[string]any{}).expect(t, "unauthenticated")
+	pat = h.pat(laptop, "messages.read")
 
 	// The lifetime setting: bounded, applied to new sign-ins only, and 0
 	// falls back to the environment.

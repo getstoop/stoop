@@ -59,7 +59,7 @@ export function SessionsSection() {
     if (
       !(await confirm({
         title: "Sign out everywhere else?",
-        body: `${others === 1 ? "1 other session" : `${others} other sessions`} will need to sign in again. You stay signed in here.`,
+        body: `${others === 1 ? "1 other session" : `${others} other sessions`} will need to sign in again, and your personal tokens stop working. You stay signed in here.`,
         action: "Sign out",
         danger: true,
       }))

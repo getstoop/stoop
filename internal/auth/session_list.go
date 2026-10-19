@@ -45,7 +45,16 @@ func (s *Service) RevokeOtherSessions(ctx context.Context, _ *connect.Request[au
 	if err != nil {
 		return nil, fmt.Errorf("revoke other sessions: %w", err)
 	}
+	// Personal tokens go too: one made from a stolen session would
+	// otherwise keep its holder in after everything else is signed out.
+	tokens, err := s.q.DeleteUserPersonalTokens(ctx, id.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("revoke personal tokens: %w", err)
+	}
 	for _, r := range rows {
+		s.announceRevoked(r.ID, r.HolderID)
+	}
+	for _, r := range tokens {
 		s.announceRevoked(r.ID, r.HolderID)
 	}
 	return connect.NewResponse(&authv1.RevokeOtherSessionsResponse{Revoked: int32(len(rows))}), nil

@@ -94,6 +94,11 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 	if reason != "" {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New(reason))
 	}
+	// A token outlives the session that made it, so a stolen session must
+	// not be able to make one.
+	if err := s.requireRecentSignIn(ctx, id.SessionID, "create a token"); err != nil {
+		return nil, err
+	}
 
 	name := strings.TrimSpace(req.Msg.Name)
 	if name == "" || utf8.RuneCountInString(name) > maxTokenNameRunes {
