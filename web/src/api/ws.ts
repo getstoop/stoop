@@ -103,8 +103,13 @@ export function startRealtime(queryClient: QueryClient): () => void {
       attempts = 0;
       useConnectionStore.getState().setStatus("connected");
       // What was missed while disconnected is refetched when Ready lands;
-      // the gateway forgot where we are in voice, so remind it.
-      if (wasReconnect) reportVoiceState();
+      // the gateway forgot where we are in voice, so remind it. A fresh
+      // socket while still in a call needs the same: the call outlives
+      // the shell (a trip to /confirm unmounts it and closes the socket),
+      // and the server dropped our voice state with the old socket.
+      const inCall =
+        useVoiceStore.getState().connection?.status === "connected";
+      if (wasReconnect || inCall) reportVoiceState();
     };
 
     ws.onmessage = (e: MessageEvent<ArrayBuffer>) => {
