@@ -4,12 +4,12 @@ import { isBot } from "../../api/identity";
 import { useInstanceUsers } from "../../api/queries";
 import { AddToSpaceModal } from "../../components/AddToSpaceModal";
 import { BotMark } from "../../components/BotMark";
-import { CopyButton } from "../../components/CopyButton";
 import { DataTable, type TableColumn } from "../../components/DataTable";
 import { DotsMenu } from "../../components/DotsMenu";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import type { InstanceUser } from "../../gen/stoop/instance/v1/user_pb";
 import { notice } from "../../stores/dialogs";
+import { TempPasswordModal } from "./TempPasswordModal";
 import { UserTokens } from "./UserTokens";
 import { useAccountActions } from "./useAccountActions";
 
@@ -129,25 +129,11 @@ export function UsersSection({ meId }: { meId: string }) {
         }}
       />
       {actions.tempPassword && (
-        <div className="callout temp-password" role="status">
-          <p>
-            Temporary password for{" "}
-            <strong>@{actions.tempPassword.username}</strong> — pass it on now;
-            it isn't shown again. They've been signed out everywhere and should
-            change it on their profile page.
-          </p>
-          <div className="card-row">
-            <code>{actions.tempPassword.password}</code>
-            <CopyButton text={actions.tempPassword.password} />
-            <button
-              type="button"
-              className="chip"
-              onClick={actions.clearTempPassword}
-            >
-              Done
-            </button>
-          </div>
-        </div>
+        <TempPasswordModal
+          username={actions.tempPassword.username}
+          password={actions.tempPassword.password}
+          onClose={actions.clearTempPassword}
+        />
       )}
       {actions.addingTo && (
         <AddToSpaceModal
