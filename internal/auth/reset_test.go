@@ -61,7 +61,7 @@ func TestResetPasswordSummaryHasPassword(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
 	signIn(t, svc, "casey", "correct horse battery") // the owner
-	_, userID := socialUser(t, pool, "bea", "sso")
+	_, userID := socialUser(t, svc, pool, "bea", "sso")
 
 	_, summary, err := svc.ResetPassword(context.Background(), userID)
 	if err != nil {

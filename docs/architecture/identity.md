@@ -127,9 +127,10 @@ in force until a new one is confirmed.
   `citext`). Nothing says an address is taken: `RequestEmailChange` answers
   the same either way, and only `ConfirmEmail`, reached with a valid token
   from that inbox, can say "already in use".
-- **Changing or removing it needs the current password** when the account
-  has one, and the old address is told. A stolen session can't quietly
-  redirect where reset links go.
+- **Changing or removing it needs the current password**, and the old
+  address is told. A stolen session can't quietly redirect where reset
+  links go. An account without a password needs a recent sign-in instead
+  (Passwords, below).
 - **Only the person and admins see it:** `GetMe` (`MyEmail`) and the admin
   account list. Never `User`, events or member lists.
 - **Asking for a link** is refused while email is off or the server has no
@@ -161,6 +162,17 @@ Pi-class hardware.
 provider has no password until its owner sets one, and "has a password" is
 a schema fact rather than a sentinel hash that some code path might get
 wrong.
+
+**A recent sign-in stands in for a missing password.** Every change the
+current password guards — setting the first password, changing or
+removing the email address, deleting the account — asks an account
+without one for a session under ten minutes old instead
+(`requireRecentSignIn`), and refuses an older one with "sign in again
+first". Without it, a stolen session for such an account could set a
+password, or move the address and reset one, and keep the account for
+good. The profile page says so beside each of those forms. Confirming
+with the login provider in place, without signing out and back in, is
+STOOP-511's second part.
 
 ### Not leaking which handles exist
 

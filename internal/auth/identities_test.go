@@ -18,8 +18,8 @@ import (
 
 // socialUser inserts a provider-created account the way the OIDC callback
 // will: no password, a pending username, and one linked identity. Returns
-// an identity-bearing context for it.
-func socialUser(t *testing.T, pool *pgxpool.Pool, username, provider string) (context.Context, string) {
+// a context for a session it has just signed in with.
+func socialUser(t *testing.T, svc *auth.Service, pool *pgxpool.Pool, username, provider string) (context.Context, string) {
 	t.Helper()
 	q := dbgen.New(pool)
 	ctx := context.Background()
@@ -35,14 +35,21 @@ func socialUser(t *testing.T, pool *pgxpool.Pool, username, provider string) (co
 	}); err != nil {
 		t.Fatalf("create identity: %v", err)
 	}
-	id := authctx.Identity{UserID: user.ID, SessionID: uuid.NewString(), Role: authctx.RoleMember}
+	token, err := svc.SessionFor(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	id, err := svc.VerifyToken(ctx, token)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return authctx.WithIdentity(ctx, id), user.ID
 }
 
 func TestSetFirstPassword(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
-	ctx, _ := socialUser(t, pool, "sasha", "sso")
+	ctx, _ := socialUser(t, svc, pool, "sasha", "sso")
 
 	// No password yet: GetMe says so, and login with any password fails.
 	me, err := svc.GetMe(ctx, connect.NewRequest(&authv1.GetMeRequest{}))
@@ -85,7 +92,7 @@ func TestSetFirstPassword(t *testing.T) {
 func TestUnlinkIdentityGuard(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
-	ctx, _ := socialUser(t, pool, "quinn", "sso")
+	ctx, _ := socialUser(t, svc, pool, "quinn", "sso")
 
 	list, err := svc.ListIdentities(ctx, connect.NewRequest(&authv1.ListIdentitiesRequest{}))
 	if err != nil {
@@ -121,7 +128,7 @@ func TestUnlinkIdentityGuard(t *testing.T) {
 func TestUsernameRename(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
-	ctx, _ := socialUser(t, pool, "temp_handle", "sso")
+	ctx, _ := socialUser(t, svc, pool, "temp_handle", "sso")
 	taken, _ := signIn(t, svc, "held", "correct horse battery")
 	_ = taken
 
@@ -175,7 +182,7 @@ func TestUsernameRename(t *testing.T) {
 func TestAdminRenameAccount(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
-	ctx, userID := socialUser(t, pool, "temp_name", "sso")
+	ctx, userID := socialUser(t, svc, pool, "temp_name", "sso")
 	signIn(t, svc, "held", "correct horse battery")
 
 	str := func(s string) *string { return &s }
@@ -248,7 +255,7 @@ func TestAdminClearAccountProfile(t *testing.T) {
 func TestUsernameFreeze(t *testing.T) {
 	pool := dbtest.New(t)
 	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
-	ctx, userID := socialUser(t, pool, "loudname", "sso")
+	ctx, userID := socialUser(t, svc, pool, "loudname", "sso")
 	str := func(s string) *string { return &s }
 
 	if _, err := svc.SetAccountUsernameFrozen(context.Background(), userID, true); err != nil {

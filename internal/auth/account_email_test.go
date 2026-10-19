@@ -161,8 +161,9 @@ func TestEmailChangeNeedsThePassword(t *testing.T) {
 		t.Errorf("refused requests queued %v", jobs.queued())
 	}
 
-	// An account without a password has nothing to check.
-	socialCtx, socialID := socialUser(t, pool, "ada", "pocket-id")
+	// An account without a password is checked by how recent its sign-in
+	// is, and this one has just signed in.
+	socialCtx, socialID := socialUser(t, svc, pool, "ada", "pocket-id")
 	if _, err := requestEmail(socialCtx, svc, "ada@example.com", ""); err != nil {
 		t.Fatalf("provider account: %v", err)
 	}

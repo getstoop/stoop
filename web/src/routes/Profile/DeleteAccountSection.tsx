@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
 import { useInstanceStatus } from "../../api/queries";
+import { RECENT_SIGN_IN_HINT } from "../../api/recentSignIn";
 import { Field } from "../../components/Field";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 
@@ -86,10 +87,7 @@ export function DeleteAccountSection({
               />
             </Field>
           ) : (
-            <p className="hint">
-              Your account has no password, so this only works within ten
-              minutes of signing in.
-            </p>
+            <p className="hint">{RECENT_SIGN_IN_HINT}</p>
           )}
           {form.formError && (
             <p className="error" role="alert">

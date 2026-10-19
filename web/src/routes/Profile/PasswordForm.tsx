@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
 import { usePersonalTokens } from "../../api/queries";
+import { RECENT_SIGN_IN_HINT } from "../../api/recentSignIn";
 import { Field } from "../../components/Field";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 
@@ -59,7 +60,7 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
       <p className="hint">
         {hasPassword
           ? "Changing it signs you out everywhere except this browser."
-          : "So you can sign in with your username even if the login provider goes away."}
+          : `So you can sign in with your username even if the login provider goes away. ${RECENT_SIGN_IN_HINT}`}
       </p>
       {hasPassword && (
         <Field label="Current password" error={form.errors.currentPassword}>

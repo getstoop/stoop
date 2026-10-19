@@ -39,6 +39,9 @@ func (s *Service) UseDeletionPorts(policy DeletionPolicy, departure AccountDepar
 
 // recentSignIn is how old a session may be and still stand in for the
 // password, for an account that signs in through a provider and has none.
+// Every change the password guards takes it in the password's place
+// (requireRecentSignIn), so a stolen session for such an account can't
+// set a password or move the email address and keep the account.
 const recentSignIn = 10 * time.Minute
 
 // DeleteAccount is the caller deleting their own account. The row stays,
@@ -134,13 +137,24 @@ func (s *Service) confirmIdentity(ctx context.Context, user dbgen.User, credenti
 		}
 		return nil
 	}
-	signedIn, err := s.q.GetCredentialCreatedAt(ctx, credentialID)
-	if err != nil {
-		return fmt.Errorf("look up session: %w", err)
+	return s.requireRecentSignIn(ctx, credentialID, "delete your account")
+}
+
+// requireRecentSignIn is the password's stand-in for an account without
+// one: the session making the change must be under recentSignIn old.
+// what finishes "sign in again first, then …".
+func (s *Service) requireRecentSignIn(ctx context.Context, credentialID, what string) error {
+	recent := false
+	if credentialID != "" { // credentials.id is a uuid: "" would be a query error
+		signedIn, err := s.q.GetCredentialCreatedAt(ctx, credentialID)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("look up session: %w", err)
+		}
+		recent = err == nil && time.Since(signedIn) <= recentSignIn
 	}
-	if time.Since(signedIn) > recentSignIn {
+	if !recent {
 		return connect.NewError(connect.CodeFailedPrecondition,
-			errors.New("sign in again first, then delete your account"))
+			errors.New("sign in again first, then "+what))
 	}
 	return nil
 }
