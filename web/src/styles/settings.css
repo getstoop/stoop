@@ -348,8 +348,13 @@
   margin: 0;
 }
 
+/* The note under the sessions table sits close to the button below it. */
+.sessions-note {
+  margin: 0;
+}
+
 /* The sections that wait for it (.needs-confirm, below the banner),
    headings and text included, read as waiting while the banner is up. */
-.confirm-banner ~ .needs-confirm {
+.confirm-card ~ .needs-confirm {
   opacity: var(--disabled);
 }

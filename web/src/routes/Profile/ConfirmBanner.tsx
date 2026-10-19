@@ -8,24 +8,27 @@ export function ConfirmBanner() {
   const recent = useRecentSignIn();
   const navigate = useNavigate();
   if (recent !== false) return null;
+  // A section of its own, so it sits between rules like the rest.
   return (
-    <div className="callout confirm-banner" role="status">
-      <p>
-        <strong>Confirm it's you to change the settings below.</strong> Your
-        email, password, linked sign-ins, tokens and account wait until then.
-      </p>
-      <button
-        type="button"
-        className="primary"
-        onClick={() =>
-          void navigate({
-            to: "/confirm",
-            search: { next: "/profile?tab=security" },
-          })
-        }
-      >
-        Confirm it's you
-      </button>
+    <div className="card confirm-card">
+      <div className="callout confirm-banner" role="status">
+        <p>
+          <strong>Confirm it's you to change the settings below.</strong> Your
+          email, password, linked sign-ins, tokens and account wait until then.
+        </p>
+        <button
+          type="button"
+          className="primary"
+          onClick={() =>
+            void navigate({
+              to: "/confirm",
+              search: { next: "/profile?tab=security" },
+            })
+          }
+        >
+          Confirm it's you
+        </button>
+      </div>
     </div>
   );
 }

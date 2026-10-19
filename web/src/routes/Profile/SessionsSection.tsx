@@ -101,7 +101,7 @@ export function SessionsSection() {
         ordered
         rowProps={(r) => ({ "data-kind": r.kind })}
       />
-      <p className="muted small">
+      <p className="muted small sessions-note">
         Unknown is a sign-in from a script, or from before Stoop recorded
         devices.
       </p>
