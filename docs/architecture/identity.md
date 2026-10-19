@@ -475,6 +475,22 @@ A page served from a plain-HTTP origin has no `crypto.subtle`, and sends
 the verifier itself as the challenge (`"attemptMethod": "plain"`); the
 server compares whichever way the attempt was started.
 
+#### Sign-in from the phone app
+
+The phone app (`mobile/`) signs in through the same hand-off, with no
+server change. It makes the verifier with `expo-crypto`, posts the
+challenge to `/auth/desktop/start`, and opens the start URL in the
+platform's browser auth session (`expo-web-browser`), which catches the
+`stoop://auth` or `stoop://open` link the return page fires and hands it
+back to the app rather than to the router. `/auth/desktop/complete`
+answers with the token, which the app keeps in the keychain as its bearer
+credential. Its `target` is not used yet. The server named in the link
+must be the origin the person added, as in the shell.
+
+Password sign-in on the phone is `Login`, whose response carries the
+token for bearer clients; a new account is `Register` and then `Login`,
+since `Register` sets only a cookie.
+
 #### Linking from the desktop app
 
 An attempt is a **sign-in** or a **link**, never both, and the start URL has

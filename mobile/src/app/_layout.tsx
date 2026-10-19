@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { ServersProvider } from "../servers";
 import { ThemeProvider, useTheme } from "../theme";
 
 // The root of the app. Files under src/app are routes and layouts only,
@@ -6,7 +7,9 @@ import { ThemeProvider, useTheme } from "../theme";
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <RootStack />
+      <ServersProvider>
+        <RootStack />
+      </ServersProvider>
     </ThemeProvider>
   );
 }
@@ -28,6 +31,7 @@ function RootStack() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="s/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }

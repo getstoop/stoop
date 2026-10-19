@@ -3,7 +3,7 @@
 > [!CAUTION]
 > **Work in progress. Do not build or install this app.**
 >
-> It is not a usable Stoop client: it has no sign-in and two screens,
+> It is not a usable Stoop client: it signs in and stops there,
 > it talks to a development server over plain HTTP, and it is not
 > released, signed for distribution or supported. Use Stoop in the
 > browser. The steps below are only for people developing the app
@@ -14,9 +14,11 @@ app of our own (not Expo Go) that installs from a Mac onto a real iPhone or
 Android phone and loads its JavaScript from Metro on that Mac. Everything
 builds locally; no Expo cloud services are used.
 
-So far it is the welcome screen and Add a server, which checks a typed
-address; nothing past that opens yet. The screens follow the mobile
-mockups, one at a time.
+So far it is the welcome screen, Add a server, which checks a typed
+address, and Sign in, by password, a login provider, or a new account
+where the server takes them without an invite. A signed-in server opens
+on a stand-in that says who you are, until the Spaces tab replaces it.
+The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
 
