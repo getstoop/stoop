@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,8 +9,7 @@ import ProbeCard from "./ProbeCard";
 
 // Typing a server's address. The app checks it a moment after typing
 // stops and says what it found; Continue opens only for a Stoop server
-// new enough for this app. Continue leads nowhere yet: signing in is the
-// next screen.
+// new enough for this app, and goes on to sign in to it.
 
 export type Check =
   | { state: "idle" }
@@ -27,6 +27,7 @@ export default function AddServer() {
   const [address, setAddress] = useState("");
   const [focused, setFocused] = useState(false);
   const [check, setCheck] = useState<Check>({ state: "idle" });
+  const router = useRouter();
 
   useEffect(() => {
     const origin = normalizeServerUrl(address);
@@ -44,7 +45,7 @@ export default function AddServer() {
     };
   }, [address]);
 
-  const found = check.state === "done" && check.probe.kind === "found";
+  const found = check.state === "done" && check.probe.kind === "found" ? check.probe : null;
 
   return (
     <View style={[styles.screen, { paddingBottom: (keyboard || insets.bottom) + 8 }]}>
@@ -90,6 +91,9 @@ export default function AddServer() {
           accessibilityRole="button"
           accessibilityState={{ disabled: !found }}
           disabled={!found}
+          onPress={() =>
+            found && router.push({ pathname: "/sign-in", params: { server: found.origin } })
+          }
           style={({ pressed }) => [
             styles.button,
             !found && styles.disabled,
