@@ -45,6 +45,9 @@ export default function StatusNotice({
         Its first account is made in a browser. Open {host} there to finish setting it up, then
         come back to sign in.
       </Text>
+      <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry}>
+        <Text style={styles.retryLabel}>Check again</Text>
+      </Pressable>
     </View>
   );
 }

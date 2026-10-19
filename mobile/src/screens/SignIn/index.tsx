@@ -1,7 +1,7 @@
 import type { GetInstanceStatusResponse } from "@stoop/gen/stoop/instance/v1/instance_pb";
 import { PasswordSignIn, RegistrationPolicy } from "@stoop/gen/stoop/instance/v1/instance_pb";
 import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { instanceClient } from "../../api/clients";
@@ -46,6 +46,15 @@ export default function SignIn({ origin }: { origin: string }) {
   // "password", or the provider whose round trip is under way.
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // False once the person has left this screen: a sign-in that answers
+  // after that was abandoned, and neither saves nor takes them anywhere.
+  const here = useRef(true);
+  useEffect(() => {
+    here.current = true;
+    return () => {
+      here.current = false;
+    };
+  }, []);
 
   const load = useCallback(() => {
     setStatus({ state: "loading" });
@@ -90,6 +99,7 @@ export default function SignIn({ origin }: { origin: string }) {
     : undefined;
 
   const finish = async (token: string) => {
+    if (!here.current) return;
     const id = await signedIn(origin, name, token);
     // Opened from a link, sign-in can be the only screen in the stack,
     // with nothing under it to dismiss.

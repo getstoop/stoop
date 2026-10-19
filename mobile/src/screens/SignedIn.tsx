@@ -14,6 +14,8 @@ import { type Theme, tokens, useTheme } from "../theme";
 // saved session works by asking the server who it belongs to, and offers
 // a way out. The app opens here while a server is saved.
 
+const LOGOUT_TIMEOUT_MS = 5000;
+
 type Me =
   | { state: "loading" }
   | { state: "ready"; user: User }
@@ -52,11 +54,17 @@ export default function SignedIn({ server }: { server: SavedServer }) {
   }, [server]);
 
   // Ends the session on the server when it can be reached, and forgets it
-  // here either way; the route's guard then leaves for the start.
+  // here either way; the route's guard then leaves for the start. The
+  // server gets a few seconds: one that never answers mustn't keep the
+  // token saved and the button stuck.
   const signOut = async () => {
     setLeaving(true);
     const token = await sessionToken(server.id).catch(() => null);
-    if (token) await authClient(server.origin, token).logout({}).catch(() => {});
+    if (token) {
+      await authClient(server.origin, token)
+        .logout({}, { timeoutMs: LOGOUT_TIMEOUT_MS })
+        .catch(() => {});
+    }
     await forget(server.id);
   };
 
