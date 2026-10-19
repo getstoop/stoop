@@ -510,7 +510,7 @@ func TestSocialLink(t *testing.T) {
 		t.Errorf("desktop link start with a personal token = %d", status)
 	}
 
-	// Nor one from a session older than ten minutes: a linked identity is
+	// Nor one from a session older than five minutes: a linked identity is
 	// a way back in, which a stolen session must not be able to add.
 	stale, staleToken := signIn(t, svc, "tess", "correct horse battery")
 	ageSession(t, pool, stale)

@@ -34,7 +34,7 @@ func TestE2EPersonalTokenGates(t *testing.T) {
 	// No token makes, lists or revokes tokens, or touches the account.
 	h.rpc(reader, "stoop.auth.v1.AuthService/CreatePersonalToken", map[string]any{"name": "child", "permissions": perms([]string{"messages.read"})}).expect(t, "permission_denied", "isn't allowed")
 	h.rpc(reader, "stoop.auth.v1.AuthService/ListPersonalTokens", map[string]any{}).expect(t, "permission_denied")
-	h.rpc(reader, "stoop.auth.v1.AuthService/ChangePassword", map[string]any{"currentPassword": password, "newPassword": "another horse battery"}).expect(t, "permission_denied")
+	h.rpc(reader, "stoop.auth.v1.AuthService/ChangePassword", map[string]any{"newPassword": "another horse battery"}).expect(t, "permission_denied")
 
 	// A hook token is never a bearer token, and only a session opens the
 	// socket: a bot token and a personal token are both refused.
