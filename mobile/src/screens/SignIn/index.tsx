@@ -101,6 +101,9 @@ export default function SignIn({ origin }: { origin: string }) {
   const finish = async (token: string) => {
     if (!here.current) return;
     const id = await signedIn(origin, name, token);
+    // Saving waits on the keychain, and they may have left meanwhile: the
+    // sign-in is kept, but nobody is moved off the screen they went to.
+    if (!here.current) return;
     // Opened from a link, sign-in can be the only screen in the stack,
     // with nothing under it to dismiss.
     if (router.canDismiss()) router.dismissAll();
