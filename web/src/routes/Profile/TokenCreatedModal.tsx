@@ -1,6 +1,6 @@
 import { serverOrigin } from "../../api/origin";
-import { CopyButton } from "../../components/CopyButton";
 import { Modal } from "../../components/Modal";
+import { OneTimeSecret } from "../../components/OneTimeSecret";
 
 // The only time a personal token is shown: Stoop keeps its hash and last
 // four characters, never the token.
@@ -26,13 +26,7 @@ export function TokenCreatedModal({
       }
     >
       <div className="modal-body token-form">
-        <p className="callout warn">
-          Copy it now. This is the only time it will be shown.
-        </p>
-        <div className="token-secret">
-          <code data-token-secret>{secret}</code>
-          <CopyButton text={secret} />
-        </div>
+        <OneTimeSecret value={secret} />
         <div className="readout">
           Try it
           <pre className="token-example">

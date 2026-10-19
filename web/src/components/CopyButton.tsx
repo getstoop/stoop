@@ -18,7 +18,7 @@ export function CopyButton({
 
   useEffect(() => {
     if (!copied) return;
-    const id = setTimeout(() => setCopied(false), 1500);
+    const id = setTimeout(() => setCopied(false), 2500);
     return () => clearTimeout(id);
   }, [copied]);
 

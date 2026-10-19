@@ -19,7 +19,7 @@ test("resetting someone's password from Server admin", async ({ browser }) => {
   await expect(modal, "that says what it means for them").toContainText(
     "They log in with their username and this password.",
   );
-  const password = await modal.locator("[data-temp-password]").innerText();
+  const password = await modal.locator("[data-secret]").innerText();
   expect(password, "a 16-character temporary password").toHaveLength(16);
   await modal.getByRole("button", { name: "Done" }).click();
   await expect(modal, "Done closes it").toHaveCount(0);
