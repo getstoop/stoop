@@ -2,20 +2,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
 import { usePersonalTokens } from "../../api/queries";
-import { RECENT_SIGN_IN_HINT } from "../../api/recentSignIn";
+import { useRecentSignIn } from "../../api/recentSignIn";
 import { Field } from "../../components/Field";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // Change password — or set the first one, for an account created via a
-// login provider (then there is no current password to ask for). The
-// new one is typed twice; a mismatch is caught before anything is sent.
+// login provider. No current password: a recent sign-in confirms it's the
+// person (ConfirmBanner). The new one is typed twice; a mismatch is
+// caught before anything is sent.
 export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
   const queryClient = useQueryClient();
-  const [current, setCurrent] = useState("");
+  const recent = useRecentSignIn();
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "saved">("idle");
-  const form = useFieldErrors(["currentPassword", "newPassword", "confirm"]);
+  const form = useFieldErrors(["newPassword", "confirm"]);
   const { data: tokens } = usePersonalTokens();
   const tokenCount = tokens?.length ?? 0;
   // Pre-ticked: whoever had the session long enough to change the password
@@ -32,11 +33,9 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
     setState("busy");
     try {
       await authClient.changePassword({
-        currentPassword: current,
         newPassword: next,
         revokePersonalTokens: tokenCount > 0 && revokeTokens,
       });
-      setCurrent("");
       setNext("");
       setConfirm("");
       if (!hasPassword) {
@@ -60,19 +59,8 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
       <p className="hint">
         {hasPassword
           ? "Changing it signs you out everywhere except this browser."
-          : `So you can sign in with your username even if the login provider goes away. ${RECENT_SIGN_IN_HINT}`}
+          : "So you can sign in with your username even if the login provider goes away."}
       </p>
-      {hasPassword && (
-        <Field label="Current password" error={form.errors.currentPassword}>
-          <input
-            type="password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </Field>
-      )}
       <Field label="New password" error={form.errors.newPassword}>
         <input
           type="password"
@@ -115,7 +103,11 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
         </p>
       )}
       <div className="setting-actions">
-        <button type="submit" className="primary" disabled={state === "busy"}>
+        <button
+          type="submit"
+          className="primary"
+          disabled={state === "busy" || recent === false}
+        >
           {state === "saved"
             ? hasPassword
               ? "Password changed"

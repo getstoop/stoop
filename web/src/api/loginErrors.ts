@@ -13,6 +13,10 @@ const LOGIN_ERRORS: Record<string, string> = {
   deactivated: "This account has been deactivated.",
 };
 
+// Every failed "confirm it's you", whatever went wrong: saying which would
+// tell someone holding the session what the account's sign-ins are.
+export const CONFIRM_FAILED = "Couldn't confirm it's you. Try again.";
+
 // The code arrives from ?error= in the URL, so it is whatever someone put
 // there. A plain index would walk Object.prototype and hand back a
 // function for "constructor" or "toString" — a non-string, past a
@@ -27,8 +31,7 @@ export function loginErrorText(code: string): string {
 const PROFILE_ERRORS: Record<string, string> = {
   identity_taken: "That identity is already linked to a different account.",
   already_linked: "That provider is already linked to your account.",
-  sign_in_again:
-    "Linking a provider only works within ten minutes of signing in. Sign out, sign back in, and link it then.",
+  sign_in_again: "Confirm it's you first, then link it.",
 };
 
 // A link can fail for its own reasons or for any of the sign-in ones,

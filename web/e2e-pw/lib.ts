@@ -31,6 +31,21 @@ async function resetDb() {
   }
 }
 
+// Makes every session older than counts as a recent sign-in (five
+// minutes, internal/auth/reauth.go), as if the person signed in a while
+// ago and came back to their settings.
+export async function ageSessions() {
+  const client = new pg.Client({ connectionString: DB });
+  await client.connect();
+  try {
+    await client.query(
+      "UPDATE credentials SET created_at = created_at - interval '6 minutes' WHERE kind = 'session'",
+    );
+  } finally {
+    await client.end();
+  }
+}
+
 // Every test gets a fresh instance without saying so, and leaves no pages
 // behind.
 //

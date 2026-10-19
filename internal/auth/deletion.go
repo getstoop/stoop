@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
-	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -36,15 +34,6 @@ func (s *Service) UseDeletionPorts(policy DeletionPolicy, departure AccountDepar
 	s.deletion = policy
 	s.departure = departure
 }
-
-// recentSignIn is how old a session may be and still count as the person
-// being here. An account that signs in through a provider and has no
-// password takes it in the password's place for every change the
-// password guards, and every account needs it to link a provider or make
-// a personal token (requireRecentSignIn): a stolen session can't set a
-// password, move the email address, or add a way back in that outlives
-// it.
-const recentSignIn = 10 * time.Minute
 
 // DeleteAccount is the caller deleting their own account. The row stays,
 // so their messages keep their author and the username stays held;
@@ -76,7 +65,7 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 	if err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
-	if err := s.confirmIdentity(ctx, user, id.SessionID, req.Msg.Password); err != nil {
+	if err := s.requireRecentSignIn(ctx, id.SessionID, "delete your account"); err != nil {
 		return nil, err
 	}
 	// The same refusals the locked write below makes, made early: the
@@ -123,41 +112,4 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 		s.departure.AnnounceDeparture(ctx, id.UserID, left)
 	}
 	return connect.NewResponse(&authv1.DeleteAccountResponse{}), nil
-}
-
-// confirmIdentity is the second look before something irreversible: the
-// password, or for an account without one, a sign-in recent enough to
-// count as the person being here.
-func (s *Service) confirmIdentity(ctx context.Context, user dbgen.User, sessionID, password string) error {
-	if user.PasswordHash != nil {
-		match, err := s.accountPasswordMatches(ctx, user, password)
-		if err != nil {
-			return err
-		}
-		if !match {
-			return apierr.Field(connect.CodeInvalidArgument, "password", errors.New("password is incorrect"))
-		}
-		return nil
-	}
-	return s.requireRecentSignIn(ctx, sessionID, "delete your account")
-}
-
-// requireRecentSignIn refuses unless the session making the change is
-// under recentSignIn old. sessionID is the caller's session, "" for a
-// token: a token is never a sign-in, however new. what finishes "sign in
-// again first, then …".
-func (s *Service) requireRecentSignIn(ctx context.Context, sessionID, what string) error {
-	recent := false
-	if sessionID != "" { // credentials.id is a uuid: "" would be a query error
-		signedIn, err := s.q.GetCredentialCreatedAt(ctx, sessionID)
-		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("look up session: %w", err)
-		}
-		recent = err == nil && time.Since(signedIn) <= recentSignIn
-	}
-	if !recent {
-		return connect.NewError(connect.CodeFailedPrecondition,
-			errors.New("sign in again first, then "+what))
-	}
-	return nil
 }

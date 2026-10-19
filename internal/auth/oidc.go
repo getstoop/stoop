@@ -61,9 +61,17 @@ func (o *oidcProvider) oauthConfig(redirectURI string) *oauth2.Config {
 	}
 }
 
-func (o *oidcProvider) authURL(state, nonce, verifier, redirectURI string) string {
-	return o.oauthConfig(redirectURI).AuthCodeURL(state,
-		oidc.Nonce(nonce), oauth2.S256ChallengeOption(verifier))
+func (o *oidcProvider) authURL(state, nonce, verifier, redirectURI string, fresh bool) string {
+	opts := []oauth2.AuthCodeOption{oidc.Nonce(nonce), oauth2.S256ChallengeOption(verifier)}
+	if fresh {
+		// Asked, not relied on: a provider that ignores these still
+		// confirms the identity, and the reauth goes through (identity.md
+		// → Confirm it's you).
+		opts = append(opts,
+			oauth2.SetAuthURLParam("prompt", "login"),
+			oauth2.SetAuthURLParam("max_age", "0"))
+	}
+	return o.oauthConfig(redirectURI).AuthCodeURL(state, opts...)
 }
 
 func (o *oidcProvider) exchange(ctx context.Context, code, verifier, nonce, redirectURI string) (Claims, error) {

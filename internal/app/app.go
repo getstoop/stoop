@@ -360,6 +360,7 @@ func newHandler(cfg config.Config, log *slog.Logger, shared *modules, voiceSvc *
 			ratelimit.Interceptor(authLimiter, instanceSvc.TrustsPeer,
 				authv1connect.AuthServiceLoginProcedure,
 				authv1connect.AuthServiceRegisterProcedure,
+				authv1connect.AuthServiceReauthenticateProcedure,
 				authv1connect.AuthServiceRequestPasswordResetProcedure,
 				chatv1connect.ChatServiceLookupInviteProcedure),
 			authSvc.NewInterceptor()),

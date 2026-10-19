@@ -14,15 +14,24 @@ export function LoginProviders({
   redirect,
   invite,
   divider = true,
+  reauth = false,
+  only,
 }: {
   redirect?: string;
   invite?: string;
   // The "or" line below the buttons; off when there's no form under it.
   divider?: boolean;
+  // "Confirm it's you" rather than a sign-in: the round trip replaces
+  // this session and comes back to redirect.
+  reauth?: boolean;
+  // The provider ids to offer, when not every configured one.
+  only?: string[];
 }) {
   const { data: status } = useInstanceStatus();
   const [error, setError] = useState<string | null>(null);
-  const providers = status?.loginProviders ?? [];
+  const providers = (status?.loginProviders ?? []).filter(
+    (p) => !only || only.includes(p.id),
+  );
   if (providers.length === 0) return null;
 
   // window.open, not this view: setWindowOpenHandler in the shell sends
@@ -36,7 +45,11 @@ export function LoginProviders({
     e.preventDefault();
     setError(null);
     try {
-      window.open(await beginDesktopAuth(id, href), "_blank", "noopener");
+      window.open(
+        await beginDesktopAuth(id, href, { reauth, next: redirect }),
+        "_blank",
+        "noopener",
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -46,7 +59,7 @@ export function LoginProviders({
     <>
       <div className="login-providers">
         {providers.map((p) => {
-          const href = startURL(p.id, { redirect, invite });
+          const href = startURL(p.id, { redirect, invite, reauth });
           return (
             <a
               key={p.id}
@@ -77,12 +90,18 @@ export function LoginProviders({
 
 export function startURL(
   id: string,
-  opts: { redirect?: string; invite?: string; link?: boolean } = {},
+  opts: {
+    redirect?: string;
+    invite?: string;
+    link?: boolean;
+    reauth?: boolean;
+  } = {},
 ): string {
   const params = new URLSearchParams();
   if (opts.redirect) params.set("redirect", opts.redirect);
   if (opts.invite) params.set("invite", opts.invite);
   if (opts.link) params.set("link", "1");
+  if (opts.reauth) params.set("reauth", "1");
   const qs = params.toString();
   return `/auth/oidc/${encodeURIComponent(id)}/start${qs ? `?${qs}` : ""}`;
 }

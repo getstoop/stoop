@@ -60,9 +60,11 @@ export function sendClientEvent(
 }
 
 // The gateway's close code when the session this socket was opened with
-// was revoked: signed out elsewhere, password changed, or deactivated.
-// Reconnecting would only fail; the me query fails instead, and the shell
-// goes to the login page.
+// was revoked: signed out elsewhere, password changed, or deactivated —
+// or replaced, when this browser confirmed it's the person in another tab
+// and holds a new session. The me query is asked again: if it still
+// works, the browser has that new session and the socket reconnects with
+// it; if not, the shell goes to the login page.
 const CLOSE_CREDENTIAL_REVOKED = 4001;
 
 export function startRealtime(queryClient: QueryClient): () => void {
@@ -95,9 +97,16 @@ export function startRealtime(queryClient: QueryClient): () => void {
       liveSocket = null;
       useConnectionStore.getState().setOnline([]);
       if (e.code === CLOSE_CREDENTIAL_REVOKED) {
-        stopped = true;
-        useConnectionStore.getState().setStatus("disconnected");
-        queryClient.invalidateQueries({ queryKey: ["me"] });
+        useConnectionStore.getState().setStatus("reconnecting");
+        void queryClient.invalidateQueries({ queryKey: ["me"] }).then(() => {
+          if (stopped) return;
+          if (queryClient.getQueryState(["me"])?.status === "success") {
+            connect();
+            return;
+          }
+          stopped = true;
+          useConnectionStore.getState().setStatus("disconnected");
+        });
         return;
       }
       if (stopped) return;

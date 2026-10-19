@@ -109,20 +109,11 @@ test("the account page, password change and log out", async ({ browser }) => {
   );
 
   // The password card, found by what it contains, not its position:
-  // cards get added to this page (Linked accounts sits under it).
-  const pw = P.locator('.card:has(input[autocomplete="current-password"])');
-  const current = pw.locator('input[autocomplete="current-password"]');
+  // cards get added to this page (Linked accounts sits under it). No
+  // current password: this sign-in is recent, which is what confirms it's
+  // the person (reauth.spec.ts covers confirming again).
+  const pw = P.locator('.card:has(input[autocomplete="new-password"])');
   const next = pw.locator('input[autocomplete="new-password"]');
-  await current.fill("nope nope nope");
-  await next.first().fill(newPass);
-  await next.last().fill(newPass);
-  await pw.locator('button[type="submit"]').click();
-  await expect(
-    pw.locator(".error"),
-    "wrong current password rejected",
-  ).toHaveText("current password is incorrect");
-
-  await current.fill(password);
   await next.first().fill(newPass);
   await next.last().fill(newPass);
   await pw.locator('button[type="submit"]').click();

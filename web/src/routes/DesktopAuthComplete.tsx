@@ -5,7 +5,7 @@ import {
   completeDesktopAuth,
   confirmDesktopLink,
   discardAttempt,
-  pendingIsLink,
+  pendingKind,
 } from "../api/desktopAuth";
 import { useInstanceStatus } from "../api/queries";
 import { providerShortName } from "../components/LoginProviders";
@@ -29,7 +29,8 @@ export function DesktopAuthCompletePage() {
   const [busy, setBusy] = useState(false);
   // Read before the effect spends the attempt: it is what the wording
   // below is about.
-  const [linking] = useState(pendingIsLink);
+  const [kind] = useState(pendingKind);
+  const linking = kind === "link";
   const started = useRef(false);
 
   useEffect(() => {
@@ -48,6 +49,16 @@ export function DesktopAuthCompletePage() {
         const result = await completeDesktopAuth(code);
         if (result.kind === "confirmLink") {
           setPending(result);
+          return;
+        }
+        if (result.kind === "reauthed") {
+          // Same person, a new session: refetch what was read with the
+          // old one rather than start from nothing.
+          await queryClient.invalidateQueries();
+          await navigate({
+            to: safeRedirect(result.next) ?? "/profile",
+            replace: true,
+          });
           return;
         }
         queryClient.clear();
@@ -112,7 +123,11 @@ export function DesktopAuthCompletePage() {
                 <p className="error" role="alert">
                   {error}
                 </p>
-                {linking ? (
+                {kind === "reauth" ? (
+                  <Link className="link" to="/confirm">
+                    Try again
+                  </Link>
+                ) : linking ? (
                   <Link className="link" to="/profile">
                     Back to your profile
                   </Link>
@@ -124,7 +139,11 @@ export function DesktopAuthCompletePage() {
               </>
             ) : (
               <p className="muted">
-                {linking ? "Checking that account…" : "Finishing sign-in…"}
+                {linking
+                  ? "Checking that account…"
+                  : kind === "reauth"
+                    ? "Confirming…"
+                    : "Finishing sign-in…"}
               </p>
             )}
           </>

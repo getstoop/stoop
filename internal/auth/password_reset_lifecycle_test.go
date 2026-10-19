@@ -101,7 +101,7 @@ func TestPasswordResetLinksRetire(t *testing.T) {
 
 	token := resetLinkToken(t, svc, caseyID)
 	if _, err := svc.ChangePassword(ctx, connect.NewRequest(&authv1.ChangePasswordRequest{
-		CurrentPassword: casePassword, NewPassword: "a changed password",
+		NewPassword: "a changed password",
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestPasswordResetLinksRetire(t *testing.T) {
 	adaID := authctx.UserID(ada)
 	confirmAddress(t, pool, adaID, "ada@example.com")
 	token = resetLinkToken(t, svc, adaID)
-	if _, err := svc.RemoveEmail(ada, connect.NewRequest(&authv1.RemoveEmailRequest{Password: casePassword})); err != nil {
+	if _, err := svc.RemoveEmail(ada, connect.NewRequest(&authv1.RemoveEmailRequest{})); err != nil {
 		t.Fatal(err)
 	}
 	if got := countTokens(t, pool, adaID); got != 0 {

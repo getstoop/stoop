@@ -167,7 +167,7 @@ func TestChangePasswordCanRevokeTokens(t *testing.T) {
 	bg := context.Background()
 
 	if _, err := svc.ChangePassword(ada, connect.NewRequest(&authv1.ChangePasswordRequest{
-		CurrentPassword: "correct horse battery", NewPassword: "another horse battery",
+		NewPassword: "another horse battery",
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestChangePasswordCanRevokeTokens(t *testing.T) {
 		t.Errorf("a password change without the flag revoked the token: %v", err)
 	}
 	if _, err := svc.ChangePassword(ada, connect.NewRequest(&authv1.ChangePasswordRequest{
-		CurrentPassword: "another horse battery", NewPassword: "third horse battery", RevokePersonalTokens: true,
+		NewPassword: "third horse battery", RevokePersonalTokens: true,
 	})); err != nil {
 		t.Fatal(err)
 	}

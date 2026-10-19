@@ -1,7 +1,7 @@
 import { expect, say, seed, signIn, test } from "./lib";
 
-// Deleting your own account (STOOP-222): what the page says, what it asks
-// for, and what everyone else sees afterwards. The rules themselves are
+// Deleting your own account (STOOP-222): what the page says, and what
+// everyone else sees afterwards. The rules themselves are
 // covered over HTTP in internal/app/e2e_account_test.go; this is the
 // person's side of it.
 test("deleting your own account", async ({ browser }) => {
@@ -23,14 +23,9 @@ test("deleting your own account", async ({ browser }) => {
   await expect(card, "the card spells out the consequences").toContainText(
     "Your messages stay",
   );
+  // A second click, and no password: this sign-in is recent, which is
+  // what confirms it's the person.
   await card.getByRole("button", { name: "Delete my account…" }).click();
-  await card.locator('input[type="password"]').fill("wrong");
-  await card.getByRole("button", { name: "Delete my account" }).click();
-  await expect(
-    card.locator(".error"),
-    "a wrong password is refused",
-  ).toContainText("incorrect");
-  await card.locator('input[type="password"]').fill("correct horse battery");
   await card.getByRole("button", { name: "Delete my account" }).click();
   await expect(B, "the deleted account lands on the login page").toHaveURL(
     /\/login/,

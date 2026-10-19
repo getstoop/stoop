@@ -1,30 +1,27 @@
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../../api/clients";
-import { RECENT_SIGN_IN_HINT } from "../../../api/recentSignIn";
-import { Field } from "../../../components/Field";
+import { useRecentSignIn } from "../../../api/recentSignIn";
 import { useFieldErrors } from "../../../hooks/useFieldErrors";
 
-// Removing the address asks for the password, when the account has one.
+// Removing the address: a recent sign-in confirms it's the person
+// (ConfirmBanner), so there is nothing to type.
 export function RemoveForm({
-  hasPassword,
   onRemoved,
   onClose,
 }: {
-  hasPassword: boolean;
   onRemoved: () => void;
   onClose: () => void;
 }) {
-  const [password, setPassword] = useState("");
+  const recent = useRecentSignIn();
   const [busy, setBusy] = useState(false);
-  // Without a password there is no field for a refusal to land on.
-  const form = useFieldErrors(hasPassword ? ["password"] : []);
+  const form = useFieldErrors([]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     form.begin();
     setBusy(true);
     try {
-      await authClient.removeEmail({ password });
+      await authClient.removeEmail({});
       onRemoved();
     } catch (err) {
       form.fail(err);
@@ -34,25 +31,17 @@ export function RemoveForm({
 
   return (
     <form ref={form.formRef} onSubmit={submit} noValidate>
-      {hasPassword ? (
-        <Field label="Current password" error={form.errors.password}>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-        </Field>
-      ) : (
-        <p className="hint">{RECENT_SIGN_IN_HINT}</p>
-      )}
       {form.formError && (
         <p className="error" role="alert">
           {form.formError}
         </p>
       )}
       <div className="setting-actions">
-        <button type="submit" className="primary danger" disabled={busy}>
+        <button
+          type="submit"
+          className="primary danger"
+          disabled={busy || recent === false}
+        >
           {busy ? "Removing…" : "Remove address"}
         </button>
         <button

@@ -18,32 +18,42 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// ageSession backdates the caller's session past the ten minutes a
+// ageSession backdates the caller's session past the five minutes a
 // sign-in counts as recent.
 func ageSession(t *testing.T, pool *pgxpool.Pool, ctx context.Context) {
 	t.Helper()
 	id, _ := authctx.From(ctx)
 	if _, err := pool.Exec(context.Background(),
-		`UPDATE credentials SET created_at = now() - interval '11 minutes' WHERE id = $1`, id.Credential.ID); err != nil {
+		`UPDATE credentials SET created_at = now() - interval '6 minutes' WHERE id = $1`, id.Credential.ID); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// An account without a password has nothing to type to prove it's the
-// person. Every change the password would guard asks for a recent sign-in
-// instead, so a stolen session can't set a password or move the email
-// address and keep the account (STOOP-511).
-func TestPasswordlessChangesNeedRecentSignIn(t *testing.T) {
+// asSession is the identity behind a session token, as the interceptor
+// would set it.
+func asSession(t *testing.T, svc *auth.Service, token string) context.Context {
+	t.Helper()
+	id, err := svc.VerifyToken(context.Background(), token)
+	if err != nil {
+		t.Fatalf("verify %q: %v", token, err)
+	}
+	return authctx.WithIdentity(context.Background(), id)
+}
+
+// Every change that could keep an account after its session is stolen
+// asks for a recent sign-in, password or not, so a stolen session can't
+// set a password, move the email address, or remove the account (STOOP-511).
+func TestSensitiveChangesNeedRecentSignIn(t *testing.T) {
 	changes := []struct {
 		name string
 		do   func(ctx context.Context, svc *auth.Service) error
 	}{
-		{"set a first password", func(ctx context.Context, svc *auth.Service) error {
+		{"set or change the password", func(ctx context.Context, svc *auth.Service) error {
 			_, err := svc.ChangePassword(ctx, connect.NewRequest(&authv1.ChangePasswordRequest{NewPassword: "a brand new password"}))
 			return err
 		}},
 		{"change the email address", func(ctx context.Context, svc *auth.Service) error {
-			_, err := requestEmail(ctx, svc, "mine@example.com", "")
+			_, err := requestEmail(ctx, svc, "mine@example.com")
 			return err
 		}},
 		{"remove the email address", func(ctx context.Context, svc *auth.Service) error {
@@ -55,23 +65,50 @@ func TestPasswordlessChangesNeedRecentSignIn(t *testing.T) {
 			return err
 		}},
 	}
-	for _, change := range changes {
-		t.Run(change.name, func(t *testing.T) {
-			svc, pool, _ := emailService(t)
-			signIn(t, svc, "owner", casePassword) // the first account is the owner
+	accounts := []struct {
+		kind string
+		make func(t *testing.T, svc *auth.Service, pool *pgxpool.Pool, name string) context.Context
+	}{
+		{"with a password", func(t *testing.T, svc *auth.Service, _ *pgxpool.Pool, name string) context.Context {
+			ctx, _ := signIn(t, svc, name, casePassword)
+			return ctx
+		}},
+		{"without one", func(t *testing.T, svc *auth.Service, pool *pgxpool.Pool, name string) context.Context {
+			ctx, _ := socialUser(t, svc, pool, name, "sso")
+			return ctx
+		}},
+	}
+	for _, account := range accounts {
+		for _, change := range changes {
+			t.Run(account.kind+"/"+change.name, func(t *testing.T) {
+				svc, pool, _ := emailService(t)
+				signIn(t, svc, "owner", casePassword) // the first account is the owner
 
-			stale, _ := socialUser(t, svc, pool, "stale", "sso")
-			ageSession(t, pool, stale)
-			err := change.do(stale, svc)
-			if codeOf(err) != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), "sign in again first") {
-				t.Fatalf("session older than ten minutes: want failed_precondition asking to sign in again, got %v", err)
-			}
+				stale := account.make(t, svc, pool, "stale")
+				ageSession(t, pool, stale)
+				err := change.do(stale, svc)
+				if codeOf(err) != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), "sign in again first") {
+					t.Fatalf("session older than five minutes: want failed_precondition asking to sign in again, got %v", err)
+				}
 
-			fresh, _ := socialUser(t, svc, pool, "fresh", "sso")
-			if err := change.do(fresh, svc); err != nil {
-				t.Fatalf("just signed in: %v", err)
-			}
-		})
+				fresh := account.make(t, svc, pool, "fresh")
+				if err := change.do(fresh, svc); err != nil {
+					t.Fatalf("just signed in: %v", err)
+				}
+			})
+		}
+	}
+}
+
+// Unlinking is gated too; the fresh case is TestUnlinkIdentityGuard's.
+func TestUnlinkNeedsRecentSignIn(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
+	ctx, _ := socialUser(t, svc, pool, "quinn", "sso")
+	ageSession(t, pool, ctx)
+	_, err := svc.UnlinkIdentity(ctx, connect.NewRequest(&authv1.UnlinkIdentityRequest{Provider: "sso"}))
+	if codeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("want failed_precondition, got %v", err)
 	}
 }
 
@@ -107,7 +144,7 @@ func TestCreatingATokenNeedsRecentSignIn(t *testing.T) {
 	stale, _ := signIn(t, svc, "ada", casePassword)
 	ageSession(t, pool, stale)
 	if err := create(stale); codeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("session older than ten minutes: want failed_precondition, got %v", err)
+		t.Fatalf("session older than five minutes: want failed_precondition, got %v", err)
 	}
 	fresh, _ := signIn(t, svc, "ada", casePassword)
 	if err := create(fresh); err != nil {
@@ -166,24 +203,73 @@ func TestNoTokenFromASignedOutSession(t *testing.T) {
 	}
 }
 
-// The password a signed-in person types to confirm a change is guarded
-// like the login form's, on the same budget: a stolen session is not a
-// way to guess it without limit.
-func TestAccountPasswordChecksShareTheLockout(t *testing.T) {
+// Reauthenticating with the password replaces the session: the new one is
+// a recent sign-in, and the old one stops working wherever it was copied.
+func TestReauthenticate(t *testing.T) {
+	svc, pool, _ := emailService(t)
+	ada, old := signIn(t, svc, "ada", casePassword)
+	_, phone := signIn(t, svc, "ada", casePassword) // another device
+	ageSession(t, pool, ada)
+
+	res, err := svc.Reauthenticate(ada, connect.NewRequest(&authv1.ReauthenticateRequest{Password: casePassword}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Header().Get("Set-Cookie"), res.Msg.Token) {
+		t.Error("the new session isn't set as the cookie")
+	}
+	bg := context.Background()
+	if _, err := svc.VerifyToken(bg, old); err == nil {
+		t.Error("the replaced session still works")
+	}
+	if _, err := svc.VerifyToken(bg, phone); err != nil {
+		t.Errorf("another device was signed out: %v", err)
+	}
+	if _, err := requestEmail(asSession(t, svc, res.Msg.Token), svc, "ada@example.com"); err != nil {
+		t.Errorf("the new session isn't a recent sign-in: %v", err)
+	}
+}
+
+// Every refusal says the same thing, and an account without a password
+// has none to confirm with.
+func TestReauthenticateRefusals(t *testing.T) {
+	svc, pool, _ := emailService(t)
+	signIn(t, svc, "owner", casePassword)
+	ada, _ := signIn(t, svc, "ada", casePassword)
+	sasha, _ := socialUser(t, svc, pool, "sasha", "sso")
+	for name, try := range map[string]func() error{
+		"a wrong password": func() error {
+			_, err := svc.Reauthenticate(ada, connect.NewRequest(&authv1.ReauthenticateRequest{Password: "not it"}))
+			return err
+		},
+		"no password on the account": func() error {
+			_, err := svc.Reauthenticate(sasha, connect.NewRequest(&authv1.ReauthenticateRequest{Password: casePassword}))
+			return err
+		},
+	} {
+		err := try()
+		if codeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "Couldn't confirm it's you") {
+			t.Errorf("%s: want the generic refusal, got %v", name, err)
+		}
+	}
+}
+
+// The password typed to confirm it's you is guarded like the login form's,
+// on the same budget: a stolen session is not a way to guess it without
+// limit.
+func TestReauthenticateSharesTheLockout(t *testing.T) {
 	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
 	ada, _ := signIn(t, svc, "ada", casePassword)
-	change := func(current string) error {
-		_, err := svc.ChangePassword(ada, connect.NewRequest(&authv1.ChangePasswordRequest{
-			CurrentPassword: current, NewPassword: "a brand new password",
-		}))
+	confirm := func(password string) error {
+		_, err := svc.Reauthenticate(ada, connect.NewRequest(&authv1.ReauthenticateRequest{Password: password}))
 		return err
 	}
 	for range 5 {
-		if err := change("not the password"); codeOf(err) != connect.CodeInvalidArgument {
+		if err := confirm("not the password"); codeOf(err) != connect.CodeInvalidArgument {
 			t.Fatalf("wrong password: want invalid_argument, got %v", err)
 		}
 	}
-	if err := change(casePassword); codeOf(err) != connect.CodeResourceExhausted {
+	if err := confirm(casePassword); codeOf(err) != connect.CodeResourceExhausted {
 		t.Fatalf("after five wrong guesses: want resource_exhausted, got %v", err)
 	}
 	_, err := svc.Login(context.Background(), connect.NewRequest(&authv1.LoginRequest{Username: "ada", Password: casePassword}))

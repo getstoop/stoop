@@ -117,21 +117,15 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 	if err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
-	// An account created via a login provider has no password yet; its
-	// first one is set here, from a recent sign-in, since there is no
-	// password to check against.
+	// The same proof for a first password and a new one: a recent sign-in
+	// (reauth.go). An account created via a login provider has no password
+	// to check against, and one that has is confirmed the same way.
+	what := "change your password"
 	if user.PasswordHash == nil {
-		if err := s.requireRecentSignIn(ctx, id.SessionID, "set a password"); err != nil {
-			return nil, err
-		}
-	} else {
-		match, err := s.accountPasswordMatches(ctx, user, req.Msg.CurrentPassword)
-		if err != nil {
-			return nil, err
-		}
-		if !match {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "current_password", errors.New("current password is incorrect"))
-		}
+		what = "set a password"
+	}
+	if err := s.requireRecentSignIn(ctx, id.SessionID, what); err != nil {
+		return nil, err
 	}
 
 	hash, err := s.hashPassword(ctx, req.Msg.NewPassword)
