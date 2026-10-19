@@ -491,6 +491,13 @@ Password sign-in on the phone is `Login`, whose response carries the
 token for bearer clients; a new account is `Register` and then `Login`,
 since `Register` sets only a cookie.
 
+The app makes every request without cookies (`mobile/src/api/fetch.ts`).
+These routes and `Login` also set the browser session cookie, and React
+Native keeps cookies by default: kept, it would be a second copy of the
+session in the app's cookie store, outside the keychain and carried to
+another phone by a backup, and still live after a sign-out that couldn't
+reach the server.
+
 #### Linking from the desktop app
 
 An attempt is a **sign-in** or a **link**, never both, and the start URL has

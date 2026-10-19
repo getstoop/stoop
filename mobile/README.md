@@ -16,7 +16,8 @@ builds locally; no Expo cloud services are used.
 
 So far it is the welcome screen, Add a server, which checks a typed
 address, and Sign in, by password, a login provider, or a new account
-where the server takes them without an invite. A signed-in server opens
+where the server takes them without an invite, with Forgot password
+asking the server for a reset link. A signed-in server opens
 on a stand-in that says who you are, until the Spaces tab replaces it.
 The screens follow the mobile mockups, one at a time.
 
@@ -32,7 +33,10 @@ import a screen; the screens themselves live in `src/screens`, so
   object through route parameters. A notification or a link can open any
   screen cold, so it must work that way anyway.
 - A screen that needs something first (a server, a session) gets a
-  redirect in its folder's `_layout.tsx`, not a check in the screen.
+  redirect in its folder's `_layout.tsx`, not a check in the screen. A
+  layout sees only its own path segments (`[id]`), never the `?query`:
+  a guard on a query parameter goes in the route file instead
+  (`src/app/sign-in/index.tsx`).
 - Buttons navigate with `useRouter()` in `onPress`, not by sitting inside
   `<Link asChild>`: the link hands its own props down and drops a
   `Pressable`'s style function, so the button loses its look.

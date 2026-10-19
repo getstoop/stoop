@@ -3,6 +3,7 @@ import * as Crypto from "expo-crypto";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { authClient } from "./clients";
+import { fetchWithoutCookies } from "./fetch";
 import { loginErrorText } from "./loginErrors";
 import { hostOf } from "./probe";
 
@@ -79,7 +80,13 @@ export async function signInWithProvider(
     attemptVerifier: verifier,
   });
   if (!done.ok || typeof done.body.token !== "string" || !done.body.token) {
-    throw new SignInError("That sign-in link has expired. Try signing in again.");
+    // code_invalid is a code past its 60 seconds, or already used; any
+    // other failure is the server's, and saying "expired" would mislead.
+    throw new SignInError(
+      done.body.error === "code_invalid"
+        ? "That sign-in link has expired. Try signing in again."
+        : "Sign-in failed — please try again.",
+    );
   }
   return { kind: "signedIn", token: done.body.token };
 }
@@ -114,7 +121,7 @@ async function postJSON(
 ): Promise<{ ok: boolean; body: JSONBody }> {
   let res: Response;
   try {
-    res = await fetch(`${origin}${path}`, {
+    res = await fetchWithoutCookies(`${origin}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),

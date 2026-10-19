@@ -1,9 +1,13 @@
-import { useLocalSearchParams } from "expo-router";
+import { Redirect, useLocalSearchParams } from "expo-router";
 import { normalizeServerUrl } from "../../api/probe";
 import SignIn from "../../screens/SignIn";
 
+// /sign-in?server=<origin>, from Add a server. Without a server to sign
+// in to there is nothing here. The check lives in the route, not a
+// _layout: a layout's own params don't carry the ?query.
 export default function SignInRoute() {
-  const { server } = useLocalSearchParams<{ server: string }>();
-  const origin = normalizeServerUrl(server);
-  return origin ? <SignIn origin={origin} /> : null;
+  const { server } = useLocalSearchParams<{ server?: string }>();
+  const origin = normalizeServerUrl(server ?? "");
+  if (!origin) return <Redirect href="/" />;
+  return <SignIn origin={origin} />;
 }

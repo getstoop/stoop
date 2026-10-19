@@ -1,4 +1,5 @@
 import { instanceClient } from "./clients";
+import { fetchWithoutCookies } from "./fetch";
 
 // Asking a typed address whether it is a Stoop server the app can use,
 // before anyone signs in. The rules follow the desktop app's probe, so
@@ -47,7 +48,7 @@ export async function probeServer(origin: string, signal: AbortSignal): Promise<
   const timeout = withTimeout(signal);
   let res: Response;
   try {
-    res = await fetch(`${origin}/version`, {
+    res = await fetchWithoutCookies(`${origin}/version`, {
       signal: timeout.signal,
       headers: { accept: "application/json" },
     });

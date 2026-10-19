@@ -2,6 +2,7 @@ import { type Client, createClient, type Interceptor } from "@connectrpc/connect
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AuthService } from "@stoop/gen/stoop/auth/v1/auth_pb";
 import { InstanceService } from "@stoop/gen/stoop/instance/v1/instance_pb";
+import { fetchWithoutCookies } from "./fetch";
 
 // Unlike web's transport (web/src/api/clients.ts) there is no cookie: a
 // signed-in call carries its session as a bearer token, which the server
@@ -21,6 +22,7 @@ function transport(origin: string, token?: string) {
     baseUrl: origin,
     useBinaryFormat: true,
     interceptors: token ? [bearer] : [],
+    fetch: fetchWithoutCookies,
   });
 }
 

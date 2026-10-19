@@ -2,17 +2,10 @@ import type { GetInstanceStatusResponse } from "@stoop/gen/stoop/instance/v1/ins
 import { PasswordSignIn, RegistrationPolicy } from "@stoop/gen/stoop/instance/v1/instance_pb";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { instanceClient } from "../../api/clients";
+import { resetOffered } from "../../api/passwordReset";
 import { hostOf } from "../../api/probe";
 import {
   createAccount,
@@ -21,11 +14,13 @@ import {
   signInWithProvider,
 } from "../../api/signIn";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
+import ServerPill from "../../components/ServerPill";
 import { useServers } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ModeToggle, { type Mode } from "./ModeToggle";
+import PasswordForm from "./PasswordForm";
 import ProviderButtons from "./ProviderButtons";
-import ServerPill from "./ServerPill";
+import StatusNotice from "./StatusNotice";
 
 // Signing in to a server just added: a password, a login provider, or a
 // new account where the server takes them without an invite. What it
@@ -46,9 +41,6 @@ export default function SignIn({ origin }: { origin: string }) {
   const { signedIn } = useServers();
   const [status, setStatus] = useState<Status>({ state: "loading" });
   const [mode, setMode] = useState<Mode>("sign-in");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [focused, setFocused] = useState<"username" | "password" | null>(null);
   // An admin's way to the password form where it is otherwise hidden.
   const [forcePassword, setForcePassword] = useState(false);
   // "password", or the provider whose round trip is under way.
@@ -67,43 +59,18 @@ export default function SignIn({ origin }: { origin: string }) {
   const name = status.state === "ready" ? status.status.instanceName || hostOf(origin) : hostOf(origin);
   const header = <Stack.Screen options={{ headerTitle: () => <ServerPill origin={origin} name={name} /> }} />;
 
-  if (status.state !== "ready") {
+  if (status.state !== "ready" || status.status.needsSetup) {
+    const notice =
+      status.state === "loading" ? "loading" : status.state === "failed" ? "unreachable" : "needs-setup";
     return (
       <View style={[styles.screen, styles.center]}>
         {header}
-        {status.state === "loading" ? (
-          <ActivityIndicator color={theme.textMuted} />
-        ) : (
-          <View style={styles.notice} accessibilityRole="alert">
-            <Text style={styles.noticeHeading}>Can't reach {hostOf(origin)}</Text>
-            <Text style={styles.noticeBody}>
-              Check that this phone is on a network that can reach the server.
-            </Text>
-            <Pressable accessibilityRole="button" onPress={load} style={styles.secondary}>
-              <Text style={styles.secondaryLabel}>Try again</Text>
-            </Pressable>
-          </View>
-        )}
+        <StatusNotice notice={notice} origin={origin} name={name} onRetry={load} />
       </View>
     );
   }
 
   const s = status.status;
-  if (s.needsSetup) {
-    return (
-      <View style={[styles.screen, styles.center]}>
-        {header}
-        <View style={styles.notice} accessibilityRole="alert">
-          <Text style={styles.noticeHeading}>{name} isn't set up yet</Text>
-          <Text style={styles.noticeBody}>
-            Its first account is made in a browser. Open {hostOf(origin)} there to finish
-            setting it up, then come back to sign in.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   const providers = s.loginProviders;
   const passwordSignIn = s.passwordSignIn;
   // As web's passwordFormShown: admins-only or off, the form hides unless
@@ -116,19 +83,26 @@ export default function SignIn({ origin }: { origin: string }) {
     s.registrationPolicy === RegistrationPolicy.OPEN &&
     passwordSignIn === PasswordSignIn.EVERYONE;
   const creating = canCreate && mode === "create";
+  // As web's forgotLinkShown: the server can email a link, and password
+  // sign-in isn't off.
+  const forgot = resetOffered(s.passwordResetAvailable, passwordSignIn)
+    ? () => router.push({ pathname: "/forgot-password", params: { server: origin } })
+    : undefined;
 
   const finish = async (token: string) => {
     const id = await signedIn(origin, name, token);
-    router.dismissAll();
+    // Opened from a link, sign-in can be the only screen in the stack,
+    // with nothing under it to dismiss.
+    if (router.canDismiss()) router.dismissAll();
     router.replace({ pathname: "/s/[id]", params: { id } });
   };
 
-  const submitPassword = async () => {
+  const submitPassword = async (username: string, password: string) => {
     setBusy("password");
     setError(null);
     try {
       const signIn = creating ? createAccount : signInWithPassword;
-      await finish(await signIn(origin, username.trim(), password));
+      await finish(await signIn(origin, username, password));
     } catch (err) {
       setError(signInErrorText(err));
       setBusy(null);
@@ -150,8 +124,6 @@ export default function SignIn({ origin }: { origin: string }) {
     setBusy(null);
   };
 
-  const ready = username.trim() !== "" && password !== "" && busy === null;
-
   return (
     <View style={[styles.screen, { paddingBottom: (keyboard || insets.bottom) + 8 }]}>
       {header}
@@ -169,70 +141,14 @@ export default function SignIn({ origin }: { origin: string }) {
           />
         )}
         {showForm && (
-          <>
-            <View style={styles.field}>
-              <Text style={styles.label} nativeID="sign-in-username">
-                Username
-              </Text>
-              <TextInput
-                value={username}
-                onChangeText={setUsername}
-                onFocus={() => setFocused("username")}
-                onBlur={() => setFocused(null)}
-                accessibilityLabel="Username"
-                accessibilityLabelledBy="sign-in-username"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete={creating ? "username-new" : "username"}
-                textContentType="username"
-                returnKeyType="next"
-                style={[styles.input, focused === "username" && styles.inputFocused]}
-              />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.label} nativeID="sign-in-password">
-                Password
-              </Text>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                onFocus={() => setFocused("password")}
-                onBlur={() => setFocused(null)}
-                onSubmitEditing={() => ready && submitPassword()}
-                accessibilityLabel="Password"
-                accessibilityLabelledBy="sign-in-password"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete={creating ? "new-password" : "current-password"}
-                textContentType={creating ? "newPassword" : "password"}
-                returnKeyType="go"
-                style={[styles.input, focused === "password" && styles.inputFocused]}
-              />
-            </View>
-            {error && (
-              <Text style={styles.error} accessibilityRole="alert">
-                {error}
-              </Text>
-            )}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !ready, busy: busy === "password" }}
-              disabled={!ready}
-              onPress={submitPassword}
-              style={({ pressed }) => [
-                styles.button,
-                !ready && busy !== "password" && styles.disabled,
-                pressed && styles.pressed,
-              ]}
-            >
-              {busy === "password" ? (
-                <ActivityIndicator color={theme.onAccent} />
-              ) : (
-                <Text style={styles.buttonLabel}>{creating ? "Create account" : "Sign in"}</Text>
-              )}
-            </Pressable>
-          </>
+          <PasswordForm
+            creating={creating}
+            pending={busy === "password"}
+            locked={busy !== null}
+            error={error}
+            onSubmit={submitPassword}
+            onForgot={forgot}
+          />
         )}
         {showForm && providers.length > 0 && !creating && (
           <View style={styles.divider} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -291,49 +207,10 @@ function makeStyles(theme: Theme) {
       lineHeight: tokens.textXl * tokens.leadingTight,
       fontWeight: "700",
     },
-    field: {
-      gap: 6,
-    },
-    label: {
-      color: theme.textMuted,
-      fontSize: tokens.textUi,
-      fontWeight: "600",
-    },
-    input: {
-      height: 48,
-      paddingHorizontal: 12,
-      borderRadius: tokens.radiusMd,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.panel,
-      color: theme.text,
-      fontSize: tokens.textBody,
-    },
-    inputFocused: {
-      borderColor: theme.accent,
-    },
     error: {
       color: theme.danger,
       fontSize: tokens.textUi,
       lineHeight: tokens.textUi * tokens.leadingUi,
-    },
-    button: {
-      height: 50,
-      borderRadius: tokens.radiusMd,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.accent,
-    },
-    disabled: {
-      opacity: tokens.disabled,
-    },
-    pressed: {
-      opacity: 0.85,
-    },
-    buttonLabel: {
-      color: theme.onAccent,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
     },
     divider: {
       flexDirection: "row",
@@ -358,37 +235,6 @@ function makeStyles(theme: Theme) {
       fontSize: tokens.textUi,
       fontWeight: "600",
       textAlign: "center",
-    },
-    notice: {
-      padding: 16,
-      gap: 8,
-      borderRadius: tokens.radiusLg,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.panel,
-    },
-    noticeHeading: {
-      color: theme.text,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
-    },
-    noticeBody: {
-      color: theme.text,
-      fontSize: tokens.textUi,
-      lineHeight: tokens.textUi * tokens.leadingUi,
-    },
-    secondary: {
-      marginTop: 4,
-      height: 44,
-      borderRadius: tokens.radiusMd,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.raised,
-    },
-    secondaryLabel: {
-      color: theme.text,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
     },
   });
 }

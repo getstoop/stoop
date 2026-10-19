@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
-import { hostOf } from "../../api/probe";
-import { type Theme, tokens, useTheme } from "../../theme";
+import { hostOf } from "../api/probe";
+import { type Theme, tokens, useTheme } from "../theme";
 
 // Which server this sign-in is for, in the header: its first letter and
 // its address.
