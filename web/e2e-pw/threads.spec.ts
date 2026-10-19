@@ -51,7 +51,7 @@ test("threads", async ({ browser }) => {
   await expect(
     panel(B).locator(".side-panel-subtitle"),
     "and says which channel it came from",
-  ).toHaveText("# general");
+  ).toHaveText("#general");
   await expect(
     panelRows(B).first(),
     "with the message at the top",
@@ -98,7 +98,7 @@ test("threads", async ({ browser }) => {
   await expect(
     panel(B).locator(".side-panel-subtitle"),
     "still on the #general thread",
-  ).toHaveText("# general");
+  ).toHaveText("#general");
   await expect(panelRows(B).filter({ hasText: "the cooler" })).toHaveCount(1);
 
   // The channel name in the header goes to that channel, on the thread's

@@ -26,7 +26,7 @@ test("an announcement channel", async ({ browser }) => {
   await expect(
     notice(B),
     "the member's composer becomes the notice",
-  ).toContainText("# general is an announcement channel.");
+  ).toContainText("#general is an announcement channel.");
   await expect(composer(B), "…with no composer left").toHaveCount(0);
   await expect(
     B.locator(".channel-link .channel-hash.icon"),
