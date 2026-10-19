@@ -62,9 +62,9 @@ export function SessionsSection() {
   const signOutEverywhere = async () => {
     if (
       !(await confirm({
-        title: "Sign out everywhere?",
-        body: `Every device signs out, this one too${others > 0 ? ` (${others + 1} sessions)` : ""}, and your personal tokens stop working. You'll sign in again.`,
-        action: "Sign out everywhere",
+        title: "Log out everywhere?",
+        body: `Every device logs out, this one too${others > 0 ? ` (${others + 1} sessions)` : ""}, and your personal tokens stop working. You'll log in again.`,
+        action: "Log out everywhere",
         danger: true,
       }))
     ) {
@@ -88,7 +88,7 @@ export function SessionsSection() {
       {current && (
         <p className="hint">
           This device: {describeUserAgent(current.userAgent)}. If you don't
-          recognise the rest, sign out everywhere, sign back in and change your
+          recognise the rest, log out everywhere, log back in and change your
           password.
         </p>
       )}
@@ -117,7 +117,7 @@ export function SessionsSection() {
           disabled={busy}
           onClick={signOutEverywhere}
         >
-          Sign out everywhere
+          Log out everywhere
         </button>
       </div>
     </section>
