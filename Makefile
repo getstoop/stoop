@@ -1,4 +1,4 @@
-.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck
+.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck mobile-theme mobile-metro
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -135,6 +135,16 @@ mobile-ios:
 ## mobile-android: the same for a connected Android phone (USB debugging on)
 mobile-android:
 	cd mobile && pnpm install --frozen-lockfile && pnpm exec expo run:android --device
+
+## mobile-metro: start Metro for a development build already on the phone
+## (no native rebuild)
+mobile-metro:
+	cd mobile && pnpm install --frozen-lockfile && pnpm start
+
+## mobile-theme: regenerate mobile/src/theme/generated.ts from web's themes
+## and tokens (scripts/gen-mobile-theme.mjs)
+mobile-theme:
+	node scripts/gen-mobile-theme.mjs
 
 ## mobile-typecheck: tsc over mobile/, generated client included
 mobile-typecheck:

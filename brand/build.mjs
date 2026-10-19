@@ -111,6 +111,15 @@ for (const [name, fill] of [["brownstone", "#b5482f"], ["ember", "#e2725b"], ["s
 await raster("icon-rounded", join(press, "icon-1024.png"), 1024);
 await raster("icon-rounded", join(press, "icon-256.png"), 256);
 
+// ---- mobile/assets ---------------------------------------------------------
+
+// The bare mark in black, which the app tints with the theme's accent
+// (Image's tintColor), so one set of files serves every theme.
+const app = join(root, "mobile/assets");
+await raster("mark", join(app, "mark.png"), 96);
+await raster("mark", join(app, "mark@2x.png"), 96, { scale: 2 });
+await raster("mark", join(app, "mark@3x.png"), 96, { scale: 3 });
+
 await browser.close();
 rmSync(tmp, { recursive: true });
 
