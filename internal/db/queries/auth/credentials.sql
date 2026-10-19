@@ -63,11 +63,19 @@ RETURNING id, holder_id;
 -- name: TouchCredential :exec
 UPDATE credentials SET last_used_at = now() WHERE id = $1;
 
+-- CreatePersonalToken inserts only while the session making it still
+-- exists, holding it against deletion meanwhile: a token can't be slipped
+-- in past a SignOutEverywhere that ends that session (no row, then).
 -- name: CreatePersonalToken :one
 INSERT INTO credentials (id, holder_id, kind, token_hash, name, grants, bounded, created_by, expires_at, hint)
-VALUES (sqlc.arg(id)::uuid, sqlc.arg(holder_id)::uuid, 'personal_token', sqlc.arg(token_hash)::bytea,
-        sqlc.arg(name)::text, sqlc.arg(grants)::text[], sqlc.arg(bounded)::boolean, sqlc.arg(holder_id)::uuid,
-        sqlc.narg(expires_at)::timestamptz, sqlc.arg(hint)::text)
+SELECT sqlc.arg(id)::uuid, sqlc.arg(holder_id)::uuid, 'personal_token', sqlc.arg(token_hash)::bytea,
+       sqlc.arg(name)::text, sqlc.arg(grants)::text[], sqlc.arg(bounded)::boolean, sqlc.arg(holder_id)::uuid,
+       sqlc.narg(expires_at)::timestamptz, sqlc.arg(hint)::text
+WHERE EXISTS (
+  SELECT 1 FROM credentials s
+  WHERE s.id = sqlc.arg(session_id)::uuid AND s.kind = 'session'
+  FOR SHARE
+)
 RETURNING *;
 
 -- ListPersonalTokens is one account's tokens, expired ones included.

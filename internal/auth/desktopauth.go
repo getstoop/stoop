@@ -237,6 +237,14 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 			desktopError(w, http.StatusUnauthorized, "login_state")
 			return
 		}
+		if failCode := s.linkNeedsSignIn(r.Context(), ident.SessionID); failCode != "" {
+			status := http.StatusForbidden
+			if failCode == "server_error" {
+				status = http.StatusInternalServerError
+			}
+			desktopError(w, status, failCode)
+			return
+		}
 		a.linkUserID, a.sessionID = ident.UserID, ident.SessionID
 	}
 	id, err := s.desktop.begin(r.Context(), a)

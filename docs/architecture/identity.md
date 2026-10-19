@@ -170,9 +170,21 @@ without one for a session under ten minutes old instead
 (`requireRecentSignIn`), and refuses an older one with "sign in again
 first". Without it, a stolen session for such an account could set a
 password, or move the address and reset one, and keep the account for
-good. The profile page says so beside each of those forms. Confirming
-with the login provider in place, without signing out and back in, is
-STOOP-511's second part.
+good. The profile page says so beside each of those forms.
+
+**Some changes need a recent sign-in from everyone.** Linking a login
+provider and making a personal token each add a way in that outlives the
+session, so they take a session under ten minutes old whether or not the
+account has a password. Only a session counts: a token is never a
+sign-in, however new. Asking for a fresh sign-in in place, and moving
+every one of these changes onto it, is STOOP-511's second part
+([proposals/reauth.md](../proposals/reauth.md)).
+
+**A typed password is guarded like the login form's.** The current
+password a signed-in person types to change their password or email
+address, or to delete the account, goes through the same lockout as
+signing in, on the same per-handle budget, so a stolen session is not a
+way to guess it without limit.
 
 ### Not leaking which handles exist
 
@@ -244,8 +256,13 @@ exists. Use doesn't extend it.
 **A person manages their own.** `ListSessions` shows each session's
 sign-in time, last use (recorded at most once a minute, like a token's),
 expiry and the User-Agent it signed in with (`credentials.user_agent`,
-kept to 512 bytes). `RevokeOtherSessions` ends every session but the
-calling one; this one ends with `Logout`. Both need `account.security`,
+kept to 512 bytes). `SignOutEverywhere` ends every session, the calling
+one included, and every personal token, in one transaction: a copy of
+this session, or a token made from a stolen one, would otherwise outlast
+the rest. The person signs in again, which is a real sign-in. A token
+being made holds its session against deletion and is written only while
+that session exists, so none can be slipped in past it. `Logout` ends
+just this one. Both need `account.security`,
 so only a session can call them, and each revocation is announced so the
 gateway closes that session's sockets.
 
@@ -265,6 +282,8 @@ in, and expires after 30, 90 or 365 days, or never.
   message's attachment.
 - **No token can make, list or revoke tokens**, change a password or link
   a provider: those need `account.security`, which only a session carries.
+  Making one also needs a session under ten minutes old (see Passwords),
+  and signing out everywhere revokes them all.
 - **It can't join voice.** Who is in a call is reported over `/ws`, which
   a token can't open; a voice client belongs on a bot token.
 - **There is no space limit.** "This token can do what you can, wherever
@@ -390,10 +409,13 @@ isn't tied to the browser that started the flow proves nothing. Because the
 state lives in a cookie only that browser has, an attacker cannot complete
 a sign-in into someone else's session.
 
-**Account linking** has the same shape and one extra check. Starting a link
-requires a live session; the callback re-verifies *the same session id*, so
-a `stoop_login` cookie planted on someone else's browser cannot attach an
-attacker's provider identity to their account.
+**Account linking** has the same shape and two extra checks. Starting a
+link requires a live session under ten minutes old (see Passwords: a
+linked identity is a way back in that outlives the session, so a stolen
+one must not be able to add it); an older one is sent to
+`/profile?error=sign_in_again`. The callback re-verifies *the same
+session id*, so a `stoop_login` cookie planted on someone else's browser
+cannot attach an attacker's provider identity to their account.
 
 **Usernames from providers** are derived from a claim, marked
 `username_pending`, and the owner may rename once — after which they are

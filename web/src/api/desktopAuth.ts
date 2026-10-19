@@ -91,7 +91,17 @@ export async function beginDesktopAuth(
     attemptMethod: method,
     link: opts.link === true,
   });
-  if (!res.ok) throw new Error(`${what} could not be started (${res.status})`);
+  if (!res.ok) {
+    // A refusal the person can act on (a link that needs a fresh
+    // sign-in) is said in words; anything else by its status.
+    const { error } = (await res.json().catch(() => ({}))) as {
+      error?: string;
+    };
+    if (opts.link && error === "sign_in_again") {
+      throw new Error(linkErrorText(error));
+    }
+    throw new Error(`${what} could not be started (${res.status})`);
+  }
   const { attempt } = (await res.json()) as { attempt?: string };
   if (!attempt) throw new Error(`${what} could not be started`);
   const url = new URL(serverUrl(startURL));

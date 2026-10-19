@@ -70,8 +70,10 @@ service AuthService {
   // ListSessions lists where the caller is signed in, most recently used
   // first. Needs a session: a token can't see or end sessions.
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {}
-  // RevokeOtherSessions signs the caller out everywhere but here.
-  rpc RevokeOtherSessions(RevokeOtherSessionsRequest) returns (RevokeOtherSessionsResponse) {}
+  // SignOutEverywhere ends every session the caller has, this one
+  // included, and every personal token: whatever a stolen session copied
+  // or made goes with it, and the person signs in again.
+  rpc SignOutEverywhere(SignOutEverywhereRequest) returns (SignOutEverywhereResponse) {}
   // CreatePersonalToken makes a token that acts as the caller with only the
   // permissions granted. The secret is in
   // this response and nowhere else. Needs a session: no token can make
@@ -349,11 +351,13 @@ message ListSessionsResponse {
   repeated Session sessions = 1;
 }
 
-message RevokeOtherSessionsRequest {}
+message SignOutEverywhereRequest {}
 
-message RevokeOtherSessionsResponse {
-  // How many sessions were signed out.
-  int32 revoked = 1;
+message SignOutEverywhereResponse {
+  // How many sessions were signed out, this one included.
+  int32 sessions = 1;
+  // How many personal tokens were revoked.
+  int32 tokens = 2;
 }
 
 // PersonalToken is one of a person's tokens, as its holder or an admin sees

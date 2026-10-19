@@ -72,16 +72,16 @@ func emailAddressIn(raw, field string) (string, error) {
 
 // checkAccountPassword is the password check for changing the address;
 // an account without a password needs a recent sign-in instead.
-func (s *Service) checkAccountPassword(ctx context.Context, user dbgen.User, credentialID, password, what string) error {
+func (s *Service) checkAccountPassword(ctx context.Context, user dbgen.User, sessionID, password, what string) error {
 	if user.PasswordHash == nil {
-		return s.requireRecentSignIn(ctx, credentialID, what)
+		return s.requireRecentSignIn(ctx, sessionID, what)
 	}
 	if password == "" {
 		return apierr.Field(connect.CodeInvalidArgument, "password", errors.New("Enter your password."))
 	}
-	match, err := s.checkPassword(ctx, password, *user.PasswordHash)
+	match, err := s.accountPasswordMatches(ctx, user, password)
 	if err != nil {
-		return hashFailure("verify password", err)
+		return err
 	}
 	if !match {
 		return apierr.Field(connect.CodeInvalidArgument, "password", errors.New("Password is incorrect."))
@@ -89,11 +89,11 @@ func (s *Service) checkAccountPassword(ctx context.Context, user dbgen.User, cre
 	return nil
 }
 
-// credentialID is the session or token the request came with; empty when
-// there is none, which no recent sign-in matches.
-func credentialID(ctx context.Context) string {
+// sessionID is the session the request came with; empty for a token or
+// no credential at all, which no recent sign-in matches.
+func sessionID(ctx context.Context) string {
 	id, _ := authctx.From(ctx)
-	return id.Credential.ID
+	return id.SessionID
 }
 
 // requireEmailOn refuses while the instance can't send email.
@@ -188,7 +188,7 @@ func (s *Service) RequestEmailChange(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
-	if err := s.checkAccountPassword(ctx, user, credentialID(ctx), req.Msg.Password, "change your email address"); err != nil {
+	if err := s.checkAccountPassword(ctx, user, sessionID(ctx), req.Msg.Password, "change your email address"); err != nil {
 		return nil, err
 	}
 	if user.Email != nil && strings.EqualFold(*user.Email, address) {
@@ -274,7 +274,7 @@ func (s *Service) RemoveEmail(ctx context.Context, req *connect.Request[authv1.R
 	if err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
-	if err := s.checkAccountPassword(ctx, user, credentialID(ctx), req.Msg.Password, "remove your email address"); err != nil {
+	if err := s.checkAccountPassword(ctx, user, sessionID(ctx), req.Msg.Password, "remove your email address"); err != nil {
 		return nil, err
 	}
 	err = db.InTx(ctx, s.pool, func(tx pgx.Tx) error {

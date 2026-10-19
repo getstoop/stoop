@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -12,8 +13,8 @@ import (
 	"github.com/getstoop/stoop/internal/pbtime"
 )
 
-// Where a person is signed in: listing their sessions and signing all of
-// the others out. Each needs account.security, which only a session
+// Where a person is signed in: listing their sessions and signing out of
+// all of them. Each needs account.security, which only a session
 // holds, so a token can't see or end them.
 
 func (s *Service) ListSessions(ctx context.Context, _ *connect.Request[authv1.ListSessionsRequest]) (*connect.Response[authv1.ListSessionsResponse], error) {
@@ -36,17 +37,38 @@ func (s *Service) ListSessions(ctx context.Context, _ *connect.Request[authv1.Li
 	return connect.NewResponse(&authv1.ListSessionsResponse{Sessions: out}), nil
 }
 
-func (s *Service) RevokeOtherSessions(ctx context.Context, _ *connect.Request[authv1.RevokeOtherSessionsRequest]) (*connect.Response[authv1.RevokeOtherSessionsResponse], error) {
+func (s *Service) SignOutEverywhere(ctx context.Context, _ *connect.Request[authv1.SignOutEverywhereRequest]) (*connect.Response[authv1.SignOutEverywhereResponse], error) {
 	id, err := requireAccountSecurity(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.q.DeleteOtherSessions(ctx, dbgen.DeleteOtherSessionsParams{HolderID: id.UserID, ID: id.SessionID})
-	if err != nil {
-		return nil, fmt.Errorf("revoke other sessions: %w", err)
+	// Sessions first, then tokens, in one transaction: a token being made
+	// holds its session against deletion (CreatePersonalToken), so it
+	// either commits before the sessions go, and the second delete sees it,
+	// or finds its session gone and isn't made.
+	var sessions []dbgen.DeleteUserSessionsRow
+	var tokens []dbgen.DeleteUserPersonalTokensRow
+	if err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		if sessions, err = qtx.DeleteUserSessions(ctx, id.UserID); err != nil {
+			return fmt.Errorf("sign out sessions: %w", err)
+		}
+		if tokens, err = qtx.DeleteUserPersonalTokens(ctx, id.UserID); err != nil {
+			return fmt.Errorf("revoke personal tokens: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	for _, r := range rows {
+	for _, r := range sessions {
 		s.announceRevoked(r.ID, r.HolderID)
 	}
-	return connect.NewResponse(&authv1.RevokeOtherSessionsResponse{Revoked: int32(len(rows))}), nil
+	for _, r := range tokens {
+		s.announceRevoked(r.ID, r.HolderID)
+	}
+	resp := connect.NewResponse(&authv1.SignOutEverywhereResponse{
+		Sessions: int32(len(sessions)), Tokens: int32(len(tokens)),
+	})
+	resp.Header().Add("Set-Cookie", s.sessionCookie(ctx, "", -time.Second).String())
+	return resp, nil
 }
