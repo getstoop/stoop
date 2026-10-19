@@ -74,9 +74,8 @@ owner. Then they leave every space. Conversations are left as they are.
 The hand-over runs first because it is not undone: a failure after it
 leaves an account that still works and can be deleted again.
 
-The call takes the password again, or for an account that has none, a
-session started within the last ten minutes; it comes only from a
-session, never a token; the owner and the last active admin are refused,
+The call needs a recent sign-in (Confirm it's you, below); it comes only
+from a session, never a token; the owner and the last active admin are refused,
 under the same lock as a demotion; and the operator can turn it off with the
 `self_deletion` setting, on by default.
 
@@ -127,10 +126,9 @@ in force until a new one is confirmed.
   `citext`). Nothing says an address is taken: `RequestEmailChange` answers
   the same either way, and only `ConfirmEmail`, reached with a valid token
   from that inbox, can say "already in use".
-- **Changing or removing it needs the current password**, and the old
-  address is told. A stolen session can't quietly redirect where reset
-  links go. An account without a password needs a recent sign-in instead
-  (Passwords, below).
+- **Changing or removing it needs a recent sign-in** (Confirm it's you,
+  below), and the old address is told. A stolen session can't quietly
+  redirect where reset links go.
 - **Only the person and admins see it:** `GetMe` (`MyEmail`) and the admin
   account list. Never `User`, events or member lists.
 - **Asking for a link** is refused while email is off or the server has no
@@ -163,28 +161,63 @@ provider has no password until its owner sets one, and "has a password" is
 a schema fact rather than a sentinel hash that some code path might get
 wrong.
 
-**A recent sign-in stands in for a missing password.** Every change the
-current password guards — setting the first password, changing or
-removing the email address, deleting the account — asks an account
-without one for a session under ten minutes old instead
-(`requireRecentSignIn`), and refuses an older one with "sign in again
-first". Without it, a stolen session for such an account could set a
-password, or move the address and reset one, and keep the account for
-good. The profile page says so beside each of those forms.
+### Confirm it's you
 
-**Some changes need a recent sign-in from everyone.** Linking a login
-provider and making a personal token each add a way in that outlives the
-session, so they take a session under ten minutes old whether or not the
-account has a password. Only a session counts: a token is never a
-sign-in, however new. Asking for a fresh sign-in in place, and moving
-every one of these changes onto it, is STOOP-511's second part
-([proposals/reauth.md](../proposals/reauth.md)).
+**Every change that could keep an account after its session is stolen
+needs a recent sign-in**: setting or changing the password, changing or
+removing the email address, deleting the account, linking or unlinking a
+login provider, and making a personal token. Recent is a session under
+five minutes old (`requireRecentSignIn`, `recentSignIn` in
+`internal/auth/reauth.go`); an older one is refused with "sign in again
+first". No form asks for the current password: one rule covers accounts
+with a password and those without. Only a session counts: a token is
+never a sign-in, however new.
 
-**A typed password is guarded like the login form's.** The current
-password a signed-in person types to change their password or email
-address, or to delete the account, goes through the same lockout as
-signing in, on the same per-handle budget, so a stolen session is not a
-way to guess it without limit.
+**Signing in again happens in place, on `/confirm?next=`.** It offers the
+password field if the account has one and a button for each provider
+linked to it, nothing else: no username (the session says whose account
+it is; a hidden `autocomplete="username"` field is there for password
+managers), no explanation of which ways are offered. The password goes to
+`Reauthenticate`; a provider round trip starts at
+`/auth/oidc/{provider}/start?reauth=1&redirect=…`, and from the desktop
+app as a third kind of attempt (Reauth from the desktop app, below).
+
+**Success replaces the session.** A new session is made, which is the
+recent sign-in, and the old one is deleted. A thief and the person share
+one session (stealing it means copying its token), so marking it
+confirmed would confirm the thief's copy too; replacing it ends the copy.
+The person's other devices hold sessions of their own and are untouched.
+The old session is consumed and the new one made in one transaction,
+only if the old one was still there, so two replacements of one session
+racing (the person's and a thief's) can't both leave a successor. The
+old session's deletion is announced like any revocation once that
+commits, and a tab of the same browser whose socket closes for it finds
+the new cookie and reconnects
+([realtime.md](realtime.md#the-client-side)). Reauth is the only place a
+session is replaced: signing out everywhere ends this one too and hands
+nothing back.
+
+**What the server enforces:**
+
+- **The same account.** Reauth is bound to the session that started it,
+  like a link (`loginState.ReauthUserID` and `SessionID`, re-verified at
+  the callback). A provider identity that comes back must already belong
+  to that account; anything else is refused, never an account switch and
+  never a new account (`finishReauth` is its own branch, not
+  `finishSocial`).
+- **One refusal for everything.** A wrong password and someone else's
+  identity both read "Couldn't confirm it's you. Try again."
+  (`errNotConfirmed`, `?error=reauth_failed`): saying which would tell
+  someone holding the session what the account's identities are.
+- **A fresh login is asked for, not required.** The provider is sent
+  `prompt=login` and `max_age=0`, and `auth_time` is not checked. A server
+  whose only provider can't force a login, with no email set up, would
+  otherwise lock every passwordless account out of its own settings. The
+  attacker then needs the person's provider session as well as the Stoop
+  one, which a copied token doesn't bring.
+- **The password is guarded like the login form's**: `Reauthenticate`
+  goes through the same lockout, on the same per-handle budget, and the
+  per-address limiter.
 
 ### Not leaking which handles exist
 
@@ -282,8 +315,8 @@ in, and expires after 30, 90 or 365 days, or never.
   message's attachment.
 - **No token can make, list or revoke tokens**, change a password or link
   a provider: those need `account.security`, which only a session carries.
-  Making one also needs a session under ten minutes old (see Passwords),
-  and signing out everywhere revokes them all.
+  Making one also needs a recent sign-in (Confirm it's you), and signing
+  out everywhere revokes them all.
 - **It can't join voice.** Who is in a call is reported over `/ws`, which
   a token can't open; a voice client belongs on a bot token.
 - **There is no space limit.** "This token can do what you can, wherever
@@ -410,10 +443,9 @@ state lives in a cookie only that browser has, an attacker cannot complete
 a sign-in into someone else's session.
 
 **Account linking** has the same shape and two extra checks. Starting a
-link requires a live session under ten minutes old (see Passwords: a
-linked identity is a way back in that outlives the session, so a stolen
-one must not be able to add it); an older one is sent to
-`/profile?error=sign_in_again`. The callback re-verifies *the same
+link requires a recent sign-in (Confirm it's you: a linked identity is a
+way back in that outlives the session, so a stolen one must not be able
+to add it); an older session is sent to `/profile?error=sign_in_again`. The callback re-verifies *the same
 session id*, so a `stoop_login` cookie planted on someone else's browser
 cannot attach an attacker's provider identity to their account.
 
@@ -534,9 +566,9 @@ reach the server.
 
 #### Linking from the desktop app
 
-An attempt is a **sign-in** or a **link**, never both, and the start URL has
-to agree with it: a sign-in attempt with `link=1`, or a link attempt without
-it, is refused. The two differ in where the account comes from and where the
+An attempt is a **sign-in**, a **link** or a **reauth** (below), never
+more than one, and the start URL has to agree with it: a sign-in attempt
+with `link=1`, or a link attempt without it, is refused. The two differ in where the account comes from and where the
 work happens.
 
 ```
@@ -566,6 +598,18 @@ hand-back carries `link=1` and the return page builds
 `stoop://open?path=/profile?error=<code>`. The return page has its own
 wording for a link, and offers no "carry on in this browser": a link
 belongs to the app's session, which that browser does not have.
+
+#### Reauth from the desktop app
+
+Confirming it's you with a provider is a link's shape with a different
+ending. `/auth/desktop/start {"reauth": true}` records the session that
+opened it; the start URL carries `reauth=1`; the callback mints a code
+carrying the provider's claims and confirms nothing, since the system
+browser has no session; and `/auth/desktop/complete`, in the app's view,
+checks the session against the attempt's, checks that the identity is
+this account's, replaces the session (a new cookie, and the token in
+`{"token": …, "reauthed": "PROVIDER"}`) and spends the code. Failures
+carry `reauth=1` back, and land on `/confirm?error=`.
 
 #### What a stolen attempt id can do
 

@@ -35,9 +35,12 @@ type loginState struct {
 	Invite   string `json:"inv,omitempty"`
 	// LinkUserID + SessionID: attach the identity to this signed-in
 	// account instead of logging in; both are re-verified at callback.
-	LinkUserID string `json:"link,omitempty"`
-	SessionID  string `json:"sid,omitempty"`
-	Redirect   string `json:"r,omitempty"`
+	// ReauthUserID + SessionID: confirm it's this signed-in account and
+	// replace its session (reauth.go). Never both.
+	LinkUserID   string `json:"link,omitempty"`
+	ReauthUserID string `json:"reauth,omitempty"`
+	SessionID    string `json:"sid,omitempty"`
+	Redirect     string `json:"r,omitempty"`
 	// Attempt is the desktop attempt this round trip belongs to
 	// (desktopauth.go); with one, the callback hands the app a code
 	// instead of setting a session cookie in the browser.
@@ -80,12 +83,19 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		}
 		att = a
 	}
-	fail := func(code string) { s.loginFail(w, r, attempt, id, code) }
 	link := r.URL.Query().Get("link") == "1"
-	// An attempt is a sign-in or a link, and this URL has to say the same
-	// thing: a sign-in attempt can never mint the app a session for a link,
-	// and a link attempt can never mint it one at all.
-	if attempt != "" && link != att.isLink() {
+	reauth := r.URL.Query().Get("reauth") == "1"
+	fail := func(code string) { s.loginFail(w, r, attempt, id, code) }
+	if reauth && attempt == "" {
+		// A browser reauth's failures go back to the confirm page.
+		next := safeRedirectPath(r.URL.Query().Get("redirect"))
+		fail = func(code string) { reauthError(w, r, next, code) }
+	}
+	// An attempt is a sign-in, a link or a reauth, and this URL has to say
+	// the same thing: a sign-in attempt can never mint the app a session
+	// for a link, and a link or reauth attempt can never mint it one for a
+	// sign-in.
+	if (link && reauth) || (attempt != "" && (link != att.isLink() || reauth != att.isReauth())) {
 		fail("login_state")
 		return
 	}
@@ -107,7 +117,7 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 	// none.
 	if link {
 		if att.isLink() {
-			st.LinkUserID, st.SessionID = att.linkUserID, att.sessionID
+			st.LinkUserID, st.SessionID = att.userID, att.sessionID
 		} else {
 			ident, err := s.verifySession(ctx, r.Header)
 			if err != nil && !errors.Is(err, authctx.ErrNoSession) {
@@ -126,6 +136,26 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 			st.LinkUserID, st.SessionID = ident.UserID, ident.SessionID
 		}
 	}
+	// Reauth needs a live session of any age (making it recent is the
+	// point) and is bound to it like a link; a desktop reauth recorded its
+	// session at /auth/desktop/start.
+	if reauth {
+		if att.isReauth() {
+			st.ReauthUserID, st.SessionID = att.userID, att.sessionID
+		} else {
+			ident, err := s.verifySession(ctx, r.Header)
+			if err != nil && !errors.Is(err, authctx.ErrNoSession) {
+				slog.Error("verify session for a reauth", "err", err)
+				fail("server_error")
+				return
+			}
+			if err != nil {
+				fail("reauth_failed")
+				return
+			}
+			st.ReauthUserID, st.SessionID = ident.UserID, ident.SessionID
+		}
+	}
 	st.Attempt = attempt
 
 	p, redirectURI, failCode := s.loginProvider(ctx, id)
@@ -134,7 +164,7 @@ func (s *Service) oidcStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, s.loginCookie(r, s.encodeLoginState(st), loginStateTTL))
-	http.Redirect(w, r, p.authURL(st.State, st.Nonce, st.Verifier, redirectURI), http.StatusFound)
+	http.Redirect(w, r, p.authURL(st.State, st.Nonce, st.Verifier, redirectURI, reauth), http.StatusFound)
 }
 
 func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
@@ -149,6 +179,9 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fail := func(code string) { s.loginFail(w, r, st.Attempt, id, code) }
+	if st.ReauthUserID != "" && st.Attempt == "" {
+		fail = func(code string) { reauthError(w, r, st.Redirect, code) }
+	}
 	if st.Provider != id || r.URL.Query().Get("state") != st.State {
 		fail("login_state")
 		return
@@ -182,8 +215,12 @@ func (s *Service) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	// A desktop link attaches nothing here: linkIdentity re-verifies the
 	// session that started it, and this request came from the system
 	// browser, which has none.
-	if st.Attempt != "" && st.LinkUserID != "" {
+	if st.Attempt != "" && (st.LinkUserID != "" || st.ReauthUserID != "") {
 		s.desktopLinkHandOff(w, r, st, claims)
+		return
+	}
+	if st.ReauthUserID != "" {
+		s.finishReauth(w, r, st, claims)
 		return
 	}
 

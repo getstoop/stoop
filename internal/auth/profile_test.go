@@ -68,20 +68,14 @@ func TestChangePassword(t *testing.T) {
 	_, otherToken := signIn(t, svc, "ada", "correct horse battery") // a second device
 
 	_, err := svc.ChangePassword(ctx, connect.NewRequest(&authv1.ChangePasswordRequest{
-		CurrentPassword: "wrong", NewPassword: "new password 123",
-	}))
-	if codeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("wrong current password: want invalid_argument, got %v", err)
-	}
-	_, err = svc.ChangePassword(ctx, connect.NewRequest(&authv1.ChangePasswordRequest{
-		CurrentPassword: "correct horse battery", NewPassword: "short",
+		NewPassword: "short",
 	}))
 	if codeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("short new password: want invalid_argument, got %v", err)
 	}
 
 	if _, err := svc.ChangePassword(ctx, connect.NewRequest(&authv1.ChangePasswordRequest{
-		CurrentPassword: "correct horse battery", NewPassword: "new password 123",
+		NewPassword: "new password 123",
 	})); err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,6 @@
 # Confirm it's you: reauthenticating before account changes
 
-Status: agreed, not built. Tracks STOOP-511. Designs: the "Confirm it's
+Status: built (STOOP-511); identity.md → Confirm it's you is the reference now. Tracks STOOP-511. Designs: the "Confirm it's
 you" canvas (https://claude.ai/artifact/SGWADXkiH89FLSJ9x61EVA).
 
 ## The problem
@@ -33,8 +33,8 @@ more; one rule covers accounts with and without a password.
 
 1. A refused change (FailedPrecondition, "sign in again first, then …")
    or a settings page opened with an old session shows *Confirm it's
-   you*, linking to `/login?reauth=1&next=/profile`.
-2. The sign-in page in reauth mode shows the password field when the
+   you*, linking to `/confirm?next=/profile?tab=security`.
+2. The confirm page shows the password field when the
    account has a password and one button per provider **linked to this
    account**. No username: the session says whose account it is (a
    hidden `autocomplete="username"` field keeps password managers
@@ -93,9 +93,9 @@ it's you* screen once it has account settings.
 
 Tabs share the cookie and pick the new session up on their next request.
 A tab's open realtime connection is on the old session, though, and
-deleting it announces a revocation. The old session's deletion is
-announced as *replaced*, and a tab that hears that reconnects quietly
-instead of signing out.
+deleting it announces a revocation. No new event is needed: a tab whose
+socket closes as revoked asks who it is again, and when that works (the
+browser holds the new cookie) it reconnects instead of signing out.
 
 ## Pull requests
 
@@ -107,7 +107,7 @@ instead of signing out.
    go through `loginGuard`. A link is checked when it starts only: the
    round trip is bound to that session, so a second check when it is
    written would refuse a slow sign-in and stop nothing.
-2. **The reauth flow.** Reauth mode on the sign-in page, the reauth
+2. **The reauth flow.** The confirm page, the reauth
    callback branch, session replacement and its announcement, the window
    down to 5 minutes, and the inline password fields off the forms.
 3. **Later.** Admin actions behind the same gate; the phone's reauth

@@ -3,10 +3,12 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
+import { safeRedirect } from "./api/safeRedirect";
 import { ActivityPage } from "./routes/Activity";
 import { AdminPage } from "./routes/Admin";
 import { AppShell } from "./routes/AppShell";
 import { ChannelView } from "./routes/Channel";
+import { ConfirmPage } from "./routes/Confirm";
 import { ConfirmEmailPage } from "./routes/ConfirmEmail";
 import { DesktopAuthCompletePage } from "./routes/DesktopAuthComplete";
 import { DesktopAuthReturnPage } from "./routes/DesktopAuthReturn";
@@ -25,22 +27,6 @@ import { SpaceIndex, SpaceLayout } from "./routes/Space";
 import { SpaceSettingsPage } from "./routes/SpaceSettings";
 
 const rootRoute = createRootRoute({ component: Root });
-
-// ?redirect=<path> sends the user back where they were headed after login
-// (e.g. an invite link). Only same-origin absolute paths are accepted, and
-// never /login or /setup — either would leave someone who just signed in
-// looking at a page that is finished with them.
-export function safeRedirect(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  if (!value.startsWith("/") || value.startsWith("//")) return undefined;
-  // Never back onto a page whose job is done: the login form, or setup,
-  // which exists only while the instance has no accounts.
-  for (const done of ["/login", "/setup"]) {
-    if (value === done || value.startsWith(`${done}?`)) return undefined;
-    if (value.startsWith(`${done}/`)) return undefined;
-  }
-  return value;
-}
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -92,6 +78,7 @@ const desktopReturnRoute = createRoute({
     error?: string;
     provider?: string;
     link?: "1";
+    reauth?: "1";
   } => ({
     code:
       typeof search.code === "string" && search.code !== ""
@@ -109,7 +96,30 @@ const desktopReturnRoute = createRoute({
     // A link rather than a sign-in: different wording, and failures go
     // back to the profile page.
     link: search.link === "1" ? "1" : undefined,
+    // A reauth: its failures go back to the confirm page.
+    reauth: search.reauth === "1" ? "1" : undefined,
   }),
+});
+
+// "Confirm it's you": signing in again in place, before a change that
+// needs a recent sign-in. ?next= is where to go back to; ?error= is a
+// provider round trip that didn't confirm.
+const confirmRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/confirm",
+  component: ConfirmPage,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { next?: string; error?: string } => {
+    const next = safeRedirect(search.next);
+    return {
+      next: next?.startsWith("/confirm") ? undefined : next,
+      error:
+        typeof search.error === "string" && search.error !== ""
+          ? search.error.slice(0, 40)
+          : undefined,
+    };
+  },
 });
 
 // Where an email's confirmation link lands; public, so it works signed
@@ -351,6 +361,7 @@ const routeTree = rootRoute.addChildren([
   desktopAuthRoute,
   desktopReturnRoute,
   confirmEmailRoute,
+  confirmRoute,
   forgotPasswordRoute,
   resetPasswordRoute,
   appRoute.addChildren([

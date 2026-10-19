@@ -15,7 +15,7 @@ import { emailActions, emailState } from "./state";
 // The account's email address: none, one waiting for its link, or a
 // confirmed one (with perhaps a change waiting). Only the person and
 // admins see it.
-export function EmailSection({ hasPassword }: { hasPassword: boolean }) {
+export function EmailSection() {
   const queryClient = useQueryClient();
   const { data: email } = useMyEmail();
   const [open, setOpen] = useState<"address" | "remove" | null>(null);
@@ -114,7 +114,6 @@ export function EmailSection({ hasPassword }: { hasPassword: boolean }) {
       )}
       {open === "address" ? (
         <AddressForm
-          hasPassword={hasPassword}
           onSent={(next) => {
             setOpen(null);
             void showEmail(next);
@@ -123,7 +122,6 @@ export function EmailSection({ hasPassword }: { hasPassword: boolean }) {
         />
       ) : open === "remove" ? (
         <RemoveForm
-          hasPassword={hasPassword}
           onRemoved={() => {
             setOpen(null);
             void showEmail(undefined);

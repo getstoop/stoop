@@ -23,10 +23,9 @@ func TestE2EDeleteAccount(t *testing.T) {
 	alone, _ := h.space(ada, "Alone")
 	h.send(ada, sharedGeneral, "I was here").expect(t, "ok")
 
-	// A token never deletes an account, nor does the wrong password.
+	// A token never deletes an account.
 	pat := h.pat(ada, "messages.read")
-	h.rpc(pat, "stoop.auth.v1.AuthService/DeleteAccount", map[string]any{"password": password}).expect(t, "permission_denied")
-	h.rpc(ada, "stoop.auth.v1.AuthService/DeleteAccount", map[string]any{"password": "not it"}).expect(t, "invalid_argument", "incorrect")
+	h.rpc(pat, "stoop.auth.v1.AuthService/DeleteAccount", map[string]any{}).expect(t, "permission_denied")
 
 	// The operator can turn it off.
 	h.rpc(casey, "stoop.instance.v1.InstanceService/UpdateSettings", map[string]any{"selfDeletion": false}).expect(t, "ok")

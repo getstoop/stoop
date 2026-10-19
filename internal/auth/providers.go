@@ -48,8 +48,9 @@ func (s *Service) UseProviders(src ProviderSource) { s.providers = src }
 
 // provider is one ready-to-use client for a configured provider.
 type provider interface {
-	// authURL is where the browser is sent to sign in.
-	authURL(state, nonce, verifier, redirectURI string) string
+	// authURL is where the browser is sent to sign in; fresh asks the
+	// provider to sign the person in again rather than wave them through.
+	authURL(state, nonce, verifier, redirectURI string, fresh bool) string
 	// exchange redeems the authorization code and verifies what came
 	// back. Provider tokens live and die inside this call.
 	exchange(ctx context.Context, code, verifier, nonce, redirectURI string) (Claims, error)

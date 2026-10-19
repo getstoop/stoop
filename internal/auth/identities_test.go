@@ -80,13 +80,6 @@ func TestSetFirstPassword(t *testing.T) {
 	})); err != nil {
 		t.Errorf("login with the new password: %v", err)
 	}
-
-	// From here on the current password is required again.
-	if _, err := svc.ChangePassword(ctx, connect.NewRequest(&authv1.ChangePasswordRequest{
-		CurrentPassword: "wrong", NewPassword: "another fine password",
-	})); codeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("change with wrong current: want invalid_argument, got %v", err)
-	}
 }
 
 func TestUnlinkIdentityGuard(t *testing.T) {

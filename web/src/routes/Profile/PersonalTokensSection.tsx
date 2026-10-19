@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { authClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { useInstanceStatus, useMe, usePersonalTokens } from "../../api/queries";
+import { useRecentSignIn } from "../../api/recentSignIn";
 import {
   describePermissions,
   expiryOf,
@@ -28,6 +29,9 @@ export function PersonalTokensSection() {
   const queryClient = useQueryClient();
   const { data: tokens } = usePersonalTokens();
   const { data: status } = useInstanceStatus();
+  // A token outlives this session, so making one needs a recent sign-in
+  // (ConfirmBanner).
+  const recent = useRecentSignIn();
   const { data: me } = useMe();
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<{
@@ -185,6 +189,7 @@ export function PersonalTokensSection() {
             type="button"
             className="primary"
             onClick={() => setCreating(true)}
+            disabled={recent === false}
           >
             New token
           </button>

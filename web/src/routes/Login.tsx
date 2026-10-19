@@ -12,6 +12,7 @@ import {
 } from "../api/passwordReset";
 import { roleLabel } from "../api/permissions";
 import { useInstanceStatus, useInvitePreview, useMe } from "../api/queries";
+import { safeRedirect } from "../api/safeRedirect";
 import { Field } from "../components/Field";
 import { LoginProviders } from "../components/LoginProviders";
 import { SpaceIcon } from "../components/SpaceIcon";
@@ -21,7 +22,6 @@ import {
   RegistrationPolicy,
 } from "../gen/stoop/instance/v1/instance_pb";
 import { useFieldErrors } from "../hooks/useFieldErrors";
-import { safeRedirect } from "../router";
 
 // Set once a login succeeds in this browser, so the next invite landing
 // here leads with "log in" instead of "create an account". Client-side

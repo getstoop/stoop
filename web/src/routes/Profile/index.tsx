@@ -8,6 +8,7 @@ import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import { PasswordSignIn } from "../../gen/stoop/instance/v1/instance_pb";
 import { AppearanceSection } from "./AppearanceSection";
 import { BlockedSection } from "./BlockedSection";
+import { ConfirmBanner } from "./ConfirmBanner";
 import { DeleteAccountSection } from "./DeleteAccountSection";
 import { DoNotDisturbSection } from "./DoNotDisturbSection";
 import { EmailSection } from "./EmailSection";
@@ -140,15 +141,14 @@ export function ProfilePage() {
       {active === "muted" && <MutesSection />}
       {active === "security" && (
         <>
-          {status?.emailEnabled && (
-            <EmailSection hasPassword={me.hasPassword} />
-          )}
+          <ConfirmBanner />
+          {status?.emailEnabled && <EmailSection />}
           {passwordsAllowed && <PasswordForm hasPassword={me.hasPassword} />}
           <LinkedAccountsSection />
           <SessionsSection />
           <PersonalTokensSection />
           <BlockedSection />
-          <DeleteAccountSection hasPassword={me.hasPassword} />
+          <DeleteAccountSection />
         </>
       )}
     </SettingsFrame>

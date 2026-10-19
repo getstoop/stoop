@@ -39,16 +39,21 @@ type desktopAttempt struct {
 	provider  string
 	challenge string
 	method    string
-	// linkUserID and sessionID mark a link attempt and name the session
-	// that opened it; both are checked again when the code is redeemed.
-	linkUserID string
-	sessionID  string
+	// userID and sessionID name the session that opened a link or reauth
+	// attempt; both are checked again when the code is redeemed. A sign-in
+	// attempt has neither.
+	userID    string
+	sessionID string
+	// reauth marks a reauth attempt; with userID and without it, a link.
+	reauth bool
 	// claimed by the start that used it: an id is only ever visible
 	// because a browser carried it, so a second start is a replay.
 	claimed bool
 }
 
-func (a desktopAttempt) isLink() bool { return a.linkUserID != "" }
+func (a desktopAttempt) isLink() bool { return a.userID != "" && !a.reauth }
+
+func (a desktopAttempt) isReauth() bool { return a.userID != "" && a.reauth }
 
 type desktopCode struct {
 	attempt desktopAttempt
@@ -56,7 +61,7 @@ type desktopCode struct {
 	// finishSocial the browser flow obeys.
 	target string
 	// userID is who to sign in; claims are what the provider returned,
-	// held for a link attempt. One or the other, never both.
+	// held for a link or reauth attempt. One or the other, never both.
 	userID string
 	claims Claims
 }
@@ -140,15 +145,16 @@ func (d *desktopStore) redeem(ctx context.Context, code, verifier string, confir
 	return redeemed, ok, err
 }
 
-// drop discards an attempt that will never be redeemed, and reports
-// whether it was a link.
-func (d *desktopStore) drop(ctx context.Context, id string) (bool, error) {
-	wasLink := false
+// drop discards an attempt that will never be redeemed, and returns it.
+func (d *desktopStore) drop(ctx context.Context, id string) (desktopAttempt, error) {
+	var dropped desktopAttempt
 	err := d.attempts.Update(ctx, id, func(a desktopAttempt, found bool) (desktopAttempt, time.Duration, bool) {
-		wasLink = found && a.isLink()
+		if found {
+			dropped = a
+		}
 		return a, 0, false
 	})
-	return wasLink, err
+	return dropped, err
 }
 
 func (a desktopAttempt) matches(verifier string) bool {
@@ -182,9 +188,10 @@ type desktopStartRequest struct {
 	Provider  string `json:"provider"`
 	Challenge string `json:"attemptChallenge"`
 	Method    string `json:"attemptMethod"`
-	// Link opens a link attempt rather than a sign-in one; it requires a
-	// session on this request.
-	Link bool `json:"link"`
+	// Link opens a link attempt rather than a sign-in one, and Reauth a
+	// reauth attempt; either requires a session on this request.
+	Link   bool `json:"link"`
+	Reauth bool `json:"reauth"`
 }
 
 type desktopCompleteRequest struct {
@@ -207,7 +214,8 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 		req.Method = desktopMethodS256
 	}
 	if !validDesktopSecret(req.Challenge) ||
-		(req.Method != desktopMethodS256 && req.Method != desktopMethodPlain) {
+		(req.Method != desktopMethodS256 && req.Method != desktopMethodPlain) ||
+		(req.Link && req.Reauth) {
 		desktopError(w, http.StatusBadRequest, "attempt_invalid")
 		return
 	}
@@ -224,9 +232,10 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 		challenge: req.Challenge,
 		method:    req.Method,
 	}
-	// The app's fetch is same-origin, so a link start carries the session
-	// cookie; the identity attaches to that account and nothing else.
-	if req.Link {
+	// The app's fetch is same-origin, so a link or reauth start carries
+	// the session cookie; the identity attaches to, or must already belong
+	// to, that account and nothing else.
+	if req.Link || req.Reauth {
 		ident, err := s.verifySession(r.Context(), r.Header)
 		if err != nil && !errors.Is(err, authctx.ErrNoSession) {
 			slog.Error("verify session for a desktop link", "err", err)
@@ -237,15 +246,17 @@ func (s *Service) desktopStart(w http.ResponseWriter, r *http.Request) {
 			desktopError(w, http.StatusUnauthorized, "login_state")
 			return
 		}
-		if failCode := s.linkNeedsSignIn(r.Context(), ident.SessionID); failCode != "" {
-			status := http.StatusForbidden
-			if failCode == "server_error" {
-				status = http.StatusInternalServerError
+		if req.Link {
+			if failCode := s.linkNeedsSignIn(r.Context(), ident.SessionID); failCode != "" {
+				status := http.StatusForbidden
+				if failCode == "server_error" {
+					status = http.StatusInternalServerError
+				}
+				desktopError(w, status, failCode)
+				return
 			}
-			desktopError(w, status, failCode)
-			return
 		}
-		a.linkUserID, a.sessionID = ident.UserID, ident.SessionID
+		a.userID, a.sessionID, a.reauth = ident.UserID, ident.SessionID, req.Reauth
 	}
 	id, err := s.desktop.begin(r.Context(), a)
 	if err != nil {
@@ -280,10 +291,10 @@ func (s *Service) desktopHandOff(w http.ResponseWriter, r *http.Request, st logi
 	desktopReturn(w, r, url.Values{"code": {code}, "provider": {st.Provider}})
 }
 
-// desktopLinkHandOff ends the browser leg of a desktop link. Nothing is
-// linked here: linkIdentity re-verifies the session that started the
-// link, and the system browser has none. The claims ride the code back
-// to /auth/desktop/complete instead.
+// desktopLinkHandOff ends the browser leg of a desktop link or reauth.
+// Nothing is linked or confirmed here: both re-verify the session that
+// started them, and the system browser has none. The claims ride the code
+// back to /auth/desktop/complete instead.
 func (s *Service) desktopLinkHandOff(w http.ResponseWriter, r *http.Request, st loginState, claims Claims) {
 	code, ok, err := s.desktop.mint(r.Context(), st.Attempt, st.Provider, desktopCode{claims: claims})
 	if err != nil {
@@ -295,9 +306,13 @@ func (s *Service) desktopLinkHandOff(w http.ResponseWriter, r *http.Request, st 
 		loginError(w, r, "login_expired")
 		return
 	}
-	desktopReturn(w, r, url.Values{
-		"code": {code}, "provider": {st.Provider}, "link": {"1"},
-	})
+	back := url.Values{"code": {code}, "provider": {st.Provider}}
+	if st.ReauthUserID != "" {
+		back.Set("reauth", "1")
+	} else {
+		back.Set("link", "1")
+	}
+	desktopReturn(w, r, back)
 }
 
 // loginFail ends a failed sign-in. One that belongs to a desktop attempt
@@ -309,14 +324,17 @@ func (s *Service) loginFail(w http.ResponseWriter, r *http.Request, attempt, pro
 		return
 	}
 	q := url.Values{"error": {code}, "provider": {provider}}
-	// The return page sends a link's failures to /profile, a sign-in's to
-	// /login, so it is told which this was.
-	wasLink, err := s.desktop.drop(r.Context(), attempt)
+	// The return page sends a link's failures to /profile, a reauth's to
+	// /confirm and a sign-in's to /login, so it is told which this was.
+	dropped, err := s.desktop.drop(r.Context(), attempt)
 	if err != nil {
 		slog.Error("drop a desktop attempt", "err", err)
 	}
-	if wasLink {
+	switch {
+	case dropped.isLink():
 		q.Set("link", "1")
+	case dropped.isReauth():
+		q.Set("reauth", "1")
 	}
 	desktopReturn(w, r, q)
 }
@@ -349,6 +367,10 @@ func (s *Service) desktopComplete(w http.ResponseWriter, r *http.Request) {
 		s.desktopLink(w, r, c, req.Confirm)
 		return
 	}
+	if c.attempt.isReauth() {
+		s.desktopReauth(w, r, c)
+		return
+	}
 	token, err := s.startBrowserSession(w, r, c.userID)
 	if err != nil {
 		slog.Error("create session after desktop sign-in", "err", err)
@@ -370,7 +392,7 @@ func (s *Service) desktopLink(w http.ResponseWriter, r *http.Request, c desktopC
 		desktopError(w, http.StatusServiceUnavailable, "server_error")
 		return
 	}
-	if err != nil || ident.UserID != c.attempt.linkUserID || ident.SessionID != c.attempt.sessionID {
+	if err != nil || ident.UserID != c.attempt.userID || ident.SessionID != c.attempt.sessionID {
 		desktopError(w, http.StatusUnauthorized, "login_state")
 		return
 	}
@@ -382,7 +404,7 @@ func (s *Service) desktopLink(w http.ResponseWriter, r *http.Request, c desktopC
 	}
 	st := loginState{
 		Provider:   c.attempt.provider,
-		LinkUserID: c.attempt.linkUserID,
+		LinkUserID: c.attempt.userID,
 		SessionID:  c.attempt.sessionID,
 	}
 	if _, ferr := s.finishSocial(r, c.attempt.provider, c.claims, st); ferr != nil {

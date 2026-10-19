@@ -49,11 +49,12 @@ or a token — unless it is listed as public below.
 | `UpdateProfile` | Display name, username, pronouns, bio. |
 | `SetDoNotDisturb` | Turns do not disturb on, with an optional end in the future, or off. Stored on the account (`users.dnd`, `users.dnd_until`) and published to the person's own topic as `DoNotDisturbChanged`, so every device follows. Refused for bots. |
 | `GetUserProfile` | One account's public profile card, with its `kind` (person or bot). Visible to any signed-in user. |
-| `ChangePassword` | Current password required, except for a provider-created account setting its first one. |
-| `ListIdentities` / `UnlinkIdentity` | Linked OIDC accounts. |
-| `DeleteAccount` | The caller's own account, when the server allows it. See [identity.md](identity.md#deleting-your-account). |
+| `ChangePassword` | Sets the first password or changes it. Needs a recent sign-in, not the current password (see [identity.md](identity.md#confirm-its-you)). |
+| `Reauthenticate` | "Confirm it's you" with the password: replaces the calling session with a new one, which counts as a recent sign-in. Session only; under the sign-in lockout and per-IP limiter. Provider confirmation is `/auth/oidc/{provider}/start?reauth=1`. |
+| `ListIdentities` / `UnlinkIdentity` | Linked OIDC accounts. Unlinking needs a recent sign-in. |
+| `DeleteAccount` | The caller's own account, when the server allows it. Needs a recent sign-in. See [identity.md](identity.md#deleting-your-account). |
 | `ListSessions` / `SignOutEverywhere` | Where the caller is signed in, and signing out of every session, this one included, and revoking every personal token. Need a session (`account.security`); only the caller's own. |
-| `CreatePersonalToken` / `ListPersonalTokens` / `RevokePersonalToken` | The caller's personal tokens. Need a session (`account.security`); the token is returned once, by `CreatePersonalToken`. |
+| `CreatePersonalToken` / `ListPersonalTokens` / `RevokePersonalToken` | The caller's personal tokens. Need a session (`account.security`); making one needs a recent sign-in, and the token is returned once, by `CreatePersonalToken`. |
 
 ### `stoop.chat.v1.ChatService`
 

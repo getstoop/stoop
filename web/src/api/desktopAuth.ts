@@ -5,7 +5,7 @@
 // navigation.
 // docs/architecture/identity.md → Provider sign-in.
 
-import { linkErrorText } from "./loginErrors";
+import { CONFIRM_FAILED, linkErrorText } from "./loginErrors";
 import { serverUrl } from "./origin";
 
 // The attempt waits here between opening the browser and the hand-back.
@@ -17,12 +17,22 @@ interface SavedAttempt {
   // A link attempt, not a sign-in: it mints no session and ends on the
   // profile page.
   link?: boolean;
+  // A reauth attempt ("confirm it's you"): it replaces this view's
+  // session, then goes back to next.
+  reauth?: boolean;
+  next?: string;
 }
 
-// What redeeming a code turned out to be. A sign-in is finished; a link
-// stops here until the person recognises the identity that came back.
+// Which round trip an attempt is, for where its failures land and how a
+// page words it.
+export type AttemptKind = "signIn" | "link" | "reauth";
+
+// What redeeming a code turned out to be. A sign-in or a reauth is
+// finished; a link stops here until the person recognises the identity
+// that came back.
 export type DesktopAuthResult =
   | { kind: "signedIn"; target?: string }
+  | { kind: "reauthed"; next?: string }
   | { kind: "confirmLink"; provider: string; email: string };
 
 interface CompleteBody {
@@ -81,15 +91,16 @@ async function post(path: string, body: unknown): Promise<Response> {
 export async function beginDesktopAuth(
   provider: string,
   startURL: string,
-  opts: { link?: boolean } = {},
+  opts: { link?: boolean; reauth?: boolean; next?: string } = {},
 ): Promise<string> {
   const { verifier, challenge, method } = await pkce();
-  const what = opts.link ? "linking" : "sign-in";
+  const what = opts.link ? "linking" : opts.reauth ? "confirming" : "sign-in";
   const res = await post("/auth/desktop/start", {
     provider,
     attemptChallenge: challenge,
     attemptMethod: method,
     link: opts.link === true,
+    reauth: opts.reauth === true,
   });
   if (!res.ok) {
     // A refusal the person can act on (a link that needs a fresh
@@ -105,7 +116,12 @@ export async function beginDesktopAuth(
   const { attempt } = (await res.json()) as { attempt?: string };
   if (!attempt) throw new Error(`${what} could not be started`);
   const url = new URL(serverUrl(startURL));
-  const saved: SavedAttempt = { verifier, link: opts.link === true };
+  const saved: SavedAttempt = {
+    verifier,
+    link: opts.link === true,
+    reauth: opts.reauth === true,
+    next: opts.next,
+  };
   sessionStorage.setItem(ATTEMPT_KEY, JSON.stringify(saved));
   url.searchParams.set("attempt", attempt);
   return url.toString();
@@ -121,12 +137,13 @@ export function authLinkForCode(code: string): string {
   })}`;
 }
 
-// A link's failures land on the profile page, where the person started;
-// a sign-in's on the login card.
-export function errorLinkForCode(error: string, link = false): string {
+// A link's failures land on the profile page and a reauth's on the
+// confirm page, where the person started; a sign-in's on the login card.
+export function errorLinkForCode(error: string, kind: AttemptKind): string {
+  const page = { signIn: "/login", link: "/profile", reauth: "/confirm" }[kind];
   return `stoop://open?${new URLSearchParams({
     server: location.origin,
-    path: `${link ? "/profile" : "/login"}?error=${error}`,
+    path: `${page}?error=${error}`,
   })}`;
 }
 
@@ -143,10 +160,11 @@ export async function completeDesktopAuth(
       "This window didn't start that sign-in. Try signing in again.",
     );
   }
-  // A link needs the verifier once more to confirm; a sign-in is done
-  // with it here.
+  // A link needs the verifier once more to confirm; a sign-in or a
+  // reauth is done with it here.
   if (!saved.link) sessionStorage.removeItem(ATTEMPT_KEY);
   const body = await complete(saved, code, false);
+  if (saved.reauth) return { kind: "reauthed", next: saved.next };
   if (!saved.link) return { kind: "signedIn", target: body.target };
   return {
     kind: "confirmLink",
@@ -191,6 +209,9 @@ async function complete(
     if (saved.link && body.error && body.error !== "code_invalid") {
       throw new Error(linkErrorText(body.error));
     }
+    // A reauth says only that it didn't work (identity.md → Confirm it's
+    // you).
+    if (saved.reauth) throw new Error(CONFIRM_FAILED);
     throw new Error(
       saved.link
         ? "That linking request has expired. Try connecting again."
@@ -200,10 +221,13 @@ async function complete(
   return body;
 }
 
-// Whether the attempt this window is waiting on is a link, for the
-// completion page's wording. Peeks; takeAttempt spends it.
-export function pendingIsLink(): boolean {
-  return readAttempt()?.link === true;
+// Which kind of attempt this window is waiting on, for the completion
+// page's wording. Peeks; takeAttempt spends it.
+export function pendingKind(): AttemptKind {
+  const saved = readAttempt();
+  if (saved?.link) return "link";
+  if (saved?.reauth) return "reauth";
+  return "signIn";
 }
 
 function takeAttempt(): SavedAttempt | null {

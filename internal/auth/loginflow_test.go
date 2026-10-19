@@ -38,6 +38,7 @@ type fakeIdP struct {
 
 	// What the last /authorize saw, echoed into the token.
 	nonce, challenge, redirectURI string
+	authorize                     url.Values
 	// Claims for the next sign-in.
 	sub    string
 	claims map[string]any
@@ -78,6 +79,7 @@ func newFakeIdP(t *testing.T, clientID string) *fakeIdP {
 	mux.HandleFunc("/authorize", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		f.nonce, f.challenge, f.redirectURI = q.Get("nonce"), q.Get("code_challenge"), q.Get("redirect_uri")
+		f.authorize = q
 		u, _ := url.Parse(q.Get("redirect_uri"))
 		v := url.Values{"code": {"code-1"}, "state": {q.Get("state")}}
 		u.RawQuery = v.Encode()
@@ -508,7 +510,7 @@ func TestSocialLink(t *testing.T) {
 		t.Errorf("desktop link start with a personal token = %d", status)
 	}
 
-	// Nor one from a session older than ten minutes: a linked identity is
+	// Nor one from a session older than five minutes: a linked identity is
 	// a way back in, which a stolen session must not be able to add.
 	stale, staleToken := signIn(t, svc, "tess", "correct horse battery")
 	ageSession(t, pool, stale)

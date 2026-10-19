@@ -63,9 +63,9 @@ service AuthService {
   // DeleteAccount is the caller deleting their own account, from a session
   // only. Their messages stay under their username, marked as a deleted
   // author; everything else that was theirs goes, and every session and
-  // token is revoked. It asks for the password again, or for a sign-in
-  // within the last few minutes when the account has none. Refused when
-  // the operator has turned self-deletion off, and for the last admin.
+  // token is revoked. Needs a recent sign-in (Reauthenticate). Refused
+  // when the operator has turned self-deletion off, and for the last
+  // admin.
   rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse) {}
   // ListSessions lists where the caller is signed in, most recently used
   // first. Needs a session: a token can't see or end sessions.
@@ -74,6 +74,12 @@ service AuthService {
   // included, and every personal token: whatever a stolen session copied
   // or made goes with it, and the person signs in again.
   rpc SignOutEverywhere(SignOutEverywhereRequest) returns (SignOutEverywhereResponse) {}
+  // Reauthenticate is "confirm it's you" with the password: it replaces
+  // the calling session with a new one, which counts as a recent sign-in
+  // for the changes that need one, and ends the old one everywhere it was
+  // copied. Accounts without a password confirm through a login provider
+  // instead (/auth/oidc/{provider}/start?reauth=1).
+  rpc Reauthenticate(ReauthenticateRequest) returns (ReauthenticateResponse) {}
   // CreatePersonalToken makes a token that acts as the caller with only the
   // permissions granted. The secret is in
   // this response and nowhere else. Needs a session: no token can make
@@ -237,8 +243,8 @@ message GetUserProfileResponse {
 
 message RequestEmailChangeRequest {
   string address = 1;
-  // Required when the account has a password.
-  string password = 2;
+  // Ignored: a recent sign-in confirms it's the person (Reauthenticate).
+  string password = 2 [deprecated = true];
 }
 
 message RequestEmailChangeResponse {
@@ -256,8 +262,8 @@ message CancelEmailChangeResponse {
 }
 
 message RemoveEmailRequest {
-  // Required when the account has a password.
-  string password = 1;
+  // Ignored: a recent sign-in confirms it's the person (Reauthenticate).
+  string password = 1 [deprecated = true];
 }
 
 message RemoveEmailResponse {}
@@ -294,7 +300,8 @@ message CompletePasswordResetRequest {
 message CompletePasswordResetResponse {}
 
 message ChangePasswordRequest {
-  string current_password = 1;
+  // Ignored: a recent sign-in confirms it's the person (Reauthenticate).
+  string current_password = 1 [deprecated = true];
   // At least 8 characters.
   string new_password = 2;
   // Also revoke every personal token the account holds. Other sessions are
@@ -326,8 +333,8 @@ message UnlinkIdentityRequest {
 message UnlinkIdentityResponse {}
 
 message DeleteAccountRequest {
-  // Ignored for an account without one; then the sign-in must be recent.
-  string password = 1;
+  // Ignored: a recent sign-in confirms it's the person (Reauthenticate).
+  string password = 1 [deprecated = true];
 }
 
 message DeleteAccountResponse {}
@@ -358,6 +365,16 @@ message SignOutEverywhereResponse {
   int32 sessions = 1;
   // How many personal tokens were revoked.
   int32 tokens = 2;
+}
+
+message ReauthenticateRequest {
+  string password = 1;
+}
+
+message ReauthenticateResponse {
+  // The new session's token, for clients that don't keep cookies; a
+  // browser gets it as a cookie.
+  string token = 1;
 }
 
 // PersonalToken is one of a person's tokens, as its holder or an admin sees

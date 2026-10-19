@@ -80,8 +80,8 @@ func fieldOf(err error) string {
 	return ""
 }
 
-func requestEmail(ctx context.Context, svc *auth.Service, address, password string) (*authv1.MyEmail, error) {
-	res, err := svc.RequestEmailChange(ctx, connect.NewRequest(&authv1.RequestEmailChangeRequest{Address: address, Password: password}))
+func requestEmail(ctx context.Context, svc *auth.Service, address string) (*authv1.MyEmail, error) {
+	res, err := svc.RequestEmailChange(ctx, connect.NewRequest(&authv1.RequestEmailChangeRequest{Address: address}))
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func confirm(ctx context.Context, svc *auth.Service, token string) error {
 // confirmed requests and confirms address for the caller.
 func confirmed(t *testing.T, ctx context.Context, svc *auth.Service, pool *pgxpool.Pool, userID, address string) {
 	t.Helper()
-	if _, err := requestEmail(ctx, svc, address, casePassword); err != nil {
+	if _, err := requestEmail(ctx, svc, address); err != nil {
 		t.Fatal(err)
 	}
 	if err := confirm(context.Background(), svc, mintLink(t, pool, userID, address, time.Now().Add(time.Hour))); err != nil {
@@ -134,12 +134,12 @@ func TestEmailAddressRules(t *testing.T) {
 		"", "   ", "casey", "casey@", "Casey <casey@example.com>", "<casey@example.com>",
 		"casey@example.com, ada@example.com", strings.Repeat("c", 250) + "@example.com",
 	} {
-		_, err := requestEmail(ctx, svc, bad, casePassword)
+		_, err := requestEmail(ctx, svc, bad)
 		if codeOf(err) != connect.CodeInvalidArgument || fieldOf(err) != "address" {
 			t.Errorf("%q: want invalid_argument on address, got %v", bad, err)
 		}
 	}
-	email, err := requestEmail(ctx, svc, "  casey@example.com ", casePassword)
+	email, err := requestEmail(ctx, svc, "  casey@example.com ")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,36 +148,11 @@ func TestEmailAddressRules(t *testing.T) {
 	}
 }
 
-func TestEmailChangeNeedsThePassword(t *testing.T) {
-	svc, pool, jobs := emailService(t)
-	ctx, _ := signIn(t, svc, "casey", casePassword)
-	for _, wrong := range []string{"", "not it"} {
-		_, err := requestEmail(ctx, svc, "casey@example.com", wrong)
-		if codeOf(err) != connect.CodeInvalidArgument || fieldOf(err) != "password" {
-			t.Errorf("password %q: want invalid_argument on password, got %v", wrong, err)
-		}
-	}
-	if len(jobs.queued()) != 0 {
-		t.Errorf("refused requests queued %v", jobs.queued())
-	}
-
-	// An account without a password is checked by how recent its sign-in
-	// is, and this one has just signed in.
-	socialCtx, socialID := socialUser(t, svc, pool, "ada", "pocket-id")
-	if _, err := requestEmail(socialCtx, svc, "ada@example.com", ""); err != nil {
-		t.Fatalf("provider account: %v", err)
-	}
-	got := jobs.queued()
-	if len(got) != 1 || got[0] != (mail.JobArgs{Template: mail.TemplateConfirmEmail, UserID: socialID}) {
-		t.Errorf("queued %v", got)
-	}
-}
-
 func TestEmailOff(t *testing.T) {
 	svc, _, jobs := emailService(t)
 	svc.UseEmailPorts(jobs, func(context.Context) (bool, error) { return false, nil })
 	ctx, _ := signIn(t, svc, "casey", casePassword)
-	if _, err := requestEmail(ctx, svc, "casey@example.com", casePassword); codeOf(err) != connect.CodeFailedPrecondition {
+	if _, err := requestEmail(ctx, svc, "casey@example.com"); codeOf(err) != connect.CodeFailedPrecondition {
 		t.Errorf("request with email off: %v", err)
 	}
 	_, err := svc.ResendEmailConfirmation(ctx, connect.NewRequest(&authv1.ResendEmailConfirmationRequest{}))
@@ -190,7 +165,7 @@ func TestEmailRequestsAreLimited(t *testing.T) {
 	svc, _, jobs := emailService(t)
 	svc.UseEmailThrottle(&allowN{left: 3})
 	ctx, _ := signIn(t, svc, "casey", casePassword)
-	if _, err := requestEmail(ctx, svc, "casey@example.com", casePassword); err != nil {
+	if _, err := requestEmail(ctx, svc, "casey@example.com"); err != nil {
 		t.Fatal(err)
 	}
 	for range 2 {
@@ -203,7 +178,7 @@ func TestEmailRequestsAreLimited(t *testing.T) {
 	if !errors.As(err, &cerr) || cerr.Code() != connect.CodeResourceExhausted || cerr.Meta().Get("Retry-After") == "" {
 		t.Fatalf("4th: want resource_exhausted with Retry-After, got %v", err)
 	}
-	if _, err := requestEmail(ctx, svc, "casey@example.net", casePassword); codeOf(err) != connect.CodeResourceExhausted {
+	if _, err := requestEmail(ctx, svc, "casey@example.net"); codeOf(err) != connect.CodeResourceExhausted {
 		t.Errorf("request after the limit: %v", err)
 	}
 	if len(jobs.queued()) != 3 {
@@ -224,7 +199,7 @@ func TestConfirmEmail(t *testing.T) {
 	svc, pool, jobs := emailService(t)
 	ctx, _ := signIn(t, svc, "casey", casePassword)
 	caseyID := userIDOf(t, ctx, svc)
-	if _, err := requestEmail(ctx, svc, "casey@example.com", casePassword); err != nil {
+	if _, err := requestEmail(ctx, svc, "casey@example.com"); err != nil {
 		t.Fatal(err)
 	}
 	stale := mintLink(t, pool, caseyID, "casey@example.com", time.Now().Add(time.Hour))
@@ -249,7 +224,7 @@ func TestConfirmEmail(t *testing.T) {
 	}
 
 	// A change tells the old address.
-	if _, err := requestEmail(ctx, svc, "casey@example.net", casePassword); err != nil {
+	if _, err := requestEmail(ctx, svc, "casey@example.net"); err != nil {
 		t.Fatal(err)
 	}
 	if err := confirm(context.Background(), svc, mintLink(t, pool, caseyID, "casey@example.net", time.Now().Add(time.Hour))); err != nil {
@@ -267,7 +242,7 @@ func TestConfirmEmail(t *testing.T) {
 
 	// Asking for the address already confirmed changes nothing.
 	before := len(jobs.queued())
-	email, err := requestEmail(ctx, svc, "CASEY@example.net", casePassword)
+	email, err := requestEmail(ctx, svc, "CASEY@example.net")
 	if err != nil || email.PendingAddress != "" || email.Address != "casey@example.net" || len(jobs.queued()) != before {
 		t.Errorf("same address again: %v %v", email, err)
 	}
@@ -277,7 +252,7 @@ func TestConfirmEmailRefusesWhatIsNotItsLink(t *testing.T) {
 	svc, pool, _ := emailService(t)
 	ctx, _ := signIn(t, svc, "casey", casePassword)
 	caseyID := userIDOf(t, ctx, svc)
-	if _, err := requestEmail(ctx, svc, "casey@example.com", casePassword); err != nil {
+	if _, err := requestEmail(ctx, svc, "casey@example.com"); err != nil {
 		t.Fatal(err)
 	}
 	expired := mintLink(t, pool, caseyID, "casey@example.com", time.Now().Add(-time.Minute))
@@ -317,16 +292,16 @@ func TestConfirmEmailAlreadyInUse(t *testing.T) {
 	caseyID, adaID := userIDOf(t, caseyCtx, svc), userIDOf(t, adaCtx, svc)
 
 	// Both ask; the reply never says the address is taken.
-	if _, err := requestEmail(caseyCtx, svc, "shared@example.com", casePassword); err != nil {
+	if _, err := requestEmail(caseyCtx, svc, "shared@example.com"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := requestEmail(adaCtx, svc, "Shared@example.com", casePassword); err != nil {
+	if _, err := requestEmail(adaCtx, svc, "Shared@example.com"); err != nil {
 		t.Fatal(err)
 	}
 	if err := confirm(context.Background(), svc, mintLink(t, pool, caseyID, "shared@example.com", time.Now().Add(time.Hour))); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := requestEmail(adaCtx, svc, "shared@example.com", casePassword); err != nil {
+	if _, err := requestEmail(adaCtx, svc, "shared@example.com"); err != nil {
 		t.Errorf("request for a taken address: %v", err)
 	}
 	err := confirm(context.Background(), svc, mintLink(t, pool, adaID, "shared@example.com", time.Now().Add(time.Hour)))
@@ -343,7 +318,7 @@ func TestConfirmEmailRace(t *testing.T) {
 	adaCtx, _ := signIn(t, svc, "ada", casePassword)
 	caseyID, adaID := userIDOf(t, caseyCtx, svc), userIDOf(t, adaCtx, svc)
 	for _, ctx := range []context.Context{caseyCtx, adaCtx} {
-		if _, err := requestEmail(ctx, svc, "shared@example.com", casePassword); err != nil {
+		if _, err := requestEmail(ctx, svc, "shared@example.com"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -387,16 +362,12 @@ func TestRemoveEmail(t *testing.T) {
 	ctx, _ := signIn(t, svc, "casey", casePassword)
 	caseyID := userIDOf(t, ctx, svc)
 	confirmed(t, ctx, svc, pool, caseyID, "casey@example.com")
-	if _, err := requestEmail(ctx, svc, "casey@example.net", casePassword); err != nil {
+	if _, err := requestEmail(ctx, svc, "casey@example.net"); err != nil {
 		t.Fatal(err)
 	}
 	pending := mintLink(t, pool, caseyID, "casey@example.net", time.Now().Add(time.Hour))
 
-	_, err := svc.RemoveEmail(ctx, connect.NewRequest(&authv1.RemoveEmailRequest{Password: "not it"}))
-	if codeOf(err) != connect.CodeInvalidArgument || fieldOf(err) != "password" {
-		t.Errorf("wrong password: %v", err)
-	}
-	if _, err := svc.RemoveEmail(ctx, connect.NewRequest(&authv1.RemoveEmailRequest{Password: casePassword})); err != nil {
+	if _, err := svc.RemoveEmail(ctx, connect.NewRequest(&authv1.RemoveEmailRequest{})); err != nil {
 		t.Fatal(err)
 	}
 	if got := myEmail(t, ctx, svc); got.Address != "" || got.PendingAddress != "" {
@@ -415,7 +386,7 @@ func TestDeletedAccountFreesItsAddress(t *testing.T) {
 	beaCtx, _ := signIn(t, svc, "bea", casePassword)
 	adaID, beaID := userIDOf(t, adaCtx, svc), userIDOf(t, beaCtx, svc)
 	confirmed(t, adaCtx, svc, pool, adaID, "ada@example.com")
-	if _, err := svc.DeleteAccount(adaCtx, connect.NewRequest(&authv1.DeleteAccountRequest{Password: casePassword})); err != nil {
+	if _, err := svc.DeleteAccount(adaCtx, connect.NewRequest(&authv1.DeleteAccountRequest{})); err != nil {
 		t.Fatal(err)
 	}
 	var left int

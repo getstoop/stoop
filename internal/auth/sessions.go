@@ -202,6 +202,11 @@ func toActions(grants []string) []authctx.Action {
 // createSession mints a session for the lifetime in force now, and returns
 // that lifetime for the cookie.
 func (s *Service) createSession(ctx context.Context, userID, userAgent string) (string, time.Duration, error) {
+	return s.createSessionIn(ctx, s.q, userID, userAgent)
+}
+
+// createSessionIn is createSession inside a caller's transaction.
+func (s *Service) createSessionIn(ctx context.Context, queries *dbgen.Queries, userID, userAgent string) (string, time.Duration, error) {
 	ttl, err := s.sessionLifetime(ctx)
 	if err != nil {
 		return "", 0, err
@@ -212,7 +217,7 @@ func (s *Service) createSession(ctx context.Context, userID, userAgent string) (
 	if len(userAgent) > maxUserAgent {
 		userAgent = strings.ToValidUTF8(userAgent[:maxUserAgent], "")
 	}
-	_, err = s.q.CreateSession(ctx, dbgen.CreateSessionParams{
+	_, err = queries.CreateSession(ctx, dbgen.CreateSessionParams{
 		ID:        id,
 		HolderID:  userID,
 		TokenHash: hash,

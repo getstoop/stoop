@@ -333,3 +333,17 @@
     min-width: 700px;
   }
 }
+
+/* "Confirm it's you" above the Security tab: the reason, and the one
+   button that deals with it. */
+.confirm-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.confirm-banner p {
+  flex: 1 1 240px;
+  margin: 0;
+}

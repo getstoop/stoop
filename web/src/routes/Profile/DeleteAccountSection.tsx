@@ -3,26 +3,21 @@ import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
 import { useInstanceStatus } from "../../api/queries";
-import { RECENT_SIGN_IN_HINT } from "../../api/recentSignIn";
-import { Field } from "../../components/Field";
+import { useRecentSignIn } from "../../api/recentSignIn";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
 
 // The last card under Security. It says plainly what stays and what
-// goes before asking for the password, because "delete" sets an
-// expectation the messages do not meet: they stay, under the name.
-export function DeleteAccountSection({
-  hasPassword,
-}: {
-  hasPassword: boolean;
-}) {
+// goes before asking for a second click, because "delete" sets an
+// expectation the messages do not meet: they stay, under the name. A
+// recent sign-in confirms it's the person (ConfirmBanner).
+export function DeleteAccountSection() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: status } = useInstanceStatus();
+  const recent = useRecentSignIn();
   const [open, setOpen] = useState(false);
-  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  // Without a password there is no field for a refusal to land on.
-  const form = useFieldErrors(hasPassword ? ["password"] : []);
+  const form = useFieldErrors([]);
 
   if (status && !status.selfDeletion) {
     return (
@@ -41,7 +36,7 @@ export function DeleteAccountSection({
     setBusy(true);
     form.begin();
     try {
-      await authClient.deleteAccount({ password });
+      await authClient.deleteAccount({});
       queryClient.clear();
       navigate({ to: "/login" });
     } catch (err) {
@@ -68,27 +63,12 @@ export function DeleteAccountSection({
           type="button"
           className="primary danger"
           onClick={() => setOpen(true)}
+          disabled={recent === false}
         >
           Delete my account…
         </button>
       ) : (
         <form ref={form.formRef} onSubmit={submit}>
-          {hasPassword ? (
-            <Field
-              label="Your password, to confirm"
-              error={form.errors.password}
-            >
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </Field>
-          ) : (
-            <p className="hint">{RECENT_SIGN_IN_HINT}</p>
-          )}
           {form.formError && (
             <p className="error" role="alert">
               {form.formError}
@@ -100,14 +80,17 @@ export function DeleteAccountSection({
               className="chip"
               onClick={() => {
                 setOpen(false);
-                setPassword("");
                 form.begin();
               }}
               disabled={busy}
             >
               Keep my account
             </button>
-            <button type="submit" className="primary danger" disabled={busy}>
+            <button
+              type="submit"
+              className="primary danger"
+              disabled={busy || recent === false}
+            >
               {busy ? "Deleting…" : "Delete my account"}
             </button>
           </div>

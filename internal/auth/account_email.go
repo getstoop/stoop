@@ -70,25 +70,6 @@ func emailAddressIn(raw, field string) (string, error) {
 	return address, nil
 }
 
-// checkAccountPassword is the password check for changing the address;
-// an account without a password needs a recent sign-in instead.
-func (s *Service) checkAccountPassword(ctx context.Context, user dbgen.User, sessionID, password, what string) error {
-	if user.PasswordHash == nil {
-		return s.requireRecentSignIn(ctx, sessionID, what)
-	}
-	if password == "" {
-		return apierr.Field(connect.CodeInvalidArgument, "password", errors.New("Enter your password."))
-	}
-	match, err := s.accountPasswordMatches(ctx, user, password)
-	if err != nil {
-		return err
-	}
-	if !match {
-		return apierr.Field(connect.CodeInvalidArgument, "password", errors.New("Password is incorrect."))
-	}
-	return nil
-}
-
 // sessionID is the session the request came with; empty for a token or
 // no credential at all, which no recent sign-in matches.
 func sessionID(ctx context.Context) string {
@@ -188,7 +169,7 @@ func (s *Service) RequestEmailChange(ctx context.Context, req *connect.Request[a
 	if err != nil {
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
-	if err := s.checkAccountPassword(ctx, user, sessionID(ctx), req.Msg.Password, "change your email address"); err != nil {
+	if err := s.requireRecentSignIn(ctx, sessionID(ctx), "change your email address"); err != nil {
 		return nil, err
 	}
 	if user.Email != nil && strings.EqualFold(*user.Email, address) {
@@ -270,14 +251,10 @@ func (s *Service) CancelEmailChange(ctx context.Context, _ *connect.Request[auth
 
 func (s *Service) RemoveEmail(ctx context.Context, req *connect.Request[authv1.RemoveEmailRequest]) (*connect.Response[authv1.RemoveEmailResponse], error) {
 	userID := authctx.UserID(ctx)
-	user, err := s.q.GetUserByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("look up user: %w", err)
-	}
-	if err := s.checkAccountPassword(ctx, user, sessionID(ctx), req.Msg.Password, "remove your email address"); err != nil {
+	if err := s.requireRecentSignIn(ctx, sessionID(ctx), "remove your email address"); err != nil {
 		return nil, err
 	}
-	err = db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+	err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		qtx := s.q.WithTx(tx)
 		// Read under the lock: a confirmation that just landed decides
 		// which address is removed, and so which one is told.

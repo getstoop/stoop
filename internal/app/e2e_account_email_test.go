@@ -86,8 +86,6 @@ func TestE2EAccountEmail(t *testing.T) {
 	instance.join(ada, instance.invite(casey, spaceID))
 	instance.join(bea, instance.invite(casey, spaceID))
 
-	instance.rpc(ada, accountAuth+"RequestEmailChange", map[string]any{"address": "ada@example.com", "password": "not it"}).
-		expect(t, "invalid_argument", "incorrect")
 	asked := instance.rpc(ada, accountAuth+"RequestEmailChange", map[string]any{"address": "ada@example.com", "password": password}).expect(t, "ok")
 	if asked.str("email.pendingAddress") != "ada@example.com" {
 		t.Errorf("request: %s", asked.raw)

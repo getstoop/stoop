@@ -91,6 +91,9 @@ const (
 	// AuthServiceSignOutEverywhereProcedure is the fully-qualified name of the AuthService's
 	// SignOutEverywhere RPC.
 	AuthServiceSignOutEverywhereProcedure = "/stoop.auth.v1.AuthService/SignOutEverywhere"
+	// AuthServiceReauthenticateProcedure is the fully-qualified name of the AuthService's
+	// Reauthenticate RPC.
+	AuthServiceReauthenticateProcedure = "/stoop.auth.v1.AuthService/Reauthenticate"
 	// AuthServiceCreatePersonalTokenProcedure is the fully-qualified name of the AuthService's
 	// CreatePersonalToken RPC.
 	AuthServiceCreatePersonalTokenProcedure = "/stoop.auth.v1.AuthService/CreatePersonalToken"
@@ -157,9 +160,9 @@ type AuthServiceClient interface {
 	// DeleteAccount is the caller deleting their own account, from a session
 	// only. Their messages stay under their username, marked as a deleted
 	// author; everything else that was theirs goes, and every session and
-	// token is revoked. It asks for the password again, or for a sign-in
-	// within the last few minutes when the account has none. Refused when
-	// the operator has turned self-deletion off, and for the last admin.
+	// token is revoked. Needs a recent sign-in (Reauthenticate). Refused
+	// when the operator has turned self-deletion off, and for the last
+	// admin.
 	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
 	// ListSessions lists where the caller is signed in, most recently used
 	// first. Needs a session: a token can't see or end sessions.
@@ -168,6 +171,12 @@ type AuthServiceClient interface {
 	// included, and every personal token: whatever a stolen session copied
 	// or made goes with it, and the person signs in again.
 	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
+	// Reauthenticate is "confirm it's you" with the password: it replaces
+	// the calling session with a new one, which counts as a recent sign-in
+	// for the changes that need one, and ends the old one everywhere it was
+	// copied. Accounts without a password confirm through a login provider
+	// instead (/auth/oidc/{provider}/start?reauth=1).
+	Reauthenticate(context.Context, *connect.Request[v1.ReauthenticateRequest]) (*connect.Response[v1.ReauthenticateResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
 	// permissions granted. The secret is in
 	// this response and nowhere else. Needs a session: no token can make
@@ -316,6 +325,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("SignOutEverywhere")),
 			connect.WithClientOptions(opts...),
 		),
+		reauthenticate: connect.NewClient[v1.ReauthenticateRequest, v1.ReauthenticateResponse](
+			httpClient,
+			baseURL+AuthServiceReauthenticateProcedure,
+			connect.WithSchema(authServiceMethods.ByName("Reauthenticate")),
+			connect.WithClientOptions(opts...),
+		),
 		createPersonalToken: connect.NewClient[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse](
 			httpClient,
 			baseURL+AuthServiceCreatePersonalTokenProcedure,
@@ -360,6 +375,7 @@ type authServiceClient struct {
 	deleteAccount           *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
 	listSessions            *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
 	signOutEverywhere       *connect.Client[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse]
+	reauthenticate          *connect.Client[v1.ReauthenticateRequest, v1.ReauthenticateResponse]
 	createPersonalToken     *connect.Client[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse]
 	listPersonalTokens      *connect.Client[v1.ListPersonalTokensRequest, v1.ListPersonalTokensResponse]
 	revokePersonalToken     *connect.Client[v1.RevokePersonalTokenRequest, v1.RevokePersonalTokenResponse]
@@ -470,6 +486,11 @@ func (c *authServiceClient) SignOutEverywhere(ctx context.Context, req *connect.
 	return c.signOutEverywhere.CallUnary(ctx, req)
 }
 
+// Reauthenticate calls stoop.auth.v1.AuthService.Reauthenticate.
+func (c *authServiceClient) Reauthenticate(ctx context.Context, req *connect.Request[v1.ReauthenticateRequest]) (*connect.Response[v1.ReauthenticateResponse], error) {
+	return c.reauthenticate.CallUnary(ctx, req)
+}
+
 // CreatePersonalToken calls stoop.auth.v1.AuthService.CreatePersonalToken.
 func (c *authServiceClient) CreatePersonalToken(ctx context.Context, req *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error) {
 	return c.createPersonalToken.CallUnary(ctx, req)
@@ -540,9 +561,9 @@ type AuthServiceHandler interface {
 	// DeleteAccount is the caller deleting their own account, from a session
 	// only. Their messages stay under their username, marked as a deleted
 	// author; everything else that was theirs goes, and every session and
-	// token is revoked. It asks for the password again, or for a sign-in
-	// within the last few minutes when the account has none. Refused when
-	// the operator has turned self-deletion off, and for the last admin.
+	// token is revoked. Needs a recent sign-in (Reauthenticate). Refused
+	// when the operator has turned self-deletion off, and for the last
+	// admin.
 	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
 	// ListSessions lists where the caller is signed in, most recently used
 	// first. Needs a session: a token can't see or end sessions.
@@ -551,6 +572,12 @@ type AuthServiceHandler interface {
 	// included, and every personal token: whatever a stolen session copied
 	// or made goes with it, and the person signs in again.
 	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
+	// Reauthenticate is "confirm it's you" with the password: it replaces
+	// the calling session with a new one, which counts as a recent sign-in
+	// for the changes that need one, and ends the old one everywhere it was
+	// copied. Accounts without a password confirm through a login provider
+	// instead (/auth/oidc/{provider}/start?reauth=1).
+	Reauthenticate(context.Context, *connect.Request[v1.ReauthenticateRequest]) (*connect.Response[v1.ReauthenticateResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
 	// permissions granted. The secret is in
 	// this response and nowhere else. Needs a session: no token can make
@@ -695,6 +722,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("SignOutEverywhere")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceReauthenticateHandler := connect.NewUnaryHandler(
+		AuthServiceReauthenticateProcedure,
+		svc.Reauthenticate,
+		connect.WithSchema(authServiceMethods.ByName("Reauthenticate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceCreatePersonalTokenHandler := connect.NewUnaryHandler(
 		AuthServiceCreatePersonalTokenProcedure,
 		svc.CreatePersonalToken,
@@ -757,6 +790,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceListSessionsHandler.ServeHTTP(w, r)
 		case AuthServiceSignOutEverywhereProcedure:
 			authServiceSignOutEverywhereHandler.ServeHTTP(w, r)
+		case AuthServiceReauthenticateProcedure:
+			authServiceReauthenticateHandler.ServeHTTP(w, r)
 		case AuthServiceCreatePersonalTokenProcedure:
 			authServiceCreatePersonalTokenHandler.ServeHTTP(w, r)
 		case AuthServiceListPersonalTokensProcedure:
@@ -854,6 +889,10 @@ func (UnimplementedAuthServiceHandler) ListSessions(context.Context, *connect.Re
 
 func (UnimplementedAuthServiceHandler) SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.SignOutEverywhere is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) Reauthenticate(context.Context, *connect.Request[v1.ReauthenticateRequest]) (*connect.Response[v1.ReauthenticateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.Reauthenticate is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) CreatePersonalToken(context.Context, *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error) {

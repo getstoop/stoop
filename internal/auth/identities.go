@@ -45,6 +45,9 @@ func (s *Service) UnlinkIdentity(ctx context.Context, req *connect.Request[authv
 	if provider == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("provider is required"))
 	}
+	if err := s.requireRecentSignIn(ctx, sessionID(ctx), "unlink it"); err != nil {
+		return nil, err
+	}
 	// The count and delete share a transaction so two concurrent unlinks
 	// can't strip a passwordless account of its last way to sign in.
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {

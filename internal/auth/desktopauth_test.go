@@ -78,7 +78,7 @@ func TestDesktopLinkCodeExpiresFromItsMint(t *testing.T) {
 	store, now := clockedDesktopStore()
 	const verifier = "desktop-verifier-0123456789abcdefghijklmnop"
 	id, err := store.begin(ctx, desktopAttempt{
-		provider: "oidc", challenge: verifier, method: desktopMethodPlain, linkUserID: "u1", sessionID: "s1",
+		provider: "oidc", challenge: verifier, method: desktopMethodPlain, userID: "u1", sessionID: "s1",
 	})
 	if err != nil {
 		t.Fatal(err)
