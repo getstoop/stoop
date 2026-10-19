@@ -839,7 +839,7 @@ it. The link preview setting does not apply: nothing outside the server
 is contacted.
 
 A link pasted bare, with no words of its own, reads in the message as
-who said it and where — "Casey Nolan in # general" behind a speech bubble
+who said it and where — "Casey Nolan in #general" behind a speech bubble
 (`components/MessageLink.tsx`), with the address on hover. It follows
 the card's rule, so until the message loads, and wherever no card would
 show, the address shows as written. A link given words in Markdown keeps

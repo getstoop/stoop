@@ -79,7 +79,7 @@ test("searching a space's messages", async ({ browser }) => {
   await expect(
     A.locator(".search-row .search-row-title").first(),
     "a row names its channel",
-  ).toHaveText(/in # (general|garden)/);
+  ).toHaveText(/in #(general|garden)/);
 
   // Prefix on the last word.
   await field(A).fill("restart");

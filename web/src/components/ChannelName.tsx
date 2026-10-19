@@ -10,7 +10,7 @@ export function ChannelName({
   channel: Pick<Channel, "name" | "private">;
 }) {
   if (!channel.private) {
-    return <span className="channel-name-text"># {channel.name}</span>;
+    return <span className="channel-name-text">#{channel.name}</span>;
   }
   return (
     <span className="channel-name-text">
