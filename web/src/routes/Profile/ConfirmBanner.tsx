@@ -13,8 +13,8 @@ export function ConfirmBanner() {
     <div className="card confirm-card">
       <div className="callout confirm-banner" role="status">
         <p>
-          <strong>Confirm it's you to change the settings below.</strong> Your
-          email, password, linked sign-ins, tokens and account wait until then.
+          <strong>Confirm it's you to change the settings below.</strong> You'll
+          be asked to sign in again before changing these security settings.
         </p>
         <button
           type="button"
