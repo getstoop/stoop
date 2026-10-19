@@ -348,6 +348,11 @@
   margin: 0;
 }
 
+/* The ask on its own line, what it means under it. */
+.confirm-banner strong {
+  display: block;
+}
+
 /* The banner heads the sections that wait for it: no rule between it and
    the first of them. */
 .settings-content > .confirm-card + .card {
