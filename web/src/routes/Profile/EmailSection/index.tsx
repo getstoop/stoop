@@ -101,7 +101,7 @@ export function EmailSection() {
   };
 
   return (
-    <section className="card email-section">
+    <section className="card email-section needs-confirm">
       <h3>Email</h3>
       {state === "none" && <p className="muted">No email address</p>}
       {email?.address && (

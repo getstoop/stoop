@@ -347,3 +347,9 @@
   flex: 1 1 240px;
   margin: 0;
 }
+
+/* The sections that wait for it (.needs-confirm, below the banner),
+   headings and text included, read as waiting while the banner is up. */
+.confirm-banner ~ .needs-confirm {
+  opacity: var(--disabled);
+}

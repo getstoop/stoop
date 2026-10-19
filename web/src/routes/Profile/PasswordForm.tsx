@@ -54,7 +54,7 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
   };
 
   return (
-    <form className="card" ref={form.formRef} onSubmit={submit}>
+    <form className="card needs-confirm" ref={form.formRef} onSubmit={submit}>
       <h3>{hasPassword ? "Change password" : "Set a password"}</h3>
       <p className="hint">
         {hasPassword

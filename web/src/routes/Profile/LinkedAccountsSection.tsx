@@ -118,7 +118,7 @@ export function LinkedAccountsSection() {
   latest.current = { nameOf, iconOf, unlink };
 
   return (
-    <section className="card linked-accounts">
+    <section className="card linked-accounts needs-confirm">
       <h3>Linked accounts</h3>
       <p className="hint">
         Sign in with any of these instead of a password. The provider is only
