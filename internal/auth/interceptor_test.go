@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -132,5 +133,30 @@ func TestInterceptorTellsNoSessionFromAFailedCheck(t *testing.T) {
 	}
 	if err := login(token); connect.CodeOf(err) != connect.CodeUnavailable {
 		t.Errorf("public Login with the database gone: %v, want unavailable", err)
+	}
+}
+
+// A procedure marked Recent needs a session signed in within the last few
+// minutes, whatever it is: an old one is refused with a marker a client
+// can offer "Confirm it's you" from, and a fresh one goes through.
+func TestInterceptorNeedsARecentSignIn(t *testing.T) {
+	client, token, pool := interceptedRig(t, map[string]authctx.Rule{
+		authv1connect.AuthServiceGetMeProcedure: {Recent: true},
+	})
+	ctx := context.Background()
+	if _, err := client.GetMe(ctx, withToken(connect.NewRequest(&authv1.GetMeRequest{}), token)); err != nil {
+		t.Fatalf("just signed in: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `UPDATE credentials SET created_at = now() - interval '6 minutes' WHERE kind = 'session'`); err != nil {
+		t.Fatal(err)
+	}
+	_, err := client.GetMe(ctx, withToken(connect.NewRequest(&authv1.GetMeRequest{}), token))
+	var cerr *connect.Error
+	if !errors.As(err, &cerr) || cerr.Code() != connect.CodeFailedPrecondition {
+		t.Fatalf("session older than five minutes: want failed_precondition, got %v", err)
+	}
+	if cerr.Meta().Get("Stoop-Confirm") != "required" {
+		t.Errorf("the refusal isn't marked for Confirm it's you: %v", cerr.Meta())
 	}
 }

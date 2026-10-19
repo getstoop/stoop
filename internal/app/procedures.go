@@ -17,6 +17,14 @@ var (
 
 func needs(a ...authctx.Action) authctx.Rule { return authctx.Rule{AnyOf: a} }
 
+// confirmed is needs plus a recent sign-in: for what hands out lasting
+// access (a password, a role, the server's sign-in or email set-up, a
+// token or hook secret), which a stolen admin session must not be able to
+// take (identity.md → Confirm it's you).
+func confirmed(a ...authctx.Action) authctx.Rule {
+	return authctx.Rule{AnyOf: a, Recent: true}
+}
+
 // procedures classifies every Connect procedure for the credential gate. A
 // procedure serving both space channels and direct messages lists both
 // actions; the handler narrows to one once it knows which. The identity
@@ -59,14 +67,14 @@ var procedures = map[string]authctx.Rule{
 	instancev1connect.InstanceServiceUpdateSettingsProcedure:       needs(authctx.InstanceSettingsManage),
 	instancev1connect.InstanceServicePreviewRetentionProcedure:     needs(authctx.InstanceSettingsManage),
 	instancev1connect.InstanceServiceUpdateReachabilityProcedure:   needs(authctx.InstanceSettingsManage),
-	instancev1connect.InstanceServiceUpdateLoginProvidersProcedure: needs(authctx.InstanceSettingsManage),
+	instancev1connect.InstanceServiceUpdateLoginProvidersProcedure: confirmed(authctx.InstanceSettingsManage),
 	instancev1connect.InstanceServiceGetEmailSettingsProcedure:     needs(authctx.InstanceRead),
-	instancev1connect.InstanceServiceUpdateEmailSettingsProcedure:  needs(authctx.InstanceSettingsManage),
+	instancev1connect.InstanceServiceUpdateEmailSettingsProcedure:  confirmed(authctx.InstanceSettingsManage),
 	instancev1connect.InstanceServiceSendTestEmailProcedure:        needs(authctx.InstanceSettingsManage),
-	instancev1connect.InstanceServiceSetUserRoleProcedure:          needs(authctx.InstanceUsersManage),
-	instancev1connect.InstanceServiceTransferOwnershipProcedure:    needs(authctx.InstanceUsersManage),
+	instancev1connect.InstanceServiceSetUserRoleProcedure:          confirmed(authctx.InstanceUsersManage),
+	instancev1connect.InstanceServiceTransferOwnershipProcedure:    confirmed(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceSetUserActiveProcedure:        needs(authctx.InstanceUsersManage),
-	instancev1connect.InstanceServiceResetUserPasswordProcedure:    needs(authctx.InstanceUsersManage),
+	instancev1connect.InstanceServiceResetUserPasswordProcedure:    confirmed(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceRenameUserProcedure:           needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceSetUsernameFrozenProcedure:    needs(authctx.InstanceUsersManage),
 	instancev1connect.InstanceServiceClearUserProfileProcedure:     needs(authctx.InstanceUsersManage),
@@ -82,12 +90,12 @@ var procedures = map[string]authctx.Rule{
 	// Members read a space's hooks; the handler requires
 	// instance.integrations.manage for the server-wide list.
 	integrationsv1connect.IntegrationServiceListWebhooksProcedure:       needs(authctx.SpaceRead),
-	integrationsv1connect.IntegrationServiceCreateIncomingProcedure:     needs(authctx.InstanceIntegrationsManage),
-	integrationsv1connect.IntegrationServiceCreateOutgoingProcedure:     needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceCreateIncomingProcedure:     confirmed(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceCreateOutgoingProcedure:     confirmed(authctx.InstanceIntegrationsManage),
 	integrationsv1connect.IntegrationServiceUpdateIncomingProcedure:     needs(authctx.InstanceIntegrationsManage),
-	integrationsv1connect.IntegrationServiceUpdateOutgoingProcedure:     needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceUpdateOutgoingProcedure:     confirmed(authctx.InstanceIntegrationsManage),
 	integrationsv1connect.IntegrationServiceDeleteWebhookProcedure:      needs(authctx.InstanceIntegrationsManage),
-	integrationsv1connect.IntegrationServiceRotateSecretProcedure:       needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceRotateSecretProcedure:       confirmed(authctx.InstanceIntegrationsManage),
 	integrationsv1connect.IntegrationServiceTestWebhookProcedure:        needs(authctx.InstanceIntegrationsManage),
 	integrationsv1connect.IntegrationServiceListDeliveriesProcedure:     needs(authctx.InstanceIntegrationsManage),
 	integrationsv1connect.IntegrationServiceRedeliverDeliveryProcedure:  needs(authctx.InstanceIntegrationsManage),
@@ -97,7 +105,7 @@ var procedures = map[string]authctx.Rule{
 	integrationsv1connect.IntegrationServiceAddBotToSpaceProcedure:      needs(authctx.InstanceIntegrationsManage),
 	integrationsv1connect.IntegrationServiceRemoveBotFromSpaceProcedure: needs(authctx.InstanceIntegrationsManage),
 	integrationsv1connect.IntegrationServiceDeactivateBotProcedure:      needs(authctx.InstanceIntegrationsManage),
-	integrationsv1connect.IntegrationServiceCreateBotTokenProcedure:     needs(authctx.InstanceIntegrationsManage),
+	integrationsv1connect.IntegrationServiceCreateBotTokenProcedure:     confirmed(authctx.InstanceIntegrationsManage),
 	integrationsv1connect.IntegrationServiceRevokeBotTokenProcedure:     needs(authctx.InstanceIntegrationsManage),
 
 	filesv1connect.FileServiceUploadAvatarProcedure:    needs(authctx.ProfileManage),

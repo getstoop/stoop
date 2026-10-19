@@ -173,6 +173,21 @@ first". No form asks for the current password: one rule covers accounts
 with a password and those without. Only a session counts: a token is
 never a sign-in, however new.
 
+**Server admin's lasting-access actions need it too**, so a stolen admin
+session can't keep a way in: resetting someone's password, changing a
+role, handing on ownership, the login providers and the email (SMTP)
+set-up (a provider or relay the attacker runs would sign them in as
+anyone, or read everyone's reset links), and minting a bot token or a
+hook's URL or secret (creating an incoming or outgoing hook, pointing an
+outgoing one elsewhere, rotating a secret). These are marked `confirmed`
+in `internal/app/procedures.go` (`authctx.Rule.Recent`), and the
+interceptor refuses an old session before the handler runs. Every such
+refusal, from either place, carries a `Stoop-Confirm: required` header;
+the web app's client catches it on any call and offers "Confirm it's
+you", coming back to the same page (`web/src/api/askToConfirm.ts`).
+Resetting your own password from Server admin was already refused: that
+is the profile's job.
+
 **Signing in again happens in place, on `/confirm?next=`.** It offers the
 password field if the account has one and a button for each provider
 linked to it, nothing else: no username (the session says whose account
