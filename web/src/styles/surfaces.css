@@ -49,6 +49,27 @@
   background: var(--warn-soft);
 }
 
+/* A secret shown once (components/OneTimeSecret.tsx): the value to copy
+   and its copy icon. */
+.one-time-secret {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.one-time-secret code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-size: var(--text-body);
+  user-select: all;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

@@ -63,7 +63,7 @@ export function useAccountActions(
   const resetPassword = async (u: InstanceUser) => {
     const ok = await confirm({
       title: `Reset @${u.username}'s password?`,
-      body: "They'll be signed out everywhere and get a temporary password you'll need to pass on.",
+      body: "They'll be logged out everywhere, their personal tokens stop working, and you'll get a temporary password to pass on to them.",
       action: "Reset password",
       danger: true,
     });

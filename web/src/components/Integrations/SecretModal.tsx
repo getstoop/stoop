@@ -1,6 +1,6 @@
 import { serverOrigin } from "../../api/origin";
-import { CopyButton } from "../CopyButton";
 import { Modal } from "../Modal";
+import { OneTimeSecret } from "../OneTimeSecret";
 
 export type Secret =
   | { kind: "hook"; name: string; url: string }
@@ -49,14 +49,7 @@ export function SecretModal({
       }
     >
       <div className="modal-body token-form">
-        <p className="callout warn">
-          Copy it now. This is the only time it will be shown.
-        </p>
-        <p className="hint">{what}</p>
-        <div className="token-secret">
-          <code data-secret>{value}</code>
-          <CopyButton text={value} />
-        </div>
+        <OneTimeSecret value={value} hint={what} />
         <div className="readout">
           {secret.kind === "signing" ? "Verifying it" : "Try it"}
           <pre className="token-example">{example}</pre>
