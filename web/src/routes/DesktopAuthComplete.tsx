@@ -8,8 +8,8 @@ import {
   pendingKind,
 } from "../api/desktopAuth";
 import { useInstanceStatus } from "../api/queries";
+import { safeRedirect } from "../api/safeRedirect";
 import { providerShortName } from "../components/LoginProviders";
-import { safeRedirect } from "../router";
 import { DesktopLinkConfirm } from "./DesktopLinkConfirm";
 
 // Where the shell's stoop://auth hand-back lands. It loads here in the

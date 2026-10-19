@@ -3,6 +3,7 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
+import { safeRedirect } from "./api/safeRedirect";
 import { ActivityPage } from "./routes/Activity";
 import { AdminPage } from "./routes/Admin";
 import { AppShell } from "./routes/AppShell";
@@ -26,22 +27,6 @@ import { SpaceIndex, SpaceLayout } from "./routes/Space";
 import { SpaceSettingsPage } from "./routes/SpaceSettings";
 
 const rootRoute = createRootRoute({ component: Root });
-
-// ?redirect=<path> sends the user back where they were headed after login
-// (e.g. an invite link). Only same-origin absolute paths are accepted, and
-// never /login or /setup — either would leave someone who just signed in
-// looking at a page that is finished with them.
-export function safeRedirect(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  if (!value.startsWith("/") || value.startsWith("//")) return undefined;
-  // Never back onto a page whose job is done: the login form, or setup,
-  // which exists only while the instance has no accounts.
-  for (const done of ["/login", "/setup"]) {
-    if (value === done || value.startsWith(`${done}?`)) return undefined;
-    if (value.startsWith(`${done}/`)) return undefined;
-  }
-  return value;
-}
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,

@@ -5,10 +5,10 @@ import { authClient } from "../api/clients";
 import { isSignedOut } from "../api/errors";
 import { CONFIRM_FAILED } from "../api/loginErrors";
 import { useIdentities, useInstanceStatus, useMe } from "../api/queries";
+import { safeRedirect } from "../api/safeRedirect";
 import { Field } from "../components/Field";
 import { LoginProviders } from "../components/LoginProviders";
 import { useFieldErrors } from "../hooks/useFieldErrors";
-import { safeRedirect } from "../router";
 
 // "Confirm it's you": signing in again without signing out, before a
 // change that needs a recent sign-in (docs/architecture/identity.md →

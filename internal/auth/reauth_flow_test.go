@@ -167,6 +167,11 @@ func TestDesktopReauth(t *testing.T) {
 	}); status != http.StatusUnauthorized || body["error"] != "reauth_failed" {
 		t.Errorf("another session redeemed it: %d, %v", status, body)
 	}
+	if status, body := rig.postAs(t, old, "/auth/desktop/complete", map[string]any{
+		"code": code, "attemptVerifier": verifier,
+	}); status != http.StatusUnauthorized || body["error"] != "code_invalid" {
+		t.Errorf("the refused code redeemed afterwards from the right session: %d, %v", status, body)
+	}
 
 	// From the view that started it: the session is replaced.
 	back = handBack(t, rig.run(t, &http.Client{}, "/auth/oidc/sso/start?reauth=1&attempt="+start(old)))
