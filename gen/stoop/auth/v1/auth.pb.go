@@ -2357,26 +2357,26 @@ func (x *ListSessionsResponse) GetSessions() []*Session {
 	return nil
 }
 
-type RevokeOtherSessionsRequest struct {
+type SignOutEverywhereRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RevokeOtherSessionsRequest) Reset() {
-	*x = RevokeOtherSessionsRequest{}
+func (x *SignOutEverywhereRequest) Reset() {
+	*x = SignOutEverywhereRequest{}
 	mi := &file_stoop_auth_v1_auth_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RevokeOtherSessionsRequest) String() string {
+func (x *SignOutEverywhereRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RevokeOtherSessionsRequest) ProtoMessage() {}
+func (*SignOutEverywhereRequest) ProtoMessage() {}
 
-func (x *RevokeOtherSessionsRequest) ProtoReflect() protoreflect.Message {
+func (x *SignOutEverywhereRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_stoop_auth_v1_auth_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2388,33 +2388,35 @@ func (x *RevokeOtherSessionsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RevokeOtherSessionsRequest.ProtoReflect.Descriptor instead.
-func (*RevokeOtherSessionsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SignOutEverywhereRequest.ProtoReflect.Descriptor instead.
+func (*SignOutEverywhereRequest) Descriptor() ([]byte, []int) {
 	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{45}
 }
 
-type RevokeOtherSessionsResponse struct {
+type SignOutEverywhereResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// How many sessions were signed out.
-	Revoked       int32 `protobuf:"varint,1,opt,name=revoked,proto3" json:"revoked,omitempty"`
+	// How many sessions were signed out, this one included.
+	Sessions int32 `protobuf:"varint,1,opt,name=sessions,proto3" json:"sessions,omitempty"`
+	// How many personal tokens were revoked.
+	Tokens        int32 `protobuf:"varint,2,opt,name=tokens,proto3" json:"tokens,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RevokeOtherSessionsResponse) Reset() {
-	*x = RevokeOtherSessionsResponse{}
+func (x *SignOutEverywhereResponse) Reset() {
+	*x = SignOutEverywhereResponse{}
 	mi := &file_stoop_auth_v1_auth_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RevokeOtherSessionsResponse) String() string {
+func (x *SignOutEverywhereResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RevokeOtherSessionsResponse) ProtoMessage() {}
+func (*SignOutEverywhereResponse) ProtoMessage() {}
 
-func (x *RevokeOtherSessionsResponse) ProtoReflect() protoreflect.Message {
+func (x *SignOutEverywhereResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_stoop_auth_v1_auth_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2426,14 +2428,21 @@ func (x *RevokeOtherSessionsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RevokeOtherSessionsResponse.ProtoReflect.Descriptor instead.
-func (*RevokeOtherSessionsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SignOutEverywhereResponse.ProtoReflect.Descriptor instead.
+func (*SignOutEverywhereResponse) Descriptor() ([]byte, []int) {
 	return file_stoop_auth_v1_auth_proto_rawDescGZIP(), []int{46}
 }
 
-func (x *RevokeOtherSessionsResponse) GetRevoked() int32 {
+func (x *SignOutEverywhereResponse) GetSessions() int32 {
 	if x != nil {
-		return x.Revoked
+		return x.Sessions
+	}
+	return 0
+}
+
+func (x *SignOutEverywhereResponse) GetTokens() int32 {
+	if x != nil {
+		return x.Tokens
 	}
 	return 0
 }
@@ -2958,10 +2967,11 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\acurrent\x18\x06 \x01(\bR\acurrent\"\x15\n" +
 	"\x13ListSessionsRequest\"J\n" +
 	"\x14ListSessionsResponse\x122\n" +
-	"\bsessions\x18\x01 \x03(\v2\x16.stoop.auth.v1.SessionR\bsessions\"\x1c\n" +
-	"\x1aRevokeOtherSessionsRequest\"7\n" +
-	"\x1bRevokeOtherSessionsResponse\x12\x18\n" +
-	"\arevoked\x18\x01 \x01(\x05R\arevoked\"\xf4\x02\n" +
+	"\bsessions\x18\x01 \x03(\v2\x16.stoop.auth.v1.SessionR\bsessions\"\x1a\n" +
+	"\x18SignOutEverywhereRequest\"O\n" +
+	"\x19SignOutEverywhereResponse\x12\x1a\n" +
+	"\bsessions\x18\x01 \x01(\x05R\bsessions\x12\x16\n" +
+	"\x06tokens\x18\x02 \x01(\x05R\x06tokens\"\xf4\x02\n" +
 	"\rPersonalToken\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12=\n" +
@@ -2991,7 +3001,7 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\fInstanceRole\x12\x1d\n" +
 	"\x19INSTANCE_ROLE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14INSTANCE_ROLE_MEMBER\x10\x01\x12\x17\n" +
-	"\x13INSTANCE_ROLE_ADMIN\x10\x022\xc3\x12\n" +
+	"\x13INSTANCE_ROLE_ADMIN\x10\x022\xbd\x12\n" +
 	"\vAuthService\x12M\n" +
 	"\bRegister\x12\x1e.stoop.auth.v1.RegisterRequest\x1a\x1f.stoop.auth.v1.RegisterResponse\"\x00\x12D\n" +
 	"\x05Login\x12\x1b.stoop.auth.v1.LoginRequest\x1a\x1c.stoop.auth.v1.LoginResponse\"\x00\x12G\n" +
@@ -3012,8 +3022,8 @@ const file_stoop_auth_v1_auth_proto_rawDesc = "" +
 	"\x0eListIdentities\x12$.stoop.auth.v1.ListIdentitiesRequest\x1a%.stoop.auth.v1.ListIdentitiesResponse\"\x00\x12_\n" +
 	"\x0eUnlinkIdentity\x12$.stoop.auth.v1.UnlinkIdentityRequest\x1a%.stoop.auth.v1.UnlinkIdentityResponse\"\x00\x12\\\n" +
 	"\rDeleteAccount\x12#.stoop.auth.v1.DeleteAccountRequest\x1a$.stoop.auth.v1.DeleteAccountResponse\"\x00\x12Y\n" +
-	"\fListSessions\x12\".stoop.auth.v1.ListSessionsRequest\x1a#.stoop.auth.v1.ListSessionsResponse\"\x00\x12n\n" +
-	"\x13RevokeOtherSessions\x12).stoop.auth.v1.RevokeOtherSessionsRequest\x1a*.stoop.auth.v1.RevokeOtherSessionsResponse\"\x00\x12n\n" +
+	"\fListSessions\x12\".stoop.auth.v1.ListSessionsRequest\x1a#.stoop.auth.v1.ListSessionsResponse\"\x00\x12h\n" +
+	"\x11SignOutEverywhere\x12'.stoop.auth.v1.SignOutEverywhereRequest\x1a(.stoop.auth.v1.SignOutEverywhereResponse\"\x00\x12n\n" +
 	"\x13CreatePersonalToken\x12).stoop.auth.v1.CreatePersonalTokenRequest\x1a*.stoop.auth.v1.CreatePersonalTokenResponse\"\x00\x12k\n" +
 	"\x12ListPersonalTokens\x12(.stoop.auth.v1.ListPersonalTokensRequest\x1a).stoop.auth.v1.ListPersonalTokensResponse\"\x00\x12n\n" +
 	"\x13RevokePersonalToken\x12).stoop.auth.v1.RevokePersonalTokenRequest\x1a*.stoop.auth.v1.RevokePersonalTokenResponse\"\x00B\xa8\x01\n" +
@@ -3080,8 +3090,8 @@ var file_stoop_auth_v1_auth_proto_goTypes = []any{
 	(*Session)(nil),                         // 43: stoop.auth.v1.Session
 	(*ListSessionsRequest)(nil),             // 44: stoop.auth.v1.ListSessionsRequest
 	(*ListSessionsResponse)(nil),            // 45: stoop.auth.v1.ListSessionsResponse
-	(*RevokeOtherSessionsRequest)(nil),      // 46: stoop.auth.v1.RevokeOtherSessionsRequest
-	(*RevokeOtherSessionsResponse)(nil),     // 47: stoop.auth.v1.RevokeOtherSessionsResponse
+	(*SignOutEverywhereRequest)(nil),        // 46: stoop.auth.v1.SignOutEverywhereRequest
+	(*SignOutEverywhereResponse)(nil),       // 47: stoop.auth.v1.SignOutEverywhereResponse
 	(*PersonalToken)(nil),                   // 48: stoop.auth.v1.PersonalToken
 	(*CreatePersonalTokenRequest)(nil),      // 49: stoop.auth.v1.CreatePersonalTokenRequest
 	(*CreatePersonalTokenResponse)(nil),     // 50: stoop.auth.v1.CreatePersonalTokenResponse
@@ -3143,7 +3153,7 @@ var file_stoop_auth_v1_auth_proto_depIdxs = []int32{
 	39, // 46: stoop.auth.v1.AuthService.UnlinkIdentity:input_type -> stoop.auth.v1.UnlinkIdentityRequest
 	41, // 47: stoop.auth.v1.AuthService.DeleteAccount:input_type -> stoop.auth.v1.DeleteAccountRequest
 	44, // 48: stoop.auth.v1.AuthService.ListSessions:input_type -> stoop.auth.v1.ListSessionsRequest
-	46, // 49: stoop.auth.v1.AuthService.RevokeOtherSessions:input_type -> stoop.auth.v1.RevokeOtherSessionsRequest
+	46, // 49: stoop.auth.v1.AuthService.SignOutEverywhere:input_type -> stoop.auth.v1.SignOutEverywhereRequest
 	49, // 50: stoop.auth.v1.AuthService.CreatePersonalToken:input_type -> stoop.auth.v1.CreatePersonalTokenRequest
 	51, // 51: stoop.auth.v1.AuthService.ListPersonalTokens:input_type -> stoop.auth.v1.ListPersonalTokensRequest
 	53, // 52: stoop.auth.v1.AuthService.RevokePersonalToken:input_type -> stoop.auth.v1.RevokePersonalTokenRequest
@@ -3167,7 +3177,7 @@ var file_stoop_auth_v1_auth_proto_depIdxs = []int32{
 	40, // 70: stoop.auth.v1.AuthService.UnlinkIdentity:output_type -> stoop.auth.v1.UnlinkIdentityResponse
 	42, // 71: stoop.auth.v1.AuthService.DeleteAccount:output_type -> stoop.auth.v1.DeleteAccountResponse
 	45, // 72: stoop.auth.v1.AuthService.ListSessions:output_type -> stoop.auth.v1.ListSessionsResponse
-	47, // 73: stoop.auth.v1.AuthService.RevokeOtherSessions:output_type -> stoop.auth.v1.RevokeOtherSessionsResponse
+	47, // 73: stoop.auth.v1.AuthService.SignOutEverywhere:output_type -> stoop.auth.v1.SignOutEverywhereResponse
 	50, // 74: stoop.auth.v1.AuthService.CreatePersonalToken:output_type -> stoop.auth.v1.CreatePersonalTokenResponse
 	52, // 75: stoop.auth.v1.AuthService.ListPersonalTokens:output_type -> stoop.auth.v1.ListPersonalTokensResponse
 	54, // 76: stoop.auth.v1.AuthService.RevokePersonalToken:output_type -> stoop.auth.v1.RevokePersonalTokenResponse

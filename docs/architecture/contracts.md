@@ -52,7 +52,7 @@ or a token — unless it is listed as public below.
 | `ChangePassword` | Current password required, except for a provider-created account setting its first one. |
 | `ListIdentities` / `UnlinkIdentity` | Linked OIDC accounts. |
 | `DeleteAccount` | The caller's own account, when the server allows it. See [identity.md](identity.md#deleting-your-account). |
-| `ListSessions` / `RevokeOtherSessions` | Where the caller is signed in, and signing every other session out. Need a session (`account.security`); only the caller's own. |
+| `ListSessions` / `SignOutEverywhere` | Where the caller is signed in, and signing out of every session, this one included, and revoking every personal token. Need a session (`account.security`); only the caller's own. |
 | `CreatePersonalToken` / `ListPersonalTokens` / `RevokePersonalToken` | The caller's personal tokens. Need a session (`account.security`); the token is returned once, by `CreatePersonalToken`. |
 
 ### `stoop.chat.v1.ChatService`

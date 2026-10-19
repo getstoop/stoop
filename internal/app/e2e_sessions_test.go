@@ -41,21 +41,25 @@ func TestE2ESessions(t *testing.T) {
 	// A token sees and ends nothing.
 	pat := h.pat(laptop, "messages.read")
 	h.rpc(pat, "stoop.auth.v1.AuthService/ListSessions", map[string]any{}).expect(t, "permission_denied")
-	h.rpc(pat, "stoop.auth.v1.AuthService/RevokeOtherSessions", map[string]any{}).expect(t, "permission_denied")
+	h.rpc(pat, "stoop.auth.v1.AuthService/SignOutEverywhere", map[string]any{}).expect(t, "permission_denied")
 
-	// Everywhere else: the first sign-in and the phone go, this one stays,
-	// and personal tokens go too, since one made from a stolen session
-	// would otherwise outlast the rest.
-	got := h.rpc(laptop, "stoop.auth.v1.AuthService/RevokeOtherSessions", map[string]any{}).expect(t, "ok")
-	if n, _ := got.body["revoked"].(float64); n != 2 {
-		t.Errorf("revoked = %v, want 2", got.body["revoked"])
+	// Everywhere: every session goes, this one included, and personal
+	// tokens too, since one made from a stolen session would otherwise
+	// outlast the rest. The person signs in again.
+	got := h.rpc(laptop, "stoop.auth.v1.AuthService/SignOutEverywhere", map[string]any{}).expect(t, "ok")
+	if n, _ := got.body["sessions"].(float64); n != 3 {
+		t.Errorf("sessions = %v, want 3", got.body["sessions"])
 	}
-	h.rpc(phone, "stoop.auth.v1.AuthService/GetMe", map[string]any{}).expect(t, "unauthenticated")
-	h.rpc(laptop, "stoop.auth.v1.AuthService/GetMe", map[string]any{}).expect(t, "ok")
+	if n, _ := got.body["tokens"].(float64); n != 1 {
+		t.Errorf("tokens = %v, want 1", got.body["tokens"])
+	}
+	for _, gone := range []string{phone, laptop, pat} {
+		h.rpc(gone, "stoop.auth.v1.AuthService/GetMe", map[string]any{}).expect(t, "unauthenticated")
+	}
+	laptop = h.loginFrom(t, "ada", "Laptop browser")
 	if left := h.rpc(laptop, "stoop.auth.v1.AuthService/ListSessions", map[string]any{}).expect(t, "ok").list("sessions"); len(left) != 1 {
-		t.Errorf("%d sessions left, want 1", len(left))
+		t.Errorf("%d sessions after signing in again, want 1", len(left))
 	}
-	h.rpc(pat, "stoop.chat.v1.ChatService/ListSpaces", map[string]any{}).expect(t, "unauthenticated")
 	pat = h.pat(laptop, "messages.read")
 
 	// The lifetime setting: bounded, applied to new sign-ins only, and 0

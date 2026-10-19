@@ -101,15 +101,15 @@ instead of signing out.
 
 1. **Close the open holes.** Linking a provider and creating a personal
    token need a recent sign-in, and a token never counts as one. "Sign
-   out everywhere" also revokes personal tokens. Current-password checks
+   out everywhere" (`SignOutEverywhere`) ends every session, this one
+   included, and every personal token; the person signs in again, so no
+   session is handed back that a thief could use. Current-password checks
    go through `loginGuard`. A link is checked when it starts only: the
    round trip is bound to that session, so a second check when it is
    written would refuse a slow sign-in and stop nothing.
 2. **The reauth flow.** Reauth mode on the sign-in page, the reauth
    callback branch, session replacement and its announcement, the window
    down to 5 minutes, and the inline password fields off the forms.
-   "Sign out everywhere" replaces the caller's session here too, since it
-   needs the same *replaced* announcement as reauth.
 3. **Later.** Admin actions behind the same gate; the phone's reauth
    screen with its account settings.
 

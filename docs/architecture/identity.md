@@ -256,9 +256,13 @@ exists. Use doesn't extend it.
 **A person manages their own.** `ListSessions` shows each session's
 sign-in time, last use (recorded at most once a minute, like a token's),
 expiry and the User-Agent it signed in with (`credentials.user_agent`,
-kept to 512 bytes). `RevokeOtherSessions` ends every session but the
-calling one, and every personal token, since one made from a stolen
-session would otherwise outlast the rest; this one ends with `Logout`. Both need `account.security`,
+kept to 512 bytes). `SignOutEverywhere` ends every session, the calling
+one included, and every personal token, in one transaction: a copy of
+this session, or a token made from a stolen one, would otherwise outlast
+the rest. The person signs in again, which is a real sign-in. A token
+being made holds its session against deletion and is written only while
+that session exists, so none can be slipped in past it. `Logout` ends
+just this one. Both need `account.security`,
 so only a session can call them, and each revocation is announced so the
 gateway closes that session's sockets.
 
@@ -279,7 +283,7 @@ in, and expires after 30, 90 or 365 days, or never.
 - **No token can make, list or revoke tokens**, change a password or link
   a provider: those need `account.security`, which only a session carries.
   Making one also needs a session under ten minutes old (see Passwords),
-  and signing out everywhere else revokes them all.
+  and signing out everywhere revokes them all.
 - **It can't join voice.** Who is in a call is reported over `/ws`, which
   a token can't open; a voice client belongs on a bot token.
 - **There is no space limit.** "This token can do what you can, wherever

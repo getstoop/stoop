@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	accessv1 "github.com/getstoop/stoop/gen/stoop/access/v1"
@@ -126,7 +127,12 @@ func (s *Service) CreatePersonalToken(ctx context.Context, req *connect.Request[
 	row, err := s.q.CreatePersonalToken(ctx, dbgen.CreatePersonalTokenParams{
 		ID: credID, HolderID: id.UserID, TokenHash: hash, Name: name,
 		Grants: grants, Bounded: false, ExpiresAt: expires, Hint: secret[len(secret)-4:],
+		SessionID: id.SessionID,
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		// The session was signed out while this was on its way.
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("not logged in"))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("create token: %w", err)
 	}

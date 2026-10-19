@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { authClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
@@ -39,6 +40,7 @@ const columns: TableColumn<KindRow>[] = [
 
 export function SessionsSection() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { data: sessions } = useSessions();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,12 +57,14 @@ export function SessionsSection() {
     [sessions],
   );
 
-  const signOutOthers = async () => {
+  // Every session goes, this one too, and every personal token: a copy
+  // of this session, or a token made from a stolen one, goes with them.
+  const signOutEverywhere = async () => {
     if (
       !(await confirm({
-        title: "Sign out everywhere else?",
-        body: `${others === 1 ? "1 other session" : `${others} other sessions`} will need to sign in again, and your personal tokens stop working. You stay signed in here.`,
-        action: "Sign out",
+        title: "Sign out everywhere?",
+        body: `Every device signs out, this one too${others > 0 ? ` (${others + 1} sessions)` : ""}, and your personal tokens stop working. You'll sign in again.`,
+        action: "Sign out everywhere",
         danger: true,
       }))
     ) {
@@ -69,11 +73,11 @@ export function SessionsSection() {
     setBusy(true);
     setError(null);
     try {
-      await authClient.revokeOtherSessions({});
-      await queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      await authClient.signOutEverywhere({});
+      queryClient.clear();
+      await navigate({ to: "/login" });
     } catch (err) {
       setError(errorText(err));
-    } finally {
       setBusy(false);
     }
   };
@@ -84,7 +88,8 @@ export function SessionsSection() {
       {current && (
         <p className="hint">
           This device: {describeUserAgent(current.userAgent)}. If you don't
-          recognise the rest, sign them out and change your password.
+          recognise the rest, sign out everywhere, sign back in and change your
+          password.
         </p>
       )}
       <DataTable
@@ -109,10 +114,10 @@ export function SessionsSection() {
         <button
           type="button"
           className="chip danger"
-          disabled={busy || others === 0}
-          onClick={signOutOthers}
+          disabled={busy}
+          onClick={signOutEverywhere}
         >
-          Sign out everywhere else
+          Sign out everywhere
         </button>
       </div>
     </section>

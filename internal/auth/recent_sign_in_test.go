@@ -2,16 +2,20 @@ package auth_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	authv1 "github.com/getstoop/stoop/gen/stoop/auth/v1"
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/db/dbtest"
+	"github.com/getstoop/stoop/internal/dbgen"
 )
 
 // ageSession backdates the caller's session past the ten minutes a
@@ -111,26 +115,54 @@ func TestCreatingATokenNeedsRecentSignIn(t *testing.T) {
 	}
 }
 
-// Signing out everywhere else takes personal tokens with it: one made
-// from a stolen session would otherwise keep its holder in.
-func TestSignOutEverywhereRevokesTokens(t *testing.T) {
+// Signing out everywhere ends every session, this one included, and every
+// personal token: a copy of this session, or a token made from a stolen
+// one, would otherwise keep its holder in.
+func TestSignOutEverywhere(t *testing.T) {
 	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
 	ada, token := signIn(t, svc, "ada", casePassword)
+	_, other := signIn(t, svc, "ada", casePassword)
 	made, err := svc.CreatePersonalToken(ada, connect.NewRequest(&authv1.CreatePersonalTokenRequest{
 		Name: "script", Permissions: readOnly, ExpiresInDays: 30,
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.RevokeOtherSessions(ada, connect.NewRequest(&authv1.RevokeOtherSessionsRequest{})); err != nil {
+	res, err := svc.SignOutEverywhere(ada, connect.NewRequest(&authv1.SignOutEverywhereRequest{}))
+	if err != nil {
 		t.Fatal(err)
 	}
-	bg := context.Background()
-	if _, err := svc.VerifyToken(bg, made.Msg.Secret); err == nil {
-		t.Error("the personal token survived signing out everywhere")
+	if res.Msg.Sessions != 2 || res.Msg.Tokens != 1 {
+		t.Errorf("ended %d sessions and %d tokens, want 2 and 1", res.Msg.Sessions, res.Msg.Tokens)
 	}
-	if _, err := svc.VerifyToken(bg, token); err != nil {
-		t.Errorf("the caller's own session was signed out: %v", err)
+	if !strings.Contains(res.Header().Get("Set-Cookie"), "Max-Age=0") {
+		t.Errorf("the cookie isn't cleared: %q", res.Header().Get("Set-Cookie"))
+	}
+	bg := context.Background()
+	for what, gone := range map[string]string{"this session": token, "the other device": other, "the personal token": made.Msg.Secret} {
+		if _, err := svc.VerifyToken(bg, gone); err == nil {
+			t.Errorf("%s survived signing out everywhere", what)
+		}
+	}
+}
+
+// A token is written only while the session making it still exists, so
+// one signed out between the request's checks and the insert can't leave
+// a token behind (the insert holds the session against SignOutEverywhere).
+func TestNoTokenFromASignedOutSession(t *testing.T) {
+	pool := dbtest.New(t)
+	svc := auth.New(pool, auth.Options{Argon2Params: testArgon2})
+	ada, _ := signIn(t, svc, "ada", casePassword)
+	id, _ := authctx.From(ada)
+	if _, err := svc.SignOutEverywhere(ada, connect.NewRequest(&authv1.SignOutEverywhereRequest{})); err != nil {
+		t.Fatal(err)
+	}
+	_, err := dbgen.New(pool).CreatePersonalToken(context.Background(), dbgen.CreatePersonalTokenParams{
+		ID: uuid.NewString(), HolderID: id.UserID, TokenHash: []byte("hash"), Name: "script",
+		Grants: []string{}, Hint: "abcd", SessionID: id.SessionID,
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("a token was written for a signed-out session: %v", err)
 	}
 }
 

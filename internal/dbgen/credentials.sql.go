@@ -41,9 +41,14 @@ func (q *Queries) CountPersonalTokensByHolder(ctx context.Context) ([]CountPerso
 
 const createPersonalToken = `-- name: CreatePersonalToken :one
 INSERT INTO credentials (id, holder_id, kind, token_hash, name, grants, bounded, created_by, expires_at, hint)
-VALUES ($1::uuid, $2::uuid, 'personal_token', $3::bytea,
-        $4::text, $5::text[], $6::boolean, $2::uuid,
-        $7::timestamptz, $8::text)
+SELECT $1::uuid, $2::uuid, 'personal_token', $3::bytea,
+       $4::text, $5::text[], $6::boolean, $2::uuid,
+       $7::timestamptz, $8::text
+WHERE EXISTS (
+  SELECT 1 FROM credentials s
+  WHERE s.id = $9::uuid AND s.kind = 'session'
+  FOR SHARE
+)
 RETURNING id, holder_id, kind, token_hash, name, grants, bounded, created_by, created_at, expires_at, last_used_at, hint, user_agent
 `
 
@@ -56,8 +61,12 @@ type CreatePersonalTokenParams struct {
 	Bounded   bool
 	ExpiresAt *time.Time
 	Hint      string
+	SessionID string
 }
 
+// CreatePersonalToken inserts only while the session making it still
+// exists, holding it against deletion meanwhile: a token can't be slipped
+// in past a SignOutEverywhere that ends that session (no row, then).
 func (q *Queries) CreatePersonalToken(ctx context.Context, arg CreatePersonalTokenParams) (Credential, error) {
 	row := q.db.QueryRow(ctx, createPersonalToken,
 		arg.ID,
@@ -68,6 +77,7 @@ func (q *Queries) CreatePersonalToken(ctx context.Context, arg CreatePersonalTok
 		arg.Bounded,
 		arg.ExpiresAt,
 		arg.Hint,
+		arg.SessionID,
 	)
 	var i Credential
 	err := row.Scan(

@@ -88,9 +88,9 @@ const (
 	// AuthServiceListSessionsProcedure is the fully-qualified name of the AuthService's ListSessions
 	// RPC.
 	AuthServiceListSessionsProcedure = "/stoop.auth.v1.AuthService/ListSessions"
-	// AuthServiceRevokeOtherSessionsProcedure is the fully-qualified name of the AuthService's
-	// RevokeOtherSessions RPC.
-	AuthServiceRevokeOtherSessionsProcedure = "/stoop.auth.v1.AuthService/RevokeOtherSessions"
+	// AuthServiceSignOutEverywhereProcedure is the fully-qualified name of the AuthService's
+	// SignOutEverywhere RPC.
+	AuthServiceSignOutEverywhereProcedure = "/stoop.auth.v1.AuthService/SignOutEverywhere"
 	// AuthServiceCreatePersonalTokenProcedure is the fully-qualified name of the AuthService's
 	// CreatePersonalToken RPC.
 	AuthServiceCreatePersonalTokenProcedure = "/stoop.auth.v1.AuthService/CreatePersonalToken"
@@ -164,8 +164,10 @@ type AuthServiceClient interface {
 	// ListSessions lists where the caller is signed in, most recently used
 	// first. Needs a session: a token can't see or end sessions.
 	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
-	// RevokeOtherSessions signs the caller out everywhere but here.
-	RevokeOtherSessions(context.Context, *connect.Request[v1.RevokeOtherSessionsRequest]) (*connect.Response[v1.RevokeOtherSessionsResponse], error)
+	// SignOutEverywhere ends every session the caller has, this one
+	// included, and every personal token: whatever a stolen session copied
+	// or made goes with it, and the person signs in again.
+	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
 	// permissions granted. The secret is in
 	// this response and nowhere else. Needs a session: no token can make
@@ -308,10 +310,10 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("ListSessions")),
 			connect.WithClientOptions(opts...),
 		),
-		revokeOtherSessions: connect.NewClient[v1.RevokeOtherSessionsRequest, v1.RevokeOtherSessionsResponse](
+		signOutEverywhere: connect.NewClient[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse](
 			httpClient,
-			baseURL+AuthServiceRevokeOtherSessionsProcedure,
-			connect.WithSchema(authServiceMethods.ByName("RevokeOtherSessions")),
+			baseURL+AuthServiceSignOutEverywhereProcedure,
+			connect.WithSchema(authServiceMethods.ByName("SignOutEverywhere")),
 			connect.WithClientOptions(opts...),
 		),
 		createPersonalToken: connect.NewClient[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse](
@@ -357,7 +359,7 @@ type authServiceClient struct {
 	unlinkIdentity          *connect.Client[v1.UnlinkIdentityRequest, v1.UnlinkIdentityResponse]
 	deleteAccount           *connect.Client[v1.DeleteAccountRequest, v1.DeleteAccountResponse]
 	listSessions            *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
-	revokeOtherSessions     *connect.Client[v1.RevokeOtherSessionsRequest, v1.RevokeOtherSessionsResponse]
+	signOutEverywhere       *connect.Client[v1.SignOutEverywhereRequest, v1.SignOutEverywhereResponse]
 	createPersonalToken     *connect.Client[v1.CreatePersonalTokenRequest, v1.CreatePersonalTokenResponse]
 	listPersonalTokens      *connect.Client[v1.ListPersonalTokensRequest, v1.ListPersonalTokensResponse]
 	revokePersonalToken     *connect.Client[v1.RevokePersonalTokenRequest, v1.RevokePersonalTokenResponse]
@@ -463,9 +465,9 @@ func (c *authServiceClient) ListSessions(ctx context.Context, req *connect.Reque
 	return c.listSessions.CallUnary(ctx, req)
 }
 
-// RevokeOtherSessions calls stoop.auth.v1.AuthService.RevokeOtherSessions.
-func (c *authServiceClient) RevokeOtherSessions(ctx context.Context, req *connect.Request[v1.RevokeOtherSessionsRequest]) (*connect.Response[v1.RevokeOtherSessionsResponse], error) {
-	return c.revokeOtherSessions.CallUnary(ctx, req)
+// SignOutEverywhere calls stoop.auth.v1.AuthService.SignOutEverywhere.
+func (c *authServiceClient) SignOutEverywhere(ctx context.Context, req *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error) {
+	return c.signOutEverywhere.CallUnary(ctx, req)
 }
 
 // CreatePersonalToken calls stoop.auth.v1.AuthService.CreatePersonalToken.
@@ -545,8 +547,10 @@ type AuthServiceHandler interface {
 	// ListSessions lists where the caller is signed in, most recently used
 	// first. Needs a session: a token can't see or end sessions.
 	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
-	// RevokeOtherSessions signs the caller out everywhere but here.
-	RevokeOtherSessions(context.Context, *connect.Request[v1.RevokeOtherSessionsRequest]) (*connect.Response[v1.RevokeOtherSessionsResponse], error)
+	// SignOutEverywhere ends every session the caller has, this one
+	// included, and every personal token: whatever a stolen session copied
+	// or made goes with it, and the person signs in again.
+	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
 	// CreatePersonalToken makes a token that acts as the caller with only the
 	// permissions granted. The secret is in
 	// this response and nowhere else. Needs a session: no token can make
@@ -685,10 +689,10 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("ListSessions")),
 		connect.WithHandlerOptions(opts...),
 	)
-	authServiceRevokeOtherSessionsHandler := connect.NewUnaryHandler(
-		AuthServiceRevokeOtherSessionsProcedure,
-		svc.RevokeOtherSessions,
-		connect.WithSchema(authServiceMethods.ByName("RevokeOtherSessions")),
+	authServiceSignOutEverywhereHandler := connect.NewUnaryHandler(
+		AuthServiceSignOutEverywhereProcedure,
+		svc.SignOutEverywhere,
+		connect.WithSchema(authServiceMethods.ByName("SignOutEverywhere")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authServiceCreatePersonalTokenHandler := connect.NewUnaryHandler(
@@ -751,8 +755,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceDeleteAccountHandler.ServeHTTP(w, r)
 		case AuthServiceListSessionsProcedure:
 			authServiceListSessionsHandler.ServeHTTP(w, r)
-		case AuthServiceRevokeOtherSessionsProcedure:
-			authServiceRevokeOtherSessionsHandler.ServeHTTP(w, r)
+		case AuthServiceSignOutEverywhereProcedure:
+			authServiceSignOutEverywhereHandler.ServeHTTP(w, r)
 		case AuthServiceCreatePersonalTokenProcedure:
 			authServiceCreatePersonalTokenHandler.ServeHTTP(w, r)
 		case AuthServiceListPersonalTokensProcedure:
@@ -848,8 +852,8 @@ func (UnimplementedAuthServiceHandler) ListSessions(context.Context, *connect.Re
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.ListSessions is not implemented"))
 }
 
-func (UnimplementedAuthServiceHandler) RevokeOtherSessions(context.Context, *connect.Request[v1.RevokeOtherSessionsRequest]) (*connect.Response[v1.RevokeOtherSessionsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.RevokeOtherSessions is not implemented"))
+func (UnimplementedAuthServiceHandler) SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.auth.v1.AuthService.SignOutEverywhere is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) CreatePersonalToken(context.Context, *connect.Request[v1.CreatePersonalTokenRequest]) (*connect.Response[v1.CreatePersonalTokenResponse], error) {
