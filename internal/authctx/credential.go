@@ -101,11 +101,14 @@ func Refusal(ctx context.Context, a Action) error {
 
 // Rule classifies a Connect procedure for the credential gate. A public
 // procedure needs no credential; otherwise the credential must cover one of
-// AnyOf, and an empty AnyOf admits any caller. Bounds are checked by the
-// handler, once it knows the resource.
+// AnyOf, and an empty AnyOf admits any caller. Recent also needs a session
+// signed in within the last few minutes: the procedure hands out lasting
+// access a stolen session must not be able to take (identity.md → Confirm
+// it's you). Bounds are checked by the handler, once it knows the resource.
 type Rule struct {
 	Public bool
 	AnyOf  []Action
+	Recent bool
 }
 
 // CoveredBy reports whether c may call a procedure with this rule.

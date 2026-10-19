@@ -50,11 +50,18 @@ func (s *Service) requireRecentSignIn(ctx context.Context, sessionID, what strin
 		recent = err == nil && time.Since(signedIn) <= recentSignIn
 	}
 	if !recent {
-		return connect.NewError(connect.CodeFailedPrecondition,
+		err := connect.NewError(connect.CodeFailedPrecondition,
 			errors.New("sign in again first, then "+what))
+		// Machine-readable, so a client can offer "Confirm it's you"
+		// wherever the refusal comes from (web/src/api/clients.ts).
+		err.Meta().Set(confirmHeader, "required")
+		return err
 	}
 	return nil
 }
+
+// confirmHeader marks a refusal for want of a recent sign-in.
+const confirmHeader = "Stoop-Confirm"
 
 // Reauthenticate is confirming with the password.
 func (s *Service) Reauthenticate(ctx context.Context, req *connect.Request[authv1.ReauthenticateRequest]) (*connect.Response[authv1.ReauthenticateResponse], error) {

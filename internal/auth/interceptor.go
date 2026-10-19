@@ -50,6 +50,11 @@ func (s *Service) NewInterceptor() connect.UnaryInterceptorFunc {
 			if !rule.CoveredBy(identity.Credential) {
 				return nil, connect.NewError(connect.CodePermissionDenied, authctx.Uncovered(rule.AnyOf[0]))
 			}
+			if rule.Recent {
+				if err := s.requireRecentSignIn(ctx, identity.SessionID, "make this change"); err != nil {
+					return nil, err
+				}
+			}
 			return next(authctx.WithIdentity(ctx, identity), req)
 		}
 	}
