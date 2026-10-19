@@ -20,7 +20,10 @@ export const themes = {
     "warn": "#e0a83c",
     "danger": "#e05c5c",
     "shadow": "0 12px 32px rgba(0, 0, 0, 0.45)",
-    "scrim": "rgba(0, 0, 0, 0.55)"
+    "scrim": "rgba(0, 0, 0, 0.55)",
+    "okSoft": "rgba(88, 179, 116, 0.18)",
+    "warnSoft": "rgba(224, 168, 60, 0.2)",
+    "dangerSoft": "rgba(224, 92, 92, 0.18)"
   },
   "daylight": {
     "scheme": "light",
@@ -39,7 +42,10 @@ export const themes = {
     "warn": "#b0791a",
     "danger": "#c74a4a",
     "shadow": "0 10px 30px rgba(40, 30, 20, 0.14)",
-    "scrim": "rgba(30, 25, 20, 0.45)"
+    "scrim": "rgba(30, 25, 20, 0.45)",
+    "okSoft": "rgba(63, 143, 91, 0.18)",
+    "warnSoft": "rgba(176, 121, 26, 0.2)",
+    "dangerSoft": "rgba(199, 74, 74, 0.18)"
   },
   "dusk": {
     "scheme": "dark",
@@ -58,7 +64,10 @@ export const themes = {
     "warn": "#f0b35a",
     "danger": "#ef7070",
     "shadow": "0 12px 32px rgba(5, 4, 20, 0.55)",
-    "scrim": "rgba(10, 8, 30, 0.6)"
+    "scrim": "rgba(10, 8, 30, 0.6)",
+    "okSoft": "rgba(108, 196, 140, 0.18)",
+    "warnSoft": "rgba(240, 179, 90, 0.2)",
+    "dangerSoft": "rgba(239, 112, 112, 0.18)"
   },
   "bodega": {
     "scheme": "dark",
@@ -77,7 +86,10 @@ export const themes = {
     "warn": "#e8c547",
     "danger": "#ef7a6a",
     "shadow": "0 12px 32px rgba(0, 10, 6, 0.55)",
-    "scrim": "rgba(5, 15, 12, 0.6)"
+    "scrim": "rgba(5, 15, 12, 0.6)",
+    "okSoft": "rgba(122, 211, 154, 0.18)",
+    "warnSoft": "rgba(232, 197, 71, 0.2)",
+    "dangerSoft": "rgba(239, 122, 106, 0.18)"
   },
   "newsprint": {
     "scheme": "light",
@@ -96,7 +108,10 @@ export const themes = {
     "warn": "#9a6b0f",
     "danger": "#c23f3f",
     "shadow": "0 10px 30px rgba(29, 31, 32, 0.14)",
-    "scrim": "rgba(29, 31, 32, 0.45)"
+    "scrim": "rgba(29, 31, 32, 0.45)",
+    "okSoft": "rgba(47, 143, 87, 0.18)",
+    "warnSoft": "rgba(154, 107, 15, 0.2)",
+    "dangerSoft": "rgba(194, 63, 63, 0.18)"
   },
   "blackout": {
     "scheme": "dark",
@@ -115,7 +130,10 @@ export const themes = {
     "warn": "#ffd60a",
     "danger": "#ff6b6b",
     "shadow": "0 12px 32px rgba(0, 0, 0, 0.8)",
-    "scrim": "rgba(0, 0, 0, 0.75)"
+    "scrim": "rgba(0, 0, 0, 0.75)",
+    "okSoft": "rgba(95, 240, 138, 0.18)",
+    "warnSoft": "rgba(255, 214, 10, 0.2)",
+    "dangerSoft": "rgba(255, 107, 107, 0.18)"
   },
   "fireEscape": {
     "scheme": "dark",
@@ -134,7 +152,10 @@ export const themes = {
     "warn": "#e0a83c",
     "danger": "#e05c5c",
     "shadow": "0 12px 32px rgba(0, 0, 0, 0.45)",
-    "scrim": "rgba(0, 0, 0, 0.55)"
+    "scrim": "rgba(0, 0, 0, 0.55)",
+    "okSoft": "rgba(88, 179, 116, 0.18)",
+    "warnSoft": "rgba(224, 168, 60, 0.2)",
+    "dangerSoft": "rgba(224, 92, 92, 0.18)"
   },
   "nightcap": {
     "scheme": "dark",
@@ -153,7 +174,10 @@ export const themes = {
     "warn": "#e0b055",
     "danger": "#ea6f55",
     "shadow": "0 12px 32px rgba(10, 5, 3, 0.55)",
-    "scrim": "rgba(15, 8, 6, 0.6)"
+    "scrim": "rgba(15, 8, 6, 0.6)",
+    "okSoft": "rgba(124, 196, 143, 0.18)",
+    "warnSoft": "rgba(224, 176, 85, 0.2)",
+    "dangerSoft": "rgba(234, 111, 85, 0.18)"
   },
   "nightBus": {
     "scheme": "dark",
@@ -172,7 +196,10 @@ export const themes = {
     "warn": "#e2b263",
     "danger": "#ff8a80",
     "shadow": "0 16px 40px rgba(0, 0, 0, 0.65)",
-    "scrim": "rgba(10, 12, 26, 0.62)"
+    "scrim": "rgba(10, 12, 26, 0.62)",
+    "okSoft": "rgba(121, 211, 165, 0.18)",
+    "warnSoft": "rgba(226, 178, 99, 0.2)",
+    "dangerSoft": "rgba(255, 138, 128, 0.18)"
   },
   "mailbox": {
     "scheme": "dark",
@@ -191,7 +218,10 @@ export const themes = {
     "warn": "#e4b65c",
     "danger": "#f0827a",
     "shadow": "0 12px 32px rgba(0, 6, 16, 0.6)",
-    "scrim": "rgba(5, 11, 20, 0.62)"
+    "scrim": "rgba(5, 11, 20, 0.62)",
+    "okSoft": "rgba(103, 206, 160, 0.18)",
+    "warnSoft": "rgba(228, 182, 92, 0.2)",
+    "dangerSoft": "rgba(240, 130, 122, 0.18)"
   },
   "subwayTile": {
     "scheme": "light",
@@ -210,7 +240,10 @@ export const themes = {
     "warn": "#a37d00",
     "danger": "#d3271f",
     "shadow": "0 10px 30px rgba(20, 40, 30, 0.14)",
-    "scrim": "rgba(20, 30, 25, 0.45)"
+    "scrim": "rgba(20, 30, 25, 0.45)",
+    "okSoft": "rgba(0, 132, 58, 0.18)",
+    "warnSoft": "rgba(163, 125, 0, 0.2)",
+    "dangerSoft": "rgba(211, 39, 31, 0.18)"
   },
   "pigeon": {
     "scheme": "light",
@@ -229,7 +262,10 @@ export const themes = {
     "warn": "#b87613",
     "danger": "#cf463d",
     "shadow": "0 10px 30px rgba(30, 30, 50, 0.14)",
-    "scrim": "rgba(28, 28, 40, 0.45)"
+    "scrim": "rgba(28, 28, 40, 0.45)",
+    "okSoft": "rgba(47, 143, 78, 0.18)",
+    "warnSoft": "rgba(184, 118, 19, 0.2)",
+    "dangerSoft": "rgba(207, 70, 61, 0.18)"
   },
   "laundromat": {
     "scheme": "light",
@@ -248,7 +284,10 @@ export const themes = {
     "warn": "#c58217",
     "danger": "#d14040",
     "shadow": "0 10px 30px rgba(20, 50, 45, 0.14)",
-    "scrim": "rgba(15, 35, 30, 0.45)"
+    "scrim": "rgba(15, 35, 30, 0.45)",
+    "okSoft": "rgba(31, 143, 95, 0.18)",
+    "warnSoft": "rgba(197, 130, 23, 0.2)",
+    "dangerSoft": "rgba(209, 64, 64, 0.18)"
   },
   "boardwalk": {
     "scheme": "light",
@@ -267,7 +306,10 @@ export const themes = {
     "warn": "#b07a0e",
     "danger": "#cf4a3a",
     "shadow": "0 10px 30px rgba(50, 35, 15, 0.14)",
-    "scrim": "rgba(35, 25, 10, 0.45)"
+    "scrim": "rgba(35, 25, 10, 0.45)",
+    "okSoft": "rgba(63, 143, 91, 0.18)",
+    "warnSoft": "rgba(176, 122, 14, 0.2)",
+    "dangerSoft": "rgba(207, 74, 58, 0.18)"
   },
   "whiteout": {
     "scheme": "light",
@@ -286,7 +328,10 @@ export const themes = {
     "warn": "#8a5a00",
     "danger": "#d40000",
     "shadow": "0 12px 32px rgba(0, 0, 0, 0.25)",
-    "scrim": "rgba(0, 0, 0, 0.55)"
+    "scrim": "rgba(0, 0, 0, 0.55)",
+    "okSoft": "rgba(0, 122, 51, 0.18)",
+    "warnSoft": "rgba(138, 90, 0, 0.2)",
+    "dangerSoft": "rgba(212, 0, 0, 0.18)"
   },
   "library": {
     "scheme": "light",
@@ -305,7 +350,10 @@ export const themes = {
     "warn": "#a37a1c",
     "danger": "#b8503f",
     "shadow": "0 10px 30px rgba(60, 40, 15, 0.12)",
-    "scrim": "rgba(45, 35, 20, 0.4)"
+    "scrim": "rgba(45, 35, 20, 0.4)",
+    "okSoft": "rgba(79, 143, 96, 0.18)",
+    "warnSoft": "rgba(163, 122, 28, 0.2)",
+    "dangerSoft": "rgba(184, 80, 63, 0.18)"
   },
   "ginkgo": {
     "scheme": "light",
@@ -324,7 +372,10 @@ export const themes = {
     "warn": "#b07d00",
     "danger": "#c4453a",
     "shadow": "0 10px 30px rgba(30, 40, 20, 0.14)",
-    "scrim": "rgba(25, 30, 20, 0.45)"
+    "scrim": "rgba(25, 30, 20, 0.45)",
+    "okSoft": "rgba(63, 138, 79, 0.18)",
+    "warnSoft": "rgba(176, 125, 0, 0.2)",
+    "dangerSoft": "rgba(196, 69, 58, 0.18)"
   },
   "rooftop": {
     "scheme": "dark",
@@ -343,7 +394,10 @@ export const themes = {
     "warn": "#f0c26b",
     "danger": "#f28b82",
     "shadow": "0 12px 32px rgba(10, 14, 24, 0.5)",
-    "scrim": "rgba(20, 24, 36, 0.6)"
+    "scrim": "rgba(20, 24, 36, 0.6)",
+    "okSoft": "rgba(127, 211, 161, 0.18)",
+    "warnSoft": "rgba(240, 194, 107, 0.2)",
+    "dangerSoft": "rgba(242, 139, 130, 0.18)"
   },
   "waterTower": {
     "scheme": "dark",
@@ -362,7 +416,10 @@ export const themes = {
     "warn": "#efc06a",
     "danger": "#f28b78",
     "shadow": "0 12px 32px rgba(15, 8, 5, 0.5)",
-    "scrim": "rgba(25, 15, 10, 0.6)"
+    "scrim": "rgba(25, 15, 10, 0.6)",
+    "okSoft": "rgba(134, 207, 156, 0.18)",
+    "warnSoft": "rgba(239, 192, 106, 0.2)",
+    "dangerSoft": "rgba(242, 139, 120, 0.18)"
   },
   "streetlight": {
     "scheme": "dark",
@@ -381,7 +438,10 @@ export const themes = {
     "warn": "#f5a524",
     "danger": "#f0705a",
     "shadow": "0 12px 32px rgba(5, 3, 0, 0.6)",
-    "scrim": "rgba(10, 6, 0, 0.65)"
+    "scrim": "rgba(10, 6, 0, 0.65)",
+    "okSoft": "rgba(168, 201, 106, 0.18)",
+    "warnSoft": "rgba(245, 165, 36, 0.2)",
+    "dangerSoft": "rgba(240, 112, 90, 0.18)"
   },
   "neon": {
     "scheme": "dark",
@@ -400,7 +460,10 @@ export const themes = {
     "warn": "#ffcf4d",
     "danger": "#ff6b6b",
     "shadow": "0 16px 40px rgba(0, 0, 10, 0.7)",
-    "scrim": "rgba(5, 5, 15, 0.7)"
+    "scrim": "rgba(5, 5, 15, 0.7)",
+    "okSoft": "rgba(75, 227, 192, 0.18)",
+    "warnSoft": "rgba(255, 207, 77, 0.2)",
+    "dangerSoft": "rgba(255, 107, 107, 0.18)"
   },
   "ferry": {
     "scheme": "dark",
@@ -419,7 +482,10 @@ export const themes = {
     "warn": "#f2c14e",
     "danger": "#f27a6a",
     "shadow": "0 12px 32px rgba(0, 10, 14, 0.6)",
-    "scrim": "rgba(3, 12, 16, 0.62)"
+    "scrim": "rgba(3, 12, 16, 0.62)",
+    "okSoft": "rgba(98, 207, 154, 0.18)",
+    "warnSoft": "rgba(242, 193, 78, 0.2)",
+    "dangerSoft": "rgba(242, 122, 106, 0.18)"
   },
   "bikeLane": {
     "scheme": "dark",
@@ -438,7 +504,10 @@ export const themes = {
     "warn": "#f0c541",
     "danger": "#ff6b5e",
     "shadow": "0 12px 32px rgba(0, 0, 0, 0.5)",
-    "scrim": "rgba(0, 0, 0, 0.6)"
+    "scrim": "rgba(0, 0, 0, 0.6)",
+    "okSoft": "rgba(88, 212, 120, 0.18)",
+    "warnSoft": "rgba(240, 197, 65, 0.2)",
+    "dangerSoft": "rgba(255, 107, 94, 0.18)"
   },
   "crosswalk": {
     "scheme": "dark",
@@ -457,7 +526,10 @@ export const themes = {
     "warn": "#c9e550",
     "danger": "#f27a3d",
     "shadow": "0 12px 32px rgba(0, 0, 0, 0.5)",
-    "scrim": "rgba(0, 0, 0, 0.6)"
+    "scrim": "rgba(0, 0, 0, 0.6)",
+    "okSoft": "rgba(127, 198, 242, 0.18)",
+    "warnSoft": "rgba(201, 229, 80, 0.2)",
+    "dangerSoft": "rgba(242, 122, 61, 0.18)"
   },
   "concrete": {
     "scheme": "dark",
@@ -476,7 +548,10 @@ export const themes = {
     "warn": "#d9b96a",
     "danger": "#d98080",
     "shadow": "0 12px 32px rgba(0, 0, 0, 0.6)",
-    "scrim": "rgba(0, 0, 0, 0.65)"
+    "scrim": "rgba(0, 0, 0, 0.65)",
+    "okSoft": "rgba(143, 191, 154, 0.18)",
+    "warnSoft": "rgba(217, 185, 106, 0.2)",
+    "dangerSoft": "rgba(217, 128, 128, 0.18)"
   },
   "scaffolding": {
     "scheme": "dark",
@@ -495,7 +570,10 @@ export const themes = {
     "warn": "#f0c76a",
     "danger": "#f28c7a",
     "shadow": "0 12px 32px rgba(8, 16, 12, 0.5)",
-    "scrim": "rgba(15, 25, 20, 0.6)"
+    "scrim": "rgba(15, 25, 20, 0.6)",
+    "okSoft": "rgba(134, 210, 156, 0.18)",
+    "warnSoft": "rgba(240, 199, 106, 0.2)",
+    "dangerSoft": "rgba(242, 140, 122, 0.18)"
   },
   "sidewalkChalk": {
     "scheme": "dark",
@@ -514,7 +592,10 @@ export const themes = {
     "warn": "#f1d27a",
     "danger": "#f39a8e",
     "shadow": "0 12px 32px rgba(10, 8, 5, 0.5)",
-    "scrim": "rgba(20, 17, 14, 0.6)"
+    "scrim": "rgba(20, 17, 14, 0.6)",
+    "okSoft": "rgba(169, 217, 160, 0.18)",
+    "warnSoft": "rgba(241, 210, 122, 0.2)",
+    "dangerSoft": "rgba(243, 154, 142, 0.18)"
   }
 } as const;
 

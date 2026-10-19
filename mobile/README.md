@@ -3,7 +3,7 @@
 > [!CAUTION]
 > **Work in progress. Do not build or install this app.**
 >
-> It is not a usable Stoop client: it has no sign-in and one screen,
+> It is not a usable Stoop client: it has no sign-in and two screens,
 > it talks to a development server over plain HTTP, and it is not
 > released, signed for distribution or supported. Use Stoop in the
 > browser. The steps below are only for people developing the app
@@ -14,8 +14,28 @@ app of our own (not Expo Go) that installs from a Mac onto a real iPhone or
 Android phone and loads its JavaScript from Metro on that Mac. Everything
 builds locally; no Expo cloud services are used.
 
-So far it is the welcome screen, whose buttons do nothing yet. The
-screens follow the mobile mockups, one at a time.
+So far it is the welcome screen and Add a server, which checks a typed
+address; nothing past that opens yet. The screens follow the mobile
+mockups, one at a time.
+
+## Screens and routes
+
+Navigation is [Expo Router](https://docs.expo.dev/router/introduction/):
+each file under `src/app` is a route, and `_layout.tsx` files arrange
+them into stacks (and later tabs). Route files are a few lines that
+import a screen; the screens themselves live in `src/screens`, so
+`src/app` stays a map of the app.
+
+- A screen gets IDs from its route and looks the rest up; never pass an
+  object through route parameters. A notification or a link can open any
+  screen cold, so it must work that way anyway.
+- A screen that needs something first (a server, a session) gets a
+  redirect in its folder's `_layout.tsx`, not a check in the screen.
+- Buttons navigate with `useRouter()` in `onPress`, not by sitting inside
+  `<Link asChild>`: the link hands its own props down and drops a
+  `Pressable`'s style function, so the button loses its look.
+- Typed routes are off for now: Expo generates their types only while
+  Metro runs, and `make mobile-typecheck` runs without it.
 
 ## Themes
 
@@ -25,7 +45,7 @@ never edit it by hand. Screens read colours through `useTheme()` and sizes
 from `tokens`, the same names as the CSS custom properties in camel case
 (`--text-muted` is `textMuted`).
 
-`ThemeProvider`, around the whole app in `App.tsx`, holds the current
+`ThemeProvider`, around the whole app in `src/app/_layout.tsx`, holds the current
 theme, Brownstone to start, and sets the status bar to match;
 `useThemeName()` reads and changes it. Nothing offers a choice yet, and
 the choice is not saved across launches.
@@ -47,15 +67,15 @@ The Stoop mark is `assets/mark.png` (with `@2x` and `@3x`), cut by
 
 ## Point it at the server
 
-The server address is read from `mobile/.env.local`, which is gitignored:
+Type the dev server's address into Add a server, with the scheme, since
+the app otherwise adds `https://`: `http://192.168.1.20:8091`. Use the
+Mac's LAN address (`ipconfig getifaddr en0`), not `localhost`, which on a
+phone is the phone.
 
-```sh
-EXPO_PUBLIC_STOOP_URL=http://192.168.1.20:8091
-```
-
-Use the Mac's LAN address (`ipconfig getifaddr en0`), not `localhost`,
-which on a phone is the phone. Expo inlines the value when Metro bundles,
-so restart Metro after changing it.
+The check follows the desktop app's (`docs/architecture/desktop.md` →
+`GET /version`): the server must answer as Stoop and be at least
+`MIN_SERVER_VERSION` (`src/api/probe.ts`). A dev build reports `dev`,
+which always passes.
 
 ## Signing for iOS
 
