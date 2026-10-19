@@ -1,16 +1,22 @@
+import { useRouter } from "expo-router";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../theme";
 
 // The first screen someone sees with no server added: the mark, a line
-// on what Stoop is, and the two ways in. The buttons lead nowhere yet;
-// Add a server and the invite link screen come next.
+// on what Stoop is, and the two ways in. The invite link button leads
+// nowhere yet; its screen comes later.
 
 export default function Welcome() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const styles = makeStyles(theme);
 
   return (
-    <View style={styles.screen}>
+    <View
+      style={[styles.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8 }]}
+    >
       <View style={styles.hero}>
         <Image
           source={require("../../assets/mark.png")}
@@ -29,6 +35,7 @@ export default function Welcome() {
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
+          onPress={() => router.push("/add-server")}
           style={({ pressed }) => [styles.button, styles.primary, pressed && styles.pressed]}
         >
           <Text style={[styles.label, styles.primaryLabel]}>Add a server</Text>
@@ -53,9 +60,7 @@ function makeStyles(theme: Theme) {
     screen: {
       flex: 1,
       backgroundColor: theme.surface,
-      paddingTop: 56,
       paddingHorizontal: 24,
-      paddingBottom: 40,
     },
     hero: {
       flex: 1,

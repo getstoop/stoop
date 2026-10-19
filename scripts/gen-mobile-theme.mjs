@@ -37,8 +37,26 @@ for (const [, name, body] of read("web/src/themes.css").matchAll(
 }
 if (!themes.brownstone) throw new Error("themes.css has no brownstone block");
 
+const tokensCss = read("web/src/tokens.css");
+
+// The status tints (--ok-soft and the rest) mix a theme colour with
+// transparent, which is that colour at the mix's opacity. Mixes with
+// anything else (--danger-border) don't come across.
+const tints = tokensCss.match(/:root,\s*\[data-theme\]\s*\{([^}]*)\}/);
+if (!tints) throw new Error("tokens.css has no status tint block");
+for (const [k, v] of declarations(tints[1])) {
+  const mix = v.match(/^color-mix\(in srgb, var\(--([a-z-]+)\) (\d+)%, transparent\)$/);
+  if (!mix) continue;
+  for (const theme of Object.values(themes)) {
+    const hex = theme[camel(mix[1])];
+    if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new Error(`--${mix[1]} is not a 6-digit hex colour`);
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    theme[camel(k)] = `rgba(${r}, ${g}, ${b}, ${Number(mix[2]) / 100})`;
+  }
+}
+
 // The first :root block of tokens.css is the one every theme shares.
-const shared = read("web/src/tokens.css").match(/:root\s*\{([^}]*)\}/);
+const shared = tokensCss.match(/:root\s*\{([^}]*)\}/);
 if (!shared) throw new Error("tokens.css has no :root block");
 const tokens = {};
 for (const [k, v] of declarations(shared[1])) {
