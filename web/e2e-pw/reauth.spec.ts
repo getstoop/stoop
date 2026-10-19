@@ -17,8 +17,14 @@ test("confirming it's you before account changes", async ({ browser }) => {
   const save = P.locator(
     '.card:has(input[autocomplete="new-password"]) button[type="submit"]',
   );
+  const waiting = P.locator(".needs-confirm").first();
   await expect(banner, "an old sign-in is asked to confirm").toBeVisible();
   await expect(save, "and the forms wait for it").toBeDisabled();
+  await expect(waiting, "dimmed while they wait").toHaveCSS("opacity", "0.5");
+  await expect(
+    P.locator(".sessions-section"),
+    "signing out needs no confirming, so it comes first, undimmed",
+  ).toHaveCSS("opacity", "1");
 
   await banner.getByRole("button", { name: "Confirm it's you" }).click();
   await expect(P).toHaveURL(/\/confirm\?next=/);
@@ -35,6 +41,7 @@ test("confirming it's you before account changes", async ({ browser }) => {
   await expect(P, "back where they were").toHaveURL(/\/profile\?tab=security$/);
   await expect(banner, "with a recent sign-in").toHaveCount(0);
   await expect(save).toBeEnabled();
+  await expect(waiting).toHaveCSS("opacity", "1");
 
   // The other tab's socket was opened with the replaced session; it picks
   // up the new one and keeps hearing the room rather than signing out.

@@ -141,13 +141,15 @@ export function ProfilePage() {
       {active === "muted" && <MutesSection />}
       {active === "security" && (
         <>
+          {/* What works without confirming it's you comes first; below the
+              banner, everything that waits for it, dimmed while it does. */}
+          <SessionsSection />
+          <BlockedSection />
           <ConfirmBanner />
           {status?.emailEnabled && <EmailSection />}
           {passwordsAllowed && <PasswordForm hasPassword={me.hasPassword} />}
           <LinkedAccountsSection />
-          <SessionsSection />
           <PersonalTokensSection />
-          <BlockedSection />
           <DeleteAccountSection />
         </>
       )}

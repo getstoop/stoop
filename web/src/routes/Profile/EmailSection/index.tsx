@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { authClient } from "../../../api/clients";
 import { errorText } from "../../../api/errors";
 import { useMyEmail } from "../../../api/queries";
+import { useWaitingToConfirm } from "../../../api/recentSignIn";
 import type {
   GetMeResponse,
   MyEmail,
@@ -17,6 +18,7 @@ import { emailActions, emailState } from "./state";
 // admins see it.
 export function EmailSection() {
   const queryClient = useQueryClient();
+  const waitingToConfirm = useWaitingToConfirm();
   const { data: email } = useMyEmail();
   const [open, setOpen] = useState<"address" | "remove" | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -101,7 +103,10 @@ export function EmailSection() {
   };
 
   return (
-    <section className="card email-section">
+    <section
+      className="card email-section needs-confirm"
+      inert={waitingToConfirm}
+    >
       <h3>Email</h3>
       {state === "none" && <p className="muted">No email address</p>}
       {email?.address && (

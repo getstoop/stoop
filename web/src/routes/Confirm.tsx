@@ -62,7 +62,7 @@ export function ConfirmPage() {
         <p className="muted small">{location.host}</p>
         <h1>Confirm it's you</h1>
         <p className="login-subtitle">
-          Sign in again to change your account settings.
+          Log in again to change your account settings.
         </p>
         {!me.hasPassword && error && (
           <p className="error" role="alert">

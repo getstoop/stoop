@@ -9,6 +9,13 @@ import { useSessions } from "./queries";
 // decides what the page offers.
 export const RECENT_SIGN_IN_MS = 5 * 60 * 1000;
 
+// Whether a section that needs a recent sign-in is waiting for one: it is
+// then inert, so nothing in it can be clicked, typed into or tabbed to
+// until the person confirms it's them (ConfirmBanner).
+export function useWaitingToConfirm(): boolean {
+  return useRecentSignIn() === false;
+}
+
 // Whether this session signed in recently enough for those changes;
 // undefined until the sessions have loaded. It turns false by itself when
 // the window closes.

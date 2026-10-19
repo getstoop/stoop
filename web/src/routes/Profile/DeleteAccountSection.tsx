@@ -21,7 +21,10 @@ export function DeleteAccountSection() {
 
   if (status && !status.selfDeletion) {
     return (
-      <section className="card delete-account">
+      <section
+        className="card delete-account needs-confirm"
+        inert={recent === false}
+      >
         <h3>Delete your account</h3>
         <p className="hint">
           This server doesn't let people delete their own accounts. Ask an
@@ -46,12 +49,15 @@ export function DeleteAccountSection() {
   };
 
   return (
-    <section className="card delete-account">
+    <section
+      className="card delete-account needs-confirm"
+      inert={recent === false}
+    >
       <h3>Delete your account</h3>
       <p className="hint">
         Your messages stay where they were, under your username with a
         "(deleted)" mark. Your profile, avatar, bio and pronouns go, every
-        device is signed out, and your tokens stop working. Spaces you own pass
+        device is logged out, and your tokens stop working. Spaces you own pass
         to their longest-serving admin. The username stays yours: nobody can
         register it.{" "}
         <span className="warning">

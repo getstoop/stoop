@@ -347,3 +347,32 @@
   flex: 1 1 240px;
   margin: 0;
 }
+
+/* The ask on its own line, what it means under it. */
+.confirm-banner strong {
+  display: block;
+}
+
+/* The banner heads the sections that wait for it: no rule between it and
+   the first of them. */
+.settings-content > .confirm-card + .card {
+  padding-top: 0;
+  border-top: none;
+}
+
+/* The note under the sessions table sits close to the button below it. */
+.sessions-note {
+  margin: 0;
+}
+
+/* The sections that wait for it (.needs-confirm, below the banner),
+   headings and text included, read as waiting while the banner is up. */
+.confirm-card ~ .needs-confirm {
+  opacity: var(--disabled);
+}
+
+/* The section's dimming is the only one: a disabled control in it isn't
+   faded a second time. */
+.confirm-card ~ .needs-confirm :disabled {
+  opacity: 1;
+}
