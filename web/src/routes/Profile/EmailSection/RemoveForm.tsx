@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../../api/clients";
+import { RECENT_SIGN_IN_HINT } from "../../../api/recentSignIn";
 import { Field } from "../../../components/Field";
 import { useFieldErrors } from "../../../hooks/useFieldErrors";
 
@@ -33,7 +34,7 @@ export function RemoveForm({
 
   return (
     <form ref={form.formRef} onSubmit={submit} noValidate>
-      {hasPassword && (
+      {hasPassword ? (
         <Field label="Current password" error={form.errors.password}>
           <input
             type="password"
@@ -42,6 +43,8 @@ export function RemoveForm({
             autoComplete="current-password"
           />
         </Field>
+      ) : (
+        <p className="hint">{RECENT_SIGN_IN_HINT}</p>
       )}
       {form.formError && (
         <p className="error" role="alert">

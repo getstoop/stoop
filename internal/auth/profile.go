@@ -118,8 +118,13 @@ func (s *Service) ChangePassword(ctx context.Context, req *connect.Request[authv
 		return nil, fmt.Errorf("look up user: %w", err)
 	}
 	// An account created via a login provider has no password yet; its
-	// first one is set here with nothing to check against.
-	if user.PasswordHash != nil {
+	// first one is set here, from a recent sign-in, since there is no
+	// password to check against.
+	if user.PasswordHash == nil {
+		if err := s.requireRecentSignIn(ctx, id.Credential.ID, "set a password"); err != nil {
+			return nil, err
+		}
+	} else {
 		match, err := s.checkPassword(ctx, req.Msg.CurrentPassword, *user.PasswordHash)
 		if err != nil {
 			return nil, hashFailure("verify password", err)
