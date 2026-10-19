@@ -57,7 +57,7 @@ export function DeleteAccountSection() {
       <p className="hint">
         Your messages stay where they were, under your username with a
         "(deleted)" mark. Your profile, avatar, bio and pronouns go, every
-        device is signed out, and your tokens stop working. Spaces you own pass
+        device is logged out, and your tokens stop working. Spaces you own pass
         to their longest-serving admin. The username stays yours: nobody can
         register it.{" "}
         <span className="warning">
