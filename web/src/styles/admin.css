@@ -26,6 +26,12 @@
   user-select: all;
 }
 
+.temp-password {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .temp-password ul {
   margin: 4px 0 0;
   padding-left: 20px;

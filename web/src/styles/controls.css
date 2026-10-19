@@ -136,6 +136,13 @@ button.link {
   display: block;
 }
 
+/* CopyButton's icon form: the check holds the success colour for its
+   moment. */
+.copy-button.copied,
+.copy-button.copied:hover {
+  color: var(--ok);
+}
+
 /* A small uppercase label: a role, a status. Status tints keep "admin",
    "connected" and "expired" from being a colour decision per feature. */
 .badge {

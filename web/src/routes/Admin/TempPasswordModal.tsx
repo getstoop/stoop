@@ -28,7 +28,7 @@ export function TempPasswordModal({
         </p>
         <div className="temp-password-secret">
           <code data-temp-password>{password}</code>
-          <CopyButton text={password} />
+          <CopyButton text={password} icon />
         </div>
         <div className="readout">
           What happens for them
