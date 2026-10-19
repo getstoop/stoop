@@ -1,5 +1,46 @@
 Stoop 0.13.0
 
+**Confirm it's you.** Changes that could keep an account after its session
+is stolen now need a log-in from the last five minutes, and the way to get
+one without logging out is the new **Confirm it's you** page (`/confirm`):
+the password, or a login provider linked to the account. Confirming
+replaces the session, so a stolen copy of it stops working.
+
+- **For people:** changing the password or email, linking or unlinking a
+  provider, making a personal token and deleting the account ask to
+  confirm first. The forms no longer ask for the current password. The
+  Security tab shows a banner and holds those sections until then.
+- **Log out everywhere** (was "Sign out everywhere else") now logs out
+  this device too and revokes every personal token.
+- **For admins:** resetting a password, changing a role, handing on
+  ownership, the login providers, the email (SMTP) settings, and making a
+  bot token or a webhook URL or secret also need a recent log-in. Server
+  admin offers Confirm it's you when one is refused. A temporary password
+  after a reset now shows in a modal that says what happens for the
+  person.
+- **Desktop app:** confirming with a provider opens the system browser
+  and returns to the app, as signing in does.
+
+**API changes** (`stoop.auth.v1`):
+
+- `RevokeOtherSessions` is replaced by `SignOutEverywhere`, which ends the
+  calling session too.
+- New `Reauthenticate` (confirm with the password).
+- The current-password fields on `ChangePassword`, `RequestEmailChange`,
+  `RemoveEmail` and `DeleteAccount` are deprecated and ignored; these need
+  a recent log-in instead. A refusal is `failed_precondition` with the
+  response header `Stoop-Confirm: required`.
+- **Scripts using a personal token** for the admin actions above are now
+  refused: a token is never a recent log-in. Do those from the app.
+
+**Also:** `#channel` links in messages, and a pasted message link shows who
+said it and where.
+
+**Upgrading:** no database migrations and no pinned versions moved. Rolls
+back to 0.12.0 as usual. People are not logged out by the upgrade.
+
+**Known issues:** none.
+
 Changes since 0.12.0:
 
 - Bump the actions group with 4 updates (c366dfa7)
