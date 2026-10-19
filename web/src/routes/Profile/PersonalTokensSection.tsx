@@ -143,7 +143,10 @@ export function PersonalTokensSection() {
   const hasTokens = (tokens?.length ?? 0) > 0;
   if (!allowed && !hasTokens) {
     return (
-      <section className="card personal-tokens needs-confirm">
+      <section
+        className="card personal-tokens needs-confirm"
+        inert={recent === false}
+      >
         <h3>Personal access tokens</h3>
         <p className="hint">
           {setting === PersonalTokens.OFF
@@ -155,7 +158,10 @@ export function PersonalTokensSection() {
   }
 
   return (
-    <section className="card personal-tokens needs-confirm">
+    <section
+      className="card personal-tokens needs-confirm"
+      inert={recent === false}
+    >
       <h3>Personal access tokens</h3>
       <p className="hint">
         A token lets a script act as you, with only the permissions you give it.

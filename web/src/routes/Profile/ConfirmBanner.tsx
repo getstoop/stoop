@@ -14,7 +14,7 @@ export function ConfirmBanner() {
       <div className="callout confirm-banner" role="status">
         <p>
           <strong>Confirm it's you to change the settings below.</strong> You'll
-          be asked to sign in again before changing these security settings.
+          be asked to log in again before changing these security settings.
         </p>
         <button
           type="button"

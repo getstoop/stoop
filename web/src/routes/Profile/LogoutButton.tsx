@@ -11,7 +11,7 @@ export function LogoutButton() {
     if (
       !(await confirm({
         title: "Log out?",
-        body: "You'll need to sign in again on this device.",
+        body: "You'll need to log in again on this device.",
         action: "Log out",
         danger: true,
       }))

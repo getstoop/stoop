@@ -84,7 +84,7 @@ export function SessionsSection() {
 
   return (
     <section className="card sessions-section">
-      <h3>Where you're signed in</h3>
+      <h3>Where you're logged in</h3>
       {current && (
         <p className="hint">
           This device: {describeUserAgent(current.userAgent)}. If you don't
@@ -102,8 +102,7 @@ export function SessionsSection() {
         rowProps={(r) => ({ "data-kind": r.kind })}
       />
       <p className="muted small sessions-note">
-        Unknown is a sign-in from a script, or from before Stoop recorded
-        devices.
+        Unknown is a login from a script, or from before Stoop recorded devices.
       </p>
       {error && (
         <p className="error" role="alert">

@@ -370,3 +370,9 @@
 .confirm-card ~ .needs-confirm {
   opacity: var(--disabled);
 }
+
+/* The section's dimming is the only one: a disabled control in it isn't
+   faded a second time. */
+.confirm-card ~ .needs-confirm :disabled {
+  opacity: 1;
+}

@@ -54,12 +54,17 @@ export function PasswordForm({ hasPassword }: { hasPassword: boolean }) {
   };
 
   return (
-    <form className="card needs-confirm" ref={form.formRef} onSubmit={submit}>
+    <form
+      className="card needs-confirm"
+      inert={recent === false}
+      ref={form.formRef}
+      onSubmit={submit}
+    >
       <h3>{hasPassword ? "Change password" : "Set a password"}</h3>
       <p className="hint">
         {hasPassword
-          ? "Changing it signs you out everywhere except this browser."
-          : "So you can sign in with your username even if the login provider goes away."}
+          ? "Changing it logs you out everywhere except this browser."
+          : "So you can log in with your username even if the login provider goes away."}
       </p>
       <Field label="New password" error={form.errors.newPassword}>
         <input
