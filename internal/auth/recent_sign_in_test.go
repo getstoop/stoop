@@ -230,6 +230,31 @@ func TestReauthenticate(t *testing.T) {
 	}
 }
 
+// A session is replaced once. Two replacements of the same one (the
+// person confirming and a thief holding a copy, racing) can't both leave
+// a live successor: the second finds it gone and gets nothing.
+func TestASessionIsReplacedOnce(t *testing.T) {
+	svc := auth.New(dbtest.New(t), auth.Options{Argon2Params: testArgon2})
+	ada, _ := signIn(t, svc, "ada", casePassword)
+	confirm := func() (*connect.Response[authv1.ReauthenticateResponse], error) {
+		return svc.Reauthenticate(ada, connect.NewRequest(&authv1.ReauthenticateRequest{Password: casePassword}))
+	}
+	first, err := confirm()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := confirm(); codeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("a second replacement of the same session: want unauthenticated, got %v", err)
+	}
+	list, err := svc.ListSessions(asSession(t, svc, first.Msg.Token), connect.NewRequest(&authv1.ListSessionsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Msg.Sessions) != 1 {
+		t.Errorf("%d sessions after replacing one, want 1", len(list.Msg.Sessions))
+	}
+}
+
 // Every refusal says the same thing, and an account without a password
 // has none to confirm with.
 func TestReauthenticateRefusals(t *testing.T) {

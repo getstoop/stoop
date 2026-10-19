@@ -18,12 +18,17 @@ export function useRecentSignIn(): boolean | undefined {
   const until = signedInAt
     ? timestampDate(signedInAt).getTime() + RECENT_SIGN_IN_MS
     : 0;
-  const [now, setNow] = useState(() => Date.now());
+  // Rendered state, updated when the window closes. The delay is counted
+  // from the clock when the deadline changes, never from the last render,
+  // which may be long ago (a replacement session arriving later).
+  const [recent, setRecent] = useState(() => until > Date.now());
   useEffect(() => {
-    if (until <= now) return;
-    const timer = setTimeout(() => setNow(Date.now()), until - now);
+    const left = until - Date.now();
+    setRecent(left > 0);
+    if (left <= 0) return;
+    const timer = setTimeout(() => setRecent(false), left);
     return () => clearTimeout(timer);
-  }, [until, now]);
+  }, [until]);
   if (!sessions) return undefined;
-  return until > now;
+  return recent;
 }

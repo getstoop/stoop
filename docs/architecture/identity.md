@@ -187,9 +187,15 @@ recent sign-in, and the old one is deleted. A thief and the person share
 one session (stealing it means copying its token), so marking it
 confirmed would confirm the thief's copy too; replacing it ends the copy.
 The person's other devices hold sessions of their own and are untouched.
-The old session's deletion is announced like any revocation, and a tab
-of the same browser whose socket closes for it finds the new cookie and
-reconnects ([realtime.md](realtime.md#the-client-side)).
+The old session is consumed and the new one made in one transaction,
+only if the old one was still there, so two replacements of one session
+racing (the person's and a thief's) can't both leave a successor. The
+old session's deletion is announced like any revocation once that
+commits, and a tab of the same browser whose socket closes for it finds
+the new cookie and reconnects
+([realtime.md](realtime.md#the-client-side)). Reauth is the only place a
+session is replaced: signing out everywhere ends this one too and hands
+nothing back.
 
 **What the server enforces:**
 

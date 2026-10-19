@@ -15,6 +15,8 @@ import { useVoiceStore } from "../stores/voice";
 import { receiveActivityItem } from "./activity";
 import { channelPeopleKey } from "./channelPeople";
 import { byPosition, withPositions } from "./channels";
+import { authClient } from "./clients";
+import { isSignedOut } from "./errors";
 import { groupsKey } from "./groups";
 import {
   isLive,
@@ -62,10 +64,27 @@ export function sendClientEvent(
 // The gateway's close code when the session this socket was opened with
 // was revoked: signed out elsewhere, password changed, or deactivated —
 // or replaced, when this browser confirmed it's the person in another tab
-// and holds a new session. The me query is asked again: if it still
-// works, the browser has that new session and the socket reconnects with
-// it; if not, the shell goes to the login page.
+// and holds a new session (stillSignedIn).
 const CLOSE_CREDENTIAL_REVOKED = 4001;
+
+// After that close: is this browser still signed in, on a newer session?
+// Asked of the server directly rather than through the me query, and a
+// few times a moment apart, because the replacement is announced before
+// the tab that confirmed has stored its new cookie: an early "signed out"
+// must not reach the shell, which would go to the login page. undefined
+// is no answer at all (the server unreachable), which is not a sign-out.
+async function stillSignedIn(): Promise<boolean | undefined> {
+  for (const wait of [300, 1000, 2000]) {
+    await new Promise((resolve) => setTimeout(resolve, wait));
+    try {
+      await authClient.getMe({});
+      return true;
+    } catch (err) {
+      if (!isSignedOut(err)) return undefined;
+    }
+  }
+  return false;
+}
 
 export function startRealtime(queryClient: QueryClient): () => void {
   let ws: WebSocket | null = null;
@@ -98,23 +117,36 @@ export function startRealtime(queryClient: QueryClient): () => void {
       useConnectionStore.getState().setOnline([]);
       if (e.code === CLOSE_CREDENTIAL_REVOKED) {
         useConnectionStore.getState().setStatus("reconnecting");
-        void queryClient.invalidateQueries({ queryKey: ["me"] }).then(() => {
+        void stillSignedIn().then((signedIn) => {
           if (stopped) return;
-          if (queryClient.getQueryState(["me"])?.status === "success") {
-            connect();
+          if (signedIn === false) {
+            // Gone for good: the me query fails, and the shell goes to
+            // the login page.
+            stopped = true;
+            useConnectionStore.getState().setStatus("disconnected");
+            void queryClient.invalidateQueries({ queryKey: ["me"] });
             return;
           }
-          stopped = true;
-          useConnectionStore.getState().setStatus("disconnected");
+          // On the new session: reconnect now. Server unreachable: the
+          // usual backoff; a real sign-out reaches the shell through its
+          // own me query, which stops this. Either way it counts as a
+          // reconnect, so voice state is reported again.
+          retry(signedIn ? 0 : undefined);
         });
         return;
       }
       if (stopped) return;
-      useConnectionStore.getState().setStatus("reconnecting");
-      const backoff = Math.min(1000 * 2 ** attempts, MAX_BACKOFF_MS);
-      attempts += 1;
-      reconnectTimer = setTimeout(connect, backoff);
+      retry();
     };
+  };
+
+  // Reconnects after the backoff (or after delay), and marks the next open
+  // as a reconnect.
+  const retry = (delay?: number) => {
+    useConnectionStore.getState().setStatus("reconnecting");
+    const backoff = delay ?? Math.min(1000 * 2 ** attempts, MAX_BACKOFF_MS);
+    attempts += 1;
+    reconnectTimer = setTimeout(connect, backoff);
   };
 
   useConnectionStore.getState().setStatus("connecting");

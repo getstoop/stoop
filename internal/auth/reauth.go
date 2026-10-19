@@ -89,19 +89,46 @@ func (s *Service) Reauthenticate(ctx context.Context, req *connect.Request[authv
 // session is the recent sign-in; ending the old one ends every copy of it,
 // a stolen one included. The person's other devices hold sessions of their
 // own and are untouched.
+//
+// The old session is consumed and the new one made in one transaction,
+// and only if the old one was still there: two replacements of the same
+// session (the person's and a thief's, racing) can't both succeed, so the
+// person confirming can't leave the thief a successor. The revocation is
+// announced once it has committed.
 func (s *Service) replaceSession(ctx context.Context, userID, oldSessionID, userAgent string) (string, time.Duration, error) {
-	token, ttl, err := s.createSession(ctx, userID, userAgent)
+	var (
+		token string
+		ttl   time.Duration
+		ended []dbgen.DeleteCredentialRow
+	)
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		var err error
+		if ended, err = qtx.DeleteCredential(ctx, oldSessionID); err != nil {
+			return fmt.Errorf("end the replaced session: %w", err)
+		}
+		if len(ended) != 1 {
+			return connect.NewError(connect.CodeUnauthenticated, errors.New("not logged in"))
+		}
+		token, ttl, err = s.createSessionIn(ctx, qtx, userID, userAgent)
+		return err
+	})
 	if err != nil {
 		return "", 0, err
 	}
-	rows, err := s.q.DeleteCredential(ctx, oldSessionID)
-	if err != nil {
-		return "", 0, fmt.Errorf("end the replaced session: %w", err)
-	}
-	for _, r := range rows {
+	for _, r := range ended {
 		s.announceRevoked(r.ID, r.HolderID)
 	}
 	return token, ttl, nil
+}
+
+// reauthFailCode is the code a failed replacement is shown with: the
+// session gone meanwhile is a refusal like any other, the rest the
+// server's fault.
+func reauthFailCode(err error) string {
+	if connect.CodeOf(err) == connect.CodeUnauthenticated {
+		return "reauth_failed"
+	}
+	return "server_error"
 }
 
 // reauthOwner checks that a provider identity belongs to userID, which is
@@ -148,8 +175,10 @@ func (s *Service) finishReauth(w http.ResponseWriter, r *http.Request, st loginS
 	}
 	token, ttl, err := s.replaceSession(ctx, ident.UserID, ident.SessionID, r.UserAgent())
 	if err != nil {
-		slog.Error("replace session after reauth", "err", err)
-		reauthError(w, r, st.Redirect, "server_error")
+		if code := reauthFailCode(err); code == "server_error" {
+			slog.Error("replace session after reauth", "err", err)
+		}
+		reauthError(w, r, st.Redirect, reauthFailCode(err))
 		return
 	}
 	http.SetCookie(w, s.sessionCookie(ctx, token, ttl))
@@ -197,6 +226,10 @@ func (s *Service) desktopReauth(w http.ResponseWriter, r *http.Request, redeemed
 	}
 	token, ttl, err := s.replaceSession(ctx, ident.UserID, ident.SessionID, r.UserAgent())
 	if err != nil {
+		if code := reauthFailCode(err); code == "reauth_failed" {
+			desktopError(w, http.StatusUnauthorized, code)
+			return
+		}
 		slog.Error("replace session after desktop reauth", "err", err)
 		desktopError(w, http.StatusInternalServerError, "server_error")
 		return

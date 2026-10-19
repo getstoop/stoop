@@ -337,11 +337,14 @@ dependency, and voice works with none configured.
 connection status; on a *re*connect it calls `queryClient.invalidateQueries()`
 — everything — and re-reports voice state, because the gateway forgot it.
 A close with code 4001 (credential revoked) is the one close it does not
-simply retry: it asks the `me` query again. If that fails, the session is
-gone and the shell goes to the login page. If it works, the browser holds
-a newer session than the one the socket was opened with (another tab
-confirmed it's the person, which replaces the session: identity.md →
-Confirm it's you), and the socket reconnects with it.
+simply retry: it asks the server who it is, directly and a few times a
+moment apart, since the tab that replaced the session may not have its
+new cookie yet. Signed in: the browser holds a newer session than the
+one the socket was opened with (another tab confirmed it's the person,
+which replaces the session: identity.md → Confirm it's you), and the
+socket reconnects with it, reporting voice state again. Signed out: the
+`me` query is refetched, fails, and the shell goes to the login page. No
+answer at all: the usual backoff.
 
 **Events are applied directly to the TanStack Query cache**
 ([web.md](web.md#state-one-source-of-truth)); there is no parallel
