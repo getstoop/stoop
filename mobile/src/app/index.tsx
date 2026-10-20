@@ -3,8 +3,8 @@ import Welcome from "../screens/Welcome";
 import { useServers } from "../servers";
 
 // The app opens on the server signed in to or switched to last, or on
-// Welcome when there is none. Sign-in and the switcher land on a server
-// by coming back here, not by replacing to /s/<id>: with another server's
+// Welcome when there is none. Sign-in lands on a server by coming back
+// here, not by replacing to /s/<id>: with another server's
 // /s/<id> under it, expo-router takes that for the same route and
 // navigates inside its tabs, so the server never changes.
 export default function Index() {
