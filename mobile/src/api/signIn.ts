@@ -31,13 +31,16 @@ export async function signInWithPassword(
 }
 
 // Register answers with a cookie but no token, so the new account signs
-// in straight after, as web's login card does.
+// in straight after, as web's login card does. An invite code makes the
+// account on a server that takes them only by invite, and joins its
+// space in the same call.
 export async function createAccount(
   origin: string,
   username: string,
   password: string,
+  inviteCode = "",
 ): Promise<string> {
-  await authClient(origin).register({ username, password });
+  await authClient(origin).register({ username, password, inviteCode });
   return signInWithPassword(origin, username, password);
 }
 

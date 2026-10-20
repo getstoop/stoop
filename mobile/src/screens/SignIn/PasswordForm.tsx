@@ -14,6 +14,7 @@ export default function PasswordForm({
   error,
   onSubmit,
   onForgot,
+  submitLabel,
 }: {
   creating: boolean;
   pending: boolean;
@@ -23,6 +24,9 @@ export default function PasswordForm({
   // Given where the server can email a reset link; shown beside the
   // password when signing in, never when creating an account.
   onForgot?: () => void;
+  // The button's words where the default ("Sign in", "Create account")
+  // doesn't say all it does.
+  submitLabel?: string;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -134,7 +138,7 @@ export default function PasswordForm({
         {pending ? (
           <ActivityIndicator color={theme.onAccent} />
         ) : (
-          <Text style={styles.buttonLabel}>{creating ? "Create account" : "Sign in"}</Text>
+          <Text style={styles.buttonLabel}>{submitLabel ?? (creating ? "Create account" : "Sign in")}</Text>
         )}
       </Pressable>
     </>
