@@ -180,7 +180,12 @@ func (g *Gateway) subscribe(userID string, spaceIDs []string) *events.Subscripti
 // read what is counted after the lookup, so a removal another connection
 // applied meanwhile is not announced.
 func (g *Gateway) connectPresence(ctx context.Context, userID string, spaceIDs []string, mobile bool) {
-	added, mobileChanged := g.presence.connect(userID, spaceIDs, mobile)
+	release := g.presence.hold(userID)
+	defer release()
+	added, dropped, mobileChanged := g.presence.connect(userID, spaceIDs, mobile)
+	if dropped != nil {
+		g.publishPresence(userID, dropped, false)
+	}
 	setting, ok := g.lookupDoNotDisturb(ctx, userID)
 	if dndChanged := ok && g.applyDoNotDisturb(userID, setting); dndChanged || mobileChanged {
 		g.publishPresence(userID, g.presence.spacesOf(userID), true)
@@ -193,6 +198,8 @@ func (g *Gateway) connectPresence(ctx context.Context, userID string, spaceIDs [
 // the person offline after the grace period, or at once when its session
 // ended; a grace timer announces through presence.settled.
 func (g *Gateway) disconnectPresence(userID string, mobile, sessionEnded bool) {
+	release := g.presence.hold(userID)
+	defer release()
 	offline, toMobile := g.presence.disconnect(userID, mobile, sessionEnded)
 	if offline != nil {
 		g.publishPresence(userID, offline, false)
@@ -263,7 +270,8 @@ func (g *Gateway) deliver(ctx context.Context, conn *websocket.Conn, userID, ses
 		return true, false
 	}
 	if err := g.send(ctx, conn, ev); err != nil {
-		return false, false
+		// A revocation that couldn't be written still ended the session.
+		return false, ev.GetCredentialRevoked() != nil
 	}
 	// Ready only covered the spaces held at connect time; the new space's
 	// presence and voice state follow its SpaceJoined.
@@ -300,9 +308,11 @@ func (g *Gateway) applyControlEvent(userID string, sub *events.Subscription, ev 
 		sub.Add(events.SpaceTopic(joinedSpace))
 		// Each of the person's connections hears the join; the first to
 		// record it announces them.
+		release := g.presence.hold(userID)
 		if g.presence.addSpace(userID, joinedSpace) {
 			g.publishPresence(userID, []string{joinedSpace}, true)
 		}
+		release()
 	case *realtimev1.ServerEvent_MemberRemoved:
 		if payload.MemberRemoved.UserId == userID {
 			g.dropSpace(userID, sub, payload.MemberRemoved.SpaceId)
@@ -314,8 +324,12 @@ func (g *Gateway) applyControlEvent(userID string, sub *events.Subscription, ev 
 	case *realtimev1.ServerEvent_DoNotDisturbChanged:
 		// Set from any of the person's devices. Every connection hears it;
 		// only the first to apply it finds a change to announce.
-		if payload.DoNotDisturbChanged.UserId == userID && g.applyDoNotDisturb(userID, dndFrom(payload.DoNotDisturbChanged)) {
-			g.publishPresence(userID, g.presence.spacesOf(userID), true)
+		if payload.DoNotDisturbChanged.UserId == userID {
+			release := g.presence.hold(userID)
+			if g.applyDoNotDisturb(userID, dndFrom(payload.DoNotDisturbChanged)) {
+				g.publishPresence(userID, g.presence.spacesOf(userID), true)
+			}
+			release()
 		}
 	}
 	return joinedSpace
