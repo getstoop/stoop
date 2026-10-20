@@ -73,6 +73,8 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
     );
     return () => {
       for (const socket of sockets) socket.close();
+      // Closed sockets say nothing more, so their rosters are cleared here.
+      setVoice({});
     };
   }, [targets, active, listeners]);
 

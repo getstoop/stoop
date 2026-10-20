@@ -30,8 +30,10 @@ export function openRealtime(
   // Read again on every attempt, so a new sign-in's session is the one used.
   token: () => Promise<string | null>,
   onEvent: (event: ServerEvent) => void,
-  // Each time the socket closes: what it said may be out of date until
-  // the next Ready.
+  // Each time the socket closes while still wanted: what it said may be
+  // out of date until the next Ready. Neither this nor onEvent is called
+  // once close() has been, so a socket being replaced can't speak over
+  // its replacement.
   onClose: () => void,
 ): Realtime {
   let socket: WebSocket | null = null;
@@ -61,12 +63,12 @@ export function openRealtime(
       attempts = 0;
     };
     socket.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-      onEvent(fromBinary(ServerEventSchema, new Uint8Array(e.data)));
+      if (!closed) onEvent(fromBinary(ServerEventSchema, new Uint8Array(e.data)));
     };
     socket.onclose = (e: CloseEvent) => {
       socket = null;
-      onClose();
       if (closed) return;
+      onClose();
       if (e.code === CLOSE_SESSION_ENDED) ended = session;
       retry();
     };

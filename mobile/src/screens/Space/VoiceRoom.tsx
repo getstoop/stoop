@@ -8,6 +8,8 @@ import Face, { type Person } from "./Face";
 // Faces shown before the names say the rest.
 const MAX_FACES = 3;
 
+const JOIN_NOTE = "Join voice from the web or desktop app for now.";
+
 // One voice room: its name, and while anyone is in it a Live mark, up to
 // three of their faces and who they are in one line ("Priya and Theo + 5
 // more"). people is undefined while the realtime socket isn't connected,
@@ -32,7 +34,9 @@ export default function VoiceRoom({
     <View
       style={styles.room}
       accessible
-      accessibilityLabel={[channel.name, "voice", live ? `${names} in it` : null].filter(Boolean).join(", ")}
+      accessibilityLabel={[channel.name, "voice", live ? `${names} in it. ${JOIN_NOTE}` : null]
+        .filter(Boolean)
+        .join(", ")}
     >
       <View style={styles.line}>
         <SpeakerIcon color={theme.textMuted} size={20} />
@@ -58,7 +62,7 @@ export default function VoiceRoom({
               {names}
             </Text>
           </View>
-          <Text style={styles.note}>Join voice from the web or desktop app for now.</Text>
+          <Text style={styles.note}>{JOIN_NOTE}</Text>
         </>
       )}
     </View>

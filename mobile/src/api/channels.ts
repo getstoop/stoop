@@ -68,8 +68,9 @@ export function voiceNames(names: string[]): string {
 }
 
 // Whether an event could change what a space's channels screen shows:
-// its channels and their order, mutes, reads and mentions, the space
-// itself, or who is in it. Ready follows a reconnect, when anything may
+// its channels and their order, mutes, reads and mentions (a message
+// deleted or edited can take an unread or a mention with it; a thread
+// muted changes which mentions count), the space itself, or who is in it. Ready follows a reconnect, when anything may
 // have been missed. Who is in voice is not here: the roster follows it.
 export function touchesSpace(event: ServerEvent, spaceId: string): boolean {
   const payload = event.payload;
@@ -79,11 +80,14 @@ export function touchesSpace(event: ServerEvent, spaceId: string): boolean {
     case "channelCreated":
     case "channelUpdated":
     case "messageCreated":
+    case "messageUpdated":
       return payload.value.spaceId === spaceId;
     case "channelDeleted":
     case "channelsReordered":
     case "channelMuted":
     case "channelRead":
+    case "messageDeleted":
+    case "threadMuted":
     case "spaceMuted":
     case "spaceDeleted":
     case "memberJoined":

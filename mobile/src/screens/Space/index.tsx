@@ -53,35 +53,43 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
     }
   }, [server, spaceId]);
 
+  // Loads can overlap (opening, a pull, coming back, an event), and an
+  // older one finishing last must not undo a newer one: only the latest
+  // started is shown, and leaving the screen makes none the latest.
+  const latest = useRef(0);
+  const refresh = useCallback(async () => {
+    const mine = ++latest.current;
+    const next = await load();
+    if (mine === latest.current) setView(next);
+  }, [load]);
+
   // Events come in bursts (a channel deleted is also its messages' reads
   // and mentions gone), so a moment's quiet goes before one reload.
   const reload = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
-    let live = true;
-    const refresh = () => load().then((next) => live && setView(next));
     refresh();
     const sub = AppState.addEventListener("change", (state) => state === "active" && refresh());
     return () => {
-      live = false;
+      latest.current++;
       sub.remove();
       clearTimeout(reload.current);
     };
-  }, [load]);
+  }, [refresh]);
   useServerEvents(server.id, (event) => {
     if (!touchesSpace(event, spaceId)) return;
     clearTimeout(reload.current);
-    reload.current = setTimeout(() => load().then(setView), RELOAD_DELAY_MS);
+    reload.current = setTimeout(refresh, RELOAD_DELAY_MS);
   });
 
   const pull = async () => {
     setRefreshing(true);
-    setView(await load());
+    await refresh();
     setRefreshing(false);
   };
 
   const retry = async () => {
     setView({ state: "loading" });
-    setView(await load());
+    await refresh();
   };
 
   if (view.state === "loading") {
