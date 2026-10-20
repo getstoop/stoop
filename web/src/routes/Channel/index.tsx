@@ -8,7 +8,6 @@ import {
   useDirectMessages,
   usePeople,
 } from "../../api/dms";
-import { canPost } from "../../api/permissions";
 import { useMe, useMessages, useSpaces } from "../../api/queries";
 import { joinVoice } from "../../api/voice";
 import { ChannelGlyph } from "../../components/ChannelGlyph";
@@ -19,6 +18,7 @@ import { MenuButton } from "../../components/MenuButton";
 import { PinnedMessages } from "../../components/PinnedMessages";
 import { SearchLauncher } from "../../components/SearchLauncher";
 import { VoiceStage } from "../../components/VoiceStage";
+import { canPost } from "../../core/permissions";
 import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoReadActivity } from "../../hooks/useAutoRead";

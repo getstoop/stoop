@@ -12,7 +12,6 @@ import { landingChannel } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { isMuted, mutedByCaller, sidebarTextChannels } from "../api/mutes";
-import { canCreateInvites, canManageChannels } from "../api/permissions";
 import {
   useActivity,
   useChannels,
@@ -25,7 +24,7 @@ import {
   shareUrl,
   spacePath,
 } from "../api/shareLinks";
-import { badgeCount, isAlerting } from "../api/unreads";
+import { isAlerting } from "../api/unreads";
 import { welcomeSeen } from "../api/welcome";
 import { ChannelGlyph } from "../components/ChannelGlyph";
 import { ChannelGroupHeading } from "../components/ChannelGroupHeading";
@@ -44,6 +43,8 @@ import { SpaceWelcome } from "../components/SpaceWelcome";
 import { Tooltip } from "../components/Tooltip";
 import { VoiceBar } from "../components/VoiceBar";
 import { VoiceChannel } from "../components/VoiceChannel";
+import { canCreateInvites, canManageChannels } from "../core/permissions";
+import { badgeCount } from "../core/unreads";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice } from "../stores/dialogs";

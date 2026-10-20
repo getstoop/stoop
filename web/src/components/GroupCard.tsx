@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { groupCount } from "../api/groups";
-import { canManageMembers } from "../api/permissions";
 import { useMembers, useSpaces } from "../api/queries";
+import { canManageMembers } from "../core/permissions";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import { useAnchoredCard } from "../hooks/useAnchoredCard";
 import { Avatar } from "./Avatar";

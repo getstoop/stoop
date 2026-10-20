@@ -21,17 +21,6 @@ import {
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { useChannelGroups } from "../../api/groups";
 import { isLive, timelineId, useHistoryStore } from "../../api/history";
-import { isBlankMessage } from "../../api/markdown";
-import {
-  candidateMention,
-  channelCandidates,
-  channelQueryAt,
-  type MentionCandidate,
-  mentionCandidates,
-  mentionMembers,
-  mentionQueryAt,
-} from "../../api/mentions";
-import { canMentionEntireChannel } from "../../api/permissions";
 import { useInstanceStatus, useSpaces } from "../../api/queries";
 import {
   replaceShortcodes,
@@ -53,6 +42,17 @@ import { PaperclipIcon, SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
+import { isBlankMessage } from "../../core/markdown";
+import {
+  candidateMention,
+  channelCandidates,
+  channelQueryAt,
+  type MentionCandidate,
+  mentionCandidates,
+  mentionMembers,
+  mentionQueryAt,
+} from "../../core/mentions";
+import { canMentionEntireChannel } from "../../core/permissions";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 import { restoreDraft, restoreFiles } from "./unsent";

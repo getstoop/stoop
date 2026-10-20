@@ -3,7 +3,7 @@ import { EditorState, Selection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import type { Format } from "../../api/formatting";
-import type { MentionRef } from "../../api/mentions";
+import type { MentionRef } from "../../core/mentions";
 import { activeFormats, formatCommands } from "./commands";
 import { LinkDialog } from "./LinkDialog";
 import {

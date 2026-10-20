@@ -1,17 +1,14 @@
-import { create } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
+import { withReactions } from "../core/messageList";
+import { toggledReactions } from "../core/reactions";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
-import {
-  type Reaction,
-  ReactionSchema,
-} from "../gen/stoop/chat/v1/reaction_pb";
+import type { Reaction } from "../gen/stoop/chat/v1/reaction_pb";
 import { notice } from "../stores/dialogs";
 import { chatClient } from "./clients";
 import { errorText } from "./errors";
 
-// Reactions live on Message.reactions in the messages cache. Both the RPC
-// response and the ReactionsChanged event swap the whole list, so the
-// server's grouping and order always win.
+// Reactions live on Message.reactions in the messages cache; each change
+// swaps in the server's whole list (withReactions).
 
 export function setReactions(
   queryClient: QueryClient,
@@ -22,27 +19,8 @@ export function setReactions(
   // Every window of the channel: its own, and any thread's.
   queryClient.setQueriesData<Message[]>(
     { queryKey: ["messages", channelId] },
-    (old) => old?.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+    (old) => old && withReactions(old, messageId, reactions),
   );
-}
-
-// What the list looks like after userId toggles emoji, for the optimistic
-// update. New groups go last; the server's reply then settles the order.
-export function toggledReactions(
-  reactions: Reaction[],
-  emoji: string,
-  userId: string,
-): Reaction[] {
-  const group = reactions.find((r) => r.emoji === emoji);
-  if (!group) {
-    return [...reactions, create(ReactionSchema, { emoji, userIds: [userId] })];
-  }
-  const userIds = group.userIds.includes(userId)
-    ? group.userIds.filter((id) => id !== userId)
-    : [...group.userIds, userId];
-  return reactions
-    .map((r) => (r === group ? { ...r, userIds } : r))
-    .filter((r) => r.userIds.length > 0);
 }
 
 export async function toggleReaction(

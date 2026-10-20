@@ -8,7 +8,6 @@ import {
   channelQueryAt,
   currentHandle,
   filterMembers,
-  groupMentionClass,
   linkableChannels,
   mentionCandidates,
   mentionGroups,
@@ -320,14 +319,5 @@ describe("mentionCandidates", () => {
     expect(mentionCandidates([], [crew, captains], "gard")).toHaveLength(1);
     expect(mentionCandidates([], [crew, captains], "watch")).toHaveLength(1);
     expect(mentionCandidates([], [crew, captains], "garden c")).toHaveLength(1);
-  });
-});
-
-describe("groupMentionClass", () => {
-  it("fills the pill for someone in the group", () => {
-    const crew = group("gardeners", "Garden crew", ["me-id"]);
-    expect(groupMentionClass(crew, "me-id")).toBe("mention group me");
-    expect(groupMentionClass(crew, "other")).toBe("mention group");
-    expect(groupMentionClass(undefined, "me-id")).toBe("mention group");
   });
 });

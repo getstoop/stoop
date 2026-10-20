@@ -1,12 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { memo, type ReactNode, useMemo } from "react";
-import { dayAndTime, fullDateTime } from "../../api/dates";
-import { emojiOnly } from "../../api/emojiText";
-import type {
-  MentionChannels,
-  MentionGroups,
-  MentionMembers,
-} from "../../api/mentions";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -16,6 +9,13 @@ import { LinkedMessages } from "../../components/LinkedMessages";
 import { LinkPreviews } from "../../components/LinkPreviews";
 import { MessageBody } from "../../components/MessageBody";
 import { ReactionBar } from "../../components/ReactionBar";
+import { dayAndTime, fullDateTime } from "../../core/dates";
+import { emojiOnly } from "../../core/emojiText";
+import type {
+  MentionChannels,
+  MentionGroups,
+  MentionMembers,
+} from "../../core/mentions";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { MessageActions } from "./MessageActions";

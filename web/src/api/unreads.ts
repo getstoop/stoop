@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { isUnread } from "../core/unreads";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { patchDirectMessage } from "./dms";
@@ -7,16 +8,6 @@ import { isMuted } from "./mutes";
 // Unread state lives on the server (channel_reads); the client keeps the
 // channels/spaces caches in step with realtime events so bolding is
 // instant without refetches.
-
-// Badge pills are narrow, and past a hundred the exact number stops
-// telling you anything you'd act on.
-export function badgeCount(n: number): string {
-  return n > 99 ? "99+" : String(n);
-}
-
-export function isUnread(c: Channel): boolean {
-  return c.lastMessageId !== "" && c.lastMessageId > c.lastReadMessageId;
-}
 
 // Unread and not effectively muted: what bolds a row and dots a pill.
 export function isAlerting(

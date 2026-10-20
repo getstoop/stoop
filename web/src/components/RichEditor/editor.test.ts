@@ -7,7 +7,7 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
-import { writtenLength } from "../../api/mentions";
+import { writtenLength } from "../../core/mentions";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Channel } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";

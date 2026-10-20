@@ -4,13 +4,13 @@ import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useState } from "react";
 import { activityVerb, markActivityRead } from "../api/activity";
 import { chatClient } from "../api/clients";
-import { dayLabel, fullDateTime, sameDay } from "../api/dates";
 import { useActivity, useChannels, useSpaces } from "../api/queries";
 import { messageSearch } from "../api/shareLinks";
 import { Avatar } from "../components/Avatar";
 import { ChannelName } from "../components/ChannelName";
 import { DeletedMark } from "../components/DeletedMark";
 import { MenuButton } from "../components/MenuButton";
+import { dayLabel, fullDateTime, sameDay } from "../core/dates";
 import type { ActivityItem } from "../gen/stoop/chat/v1/activity_pb";
 
 // The activity timeline: everything that has happened to you, newest

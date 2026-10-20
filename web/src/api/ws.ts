@@ -1,5 +1,11 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
+import {
+  withMessage,
+  withoutMessage,
+  withReplaced,
+  withRootDeleted,
+} from "../core/messageList";
 import { ActivityKind } from "../gen/stoop/chat/v1/activity_pb";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
@@ -278,28 +284,10 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       const m = payload.value;
       replaceMessage(queryClient, m);
       if (!m.deleted) break;
-      // A root deleted while its thread has replies arrives as an update:
-      // quotes of it, and the line on its replies also sent to the
-      // channel, read as a deleted message's.
+      // A root deleted while its thread has replies arrives as an update.
       queryClient.setQueriesData<Message[]>(
         { queryKey: ["messages", m.channelId] },
-        (old) =>
-          old?.map((x) => {
-            let next = x;
-            if (x.replyTo?.messageId === m.id) {
-              next = {
-                ...next,
-                replyTo: { ...x.replyTo, author: undefined, preview: "" },
-              };
-            }
-            if (x.threadRoot?.messageId === m.id) {
-              next = {
-                ...next,
-                threadRoot: { ...x.threadRoot, author: undefined, preview: "" },
-              };
-            }
-            return next;
-          }),
+        (old) => old && withRootDeleted(old, m.id),
       );
       break;
     }
@@ -537,9 +525,8 @@ function leaveVoiceIn(spaceId: string) {
   if (useVoiceStore.getState().connection?.spaceId === spaceId) leaveVoice();
 }
 
-// Drops a message from every window of its channel and blanks the quote
-// on any reply to it (the server does the same on the next fetch). A root
-// that goes takes its thread's window with it.
+// Drops a message from every window of its channel (withoutMessage). A
+// root that goes takes its thread's window with it.
 export function removeMessageFromCache(
   queryClient: QueryClient,
   channelId: string,
@@ -549,50 +536,18 @@ export function removeMessageFromCache(
     queryKey: ["messages", channelId, messageId],
     exact: true,
   });
-  // A root really deleted (Delete thread) takes its replies, including
-  // any also sent to the channel.
   queryClient.setQueriesData<Message[]>(
     { queryKey: ["messages", channelId] },
-    (old) =>
-      old
-        ?.filter((x) => x.id !== messageId && x.threadRootId !== messageId)
-        .map((x) =>
-          x.replyTo?.messageId === messageId
-            ? {
-                ...x,
-                replyTo: { ...x.replyTo, author: undefined, preview: "" },
-              }
-            : x,
-        ),
+    (old) => old && withoutMessage(old, messageId),
   );
 }
 
 // Swaps in a message's new version in every window of its channel.
-// Events and EditMessage carry only the thread summary's shared half, so
-// the reader's own half (participating, muted, unreadCount) is kept.
 export function replaceMessage(queryClient: QueryClient, message: Message) {
   queryClient.setQueriesData<Message[]>(
     { queryKey: ["messages", message.channelId] },
-    (old) =>
-      old?.map((cached) =>
-        cached.id === message.id ? withViewerHalf(message, cached) : cached,
-      ),
+    (old) => old && withReplaced(old, message),
   );
-}
-
-function withViewerHalf(message: Message, cached: Message): Message {
-  const next = message.thread;
-  const previous = cached.thread;
-  if (!next || !previous) return message;
-  return {
-    ...message,
-    thread: {
-      ...next,
-      participating: previous.participating,
-      muted: previous.muted,
-      unreadCount: previous.unreadCount,
-    },
-  };
 }
 
 // Also used by the send-message mutation, so delivery via RPC response and
@@ -619,7 +574,8 @@ function appendTo(queryClient: QueryClient, t: Timeline, message: Message) {
     if (query?.state.fetchStatus === "fetching") refetch(queryClient, query);
     return;
   }
-  if (current.some((m) => m.id === message.id)) return;
+  const next = withMessage(current, message);
+  if (next === current) return;
   // The window isn't at the newest message (the reader jumped into
   // history): the message belongs beyond its edge, so count it on the
   // "Jump to latest" pill rather than splicing it in out of order.
@@ -628,5 +584,5 @@ function appendTo(queryClient: QueryClient, t: Timeline, message: Message) {
     history.noteArrival(t);
     return;
   }
-  queryClient.setQueryData<Message[]>(key, [...current, message]);
+  queryClient.setQueryData<Message[]>(key, next);
 }

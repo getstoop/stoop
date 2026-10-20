@@ -7,8 +7,8 @@ import {
 } from "../../api/channelPeople";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { canManageChannels } from "../../api/permissions";
 import { channelsQuery, useMe, useMembers, useSpaces } from "../../api/queries";
+import { canManageChannels } from "../../core/permissions";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { confirm, notice } from "../../stores/dialogs";
 import { memberName } from "../MembersPanel/statusGroups";

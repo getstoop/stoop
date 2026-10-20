@@ -1,9 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useNavigate } from "@tanstack/react-router";
 import { useLinkableChannels } from "../../api/channelLinks";
-import { fullDateTime, shortDateTime } from "../../api/dates";
 import { useChannelGroups } from "../../api/groups";
-import type { MentionMembers } from "../../api/mentions";
 import { useChannels, useMe } from "../../api/queries";
 import { messageSearch } from "../../api/shareLinks";
 import { Attachments } from "../../components/Attachments";
@@ -12,6 +10,8 @@ import { BotMark } from "../../components/BotMark";
 import { ChannelName } from "../../components/ChannelName";
 import { DeletedMark } from "../../components/DeletedMark";
 import { MessageBody } from "../../components/MessageBody";
+import { fullDateTime, shortDateTime } from "../../core/dates";
+import type { MentionMembers } from "../../core/mentions";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 // One search result: who said it where and when, then the message with

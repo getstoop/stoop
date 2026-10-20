@@ -6,6 +6,9 @@
       // The client web generates from the protos, shared as source rather
       // than as a package. Metro reads this mapping too.
       "@stoop/gen/*": ["../web/src/gen/*"],
+      // Web's code that needs no browser (web/src/core), shared the same
+      // way. scripts/check-core.mjs keeps it free of web-only imports.
+      "@stoop/core/*": ["../web/src/core/*"],
       // The protobuf runtime the generated files import, from this app's
       // node_modules. Left to itself, tsc resolves those imports from
       // web/src/gen upward and finds web's copy, and the two copies'
@@ -13,5 +16,24 @@
       "@bufbuild/protobuf": ["./node_modules/@bufbuild/protobuf/dist/esm"],
       "@bufbuild/protobuf/*": ["./node_modules/@bufbuild/protobuf/dist/esm/*"]
     }
-  }
+  },
+  // All of web/src/core, not only what the app imports so far, so lint
+  // fails on a core change the app could not compile. Naming include
+  // replaces the default, so this app's own files are listed too, and
+  // exclude repeats expo/tsconfig.base's.
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.mjs",
+    "../web/src/core/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "android",
+    "ios",
+    "../web/src/core/**/*.test.ts"
+  ]
 }

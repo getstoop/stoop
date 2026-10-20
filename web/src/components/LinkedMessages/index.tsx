@@ -1,6 +1,6 @@
-import { linksIn } from "../../api/markdown";
 import { useServerOrigins } from "../../api/queries";
 import { linkedMessage } from "../../api/shareLinks";
+import { linksIn } from "../../core/markdown";
 import { LinkedMessageCard } from "./LinkedMessageCard";
 
 // As many cards as a message gets link previews.

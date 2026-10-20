@@ -1,29 +1,31 @@
 import { Link } from "@tanstack/react-router";
 import { Fragment, type ReactNode, useMemo, useState } from "react";
-import { splitEmoji } from "../api/emojiText";
+import {
+  CHANNEL_LINK_CLASS,
+  EVERYONE_CLASS,
+  groupMentionClass,
+  mentionClass,
+} from "../api/mentionClasses";
+import { useServerOrigins } from "../api/queries";
+import { linkedMessage } from "../api/shareLinks";
+import { splitEmoji } from "../core/emojiText";
 import {
   type Block,
   type Inline,
   type ListItem,
   parseMarkdown,
-} from "../api/markdown";
+} from "../core/markdown";
 import {
-  CHANNEL_LINK_CLASS,
   currentHandle,
-  EVERYONE_CLASS,
-  groupMentionClass,
   type MentionChannels,
   type MentionGroups,
   type MentionMembers,
   type MentionRef,
-  mentionClass,
   mentionText,
   NO_CHANNELS,
   NO_GROUPS,
   splitEveryone,
-} from "../api/mentions";
-import { useServerOrigins } from "../api/queries";
-import { linkedMessage } from "../api/shareLinks";
+} from "../core/mentions";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import { MessageLink } from "./MessageLink";
 

@@ -1,4 +1,4 @@
-import { isBot } from "../api/identity";
+import { isBot } from "../core/identity";
 import type { IdentityKind } from "../gen/stoop/access/v1/access_pb";
 import { BotIcon } from "./Icons";
 import { Tooltip } from "./Tooltip";

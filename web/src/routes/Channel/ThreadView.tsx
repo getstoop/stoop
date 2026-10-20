@@ -9,7 +9,6 @@ import {
   useDirectMessages,
 } from "../../api/dms";
 import { errorText } from "../../api/errors";
-import { canDeleteAnyMessage, canPost } from "../../api/permissions";
 import {
   useInstanceStatus,
   useMe,
@@ -32,6 +31,7 @@ import { useCloseSidePanel } from "../../components/SidePanel/context";
 import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
 import { Tooltip } from "../../components/Tooltip";
+import { canDeleteAnyMessage, canPost } from "../../core/permissions";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkThreadRead } from "../../hooks/useMarkThreadRead";

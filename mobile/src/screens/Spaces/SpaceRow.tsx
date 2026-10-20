@@ -1,5 +1,6 @@
+import { badgeCount } from "@stoop/core/unreads";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { badgeCount, mentionLabel, type SpaceListing } from "../../api/spaces";
+import { mentionLabel, type SpaceListing } from "../../api/spaces";
 import { MutedIcon } from "../../components/Icons";
 import SpaceIcon from "../../components/SpaceIcon";
 import { type Theme, tokens, useTheme } from "../../theme";

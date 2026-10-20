@@ -1,5 +1,9 @@
-import { type Inline, type ListItem, parseMarkdown } from "../../api/markdown";
-import { type MentionRef, mentionText, mentionToken } from "../../api/mentions";
+import { type Inline, type ListItem, parseMarkdown } from "../../core/markdown";
+import {
+  type MentionRef,
+  mentionText,
+  mentionToken,
+} from "../../core/mentions";
 
 // The rich editor's document and our Markdown subset, both ways. The draft
 // is the document; Markdown is what it sends and what it loads to edit.

@@ -23,7 +23,7 @@ import {
   useUpdate,
 } from "../api/queries";
 import { MAX_SPACE_NAME } from "../api/spaces";
-import { badgeCount, isAlerting } from "../api/unreads";
+import { isAlerting } from "../api/unreads";
 import { startVoiceBridge } from "../api/voiceBridge";
 import { startRealtime } from "../api/ws";
 import { Announcer } from "../components/Announcer";
@@ -40,6 +40,7 @@ import { NavBackdrop } from "../components/NavBackdrop";
 import { SidePanel } from "../components/SidePanel";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { Tooltip } from "../components/Tooltip";
+import { badgeCount } from "../core/unreads";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { SpaceCreationPolicy } from "../gen/stoop/instance/v1/instance_pb";
 import { useConnectionStore } from "../stores/connection";

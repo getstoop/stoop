@@ -4,7 +4,7 @@ import {
   linkableChannels,
   type MentionChannels,
   NO_CHANNELS,
-} from "./mentions";
+} from "../core/mentions";
 import { channelsQuery } from "./queries";
 
 // The channels a #link names in a channel: the space's public text

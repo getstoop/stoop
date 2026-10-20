@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { channelNameText } from "../../api/channels";
-import { isBot } from "../../api/identity";
 import {
   useChannels,
   useInstanceStatus,
@@ -15,6 +14,7 @@ import {
   type Secret,
   SecretModal,
 } from "../../components/Integrations/SecretModal";
+import { isBot } from "../../core/identity";
 import { Permission } from "../../gen/stoop/access/v1/access_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import type { OutgoingWebhook } from "../../gen/stoop/integrations/v1/webhook_pb";
