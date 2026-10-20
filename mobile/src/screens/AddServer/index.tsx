@@ -72,6 +72,7 @@ export default function AddServer() {
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             accessibilityLabel="Server address"
+            testID="server-address"
             accessibilityLabelledBy="server-address"
             placeholder="chat.example.org"
             placeholderTextColor={theme.textMuted}

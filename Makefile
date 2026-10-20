@@ -1,4 +1,4 @@
-.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck mobile-theme mobile-metro
+.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck mobile-theme mobile-metro mobile-sim mobile-e2e
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -149,6 +149,15 @@ mobile-theme:
 ## mobile-typecheck: tsc over mobile/, generated client included
 mobile-typecheck:
 	cd mobile && pnpm exec tsc --noEmit
+
+## mobile-sim: a release build onto the iPhone simulator, for the flows
+mobile-sim:
+	cd mobile && pnpm install --frozen-lockfile && pnpm exec expo run:ios --configuration Release --device "$(or $(sim),iPhone 16)" --no-bundler
+
+## mobile-e2e: the Maestro flows on a throwaway instance (scripts/mobile-e2e.sh);
+## make mobile-e2e flows=mobile/e2e/sign-in.yaml runs one
+mobile-e2e:
+	scripts/mobile-e2e.sh $(flows)
 
 # ---- Docker ----------------------------------------------------------------
 

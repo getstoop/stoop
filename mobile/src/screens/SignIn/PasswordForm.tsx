@@ -54,6 +54,7 @@ export default function PasswordForm({
           onFocus={() => setFocused("username")}
           onBlur={() => setFocused(null)}
           accessibilityLabel="Username"
+          testID="username"
           accessibilityLabelledBy="sign-in-username"
           autoCapitalize="none"
           autoCorrect={false}
@@ -81,6 +82,7 @@ export default function PasswordForm({
           onBlur={() => setFocused(null)}
           onSubmitEditing={creating ? undefined : submit}
           accessibilityLabel="Password"
+          testID="password"
           accessibilityLabelledBy="sign-in-password"
           secureTextEntry
           autoCapitalize="none"
@@ -103,6 +105,7 @@ export default function PasswordForm({
             onBlur={() => setFocused(null)}
             onSubmitEditing={submit}
             accessibilityLabel="Confirm password"
+            testID="confirm-password"
             accessibilityLabelledBy="sign-in-confirm"
             secureTextEntry
             autoCapitalize="none"

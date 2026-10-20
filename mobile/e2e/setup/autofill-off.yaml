@@ -1,0 +1,24 @@
+appId: com.apple.Preferences
+name: Simulator setup, password AutoFill off
+---
+# iOS takes Maestro's fast typing into a new-password field for AutoFill
+# and covers the field with a strong password, so nothing typed lands.
+# Off on the simulator, the app keeps its real hints. Taps only when on.
+- launchApp:
+    stopApp: true
+- tapOn: "General"
+- tapOn: "AutoFill & Passwords"
+# The row's label doesn't flip it; the switch, at the row's right end,
+# does. Only while it is on, so a second run leaves it off.
+- runFlow:
+    when:
+      visible:
+        text: "AutoFill Passwords and Passkeys"
+        checked: true
+    commands:
+      - tapOn:
+          point: "84%,18%"
+- assertNotVisible:
+    text: "AutoFill Passwords and Passkeys"
+    checked: true
+- stopApp
