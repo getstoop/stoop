@@ -10,9 +10,8 @@ import { sessionToken } from "../api/servers";
 import { type SavedServer, useServers } from "../servers";
 import { type Theme, tokens, useTheme } from "../theme";
 
-// A stand-in for the Spaces tab, which is the next screen: it proves the
-// saved session works by asking the server who it belongs to, and offers
-// a way out. The app opens here while a server is saved.
+// A stand-in for the You tab until its screen is built: it says who the
+// saved session belongs to, and keeps a way to sign out.
 
 const LOGOUT_TIMEOUT_MS = 5000;
 
@@ -81,8 +80,7 @@ export default function SignedIn({ server }: { server: SavedServer }) {
         {me.state === "loading" && <ActivityIndicator color={theme.textMuted} />}
         {me.state === "ready" && (
           <Text style={styles.body}>
-            Signed in as {me.user.displayName || me.user.username}. Spaces come in the next
-            build.
+            Signed in as {me.user.displayName || me.user.username}.
           </Text>
         )}
         {me.state === "ended" && (

@@ -22,6 +22,15 @@ name: Add a server, sign in with a password, sign out
     id: "password"
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
+# Each space with what is waiting in it (seed.mjs), read from the rows'
+# accessibility labels.
+- extendedWaitUntil:
+    visible: "${SPACE}, 1 mention"
+    timeout: 15000
+- assertVisible: "Climbing crew, unread"
+- assertVisible: "Garden swap, muted"
+- tapOn:
+    id: "tab-you"
 - extendedWaitUntil:
     visible: "Signed in as ${MEMBER}.*"
     timeout: 15000

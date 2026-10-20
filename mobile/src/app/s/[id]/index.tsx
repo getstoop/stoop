@@ -1,9 +1,6 @@
-import { useLocalSearchParams } from "expo-router";
-import { useServer } from "../../../servers";
-import SignedIn from "../../../screens/SignedIn";
+import Spaces from "../../../screens/Spaces";
+import { useCurrentServer } from "../../../servers";
 
-export default function ServerHome() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const server = useServer(id);
-  return server ? <SignedIn server={server} /> : null;
+export default function SpacesTab() {
+  return <Spaces server={useCurrentServer()} />;
 }

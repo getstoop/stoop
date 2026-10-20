@@ -19,7 +19,9 @@ address, and Sign in, by password, a login provider, or a new account
 where the server takes them without an invite, with Forgot password
 asking the server for a reset link, and joining from an invite link,
 pasted or handed over by the web's open-in-app page. A signed-in server opens
-on a stand-in that says who you are, until the Spaces tab replaces it.
+on four tabs: Spaces, listing the server's spaces with their mention
+badges, unread dots and mutes; Activity and Messages, still empty; and
+You, a stand-in that says who you are and signs out.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
@@ -131,9 +133,10 @@ native rebuild.
 ## Tests
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
-one YAML file each, driving the app on the iPhone simulator: add a server
-and sign in, create an account from a pasted invite link, and open an
-invite the way the web's open-in-app page does, then sign in and join.
+one YAML file each, driving the app on the iPhone simulator: add a server,
+sign in and see the Spaces tab's badges, create an account from a pasted
+invite link, and open an invite the way the web's open-in-app page does,
+then sign in and join.
 They find things by the words on screen and, for text fields, a
 `testID`.
 
