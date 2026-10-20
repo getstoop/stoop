@@ -199,6 +199,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
           payload.value.userId,
           payload.value.online,
           payload.value.dnd,
+          payload.value.mobile,
         );
       break;
     case "doNotDisturbChanged":

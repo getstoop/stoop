@@ -12,16 +12,16 @@ func TestGatewayCounts(t *testing.T) {
 		t.Fatal("a fresh gateway counts nothing")
 	}
 
-	g.presence.connect("ada", nil)
-	g.presence.connect("ada", nil)
-	g.presence.connect("bea", nil)
+	g.presence.connect("ada", nil, false)
+	g.presence.connect("ada", nil, false)
+	g.presence.connect("bea", nil, false)
 	if got := g.ConnectionCount(); got != 3 {
 		t.Errorf("connections = %d, want 3", got)
 	}
 	if got := g.OnlineUserCount(); got != 2 {
 		t.Errorf("online users = %d, want 2", got)
 	}
-	g.presence.disconnect("ada")
+	g.presence.disconnect("ada", false, false)
 	if got, want := g.ConnectionCount(), 2; got != want {
 		t.Errorf("connections after one close = %d, want %d", got, want)
 	}

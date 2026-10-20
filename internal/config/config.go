@@ -137,6 +137,11 @@ type Config struct {
 	// the sweep (same timer as the file sweep) removes them; 0 keeps
 	// them forever.
 	ActivityRetention time.Duration
+	// PresenceGrace is how long someone stays online after their last
+	// realtime connection closes, so a reload, a dropped network or a
+	// mobile app sent to the background doesn't flicker; 0 announces
+	// offline at once.
+	PresenceGrace time.Duration
 	// UnfurlAllowPrivate lets link previews fetch private/loopback
 	// addresses. Never in production: it's what stops the server being used
 	// as a proxy into your LAN. Dev and tests only.
@@ -246,6 +251,7 @@ func Load() (Config, error) {
 		FileSweepInterval:  env.duration("STOOP_FILE_SWEEP_INTERVAL", 6*time.Hour),
 		FileSweepGrace:     env.duration("STOOP_FILE_SWEEP_GRACE", 24*time.Hour),
 		ActivityRetention:  env.duration("STOOP_ACTIVITY_RETENTION", 720*time.Hour),
+		PresenceGrace:      env.duration("STOOP_PRESENCE_GRACE", 30*time.Second),
 		AuthRateLimit:      env.nonNegativeInt("STOOP_AUTH_RATE_LIMIT", 20),
 		SignalingRateLimit: env.nonNegativeInt("STOOP_SIGNALING_RATE_LIMIT", 30),
 		SearchRateLimit:    env.nonNegativeInt("STOOP_SEARCH_RATE_LIMIT", 30),

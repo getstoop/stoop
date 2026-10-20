@@ -11,11 +11,13 @@ export function MemberRow({
   member,
   online,
   dnd,
+  mobile,
   onOpen,
 }: {
   member: Member;
   online: boolean;
   dnd?: boolean;
+  mobile?: boolean;
   onOpen: (anchor: DOMRect) => void;
 }) {
   // A bot has no presence, so it is neither online nor dimmed as offline.
@@ -35,9 +37,9 @@ export function MemberRow({
         >
           {!bot && (
             <span
-              className={`online-dot ${presenceClass(online, dnd)}`}
+              className={`online-dot ${presenceClass(online, dnd, mobile)}`}
               role="img"
-              aria-label={presenceLabel(online, dnd)}
+              aria-label={presenceLabel(online, dnd, mobile)}
             />
           )}
         </Avatar>

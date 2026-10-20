@@ -16,6 +16,7 @@ export function CandidateRow({
 }) {
   const online = useConnectionStore((s) => s.online.has(person.id));
   const dnd = useConnectionStore((s) => s.dnd[person.id]);
+  const mobile = useConnectionStore((s) => s.mobile[person.id]);
   const name = person.displayName || person.username;
   return (
     <label className={`candidate-row ${disabled ? "disabled" : ""}`.trim()}>
@@ -27,9 +28,9 @@ export function CandidateRow({
       />
       <Avatar name={name} fileId={person.avatarFileId} size="small">
         <span
-          className={`online-dot ${presenceClass(online, dnd)}`}
+          className={`online-dot ${presenceClass(online, dnd, mobile)}`}
           role="img"
-          aria-label={presenceLabel(online, dnd)}
+          aria-label={presenceLabel(online, dnd, mobile)}
         />
       </Avatar>
       <span className="candidate-name">{name}</span>

@@ -16,7 +16,7 @@ func TestAddSpaceReportsANewSpaceOnce(t *testing.T) {
 	if presence.addSpace("ada", "s1") {
 		t.Error("someone offline should not be counted in a space")
 	}
-	presence.connect("ada", []string{"s1"})
+	presence.connect("ada", []string{"s1"}, false)
 	if presence.addSpace("ada", "s1") {
 		t.Error("a space ada is already counted in is not new")
 	}
@@ -38,8 +38,8 @@ func TestJoinRacingASecondConnectionAnnouncesOnce(t *testing.T) {
 	defer newSpace.Close()
 	ctx := context.Background()
 
-	gateway.connectPresence(ctx, "ada", []string{"s1"})
-	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"})
+	gateway.connectPresence(ctx, "ada", []string{"s1"}, false)
+	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"}, false)
 	firstTab := bus.Subscribe(events.UserTopic("ada"))
 	defer firstTab.Close()
 	gateway.applyControlEvent("ada", firstTab, events.Stamp(&realtimev1.ServerEvent{
@@ -75,13 +75,44 @@ func TestRemovalDuringConnectIsNotAnnounced(t *testing.T) {
 	defer removedSpace.Close()
 	ctx := context.Background()
 
-	gateway.connectPresence(ctx, "ada", []string{"s1"})
+	gateway.connectPresence(ctx, "ada", []string{"s1"}, false)
 	gateway.UseDoNotDisturb(removingLookup{gateway.presence})
-	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"})
+	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"}, false)
 
 	for len(removedSpace.Events()) > 0 {
 		if changed := (<-removedSpace.Events()).GetPresenceChanged(); changed != nil && changed.Online {
 			t.Errorf("ada was announced online in s2 after her removal: %+v", changed)
 		}
+	}
+}
+
+// A phone that connects while a computer's grace runs takes over the
+// presence only once that grace is out: the computer may yet come back.
+func TestPhoneDuringAComputersGraceWaitsItOut(t *testing.T) {
+	presence := newPresence()
+	presence.grace = 50 * time.Millisecond
+	settled := make(chan bool, 4)
+	presence.settled = func(_ string, _ []string, online bool) { settled <- online }
+
+	presence.connect("ada", []string{"s1"}, false)
+	presence.disconnect("ada", false, false)
+	if _, changed := presence.connect("ada", nil, true); changed {
+		t.Error("a phone joining a computer's grace was announced at once")
+	}
+	if presence.mobileOf("ada") {
+		t.Error("ada read as mobile before the computer's grace ran out")
+	}
+	select {
+	case online := <-settled:
+		if !online || !presence.mobileOf("ada") {
+			t.Errorf("after the grace: online %v, mobile %v; want both", online, presence.mobileOf("ada"))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the grace never settled")
+	}
+	select {
+	case online := <-settled:
+		t.Errorf("a second settle: online %v", online)
+	case <-time.After(150 * time.Millisecond):
 	}
 }

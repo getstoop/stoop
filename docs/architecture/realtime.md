@@ -238,7 +238,7 @@ the server side.
 | 28 | `member_updated` | space | A member's avatar or username changed; refetch them and the messages. |
 | 39 | `groups_changed` | space | A group was created, changed or deleted; refetch the space's groups. |
 | 19 | `activity_item_created` | user | |
-| 21 | `presence_changed` | space | Online, offline, or do not disturb turning on or off, including when it ends on its own. |
+| 21 | `presence_changed` | space | Online, offline (after the grace period), do not disturb turning on or off, including when it ends on its own, or moving between only mobile and anything else. |
 | 22 | `user_typing` | space / user | |
 | 27 | `reactions_changed` | space / user | |
 | 32 | `message_pinned` | space | Ids, the flag, who and when; not the list. |
@@ -264,11 +264,24 @@ disturb, which lives on the account.
 
 ### Presence and do not disturb
 
-`presence` keeps `userID → {connection count, spaces, do not disturb}`.
+`presence` keeps `userID → {connection count, how many of them are
+mobile, spaces, do not disturb}`.
 
 - Online is a **connection count**, so five tabs are one presence and
   closing one of them announces nothing. Nothing else is presence: there
   is no away, and no client announces one.
+- **Offline waits out a grace period** (`STOOP_PRESENCE_GRACE`, 30 s by
+  default). The last connection closing arms a timer; a connection back
+  before it fires cancels it, and nobody hears anything. A reload, a
+  dropped network or the mobile app going to the background reads as
+  staying online. A socket closed because its session ended (sign-out,
+  revocation, expiry: close code 4001) skips the wait.
+- **Mobile is a connection's own report**: the app opens `/ws?client=mobile`.
+  Someone is *online on mobile* while every connection they hold is
+  mobile. A computer connecting ends that at once; the computer leaving
+  them only on mobile waits out the same grace, so a reloading tab
+  doesn't flicker the mark. The report changes nothing but the person's
+  own mark, so it is taken as given, like a voice report.
 - **Do not disturb is stored on the account** (`users.dnd`,
   `users.dnd_until`) and set with `AuthService.SetDoNotDisturb`. The gateway
   reads it through the `DoNotDisturbLookup` port on every connect, follows
@@ -281,10 +294,12 @@ disturb, which lives on the account.
   would silently lose things.
 - `Ready.presences` snapshots it; `PresenceChanged` maintains it.
 - **The web app draws it as a shape, not only a colour**
-  (`styles/presence.css`): a filled dot for online, an empty ring for
-  offline, a dot with a bar through it for do not disturb, each with an
-  accessible name saying the state. Offline wins over do not disturb,
-  since the dot is whether the person can be reached.
+  (`styles/presence.css`): a filled dot for online, a small phone for
+  online on mobile, an empty ring for offline, a dot with a bar through
+  it for do not disturb, each with an accessible name saying the state
+  ("online on mobile" is said only there, never written on screen).
+  Offline wins over do not disturb, which wins over mobile: the dot is
+  whether the person can be reached, then whether they want to be.
 
 Chat reaches presence through `PresenceLister` for exactly one feature:
 resolving `@here` to the members who are online right now.

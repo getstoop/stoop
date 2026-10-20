@@ -57,8 +57,12 @@ type Gateway struct {
 	lookupTimeout  time.Duration
 }
 
+// presenceGrace is how long someone stays online after their last
+// connection closes, unless SetPresenceGrace says otherwise.
+const presenceGrace = 30 * time.Second
+
 func NewGateway(bus events.Bus, verifier SessionVerifier, members MembershipLister, channels ChannelLookup, originPatterns []string, log *slog.Logger) *Gateway {
-	return &Gateway{
+	gateway := &Gateway{
 		bus:            bus,
 		verifier:       verifier,
 		members:        members,
@@ -70,4 +74,12 @@ func NewGateway(bus events.Bus, verifier SessionVerifier, members MembershipList
 		pingInterval:   pingInterval,
 		lookupTimeout:  lookupTimeout,
 	}
+	gateway.presence.grace = presenceGrace
+	gateway.presence.settled = gateway.publishPresence
+	return gateway
 }
+
+// SetPresenceGrace sets how long someone stays online after their last
+// connection closes (STOOP_PRESENCE_GRACE); zero announces offline at once.
+// Called before the gateway serves.
+func (g *Gateway) SetPresenceGrace(grace time.Duration) { g.presence.grace = grace }
