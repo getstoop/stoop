@@ -9,6 +9,11 @@ import { useTheme } from "../../../theme";
 // own heading in its body, so the tabs carry no header. The tabs read the
 // server from CurrentServer: one reached by pressing it gets none of this
 // layout's route params.
+// The tab a server opens on when nothing in the URL names one, as when
+// the switcher swaps a server in: Spaces, which lives in its own folder
+// as a stack, so the tabs can't tell it is the first by its name.
+export const unstable_settings = { initialRouteName: "(spaces)" };
+
 export default function ServerLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();

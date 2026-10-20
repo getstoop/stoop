@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Open a space and see its channels, with what is waiting in each
+name: Open a space and see its channels, with what is waiting in each, kept live
 ---
 - clearKeychain
 - launchApp:
@@ -31,9 +31,41 @@ name: Open a space and see its channels, with what is waiting in each
 - extendedWaitUntil:
     visible: "general, 1 mention"
     timeout: 15000
-- assertVisible: "2 members · Reading The Overstory"
+# However many members other flows have brought in by now.
+- assertVisible: "\\d+ members · Reading The Overstory"
 - assertVisible: "random, unread"
 - assertVisible: "off-topic, muted"
+# Live: a channel made, posted in, mentioning ada and deleted elsewhere
+# shows here as it happens, through the realtime socket.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: create
+      CHANNEL_NAME: live-check
+- extendedWaitUntil:
+    visible: "live-check"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: post
+- extendedWaitUntil:
+    visible: "live-check, unread"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: mention
+- extendedWaitUntil:
+    visible: "live-check, 1 mention"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: delete
+- extendedWaitUntil:
+    notVisible: "live-check.*"
+    timeout: 10000
 # Back to the list, with the tab bar there all along.
 - assertVisible:
     id: "tab-spaces"

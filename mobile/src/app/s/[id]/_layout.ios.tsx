@@ -9,6 +9,11 @@ import { useTheme } from "../../../theme";
 // _layout.tsx until it has icons of its own. The rest is as there: an ID
 // this phone doesn't have goes back to the start, and the tabs read the
 // server from CurrentServer.
+// The tab a server opens on when nothing in the URL names one, as when
+// the switcher swaps a server in: Spaces, which lives in its own folder
+// as a stack, so the tabs can't tell it is the first by its name.
+export const unstable_settings = { initialRouteName: "(spaces)" };
+
 export default function ServerLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();

@@ -65,6 +65,12 @@ const env = {
   OUTSIDER: `bea${s.suffix}`,
   NEWCOMER: `cleo${s.suffix}`,
   SPACE: space,
+  // For flows that change the space mid-way, as another device would:
+  // ada owns it, dee posts in it.
+  SPACE_ID: s.space.id,
+  MEMBER_ID: s.ids.ada,
+  OWNER_TOKEN: ada,
+  POSTER_TOKEN: dee,
   INVITE_LINK: s.invite.url,
   // What the web's open-in-app page fires for that invite.
   OPEN_LINK: `stoop://open?${new URLSearchParams({ server: BASE, path })}`,
