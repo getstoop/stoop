@@ -1,5 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useRouter } from "expo-router";
+import { type NativeStackNavigationProp, useNavigation, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,6 +21,7 @@ export default function ServerSwitcher({ current }: { current?: string }) {
   const styles = makeStyles(theme);
   const router = useRouter();
   const { servers, switchTo } = useServers();
+  const navigation = useNavigation<NativeStackNavigationProp<{}>>();
   // By server ID; a server not in here yet is still being asked.
   const [waiting, setWaiting] = useState<Record<string, Waiting>>({});
 
@@ -36,19 +37,32 @@ export default function ServerSwitcher({ current }: { current?: string }) {
   }, [servers, current]);
 
   // The sheet closes before the app moves on: a screen pushed from inside
-  // a sheet would open inside it. Another server is put first and opened
-  // through the start (src/app/index.tsx says why).
-  const open = async (server: SavedServer) => {
-    if (server.id === current) {
+  // a sheet would open inside it. Another server instead replaces the
+  // screen under the sheet first, so the sheet closes onto it, swapped in
+  // place. Replaced after, the old server went blank behind the closing
+  // sheet. This is a plain stack replace aimed at that screen:
+  // expo-router's own replace to /s/<id> stays inside the old server
+  // (src/app/index.tsx). The server is put first only once the sheet is
+  // going, so the list doesn't reorder in view.
+  const open = (server: SavedServer) => {
+    const ended = waiting[server.id]?.state === "ended";
+    if (server.id !== current && !ended) {
+      const state = navigation.getState();
+      const below = state?.routes[state.index - 1];
+      if (state && below) {
+        navigation.dispatch({
+          type: "REPLACE",
+          payload: { name: "s/[id]", params: { id: server.id } },
+          source: below.key,
+          target: state.key,
+        });
+      }
       router.back();
-    } else if (waiting[server.id]?.state === "ended") {
-      router.back();
-      router.push({ pathname: "/sign-in", params: { server: server.origin } });
-    } else {
-      await switchTo(server.id);
-      router.back();
-      router.replace("/");
+      switchTo(server.id);
+      return;
     }
+    router.back();
+    if (ended) router.push({ pathname: "/sign-in", params: { server: server.origin } });
   };
 
   const addServer = () => {

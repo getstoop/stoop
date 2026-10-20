@@ -49,7 +49,10 @@ import a screen; the screens themselves live in `src/screens`, so
 - To land on a server, go to `/`, which opens the first saved server
   (put first by signing in or switching), never `replace` to `/s/<id>`:
   with another server's `/s/<id>` under it, expo-router navigates inside
-  that server's tabs and the server never changes.
+  that server's tabs and the server never changes. The switcher is the
+  one exception: it dispatches a plain stack `REPLACE` at the screen
+  under its sheet, so the sheet closes onto the new server
+  (`src/screens/ServerSwitcher/index.tsx`).
 - Typed routes are off for now: Expo generates their types only while
   Metro runs, and `make mobile-typecheck` runs without it.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
