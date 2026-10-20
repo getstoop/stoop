@@ -14,25 +14,29 @@ export default function ServerLayout() {
   const theme = useTheme();
   const server = useServer(id);
   if (!server) return <Redirect href="/" />;
+  // Each tab's native container, painted the theme's surface, so a tab
+  // opened for the first time doesn't flash the system background before
+  // its screen draws.
+  const content = { backgroundColor: theme.surface };
 
   return (
     <CurrentServer server={server}>
       <NativeTabs tintColor={theme.accent}>
-        <NativeTabs.Trigger name="index" testID="tab-spaces">
+        <NativeTabs.Trigger name="index" testID="tab-spaces" contentStyle={content}>
           <NativeTabs.Trigger.Label>Spaces</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon
             sf={{ default: "square.grid.2x2", selected: "square.grid.2x2.fill" }}
           />
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="activity" testID="tab-activity">
+        <NativeTabs.Trigger name="activity" testID="tab-activity" contentStyle={content}>
           <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf={{ default: "bell", selected: "bell.fill" }} />
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="messages" testID="tab-messages">
+        <NativeTabs.Trigger name="messages" testID="tab-messages" contentStyle={content}>
           <NativeTabs.Trigger.Label>Messages</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf={{ default: "bubble.left", selected: "bubble.left.fill" }} />
         </NativeTabs.Trigger>
-        <NativeTabs.Trigger name="you" testID="tab-you">
+        <NativeTabs.Trigger name="you" testID="tab-you" contentStyle={content}>
           <NativeTabs.Trigger.Label>You</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf={{ default: "person", selected: "person.fill" }} />
         </NativeTabs.Trigger>
