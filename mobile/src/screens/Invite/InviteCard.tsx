@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import type { InviteCheck } from "../../api/invites";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ProbeCard from "../AddServer/ProbeCard";
@@ -42,9 +43,14 @@ function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<ty
       const members = preview.memberCount === 1 ? "1 member" : `${preview.memberCount} members`;
       return (
         <View style={[styles.card, styles.row]} accessibilityLiveRegion="polite">
-          <View style={styles.tile}>
-            <Text style={styles.tileLetter}>{preview.spaceName.trim().charAt(0).toUpperCase()}</Text>
-          </View>
+          <SpaceTile
+            name={preview.spaceName}
+            icon={
+              preview.spaceIconFileId &&
+              `${result.origin}/files/${preview.spaceIconFileId}?invite=${encodeURIComponent(result.code)}`
+            }
+            styles={styles}
+          />
           <View style={styles.space}>
             <Text style={styles.eyebrow}>You're invited to</Text>
             <Text style={styles.name} numberOfLines={1}>
@@ -74,6 +80,29 @@ function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<ty
     case "server":
       return <ProbeCard check={{ state: "done", probe: result.probe }} />;
   }
+}
+
+// The space's icon, which the server shows to anyone holding a usable
+// invite (web's fileUrl with an invite code), or its first letter when it
+// has none or the icon won't load.
+function SpaceTile({
+  name,
+  icon,
+  styles,
+}: {
+  name: string;
+  icon: string;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (icon && !failed) {
+    return <Image source={{ uri: icon }} style={styles.tile} onError={() => setFailed(true)} />;
+  }
+  return (
+    <View style={styles.tile}>
+      <Text style={styles.tileLetter}>{name.trim().charAt(0).toUpperCase()}</Text>
+    </View>
+  );
 }
 
 // The server's messages are lower case with no stop ("this invite has
@@ -112,6 +141,7 @@ function makeStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.accentSoft,
+      overflow: "hidden",
     },
     tileLetter: {
       color: theme.accent,
