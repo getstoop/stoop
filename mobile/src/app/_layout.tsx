@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
 import { ThemeProvider, useTheme } from "../theme";
 
@@ -8,7 +9,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <ServersProvider>
-        <RootStack />
+        <RealtimeProvider>
+          <RootStack />
+        </RealtimeProvider>
       </ServersProvider>
     </ThemeProvider>
   );
