@@ -125,8 +125,10 @@ export default function SignIn({ origin, invite }: { origin: string; invite?: st
     setBusy("password");
     setError(null);
     try {
-      const signIn = creating ? createAccount : signInWithPassword;
-      await finish(await signIn(origin, username, password));
+      const token = creating
+        ? (await createAccount(origin, username, password)).token
+        : await signInWithPassword(origin, username, password);
+      await finish(token);
     } catch (err) {
       setError(signInErrorText(err));
       setBusy(null);

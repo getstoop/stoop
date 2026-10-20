@@ -5,5 +5,7 @@ import Invite from "../screens/Invite";
 // open-in-app page hands one over (+native-intent.tsx).
 export default function InviteRoute() {
   const { link } = useLocalSearchParams<{ link?: string }>();
-  return <Invite initialLink={link ?? ""} />;
+  // Keyed by the link, so a second hand-over while this screen is open
+  // starts it afresh rather than leaving the first one in the field.
+  return <Invite key={link ?? ""} initialLink={link ?? ""} />;
 }

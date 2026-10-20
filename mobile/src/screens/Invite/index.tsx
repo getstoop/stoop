@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { checkInvite, type InviteCheck, parseInviteLink } from "../../api/invites";
 import { createAccount, signInErrorText } from "../../api/signIn";
@@ -14,7 +14,8 @@ import InviteCard from "./InviteCard";
 // over by the web's open-in-app page. The link names the server, so the
 // app checks the server and the invite together and says what it is for;
 // then a new account is made with the invite, or an existing one signs
-// in and joins.
+// in and joins. Where the server takes no new password accounts, signing
+// in is the only way offered.
 
 export type Check =
   | { state: "idle" }
@@ -78,10 +79,22 @@ export default function Invite({ initialLink = "" }: { initialLink?: string }) {
     setPending(true);
     setError(null);
     try {
-      const token = await createAccount(found.origin, username, password, found.code);
+      const { token, joined } = await createAccount(
+        found.origin,
+        username,
+        password,
+        found.code,
+      );
       if (!here.current) return;
       const id = await signedIn(found.origin, found.serverName, token);
       if (!here.current) return;
+      // The account is made and kept either way, as sign-in's join.
+      if (!joined) {
+        Alert.alert(
+          "Couldn't join the space",
+          "The invite stopped working before your account was made. Ask whoever invited you for a fresh link.",
+        );
+      }
       if (router.canDismiss()) router.dismissAll();
       router.replace({ pathname: "/s/[id]", params: { id } });
     } catch (err) {
@@ -89,6 +102,9 @@ export default function Invite({ initialLink = "" }: { initialLink?: string }) {
       setPending(false);
     }
   };
+
+  const signInAndJoin = (invite: { origin: string; code: string }) =>
+    router.push({ pathname: "/sign-in", params: { server: invite.origin, invite: invite.code } });
 
   return (
     <View style={[styles.screen, { paddingBottom: (keyboard || insets.bottom) + 8 }]}>
@@ -125,7 +141,7 @@ export default function Invite({ initialLink = "" }: { initialLink?: string }) {
           />
         </View>
         <InviteCard check={check} />
-        {found && (
+        {found && found.canCreate && (
           <>
             <Text style={styles.heading} accessibilityRole="header">
               Create your account
@@ -144,17 +160,21 @@ export default function Invite({ initialLink = "" }: { initialLink?: string }) {
                 accessibilityRole="link"
                 disabled={pending}
                 hitSlop={12}
-                onPress={() =>
-                  router.push({
-                    pathname: "/sign-in",
-                    params: { server: found.origin, invite: found.code },
-                  })
-                }
+                onPress={() => signInAndJoin(found)}
               >
                 <Text style={styles.link}>Sign in & join</Text>
               </Pressable>
             </View>
           </>
+        )}
+        {found && !found.canCreate && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => signInAndJoin(found)}
+            style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+          >
+            <Text style={styles.buttonLabel}>Sign in & join</Text>
+          </Pressable>
         )}
       </ScrollView>
     </View>
@@ -218,6 +238,21 @@ function makeStyles(theme: Theme) {
     },
     link: {
       color: theme.accent,
+      fontSize: tokens.textBody,
+      fontWeight: "600",
+    },
+    button: {
+      height: 50,
+      borderRadius: tokens.radiusMd,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.accent,
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+    buttonLabel: {
+      color: theme.onAccent,
       fontSize: tokens.textBody,
       fontWeight: "600",
     },
