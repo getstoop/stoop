@@ -68,9 +68,8 @@
 /* A small phone where the dot would be, for someone online only in a
    mobile app: an online-coloured frame round a screen in the panel's
    colour, with a home button in its thicker foot. Hollow where the dot is
-   filled, and larger
-   than it, so it stands out in a scanned list. Do not disturb still shows
-   the barred dot over it. */
+   filled, and larger than it, so it stands out in a scanned list. Do not
+   disturb still shows the barred dot over it. */
 .online-dot.mobile {
   right: -3px;
   bottom: -4px;
