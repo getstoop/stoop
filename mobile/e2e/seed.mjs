@@ -46,6 +46,8 @@ await rpc("chat.v1.ChatService/SetSpaceMuted", { spaceId: garden.space.id, muted
 
 const env = {
   SERVER: BASE,
+  // The same server by another address: to the app, a second server.
+  SECOND_SERVER: BASE.replace("localhost", "127.0.0.1"),
   PASSWORD: s.password,
   MEMBER: `ada${s.suffix}`,
   OUTSIDER: `bea${s.suffix}`,

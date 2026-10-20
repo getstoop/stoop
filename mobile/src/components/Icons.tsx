@@ -105,3 +105,36 @@ export function ChevronRightIcon({ color, size = 16 }: IconProps) {
     </Svg>
   );
 }
+
+export function ChevronDownIcon({ color, size = 16 }: IconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d="M6 9l6 6 6-6" />
+    </Svg>
+  );
+}
+
+export function PlusIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2.2}
+      strokeLinecap="round"
+    >
+      <Path d="M12 5v14M5 12h14" />
+    </Svg>
+  );
+}

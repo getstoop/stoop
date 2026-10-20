@@ -20,8 +20,11 @@ where the server takes them without an invite, with Forgot password
 asking the server for a reset link, and joining from an invite link,
 pasted or handed over by the web's open-in-app page. A signed-in server opens
 on four tabs: Spaces, listing the server's spaces with their mention
-badges, unread dots and mutes; Activity and Messages, still empty; and
-You, a stand-in that says who you are, picks the theme and signs out.
+badges, unread dots and mutes, under a header that opens the server
+switcher, a sheet listing every server on the phone with its mention
+count or a sign-in that has ended, and Add a server; Activity and
+Messages, still empty; and You, a stand-in that says who you are, picks
+the theme and signs out.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
@@ -43,6 +46,10 @@ import a screen; the screens themselves live in `src/screens`, so
 - Buttons navigate with `useRouter()` in `onPress`, not by sitting inside
   `<Link asChild>`: the link hands its own props down and drops a
   `Pressable`'s style function, so the button loses its look.
+- To land on a server, go to `/`, which opens the first saved server
+  (put first by signing in or switching), never `replace` to `/s/<id>`:
+  with another server's `/s/<id>` under it, expo-router navigates inside
+  that server's tabs and the server never changes.
 - Typed routes are off for now: Expo generates their types only while
   Metro runs, and `make mobile-typecheck` runs without it.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
@@ -144,9 +151,11 @@ native rebuild.
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
 one YAML file each, driving the app on the iPhone simulator: add a server,
-sign in and see the Spaces tab's badges, create an account from a pasted
-invite link, and open an invite the way the web's open-in-app page does,
-then sign in and join.
+sign in and see the Spaces tab's badges, add a second server from the
+switcher and switch back (the same server by `127.0.0.1`, which the app
+counts as another), create an account from a pasted invite link, and
+open an invite the way the web's open-in-app page does, then sign in and
+join.
 They find things by the words on screen and, for text fields, a
 `testID`.
 

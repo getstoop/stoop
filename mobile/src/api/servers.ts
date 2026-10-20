@@ -18,7 +18,7 @@ const LIST_KEY = "servers";
 const tokenKey = (id: string) => `session.${id}`;
 const OPTIONS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
-// Most recently signed in first.
+// Most recently signed in to or switched to first.
 export async function loadServers(): Promise<SavedServer[]> {
   const raw = await SecureStore.getItemAsync(LIST_KEY, OPTIONS);
   if (!raw) return [];
@@ -46,6 +46,16 @@ export async function saveSignIn(
   const server = { id: known?.id ?? newId(servers), origin, name };
   await SecureStore.setItemAsync(tokenKey(server.id), token, OPTIONS);
   const list = [server, ...servers.filter((s) => s.id !== server.id)];
+  await SecureStore.setItemAsync(LIST_KEY, JSON.stringify(list), OPTIONS);
+  return list;
+}
+
+// Moves a server to the front, so the app opens on it next. Returns the
+// new list.
+export async function moveToFront(servers: SavedServer[], id: string): Promise<SavedServer[]> {
+  const server = servers.find((s) => s.id === id);
+  if (!server) return servers;
+  const list = [server, ...servers.filter((s) => s.id !== id)];
   await SecureStore.setItemAsync(LIST_KEY, JSON.stringify(list), OPTIONS);
   return list;
 }

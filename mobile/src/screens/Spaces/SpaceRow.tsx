@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
-import { badgeCount, type SpaceListing } from "../../api/spaces";
+import { badgeCount, mentionLabel, type SpaceListing } from "../../api/spaces";
 import { MutedIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 
@@ -28,9 +28,7 @@ export default function SpaceRow({
     space.muted
       ? "muted"
       : badge
-        ? mentions === 1
-          ? "1 mention"
-          : `${mentions} mentions`
+        ? mentionLabel(mentions)
         : unread
           ? "unread"
           : null,

@@ -1,10 +1,12 @@
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { forgetServer, loadServers, type SavedServer, saveSignIn } from "../api/servers";
+import { forgetServer, loadServers, moveToFront, type SavedServer, saveSignIn } from "../api/servers";
 
 type ServersState = {
   servers: SavedServer[];
   // Keeps a new session and returns the server's local ID.
   signedIn: (origin: string, name: string, token: string) => Promise<string>;
+  // Puts a server first, the one the app opens on.
+  switchTo: (id: string) => Promise<void>;
   forget: (id: string) => Promise<void>;
 };
 
@@ -50,6 +52,13 @@ export default function ServersProvider({ children }: { children: ReactNode }) {
     [change],
   );
 
+  const switchTo = useCallback(
+    async (id: string) => {
+      await change((list) => moveToFront(list, id));
+    },
+    [change],
+  );
+
   const forget = useCallback(
     async (id: string) => {
       await change((list) => forgetServer(list, id));
@@ -58,8 +67,8 @@ export default function ServersProvider({ children }: { children: ReactNode }) {
   );
 
   const state = useMemo(
-    () => (servers ? { servers, signedIn, forget } : null),
-    [servers, signedIn, forget],
+    () => (servers ? { servers, signedIn, switchTo, forget } : null),
+    [servers, signedIn, switchTo, forget],
   );
 
   if (!state) return null;

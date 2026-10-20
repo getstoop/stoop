@@ -104,7 +104,7 @@ export default function SignIn({ origin, invite }: { origin: string; invite?: st
 
   const finish = async (token: string) => {
     if (!here.current) return;
-    const id = await signedIn(origin, name, token);
+    await signedIn(origin, name, token);
     if (invite) {
       // Signed in either way: an invite that fails now (used up since it
       // was checked) is said, and the person still lands on the server.
@@ -116,9 +116,10 @@ export default function SignIn({ origin, invite }: { origin: string; invite?: st
     // sign-in is kept, but nobody is moved off the screen they went to.
     if (!here.current) return;
     // Opened from a link, sign-in can be the only screen in the stack,
-    // with nothing under it to dismiss.
+    // with nothing under it to dismiss. The start opens the server saved
+    // last, this one (src/app/index.tsx says why not /s/<id>).
     if (router.canDismiss()) router.dismissAll();
-    router.replace({ pathname: "/s/[id]", params: { id } });
+    router.replace("/");
   };
 
   const submitPassword = async (username: string, password: string) => {

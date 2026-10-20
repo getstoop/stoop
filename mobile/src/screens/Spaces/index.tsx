@@ -15,13 +15,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { loadSpaces, type SpaceListing } from "../../api/spaces";
+import { ChevronDownIcon } from "../../components/Icons";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import SpaceRow from "./SpaceRow";
 
 // The Spaces tab: the spaces this account is in on the current server,
-// with what is waiting in each. The header names the server; switching
-// servers comes with the switcher. Loaded on opening, on a pull, and on
+// with what is waiting in each. The header names the server and opens
+// the switcher. Loaded on opening, on a pull, and on
 // coming back to the app.
 
 type State =
@@ -76,13 +77,22 @@ export default function Spaces({ server }: { server: SavedServer }) {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header} accessible accessibilityLabel={`Server ${server.name}`}>
-        <View style={styles.tile}>
-          <Text style={styles.tileLetter}>{server.name.trim().charAt(0).toUpperCase()}</Text>
-        </View>
-        <Text style={styles.server} numberOfLines={1}>
-          {server.name}
-        </Text>
+      <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${server.name}. Switch server`}
+          testID="server-switcher"
+          onPress={() => router.push({ pathname: "/servers", params: { current: server.id } })}
+          style={({ pressed }) => [styles.switcher, pressed && styles.pressed]}
+        >
+          <View style={styles.tile}>
+            <Text style={styles.tileLetter}>{server.name.trim().charAt(0).toUpperCase()}</Text>
+          </View>
+          <Text style={styles.server} numberOfLines={1}>
+            {server.name}
+          </Text>
+          <ChevronDownIcon color={theme.textMuted} />
+        </Pressable>
       </View>
       <Text style={styles.title} accessibilityRole="header">
         Spaces
@@ -145,9 +155,16 @@ function makeStyles(theme: Theme) {
     header: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
       height: 44,
       paddingHorizontal: 16,
+    },
+    switcher: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexShrink: 1,
+      gap: 8,
+      height: 44,
+      paddingRight: 8,
     },
     tile: {
       width: 28,
