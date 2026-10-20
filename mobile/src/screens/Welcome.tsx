@@ -4,8 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../theme";
 
 // The first screen someone sees with no server added: the mark, a line
-// on what Stoop is, and the two ways in. The invite link button leads
-// nowhere yet; its screen comes later.
+// on what Stoop is, and the two ways in.
 
 export default function Welcome() {
   const theme = useTheme();
@@ -42,6 +41,7 @@ export default function Welcome() {
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          onPress={() => router.push("/invite")}
           style={({ pressed }) => [styles.button, styles.secondary, pressed && styles.pressed]}
         >
           <Text style={styles.label}>I have an invite link</Text>

@@ -31,14 +31,20 @@ export async function signInWithPassword(
 }
 
 // Register answers with a cookie but no token, so the new account signs
-// in straight after, as web's login card does.
+// in straight after, as web's login card does. An invite code makes the
+// account on a server that takes them only by invite, and joins its
+// space in the same call. `joined` is false when it was given one and
+// didn't: on an open server, an invite that ran out after it was checked
+// still makes the account, just without the space.
 export async function createAccount(
   origin: string,
   username: string,
   password: string,
-): Promise<string> {
-  await authClient(origin).register({ username, password });
-  return signInWithPassword(origin, username, password);
+  inviteCode = "",
+): Promise<{ token: string; joined: boolean }> {
+  const res = await authClient(origin).register({ username, password, inviteCode });
+  const token = await signInWithPassword(origin, username, password);
+  return { token, joined: !inviteCode || res.joinedSpaceId !== "" };
 }
 
 export type ProviderResult = { kind: "signedIn"; token: string } | { kind: "cancelled" };

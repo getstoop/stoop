@@ -17,7 +17,8 @@ builds locally; no Expo cloud services are used.
 So far it is the welcome screen, Add a server, which checks a typed
 address, and Sign in, by password, a login provider, or a new account
 where the server takes them without an invite, with Forgot password
-asking the server for a reset link. A signed-in server opens
+asking the server for a reset link, and joining from an invite link,
+pasted or handed over by the web's open-in-app page. A signed-in server opens
 on a stand-in that says who you are, until the Spaces tab replaces it.
 The screens follow the mobile mockups, one at a time.
 

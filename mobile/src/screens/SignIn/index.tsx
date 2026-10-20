@@ -2,9 +2,10 @@ import type { GetInstanceStatusResponse } from "@stoop/gen/stoop/instance/v1/ins
 import { PasswordSignIn, RegistrationPolicy } from "@stoop/gen/stoop/instance/v1/instance_pb";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { instanceClient } from "../../api/clients";
+import { joinWithInvite } from "../../api/invites";
 import { resetOffered } from "../../api/passwordReset";
 import { hostOf } from "../../api/probe";
 import {
@@ -26,13 +27,15 @@ import StatusNotice from "./StatusNotice";
 // new account where the server takes them without an invite. What it
 // offers comes from the server's instance status, as on web's login card
 // (web/src/routes/Login.tsx), and a sign-in is saved for the server here.
+// Reached from Invite, it carries the invite code, and joins its space
+// once signed in.
 
 type Status =
   | { state: "loading" }
   | { state: "failed" }
   | { state: "ready"; status: GetInstanceStatusResponse };
 
-export default function SignIn({ origin }: { origin: string }) {
+export default function SignIn({ origin, invite }: { origin: string; invite?: string }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
@@ -87,8 +90,9 @@ export default function SignIn({ origin }: { origin: string }) {
   const showForm =
     passwordSignIn === PasswordSignIn.EVERYONE || forcePassword || providers.length === 0;
   // Only where an account needs no invite: invite-only servers are joined
-  // from an invite link.
+  // from an invite link. Come from one, the account is made back there.
   const canCreate =
+    !invite &&
     s.registrationPolicy === RegistrationPolicy.OPEN &&
     passwordSignIn === PasswordSignIn.EVERYONE;
   const creating = canCreate && mode === "create";
@@ -101,6 +105,13 @@ export default function SignIn({ origin }: { origin: string }) {
   const finish = async (token: string) => {
     if (!here.current) return;
     const id = await signedIn(origin, name, token);
+    if (invite) {
+      // Signed in either way: an invite that fails now (used up since it
+      // was checked) is said, and the person still lands on the server.
+      await joinWithInvite(origin, token, invite).catch((err) =>
+        Alert.alert("Couldn't join the space", signInErrorText(err)),
+      );
+    }
     // Saving waits on the keychain, and they may have left meanwhile: the
     // sign-in is kept, but nobody is moved off the screen they went to.
     if (!here.current) return;
@@ -114,8 +125,10 @@ export default function SignIn({ origin }: { origin: string }) {
     setBusy("password");
     setError(null);
     try {
-      const signIn = creating ? createAccount : signInWithPassword;
-      await finish(await signIn(origin, username, password));
+      const token = creating
+        ? (await createAccount(origin, username, password)).token
+        : await signInWithPassword(origin, username, password);
+      await finish(token);
     } catch (err) {
       setError(signInErrorText(err));
       setBusy(null);
