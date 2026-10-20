@@ -20,8 +20,9 @@ where the server takes them without an invite, with Forgot password
 asking the server for a reset link, and joining from an invite link,
 pasted or handed over by the web's open-in-app page. A signed-in server opens
 on four tabs: Spaces, listing the server's spaces with their mention
-badges, unread dots and mutes, under a header that opens the server
-switcher, a sheet listing every server on the phone with its mention
+badges, unread dots and mutes, each opening its channels (text channels
+with what is waiting in each, voice rooms with who is in them), under a
+header that opens the server switcher, a sheet listing every server on the phone with its mention
 count or a sign-in that has ended, and Add a server; Activity and
 Messages, still empty; and You, a stand-in that says who you are, picks
 the theme and signs out.
@@ -76,7 +77,11 @@ socket at once; the server's grace period (`STOOP_PRESENCE_GRACE`)
 keeps a quick trip to another app from showing them offline. A socket
 reopens after a backoff when it drops, and stays shut after the server
 says its session has ended (close code 4001) until a new sign-in
-leaves another session in the keychain. Nothing reads its events yet.
+leaves another session in the keychain. Who is in each voice room is
+kept there (Ready, then VoiceStateChanged); a screen that needs other
+events listens with `useServerEvents`. A space's channels screen
+reloads, after a moment's quiet, whenever one touches that space, as
+when a channel is created, renamed, deleted or read.
 
 ## Themes
 
@@ -169,7 +174,8 @@ native rebuild.
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
 one YAML file each, driving the app on the iPhone simulator: add a server,
-sign in and see the Spaces tab's badges, add a second server from the
+sign in and see the Spaces tab's badges, open a space and see what is
+waiting in each of its channels, add a second server from the
 switcher and switch back (the same server by `127.0.0.1`, which the app
 counts as another), create an account from a pasted invite link, and
 open an invite the way the web's open-in-app page does, then sign in and

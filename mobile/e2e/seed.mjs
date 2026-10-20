@@ -3,8 +3,8 @@
 // for scripts/mobile-e2e.sh to hand Maestro.
 //
 // ada and dee are in Book club, which has a description and where dee
-// mentions ada; ada is also in Climbing crew, unread, and Garden swap,
-// muted. bea has an account but no space; cleo has neither and arrives
+// mentions ada in general, posts in random, and off-topic is muted by
+// ada; ada is also in Climbing crew, unread, and Garden swap, muted. bea has an account but no space; cleo has neither and arrives
 // through the invite.
 
 import { BASE, seed } from "../../web/e2e/seed.mjs";
@@ -33,6 +33,18 @@ await rpc(
   dee,
 );
 
+await rpc(
+  "chat.v1.ChatService/SendMessage",
+  { channelId: s.channels.random, content: "Halfway through, no spoilers please" },
+  dee,
+);
+const offTopic = await rpc(
+  "chat.v1.ChatService/CreateChannel",
+  { spaceId: s.space.id, name: "off-topic", kind: "CHANNEL_KIND_TEXT" },
+  ada,
+);
+await rpc("chat.v1.ChatService/SetChannelMuted", { channelId: offTopic.channel.id, muted: true }, ada);
+
 const crew = await rpc("chat.v1.ChatService/CreateSpace", { name: "Climbing crew" }, ada);
 await rpc("chat.v1.ChatService/AddMember", { spaceId: crew.space.id, userId: s.ids.dee }, ada);
 await rpc(
@@ -53,6 +65,12 @@ const env = {
   OUTSIDER: `bea${s.suffix}`,
   NEWCOMER: `cleo${s.suffix}`,
   SPACE: space,
+  // For flows that change the space mid-way, as another device would:
+  // ada owns it, dee posts in it.
+  SPACE_ID: s.space.id,
+  MEMBER_ID: s.ids.ada,
+  OWNER_TOKEN: ada,
+  POSTER_TOKEN: dee,
   INVITE_LINK: s.invite.url,
   // What the web's open-in-app page fires for that invite.
   OPEN_LINK: `stoop://open?${new URLSearchParams({ server: BASE, path })}`,

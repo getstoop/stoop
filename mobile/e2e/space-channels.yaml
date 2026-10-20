@@ -1,0 +1,73 @@
+appId: ${APP_ID}
+name: Open a space and see its channels, with what is waiting in each, kept live
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, 1 mention, Reading The Overstory"
+    timeout: 15000
+- tapOn: "${SPACE}, 1 mention, Reading The Overstory"
+# The space's channels (seed.mjs), read from the rows' accessibility
+# labels: dee's mention in general, dee's post in random, off-topic muted.
+- extendedWaitUntil:
+    visible: "general, 1 mention"
+    timeout: 15000
+# However many members other flows have brought in by now.
+- assertVisible: "\\d+ members · Reading The Overstory"
+- assertVisible: "random, unread"
+- assertVisible: "off-topic, muted"
+# Live: a channel made, posted in, mentioning ada and deleted elsewhere
+# shows here as it happens, through the realtime socket.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: create
+      CHANNEL_NAME: live-check
+- extendedWaitUntil:
+    visible: "live-check"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: post
+- extendedWaitUntil:
+    visible: "live-check, unread"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: mention
+- extendedWaitUntil:
+    visible: "live-check, 1 mention"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: delete
+- extendedWaitUntil:
+    notVisible: "live-check.*"
+    timeout: 10000
+# Back to the list, with the tab bar there all along.
+- assertVisible:
+    id: "tab-spaces"
+- tapOn: "Back"
+- assertVisible: "Spaces"
