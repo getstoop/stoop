@@ -131,7 +131,12 @@ export default function Spaces({ server }: { server: SavedServer }) {
           data={list.spaces}
           keyExtractor={(l) => l.space.id}
           renderItem={({ item }) => (
-            <SpaceRow listing={item} origin={server.origin} token={list.token} />
+            <SpaceRow
+              listing={item}
+              origin={server.origin}
+              token={list.token}
+              onPress={() => router.push(`/s/${server.id}/space/${item.space.id}`)}
+            />
           )}
           contentContainerStyle={styles.list}
           refreshControl={

@@ -28,7 +28,7 @@ export default function ServerLayout() {
         }}
       >
         <Tabs.Screen
-          name="index"
+          name="(spaces)"
           options={{
             title: "Spaces",
             tabBarButtonTestID: "tab-spaces",

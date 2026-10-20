@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ColorValue } from "react-native";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import Svg, { Circle, G, Path, Rect } from "react-native-svg";
 
 // Stroke icons, drawn from the same paths as web/src/components/Icons.tsx
 // so the two apps share one icon language. Decorative: whatever an icon
@@ -23,8 +23,8 @@ export function CheckIcon({ color, size = 22 }: { color: string; size?: number }
   );
 }
 
-// The tab bar's four, and the muted bell. Drawn at the tab bar's 1.8
-// stroke, as in the mockups.
+// The tab bar's four, the muted bell and the channel marks. Drawn at the
+// tab bar's 1.8 stroke, as in the mockups.
 function Stroke({ color, size, children }: { color: ColorValue; size: number; children: ReactNode }) {
   return (
     <Svg
@@ -85,6 +85,38 @@ export function MutedIcon({ color, size = 18 }: IconProps) {
   return (
     <Stroke color={color} size={size}>
       <Path d="M13.7 21a2 2 0 0 1-3.4 0M18.6 13A17 17 0 0 1 18 8M6.3 6.3A6 6 0 0 0 6 8c0 7-3 9-3 9h14M18 8a6 6 0 0 0-9.3-5M2 2l20 20" />
+    </Stroke>
+  );
+}
+
+// A channel's mark where # would be, as web's ChannelGlyph draws them: a
+// lock for a private channel, a megaphone for an announcement channel
+// (tilted so it can't be read as the speaker), a speaker for voice.
+export function LockIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Rect x={5} y={11} width={14} height={10} rx={2} />
+      <Path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </Stroke>
+  );
+}
+
+export function MegaphoneIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <G transform="translate(11.06 13.16) rotate(-28) translate(-12 -12.5)">
+        <Path d="m3 11 18-5v12L3 14v-3z" />
+        <Path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+      </G>
+    </Stroke>
+  );
+}
+
+export function SpeakerIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M4 9v6h4l5 4V5L8 9H4z" />
+      <Path d="M16 9a4 4 0 0 1 0 6" />
     </Stroke>
   );
 }

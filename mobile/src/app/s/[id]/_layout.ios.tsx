@@ -22,7 +22,7 @@ export default function ServerLayout() {
   return (
     <CurrentServer server={server}>
       <NativeTabs tintColor={theme.accent}>
-        <NativeTabs.Trigger name="index" testID="tab-spaces" contentStyle={content}>
+        <NativeTabs.Trigger name="(spaces)" testID="tab-spaces" contentStyle={content}>
           <NativeTabs.Trigger.Label>Spaces</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon
             sf={{ default: "square.grid.2x2", selected: "square.grid.2x2.fill" }}
