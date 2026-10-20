@@ -28,6 +28,9 @@ name: Paste an invite link and create an account with it
 - inputText: ${PASSWORD}
 - tapOn: "Create your account"
 - tapOn: "Create account & join"
+# Spaces lists the invite's space: the account joined it.
 - extendedWaitUntil:
-    visible: "Signed in as ${NEWCOMER}.*"
+    visible: "Spaces"
     timeout: 15000
+# The row reads as the name and what is waiting in it.
+- assertVisible: "${SPACE}(, .*)?"

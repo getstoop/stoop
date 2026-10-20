@@ -2,6 +2,7 @@ import { useContext } from "react";
 import type { SavedServer } from "../api/servers";
 import ServersProvider, { ServersContext } from "./ServersProvider";
 
+export { CurrentServer, useCurrentServer } from "./CurrentServer";
 export { ServersProvider };
 export type { SavedServer };
 

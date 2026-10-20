@@ -28,7 +28,10 @@ name: Open an invite from the web's open-in-app link, sign in and join
     id: "password"
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
-- extendedWaitUntil:
-    visible: "Signed in as ${OUTSIDER}.*"
-    timeout: 15000
 - assertNotVisible: "Couldn't join the space"
+# Spaces lists the invite's space: the account joined it.
+- extendedWaitUntil:
+    visible: "Spaces"
+    timeout: 15000
+# The row reads as the name and what is waiting in it.
+- assertVisible: "${SPACE}(, .*)?"
