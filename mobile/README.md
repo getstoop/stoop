@@ -21,7 +21,7 @@ asking the server for a reset link, and joining from an invite link,
 pasted or handed over by the web's open-in-app page. A signed-in server opens
 on four tabs: Spaces, listing the server's spaces with their mention
 badges, unread dots and mutes; Activity and Messages, still empty; and
-You, a stand-in that says who you are and signs out.
+You, a stand-in that says who you are, picks the theme and signs out.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
@@ -49,15 +49,18 @@ import a screen; the screens themselves live in `src/screens`, so
 ## Themes
 
 The app wears the web app's themes. `src/theme/generated.ts` is written
-from `web/src/themes.css` and `web/src/tokens.css` by `make mobile-theme`;
+from `web/src/themes.css`, `web/src/tokens.css` and the theme list in
+`web/src/api/theme.ts` (names, tiers, blurbs) by `make mobile-theme`;
 never edit it by hand. Screens read colours through `useTheme()` and sizes
 from `tokens`, the same names as the CSS custom properties in camel case
 (`--text-muted` is `textMuted`).
 
-`ThemeProvider`, around the whole app in `src/app/_layout.tsx`, holds the current
-theme, Brownstone to start, and sets the status bar to match;
-`useThemeName()` reads and changes it. Nothing offers a choice yet, and
-the choice is not saved across launches.
+`ThemeProvider`, around the whole app in `src/app/_layout.tsx`,
+holds the current theme, Brownstone to start, and sets the status bar to
+match; `useThemeName()` reads and changes it. The choice is made on the
+Theme screen, from the You tab, and saved in the keychain: one theme for
+the phone, whichever server is open, as web keeps it in the browser.
+Following the system's light and dark, as web can, is not here yet.
 
 The Stoop mark is `assets/mark.png` (with `@2x` and `@3x`), cut by
 `make brand` and tinted with the theme's accent.

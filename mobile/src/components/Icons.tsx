@@ -88,3 +88,20 @@ export function MutedIcon({ color, size = 18 }: IconProps) {
     </Stroke>
   );
 }
+
+export function ChevronRightIcon({ color, size = 16 }: IconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d="M9 18l6-6-6-6" />
+    </Svg>
+  );
+}

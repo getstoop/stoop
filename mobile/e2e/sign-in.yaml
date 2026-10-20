@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Add a server, sign in with a password, sign out
+name: Add a server, sign in, see Spaces, change the theme, sign out
 ---
 - clearKeychain
 - launchApp:
@@ -34,6 +34,18 @@ name: Add a server, sign in with a password, sign out
 - extendedWaitUntil:
     visible: "Signed in as ${MEMBER}.*"
     timeout: 15000
+# The theme: picked on its own screen, shown on You, kept across a launch.
+- tapOn:
+    id: "theme-row"
+- tapOn:
+    id: "theme-daylight"
+- tapOn: "Back"
+- assertVisible: "Theme, Daylight"
+- stopApp
+- launchApp
+- tapOn:
+    id: "tab-you"
+- assertVisible: "Theme, Daylight"
 - tapOn: "Sign out"
 - extendedWaitUntil:
     visible: "I have an invite link"

@@ -8,10 +8,12 @@ import { authClient } from "../api/clients";
 import { hostOf } from "../api/probe";
 import { sessionToken } from "../api/servers";
 import { type SavedServer, useServers } from "../servers";
-import { type Theme, tokens, useTheme } from "../theme";
+import { ChevronRightIcon } from "../components/Icons";
+import { type Theme, themeList, tokens, useTheme, useThemeName } from "../theme";
 
 // A stand-in for the You tab until its screen is built: it says who the
-// saved session belongs to, and keeps a way to sign out.
+// saved session belongs to, keeps a way to sign out, and holds the first
+// of the mockup's "This phone" settings, the theme.
 
 const LOGOUT_TIMEOUT_MS = 5000;
 
@@ -31,6 +33,8 @@ export default function SignedIn({ server }: { server: SavedServer }) {
   const { forget } = useServers();
   const [me, setMe] = useState<Me>({ state: "loading" });
   const [leaving, setLeaving] = useState(false);
+  const [themeName] = useThemeName();
+  const themeLabel = themeList.find((t) => t.name === themeName)?.label ?? themeName;
 
   useEffect(() => {
     let live = true;
@@ -93,6 +97,24 @@ export default function SignedIn({ server }: { server: SavedServer }) {
             Couldn't reach {hostOf(server.origin)}. You're still signed in.
           </Text>
         )}
+        <View style={styles.section}>
+          <Text style={styles.eyebrow} accessibilityRole="header">
+            This phone
+          </Text>
+          <View style={styles.group}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Theme, ${themeLabel}`}
+              testID="theme-row"
+              onPress={() => router.push("/theme")}
+              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            >
+              <Text style={styles.rowLabel}>Theme</Text>
+              <Text style={styles.rowValue}>{themeLabel}</Text>
+              <ChevronRightIcon color={theme.textMuted} />
+            </Pressable>
+          </View>
+        </View>
       </View>
       <View style={styles.actions}>
         {me.state === "ended" && (
@@ -144,6 +166,41 @@ function makeStyles(theme: Theme) {
       color: theme.text,
       fontSize: tokens.textBody,
       lineHeight: tokens.textBody * tokens.leadingBody,
+    },
+    section: {
+      marginTop: 24,
+      gap: 6,
+    },
+    eyebrow: {
+      marginHorizontal: 4,
+      color: theme.textMuted,
+      fontSize: tokens.textXs,
+      fontWeight: "600",
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+    },
+    group: {
+      borderRadius: tokens.radiusLg,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.panel,
+      overflow: "hidden",
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      minHeight: 52,
+      paddingHorizontal: 14,
+    },
+    rowLabel: {
+      flex: 1,
+      color: theme.text,
+      fontSize: tokens.textBody,
+    },
+    rowValue: {
+      color: theme.textMuted,
+      fontSize: tokens.textBody,
     },
     actions: {
       gap: 10,

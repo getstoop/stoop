@@ -1,5 +1,6 @@
+import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import { createContext, type ReactNode, useMemo, useState } from "react";
+import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { themes } from "./generated";
 
 export type ThemeName = keyof typeof themes;
@@ -13,13 +14,40 @@ type ThemeState = {
 
 export const ThemeContext = createContext<ThemeState | null>(null);
 
-// Holds the app's theme and draws the status bar to match it. Brownstone,
-// the web app's default, until someone picks another; nothing offers a
-// choice yet, and the choice is not saved across launches.
-export default function ThemeProvider({ children }: { children: ReactNode }) {
-  const [name, setName] = useState<ThemeName>("brownstone");
-  const state = useMemo(() => ({ name, theme: themes[name], setName }), [name]);
+// The choice is this phone's, as on web (where it lives in the browser,
+// never on a server): one theme for every server added here. It is kept
+// in the keychain, the app's only store so far, beside the server list.
+const KEY = "theme";
+const DEFAULT: ThemeName = "brownstone";
 
+const isThemeName = (name: string | null): name is ThemeName => !!name && name in themes;
+
+// Holds the app's theme and draws the status bar to match it. Brownstone,
+// the web app's default, until someone picks another. Nothing under it
+// renders until the saved choice is read, so the app never opens in the
+// wrong theme and then repaints.
+export default function ThemeProvider({ children }: { children: ReactNode }) {
+  const [name, setNameState] = useState<ThemeName | null>(null);
+
+  useEffect(() => {
+    SecureStore.getItemAsync(KEY)
+      .catch(() => null)
+      .then((saved) => setNameState(isThemeName(saved) ? saved : DEFAULT));
+  }, []);
+
+  // Applies at once; the save follows, and a failed one only means the
+  // next launch opens in the theme before.
+  const setName = useCallback((next: ThemeName) => {
+    setNameState(next);
+    SecureStore.setItemAsync(KEY, next).catch(() => {});
+  }, []);
+
+  const state = useMemo(
+    () => (name ? { name, theme: themes[name], setName } : null),
+    [name, setName],
+  );
+
+  if (!state) return null;
   return (
     <ThemeContext.Provider value={state}>
       {children}
