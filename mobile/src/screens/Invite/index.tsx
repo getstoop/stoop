@@ -127,6 +127,7 @@ export default function Invite({ initialLink = "" }: { initialLink?: string }) {
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             accessibilityLabel="Invite link"
+            testID="invite-link"
             accessibilityLabelledBy="invite-link"
             placeholder="https://chat.example.org/join/…"
             placeholderTextColor={theme.textMuted}

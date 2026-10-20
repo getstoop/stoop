@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+name: Paste an invite link and create an account with it
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "I have an invite link"
+- tapOn:
+    id: "invite-link"
+- inputText: ${INVITE_LINK}
+- extendedWaitUntil:
+    visible: ${SPACE}
+    timeout: 15000
+# A tap on the heading, outside any field, puts the keyboard away before
+# the next field: tapped while the keyboard is still settling, a field
+# below it doesn't take focus. (Maestro's hideKeyboard finds no way to
+# dismiss it here.)
+- tapOn:
+    id: "username"
+- inputText: ${NEWCOMER}
+- tapOn: "Create your account"
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Create your account"
+- tapOn:
+    id: "confirm-password"
+- inputText: ${PASSWORD}
+- tapOn: "Create your account"
+- tapOn: "Create account & join"
+- extendedWaitUntil:
+    visible: "Signed in as ${NEWCOMER}.*"
+    timeout: 15000

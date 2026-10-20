@@ -117,6 +117,8 @@ From the repo root; none of them joins `make lint`, `make test` or
 | `make mobile-prebuild` | Regenerates `ios/` and `android/` from `app.json` |
 | `make mobile-theme` | Regenerates `src/theme/generated.ts` from the web themes |
 | `make mobile-typecheck` | `tsc --noEmit` over `mobile/`, generated client included |
+| `make mobile-sim` | A release build onto the iPhone simulator (`sim="iPhone 16 Pro"` for another) |
+| `make mobile-e2e` | The Maestro flows on a throwaway server (below) |
 
 `mobile/ios` and `mobile/android` are generated (Expo's continuous native
 generation) and gitignored. Native settings go in `app.json` or a config
@@ -125,6 +127,42 @@ plugin, never into those folders by hand.
 After the first install, `make mobile-metro` (or `pnpm start` in
 `mobile/`) serves JavaScript to a build already on the phone, with no
 native rebuild.
+
+## Tests
+
+The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
+one YAML file each, driving the app on the iPhone simulator: add a server
+and sign in, create an account from a pasted invite link, and open an
+invite the way the web's open-in-app page does, then sign in and join.
+They find things by the words on screen and, for text fields, a
+`testID`.
+
+`make mobile-e2e` runs them as `make e2e` runs the browser suite, on a
+throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on
+:8093, and `e2e/seed.mjs` making the accounts, space and invite over RPC
+with the browser suite's seed. What it made is handed to each flow as
+`${MEMBER}`, `${INVITE_LINK}` and the rest. `make mobile-e2e
+flows=mobile/e2e/sign-in.yaml` runs one.
+
+Before the flows, `e2e/setup/autofill-off.yaml` turns off the
+simulator's password AutoFill in Settings. Left on, iOS takes Maestro's
+fast typing into a new-password field for AutoFill and covers the field
+with a strong password, so the typed one never lands. The app keeps its
+real password hints; only the test simulator changes.
+
+Once per machine:
+
+1. Maestro and a Java runtime (17 or newer). Install the Maestro CLI from
+   its [release page](https://github.com/mobile-dev-inc/maestro/releases)
+   into `~/.maestro`, with Java from `brew install openjdk@17`, and put
+   both on the path:
+   `export PATH="$HOME/.maestro/bin:/opt/homebrew/opt/openjdk@17/bin:$PATH"`.
+2. `make build`, for `bin/stoop`, and `make dev-services` for Postgres.
+3. `make mobile-sim`: a release build, with its JavaScript inside, so the
+   flows need no Metro. Build again after changing the app.
+
+The flows are not in CI yet: that needs a simulator or an emulator on
+the runner.
 
 ## Plain HTTP to the dev server
 
