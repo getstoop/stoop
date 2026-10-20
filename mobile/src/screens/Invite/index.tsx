@@ -86,7 +86,7 @@ export default function Invite({ initialLink = "" }: { initialLink?: string }) {
         found.code,
       );
       if (!here.current) return;
-      const id = await signedIn(found.origin, found.serverName, token);
+      await signedIn(found.origin, found.serverName, token);
       if (!here.current) return;
       // The account is made and kept either way, as sign-in's join.
       if (!joined) {
@@ -95,8 +95,9 @@ export default function Invite({ initialLink = "" }: { initialLink?: string }) {
           "The invite stopped working before your account was made. Ask whoever invited you for a fresh link.",
         );
       }
+      // As sign-in: the start opens the server just saved.
       if (router.canDismiss()) router.dismissAll();
-      router.replace({ pathname: "/s/[id]", params: { id } });
+      router.replace("/");
     } catch (err) {
       setError(signInErrorText(err));
       setPending(false);

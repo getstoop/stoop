@@ -16,6 +16,7 @@ export default function RootLayout() {
 
 // One stack for now, with the platform's own back button and gesture.
 // The header carries no title: each screen puts its heading in its body.
+// The server switcher is a sheet, as tall as its list.
 function RootStack() {
   const theme = useTheme();
 
@@ -32,6 +33,16 @@ function RootStack() {
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="s/[id]" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="servers"
+        options={{
+          headerShown: false,
+          presentation: "formSheet",
+          sheetAllowedDetents: "fitToContents",
+          sheetGrabberVisible: true,
+          contentStyle: { backgroundColor: theme.panel },
+        }}
+      />
     </Stack>
   );
 }
