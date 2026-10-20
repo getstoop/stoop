@@ -45,6 +45,13 @@ import a screen; the screens themselves live in `src/screens`, so
   `Pressable`'s style function, so the button loses its look.
 - Typed routes are off for now: Expo generates their types only while
   Metro runs, and `make mobile-typecheck` runs without it.
+- On iOS the server's tabs are the system tab bar (`NativeTabs`,
+  `src/app/s/[id]/_layout.ios.tsx`): Liquid Glass from iOS 26, SF Symbols
+  for icons. Android keeps the drawn bar in `_layout.tsx` until it has
+  icons of its own. A tab reached by pressing it gets none of the
+  layout's route params, so tabs read their server from `CurrentServer`.
+- The app tells the system it is light or dark as the theme is
+  (`Appearance.setColorScheme`), so what the system draws matches.
 
 ## Themes
 
