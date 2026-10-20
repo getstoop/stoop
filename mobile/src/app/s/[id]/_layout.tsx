@@ -4,7 +4,8 @@ import { CurrentServer, useServer } from "../../../servers";
 import { useTheme } from "../../../theme";
 
 // Everything under /s/<id> is one saved server, as four tabs; an ID this
-// phone doesn't have goes back to the start. Each tab's screen puts its
+// phone doesn't have goes back to the start. This drawn tab bar is
+// Android's; iOS uses the system's own (_layout.ios.tsx). Each tab's screen puts its
 // own heading in its body, so the tabs carry no header. The tabs read the
 // server from CurrentServer: one reached by pressing it gets none of this
 // layout's route params.
