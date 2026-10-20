@@ -63,6 +63,21 @@ import a screen; the screens themselves live in `src/screens`, so
 - The app tells the system it is light or dark as the theme is
   (`Appearance.setColorScheme`), so what the system draws matches.
 
+## Realtime
+
+While the app is in the foreground it holds the realtime socket
+(`docs/architecture/realtime.md`) to every saved server, not only the
+one on screen, so the person shows online wherever they are signed in
+(`src/realtime/RealtimeProvider.tsx`). Each opens `/ws?client=mobile`
+with the session as a bearer token, so the server announces them as
+online on mobile while that is all they have open, and web draws a
+phone in place of their dot. Going to the background closes every
+socket at once; the server's grace period (`STOOP_PRESENCE_GRACE`)
+keeps a quick trip to another app from showing them offline. A socket
+reopens after a backoff when it drops, and stays shut after the server
+says its session has ended (close code 4001) until a new sign-in
+leaves another session in the keychain. Nothing reads its events yet.
+
 ## Themes
 
 The app wears the web app's themes. `src/theme/generated.ts` is written
