@@ -66,23 +66,39 @@
 }
 
 /* A small phone where the dot would be, for someone online only in a
-   mobile app: the online colour, taller than wide, with a notch at its
-   foot. Do not disturb still shows the barred dot over it. */
+   mobile app: an online-coloured frame round a screen in the panel's
+   colour, with a home button in its thicker foot. Hollow where the dot is
+   filled, and larger than it, so it stands out in a scanned list. Do not
+   disturb still shows the barred dot over it. */
 .online-dot.mobile {
-  bottom: -3px;
-  width: 10px;
-  height: 14px;
+  right: -3px;
+  bottom: -4px;
+  width: 12px;
+  height: 17px;
   border-radius: var(--radius-sm);
 }
 
 .online-dot.mobile::after {
   content: "";
   position: absolute;
+  top: 2px;
+  right: 2px;
+  bottom: 4px;
+  left: 2px;
+  /* off-scale: a screen 4px wide; a token radius would make it a pill. */
+  border-radius: 1px;
+  background: var(--panel);
+}
+
+/* The home button, in the foot under the screen. */
+.online-dot.mobile::before {
+  content: "";
+  position: absolute;
   left: 50%;
   bottom: 1px;
-  width: 2px;
+  width: 3px;
   height: 2px;
-  margin-left: -1px;
-  border-radius: 50%;
+  margin-left: -1.5px;
+  border-radius: var(--radius-pill);
   background: var(--panel);
 }
