@@ -25,7 +25,7 @@ name: Add a server, sign in with a password, sign out
 # Each space with what is waiting in it (seed.mjs), read from the rows'
 # accessibility labels.
 - extendedWaitUntil:
-    visible: "${SPACE}, 1 mention"
+    visible: "${SPACE}, 1 mention, Reading The Overstory"
     timeout: 15000
 - assertVisible: "Climbing crew, unread"
 - assertVisible: "Garden swap, muted"

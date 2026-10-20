@@ -2,9 +2,10 @@
 // browser suite's seed, and prints what the flows need as KEY=value lines
 // for scripts/mobile-e2e.sh to hand Maestro.
 //
-// ada and dee are in Book club, where dee mentions ada; ada is also in
-// Climbing crew, unread, and Garden swap, muted. bea has an account but no
-// space; cleo has neither and arrives through the invite.
+// ada and dee are in Book club, which has a description and where dee
+// mentions ada; ada is also in Climbing crew, unread, and Garden swap,
+// muted. bea has an account but no space; cleo has neither and arrives
+// through the invite.
 
 import { BASE, seed } from "../../web/e2e/seed.mjs";
 
@@ -18,6 +19,11 @@ const s = await seed({
 const path = new URL(s.invite.url).pathname;
 const { ada, dee } = s.tokens;
 
+await rpc(
+  "chat.v1.ChatService/UpdateSpace",
+  { spaceId: s.space.id, description: "Reading The Overstory" },
+  ada,
+);
 await rpc(
   "chat.v1.ChatService/SendMessage",
   {

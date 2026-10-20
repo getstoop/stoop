@@ -5,9 +5,9 @@ import { MutedIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // One space on the Spaces tab: its icon, its name (bold while something
-// in it is unread), and a mention count or an unread dot. A muted space
-// is dimmed and shows neither, as on web's rail. Not a button yet: the
-// space's channels are the next screen.
+// in it is unread) over its one-line description, and a mention count or
+// an unread dot. A muted space is dimmed and shows neither, as on web's
+// rail. Not a button yet: the space's channels are the next screen.
 export default function SpaceRow({
   listing,
   origin,
@@ -34,6 +34,7 @@ export default function SpaceRow({
         : unread
           ? "unread"
           : null,
+    space.description,
   ]
     .filter(Boolean)
     .join(", ");
@@ -41,9 +42,16 @@ export default function SpaceRow({
   return (
     <View style={[styles.row, space.muted && styles.muted]} accessible accessibilityLabel={label}>
       <SpaceIcon name={space.name} fileId={space.iconFileId} origin={origin} token={token} styles={styles} />
-      <Text style={[styles.name, (unread || badge) && styles.bold]} numberOfLines={1}>
-        {space.name}
-      </Text>
+      <View style={styles.text}>
+        <Text style={[styles.name, (unread || badge) && styles.bold]} numberOfLines={1}>
+          {space.name}
+        </Text>
+        {space.description !== "" && (
+          <Text style={styles.description} numberOfLines={1}>
+            {space.description}
+          </Text>
+        )}
+      </View>
       {space.muted ? (
         <MutedIcon color={theme.textMuted} />
       ) : badge ? (
@@ -116,10 +124,17 @@ function makeStyles(theme: Theme) {
       fontSize: tokens.textLg,
       fontWeight: "700",
     },
-    name: {
+    text: {
       flex: 1,
+      gap: 2,
+    },
+    name: {
       color: theme.text,
       fontSize: tokens.textBody,
+    },
+    description: {
+      color: theme.textMuted,
+      fontSize: tokens.textUi,
     },
     bold: {
       fontWeight: "700",
