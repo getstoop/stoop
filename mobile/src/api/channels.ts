@@ -2,6 +2,7 @@ import { ActivityKind } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import { type Channel, ChannelKind } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import type { Member } from "@stoop/gen/stoop/chat/v1/member_pb";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
+import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { chatClient } from "./clients";
 
 // A space's channels screen: the space, its text and voice channels in
@@ -64,4 +65,38 @@ export function memberName(member: Pick<Member, "displayName" | "username">): st
 export function voiceNames(names: string[]): string {
   if (names.length <= 2) return names.join(" and ");
   return `${names[0]} and ${names[1]} + ${names.length - 2} more`;
+}
+
+// Whether an event could change what a space's channels screen shows:
+// its channels and their order, mutes, reads and mentions, the space
+// itself, or who is in it. Ready follows a reconnect, when anything may
+// have been missed. Who is in voice is not here: the roster follows it.
+export function touchesSpace(event: ServerEvent, spaceId: string): boolean {
+  const payload = event.payload;
+  switch (payload.case) {
+    case "ready":
+      return true;
+    case "channelCreated":
+    case "channelUpdated":
+    case "messageCreated":
+      return payload.value.spaceId === spaceId;
+    case "channelDeleted":
+    case "channelsReordered":
+    case "channelMuted":
+    case "channelRead":
+    case "spaceMuted":
+    case "spaceDeleted":
+    case "memberJoined":
+    case "memberRemoved":
+    case "memberUpdated":
+    case "channelMemberJoined":
+    case "channelMemberLeft":
+      return payload.value.spaceId === spaceId;
+    case "spaceUpdated":
+      return payload.value.space?.id === spaceId;
+    case "activityItemCreated":
+      return payload.value.item?.spaceId === spaceId;
+    default:
+      return false;
+  }
 }

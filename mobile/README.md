@@ -77,9 +77,11 @@ socket at once; the server's grace period (`STOOP_PRESENCE_GRACE`)
 keeps a quick trip to another app from showing them offline. A socket
 reopens after a backoff when it drops, and stays shut after the server
 says its session has ended (close code 4001) until a new sign-in
-leaves another session in the keychain. What the sockets carry is kept
-there as screens need it: so far who is in each voice room (Ready, then
-VoiceStateChanged), for a space's channels screen.
+leaves another session in the keychain. Who is in each voice room is
+kept there (Ready, then VoiceStateChanged); a screen that needs other
+events listens with `useServerEvents`. A space's channels screen
+reloads, after a moment's quiet, whenever one touches that space, as
+when a channel is created, renamed, deleted or read.
 
 ## Themes
 

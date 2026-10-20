@@ -1,12 +1,12 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { loadSpaceChannels, memberName, type SpaceChannels } from "../../api/channels";
+import { loadSpaceChannels, memberName, type SpaceChannels, touchesSpace } from "../../api/channels";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import SpaceIcon from "../../components/SpaceIcon";
-import { useVoiceRoster } from "../../realtime/RealtimeProvider";
+import { useServerEvents, useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -15,9 +15,11 @@ import VoiceRoom from "./VoiceRoom";
 
 // A space's channels, pushed over the Spaces tab: the space's name and
 // what it is, its text channels with what is waiting in each, and its
-// voice rooms with who is in them. Loaded on opening, on a pull, and on
-// coming back to the app; who is in voice is live, from the realtime
-// socket.
+// voice rooms with who is in them. Loaded on opening, on a pull, on
+// coming back to the app, and again whenever the realtime socket says
+// something here changed; who is in voice is live from the socket itself.
+
+const RELOAD_DELAY_MS = 300;
 
 type State =
   | { state: "loading" }
@@ -51,6 +53,9 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
     }
   }, [server, spaceId]);
 
+  // Events come in bursts (a channel deleted is also its messages' reads
+  // and mentions gone), so a moment's quiet goes before one reload.
+  const reload = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     let live = true;
     const refresh = () => load().then((next) => live && setView(next));
@@ -59,8 +64,14 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
     return () => {
       live = false;
       sub.remove();
+      clearTimeout(reload.current);
     };
   }, [load]);
+  useServerEvents(server.id, (event) => {
+    if (!touchesSpace(event, spaceId)) return;
+    clearTimeout(reload.current);
+    reload.current = setTimeout(() => load().then(setView), RELOAD_DELAY_MS);
+  });
 
   const pull = async () => {
     setRefreshing(true);
