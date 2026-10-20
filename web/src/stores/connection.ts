@@ -26,6 +26,9 @@ interface ConnectionState {
   // kept current by PresenceChanged). Our own is the signed-in user's
   // (api/presence.ts).
   dnd: Record<string, boolean>;
+  // userId → every connection they hold is a mobile app's, for everyone
+  // online (the same sources as dnd).
+  mobile: Record<string, boolean>;
   // channelId → userId → expiry (ms since epoch) for "is typing…" hints.
   typing: Record<string, Record<string, number>>;
   setStatus: (status: ConnectionStatus) => void;
@@ -33,7 +36,12 @@ interface ConnectionState {
   setActiveChannel: (channelId: string | null) => void;
   setOnline: (ids: string[]) => void;
   setPresences: (list: UserPresence[]) => void;
-  setPresence: (userId: string, online: boolean, dnd: boolean) => void;
+  setPresence: (
+    userId: string,
+    online: boolean,
+    dnd: boolean,
+    mobile: boolean,
+  ) => void;
   setTyping: (channelId: string, userId: string) => void;
   expireTyping: () => void;
 }
@@ -44,6 +52,7 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   activeChannelId: null,
   online: new Set(),
   dnd: {},
+  mobile: {},
   typing: {},
   setStatus: (status) => set({ status }),
   setUserId: (userId) => set({ userId }),
@@ -52,19 +61,23 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   setPresences: (list) =>
     set({
       dnd: Object.fromEntries(list.map((p) => [p.userId, p.dnd])),
+      mobile: Object.fromEntries(list.map((p) => [p.userId, p.mobile])),
     }),
-  setPresence: (userId, online, isDnd) =>
+  setPresence: (userId, online, isDnd, isMobile) =>
     set((s) => {
       const next = new Set(s.online);
       const dnd = { ...s.dnd };
+      const mobile = { ...s.mobile };
       if (online) {
         next.add(userId);
         dnd[userId] = isDnd;
+        mobile[userId] = isMobile;
       } else {
         next.delete(userId);
         delete dnd[userId];
+        delete mobile[userId];
       }
-      return { online: next, dnd };
+      return { online: next, dnd, mobile };
     }),
   setTyping: (channelId, userId) =>
     set((s) => ({

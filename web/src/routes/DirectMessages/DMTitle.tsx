@@ -26,6 +26,7 @@ export function DMTitle({ channelId }: { channelId: string }) {
     (s) => otherId !== "" && s.online.has(otherId),
   );
   const dnd = useConnectionStore((s) => s.dnd[otherId]);
+  const mobile = useConnectionStore((s) => s.mobile[otherId]);
   if (!dm) return <span className="channel-hash">…</span>;
   const title = dmTitle(dm, me?.id);
   return (
@@ -33,9 +34,9 @@ export function DMTitle({ channelId }: { channelId: string }) {
       <AvatarStack people={dmFaces(dm, me?.id)} name={title} size="small">
         {other && (
           <span
-            className={`online-dot ${presenceClass(isOnline, dnd)}`}
+            className={`online-dot ${presenceClass(isOnline, dnd, mobile)}`}
             role="img"
-            aria-label={presenceLabel(isOnline, dnd)}
+            aria-label={presenceLabel(isOnline, dnd, mobile)}
           />
         )}
       </AvatarStack>

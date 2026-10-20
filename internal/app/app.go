@@ -232,6 +232,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *App, err 
 	chatSvc.UseVoiceRooms(voiceSvc)
 	gateway := realtime.NewGateway(bus, identityVerifier{authSvc}, chatSvc, chatSvc, cfg.AllowedWSOrigins, log)
 	gateway.UseDoNotDisturb(authSvc)
+	gateway.SetPresenceGrace(cfg.PresenceGrace)
 	chatSvc.UsePresence(gateway)
 	jobList := jobReader(jobsSvc)
 	instanceSvc.UseJobRecords(jobList)

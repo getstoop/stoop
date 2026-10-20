@@ -16,7 +16,7 @@ func TestAddSpaceReportsANewSpaceOnce(t *testing.T) {
 	if presence.addSpace("ada", "s1") {
 		t.Error("someone offline should not be counted in a space")
 	}
-	presence.connect("ada", []string{"s1"})
+	presence.connect("ada", []string{"s1"}, false)
 	if presence.addSpace("ada", "s1") {
 		t.Error("a space ada is already counted in is not new")
 	}
@@ -38,8 +38,8 @@ func TestJoinRacingASecondConnectionAnnouncesOnce(t *testing.T) {
 	defer newSpace.Close()
 	ctx := context.Background()
 
-	gateway.connectPresence(ctx, "ada", []string{"s1"})
-	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"})
+	gateway.connectPresence(ctx, "ada", []string{"s1"}, false)
+	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"}, false)
 	firstTab := bus.Subscribe(events.UserTopic("ada"))
 	defer firstTab.Close()
 	gateway.applyControlEvent("ada", firstTab, events.Stamp(&realtimev1.ServerEvent{
@@ -75,13 +75,128 @@ func TestRemovalDuringConnectIsNotAnnounced(t *testing.T) {
 	defer removedSpace.Close()
 	ctx := context.Background()
 
-	gateway.connectPresence(ctx, "ada", []string{"s1"})
+	gateway.connectPresence(ctx, "ada", []string{"s1"}, false)
 	gateway.UseDoNotDisturb(removingLookup{gateway.presence})
-	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"})
+	gateway.connectPresence(ctx, "ada", []string{"s1", "s2"}, false)
 
 	for len(removedSpace.Events()) > 0 {
 		if changed := (<-removedSpace.Events()).GetPresenceChanged(); changed != nil && changed.Online {
 			t.Errorf("ada was announced online in s2 after her removal: %+v", changed)
 		}
+	}
+}
+
+// A phone that connects while a computer's grace runs takes over the
+// presence only once that grace is out: the computer may yet come back.
+func TestPhoneDuringAComputersGraceWaitsItOut(t *testing.T) {
+	presence := newPresence()
+	presence.grace = 50 * time.Millisecond
+	settled := make(chan bool, 4)
+	presence.settled = func(_ string, _ []string, online bool) { settled <- online }
+
+	presence.connect("ada", []string{"s1"}, false)
+	presence.disconnect("ada", false, false)
+	if _, _, changed := presence.connect("ada", nil, true); changed {
+		t.Error("a phone joining a computer's grace was announced at once")
+	}
+	if presence.mobileOf("ada") {
+		t.Error("ada read as mobile before the computer's grace ran out")
+	}
+	select {
+	case online := <-settled:
+		if !online || !presence.mobileOf("ada") {
+			t.Errorf("after the grace: online %v, mobile %v; want both", online, presence.mobileOf("ada"))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("the grace never settled")
+	}
+	select {
+	case online := <-settled:
+		t.Errorf("a second settle: online %v", online)
+	case <-time.After(150 * time.Millisecond):
+	}
+}
+
+// Back within the grace, a person no longer in a space goes offline
+// there: no connection was open to see them leave it.
+func TestReconnectWithinTheGraceDropsSpacesLeft(t *testing.T) {
+	presence := newPresence()
+	presence.grace = time.Hour
+	presence.connect("ada", []string{"s1", "s2"}, false)
+	presence.disconnect("ada", false, false)
+	_, dropped, _ := presence.connect("ada", []string{"s2"}, false)
+	if len(dropped) != 1 || dropped[0] != "s1" {
+		t.Errorf("dropped = %v, want [s1]", dropped)
+	}
+	if listed := presence.presencesIn([]string{"s1"}); len(listed) != 0 {
+		t.Errorf("ada still listed online in s1: %v", listed)
+	}
+	if listed := presence.presencesIn([]string{"s2"}); len(listed) != 1 {
+		t.Errorf("ada not listed online in s2: %v", listed)
+	}
+}
+
+// A grace timer armed for an entry that was dropped and made anew does
+// nothing to the new one, even when their counts line up.
+func TestAStaleGraceTimerLeavesANewEntryAlone(t *testing.T) {
+	presence := newPresence()
+	presence.grace = time.Hour
+	presence.connect("ada", []string{"s1"}, false)
+	presence.disconnect("ada", false, false)
+	old := presence.users["ada"]
+	generation := old.settling
+	// Signed out meanwhile: the old entry is gone, and a new one is made.
+	presence.mu.Lock()
+	presence.drop("ada", old)
+	presence.mu.Unlock()
+	presence.connect("ada", []string{"s1"}, false)
+	presence.disconnect("ada", false, false)
+	presence.users["ada"].settling = generation
+
+	presence.settleNow("ada", old, generation)
+	if presence.users["ada"] == nil {
+		t.Error("the old entry's timer dropped the new one")
+	}
+	presence.mu.Lock()
+	presence.drop("ada", presence.users["ada"])
+	presence.mu.Unlock()
+}
+
+// The offline a grace timer announces reaches others before the online of
+// a connection made while it was being announced.
+func TestGraceOfflineIsHeardBeforeAReconnect(t *testing.T) {
+	bus := events.NewInProcBus()
+	gateway := &Gateway{bus: bus, presence: newPresence(), voice: newVoiceState(), log: slog.Default()}
+	gateway.presence.grace = 20 * time.Millisecond
+	watching := bus.Subscribe(events.SpaceTopic("s1"))
+	defer watching.Close()
+	ctx := context.Background()
+
+	reconnected := make(chan struct{})
+	gateway.presence.settled = func(userID string, spaceIDs []string, online bool) {
+		// A connection arrives while the offline is on its way out.
+		go func() {
+			gateway.connectPresence(ctx, "ada", []string{"s1"}, false)
+			close(reconnected)
+		}()
+		time.Sleep(50 * time.Millisecond)
+		gateway.publishPresence(userID, spaceIDs, online)
+	}
+	gateway.connectPresence(ctx, "ada", []string{"s1"}, false)
+	gateway.disconnectPresence("ada", false, false)
+	select {
+	case <-reconnected:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the reconnect never finished")
+	}
+
+	var heard []bool
+	for len(watching.Events()) > 0 {
+		if changed := (<-watching.Events()).GetPresenceChanged(); changed != nil {
+			heard = append(heard, changed.Online)
+		}
+	}
+	if len(heard) != 3 || !heard[0] || heard[1] || !heard[2] {
+		t.Errorf("heard online %v, want [true false true]", heard)
 	}
 }

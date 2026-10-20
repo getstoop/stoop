@@ -40,6 +40,7 @@ page or with `stoop admin setting`.
 | `STOOP_UPDATE_CHECK`       | `true`                      | Read the release list on getstoop.org so Server admin can say a newer release exists, or that this one is no longer supported. Nothing about the server is sent; set `false` to stop the request |
 | `STOOP_FILE_SWEEP_INTERVAL` | `6h`                       | How often unreferenced uploads, stray blobs and old read activity items are removed; `0` turns the timer off (the admin page can still sweep) |
 | `STOOP_FILE_SWEEP_GRACE`   | `24h`                       | How old an unreferenced file must be before the sweep takes it |
+| `STOOP_PRESENCE_GRACE`     | `30s`                       | How long someone still shows online after their last connection closes, so a reload, a dropped network or the mobile app going to the background doesn't flicker. Signing out is always at once. `0` announces offline at once (the browser tests use it) |
 | `STOOP_ACTIVITY_RETENTION` | `720h`                      | Read mention/reply/DM activity items older than this are removed on the sweep timer; `0` keeps them forever |
 | `STOOP_UNFURL_ALLOW_PRIVATE` | `false`                   | Let link previews fetch private/loopback addresses. **Dev and tests only** — it is what stops the server being used as a proxy into your LAN |
 | `STOOP_WEBHOOKS`           | `true`                      | `false` stops every incoming webhook post and outgoing delivery, whatever the admin settings say; nothing is deleted |

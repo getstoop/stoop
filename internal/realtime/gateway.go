@@ -55,6 +55,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID, sessionID := id.UserID, id.Credential.ID
+	// A mobile app says so when it connects. Only the person's own presence
+	// mark rests on it, so it is taken as given, like a voice report.
+	mobile := r.URL.Query().Get("client") == "mobile"
 
 	spaceIDs, err := g.members.ListSpaceIDs(ctx, userID)
 	if err != nil {
@@ -83,8 +86,11 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	connID := g.connSeq.Add(1)
 	defer func() { g.publishLeft(userID, g.voice.clearOwnedBy(userID, connID)) }()
 
-	g.connectPresence(ctx, userID, spaceIDs)
-	defer g.disconnectPresence(userID)
+	g.connectPresence(ctx, userID, spaceIDs, mobile)
+	// A socket closed because its session ended takes the person offline
+	// at once; any other close waits out the grace period.
+	revoked := false
+	defer func() { g.disconnectPresence(userID, mobile, revoked) }()
 
 	// The reader only decodes; this goroutine applies what it hands over,
 	// so nothing changes this connection's state after the deferred
@@ -128,6 +134,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if verifyErr != nil || fresh.Credential.ID != sessionID {
+				revoked = true
 				_ = conn.Close(StatusCredentialRevoked, "credential revoked")
 				return
 			}
@@ -144,7 +151,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				_ = conn.Close(websocket.StatusTryAgainLater, "event overflow")
 				return
 			}
-			if !g.deliver(ctx, conn, userID, sessionID, sub, ev) {
+			open, ended := g.deliver(ctx, conn, userID, sessionID, sub, ev)
+			if !open {
+				revoked = ended
 				return
 			}
 		}
@@ -166,23 +175,37 @@ func (g *Gateway) subscribe(userID string, spaceIDs []string) *events.Subscripti
 // in each space they are newly counted in: every space for the first
 // connection, and a space joined since for a later one (its SpaceJoined
 // then finds it counted). Do not disturb is read again on every connect,
-// which also rebuilds an end timer a restart lost; a change is announced
-// everywhere. Both read what is counted after the lookup, so a removal
-// another connection applied meanwhile is not announced.
-func (g *Gateway) connectPresence(ctx context.Context, userID string, spaceIDs []string) {
-	added := g.presence.connect(userID, spaceIDs)
-	if setting, ok := g.lookupDoNotDisturb(ctx, userID); ok && g.applyDoNotDisturb(userID, setting) {
+// which also rebuilds an end timer a restart lost; a change to it, or a
+// computer joining a person only on mobile, is announced everywhere. Both
+// read what is counted after the lookup, so a removal another connection
+// applied meanwhile is not announced.
+func (g *Gateway) connectPresence(ctx context.Context, userID string, spaceIDs []string, mobile bool) {
+	release := g.presence.hold(userID)
+	defer release()
+	added, dropped, mobileChanged := g.presence.connect(userID, spaceIDs, mobile)
+	if dropped != nil {
+		g.publishPresence(userID, dropped, false)
+	}
+	setting, ok := g.lookupDoNotDisturb(ctx, userID)
+	if dndChanged := ok && g.applyDoNotDisturb(userID, setting); dndChanged || mobileChanged {
 		g.publishPresence(userID, g.presence.spacesOf(userID), true)
 		return
 	}
 	g.publishPresence(userID, g.presence.countedIn(userID, added), true)
 }
 
-// disconnectPresence counts a closed connection; the last one announces the
-// person offline.
-func (g *Gateway) disconnectPresence(userID string) {
-	if spaces := g.presence.disconnect(userID); spaces != nil {
-		g.publishPresence(userID, spaces, false)
+// disconnectPresence counts a closed connection. The last one announces
+// the person offline after the grace period, or at once when its session
+// ended; a grace timer announces through presence.settled.
+func (g *Gateway) disconnectPresence(userID string, mobile, sessionEnded bool) {
+	release := g.presence.hold(userID)
+	defer release()
+	offline, toMobile := g.presence.disconnect(userID, mobile, sessionEnded)
+	if offline != nil {
+		g.publishPresence(userID, offline, false)
+	}
+	if toMobile {
+		g.publishPresence(userID, g.presence.spacesOf(userID), true)
 	}
 }
 
@@ -237,29 +260,31 @@ func (g *Gateway) ready(ctx context.Context, userID string, spaceIDs []string) *
 	})
 }
 
-// deliver applies one bus event to the connection and forwards it; false
-// when the socket is done.
-func (g *Gateway) deliver(ctx context.Context, conn *websocket.Conn, userID, sessionID string, sub *events.Subscription, ev *realtimev1.ServerEvent) bool {
+// deliver applies one bus event to the connection and forwards it. open
+// is false when the socket is done, and sessionEnded says it closed
+// because the session it was opened with is gone.
+func (g *Gateway) deliver(ctx context.Context, conn *websocket.Conn, userID, sessionID string, sub *events.Subscription, ev *realtimev1.ServerEvent) (open, sessionEnded bool) {
 	joinedSpace := g.applyControlEvent(userID, sub, ev)
 	// A revocation is told only to the socket opened with that session.
 	if revoked := ev.GetCredentialRevoked(); revoked != nil && revoked.CredentialId != sessionID {
-		return true
+		return true, false
 	}
 	if err := g.send(ctx, conn, ev); err != nil {
-		return false
+		// A revocation that couldn't be written still ended the session.
+		return false, ev.GetCredentialRevoked() != nil
 	}
 	// Ready only covered the spaces held at connect time; the new space's
 	// presence and voice state follow its SpaceJoined.
 	if joinedSpace != "" {
 		if err := g.sendSpaceSnapshot(ctx, conn, userID, joinedSpace); err != nil {
-			return false
+			return false, false
 		}
 	}
 	// Added to a private voice channel: who is already in it follows.
 	if created := ev.GetChannelCreated(); created.GetPrivate() {
 		for _, participant := range g.voice.participantsInChannel(created.Id) {
 			if err := g.send(ctx, conn, voiceStateChanged(participant, true)); err != nil {
-				return false
+				return false, false
 			}
 		}
 	}
@@ -267,9 +292,9 @@ func (g *Gateway) deliver(ctx context.Context, conn *websocket.Conn, userID, ses
 	// told, and must not come back with it.
 	if ev.GetCredentialRevoked() != nil {
 		_ = conn.Close(StatusCredentialRevoked, "credential revoked")
-		return false
+		return false, true
 	}
-	return true
+	return true, false
 }
 
 // applyControlEvent keeps this connection's subscription, presence and voice
@@ -283,9 +308,11 @@ func (g *Gateway) applyControlEvent(userID string, sub *events.Subscription, ev 
 		sub.Add(events.SpaceTopic(joinedSpace))
 		// Each of the person's connections hears the join; the first to
 		// record it announces them.
+		release := g.presence.hold(userID)
 		if g.presence.addSpace(userID, joinedSpace) {
 			g.publishPresence(userID, []string{joinedSpace}, true)
 		}
+		release()
 	case *realtimev1.ServerEvent_MemberRemoved:
 		if payload.MemberRemoved.UserId == userID {
 			g.dropSpace(userID, sub, payload.MemberRemoved.SpaceId)
@@ -297,8 +324,12 @@ func (g *Gateway) applyControlEvent(userID string, sub *events.Subscription, ev 
 	case *realtimev1.ServerEvent_DoNotDisturbChanged:
 		// Set from any of the person's devices. Every connection hears it;
 		// only the first to apply it finds a change to announce.
-		if payload.DoNotDisturbChanged.UserId == userID && g.applyDoNotDisturb(userID, dndFrom(payload.DoNotDisturbChanged)) {
-			g.publishPresence(userID, g.presence.spacesOf(userID), true)
+		if payload.DoNotDisturbChanged.UserId == userID {
+			release := g.presence.hold(userID)
+			if g.applyDoNotDisturb(userID, dndFrom(payload.DoNotDisturbChanged)) {
+				g.publishPresence(userID, g.presence.spacesOf(userID), true)
+			}
+			release()
 		}
 	}
 	return joinedSpace
@@ -318,7 +349,7 @@ func (g *Gateway) dropSpace(userID string, sub *events.Subscription, spaceID str
 func (g *Gateway) sendSpaceSnapshot(ctx context.Context, conn *websocket.Conn, userID, spaceID string) error {
 	spaceIDs := []string{spaceID}
 	for _, online := range g.presence.presencesIn(spaceIDs) {
-		if err := g.send(ctx, conn, presenceChanged(online.UserId, true, online.Dnd)); err != nil {
+		if err := g.send(ctx, conn, presenceChanged(online.UserId, true, online.Dnd, online.Mobile)); err != nil {
 			return err
 		}
 	}
@@ -332,15 +363,16 @@ func (g *Gateway) sendSpaceSnapshot(ctx context.Context, conn *websocket.Conn, u
 
 func (g *Gateway) publishPresence(userID string, spaceIDs []string, online bool) {
 	dnd := online && g.presence.dndOf(userID)
+	mobile := online && g.presence.mobileOf(userID)
 	for _, spaceID := range spaceIDs {
-		g.bus.Publish(events.SpaceTopic(spaceID), presenceChanged(userID, online, dnd))
+		g.bus.Publish(events.SpaceTopic(spaceID), presenceChanged(userID, online, dnd, mobile))
 	}
 }
 
-func presenceChanged(userID string, online, dnd bool) *realtimev1.ServerEvent {
+func presenceChanged(userID string, online, dnd, mobile bool) *realtimev1.ServerEvent {
 	return events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_PresenceChanged{
-			PresenceChanged: &realtimev1.PresenceChanged{UserId: userID, Online: online, Dnd: dnd},
+			PresenceChanged: &realtimev1.PresenceChanged{UserId: userID, Online: online, Dnd: dnd, Mobile: mobile},
 		},
 	})
 }

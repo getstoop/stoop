@@ -64,6 +64,15 @@ describe("the dot", () => {
     expect(presenceClass(false, false)).toBe("offline");
   });
 
+  it("shows a phone for someone online only on mobile, unless on do not disturb", () => {
+    expect(presenceClass(true, false, true)).toBe("mobile");
+    expect(presenceClass(true, true, true)).toBe("dnd");
+    expect(presenceClass(false, false, true)).toBe("offline");
+    expect(presenceLabel(true, false, true)).toBe("online on mobile");
+    expect(presenceLabel(true, true, true)).toBe("do not disturb");
+    expect(presenceLabel(false, false, true)).toBe("offline");
+  });
+
   // Offline beats do not disturb: the dot is whether they can be reached.
   it("says offline whatever do not disturb says", () => {
     expect(presenceLabel(false, true)).toBe("offline");

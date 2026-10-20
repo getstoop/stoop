@@ -726,9 +726,11 @@ func (*ClientEvent_VoiceState) isClientEvent_Payload() {}
 
 // UserPresence is one online user, and whether they are on do not disturb.
 type UserPresence struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Dnd           bool                   `protobuf:"varint,3,opt,name=dnd,proto3" json:"dnd,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Dnd    bool                   `protobuf:"varint,3,opt,name=dnd,proto3" json:"dnd,omitempty"`
+	// Every connection they hold was opened by a mobile app (/ws?client=mobile).
+	Mobile        bool `protobuf:"varint,4,opt,name=mobile,proto3" json:"mobile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -773,6 +775,13 @@ func (x *UserPresence) GetUserId() string {
 func (x *UserPresence) GetDnd() bool {
 	if x != nil {
 		return x.Dnd
+	}
+	return false
+}
+
+func (x *UserPresence) GetMobile() bool {
+	if x != nil {
+		return x.Mobile
 	}
 	return false
 }
@@ -1183,14 +1192,17 @@ func (x *Ready) GetPresences() []*UserPresence {
 }
 
 // PresenceChanged is broadcast to a user's spaces when they come online
-// (first connection), go offline (last connection closed), or do not
-// disturb turns on or off, including when it ends on its own.
+// (first connection), go offline (a grace period after the last
+// connection closed), do not disturb turns on or off, including when it
+// ends on its own, or they move between only mobile and anything else.
 type PresenceChanged struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Online bool                   `protobuf:"varint,2,opt,name=online,proto3" json:"online,omitempty"`
 	// Meaningful while online.
-	Dnd           bool `protobuf:"varint,4,opt,name=dnd,proto3" json:"dnd,omitempty"`
+	Dnd bool `protobuf:"varint,4,opt,name=dnd,proto3" json:"dnd,omitempty"`
+	// Meaningful while online: every connection they hold is a mobile app's.
+	Mobile        bool `protobuf:"varint,5,opt,name=mobile,proto3" json:"mobile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1242,6 +1254,13 @@ func (x *PresenceChanged) GetOnline() bool {
 func (x *PresenceChanged) GetDnd() bool {
 	if x != nil {
 		return x.Dnd
+	}
+	return false
+}
+
+func (x *PresenceChanged) GetMobile() bool {
+	if x != nil {
+		return x.Mobile
 	}
 	return false
 }
@@ -2746,10 +2765,11 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"\vvoice_state\x18\v \x01(\v2\x1d.stoop.realtime.v1.VoiceStateH\x00R\n" +
 	"voiceStateB\t\n" +
 	"\apayloadJ\x04\b\f\x10\rR\n" +
-	"set_status\"G\n" +
+	"set_status\"_\n" +
 	"\fUserPresence\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x10\n" +
-	"\x03dnd\x18\x03 \x01(\bR\x03dndJ\x04\b\x02\x10\x03R\x06status\"\x9c\x01\n" +
+	"\x03dnd\x18\x03 \x01(\bR\x03dnd\x12\x16\n" +
+	"\x06mobile\x18\x04 \x01(\bR\x06mobileJ\x04\b\x02\x10\x03R\x06status\"\x9c\x01\n" +
 	"\n" +
 	"VoiceState\x12\x1d\n" +
 	"\n" +
@@ -2780,11 +2800,12 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\tspace_ids\x18\x02 \x03(\tR\bspaceIds\x12R\n" +
 	"\x12voice_participants\x18\x04 \x03(\v2#.stoop.realtime.v1.VoiceParticipantR\x11voiceParticipants\x12=\n" +
-	"\tpresences\x18\x05 \x03(\v2\x1f.stoop.realtime.v1.UserPresenceR\tpresencesJ\x04\b\x03\x10\x04R\x0fonline_user_ids\"b\n" +
+	"\tpresences\x18\x05 \x03(\v2\x1f.stoop.realtime.v1.UserPresenceR\tpresencesJ\x04\b\x03\x10\x04R\x0fonline_user_ids\"z\n" +
 	"\x0fPresenceChanged\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06online\x18\x02 \x01(\bR\x06online\x12\x10\n" +
-	"\x03dnd\x18\x04 \x01(\bR\x03dndJ\x04\b\x03\x10\x04R\x06status\"_\n" +
+	"\x03dnd\x18\x04 \x01(\bR\x03dnd\x12\x16\n" +
+	"\x06mobile\x18\x05 \x01(\bR\x06mobileJ\x04\b\x03\x10\x04R\x06status\"_\n" +
 	"\n" +
 	"UserTyping\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x1d\n" +

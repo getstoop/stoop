@@ -23,6 +23,7 @@ export function MentionPicker({
 }) {
   const online = useConnectionStore((s) => s.online);
   const dnd = useConnectionStore((s) => s.dnd);
+  const mobile = useConnectionStore((s) => s.mobile);
   const listRef = useRef<HTMLUListElement>(null);
   useScrollToSelected(listRef, selected);
   if (candidates.length === 0) return null;
@@ -79,11 +80,12 @@ export function MentionPicker({
                   >
                     {!isBot(candidate.member.kind) && (
                       <span
-                        className={`online-dot ${presenceClass(online.has(candidate.member.userId), dnd[candidate.member.userId])}`}
+                        className={`online-dot ${presenceClass(online.has(candidate.member.userId), dnd[candidate.member.userId], mobile[candidate.member.userId])}`}
                         role="img"
                         aria-label={presenceLabel(
                           online.has(candidate.member.userId),
                           dnd[candidate.member.userId],
+                          mobile[candidate.member.userId],
                         )}
                       />
                     )}

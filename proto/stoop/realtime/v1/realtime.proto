@@ -85,6 +85,8 @@ message UserPresence {
   reserved 2;
   reserved "status";
   bool dnd = 3;
+  // Every connection they hold was opened by a mobile app (/ws?client=mobile).
+  bool mobile = 4;
 }
 
 // VoiceState is the client's self-report. An empty channel_id means "left
@@ -150,8 +152,9 @@ message Ready {
 }
 
 // PresenceChanged is broadcast to a user's spaces when they come online
-// (first connection), go offline (last connection closed), or do not
-// disturb turns on or off, including when it ends on its own.
+// (first connection), go offline (a grace period after the last
+// connection closed), do not disturb turns on or off, including when it
+// ends on its own, or they move between only mobile and anything else.
 message PresenceChanged {
   string user_id = 1;
   bool online = 2;
@@ -159,6 +162,8 @@ message PresenceChanged {
   reserved "status";
   // Meaningful while online.
   bool dnd = 4;
+  // Meaningful while online: every connection they hold is a mobile app's.
+  bool mobile = 5;
 }
 
 // UserTyping is broadcast to the space (or, with an empty space_id, to a

@@ -19,6 +19,7 @@ export function DMRow({ dm }: { dm: DirectMessage }) {
   const { data: me } = useMe();
   const online = useConnectionStore((s) => s.online);
   const dnd = useConnectionStore((s) => s.dnd);
+  const mobile = useConnectionStore((s) => s.mobile);
   const channel = dm.channel;
   if (!channel) return null;
   const other = dmIsGroup(dm) ? undefined : dmOther(dm, me?.id);
@@ -39,9 +40,13 @@ export function DMRow({ dm }: { dm: DirectMessage }) {
         <AvatarStack people={dmFaces(dm, me?.id)} name={title} size="small">
           {other && (
             <span
-              className={`online-dot ${presenceClass(online.has(other.id), dnd[other.id])}`}
+              className={`online-dot ${presenceClass(online.has(other.id), dnd[other.id], mobile[other.id])}`}
               role="img"
-              aria-label={presenceLabel(online.has(other.id), dnd[other.id])}
+              aria-label={presenceLabel(
+                online.has(other.id),
+                dnd[other.id],
+                mobile[other.id],
+              )}
             />
           )}
         </AvatarStack>

@@ -64,3 +64,25 @@
 .space-pill.avatar .online-dot.dnd::after {
   background: var(--canvas);
 }
+
+/* A small phone where the dot would be, for someone online only in a
+   mobile app: the online colour, taller than wide, with a notch at its
+   foot. Do not disturb still shows the barred dot over it. */
+.online-dot.mobile {
+  bottom: -3px;
+  width: 10px;
+  height: 14px;
+  border-radius: var(--radius-sm);
+}
+
+.online-dot.mobile::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  width: 2px;
+  height: 2px;
+  margin-left: -1px;
+  border-radius: 50%;
+  background: var(--panel);
+}

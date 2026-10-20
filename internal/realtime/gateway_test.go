@@ -76,6 +76,8 @@ func newTestGateway(t *testing.T, members fakeMembers, channels realtime.Channel
 	t.Helper()
 	bus := events.NewInProcBus()
 	gateway := realtime.NewGateway(bus, fakeVerifier{}, members, channels, []string{"*"}, slog.Default())
+	// Offline at once, as these tests expect; TestPresenceGrace sets its own.
+	gateway.SetPresenceGrace(0)
 	for _, apply := range configure {
 		apply(gateway)
 	}
@@ -105,8 +107,23 @@ func dial(t *testing.T, srv *httptest.Server, user string) *client {
 }
 
 func tryDial(srv *httptest.Server, user string) (*client, *http.Response, error) {
+	return tryDialPath(srv, user, "/ws")
+}
+
+// dialMobile connects as a mobile app does.
+func dialMobile(t *testing.T, srv *httptest.Server, user string) *client {
+	t.Helper()
+	phone, res, err := tryDialPath(srv, user, "/ws?client=mobile")
+	if err != nil {
+		t.Fatalf("dial as %s on mobile: %v (%v)", user, err, res)
+	}
+	phone.t = t
+	return phone
+}
+
+func tryDialPath(srv *httptest.Server, user, path string) (*client, *http.Response, error) {
 	h := http.Header{"Authorization": {"Bearer " + user}}
-	conn, res, err := websocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http")+"/ws", &websocket.DialOptions{HTTPHeader: h})
+	conn, res, err := websocket.Dial(context.Background(), "ws"+strings.TrimPrefix(srv.URL, "http")+path, &websocket.DialOptions{HTTPHeader: h})
 	if err != nil {
 		return nil, res, err
 	}

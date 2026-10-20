@@ -14,32 +14,84 @@ import (
 type presence struct {
 	mu    sync.Mutex
 	users map[string]*presenceEntry
+	// grace is how long someone stays online after their last connection
+	// closes, and how long a move to only mobile connections waits before
+	// it is announced, so an app sent to the background, a dropped
+	// network or a reloaded tab doesn't flicker. Zero announces at once.
+	grace time.Duration
+	// settled announces what a grace timer decided: offline in spaces, or
+	// still online with only mobile connections left.
+	settled func(userID string, spaceIDs []string, online bool)
+	// announcing holds one lock per person seen since start (see hold).
+	announcing sync.Map
+}
+
+// hold serializes one person's presence changes with their announcements,
+// so others hear them in the order they happened: a grace timer's offline
+// can't land after a reconnect's online. Announcing can mean a database
+// round trip (the event relay), so it can't happen under mu; this lock is
+// the person's own, taken before mu and never inside it. It returns the
+// unlock.
+func (p *presence) hold(userID string) func() {
+	lock, _ := p.announcing.LoadOrStore(userID, &sync.Mutex{})
+	mutex := lock.(*sync.Mutex)
+	mutex.Lock()
+	return mutex.Unlock
 }
 
 type presenceEntry struct {
-	conns  int
+	// conns is how many connections the person holds, and mobileConns how
+	// many of them a mobile app opened. With none left the entry lingers
+	// for the grace period before the person is announced offline.
+	conns       int
+	mobileConns int
+	// mobile is what others were last told: every connection is mobile.
+	mobile bool
 	spaces map[string]struct{}
 	// dnd is whether the person is on do not disturb. until is when it
 	// ends (nil for no end), and timer is what ends it.
 	dnd   bool
 	until *time.Time
 	timer *time.Timer
+	// settle is the grace timer, and settling counts them, so one that
+	// was stopped too late to keep it from firing does nothing.
+	settle   *time.Timer
+	settling uint64
 }
 
 func newPresence() *presence {
 	return &presence{users: map[string]*presenceEntry{}}
 }
 
-// connect records a connection. It returns the spaces the user is newly
-// counted in: all of them for their first connection, and for a later one
-// any space joined since that another connection has not recorded yet.
-func (p *presence) connect(userID string, spaceIDs []string) (added []string) {
+// connect records a connection, mobile when a mobile app opened it. It
+// returns the spaces the user is newly counted in (all of them for their
+// first connection, and for a later one any space joined since that
+// another connection has not recorded yet), and whether they stopped
+// being only on mobile, which is announced at once. A connection that
+// leaves them only on mobile, as one made while an earlier connection's
+// grace runs, waits out the grace like a close does.
+//
+// A connection back within the grace finds spaces no connection was
+// there to see them leave; dropped is those, where they go offline.
+func (p *presence) connect(userID string, spaceIDs []string, mobile bool) (added, dropped []string, mobileChanged bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	entry := p.users[userID]
 	if entry == nil {
-		entry = &presenceEntry{spaces: map[string]struct{}{}}
+		entry = &presenceEntry{spaces: map[string]struct{}{}, mobile: mobile}
 		p.users[userID] = entry
+	}
+	if entry.conns == 0 {
+		current := make(map[string]struct{}, len(spaceIDs))
+		for _, spaceID := range spaceIDs {
+			current[spaceID] = struct{}{}
+		}
+		for spaceID := range entry.spaces {
+			if _, still := current[spaceID]; !still {
+				delete(entry.spaces, spaceID)
+				dropped = append(dropped, spaceID)
+			}
+		}
 	}
 	for _, spaceID := range spaceIDs {
 		if _, counted := entry.spaces[spaceID]; !counted {
@@ -48,29 +100,116 @@ func (p *presence) connect(userID string, spaceIDs []string) (added []string) {
 		}
 	}
 	entry.conns++
-	return added
+	if mobile {
+		entry.mobileConns++
+	}
+	p.stopSettle(entry)
+	onlyMobile := entry.mobileConns == entry.conns
+	if entry.mobile && !onlyMobile {
+		entry.mobile = false
+		mobileChanged = true
+	} else if !entry.mobile && onlyMobile {
+		p.armSettle(userID, entry)
+	}
+	return added, dropped, mobileChanged
 }
 
-// disconnect records a closed connection. When it was the user's last,
-// the spaces they were visible in across every connection are returned,
-// joins made while connected included; nil while they are still online.
-func (p *presence) disconnect(userID string) []string {
+// disconnect records a closed connection. now skips the grace period, for
+// a socket closed because its session ended. When the person is offline at
+// once, the spaces they were visible in across every connection are
+// returned, joins made while connected included; nil while they are still
+// online or their grace runs. toMobile is whether they are now only on
+// mobile, which with no grace is announced at once too.
+func (p *presence) disconnect(userID string, mobile, now bool) (offline []string, toMobile bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	e := p.users[userID]
 	if e == nil {
-		return nil
+		return nil, false
 	}
 	e.conns--
+	if mobile {
+		e.mobileConns--
+	}
 	if e.conns > 0 {
-		return nil
+		if e.mobile || e.mobileConns != e.conns {
+			return nil, false
+		}
+		if p.grace <= 0 {
+			e.mobile = true
+			return nil, true
+		}
+		p.armSettle(userID, e)
+		return nil, false
 	}
-	if e.timer != nil {
-		e.timer.Stop()
+	if now || p.grace <= 0 {
+		return p.drop(userID, e), false
 	}
+	p.armSettle(userID, e)
+	return nil, false
+}
+
+// armSettle starts the grace timer, replacing one already running.
+// Called with p.mu held.
+func (p *presence) armSettle(userID string, entry *presenceEntry) {
+	p.stopSettle(entry)
+	entry.settling++
+	generation := entry.settling
+	entry.settle = time.AfterFunc(p.grace, func() { p.settleNow(userID, entry, generation) })
+}
+
+// stopSettle stops the grace timer, if one runs. Called with p.mu held.
+func (p *presence) stopSettle(entry *presenceEntry) {
+	if entry.settle != nil {
+		entry.settle.Stop()
+		entry.settle = nil
+	}
+	entry.settling++
+}
+
+// settleNow is a grace timer firing: with no connection back the person
+// goes offline, and with only mobile connections left they are announced
+// so. A timer stopped or replaced since it was armed does nothing, nor
+// does one armed for an entry since dropped and made anew.
+func (p *presence) settleNow(userID string, armed *presenceEntry, generation uint64) {
+	release := p.hold(userID)
+	defer release()
+	p.mu.Lock()
+	entry := p.users[userID]
+	if entry != armed || entry.settling != generation {
+		p.mu.Unlock()
+		return
+	}
+	entry.settle = nil
+	var spaces []string
+	online := true
+	switch {
+	case entry.conns == 0:
+		spaces, online = p.drop(userID, entry), false
+	case !entry.mobile && entry.mobileConns == entry.conns:
+		entry.mobile = true
+		spaces = spaceList(entry)
+	}
+	p.mu.Unlock()
+	if spaces != nil && p.settled != nil {
+		p.settled(userID, spaces, online)
+	}
+}
+
+// drop forgets someone gone offline and returns the spaces they were
+// visible in. Called with p.mu held.
+func (p *presence) drop(userID string, entry *presenceEntry) []string {
+	if entry.timer != nil {
+		entry.timer.Stop()
+	}
+	p.stopSettle(entry)
 	delete(p.users, userID)
-	spaces := make([]string, 0, len(e.spaces))
-	for s := range e.spaces {
+	return spaceList(entry)
+}
+
+func spaceList(entry *presenceEntry) []string {
+	spaces := make([]string, 0, len(entry.spaces))
+	for s := range entry.spaces {
 		spaces = append(spaces, s)
 	}
 	return spaces
@@ -124,6 +263,8 @@ func (p *presence) setDnd(userID string, on bool, until *time.Time, ended func()
 	if until != nil {
 		end := *until
 		e.timer = time.AfterFunc(end.Sub(now), func() {
+			release := p.hold(userID)
+			defer release()
 			if p.endDnd(userID, end) {
 				ended()
 			}
@@ -143,6 +284,16 @@ func (p *presence) endDnd(userID string, end time.Time) bool {
 	}
 	e.dnd, e.until, e.timer = false, nil, nil
 	return true
+}
+
+// mobileOf is whether an online user was last announced as only on mobile.
+func (p *presence) mobileOf(userID string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if e := p.users[userID]; e != nil {
+		return e.mobile
+	}
+	return false
 }
 
 // dndOf is whether an online user is on do not disturb.
@@ -180,15 +331,11 @@ func (p *presence) spacesOf(userID string) []string {
 	if e == nil {
 		return nil
 	}
-	out := make([]string, 0, len(e.spaces))
-	for s := range e.spaces {
-		out = append(out, s)
-	}
-	return out
+	return spaceList(e)
 }
 
 // presencesIn lists users online in any of the given spaces with whether
-// each is on do not disturb, read under one lock.
+// each is on do not disturb and only on mobile, read under one lock.
 func (p *presence) presencesIn(spaceIDs []string) []*realtimev1.UserPresence {
 	want := make(map[string]struct{}, len(spaceIDs))
 	for _, spaceID := range spaceIDs {
@@ -200,7 +347,7 @@ func (p *presence) presencesIn(spaceIDs []string) []*realtimev1.UserPresence {
 	for userID, entry := range p.users {
 		for spaceID := range entry.spaces {
 			if _, ok := want[spaceID]; ok {
-				out = append(out, &realtimev1.UserPresence{UserId: userID, Dnd: entry.dnd})
+				out = append(out, &realtimev1.UserPresence{UserId: userID, Dnd: entry.dnd, Mobile: entry.mobile})
 				break
 			}
 		}
@@ -208,13 +355,14 @@ func (p *presence) presencesIn(spaceIDs []string) []*realtimev1.UserPresence {
 	return out
 }
 
-// OnlineUserIDs filters ids down to those with a live connection. Exposed
-// for the chat module's presence port (@here).
+// OnlineUserIDs filters ids down to those online, as presence shows them.
+// Exposed for the chat module's presence port (@here).
 func (g *Gateway) OnlineUserIDs(_ context.Context, ids []string) ([]string, error) {
 	return g.presence.onlineAmong(ids), nil
 }
 
-// onlineAmong filters userIDs down to those with a live connection.
+// onlineAmong filters userIDs down to those with a live connection, or
+// one closed within the grace period: online as everyone else sees them.
 func (p *presence) onlineAmong(userIDs []string) []string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -244,8 +392,16 @@ func (p *presence) connectionCount() int {
 	return connections
 }
 
+// userCount leaves out anyone whose grace period runs: they hold no
+// connection.
 func (p *presence) userCount() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return len(p.users)
+	users := 0
+	for _, entry := range p.users {
+		if entry.conns > 0 {
+			users++
+		}
+	}
+	return users
 }

@@ -22,6 +22,7 @@ export function PersonRow({
 }) {
   const online = useConnectionStore((s) => s.online.has(member.userId));
   const dnd = useConnectionStore((s) => s.dnd[member.userId]);
+  const mobile = useConnectionStore((s) => s.mobile[member.userId]);
   const bot = isBot(member.kind);
   const name = memberName(member);
   return (
@@ -34,9 +35,9 @@ export function PersonRow({
       >
         {!bot && (
           <span
-            className={`online-dot ${presenceClass(online, dnd)}`}
+            className={`online-dot ${presenceClass(online, dnd, mobile)}`}
             role="img"
-            aria-label={presenceLabel(online, dnd)}
+            aria-label={presenceLabel(online, dnd, mobile)}
           />
         )}
       </Avatar>
