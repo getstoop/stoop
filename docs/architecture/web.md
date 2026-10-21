@@ -194,14 +194,20 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   history already held.
 - `timelineState.ts` — a channel's timeline as a reducer, which the app's
   channel screen runs (web's is still `api/history.ts` and `api/ws.ts`).
-  It holds what is shown, the requests out (an open, a catch-up after a
-  reconnect, an older page) under ids the app picks, and the events each
-  has kept while out. Its rules: those events are replayed over that
-  request's answer alone, over an older page without new messages; only
-  the latest open or catch-up counts; an older page asked for before a
-  reconnect is dropped; a failed catch-up keeps what is shown; a member
-  count changes live, never on a replay. The app does the fetching and
-  dispatches each start, answer and failure.
+  It holds what is shown (a window of messages, with an optional header
+  beside it), the requests out (an open, a catch-up after a reconnect,
+  an older page) under ids the app picks, and the events each has kept
+  while out. Its rules: those events are replayed over that request's
+  answer alone, over an older page without new messages; only the latest
+  open or catch-up counts; an open drops every older page still out, and
+  so does a reconnect for one asked for before it; a failed catch-up
+  keeps what is shown. The app does the fetching and dispatches each
+  start, answer and failure.
+- `timelineEvents.ts` — what a realtime event does to what a timeline
+  holds: its messages, and its header if it carries one (the channel,
+  its space, the member count, who is reading). A rename changes the
+  header; a member count changes live, never on a replay. A timeline that
+  gets its header elsewhere, or a thread's, carries none.
 - `timelineItems.ts` — a channel's rows, oldest first: the messages, the
   day lines, the "New" line (sharing a day's line as "Today · New") and
   which message continues the one before.

@@ -93,7 +93,8 @@ messages created, edited and deleted to the list it holds, by web's own
 rules (`core/messageList.ts`), and after a reconnect it fetches
 everything held again and joins it to the history already loaded. Those
 rules, and what happens when an event or a reconnect lands while a load
-is out, are the shared timeline reducer (`core/timelineState.ts`); the
+is out, are the shared timeline reducer (`core/timelineState.ts`, with
+the header's rules in `core/timelineEvents.ts`); the
 screen (`src/screens/Channel/index.tsx`) fetches, marks read and draws
 the rows `core/timelineItems.ts` builds.
 
