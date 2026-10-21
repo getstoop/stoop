@@ -1,8 +1,4 @@
-import {
-  type QueryClient,
-  queryOptions,
-  useQuery,
-} from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import {
   authClient,
@@ -11,9 +7,7 @@ import {
   integrationsClient,
 } from "./clients";
 import { isSignedOut } from "./errors";
-import { type Timeline, timelineKey } from "./history";
 import { serverOrigin } from "./origin";
-import { loadWindow } from "./timelineLoads";
 
 // Server-state hooks. Query keys are the vocabulary the WS client uses to
 // apply realtime events, so keep them in sync with src/api/ws.ts.
@@ -153,33 +147,27 @@ export function useChannels(spaceId: string) {
   return useQuery(channelsQuery(spaceId));
 }
 
-// A timeline's window: a channel's messages, or a thread's replies (see
-// api/history.ts). `aroundId` opens it centred on a message instead of the
-// newest page — a deep link; if it isn't in the timeline we fall back to
-// the newest page.
-export function messagesQuery(timeline: Timeline, aroundId?: string) {
-  const { channelId, rootId } = timeline;
-  return {
-    queryKey: timelineKey(timeline),
-    queryFn: ({ client }: { client: QueryClient }) =>
-      loadWindow(client, { channelId, rootId: rootId || undefined }, aroundId),
-    enabled: channelId !== "",
-    // The socket keeps the window current, and refetching one spans up to
-    // WINDOW_CAP rows; Ready covers what a dropped socket missed.
-    refetchOnWindowFocus: false,
-  };
-}
+// A channel's messages live in the channel log (api/channelLog.ts), not
+// here; these are the one-message copies fetched on their own, which the
+// realtime client asks for again when an event names the message
+// (api/ws.ts).
+export const linkedMessageKey = (channelId: string, messageId: string) => [
+  "messages",
+  channelId,
+  messageId,
+  "root",
+];
 
-export function useMessages(timeline: Timeline, aroundId?: string) {
-  return useQuery(messagesQuery(timeline, aroundId));
-}
-
-// A thread's root, kept as a one-message page under its channel's key so
-// the channel's realtime writes (edits, reactions, its summary, a delete)
-// reach it too. An empty page is a root that is gone.
-export function useThreadRoot(channelId: string, rootId: string) {
+// A thread's root, for a thread opened before its channel's page holds
+// it; the panel hands the answer to the channel log (holdRow), and asks
+// only while the log lacks it. An empty page is a root that is gone.
+export function useThreadRoot(
+  channelId: string,
+  rootId: string,
+  enabled = true,
+) {
   return useQuery({
-    queryKey: ["messages", channelId, rootId, "root"],
+    queryKey: linkedMessageKey(channelId, rootId),
     queryFn: async () => {
       const res = await chatClient.listMessages({
         channelId,
@@ -188,14 +176,13 @@ export function useThreadRoot(channelId: string, rootId: string) {
       });
       return res.messages.filter((m) => m.id === rootId);
     },
-    enabled: channelId !== "" && rootId !== "",
+    enabled: enabled && channelId !== "" && rootId !== "",
     retry: false,
   });
 }
 
-// One message by id, for the card under a link to it. Keyed as a thread's
-// root is, so the channel's realtime writes keep it current. An empty
-// page is a message that is gone; an error is one the reader can't see.
+// One message by id, for the card under a link to it. An empty page is a
+// message that is gone; an error is one the reader can't see.
 export function useLinkedMessage(
   channelId: string,
   messageId: string,
@@ -203,7 +190,7 @@ export function useLinkedMessage(
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: ["messages", channelId, messageId, "root"],
+    queryKey: linkedMessageKey(channelId, messageId),
     queryFn: async () => {
       const res = await chatClient.listMessages({
         channelId,

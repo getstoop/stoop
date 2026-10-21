@@ -118,19 +118,38 @@ so nothing of it reaches the binary
 
 ## State: one source of truth
 
-**Server data lives in the TanStack Query cache. Ephemeral client state
-lives in Zustand. Nothing lives in both.**
+**Server data lives in the TanStack Query cache, except messages, which
+live in the channel log store. Ephemeral client state lives in Zustand.
+Nothing lives in two places.**
 
 This is the most important structural decision in the client, and realtime
-is why. Events from the WebSocket are applied *directly to the query cache*
-(`api/ws.ts`) rather than to a parallel event store. A `message_created` is
-spliced into `["messages", channelId]`; a `member_updated` invalidates that
-member; a `reactions_changed` replaces a message's reaction set.
+is why. Events from the WebSocket are applied *directly to the one place
+that holds the thing they are about* (`api/ws.ts`) rather than to a
+parallel event store. A `member_updated` invalidates that member's query;
+a `channel_read` patches the channel's record in its list; every event
+about a message goes to its channel's log, where a `message_created`
+takes its place among the rows and a `reactions_changed` replaces a
+message's reaction set.
 
 The alternative — an event store that components merge with fetched data —
 means every component has two sources that can disagree, and the disagreement
-only shows up under a race. Here there is one array, and a component that
-reads it cannot be behind a component that listened to the socket.
+only shows up under a race. Here each fact has one home, and a component
+that reads it cannot be behind a component that listened to the socket.
+
+Messages have a home of their own because the query cache is the wrong
+shape for them. A query is one request's answer, refetched whole; a
+channel's messages are one growing, sparsely read log, and what the
+reader has in view is a range over it that pages at both ends, jumps,
+and takes events by position. Holding that as a cached array meant
+request bookkeeping (events kept per in-flight request, a reconnect
+counter) and a reconnect that refetched everything. The channel log
+([../proposals/channel-log.md](../proposals/channel-log.md)) is a store
+built for it: one log per channel, rows merged by the `seq` the server
+stamps on every change, and a reconnect that asks `ListChanges` for what
+was missed from the seq it holds. Nothing about a message is in the
+query cache except the one-message copies fetched on their own (a linked
+message's card, a thread's root before the log holds it), which an event
+about the message makes the client fetch again.
 
 The stores, and what each is for:
 
@@ -138,7 +157,7 @@ The stores, and what each is for:
 | ----- | ----- |
 | `connection` | Socket status, our user id, the channel currently on screen, who is online, who is on do not disturb, and typing hints with expiry. |
 | `voice` | The LiveKit room, the track registry keyed by participant and source, participants from the gateway, mute/deafen/camera/screen flags. |
-| `history` (in `api/history.ts`) | Each timeline's reducer state (`core/timelineState.ts`: the requests out and what each has kept), and what the timeline reads from it: `hasOlder`, `hasNewer`, `loading`, `pendingNewer`, and where to land after a jump. The messages stay in the query cache. |
+| `channelLog` (in `api/channelLogStore.ts`) | The channel logs held: one per channel on screen, with the rows, the position (`seq`), the channel's view and one per open thread, and beside each view whether a page is out (`loading`) and where to land after a jump (`landOn`). The section below. |
 | `layout` | `drawerOpen`. That is the entire mobile navigation state. |
 | `sidePanel` | What the side panel shows, or nothing, saved per tab ([The side panel](#the-side-panel)). |
 | `dialogs` | The promise-shaped `confirm` / `prompt` / `notice` queue. |
@@ -149,13 +168,11 @@ handler tell "a message arrived in the channel I am reading" from "a
 message arrived somewhere else", which is the difference between marking
 something read and raising a badge.
 
-### The channel log store (not yet wired)
+### The channel log store
 
-The channel log ([../proposals/channel-log.md](../proposals/channel-log.md))
-replaces the history store above with one **log per channel**, not per
-view. Step 5 built it; step 6 wires it and deletes `history.ts`, the
-timeline reducer modules and `timelineLoads.ts`. Until then nothing in the
-app imports it.
+One **log per channel**, not per view: the channel's timeline and each
+open thread of it are ranges over the same rows, so an edit reaches the
+root in the channel and the same root above its replies in one write.
 
 `core/channelLog/` is the pure model. A `ChannelLog` holds `seq`, the log
 position through which every change is known; `rows`, every row known by
@@ -171,7 +188,9 @@ for the pill, and a `generation`); the retention `floor`; and
 - **Events** (`events.ts`): each of the five message events yields a row at
   the event's seq. The next seq advances the position; one further on is
   applied too (higher wins) but marks a gap; one at or below is ignored.
-  Before the first page (seq 0) rows are kept and the page decides.
+  Before the first page rows are kept and the page decides; `hasPage`
+  (`pages.ts`) is what says a page has been taken, since a channel with
+  no messages yet is at 0 after its page as before it.
 - **Pages** (`pages.ts`): `opened` and `jumped` replace a view's range and
   move its generation, so a page out for the old range is dropped when it
   answers; `paged` grows the range. The first page a log sees sets its seq;
@@ -194,21 +213,57 @@ for the pill, and a `generation`); the retention `floor`; and
   or while every item is still the same object, so a change to rows a
   list does not show leaves its identity alone.
 
-The reader's own send is not in the model: as today, the composer awaits
+The reader's own send is not in the model: the composer awaits
 `SendMessage` and the answer's row (a `Message` with a seq) is merged like
 an event's.
 
 `api/channelLog.ts` is the loader: a Zustand store of logs by channel
 (`api/channelLogStore.ts`, with each view's `loading` and `landOn` and the
-hooks `useChannelItems`, `useThreadItems`, `useView`, `useViewStatus`),
-and `openChannel`, `openThread`, `loadOlder` and `loadNewer` (one request
-per view per direction), `jumpTo`, `jumpToLatest`, `applyEvent`,
-`patchThread`, `reconnected` and `forget` (which also ends the epoch a
-page still out was asked in, so its answer is dropped).
+hooks `useChannelItems`, `useThreadItems`, `useRow`, `useView`,
+`useViewStatus`), and `openChannel`, `openThread`, `loadOlder` and
+`loadNewer` (one request per view per direction), `jumpTo`,
+`jumpToLatest`, `applyEvent`, `patchThread`, `reconnected` and `forget`
+(which also ends the epoch a page still out was asked in, so its answer
+is dropped). Two more are for what the app has in hand before the
+server's event: `holdRow` merges a row by seq exactly as an event's (the
+answer to a send or an edit, a thread's root fetched for the panel), and
+`patchRow` changes a held row at its own seq (a reaction or a pin before
+the server answers, the reader's own delete hidden at once), so the event
+that follows, at a higher seq, replaces it, and a refusal is reverted
+with another patch.
 `api/channelLogCatchUp.ts` runs one `ListChanges` loop per channel, shared
 by concurrent callers, retried with backoff capped at 15 s while the
 socket is open; a refusal that won't change (no access, not found, signed
 out, a bad request) ends it with `needsCatchUp` still set.
+
+**Who holds a log.** `useOpenView(view, landing?)` in `api/channelLog.ts`
+is how a page or a panel takes a channel: it holds the log while mounted
+and opens the view on its newest page (asked for again a few times when
+the request fails, as the query it replaced was), unless the caller is
+landing on a message (a `?m=` link, a thread's focused reply), in which
+case the list's jump brings the page around it instead, so no second
+page races the first. The channel page holds the channel it shows and
+each open thread holds its channel too; the log is forgotten when the
+last holder leaves, so what is held is what is on screen, as the old
+store forgot a window when the cache let go of it. Memory is bounded by
+`LOG_CAP` per view, with rows outside every view bounded only by the
+retention floor until the log goes (the proposal's known leftovers).
+
+**What goes where.** `MessageList` draws `useChannelItems` or
+`useThreadItems` and reads `useView` for the edges and the pill's count
+and `useViewStatus` for `loading` and `landOn`. The composer `holdRow`s
+the send's answer, or `jumpToLatest` when the view stops short of the
+newest row. `api/reactions.ts` and `api/pins.ts` `patchRow` before the
+server answers. `api/threads.ts` keeps the reader's half of a root's
+thread summary (`participating`, `muted`, `unreadCount`, which are not
+row facts and carry no seq) through `patchThread`, computing it from the
+held root before the `thread_changed` event is applied and only when the
+log applied it, so a copy the catch-up already brought is never counted
+twice. A row's author is drawn through `core/author.ts`, which overlays
+the member from the members list the sidebar already holds on the row's
+embedded author, so `member_updated` and `groups_changed` refetch the
+members and groups and never the messages; someone no longer a member
+is shown as embedded.
 
 ## The api/ layer
 
@@ -217,14 +272,12 @@ are testable and reusable:
 
 - `queries.ts`, `channels.ts`, `dms.ts`, `invites.ts`, `activity.ts` —
   query keys and fetchers.
-- `history.ts` — the message windows: each runs the shared timeline
-  reducer, whose state sits beside the window in the query cache, and
-  `timelineLoads.ts` makes the requests that fill it
-  ([realtime.md](realtime.md#history-windows)).
-- `ws.ts` — the realtime client and the event → cache mapping. A message
-  event reaches every timeline of its channel through the reducer
-  (`applyTimelineEvent`); the copies beside them (a thread's root, a
-  linked message) take it from `core/channelTimeline.ts` directly.
+- `channelLog.ts`, `channelLogStore.ts`, `channelLogCatchUp.ts` — the
+  channel logs: the store, the requests that fill a view, and the
+  catch-up ([realtime.md](realtime.md#the-channel-log-on-the-client)).
+- `ws.ts` — the realtime client and the event → store mapping. An event
+  about a message goes to its channel's log (`applyEvent`); every other
+  event is applied to the query cache.
 - `unreads.ts` — the unread/badge derivations, which route an empty space
   id to the DM list instead of a space's channels.
 - `mutes.ts` — the one place the effective mute is derived for the
@@ -251,13 +304,22 @@ with web). `scripts/check-core.mjs` refuses any import from outside
 - `permissions.ts` — reads `Space.my_permissions` (and `GetMe`'s permissions
   through `useMyPermissions` in `api/queries.ts`) to decide which controls
   to show; it keeps no copy of the role table. The server still enforces.
+- `channelLog/` — the channel log's model ([State](#state-one-source-of-truth)).
+- `author.ts` — who a message is shown as being from: the member as the
+  members list has them now, over the row's embedded author.
+- `messageList.ts`, `channelTimeline.ts`, `timelineState.ts`,
+  `timelinePaging.ts`, `timelineEvents.ts` and `timelineItems.ts` — the
+  timeline reducer the web app ran before the channel log. **The web app
+  no longer imports them**; they stay, each headed with a note saying so,
+  because the mobile app's channel screen runs them until it re-points
+  at `core/channelLog` (channel-log.md step 7). What they are:
 - `messageList.ts` — what a new message, an edit, a deletion or a reaction
   does to a list of messages.
 - `channelTimeline.ts` — a window of a channel's messages, or of one
   thread's replies: what a realtime event does to it, and how a
   reconnect's newest page joins the history already held.
 - `timelineState.ts` — a timeline as a reducer, which the app's channel
-  screen and web's windows (`api/history.ts`) both run. It holds what is
+  screen runs. It holds what is
   shown (a window of messages, with an optional header beside it), the
   requests out under ids the caller picks — an open (a new window: the
   newest page, or one around a message), a catch-up after a reconnect, a
@@ -491,13 +553,14 @@ to look for what changes below 768px.
 
 ## The message list
 
-`routes/Channel/MessageList/` draws a timeline's window
-([realtime.md](realtime.md#history-windows)) for the channel and, with a
-`threadRoot`, for a thread in the side panel. It is virtualised with
+`routes/Channel/MessageList/` draws a view of the channel log
+([State](#state-one-source-of-truth)): the channel's, or with a
+`threadRoot` that thread's, in the side panel. It is virtualised with
 `@tanstack/react-virtual`: only the rows near the viewport are in the DOM,
 each positioned at its measured offset inside `.message-list-body`, which
-is as tall as the whole window. `.message-list` stays an ordinary
-top-to-bottom scroll container that starts at the bottom.
+is as tall as the whole view. `.message-list` stays an ordinary
+top-to-bottom scroll container that starts at the bottom. Below, "the
+window" is what the view's range holds.
 
 - **One item per row** (`MessageList/items.ts`): the head (the window's
   older edge — "Loading earlier messages…", the beginning marker with the
@@ -539,8 +602,11 @@ top-to-bottom scroll container that starts at the bottom.
   bottom; the virtualiser keeps retargeting as rows around the target are
   measured. A jump to a row the window holds but the DOM doesn't scrolls
   to it, and the row flashes once it renders; only a row outside the
-  window asks the server (`jumpTo` in `api/timelineLoads.ts`). In a
+  window asks the server (`jumpTo` in `api/channelLog.ts`). In a
   thread, a jump to the root lands on the head when the head shows it.
+  A deep link is the same jump: the view is not opened on its newest page
+  for it (`useOpenView`), so the page around the message is the first
+  the reader sees; a message that isn't there opens the newest page.
 - **Edge loading is by the rows on screen** (`MessageList/edges.ts`): on
   each of the virtualiser's changes, the rows at the list's own
   `scrollTop` and its bottom edge are looked up, and when they come within
@@ -558,8 +624,11 @@ top-to-bottom scroll container that starts at the bottom.
   `data-oldest`. A browser spec reads those rather than counting
   `.message` elements, which are only the rows near the viewport.
 
-`WINDOW_CAP` still bounds the window (`api/history.ts`); with the DOM no
-longer the reason for it, a later step can lift it.
+The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
+`core/channelLog/types.ts`), which is about memory rather than the DOM:
+past it the end away from the reader is pruned, and that end's flag is
+set, so paging far back makes the view stop being live until "Jump to
+latest".
 
 ## The side panel
 

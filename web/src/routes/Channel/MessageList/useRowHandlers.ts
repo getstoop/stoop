@@ -1,9 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import { patchRow } from "../../../api/channelLog";
 import { chatClient } from "../../../api/clients";
 import { errorText } from "../../../api/errors";
 import { setMessagePinned } from "../../../api/pins";
-import { removeMessageFromCache } from "../../../api/ws";
 import type { Group } from "../../../gen/stoop/chat/v1/group_pb";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 import { confirm, notice } from "../../../stores/dialogs";
@@ -26,26 +26,27 @@ export function useRowHandlers(spaceId: string, channelId: string) {
     anchor: DOMRect;
   } | null>(null);
 
-  const remove = useCallback(
-    async (message: Message) => {
-      const ok = await confirm({
-        title: "Delete this message?",
-        action: "Delete",
-        danger: true,
-      });
-      if (!ok) return;
-      try {
-        await chatClient.deleteMessage({ messageId: message.id });
-        // A root with replies stays as a placeholder; the server's update
-        // for it fills the row in.
-        if (!message.thread)
-          removeMessageFromCache(queryClient, message.channelId, message.id);
-      } catch (err) {
-        notice({ title: "Couldn't delete the message", body: errorText(err) });
-      }
-    },
-    [queryClient],
-  );
+  const remove = useCallback(async (message: Message) => {
+    const ok = await confirm({
+      title: "Delete this message?",
+      action: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await chatClient.deleteMessage({ messageId: message.id });
+      // Gone from the list at once, as the message_deleted that follows
+      // makes it; a root with replies stays as a placeholder, which the
+      // server's update for it fills in.
+      if (!message.thread)
+        patchRow(message.channelId, message.id, (row) => ({
+          ...row,
+          deleted: true,
+        }));
+    } catch (err) {
+      notice({ title: "Couldn't delete the message", body: errorText(err) });
+    }
+  }, []);
 
   // The card goes for everyone; the server's update for the message
   // takes it out of the row.

@@ -1,3 +1,5 @@
+// Kept for the mobile app, which imports it through @stoop/core; the web
+// app no longer uses it (it runs core/channelLog, proposals/channel-log.md).
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import { type Page, withNewestPage } from "./channelTimeline";
 import { type Header, type Held, withTimelineEvent } from "./timelineEvents";

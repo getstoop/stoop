@@ -1,5 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { caughtUp, nextSince } from "../core/channelLog";
+import { caughtUp, hasPage, nextSince } from "../core/channelLog";
 import { useConnectionStore } from "../stores/connection";
 import { logOf, updateLog } from "./channelLogStore";
 import { chatClient } from "./clients";
@@ -41,7 +41,7 @@ async function catchUpUntilDone(channelId: string) {
   for (;;) {
     const log = logOf(channelId);
     // Nothing owed, or no page yet: the first page's seq is the start.
-    if (!log?.needsCatchUp || log.seq === 0) return;
+    if (!log?.needsCatchUp || !hasPage(log)) return;
     try {
       await catchUpPages(channelId, log.seq);
       return;

@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import {
   type DragEvent,
@@ -9,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useLinkableChannels } from "../../api/channelLinks";
+import { holdRow, isLive, jumpToLatest } from "../../api/channelLog";
 import { chatClient } from "../../api/clients";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
@@ -20,7 +20,6 @@ import {
 } from "../../api/files";
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { useChannelGroups } from "../../api/groups";
-import { isLive, timelineId, useHistoryStore } from "../../api/history";
 import { useInstanceStatus, useSpaces } from "../../api/queries";
 import {
   replaceShortcodes,
@@ -28,8 +27,7 @@ import {
   searchShortcodes,
   shortcodeQueryAt,
 } from "../../api/shortcodes";
-import { jumpToLatest } from "../../api/timelineLoads";
-import { appendMessage, sendClientEvent } from "../../api/ws";
+import { sendClientEvent } from "../../api/ws";
 import {
   AttachmentStrip,
   type PendingAttachment,
@@ -90,7 +88,7 @@ export function Composer({
   // Reply into this root's thread instead of the channel.
   threadRootId?: string;
 }) {
-  const timeline = { channelId, rootId: threadRootId };
+  const view = { channelId, rootId: threadRootId };
   // A thread reply may also show in the channel; reset after each send.
   const [alsoSend, setAlsoSend] = useState(false);
   const [draft, setDraft] = useState("");
@@ -195,7 +193,6 @@ export function Composer({
     });
     setAttachError(null);
   }, [channelId]);
-  const queryClient = useQueryClient();
   const members = usePeople(spaceId, channelId);
   const { data: spaces } = useSpaces();
   const space = spaces?.find((s) => s.id === spaceId);
@@ -388,16 +385,12 @@ export function Composer({
     }
     releasePreviews();
     try {
-      // The WS event usually lands first; appendMessage dedupes by ID either
-      // way. Sent from inside history, the window is replaced by the newest
+      // The WS event usually lands first; the log merges by seq either
+      // way. Sent from inside history, the view is replaced by the newest
       // page so the message is seen where it landed.
       if (res.message) {
-        const { channels } = useHistoryStore.getState();
-        if (isLive(channels[timelineId(timeline)])) {
-          appendMessage(queryClient, res.message);
-        } else {
-          await jumpToLatest(queryClient, timeline);
-        }
+        if (isLive(view)) holdRow(channelId, res.message);
+        else await jumpToLatest(view);
       }
     } catch (err) {
       setAttachError(errorText(err));

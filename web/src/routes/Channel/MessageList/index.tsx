@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   defaultRangeExtractor,
@@ -15,25 +14,26 @@ import {
   useState,
 } from "react";
 import { useLinkableChannels } from "../../../api/channelLinks";
+import {
+  hasOpened,
+  jumpTo as jumpViewTo,
+  jumpToLatest as jumpViewToLatest,
+  landed,
+  loadNewer,
+  loadOlder,
+  readStatus,
+  readView,
+  useChannelItems,
+  useThreadItems,
+  useView,
+  useViewStatus,
+} from "../../../api/channelLog";
 import { usePeople } from "../../../api/dms";
 import { useChannelGroups } from "../../../api/groups";
-import {
-  isLive,
-  landed,
-  takeAroundThread,
-  timelineId,
-  useHistoryStore,
-} from "../../../api/history";
 import { useInstanceStatus, useMe, useSpaces } from "../../../api/queries";
 import { toggleReaction } from "../../../api/reactions";
 import { historyRetentionNote } from "../../../api/retention";
 import { messagePath, shareUrl, threadPath } from "../../../api/shareLinks";
-import {
-  jumpTo as jumpWindowTo,
-  jumpToLatest as jumpWindowToLatest,
-  loadNewer,
-  loadOlder,
-} from "../../../api/timelineLoads";
 import { GalleryMedia, galleryMedia } from "../../../components/Attachments";
 import { EmojiPicker } from "../../../components/EmojiPicker";
 import { GroupCard } from "../../../components/GroupCard";
@@ -66,19 +66,18 @@ import { useRowHandlers } from "./useRowHandlers";
 // Rows rendered beyond the visible ones at each end, so a scroll has
 // something to show before the next render.
 const OVERSCAN = 8;
-// Within this many rows of the window's end, the next page is asked for.
+// Within this many rows of the view's end, the next page is asked for.
 const EDGE_LEAD = 4;
 // Within this of the bottom counts as at it: arrivals follow, the pill
 // hides, and a row growing (an image arriving) keeps the view at the end.
 const NEAR_BOTTOM = 120;
 
-// A timeline's rows, virtualised: only the rows near the viewport are in
-// the DOM, positioned by the virtualiser from measured heights, inside a
-// body the height of the whole window. The window itself (api/history.ts)
-// is what the rows are drawn from. docs/architecture/web.md → The message
-// list.
+// A view's rows, virtualised: only the rows near the viewport are in the
+// DOM, positioned by the virtualiser from measured heights, inside a body
+// the height of the whole view. The rows come from the channel log
+// (api/channelLog.ts): the channel's view, or with a threadRoot that
+// thread's. docs/architecture/web.md → The message list.
 export function MessageList({
-  messages,
   spaceId,
   channelId,
   channelName,
@@ -94,7 +93,6 @@ export function MessageList({
   threadRoot,
   threadsAllowed = false,
 }: {
-  messages: Message[];
   spaceId: string;
   channelId: string;
   // As it reads in a sentence: "#general", a private channel's bare name,
@@ -109,7 +107,7 @@ export function MessageList({
   // "" means every message was (never opened before), null means the
   // snapshot isn't taken yet.
   newAfterId: string | null;
-  // A message to scroll to and flash once it's in the window (deep link).
+  // A message to scroll to and flash once it's in the view (deep link).
   jumpTarget?: string;
   // Which following of a link this is: the same target lands again when
   // it changes.
@@ -124,9 +122,8 @@ export function MessageList({
   // Messages here may start a thread (never in an announcement channel).
   threadsAllowed?: boolean;
 }) {
-  const queryClient = useQueryClient();
   const threadRootId = threadRoot?.id;
-  const timeline = useMemo(
+  const view = useMemo(
     () => ({ channelId, rootId: threadRootId }),
     [channelId, threadRootId],
   );
@@ -152,11 +149,24 @@ export function MessageList({
   const groups = useChannelGroups(spaceId, channelId);
   const linkable = useLinkableChannels(spaceId, channelId);
 
-  const history = useHistoryStore(
-    (state) => state.channels[timelineId(timeline)],
-  );
-  const live = isLive(history);
-  const rootShown = !!threadRoot && !!history && !history.hasOlder;
+  // What the view shows, oldest first. A thread's items lead with its
+  // root when the log holds it; the root is drawn on the head instead.
+  const channelRows = useChannelItems(channelId);
+  const threadRows = useThreadItems(channelId, threadRootId ?? "");
+  const messages = useMemo(() => {
+    if (!threadRootId) return channelRows;
+    return threadRows[0]?.id === threadRootId
+      ? threadRows.slice(1)
+      : threadRows;
+  }, [threadRootId, channelRows, threadRows]);
+  const range = useView(channelId, threadRootId);
+  const status = useViewStatus(view);
+  // Before its first page a view says nothing about its edges: not at its
+  // start, and live, so the pill waits for the page.
+  const opened = hasOpened(range);
+  const atStart = opened && !range?.hasOlder;
+  const live = !opened || !range?.hasNewer;
+  const rootShown = !!threadRoot && atStart;
   // The first unread message that isn't ours (our own sends are never "new").
   const firstNewId = firstNewMessageId(messages, newAfterId, me?.id);
   const items = useMemo(
@@ -178,10 +188,10 @@ export function MessageList({
 
   // The virtualiser. Rows are keyed by message, so a page prepended keeps
   // every measured height. Edge loading asks for the next page when the
-  // rows on screen come within EDGE_LEAD of the window's end; it waits for
+  // rows on screen come within EDGE_LEAD of the view's end; it waits for
   // the first landing, or opening a channel (rendered at its top before it
   // lands at the bottom) would page straight back. Before a page is asked
-  // for we note where the edge's message sits on screen; once the window
+  // for we note where the edge's message sits on screen; once the view
   // has changed we put it back there, so neither prepends nor pruning move
   // the view. Whether the view is at the bottom is tracked below.
   const listRef = useRef<HTMLDivElement>(null);
@@ -213,10 +223,9 @@ export function MessageList({
     onChange: (instance) => {
       const list = listRef.current;
       if (!landedOnce.current || !list) return;
-      // Not while a replaced window has yet to land: a row measured as it
+      // Not while a replaced range has yet to land: a row measured as it
       // mounts reports before the landing scroll, from wherever the view was.
-      if (useHistoryStore.getState().channels[timelineId(timeline)]?.landOn)
-        return;
+      if (readStatus(view).landOn) return;
       // From the element's own scroll position, which a scroll command sets
       // at once; the virtualiser's range may still describe where the view
       // was before a landing when a measurement reports.
@@ -236,8 +245,8 @@ export function MessageList({
       // The anchor is noted only for a page that will be asked for, and
       // dropped if it brings nothing: one left over would put the view
       // back at a stale position on the next change (an arrival).
-      const state = useHistoryStore.getState().channels[timelineId(timeline)];
-      if (!state || state.loading) return;
+      const held = readView(view);
+      if (!held || !hasOpened(held) || readStatus(view).loading) return;
       const page = (
         edge: Anchor["edge"],
         id: string | undefined,
@@ -247,13 +256,13 @@ export function MessageList({
         anchor.current = element
           ? { edge, id, top: element.getBoundingClientRect().top }
           : null;
-        void load(queryClient, timeline).then((brought) => {
+        void load(view).then((brought) => {
           if (brought === 0) anchor.current = null;
         });
       };
-      if (reached.older && !before.older && state.hasOlder) {
+      if (reached.older && !before.older && held.hasOlder) {
         page("older", messages[0]?.id, loadOlder);
-      } else if (reached.newer && !before.newer && state.hasNewer) {
+      } else if (reached.newer && !before.newer && held.hasNewer) {
         page("newer", messages[messages.length - 1]?.id, loadNewer);
       }
     },
@@ -304,26 +313,25 @@ export function MessageList({
   }, [rowIdPrefix]);
   useEffect(flashPending);
 
-  // After every window change, before it is painted. The edges start over:
-  // the rows on screen keep their indexes when a page is appended, so no
-  // range change would say the end is further off now. Then either land
-  // where a jump asked, once that's rendered, or put the anchored row back
-  // where it was on screen, from its measured offset in the new window.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs after every window change
+  // After every change to the rows, before it is painted. The edges start
+  // over: the rows on screen keep their indexes when a page is appended,
+  // so no range change would say the end is further off now. Then either
+  // land where a jump asked, once that's rendered, or put the anchored row
+  // back where it was on screen, from its measured offset among the rows.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs after every change to the rows
   useLayoutEffect(() => {
     edges.current = { older: false, newer: false };
-    const land =
-      useHistoryStore.getState().channels[timelineId(timeline)]?.landOn;
+    const land = readStatus(view).landOn;
     if (land) {
       anchor.current = null;
       if (land === "bottom") {
-        landed(timeline);
+        landed(view);
         scrollToBottom();
         return;
       }
       const index = indexOfMessage(items, land.id);
       if (index < 0) return;
-      landed(timeline);
+      landed(view);
       scrollToItem(index);
       pendingFlash.current = land.id;
       return;
@@ -341,7 +349,7 @@ export function MessageList({
     anchor.current = null;
     const index = indexOfMessage(items, pinned.id);
     // getTotalSize brings the measurements up to date with the rows
-    // measured as this window mounted, before their offsets are read.
+    // measured as this page mounted, before their offsets are read.
     virtualizer.getTotalSize();
     const start = virtualizer.measurementsCache[index]?.start;
     if (index < 0 || start === undefined) return;
@@ -360,8 +368,8 @@ export function MessageList({
     virtualizer.scrollToIndex(editingIndex, { align: "auto" });
   }, [editingId]);
 
-  // Jump to a message and flash it. If it isn't in the window, one round
-  // trip replaces the window with a page centred on it.
+  // Jump to a message and flash it. If the view doesn't hold it, one round
+  // trip replaces the range with a page centred on it.
   const jumpTo = useCallback(
     async (id: string) => {
       const index = indexOfMessage(itemsRef.current, id);
@@ -371,11 +379,7 @@ export function MessageList({
         flashPending();
         return true;
       }
-      const { found, threadRootId: thread } = await jumpWindowTo(
-        queryClient,
-        timeline,
-        id,
-      );
+      const { found, threadRootId: thread } = await jumpViewTo(view, id);
       // A reply in a thread: the channel lands on its root, and the thread
       // opens at the reply.
       if (thread) {
@@ -388,35 +392,26 @@ export function MessageList({
       }
       return found;
     },
-    [scrollToItem, flashPending, queryClient, timeline, spaceId, channelId],
+    [scrollToItem, flashPending, view, spaceId, channelId],
   );
 
-  // A deep link: land on the message as soon as the window holds it (the
-  // query opened around it), or fetch that window. The param is then
-  // dropped so leaving and returning opens the channel as usual.
+  // A deep link: the jump brings the page around the message and lands on
+  // it (the view was not opened on its newest page for it, useOpenView).
+  // A message that isn't there (deleted, a bogus link) opens the newest
+  // page instead. The param is then dropped so leaving and returning
+  // opens the channel as usual.
   const navigate = useNavigate();
   const [jumped, setJumped] = useState<string | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fires once the first window is in
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fires once per link followed
   useEffect(() => {
     const visit = `${jumpVisit}:${jumpTarget}`;
-    if (!jumpTarget || jumped === visit || messages.length === 0) return;
+    if (!jumpTarget || jumped === visit) return;
     setJumped(visit);
-    // The first window already came centred on a reply's root: land there
-    // and open the thread at the reply, without asking the server again.
-    const thread = takeAroundThread(timeline);
-    if (thread && thread !== jumpTarget) {
-      void jumpTo(thread);
-      openSidePanel("thread", {
-        spaceId,
-        channelId,
-        rootId: thread,
-        focusId: jumpTarget,
-      });
-    } else {
-      void jumpTo(jumpTarget).then((ok) => {
-        if (!ok) scrollToBottom();
-      });
-    }
+    void jumpTo(jumpTarget).then(async (ok) => {
+      if (ok) return;
+      await jumpViewToLatest(view);
+      scrollToBottom();
+    });
     // A thread's link was read by the side panel; only a channel's sits
     // in the address.
     if (threadRootId) return;
@@ -435,11 +430,11 @@ export function MessageList({
         replace: true,
       });
     }
-  }, [jumpTarget, jumpVisit, messages.length > 0]);
+  }, [jumpTarget, jumpVisit]);
 
-  // Whether the view is at (or within a screen of) the window's end.
-  // While it isn't — or the window isn't live — arrivals don't move the
-  // view; they count up on the "Jump to latest" pill instead.
+  // Whether the view is at (or within a screen of) the rows' end. While it
+  // isn't — or the range isn't live — arrivals don't move the view; they
+  // count up on the "Jump to latest" pill instead.
   const [atBottom, setAtBottom] = useState(true);
   const [unseen, setUnseen] = useState(0);
   useEffect(() => {
@@ -455,26 +450,27 @@ export function MessageList({
     list.addEventListener("scroll", onScroll, { passive: true });
     return () => list.removeEventListener("scroll", onScroll);
   }, []);
-  const pendingNewer = history?.pendingNewer ?? 0;
+  const pendingNewer = range?.pendingNewer ?? 0;
   const newCount = unseen + pendingNewer;
   const jumpToLatest = async () => {
     setUnseen(0);
     if (live) scrollToBottom();
-    else await jumpWindowToLatest(queryClient, timeline);
+    else await jumpViewToLatest(view);
   };
 
   // Land on the "New messages" line when there is one, else the bottom;
   // subsequent arrivals scroll to the bottom as before. A page or a jump
-  // that replaces the window is neither an arrival nor a reason to move.
+  // that replaces the range is neither an arrival nor a reason to move.
   const scrolledToDivider = useRef(false);
   const seenNewest = useRef<string | undefined>(undefined);
   const newestId = messages[messages.length - 1]?.id;
   const newestMine = messages[messages.length - 1]?.author?.id === me?.id;
   // biome-ignore lint/correctness/useExhaustiveDependencies: react to a message arriving at the end (not to history being prepended)
   useLayoutEffect(() => {
-    // Nothing to land on yet, or nothing left (the last message deleted):
-    // the next window is the first again, so its message lands at the
-    // bottom rather than counting as a replaced window.
+    // Nothing to land on yet (the first page is still out), or nothing
+    // left (the last message deleted): the next range is the first again,
+    // so its message lands at the bottom rather than counting as a
+    // replaced range.
     if (messages.length === 0) {
       seenNewest.current = undefined;
       return;
@@ -578,7 +574,7 @@ export function MessageList({
   return (
     <GalleryMedia.Provider value={media}>
       <div className="message-list-wrap">
-        {/* data-rows and data-oldest say what the window holds; the DOM
+        {/* data-rows and data-oldest say what the view holds; the DOM
         holds only the rows near the viewport. */}
         <div
           className="message-list"
@@ -603,7 +599,8 @@ export function MessageList({
                       key={item.key}
                       {...position}
                       measure={virtualizer.measureElement}
-                      history={history}
+                      atStart={atStart}
+                      loading={status.loading}
                       threadRoot={threadRoot}
                       rootRow={threadRoot && row(threadRoot, false)}
                       replyCount={
@@ -618,7 +615,7 @@ export function MessageList({
                     />
                   );
                 case "foot":
-                  // The window's newer edge: pages forward while the window
+                  // The view's newer edge: pages forward while the range
                   // isn't live, and closes the list with its padding.
                   return (
                     <div
@@ -629,7 +626,7 @@ export function MessageList({
                       ref={virtualizer.measureElement}
                       style={{ top: position.top }}
                     >
-                      {!live && history?.loading
+                      {!live && status.loading
                         ? "Loading newer messages…"
                         : null}
                     </div>
@@ -698,7 +695,7 @@ export function MessageList({
               onPick={(emoji) =>
                 me &&
                 rows.picker &&
-                toggleReaction(queryClient, rows.picker.message, emoji, me.id)
+                toggleReaction(rows.picker.message, emoji, me.id)
               }
               onClose={() => rows.setPicker(null)}
             />

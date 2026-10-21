@@ -3,12 +3,13 @@
 // the loader in web/src/api/channelLog.ts makes the requests and keeps the
 // logs in its store.
 
+export { withArrivals } from "./arrivals";
 export { caughtUp, nextSince, reconnected } from "./catchUp";
 export { channelOfEvent, withEvent } from "./events";
 export { withFloor } from "./floor";
 export { channelItems, forgetItems, threadItems } from "./items";
 export { type ThreadOverlay, withThreadOverlay } from "./overlay";
-export { jumped, opened, type PageAnswer, paged } from "./pages";
+export { hasPage, jumped, opened, type PageAnswer, paged } from "./pages";
 export { isShown, showsInChannel } from "./rows";
 export {
   type ChannelLog,

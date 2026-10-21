@@ -63,6 +63,17 @@ describe("the position", () => {
     expect(log.rows.has(id(0))).toBe(true);
   });
 
+  it("moves on from 0 once a page put the log there (an empty channel)", () => {
+    const empty = openedOn([], { hasOlder: false });
+    expect(empty.seq).toBe(0);
+    const first = withEvent(empty, created(id(0), 1));
+    expect(first.seq).toBe(1);
+    expect(ids(channelItems(first))).toEqual([id(0)]);
+    const gapped = withEvent(first, created(id(1), 3));
+    expect(gapped.needsCatchUp).toBe(true);
+    expect(withEvent(first, created(id(0), 1))).toBe(first);
+  });
+
   it("ignores another channel's event", () => {
     const log = live();
     expect(withEvent(log, created("x", 11, { channelId: "c2" }))).toBe(log);

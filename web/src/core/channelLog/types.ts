@@ -26,7 +26,9 @@ export type View = {
 export type ChannelLog = {
   channelId: string;
   // The log position through which every change is known; 0 before the
-  // first page. A bigint on the wire, a number here (safe below 2^53).
+  // first page, and after it while the channel has had no writes (hasPage
+  // in pages.ts tells the two apart). A bigint on the wire, a number here
+  // (safe below 2^53).
   seq: number;
   // Every row known, by id, tombstones (deleted) included. Replaced, never
   // mutated, so a list can tell at a glance whether anything changed.

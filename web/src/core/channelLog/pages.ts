@@ -14,6 +14,16 @@ export type PageAnswer = {
   res: ListMessagesResponse;
 };
 
+// Whether a page has set the log's position: opened and jumped move the
+// generation of the view they fill. The position itself can't say, since
+// a channel with no messages yet is at 0 after its page as before it.
+export function hasPage(log: ChannelLog): boolean {
+  return (
+    log.channel.generation > 0 ||
+    Object.values(log.threads).some((view) => view.generation > 0)
+  );
+}
+
 // A new range for the view: the page's rows, edge to edge. The first page
 // a log sees sets its seq; later pages never move it, a page not being a
 // complete picture of the changes. The generation moves, so a page still
@@ -35,7 +45,7 @@ export function opened(log: ChannelLog, answer: PageAnswer): ChannelLog {
     {
       ...log,
       rows: mergeRows(log.rows, rows, false),
-      seq: log.seq === 0 ? Number(res.channelSeq) : log.seq,
+      seq: hasPage(log) ? log.seq : Number(res.channelSeq),
     },
     answer.rootId,
     replaced,

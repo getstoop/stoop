@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { hasAttention } from "../api/notifications";
 import { markThreadRead } from "../api/threads";
@@ -13,7 +12,6 @@ export function useMarkThreadRead(
   rootId: string,
   summary: ThreadSummary | undefined,
 ) {
-  const queryClient = useQueryClient();
   const key = summary ? `${summary.replyCount}:${summary.unreadCount}` : "";
   useEffect(() => {
     if (!key || !rootId) return;
@@ -21,7 +19,7 @@ export function useMarkThreadRead(
     const run = () => {
       if (done || !hasAttention()) return;
       done = true;
-      markThreadRead(queryClient, channelId, rootId).catch(() => {
+      markThreadRead(channelId, rootId).catch(() => {
         done = false;
       });
     };
@@ -32,5 +30,5 @@ export function useMarkThreadRead(
       document.removeEventListener("visibilitychange", run);
       window.removeEventListener("focus", run);
     };
-  }, [key, channelId, rootId, queryClient]);
+  }, [key, channelId, rootId]);
 }

@@ -1,5 +1,6 @@
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useChannelItems, useOpenView } from "../../api/channelLog";
 import { channelNameText, isAnnouncement } from "../../api/channels";
 import {
   dmIsGroup,
@@ -8,7 +9,7 @@ import {
   useDirectMessages,
   usePeople,
 } from "../../api/dms";
-import { useMe, useMessages, useSpaces } from "../../api/queries";
+import { useMe, useSpaces } from "../../api/queries";
 import { joinVoice } from "../../api/voice";
 import { ChannelGlyph } from "../../components/ChannelGlyph";
 import { ChannelName } from "../../components/ChannelName";
@@ -76,15 +77,15 @@ export function ChannelView() {
       : "";
   const label = !isDM && channel ? <ChannelName channel={channel} /> : title;
   const isGroup = !!dm && dmIsGroup(dm);
-  // ?m=<messageId>: open the window around that message rather than the
+  // ?m=<messageId>: open the view around that message rather than the
   // newest page (activity, shared links).
   // A thread link opens the channel at its root, which ?t= names (the
   // server centres a bare ?m= reply's window there too); the side panel
   // opens the thread itself.
   const { m, t } = useSearch({ strict: false }) as { m?: string; t?: string };
   // Held for the channel it arrived in: the side panel takes a thread
-  // link's ?t= and ?m= out of the address before the window may have
-  // loaded, and the channel must still land on the root. `visit` counts
+  // link's ?t= and ?m= out of the address before the first page may have
+  // landed, and the channel must still land on the root. `visit` counts
   // the links followed, so the same message linked twice lands twice.
   const [arrival, setArrival] = useState<{
     channelId: string;
@@ -109,7 +110,10 @@ export function ChannelView() {
     setArrival({ ...arrival, inAddress: false });
   }
   const jumpTarget = arrival?.channelId === channelId ? arrival.id : undefined;
-  const { data: messages } = useMessages({ channelId }, jumpTarget);
+  // The channel's log, held while this page shows it: its newest page, or
+  // for a link the page around the message (the list's jump brings it).
+  useOpenView({ channelId }, jumpTarget);
+  const messages = useChannelItems(channelId);
   // Deleted (or never existed): back to the space's first channel, or
   // the DM list.
   const navigate = useNavigate();
@@ -154,7 +158,7 @@ export function ChannelView() {
     setEditingId(null);
   }, [channelId]);
   const editLast = () => {
-    const mine = messages?.filter((m) => m.author?.id === me?.id) ?? [];
+    const mine = messages.filter((m) => m.author?.id === me?.id);
     const last = mine[mine.length - 1];
     if (last) setEditingId(last.id);
   };
@@ -191,7 +195,6 @@ export function ChannelView() {
         <>
           <MessageList
             key={channelId}
-            messages={messages ?? []}
             spaceId={spaceId}
             channelId={channelId}
             channelName={title}

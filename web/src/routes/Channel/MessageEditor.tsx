@@ -1,10 +1,9 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
+import { holdRow } from "../../api/channelLog";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { replaceShortcodes } from "../../api/shortcodes";
-import { replaceMessage } from "../../api/ws";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import type { MentionContext } from "../../components/RichEditor/mentions";
@@ -28,7 +27,6 @@ export function MessageEditor({
   const [value, setValue] = useState(message.content);
   const [error, setError] = useState<string | null>(null);
   const [formats, setFormats] = useState<Format[]>([]);
-  const queryClient = useQueryClient();
   const ref = useRef<RichField>(null);
   const touchKeyboard = useTouchKeyboard();
 
@@ -48,7 +46,8 @@ export function MessageEditor({
         messageId: message.id,
         content,
       });
-      if (res.message) replaceMessage(queryClient, res.message);
+      // The answer is the row at its new seq; the event will say the same.
+      if (res.message) holdRow(res.message.channelId, res.message);
       onDone();
     } catch (err) {
       setError(errorText(err));

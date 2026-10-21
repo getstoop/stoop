@@ -1,5 +1,14 @@
 import { BASE } from "../e2e/seed.mjs";
-import { expect, gotoShared, pastGate, say, seed, signIn, test } from "./lib";
+import {
+  expect,
+  gotoShared,
+  pastGate,
+  reload,
+  say,
+  seed,
+  signIn,
+  test,
+} from "./lib";
 
 declare global {
   interface Window {
@@ -9,20 +18,18 @@ declare global {
 
 // Windowed history (STOOP-57): jumping to a message that isn't loaded
 // replaces the timeline with one page around it; scrolling down pages
-// forward until the window is live again; the window never holds more than
-// WINDOW_CAP rows; arrivals while windowed count on the pill; ?m= deep
-// links open around a message. The list is virtualised, so the window is
-// read from the list's data-rows; the DOM holds only the rows near the
-// viewport (virtual-list.spec.ts), far fewer than the cap.
+// forward until the window is live again, holding every row paged in
+// (the channel log's cap, LOG_CAP at 2,000, is beyond what a spec can
+// seed, so pruning is the model's unit tests' to prove); arrivals while
+// windowed count on the pill; ?m= deep links open around a message. The
+// list is virtualised, so the window is read from the list's data-rows;
+// the DOM holds only the rows near the viewport (virtual-list.spec.ts),
+// far fewer than the window.
 // Ported from web/e2e/window.mjs (STOOP-238). The viewport the puppeteer
 // harness launched with is set on the contexts here.
-// Enough to prove the cap, with one page of margin and no more. The
-// window grows HISTORY_PAGE (50) per forward page, so it reaches CAP on
-// the sixth and has to prune on the seventh; 400 gives an eighth. The
-// jump target (message 5) also has to sit outside a full window, which
-// anything over CAP satisfies.
+// Enough to page forward eight times from a jump to the start. The jump
+// target (message 5) also has to sit outside the newest page.
 const SEED = 400;
-const CAP = 300;
 // The permalink target must sit far from both ends, or the page loaded
 // around it merges with the tail and the window holds more than one
 // page. Derived, not hardcoded: this was ids[299] when SEED was 600.
@@ -140,8 +147,8 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
   ).toHaveText("Jump to latest ↓");
 
   // Paging forward: scroll to the window's end until it's live. Along the
-  // way the DOM stays capped and the beginning marker goes away as the
-  // oldest rows are pruned.
+  // way the DOM stays small while the window grows over every row, so the
+  // beginning marker stays.
   let maxRows = 0;
   let maxDom = 0;
   let lastText = await lastLine.innerText();
@@ -149,8 +156,7 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
     await scrollToBottom();
     // The original slept 600 ms here; this waits for the forward page to
     // actually arrive, and keeps the outer retry for a scroll that never
-    // reached a fetch. The row cap is applied in the same update as the
-    // append (api/history.ts), so sampling now can't catch a fat frame.
+    // reached a fetch.
     const before = lastText;
     for (let w = 0; w < 60 && lastText === before; w++) {
       await A.waitForTimeout(100);
@@ -165,21 +171,18 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
   ).toBe(`message ${SEED}`);
   expect(
     maxRows,
-    `the timeline never held more than ${CAP} rows (max ${maxRows})`,
-  ).toBeLessThanOrEqual(CAP);
-  expect(maxRows, `…and did reach the cap (${maxRows})`).toBe(CAP);
+    `the window grew to hold every row paged in (${maxRows})`,
+  ).toBe(SEED);
   expect(
     maxDom,
     `the DOM held only the rows near the viewport (max ${maxDom})`,
-  ).toBeLessThan(CAP / 3);
+  ).toBeLessThan(100);
+  // The marker itself is the head row, out of the DOM while the view is
+  // at the bottom; what the window holds is on the list.
   await expect(
-    start,
-    "the beginning marker is gone once the oldest rows were pruned",
-  ).toHaveCount(0);
-  await expect(list, "…as is message 1").not.toHaveAttribute(
-    "data-oldest",
-    ids[0],
-  );
+    list,
+    "nothing was pruned: message 1 is still the oldest",
+  ).toHaveAttribute("data-oldest", ids[0]);
   // The last page is appended below the anchored view, so the pill still
   // offers the way down; scrolling there dismisses it.
   await scrollToBottom();
@@ -190,6 +193,17 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
 
   // Windowed again while someone else talks: their message counts on the
   // pill and the view doesn't move; the pill brings back the newest page.
+  // The log now holds every row, so a jump to message 5 would be a scroll
+  // within it; a reload starts over from the newest page, and the jump
+  // has to fetch.
+  await reload(A);
+  await expect(list, "reopens on the latest page").toHaveAttribute(
+    "data-rows",
+    "50",
+  );
+  await expect
+    .poll(scrollTop, { message: "the reopening scroll has landed" })
+    .toBeGreaterThan(0);
   await clickLastQuote();
   await expect(
     A.locator(`#msg-${ids[4]}`),

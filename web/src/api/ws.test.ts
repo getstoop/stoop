@@ -1,74 +1,34 @@
 import { create, type MessageInitShape, toBinary } from "@bufbuild/protobuf";
 import { QueryClient } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  type Message,
-  MessageSchema,
-  ThreadSummarySchema,
-} from "../gen/stoop/chat/v1/message_pb";
-import { ReactionSchema } from "../gen/stoop/chat/v1/reaction_pb";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ServerEventSchema } from "../gen/stoop/realtime/v1/realtime_pb";
-import { replaceMessage, startRealtime } from "./ws";
+import { openChannel } from "./channelLog";
+import {
+  CHANNEL,
+  id,
+  logOf,
+  postOnServer,
+  resetServer,
+  server,
+} from "./channelLogTestServer";
+import { linkedMessageKey } from "./queries";
+import { startRealtime } from "./ws";
 
 // The RPC clients and the page's origin are not there in node; these
-// tests never reach them.
-vi.mock("./clients", () => ({ chatClient: {}, voiceClient: {} }));
+// tests never reach them beyond the channel log's pages.
+const { listMessages, listChanges } = vi.hoisted(() => ({
+  listMessages: vi.fn(),
+  listChanges: vi.fn(),
+}));
+vi.mock("./clients", () => ({
+  chatClient: { listMessages, listChanges },
+  authClient: {},
+  voiceClient: {},
+}));
 vi.mock("./origin", () => ({
+  serverOrigin: () => "http://test",
   socketUrl: (path: string) => `ws://test${path}`,
 }));
-
-const CHANNEL = "general";
-
-// A root as ListMessages gave it: the reader's own half filled in.
-const cachedRoot = (): Message =>
-  create(MessageSchema, {
-    id: "root",
-    channelId: CHANNEL,
-    content: "before",
-    thread: create(ThreadSummarySchema, {
-      replyCount: 4,
-      participating: true,
-      muted: true,
-      unreadCount: 3,
-    }),
-  });
-
-// The same root from an event or EditMessage: the shared half only.
-const updatedRoot = (): Message =>
-  create(MessageSchema, {
-    id: "root",
-    channelId: CHANNEL,
-    content: "after",
-    thread: create(ThreadSummarySchema, { replyCount: 5 }),
-  });
-
-function cacheWith(message: Message) {
-  const queryClient = new QueryClient();
-  queryClient.setQueryData(["messages", CHANNEL], [message]);
-  queryClient.setQueryData(["messages", CHANNEL, "root"], [message]);
-  return queryClient;
-}
-
-const readAll = (queryClient: QueryClient) =>
-  queryClient
-    .getQueriesData<Message[]>({ queryKey: ["messages", CHANNEL] })
-    .map(([, messages]) => messages?.[0]);
-
-describe("replaceMessage", () => {
-  it("keeps the reader's half of the thread summary", () => {
-    const queryClient = cacheWith(cachedRoot());
-    replaceMessage(queryClient, updatedRoot());
-    for (const message of readAll(queryClient)) {
-      expect(message?.content).toBe("after");
-      expect(message?.thread).toMatchObject({
-        replyCount: 5,
-        participating: true,
-        muted: true,
-        unreadCount: 3,
-      });
-    }
-  });
-});
 
 class FakeSocket {
   static last: FakeSocket | undefined;
@@ -84,55 +44,7 @@ class FakeSocket {
   send() {}
 }
 
-function receiveUpdate(queryClient: QueryClient, message: Message) {
-  vi.stubGlobal("WebSocket", FakeSocket);
-  const stop = startRealtime(queryClient);
-  const frame = toBinary(
-    ServerEventSchema,
-    create(ServerEventSchema, {
-      payload: { case: "messageUpdated", value: message },
-    }),
-  );
-  FakeSocket.last?.onmessage?.({ data: frame.slice().buffer });
-  stop();
-}
-
-describe("messageUpdated", () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it("keeps the reader's half of a root's thread summary", () => {
-    const queryClient = cacheWith(cachedRoot());
-    receiveUpdate(queryClient, updatedRoot());
-    for (const message of readAll(queryClient)) {
-      expect(message?.content).toBe("after");
-      expect(message?.thread).toMatchObject({
-        replyCount: 5,
-        participating: true,
-        muted: true,
-        unreadCount: 3,
-      });
-    }
-  });
-
-  it("blanks quotes of a root kept as a deleted placeholder", () => {
-    const queryClient = new QueryClient();
-    const reply = create(MessageSchema, {
-      id: "reply",
-      channelId: CHANNEL,
-      replyTo: { messageId: "root", preview: "before" },
-    });
-    queryClient.setQueryData(["messages", CHANNEL], [cachedRoot(), reply]);
-    const deleted = updatedRoot();
-    deleted.deleted = true;
-    receiveUpdate(queryClient, deleted);
-    const [root, quoting] =
-      queryClient.getQueryData<Message[]>(["messages", CHANNEL]) ?? [];
-    expect(root?.deleted).toBe(true);
-    expect(root?.thread?.muted).toBe(true);
-    expect(quoting?.replyTo?.preview).toBe("");
-  });
-});
-
+// A frame off the socket, as the gateway sends it.
 function receive(
   queryClient: QueryClient,
   payload: MessageInitShape<typeof ServerEventSchema>["payload"],
@@ -147,34 +59,72 @@ function receive(
   stop();
 }
 
-// A thread's root and a linked message are one-message copies beside the
-// timelines: they take edits, reactions and deletions, never new messages.
-describe("copies beside the timelines", () => {
-  afterEach(() => vi.unstubAllGlobals());
-  const ROOT_KEY = ["messages", CHANNEL, "root", "root"];
+beforeEach(async () => {
+  resetServer(listMessages, listChanges);
+  await openChannel(CHANNEL);
+});
+afterEach(() => vi.unstubAllGlobals());
 
-  it("follow a reaction and a deletion, and take no new message", () => {
+describe("events about a message", () => {
+  it("reach the channel log by seq", () => {
     const queryClient = new QueryClient();
-    queryClient.setQueryData(ROOT_KEY, [cachedRoot()]);
+    const held = logOf().rows.get(id(390));
+    if (!held) throw new Error("no row");
+    server.seq += 1;
     receive(queryClient, {
-      case: "messageCreated",
-      value: create(MessageSchema, { id: "later", channelId: CHANNEL }),
+      case: "messageUpdated",
+      value: { ...held, content: "reworded", seq: BigInt(server.seq) },
     });
-    expect(queryClient.getQueryData<Message[]>(ROOT_KEY)).toHaveLength(1);
+    expect(logOf().rows.get(id(390))?.content).toBe("reworded");
+    expect(logOf().seq).toBe(server.seq);
+  });
+
+  it("ask again for the one-message copy fetched on its own", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(linkedMessageKey(CHANNEL, id(390)), []);
+    queryClient.setQueryData(linkedMessageKey(CHANNEL, id(391)), []);
+    server.seq += 1;
     receive(queryClient, {
       case: "reactionsChanged",
       value: {
         channelId: CHANNEL,
-        messageId: "root",
-        reactions: [create(ReactionSchema, { emoji: "👍" })],
+        messageId: id(390),
+        reactions: [],
+        seq: BigInt(server.seq),
       },
     });
-    const [root] = queryClient.getQueryData<Message[]>(ROOT_KEY) ?? [];
-    expect(root?.reactions.map((one) => one.emoji)).toEqual(["👍"]);
+    const state = (messageId: string) =>
+      queryClient.getQueryState(linkedMessageKey(CHANNEL, messageId));
+    expect(state(id(390))?.isInvalidated).toBe(true);
+    expect(state(id(391))?.isInvalidated).toBe(false);
+  });
+
+  it("drop a deleted channel's log", () => {
+    const queryClient = new QueryClient();
     receive(queryClient, {
-      case: "messageDeleted",
-      value: { channelId: CHANNEL, messageId: "root" },
+      case: "channelDeleted",
+      value: { channelId: CHANNEL, spaceId: "s1" },
     });
-    expect(queryClient.getQueryData<Message[]>(ROOT_KEY)).toEqual([]);
+    expect(logOf()).toBeUndefined();
+  });
+});
+
+describe("Ready", () => {
+  it("asks every held log for the changes since its seq", async () => {
+    const queryClient = new QueryClient();
+    // Posted while the socket was down: no event reached the log.
+    const held = logOf().seq;
+    postOnServer("late", {}, false);
+    receive(queryClient, {
+      case: "ready",
+      value: { userId: "me", presences: [], voiceParticipants: [] },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(listChanges).toHaveBeenCalledWith(
+      expect.objectContaining({ channelId: CHANNEL, sinceSeq: BigInt(held) }),
+    );
+    expect(logOf().rows.has("late")).toBe(true);
+    expect(logOf().seq).toBe(held + 1);
+    expect(logOf().needsCatchUp).toBe(false);
   });
 });

@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import type { ChannelHistory } from "../../../api/history";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 import { FirstRunCard } from "../FirstRunCard";
 
-// The window's older edge, the first virtual row: "Loading earlier
+// The view's older edge, the first virtual row: "Loading earlier
 // messages…" while a page is in flight, the beginning marker once there
 // is nothing older (with the first-run card under it in a channel), or a
 // thread's root above the count of its replies. Measured like any row, so
@@ -12,7 +11,8 @@ export function ListHead({
   index,
   top,
   measure,
-  history,
+  atStart,
+  loading,
   threadRoot,
   rootRow,
   replyCount,
@@ -26,7 +26,10 @@ export function ListHead({
   index: number;
   top: number;
   measure: (element: HTMLDivElement | null) => void;
-  history: ChannelHistory | undefined;
+  // The view has had its first page and nothing lies older.
+  atStart: boolean;
+  // A page or a jump is out for the view.
+  loading: boolean;
   threadRoot?: Message;
   // The root's rendered row, when this is a thread's head.
   rootRow?: ReactNode;
@@ -38,7 +41,6 @@ export function ListHead({
   group: boolean;
   retentionNote: string;
 }) {
-  const atStart = !!history && !history.hasOlder;
   return (
     <div
       className="message-list-head"
@@ -49,7 +51,7 @@ export function ListHead({
       {!(threadRoot && atStart) && (
         <div
           className={`history-head ${atStart ? "history-start" : ""}`}
-          data-state={atStart ? "start" : history?.loading ? "loading" : "idle"}
+          data-state={atStart ? "start" : loading ? "loading" : "idle"}
         >
           {atStart ? (
             <span>
@@ -67,7 +69,7 @@ export function ListHead({
                 </>
               )}
             </span>
-          ) : history?.loading ? (
+          ) : loading ? (
             "Loading earlier messages…"
           ) : null}
         </div>

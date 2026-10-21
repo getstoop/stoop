@@ -7,12 +7,15 @@ import {
   catchUp,
   forget,
   HISTORY_PAGE,
+  holdRow,
+  isLive,
   jumpTo,
   jumpToLatest,
   loadNewer,
   loadOlder,
   openChannel,
   openThread,
+  patchRow,
   patchThread,
   reconnected,
   useChannelLogStore,
@@ -165,6 +168,21 @@ describe("a gap", () => {
 });
 
 describe("reconnect", () => {
+  it("catches up a channel that was empty when opened", async () => {
+    server.rows = [];
+    server.seq = 0;
+    await openChannel(CHANNEL);
+    expect(logOf().seq).toBe(0);
+    postOnServer(next(0), {}, false);
+    reconnected();
+    await settle();
+    expect(listChanges).toHaveBeenCalledWith(
+      expect.objectContaining({ channelId: CHANNEL, sinceSeq: 0n }),
+    );
+    expect(ids()).toEqual([next(0)]);
+    expect(logOf().seq).toBe(1);
+  });
+
   it("catches every log up once, sharing concurrent calls", async () => {
     await openChannel(CHANNEL);
     await openChannel("other");
@@ -272,6 +290,102 @@ describe("jumps", () => {
     expect(statusOf()?.landOn).toBe("bottom");
     await jumpToLatest(VIEW);
     expect(listMessages).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("the reader's own rows", () => {
+  it("holds a send's answer like an event's row, without moving the seq", async () => {
+    await openChannel(CHANNEL);
+    const sent = postOnServer(next(0), {}, false);
+    holdRow(CHANNEL, sent);
+    expect(ids()).toContain(next(0));
+    expect(logOf().seq).toBe(TOTAL);
+    // The event for it says nothing new; the position moves with it.
+    applyEvent(event({ case: "messageCreated", value: sent }));
+    expect(ids().filter((rowId) => rowId === next(0))).toHaveLength(1);
+    expect(logOf().seq).toBe(TOTAL + 1);
+  });
+
+  it("holds an edit's answer, keeping the reader's half of the summary", async () => {
+    await openChannel(CHANNEL);
+    replyOnServer(id(390), next(0));
+    patchThread(CHANNEL, id(390), { participating: true, unreadCount: 1 });
+    const held = logOf().rows.get(id(390));
+    if (!held?.thread) throw new Error("no summary");
+    editOnServer(id(390), "reworded", false);
+    const answer = server.rows.find((row) => row.id === id(390));
+    if (!answer) throw new Error("no row");
+    holdRow(CHANNEL, {
+      ...answer,
+      thread: { ...answer.thread, participating: false, unreadCount: 0 },
+    } as typeof answer);
+    const after = logOf().rows.get(id(390));
+    expect(after?.content).toBe("reworded");
+    expect(after?.thread).toMatchObject({
+      participating: true,
+      unreadCount: 1,
+    });
+  });
+
+  it("holds a root for a thread opened before its channel's page", async () => {
+    await openThread(CHANNEL, id(390));
+    expect(threadItems(logOf(), id(390)).map((row) => row.id)).toEqual([]);
+    const root = server.rows.find((row) => row.id === id(390));
+    if (!root) throw new Error("no row");
+    holdRow(CHANNEL, root);
+    expect(threadItems(logOf(), id(390)).map((row) => row.id)).toEqual([
+      id(390),
+    ]);
+  });
+
+  it("does nothing for a channel that isn't held", () => {
+    holdRow(CHANNEL, postOnServer(next(0), {}, false));
+    expect(logOf()).toBeUndefined();
+  });
+
+  it("patches a held row at its seq, and the next event replaces it", async () => {
+    await openChannel(CHANNEL);
+    const before = logOf().rows.get(id(390));
+    patchRow(CHANNEL, id(390), (row) => ({ ...row, pinned: true }));
+    const patched = logOf().rows.get(id(390));
+    expect(patched?.pinned).toBe(true);
+    expect(patched?.seq).toBe(before?.seq);
+    expect(patched).not.toBe(before);
+    // The server's word, at a higher seq, wins over the patch.
+    editOnServer(id(390), "reworded");
+    expect(logOf().rows.get(id(390))).toMatchObject({
+      pinned: false,
+      content: "reworded",
+    });
+  });
+
+  it("leaves a row it doesn't hold, and one the change leaves alone", async () => {
+    await openChannel(CHANNEL);
+    const rows = logOf().rows;
+    patchRow(CHANNEL, "unknown", (row) => ({ ...row, pinned: true }));
+    patchRow(CHANNEL, id(390), (row) => row);
+    expect(logOf().rows).toBe(rows);
+  });
+
+  it("hides the reader's own delete until its tombstone comes", async () => {
+    await openChannel(CHANNEL);
+    patchRow(CHANNEL, id(390), (row) => ({ ...row, deleted: true }));
+    expect(ids()).not.toContain(id(390));
+    deleteOnServer(id(390));
+    expect(ids()).not.toContain(id(390));
+    expect(logOf().rows.get(id(390))?.content).toBe("");
+  });
+});
+
+describe("isLive", () => {
+  it("is so for a view at the newest row, or not yet held", async () => {
+    expect(isLive(VIEW)).toBe(true);
+    await openChannel(CHANNEL);
+    expect(isLive(VIEW)).toBe(true);
+    await jumpTo(VIEW, id(100));
+    expect(isLive(VIEW)).toBe(false);
+    await jumpToLatest(VIEW);
+    expect(isLive(VIEW)).toBe(true);
   });
 });
 

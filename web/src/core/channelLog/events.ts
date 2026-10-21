@@ -1,6 +1,7 @@
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "../../gen/stoop/realtime/v1/realtime_pb";
 import { withArrivals } from "./arrivals";
+import { hasPage } from "./pages";
 import { withViewerHalf } from "./rows";
 import { tombstoneOf } from "./tombstone";
 import type { ChannelLog } from "./types";
@@ -10,14 +11,17 @@ import type { ChannelLog } from "./types";
 // arrival. Then the position: the next seq is applied and known; one
 // further on is applied too (higher wins) but marks a gap, so a catch-up
 // is owed; one at or below what is known is ignored. Before the first page
-// (seq 0) rows are kept and the page's channelSeq decides the position.
+// rows are kept without judging the gap, and the page's channelSeq
+// decides the position (hasPage: a channel empty when opened is at 0
+// after its page too, and events move it on from there).
 export function withEvent(log: ChannelLog, event: ServerEvent): ChannelLog {
   const change = changeOf(event);
   if (!change || change.channelId !== log.channelId) return log;
   const seq = Number(change.seq);
-  if (log.seq > 0 && seq <= log.seq) return log;
+  const positioned = hasPage(log);
+  if (positioned && seq <= log.seq) return log;
   const next = change.apply(log);
-  if (log.seq === 0) return next;
+  if (!positioned) return next;
   if (seq === log.seq + 1) return { ...next, seq };
   return next.needsCatchUp ? next : { ...next, needsCatchUp: true };
 }

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   channelOfEvent,
   forgetItems,
@@ -10,10 +11,12 @@ import {
   showsInChannel,
   type ThreadOverlay,
   viewOf,
+  withArrivals,
   withEvent,
   withThreadOverlay,
 } from "../core/channelLog";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
+import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import { catchUp } from "./channelLogCatchUp";
 import {
@@ -24,6 +27,7 @@ import {
   forgetLog,
   generationOf,
   logOf,
+  readView,
   setLanding,
   updateLog,
   useChannelLogStore,
@@ -33,22 +37,73 @@ import {
 import { chatClient } from "./clients";
 
 // The loader for the channel logs (core/channelLog): the requests that
-// fill a view, and the events and reconnects that keep a log current. Not
-// yet wired: the app still runs api/history.ts.
+// fill a view, the events and reconnects that keep a log current, and the
+// reader's own writes before their events. The message list draws from
+// the store's hooks (channelLogStore.ts); docs/architecture/web.md → State.
 
 export const HISTORY_PAGE = 50;
 
 export { catchUp } from "./channelLogCatchUp";
 export {
+  hasOpened,
   landed,
+  readRow,
+  readStatus,
+  readView,
   useChannelItems,
   useChannelLogStore,
+  useRow,
   useThreadItems,
   useView,
   useViewStatus,
   type ViewRef,
   type ViewStatus,
 } from "./channelLogStore";
+
+// Who has the channel on screen: its page, and each open thread of it.
+// The log goes when the last of them leaves, so what is held is what is
+// shown, and a page out for it answers to nobody.
+const holders = new Map<string, number>();
+
+// Holds the channel's log while the component is mounted and opens the
+// view on its newest page. A caller landing on a message (a deep link, a
+// thread's focused reply) names it instead and the list's jump brings the
+// page around it, so no second page races the first. A first page that
+// fails is asked for again a few times, as the query it replaces was.
+export function useOpenView(view: ViewRef, landing?: string) {
+  const { channelId, rootId } = view;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the landing counts only as the view opens; a later one is the list's jump
+  useEffect(() => {
+    ensureLog(channelId);
+    holders.set(channelId, (holders.get(channelId) ?? 0) + 1);
+    let left = false;
+    if (!landing) void openWithRetries({ channelId, rootId }, () => left);
+    return () => {
+      left = true;
+      const held = (holders.get(channelId) ?? 1) - 1;
+      if (held > 0) holders.set(channelId, held);
+      else {
+        holders.delete(channelId);
+        forget(channelId);
+      }
+    };
+  }, [channelId, rootId]);
+}
+
+const OPEN_RETRIES = [1000, 2000, 4000];
+
+async function openWithRetries(view: ViewRef, gone: () => boolean) {
+  for (const wait of [0, ...OPEN_RETRIES]) {
+    if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+    if (gone()) return;
+    try {
+      await open(view);
+      return;
+    } catch {
+      // The next try, or the reader leaving, ends it.
+    }
+  }
+}
 
 // The listMessages request for a view, before its paging fields.
 const scope = (view: ViewRef) => ({
@@ -192,6 +247,10 @@ export async function jumpToLatest(view: ViewRef): Promise<void> {
   setLanding(view, "bottom");
 }
 
+// Whether the view reaches the newest row, so an arrival shows rather
+// than counts; a view not yet held is live, as nothing is beyond it.
+export const isLive = (view: ViewRef): boolean => !readView(view)?.hasNewer;
+
 // A realtime event about a message, to its channel's log when one is held;
 // a gap it reveals starts the catch-up.
 export function applyEvent(event: ServerEvent) {
@@ -199,6 +258,35 @@ export function applyEvent(event: ServerEvent) {
   if (!channelId || !logOf(channelId)) return;
   const after = updateLog(channelId, (log) => withEvent(log, event));
   if (after?.needsCatchUp) void catchUp(channelId);
+}
+
+// A row the app has in hand before, or instead of, its event: the answer
+// to the reader's send or edit, a thread's root fetched for the panel.
+// Merged by seq exactly as an event's row is, with the reader's half of a
+// thread summary kept from the held copy; the position does not move,
+// since the row says nothing about the changes before it.
+export function holdRow(channelId: string, row: Message) {
+  updateLog(channelId, (log) => withArrivals(log, [row], true));
+}
+
+// A change the reader made before the server answers (a reaction, a pin,
+// hiding their own delete): the held row changed, at its own seq, so the
+// event that follows at a higher seq replaces it. Nothing when the row
+// isn't held. The caller reverts a refusal with another patch.
+export function patchRow(
+  channelId: string,
+  id: string,
+  change: (row: Message) => Message,
+) {
+  updateLog(channelId, (log) => {
+    const held = log.rows.get(id);
+    if (!held) return log;
+    const next = change(held);
+    if (next === held) return log;
+    const rows = new Map(log.rows);
+    rows.set(id, { ...next, seq: held.seq });
+    return { ...log, rows };
+  });
 }
 
 // The reader's half of a root's thread summary, from their own read and

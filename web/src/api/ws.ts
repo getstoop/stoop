@@ -1,9 +1,7 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
-import { withChannelEvent } from "../core/channelTimeline";
 import { ActivityKind } from "../gen/stoop/chat/v1/activity_pb";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
-import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import {
   type ClientEvent,
@@ -14,17 +12,18 @@ import {
 import { useConnectionStore } from "../stores/connection";
 import { useVoiceStore } from "../stores/voice";
 import { receiveActivityItem } from "./activity";
+import { applyEvent as applyToLog, forget, reconnected } from "./channelLog";
 import { channelPeopleKey } from "./channelPeople";
 import { byPosition, withPositions } from "./channels";
 import { authClient } from "./clients";
 import { isSignedOut } from "./errors";
 import { groupsKey } from "./groups";
-import { applyTimelineEvent, isTimelineKey, reconnected } from "./history";
 import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
 import { socketUrl } from "./origin";
-import { applyPinEvent } from "./pins";
+import { invalidatePins } from "./pins";
 import { myDnd, patchMyDnd } from "./presence";
+import { linkedMessageKey } from "./queries";
 import { refetchOlderThan } from "./stale";
 import {
   applyThreadChanged,
@@ -37,9 +36,10 @@ import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
 import { leaveVoice, reportVoiceState } from "./voice";
 
 // The realtime client: one WebSocket carrying binary ServerEvent frames.
-// Events are applied directly to the TanStack Query cache so rendered state
-// has a single source of truth; on reconnect we invalidate everything and
-// let queries refetch what was missed.
+// An event about a message goes to its channel's log (api/channelLog.ts),
+// which merges it by seq and asks ListChanges for anything a gap or a
+// reconnect owes; every other event is applied directly to the TanStack
+// Query cache, and on reconnect those queries are refetched.
 
 const MAX_BACKOFF_MS = 15_000;
 
@@ -170,8 +170,8 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
   switch (payload.case) {
     case "ready":
       // Sent once this socket is subscribed: anything fetched before now
-      // may have missed an event, so it goes again, and a page of history
-      // asked for before now is dropped.
+      // may have missed an event, so each query goes again, and each
+      // channel log held asks for the changes since the seq it holds.
       reconnected();
       refetchOlderThan(queryClient, Date.now());
       useConnectionStore.getState().setUserId(payload.value.userId);
@@ -211,7 +211,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageCreated": {
       const m = payload.value;
-      applyTimelineEvent(queryClient, event);
+      applyToLog(event);
       noteMentionInThread(queryClient, m);
       // A reply that stays in its thread is not in the channel's timeline
       // and does not make the channel unread.
@@ -272,13 +272,13 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageUpdated": {
       // A root deleted while its thread has replies arrives as an update.
-      applyMessageEvent(queryClient, payload.value.channelId, event);
+      applyToLog(event);
+      refetchCopy(queryClient, payload.value.channelId, payload.value.id);
       break;
     }
     case "threadChanged": {
       // The root's summary line: count, last reply, faces, and our count.
-      const t = payload.value;
-      applyThreadChanged(queryClient, t.channelId, t.rootMessageId, t.thread);
+      applyThreadChanged(queryClient, event, payload.value);
       break;
     }
     case "threadMuted": {
@@ -288,24 +288,38 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     }
     case "threadRead": {
       const t = payload.value;
-      applyThreadRead(queryClient, t.channelId, t.rootMessageId);
+      applyThreadRead(t.channelId, t.rootMessageId);
       break;
     }
     case "messagePinned": {
-      // The delta, not the list: mark the message, drop the pin list.
-      applyPinEvent(queryClient, payload.value);
+      // The delta, not the list: the log takes the flag, the pin list is
+      // dropped.
+      applyToLog(event);
+      invalidatePins(queryClient, payload.value.channelId);
+      refetchCopy(
+        queryClient,
+        payload.value.channelId,
+        payload.value.messageId,
+      );
       break;
     }
     case "reactionsChanged": {
-      // Swap in the message's full reaction list; no refetch, no unread
-      // effect, no activity item.
-      applyMessageEvent(queryClient, payload.value.channelId, event);
+      // The message's full reaction list; no unread effect, no activity
+      // item.
+      applyToLog(event);
+      refetchCopy(
+        queryClient,
+        payload.value.channelId,
+        payload.value.messageId,
+      );
       break;
     }
     case "messageDeleted": {
       const d = payload.value;
-      // A root that goes takes its thread's window with it.
-      applyMessageEvent(queryClient, d.channelId, event);
+      // A tombstone in the log; a root's takes its thread's rows with it
+      // through the catch-up the seq gap asks for.
+      applyToLog(event);
+      refetchCopy(queryClient, d.channelId, d.messageId);
       // The channel's newest message may have changed; refetch the list.
       queryClient.invalidateQueries({
         queryKey: d.spaceId ? ["channels", d.spaceId] : ["dms"],
@@ -335,7 +349,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     }
     case "channelDeleted":
-      applyTimelineEvent(queryClient, event);
+      forget(payload.value.channelId);
       queryClient.invalidateQueries({ queryKey: ["all-channels"] });
       queryClient.setQueryData<Channel[]>(
         ["channels", payload.value.spaceId],
@@ -423,16 +437,17 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       }
       break;
     case "memberUpdated":
-      // Profile change (avatar): refetch them wherever they're shown,
-      // including the avatar beside their messages. An avatar is set by a
-      // job after the upload returns, so our own and a bot's go too.
+      // Profile change (avatar): refetch them wherever they're shown. The
+      // rows beside their messages read the members list (core/author.ts),
+      // so the messages themselves are not fetched again. An avatar is
+      // set by a job after the upload returns, so our own and a bot's go
+      // too.
       queryClient.invalidateQueries({
         queryKey: ["member", payload.value.spaceId, payload.value.userId],
       });
       queryClient.invalidateQueries({
         queryKey: ["members", payload.value.spaceId],
       });
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
       queryClient.invalidateQueries({
         queryKey: ["user-profile", payload.value.userId],
       });
@@ -454,9 +469,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.invalidateQueries({
         queryKey: groupsKey(payload.value.spaceId),
       });
-      // Their messages stay, and what they are shown as may have changed:
-      // an account deleting itself leaves every space this way.
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      // Their messages stay, shown as embedded once they are off the
+      // members list: an account deleting itself leaves every space this
+      // way.
       // If it was us, the spaces list shrinks and SpaceLayout bounces home.
       if (payload.value.userId === useConnectionStore.getState().userId) {
         queryClient.invalidateQueries({ queryKey: ["spaces"] });
@@ -464,12 +479,11 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       }
       break;
     case "groupsChanged":
+      // A mention names its group by id and reads the handle from the
+      // groups list, so a rename shows on old messages from this alone.
       queryClient.invalidateQueries({
         queryKey: groupsKey(payload.value.spaceId),
       });
-      // Messages carry a group's current handle, so a rename shows on
-      // old messages too.
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
       break;
     case "spaceUpdated": {
       queryClient.invalidateQueries({ queryKey: ["spaces"] });
@@ -510,75 +524,16 @@ function leaveVoiceIn(spaceId: string) {
   if (useVoiceStore.getState().connection?.spaceId === spaceId) leaveVoice();
 }
 
-// Drops a message the reader deleted from every window of its channel, as
-// its MessageDeleted will. A root that goes takes its thread's window
-// with it.
-export function removeMessageFromCache(
+// A one-message copy fetched on its own (a linked message's card, a
+// thread's root before the log held it) is outside the log: an event
+// about the message asks for it again, where something still shows it.
+function refetchCopy(
   queryClient: QueryClient,
   channelId: string,
   messageId: string,
 ) {
-  applyMessageEvent(
-    queryClient,
-    channelId,
-    create(ServerEventSchema, {
-      payload: { case: "messageDeleted", value: { channelId, messageId } },
-    }),
-  );
-  queryClient.removeQueries({
-    queryKey: ["messages", channelId, messageId],
+  queryClient.invalidateQueries({
+    queryKey: linkedMessageKey(channelId, messageId),
     exact: true,
   });
-}
-
-// Swaps in a message's new version (the reader's edit) in every window of
-// its channel, as its MessageUpdated will.
-export function replaceMessage(queryClient: QueryClient, message: Message) {
-  applyMessageEvent(
-    queryClient,
-    message.channelId,
-    create(ServerEventSchema, {
-      payload: { case: "messageUpdated", value: message },
-    }),
-  );
-}
-
-// An edit, a deletion or a reaction: through the reducer for the
-// timelines, and straight onto the copies beside them.
-function applyMessageEvent(
-  queryClient: QueryClient,
-  channelId: string,
-  event: ServerEvent,
-) {
-  applyTimelineEvent(queryClient, event);
-  applyBesideTimelines(queryClient, channelId, event);
-}
-
-// Also used by the send-message mutation, so delivery via RPC response and
-// via the WS event converge on the same deduped write. A message goes to
-// the timeline it shows in: its channel's, its thread's, or both.
-export function appendMessage(queryClient: QueryClient, message: Message) {
-  applyTimelineEvent(
-    queryClient,
-    create(ServerEventSchema, {
-      payload: { case: "messageCreated", value: message },
-    }),
-  );
-}
-
-// An edit, a deletion or a reaction, for the copies of messages that sit
-// beside the timelines: a thread's root, a linked message. The timelines
-// take theirs through applyTimelineEvent.
-function applyBesideTimelines(
-  queryClient: QueryClient,
-  channelId: string,
-  event: ServerEvent,
-) {
-  queryClient.setQueriesData<Message[]>(
-    {
-      queryKey: ["messages", channelId],
-      predicate: (query) => !isTimelineKey(query.queryKey),
-    },
-    (old) => old && withChannelEvent(old, event, channelId),
-  );
 }
