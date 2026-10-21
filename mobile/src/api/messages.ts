@@ -1,21 +1,12 @@
 import type { Page } from "@stoop/core/channelTimeline";
-import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
-import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
+import type { ChannelHeader } from "@stoop/core/timelineEvents";
 import { authClient, chatClient } from "./clients";
 
 // A channel's screen: the channel and its space for the title, how many
 // people can read it, who is reading (for the "New" line and what
 // mentions them), and the newest page of its messages. Older pages load
 // as the reader scrolls up; realtime events keep what is held current
-// (core/channelTimeline).
-
-export type ChannelView = Page & {
-  space: Space;
-  channel: Channel;
-  // The space's members, or a private channel's.
-  memberCount: number;
-  myUserId: string;
-};
+// (core/timelineState, core/timelineEvents).
 
 const TIMEOUT_MS = 10000;
 const PAGE = 50;
@@ -33,7 +24,7 @@ export async function loadChannel(
   spaceId: string,
   channelId: string,
   back = "",
-): Promise<ChannelView> {
+): Promise<{ header: ChannelHeader; page: Page }> {
   const chat = chatClient(origin, token);
   const options = { timeoutMs: TIMEOUT_MS };
   const [{ space }, { channels }, { user }, page] = await Promise.all([
@@ -56,7 +47,7 @@ export async function loadChannel(
     messages = [...older.messages, ...messages];
     hasOlder = older.hasOlder;
   }
-  return { space, channel, memberCount, myUserId: user.id, messages, hasOlder };
+  return { header: { space, channel, memberCount, myUserId: user.id }, page: { messages, hasOlder } };
 }
 
 // The page before the oldest message held.
