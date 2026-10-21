@@ -1,21 +1,12 @@
 import type { Page } from "@stoop/core/channelTimeline";
-import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
-import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
+import type { ChannelView } from "@stoop/core/timelineState";
 import { authClient, chatClient } from "./clients";
 
 // A channel's screen: the channel and its space for the title, how many
 // people can read it, who is reading (for the "New" line and what
 // mentions them), and the newest page of its messages. Older pages load
 // as the reader scrolls up; realtime events keep what is held current
-// (core/channelTimeline).
-
-export type ChannelView = Page & {
-  space: Space;
-  channel: Channel;
-  // The space's members, or a private channel's.
-  memberCount: number;
-  myUserId: string;
-};
+// (core/timelineState).
 
 const TIMEOUT_MS = 10000;
 const PAGE = 50;
