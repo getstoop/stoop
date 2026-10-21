@@ -33,6 +33,7 @@ import { EmojiPicker } from "../../components/EmojiPicker";
 import { GroupCard } from "../../components/GroupCard";
 import { UserCard } from "../../components/UserCard";
 import { dayLabel } from "../../core/dates";
+import { continues, firstNewMessageId, startsDay } from "../../core/grouping";
 import { mentionMembers } from "../../core/mentions";
 import { canDeleteAnyMessage, canManageChannels } from "../../core/permissions";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
@@ -40,7 +41,6 @@ import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { confirm, notice } from "../../stores/dialogs";
 import { openSidePanel, useSidePanelStore } from "../../stores/sidePanel";
 import { FirstRunCard } from "./FirstRunCard";
-import { continues, startsDay } from "./grouping";
 import { MessageRow } from "./MessageRow";
 
 export function MessageList({
@@ -302,10 +302,7 @@ export function MessageList({
   const dividerRef = useRef<HTMLDivElement>(null);
   const { data: me } = useMe();
   // The first unread message that isn't ours (our own sends are never "new").
-  const firstNewId =
-    newAfterId === null
-      ? undefined
-      : messages.find((m) => m.id > newAfterId && m.author?.id !== me?.id)?.id;
+  const firstNewId = firstNewMessageId(messages, newAfterId, me?.id);
   const [card, setCard] = useState<{ userId: string; anchor: DOMRect } | null>(
     null,
   );

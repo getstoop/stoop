@@ -56,11 +56,18 @@ import a screen; the screens themselves live in `src/screens`, so
   (`src/screens/ServerSwitcher/index.tsx`).
 - Typed routes are off for now: Expo generates their types only while
   Metro runs, and `make mobile-typecheck` runs without it.
+- A server (`src/app/s/[id]/_layout.tsx`) is a stack with its tabs at
+  the bottom, in the `(tabs)` group, so the URLs don't name it. A space's
+  channels push inside the Spaces tab, with the tab bar showing. A
+  channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
+  tabs instead, as a conversation does in the system's own apps, leaving
+  the bottom of the screen for its composer.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
-  `src/app/s/[id]/_layout.ios.tsx`): Liquid Glass from iOS 26, SF Symbols
-  for icons. Android keeps the drawn bar in `_layout.tsx` until it has
-  icons of its own. A tab reached by pressing it gets none of the
-  layout's route params, so tabs read their server from `CurrentServer`.
+  `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
+  Symbols for icons. Android keeps the drawn bar in `_layout.tsx` until
+  it has icons of its own. A screen reached by pressing a tab gets none
+  of the layout's route params, so everything under a server reads it
+  from `CurrentServer`.
 - The app tells the system it is light or dark as the theme is
   (`Appearance.setColorScheme`), so what the system draws matches.
 
@@ -81,7 +88,10 @@ leaves another session in the keychain. Who is in each voice room is
 kept there (Ready, then VoiceStateChanged); a screen that needs other
 events listens with `useServerEvents`. A space's channels screen
 reloads, after a moment's quiet, whenever one touches that space, as
-when a channel is created, renamed, deleted or read.
+when a channel is created, renamed, deleted or read. A channel applies
+messages created, edited and deleted to the list it holds, by web's own
+rules (`core/messageList.ts`), and after a reconnect it fetches the
+newest page and joins it to the history already loaded.
 
 ## Themes
 
@@ -175,7 +185,9 @@ native rebuild.
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
 one YAML file each, driving the app on the iPhone simulator: add a server,
 sign in and see the Spaces tab's badges, open a space and see what is
-waiting in each of its channels, add a second server from the
+waiting in each of its channels, read a channel from its "New" line back
+to its first message while messages arrive, change and go, add a second
+server from the
 switcher and switch back (the same server by `127.0.0.1`, which the app
 counts as another), create an account from a pasted invite link, and
 open an invite the way the web's open-in-app page does, then sign in and
@@ -231,8 +243,9 @@ source, not packages:
   the protos.
 - `@stoop/core/*` maps to `../web/src/core/*`, web's code that needs no
   browser. That covers the Markdown parser, mention tokens, permissions,
-  dates, badge counts, and how messages, edits, deletions and reactions
-  change a list of messages. Its tests run with web's (`make test`).
+  dates, badge counts, which messages run together and where the "New"
+  line goes, and how messages, edits, deletions and reactions change a
+  list of messages. Its tests run with web's (`make test`).
 
 Both mappings are in `tsconfig.json`; Metro reads them too, and
 `metro.config.js` watches both folders. `metro.config.js` also makes every

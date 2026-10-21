@@ -1,7 +1,8 @@
 // A change to Book club from inside a flow, as another device would make
 // it. STEP says which: "create" makes CHANNEL_NAME as ada, its owner;
 // "post" has dee write in it, "mention" has dee mention ada there, and
-// "delete" removes it as ada. The seed's values (SERVER, SPACE_ID,
+// "delete" removes it as ada. "say" has dee write TEXT in CHANNEL_ID,
+// "reword" edits that message to TEXT, and "unsay" deletes it. The seed's values (SERVER, SPACE_ID,
 // OWNER_TOKEN, ...) are in scope as they are in the flow. The JSON is
 // built here: Maestro reads ${...} in a flow up to the last brace, so a
 // body written there breaks.
@@ -30,6 +31,12 @@ if (STEP === "create") {
   });
 } else if (STEP === "delete") {
   rpc("DeleteChannel", OWNER_TOKEN, { channelId: output.channelId });
+} else if (STEP === "say") {
+  output.messageId = rpc("SendMessage", POSTER_TOKEN, { channelId: CHANNEL_ID, content: TEXT }).message.id;
+} else if (STEP === "reword") {
+  rpc("EditMessage", POSTER_TOKEN, { messageId: output.messageId, content: TEXT });
+} else if (STEP === "unsay") {
+  rpc("DeleteMessage", POSTER_TOKEN, { messageId: output.messageId });
 } else {
   throw new Error("unknown STEP " + STEP);
 }

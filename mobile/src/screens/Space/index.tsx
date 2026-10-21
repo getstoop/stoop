@@ -14,10 +14,11 @@ import ChannelRow from "./ChannelRow";
 import VoiceRoom from "./VoiceRoom";
 
 // A space's channels, pushed over the Spaces tab: the space's name and
-// what it is, its text channels with what is waiting in each, and its
-// voice rooms with who is in them. Loaded on opening, on a pull, on
-// coming back to the app, and again whenever the realtime socket says
-// something here changed; who is in voice is live from the socket itself.
+// what it is, its text channels with what is waiting in each (each opens
+// the channel), and its voice rooms with who is in them. Loaded on
+// opening, on a pull, on coming back to the app, and again whenever the
+// realtime socket says something here changed; who is in voice is live
+// from the socket itself.
 
 const RELOAD_DELAY_MS = 300;
 
@@ -166,6 +167,7 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
           channel={channel}
           spaceMuted={space.muted}
           mentions={mentions[channel.id] ?? 0}
+          onPress={() => router.push(`/s/${server.id}/space/${spaceId}/channel/${channel.id}`)}
         />
       ))}
       {voice.length > 0 && (

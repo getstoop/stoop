@@ -4,7 +4,9 @@
 //
 // ada and dee are in Book club, which has a description and where dee
 // mentions ada in general, posts in random, and off-topic is muted by
-// ada; ada is also in Climbing crew, unread, and Garden swap, muted. bea has an account but no space; cleo has neither and arrives
+// ada. dee has written more than a page in chapters, the last two since
+// ada read it. ada is also in Climbing crew, unread, and Garden swap,
+// muted. bea has an account but no space; cleo has neither and arrives
 // through the invite.
 
 import { BASE, seed } from "../../web/e2e/seed.mjs";
@@ -45,6 +47,26 @@ const offTopic = await rpc(
 );
 await rpc("chat.v1.ChatService/SetChannelMuted", { channelId: offTopic.channel.id, muted: true }, ada);
 
+// More than the app's first page (50), one at a time so they keep their
+// order; ada has read all but the last two. None mentions ada, so the
+// space's counts are as above.
+const chapters = await rpc(
+  "chat.v1.ChatService/CreateChannel",
+  { spaceId: s.space.id, name: "chapters", kind: "CHANNEL_KIND_TEXT" },
+  ada,
+);
+const CHAPTERS = 55;
+for (let n = 1; n <= CHAPTERS; n++) {
+  const { message } = await rpc(
+    "chat.v1.ChatService/SendMessage",
+    { channelId: chapters.channel.id, content: `Chapter ${n} notes` },
+    dee,
+  );
+  if (n === CHAPTERS - 2) {
+    await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: chapters.channel.id, messageId: message.id }, ada);
+  }
+}
+
 const crew = await rpc("chat.v1.ChatService/CreateSpace", { name: "Climbing crew" }, ada);
 await rpc("chat.v1.ChatService/AddMember", { spaceId: crew.space.id, userId: s.ids.dee }, ada);
 await rpc(
@@ -71,6 +93,7 @@ const env = {
   MEMBER_ID: s.ids.ada,
   OWNER_TOKEN: ada,
   POSTER_TOKEN: dee,
+  CHAPTERS_ID: chapters.channel.id,
   INVITE_LINK: s.invite.url,
   // What the web's open-in-app page fires for that invite.
   OPEN_LINK: `stoop://open?${new URLSearchParams({ server: BASE, path })}`,

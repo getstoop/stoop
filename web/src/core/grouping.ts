@@ -1,12 +1,26 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { sameDay } from "../../core/dates";
-import type { Message } from "../../gen/stoop/chat/v1/message_pb";
+import type { Message } from "../gen/stoop/chat/v1/message_pb";
+import { sameDay } from "./dates";
 
 // A day separator goes above the first message of each calendar day.
 export const startsDay = (m: Message, prev: Message | undefined) =>
   !prev?.createdAt ||
   !m.createdAt ||
   !sameDay(timestampDate(prev.createdAt), timestampDate(m.createdAt));
+
+// Where the "New messages" line goes: above the first message after the
+// read marker as it was when the channel opened, skipping the reader's
+// own (sending one is reading up to it). None when afterId is null.
+export const firstNewMessageId = (
+  messages: Message[],
+  afterId: string | null,
+  myUserId: string | undefined,
+) =>
+  afterId === null
+    ? undefined
+    : messages.find(
+        (message) => message.id > afterId && message.author?.id !== myUserId,
+      )?.id;
 
 // A message continues the previous one when it's from the same author
 // within the same minute, isn't a reply, and doesn't sit at the "New
