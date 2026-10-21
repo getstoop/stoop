@@ -160,15 +160,18 @@ export default function Channel({
   // After a reconnect, everything held is fetched again, from the newest
   // message down to back, the oldest held; the header's facts may have
   // changed too. A reconnect that can't load keeps what is on screen.
+  const reconnects = useRef(0);
   const catchUp = useCallback(
-    (back: string) =>
-      settle((current, next) => {
+    (back: string) => {
+      reconnects.current++;
+      return settle((current, next) => {
         if (current.state !== "ready") return next;
         if (next.state === "failed") return current;
         if (next.state !== "ready") return next;
         const merged = withNewestPage(current.view, next.view);
         return { ...current, token: next.token, view: { ...next.view, ...merged } };
-      }, back),
+      }, back);
+    },
     [settle],
   );
 
@@ -186,12 +189,14 @@ export default function Channel({
     setView((current) => withEvent(current, event));
   });
 
-  // The page above the oldest message held, once at a time. A reconnect
-  // that replaced what is held meanwhile leaves the page nowhere to go.
+  // The page above the oldest message held, once at a time. A page asked
+  // for before a reconnect is dropped: it may predate what was missed, and
+  // the reconnect may have replaced what is held.
   const older = useCallback(async () => {
     if (view.state !== "ready" || view.loadingOlder || !view.view.hasOlder) return;
     const oldest = view.view.messages[0];
     if (!oldest) return;
+    const since = reconnects.current;
     setView((current) => (current.state === "ready" ? { ...current, loadingOlder: true } : current));
     const [page, events] = await keeping(() =>
       loadOlder(server.origin, view.token, channelId, oldest.id).catch(() => null),
@@ -199,16 +204,21 @@ export default function Channel({
     setView((current) => {
       if (current.state !== "ready") return current;
       const held = current.view.messages;
-      if (!page || held[0]?.id !== oldest.id) return { ...current, loadingOlder: false };
-      // Messages that arrived meanwhile are already below; the page goes
-      // above whatever is held now, with what changed in it meanwhile.
-      const above = page.messages.filter((message) => !held.some((cached) => cached.id === message.id));
-      const next: State = {
+      if (!page || since !== reconnects.current) return { ...current, loadingOlder: false };
+      // What changed in the page meanwhile is replayed over it alone: the
+      // same events have already been applied to what is held. A message
+      // that arrived meanwhile is new, so never the page's, and is already
+      // below; the page goes above whatever is held now.
+      const changed = events.reduce(
+        (list, event) => (event.payload.case === "messageCreated" ? list : withChannelEvent(list, event, channelId)),
+        page.messages,
+      );
+      const above = changed.filter((message) => !held.some((cached) => cached.id === message.id));
+      return {
         ...current,
         loadingOlder: false,
         view: { ...current.view, messages: [...above, ...held], hasOlder: page.hasOlder },
       };
-      return events.reduce(replayed, next);
     });
   }, [view, server.origin, channelId, keeping]);
 
