@@ -1,11 +1,7 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
-import {
-  withMessage,
-  withoutMessage,
-  withReplaced,
-  withRootDeleted,
-} from "../core/messageList";
+import { withChannelEvent } from "../core/channelTimeline";
+import { withoutMessage, withReplaced } from "../core/messageList";
 import { ActivityKind } from "../gen/stoop/chat/v1/activity_pb";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
@@ -24,20 +20,13 @@ import { byPosition, withPositions } from "./channels";
 import { authClient } from "./clients";
 import { isSignedOut } from "./errors";
 import { groupsKey } from "./groups";
-import {
-  isLive,
-  type Timeline,
-  timelineId,
-  timelineKey,
-  useHistoryStore,
-} from "./history";
+import { applyTimelineEvent, isTimelineKey, reconnected } from "./history";
 import { isMuted } from "./mutes";
 import { hasAttention, maybeDesktopNotify } from "./notifications";
 import { socketUrl } from "./origin";
 import { applyPinEvent } from "./pins";
 import { myDnd, patchMyDnd } from "./presence";
-import { setReactions } from "./reactions";
-import { refetch, refetchOlderThan } from "./stale";
+import { refetchOlderThan } from "./stale";
 import {
   applyThreadChanged,
   applyThreadMuted,
@@ -182,7 +171,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
   switch (payload.case) {
     case "ready":
       // Sent once this socket is subscribed: anything fetched before now
-      // may have missed an event, so it goes again.
+      // may have missed an event, so it goes again, and a page of history
+      // asked for before now is dropped.
+      reconnected();
       refetchOlderThan(queryClient, Date.now());
       useConnectionStore.getState().setUserId(payload.value.userId);
       useConnectionStore
@@ -221,7 +212,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageCreated": {
       const m = payload.value;
-      appendMessage(queryClient, m);
+      applyTimelineEvent(queryClient, event);
       noteMentionInThread(queryClient, m);
       // A reply that stays in its thread is not in the channel's timeline
       // and does not make the channel unread.
@@ -281,14 +272,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       recomputeSpaceUnread(queryClient, payload.value.spaceId);
       break;
     case "messageUpdated": {
-      const m = payload.value;
-      replaceMessage(queryClient, m);
-      if (!m.deleted) break;
       // A root deleted while its thread has replies arrives as an update.
-      queryClient.setQueriesData<Message[]>(
-        { queryKey: ["messages", m.channelId] },
-        (old) => old && withRootDeleted(old, m.id),
-      );
+      applyTimelineEvent(queryClient, event);
+      applyBesideTimelines(queryClient, payload.value.channelId, event);
       break;
     }
     case "threadChanged": {
@@ -315,13 +301,15 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "reactionsChanged": {
       // Swap in the message's full reaction list; no refetch, no unread
       // effect, no activity item.
-      const r = payload.value;
-      setReactions(queryClient, r.channelId, r.messageId, r.reactions);
+      applyTimelineEvent(queryClient, event);
+      applyBesideTimelines(queryClient, payload.value.channelId, event);
       break;
     }
     case "messageDeleted": {
       const d = payload.value;
-      removeMessageFromCache(queryClient, d.channelId, d.messageId);
+      // A root that goes takes its thread's window with it.
+      applyTimelineEvent(queryClient, event);
+      applyBesideTimelines(queryClient, d.channelId, event);
       // The channel's newest message may have changed; refetch the list.
       queryClient.invalidateQueries({
         queryKey: d.spaceId ? ["channels", d.spaceId] : ["dms"],
@@ -351,6 +339,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     }
     case "channelDeleted":
+      applyTimelineEvent(queryClient, event);
       queryClient.invalidateQueries({ queryKey: ["all-channels"] });
       queryClient.setQueryData<Channel[]>(
         ["channels", payload.value.spaceId],
@@ -551,38 +540,30 @@ export function replaceMessage(queryClient: QueryClient, message: Message) {
 }
 
 // Also used by the send-message mutation, so delivery via RPC response and
-// via the WS event converge on the same deduped cache write. A message
-// goes to the timeline it shows in: its channel's, its thread's, or both.
+// via the WS event converge on the same deduped write. A message goes to
+// the timeline it shows in: its channel's, its thread's, or both.
 export function appendMessage(queryClient: QueryClient, message: Message) {
-  const { channelId, threadRootId } = message;
-  if (message.inChannel || !threadRootId) {
-    appendTo(queryClient, { channelId }, message);
-  }
-  if (threadRootId) {
-    appendTo(queryClient, { channelId, rootId: threadRootId }, message);
-  }
+  applyTimelineEvent(
+    queryClient,
+    create(ServerEventSchema, {
+      payload: { case: "messageCreated", value: message },
+    }),
+  );
 }
 
-function appendTo(queryClient: QueryClient, t: Timeline, message: Message) {
-  const key = timelineKey(t);
-  const current = queryClient.getQueryData<Message[]>(key);
-  if (current === undefined) {
-    // The channel's history isn't in the cache yet. A load in flight may
-    // have read the server before this message existed, so it goes again
-    // once it lands rather than dropping the event.
-    const query = queryClient.getQueryCache().find({ queryKey: key });
-    if (query?.state.fetchStatus === "fetching") refetch(queryClient, query);
-    return;
-  }
-  const next = withMessage(current, message);
-  if (next === current) return;
-  // The window isn't at the newest message (the reader jumped into
-  // history): the message belongs beyond its edge, so count it on the
-  // "Jump to latest" pill rather than splicing it in out of order.
-  const history = useHistoryStore.getState();
-  if (!isLive(history.channels[timelineId(t)])) {
-    history.noteArrival(t);
-    return;
-  }
-  queryClient.setQueryData<Message[]>(key, next);
+// An edit, a deletion or a reaction, for the copies of messages that sit
+// beside the timelines: a thread's root, a linked message. The timelines
+// take theirs through applyTimelineEvent.
+function applyBesideTimelines(
+  queryClient: QueryClient,
+  channelId: string,
+  event: ServerEvent,
+) {
+  queryClient.setQueriesData<Message[]>(
+    {
+      queryKey: ["messages", channelId],
+      predicate: (query) => !isTimelineKey(query.queryKey),
+    },
+    (old) => old && withChannelEvent(old, event, channelId),
+  );
 }

@@ -262,14 +262,15 @@ force-pushes, and a pull request can only merge once every CI job is green
 - **`setQueryData` bumps `dataUpdatedAt`.** An effect keyed on a query's
   `dataUpdatedAt` to detect "a fresh fetch happened" also fires on every
   cache write (the realtime client's appends, history prepends). Put
-  fetch-only side effects in the `queryFn` (see `useMessages` seeding the
-  history store), not in an effect.
+  fetch-only side effects in the `queryFn` (see `useMessages` handing
+  its answer to the history store), not in an effect.
 - **The timeline is a window, not "everything since the top".** A jump
   (reply quote, `?m=`) can replace `["messages", channelId]` wholesale,
-  and a non-live window never contains the newest message. Code that
-  appends realtime events must go through `appendMessage` (which defers
-  to the history store), and a `queryFn` refetch must keep a non-live
-  window rather than swap the newest page in under the reader.
+  and a non-live window never contains the newest message. A realtime
+  message event reaches a timeline through `applyTimelineEvent` (or
+  `appendMessage` for a send's reply), which runs the timeline reducer,
+  and a `queryFn` refetch must keep a non-live window rather than swap
+  the newest page in under the reader.
 - **Dividers are siblings of message rows, not children.** `.new-divider`
   and `.day-divider` sit between `.message` elements in `.message-list`
   (so the row's absolutely positioned avatar stays aligned). From a

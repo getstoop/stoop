@@ -3,8 +3,6 @@ import {
   queryOptions,
   useQuery,
 } from "@tanstack/react-query";
-import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
-import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import {
   authClient,
@@ -13,15 +11,9 @@ import {
   integrationsClient,
 } from "./clients";
 import { isSignedOut } from "./errors";
-import {
-  fetchLiveWindow,
-  isLive,
-  type Timeline,
-  timelineId,
-  timelineKey,
-  useHistoryStore,
-} from "./history";
+import { type Timeline, timelineKey } from "./history";
 import { serverOrigin } from "./origin";
+import { loadWindow } from "./timelineLoads";
 
 // Server-state hooks. Query keys are the vocabulary the WS client uses to
 // apply realtime events, so keep them in sync with src/api/ws.ts.
@@ -161,37 +153,16 @@ export function useChannels(spaceId: string) {
   return useQuery(channelsQuery(spaceId));
 }
 
-// The channel's message window (see api/history.ts). `aroundId` opens the
-// window centred on a message instead of the newest page — a deep link;
-// if it isn't in the channel we fall back to the newest page.
-// A timeline's window: a channel's messages, or a thread's replies.
+// A timeline's window: a channel's messages, or a thread's replies (see
+// api/history.ts). `aroundId` opens it centred on a message instead of the
+// newest page — a deep link; if it isn't in the timeline we fall back to
+// the newest page.
 export function messagesQuery(timeline: Timeline, aroundId?: string) {
-  const { channelId, rootId = "" } = timeline;
+  const { channelId, rootId } = timeline;
   return {
     queryKey: timelineKey(timeline),
-    queryFn: async ({ client }: { client: QueryClient }) => {
-      const t = { channelId, rootId: rootId || undefined };
-      // A refetch (an event, Ready) must not yank a reader who jumped
-      // into history back to the newest page; keep their window as is.
-      // A live one is fetched again over the rows it spans.
-      const have = client.getQueryData<Message[]>(timelineKey(t));
-      let res: ListMessagesResponse | undefined;
-      if (have?.length) {
-        if (!isLive(useHistoryStore.getState().channels[timelineId(t)])) {
-          return have;
-        }
-        res = await fetchLiveWindow(t, have);
-      } else if (aroundId) {
-        res = await chatClient
-          .listMessages({ channelId, threadId: rootId, aroundId })
-          .catch(() => undefined);
-      }
-      res ??= await chatClient.listMessages({ channelId, threadId: rootId });
-      // A real fetch resets what we know about the window's edges (edits
-      // via setQueryData must not).
-      useHistoryStore.getState().seed(t, res);
-      return res.messages;
-    },
+    queryFn: ({ client }: { client: QueryClient }) =>
+      loadWindow(client, { channelId, rootId: rootId || undefined }, aroundId),
     enabled: channelId !== "",
     // The socket keeps the window current, and refetching one spans up to
     // WINDOW_CAP rows; Ready covers what a dropped socket missed.

@@ -28,6 +28,7 @@ import {
   searchShortcodes,
   shortcodeQueryAt,
 } from "../../api/shortcodes";
+import { jumpToLatest } from "../../api/timelineLoads";
 import { appendMessage, sendClientEvent } from "../../api/ws";
 import {
   AttachmentStrip,
@@ -391,11 +392,11 @@ export function Composer({
       // way. Sent from inside history, the window is replaced by the newest
       // page so the message is seen where it landed.
       if (res.message) {
-        const h = useHistoryStore.getState();
-        if (isLive(h.channels[timelineId(timeline)])) {
+        const { channels } = useHistoryStore.getState();
+        if (isLive(channels[timelineId(timeline)])) {
           appendMessage(queryClient, res.message);
         } else {
-          await h.jumpToLatest(queryClient, timeline);
+          await jumpToLatest(queryClient, timeline);
         }
       }
     } catch (err) {

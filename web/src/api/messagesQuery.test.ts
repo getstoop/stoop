@@ -5,6 +5,7 @@ import { ListMessagesResponseSchema } from "../gen/stoop/chat/v1/chat_pb";
 import { type Message, MessageSchema } from "../gen/stoop/chat/v1/message_pb";
 import { useHistoryStore } from "./history";
 import { messagesQuery } from "./queries";
+import { loadOlder } from "./timelineLoads";
 
 const { listMessages } = vi.hoisted(() => ({ listMessages: vi.fn() }));
 vi.mock("./clients", () => ({ chatClient: { listMessages } }));
@@ -42,7 +43,7 @@ describe("messagesQuery", () => {
   beforeEach(() => {
     listMessages.mockReset();
     listMessages.mockImplementation(serve);
-    useHistoryStore.setState({ channels: {} });
+    useHistoryStore.setState({ channels: {}, windows: {} });
   });
 
   it("keeps the history paged in when a live window is refetched", async () => {
@@ -50,9 +51,8 @@ describe("messagesQuery", () => {
     const timeline = { channelId: CHANNEL };
     const query = messagesQuery(timeline);
     await queryClient.fetchQuery(query);
-    const store = useHistoryStore.getState();
-    await store.loadOlder(queryClient, timeline);
-    await store.loadOlder(queryClient, timeline);
+    await loadOlder(queryClient, timeline);
+    await loadOlder(queryClient, timeline);
     const paged = queryClient.getQueryData<Message[]>(query.queryKey);
     expect(paged).toHaveLength(150);
 
@@ -71,7 +71,7 @@ describe("messagesQuery", () => {
     const timeline = { channelId: CHANNEL };
     const query = messagesQuery(timeline);
     await queryClient.fetchQuery(query);
-    await useHistoryStore.getState().loadOlder(queryClient, timeline);
+    await loadOlder(queryClient, timeline);
     const oldest = channel[TOTAL - 100];
     channel[TOTAL - 100] = { ...oldest, content: "renamed" };
 
