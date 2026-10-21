@@ -1,22 +1,15 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { losesChannel, withChannelEvent, withNewestPage } from "@stoop/core/channelTimeline";
 import { dayLabel } from "@stoop/core/dates";
 import { continues, firstNewMessageId, startsDay } from "@stoop/core/grouping";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
+import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  ChannelGone,
-  type ChannelView,
-  loadChannel,
-  loadOlder,
-  losesChannel,
-  markRead,
-  withChannelEvent,
-  withNewestPage,
-} from "../../api/messages";
+import { ChannelGone, type ChannelView, loadChannel, loadOlder, markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
@@ -52,6 +45,21 @@ type Item =
   | { kind: "message"; key: string; message: Message; continued: boolean }
   | { kind: "day" | "new"; key: string; label: string };
 
+// What a realtime event does to the screen: a rename retitles it, losing
+// the channel ends it, and the rest is the timeline's (core/channelTimeline).
+function withEvent(current: State, event: ServerEvent): State {
+  if (current.state !== "ready") return current;
+  const { view } = current;
+  if (losesChannel(event, view.space.id, view.channel.id, view.myUserId)) return { state: "gone" };
+  if (event.payload.case === "channelUpdated") {
+    if (event.payload.value.id !== view.channel.id) return current;
+    const { name, private: closed, topic, postPolicy } = event.payload.value;
+    return { ...current, view: { ...view, channel: { ...view.channel, name, private: closed, topic, postPolicy } } };
+  }
+  const messages = withChannelEvent(view.messages, event, view.channel.id);
+  return messages === view.messages ? current : { ...current, view: { ...view, messages } };
+}
+
 export default function Channel({
   server,
   spaceId,
@@ -86,13 +94,25 @@ export default function Channel({
     }
   }, [server, spaceId, channelId]);
 
-  // As the space's screen: overlapping loads show only the latest.
+  // As the space's screen: overlapping loads show only the latest. A
+  // load's page was fetched before whatever arrives while the rest of it
+  // runs, so events are kept from its start and replayed over its result.
   const latest = useRef(0);
-  const open = useCallback(async () => {
-    const mine = ++latest.current;
-    const next = await load();
-    if (mine === latest.current) setView(next);
-  }, [load]);
+  const missed = useRef<ServerEvent[] | null>(null);
+  const settle = useCallback(
+    async (merge: (current: State, next: State) => State) => {
+      const mine = ++latest.current;
+      missed.current = [];
+      const next = await load();
+      if (mine !== latest.current) return;
+      const events = missed.current ?? [];
+      missed.current = null;
+      setView((current) => events.reduce(withEvent, merge(current, next)));
+    },
+    [load],
+  );
+
+  const open = useCallback(() => settle((_, next) => next), [settle]);
 
   useEffect(() => {
     open();
@@ -104,46 +124,34 @@ export default function Channel({
   }, [open]);
 
   // After a reconnect, the newest page in place of the newest end held;
-  // the header's facts may have changed too.
-  const catchUp = useCallback(async () => {
-    const mine = ++latest.current;
-    const next = await load();
-    if (mine !== latest.current) return;
-    setView((current) => {
-      if (current.state !== "ready" || next.state !== "ready") return next;
-      const merged = withNewestPage(current.view, next.view);
-      return { ...current, token: next.token, view: { ...next.view, ...merged } };
-    });
-  }, [load]);
+  // the header's facts may have changed too. A reconnect that can't load
+  // keeps what is on screen.
+  const catchUp = useCallback(
+    () =>
+      settle((current, next) => {
+        if (current.state !== "ready") return next;
+        if (next.state === "failed") return current;
+        if (next.state !== "ready") return next;
+        const merged = withNewestPage(current.view, next.view);
+        return { ...current, token: next.token, view: { ...next.view, ...merged } };
+      }),
+    [settle],
+  );
 
   useServerEvents(server.id, (event) => {
-    if (view.state !== "ready") return;
     if (event.payload.case === "ready") {
-      catchUp();
+      if (view.state === "ready") catchUp();
+      else if (view.state === "failed") open();
       return;
     }
-    if (losesChannel(event, spaceId, channelId, view.view.myUserId)) {
-      latest.current++;
-      setView({ state: "gone" });
-      return;
-    }
-    if (event.payload.case === "channelUpdated" && event.payload.value.id === channelId) {
-      const { name, private: closed, topic, postPolicy } = event.payload.value;
-      setView((current) =>
-        current.state === "ready"
-          ? { ...current, view: { ...current.view, channel: { ...current.view.channel, name, private: closed, topic, postPolicy } } }
-          : current,
-      );
-      return;
-    }
-    setView((current) => {
-      if (current.state !== "ready") return current;
-      const messages = withChannelEvent(current.view.messages, event, channelId);
-      return messages === current.view.messages ? current : { ...current, view: { ...current.view, messages } };
-    });
+    missed.current?.push(event);
+    if (view.state !== "ready") return;
+    if (losesChannel(event, spaceId, channelId, view.view.myUserId)) latest.current++;
+    setView((current) => withEvent(current, event));
   });
 
-  // The page above the oldest message held, once at a time.
+  // The page above the oldest message held, once at a time. A reconnect
+  // that replaced what is held meanwhile leaves the page nowhere to go.
   const older = useCallback(async () => {
     if (view.state !== "ready" || view.loadingOlder || !view.view.hasOlder) return;
     const oldest = view.view.messages[0];
@@ -152,10 +160,10 @@ export default function Channel({
     const page = await loadOlder(server.origin, view.token, channelId, oldest.id).catch(() => null);
     setView((current) => {
       if (current.state !== "ready") return current;
-      if (!page) return { ...current, loadingOlder: false };
+      const held = current.view.messages;
+      if (!page || held[0]?.id !== oldest.id) return { ...current, loadingOlder: false };
       // Messages that arrived meanwhile are already below; the page goes
       // above whatever is held now.
-      const held = current.view.messages;
       const above = page.messages.filter((message) => !held.some((cached) => cached.id === message.id));
       return {
         ...current,

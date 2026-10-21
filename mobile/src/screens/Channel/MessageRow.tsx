@@ -1,8 +1,8 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { mentionsMe } from "@stoop/core/channelTimeline";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { mentionsMe } from "../../api/messages";
 import Avatar from "../../components/Avatar";
 import { type Theme, tokens, useTheme } from "../../theme";
 import MessageText from "./MessageText";

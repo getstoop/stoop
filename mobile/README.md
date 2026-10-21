@@ -50,7 +50,7 @@ import a screen; the screens themselves live in `src/screens`, so
 - To land on a server, go to `/`, which opens the first saved server
   (put first by signing in or switching), never `replace` to `/s/<id>`:
   with another server's `/s/<id>` under it, expo-router navigates inside
-  that server's tabs and the server never changes. The switcher is the
+  that server's stack and the server never changes. The switcher is the
   one exception: it dispatches a plain stack `REPLACE` at the screen
   under its sheet, so the sheet closes onto the new server
   (`src/screens/ServerSwitcher/index.tsx`).
@@ -64,7 +64,7 @@ import a screen; the screens themselves live in `src/screens`, so
   the bottom of the screen for its composer.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
-  Symbols for icons. Android keeps the drawn bar in `_layout.tsx` until
+  Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
   it has icons of its own. A screen reached by pressing a tab gets none
   of the layout's route params, so everything under a server reads it
   from `CurrentServer`.

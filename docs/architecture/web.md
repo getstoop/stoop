@@ -189,6 +189,9 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   to show; it keeps no copy of the role table. The server still enforces.
 - `messageList.ts` — what a new message, an edit, a deletion or a reaction
   does to a list of messages.
+- `channelTimeline.ts` — the app's window of a channel's messages: what a
+  realtime event does to it, and how a reconnect's newest page joins the
+  history already held.
 - `grouping.ts` — where a day line goes, which message continues the one
   before (same author, same minute), and the first message under the
   "New messages" line.

@@ -35,7 +35,8 @@ name: Open a channel and read it, from what is new back to the beginning, kept l
     visible: "chapters, ${SPACE}, \\d+ members"
     timeout: 15000
 # dee's last two notes are new since ada read them (seed.mjs).
-- assertVisible: "New messages"
+# On a day boundary the line reads "Today · New messages".
+- assertVisible: ".*New messages"
 - assertVisible: "Chapter 55 notes"
 # Live: a message written, edited and deleted elsewhere changes here as
 # it happens, through the realtime socket.
