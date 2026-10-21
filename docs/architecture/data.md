@@ -160,9 +160,10 @@ arriving or dismissed, a root kept as a placeholder, a root whose thread
 summary changed — takes the next value with
 `UPDATE channels SET seq = seq + 1 … RETURNING seq` and stamps the row in
 the same transaction. The row lock is the point: writes to one channel
-commit one at a time, so "next" is exact, and every transaction that
+commit one at a time, so "next" is exact, and every RPC transaction that
 writes message rows takes the channel row first (`internal/chat/seq.go`).
-A hard delete stamps nothing. `channels.swept_seq` is for the retention
+The retention sweep is the exception until step 3 of the proposal brings
+its deletes under the same rule. A hard delete stamps nothing. `channels.swept_seq` is for the retention
 sweep to record the highest seq it hard-deleted; nothing writes it yet.
 `messages.seq` is nullable this release and `NOT NULL` the next;
 migration 00068 backfilled it as each row's rank by id in its channel.
