@@ -74,6 +74,12 @@ RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channe
 -- name: StampMessageSeq :execrows
 UPDATE messages SET seq = sqlc.arg(seq)::bigint WHERE id = sqlc.arg(id);
 
+-- StampLiveMessageSeq is StampMessageSeq for a write that means nothing
+-- on a tombstone (a link preview arriving): no row means the message was
+-- deleted meanwhile.
+-- name: StampLiveMessageSeq :execrows
+UPDATE messages SET seq = sqlc.arg(seq)::bigint WHERE id = sqlc.arg(id) AND deleted_at IS NULL;
+
 -- TombstoneMessage is the one way a message is deleted
 -- (internal/chat/tombstones.go): the row stays with deleted_at set and no
 -- text (the search column follows), and what a hard delete used to

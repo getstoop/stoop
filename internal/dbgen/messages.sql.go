@@ -440,6 +440,26 @@ func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) er
 	return err
 }
 
+const stampLiveMessageSeq = `-- name: StampLiveMessageSeq :execrows
+UPDATE messages SET seq = $1::bigint WHERE id = $2 AND deleted_at IS NULL
+`
+
+type StampLiveMessageSeqParams struct {
+	Seq int64
+	ID  string
+}
+
+// StampLiveMessageSeq is StampMessageSeq for a write that means nothing
+// on a tombstone (a link preview arriving): no row means the message was
+// deleted meanwhile.
+func (q *Queries) StampLiveMessageSeq(ctx context.Context, arg StampLiveMessageSeqParams) (int64, error) {
+	result, err := q.db.Exec(ctx, stampLiveMessageSeq, arg.Seq, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const stampMessageSeq = `-- name: StampMessageSeq :execrows
 UPDATE messages SET seq = $1::bigint WHERE id = $2
 `

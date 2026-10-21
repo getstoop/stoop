@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"time"
@@ -275,11 +276,23 @@ func (s *Service) fetchPreview(ctx context.Context, url, ownerID string) {
 }
 
 // stampPreviewed takes the message's next log position once its previews
-// are in: the cards are part of the row as a client sees it.
+// are in: the cards are part of the row as a client sees it. A message
+// deleted meanwhile has no cards: the stamp rolls back as errMessageGone
+// and the position is not spent.
 func (s *Service) stampPreviewed(ctx context.Context, channelID, messageID string) error {
 	return s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		_, err := stampMessage(ctx, qtx, channelID, messageID)
-		return err
+		seq, err := qtx.NextChannelSeq(ctx, channelID)
+		if err != nil {
+			return fmt.Errorf("next channel seq: %w", err)
+		}
+		stamped, err := qtx.StampLiveMessageSeq(ctx, dbgen.StampLiveMessageSeqParams{ID: messageID, Seq: seq})
+		if err != nil {
+			return fmt.Errorf("stamp message seq: %w", err)
+		}
+		if stamped == 0 {
+			return connect.NewError(connect.CodeNotFound, errMessageGone)
+		}
+		return nil
 	})
 }
 

@@ -159,10 +159,14 @@ func tombstoneReply(ctx context.Context, qtx *dbgen.Queries, channelID string, m
 
 // hideRoot is what follows a top-level tombstone nobody is shown any
 // more: the thread's mutes and read markers go, as a hard delete took
-// them, and the channel's newest message is read again.
+// them, so does a pin (a pinned row would be listed empty and kept from
+// the sweep), and the channel's newest message is read again.
 func hideRoot(ctx context.Context, qtx *dbgen.Queries, channelID, rootID string) error {
 	if err := qtx.DeleteThreadViewerRows(ctx, rootID); err != nil {
 		return fmt.Errorf("delete thread viewer rows: %w", err)
+	}
+	if _, err := qtx.UnpinMessage(ctx, rootID); err != nil {
+		return fmt.Errorf("unpin hidden root: %w", err)
 	}
 	if err := qtx.RecomputeChannelLastMessage(ctx, channelID); err != nil {
 		return fmt.Errorf("recompute channel: %w", err)

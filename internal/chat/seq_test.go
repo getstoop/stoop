@@ -14,6 +14,21 @@ import (
 	"github.com/getstoop/stoop/internal/chat"
 )
 
+// deletingUnfurler answers like fakeUnfurler, but first runs delete when
+// set: a preview landing after its message was deleted (the message is
+// committed before its links are fetched).
+type deletingUnfurler struct {
+	*fakeUnfurler
+	delete func()
+}
+
+func (d *deletingUnfurler) Fetch(ctx context.Context, url string) (chat.LinkMeta, error) {
+	if d.delete != nil {
+		d.delete()
+	}
+	return d.fakeUnfurler.Fetch(ctx, url)
+}
+
 // channelSeq reads a channel's log counter.
 func channelSeq(t *testing.T, pool *pgxpool.Pool, channelID string) int64 {
 	t.Helper()
@@ -42,7 +57,8 @@ func messageSeq(t *testing.T, pool *pgxpool.Pool, messageID string) int64 {
 // (docs/proposals/channel-log.md).
 func TestChannelLogStampsEveryWrite(t *testing.T) {
 	pool, _, svc := newTestService(t)
-	svc.UseUnfurler(&fakeUnfurler{fetches: map[string]int{}}, &fakePreviewImages{pool: pool}, chat.UnfurlOptions{Inline: true})
+	deleter := &deletingUnfurler{fakeUnfurler: &fakeUnfurler{fetches: map[string]int{}}}
+	svc.UseUnfurler(deleter, &fakePreviewImages{pool: pool}, chat.UnfurlOptions{Inline: true})
 	owner := newUser(t, pool, "owner", authctx.RoleMember)
 	sp, err := svc.CreateSpace(owner, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
 	if err != nil {
@@ -194,6 +210,22 @@ func TestChannelLogStampsEveryWrite(t *testing.T) {
 	}
 	// Delete thread stamps every row it tombstones.
 	expect("delete thread", 2, threadReply.Id, root.Id)
+
+	// A preview that lands after its message was deleted stamps nothing:
+	// the unfurler here deletes the message before answering.
+	deleter.delete = func() {
+		var newest string
+		if err := pool.QueryRow(context.Background(), `SELECT id FROM messages WHERE channel_id = $1 ORDER BY id DESC LIMIT 1`, channelID).Scan(&newest); err != nil {
+			t.Fatal(err)
+		}
+		remove(newest)
+	}
+	late := send(&chatv1.SendMessageRequest{Content: "https://example.com/plain"})
+	deleter.delete = nil
+	expect("send, then delete before the preview lands", 2, late.Id)
+	if readSeq := messageSeq(t, pool, late.Id); readSeq != last {
+		t.Errorf("the tombstone was stamped %d by the preview, want the delete's %d", readSeq, last)
+	}
 
 	// The page says where the channel's log stood, and every row is at or
 	// below it.

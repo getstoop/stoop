@@ -270,8 +270,19 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 		t.Errorf("last_message_id with the placeholder newest = %q, want the placeholder as before", got)
 	}
 
+	// Pinning a placeholder is refused, as edits and reactions are.
+	if _, err := svc.SetMessagePinned(owner, connect.NewRequest(&chatv1.SetMessagePinnedRequest{MessageId: root.Id, Pinned: true})); code(err) != connect.CodeFailedPrecondition {
+		t.Errorf("pinning a placeholder: want failed_precondition, got %v", err)
+	}
+	// A pin row that got there anyway (a binary from before the refusal)
+	// goes when the root is hidden.
+	if _, err := pool.Exec(context.Background(), `INSERT INTO channel_pins (message_id, channel_id, pinned_by) VALUES ($1, $2, $3)`, root.Id, channelID, authctx.UserID(owner)); err != nil {
+		t.Fatal(err)
+	}
+
 	// Its last reply going hides it: both rows are stamped, the channel
-	// hears of both, the thread's mute goes, and the channel falls back.
+	// hears of both, the thread's mute and pin go, and the channel falls
+	// back.
 	before = channelSeq(t, pool, channelID)
 	remove(owner, byOwner.Id)
 	replyRow := expectTombstone("last reply under a placeholder", byOwner.Id, before)
@@ -297,6 +308,9 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 	}
 	if mutes != 0 {
 		t.Errorf("%d thread mutes survived the thread", mutes)
+	}
+	if pins, err := svc.ListPinnedMessages(owner, connect.NewRequest(&chatv1.ListPinnedMessagesRequest{ChannelId: channelID})); err != nil || len(pins.Msg.Pins) != 0 {
+		t.Errorf("the hidden root is still pinned: %v %v", pins.Msg.GetPins(), err)
 	}
 	if got := lastMessage(); got != earlier.Id {
 		t.Errorf("last_message_id after the thread went = %q, want the earlier message", got)

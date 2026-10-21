@@ -743,8 +743,8 @@ in the root's thread and not in the channel's timeline
   placeholder: the tombstone (no text, attachments, previews, reactions,
   mentions, pin or activity) stays in the channel with its summary, and
   its thread still opens. Clients get `MessageUpdated` with `deleted`
-  set. Edits, reactions, quotes and new replies on it are refused; a
-  quote of it reads like a quote of a deleted message. When its last
+  set. Edits, reactions, pins, quotes and new replies on it are refused;
+  a quote of it reads like a quote of a deleted message. When its last
   live reply goes the summary row is dropped and the placeholder is
   hidden with it — stamped again, its thread mutes and read markers
   deleted, `MessageDeleted` published for the reply and then for the
